@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, BatchTestBase, InMemoryLookupableTableSource}
+
 import org.junit.{Before, Test}
 
 class LookupJoinITCase extends BatchTestBase {
@@ -55,7 +56,8 @@ class LookupJoinITCase extends BatchTestBase {
     .build()
 
   @Before
-  def setup() {
+  override def before() {
+    super.before()
     BatchTableEnvUtil.registerCollection(tEnv, "T0", data, typeInfo, "id, len, content")
     val myTable = tEnv.sqlQuery("SELECT *, PROCTIME() as proctime  FROM T0")
     tEnv.registerTable("T", myTable)

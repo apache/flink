@@ -24,12 +24,12 @@ import org.apache.flink.runtime.io.network.DataExchangeMode
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.{PartitionTransformation, ShuffleMode}
 import org.apache.flink.streaming.runtime.partitioner.{BroadcastPartitioner, GlobalPartitioner, RebalancePartitioner}
-import org.apache.flink.table.api.BatchTableEnvironment
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGeneratorContext, HashCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.common.CommonPhysicalExchange
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.BatchPlanner
 import org.apache.flink.table.runtime.BinaryHashPartitioner
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
@@ -141,21 +141,21 @@ class BatchExecExchange(
     }
   }
 
-  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
+    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
-  override def translateToPlanInternal(
-      tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
+  override protected def translateToPlanInternal(
+      planner: BatchPlanner): Transformation[BaseRow] = {
     val input = reusedInput match {
       case Some(transformation) => transformation
       case None =>
-        val input = getInputNodes.get(0).translateToPlan(tableEnv)
+        val input = getInputNodes.get(0).translateToPlan(planner)
             .asInstanceOf[Transformation[BaseRow]]
         reusedInput = Some(input)
         input
@@ -211,7 +211,7 @@ class BatchExecExchange(
         val keys = relDistribution.getKeys
         val partitioner = new BinaryHashPartitioner(
           HashCodeGenerator.generateRowHash(
-            CodeGeneratorContext(tableEnv.config),
+            CodeGeneratorContext(planner.getTableConfig),
             RowType.of(inputType.getLogicalTypes: _*),
             "HashPartitioner",
             keys.map(_.intValue()).toArray),

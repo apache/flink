@@ -61,7 +61,8 @@ class WindowAggregateITCase(mode: StateBackendMode)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset
           [(Long, Int, Double, Float, BigDecimal, String, String)](10L))
-    val table = stream.toTable(tEnv, 'rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    val table = stream.toTable(tEnv,
+      'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
     tEnv.registerTable("T1", table)
 
     val sql =
@@ -113,7 +114,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
     val stream = failingDataSource(sessionData)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, String, String)](10L))
-    val table = stream.toTable(tEnv, 'rowtime, 'int, 'string, 'name)
+    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'string, 'name)
     tEnv.registerTable("T1", table)
 
     val sql =
@@ -160,7 +161,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
 
     val stream = failingDataSource(data)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](0L))
-    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime)
+    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
     tEnv.registerTable("T1", table)
     tEnv.registerFunction("weightAvgFun", new WeightedAvg)
 
@@ -197,8 +198,9 @@ class WindowAggregateITCase(mode: StateBackendMode)
     val fieldNames = fieldTypes.indices.map("f" + _).toArray
 
     val sink = new TestingUpsertTableSink(Array(0, 1)).configure(fieldNames, fieldTypes)
-    tEnv.writeToSink(result, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(result, "MySink")
+    tEnv.execute("test")
 
     val expected = Seq(
       "Hi,1970-01-01 00:00:00.000,1970-01-01 00:00:00.005,1,1,1,1,1,1,1",
@@ -222,7 +224,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
 
     val stream = failingDataSource(sessionWindowTestData)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](10L))
-    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
     tEnv.registerTable("MyTable", table)
 
     val sqlQuery =

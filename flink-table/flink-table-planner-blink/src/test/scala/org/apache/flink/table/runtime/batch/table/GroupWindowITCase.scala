@@ -20,11 +20,10 @@ package org.apache.flink.table.runtime.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{Session, Slide, TableException, Tumble}
-import org.apache.flink.table.runtime.utils.{BatchScalaTableEnvUtil, BatchTestBase}
+import org.apache.flink.table.api.{Session, Slide, TableException, Tumble, ValidationException}
+import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, BatchTestBase}
 import org.apache.flink.table.util.CountAggFunction
 import org.apache.flink.test.util.TestBaseUtils
-import org.apache.flink.types.Row
 
 import org.junit._
 
@@ -45,20 +44,22 @@ class GroupWindowITCase extends BatchTestBase {
 
   @Test(expected = classOf[TableException])
   def testAllEventTimeTumblingWindowOverCount(): Unit = {
-    val table = BatchScalaTableEnvUtil.fromCollection(tEnv, data,
+    val table = BatchTableEnvUtil.fromCollection(tEnv, data,
       "long, int, double, float, bigdec, string")
 
     // Count tumbling non-grouping window on event-time are currently not supported
-    table
+    val result = table
       .window(Tumble over 2.rows on 'long as 'w)
       .groupBy('w)
       .select('int.count)
-      .toDataStream[Row]
+    executeQuery(result)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
+  // TODO
+  @Ignore("remove ignore while https://github.com/apache/flink/pull/9006 is merged")
   def testEventTimeTumblingGroupWindowOverCount(): Unit = {
-    val table = BatchScalaTableEnvUtil.fromCollection(tEnv, data,
+    val table = BatchTableEnvUtil.fromCollection(tEnv, data,
       "long, int, double, float, bigdec, string")
 
     val windowedTable = table
@@ -77,7 +78,7 @@ class GroupWindowITCase extends BatchTestBase {
 
   @Test
   def testEventTimeTumblingGroupWindowOverTime(): Unit = {
-    val table = BatchScalaTableEnvUtil.fromCollection(tEnv,
+    val table = BatchTableEnvUtil.fromCollection(tEnv,
       data, "long, int, double, float, bigdec, string")
 
     val windowedTable = table
@@ -99,7 +100,7 @@ class GroupWindowITCase extends BatchTestBase {
 
   @Test
   def testAllEventTimeTumblingWindowOverTime(): Unit = {
-    val table = BatchScalaTableEnvUtil.fromCollection(
+    val table = BatchTableEnvUtil.fromCollection(
       tEnv, data, "long, int, double, float, bigdec, string")
 
     val windowedTable = table
@@ -118,7 +119,7 @@ class GroupWindowITCase extends BatchTestBase {
 
   @Test(expected = classOf[TableException])
   def testEventTimeSessionGroupWindow(): Unit = {
-    val table = BatchScalaTableEnvUtil.fromCollection(
+    val table = BatchTableEnvUtil.fromCollection(
       tEnv, data, "long, int, double, float, bigdec, string")
     val windowedTable = table
       .window(Session withGap 7.milli on 'long as 'w)
@@ -138,7 +139,7 @@ class GroupWindowITCase extends BatchTestBase {
 
   @Test(expected = classOf[TableException])
   def testAllEventTimeSessionGroupWindow(): Unit = {
-    val table = BatchScalaTableEnvUtil.fromCollection(
+    val table = BatchTableEnvUtil.fromCollection(
       tEnv, data, "long, int, double, float, bigdec, string")
 
     val windowedTable = table
@@ -157,7 +158,7 @@ class GroupWindowITCase extends BatchTestBase {
 
   @Test
   def testMultiGroupWindow(): Unit = {
-    val table = BatchScalaTableEnvUtil.fromCollection(
+    val table = BatchTableEnvUtil.fromCollection(
       tEnv, data, "long, int, double, float, bigdec, string")
 
     val windowedTable = table
@@ -186,7 +187,7 @@ class GroupWindowITCase extends BatchTestBase {
 
   @Test(expected = classOf[TableException])
   def testAllEventTimeSlidingGroupWindowOverCount(): Unit = {
-    val table = BatchScalaTableEnvUtil.fromCollection(
+    val table = BatchTableEnvUtil.fromCollection(
       tEnv, data, "long, int, double, float, bigdec, string")
 
     // Count sliding group window on event-time are currently not supported
@@ -201,7 +202,7 @@ class GroupWindowITCase extends BatchTestBase {
   @Test
   def testAllEventTimeSlidingGroupWindowOverTime(): Unit = {
     // please keep this test in sync with the DataStream variant
-    val table = BatchScalaTableEnvUtil.fromCollection(
+    val table = BatchTableEnvUtil.fromCollection(
       tEnv, data, "long, int, double, float, bigdec, string")
 
     val windowedTable = table
@@ -227,7 +228,7 @@ class GroupWindowITCase extends BatchTestBase {
   @Test
   def testEventTimeSlidingGroupWindowOverTimeOverlappingFullPane(): Unit = {
     // please keep this test in sync with the DataStream variant
-    val table = BatchScalaTableEnvUtil.fromCollection(
+    val table = BatchTableEnvUtil.fromCollection(
       tEnv, data, "long, int, double, float, bigdec, string")
       .select('int, 'long, 'string) // keep this select to enforce that the 'string key comes last
 
@@ -256,7 +257,7 @@ class GroupWindowITCase extends BatchTestBase {
   @Test
   def testEventTimeSlidingGroupWindowOverTimeOverlappingSplitPane(): Unit = {
     // please keep this test in sync with the DataStream variant
-    val table = BatchScalaTableEnvUtil.fromCollection(
+    val table = BatchTableEnvUtil.fromCollection(
       tEnv, data, "long, int, double, float, bigdec, string")
 
     val windowedTable = table
@@ -281,7 +282,7 @@ class GroupWindowITCase extends BatchTestBase {
   @Test
   def testEventTimeSlidingGroupWindowOverTimeNonOverlappingFullPane(): Unit = {
     // please keep this test in sync with the DataStream variant
-    val table = BatchScalaTableEnvUtil.fromCollection(
+    val table = BatchTableEnvUtil.fromCollection(
       tEnv, data, "long, int, double, float, bigdec, string")
 
     val windowedTable = table
@@ -301,7 +302,7 @@ class GroupWindowITCase extends BatchTestBase {
   @Test
   def testEventTimeSlidingGroupWindowOverTimeNonOverlappingSplitPane(): Unit = {
     // please keep this test in sync with the DataStream variant
-    val table = BatchScalaTableEnvUtil.fromCollection(
+    val table = BatchTableEnvUtil.fromCollection(
       tEnv, data, "long, int, double, float, bigdec, string")
 
     val windowedTable = table
@@ -320,7 +321,7 @@ class GroupWindowITCase extends BatchTestBase {
   @Test
   def testEventTimeSlidingGroupWindowOverTimeNonOverlappingSplitPaneWithUdagg(): Unit = {
     // please keep this test in sync with the DataStream variant
-    val table = BatchScalaTableEnvUtil.fromCollection(
+    val table = BatchTableEnvUtil.fromCollection(
       tEnv, data, "long, int, double, float, bigdec, string")
 
     // UDAGG

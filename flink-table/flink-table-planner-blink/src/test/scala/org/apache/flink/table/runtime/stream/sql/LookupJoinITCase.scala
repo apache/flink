@@ -67,7 +67,7 @@ class LookupJoinITCase extends StreamingTestBase {
   @Test
   def testJoinTemporalTable(): Unit = {
     val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -90,7 +90,7 @@ class LookupJoinITCase extends StreamingTestBase {
   @Test
   def testJoinTemporalTableWithUdfFilter(): Unit = {
     val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -115,7 +115,7 @@ class LookupJoinITCase extends StreamingTestBase {
   @Test
   def testJoinTemporalTableOnConstantKey(): Unit = {
     val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -142,7 +142,7 @@ class LookupJoinITCase extends StreamingTestBase {
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.STRING_TYPE_INFO)
     val streamTable = env.fromCollection(dataWithNull)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -162,7 +162,7 @@ class LookupJoinITCase extends StreamingTestBase {
   @Test
   def testJoinTemporalTableWithPushDown(): Unit = {
     val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -184,7 +184,7 @@ class LookupJoinITCase extends StreamingTestBase {
   @Test
   def testJoinTemporalTableWithNonEqualFilter(): Unit = {
     val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -206,7 +206,7 @@ class LookupJoinITCase extends StreamingTestBase {
   @Test
   def testJoinTemporalTableOnMultiFields(): Unit = {
     val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -228,7 +228,7 @@ class LookupJoinITCase extends StreamingTestBase {
   @Test
   def testJoinTemporalTableOnMultiKeyFields(): Unit = {
     val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSourceWith2Keys)
@@ -250,7 +250,7 @@ class LookupJoinITCase extends StreamingTestBase {
   @Test
   def testJoinTemporalTableOnMultiKeyFields2(): Unit = {
     val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     // pk is (id: Int, name: String)
@@ -275,7 +275,7 @@ class LookupJoinITCase extends StreamingTestBase {
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithConstantKey(): Unit = {
     val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSourceWith2Keys)
@@ -295,7 +295,7 @@ class LookupJoinITCase extends StreamingTestBase {
   @Test
   def testJoinTemporalTableOnMultiKeyFieldsWithStringConstantKey(): Unit = {
     val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSourceWith2Keys)
@@ -315,7 +315,7 @@ class LookupJoinITCase extends StreamingTestBase {
   @Test
   def testJoinTemporalTableOnMultiConstantKey(): Unit = {
     val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSourceWith2Keys)
@@ -341,7 +341,7 @@ class LookupJoinITCase extends StreamingTestBase {
   @Test
   def testLeftJoinTemporalTable(): Unit = {
     val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -371,7 +371,7 @@ class LookupJoinITCase extends StreamingTestBase {
       BasicTypeInfo.INT_TYPE_INFO,
       BasicTypeInfo.STRING_TYPE_INFO)
     val streamTable = env.fromCollection(dataWithNull)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)
@@ -395,7 +395,7 @@ class LookupJoinITCase extends StreamingTestBase {
   @Test
   def testLeftJoinTemporalTableOnMultKeyFields(): Unit = {
     val streamTable = env.fromCollection(data)
-      .toTable(tEnv, 'id, 'len, 'content, 'proctime)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
 
     tEnv.registerTableSource("userTable", userTableSource)

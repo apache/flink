@@ -17,35 +17,37 @@
  */
 package org.apache.flink.table.plan.stream.sql.join
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
+
 import org.hamcrest.Matchers.containsString
 import org.junit.Test
+
+import java.sql.Timestamp
 
 class TemporalJoinTest extends TableTestBase {
 
   val util: StreamTableTestUtil = streamTestUtil()
 
-  val orders = util.addDataStream[(Long, String, Timestamp)](
-    "Orders", 'o_amount, 'o_currency, 'o_rowtime)
+  private val orders = util.addDataStream[(Long, String)](
+    "Orders", 'o_amount, 'o_currency, 'o_rowtime.rowtime)
 
-  val ratesHistory = util.addDataStream[(String, Int, Timestamp)](
-    "RatesHistory", 'currency, 'rate, 'rowtime)
+  private val ratesHistory = util.addDataStream[(String, Int, Timestamp)](
+    "RatesHistory", 'currency, 'rate, 'rowtime.rowtime)
 
-  val rates = util.addFunction(
+  util.addFunction(
     "Rates",
     ratesHistory.createTemporalTableFunction("rowtime", "currency"))
 
-  val proctimeOrders = util.addDataStream[(Long, String)](
-    "ProctimeOrders", 'o_amount, 'o_currency, 'o_proctime)
+  private val proctimeOrders = util.addDataStream[(Long, String)](
+    "ProctimeOrders", 'o_amount, 'o_currency, 'o_proctime.proctime)
 
-  val proctimeRatesHistory = util.addDataStream[(String, Int)](
-    "ProctimeRatesHistory", 'currency, 'rate, 'proctime)
+  private val proctimeRatesHistory = util.addDataStream[(String, Int)](
+    "ProctimeRatesHistory", 'currency, 'rate, 'proctime.proctime)
 
-  val proctimeRates = util.addFunction(
+  util.addFunction(
     "ProctimeRates",
     proctimeRatesHistory.createTemporalTableFunction("proctime", "currency"))
 
@@ -81,10 +83,10 @@ class TemporalJoinTest extends TableTestBase {
     val util = streamTestUtil()
     util.addDataStream[(String, Int)]("Table3", 't3_comment, 't3_secondary_key)
     util.addDataStream[(Timestamp, String, Long, String, Int)](
-      "Orders", 'o_rowtime, 'o_comment, 'o_amount, 'o_currency, 'o_secondary_key)
+      "Orders", 'o_rowtime.rowtime, 'o_comment, 'o_amount, 'o_currency, 'o_secondary_key)
 
-    val ratesHistory = util.addDataStream[(Timestamp, String, String, Int, Int)](
-      "RatesHistory", 'rowtime, 'comment, 'currency, 'rate, 'secondary_key)
+    util.addDataStream[(Timestamp, String, String, Int, Int)](
+      "RatesHistory", 'rowtime.rowtime, 'comment, 'currency, 'rate, 'secondary_key)
     val rates = util.tableEnv
       .sqlQuery("SELECT * FROM RatesHistory WHERE rate > 110")
       .createTemporalTableFunction("rowtime", "currency")

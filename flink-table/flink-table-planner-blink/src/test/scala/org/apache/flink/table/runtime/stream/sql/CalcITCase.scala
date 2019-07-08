@@ -204,7 +204,6 @@ class CalcITCase extends StreamingTestBase {
 
   @Test
   def testSelectStarFromNestedTable(): Unit = {
-
     val sqlQuery = "SELECT * FROM MyTable"
 
     val table = tEnv.fromDataStream(env.fromCollection(Seq(
@@ -216,8 +215,9 @@ class CalcITCase extends StreamingTestBase {
 
     val result = tEnv.sqlQuery(sqlQuery)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.writeToSink(result, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(result, "MySink")
+    tEnv.execute("test")
 
     val expected = List("0,0,0", "1,1,1", "2,2,2")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)

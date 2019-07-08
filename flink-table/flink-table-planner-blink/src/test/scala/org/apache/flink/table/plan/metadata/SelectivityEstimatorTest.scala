@@ -83,8 +83,7 @@ class SelectivityEstimatorTest {
     val tableScan = mock(classOf[TableScan])
     val cluster = mock(classOf[RelOptCluster])
     val planner = mock(classOf[AbstractRelOptPlanner])
-    val functionCatalog = new FunctionCatalog(
-      tableConfig.getBuiltInCatalogName, tableConfig.getBuiltInDatabaseName)
+    val functionCatalog = new FunctionCatalog("default_catalog", "default_database")
     val context: FlinkContext = new FlinkContextImpl(tableConfig, functionCatalog)
     when(tableScan, "getCluster").thenReturn(cluster)
     when(cluster, "getRexBuilder").thenReturn(rexBuilder)

@@ -40,6 +40,7 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
 
   @Before
   override def before(): Unit = {
+    super.before()
     val programs = FlinkBatchProgram.buildProgram(tEnv.getConfig.getConf)
     // remove FlinkAggregateJoinTransposeRule from logical program (volcano planner)
     programs.getFlinkRuleSetProgram(FlinkBatchProgram.LOGICAL)
@@ -74,7 +75,6 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
       .replaceBatchProgram(programs).build()
     tEnv.getConfig.setCalciteConfig(calciteConfig)
 
-    tEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     // HashJoin is disabled due to translateToPlanInternal method is not implemented yet
     tEnv.getConfig.getConf.setString(ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin")
     registerCollection("T3", data3, type3, "a, b, c", nullablesOfData3)

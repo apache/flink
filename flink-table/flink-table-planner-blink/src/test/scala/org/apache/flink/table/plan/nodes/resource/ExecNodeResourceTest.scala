@@ -20,23 +20,23 @@ package org.apache.flink.table.plan.nodes.resource
 
 import org.apache.flink.api.common.io.OutputFormat
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.util.{TableTestBase, TableTestUtil}
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory
 import org.apache.flink.streaming.api.transformations.{SinkTransformation, SourceTransformation}
-import org.apache.flink.table.api.{TableConfig, ExecutionConfigOptions, TableSchema, Types}
+import org.apache.flink.table.api.{ExecutionConfigOptions, TableConfig, TableSchema, Types}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.util.{TableTestBase, TableTestUtil, TestingTableEnvironment}
 
 import org.junit.Assert.assertEquals
-import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.{Before, Test}
 import org.mockito.Mockito.{mock, when}
 
 import java.util
@@ -61,7 +61,7 @@ class ExecNodeResourceTest(isBatch: Boolean) extends TableTestBase {
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.INT, Types.STRING, Types.LONG)))
     testUtil.addTableSource(
       "table5", table5Source, FlinkStatistic.builder().tableStats(table5Stats).build())
-    ExecNodeResourceTest.setResourceConfig(testUtil.getTableEnv.getConfig)
+    ExecNodeResourceTest.setResourceConfig(testUtil.tableEnv.getConfig)
   }
 
   @Test
@@ -78,7 +78,7 @@ class ExecNodeResourceTest(isBatch: Boolean) extends TableTestBase {
 
   @Test
   def testConfigSourceParallelism(): Unit = {
-    testUtil.getTableEnv.getConfig.getConf.setInteger(
+    testUtil.tableEnv.getConfig.getConf.setInteger(
       ExecutionConfigOptions.SQL_RESOURCE_SOURCE_PARALLELISM, 100)
     val sqlQuery = "SELECT sum(a) as sum_a, c FROM table3 group by c order by c limit 2"
     testUtil.verifyResource(sqlQuery)
@@ -102,60 +102,60 @@ class ExecNodeResourceTest(isBatch: Boolean) extends TableTestBase {
   @Test
   def testSinkSelfParallelism(): Unit = {
     val sqlQuery = "SELECT * FROM table3"
-    val table = testUtil.getTableEnv.sqlQuery(sqlQuery)
+    val table = testUtil.tableEnv.sqlQuery(sqlQuery)
     val tableSink = new MockTableSink(new TableSchema(Array("a", "b", "c"),
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)), -1)
 
-    testUtil.getTableEnv.writeToSink(table, tableSink, "sink")
-    testUtil.getTableEnv.generateStreamGraph()
+    testUtil.writeToSink(table, tableSink, "sink")
+    testUtil.tableEnv.asInstanceOf[TestingTableEnvironment].translate()
     assertEquals(17, tableSink.getSinkTransformation.getParallelism)
   }
 
   @Test
   def testSinkConfigParallelism(): Unit = {
-    testUtil.getTableEnv.getConfig.getConf.setInteger(
+    testUtil.tableEnv.getConfig.getConf.setInteger(
       ExecutionConfigOptions.SQL_RESOURCE_SINK_PARALLELISM,
       25
     )
     val sqlQuery = "SELECT * FROM table3"
-    val table = testUtil.getTableEnv.sqlQuery(sqlQuery)
+    val table = testUtil.tableEnv.sqlQuery(sqlQuery)
     val tableSink = new MockTableSink(new TableSchema(Array("a", "b", "c"),
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)), -1)
 
-    testUtil.getTableEnv.writeToSink(table, tableSink, "sink")
-    testUtil.getTableEnv.generateStreamGraph()
+    testUtil.writeToSink(table, tableSink, "sink")
+    testUtil.tableEnv.asInstanceOf[TestingTableEnvironment].translate()
     assertEquals(25, tableSink.getSinkTransformation.getParallelism)
   }
 
   @Test
   def testSinkConfigParallelismWhenMax1(): Unit = {
-    testUtil.getTableEnv.getConfig.getConf.setInteger(
+    testUtil.tableEnv.getConfig.getConf.setInteger(
       ExecutionConfigOptions.SQL_RESOURCE_SINK_PARALLELISM,
       25
     )
     val sqlQuery = "SELECT * FROM table3"
-    val table = testUtil.getTableEnv.sqlQuery(sqlQuery)
+    val table = testUtil.tableEnv.sqlQuery(sqlQuery)
     val tableSink = new MockTableSink(new TableSchema(Array("a", "b", "c"),
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)), 23)
 
-    testUtil.getTableEnv.writeToSink(table, tableSink, "sink")
-    testUtil.getTableEnv.generateStreamGraph()
+    testUtil.writeToSink(table, tableSink, "sink")
+    testUtil.tableEnv.asInstanceOf[TestingTableEnvironment].translate()
     assertEquals(17, tableSink.getSinkTransformation.getParallelism)
   }
 
   @Test
   def testSinkConfigParallelismWhenMax2(): Unit = {
-    testUtil.getTableEnv.getConfig.getConf.setInteger(
+    testUtil.tableEnv.getConfig.getConf.setInteger(
       ExecutionConfigOptions.SQL_RESOURCE_SINK_PARALLELISM,
       25
     )
     val sqlQuery = "SELECT * FROM table3"
-    val table = testUtil.getTableEnv.sqlQuery(sqlQuery)
+    val table = testUtil.tableEnv.sqlQuery(sqlQuery)
     val tableSink = new MockTableSink(new TableSchema(Array("a", "b", "c"),
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)), 25)
 
-    testUtil.getTableEnv.writeToSink(table, tableSink, "sink")
-    testUtil.getTableEnv.generateStreamGraph()
+    testUtil.writeToSink(table, tableSink, "sink")
+    testUtil.tableEnv.asInstanceOf[TestingTableEnvironment].translate()
     assertEquals(25, tableSink.getSinkTransformation.getParallelism)
   }
 }

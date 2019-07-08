@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.stream.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.OptimizerConfigOptions
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
@@ -39,7 +39,7 @@ class DagOptimizationTest extends TableTestBase {
   def testSingleSink1(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT c, COUNT(a) AS cnt FROM MyTable GROUP BY c")
     val appendSink = util.createAppendTableSink(Array("c", "cnt"), Array(STRING, LONG))
-    util.tableEnv.writeToSink(table, appendSink)
+    util.writeToSink(table, appendSink, "appendSink")
     util.verifyPlanWithTrait()
   }
 
@@ -58,7 +58,7 @@ class DagOptimizationTest extends TableTestBase {
     val table6 = util.tableEnv.sqlQuery("SELECT a1, b, c1 FROM table4, table5 WHERE a1 = a3")
 
     val appendSink = util.createAppendTableSink(Array("a1", "b", "c1"), Array(INT, LONG, STRING))
-    util.tableEnv.writeToSink(table6, appendSink)
+    util.writeToSink(table6, appendSink, "appendSink")
     util.verifyPlanWithTrait()
   }
 
@@ -72,7 +72,7 @@ class DagOptimizationTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT * FROM table1 UNION ALL SELECT * FROM table2")
 
     val appendSink = util.createAppendTableSink(Array("a1", "b1"), Array(INT, LONG))
-    util.tableEnv.writeToSink(table3, appendSink)
+    util.writeToSink(table3, appendSink, "appendSink")
     util.verifyPlanWithTrait()
   }
 
@@ -93,7 +93,7 @@ class DagOptimizationTest extends TableTestBase {
     val table7 = util.tableEnv.sqlQuery("SELECT a1, b1, c1 FROM table1, table6 WHERE a1 = a3")
 
     val appendSink = util.createAppendTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
-    util.tableEnv.writeToSink(table7, appendSink)
+    util.writeToSink(table7, appendSink, "appendSink")
     util.verifyPlanWithTrait()
   }
 
@@ -113,7 +113,7 @@ class DagOptimizationTest extends TableTestBase {
     val appendSink = util.createAppendTableSink(
       Array("a", "b", "c", "d", "e", "f", "i", "j", "k", "l", "m", "s"),
       Array(INT, LONG, STRING, INT, LONG, STRING, INT, LONG, INT, STRING, LONG, STRING))
-    util.tableEnv.writeToSink(table, appendSink)
+    util.writeToSink(table, appendSink, "appendSink")
 
     util.verifyPlanWithTrait()
   }
@@ -127,7 +127,7 @@ class DagOptimizationTest extends TableTestBase {
       "(SELECT a, c FROM MyTable UNION ALL SELECT d, f FROM MyTable1)"
     val table = util.tableEnv.sqlQuery(sqlQuery)
     val retractSink = util.createRetractTableSink(Array("total_sum"), Array(INT))
-    util.tableEnv.writeToSink(table, retractSink)
+    util.writeToSink(table, retractSink, "retractSink")
 
     util.verifyPlanWithTrait()
   }
@@ -142,10 +142,10 @@ class DagOptimizationTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(sum_a) AS total_min FROM table1")
 
     val appendSink1 = util.createAppendTableSink(Array("total_sum"), Array(INT))
-    util.tableEnv.writeToSink(table2, appendSink1)
+    util.writeToSink(table2, appendSink1, "appendSink1")
 
     val appendSink2 = util.createAppendTableSink(Array("total_min"), Array(INT))
-    util.tableEnv.writeToSink(table3, appendSink2)
+    util.writeToSink(table3, appendSink2, "appendSink2")
 
     util.verifyPlanWithTrait()
   }
@@ -163,10 +163,10 @@ class DagOptimizationTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT * FROM table1 UNION ALL SELECT * FROM table2")
 
     val appendSink1 = util.createAppendTableSink(Array("a", "b1"), Array(INT, LONG))
-    util.tableEnv.writeToSink(table3, appendSink1)
+    util.writeToSink(table3, appendSink1, "appendSink1")
 
     val appendSink2 = util.createAppendTableSink(Array("a", "b1"), Array(INT, LONG))
-    util.tableEnv.writeToSink(table3, appendSink2)
+    util.writeToSink(table3, appendSink2, "appendSink2")
 
     util.verifyPlanWithTrait()
   }
@@ -184,10 +184,10 @@ class DagOptimizationTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT * FROM table1 UNION ALL SELECT * FROM table2")
 
     val appendSink1 = util.createAppendTableSink(Array("a", "b1"), Array(INT, LONG))
-    util.tableEnv.writeToSink(table2, appendSink1)
+    util.writeToSink(table2, appendSink1, "appendSink1")
 
     val appendSink2 = util.createAppendTableSink(Array("a", "b1"), Array(INT, LONG))
-    util.tableEnv.writeToSink(table3, appendSink2)
+    util.writeToSink(table3, appendSink2, "appendSink2")
 
     util.verifyPlanWithTrait()
   }
@@ -207,10 +207,10 @@ class DagOptimizationTest extends TableTestBase {
     val table6 = util.tableEnv.sqlQuery("SELECT a1, b, c1 FROM table4, table5 WHERE a1 = a3")
 
     val appendSink1 = util.createAppendTableSink(Array("a1", "b", "c2"), Array(INT, LONG, STRING))
-    util.tableEnv.writeToSink(table5, appendSink1)
+    util.writeToSink(table5, appendSink1, "appendSink1")
 
     val appendSink2 = util.createAppendTableSink(Array("a1", "b", "c1"), Array(INT, LONG, STRING))
-    util.tableEnv.writeToSink(table6, appendSink2)
+    util.writeToSink(table6, appendSink2, "appendSink2")
 
     util.verifyPlanWithTrait()
   }
@@ -227,10 +227,10 @@ class DagOptimizationTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM table1")
 
     val appendSink1 = util.createAppendTableSink(Array("total_sum"), Array(INT))
-    util.tableEnv.writeToSink(table2, appendSink1)
+    util.writeToSink(table2, appendSink1, "appendSink1")
 
     val appendSink2 = util.createAppendTableSink(Array("total_min"), Array(INT))
-    util.tableEnv.writeToSink(table3, appendSink2)
+    util.writeToSink(table3, appendSink2, "appendSink2")
 
     util.verifyPlanWithTrait()
   }
@@ -239,7 +239,7 @@ class DagOptimizationTest extends TableTestBase {
   def testMultiSinksWithUDTF(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
       RelNodeBlockPlanBuilder.SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED, true)
-    util.tableEnv.registerFunction("split", new TableFunc1)
+    util.addFunction("split", new TableFunc1)
     val sqlQuery1 =
       """
         |SELECT  a, b - MOD(b, 300) AS b, c FROM MyTable
@@ -264,12 +264,12 @@ class DagOptimizationTest extends TableTestBase {
     val sqlQuery5 = "SELECT * FROM table4 WHERE a > 50"
     val table5 = util.tableEnv.sqlQuery(sqlQuery5)
     val appendSink1 = util.createAppendTableSink(Array("a", "total_c"), Array(INT, LONG))
-    util.tableEnv.writeToSink(table5, appendSink1)
+    util.writeToSink(table5, appendSink1, "appendSink1")
 
     val sqlQuery6 = "SELECT * FROM table4 WHERE a < 50"
     val table6 = util.tableEnv.sqlQuery(sqlQuery6)
     val appendSink2 = util.createAppendTableSink(Array("a", "total_c"), Array(INT, LONG))
-    util.tableEnv.writeToSink(table6, appendSink2)
+    util.writeToSink(table6, appendSink2, "appendSink2")
 
     util.verifyPlanWithTrait()
   }
@@ -285,11 +285,11 @@ class DagOptimizationTest extends TableTestBase {
 
     val table1 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM TempTable")
     val upsertSink = util.createUpsertTableSink(Array(), Array("total_sum"), Array(INT))
-    util.tableEnv.writeToSink(table1, upsertSink)
+    util.writeToSink(table1, upsertSink, "upsertSink")
 
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM TempTable")
     val retractSink = util.createRetractTableSink(Array("total_min"), Array(INT))
-    util.tableEnv.writeToSink(table3, retractSink)
+    util.writeToSink(table3, retractSink, "retractSink")
 
     util.verifyPlanWithTrait()
   }
@@ -315,16 +315,16 @@ class DagOptimizationTest extends TableTestBase {
 
     val table1 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM TempTable")
     val appendSink1 = util.createAppendTableSink(Array("total_sum"), Array(INT))
-    util.tableEnv.writeToSink(table1, appendSink1)
+    util.writeToSink(table1, appendSink1, "appendSink1")
 
     val table2 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM TempTable")
     val appendSink2 = util.createAppendTableSink(Array("total_min"), Array(INT))
-    util.tableEnv.writeToSink(table2, appendSink2)
+    util.writeToSink(table2, appendSink2, "appendSink2")
 
     val sqlQuery2 = "SELECT a FROM (SELECT a, c FROM MyTable UNION ALL SELECT d, f FROM MyTable1)"
     val table3 = util.tableEnv.sqlQuery(sqlQuery2)
     val appendSink3 = util.createAppendTableSink(Array("a"), Array(INT))
-    util.tableEnv.writeToSink(table3, appendSink3)
+    util.writeToSink(table3, appendSink3, "appendSink3")
 
     util.verifyPlan()
   }
@@ -339,8 +339,8 @@ class DagOptimizationTest extends TableTestBase {
     val table = util.tableEnv.sqlQuery(sqlQuery1)
     util.tableEnv.registerTable("TempTable", table)
 
-    val appendSink = util.createAppendTableSink(Array("a"), Array(INT))
-    util.tableEnv.writeToSink(table, appendSink)
+    val appendSink = util.createAppendTableSink(Array("a", "c"), Array(INT, STRING))
+    util.writeToSink(table, appendSink, "appendSink")
 
     val sqlQuery2 = "SELECT a, c FROM TempTable UNION ALL SELECT a, c FROM MyTable2"
     val table1 = util.tableEnv.sqlQuery(sqlQuery2)
@@ -348,11 +348,11 @@ class DagOptimizationTest extends TableTestBase {
 
     val table2 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM TempTable1")
     val retractSink = util.createRetractTableSink(Array("total_sum"), Array(INT))
-    util.tableEnv.writeToSink(table2, retractSink)
+    util.writeToSink(table2, retractSink, "retractSink")
 
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM TempTable1")
     val upsertSink = util.createUpsertTableSink(Array(), Array("total_min"), Array(INT))
-    util.tableEnv.writeToSink(table3, upsertSink)
+    util.writeToSink(table3, upsertSink, "upsertSink")
 
     util.verifyPlanWithTrait()
   }
@@ -376,11 +376,11 @@ class DagOptimizationTest extends TableTestBase {
 
     val table1 = util.tableEnv.sqlQuery("SELECT SUM(a) AS total_sum FROM TempTable")
     val upsertSink = util.createUpsertTableSink(Array(), Array("total_sum"), Array(INT))
-    util.tableEnv.writeToSink(table1, upsertSink)
+    util.writeToSink(table1, upsertSink, "upsertSink")
 
     val table2 = util.tableEnv.sqlQuery("SELECT MIN(a) AS total_min FROM TempTable")
     val retractSink = util.createRetractTableSink(Array("total_min"), Array(INT))
-    util.tableEnv.writeToSink(table2, retractSink)
+    util.writeToSink(table2, retractSink, "retractSink")
 
     util.verifyPlanWithTrait()
   }
@@ -397,7 +397,7 @@ class DagOptimizationTest extends TableTestBase {
 
     val upsertSink = util.createUpsertTableSink(Array(), Array("b", "c", "a_sum"),
       Array(LONG, STRING, INT))
-    util.tableEnv.writeToSink(table, upsertSink)
+    util.writeToSink(table, upsertSink, "upsertSink")
 
     util.verifyPlanWithTrait()
   }
@@ -416,12 +416,13 @@ class DagOptimizationTest extends TableTestBase {
          |WHERE rank_num <= 10
       """.stripMargin
     val table1 = util.tableEnv.sqlQuery(sqlQuery)
-    val retractSink = util.createRetractTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
-    util.tableEnv.writeToSink(table1, retractSink)
+    val retractSink = util.createRetractTableSink(
+      Array("a", "b", "c", "rank_num"), Array(INT, LONG, STRING, LONG))
+    util.writeToSink(table1, retractSink, "retractSink")
 
     val upsertSink = util.createUpsertTableSink(Array(), Array("a", "b"), Array(INT, LONG))
     val table2 = util.tableEnv.sqlQuery("SELECT a, b FROM TempTable WHERE a < 6")
-    util.tableEnv.writeToSink(table2, upsertSink)
+    util.writeToSink(table2, upsertSink, "upsertSink")
 
     util.verifyPlanWithTrait()
   }
@@ -441,11 +442,11 @@ class DagOptimizationTest extends TableTestBase {
 
     val table1 = util.tableEnv.sqlQuery("SELECT a FROM TempTable WHERE a > 6")
     val retractSink = util.createRetractTableSink(Array("a"), Array(INT))
-    util.tableEnv.writeToSink(table1, retractSink)
+    util.writeToSink(table1, retractSink, "retractSink")
 
     val table2 = util.tableEnv.sqlQuery("SELECT a, b FROM TempTable WHERE a < 6")
     val upsertSink = util.createUpsertTableSink(Array(), Array("a", "b"), Array(INT, LONG))
-    util.tableEnv.writeToSink(table2, upsertSink)
+    util.writeToSink(table2, upsertSink, "upsertSink")
 
     util.verifyPlanWithTrait()
   }
@@ -458,7 +459,7 @@ class DagOptimizationTest extends TableTestBase {
     val table1 = util.tableEnv.sqlQuery("SELECT a, b, c FROM MyTable WHERE c LIKE '%hello%'")
     util.tableEnv.registerTable("TempTable1", table1)
     val appendSink = util.createAppendTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
-    util.tableEnv.writeToSink(table1, appendSink)
+    util.writeToSink(table1, appendSink, "appendSink")
 
     val table2 = util.tableEnv.sqlQuery("SELECT a, b, c FROM MyTable WHERE c LIKE '%world%'")
     util.tableEnv.registerTable("TempTable2", table2)
@@ -477,11 +478,11 @@ class DagOptimizationTest extends TableTestBase {
 
     val table4 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable3 WHERE b < 4")
     val retractSink = util.createRetractTableSink(Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.writeToSink(table4, retractSink)
+    util.writeToSink(table4, retractSink, "retractSink")
 
     val table5 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable3 WHERE b >=4 AND b < 6")
     val upsertSink = util.createUpsertTableSink(Array(), Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.writeToSink(table5, upsertSink)
+    util.writeToSink(table5, upsertSink, "upsertSink")
 
     util.verifyPlanWithTrait()
   }
@@ -494,7 +495,7 @@ class DagOptimizationTest extends TableTestBase {
     val table1 = util.tableEnv.sqlQuery("SELECT a, b, c FROM MyTable WHERE c LIKE '%hello%'")
     util.tableEnv.registerTable("TempTable1", table1)
     val appendSink = util.createAppendTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
-    util.tableEnv.writeToSink(table1, appendSink)
+    util.writeToSink(table1, appendSink, "appendSink")
 
     val table2 = util.tableEnv.sqlQuery("SELECT a, b, c FROM MyTable WHERE c LIKE '%world%'")
     util.tableEnv.registerTable("TempTable2", table2)
@@ -510,18 +511,18 @@ class DagOptimizationTest extends TableTestBase {
 
     val table4 = util.tableEnv.sqlQuery("SELECT * FROM TempTable3 WHERE b >= 5")
     val retractSink1 = util.createRetractTableSink(Array("a", "b", "c"), Array(INT, LONG, STRING))
-    util.tableEnv.writeToSink(table4, retractSink1)
+    util.writeToSink(table4, retractSink1, "retractSink1")
 
     val table5 = util.tableEnv.sqlQuery("SELECT b, count(a) as cnt FROM TempTable3 GROUP BY b")
     util.tableEnv.registerTable("TempTable4", table5)
 
     val table6 = util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable4 WHERE b < 4")
     val retractSink2 = util.createRetractTableSink(Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.writeToSink(table6, retractSink2)
+    util.writeToSink(table6, retractSink2, "retractSink2")
 
     util.tableEnv.sqlQuery("SELECT b, cnt FROM TempTable4 WHERE b >=4 AND b < 6")
     val upsertSink = util.createUpsertTableSink(Array(), Array("b", "cnt"), Array(LONG, LONG))
-    util.tableEnv.writeToSink(table6, upsertSink)
+    util.writeToSink(table6, upsertSink, "upsertSink")
 
     util.verifyPlanWithTrait()
   }

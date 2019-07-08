@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.codegen
 
-import org.apache.flink.table.api.TableEnvironment
+import org.apache.flink.table.api.{TableConfig, TableEnvironment}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
 import org.apache.flink.table.runtime.values.ValuesInputFormat
@@ -33,11 +33,10 @@ import scala.collection.JavaConversions._
 object ValuesCodeGenerator {
 
   def generatorInputFormat(
-    tableEnv: TableEnvironment,
+    config: TableConfig,
     rowType: RelDataType,
     tuples: ImmutableList[ImmutableList[RexLiteral]],
     description: String): ValuesInputFormat = {
-    val config = tableEnv.getConfig
     val outputType = FlinkTypeFactory.toLogicalRowType(rowType)
 
     val ctx = CodeGeneratorContext(config)

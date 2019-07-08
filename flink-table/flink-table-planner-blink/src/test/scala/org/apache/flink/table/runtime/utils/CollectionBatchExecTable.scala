@@ -18,8 +18,7 @@
 package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Table
-import org.apache.flink.table.api.scala.BatchTableEnvironment
+import org.apache.flink.table.api.{Table, TableEnvironment}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 
 import scala.collection.mutable
@@ -34,7 +33,7 @@ import scala.util.Random
  * #################################################################################################
  */
 object CollectionBatchExecTable {
-  def get3TupleDataSet(env: BatchTableEnvironment, fields: String = null): Table = {
+  def get3TupleDataSet(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Hi"))
     data.+=((2, 2L, "Hello"))
@@ -57,18 +56,18 @@ object CollectionBatchExecTable {
     data.+=((19, 6L, "Comment#13"))
     data.+=((20, 6L, "Comment#14"))
     data.+=((21, 6L, "Comment#15"))
-    BatchScalaTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
+    BatchTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
   }
 
-  def getSmall3TupleDataSet(env: BatchTableEnvironment, fields: String = null): Table = {
+  def getSmall3TupleDataSet(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "Hi"))
     data.+=((2, 2L, "Hello"))
     data.+=((3, 2L, "Hello world"))
-    BatchScalaTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
+    BatchTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
   }
 
-  def get5TupleDataSet(env: BatchTableEnvironment, fields: String = null): Table = {
+  def get5TupleDataSet(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[(Int, Long, Int, String, Long)]
     data.+=((1, 1L, 0, "Hallo", 1L))
     data.+=((2, 2L, 1, "Hallo Welt", 2L))
@@ -85,26 +84,26 @@ object CollectionBatchExecTable {
     data.+=((5, 13L, 12, "IJK", 3L))
     data.+=((5, 14L, 13, "JKL", 2L))
     data.+=((5, 15L, 14, "KLM", 2L))
-    BatchScalaTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
+    BatchTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
   }
 
-  def getSmall5TupleDataSet(env: BatchTableEnvironment, fields: String = null): Table = {
+  def getSmall5TupleDataSet(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[(Int, Long, Int, String, Long)]
     data.+=((1, 1L, 0, "Hallo", 1L))
     data.+=((2, 2L, 1, "Hallo Welt", 2L))
     data.+=((2, 3L, 2, "Hallo Welt wie", 1L))
-    BatchScalaTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
+    BatchTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
   }
 
-  def getSmallNestedTupleDataSet(env: BatchTableEnvironment, fields: String = null): Table = {
+  def getSmallNestedTupleDataSet(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[((Int, Int), String)]
     data.+=(((1, 1), "one"))
     data.+=(((2, 2), "two"))
     data.+=(((3, 3), "three"))
-    BatchScalaTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
+    BatchTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
   }
 
-  def getGroupSortedNestedTupleDataSet(env: BatchTableEnvironment, fields: String = null)
+  def getGroupSortedNestedTupleDataSet(env: TableEnvironment, fields: String = null)
     : Table = {
     val data = new mutable.MutableList[((Int, Int), String)]
     data.+=(((1, 3), "a"))
@@ -114,10 +113,10 @@ object CollectionBatchExecTable {
     data.+=(((3, 3), "c"))
     data.+=(((3, 6), "c"))
     data.+=(((4, 9), "c"))
-    BatchScalaTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
+    BatchTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
   }
 
-  def getStringDataSet(env: BatchTableEnvironment, fields: String = null): Table = {
+  def getStringDataSet(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[String]
     data.+=("Hi")
     data.+=("Hello")
@@ -127,10 +126,10 @@ object CollectionBatchExecTable {
     data.+=("Luke Skywalker")
     data.+=("Random comment")
     data.+=("LOL")
-    BatchScalaTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
+    BatchTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
   }
 
-  def getIntDataSet(env: BatchTableEnvironment, fields: String = null): Table = {
+  def getIntDataSet(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[Int]
     data.+=(1)
     data.+=(2)
@@ -147,10 +146,10 @@ object CollectionBatchExecTable {
     data.+=(5)
     data.+=(5)
     data.+=(5)
-    BatchScalaTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
+    BatchTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
   }
 
-  def getCustomTypeDataSet(env: BatchTableEnvironment, fields: String = null): Table = {
+  def getCustomTypeDataSet(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[CustomType]
     data.+=(new CustomType(1, 0L, "Hi"))
     data.+=(new CustomType(2, 1L, "Hello"))
@@ -173,35 +172,35 @@ object CollectionBatchExecTable {
     data.+=(new CustomType(6, 18L, "Comment#13"))
     data.+=(new CustomType(6, 19L, "Comment#14"))
     data.+=(new CustomType(6, 20L, "Comment#15"))
-    BatchScalaTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
+    BatchTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
   }
 
-  def getSmallCustomTypeDataSet(env: BatchTableEnvironment, fields: String = null): Table = {
+  def getSmallCustomTypeDataSet(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[CustomType]
     data.+=(new CustomType(1, 0L, "Hi"))
     data.+=(new CustomType(2, 1L, "Hello"))
     data.+=(new CustomType(2, 2L, "Hello world"))
-    BatchScalaTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
+    BatchTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
   }
 
-  def getSmallTuplebasedPojoMatchingDataSet(env: BatchTableEnvironment, fields: String = null):
+  def getSmallTuplebasedPojoMatchingDataSet(env: TableEnvironment, fields: String = null):
     Table = {
     val data = new mutable.MutableList[(Int, String, Int, Int, Long, String, Long)]
     data.+=((1, "First", 10, 100, 1000L, "One", 10000L))
     data.+=((2, "Second", 20, 200, 2000L, "Two", 20000L))
     data.+=((3, "Third", 30, 300, 3000L, "Three", 30000L))
-    BatchScalaTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
+    BatchTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
   }
 
-  def getSmallPojoDataSet(env: BatchTableEnvironment, fields: String = null): Table = {
+  def getSmallPojoDataSet(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[POJO]
     data.+=(new POJO(1, "First", 10, 100, 1000L, "One", 10000L))
     data.+=(new POJO(2, "Second", 20, 200, 2000L, "Two", 20000L))
     data.+=(new POJO(3, "Third", 30, 300, 3000L, "Three", 30000L))
-    BatchScalaTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
+    BatchTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
   }
 
-  def getDuplicatePojoDataSet(env: BatchTableEnvironment, fields: String = null): Table = {
+  def getDuplicatePojoDataSet(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[POJO]
     data.+=(new POJO(1, "First", 10, 100, 1000L, "One", 10000L))
     data.+=(new POJO(1, "First", 10, 100, 1000L, "One", 10000L))
@@ -211,10 +210,10 @@ object CollectionBatchExecTable {
     data.+=(new POJO(2, "Second", 20, 200, 2000L, "Two", 20000L))
     data.+=(new POJO(3, "Third", 30, 300, 3000L, "Three", 30000L))
     data.+=(new POJO(3, "Third", 30, 300, 3000L, "Three", 30000L))
-    BatchScalaTableEnvUtil.fromCollection(env, data, fields)
+    BatchTableEnvUtil.fromCollection(env, data, fields)
   }
 
-  def getCrazyNestedDataSet(env: BatchTableEnvironment, fields: String = null): Table = {
+  def getCrazyNestedDataSet(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[CrazyNested]
     data.+=(new CrazyNested("aa"))
     data.+=(new CrazyNested("bb"))
@@ -222,10 +221,10 @@ object CollectionBatchExecTable {
     data.+=(new CrazyNested("cc"))
     data.+=(new CrazyNested("cc"))
     data.+=(new CrazyNested("cc"))
-    BatchScalaTableEnvUtil.fromCollection(env, data, fields)
+    BatchTableEnvUtil.fromCollection(env, data, fields)
   }
 
-  def getTupleContainingPojos(env: BatchTableEnvironment, fields: String = null): Table = {
+  def getTupleContainingPojos(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[(Int, CrazyNested, POJO)]
     data.+=((
       1,
@@ -243,10 +242,10 @@ object CollectionBatchExecTable {
       2,
       new CrazyNested("two", "duo", 2L),
       new POJO(1, "First", 10, 100, 1000L, "One", 10000L)))
-    BatchScalaTableEnvUtil.fromCollection(env, data, fields)
+    BatchTableEnvUtil.fromCollection(env, data, fields)
   }
 
-  def getMixedPojoDataSet(env: BatchTableEnvironment, fields: String = null): Table = {
+  def getMixedPojoDataSet(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[POJO]
     data.+=(new POJO(1, "First", 10, 100, 1000L, "One", 10100L))
     data.+=(new POJO(2, "First_", 10, 105, 1000L, "One", 10200L))
@@ -256,19 +255,19 @@ object CollectionBatchExecTable {
     data.+=(new POJO(6, "Second_", 20, 200, 2000L, "Two", 10100L))
     data.+=(new POJO(7, "Third", 31, 301, 2000L, "Three", 10200L))
     data.+=(new POJO(8, "Third_", 30, 300, 1000L, "Three", 10100L))
-    BatchScalaTableEnvUtil.fromCollection(env, data, fields)
+    BatchTableEnvUtil.fromCollection(env, data, fields)
   }
 
-  def getSmallTuplebasedDataSetMatchingPojo(env: BatchTableEnvironment, fields: String = null):
+  def getSmallTuplebasedDataSetMatchingPojo(env: TableEnvironment, fields: String = null):
   Table = {
     val data = new mutable.MutableList[(Long, Integer, Integer, Long, String, Integer, String)]
     data.+=((10000L, 10, 100, 1000L, "One", 1, "First"))
     data.+=((20000L, 20, 200, 2000L, "Two", 2, "Second"))
     data.+=((30000L, 30, 300, 3000L, "Three", 3, "Third"))
-    BatchScalaTableEnvUtil.fromCollection(env, data, fields)
+    BatchTableEnvUtil.fromCollection(env, data, fields)
   }
 
-  def getPojoWithMultiplePojos(env: BatchTableEnvironment, fields: String = null): Table = {
+  def getPojoWithMultiplePojos(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[CollectionBatchExecTable
     .PojoWithMultiplePojos]
     data.+=(new CollectionBatchExecTable.PojoWithMultiplePojos("a", "aa", "b", "bb", 1))
@@ -277,7 +276,7 @@ object CollectionBatchExecTable {
     data.+=(new CollectionBatchExecTable.PojoWithMultiplePojos("b", "bb", "c", "cc", 2))
     data.+=(new CollectionBatchExecTable.PojoWithMultiplePojos("d", "dd", "e", "ee", 3))
     data.+=(new CollectionBatchExecTable.PojoWithMultiplePojos("d", "dd", "e", "ee", 3))
-    BatchScalaTableEnvUtil.fromCollection(env, data, fields)
+    BatchTableEnvUtil.fromCollection(env, data, fields)
   }
 
   /** Tool converters used to convert string fields to array of [[Expression]]s. **/

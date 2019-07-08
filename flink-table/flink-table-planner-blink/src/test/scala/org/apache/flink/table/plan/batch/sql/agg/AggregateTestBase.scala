@@ -19,6 +19,7 @@ package org.apache.flink.table.plan.batch.sql.agg
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, Types}
 import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.{VarSum1AggFunction, VarSum2AggFunction}
 import org.apache.flink.table.typeutils.DecimalTypeInfo
@@ -188,13 +189,13 @@ abstract class AggregateTestBase extends TableTestBase {
 
   @Test
   def testAggNotSupportMerge(): Unit = {
-    util.tableEnv.registerFunction("var_sum", new VarSum2AggFunction)
+    util.addFunction("var_sum", new VarSum2AggFunction)
     util.verifyPlan("SELECT b, var_sum(a) FROM MyTable1 GROUP BY b")
   }
 
   @Test
   def testPojoAccumulator(): Unit = {
-    util.tableEnv.registerFunction("var_sum", new VarSum1AggFunction)
+    util.addFunction("var_sum", new VarSum1AggFunction)
     util.verifyPlan("SELECT b, var_sum(a) FROM MyTable1 GROUP BY b")
   }
 

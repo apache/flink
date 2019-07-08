@@ -21,7 +21,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation
-import org.apache.flink.table.api.{BatchTableEnvironment, ExecutionConfigOptions}
+import org.apache.flink.table.api.ExecutionConfigOptions
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.ProjectionCodeGenerator.generateProjection
 import org.apache.flink.table.codegen.{CodeGeneratorContext, LongHashJoinGenerator}
@@ -32,6 +32,7 @@ import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig
 import org.apache.flink.table.plan.nodes.{ExpressionFormat, FlinkConventions}
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, JoinUtil}
+import org.apache.flink.table.planner.BatchPlanner
 import org.apache.flink.table.runtime.join.{HashJoinOperator, HashJoinType}
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
@@ -177,22 +178,22 @@ class BatchExecHashJoin(
     if (hashJoinType.buildLeftSemiOrAnti()) DamBehavior.FULL_DAM else DamBehavior.MATERIALIZING
   }
 
-  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
+    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
-  override def translateToPlanInternal(
-      tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
-    val config = tableEnv.getConfig
+  override protected def translateToPlanInternal(
+      planner: BatchPlanner): Transformation[BaseRow] = {
+    val config = planner.getTableConfig
 
-    val lInput = getInputNodes.get(0).translateToPlan(tableEnv)
+    val lInput = getInputNodes.get(0).translateToPlan(planner)
         .asInstanceOf[Transformation[BaseRow]]
-    val rInput = getInputNodes.get(1).translateToPlan(tableEnv)
+    val rInput = getInputNodes.get(1).translateToPlan(planner)
         .asInstanceOf[Transformation[BaseRow]]
 
     // get type

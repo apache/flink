@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.stream.sql
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.plan.stream.sql.RelTimeIndicatorConverterTest.TableFunc
 import org.apache.flink.table.util.TableTestBase
@@ -33,9 +34,10 @@ import java.sql.Timestamp
 class RelTimeIndicatorConverterTest extends TableTestBase {
 
   private val util = streamTestUtil()
-  util.addDataStream[(Long, Long, Int)]("MyTable", 'rowtime, 'long, 'int, 'proctime)
-  util.addDataStream[(Long, Long, Int)]("MyTable1", 'rowtime, 'long, 'int)
-  util.addDataStream[(Long, Int)]("MyTable2", 'long, 'int, 'proctime)
+  util.addDataStream[(Long, Long, Int)](
+    "MyTable", 'rowtime.rowtime, 'long, 'int, 'proctime.proctime)
+  util.addDataStream[(Long, Long, Int)]("MyTable1", 'rowtime.rowtime, 'long, 'int)
+  util.addDataStream[(Long, Int)]("MyTable2", 'long, 'int, 'proctime.proctime)
 
   @Test
   def testSimpleMaterialization(): Unit = {

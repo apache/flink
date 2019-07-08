@@ -18,22 +18,22 @@
 
 package org.apache.flink.table.runtime.stream.sql
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.windowing.time.Time
-import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
+import java.sql.Timestamp
 
 import scala.collection.mutable
 
@@ -49,7 +49,7 @@ class TemporalJoinITCase(state: StateBackendMode)
   @Test
   def testProcessTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv: StreamTableEnvironment = TableEnvironment.getTableEnvironment(env)
+    val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env)
     env.setParallelism(1)
     env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
@@ -79,10 +79,10 @@ class TemporalJoinITCase(state: StateBackendMode)
 
     val orders = env
       .fromCollection(ordersData)
-      .toTable(tEnv, 'amount, 'currency, 'proctime)
+      .toTable(tEnv, 'amount, 'currency, 'proctime.proctime)
     val ratesHistory = env
       .fromCollection(ratesHistoryData)
-      .toTable(tEnv, 'currency, 'rate, 'proctime)
+      .toTable(tEnv, 'currency, 'rate, 'proctime.proctime)
 
     tEnv.registerTable("Orders", orders)
     tEnv.registerTable("RatesHistory", ratesHistory)
@@ -98,7 +98,7 @@ class TemporalJoinITCase(state: StateBackendMode)
   @Test
   def testEventTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv: StreamTableEnvironment = TableEnvironment.getTableEnvironment(env)
+    val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env)
     env.setParallelism(1)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
@@ -132,11 +132,11 @@ class TemporalJoinITCase(state: StateBackendMode)
     val orders = env
       .fromCollection(ordersData)
       .assignTimestampsAndWatermarks(new TimestampExtractor[Long, String]())
-      .toTable(tEnv, 'amount, 'currency, 'rowtime)
+      .toTable(tEnv, 'amount, 'currency, 'rowtime.rowtime)
     val ratesHistory = env
       .fromCollection(ratesHistoryData)
       .assignTimestampsAndWatermarks(new TimestampExtractor[String, Long]())
-      .toTable(tEnv, 'currency, 'rate, 'rowtime)
+      .toTable(tEnv, 'currency, 'rate, 'rowtime.rowtime)
 
     tEnv.registerTable("Orders", orders)
     tEnv.registerTable("RatesHistory", ratesHistory)

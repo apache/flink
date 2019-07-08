@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.OptimizerConfigOptions
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.types.logical.{BigIntType, IntType}
 import org.apache.flink.table.util.TableTestBase
@@ -38,7 +38,7 @@ class SinkTest extends TableTestBase {
   def testSingleSink(): Unit = {
     val table = util.tableEnv.sqlQuery("SELECT COUNT(*) AS cnt FROM MyTable GROUP BY a")
     val sink = util.createCollectTableSink(Array("a"), Array(LONG))
-    util.tableEnv.writeToSink(table, sink)
+    util.writeToSink(table, sink, "sink")
     util.verifyPlan()
   }
 
@@ -52,10 +52,10 @@ class SinkTest extends TableTestBase {
     val table3 = util.tableEnv.sqlQuery("SELECT MIN(sum_a) AS total_min FROM table1")
 
     val sink1 = util.createCollectTableSink(Array("total_sum"), Array(INT))
-    util.tableEnv.writeToSink(table2, sink1)
+    util.writeToSink(table2, sink1, "sink1")
 
     val sink2 = util.createCollectTableSink(Array("total_min"), Array(INT))
-    util.tableEnv.writeToSink(table3, sink2)
+    util.writeToSink(table3, sink2, "sink2")
 
     util.verifyPlan()
   }

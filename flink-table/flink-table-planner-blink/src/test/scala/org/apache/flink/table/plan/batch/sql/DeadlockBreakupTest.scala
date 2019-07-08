@@ -19,7 +19,8 @@
 package org.apache.flink.table.plan.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{OptimizerConfigOptions, ExecutionConfigOptions, ValidationException}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.{Before, Test}
@@ -32,8 +33,7 @@ class DeadlockBreakupTest extends TableTestBase {
   def before(): Unit = {
     util.addTableSource[(Int, Long, String)]("x", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String)]("y", 'd, 'e, 'f)
-    // TODO DataStream as Table is not supported now
-    // util.addDataStream[(Int, Long, String)]("t", 'a, 'b, 'c)
+    util.addDataStream[(Int, Long, String)]("t", 'a, 'b, 'c)
   }
 
   @Test
@@ -155,8 +155,7 @@ class DeadlockBreakupTest extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[ValidationException])
-  // TODO DataStream registered as Table is not supported now
+  @Test
   def testDataStreamReuse_SetExchangeAsBatch(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, false)
@@ -166,8 +165,7 @@ class DeadlockBreakupTest extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[ValidationException])
-  // TODO DataStream registered as Table is not supported now
+  @Test
   def testDataStreamReuse_AddExchangeAsBatch_NestedLoopJoin(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, false)
@@ -175,8 +173,7 @@ class DeadlockBreakupTest extends TableTestBase {
     util.verifyPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[ValidationException])
-  // TODO DataStream registered as Table is not supported now
+  @Test
   def testDataStreamReuse_AddExchangeAsBatch_HashJoin(): Unit = {
     util.tableEnv.getConfig.getConf.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, false)

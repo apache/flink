@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.stream.sql.agg
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{ExecutionConfigOptions, TableException, Types, ValidationException}
 import org.apache.flink.table.typeutils.DecimalTypeInfo
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
@@ -29,7 +30,8 @@ import org.junit.Test
 class AggregateTest extends TableTestBase {
 
   private val util: StreamTableTestUtil = streamTestUtil()
-  util.addTableSource[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'proctime, 'rowtime)
+  util.addTableSource[(Int, String, Long)](
+    "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
   util.addTableSource[(Int, Long, String, Boolean)]("T", 'a, 'b, 'c, 'd)
   util.addTableSource[(Long, Int, String)]("T1", 'a, 'b, 'c)
   util.addTableSource[(Long, Int, String)]("T2", 'a, 'b, 'c)

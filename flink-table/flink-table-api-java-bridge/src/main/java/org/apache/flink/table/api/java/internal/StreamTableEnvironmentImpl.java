@@ -90,6 +90,11 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 			boolean isStreaming) {
 		super(catalogManager, tableConfig, executor, functionCatalog, planner, isStreaming);
 		this.executionEnvironment = executionEnvironment;
+
+		if (!isStreaming) {
+			throw new TableException(
+				"StreamTableEnvironment is not supported on batch mode now, please use TableEnvironment.");
+		}
 	}
 
 	public static StreamTableEnvironment create(

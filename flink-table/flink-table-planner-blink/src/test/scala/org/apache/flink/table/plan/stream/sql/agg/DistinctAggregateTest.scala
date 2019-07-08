@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.AggPhaseEnforcer.AggPhaseEnforcer
 import org.apache.flink.table.api.{AggPhaseEnforcer, OptimizerConfigOptions}
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.rules.physical.stream.IncrementalAggregateRule
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 

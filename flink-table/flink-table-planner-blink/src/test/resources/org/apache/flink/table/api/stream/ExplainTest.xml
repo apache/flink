@@ -107,6 +107,10 @@ TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [Tes
  : Data Source
 	content : collect elements with CollectionInputFormat
 
+	 : Operator
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]), fields:(a, b, c))
+		ship_strategy : FORWARD
+
 ]]>
     </Resource>
   </TestCase>
@@ -122,6 +126,10 @@ TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [Tes
 == Physical Execution Plan ==
  : Data Source
 	content : collect elements with CollectionInputFormat
+
+	 : Operator
+		content : SourceConversion(table:Buffer(default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]), fields:(a, b, c))
+		ship_strategy : FORWARD
 
 ]]>
     </Resource>
@@ -337,14 +345,14 @@ Calc(select=[a, b, c, e, f], updateAsRetraction=[false], accMode=[Acc]): rowcoun
   <TestCase name="testExplainWithMultiSinks[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(name=[sink1], fields=[a, cnt])
+LogicalSink(name=[upsertSink1], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[>($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-LogicalSink(name=[sink1], fields=[a, cnt])
+LogicalSink(name=[upsertSink2], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[<($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
@@ -357,11 +365,11 @@ GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], reuse_id=[1])
    +- Calc(select=[a])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
-Sink(name=[sink1], fields=[a, cnt])
+Sink(name=[upsertSink1], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[>(cnt, 10)])
    +- Reused(reference_id=[1])
 
-Sink(name=[sink1], fields=[a, cnt])
+Sink(name=[upsertSink2], fields=[a, cnt])
 +- Calc(select=[a, cnt], where=[<(cnt, 10)])
    +- Reused(reference_id=[1])
 
@@ -419,14 +427,14 @@ Sink(name=[sink1], fields=[a, cnt])
   <TestCase name="testExplainWithMultiSinks[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(name=[sink1], fields=[a, cnt])
+LogicalSink(name=[upsertSink1], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[>($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
          +- LogicalProject(a=[$0])
             +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
-LogicalSink(name=[sink1], fields=[a, cnt])
+LogicalSink(name=[upsertSink2], fields=[a, cnt])
 +- LogicalProject(a=[$0], cnt=[$1])
    +- LogicalFilter(condition=[<($1, 10)])
       +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
@@ -439,11 +447,11 @@ GroupAggregate(groupBy=[a], select=[a, COUNT(*) AS cnt], updateAsRetraction=[fal
    +- Calc(select=[a], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-Sink(name=[sink1], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(name=[upsertSink1], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, cnt], where=[>(cnt, 10)], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Reused(reference_id=[1])
 
-Sink(name=[sink1], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(name=[upsertSink2], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, cnt], where=[<(cnt, 10)], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Reused(reference_id=[1])
 
@@ -501,13 +509,13 @@ Sink(name=[sink1], fields=[a, cnt], updateAsRetraction=[false], accMode=[Acc]): 
   <TestCase name="testExplainWithSingleSink[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(fields=[a, b, c])
+LogicalSink(name=[appendSink], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[>($0, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
-Sink(fields=[a, b, c])
+Sink(name=[appendSink], fields=[a, b, c])
 +- Calc(select=[a, b, c], where=[>(a, 10)])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 
@@ -537,13 +545,13 @@ Sink(fields=[a, b, c])
   <TestCase name="testExplainWithSingleSink[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(fields=[a, b, c])
+LogicalSink(name=[appendSink], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[>($0, 10)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 
 == Optimized Logical Plan ==
-Sink(fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(name=[appendSink], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- Calc(select=[a, b, c], where=[>(a, 10)], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
@@ -627,7 +635,7 @@ SortLimit(orderBy=[a ASC], offset=[0], fetch=[5], updateAsRetraction=[false], ac
   <TestCase name="testMiniBatchIntervalInfer[extended=true]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(fields=[a, b])
+LogicalSink(name=[appendSink1], fields=[a, b])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[CONCAT_AGG($2, $3)])
       +- LogicalProject(id1=[$0], $f1=[TUMBLE($1, 8000:INTERVAL SECOND)], $f2=[_UTF-16LE'#'], text=[$2])
@@ -639,7 +647,7 @@ LogicalSink(fields=[a, b])
                   +- LogicalWatermarkAssigner(fields=[id2, cnt, name, goods, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
                      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
-LogicalSink(fields=[a, b])
+LogicalSink(name=[appendSink2], fields=[a, b])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[CONCAT_AGG($2, $3)])
       +- LogicalProject(id1=[$0], $f1=[HOP($1, 12000:INTERVAL SECOND, 6000:INTERVAL SECOND)], $f2=[_UTF-16LE'*'], text=[$2])
@@ -661,13 +669,13 @@ Calc(select=[id1, rowtime AS ts, text], updateAsRetraction=[true], accMode=[Acc]
       +- WatermarkAssigner(fields=[id2, cnt, name, goods, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
          +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 
-Sink(fields=[a, b], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(name=[appendSink1], fields=[a, b], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow], select=[id1, CONCAT_AGG($f2, text) AS EXPR$1], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Exchange(distribution=[hash[id1]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- Calc(select=[id1, ts, _UTF-16LE'#' AS $f2, text], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
          +- Reused(reference_id=[1])
 
-Sink(fields=[a, b], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
+Sink(name=[appendSink2], fields=[a, b], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
 +- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, CONCAT_AGG($f2, text) AS EXPR$1], updateAsRetraction=[false], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
    +- Exchange(distribution=[hash[id1]], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
       +- Calc(select=[id1, ts, _UTF-16LE'*' AS $f2, text], updateAsRetraction=[true], accMode=[Acc]): rowcount = , cumulative cost = {rows, cpu, io, network, memory}
@@ -774,7 +782,7 @@ Union(all=[true], union=[a, b, c])
   <TestCase name="testMiniBatchIntervalInfer[extended=false]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(fields=[a, b])
+LogicalSink(name=[appendSink1], fields=[a, b])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[CONCAT_AGG($2, $3)])
       +- LogicalProject(id1=[$0], $f1=[TUMBLE($1, 8000:INTERVAL SECOND)], $f2=[_UTF-16LE'#'], text=[$2])
@@ -786,7 +794,7 @@ LogicalSink(fields=[a, b])
                   +- LogicalWatermarkAssigner(fields=[id2, cnt, name, goods, rowtime], rowtimeField=[rowtime], watermarkDelay=[0])
                      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 
-LogicalSink(fields=[a, b])
+LogicalSink(name=[appendSink2], fields=[a, b])
 +- LogicalProject(id1=[$0], EXPR$1=[$2])
    +- LogicalAggregate(group=[{0, 1}], EXPR$1=[CONCAT_AGG($2, $3)])
       +- LogicalProject(id1=[$0], $f1=[HOP($1, 12000:INTERVAL SECOND, 6000:INTERVAL SECOND)], $f2=[_UTF-16LE'*'], text=[$2])
@@ -808,13 +816,13 @@ Calc(select=[id1, rowtime AS ts, text], reuse_id=[1])
       +- WatermarkAssigner(fields=[id2, cnt, name, goods, rowtime], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
          +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, cnt, name, goods, rowtime])
 
-Sink(fields=[a, b])
+Sink(name=[appendSink1], fields=[a, b])
 +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow], select=[id1, CONCAT_AGG($f2, text) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
       +- Calc(select=[id1, ts, _UTF-16LE'#' AS $f2, text])
          +- Reused(reference_id=[1])
 
-Sink(fields=[a, b])
+Sink(name=[appendSink2], fields=[a, b])
 +- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 6000, 12000)], select=[id1, CONCAT_AGG($f2, text) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
       +- Calc(select=[id1, ts, _UTF-16LE'*' AS $f2, text])
