@@ -30,20 +30,15 @@ The Table API in Flink is commonly used to ease the definition of data analytics
 * This will be replaced by the TOC
 {:toc}
 
-## What Are We Building? 
+## What Will You Be Building? 
 
-In this tutorial, we'll show how to build a continuous ETL pipeline for tracking financial transactions by account over time.
-We will start by building our report as a nightly batch job, and then migrate to a streaming pipeline to see how batch is just a special case of streaming. 
+In this tutorial, you'll learn how to build a continuous ETL pipeline for tracking financial transactions by account over time.
+You will start by building our report as a nightly batch job, and then migrate to a streaming pipeline to see how batch is just a special case of streaming. 
 
 ## Prerequisites
 
-We'll assume that you have some familiarity with Java or Scala, but you should be able to follow along even if you're coming from a different programming language.
-We'll also assume that you're familiar with basic relational concepts such as `SELECT` and `GROUP BY` clauses. 
-
-If you want to follow along, you will require a computer with: 
-
-* Java 8 
-* Maven 
+This walkthrough assumes that you have some familiarity with Java or Scala, but you should be able to follow along even if you're coming from a different programming language.
+It also assumes that you're familiar with basic relational concepts such as `SELECT` and `GROUP BY` clauses. 
 
 ## Help, I’m Stuck! 
 
@@ -52,7 +47,12 @@ In particular, Apache Flink's [user mailing list](https://flink.apache.org/commu
 
 ## How To Follow Along
 
-If you would like to follow along this walkthrough provides a Flink Maven Archetype to create a skeleton project with all the necessary dependencies quickly.
+If you want to follow along, you will require a computer with: 
+
+* Java 8 
+* Maven 
+
+There is also a provided Flink Maven Archetype to create a skeleton project with all the necessary dependencies quickly.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -138,10 +138,10 @@ Let's break down this code by component.
 
 #### The Execution Environment
 
-The first two lines set up our `ExecutionEnvironment`.
-The execution environment is how we set properties for our deployments, specify whether we are writing a batch or streaming application, and create our sources.
-Here we have chosen to use the batch environment since we are building a periodic batch report.
-We then wrap it in a `BatchTableEnvironment` to have full access to the Table API.
+The first two lines set up your `ExecutionEnvironment`.
+The execution environment is how you can set properties for your deployments, specify whether you are writing a batch or streaming application, and create your sources.
+This walkthrough begins with the batch environment since we are building a periodic batch report.
+It is then wrapped in a `BatchTableEnvironment` to have full access to the Table API.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -162,8 +162,8 @@ val tEnv = BatchTableEnvironment.create(env);
 
 #### Registering Tables
 
-Next, we register tables that we can use to connect to external systems for reading and writing both batch and streaming data.
-A table source provides access to data which is stored in external systems (such as a database, key-value store, message queue, or file system).
+Next, tables are registered in the execution environment that you can use to connect to external systems for reading and writing both batch and streaming data.
+A table source provides access to data stored in external systems (such as a database, key-value store, message queue, or file system).
 A table sink emits a table to an external storage system.
 Depending on the type of source and sink, they support different formats such as CSV, JSON, Avro, or Parquet.
 
@@ -183,14 +183,15 @@ tEnv.registerTableSink("spend_report", new SpendReportTableSink())
 </div>
 </div>
 
-We register two tables, a transaction input table, and a spend report output table.
+Two tables are registered, a transaction input table, and a spend report output table.
 The transactions (`transactions`) table lets us read credit card transactions, which contain account ID's (`accountId`), timestamps (`timestamp`), and US$ amounts (`amount`). 
-The spend report (`spend_report`) table writes the output of a job to standard output so we can easily see our results. 
+The spend report (`spend_report`) table writes the output of a job to standard output so you can easily see your results. 
 Both tables support running batch and streaming applications.
 
 #### Registering A UDF
 
-Along with tables, we include a user-defined function for working with timestamps. Our function takes a timestamp and rounds it down to the nearest hour. 
+Along with tables, a user-defined function is registered for working with timestamps.
+This function takes a timestamp and rounds it down to the nearest hour. 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -208,8 +209,8 @@ val truncateDateToHour = new TruncateDateToHour
 
 #### The Query
 
-With our environment configured and tables registered, we are ready to build our first application.
-From the `TableEnvironment` we can `scan` an input table to read its rows and then write those results into an output table using `insertInto`.
+With the environment configured and tables registered, you are ready to build your first application.
+From the `TableEnvironment` you can `scan` an input table to read its rows and then write those results into an output table using `insertInto`.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -234,7 +235,7 @@ Initially, the job reads all transactions and writes them to standard output.
 #### Execute
 
 Flink applications are built lazily and shipped to the cluster for execution only once fully formed. 
-We call `ExecutionEnvironment#execute` to begin the execution of our job. 
+You call `ExecutionEnvironment#execute` to begin the execution of your job. 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -252,11 +253,11 @@ env.execute("Spend Report")
 
 ## Attempt One
 
-Now that we have the skeleton of a job let's add some business logic.
-We want a report that shows the total spend for each account across each hour of the day.
-Just like a SQL query, we can select the required fields and group by our keys. 
-Because the timestamp field has millisecond granularity, we will use our UDF to round it down to the nearest hour.
-Finally, we will select all the fields, summing the total spend per account-hour pair.
+Now with a  skeleton of a job set-up, you are ready to add some business logic.
+The goal is to build a report that shows the total spend for each account across each hour of the day.
+Just like a SQL query, Flink can select the required fields and group by your keys. 
+Because the timestamp field has millisecond granularity, you can use the UDF to round it down to the nearest hour.
+Finally, select all the fields, summing the total spend per account-hour pair.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -284,9 +285,9 @@ tEnv
 
 ## Adding Windows
 
-While this works, we can do better.
+While this works, using a custom function to group by time is overly complex.
 The `timestamp` column represents the [event time]({{ site.baseurl }}/dev/event_time.html) of each row, where event time is the logical time when an event took place in the real world.
-Flink understands the concept of event time, which we can leverage to clean up our code. 
+Flink understands the concept of event time, which you can leverage this to clean up your code. 
 
 Grouping data based on time is a typical operation in data processing, especially when working with infinite streams.
 A grouping based on time is called a [window]({{ site.baseurl }} /dev/stream/operators/windows.html) and Flink offers flexible windowing semantics. 
@@ -319,11 +320,12 @@ tEnv
 This defines our application as using one hour tumbling windows based on the timestamp column.
 So a row with timestamp `2019-06-01 01:23:47` is put in the `2019-06-01 01:00:00` window.
 
-Aggregations based on time are unique because time, as opposed to other attributes, generally moves forward in a continuous streaming application. Using time window-based aggregations enables Flink to perform specific optimizations such as state clean up when the framework knows that no more records will arrive for a particular window.
+Aggregations based on time are unique because time, as opposed to other attributes, generally moves forward in a continuous streaming application.
+Using time window-based aggregations enables Flink to perform specific optimizations such as state clean up when the framework knows that no more records will arrive for a particular window.
 
 ## Once More, With Streaming!
 
-With our business logic implemented, it is time to go from batch to streaming.
+With yxour business logic implemented, it is time to go from batch to streaming.
 Because the Table API supports running against both batch and streaming runners with the same semantics, migrating is as simple as changing the execution context.
 
 <div class="codetabs" markdown="1">
