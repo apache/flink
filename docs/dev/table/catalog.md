@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-A catalog can provide information about metadata, such as names, schemas, statistics of tables, and information about how to access data stored in a database or table. Once a catalog is registered to a `TableEnvironment`, all meta-objects defined in a catalog can be accessed from Table API or SQL queries.
+Catalogs provide metadata, such as names, schemas, statistics of tables, and information about how to access data stored in a database or other external systems. Once a catalog is registered within a `TableEnvironment`, all its meta-objects are accessible from the Table API and SQL queries.
 
 
 * This will be replaced by the TOC
@@ -35,33 +35,35 @@ Catalog Interface
 
 APIs are defined in `Catalog` interface. The interface defines a set of APIs to read and write catalog meta-objects such as database, tables, partitions, views, and functions.
 
-Users can develop their own catalogs by implementing the interface.
 
-
-Naming Structure in Catalog
----------------------------
+Catalog Meta-Objects Naming Structure
+-------------------------------------
 
 Flink's catalogs use a strict two-level structure, that is, catalogs contain databases, and databases contain meta-objects. Thus, the full name of a meta-object is always structured as `catalogName`.`databaseName`.`objectName`.
 
-All registered catalogs are managed by a `CatalogManager` instance in `TableEnvironment`. In order to ease access to meta-objects, `CatalogManager` has a concept of current catalog and current database. Usually how users access meta-objects in a catalog is to specify its full name in the format of `catalogName`.`databaseName`.`objectName`. By setting current catalog and current database, users can use just the meta-object's name in their queries. This greatly simplifies user experience. For example, a previous query as
+Each `TableEnvironment` has a `CatalogManager` to manager all registered catalogs. To ease access to meta-objects, `CatalogManager` has a concept of current catalog and current database. By setting current catalog and current database, users can use just the meta-object's name in their queries. This greatly simplifies user experience.
+
+For example, a previous query as
 
 ```sql
 select * from mycatalog.mydb.myTable;
 ```
 
-can be shortened as
+can be shortened to
 
 ```sql
 select * from myTable;
 ```
 
-Querying tables in a different databases under the default catalog would be
+To querying tables in a different database under the current catalog, users don't need to specify the catalog name. In our example, it would be
 
 ```
-select * from mydb2.myTable
+select * from mydb2.myTable2
 ```
 
-`CatalogManager` always has a built-in `GenericInMemoryCatalog` with name of `default_catalog`, which has a built-in default database named `default_database`. They will be the current catalog and current database if no other catalog and database are explicitly set. All temp meta-objects will be registered to this catalog. Users can set current catalog and database via `TableEnvironment.useCatalog(...)` and `TableEnvironment.useDatabase(...)` in Table API, or `USE CATALOG ...` and `USE DATABASE ...` in Flink SQL.
+`CatalogManager` always has a built-in `GenericInMemoryCatalog` named `default_catalog`, which has a built-in default database named `default_database`. If no other catalog and database are explicitly set, they will be the current catalog and current database by default. All temp meta-objects, such as those defined by `TableEnvironment#registerTable`  are registered to this catalog. 
+
+Users can set current catalog and database via `TableEnvironment.useCatalog(...)` and `TableEnvironment.useDatabase(...)` in Table API, or `USE CATALOG ...` and `USE DATABASE ...` in Flink SQL.
 
 
 Catalog Types
@@ -69,33 +71,33 @@ Catalog Types
 
 ## GenericInMemoryCatalog
 
-All meta-objects in this catalog are stored in memory, and be will lost once the session shuts down.
+The default catalog; all meta-objects in this catalog are stored in memory, and be will be lost once the session shuts down.
 
 Its config entry value in SQL CLI yaml file is "generic_in_memory".
 
 ## HiveCatalog
 
-`HiveCatalog` can read and write both Flink and Hive meta-objects by using Hive Metastore as a persistent storage.
+Flink's `HiveCatalog` can read and write both Flink and Hive meta-objects using Hive Metastore as persistent storage.
 
 Its config entry value in SQL CLI yaml file is "hive".
 
 ### Persist Flink meta-objects
 
-Previously, Flink meta-objects are only stored in memory and are per session based. That means users have to recreate all the meta-objects every time they start a new session.
+Historically, Flink meta-objects are only stored in memory and are per session based. That means users have to recreate all the meta-objects every time they start a new session.
 
-To solve this user pain point, users can choose the option to use `HiveCatalog` to persist all of users' Flink streaming and batch meta-objects by using Hive Metastore as a pure storage. Because Hive Metastore is only used for storage in this case, Hive itself may not understand Flink's meta-objects stored in the metastore.
+To maintain meta-objects across sessions, users can choose to use `HiveCatalog` to persist all of users' Flink streaming (unbounded-stream) and batch (bounded-stream) meta-objects. Because Hive Metastore is only used for storage, Hive itself may not understand Flink's meta-objects stored in the metastore.
 
 ### Integrate Flink with Hive metadata
 
 The ultimate goal for integrating Flink with Hive metadata is that:
 
-1. existing meta-objects, like tables, views, and functions, created by Hive or other Hive-compatible applications can be used by Flink
+1. Existing meta-objects, like tables, views, and functions, created by Hive or other Hive-compatible applications can be used by Flink
 
-2. meta-objects created by `HiveCatalog` can be written back to Hive metastore such that Hive and other Hive-compatibile applications can consume.
+2. Meta-objects created by `HiveCatalog` can be written back to Hive metastore such that Hive and other Hive-compatible applications can consume.
 
 ## User-configured Catalog
 
-Catalogs are pluggable, and users can use their own, customized catalog implementations.
+Catalogs are pluggable. Users can develop custom catalogs by implementing the `Catalog` interface, which defines a set of APIs for reading and writing catalog meta-objects such as database, tables, partitions, views, and functions.
 
 
 HiveCatalog
@@ -103,21 +105,20 @@ HiveCatalog
 
 ## Supported Hive Versions
 
-`HiveCatalog` officially supports Hive 2.3.4 and 1.2.1, and depends on Hive's own compatibility for the other 2.x.x and 1.x.x versions.
+Flink's `HiveCatalog` officially supports Hive 2.3.4 and 1.2.1.
 
-Users need to explicitly specify the Hive version as string, by either passing it to the constructor when creating `HiveCatalog` instances directly in Table API or specifying it in yaml config file in SQL CLI. The Hive version string will be either `2.3.4`, `1.2.1`, or your own 2.x.x/1.x.x versions.
+The Hive version is explicitly specified as a String, either by passing it to the constructor when creating `HiveCatalog` instances directly in Table API or specifying it in yaml config file in SQL CLI. The Hive version string are `2.3.4` and `1.2.1`.
 
 ## Dependencies
 
-In order to use `HiveCatalog`, users need to either downloading the following dependency jars and adding them to the `/lib` dir in Flink distribution, or adding their existing Hive jars to Flink's classpath in order for Flink to find them at runtime.
+To use `HiveCatalog`, users need to include the following dependency jars.
 
-Take Hive 2.3.4 for example:
+For Hive 2.3.4, users need:
 
 ```
 // Hive dependencies
 
-- hive-metastore-2.3.4.jar
-- hive-exec-2.3.4.jar
+- hive-exec-2.3.4.jar // contains hive-metastore-2.3.4
 
 
 // Hadoop dependencies
@@ -126,12 +127,32 @@ Take Hive 2.3.4 for example:
 
 ```
 
-Note that users need to make sure the compatibility between their Hive versions and hadoop versions. Otherwise, there may be potential problem, for example, Hive 2.3.4 is compiled against Hadoop 2.7.2, you may run into problems when using Hive 2.3.4 with Hadoop 2.4.
+For Hive 1.2.1, users need:
+
+```
+// Hive dependencies
+
+- hive-metastore-1.2.1.jar
+- hive-exec-1.2.1.jar
+
+
+// Hadoop dependencies
+- flink-shaded-hadoop-2-uber-2.6.5-1.8.0.jar
+- flink-hadoop-compatibility-{{site.version}}.jar
+
+```
+
+If you don't have Hive dependencies at hand, they can be found at [mvnrepostory.com](https://mvnrepository.com):
+
+- [hive-exec](https://mvnrepository.com/artifact/org.apache.hive/hive-exec)
+- [hive-metastore](https://mvnrepository.com/artifact/org.apache.hive/hive-metastore)
+
+Note that users need to make sure the compatibility between their Hive versions and Hadoop versions. Otherwise, there may be potential problem, for example, Hive 2.3.4 is compiled against Hadoop 2.7.2, you may run into problems when using Hive 2.3.4 with Hadoop 2.4.
 
 
 ## Data Type Mapping
 
-For both Flink and Hive tables, `HiveCatalog` stores column types in schema by mapping them to Hive data types. Upon reading tables, `HiveCatalog` maps them back.
+For both Flink and Hive tables, `HiveCatalog` stores table schemas by mapping them to Hive table schemas with Hive data types. Types are dynamically mapped back on read.
 
 Currently `HiveCatalog` supports most Flink data types with the following mapping:
 
@@ -163,7 +184,7 @@ Currently `HiveCatalog` supports most Flink data types with the following mappin
 
 Note that we only covers most commonly used data types for now.
 
-The following limitations in Hive's data types that will impact the mapping between Flink and Hive if you choose to use `HiveCatalog`.
+The following limitations in Hive's data types impact the mapping between Flink and Hive:
 
 \* maximum length is 255
 
@@ -179,16 +200,15 @@ Catalog Registration
 
 ## Register Catalog in Table API
 
-To register catalog in Table API, users can just create catalog instances and register them through `TableEnvironment.registerCatalog(name, catalog)`.
-
-This applies to both pre-defined catalogs and users' customized catalogs.
-
+To register a catalog in Table API, users can create a catalog instance and register it through `TableEnvironment.registerCatalog(name, catalog)`.
 
 ## Register Catalog in SQL CLI
 
 To use pre-defined catalogs (`GenericInMemoryCatalog` and `HiveCatalog`) in SQL CLI, please refer to [SQL Clinet]({{ site.baseurl }}/dev/table/sqlClient.html)
 
-To use custom catalog in SQL CLI, users should develop both a catalog implementation and its corresponding catalog factory which implements `CatalogFactory` interface, as well as defining a set of properties for the catalog to be configured in SQL CLI yaml file. When SQL CLI bootstraps, it will read the configured properties and pass them into a discovery service where the service tries to match the properties to a `CatalogFactory` and initiate an corresponding catalog instance.
+To use custom catalog in SQL CLI, users should develop both a catalog and its corresponding catalog factory by implementing `Catalog` and `CatalogFactory` interfaces respectively.
+
+The catalog factory defines a set of properties for configuring the catalog when SQL CLI bootstraps. The set of properties will be passed to a discovery service where the service tries to match the properties to a `CatalogFactory` and initiate an corresponding catalog instance.
 
 
 {% top %}
@@ -196,9 +216,9 @@ To use custom catalog in SQL CLI, users should develop both a catalog implementa
 Catalog Modules
 ---------------
 
-`GenericInMemoryCatalog` is built in Flink's Table API.
+`GenericInMemoryCatalog` is built into Flink's Table API.
 
-In order to use `HiveCatalog` in Flink Table API and SQL, users need to include `flink-connector-hive` jar in their projects.
+To use `HiveCatalog` in Flink Table API and SQL, users need to include `flink-connector-hive` jar in their projects.
 
 {% highlight xml %}
 <dependency>
@@ -211,8 +231,6 @@ In order to use `HiveCatalog` in Flink Table API and SQL, users need to include 
 
 Use Catalog
 -----------
-
-We will use `HiveCatalog` for example in the following content.
 
 ## Use HiveCatalog in Table API
 
@@ -304,7 +322,7 @@ catalogs:
      default-database: ...
 ```
 
-To run a few example SQL commands to access a Hive table.
+And below are a few example SQL commands accessing a Hive table.
 
 ```sql
 Flink SQL> show catalogs;
