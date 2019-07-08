@@ -81,7 +81,7 @@ object SetOpRewriteUtil {
     val fieldTypes = logicalType.getChildren.map(fromLogicalTypeToTypeInfo).toArray
     val tf = new ReplicateRows(fieldTypes)
     val resultType = fromLegacyInfoToDataType(new RowTypeInfo(fieldTypes, fieldNames))
-    val function = new TypedFlinkTableFunction(tf, resultType)
+    val function = new TypedFlinkTableFunction(tf, fieldNames, resultType)
     val typeFactory = builder.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val sqlFunction = new TableSqlFunction(
       tf.functionIdentifier,

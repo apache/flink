@@ -266,8 +266,10 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		public <U> RelNode visit(CalculatedQueryOperation<U> calculatedTable) {
 			DataType resultType = fromLegacyInfoToDataType(calculatedTable.getResultType());
 			TableFunction<?> tableFunction = calculatedTable.getTableFunction();
+			String[] fieldNames = calculatedTable.getTableSchema().getFieldNames();
+
 			TypedFlinkTableFunction function = new TypedFlinkTableFunction(
-					tableFunction, resultType);
+					tableFunction, fieldNames, resultType);
 
 			FlinkTypeFactory typeFactory = relBuilder.getTypeFactory();
 
