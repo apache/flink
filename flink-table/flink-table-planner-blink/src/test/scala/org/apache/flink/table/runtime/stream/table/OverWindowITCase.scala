@@ -55,7 +55,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       (20L, 20, null.asInstanceOf[String]))
 
     val stream = failingDataSource(data)
-    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'proctime)
+    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvg
     val countDist = new CountDistinct
@@ -96,7 +96,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       (20L, 20, "Hello World"))
 
     val stream = failingDataSource(data)
-    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'proctime)
+    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     val weightAvgFun = new WeightedAvg
 
     val windowedTable = table
@@ -137,7 +137,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val source = failingDataSource(data)
     val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Int, Long, String)])
       .setParallelism(source.parallelism)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
     val countFun = new CountAggFunction
     val weightAvgFun = new WeightedAvg
     val plusOne = new JavaFunc0
@@ -206,7 +206,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
 
     val countDist = new CountDistinctWithRetractAndReset
     val stream = failingDataSource(data)
-    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime)
+    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
 
     val windowedTable = table.select('a, 'b, 'c, 'd, 'e, 'proctime)
       .window(Over partitionBy 'a orderBy 'proctime preceding 4.rows following CURRENT_ROW as 'w)
@@ -258,7 +258,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
 
     val countDist = new CountDistinctWithRetractAndReset
     val stream = failingDataSource(data)
-    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime)
+    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
 
     val windowedTable = table.select("a, b, c, d, e, proctime")
       .window(Over
@@ -320,7 +320,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val source = failingDataSource(data)
     val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
       .setParallelism(source.parallelism)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     val windowedTable = table
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)
@@ -379,7 +379,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val source = failingDataSource(data)
     val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
       .setParallelism(source.parallelism)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     val windowedTable = table
       .window(
@@ -419,7 +419,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     val source = failingDataSource(data)
     val table = source.transform("TimeAssigner", new EventTimeProcessOperator[(Long, Int, String)])
       .setParallelism(source.parallelism)
-      .toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+      .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
 
     val windowedTable = table
       .window(Over partitionBy 'c orderBy 'rowtime preceding 2.rows following CURRENT_ROW as 'w)

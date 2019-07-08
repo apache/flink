@@ -40,8 +40,6 @@ import scala.collection.mutable
 class AggregationITCase extends BatchTestBase {
 
   @Test
-  // TODO
-  @Ignore("remove ignore while https://github.com/apache/flink/pull/9006 is merged")
   def testAggregationWithCaseClass(): Unit = {
     val inputTable = CollectionBatchExecTable.getSmallNestedTupleDataSet(tEnv, "a, b")
 
@@ -55,8 +53,6 @@ class AggregationITCase extends BatchTestBase {
   }
 
   @Test
-  // TODO
-  @Ignore("remove ignore while https://github.com/apache/flink/pull/9006 is merged")
   def testAggregationTypes(): Unit = {
 
     val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, null)
@@ -68,8 +64,6 @@ class AggregationITCase extends BatchTestBase {
   }
 
   @Test
-  // TODO
-  @Ignore("remove ignore while https://github.com/apache/flink/pull/9006 is merged")
   def testWorkingAggregationDataTypes(): Unit = {
 
     val t = BatchTableEnvUtil.fromElements(tEnv,
@@ -83,8 +77,6 @@ class AggregationITCase extends BatchTestBase {
   }
 
   @Test
-  // TODO
-  @Ignore("remove ignore while https://github.com/apache/flink/pull/9006 is merged")
   def testProjection(): Unit = {
     val t = BatchTableEnvUtil.fromElements(tEnv,
       (1: Byte, 1: Short),
@@ -97,8 +89,6 @@ class AggregationITCase extends BatchTestBase {
   }
 
   @Test
-  // TODO
-  @Ignore("remove ignore while https://github.com/apache/flink/pull/9006 is merged")
   def testAggregationWithArithmetic(): Unit = {
     val t = BatchTableEnvUtil.fromElements(tEnv, (1f, "Hello"), (2f, "Ciao"))
       .select(('_1 + 2).avg + 2, '_2.count + 5)
@@ -119,8 +109,6 @@ class AggregationITCase extends BatchTestBase {
   }
 
   @Test
-  // TODO
-  @Ignore("remove ignore while https://github.com/apache/flink/pull/9006 is merged")
   def testAggregationAfterProjection(): Unit = {
     val t = BatchTableEnvUtil.fromElements(tEnv,
       (1: Byte, 1: Short, 1, 1L, 1.0f, 1.0d, "Hello"),
@@ -134,8 +122,6 @@ class AggregationITCase extends BatchTestBase {
   }
 
   @Test
-  // TODO
-  @Ignore("remove ignore while https://github.com/apache/flink/pull/9006 is merged")
   def testSQLStyleAggregations(): Unit = {
     val t = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b ,c")
       .select(
@@ -305,8 +291,6 @@ class AggregationITCase extends BatchTestBase {
   }
 
   @Test
-  // TODO
-  @Ignore("remove ignore while https://github.com/apache/flink/pull/9006 is merged")
   def testGroupedAggregateWithExpression(): Unit = {
     val t = CollectionBatchExecTable.get5TupleDataSet(tEnv, "a, b, c, d, e")
       .groupBy('e, 'b % 3)

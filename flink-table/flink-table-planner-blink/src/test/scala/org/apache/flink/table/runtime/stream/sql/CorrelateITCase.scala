@@ -17,8 +17,6 @@
  */
 package org.apache.flink.table.runtime.stream.sql
 
-import java.lang.{Boolean => JBoolean}
-
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
@@ -29,7 +27,9 @@ import org.apache.flink.table.util.{RF, TableFunc7}
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
+
+import java.lang.{Boolean => JBoolean}
 
 import scala.collection.mutable
 
@@ -41,7 +41,6 @@ class CorrelateITCase extends StreamingTestBase {
     tEnv.registerFunction("STRING_SPLIT", new StringSplit())
   }
 
-  @Ignore // TODO support union all.
   @Test
   // BLINK-13614111: Fix IndexOutOfBoundsException when UDTF is used on the
   // same name field of different tables
@@ -85,7 +84,6 @@ class CorrelateITCase extends StreamingTestBase {
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
-  @Ignore // TODO like
   @Test
   def testUdfIsOpenedAfterUdtf(): Unit = {
     val data = List(
@@ -176,7 +174,6 @@ class CorrelateITCase extends StreamingTestBase {
     assertEquals(List(), sink.getAppendResults.sorted)
   }
 
-  @Ignore // TODO DATE_ADD
   @Test
   def testReUsePerRecord(): Unit = {
     val data = List(
