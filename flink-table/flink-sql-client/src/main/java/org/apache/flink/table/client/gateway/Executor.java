@@ -71,6 +71,11 @@ public interface Executor {
 	void useDatabase(SessionContext session, String databaseName) throws SqlExecutionException;
 
 	/**
+	 * Create a table with a DDL.
+	 */
+	void createTable(SessionContext session, String ddl) throws SqlExecutionException;
+
+	/**
 	 * Returns the schema of a table. Throws an exception if the table could not be found. The
 	 * schema might contain time attribute types for helping the user during debugging a query.
 	 */

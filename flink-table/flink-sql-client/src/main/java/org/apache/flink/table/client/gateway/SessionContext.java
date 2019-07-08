@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.client.gateway;
 
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ViewEntry;
 
@@ -26,6 +27,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Context describing a session.
@@ -39,6 +41,9 @@ public class SessionContext {
 	private final Map<String, String> sessionProperties;
 
 	private final Map<String, ViewEntry> views;
+
+	// Make current catalog static so that every session instance can see it.
+	private volatile Catalog currentCatalog;
 
 	public SessionContext(String name, Environment defaultEnvironment) {
 		this.name = name;
@@ -69,6 +74,14 @@ public class SessionContext {
 		return Collections.unmodifiableMap(views);
 	}
 
+	public void setCurrentCatalog(Catalog catalog) {
+		this.currentCatalog = catalog;
+	}
+
+	public Optional<Catalog> getCurrentCatalog() {
+		return Optional.ofNullable(this.currentCatalog);
+	}
+
 	public String getName() {
 		return name;
 	}
@@ -84,6 +97,7 @@ public class SessionContext {
 		final SessionContext session = new SessionContext(name, defaultEnvironment);
 		session.sessionProperties.putAll(sessionProperties);
 		session.views.putAll(views);
+		session.setCurrentCatalog(currentCatalog);
 		return session;
 	}
 

@@ -173,6 +173,56 @@ public class LocalExecutorITCase extends TestLogger {
 	}
 
 	@Test
+	public void testCreateTable() throws Exception {
+		final Executor executor = createExecutorFromEnvFile(clusterClient,
+			"test-sql-client-ddl-table.yaml");
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		final String ddlTemplate = "create table %s(\n" +
+			"  a int,\n" +
+			"  b bigint,\n" +
+			"  c varchar\n" +
+			") with (\n" +
+			"  connector.type='filesystem',\n" +
+			"  format.type='csv',\n" +
+			"  connector.path='xxx'\n" +
+			")\n";
+		executor.createTable(session, String.format(ddlTemplate, "MyTable1"));
+		executor.createTable(session, String.format(ddlTemplate, "MyTable2"));
+
+		final List<String> expectedTables = Arrays.asList(
+			"MyTable1",
+			"MyTable2");
+		assertEquals(expectedTables, executor.listTables(session));
+	}
+
+	@Test
+	public void testCreateTableWithMultiSession() throws Exception {
+		final Executor executor = createExecutorFromEnvFile(clusterClient,
+			"test-sql-client-ddl-table.yaml");
+		final SessionContext session = new SessionContext("test-session", new Environment());
+		session.setSessionProperty("execution.type", "batch");
+		final String ddlTemplate = "create table %s(\n" +
+			"  a int,\n" +
+			"  b bigint,\n" +
+			"  c varchar\n" +
+			") with (\n" +
+			"  connector.type='filesystem',\n" +
+			"  format.type='csv',\n" +
+			"  connector.path='xxx',\n" +
+			"  `update-mode`='append'\n" +
+			")\n";
+		executor.createTable(session, String.format(ddlTemplate, "MyTable1"));
+		// change the session property to trigger `new ExecutionContext`.
+		session.setSessionProperty("execution.restart-strategy.failure-rate-interval", "12345");
+		executor.createTable(session, String.format(ddlTemplate, "MyTable2"));
+
+		final List<String> expectedTables = Arrays.asList(
+			"MyTable1",
+			"MyTable2");
+		assertEquals(expectedTables, executor.listTables(session));
+	}
+
+	@Test
 	public void testListTables() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
 		final SessionContext session = new SessionContext("test-session", new Environment());
@@ -466,16 +516,36 @@ public class LocalExecutorITCase extends TestLogger {
 		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
 		replaceVars.put("$VAR_UPDATE_MODE", "");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
+		return createExecutorFromEnvFileAndVariables(clusterClient,
+			DEFAULTS_ENVIRONMENT_FILE, replaceVars);
+	}
+
+	private <T> LocalExecutor createModifiedExecutor(ClusterClient<T> clusterClient,
+			Map<String, String> replaceVars) throws Exception {
+		return createExecutorFromEnvFileAndVariables(clusterClient,
+			DEFAULTS_ENVIRONMENT_FILE, replaceVars);
+	}
+
+	private <T> LocalExecutor createExecutorFromEnvFile(
+		ClusterClient<T> clusterClient,
+		String fileName) throws Exception {
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
+		replaceVars.put("$VAR_UPDATE_MODE", "");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
 		return new LocalExecutor(
-			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
+			EnvironmentFileUtil.parseModified(fileName, replaceVars),
 			Collections.emptyList(),
 			clusterClient.getFlinkConfiguration(),
 			new DummyCustomCommandLine<T>(clusterClient));
 	}
 
-	private <T> LocalExecutor createModifiedExecutor(ClusterClient<T> clusterClient, Map<String, String> replaceVars) throws Exception {
+	private <T> LocalExecutor createExecutorFromEnvFileAndVariables(
+			ClusterClient<T> clusterClient,
+			String fileName,
+			Map<String, String> replaceVars) throws Exception {
 		return new LocalExecutor(
-			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
+			EnvironmentFileUtil.parseModified(fileName, replaceVars),
 			Collections.emptyList(),
 			clusterClient.getFlinkConfiguration(),
 			new DummyCustomCommandLine<T>(clusterClient));

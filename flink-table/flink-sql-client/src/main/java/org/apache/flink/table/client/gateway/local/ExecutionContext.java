@@ -80,6 +80,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * Context for executing table programs. This class caches everything that can be cached across
@@ -91,6 +92,9 @@ import java.util.function.Supplier;
 public class ExecutionContext<T> {
 
 	private final SessionContext sessionContext;
+	// keep the original session context instance so that we can keep some
+	// multi session states, e.g. the current catalog.
+	private final SessionContext originalSessionContext;
 	private final Environment mergedEnv;
 	private final List<URL> dependencies;
 	private final ClassLoader classLoader;
@@ -108,6 +112,7 @@ public class ExecutionContext<T> {
 	public ExecutionContext(Environment defaultEnvironment, SessionContext sessionContext, List<URL> dependencies,
 			Configuration flinkConfig, Options commandLineOptions, List<CustomCommandLine<?>> availableCommandLines) {
 		this.sessionContext = sessionContext.copy(); // create internal copy because session context is mutable
+		this.originalSessionContext = sessionContext;
 		this.mergedEnv = Environment.merge(defaultEnvironment, sessionContext.getEnvironment());
 		this.dependencies = dependencies;
 		this.flinkConfig = flinkConfig;
@@ -301,17 +306,31 @@ public class ExecutionContext<T> {
 			}
 
 			// register catalogs
-			catalogs.forEach(tableEnv::registerCatalog);
-
+			Map<String, Catalog> newCatalogsToRegister = catalogs;
 			Optional<String> potentialCurrentCatalog = mergedEnv.getExecution().getCurrentCatalog();
 			if (potentialCurrentCatalog.isPresent()) {
-				tableEnv.useCatalog(potentialCurrentCatalog.get());
+				Optional<Catalog> sessionCurrentCatalog = originalSessionContext.getCurrentCatalog();
+				String currentCatalogName = potentialCurrentCatalog.get();
+				if (sessionCurrentCatalog.isPresent()) {
+					// exclude current catalog registration if it is
+					// already active in session context.
+					newCatalogsToRegister = newCatalogsToRegister
+						.entrySet()
+						.stream()
+						.filter(e -> !e.getKey().equals(currentCatalogName))
+						.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+					tableEnv.registerCatalog(currentCatalogName, sessionCurrentCatalog.get());
+				} else {
+					// memo the current catalog instance into session context.
+					originalSessionContext.setCurrentCatalog(catalogs.get(currentCatalogName));
+				}
 			}
-
+			newCatalogsToRegister.forEach(tableEnv::registerCatalog);
+			// config current catalog if configured
+			potentialCurrentCatalog.ifPresent(tableEnv::useCatalog);
+			// config current database if configured
 			Optional<String> potentialCurrentDatabase = mergedEnv.getExecution().getCurrentDatabase();
-			if (potentialCurrentDatabase.isPresent()) {
-				tableEnv.useDatabase(potentialCurrentDatabase.get());
-			}
+			potentialCurrentDatabase.ifPresent(tableEnv::useDatabase);
 
 			// create query config
 			queryConfig = createQueryConfig();
