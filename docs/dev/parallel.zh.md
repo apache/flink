@@ -24,7 +24,7 @@ under the License.
 
 本节描述了如何在 Flink 中配置程序的并发执行。一个 Flink 程序由多个任务 task 组成（转换/算子、数据源和数据汇）。一个 task 包括多个并发执行的实例，且每一个实例都处理 task 输入数据的一个子集。一个 task 的并发实例数被称为该 task 的 *parallelism*。
 
-使用 [savepoints]({{ site.baseurl }}/zh/ops/state/savepoints.html) 时，应该考虑设置最大 parallelism。当作业从一个 savepoint 恢复时，你可以改变特定算子或着整个程序的 parallelism，并且此设置会限定整个程序的 parallelism 的上限。由于在 Flink 内部将状态划分为了 key-groups，且性能所限不能无限制地增加 key-groups ，因此设定最大 parallelism 是有必要的。
+使用 [savepoints]({{ site.baseurl }}/zh/ops/state/savepoints.html) 时，应该考虑设置最大 parallelism。当作业从一个 savepoint 恢复时，你可以改变特定算子或着整个程序的 parallelism，并且此设置会限定整个程序的 parallelism 的上限。由于在 Flink 内部将状态划分为了 key-groups，且性能所限不能无限制地增加 key-groups，因此设定最大 parallelism 是有必要的。
 
 * toc
 {:toc}
@@ -35,7 +35,7 @@ under the License.
 
 ### 算子层次
 
-单个算子、数据源和数据流出的 parallelism 可以通过调用 `setParallelism()` 方法来指定。如下所示：
+单个算子、数据源和数据汇的 parallelism 可以通过调用 `setParallelism()`方法来指定。如下所示：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -75,7 +75,7 @@ env.execute("Word Count Example")
 
 如[此节]({{ site.baseurl }}/zh/dev/api_concepts.html#anatomy-of-a-flink-program)所描述，Flink 程序运行在执行环境的上下文中。执行环境为所有执行的算子、数据源、数据汇定义了一个默认的 parallelism。可以显式配置算子层次的 parallelism 去覆盖执行环境的 parallelism。
 
-执行环境的默认 parallelism 可以通过调用 `setParallelism()` 方法指定。可以通过如下的方式设置执行环境的 parallelism，以并发度 `3` 来执行所有的算子、数据源和数据流出：
+执行环境的默认 parallelism 可以通过调用 `setParallelism()` 方法指定。可以通过如下的方式设置执行环境的 parallelism，以并发度 `3`来执行所有的算子、数据源和数据汇：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -161,17 +161,35 @@ try {
 
 ### 系统层次
 
-可以通过设置 ./conf/flink-conf.yaml 文件中的 parallelism.default 参数，在系统层次来指定所有执行环境的默认 parallelism。你可以通过查阅[配置文档]({{ site.baseurl }}/zh/ops/config.html)获取更多细节。
+可以通过设置 `./conf/flink-conf.yaml` 文件中的 `parallelism.default` 参数，在系统层次来指定所有执行环境的默认 parallelism。你可以通过查阅[配置文档]({{ site.baseurl }}/zh/ops/config.html)获取更多细节。
 
 
 ## 设置最大并发度
 
-最大 parallelism 可以在所有设置 parallelism 的地方进行设定（除了客户端和系统层次）。与调用 `setParallelism()` 方法修改并发度相似，你可以通过调用 `setMaxParallelism()` 方法来设定最大 parallelism。
+最大 parallelism 可以在所有设置 parallelism 的地方进行设定（客户端和系统层次除外）。与调用 `setParallelism()` 方法修改并发度相似，你可以通过调用 `setMaxParallelism()` 方法来设定最大 parallelism。
 
-默认的最大 parallelism 大致等于算子的 parallelism + 算子的
-parallelism/2，其下限为 128，上限为 32768。
+默认的最大 parallelism 等于将 operatorParallelism + (operatorParallelism / 2） 值舍入到其下一个 `2` 的幂次方的值，其计算方式如以下所示。
 
-<span class="label label-danger">注意</span> 为最大 parallelism 设置一个非常大的值将会降低性能，因为一些 state backends 需要维持内部的数据结构，而这些数据结构将会随着 key-groups 的数目而扩张（key-group 是状态重新分配的最小单元）
+{% highlight scala %}
+   /**
+	 * Round the given number to the next power of two.
+	 * @param x number is the value  of 'operatorParallelism + (operatorParallelism / 2)'
+	 * @return x rounded up to the next power of two
+	 */
+	public static int roundUpToPowerOfTwo(int x) {
+		x = x - 1;
+		x |= x >> 1;
+		x |= x >> 2;
+		x |= x >> 4;
+		x |= x >> 8;
+		x |= x >> 16;
+		return x + 1;
+	}
+{% endhighlight %}
+
+注意，默认最大 parallelism 下限为 `128`，上限为 `32768`。
+
+<span class="label label-danger">注意</span> 为最大 parallelism 设置一个非常大的值将会降低性能，因为一些 state backends 需要维持内部的数据结构，而这些数据结构将会随着 key-groups 的数目而扩张（key-group 是状态重新分配的最小单元）。
 
 
 {% top %}
