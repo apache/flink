@@ -67,40 +67,43 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
       .subscribe(
         data => {
           this.listOfTaskManager = data;
+          this.totalCount = data.length;
           this.taskManagerCPUs = 0;
           this.listOfTaskManager.map(tm => {
             this.taskManagerCPUs += tm.hardware.cpuCores;
             tm.milliSecondsSinceLastHeartBeat = new Date().getTime() - tm.timeSinceLastHeartbeat;
           });
+
           this.cdr.markForCheck();
         },
         () => {}
       );
-    this.totalCount = this.listOfTaskManager.length;
     this.jobManagerService.loadConfig().subscribe(data => {
       this.listOfConfig = data;
+
+      let timeoutThreshold = '';
+      this.listOfConfig.map(config => {
+        if (config.key === 'akka.lookup.timeout') {
+          timeoutThreshold = config.value;
+        }
+      });
+      if (!timeoutThreshold) {
+        this.timeoutThresholdSeconds = 20;
+      } else {
+        const intValue = parseInt(timeoutThreshold.substr(0, timeoutThreshold.length - 1), 10);
+        if (timeoutThreshold.substr(-1, 1) === 's') {
+          this.timeoutThresholdSeconds = intValue;
+        } else if (timeoutThreshold.substr(-1, 1) === 'm') {
+          this.timeoutThresholdSeconds = intValue * 60;
+        } else if (timeoutThreshold.substr(-1, 1) === 'h') {
+          this.timeoutThresholdSeconds = intValue * 60 * 60;
+        } else {
+          this.timeoutThresholdSeconds = 20;
+        }
+      }
+
       this.cdr.markForCheck();
     });
-
-    let timeoutThreshold = '';
-    this.listOfConfig.map(config => {
-      if (config.key === 'akka.lookup.timeout') {
-        timeoutThreshold = config.value;
-      }
-    });
-    if (!timeoutThreshold) {
-      this.timeoutThresholdSeconds = 20;
-    } else {
-      if (timeoutThreshold.substr(-1, 1) === 's') {
-        this.timeoutThresholdSeconds = parseInt(timeoutThreshold.substr(0, -1), 10);
-      } else if (timeoutThreshold.substr(-1, 1) === 'm') {
-        this.timeoutThresholdSeconds = parseInt(timeoutThreshold.substr(0, -1), 10) * 60;
-      } else if (timeoutThreshold.substr(-1, 1) === 'h') {
-        this.timeoutThresholdSeconds = parseInt(timeoutThreshold.substr(0, -1), 10) * 60 * 60;
-      } else {
-        this.timeoutThresholdSeconds = 20;
-      }
-    }
   }
 
   ngOnDestroy() {

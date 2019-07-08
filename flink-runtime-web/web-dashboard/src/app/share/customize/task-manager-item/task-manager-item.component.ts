@@ -29,4 +29,9 @@ export class TaskManagerItemComponent {
   @Input() state: TaskmanagersItemCalInterface;
   @Input() totalCount: number;
   @Input() timeoutThresholdSeconds: number;
+  totalCountStyleThreshold: number;
+
+  constructor() {
+    this.totalCountStyleThreshold = 21;
+  }
 }

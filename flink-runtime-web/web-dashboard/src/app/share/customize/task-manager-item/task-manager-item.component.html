@@ -18,24 +18,24 @@
 
 <div [ngClass]="{
             'task-manager-avatar': true,
-            'task-manager-avatar-big' : totalCount < 20,
-            'task-manager-avatar-small' : totalCount >= 20
-            }">
+            'task-manager-avatar-big' : totalCount < totalCountStyleThreshold,
+            'task-manager-avatar-small' : totalCount >= totalCountStyleThreshold
+            }" nz-tooltip [nzTitle]="managerTooltip">
   <i [ngClass]="{
-            'task-manager-avatar-big' : totalCount < 20,
-            'task-manager-avatar-small' : totalCount >= 20,
+            'task-manager-avatar-big' : totalCount < totalCountStyleThreshold,
+            'task-manager-avatar-small' : totalCount >= totalCountStyleThreshold,
             'task-manager-avatar-green' : state.milliSecondsSinceLastHeartBeat / 1000 < timeoutThresholdSeconds / 2,
             'task-manager-avatar-yellow' : state.milliSecondsSinceLastHeartBeat / 1000 >= timeoutThresholdSeconds / 2 && state.milliSecondsSinceLastHeartBeat / 1000 < timeoutThresholdSeconds,
             'task-manager-avatar-red' : state.milliSecondsSinceLastHeartBeat / 1000 >= timeoutThresholdSeconds
             }"
-     nz-icon nz-tooltip nzTheme="fill" nzType="database" [nzTitle]="managerTooltip"></i>
+     nz-icon nz-tooltip nzTheme="fill" nzType="database"></i>
   <nz-progress [ngClass]="{
                       'task-manager-percentage-bar': true,
-                      'task-manager-percentage-bar-big' : totalCount < 20,
-                      'task-manager-percentage-bar-small' : totalCount >= 20
+                      'task-manager-percentage-bar-big' : totalCount < totalCountStyleThreshold,
+                      'task-manager-percentage-bar-small' : totalCount >= totalCountStyleThreshold
                       }"
-               [nzStrokeWidth]="totalCount < 20 ? 5 : 3"
-               [nzPercent]="state.freeSlots / state.slotsNumber * 100" nzSize="small" [nzShowInfo]="false" nzStatus="normal"></nz-progress>
+               [nzStrokeWidth]="totalCount < totalCountStyleThreshold ? 5 : 3"
+               [nzPercent]="((state.slotsNumber -state.freeSlots) / state.slotsNumber) * 100 | number" nzSize="small" [nzShowInfo]="false" nzStatus="normal"></nz-progress>
   <ng-template #managerTooltip>
     <span>ID: {{state.id}}</span><br />
     <span>Free Slots: {{state.freeSlots}}</span><br />
