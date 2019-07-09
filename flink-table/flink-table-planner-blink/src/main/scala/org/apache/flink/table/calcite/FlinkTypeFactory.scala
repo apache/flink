@@ -75,6 +75,8 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
       // temporal types
       case LogicalTypeRoot.DATE => createSqlType(DATE)
       case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE => createSqlType(TIME)
+      case LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        createSqlType(TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 
       // interval types
       case LogicalTypeRoot.INTERVAL_YEAR_MONTH =>
@@ -434,11 +436,33 @@ object FlinkTypeFactory {
 
       // temporal types
       case DATE => new DateType()
-      case TIME => new TimeType()
-      case TIMESTAMP => new TimestampType(3)
+      case TIME =>
+        if (relDataType.getPrecision > 3) {
+          throw new TableException(
+            s"TIME precision is not supported: ${relDataType.getPrecision}")
+        }
+        // blink runner support precision 3, but for consistent with flink runner, we set to 0.
+        new TimeType()
+      case TIMESTAMP =>
+        if (relDataType.getPrecision > 3) {
+          throw new TableException(
+            s"TIMESTAMP precision is not supported: ${relDataType.getPrecision}")
+        }
+        new TimestampType(3)
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        if (relDataType.getPrecision > 3) {
+          throw new TableException(
+            s"TIMESTAMP_WITH_LOCAL_TIME_ZONE precision is not supported:" +
+                s" ${relDataType.getPrecision}")
+        }
+        new LocalZonedTimestampType(3)
       case typeName if YEAR_INTERVAL_TYPES.contains(typeName) =>
         DataTypes.INTERVAL(DataTypes.MONTH).getLogicalType
       case typeName if DAY_INTERVAL_TYPES.contains(typeName) =>
+        if (relDataType.getPrecision > 3) {
+          throw new TableException(
+            s"DAY_INTERVAL_TYPES precision is not supported: ${relDataType.getPrecision}")
+        }
         DataTypes.INTERVAL(DataTypes.SECOND(3)).getLogicalType
 
       case NULL =>

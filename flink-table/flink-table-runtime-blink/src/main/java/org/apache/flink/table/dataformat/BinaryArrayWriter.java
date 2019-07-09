@@ -126,6 +126,7 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 				break;
 			case BIGINT:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 			case INTERVAL_DAY_TIME:
 				setNullLong(pos);
 				break;

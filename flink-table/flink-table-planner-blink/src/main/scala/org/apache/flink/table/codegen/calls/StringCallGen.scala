@@ -27,7 +27,7 @@ import org.apache.flink.table.dataformat.DataFormatConverters
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, MapType, VarBinaryType, VarCharType}
-import org.apache.flink.table.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp}
+import org.apache.flink.table.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp, isTimestampWithLocalZone}
 
 import org.apache.calcite.runtime.SqlFunctions
 import org.apache.calcite.sql.SqlOperator
@@ -223,6 +223,11 @@ object StringCallGen {
           isTimestamp(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) =>
         methodGen(BuiltInMethods.DATE_FORMAT_LONG_STRING)
+
+      case DATE_FORMAT if operands.size == 2 &&
+          isTimestampWithLocalZone(operands.head.resultType) &&
+          isCharacterString(operands(1).resultType) =>
+        methodGen(BuiltInMethods.DATE_FORMAT_LONG_STRING_TIME_ZONE)
 
       case DATE_FORMAT if operands.size == 2 &&
           isCharacterString(operands.head.resultType) &&

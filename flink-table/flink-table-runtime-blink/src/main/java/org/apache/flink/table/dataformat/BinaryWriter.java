@@ -95,6 +95,7 @@ public interface BinaryWriter {
 				break;
 			case BIGINT:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 			case INTERVAL_DAY_TIME:
 				writer.writeLong(pos, (long) o);
 				break;

@@ -1063,4 +1063,32 @@ public class SqlDateTimeUtils {
 				+ (long) second * MILLIS_PER_SECOND
 				+ mills;
 	}
+
+	public static long timestampToTimestampWithLocalZone(long ts, TimeZone tz) {
+		return unixTimestampToLocalDateTime(ts).atZone(tz.toZoneId()).toInstant().toEpochMilli();
+	}
+
+	public static long timestampWithLocalZoneToTimestamp(long ts, TimeZone tz) {
+		return localDateTimeToUnixTimestamp(
+				LocalDateTime.ofInstant(Instant.ofEpochMilli(ts), tz.toZoneId()));
+	}
+
+	public static long timestampWithLocalZoneToDate(long ts, TimeZone tz) {
+		return localDateToUnixDate(LocalDateTime.ofInstant(
+				Instant.ofEpochMilli(ts), tz.toZoneId()).toLocalDate());
+	}
+
+	public static long timestampWithLocalZoneToTime(long ts, TimeZone tz) {
+		return localTimeToUnixDate(LocalDateTime.ofInstant(
+				Instant.ofEpochMilli(ts), tz.toZoneId()).toLocalTime());
+	}
+
+	public static long dateToTimestampWithLocalZone(int date, TimeZone tz) {
+		return LocalDateTime.of(unixDateToLocalDate(date), LocalTime.MIDNIGHT)
+				.atZone(tz.toZoneId()).toInstant().toEpochMilli();
+	}
+
+	public static long timeToTimestampWithLocalZone(int time, TimeZone tz) {
+		return unixTimestampToLocalDateTime(time).atZone(tz.toZoneId()).toInstant().toEpochMilli();
+	}
 }

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.{LOCAL_DATE, LOCAL
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.{DATE, TIME, TIMESTAMP}
 import org.apache.flink.api.common.typeinfo.Types
+import org.apache.flink.api.common.typeinfo.Types.INSTANT
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{ExecutionConfigOptions, ValidationException}
@@ -324,10 +325,11 @@ class CalcITCase extends BatchTestBase {
       DateTimeTestUtil.localTime("08:03:09"),
       Time.valueOf("08:03:09"),
       localDateTime("2019-09-19 08:03:09"),
-      Timestamp.valueOf("2019-09-19 08:03:09")))
+      Timestamp.valueOf("2019-09-19 08:03:09"),
+      Timestamp.valueOf("2019-09-19 08:03:09").toInstant))
     registerCollection("MyTable", data,
-      new RowTypeInfo(LOCAL_DATE, DATE, LOCAL_TIME, TIME, LOCAL_DATE_TIME, TIMESTAMP),
-      "a, b, c, d, e, f")
+      new RowTypeInfo(LOCAL_DATE, DATE, LOCAL_TIME, TIME, LOCAL_DATE_TIME, TIMESTAMP, INSTANT),
+      "a, b, c, d, e, f, g")
 
     tEnv.registerFunction("dateFunc", DateFunction)
     tEnv.registerFunction("localDateFunc", LocalDateFunction)
@@ -335,6 +337,7 @@ class CalcITCase extends BatchTestBase {
     tEnv.registerFunction("localTimeFunc", LocalTimeFunction)
     tEnv.registerFunction("timestampFunc", TimestampFunction)
     tEnv.registerFunction("datetimeFunc", DateTimeFunction)
+    tEnv.registerFunction("instantFunc", InstantFunction)
 
     val v1 = "1984-07-12"
     val v2 = "08:03:09"
@@ -344,12 +347,15 @@ class CalcITCase extends BatchTestBase {
       "SELECT" +
           " dateFunc(a), localDateFunc(a), dateFunc(b), localDateFunc(b)," +
           " timeFunc(c), localTimeFunc(c), timeFunc(d), localTimeFunc(d)," +
-          " timestampFunc(e), datetimeFunc(e), timestampFunc(f), datetimeFunc(f)" +
+          " timestampFunc(e), datetimeFunc(e), timestampFunc(f), datetimeFunc(f)," +
+          " CAST(instantFunc(g) AS TIMESTAMP), instantFunc(g)" +
           " FROM MyTable",
       Seq(row(
         v1, v1, v1, v1,
         v2, v2, v2, v2,
-        v3, v4, v3, v4)))
+        v3, v4, v3, v4,
+        localDateTime("2019-09-19 08:03:09"),
+        Timestamp.valueOf("2019-09-19 08:03:09").toInstant)))
   }
 
   @Test

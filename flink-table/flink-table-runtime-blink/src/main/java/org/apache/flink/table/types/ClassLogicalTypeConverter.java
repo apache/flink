@@ -55,6 +55,7 @@ public class ClassLogicalTypeConverter {
 				return Integer.class;
 			case BIGINT:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 			case INTERVAL_DAY_TIME:
 				return Long.class;
 			case FLOAT:

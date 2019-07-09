@@ -35,6 +35,8 @@ import org.apache.flink.util.InstantiationUtil
 
 import org.apache.calcite.avatica.util.DateTimeUtils
 
+import java.util.TimeZone
+
 import scala.collection.mutable
 
 /**
@@ -526,7 +528,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     * Adds a reusable TimeZone to the member area of the generated class.
     */
   def addReusableTimeZone(): String = {
-    val zoneID = tableConfig.getTimeZone.getID
+    val zoneID = TimeZone.getTimeZone(tableConfig.getLocalTimeZone).getID
     val stmt =
       s"""private static final java.util.TimeZone $DEFAULT_TIMEZONE_TERM =
          |                 java.util.TimeZone.getTimeZone("$zoneID");""".stripMargin
@@ -534,6 +536,16 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     DEFAULT_TIMEZONE_TERM
   }
 
+  /**
+    * Adds a reusable Time ZoneId to the member area of the generated class.
+    */
+  def addReusableTimeZoneID(): String = {
+    val zoneID = tableConfig.getLocalTimeZone.getId
+    val stmt =
+      s"""private static final java.time.ZoneId $DEFAULT_TIMEZONE_TERM =
+         |                 java.time.ZoneId.of("$zoneID");""".stripMargin
+    DEFAULT_TIMEZONE_ID_TERM
+  }
 
   /**
     * Adds a reusable [[java.util.Random]] to the member area of the generated class.

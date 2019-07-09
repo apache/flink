@@ -43,7 +43,7 @@ import org.junit.Test
 
 import java.math.BigDecimal
 import java.sql.{Date, Time, Timestamp}
-import java.util.{List => JList}
+import java.util.{TimeZone, List => JList}
 
 import scala.collection.JavaConverters._
 
@@ -224,7 +224,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val expected: Array[Expression] = Array(firstExp, secondExp)
 
     val (convertedExpressions, unconvertedRexNodes) =
-      RexNodeExtractor.extractConjunctiveConditions(
+      extractConjunctiveConditions(
         expr,
         -1,
         allFieldNames,
@@ -247,7 +247,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
     val relBuilder: RexBuilder = new RexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
-      RexNodeExtractor.extractConjunctiveConditions(
+      extractConjunctiveConditions(
         a,
         -1,
         allFieldNames,
@@ -296,7 +296,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
     val relBuilder: RexBuilder = new RexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
-      RexNodeExtractor.extractConjunctiveConditions(
+      extractConjunctiveConditions(
         complexNode,
         -1,
         allFieldNames,
@@ -336,7 +336,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
     val relBuilder: RexBuilder = new RexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
-      RexNodeExtractor.extractConjunctiveConditions(
+      extractConjunctiveConditions(
         and,
         -1,
         allFieldNames,
@@ -381,7 +381,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
     val relBuilder: RexBuilder = new RexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
-      RexNodeExtractor.extractConjunctiveConditions(
+      extractConjunctiveConditions(
         and,
         -1,
         allFieldNames,
@@ -424,7 +424,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val and = rexBuilder.makeCall(SqlStdOperatorTable.AND, condition)
 
     val relBuilder: RexBuilder = new RexBuilder(typeFactory)
-    val (converted, _) = RexNodeExtractor.extractConjunctiveConditions(
+    val (converted, _) = extractConjunctiveConditions(
       and,
       -1,
       fieldNames,
@@ -510,7 +510,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val complexExpr = rexBuilder.makeCall(SqlStdOperatorTable.AND, condition)
     val relBuilder: RexBuilder = new RexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
-      RexNodeExtractor.extractConjunctiveConditions(
+      extractConjunctiveConditions(
         complexExpr,
         -1,
         allFieldNames,
@@ -564,7 +564,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val complexExpr = rexBuilder.makeCall(SqlStdOperatorTable.AND, condition1, condition2)
 
     val relBuilder: RexBuilder = new RexBuilder(typeFactory)
-    val (convertedExpressions, unconvertedRexNodes) = RexNodeExtractor.extractConjunctiveConditions(
+    val (convertedExpressions, unconvertedRexNodes) = extractConjunctiveConditions(
       complexExpr,
       -1,
       allFieldNames,
@@ -622,7 +622,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
     val relBuilder: RexBuilder = new RexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
-      RexNodeExtractor.extractConjunctiveConditions(
+      extractConjunctiveConditions(
         conditionExpr,
         -1,
         allFieldNames,
@@ -678,7 +678,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
     val relBuilder: RexBuilder = new RexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
-      RexNodeExtractor.extractConjunctiveConditions(
+      extractConjunctiveConditions(
         and,
         -1,
         allFieldNames,
@@ -703,7 +703,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
 
     val relBuilder: RexBuilder = new RexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
-      RexNodeExtractor.extractConjunctiveConditions(
+      extractConjunctiveConditions(
         condition,
         -1,
         allFieldNames,
@@ -727,7 +727,7 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     val conditionExpr = rexBuilder.makeCall(op, t0)
     val relBuilder: RexBuilder = new RexBuilder(typeFactory)
     val (convertedExpressions, unconvertedRexNodes) =
-      RexNodeExtractor.extractConjunctiveConditions(
+      extractConjunctiveConditions(
         conditionExpr,
         -1,
         allFieldNames,
@@ -762,6 +762,16 @@ class RexNodeExtractorTest extends RexNodeTestBase {
     sortedExpected.zip(sortedActual).foreach {
       case (l, r) => assertEquals(l.toString, r.toString)
     }
+  }
+
+  private def extractConjunctiveConditions(
+      expr: RexNode,
+      maxCnfNodeCount: Int,
+      inputFieldNames: JList[String],
+      rexBuilder: RexBuilder,
+      catalog: FunctionCatalog): (Array[Expression], Array[RexNode]) = {
+    RexNodeExtractor.extractConjunctiveConditions(expr, maxCnfNodeCount,
+      inputFieldNames, rexBuilder, catalog, TimeZone.getDefault)
   }
 
 }

@@ -28,15 +28,12 @@ import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
 
-import java.util.TimeZone
-
 class TableSourceTest extends TableTestBase {
 
   private val util = batchTestUtil()
 
   @Before
   def setup(): Unit = {
-    TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
     val tableSchema = TableSchema.builder().fields(
       Array("a", "b", "c"),
       Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()

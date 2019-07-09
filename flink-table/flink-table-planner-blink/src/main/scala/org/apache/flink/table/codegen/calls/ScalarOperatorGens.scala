@@ -767,6 +767,22 @@ object ScalarOperatorGens {
           targetType.asInstanceOf[TimestampType].getKind == TimestampKind.ROWTIME =>
       operand.copy(resultType = new TimestampType(3)) // just replace the DataType
 
+    case (TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
+      val method = qualifyMethod(BuiltInMethods.TIMESTAMP_TO_TIMESTAMP_WITH_LOCAL_ZONE)
+      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+        operandTerm =>
+          val timeZone = ctx.addReusableTimeZone()
+          s"$method($operandTerm, $timeZone)"
+      }
+
+    case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_WITHOUT_TIME_ZONE) =>
+      val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_ZONE_TO_TIMESTAMP)
+      generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
+        operandTerm =>
+          val zone = ctx.addReusableTimeZone()
+          s"$method($operandTerm, $zone)"
+      }
+
     // identity casting
     case (_, _) if isInteroperable(operand.resultType, targetType) =>
       operand.copy(resultType = targetType)
@@ -775,7 +791,7 @@ object ScalarOperatorGens {
     case (_, VARCHAR | CHAR) if TypeCheckUtils.isTimePoint(operand.resultType) =>
       generateStringResultCallIfArgsNotNull(ctx, Seq(operand)) {
         operandTerm =>
-          s"${localTimeToStringCode(operand.resultType, operandTerm.head)}"
+          s"${localTimeToStringCode(ctx, operand.resultType, operandTerm.head)}"
       }
 
     // Interval Months -> String
@@ -903,6 +919,14 @@ object ScalarOperatorGens {
            """.stripMargin
       }
 
+    case (VARCHAR | CHAR, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
+      generateUnaryOperatorIfNotNull(
+        ctx, targetType, operand, resultNullable = true) { operandTerm =>
+        val zone = ctx.addReusableTimeZone()
+        val method = qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP_TIME_ZONE)
+        s"$method($operandTerm.toString(), $zone)"
+      }
+
     // String -> binary
     case (VARCHAR | CHAR, VARBINARY | BINARY) =>
       generateUnaryOperatorIfNotNull(ctx, targetType, operand) {
@@ -980,6 +1004,38 @@ object ScalarOperatorGens {
         operandTerm =>
           s"($targetTypeTerm) ($operandTerm % " +
             s"${classOf[DateTimeUtils].getCanonicalName}.MILLIS_PER_DAY)"
+      }
+
+    // Date -> Timestamp with local time zone
+    case (DATE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
+      generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
+        val zone = ctx.addReusableTimeZone()
+        val method = qualifyMethod(BuiltInMethods.DATE_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+        s"$method($operandTerm, $zone)"
+      }
+
+    // Timestamp with local time zone -> Date
+    case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, DATE) =>
+      generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
+        val zone = ctx.addReusableTimeZone()
+        val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_DATE)
+        s"$method($operandTerm, $zone)"
+      }
+
+    // Time -> Timestamp with local time zone
+    case (TIME_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE) =>
+      generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
+        val zone = ctx.addReusableTimeZone()
+        val method = qualifyMethod(BuiltInMethods.TIME_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+        s"$method($operandTerm, $zone)"
+      }
+
+    // Timestamp with local time zone -> Time
+    case (TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIME_WITHOUT_TIME_ZONE) =>
+      generateUnaryOperatorIfNotNull(ctx, targetType, operand) { operandTerm =>
+        val zone = ctx.addReusableTimeZone()
+        val method = qualifyMethod(BuiltInMethods.TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_TIME)
+        s"$method($operandTerm, $zone)"
       }
 
     // Timestamp -> Decimal
@@ -2101,6 +2157,7 @@ object ScalarOperatorGens {
     }
 
   private def localTimeToStringCode(
+      ctx: CodeGeneratorContext,
       fromType: LogicalType,
       operandTerm: String): String =
     fromType.getTypeRoot match {
@@ -2110,6 +2167,10 @@ object ScalarOperatorGens {
         s"${qualifyMethod(BuiltInMethods.UNIX_TIME_TO_STRING)}($operandTerm)"
       case TIMESTAMP_WITHOUT_TIME_ZONE => // including rowtime indicator
         s"${qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING)}($operandTerm, 3)"
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val method = qualifyMethod(BuiltInMethods.TIMESTAMP_TO_STRING_TIME_ZONE)
+        val zone = ctx.addReusableTimeZone()
+        s"$method($operandTerm, 3, $zone)"
     }
 
 }

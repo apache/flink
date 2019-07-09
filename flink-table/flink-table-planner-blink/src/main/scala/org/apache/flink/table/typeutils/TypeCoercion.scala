@@ -99,6 +99,7 @@ object TypeCoercion {
     case (VARCHAR | CHAR, DATE) => true
     case (VARCHAR | CHAR, TIME_WITHOUT_TIME_ZONE) => true
     case (VARCHAR | CHAR, TIMESTAMP_WITHOUT_TIME_ZONE) => true
+    case (VARCHAR | CHAR, TIMESTAMP_WITH_LOCAL_TIME_ZONE) => true
 
     case (BOOLEAN, _) if isNumeric(to) => true
     case (BOOLEAN, DECIMAL) => true

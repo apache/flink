@@ -42,7 +42,7 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
       Int.MaxValue
 
     // we currently support only timestamps with milliseconds precision
-    case SqlTypeName.TIMESTAMP =>
+    case SqlTypeName.TIMESTAMP | SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
       3
 
     case _ =>

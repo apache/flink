@@ -51,7 +51,8 @@ object LongHashJoinGenerator {
         keyType.getFieldCount == 1 && {
       keyType.getTypeAt(0).getTypeRoot match {
         case BIGINT | INTEGER | SMALLINT | TINYINT | FLOAT | DOUBLE | DATE |
-             TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE => true
+             TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE |
+             TIMESTAMP_WITH_LOCAL_TIME_ZONE => true
         case _ => false
       }
       // TODO decimal and multiKeys support.

@@ -386,6 +386,11 @@ object FunctionGenerator {
 
   addSqlFunction(
     EXTRACT,
+    Seq(ANY, TIMESTAMP_WITH_LOCAL_TIME_ZONE),
+    new MethodCallGen(BuiltInMethods.EXTRACT_FROM_TIMESTAMP_TIME_ZONE))
+
+  addSqlFunction(
+    EXTRACT,
     Seq(ANY, INTERVAL_DAY_TIME),
     new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
@@ -439,6 +444,13 @@ object FunctionGenerator {
       Some(BuiltInMethod.UNIX_TIMESTAMP_FLOOR.method)))
 
   addSqlFunction(
+    FLOOR,
+    Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE, ANY),
+    new FloorCeilCallGen(
+      BuiltInMethod.FLOOR.method,
+      Some(BuiltInMethods.TIMESTAMP_FLOOR_TIME_ZONE)))
+
+  addSqlFunction(
     CEIL,
     Seq(DATE, ANY),
     new FloorCeilCallGen(
@@ -458,6 +470,13 @@ object FunctionGenerator {
     new FloorCeilCallGen(
       BuiltInMethod.CEIL.method,
       Some(BuiltInMethod.UNIX_TIMESTAMP_CEIL.method)))
+
+  addSqlFunction(
+    CEIL,
+    Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE, ANY),
+    new FloorCeilCallGen(
+      BuiltInMethod.CEIL.method,
+      Some(BuiltInMethods.TIMESTAMP_CEIL_TIME_ZONE)))
 
   addSqlFunction(
     CURRENT_DATE,
@@ -622,6 +641,11 @@ object FunctionGenerator {
   addSqlFunctionMethod(
     UNIX_TIMESTAMP,
     Seq(TIMESTAMP_WITHOUT_TIME_ZONE),
+    BuiltInMethods.UNIX_TIMESTAMP_TS)
+
+  addSqlFunctionMethod(
+    UNIX_TIMESTAMP,
+    Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE),
     BuiltInMethods.UNIX_TIMESTAMP_TS)
 
   addSqlFunctionMethod(

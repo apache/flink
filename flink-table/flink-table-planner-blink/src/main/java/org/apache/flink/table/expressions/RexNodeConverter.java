@@ -19,6 +19,7 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.calcite.FlinkContext;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
@@ -37,22 +38,15 @@ import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.logical.ArrayType;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.DateType;
-import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
-import org.apache.flink.table.types.logical.DoubleType;
-import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.TimeType;
-import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.util.Preconditions;
 
 import com.google.common.collect.ImmutableList;
+import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.rel.RelFieldCollation;
@@ -82,6 +76,7 @@ import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.TimeString;
 import org.apache.calcite.util.TimestampString;
+import org.apache.calcite.util.TimestampWithTimeZoneString;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -93,6 +88,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
@@ -645,141 +641,149 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 							relBuilder.getRexBuilder().constantNull());
 		}
 
-		if (type instanceof DecimalType) {
-			DecimalType dt = (DecimalType) type;
-			BigDecimal bigDecimal = extractValue(valueLiteral, BigDecimal.class);
-			RelDataType decType = relBuilder.getTypeFactory().createSqlType(SqlTypeName.DECIMAL,
-					dt.getPrecision(), dt.getScale());
-			return relBuilder.getRexBuilder().makeExactLiteral(bigDecimal, decType);
-		} else if (type instanceof BigIntType) {
-			// create BIGINT literals for long type
-			BigDecimal bigint = extractValue(valueLiteral, BigDecimal.class);
-			return relBuilder.getRexBuilder().makeBigintLiteral(bigint);
-		} else if (type instanceof FloatType) {
-			//Float/Double type should be liked as java type here.
-			return relBuilder.getRexBuilder().makeApproxLiteral(
-					extractValue(valueLiteral, BigDecimal.class),
-					relBuilder.getTypeFactory().createSqlType(SqlTypeName.FLOAT));
-		} else if (type instanceof DoubleType) {
-			//Float/Double type should be liked as java type here.
-			return rexBuilder.makeApproxLiteral(
-					extractValue(valueLiteral, BigDecimal.class),
-					relBuilder.getTypeFactory().createSqlType(SqlTypeName.DOUBLE));
-		} else if (type instanceof DateType) {
-			return relBuilder.getRexBuilder().makeDateLiteral(
-					DateString.fromCalendarFields(valueAsCalendar(extractValue(valueLiteral, java.sql.Date.class))));
-		} else if (type instanceof TimeType) {
-			return relBuilder.getRexBuilder().makeTimeLiteral(
-					TimeString.fromCalendarFields(valueAsCalendar(extractValue(valueLiteral, java.sql.Time.class))), 0);
-		} else if (type instanceof TimestampType) {
-			return relBuilder.getRexBuilder().makeTimestampLiteral(
-					TimestampString
-							.fromCalendarFields(valueAsCalendar(extractValue(valueLiteral, java.sql.Timestamp.class))),
-					3);
-		} else if (type instanceof YearMonthIntervalType) {
-			BigDecimal interval = BigDecimal.valueOf(extractValue(valueLiteral, Integer.class));
-			SqlIntervalQualifier intervalQualifier = new SqlIntervalQualifier(
-					TimeUnit.YEAR, TimeUnit.MONTH, SqlParserPos.ZERO);
-			return relBuilder.getRexBuilder().makeIntervalLiteral(interval, intervalQualifier);
-		} else if (type instanceof DayTimeIntervalType) {
-			BigDecimal interval = BigDecimal.valueOf(extractValue(valueLiteral, Long.class));
-			SqlIntervalQualifier intervalQualifier = new SqlIntervalQualifier(
-					TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO);
-			return relBuilder.getRexBuilder().makeIntervalLiteral(interval, intervalQualifier);
-		} else {
-			Object object = extractValue(valueLiteral, Object.class);
-			if (object instanceof TimePointUnit) {
-				TimeUnit value;
-				switch ((TimePointUnit) object) {
-					case YEAR:
-						value = TimeUnit.YEAR;
-						break;
-					case MONTH:
-						value = TimeUnit.MONTH;
-						break;
-					case DAY:
-						value = TimeUnit.DAY;
-						break;
-					case HOUR:
-						value = TimeUnit.HOUR;
-						break;
-					case MINUTE:
-						value = TimeUnit.MINUTE;
-						break;
-					case SECOND:
-						value = TimeUnit.SECOND;
-						break;
-					case QUARTER:
-						value = TimeUnit.QUARTER;
-						break;
-					case WEEK:
-						value = TimeUnit.WEEK;
-						break;
-					case MILLISECOND:
-						value = TimeUnit.MILLISECOND;
-						break;
-					case MICROSECOND:
-						value = TimeUnit.MICROSECOND;
-						break;
-					default:
-						throw new UnsupportedOperationException();
-				}
-				return relBuilder.getRexBuilder().makeFlag(value);
-			} else if (object instanceof TimeIntervalUnit) {
-				TimeUnitRange value;
-				switch ((TimeIntervalUnit) object) {
-					case YEAR:
-						value = TimeUnitRange.YEAR;
-						break;
-					case YEAR_TO_MONTH:
-						value = TimeUnitRange.YEAR_TO_MONTH;
-						break;
-					case QUARTER:
-						value = TimeUnitRange.QUARTER;
-						break;
-					case MONTH:
-						value = TimeUnitRange.MONTH;
-						break;
-					case WEEK:
-						value = TimeUnitRange.WEEK;
-						break;
-					case DAY:
-						value = TimeUnitRange.DAY;
-						break;
-					case DAY_TO_HOUR:
-						value = TimeUnitRange.DAY_TO_HOUR;
-						break;
-					case DAY_TO_MINUTE:
-						value = TimeUnitRange.DAY_TO_MINUTE;
-						break;
-					case DAY_TO_SECOND:
-						value = TimeUnitRange.DAY_TO_SECOND;
-						break;
-					case HOUR:
-						value = TimeUnitRange.HOUR;
-						break;
-					case SECOND:
-						value = TimeUnitRange.SECOND;
-						break;
-					case HOUR_TO_MINUTE:
-						value = TimeUnitRange.HOUR_TO_MINUTE;
-						break;
-					case HOUR_TO_SECOND:
-						value = TimeUnitRange.HOUR_TO_SECOND;
-						break;
-					case MINUTE:
-						value = TimeUnitRange.MINUTE;
-						break;
-					case MINUTE_TO_SECOND:
-						value = TimeUnitRange.MINUTE_TO_SECOND;
-						break;
-					default:
-						throw new UnsupportedOperationException();
-				}
-				return relBuilder.getRexBuilder().makeFlag(value);
-			} else {
-				return relBuilder.literal(extractValue(valueLiteral, Object.class));
+		switch (type.getTypeRoot()) {
+			case DECIMAL:
+				DecimalType dt = (DecimalType) type;
+				BigDecimal bigDecimal = extractValue(valueLiteral, BigDecimal.class);
+				RelDataType decType = relBuilder.getTypeFactory().createSqlType(SqlTypeName.DECIMAL,
+						dt.getPrecision(), dt.getScale());
+				return relBuilder.getRexBuilder().makeExactLiteral(bigDecimal, decType);
+			case BIGINT:
+				// create BIGINT literals for long type
+				BigDecimal bigint = extractValue(valueLiteral, BigDecimal.class);
+				return relBuilder.getRexBuilder().makeBigintLiteral(bigint);
+			case FLOAT:
+				//Float/Double type should be liked as java type here.
+				return relBuilder.getRexBuilder().makeApproxLiteral(
+						extractValue(valueLiteral, BigDecimal.class),
+						relBuilder.getTypeFactory().createSqlType(SqlTypeName.FLOAT));
+			case DOUBLE:
+				//Float/Double type should be liked as java type here.
+				return rexBuilder.makeApproxLiteral(
+						extractValue(valueLiteral, BigDecimal.class),
+						relBuilder.getTypeFactory().createSqlType(SqlTypeName.DOUBLE));
+			case DATE:
+				return relBuilder.getRexBuilder().makeDateLiteral(DateString.fromCalendarFields(
+						valueAsCalendar(extractValue(valueLiteral, java.sql.Date.class))));
+			case TIME_WITHOUT_TIME_ZONE:
+				return relBuilder.getRexBuilder().makeTimeLiteral(TimeString.fromCalendarFields(
+						valueAsCalendar(extractValue(valueLiteral, java.sql.Time.class))), 0);
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+				return relBuilder.getRexBuilder().makeTimestampLiteral(TimestampString.fromCalendarFields(
+						valueAsCalendar(extractValue(valueLiteral, java.sql.Timestamp.class))), 3);
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+				TimeZone timeZone = TimeZone.getTimeZone(((FlinkContext) ((FlinkRelBuilder) this.relBuilder)
+						.getCluster().getPlanner().getContext()).getTableConfig().getLocalTimeZone());
+				return this.relBuilder.getRexBuilder().makeTimestampWithLocalTimeZoneLiteral(
+						new TimestampWithTimeZoneString(
+								TimestampString.fromMillisSinceEpoch(
+										extractValue(valueLiteral, java.time.Instant.class).toEpochMilli()),
+								timeZone)
+								.withTimeZone(DateTimeUtils.UTC_ZONE)
+								.getLocalTimestampString(), 3);
+			case INTERVAL_YEAR_MONTH:
+				return this.relBuilder.getRexBuilder().makeIntervalLiteral(
+						BigDecimal.valueOf(extractValue(valueLiteral, Integer.class)),
+						new SqlIntervalQualifier(TimeUnit.YEAR, TimeUnit.MONTH, SqlParserPos.ZERO));
+			case INTERVAL_DAY_TIME:
+				return this.relBuilder.getRexBuilder().makeIntervalLiteral(
+						BigDecimal.valueOf(extractValue(valueLiteral, Long.class)),
+						new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.SECOND, SqlParserPos.ZERO));
+			default:
+				break;
+		}
+		Object object = extractValue(valueLiteral, Object.class);
+		if (object instanceof TimePointUnit) {
+			TimeUnit value;
+			switch ((TimePointUnit) object) {
+				case YEAR:
+					value = TimeUnit.YEAR;
+					break;
+				case MONTH:
+					value = TimeUnit.MONTH;
+					break;
+				case DAY:
+					value = TimeUnit.DAY;
+					break;
+				case HOUR:
+					value = TimeUnit.HOUR;
+					break;
+				case MINUTE:
+					value = TimeUnit.MINUTE;
+					break;
+				case SECOND:
+					value = TimeUnit.SECOND;
+					break;
+				case QUARTER:
+					value = TimeUnit.QUARTER;
+					break;
+				case WEEK:
+					value = TimeUnit.WEEK;
+					break;
+				case MILLISECOND:
+					value = TimeUnit.MILLISECOND;
+					break;
+				case MICROSECOND:
+					value = TimeUnit.MICROSECOND;
+					break;
+				default:
+					throw new UnsupportedOperationException();
 			}
+			return relBuilder.getRexBuilder().makeFlag(value);
+		} else if (object instanceof TimeIntervalUnit) {
+			TimeUnitRange value;
+			switch ((TimeIntervalUnit) object) {
+				case YEAR:
+					value = TimeUnitRange.YEAR;
+					break;
+				case YEAR_TO_MONTH:
+					value = TimeUnitRange.YEAR_TO_MONTH;
+					break;
+				case QUARTER:
+					value = TimeUnitRange.QUARTER;
+					break;
+				case MONTH:
+					value = TimeUnitRange.MONTH;
+					break;
+				case WEEK:
+					value = TimeUnitRange.WEEK;
+					break;
+				case DAY:
+					value = TimeUnitRange.DAY;
+					break;
+				case DAY_TO_HOUR:
+					value = TimeUnitRange.DAY_TO_HOUR;
+					break;
+				case DAY_TO_MINUTE:
+					value = TimeUnitRange.DAY_TO_MINUTE;
+					break;
+				case DAY_TO_SECOND:
+					value = TimeUnitRange.DAY_TO_SECOND;
+					break;
+				case HOUR:
+					value = TimeUnitRange.HOUR;
+					break;
+				case SECOND:
+					value = TimeUnitRange.SECOND;
+					break;
+				case HOUR_TO_MINUTE:
+					value = TimeUnitRange.HOUR_TO_MINUTE;
+					break;
+				case HOUR_TO_SECOND:
+					value = TimeUnitRange.HOUR_TO_SECOND;
+					break;
+				case MINUTE:
+					value = TimeUnitRange.MINUTE;
+					break;
+				case MINUTE_TO_SECOND:
+					value = TimeUnitRange.MINUTE_TO_SECOND;
+					break;
+				default:
+					throw new UnsupportedOperationException();
+			}
+			return relBuilder.getRexBuilder().makeFlag(value);
+		} else {
+			return relBuilder.literal(extractValue(valueLiteral, Object.class));
 		}
 	}
 
