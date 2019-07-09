@@ -123,7 +123,7 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 			List<HiveTablePartition> remainingHivePartitions = new ArrayList<>();
 			for (Map<String, String> partitionSpec : remainingPartitions) {
 				HiveTablePartition hiveTablePartition = partitionSpec2HiveTablePartition.get(partitionSpec);
-				Preconditions.checkNotNull(hiveTablePartition, String.format("remainingPartitions must be contain " +
+				Preconditions.checkNotNull(hiveTablePartition, String.format("remainingPartitions must contain " +
 																			"partition spec %s", partitionSpec));
 				remainingHivePartitions.add(hiveTablePartition);
 			}
