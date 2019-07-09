@@ -758,13 +758,15 @@ public class SlotManager implements AutoCloseable {
 				pendingTaskManagerSlotOptional = allocateResource(resourceProfile);
 			}
 
-			pendingTaskManagerSlotOptional.ifPresent(pendingTaskManagerSlot -> assignPendingTaskManagerSlot(pendingSlotRequest, pendingTaskManagerSlot));
-			if (!pendingTaskManagerSlotOptional.isPresent()) {
+			if (pendingTaskManagerSlotOptional.isPresent()) {
+				assignPendingTaskManagerSlot(pendingSlotRequest, pendingTaskManagerSlotOptional.get());
+			}
+			else {
 				// request can not be fulfilled by any free slot or pending slot that can be allocated,
 				// check whether it can be fulfilled by allocated slots
-				boolean fulfillable = isFulfillableByRegisteredSlots(pendingSlotRequest.getResourceProfile());
-				if (!fulfillable && failUnfulfillableRequest) {
-					throw new ResourceManagerException("Requested resource profile (" + pendingSlotRequest.getResourceProfile() + ") is unfulfillable.");
+				if (failUnfulfillableRequest && !isFulfillableByRegisteredSlots(pendingSlotRequest.getResourceProfile())) {
+					throw new ResourceManagerException("Requested resource profile (" +
+						pendingSlotRequest.getResourceProfile() + ") is unfulfillable.");
 				}
 			}
 		}
