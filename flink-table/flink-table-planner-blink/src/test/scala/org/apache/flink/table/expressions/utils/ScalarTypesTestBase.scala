@@ -45,9 +45,9 @@ abstract class ScalarTypesTestBase extends ExpressionTestBase {
     testData.setField(13, -4.6)
     testData.setField(14, -3)
     testData.setField(15, Decimal.castFrom("-1231.1231231321321321111", 38, 19))
-    testData.setField(16, UTCDate("1996-11-10"))
-    testData.setField(17, UTCTime("06:55:44"))
-    testData.setField(18, UTCTimestamp("1996-11-10 06:55:44.333"))
+    testData.setField(16, localDate("1996-11-10"))
+    testData.setField(17, localTime("06:55:44"))
+    testData.setField(18, localDateTime("1996-11-10 06:55:44.333"))
     testData.setField(19, 1467012213000L) // +16979 07:23:33.000
     testData.setField(20, 25) // +2-01
     testData.setField(21, null)
@@ -74,14 +74,14 @@ abstract class ScalarTypesTestBase extends ExpressionTestBase {
     testData.setField(42, 256.toLong)
     testData.setField(43, -1.toLong)
     testData.setField(44, 256)
-    testData.setField(45, UTCTimestamp("1996-11-10 06:55:44.333").toString)
+    testData.setField(45, localDateTime("1996-11-10 06:55:44.333").toString)
     testData.setField(46, "test1=1,test2=2,test3=3")
     testData.setField(47, null)
     testData.setField(48, false)
     testData.setField(49, Decimal.castFrom("1345.1231231321321321111", 38, 19))
-    testData.setField(50, UTCDate("1997-11-11"))
-    testData.setField(51, UTCTime("09:44:55"))
-    testData.setField(52, UTCTimestamp("1997-11-11 09:44:55.333"))
+    testData.setField(50, localDate("1997-11-11"))
+    testData.setField(51, localTime("09:44:55"))
+    testData.setField(52, localDateTime("1997-11-11 09:44:55.333"))
     testData.setField(53, "hello world".getBytes)
     testData.setField(54, "This is a testing string.".getBytes)
     testData
@@ -105,9 +105,9 @@ abstract class ScalarTypesTestBase extends ExpressionTestBase {
       /* 13 */ Types.DOUBLE,
       /* 14 */ Types.INT,
       /* 15 */ DecimalTypeInfo.of(38, 19),
-      /* 16 */ Types.SQL_DATE,
-      /* 17 */ Types.SQL_TIME,
-      /* 18 */ Types.SQL_TIMESTAMP,
+      /* 16 */ Types.LOCAL_DATE,
+      /* 17 */ Types.LOCAL_TIME,
+      /* 18 */ Types.LOCAL_DATE_TIME,
       /* 19 */ TimeIntervalTypeInfo.INTERVAL_MILLIS,
       /* 20 */ TimeIntervalTypeInfo.INTERVAL_MONTHS,
       /* 21 */ Types.BOOLEAN,
@@ -139,9 +139,9 @@ abstract class ScalarTypesTestBase extends ExpressionTestBase {
       /* 47 */ Types.STRING,
       /* 48 */ Types.BOOLEAN,
       /* 49 */ DecimalTypeInfo.of(38, 19),
-      /* 50 */ Types.SQL_DATE,
-      /* 51 */ Types.SQL_TIME,
-      /* 52 */ Types.SQL_TIMESTAMP,
+      /* 50 */ Types.LOCAL_DATE,
+      /* 51 */ Types.LOCAL_TIME,
+      /* 52 */ Types.LOCAL_DATE_TIME,
       /* 53 */ Types.PRIMITIVE_ARRAY(Types.BYTE),
       /* 54 */ Types.PRIMITIVE_ARRAY(Types.BYTE))
   }

@@ -29,6 +29,7 @@ import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
+import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configurable;
@@ -218,8 +219,8 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 			int index = 0;
 			for (; index < structFields.size(); index++) {
 				StructField structField = structFields.get(index);
-				Object object = HiveRecordSerDe.obtainFlinkRowField(
-						structObjectInspector.getStructFieldData(hiveRowStruct, structField), structField.getFieldObjectInspector());
+				Object object = HiveInspectors.toFlinkObject(structField.getFieldObjectInspector(),
+						structObjectInspector.getStructFieldData(hiveRowStruct, structField));
 				row.setField(index, object);
 			}
 			for (String partition : partitionColNames){

@@ -45,7 +45,7 @@ class TableSourceITCase extends StreamingTestBase {
 
     val tableSchema = new TableSchema(
       Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.SQL_TIMESTAMP, Types.STRING))
+      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
     val returnType = new RowTypeInfo(
       Array(Types.INT, Types.STRING, Types.LONG, Types.LONG)
         .asInstanceOf[Array[TypeInformation[_]]],
@@ -79,7 +79,7 @@ class TableSourceITCase extends StreamingTestBase {
     val tableSchema = new TableSchema(
       Array("id", "rtime", "val", "ptime", "name"),
       Array(
-        Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.SQL_TIMESTAMP, Types.STRING))
+        Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
     val returnType = new RowTypeInfo(
       Array(Types.INT, Types.STRING, Types.LONG, Types.LONG)
         .asInstanceOf[Array[TypeInformation[_]]],
@@ -95,10 +95,10 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq(
-      "1970-01-01 00:00:00.001,Mary,1",
-      "1970-01-01 00:00:00.002,Bob,2",
-      "1970-01-01 00:00:00.002,Mike,3",
-      "1970-01-01 00:00:02.001,Liz,4")
+      "1970-01-01T00:00:00.001,Mary,1",
+      "1970-01-01T00:00:00.002,Bob,2",
+      "1970-01-01T00:00:00.002,Mike,3",
+      "1970-01-01T00:00:02.001,Liz,4")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -112,7 +112,7 @@ class TableSourceITCase extends StreamingTestBase {
 
     val tableSchema = new TableSchema(
       Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.SQL_TIMESTAMP, Types.STRING))
+      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
     val returnType = new RowTypeInfo(
       Array(Types.INT, Types.STRING, Types.LONG, Types.LONG)
         .asInstanceOf[Array[TypeInformation[_]]],
@@ -145,7 +145,7 @@ class TableSourceITCase extends StreamingTestBase {
 
     val tableSchema = new TableSchema(
       Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.SQL_TIMESTAMP, Types.STRING))
+      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
     val returnType = new RowTypeInfo(
       Array(Types.INT, Types.LONG, Types.LONG, Types.STRING)
         .asInstanceOf[Array[TypeInformation[_]]],
@@ -174,7 +174,7 @@ class TableSourceITCase extends StreamingTestBase {
 
     val tableSchema = new TableSchema(
       Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.SQL_TIMESTAMP, Types.STRING))
+      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
     val returnType = new RowTypeInfo(
       Array(Types.INT, Types.LONG, Types.LONG, Types.STRING)
         .asInstanceOf[Array[TypeInformation[_]]],
@@ -207,7 +207,7 @@ class TableSourceITCase extends StreamingTestBase {
 
     val tableSchema = new TableSchema(
       Array("id", "rtime", "val", "ptime", "name"),
-      Array(Types.INT, Types.SQL_TIMESTAMP, Types.LONG, Types.SQL_TIMESTAMP, Types.STRING))
+      Array(Types.INT, Types.LOCAL_DATE_TIME, Types.LONG, Types.LOCAL_DATE_TIME, Types.STRING))
     val returnType = new RowTypeInfo(
       Array(Types.LONG, Types.INT, Types.STRING, Types.LONG)
         .asInstanceOf[Array[TypeInformation[_]]],
@@ -225,10 +225,10 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq(
-      "Mary,1970-01-01 00:00:00.001,10",
-      "Bob,1970-01-01 00:00:00.002,20",
-      "Mike,1970-01-01 00:00:00.002,30",
-      "Liz,1970-01-01 00:00:02.001,40")
+      "Mary,1970-01-01T00:00:00.001,10",
+      "Bob,1970-01-01T00:00:00.002,20",
+      "Mike,1970-01-01T00:00:00.002,30",
+      "Liz,1970-01-01T00:00:02.001,40")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 

@@ -21,22 +21,20 @@ package org.apache.flink.table.plan.util
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.catalog.{FunctionCatalog, FunctionLookup}
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
+import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter, LocalDateTimeConverter, LocalTimeConverter}
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR}
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.util.Logging
 import org.apache.flink.util.Preconditions
 
-import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
-import org.apache.calcite.util.{DateString, TimeString, TimestampString}
 
-import java.sql.{Date, Time, Timestamp}
 import java.util.{List => JList}
 
 import scala.collection.JavaConversions._
@@ -230,16 +228,16 @@ class RexNodeToExpressionConverter(
     val literalValue = literalType.getTypeRoot match {
 
       case DATE =>
-        val v = literal.getValueAs(classOf[DateString])
-        new Date(DateTimeUtils.dateStringToUnixDate(v.toString) * DateTimeUtils.MILLIS_PER_DAY)
+        val v = literal.getValueAs(classOf[Integer])
+        LocalDateConverter.INSTANCE.toExternal(v)
 
       case TIME_WITHOUT_TIME_ZONE =>
-        val v = literal.getValueAs(classOf[TimeString])
-        new Time(DateTimeUtils.timeStringToUnixDate(v.toString(0)).longValue())
+        val v = literal.getValueAs(classOf[Integer])
+        LocalTimeConverter.INSTANCE.toExternal(v)
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        val v = literal.getValueAs(classOf[TimestampString])
-        new Timestamp(DateTimeUtils.timestampStringToUnixDate(v.toString(3)))
+        val v = literal.getValueAs(classOf[java.lang.Long])
+        LocalDateTimeConverter.INSTANCE.toExternal(v)
 
       case TINYINT =>
         // convert from BigDecimal to Byte

@@ -369,14 +369,8 @@ object GenerateUtils {
         generateNonNullLiteral(literalType, literalValue.toString, literalValue)
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        // Hack
-        // Currently, in RexLiteral/SqlLiteral(Calcite), TimestampString has no time zone.
-        // TimeString, DateString TimestampString are treated as UTC time/(unix time)
-        // when they are converted/formatted/validated
-        // Here, we adjust millis before Calcite solve TimeZone perfectly
         val millis = literalValue.asInstanceOf[Long]
-        val adjustedValue = millis - ctx.tableConfig.getTimeZone.getOffset(millis)
-        generateNonNullLiteral(literalType, adjustedValue.toString + "L", adjustedValue)
+        generateNonNullLiteral(literalType, millis + "L", millis)
 
       case INTERVAL_YEAR_MONTH =>
         val decimal = BigDecimal(literalValue.asInstanceOf[JBigDecimal])

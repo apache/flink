@@ -184,7 +184,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		this.mesosServices = Preconditions.checkNotNull(mesosServices);
 		this.actorSystem = Preconditions.checkNotNull(mesosServices.getLocalActorSystem());
 
-		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
+		// copy the config, because we might change it for the TaskManagers
+		this.flinkConfig = new Configuration(Preconditions.checkNotNull(flinkConfig));
 		this.mesosConfig = Preconditions.checkNotNull(mesosConfig);
 
 		this.artifactServer = Preconditions.checkNotNull(mesosServices.getArtifactServer());
@@ -198,7 +199,8 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		this.workersBeingReturned = new HashMap<>(8);
 
 		final ContaineredTaskManagerParameters containeredTaskManagerParameters = taskManagerParameters.containeredParameters();
-		this.slotsPerWorker = createSlotsPerWorker(containeredTaskManagerParameters.numSlots());
+		this.slotsPerWorker = updateTaskManagerConfigAndCreateWorkerSlotProfiles(
+			flinkConfig, containeredTaskManagerParameters.taskManagerTotalMemoryMB(), containeredTaskManagerParameters.numSlots());
 	}
 
 	protected ActorRef createSelfActor() {

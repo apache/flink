@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.table.dataformat.Decimal
 import org.apache.flink.table.typeutils.DecimalTypeInfo
-import org.apache.flink.table.util.DateTimeTestUtil.UTCDate
+import org.apache.flink.table.util.DateTimeTestUtil.localDate
 import org.apache.flink.types.Row
 
 abstract class RowTypeTestBase extends ExpressionTestBase {
@@ -36,7 +36,7 @@ abstract class RowTypeTestBase extends ExpressionTestBase {
     nestedRow.setField(0, 3)
     nestedRow.setField(1, row)
     val specialTypeRow = new Row(3)
-    specialTypeRow.setField(0, UTCDate("1984-03-12"))
+    specialTypeRow.setField(0, localDate("1984-03-12"))
     specialTypeRow.setField(1, Decimal.castFrom("0.00000000", 9, 8))
     specialTypeRow.setField(2, Array[java.lang.Integer](1, 2, 3))
     val testData = new Row(7)
@@ -57,7 +57,7 @@ abstract class RowTypeTestBase extends ExpressionTestBase {
       /* 2 */ Types.ROW(Types.INT, Types.STRING, Types.BOOLEAN),
       /* 3 */ Types.ROW(Types.INT, Types.ROW(Types.INT, Types.STRING, Types.BOOLEAN)),
       /* 4 */ Types.ROW(
-                Types.SQL_DATE,
+                Types.LOCAL_DATE,
                 DecimalTypeInfo.of(9, 8),
                 ObjectArrayTypeInfo.getInfoFor(Types.INT)),
       /* 5 */ Types.ROW(Types.STRING, Types.BOOLEAN),

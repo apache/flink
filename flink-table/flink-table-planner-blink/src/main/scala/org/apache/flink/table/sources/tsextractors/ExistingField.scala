@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.sources.tsextractors
 
-import java.util
-
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.api.common.typeinfo.{LocalTimeTypeInfo, TypeInformation, Types}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.descriptors.Rowtime
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{unresolvedCall, typeLiteral, valueLiteral}
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{typeLiteral, unresolvedCall, valueLiteral}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+
+import java.util
 
 /**
   * Converts an existing [[Long]], [[java.sql.Timestamp]], or
@@ -46,6 +46,7 @@ final class ExistingField(val field: String) extends TimestampExtractor {
     fieldType match {
       case Types.LONG => // OK
       case Types.SQL_TIMESTAMP => // OK
+      case Types.LOCAL_DATE_TIME => // OK
       case Types.STRING => // OK
       case _: TypeInformation[_] =>
         throw new ValidationException(
@@ -60,7 +61,7 @@ final class ExistingField(val field: String) extends TimestampExtractor {
     */
   override def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression = {
     val fieldAccess: ExestingFieldFieldReference = fieldAccesses(0)
-      .asInstanceOf[ExestingFieldFieldReference]
+        .asInstanceOf[ExestingFieldFieldReference]
 
     val fieldReferenceExpr = new FieldReferenceExpression(
       fieldAccess.name,
@@ -81,7 +82,7 @@ final class ExistingField(val field: String) extends TimestampExtractor {
           innerDiv,
           typeLiteral(fromLegacyInfoToDataType(Types.SQL_TIMESTAMP)))
 
-      case Types.SQL_TIMESTAMP =>
+      case Types.SQL_TIMESTAMP | LocalTimeTypeInfo.LOCAL_DATE_TIME =>
         fieldReferenceExpr
 
       case Types.STRING =>

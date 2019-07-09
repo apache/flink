@@ -39,7 +39,8 @@ abstract class StreamingWithMiniBatchTestBase(
       case MiniBatchOn =>
         tableConfig.getConf.setBoolean(
           ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
-        tableConfig.getConf.setString(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+        tableConfig.getConf.setString(
+          ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
         tableConfig.getConf.setLong(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_SIZE, 3L)
       case MiniBatchOff =>
         tableConfig.getConf.removeConfig(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)

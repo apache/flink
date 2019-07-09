@@ -34,9 +34,12 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
+import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.thrift.TException;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -104,5 +107,16 @@ public class HiveShimV1 implements HiveShim {
 		// parameters can be overridden. The extra config we add here will be removed by HMS after it's used.
 		table.getParameters().put(StatsSetupConst.DO_NOT_UPDATE_STATS, "true");
 		client.alter_table(databaseName, tableName, table);
+	}
+
+	@Override
+	public SimpleGenericUDAFParameterInfo createUDAFParameterInfo(ObjectInspector[] params, boolean isWindowing, boolean distinct, boolean allColumns) {
+		try {
+			Constructor constructor = SimpleGenericUDAFParameterInfo.class.getConstructor(ObjectInspector[].class,
+					boolean.class, boolean.class);
+			return (SimpleGenericUDAFParameterInfo) constructor.newInstance(params, distinct, allColumns);
+		} catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
+			throw new CatalogException("Failed to create SimpleGenericUDAFParameterInfo", e);
+		}
 	}
 }

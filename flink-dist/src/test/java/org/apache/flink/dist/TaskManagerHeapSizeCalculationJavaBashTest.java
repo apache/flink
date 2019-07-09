@@ -164,7 +164,7 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 		config.setString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(netBufMemMax));
 
 		if (managedMemSizeMB == 0) {
-			config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "0");
+			config.removeConfig(TaskManagerOptions.MANAGED_MEMORY_SIZE);
 		} else {
 			config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, managedMemSizeMB + "m");
 		}
@@ -279,18 +279,15 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 			String.valueOf(config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION))};
 		String scriptOutput = executeScript(command);
 
-		long absoluteTolerance = (long) (javaHeapSizeMB * tolerance);
-		if (absoluteTolerance < 1) {
-			assertEquals("Different heap sizes with configuration: " + config.toString(),
-				String.valueOf(javaHeapSizeMB), scriptOutput);
-		} else {
-			Long scriptHeapSizeMB = Long.valueOf(scriptOutput);
-			assertThat(
-				"Different heap sizes (Java: " + javaHeapSizeMB + ", Script: " + scriptHeapSizeMB +
-					") with configuration: " + config.toString(), scriptHeapSizeMB,
-				allOf(greaterThanOrEqualTo(javaHeapSizeMB - absoluteTolerance),
-					lessThanOrEqualTo(javaHeapSizeMB + absoluteTolerance)));
-		}
+		// we need a tolerance of at least one, to compensate for MB/byte conversion rounding errors
+		long absoluteTolerance = Math.max(1L, (long) (javaHeapSizeMB * tolerance));
+
+		Long scriptHeapSizeMB = Long.valueOf(scriptOutput);
+		assertThat(
+			"Different heap sizes (Java: " + javaHeapSizeMB + ", Script: " + scriptHeapSizeMB +
+				") with configuration: " + config.toString(), scriptHeapSizeMB,
+			allOf(greaterThanOrEqualTo(javaHeapSizeMB - absoluteTolerance),
+				lessThanOrEqualTo(javaHeapSizeMB + absoluteTolerance)));
 	}
 
 	/**

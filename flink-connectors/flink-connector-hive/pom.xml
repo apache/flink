@@ -63,10 +63,15 @@ under the License.
 		<!-- Hadoop dependency -->
 		<!-- Hadoop as provided dependencies, so we can depend on them without pulling in Hadoop -->
 
+		<!--
+			Hive 2.3.4 relies on Hadoop 2.7.2 and later versions.
+			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5,
+			thus override the default hadoop version from 2.4.1 to 2.7.5
+		-->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-hadoop-2-uber</artifactId>
-			<version>${hadoop.version}-${flink.shaded.version}</version>
+			<version>${hivemetastore.hadoop.version}-${flink.shaded.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
@@ -434,7 +439,7 @@ under the License.
 			<id>hive-1.2.1</id>
 			<properties>
 				<hive.version>1.2.1</hive.version>
-				<hivemetastore.hadoop.version>2.6.0</hivemetastore.hadoop.version>
+				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
 			</properties>
 		</profile>
 	</profiles>

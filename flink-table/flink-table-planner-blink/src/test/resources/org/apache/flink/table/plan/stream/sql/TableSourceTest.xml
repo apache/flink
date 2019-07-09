@@ -337,7 +337,7 @@ LogicalProject(id=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[id])
-+- TableSourceScan(table=[[default_catalog, default_database, FilterableTable1, source: [filter=[and(and(greaterThan(tv, 14:25:02), greaterThan(dv, 2017-02-03)), greaterThan(tsv, 2017-02-03 14:25:02.0))]]]], fields=[id, dv, tv, tsv])
++- TableSourceScan(table=[[default_catalog, default_database, FilterableTable1, source: [filter=[and(and(greaterThan(tv, 14:25:02), greaterThan(dv, 2017-02-03)), greaterThan(tsv, 2017-02-03T14:25:02))]]]], fields=[id, dv, tv, tsv])
 ]]>
     </Resource>
   </TestCase>
