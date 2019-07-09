@@ -32,6 +32,7 @@ import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGate
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -39,9 +40,14 @@ import org.junit.Test;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -127,13 +133,50 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that a pending slot request is failed with a timeout.
+	 */
+	@Test
+	public void testPendingSlotRequestTimeout() throws Exception {
+		final ScheduledExecutorService singleThreadExecutor = Executors.newSingleThreadScheduledExecutor();
+		final ComponentMainThreadExecutor componentMainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(singleThreadExecutor);
+
+		final SlotPoolImpl slotPool = setUpSlotPool(componentMainThreadExecutor);
+
+		try {
+			final Time timeout = Time.milliseconds(5L);
+
+			final CompletableFuture<PhysicalSlot> slotFuture = CompletableFuture
+				.supplyAsync(() -> requestNewAllocatedSlot(slotPool, new SlotRequestId(), timeout), componentMainThreadExecutor)
+				.thenCompose(Function.identity());
+
+			try {
+				slotFuture.get();
+				fail("Expected that the future completes with a TimeoutException.");
+			} catch (ExecutionException ee) {
+				assertThat(ExceptionUtils.stripExecutionException(ee), instanceOf(TimeoutException.class));
+			}
+		} finally {
+			CompletableFuture.runAsync(ThrowingRunnable.unchecked(slotPool::close), componentMainThreadExecutor).get();
+			singleThreadExecutor.shutdownNow();
+		}
+	}
+
 	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(SlotPoolImpl slotPool, SlotRequestId slotRequestId) {
-		return slotPool.requestNewAllocatedSlot(slotRequestId, ResourceProfile.UNKNOWN, TIMEOUT);
+		return requestNewAllocatedSlot(slotPool, slotRequestId, TIMEOUT);
+	}
+
+	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(SlotPoolImpl slotPool, SlotRequestId slotRequestId, Time timeout) {
+		return slotPool.requestNewAllocatedSlot(slotRequestId, ResourceProfile.UNKNOWN, timeout);
 	}
 
 	private SlotPoolImpl setUpSlotPool() throws Exception {
+		return setUpSlotPool(mainThreadExecutor);
+	}
+
+	private SlotPoolImpl setUpSlotPool(ComponentMainThreadExecutor componentMainThreadExecutor) throws Exception {
 		final SlotPoolImpl slotPool = new SlotPoolImpl(jobId);
-		slotPool.start(JobMasterId.generate(), "foobar", mainThreadExecutor);
+		slotPool.start(JobMasterId.generate(), "foobar", componentMainThreadExecutor);
 		slotPool.connectToResourceManager(resourceManagerGateway);
 
 		return slotPool;
