@@ -25,6 +25,7 @@ if [ -z "$HERE" ] ; then
 	exit 1  # fail
 fi
 
+source "${HERE}/travis/differential_build.sh"
 source "${HERE}/travis/stage.sh"
 
 ARTIFACTS_DIR="${HERE}/artifacts"
@@ -234,12 +235,16 @@ run_with_watchdog "$CMD"
 
 # Run tests if compilation was successful
 if [ $CMD_TYPE == "MVN" ]; then
-	if [ $EXIT_CODE == 0 ]; then
-		run_with_watchdog "$MVN_TEST"
-	else
+	if [ $EXIT_CODE != 0 ]; then
 		echo "=============================================================================="
 		echo "Compilation failure detected, skipping test execution."
 		echo "=============================================================================="
+	elif can_skip_mvn_test_run_for_stage "$TEST" ; then
+		echo "=============================================================================="
+		echo "Skipping mvn verify phase for stage '$TEST'"
+		echo "=============================================================================="
+	else
+		run_with_watchdog "$MVN_TEST"
 	fi
 fi
 

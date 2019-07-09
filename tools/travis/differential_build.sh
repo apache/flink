@@ -56,3 +56,15 @@ function prepare_dependencies_tree_if_pr_build() {
 
     python3 ./tools/travis/mvn_diff_test.py process-mvn-dependencies mvn-dependencies-list.txt mvn-basedir-list.txt > "$MVN_DEPENDENCIES_TREE_FILEPATH"
 }
+
+function can_skip_mvn_test_run_for_stage() {
+    local stage=$1
+
+    if ! is_pr_build ; then
+        echo "Cannot skip non PR test run"
+        return 1
+    fi
+
+    python3 ./tools/travis/mvn_diff_test.py can-skip-mvn-test "$stage" "$PROFILE" "$MVN_DEPENDENCIES_TREE_FILEPATH" "$DIFF_LIST_FILEPATH"
+    return
+}

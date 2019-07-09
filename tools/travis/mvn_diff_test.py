@@ -20,6 +20,8 @@
 from collections import defaultdict
 import re, sys
 
+from stages import get_mvn_modules_for_test, STAGE_MISC
+
 def expand_node(graph, node):
     visited = set([node])
     all_dependencies = set()
@@ -45,6 +47,23 @@ def expand_graph(graph):
 def print_graph(graph):
     for node in sorted(graph.keys()):
         print("{}\t{}".format(node, ','.join(sorted(graph[node]))))
+
+def load_graph(filepath):
+    graph = {}
+    with open(filepath) as f:
+        for line in f:
+            node, targets = line.split('\t')
+            graph[node] = targets.split(',')
+    return graph
+
+#-------------------------------------------------------------------------------
+
+def load_diff_list(filepath):
+    # Generate the input file by running:
+    # git diff --name-only $commit1...$commit2 > $filepath
+
+    with open(filepath) as f:
+        return [line.strip() for line in f]
 
 #-------------------------------------------------------------------------------
 
@@ -173,12 +192,67 @@ def process_mvn_dependencies(mvn_dependencies_list_filepath, mvn_artifact_basedi
 
     print_graph(basedir_dependencies_graph)
 
+def get_changed_parents(modules, diff_list):
+    changed = []
+    for filepath in diff_list:
+        if filepath.endswith("/pom.xml") or filepath == "pom.xml":
+            parent_module = filepath[:-len("pom.xml")].rstrip('/')
+            if any(module.startswith(parent_module) for module in modules):
+                changed.append(filepath)
+    return changed
+
+def get_changed_files(modules, diff_list):
+    changed = []
+    for filepath in diff_list:
+        if any(filepath.startswith(module) for module in modules):
+            changed.append(filepath)
+    return changed
+
+def can_skip_mvn_test(stage, profile, mvn_dependencies_tree_filepath, diff_list_filepath):
+    if stage == STAGE_MISC:
+        print("Cannot skip mvn test for stage '{}'".format(stage))
+        return False
+
+    mvn_dependencies_tree = load_graph(mvn_dependencies_tree_filepath)
+    diff_list = load_diff_list(diff_list_filepath)
+
+    modules = get_mvn_modules_for_test(stage, profile)
+    dependencies = set()
+    for module in modules:
+        dependencies.update(mvn_dependencies_tree[module])
+
+    changed = get_changed_parents(modules, diff_list)
+    if changed:
+        print("Cannot skip mvn test for stage '{}': some parents have changed\n\t{}".format(stage, "\n\t".join(changed)))
+        return False
+
+    changed = get_changed_parents(dependencies, diff_list)
+    if changed:
+        print("Cannot skip mvn test for stage '{}': some dependencies' parents have changed\n\t{}".format(stage, "\n\t".join(changed)))
+        return False
+
+    changed = get_changed_files(modules, diff_list)
+    if changed:
+        print("Cannot skip mvn test for stage '{}': some files have changed\n\t{}".format(stage, "\n\t".join(changed)))
+        return False
+
+    changed = get_changed_files(dependencies, diff_list)
+    if changed:
+        print("Cannot skip mvn test for stage '{}': some dependencies' files have changed\n\t{}".format(stage, "\n\t".join(changed)))
+        return False
+
+    return True
+
 def main():
     argv = sys.argv
     command = argv[1]
     if command == "process-mvn-dependencies":
         process_mvn_dependencies(argv[2], argv[3])
         return
+
+    if command == "can-skip-mvn-test":
+        result = can_skip_mvn_test(argv[2], argv[3], argv[4], argv[5])
+        sys.exit(0 if result else 1)
 
     print("Unknown command: {}".format(command), file=sys.stderr)
     sys.exit(1)
