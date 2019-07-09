@@ -192,6 +192,10 @@ public class SlotManager implements AutoCloseable {
 		return pendingSlots.size();
 	}
 
+	public int getNumberPendingSlotRequests() {
+		return pendingSlotRequests.size();
+	}
+
 	public boolean isFailingUnfulfillableRequest() {
 		return failUnfulfillableRequest;
 	}
