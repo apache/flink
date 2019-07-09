@@ -1,6 +1,7 @@
 package org.apache.flink.table.sinks;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -10,10 +11,15 @@ import org.apache.flink.table.utils.TableConnectorUtils;
 /**
  * A simple {@link TableSink} to emit data to the standard output or standard error stream.
  */
-public class PrintTableSink implements AppendStreamTableSink {
+public class PrintTableSink implements BatchTableSink , AppendStreamTableSink {
 
 	private String[] fieldNames;
 	private TypeInformation<?>[] fieldTypes;
+
+	@Override
+	public void emitDataSet(DataSet dataSet) throws Exception {
+		dataSet.print();
+	}
 
 	@Override
 	public void emitDataStream(DataStream dataStream) {
