@@ -22,10 +22,9 @@ import { ShareModule } from 'share/share.module';
 import { OverviewRoutingModule } from './overview-routing.module';
 import { OverviewComponent } from './overview.component';
 import { OverviewStatisticComponent } from './statistic/overview-statistic.component';
-import { TaskManagerItemComponent } from 'share/customize/task-manager-item/task-manager-item.component';
 
 @NgModule({
   imports: [CommonModule, ShareModule, OverviewRoutingModule],
-  declarations: [OverviewComponent, OverviewStatisticComponent, TaskManagerItemComponent]
+  declarations: [OverviewComponent, OverviewStatisticComponent]
 })
 export class OverviewModule {}
