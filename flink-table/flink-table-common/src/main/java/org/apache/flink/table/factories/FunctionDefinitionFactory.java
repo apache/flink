@@ -23,7 +23,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 
 /**
- * A factory to create {@link FunctionDefinition} based on string-based properties.
+ * A factory to create {@link FunctionDefinition}.
  * See also {@link TableFactory} for more information.
  */
 public interface FunctionDefinitionFactory extends TableFactory {
