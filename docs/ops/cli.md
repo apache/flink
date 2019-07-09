@@ -340,6 +340,8 @@ Action "run" compiles and runs a program.
                                           shutdown when the CLI is terminated
                                           abruptly, e.g., in response to a user
                                           interrupt, such as typing Ctrl + C.
+     -yat,--yarnapplicationType <arg>     Set a custom application type for the
+                                          application on YARN
      -yD <property=value>                 use value for given property
      -yd,--yarndetached                   If present, runs the job in detached
                                           mode (deprecated; use non-YARN
@@ -430,6 +432,15 @@ Action "stop" stops a running program with a savepoint (streaming jobs only).
                                           directory is specified, the configured
                                           default will be used
                                           ("state.savepoints.dir").
+  Options for yarn-cluster mode:
+     -m,--jobmanager <arg>            Address of the JobManager (master) to
+                                      which to connect. Use this flag to connect
+                                      to a different JobManager than the one
+                                      specified in the configuration.
+     -yid,--yarnapplicationId <arg>   Attach to running YARN session
+     -z,--zookeeperNamespace <arg>    Namespace to create the Zookeeper
+                                      sub-paths for high availability mode
+
   Options for default mode:
      -m,--jobmanager <arg>           Address of the JobManager (master) to which
                                      to connect. Use this flag to connect to a
