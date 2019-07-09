@@ -19,13 +19,16 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ExternalCatalog;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Utility for dealing with {@link TableFactory} using the {@link TableFactoryService}.
@@ -99,6 +102,17 @@ public class TableFactoryUtil {
 	 */
 	public static <T> TableSource<T> findAndCreateTableSource(CatalogTable table) {
 		return findAndCreateTableSource(table.toProperties());
+	}
+
+	/**
+	 * Creates a table sink for a {@link CatalogTable} using table factory associated with the catalog.
+	 */
+	public static Optional<TableSink> createTableSinkForCatalogTable(Catalog catalog, CatalogTable catalogTable, ObjectPath tablePath) {
+		TableFactory tableFactory = catalog.getTableFactory().orElse(null);
+		if (tableFactory instanceof TableSinkFactory) {
+			return Optional.ofNullable(((TableSinkFactory) tableFactory).createTableSink(tablePath, catalogTable));
+		}
+		return Optional.empty();
 	}
 
 }
