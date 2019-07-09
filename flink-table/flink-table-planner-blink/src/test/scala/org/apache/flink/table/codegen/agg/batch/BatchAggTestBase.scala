@@ -39,7 +39,7 @@ import scala.collection.JavaConverters._
 /**
   * Base agg test.
   */
-abstract class BatchAggTestBase extends AggTestBase(isBatch = true) {
+abstract class BatchAggTestBase extends AggTestBase(isBatchMode = true) {
 
   val globalOutputType = RowType.of(
     Array[LogicalType](

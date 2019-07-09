@@ -42,21 +42,21 @@ import org.mockito.Mockito.{mock, when}
 import java.util
 
 @RunWith(classOf[Parameterized])
-class ExecNodeResourceTest(isBatch: Boolean) extends TableTestBase {
+class ExecNodeResourceTest(isBatchMode: Boolean) extends TableTestBase {
 
   private var testUtil: TableTestUtil = _
 
   @Before
   def before(): Unit = {
-    testUtil = if(isBatch) batchTestUtil() else streamTestUtil()
+    testUtil = if(isBatchMode) batchTestUtil() else streamTestUtil()
     val table3Stats = new TableStats(5000000)
-    val table3Source = new MockTableSource(isBatch,
+    val table3Source = new MockTableSource(isBatchMode,
       new TableSchema(Array("a", "b", "c"),
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)))
     testUtil.addTableSource(
       "table3", table3Source, FlinkStatistic.builder().tableStats(table3Stats).build())
     val table5Stats = new TableStats(8000000)
-    val table5Source = new MockTableSource(isBatch,
+    val table5Source = new MockTableSource(isBatchMode,
       new TableSchema(Array("d", "e", "f", "g", "h"),
       Array[TypeInformation[_]](Types.INT, Types.LONG, Types.INT, Types.STRING, Types.LONG)))
     testUtil.addTableSource(
@@ -87,7 +87,7 @@ class ExecNodeResourceTest(isBatch: Boolean) extends TableTestBase {
   @Test
   def testUnionQuery(): Unit = {
     val statsOfTable4 = new TableStats(100L)
-    val table4Source = new MockTableSource(isBatch,
+    val table4Source = new MockTableSource(isBatchMode,
       new TableSchema(Array("a", "b", "c"),
         Array[TypeInformation[_]](Types.INT, Types.LONG, Types.STRING)))
     testUtil.addTableSource(
@@ -162,7 +162,7 @@ class ExecNodeResourceTest(isBatch: Boolean) extends TableTestBase {
 
 object ExecNodeResourceTest {
 
-  @Parameterized.Parameters(name = "isBatch={0}")
+  @Parameterized.Parameters(name = "isBatchMode={0}")
   def parameters(): util.Collection[Array[Any]] = {
     util.Arrays.asList(
       Array(true),
@@ -180,10 +180,8 @@ object ExecNodeResourceTest {
 /**
   * Batch/Stream [[org.apache.flink.table.sources.TableSource]] for resource testing.
   */
-class MockTableSource(isBatch: Boolean, schema: TableSchema)
+class MockTableSource(val isBounded: Boolean, schema: TableSchema)
     extends StreamTableSource[BaseRow] {
-
-  override def isBounded: Boolean = isBatch
 
   override def getDataStream(
       execEnv: environment.StreamExecutionEnvironment): DataStream[BaseRow] = {
@@ -193,7 +191,7 @@ class MockTableSource(isBatch: Boolean, schema: TableSchema)
     when(bs.getTransformation).thenReturn(transformation)
     when(transformation.getOutputType).thenReturn(getReturnType)
     val factory = mock(classOf[StreamOperatorFactory[BaseRow]])
-    when(factory.isStreamSource).thenReturn(!isBatch)
+    when(factory.isStreamSource).thenReturn(!isBounded)
     when(transformation.getOperatorFactory).thenReturn(factory)
     bs
   }

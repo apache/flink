@@ -28,10 +28,14 @@ import org.apache.flink.table.sources.{TableSource, TableSourceUtil, TableSource
 /**
   * Abstract class which define the interfaces required to convert a [[TableSource]] to
   * a Calcite Table.
+  *
+  * @param tableSource The [[TableSource]] for which is converted to a Calcite Table.
+  * @param isStreamingMode A flag that tells if the current table is in stream mode.
+  * @param statistic The table statistics.
   */
 class TableSourceTable[T](
     val tableSource: TableSource[T],
-    val isStreaming: Boolean,
+    val isStreamingMode: Boolean,
     val statistic: FlinkStatistic)
   extends AbstractTable {
 
@@ -48,7 +52,7 @@ class TableSourceTable[T](
     TableSourceUtil.getRelDataType(
       tableSource,
       None,
-      isStreaming,
+      isStreamingMode,
       typeFactory.asInstanceOf[FlinkTypeFactory])
   }
 }

@@ -31,6 +31,8 @@ import java.util.Map;
 /**
  * Describes a relational operation that reads from a {@link DataStream}.
  *
+ * <p>This is only used for testing.
+ *
  * <p>This operation may expose only part, or change the order of the fields available in a
  * {@link org.apache.flink.api.common.typeutils.CompositeType} of the underlying {@link DataStream}.
  * The {@link DataStreamQueryOperation#getFieldIndices()} describes the mapping between fields of the

@@ -43,9 +43,12 @@ import java.util.Set;
 public class CatalogManagerCalciteSchema extends FlinkSchema {
 
 	private final CatalogManager catalogManager;
+	// Flag that tells if the current planner should work in a batch or streaming mode.
+	private final boolean isStreamingMode;
 
-	public CatalogManagerCalciteSchema(CatalogManager catalogManager) {
+	public CatalogManagerCalciteSchema(CatalogManager catalogManager, boolean isStreamingMode) {
 		this.catalogManager = catalogManager;
+		this.isStreamingMode = isStreamingMode;
 	}
 
 	@Override
@@ -61,7 +64,7 @@ public class CatalogManagerCalciteSchema extends FlinkSchema {
 	@Override
 	public Schema getSubSchema(String name) {
 		Schema schema = catalogManager.getCatalog(name)
-			.map(catalog -> new CatalogCalciteSchema(name, catalog))
+			.map(catalog -> new CatalogCalciteSchema(name, catalog, isStreamingMode))
 			.orElse(null);
 
 		if (schema == null && catalogManager.getExternalCatalog(name).isPresent()) {

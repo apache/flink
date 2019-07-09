@@ -41,11 +41,11 @@ import org.powermock.api.mockito.PowerMockito.{mock, when}
 /**
   * Agg test base to mock agg information and etc.
   */
-abstract class AggTestBase(isBatch: Boolean) {
+abstract class AggTestBase(isBatchMode: Boolean) {
 
   val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
   val env = new ScalaStreamExecEnv(new LocalStreamEnvironment)
-  private val tEnv = if (isBatch) {
+  private val tEnv = if (isBatchMode) {
     val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
     // use impl class instead of interface class to avoid
     // "Static methods in interface require -target:jvm-1.8"

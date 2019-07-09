@@ -63,12 +63,15 @@ import _root_.scala.collection.JavaConversions._
   * @param config          mutable configuration passed from corresponding [[TableEnvironment]]
   * @param functionCatalog catalog of functions
   * @param catalogManager  manager of catalog meta objects such as tables, views, databases etc.
+  * @param isStreamingMode Determines if the planner should work in a batch (false}) or
+  *                        streaming (true) mode.
   */
 abstract class PlannerBase(
     executor: Executor,
     config: TableConfig,
     val functionCatalog: FunctionCatalog,
-    catalogManager: CatalogManager)
+    catalogManager: CatalogManager,
+    isStreamingMode: Boolean)
   extends Planner {
 
   executor.asInstanceOf[ExecutorBase].setTableConfig(config)
@@ -77,7 +80,7 @@ abstract class PlannerBase(
     new PlannerContext(
       config,
       functionCatalog,
-      asRootSchema(new CatalogManagerCalciteSchema(catalogManager)),
+      asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
       getTraitDefs.toList
     )
 

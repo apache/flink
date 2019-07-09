@@ -64,6 +64,6 @@ public class TestPlannerFactory implements PlannerFactory {
 
 	@Override
 	public List<String> supportedProperties() {
-		return Arrays.asList(EnvironmentSettings.CLASS_NAME, EnvironmentSettings.BATCH_MODE);
+		return Arrays.asList(EnvironmentSettings.CLASS_NAME, EnvironmentSettings.STREAMING_MODE);
 	}
 }

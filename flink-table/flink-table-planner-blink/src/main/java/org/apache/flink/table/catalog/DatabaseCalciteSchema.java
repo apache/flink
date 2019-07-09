@@ -30,6 +30,7 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.RichTableSourceQueryOperation;
 import org.apache.flink.table.plan.schema.TableSourceTable;
 import org.apache.flink.table.plan.stats.FlinkStatistic;
+import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
 
@@ -55,11 +56,14 @@ class DatabaseCalciteSchema extends FlinkSchema {
 	private final String databaseName;
 	private final String catalogName;
 	private final Catalog catalog;
+	// Flag that tells if the current planner should work in a batch or streaming mode.
+	private final boolean isStreamingMode;
 
-	public DatabaseCalciteSchema(String databaseName, String catalogName, Catalog catalog) {
+	public DatabaseCalciteSchema(String databaseName, String catalogName, Catalog catalog, boolean isStreamingMode) {
 		this.databaseName = databaseName;
 		this.catalogName = catalogName;
 		this.catalog = catalog;
+		this.isStreamingMode = isStreamingMode;
 	}
 
 	@Override
@@ -96,20 +100,30 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			// TableNotExistException should never happen, because we are checking it exists
 			// via catalog.tableExists
 			throw new TableException(format(
-				"A failure occurred when accessing table. Table path [%s, %s, %s]",
-				catalogName,
-				databaseName,
-				tableName), e);
+					"A failure occurred when accessing table. Table path [%s, %s, %s]",
+					catalogName,
+					databaseName,
+					tableName), e);
 		}
 	}
 
 	private Table convertConnectorTable(ConnectorCatalogTable<?, ?> table) {
 		return table.getTableSource()
-			.map(tableSource -> new TableSourceTable<>(
-				tableSource,
-				!table.isBatch(),
-				FlinkStatistic.UNKNOWN()))
-			.orElseThrow(() -> new TableException("Cannot query a sink only table."));
+				.map(tableSource -> {
+					if (!(tableSource instanceof StreamTableSource ||
+							tableSource instanceof LookupableTableSource)) {
+						throw new TableException(
+								"Only StreamTableSource and LookupableTableSource can be used in Blink planner.");
+					}
+					if (!isStreamingMode && tableSource instanceof StreamTableSource &&
+							!((StreamTableSource<?>) tableSource).isBounded()) {
+						throw new TableException("Only bounded StreamTableSource can be used in batch mode.");
+					}
+					return new TableSourceTable<>(
+							tableSource,
+							isStreamingMode,
+							FlinkStatistic.UNKNOWN());
+				}).orElseThrow(() -> new TableException("Cannot query a sink only table."));
 	}
 
 	private Table convertCatalogTable(ObjectPath tablePath, CatalogTable table) {

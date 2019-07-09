@@ -89,14 +89,14 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isTim
 @Internal
 public final class AggregateOperationFactory {
 
-	private final boolean isStreaming;
+	private final boolean isStreamingMode;
 	private final NoNestedAggregates noNestedAggregates = new NoNestedAggregates();
 	private final ValidateDistinct validateDistinct = new ValidateDistinct();
 	private final AggregationExpressionValidator aggregationsValidator = new AggregationExpressionValidator();
 	private final IsKeyTypeChecker isKeyTypeChecker = new IsKeyTypeChecker();
 
-	public AggregateOperationFactory(boolean isStreaming) {
-		this.isStreaming = isStreaming;
+	public AggregateOperationFactory(boolean isStreamingMode) {
+		this.isStreamingMode = isStreamingMode;
 	}
 
 	/**
@@ -274,7 +274,7 @@ public final class AggregateOperationFactory {
 	}
 
 	private void validateTimeAttributeType(LogicalType timeFieldType) {
-		if (isStreaming) {
+		if (isStreamingMode) {
 			validateStreamTimeAttribute(timeFieldType);
 		} else {
 			validateBatchTimeAttribute(timeFieldType);

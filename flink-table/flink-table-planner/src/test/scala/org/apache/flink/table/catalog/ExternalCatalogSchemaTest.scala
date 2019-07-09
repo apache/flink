@@ -48,7 +48,7 @@ class ExternalCatalogSchemaTest extends TableTestBase {
   def setUp(): Unit = {
     val rootSchemaPlus: SchemaPlus = CalciteSchema.createRootSchema(true, false).plus()
     val catalog = CommonTestData.getInMemoryTestCatalog(isStreaming = true)
-    ExternalCatalogSchema.registerCatalog(false, rootSchemaPlus, schemaName, catalog)
+    ExternalCatalogSchema.registerCatalog(true, rootSchemaPlus, schemaName, catalog)
     externalCatalogSchema = rootSchemaPlus.getSubSchema("schemaName")
     val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
     val prop = new Properties()

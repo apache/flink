@@ -44,7 +44,7 @@ import java.util.Map;
  */
 @PublicEvolving
 public class EnvironmentSettings {
-	public static final String BATCH_MODE = "batch-mode";
+	public static final String STREAMING_MODE = "streaming-mode";
 	public static final String CLASS_NAME = "class-name";
 
 	/**
@@ -70,22 +70,22 @@ public class EnvironmentSettings {
 	private final String builtInDatabaseName;
 
 	/**
-	 * Determines if the table environment should work in a batch ({@code true}) or
-	 * streaming ({@code false}) mode.
+	 * Determines if the table environment should work in a batch ({@code false}) or
+	 * streaming ({@code true}) mode.
 	 */
-	private final boolean isBatchMode;
+	private final boolean isStreamingMode;
 
 	private EnvironmentSettings(
 			@Nullable String plannerClass,
 			@Nullable String executorClass,
 			String builtInCatalogName,
 			String builtInDatabaseName,
-			boolean isBatchMode) {
+			boolean isStreamingMode) {
 		this.plannerClass = plannerClass;
 		this.executorClass = executorClass;
 		this.builtInCatalogName = builtInCatalogName;
 		this.builtInDatabaseName = builtInDatabaseName;
-		this.isBatchMode = isBatchMode;
+		this.isStreamingMode = isStreamingMode;
 	}
 
 	/**
@@ -117,8 +117,8 @@ public class EnvironmentSettings {
 	/**
 	 * Tells if the {@link TableEnvironment} should work in a batch or streaming mode.
 	 */
-	public boolean isBatchMode() {
-		return isBatchMode;
+	public boolean isStreamingMode() {
+		return isStreamingMode;
 	}
 
 	@Internal
@@ -141,7 +141,7 @@ public class EnvironmentSettings {
 
 	private Map<String, String> toCommonProperties() {
 		Map<String, String> properties = new HashMap<>();
-		properties.put(BATCH_MODE, Boolean.toString(isBatchMode));
+		properties.put(STREAMING_MODE, Boolean.toString(isStreamingMode));
 		return properties;
 	}
 
@@ -153,7 +153,7 @@ public class EnvironmentSettings {
 		private String executorClass = null;
 		private String builtInCatalogName = "default_catalog";
 		private String builtInDatabaseName = "default_database";
-		private boolean isBatchMode = false;
+		private boolean isStreamingMode = true;
 
 		/**
 		 * Sets the old Flink planner as the required module. By default, {@link #useAnyPlanner()} is
@@ -192,7 +192,7 @@ public class EnvironmentSettings {
 		 * Sets that the components should work in a batch mode. Streaming mode by default.
 		 */
 		public Builder inBatchMode() {
-			this.isBatchMode = true;
+			this.isStreamingMode = false;
 			return this;
 		}
 
@@ -200,7 +200,7 @@ public class EnvironmentSettings {
 		 * Sets that the components should work in a streaming mode. Enabled by default.
 		 */
 		public Builder inStreamingMode() {
-			this.isBatchMode = false;
+			this.isStreamingMode = true;
 			return this;
 		}
 
@@ -231,7 +231,7 @@ public class EnvironmentSettings {
 				executorClass,
 				builtInCatalogName,
 				builtInDatabaseName,
-				isBatchMode);
+				isStreamingMode);
 		}
 	}
 }

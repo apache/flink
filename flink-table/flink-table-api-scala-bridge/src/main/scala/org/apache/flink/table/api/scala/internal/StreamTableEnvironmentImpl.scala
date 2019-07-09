@@ -301,7 +301,7 @@ object StreamTableEnvironmentImpl {
       executionEnvironment,
       planner,
       executor,
-      !settings.isBatchMode
+      settings.isStreamingMode
     )
   }
 

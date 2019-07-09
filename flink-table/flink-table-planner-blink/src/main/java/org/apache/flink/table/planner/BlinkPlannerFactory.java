@@ -46,10 +46,10 @@ public final class BlinkPlannerFactory implements PlannerFactory {
 		TableConfig tableConfig,
 		FunctionCatalog functionCatalog,
 		CatalogManager catalogManager) {
-		if (Boolean.valueOf(properties.getOrDefault(EnvironmentSettings.BATCH_MODE, "false"))) {
-			return new BatchPlanner(executor, tableConfig, functionCatalog, catalogManager);
-		} else {
+		if (Boolean.valueOf(properties.getOrDefault(EnvironmentSettings.STREAMING_MODE, "true"))) {
 			return new StreamPlanner(executor, tableConfig, functionCatalog, catalogManager);
+		} else {
+			return new BatchPlanner(executor, tableConfig, functionCatalog, catalogManager);
 		}
 	}
 
@@ -67,6 +67,6 @@ public final class BlinkPlannerFactory implements PlannerFactory {
 
 	@Override
 	public List<String> supportedProperties() {
-		return Arrays.asList(EnvironmentSettings.BATCH_MODE, EnvironmentSettings.CLASS_NAME);
+		return Arrays.asList(EnvironmentSettings.STREAMING_MODE, EnvironmentSettings.CLASS_NAME);
 	}
 }
