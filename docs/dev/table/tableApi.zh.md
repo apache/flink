@@ -922,10 +922,10 @@ result = orders.window(Tumble.over("5.minutes").on("rowtime").alias("w")) \
        <p>类似于SQL中的OVER开窗函数。Over窗口聚合对每一行都进行一次聚合计算，聚合的对象是以当前行的位置为基准，向前向后取一个区间范围内的所有数据。详情请见<a href="#over-windows">Over窗口</a>一节。</p>
 {% highlight python %}
 orders = table_env.scan("Orders")
-result = orders.over_window(Over.partition_by("a").order_by("rowtime") \
-      	       .preceding("UNBOUNDED_RANGE").following("CURRENT_RANGE") \
-               .alias("w")) \
-               .select("a, b.avg over w, b.max over w, b.min over w")
+result = orders.over_window(Over.partition_by("a").order_by("rowtime")
+                            .preceding("UNBOUNDED_RANGE").following("CURRENT_RANGE")
+                            .alias("w")) \
+    .select("a, b.avg over w, b.max over w, b.min over w")
 {% endhighlight %}
        <p><b>注意：</b> 所有的聚合操作必须在同一个窗口上定义，即分组，排序，范围等属性必须一致。目前，窗口区间范围的向前（PRECEDING）取值没有限制，可以为无界（UNBOUNDED），但是向后（FOLLOWING）只支持当前行（CURRENT ROW），其它向后范围取值暂不支持。排序（ORDER BY）属性必须指定单个<a href="streaming/time_attributes.html">时间属性</a>。</p>
       </td>
