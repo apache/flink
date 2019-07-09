@@ -203,7 +203,7 @@ public class BinaryHashBucketArea {
 		int oldNumBuckets = numBuckets;
 		MemorySegment[] oldOverflowSegments = overflowSegments;
 		int newNumSegs = oldBuckets.length * 2;
-		int newNumBuckets = MathUtils.roundDownToPowerOf2(newNumSegs << table.bucketsPerSegmentBits);
+		int newNumBuckets = newNumSegs << table.bucketsPerSegmentBits;
 		int newThreshold = (int) (newNumBuckets * NUM_ENTRIES_PER_BUCKET * loadFactor);
 
 		// We can't resize if not spillingAllowed and there are not enough buffers.
