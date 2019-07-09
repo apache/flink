@@ -166,7 +166,8 @@ public class BinaryHashBucketArea {
 		int minNumBuckets = (int) Math.ceil((estimatedRowCount / loadFactor / NUM_ENTRIES_PER_BUCKET));
 		int bucketNumSegs = Math.max(1, Math.min(maxSegs, (minNumBuckets >>> table.bucketsPerSegmentBits) +
 				((minNumBuckets & table.bucketsPerSegmentMask) == 0 ? 0 : 1)));
-		int numBuckets = MathUtils.roundDownToPowerOf2(bucketNumSegs << table.bucketsPerSegmentBits);
+		bucketNumSegs = MathUtils.roundUpToPowerOfTwo(bucketNumSegs);
+		int numBuckets = bucketNumSegs << table.bucketsPerSegmentBits;
 
 		int threshold = (int) (numBuckets * NUM_ENTRIES_PER_BUCKET * loadFactor);
 
