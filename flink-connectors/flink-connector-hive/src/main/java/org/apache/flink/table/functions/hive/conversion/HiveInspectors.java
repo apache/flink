@@ -341,13 +341,26 @@ public class HiveInspectors {
 			if (!data.getClass().isArray() && !(data instanceof List)) {
 				data = new Object[]{data};
 			}
-			for (int i = 0; i < row.getArity(); i++) {
-				row.setField(
-					i,
-					toFlinkObject(
-						fields.get(i).getFieldObjectInspector(),
-						structInspector.getStructFieldData(data, fields.get(i)))
-				);
+			try {
+				for (int i = 0; i < row.getArity(); i++) {
+					row.setField(
+							i,
+							toFlinkObject(
+									fields.get(i).getFieldObjectInspector(),
+									structInspector.getStructFieldData(data, fields.get(i)))
+					);
+				}
+			} catch (ClassCastException e) {
+				//we catch exception here temporarily to handle Hive-1.2.1/Hive-2.x compatibility problem.
+				data = ((Object[]) data)[0];
+				for (int i = 0; i < row.getArity(); i++) {
+					row.setField(
+							i,
+							toFlinkObject(
+									fields.get(i).getFieldObjectInspector(),
+									structInspector.getStructFieldData(data, fields.get(i)))
+					);
+				}
 			}
 
 			return row;
