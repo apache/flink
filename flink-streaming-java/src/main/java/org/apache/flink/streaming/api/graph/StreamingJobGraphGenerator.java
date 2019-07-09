@@ -74,6 +74,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
+
 /**
  * The StreamingJobGraphGenerator converts a {@link StreamGraph} into a {@link JobGraph}.
  */
@@ -609,7 +611,7 @@ public class StreamingJobGraphGenerator {
 		CheckpointConfig cfg = streamGraph.getCheckpointConfig();
 
 		long interval = cfg.getCheckpointInterval();
-		if (interval < 10) {
+		if (interval < MINIMAL_CHECKPOINT_TIME) {
 			// interval of max value means disable periodic checkpoint
 			interval = Long.MAX_VALUE;
 		}

@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureManager.UNLIMITED_TOLERABLE_FAILURE_NUMBER;
+import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -146,8 +147,8 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * @param checkpointInterval The checkpoint interval, in milliseconds.
 	 */
 	public void setCheckpointInterval(long checkpointInterval) {
-		if (checkpointInterval < 10) {
-			throw new IllegalArgumentException("Checkpoint interval must be larger than or equal to 10ms");
+		if (checkpointInterval < MINIMAL_CHECKPOINT_TIME) {
+			throw new IllegalArgumentException(String.format("Checkpoint interval must be larger than or equal to %s ms", MINIMAL_CHECKPOINT_TIME));
 		}
 		this.checkpointInterval = checkpointInterval;
 	}
@@ -167,8 +168,8 @@ public class CheckpointConfig implements java.io.Serializable {
 	 * @param checkpointTimeout The checkpoint timeout, in milliseconds.
 	 */
 	public void setCheckpointTimeout(long checkpointTimeout) {
-		if (checkpointTimeout < 10) {
-			throw new IllegalArgumentException("Checkpoint timeout must be larger than or equal to 10ms");
+		if (checkpointTimeout < MINIMAL_CHECKPOINT_TIME) {
+			throw new IllegalArgumentException(String.format("Checkpoint timeout must be larger than or equal to %s ms", MINIMAL_CHECKPOINT_TIME));
 		}
 		this.checkpointTimeout = checkpointTimeout;
 	}

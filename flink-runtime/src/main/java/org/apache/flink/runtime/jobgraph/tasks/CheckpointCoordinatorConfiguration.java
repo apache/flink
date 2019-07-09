@@ -32,6 +32,8 @@ import java.util.Objects;
  */
 public class CheckpointCoordinatorConfiguration implements Serializable {
 
+	public static final long MINIMAL_CHECKPOINT_TIME = 10;
+
 	private static final long serialVersionUID = 2L;
 
 	private final long checkpointInterval;
@@ -69,7 +71,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 			int tolerableCpFailureNumber) {
 
 		// sanity checks
-		if (checkpointInterval < 10 || checkpointTimeout < 10 ||
+		if (checkpointInterval < MINIMAL_CHECKPOINT_TIME || checkpointTimeout < MINIMAL_CHECKPOINT_TIME ||
 			minPauseBetweenCheckpoints < 0 || maxConcurrentCheckpoints < 1 ||
 			tolerableCpFailureNumber < 0) {
 			throw new IllegalArgumentException();
