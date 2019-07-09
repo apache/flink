@@ -717,39 +717,6 @@ public class SlotPoolImplTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that failing an allocation fails the pending slot request.
-	 */
-	@Test
-	public void testFailingAllocationFailsPendingSlotRequests() throws Exception {
-
-		try (SlotPoolImpl slotPool = new SlotPoolImpl(jobId)) {
-			final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
-			resourceManagerGateway.setRequestSlotConsumer(slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
-
-			setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
-			Scheduler scheduler = setupScheduler(slotPool, mainThreadExecutor);
-
-			final CompletableFuture<LogicalSlot> slotFuture = allocateSlot(scheduler, new SlotRequestId());
-
-			final AllocationID allocationId = allocationIdFuture.get();
-
-			assertThat(slotFuture.isDone(), is(false));
-
-			final FlinkException cause = new FlinkException("Fail pending slot request failure.");
-			final Optional<ResourceID> responseFuture = slotPool.failAllocation(allocationId, cause);
-
-			assertThat(responseFuture.isPresent(), is(false));
-
-			try {
-				slotFuture.get();
-				fail("Expected a slot allocation failure.");
-			} catch (ExecutionException ee) {
-				assertThat(ExceptionUtils.stripExecutionException(ee), equalTo(cause));
-			}
-		}
-	}
-
-	/**
 	 * Tests that create report of allocated slots on a {@link TaskExecutor}.
 	 */
 	@Test
