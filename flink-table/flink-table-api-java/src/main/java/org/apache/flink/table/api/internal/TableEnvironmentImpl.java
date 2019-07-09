@@ -191,7 +191,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		}
 
 		CatalogBaseTable tableTable = new QueryOperationCatalogView(table.getQueryOperation());
-		registerTableInternal(getDefaultTablePath(name), tableTable, false);
+		registerTableInternal(new String[] { name }, tableTable, false);
 	}
 
 	@Override
@@ -454,10 +454,6 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		bufferedModifyOperations.addAll(modifyOperations);
 	}
 
-	private String[] getDefaultTablePath(String name) {
-		return new String[] { defaultCatalogName, defaultDatabaseName, name };
-	}
-
 	/**
 	 * Registers a {@link CatalogBaseTable} under a given object path. The {@code path} could be
 	 * 3 formats:
@@ -475,7 +471,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	 *                       the {@code path}. If false, a TableAlreadyExistException throws.
 	 */
 	private void registerTableInternal(String[] path,
-	        CatalogBaseTable catalogTable,
+			CatalogBaseTable catalogTable,
 			boolean ignoreIfExists) {
 		String[] fullName = catalogManager.getFullTablePath(Arrays.asList(path));
 		Catalog catalog = getCatalog(fullName[0]).orElseThrow(() ->
@@ -531,7 +527,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					"Table '%s' already exists. Please choose a different name.", name));
 			}
 		} else {
-			registerTableInternal(getDefaultTablePath(name),
+			registerTableInternal(new String[] { name },
 				ConnectorCatalogTable.source(tableSource, false), false);
 		}
 	}
@@ -557,7 +553,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					"Table '%s' already exists. Please choose a different name.", name));
 			}
 		} else {
-			registerTableInternal(getDefaultTablePath(name),
+			registerTableInternal(new String[] { name },
 				ConnectorCatalogTable.sink(tableSink, false), false);
 		}
 	}

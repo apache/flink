@@ -32,7 +32,6 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.PlannerQueryOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.types.utils.TypeConversions;
-import org.apache.flink.util.StringUtils;
 
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
@@ -91,10 +90,10 @@ public class SqlToOperationConverter {
 	 */
 	private Operation convert(SqlCreateTable sqlCreateTable) {
 		// primary key and unique keys are not supported
-		if (sqlCreateTable.getPrimaryKeyList() != null
-				&& sqlCreateTable.getPrimaryKeyList().size() > 0
-			|| sqlCreateTable.getUniqueKeysList() != null
-				&& sqlCreateTable.getUniqueKeysList().size() > 0) {
+		if ((sqlCreateTable.getPrimaryKeyList() != null
+				&& sqlCreateTable.getPrimaryKeyList().size() > 0)
+			|| (sqlCreateTable.getUniqueKeysList() != null
+				&& sqlCreateTable.getUniqueKeysList().size() > 0)) {
 			throw new SqlConversionException("Primary key and unique key are not supported yet.");
 		}
 
@@ -105,11 +104,6 @@ public class SqlToOperationConverter {
 			propertyList.getList().forEach(p ->
 				properties.put(((SqlProperty) p).getKeyString().toLowerCase(),
 					((SqlProperty) p).getValueString()));
-		}
-		String tableType = properties.get("connector");
-		if (StringUtils.isNullOrWhitespaceOnly(tableType)) {
-			throw new SqlConversionException("Option [connector] is required for"
-				+ " CREATE TABLE statement.");
 		}
 
 		TableSchema tableSchema = createTableSchema(sqlCreateTable,
@@ -132,7 +126,8 @@ public class SqlToOperationConverter {
 			partitionKeys,
 			properties,
 			tableComment);
-		return new CreateTableOperation(sqlCreateTable.fullTableName(), catalogTable, false);
+		return new CreateTableOperation(sqlCreateTable.fullTableName(), catalogTable,
+			sqlCreateTable.isIfNotExists());
 	}
 
 	/** Fallback method for sql query. */

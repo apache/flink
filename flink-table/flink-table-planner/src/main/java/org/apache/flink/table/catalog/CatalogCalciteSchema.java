@@ -41,14 +41,14 @@ import java.util.Set;
 @Internal
 public class CatalogCalciteSchema implements Schema {
 
+	private final boolean isBatch;
 	private final String catalogName;
 	private final Catalog catalog;
-	private final boolean isBatch;
 
 	public CatalogCalciteSchema(boolean isBatch, String catalogName, Catalog catalog) {
+		this.isBatch = isBatch;
 		this.catalogName = catalogName;
 		this.catalog = catalog;
-		this.isBatch = isBatch;
 	}
 
 	/**

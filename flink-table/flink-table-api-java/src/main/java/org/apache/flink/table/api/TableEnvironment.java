@@ -30,6 +30,8 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
+import javax.annotation.Nullable;
+
 import java.util.Optional;
 
 /**
@@ -342,11 +344,10 @@ public interface TableEnvironment {
 	 *
 	 * <p>The returns table format for different kind of statement:
 	 * <ul>
-	 *   <li>DDL: a table with one column of VARCHAR type to describe if this operation
-	 *   is success.</li>
-	 *   <li>DML: a sql insert returns a table with one column of VARCHAR type to describe the
-	 *   affected rows; a sql query(select) returns a table to describe the query data set,
-	 *   it can be further queried through the Table API, or directly write to sink with
+	 *   <li>DDL: returns null.</li>
+	 *   <li>DML: a sql insert returns null; a sql query(select) returns
+	 *   a table to describe the query data set, it can be further queried through
+	 *   the Table API, or directly write to sink with
 	 *   {@link #insertInto(Table, String, String...)}.</li>
 	 * </ul>
 	 *
@@ -381,6 +382,7 @@ public interface TableEnvironment {
 	 *
 	 * @param statement The SQL statement to evaluate.
 	 */
+	@Nullable
 	Table sql(String statement);
 
 	/**

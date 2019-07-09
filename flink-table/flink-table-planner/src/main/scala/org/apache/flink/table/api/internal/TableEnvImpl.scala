@@ -192,7 +192,7 @@ abstract class TableEnvImpl(
     }
 
     val tableTable = new QueryOperationCatalogView(table.getQueryOperation)
-    registerTableInternal(getDefaultTablePath(name), tableTable, ignoreIfExists = false)
+    registerTableInternal(Array[String](name), tableTable, ignoreIfExists = false)
   }
 
   override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
@@ -278,7 +278,7 @@ abstract class TableEnvImpl(
 
       // no table is registered
       case _ =>
-        registerTableInternal(getDefaultTablePath(name),
+        registerTableInternal(Array[String](name),
           ConnectorCatalogTable.source(tableSource, isBatch), ignoreIfExists = false)
     }
   }
@@ -306,7 +306,7 @@ abstract class TableEnvImpl(
 
       // no table is registered
       case _ =>
-        registerTableInternal(getDefaultTablePath(name),
+        registerTableInternal(Array[String](name),
           ConnectorCatalogTable.sink(tableSink, isBatch), ignoreIfExists = false)
     }
   }
@@ -345,9 +345,6 @@ abstract class TableEnvImpl(
     val objectPath = new ObjectPath(fullName(1), fullName(2))
     catalog.createTable(objectPath, catalogTable, ignoreIfExists)
   }
-
-  private def getDefaultTablePath(name: String): Array[String] =
-    Array[String](defaultCatalogName, defaultDatabaseName, name)
 
   protected def replaceTableInternal(name: String, table: CatalogBaseTable): Unit = {
     checkValidTableName(name)

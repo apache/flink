@@ -123,6 +123,10 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		return comment;
 	}
 
+	public boolean isIfNotExists() {
+		return ifNotExists;
+	}
+
 	public void validate() throws SqlParseException {
 		Set<String> columnNames = new HashSet<>();
 		if (columnList != null) {

@@ -51,20 +51,20 @@ import static java.lang.String.format;
  * Tables are registered as tables in the schema.
  */
 class DatabaseCalciteSchema implements Schema {
+	private final boolean isBatch;
 	private final String databaseName;
 	private final String catalogName;
 	private final Catalog catalog;
-	private final boolean isBatch;
 
 	public DatabaseCalciteSchema(
 			boolean isBatch,
 			String databaseName,
 			String catalogName,
 			Catalog catalog) {
+		this.isBatch = isBatch;
 		this.databaseName = databaseName;
 		this.catalogName = catalogName;
 		this.catalog = catalog;
-		this.isBatch = isBatch;
 	}
 
 	@Override

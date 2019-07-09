@@ -19,14 +19,16 @@
 package org.apache.flink.table.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
+import org.apache.flink.table.api.{SqlParserException, TableException, ValidationException}
+import org.apache.flink.table.catalog.CatalogReader
 
-import java.util
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptTable.ViewExpander
 import org.apache.calcite.plan._
 import org.apache.calcite.prepare.CalciteCatalogReader
 import org.apache.calcite.rel.RelRoot
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
@@ -35,14 +37,12 @@ import org.apache.calcite.sql.validate.SqlValidator
 import org.apache.calcite.sql.{SqlKind, SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{RelDecorrelator, SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelBuilder, RelConversionException}
-import org.apache.flink.table.api.{SqlParserException, TableException, ValidationException}
-import org.apache.flink.table.catalog.CatalogReader
 
-import org.apache.calcite.rel.core.RelFactories
+import _root_.java.lang.{Boolean => JBoolean}
+import _root_.java.util
+import _root_.java.util.function.{Function => JFunction}
 
 import scala.collection.JavaConversions._
-import java.util.function.{Function => JFunction}
-import java.lang.{Boolean => JBoolean}
 
 /**
   * NOTE: this is heavily inspired by Calcite's PlannerImpl.
@@ -104,14 +104,15 @@ class FlinkPlannerImpl(
     val catalogReader = catalogReaderSupplier.apply(false)
     // do pre-validate rewrite.
     sqlNode.accept(new PreValidateReWriter(catalogReader, typeFactory))
+    // do extended validation.
     sqlNode match {
       case node: ExtendedSqlNode =>
         node.validate()
-        if (sqlNode.getKind.belongsTo(SqlKind.DDL)) {
-          // no need to validate row type for DDL nodes.
-          return sqlNode
-        }
       case _ =>
+    }
+    // no need to validate row type for DDL nodes.
+    if (sqlNode.getKind.belongsTo(SqlKind.DDL)) {
+      return sqlNode
     }
     validator = new FlinkCalciteSqlValidator(
       operatorTable,
