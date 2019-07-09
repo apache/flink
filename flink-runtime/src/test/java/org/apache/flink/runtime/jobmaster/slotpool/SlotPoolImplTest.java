@@ -60,7 +60,6 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -378,55 +377,6 @@ public class SlotPoolImplTest extends TestLogger {
 			// slot released and not usable, second allocation still not fulfilled
 			Thread.sleep(10);
 			assertFalse(future2.isDone());
-		}
-	}
-
-	/**
-	 * Tests that a slot request is cancelled if it failed with an exception (e.g. TimeoutException).
-	 *
-	 * <p>See FLINK-7870
-	 */
-	@Test
-	public void testSlotRequestCancellationUponFailingRequest() throws Exception {
-
-		try (SlotPoolImpl slotPool = new SlotPoolImpl(jobId)) {
-			final CompletableFuture<Acknowledge> requestSlotFuture = new CompletableFuture<>();
-			final CompletableFuture<AllocationID> cancelSlotFuture = new CompletableFuture<>();
-			final CompletableFuture<AllocationID> requestSlotFutureAllocationId = new CompletableFuture<>();
-			resourceManagerGateway.setRequestSlotFuture(requestSlotFuture);
-			resourceManagerGateway.setRequestSlotConsumer(slotRequest -> requestSlotFutureAllocationId.complete(slotRequest.getAllocationId()));
-			resourceManagerGateway.setCancelSlotConsumer(cancelSlotFuture::complete);
-			final ScheduledUnit scheduledUnit = new ScheduledUnit(
-				new JobVertexID(),
-				null,
-				null);
-			setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
-			Scheduler scheduler = setupScheduler(slotPool, mainThreadExecutor);
-
-			SlotProfile slotProfile = new SlotProfile(
-				ResourceProfile.UNKNOWN,
-				Collections.emptyList(),
-				Collections.emptySet());
-
-			CompletableFuture<LogicalSlot> slotFuture = scheduler.allocateSlot(
-				new SlotRequestId(),
-				scheduledUnit,
-				slotProfile,
-				true,
-				timeout);
-
-			requestSlotFuture.completeExceptionally(new FlinkException("Testing exception."));
-
-			try {
-				slotFuture.get();
-				fail("The slot future should not have been completed properly.");
-			} catch (Exception ignored) {
-				// expected
-			}
-
-			// check that a failure triggered the slot request cancellation
-			// with the correct allocation id
-			assertEquals(requestSlotFutureAllocationId.get(), cancelSlotFuture.get());
 		}
 	}
 

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -42,6 +43,7 @@ import java.util.concurrent.ExecutionException;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 /**
@@ -69,7 +71,7 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
 		final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
 		resourceManagerGateway.setRequestSlotConsumer(slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
 
-		try (SlotPoolImpl slotPool = setupSlotPool()) {
+		try (SlotPoolImpl slotPool = setUpSlotPool()) {
 
 			final CompletableFuture<PhysicalSlot> slotFuture = requestNewAllocatedSlot(slotPool, new SlotRequestId());
 
@@ -91,11 +93,45 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that a failing resource manager request fails a pending slot request and cancels the slot
+	 * request at the RM (e.g. due to a TimeoutException).
+	 *
+	 * <p>See FLINK-7870
+	 */
+	@Test
+	public void testFailingResourceManagerRequestFailsPendingSlotRequestAndCancelsRMRequest() throws Exception {
+
+		try (SlotPoolImpl slotPool = setUpSlotPool()) {
+			final CompletableFuture<Acknowledge> requestSlotFuture = new CompletableFuture<>();
+			final CompletableFuture<AllocationID> cancelSlotFuture = new CompletableFuture<>();
+			final CompletableFuture<AllocationID> requestSlotFutureAllocationId = new CompletableFuture<>();
+			resourceManagerGateway.setRequestSlotFuture(requestSlotFuture);
+			resourceManagerGateway.setRequestSlotConsumer(slotRequest -> requestSlotFutureAllocationId.complete(slotRequest.getAllocationId()));
+			resourceManagerGateway.setCancelSlotConsumer(cancelSlotFuture::complete);
+
+			final CompletableFuture<PhysicalSlot> slotFuture = requestNewAllocatedSlot(slotPool, new SlotRequestId());
+
+			requestSlotFuture.completeExceptionally(new FlinkException("Testing exception."));
+
+			try {
+				slotFuture.get();
+				fail("The slot future should not have been completed properly.");
+			} catch (Exception ignored) {
+				// expected
+			}
+
+			// check that a failure triggered the slot request cancellation
+			// with the correct allocation id
+			assertEquals(requestSlotFutureAllocationId.get(), cancelSlotFuture.get());
+		}
+	}
+
 	private CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(SlotPoolImpl slotPool, SlotRequestId slotRequestId) {
 		return slotPool.requestNewAllocatedSlot(slotRequestId, ResourceProfile.UNKNOWN, TIMEOUT);
 	}
 
-	private SlotPoolImpl setupSlotPool() throws Exception {
+	private SlotPoolImpl setUpSlotPool() throws Exception {
 		final SlotPoolImpl slotPool = new SlotPoolImpl(jobId);
 		slotPool.start(JobMasterId.generate(), "foobar", mainThreadExecutor);
 		slotPool.connectToResourceManager(resourceManagerGateway);
