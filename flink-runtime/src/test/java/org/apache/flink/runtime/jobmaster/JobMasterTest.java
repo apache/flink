@@ -588,6 +588,12 @@ public class JobMasterTest extends TestLogger {
 			return new CompletableFuture<>();
 		}
 
+		@Nonnull
+		@Override
+		public CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(@Nonnull SlotRequestId slotRequestId, @Nonnull ResourceProfile resourceProfile) {
+			return new CompletableFuture<>();
+		}
+
 		@Override
 		public AllocatedSlotReport createAllocatedSlotReport(ResourceID taskManagerId) {
 			final Collection<SlotInfo> slotInfos = registeredSlots.getOrDefault(taskManagerId, Collections.emptyList());

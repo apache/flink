@@ -69,7 +69,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -117,6 +119,9 @@ public class SlotPoolImpl implements SlotPool {
 	/** Timeout for releasing idle slots. */
 	private final Time idleSlotTimeout;
 
+	/** Timeout for batch slot requests. */
+	private final Time batchSlotTimeout;
+
 	private final Clock clock;
 
 	/** the fencing token of the job manager. */
@@ -137,6 +142,7 @@ public class SlotPoolImpl implements SlotPool {
 			jobId,
 			SystemClock.getInstance(),
 			AkkaUtils.getDefaultTimeout(),
+			AkkaUtils.getDefaultTimeout(),
 			Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
 	}
 
@@ -144,12 +150,14 @@ public class SlotPoolImpl implements SlotPool {
 			JobID jobId,
 			Clock clock,
 			Time rpcTimeout,
-			Time idleSlotTimeout) {
+			Time idleSlotTimeout,
+			Time batchSlotTimeout) {
 
 		this.jobId = checkNotNull(jobId);
 		this.clock = checkNotNull(clock);
 		this.rpcTimeout = checkNotNull(rpcTimeout);
 		this.idleSlotTimeout = checkNotNull(idleSlotTimeout);
+		this.batchSlotTimeout = checkNotNull(batchSlotTimeout);
 
 		this.registeredTaskManagers = new HashSet<>(16);
 		this.allocatedSlots = new AllocatedSlots();
@@ -185,6 +193,7 @@ public class SlotPoolImpl implements SlotPool {
 		this.componentMainThreadExecutor = componentMainThreadExecutor;
 
 		scheduleRunAsync(this::checkIdleSlot, idleSlotTimeout);
+		scheduleRunAsync(this::checkBatchSlotTimeout, batchSlotTimeout);
 
 		if (log.isDebugEnabled()) {
 			scheduleRunAsync(this::scheduledLogStatus, STATUS_LOG_INTERVAL_MS, TimeUnit.MILLISECONDS);
@@ -265,40 +274,14 @@ public class SlotPoolImpl implements SlotPool {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Requests a new slot with the given {@link ResourceProfile} from the ResourceManager. If there is
-	 * currently not ResourceManager connected, then the request is stashed and send once a new
-	 * ResourceManager is connected.
+	 * Requests a new slot from the ResourceManager. If there is currently not ResourceManager
+	 * connected, then the request is stashed and send once a new ResourceManager is connected.
 	 *
-	 * @param slotRequestId identifying the requested slot
-	 * @param resourceProfile which the requested slot should fulfill
-	 * @param timeout timeout before the slot allocation times out
+	 * @param pendingRequest pending slot request
 	 * @return An {@link AllocatedSlot} future which is completed once the slot is offered to the {@link SlotPool}
 	 */
 	@Nonnull
-	private CompletableFuture<AllocatedSlot> requestNewAllocatedSlotInternal(
-		@Nonnull SlotRequestId slotRequestId,
-		@Nonnull ResourceProfile resourceProfile,
-		@Nonnull Time timeout) {
-
-		componentMainThreadExecutor.assertRunningInMainThread();
-
-		final PendingRequest pendingRequest = new PendingRequest(
-			slotRequestId,
-			resourceProfile);
-
-		// register request timeout
-		FutureUtils
-			.orTimeout(
-				pendingRequest.getAllocatedSlotFuture(),
-				timeout.toMilliseconds(),
-				TimeUnit.MILLISECONDS,
-				componentMainThreadExecutor)
-			.whenComplete(
-				(AllocatedSlot ignored, Throwable throwable) -> {
-					if (throwable instanceof TimeoutException) {
-						timeoutPendingSlotRequest(slotRequestId);
-					}
-				});
+	private CompletableFuture<AllocatedSlot> requestNewAllocatedSlotInternal(PendingRequest pendingRequest) {
 
 		if (resourceManagerGateway == null) {
 			stashRequestWaitingForResourceManager(pendingRequest);
@@ -348,10 +331,15 @@ public class SlotPoolImpl implements SlotPool {
 	}
 
 	private void slotRequestToResourceManagerFailed(SlotRequestId slotRequestID, Throwable failure) {
-		PendingRequest request = pendingRequests.removeKeyA(slotRequestID);
+		final PendingRequest request = pendingRequests.getKeyA(slotRequestID);
 		if (request != null) {
-			request.getAllocatedSlotFuture().completeExceptionally(new NoResourceAvailableException(
+			if (request.isBatchRequest) {
+				log.debug("Ignoring failed request to the resource manager for a batch slot request.");
+			} else {
+				pendingRequests.removeKeyA(slotRequestID);
+				request.getAllocatedSlotFuture().completeExceptionally(new NoResourceAvailableException(
 					"No pooled slot available and request to ResourceManager for new slot failed", failure));
+			}
 		} else {
 			if (log.isDebugEnabled()) {
 				log.debug("Unregistered slot request [{}] failed.", slotRequestID, failure);
@@ -399,18 +387,54 @@ public class SlotPoolImpl implements SlotPool {
 	@Nonnull
 	@Override
 	public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
-		@Nonnull SlotRequestId slotRequestId,
-		@Nonnull ResourceProfile resourceProfile,
-		Time timeout) {
+			@Nonnull SlotRequestId slotRequestId,
+			@Nonnull ResourceProfile resourceProfile,
+			Time timeout) {
 
-		return requestNewAllocatedSlotInternal(slotRequestId, resourceProfile, timeout)
+		componentMainThreadExecutor.assertRunningInMainThread();
+
+		final PendingRequest pendingRequest = PendingRequest.createStreamingRequest(slotRequestId, resourceProfile);
+
+		// register request timeout
+		FutureUtils
+			.orTimeout(
+				pendingRequest.getAllocatedSlotFuture(),
+				timeout.toMilliseconds(),
+				TimeUnit.MILLISECONDS,
+				componentMainThreadExecutor)
+			.whenComplete(
+				(AllocatedSlot ignored, Throwable throwable) -> {
+					if (throwable instanceof TimeoutException) {
+						timeoutPendingSlotRequest(slotRequestId);
+					}
+				});
+
+		return requestNewAllocatedSlotInternal(pendingRequest)
 			.thenApply((Function.identity()));
+	}
+
+	@Nonnull
+	@Override
+	public CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
+		@Nonnull SlotRequestId slotRequestId,
+		@Nonnull ResourceProfile resourceProfile) {
+
+		componentMainThreadExecutor.assertRunningInMainThread();
+
+		final PendingRequest pendingRequest = PendingRequest.createBatchRequest(slotRequestId, resourceProfile);
+
+		return requestNewAllocatedSlotInternal(pendingRequest)
+			.thenApply(Function.identity());
 	}
 
 	@Override
 	@Nonnull
 	public Collection<SlotInfo> getAvailableSlotsInformation() {
 		return availableSlots.listSlotInfo();
+	}
+
+	private Collection<SlotInfo> getAllocatedSlotsInformation() {
+		return allocatedSlots.listSlotInfo();
 	}
 
 	private void releaseSingleSlot(SlotRequestId slotRequestId, Throwable cause) {
@@ -644,8 +668,13 @@ public class SlotPoolImpl implements SlotPool {
 
 		final PendingRequest pendingRequest = pendingRequests.removeKeyB(allocationID);
 		if (pendingRequest != null) {
-			// request was still pending
-			failPendingRequest(pendingRequest, cause);
+			if (pendingRequest.isBatchRequest) {
+				// pending batch requests don't react to this signal --> put it back
+				pendingRequests.put(pendingRequest.getSlotRequestId(), allocationID, pendingRequest);
+			} else {
+				// request was still pending
+				failPendingRequest(pendingRequest, cause);
+			}
 			return Optional.empty();
 		}
 		else {
@@ -741,7 +770,13 @@ public class SlotPoolImpl implements SlotPool {
 	@VisibleForTesting
 	protected void timeoutPendingSlotRequest(SlotRequestId slotRequestId) {
 		log.info("Pending slot request [{}] timed out.", slotRequestId);
-		removePendingRequest(slotRequestId);
+		final PendingRequest pendingRequest = removePendingRequest(slotRequestId);
+
+		if (pendingRequest != null) {
+			pendingRequest
+				.getAllocatedSlotFuture()
+				.completeExceptionally(new TimeoutException("Pending slot request timed out in SlotPool."));
+		}
 	}
 
 	private void releaseTaskManagerInternal(final ResourceID resourceId, final Exception cause) {
@@ -801,6 +836,67 @@ public class SlotPoolImpl implements SlotPool {
 		}
 
 		scheduleRunAsync(this::checkIdleSlot, idleSlotTimeout);
+	}
+
+	private void checkBatchSlotTimeout() {
+		final Collection<PendingRequest> pendingBatchRequests = getPendingBatchRequests();
+
+		if (!pendingBatchRequests.isEmpty()) {
+			final Set<ResourceProfile> allocatedResourceProfiles = getAllocatedResourceProfiles();
+
+			final Map<Boolean, List<PendingRequest>> fulfillableAndUnfulfillableRequests = pendingBatchRequests
+				.stream()
+				.collect(Collectors.partitioningBy(canBeFulfilledWithAllocatedSlot(allocatedResourceProfiles)));
+
+			final List<PendingRequest> fulfillableRequests = fulfillableAndUnfulfillableRequests.get(true);
+			final List<PendingRequest> unfulfillableRequests = fulfillableAndUnfulfillableRequests.get(false);
+
+			final long currentTimestamp = clock.relativeTimeMillis();
+
+			for (PendingRequest fulfillableRequest : fulfillableRequests) {
+				fulfillableRequest.markFulfillable();
+			}
+
+			for (PendingRequest unfulfillableRequest : unfulfillableRequests) {
+				unfulfillableRequest.markUnfulfillable(currentTimestamp);
+
+				if (unfulfillableRequest.getUnfulfillableSince() + batchSlotTimeout.toMilliseconds() <= currentTimestamp) {
+					timeoutPendingSlotRequest(unfulfillableRequest.getSlotRequestId());
+				}
+			}
+		}
+
+		scheduleRunAsync(this::checkBatchSlotTimeout, batchSlotTimeout);
+	}
+
+	private Set<ResourceProfile> getAllocatedResourceProfiles() {
+		return Stream
+			.concat(
+				getAvailableSlotsInformation().stream(),
+				getAllocatedSlotsInformation().stream())
+			.map(SlotInfo::getResourceProfile)
+			.collect(Collectors.toSet());
+	}
+
+	private Collection<PendingRequest> getPendingBatchRequests() {
+		return Stream
+			.concat(
+				pendingRequests.values().stream(),
+				waitingForResourceManager.values().stream())
+			.filter(PendingRequest::isBatchRequest)
+			.collect(Collectors.toList());
+	}
+
+	private Predicate<PendingRequest> canBeFulfilledWithAllocatedSlot(Set<ResourceProfile> allocatedResourceProfiles) {
+		return pendingRequest -> {
+			for (ResourceProfile allocatedResourceProfile : allocatedResourceProfiles) {
+				if (allocatedResourceProfile.isMatching(pendingRequest.getResourceProfile())) {
+					return true;
+				}
+			}
+
+			return false;
+		};
 	}
 
 	/**
@@ -870,6 +966,11 @@ public class SlotPoolImpl implements SlotPool {
 	@VisibleForTesting
 	void triggerCheckIdleSlot() {
 		runAsync(this::checkIdleSlot);
+	}
+
+	@VisibleForTesting
+	void triggerCheckBatchSlotTimeout() {
+		runAsync(this::checkBatchSlotTimeout);
 	}
 
 	/**
@@ -1052,6 +1153,10 @@ public class SlotPoolImpl implements SlotPool {
 		Set<AllocatedSlot> getSlotsForTaskManager(ResourceID resourceId) {
 			return allocatedSlotsByTaskManager.getOrDefault(resourceId, Collections.emptySet());
 		}
+
+		Collection<SlotInfo> listSlotInfo() {
+			return new ArrayList<>(allocatedSlotsById.values());
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -1229,21 +1334,37 @@ public class SlotPoolImpl implements SlotPool {
 
 		private final ResourceProfile resourceProfile;
 
+		private final boolean isBatchRequest;
+
 		private final CompletableFuture<AllocatedSlot> allocatedSlotFuture;
 
-		PendingRequest(
+		private long unfillableSince;
+
+		private PendingRequest(
 				SlotRequestId slotRequestId,
-				ResourceProfile resourceProfile) {
-			this(slotRequestId, resourceProfile, new CompletableFuture<>());
+				ResourceProfile resourceProfile,
+				boolean isBatchRequest) {
+			this(slotRequestId, resourceProfile, isBatchRequest, new CompletableFuture<>());
 		}
 
-		PendingRequest(
+		private PendingRequest(
 			SlotRequestId slotRequestId,
 			ResourceProfile resourceProfile,
+			boolean isBatchRequest,
 			CompletableFuture<AllocatedSlot> allocatedSlotFuture) {
 			this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
 			this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
+			this.isBatchRequest = isBatchRequest;
 			this.allocatedSlotFuture = Preconditions.checkNotNull(allocatedSlotFuture);
+			this.unfillableSince = Long.MAX_VALUE;
+		}
+
+		static PendingRequest createStreamingRequest(SlotRequestId slotRequestId, ResourceProfile resourceProfile) {
+			return new PendingRequest(slotRequestId, resourceProfile, false);
+		}
+
+		static PendingRequest createBatchRequest(SlotRequestId slotRequestId, ResourceProfile resourceProfile) {
+			return new PendingRequest(slotRequestId, resourceProfile, true);
 		}
 
 		public SlotRequestId getSlotRequestId() {
@@ -1252,6 +1373,10 @@ public class SlotPoolImpl implements SlotPool {
 
 		public CompletableFuture<AllocatedSlot> getAllocatedSlotFuture() {
 			return allocatedSlotFuture;
+		}
+
+		public boolean isBatchRequest() {
+			return isBatchRequest;
 		}
 
 		public ResourceProfile getResourceProfile() {
@@ -1265,6 +1390,24 @@ public class SlotPoolImpl implements SlotPool {
 					", resourceProfile=" + resourceProfile +
 					", allocatedSlotFuture=" + allocatedSlotFuture +
 					'}';
+		}
+
+		void markFulfillable() {
+			unfillableSince = Long.MAX_VALUE;
+		}
+
+		void markUnfulfillable(long currentTimestamp) {
+			if (isFulfillable()) {
+				unfillableSince = currentTimestamp;
+			}
+		}
+
+		private boolean isFulfillable() {
+			return unfillableSince == Long.MAX_VALUE;
+		}
+
+		long getUnfulfillableSince() {
+			return unfillableSince;
 		}
 	}
 
