@@ -34,7 +34,7 @@ import java.io.Serializable;
  *            org.apache.flink.ml.api.misc.param.WithParams}
  * @see WithParams
  */
-interface PipelineStage<T extends PipelineStage<T>> extends WithParams<T>, Serializable {
+public interface PipelineStage<T extends PipelineStage<T>> extends WithParams<T>, Serializable {
 
 	default String toJson() {
 		return getParams().toJson();
