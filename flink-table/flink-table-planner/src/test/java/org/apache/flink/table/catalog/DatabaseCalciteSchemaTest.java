@@ -48,7 +48,7 @@ public class DatabaseCalciteSchemaTest {
 	@Test
 	public void testCatalogTable() throws TableAlreadyExistException, DatabaseNotExistException {
 		GenericInMemoryCatalog catalog = new GenericInMemoryCatalog(catalogName, databaseName);
-		DatabaseCalciteSchema calciteSchema = new DatabaseCalciteSchema(
+		DatabaseCalciteSchema calciteSchema = new DatabaseCalciteSchema(false,
 			databaseName,
 			catalogName,
 			catalog);

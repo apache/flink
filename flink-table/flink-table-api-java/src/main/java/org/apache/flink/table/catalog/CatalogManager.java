@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.factories.TableFactoryUtil;
@@ -396,11 +397,17 @@ public class CatalogManager {
 	 * @return An array of complete table path
 	 */
 	public String[] getFullTablePath(List<String> paths) {
-		checkNotNull(paths, "Table paths can not be null");
-		checkArgument(paths.size() >= 1 && paths.size() <= 3,
-			"Table paths length must be between 1(inclusive) and 3(inclusive)");
-		checkArgument(paths.stream().noneMatch(StringUtils::isNullOrWhitespaceOnly),
-			"Table paths contain null or while-space-only string");
+		if (paths == null) {
+			throw new ValidationException("Table paths can not be null!");
+		}
+		if (paths.size() < 1 || paths.size() > 3) {
+			throw new ValidationException("Table paths length must be " +
+				"between 1(inclusive) and 3(inclusive)");
+		}
+		if (paths.stream().anyMatch(StringUtils::isNullOrWhitespaceOnly)) {
+			throw new ValidationException("Table paths contain null or " +
+				"while-space-only string");
+		}
 
 		if (paths.size() == 3) {
 			return new String[] {paths.get(0), paths.get(1), paths.get(2)};

@@ -43,10 +43,12 @@ public class CatalogCalciteSchema implements Schema {
 
 	private final String catalogName;
 	private final Catalog catalog;
+	private final boolean isBatch;
 
-	public CatalogCalciteSchema(String catalogName, Catalog catalog) {
+	public CatalogCalciteSchema(boolean isBatch, String catalogName, Catalog catalog) {
 		this.catalogName = catalogName;
 		this.catalog = catalog;
+		this.isBatch = isBatch;
 	}
 
 	/**
@@ -59,7 +61,7 @@ public class CatalogCalciteSchema implements Schema {
 	public Schema getSubSchema(String schemaName) {
 
 		if (catalog.databaseExists(schemaName)) {
-			return new DatabaseCalciteSchema(schemaName, catalogName, catalog);
+			return new DatabaseCalciteSchema(isBatch, schemaName, catalogName, catalog);
 		} else {
 			return null;
 		}
