@@ -35,7 +35,6 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
   taskManagerCPUs: number;
   totalCount: number;
   destroy$ = new Subject();
-  listOfConfig: Array<{ key: string; value: string }> = [];
   timeoutThresholdSeconds: number;
 
   constructor(
@@ -64,24 +63,22 @@ export class OverviewStatisticComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$),
         flatMap(() => this.taskManagerService.loadManagers())
       )
-      .subscribe(
-        data => {
-          this.listOfTaskManager = data;
-          this.totalCount = data.length;
-          this.taskManagerCPUs = 0;
-          this.listOfTaskManager.map(tm => {
-            this.taskManagerCPUs += tm.hardware.cpuCores;
-            tm.milliSecondsSinceLastHeartBeat = new Date().getTime() - tm.timeSinceLastHeartbeat;
-          });
+      .subscribe(data => {
+        this.listOfTaskManager = data;
+        this.totalCount = data.length;
+        this.taskManagerCPUs = 0;
+        this.listOfTaskManager.map(tm => {
+          this.taskManagerCPUs += tm.hardware.cpuCores;
+          tm.milliSecondsSinceLastHeartBeat = new Date().getTime() - tm.timeSinceLastHeartbeat;
+        });
 
-          this.cdr.markForCheck();
-        },
-      );
+        this.cdr.markForCheck();
+      });
     this.jobManagerService.loadConfig().subscribe(data => {
-      this.listOfConfig = data;
+      const listOfConfig = data;
 
       let timeoutThreshold = '';
-      this.listOfConfig.map(config => {
+      listOfConfig.map(config => {
         if (config.key === 'akka.lookup.timeout') {
           timeoutThreshold = config.value;
         }
