@@ -260,7 +260,9 @@ function start_cluster {
 }
 
 function start_taskmanagers {
-    tmnum=$1
+    local tmnum=$1
+    local c
+
     echo "Start ${tmnum} more task managers"
     for (( c=0; c<tmnum; c++ ))
     do
