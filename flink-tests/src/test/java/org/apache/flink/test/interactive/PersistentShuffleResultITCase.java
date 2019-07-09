@@ -28,6 +28,7 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
@@ -75,6 +76,6 @@ public class PersistentShuffleResultITCase extends TestLogger {
 
 		SerializedValue<Object> serializedDescriptor = descriptors.values().iterator().next();
 		Object serializedDescriptorObj = serializedDescriptor.deserializeValue(Thread.currentThread().getContextClassLoader());
- 		Assert.assertThat(serializedDescriptorObj, Matchers.instanceOf(ShuffleDescriptor.class));
+		Assert.assertThat(serializedDescriptorObj, Matchers.instanceOf(ShuffleDescriptor.class));
 	}
 }
