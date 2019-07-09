@@ -226,6 +226,16 @@ object BuiltInMethods {
     "timestampToString",
     classOf[Long], classOf[Int], classOf[TimeZone])
 
+  val TIMESTAMP_TO_TIMESTAMP_WITH_LOCAL_ZONE = Types.lookupMethod(
+    classOf[SqlDateTimeUtils],
+    "timestampToTimestampWithLocalZone",
+    classOf[Long], classOf[TimeZone])
+
+  val TIMESTAMP_WITH_LOCAL_ZONE_TO_TIMESTAMP = Types.lookupMethod(
+    classOf[SqlDateTimeUtils],
+    "timestampWithLocalZoneToTimestamp",
+    classOf[Long], classOf[TimeZone])
+
   val STRING_TO_DATE_WITH_FORMAT = Types.lookupMethod(
     classOf[SqlDateTimeUtils],
     "strToDate",
@@ -393,6 +403,26 @@ object BuiltInMethods {
     classOf[SqlDateTimeUtils],
     "toTimestamp",
     classOf[String], classOf[String], classOf[TimeZone])
+
+  val TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_DATE = Types.lookupMethod(
+    classOf[SqlDateTimeUtils],
+    "timestampWithLocalZoneToDate",
+    classOf[Long], classOf[TimeZone])
+
+  val TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_TIME = Types.lookupMethod(
+    classOf[SqlDateTimeUtils],
+    "timestampWithLocalZoneToTime",
+    classOf[Long], classOf[TimeZone])
+
+  val DATE_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE = Types.lookupMethod(
+    classOf[SqlDateTimeUtils],
+    "dateToTimestampWithLocalZone",
+    classOf[Int], classOf[TimeZone])
+
+  val TIME_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE = Types.lookupMethod(
+    classOf[SqlDateTimeUtils],
+    "timeToTimestampWithLocalZone",
+    classOf[Int], classOf[TimeZone])
 
   val TIMESTAMP_TO_BIGINT = Types.lookupMethod(
     classOf[SqlDateTimeUtils],

@@ -32,6 +32,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.MAP;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 
 /**
  * Utils for type.
@@ -47,14 +48,7 @@ public class TypeCheckUtils {
 	}
 
 	public static boolean isTimePoint(LogicalType type) {
-		switch (type.getTypeRoot()) {
-			case DATE:
-			case TIME_WITHOUT_TIME_ZONE:
-			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return true;
-			default:
-				return false;
-		}
+		return type.getTypeRoot().getFamilies().contains(LogicalTypeFamily.DATETIME);
 	}
 
 	public static boolean isRowTime(LogicalType type) {
@@ -85,6 +79,10 @@ public class TypeCheckUtils {
 
 	public static boolean isTimestamp(LogicalType type) {
 		return type.getTypeRoot() == TIMESTAMP_WITHOUT_TIME_ZONE;
+	}
+
+	public static boolean isTimestampWithLocalZone(LogicalType type) {
+		return type.getTypeRoot() == TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 	}
 
 	public static boolean isBoolean(LogicalType type) {

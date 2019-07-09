@@ -27,6 +27,7 @@ import org.apache.flink.table.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.dataformat.BinaryStringUtil.safeToString
 import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow}
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.avatica.util.ByteString
@@ -35,6 +36,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.commons.lang3.StringEscapeUtils
 
 import java.io.File
+import java.util.TimeZone
 
 import scala.collection.JavaConverters._
 
@@ -137,6 +139,16 @@ class ExpressionReducer(
             new ByteString(reduced.getField(reducedIdx).asInstanceOf[Array[Byte]])
           } else {
             reducedValue
+          }
+          reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
+          reducedIdx += 1
+        case SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+          val value = if (!reduced.isNullAt(reducedIdx)) {
+            val mills = reduced.getField(reducedIdx).asInstanceOf[Long]
+            Long.box(SqlDateTimeUtils.timestampWithLocalZoneToTimestamp(
+              mills, TimeZone.getTimeZone(config.getLocalTimeZone)))
+          } else {
+            null
           }
           reducedValues.add(maySkipNullLiteralReduce(rexBuilder, value, unreduced))
           reducedIdx += 1

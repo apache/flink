@@ -35,7 +35,7 @@ import com.google.common.io.Files
 import java.io.File
 import java.lang.{Iterable => JIterable}
 import java.sql.{Date, Timestamp}
-import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util
 import java.util.TimeZone
 import java.util.concurrent.atomic.AtomicInteger
@@ -223,6 +223,12 @@ object UserDefinedFunctionTestUtils {
 
   object LocalTimeFunction extends ScalarFunction {
     def eval(t: LocalTime): String = t.toString
+  }
+
+  object InstantFunction extends ScalarFunction {
+    def eval(t: Instant): Instant = t
+
+    override def getResultType(signature: Array[Class[_]]) = Types.INSTANT
   }
 
   // Understand type: Row wrapped as TypeInfoWrappedDataType.

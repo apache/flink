@@ -175,6 +175,7 @@ public interface TypeGetterSetters {
 				return row.getInt(ordinal);
 			case BIGINT:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 			case INTERVAL_DAY_TIME:
 				return row.getLong(ordinal);
 			case FLOAT:

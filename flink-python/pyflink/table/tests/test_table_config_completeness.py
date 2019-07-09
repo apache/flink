@@ -44,8 +44,9 @@ class TableConfigCompletenessTests(PythonAPICompletenessTestCase, unittest.TestC
     @classmethod
     def java_method_name(cls, python_method_name):
         # Most time zone related libraries in Python use 'timezone' instead of 'time_zone'.
-        return {'get_timezone': 'get_time_zone',
-                'set_timezone': 'set_time_zone'}.get(python_method_name, python_method_name)
+        return {'get_local_timezone': 'get_local_time_zone',
+                'set_local_timezone': 'set_local_time_zone'}\
+            .get(python_method_name, python_method_name)
 
 if __name__ == '__main__':
     import unittest

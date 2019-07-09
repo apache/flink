@@ -47,24 +47,25 @@ class TableConfig(object):
         """
         self._j_table_config.setConf(key, value)
 
-    def get_timezone(self):
+    def get_local_timezone(self):
         """
-        Returns the timezone id, either an abbreviation such as "PST", a full name such as
-        "America/Los_Angeles", or a custom timezone_id such as "GMT-8:00".
+        Returns the local timezone id for timestamp with local time zone, either an abbreviation
+        such as "PST", a full name such as "America/Los_Angeles", or a custom timezone_id such
+        as "GMT-8:00".
         """
-        return self._j_table_config.getTimeZone().getID()
+        return self._j_table_config.getLocalTimeZone().getId()
 
-    def set_timezone(self, timezone_id):
+    def set_local_timezone(self, timezone_id):
         """
-        Sets the timezone id for date/time/timestamp conversions.
+        Sets the local timezone id for timestamp with local time zone.
 
         :param timezone_id: The timezone id, either an abbreviation such as "PST", a full name
                             such as "America/Los_Angeles", or a custom timezone_id such as
                             "GMT-8:00".
         """
         if timezone_id is not None and isinstance(timezone_id, (str, unicode)):
-            j_timezone = get_gateway().jvm.java.util.TimeZone.getTimeZone(timezone_id)
-            self._j_table_config.setTimeZone(j_timezone)
+            j_timezone = get_gateway().jvm.java.time.ZoneId.of(timezone_id)
+            self._j_table_config.setLocalTimeZone(j_timezone)
         else:
             raise Exception("TableConfig.timezone should be a string!")
 

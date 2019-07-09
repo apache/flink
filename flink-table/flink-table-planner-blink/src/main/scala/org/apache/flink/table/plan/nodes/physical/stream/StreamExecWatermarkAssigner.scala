@@ -36,7 +36,6 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelNode, RelWriter}
 
 import java.util
-import java.util.Calendar
 
 import scala.collection.JavaConversions._
 
@@ -137,12 +136,10 @@ class StreamExecWatermarkAssigner(
     } else {
       require(rowtimeFieldIndex.isDefined, "rowtimeFieldIndex should not be None")
       require(watermarkDelay.isDefined, "watermarkDelay should not be None")
-      // get the timezone offset.
-      val tzOffset = config.getTimeZone.getOffset(Calendar.ZONE_OFFSET)
       val op = new MiniBatchedWatermarkAssignerOperator(
         rowtimeFieldIndex.get,
         watermarkDelay.get,
-        tzOffset,
+        0,
         idleTimeout,
         inferredInterval.interval)
       val opName = s"MiniBatchedWatermarkAssigner(rowtime: ${rowtimeFieldIndex.get}," +

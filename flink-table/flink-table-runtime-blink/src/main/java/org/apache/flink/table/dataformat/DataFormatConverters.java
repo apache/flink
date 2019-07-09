@@ -53,6 +53,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -117,6 +118,9 @@ public class DataFormatConverters {
 
 		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class), TimestampConverter.INSTANCE);
 		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(LocalDateTime.class), LocalDateTimeConverter.INSTANCE);
+
+		t2C.put(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).bridgedTo(Long.class), LongConverter.INSTANCE);
+		t2C.put(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).bridgedTo(Instant.class), InstantConverter.INSTANCE);
 
 		t2C.put(DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(Integer.class), IntConverter.INSTANCE);
 		t2C.put(DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(int.class), IntConverter.INSTANCE);
@@ -708,6 +712,33 @@ public class DataFormatConverters {
 
 		@Override
 		LocalDateTime toExternalImpl(BaseRow row, int column) {
+			return toExternalImpl(row.getLong(column));
+		}
+	}
+
+	/**
+	 * Converter for Instant.
+	 */
+	public static final class InstantConverter extends DataFormatConverter<Long, Instant> {
+
+		private static final long serialVersionUID = 1L;
+
+		public static final InstantConverter INSTANCE = new InstantConverter();
+
+		private InstantConverter() {}
+
+		@Override
+		Long toInternalImpl(Instant value) {
+			return value.toEpochMilli();
+		}
+
+		@Override
+		Instant toExternalImpl(Long value) {
+			return Instant.ofEpochMilli(value);
+		}
+
+		@Override
+		Instant toExternalImpl(BaseRow row, int column) {
 			return toExternalImpl(row.getLong(column));
 		}
 	}

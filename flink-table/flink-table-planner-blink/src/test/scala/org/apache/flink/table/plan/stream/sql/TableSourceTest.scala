@@ -27,15 +27,12 @@ import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
 
-import java.util.TimeZone
-
 class TableSourceTest extends TableTestBase {
 
   private val util = streamTestUtil()
 
   @Before
   def setup(): Unit = {
-    TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
     util.tableEnv.registerTableSource("FilterableTable", TestFilterableTableSource(false))
   }
 

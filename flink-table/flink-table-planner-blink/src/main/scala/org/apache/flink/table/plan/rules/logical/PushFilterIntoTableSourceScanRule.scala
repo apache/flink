@@ -33,6 +33,7 @@ import org.apache.calcite.rel.core.Filter
 import org.apache.calcite.rel.logical.LogicalTableScan
 
 import java.util
+import java.util.TimeZone
 
 import scala.collection.JavaConversions._
 
@@ -89,7 +90,9 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
         maxCnfNodeCount,
         filter.getInput.getRowType.getFieldNames,
         relBuilder.getRexBuilder,
-        functionCatalog)
+        functionCatalog,
+        TimeZone.getTimeZone(scan.getCluster.getPlanner.getContext
+            .asInstanceOf[FlinkContext].getTableConfig.getLocalTimeZone))
 
     if (predicates.isEmpty) {
       // no condition can be translated to expression

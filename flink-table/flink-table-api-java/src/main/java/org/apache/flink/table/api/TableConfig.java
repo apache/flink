@@ -24,7 +24,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 
 import java.math.MathContext;
-import java.util.TimeZone;
+import java.time.ZoneId;
 
 /**
  * A config to define the runtime behavior of the Table API.
@@ -33,9 +33,9 @@ import java.util.TimeZone;
 public class TableConfig {
 
 	/**
-	 * Defines the timezone for date/time/timestamp conversions.
+	 * Defines the zone id for timestamp with local time zone.
 	 */
-	private TimeZone timeZone = TimeZone.getTimeZone("UTC");
+	private ZoneId localZoneId = ZoneId.systemDefault();
 
 	/**
 	 * Defines if all fields need to be checked for NULL first.
@@ -104,17 +104,17 @@ public class TableConfig {
 	}
 
 	/**
-	 * Returns the timezone for date/time/timestamp conversions.
+	 * Returns the zone id for timestamp with local time zone.
 	 */
-	public TimeZone getTimeZone() {
-		return timeZone;
+	public ZoneId getLocalTimeZone() {
+		return localZoneId;
 	}
 
 	/**
-	 * Sets the timezone for date/time/timestamp conversions.
+	 * Sets the zone id for timestamp with local time zone.
 	 */
-	public void setTimeZone(TimeZone timeZone) {
-		this.timeZone = Preconditions.checkNotNull(timeZone);
+	public void setLocalTimeZone(ZoneId zoneId) {
+		this.localZoneId = Preconditions.checkNotNull(zoneId);
 	}
 
 	/**

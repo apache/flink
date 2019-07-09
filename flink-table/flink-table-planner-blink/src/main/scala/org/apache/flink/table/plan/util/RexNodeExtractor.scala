@@ -25,6 +25,7 @@ import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverte
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR}
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.util.Logging
@@ -35,7 +36,7 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
 
-import java.util.{List => JList}
+import java.util.{TimeZone, List => JList}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -87,7 +88,8 @@ object RexNodeExtractor extends Logging {
       maxCnfNodeCount: Int,
       inputFieldNames: JList[String],
       rexBuilder: RexBuilder,
-      catalog: FunctionCatalog): (Array[Expression], Array[RexNode]) = {
+      catalog: FunctionCatalog,
+      timeZone: TimeZone): (Array[Expression], Array[RexNode]) = {
     // converts the expanded expression to conjunctive normal form,
     // like "(a AND b) OR c" will be converted to "(a OR c) AND (b OR c)"
     val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, expr)
@@ -97,7 +99,7 @@ object RexNodeExtractor extends Logging {
     val convertedExpressions = new mutable.ArrayBuffer[Expression]
     val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
     val inputNames = inputFieldNames.asScala.toArray
-    val converter = new RexNodeToExpressionConverter(inputNames, catalog)
+    val converter = new RexNodeToExpressionConverter(inputNames, catalog, timeZone)
 
     conjunctions.asScala.foreach(rex => {
       rex.accept(converter) match {
@@ -196,7 +198,8 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
   */
 class RexNodeToExpressionConverter(
     inputNames: Array[String],
-    functionCatalog: FunctionCatalog)
+    functionCatalog: FunctionCatalog,
+    timeZone: TimeZone)
   extends RexVisitor[Option[Expression]] {
 
   override def visitInputRef(inputRef: RexInputRef): Option[Expression] = {
@@ -238,6 +241,10 @@ class RexNodeToExpressionConverter(
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         val v = literal.getValueAs(classOf[java.lang.Long])
         LocalDateTimeConverter.INSTANCE.toExternal(v)
+
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val v = literal.getValueAs(classOf[java.lang.Long])
+        unixTimestampToLocalDateTime(v).atZone(timeZone.toZoneId).toInstant
 
       case TINYINT =>
         // convert from BigDecimal to Byte
