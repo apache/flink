@@ -24,7 +24,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException}
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.catalog.{CatalogManager, CatalogManagerCalciteSchema, CatalogTable, ConnectorCatalogTable, FunctionCatalog}
+import org.apache.flink.table.catalog.{CatalogManager, CatalogManagerCalciteSchema, CatalogTable, ConnectorCatalogTable, FunctionCatalog, ObjectPath}
 import org.apache.flink.table.delegation.{Executor, Planner}
 import org.apache.flink.table.executor.ExecutorBase
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
@@ -246,7 +246,20 @@ abstract class PlannerBase(
       case Some(s) if JavaScalaConversionUtil.toScala(s.getCatalogTable)
         .exists(_.isInstanceOf[CatalogTable]) =>
 
-        val sinkProperties = s.getCatalogTable.get().asInstanceOf[CatalogTable].toProperties
+        val catalog = catalogManager.getCatalog(s.getTablePath.get(0))
+        val catalogTable = s.getCatalogTable.get().asInstanceOf[CatalogTable]
+        if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
+          val tableFactory = catalog.get().getTableFactory.get()
+          tableFactory match {
+            case factory: TableSinkFactory[_] =>
+              val dbName = s.getTablePath.get(1)
+              val tableName = s.getTablePath.get(2)
+              return Option(factory.createTableSink(
+                new ObjectPath(dbName, tableName), catalogTable))
+            case _ =>
+          }
+        }
+        val sinkProperties = catalogTable.toProperties
         Option(TableFactoryService.find(classOf[TableSinkFactory[_]], sinkProperties)
           .createTableSink(sinkProperties))
 
