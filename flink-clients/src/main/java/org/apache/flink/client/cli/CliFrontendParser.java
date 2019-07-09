@@ -107,9 +107,11 @@ public class CliFrontendParser {
 			"Namespace to create the Zookeeper sub-paths for high availability mode");
 
 	static final Option CANCEL_WITH_SAVEPOINT_OPTION = new Option(
-			"s", "withSavepoint", true, "Trigger savepoint and cancel job. The target " +
-			"directory is optional. If no directory is specified, the configured default " +
-			"directory (" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + ") is used.");
+			"s", "withSavepoint", true, "**DEPRECATION WARNING**: " +
+			"Cancelling a job with savepoint is deprecated. Use \"stop\" instead. \n Trigger" +
+			" savepoint and cancel job. The target directory is optional. If no directory is " +
+			"specified, the configured default directory (" +
+			CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + ") is used.");
 
 	public static final Option STOP_WITH_SAVEPOINT = new Option("s", "withSavepoint", true,
 			"Path to the savepoint (for example hdfs:///flink/savepoint-1537). " +

@@ -170,11 +170,11 @@ These examples about how to manage a job in CLI.
 
         ./bin/flink cancel <jobID>
 
--   Cancel a job with a savepoint:
+-   Cancel a job with a savepoint (deprecated; use "stop" instead):
 
         ./bin/flink cancel -s [targetDirectory] <jobID>
 
--   Stop a job with a savepoint (streaming jobs only):
+-   Gracefully stop a job with a savepoint (streaming jobs only):
 
         ./bin/flink stop -s [targetDirectory] -d <jobID>
         
@@ -221,7 +221,7 @@ This will trigger a savepoint for the job with ID `jobId` and YARN application I
 
 Everything else is the same as described in the above **Trigger a Savepoint** section.
 
-#### Cancel with a savepoint
+#### Cancel with a savepoint (deprecated)
 
 You can atomically trigger a savepoint and cancel a job.
 
@@ -232,6 +232,10 @@ You can atomically trigger a savepoint and cancel a job.
 If no savepoint directory is configured, you need to configure a default savepoint directory for the Flink installation (see [Savepoints]({{site.baseurl}}/ops/state/savepoints.html#configuration)).
 
 The job will only be cancelled if the savepoint succeeds.
+
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">
+    <b>Note</b>: Cancelling a job with savepoint is deprecated. Use "stop" instead.</p>
+{% endunless %}
 
 #### Restore a savepoint
 
@@ -455,7 +459,10 @@ Action "cancel" cancels a running program.
 
   Syntax: cancel [OPTIONS] <Job ID>
   "cancel" action options:
-     -s,--withSavepoint <targetDirectory>   Trigger savepoint and cancel job.
+     -s,--withSavepoint <targetDirectory>   **DEPRECATION WARNING**: Cancelling
+                                            a job with savepoint is deprecated.
+                                            Use "stop" instead.
+                                            Trigger savepoint and cancel job.
                                             The target directory is optional. If
                                             no directory is specified, the
                                             configured default directory

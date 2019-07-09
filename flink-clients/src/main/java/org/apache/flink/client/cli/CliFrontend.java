@@ -568,6 +568,9 @@ public class CliFrontend {
 		final String[] cleanedArgs = cancelOptions.getArgs();
 
 		if (cancelOptions.isWithSavepoint()) {
+
+			logAndSysout("DEPRECATION WARNING: Cancelling a job with savepoint is deprecated. Use \"stop\" instead.");
+
 			final JobID jobId;
 			final String targetDirectory;
 
