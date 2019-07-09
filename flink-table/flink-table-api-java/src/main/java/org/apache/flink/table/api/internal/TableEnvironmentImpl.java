@@ -295,7 +295,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	@Override
 	public Table sql(String statement) {
 		List<Operation> operations = planner.parse(statement);
-		Preconditions.checkState(operations.size() <= 1,
+		Preconditions.checkState(operations.size() == 1,
 			"sql() only accepts a single SQL statement a time.");
 		Operation operation = operations.get(0);
 		if (operation instanceof CreateTableOperation) {

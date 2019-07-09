@@ -256,12 +256,10 @@ class TableEnvironment(object):
         )
 
         The returns table format for different kind of statement:
-        DDL: a table with one column of VARCHAR type to describe if this operation
-        is success.
-        DML: a sql insert returns a table with one column of VARCHAR type to describe the
-        affected rows; a sql query(select) returns a table to describe the query data set,
-        it can be further queried through the Table API, or directly write to sink with
-        `~Table.insert_into`.
+        DDL: returns null.
+        DML: a sql insert returns null; a sql query(select) returns a table
+        to describe the query data set, it can be further queried through the Table API,
+        or directly write to sink with `~Table.insert_into`.
 
         SQL queries can directly execute as follows:
         ::
@@ -287,7 +285,7 @@ class TableEnvironment(object):
         query = "INSERT INTO sinkTable SELECT FROM sourceTable"
 
         tEnv.sql(sourceDDL)
-        tEnv.sql()sinkDDL)
+        tEnv.sql(sinkDDL)
         tEnv.sql(query)
         tEnv.execute("MyJob")
 
@@ -296,6 +294,8 @@ class TableEnvironment(object):
         :param query: The SQL statement to evaluate.
         """
         j_table = self._j_tenv.sql(query)
+        if j_table is None:
+            return None
         return Table(j_table)
 
     def sql_query(self, query):
