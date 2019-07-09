@@ -54,15 +54,6 @@ class Catalog(object):
         """
         return self._j_catalog.getDefaultDatabase()
 
-    def get_table_factory(self):
-        """
-        Get an optional TableFactory instance that's responsible for generating source/sink for
-        tables stored in this catalog.
-
-        :return: An optional TableFactory instance.
-        """
-        return self._j_catalog.getTableFactory()
-
     def list_databases(self):
         """
         Get the names of all databases in this catalog.
