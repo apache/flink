@@ -84,7 +84,7 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
 		// assert
 		assertEquals(1, allocationFailures.size());
 		assertEquals(request.getAllocationId(), allocationFailures.get(0));
-//		assertEquals(0, slotManager.getNumberPendingSlotRequests()); // BUG, to be fixed in follow-up commit
+		assertEquals(0, slotManager.getNumberPendingSlotRequests());
 	}
 
 	@Test

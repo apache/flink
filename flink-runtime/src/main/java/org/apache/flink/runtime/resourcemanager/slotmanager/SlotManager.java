@@ -488,6 +488,7 @@ public class SlotManager implements AutoCloseable {
 					continue;
 				}
 				if (!isFulfillableByRegisteredSlots(pendingSlotRequest.getResourceProfile())) {
+					slotRequestIterator.remove();
 					resourceActions.notifyAllocationFailure(
 						pendingSlotRequest.getJobId(),
 						pendingSlotRequest.getAllocationId(),
