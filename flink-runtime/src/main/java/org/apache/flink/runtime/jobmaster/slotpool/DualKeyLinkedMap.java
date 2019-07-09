@@ -22,8 +22,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 
 import java.util.AbstractCollection;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.Set;
 
 /**
@@ -33,17 +33,17 @@ import java.util.Set;
  * @param <B> Type of key B
  * @param <V> Type of the value
  */
-public class DualKeyMap<A, B, V> {
+public class DualKeyLinkedMap<A, B, V> {
 
-	private final HashMap<A, Tuple2<B, V>> aMap;
+	private final LinkedHashMap<A, Tuple2<B, V>> aMap;
 
-	private final HashMap<B, A> bMap;
+	private final LinkedHashMap<B, A> bMap;
 
 	private transient Collection<V> values;
 
-	public DualKeyMap(int initialCapacity) {
-		this.aMap = new HashMap<>(initialCapacity);
-		this.bMap = new HashMap<>(initialCapacity);
+	public DualKeyLinkedMap(int initialCapacity) {
+		this.aMap = new LinkedHashMap<>(initialCapacity);
+		this.bMap = new LinkedHashMap<>(initialCapacity);
 	}
 
 	public int size() {
