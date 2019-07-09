@@ -109,6 +109,10 @@ Flink's `HiveCatalog` officially supports Hive 2.3.4 and 1.2.1.
 
 The Hive version is explicitly specified as a String, either by passing it to the constructor when creating `HiveCatalog` instances directly in Table API or specifying it in yaml config file in SQL CLI. The Hive version string are `2.3.4` and `1.2.1`.
 
+## Case Insensitive to Meta-Object Names
+
+Note that Hive Metastore stores meta-object names in lower cases. Thus, unlike `GenericInMemoryCatalog`, `HiveCatalog` is case-insensitive to meta-object names, and users need to be cautious on that.
+
 ## Dependencies
 
 To use `HiveCatalog`, users need to include the following dependency jars.
