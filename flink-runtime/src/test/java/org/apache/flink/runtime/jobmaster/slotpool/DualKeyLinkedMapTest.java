@@ -32,9 +32,9 @@ import java.util.stream.Collectors;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
- * Tests for the {@link DualKeyMap}.
+ * Tests for the {@link DualKeyLinkedMap}.
  */
-public class DualKeyMapTest extends TestLogger {
+public class DualKeyLinkedMapTest extends TestLogger {
 
 	@Test
 	public void testKeySets() {
@@ -48,7 +48,7 @@ public class DualKeyMapTest extends TestLogger {
 			keys.add(Tuple2.of(keyA, keyB));
 		}
 
-		final DualKeyMap<Integer, Integer, String> dualKeyMap = new DualKeyMap<>(capacity);
+		final DualKeyLinkedMap<Integer, Integer, String> dualKeyMap = new DualKeyLinkedMap<>(capacity);
 
 		for (Tuple2<Integer, Integer> key : keys) {
 			dualKeyMap.put(key.f0, key.f1, "foobar");

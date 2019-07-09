@@ -60,6 +60,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -105,10 +106,10 @@ public class SlotPoolImpl implements SlotPool {
 	private final AvailableSlots availableSlots;
 
 	/** All pending requests waiting for slots. */
-	private final DualKeyMap<SlotRequestId, AllocationID, PendingRequest> pendingRequests;
+	private final DualKeyLinkedMap<SlotRequestId, AllocationID, PendingRequest> pendingRequests;
 
 	/** The requests that are waiting for the resource manager to be connected. */
-	private final HashMap<SlotRequestId, PendingRequest> waitingForResourceManager;
+	private final LinkedHashMap<SlotRequestId, PendingRequest> waitingForResourceManager;
 
 	/** Timeout for external request calls (e.g. to the ResourceManager or the TaskExecutor). */
 	private final Time rpcTimeout;
@@ -153,8 +154,8 @@ public class SlotPoolImpl implements SlotPool {
 		this.registeredTaskManagers = new HashSet<>(16);
 		this.allocatedSlots = new AllocatedSlots();
 		this.availableSlots = new AvailableSlots();
-		this.pendingRequests = new DualKeyMap<>(16);
-		this.waitingForResourceManager = new HashMap<>(16);
+		this.pendingRequests = new DualKeyLinkedMap<>(16);
+		this.waitingForResourceManager = new LinkedHashMap<>(16);
 
 		this.jobMasterId = null;
 		this.resourceManagerGateway = null;
@@ -857,7 +858,7 @@ public class SlotPoolImpl implements SlotPool {
 	}
 
 	@VisibleForTesting
-	DualKeyMap<SlotRequestId, AllocationID, PendingRequest> getPendingRequests() {
+	DualKeyLinkedMap<SlotRequestId, AllocationID, PendingRequest> getPendingRequests() {
 		return pendingRequests;
 	}
 
@@ -915,11 +916,11 @@ public class SlotPoolImpl implements SlotPool {
 		private final Map<ResourceID, Set<AllocatedSlot>> allocatedSlotsByTaskManager;
 
 		/** All allocated slots organized by AllocationID. */
-		private final DualKeyMap<AllocationID, SlotRequestId, AllocatedSlot> allocatedSlotsById;
+		private final DualKeyLinkedMap<AllocationID, SlotRequestId, AllocatedSlot> allocatedSlotsById;
 
 		AllocatedSlots() {
 			this.allocatedSlotsByTaskManager = new HashMap<>(16);
-			this.allocatedSlotsById = new DualKeyMap<>(16);
+			this.allocatedSlotsById = new DualKeyLinkedMap<>(16);
 		}
 
 		/**
