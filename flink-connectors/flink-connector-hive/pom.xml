@@ -37,6 +37,7 @@ under the License.
 
 	<properties>
 		<hiverunner.version>4.0.0</hiverunner.version>
+		<reflections.version>0.9.8</reflections.version>
 	</properties>
 
 	<dependencies>
@@ -418,7 +419,7 @@ under the License.
 		<dependency>
 			<groupId>org.reflections</groupId>
 			<artifactId>reflections</artifactId>
-			<version>0.9.8</version>
+			<version>${reflections.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>

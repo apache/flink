@@ -189,20 +189,6 @@ public class FlinkStandaloneHiveServerContext implements HiveServerContext {
 
 		createAndSetFolderProperty("hadoop.tmp.dir", "hadooptmp", conf, basedir);
 		createAndSetFolderProperty("test.log.dir", "logs", conf, basedir);
-
-        /*
-            Tez specific configurations below
-         */
-        /*
-            Tez will upload a hive-exec.jar to this location.
-            It looks like it will do this only once per test suite so it makes sense to keep this in a central location
-            rather than in the tmp dir of each test.
-         */
-		File installationDir = newFolder(getBaseDir(), "tez_installation_dir");
-
-		conf.setVar(HiveConf.ConfVars.HIVE_JAR_DIRECTORY, installationDir.getAbsolutePath());
-		conf.setVar(HiveConf.ConfVars.HIVE_USER_INSTALL_DIR, installationDir.getAbsolutePath());
-
 	}
 
 	private File newFolder(TemporaryFolder basedir, String folder) {
