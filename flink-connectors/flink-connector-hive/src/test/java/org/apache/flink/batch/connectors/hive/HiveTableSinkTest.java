@@ -88,9 +88,8 @@ public class HiveTableSinkTest {
 		List<Row> toWrite = generateRecords(5);
 		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
 
-		CatalogTable table = (CatalogTable) hiveCatalog.getTable(tablePath);
-		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), tablePath, table));
-		tableEnv.sqlQuery("select * from src").insertInto("destSink");
+		tableEnv.registerCatalog("hive", hiveCatalog);
+		tableEnv.sqlQuery("select * from src").insertInto("hive", "default", "dest");
 		execEnv.execute();
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
@@ -110,9 +109,8 @@ public class HiveTableSinkTest {
 		List<Row> toWrite = generateRecords(5);
 		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
 
-		CatalogTable table = (CatalogTable) hiveCatalog.getTable(tablePath);
-		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), tablePath, table));
-		tableEnv.sqlQuery("select * from src").insertInto("destSink");
+		tableEnv.registerCatalog("hive", hiveCatalog);
+		tableEnv.sqlQuery("select * from src").insertInto("hive", "default", "dest");
 		execEnv.execute();
 
 		List<CatalogPartitionSpec> partitionSpecs = hiveCatalog.listPartitions(tablePath);
@@ -156,9 +154,8 @@ public class HiveTableSinkTest {
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(execEnv);
 		tableEnv.registerDataSet("complexSrc", execEnv.fromCollection(toWrite, rowTypeInfo));
 
-		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(tablePath);
-		tableEnv.registerTableSink("complexSink", new HiveTableSink(new JobConf(hiveConf), tablePath, catalogTable));
-		tableEnv.sqlQuery("select * from complexSrc").insertInto("complexSink");
+		tableEnv.registerCatalog("hive", hiveCatalog);
+		tableEnv.sqlQuery("select * from complexSrc").insertInto("hive", "default", "dest");
 		execEnv.execute();
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
@@ -185,9 +182,7 @@ public class HiveTableSinkTest {
 		toWrite.add(row);
 
 		tableEnv.registerDataSet("nestedSrc", execEnv.fromCollection(toWrite, rowTypeInfo));
-		catalogTable = (CatalogTable) hiveCatalog.getTable(tablePath);
-		tableEnv.registerTableSink("nestedSink", new HiveTableSink(new JobConf(hiveConf), tablePath, catalogTable));
-		tableEnv.sqlQuery("select * from nestedSrc").insertInto("nestedSink");
+		tableEnv.sqlQuery("select * from nestedSrc").insertInto("hive", "default", "dest");
 		execEnv.execute();
 
 		result = hiveShell.executeQuery("select * from " + tblName);
