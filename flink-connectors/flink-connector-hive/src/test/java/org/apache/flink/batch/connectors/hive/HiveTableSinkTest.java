@@ -226,7 +226,7 @@ public class HiveTableSinkTest {
 		assertEquals(toWrite.size(), hiveCatalog.listPartitions(tablePath).size());
 		CatalogPartition catalogPartition = hiveCatalog.getPartition(tablePath, new CatalogPartitionSpec(partSpec));
 
-		String partitionLocation = catalogPartition.getProperties().get(HivePartitionConfig.PARTITION_LOCATION);
+		String partitionLocation = catalogPartition.getProperties().get(HiveCatalogConfig.PARTITION_LOCATION);
 		verifyWrittenData(new Path(partitionLocation, "0"), toWrite, 1);
 
 		hiveCatalog.dropTable(tablePath, false);
