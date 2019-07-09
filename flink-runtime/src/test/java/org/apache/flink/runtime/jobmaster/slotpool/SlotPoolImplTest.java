@@ -512,10 +512,11 @@ public class SlotPoolImplTest extends TestLogger {
 		final ManualClock clock = new ManualClock();
 
 		try (SlotPoolImpl slotPool = new SlotPoolImpl(
-			jobId,
-			clock,
-			TestingUtils.infiniteTime(),
-			timeout)) {
+				jobId,
+				clock,
+				TestingUtils.infiniteTime(),
+				timeout,
+				TestingUtils.infiniteTime())) {
 			final BlockingQueue<AllocationID> freedSlots = new ArrayBlockingQueue<>(1);
 			taskManagerGateway.setFreeSlotFunction(
 				(AllocationID allocationId, Throwable cause) -> {
@@ -565,10 +566,11 @@ public class SlotPoolImplTest extends TestLogger {
 		final ManualClock clock = new ManualClock();
 
 		try (SlotPoolImpl slotPool = new SlotPoolImpl(
-			jobId,
-			clock,
-			TestingUtils.infiniteTime(),
-			timeout)) {
+				jobId,
+				clock,
+				TestingUtils.infiniteTime(),
+				timeout,
+				TestingUtils.infiniteTime())) {
 
 			setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
 			Scheduler scheduler = setupScheduler(slotPool, mainThreadExecutor);

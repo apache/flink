@@ -165,6 +165,20 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 		Time timeout);
 
 	/**
+	 * Requests the allocation of a new batch slot from the resource manager. Unlike the normal slot, a batch
+	 * slot will only time out if the slot pool does not contain a suitable slot. Moreover, it won't react to
+	 * failure signals from the resource manager.
+	 *
+	 * @param slotRequestId identifying the requested slot
+	 * @param resourceProfile resource profile that specifies the resource requirements for the requested batch slot
+	 * @return a future which is completed with newly allocated batch slot
+	 */
+	@Nonnull
+	CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
+		@Nonnull SlotRequestId slotRequestId,
+		@Nonnull ResourceProfile resourceProfile);
+
+	/**
 	 * Create report about the allocated slots belonging to the specified task manager.
 	 *
 	 * @param taskManagerId identifies the task manager
