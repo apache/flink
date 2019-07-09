@@ -82,6 +82,17 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 		this(path, fieldDelim, -1, null);
 	}
 
+	/**
+	 * A simple {@link TableSink} to emit data as CSV files, with default parallelism.
+	 *
+	 * @param path       The output path to write the Table to.
+	 * @param fieldDelim The field delimiter
+	 * @param writeMode  The write mode to specify whether existing files are overwritten or not.
+	 */
+	public CsvTableSink(String path, String fieldDelim, FileSystem.WriteMode writeMode) {
+		this(path, fieldDelim, -1, writeMode);
+	}
+
 	@Override
 	public void emitDataSet(DataSet<Row> dataSet) {
 		MapOperator<Row, String> csvRows =
