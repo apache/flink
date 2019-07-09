@@ -30,9 +30,11 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
  */
 public class NettyShuffleEnvironmentBuilder {
 
+	public static final int DEFAULT_NUM_NETWORK_BUFFERS = 1024;
+
 	private static final String[] DEFAULT_TEMP_DIRS = new String[] {EnvironmentInformation.getTemporaryFileDirectory()};
 
-	private int numNetworkBuffers = 1024;
+	private int numNetworkBuffers = DEFAULT_NUM_NETWORK_BUFFERS;
 
 	private int networkBufferSize = 32 * 1024;
 
