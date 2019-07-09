@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
+	/** The duration of the startup period. A duration of zero means there is no startup period. */
 	private final Time startupPeriodTime;
 
 	public StandaloneResourceManager(
@@ -79,12 +80,16 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 
 	@Override
 	protected void initialize() throws ResourceManagerException {
-		getRpcService().getScheduledExecutor().schedule(
-			() -> getMainThreadExecutor().execute(
-				() -> setFailUnfulfillableRequest(true)),
-			startupPeriodTime.toMilliseconds(),
-			TimeUnit.MILLISECONDS
-		);
+		final long startupPeriodMillis = startupPeriodTime.toMilliseconds();
+
+		if (startupPeriodMillis > 0) {
+			getRpcService().getScheduledExecutor().schedule(
+				() -> getMainThreadExecutor().execute(
+					() -> setFailUnfulfillableRequest(true)),
+				startupPeriodMillis,
+				TimeUnit.MILLISECONDS
+			);
+		}
 	}
 
 	@Override
