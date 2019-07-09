@@ -110,6 +110,7 @@ public class DatadogHttpClientTest {
 
 	@Test
 	public void serializeGauge() throws JsonProcessingException {
+
 		DGauge g = new DGauge(new Gauge<Number>() {
 			@Override
 			public Number getValue() {
