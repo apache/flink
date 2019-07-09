@@ -1292,6 +1292,10 @@ public abstract class ExecutionEnvironment {
 		return contextEnvironmentFactory == null && threadLocalContextEnvironmentFactory.get() == null;
 	}
 
+	/**
+	 * Get PersistentIntermediateResultDescriptor.
+	 * @return PersistentIntermediateResultDescriptor collected form previous jobs.
+	 */
 	public PersistentIntermediateResultDescriptor getPersistentIntermediateResultDescriptor() {
 		return persistentIntermediateResultDescriptor;
 	}

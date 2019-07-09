@@ -562,6 +562,14 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
       javaEnv.createProgramPlan(jobName)
     }
   }
+
+  /**
+    * Get PersistentIntermediateResultDescriptor.
+    * @return PersistentIntermediateResultDescriptor collected form previous jobs.
+    */
+  def getPersistentIntermediateResultDescriptor() = {
+    javaEnv.getPersistentIntermediateResultDescriptor
+  }
 }
 
 @Public
