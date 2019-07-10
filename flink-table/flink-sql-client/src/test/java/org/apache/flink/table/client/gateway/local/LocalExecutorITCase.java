@@ -32,6 +32,7 @@ import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
@@ -75,6 +76,8 @@ import static org.junit.Assert.fail;
 public class LocalExecutorITCase extends TestLogger {
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
+	private static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
+
 	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 2;
 
@@ -426,6 +429,40 @@ public class LocalExecutorITCase extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testUseCatalogAndUseDatabase() throws Exception {
+		final String csvOutputPath = new File(tempFolder.newFolder().getAbsolutePath(), "test-out.csv").toURI().toString();
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_SOURCE_SINK_PATH", csvOutputPath);
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+
+		final Executor executor = createModifiedExecutor(CATALOGS_ENVIRONMENT_FILE, clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		try {
+			assertEquals(Arrays.asList("mydatabase"), executor.listDatabases(session));
+
+			executor.useCatalog(session, "hivecatalog");
+
+			assertEquals(
+				Arrays.asList(DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE, HiveCatalog.DEFAULT_DB),
+				executor.listDatabases(session));
+
+			assertEquals(Collections.emptyList(), executor.listTables(session));
+
+			executor.useDatabase(session, DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE);
+
+			assertEquals(Arrays.asList(DependencyTest.TestHiveCatalogFactory.TEST_TABLE), executor.listTables(session));
+		} finally {
+			executor.stop(session);
+		}
+	}
+
 	private void executeStreamQueryTable(
 			Map<String, String> replaceVars,
 			String query,
@@ -476,6 +513,15 @@ public class LocalExecutorITCase extends TestLogger {
 	private <T> LocalExecutor createModifiedExecutor(ClusterClient<T> clusterClient, Map<String, String> replaceVars) throws Exception {
 		return new LocalExecutor(
 			EnvironmentFileUtil.parseModified(DEFAULTS_ENVIRONMENT_FILE, replaceVars),
+			Collections.emptyList(),
+			clusterClient.getFlinkConfiguration(),
+			new DummyCustomCommandLine<T>(clusterClient));
+	}
+
+	private <T> LocalExecutor createModifiedExecutor(
+			String yamlFile, ClusterClient<T> clusterClient, Map<String, String> replaceVars) throws Exception {
+		return new LocalExecutor(
+			EnvironmentFileUtil.parseModified(yamlFile, replaceVars),
 			Collections.emptyList(),
 			clusterClient.getFlinkConfiguration(),
 			new DummyCustomCommandLine<T>(clusterClient));

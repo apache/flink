@@ -192,18 +192,24 @@ public class LocalExecutor implements Executor {
 
 	@Override
 	public List<String> listCatalogs(SessionContext session) throws SqlExecutionException {
-		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+
+		final TableEnvironment tableEnv = context
 			.createEnvironmentInstance()
 			.getTableEnvironment();
-		return Arrays.asList(tableEnv.listCatalogs());
+
+		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listCatalogs()));
 	}
 
 	@Override
 	public List<String> listDatabases(SessionContext session) throws SqlExecutionException {
-		final TableEnvironment tableEnv = getOrCreateExecutionContext(session)
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+
+		final TableEnvironment tableEnv = context
 			.createEnvironmentInstance()
 			.getTableEnvironment();
-		return Arrays.asList(tableEnv.listDatabases());
+
+		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listDatabases()));
 	}
 
 	@Override
@@ -232,7 +238,10 @@ public class LocalExecutor implements Executor {
 			.getTableEnvironment();
 
 		context.wrapClassLoader(() -> {
+			// Rely on TableEnvironment/CatalogManager to validate input
 			tableEnv.useCatalog(catalogName);
+			session.setCurrentCatalog(catalogName);
+			session.setCurrentDatabase(tableEnv.getCurrentDatabase());
 			return null;
 		});
 	}
@@ -245,7 +254,9 @@ public class LocalExecutor implements Executor {
 			.getTableEnvironment();
 
 		context.wrapClassLoader(() -> {
+			// Rely on TableEnvironment/CatalogManager to validate input
 			tableEnv.useDatabase(databaseName);
+			session.setCurrentDatabase(databaseName);
 			return null;
 		});
 	}
