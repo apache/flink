@@ -58,13 +58,14 @@ abstract class TableEnvImpl(
     private val catalogManager: CatalogManager)
   extends TableEnvironment {
 
-  protected val defaultCatalogName: String = catalogManager.getCurrentCatalog
-  protected val defaultDatabaseName: String = catalogManager.getCurrentDatabase
+  // The current catalog and database are definitely builtin.
+  protected val builtinCatalogName: String = catalogManager.getCurrentCatalog
+  protected val builtinDatabaseName: String = catalogManager.getCurrentDatabase
 
   // Table API/SQL function catalog
   private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog(
-    defaultCatalogName,
-    defaultDatabaseName)
+    builtinCatalogName,
+    builtinDatabaseName)
 
   // temporary bridge between API and planner
   private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =
@@ -192,7 +193,7 @@ abstract class TableEnvImpl(
     }
 
     val tableTable = new QueryOperationCatalogView(table.getQueryOperation)
-    registerTableInternal(Array[String](name), tableTable, ignoreIfExists = false)
+    registerTableInternal(name, tableTable)
   }
 
   override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
@@ -260,7 +261,7 @@ abstract class TableEnvImpl(
     tableSource: TableSource[_])
   : Unit = {
     // register
-    getCatalogTable(defaultCatalogName, defaultDatabaseName, name) match {
+    getCatalogTable(builtinCatalogName, builtinDatabaseName, name) match {
 
       // check if a table (source or sink) is registered
       case Some(table: ConnectorCatalogTable[_, _]) =>
@@ -278,8 +279,7 @@ abstract class TableEnvImpl(
 
       // no table is registered
       case _ =>
-        registerTableInternal(Array[String](name),
-          ConnectorCatalogTable.source(tableSource, isBatch), ignoreIfExists = false)
+        registerTableInternal(name, ConnectorCatalogTable.source(tableSource, isBatch))
     }
   }
 
@@ -288,7 +288,7 @@ abstract class TableEnvImpl(
     tableSink: TableSink[_])
   : Unit = {
     // check if a table (source or sink) is registered
-    getCatalogTable(defaultCatalogName, defaultDatabaseName, name) match {
+    getCatalogTable(builtinCatalogName, builtinDatabaseName, name) match {
 
       // table source and/or sink is registered
       case Some(table: ConnectorCatalogTable[_, _]) =>
@@ -306,8 +306,7 @@ abstract class TableEnvImpl(
 
       // no table is registered
       case _ =>
-        registerTableInternal(Array[String](name),
-          ConnectorCatalogTable.sink(tableSink, isBatch), ignoreIfExists = false)
+        registerTableInternal(name, ConnectorCatalogTable.sink(tableSink, isBatch))
     }
   }
 
@@ -333,7 +332,7 @@ abstract class TableEnvImpl(
     * @param ignoreIfExists If true, do nothing if there is already same table name under
     *                       the { @code path}. If false, a TableAlreadyExistException throws.
     */
-  private def registerTableInternal(
+  private def registerCatalogTableInternal(
       path: Array[String],
       catalogTable: CatalogBaseTable,
       ignoreIfExists: Boolean): Unit = {
@@ -346,10 +345,23 @@ abstract class TableEnvImpl(
     catalog.createTable(objectPath, catalogTable, ignoreIfExists)
   }
 
+  protected def registerTableInternal(name: String, table: CatalogBaseTable): Unit = {
+    checkValidTableName(name)
+    val path = new ObjectPath(builtinDatabaseName, name)
+    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(builtinCatalogName)) match {
+      case Some(catalog) =>
+        catalog.createTable(
+          path,
+          table,
+          false)
+      case None => throw new TableException("The default catalog does not exist.")
+    }
+  }
+
   protected def replaceTableInternal(name: String, table: CatalogBaseTable): Unit = {
     checkValidTableName(name)
-    val path = new ObjectPath(defaultDatabaseName, name)
-    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(defaultCatalogName)) match {
+    val path = new ObjectPath(builtinDatabaseName, name)
+    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(builtinCatalogName)) match {
       case Some(catalog) =>
         catalog.alterTable(
           path,
@@ -427,7 +439,7 @@ abstract class TableEnvImpl(
           val operation = SqlToOperationConverter
             .convert(planner, createTable)
             .asInstanceOf[CreateTableOperation]
-          registerTableInternal(operation.getTablePath,
+          registerCatalogTableInternal(operation.getTablePath,
             operation.getCatalogTable,
             operation.isIgnoreIfExists)
           // returns null for DDL statement now
