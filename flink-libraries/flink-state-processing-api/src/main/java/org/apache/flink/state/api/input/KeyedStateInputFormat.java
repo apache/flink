@@ -23,9 +23,13 @@ import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.InputSplitAssigner;
@@ -37,24 +41,34 @@ import org.apache.flink.runtime.state.DefaultKeyedStateStore;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.state.VoidNamespace;
+import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
 import org.apache.flink.state.api.input.splits.KeyGroupRangeInputSplit;
 import org.apache.flink.state.api.runtime.NeverFireProcessingTimeService;
 import org.apache.flink.state.api.runtime.SavepointEnvironment;
 import org.apache.flink.state.api.runtime.SavepointRuntimeContext;
+import org.apache.flink.state.api.runtime.VoidTriggerable;
+import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
+import org.apache.flink.streaming.api.operators.TimerSerializer;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 /**
  * Input format for reading partitioned state.
@@ -66,6 +80,8 @@ import java.util.List;
 public class KeyedStateInputFormat<K, OUT> extends RichInputFormat<OUT, KeyGroupRangeInputSplit> implements KeyContext {
 
 	private static final long serialVersionUID = 8230460226049597182L;
+
+	private static final String USER_TIMERS_NAME = "user-timers";
 
 	private final OperatorState operatorState;
 
@@ -167,7 +183,20 @@ public class KeyedStateInputFormat<K, OUT> extends RichInputFormat<OUT, KeyGroup
 		FunctionUtils.setFunctionRuntimeContext(userFunction, ctx);
 
 		keys = getKeyIterator(ctx);
-		this.ctx = new Context();
+
+		final InternalTimerService<VoidNamespace> timerService = restoreTimerService(context);
+		try {
+			this.ctx = new Context(keyedStateBackend, timerService);
+		} catch (Exception e) {
+			throw new IOException("Failed to restore timer state", e);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private InternalTimerService<VoidNamespace> restoreTimerService(StreamOperatorStateContext context) {
+		InternalTimeServiceManager<K> timeServiceManager = (InternalTimeServiceManager<K>) context.internalTimerServiceManager();
+		TimerSerializer<K, VoidNamespace> timerSerializer = new TimerSerializer<>(keySerializer, VoidNamespaceSerializer.INSTANCE);
+		return timeServiceManager.getInternalTimerService(USER_TIMERS_NAME, timerSerializer, VoidTriggerable.instance());
 	}
 
 	@SuppressWarnings("unchecked")
@@ -266,5 +295,64 @@ public class KeyedStateInputFormat<K, OUT> extends RichInputFormat<OUT, KeyGroup
 		return keyGroups;
 	}
 
-	private static class Context implements KeyedStateReaderFunction.Context {}
+	private static class Context<K> implements KeyedStateReaderFunction.Context {
+
+		private static final String EVENT_TIMER_STATE = "event-time-timers";
+
+		private static final String PROC_TIMER_STATE = "proc-time-timers";
+
+		ListState<Long> eventTimers;
+
+		ListState<Long> procTimers;
+
+		private Context(AbstractKeyedStateBackend<K> keyedStateBackend, InternalTimerService<VoidNamespace> timerService) throws Exception {
+			eventTimers = keyedStateBackend.getPartitionedState(
+				USER_TIMERS_NAME,
+				StringSerializer.INSTANCE,
+				new ListStateDescriptor<>(EVENT_TIMER_STATE, Types.LONG)
+			);
+
+			timerService.forEachEventTimeTimer((namespace, timer) -> {
+				if (namespace.equals(VoidNamespace.INSTANCE)) {
+					eventTimers.add(timer);
+				}
+			});
+
+			procTimers = keyedStateBackend.getPartitionedState(
+				USER_TIMERS_NAME,
+				StringSerializer.INSTANCE,
+				new ListStateDescriptor<>(PROC_TIMER_STATE, Types.LONG)
+			);
+
+			timerService.forEachProcessingTimeTimer((namespace, timer) -> {
+				if (namespace.equals(VoidNamespace.INSTANCE)) {
+					procTimers.add(timer);
+				}
+			});
+		}
+
+		@Override
+		public Set<Long> registeredEventTimeTimers() throws Exception {
+			Iterable<Long> timers = eventTimers.get();
+			if (timers == null) {
+				return Collections.emptySet();
+			}
+
+			return StreamSupport
+				.stream(timers.spliterator(), false)
+				.collect(Collectors.toSet());
+		}
+
+		@Override
+		public Set<Long> registeredProcessingTimeTimers() throws Exception {
+			Iterable<Long> timers = procTimers.get();
+			if (timers == null) {
+				return Collections.emptySet();
+			}
+
+			return StreamSupport
+				.stream(timers.spliterator(), false)
+				.collect(Collectors.toSet());
+		}
+	}
 }
