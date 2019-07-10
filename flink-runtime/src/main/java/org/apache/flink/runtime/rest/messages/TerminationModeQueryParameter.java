@@ -22,7 +22,7 @@ import org.apache.flink.util.StringUtils;
 
 /**
  * Termination mode.
- * @deprecated Only kept to detect legacy usages of the cancel/stop command. Please use the "stop-with-savepoint" command instead.
+ * @deprecated Only kept to detect legacy usages of the cancel/stop command. Please use the "stop" command instead.
  */
 public class TerminationModeQueryParameter extends MessageQueryParameter<TerminationModeQueryParameter.TerminationMode> {
 
@@ -49,7 +49,7 @@ public class TerminationModeQueryParameter extends MessageQueryParameter<Termina
 	}
 
 	/**
-	 * @deprecated Please use the "stop-with-savepoint" command instead.
+	 * @deprecated Please use the "stop" command instead.
 	 */
 	public enum TerminationMode {
 		CANCEL,
