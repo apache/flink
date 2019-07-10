@@ -97,9 +97,9 @@ public class ExecutionEntry extends ConfigEntry {
 
 	private static final String EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL = "restart-strategy.max-failures-per-interval";
 
-	private static final String EXECUTION_CURRNET_CATALOG = "current-catalog";
+	private static final String EXECUTION_CURRENT_CATALOG = "current-catalog";
 
-	private static final String EXECUTION_CURRNET_DATABASE = "current-database";
+	private static final String EXECUTION_CURRENT_DATABASE = "current-database";
 
 	private ExecutionEntry(DescriptorProperties properties) {
 		super(properties);
@@ -137,8 +137,8 @@ public class ExecutionEntry extends ConfigEntry {
 		properties.validateLong(EXECUTION_RESTART_STRATEGY_DELAY, true, 0);
 		properties.validateLong(EXECUTION_RESTART_STRATEGY_FAILURE_RATE_INTERVAL, true, 1);
 		properties.validateInt(EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL, true, 1);
-		properties.validateString(EXECUTION_CURRNET_CATALOG, true, 1);
-		properties.validateString(EXECUTION_CURRNET_DATABASE, true, 1);
+		properties.validateString(EXECUTION_CURRENT_CATALOG, true, 1);
+		properties.validateString(EXECUTION_CURRENT_DATABASE, true, 1);
 	}
 
 	public boolean isStreamingExecution() {
@@ -237,11 +237,11 @@ public class ExecutionEntry extends ConfigEntry {
 	}
 
 	public Optional<String> getCurrentCatalog() {
-		return properties.getOptionalString(EXECUTION_CURRNET_CATALOG);
+		return properties.getOptionalString(EXECUTION_CURRENT_CATALOG);
 	}
 
 	public Optional<String> getCurrentDatabase() {
-		return properties.getOptionalString(EXECUTION_CURRNET_DATABASE);
+		return properties.getOptionalString(EXECUTION_CURRENT_DATABASE);
 	}
 
 	public boolean isChangelogMode() {
