@@ -45,8 +45,11 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Comparator;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -77,7 +80,7 @@ public class SavepointReaderKeyedStateITCase extends AbstractTestBase {
 		streamEnv
 			.addSource(new SavepointSource())
 			.rebalance()
-			.keyBy(id -> id)
+			.keyBy(id -> id.key)
 			.process(new KeyedStatefulOperator())
 			.uid(uid)
 			.addSink(new DiscardingSink<>());
@@ -89,15 +92,13 @@ public class SavepointReaderKeyedStateITCase extends AbstractTestBase {
 		ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
 		ExistingSavepoint savepoint = Savepoint.load(batchEnv, path, backend);
 
-		List<Integer> results = savepoint
+		List<Pojo> results = savepoint
 			.readKeyedState(uid, new Reader())
 			.collect();
 
-		results.sort(Comparator.naturalOrder());
+		Set<Pojo> expected = SavepointSource.getElements();
 
-		List<Integer> expected = SavepointSource.getElements();
-
-		Assert.assertEquals("Unexpected results from keyed state", expected, results);
+		Assert.assertEquals("Unexpected results from keyed state", expected, new HashSet<>(results));
 	}
 
 	private String takeSavepoint(JobGraph jobGraph) throws Exception {
@@ -136,17 +137,20 @@ public class SavepointReaderKeyedStateITCase extends AbstractTestBase {
 		}
 	}
 
-	private static class SavepointSource implements SourceFunction<Integer> {
+	private static class SavepointSource implements SourceFunction<Pojo> {
 		private static volatile boolean finished;
 
 		private volatile boolean running = true;
 
-		private static final Integer[] elements = {1, 2, 3};
+		private static final Pojo[] elements = {
+			Pojo.of(1, 1),
+			Pojo.of(2, 2),
+			Pojo.of(3, 3)};
 
 		@Override
-		public void run(SourceContext<Integer> ctx) {
+		public void run(SourceContext<Pojo> ctx) {
 			synchronized (ctx.getCheckpointLock()) {
-				for (Integer element : elements) {
+				for (Pojo element : elements) {
 					ctx.collect(element);
 				}
 
@@ -175,12 +179,12 @@ public class SavepointReaderKeyedStateITCase extends AbstractTestBase {
 			return finished;
 		}
 
-		private static List<Integer> getElements() {
-			return Arrays.asList(elements);
+		private static Set<Pojo> getElements() {
+			return new HashSet<>(Arrays.asList(elements));
 		}
 	}
 
-	private static class KeyedStatefulOperator extends KeyedProcessFunction<Integer, Integer, Void> {
+	private static class KeyedStatefulOperator extends KeyedProcessFunction<Integer, Pojo, Void> {
 
 		private transient ValueState<Integer> state;
 
@@ -190,12 +194,15 @@ public class SavepointReaderKeyedStateITCase extends AbstractTestBase {
 		}
 
 		@Override
-		public void processElement(Integer value, Context ctx, Collector<Void> out) throws Exception {
-			state.update(value);
+		public void processElement(Pojo value, Context ctx, Collector<Void> out) throws Exception {
+			state.update(value.state);
+
+			value.eventTimeTimer.forEach(timer -> ctx.timerService().registerEventTimeTimer(timer));
+			value.processingTimeTimer.forEach(timer -> ctx.timerService().registerProcessingTimeTimer(timer));
 		}
 	}
 
-	private static class Reader extends KeyedStateReaderFunction<Integer, Integer> {
+	private static class Reader extends KeyedStateReaderFunction<Integer, Pojo> {
 
 		private transient ValueState<Integer> state;
 
@@ -205,8 +212,56 @@ public class SavepointReaderKeyedStateITCase extends AbstractTestBase {
 		}
 
 		@Override
-		public void readKey(Integer key, Context ctx, Collector<Integer> out) throws Exception {
-			out.collect(state.value());
+		public void readKey(Integer key, Context ctx, Collector<Pojo> out) throws Exception {
+			Pojo pojo = new Pojo();
+			pojo.key = key;
+			pojo.state = state.value();
+			pojo.eventTimeTimer = ctx.registeredEventTimeTimers();
+			pojo.processingTimeTimer = ctx.registeredProcessingTimeTimers();
+
+			out.collect(pojo);
+		}
+	}
+
+	/**
+	 * A simple pojo type.
+	 */
+	public static class Pojo {
+		public static Pojo of(Integer key, Integer state) {
+			Pojo wrapper = new Pojo();
+			wrapper.key = key;
+			wrapper.state = state;
+			wrapper.eventTimeTimer = Collections.singleton(Long.MAX_VALUE - 1);
+			wrapper.processingTimeTimer = Collections.singleton(Long.MAX_VALUE - 2);
+
+			return wrapper;
+		}
+
+		Integer key;
+
+		Integer state;
+
+		Set<Long> eventTimeTimer;
+
+		Set<Long> processingTimeTimer;
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			} else if (o == null || getClass() != o.getClass()) {
+				return false;
+			}
+			Pojo pojo = (Pojo) o;
+			return Objects.equals(key, pojo.key) &&
+				Objects.equals(state, pojo.state) &&
+				Objects.equals(eventTimeTimer, pojo.eventTimeTimer) &&
+				Objects.equals(processingTimeTimer, pojo.processingTimeTimer);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(key, state, eventTimeTimer, processingTimeTimer);
 		}
 	}
 }
