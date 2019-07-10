@@ -201,7 +201,7 @@ class BatchExecHashJoin(
     val rType = rInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
 
     val keyType = RowType.of(leftKeys.map(lType.getChildren().get(_)): _*)
-    val managedMemorySize = config.getConf.getInteger(
+    val managedMemorySize = config.getConfiguration.getInteger(
       ExecutionConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM) * NodeResourceConfig.SIZE_IN_MB
     val condFunc = JoinUtil.generateConditionFunction(
       config, cluster.getRexBuilder, getJoinInfo, lType, rType)

@@ -35,6 +35,7 @@ import org.apache.flink.table.codegen.ExpressionReducer;
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.plan.cost.FlinkCostFactory;
 import org.apache.flink.table.util.JavaScalaConversionUtil;
+import org.apache.flink.table.util.TableConfigUtils;
 
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -172,7 +173,7 @@ public class PlannerContext {
 	}
 
 	private CalciteConfig getCalciteConfig(TableConfig tableConfig) {
-		return tableConfig.getCalciteConfig();
+		return TableConfigUtils.getCalciteConfig(tableConfig);
 	}
 
 	/**

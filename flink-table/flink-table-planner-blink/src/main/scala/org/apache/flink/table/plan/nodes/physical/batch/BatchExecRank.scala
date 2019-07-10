@@ -143,7 +143,7 @@ class BatchExecRank(
         } else {
           // If partialKey is enabled, try to use partial key to satisfy the required distribution
           val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-          val partialKeyEnabled = tableConfig.getConf.getBoolean(
+          val partialKeyEnabled = tableConfig.getConfiguration.getBoolean(
             BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)
           partialKeyEnabled && partitionKeyList.containsAll(shuffleKeys)
         }

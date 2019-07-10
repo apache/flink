@@ -20,10 +20,11 @@ package org.apache.flink.table.plan.stream.sql
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.ExecutionConfigOptions
+import org.apache.flink.table.api.{ExecutionConfigOptions, TableConfig}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.plan.util.WindowEmitStrategy.{SQL_EXEC_EMIT_EARLY_FIRE_DELAY, SQL_EXEC_EMIT_EARLY_FIRE_ENABLED}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
-import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.table.util.{TableConfigUtils, TableTestBase}
 
 import org.junit.{Before, Test}
 
@@ -40,13 +41,13 @@ class MiniBatchIntervalInferTest extends TableTestBase {
       "MyTable1", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
     util.addDataStream[(Int, String, Long)](
       "MyTable2", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
   }
 
   @Test
   def testMiniBatchOnly(): Unit = {
-    util.tableEnv.getConfig.getConf
+    util.tableEnv.getConfig.getConfiguration
         .setString(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
     val sql = "SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyTable1 GROUP BY b"
     util.verifyPlan(sql)
@@ -54,7 +55,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
 
   @Test
   def testRedundantWatermarkDefinition(): Unit = {
-    util.tableEnv.getConfig.getConf
+    util.tableEnv.getConfig.getConfiguration
         .setString(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
     util.addTableWithWatermark("MyTable3", util.tableEnv.scan("MyTable1"), "rowtime", 0)
     val sql = "SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM MyTable3 GROUP BY b"
@@ -63,9 +64,10 @@ class MiniBatchIntervalInferTest extends TableTestBase {
 
   @Test
   def testWindowWithEarlyFire(): Unit = {
-    util.tableEnv.getConfig.getConf
+    val tableConfig = util.tableEnv.getConfig
+    tableConfig.getConfiguration
         .setString(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
-    util.tableEnv.getConfig.withEarlyFireInterval(Time.milliseconds(500))
+    withEarlyFireDelay(tableConfig, Time.milliseconds(500))
     util.addTableWithWatermark("MyTable3", util.tableEnv.scan("MyTable1"), "rowtime", 0)
     val sql =
       """
@@ -85,7 +87,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
 
   @Test
   def testWindowCascade(): Unit = {
-    util.tableEnv.getConfig.getConf
+    util.tableEnv.getConfig.getConfiguration
         .setString(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "3 s")
     util.addTableWithWatermark("MyTable3", util.tableEnv.scan("MyTable1"), "rowtime", 0)
     val sql =
@@ -108,7 +110,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
   def testWindowJoinWithMiniBatch(): Unit = {
     util.addTableWithWatermark("LeftT", util.tableEnv.scan("MyTable1"), "rowtime", 0)
     util.addTableWithWatermark("RightT", util.tableEnv.scan("MyTable2"), "rowtime", 0)
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
 
     val sql =
@@ -130,7 +132,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
   @Test
   def testRowtimeRowsOverWithMiniBatch(): Unit = {
     util.addTableWithWatermark("MyTable3", util.tableEnv.scan("MyTable1"), "rowtime", 0)
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
 
     val sql =
@@ -153,7 +155,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     util.addTableWithWatermark("Orders", util.tableEnv.scan("MyTable1"), "rowtime", 0)
     util.addTableWithWatermark("RatesHistory", util.tableEnv.scan("MyTable2"), "rowtime", 0)
 
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
 
     util.addFunction(
@@ -180,7 +182,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     // infer result: miniBatchInterval=[Rowtime, 0ms]
     util.addTableWithWatermark("LeftT", util.tableEnv.scan("MyTable1"), "rowtime", 0)
     util.addTableWithWatermark("RightT", util.tableEnv.scan("MyTable2"), "rowtime", 0)
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
 
     val sql =
@@ -206,7 +208,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
   def testMultiOperatorNeedsWatermark2(): Unit = {
     util.addTableWithWatermark("LeftT", util.tableEnv.scan("MyTable1"), "rowtime", 0)
     util.addTableWithWatermark("RightT", util.tableEnv.scan("MyTable2"), "rowtime", 0)
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "6 s")
 
     val sql =
@@ -242,7 +244,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
   @Test
   def testMultiOperatorNeedsWatermark3(): Unit = {
     util.addTableWithWatermark("RightT", util.tableEnv.scan("MyTable2"), "rowtime", 0)
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "6 s")
 
     val sql =
@@ -276,9 +278,9 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     util.addTableWithWatermark("T3", util.tableEnv.scan("T1"), "rowtime", 0)
     util.addTableWithWatermark("T4", util.tableEnv.scan("T2"), "rowtime", 0)
 
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "500 ms")
-    util.tableEnv.getConfig.getConf.setLong(
+    util.tableEnv.getConfig.getConfiguration.setLong(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_SIZE, 300L)
 
     val table1 = util.tableEnv.sqlQuery(
@@ -332,5 +334,18 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     util.writeToSink(table5, appendSink3, "appendSink3")
 
     util.verifyExplain()
+  }
+
+  private def withEarlyFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
+    val intervalInMillis = interval.toMilliseconds
+    val preEarlyFireInterval = TableConfigUtils.getMillisecondFromConfigDuration(
+      tableConfig, SQL_EXEC_EMIT_EARLY_FIRE_DELAY)
+    if (preEarlyFireInterval != null && (preEarlyFireInterval != intervalInMillis)) { //
+      // earlyFireInterval of the two query config is not equal and not the default
+      throw new RuntimeException("Currently not support different earlyFireInterval configs in " +
+        "one job")
+    }
+    tableConfig.getConfiguration.setBoolean(SQL_EXEC_EMIT_EARLY_FIRE_ENABLED, true)
+    tableConfig.getConfiguration.setString(SQL_EXEC_EMIT_EARLY_FIRE_DELAY, intervalInMillis + " ms")
   }
 }

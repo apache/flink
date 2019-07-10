@@ -257,7 +257,7 @@ class RelNodeBlockPlanBuilder private(config: TableConfig) {
   private val node2Wrapper = new util.IdentityHashMap[RelNode, RelNodeWrapper]()
   private val node2Block = new util.IdentityHashMap[RelNode, RelNodeBlock]()
 
-  private val isUnionAllAsBreakPointDisabled = config.getConf.getBoolean(
+  private val isUnionAllAsBreakPointDisabled = config.getConfiguration.getBoolean(
     RelNodeBlockPlanBuilder.SQL_OPTIMIZER_UNIONALL_AS_BREAKPOINT_DISABLED)
 
   /**
@@ -429,7 +429,7 @@ object RelNodeBlockPlanBuilder {
     * @return RelNode dag which reuse common subPlan in each tree
     */
   private def reuseRelNodes(relNodes: Seq[RelNode], tableConfig: TableConfig): Seq[RelNode] = {
-    val findOpBlockWithDigest = tableConfig.getConf.getBoolean(
+    val findOpBlockWithDigest = tableConfig.getConfiguration.getBoolean(
       RelNodeBlockPlanBuilder.SQL_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED)
     if (!findOpBlockWithDigest) {
       return relNodes

@@ -24,6 +24,7 @@ import org.apache.flink.table.plan.nodes.physical.batch.BatchExecSink
 import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram}
 import org.apache.flink.table.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.BatchPlanner
+import org.apache.flink.table.util.TableConfigUtils
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode
@@ -72,8 +73,8 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
     */
   private def optimizeTree(relNode: RelNode): RelNode = {
     val config = planner.getTableConfig
-    val programs = config.getCalciteConfig.getBatchProgram
-      .getOrElse(FlinkBatchProgram.buildProgram(config.getConf))
+    val programs = TableConfigUtils.getCalciteConfig(config).getBatchProgram
+      .getOrElse(FlinkBatchProgram.buildProgram(config.getConfiguration))
     Preconditions.checkNotNull(programs)
 
     programs.optimize(relNode, new BatchOptimizeContext {

@@ -38,9 +38,9 @@ class DeadlockBreakupTest extends TableTestBase {
 
   @Test
   def testSubplanReuse_SetExchangeAsBatch(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, true)
     val sqlQuery =
       """
@@ -52,11 +52,11 @@ class DeadlockBreakupTest extends TableTestBase {
 
   @Test
   def testSubplanReuse_AddExchangeAsBatch_HashJoin(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, true)
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
     val sqlQuery =
       """
@@ -68,11 +68,11 @@ class DeadlockBreakupTest extends TableTestBase {
 
   @Test
   def testSubplanReuse_AddExchangeAsBatch_NestedLoopJoin(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, false)
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
     val sqlQuery =
       """
@@ -84,11 +84,11 @@ class DeadlockBreakupTest extends TableTestBase {
 
   @Test
   def testSubplanReuse_SetExchangeAsBatch_SortMergeJoin(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin")
-    util.tableEnv.getConfig.getConf.setLong(
+    util.tableEnv.getConfig.getConfiguration.setLong(
       OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
@@ -104,13 +104,13 @@ class DeadlockBreakupTest extends TableTestBase {
 
   @Test
   def testSubplanReuse_AddExchangeAsBatch_BuildLeftSemiHashJoin(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, true)
-    util.tableEnv.getConfig.getConf.setLong(
+    util.tableEnv.getConfig.getConfiguration.setLong(
       OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
     val sqlQuery =
       """
@@ -124,7 +124,7 @@ class DeadlockBreakupTest extends TableTestBase {
 
   @Test
   def testSubplanReuse_SetExchangeAsBatch_OverAgg(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
     val sqlQuery =
       """
@@ -141,11 +141,11 @@ class DeadlockBreakupTest extends TableTestBase {
 
   @Test
   def testReusedNodeIsBarrierNode(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED, false)
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
     val sqlQuery =
       """
@@ -157,9 +157,9 @@ class DeadlockBreakupTest extends TableTestBase {
 
   @Test
   def testDataStreamReuse_SetExchangeAsBatch(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, false)
-    util.tableEnv.getConfig.getConf.setLong(
+    util.tableEnv.getConfig.getConfiguration.setLong(
       OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery = "SELECT * FROM t t1, t t2 WHERE t1.a = t2.a AND t1.b > 10 AND t2.c LIKE 'Test%'"
     util.verifyPlan(sqlQuery)
@@ -167,7 +167,7 @@ class DeadlockBreakupTest extends TableTestBase {
 
   @Test
   def testDataStreamReuse_AddExchangeAsBatch_NestedLoopJoin(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, false)
     val sqlQuery = "SELECT * FROM t t1, t t2 WHERE t1.a = t2.b"
     util.verifyPlan(sqlQuery)
@@ -175,7 +175,7 @@ class DeadlockBreakupTest extends TableTestBase {
 
   @Test
   def testDataStreamReuse_AddExchangeAsBatch_HashJoin(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, false)
     val sqlQuery = "SELECT * FROM t INTERSECT SELECT * FROM t"
     util.verifyPlan(sqlQuery)

@@ -149,7 +149,7 @@ object FlinkRelOptUtil {
   /** Get max cnf node limit by context of rel */
   def getMaxCnfNodeCount(rel: RelNode): Int = {
     val tableConfig = getTableConfigFromContext(rel)
-    tableConfig.getConf.getInteger(SelectivityEstimator.SQL_OPTIMIZER_CNF_NODES_LIMIT)
+    tableConfig.getConfiguration.getInteger(SelectivityEstimator.SQL_OPTIMIZER_CNF_NODES_LIMIT)
   }
 
   /**

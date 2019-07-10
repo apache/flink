@@ -47,7 +47,7 @@ public class ParallelismProcessor implements DAGProcessor {
 			ShuffleStageGenerator.generate(rootNodes, nodeToFinalParallelismMap);
 		// calculate parallelism of shuffleStages.
 		ShuffleStageParallelismCalculator.calculate(
-			planner.getTableConfig().getConf(), planner.getExecEnv().getParallelism(), nodeShuffleStageMap.values());
+			planner.getTableConfig().getConfiguration(), planner.getExecEnv().getParallelism(), nodeShuffleStageMap.values());
 		for (ExecNode<?, ?> node : nodeShuffleStageMap.keySet()) {
 			node.getResource().setParallelism(nodeShuffleStageMap.get(node).getParallelism());
 		}

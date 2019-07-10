@@ -21,7 +21,8 @@ package org.apache.flink.table.runtime.batch.sql.agg
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo, TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{ExecutionConfigOptions, Types}
+import org.apache.flink.table.api.ExecutionConfigOptions.{SQL_EXEC_DISABLED_OPERATORS, SQL_RESOURCE_DEFAULT_PARALLELISM}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
@@ -43,8 +44,8 @@ import scala.collection.Seq
 class SortAggITCase
     extends AggregateITCaseBase("SortAggregate") {
   override def prepareAggOp(): Unit = {
-    tEnv.getConfig.getConf.setString(
-      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashAgg")
+    tEnv.getConfig.getConfiguration.setString(
+      SQL_EXEC_DISABLED_OPERATORS, "HashAgg")
 
     registerFunction("countFun", new CountAggFunction())
     registerFunction("intSumFun", new IntSumAggFunction())
@@ -62,7 +63,7 @@ class SortAggITCase
 
   @Test
   def testBigDataSimpleArrayUDAF(): Unit = {
-    tEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+    tEnv.getConfig.getConfiguration.setInteger(SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
     registerFunction("simplePrimitiveArrayUdaf", new SimplePrimitiveArrayUdaf())
     registerRange("RangeT", 1000000)
     env.setParallelism(1)
@@ -266,7 +267,7 @@ class SortAggITCase
 
   @Test
   def testArrayUdaf(): Unit = {
-    tEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+    tEnv.getConfig.getConfiguration.setInteger(SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
     env.setParallelism(1)
     checkResult(
       "SELECT myPrimitiveArrayUdaf(a, b) FROM Table3",

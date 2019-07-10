@@ -154,9 +154,9 @@ class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   @Test
   def testBigForSpill(): Unit = {
 
-    conf.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
-    conf.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM, 2)
-    tEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
+    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM, 2)
+    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
 
     val bigData = Random.shuffle(
       bigIntStringData.union(bigIntStringData).union(bigIntStringData).union(bigIntStringData))
@@ -171,10 +171,10 @@ class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   @Test
   def testSortMergeJoinOutputOrder(): Unit = {
     if (expectedJoinType == SortMergeJoin) {
-      tEnv.getConfig.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+      conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
       env.getConfig.setParallelism(1)
 
-      conf.getConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
+      conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
 
       val bigData = Random.shuffle(
         bigIntStringData.union(bigIntStringData).union(bigIntStringData).union(bigIntStringData))

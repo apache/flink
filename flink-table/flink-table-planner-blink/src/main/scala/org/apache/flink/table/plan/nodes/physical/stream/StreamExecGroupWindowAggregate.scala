@@ -47,7 +47,6 @@ import org.apache.calcite.tools.RelBuilder
 
 import java.time.Duration
 import java.util
-import java.util.Calendar
 
 import scala.collection.JavaConversions._
 
@@ -167,9 +166,6 @@ class StreamExecGroupWindowAggregate(
           "Please provide a query configuration with valid retention interval to prevent " +
           "excessive state size. You may specify a retention time of 0 to not clean up the state.")
     }
-
-    // validation
-    emitStrategy.checkValidation()
 
     val aggString = RelExplainUtil.streamWindowAggregationToString(
       inputRowType,

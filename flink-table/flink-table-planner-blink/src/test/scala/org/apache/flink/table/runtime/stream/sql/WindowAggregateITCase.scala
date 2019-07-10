@@ -22,13 +22,15 @@ package org.apache.flink.table.runtime.stream.sql
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.{ConcatDistinctAggFunction, WeightedAvg}
+import org.apache.flink.table.plan.util.WindowEmitStrategy.{SQL_EXEC_EMIT_LATE_FIRE_DELAY, SQL_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.runtime.utils._
 import org.apache.flink.types.Row
+import org.apache.flink.table.util.TableConfigUtils.getMillisecondFromConfigDuration
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -146,9 +148,10 @@ class WindowAggregateITCase(mode: StateBackendMode)
   @Test
   def testEventTimeTumblingWindowWithAllowLateness(): Unit = {
     // wait 10 millisecond for late elements
-    tEnv.getConfig.withIdleStateRetentionTime(Time.milliseconds(10))
+    tEnv.getConfig.setIdleStateRetentionTime(
+      Time.milliseconds(10), Time.minutes(6))
     // emit result without delay after watermark
-    tEnv.getConfig.withLateFireInterval(Time.of(0, TimeUnit.NANOSECONDS))
+    withLateFireDelay(tEnv.getConfig, Time.of(0, TimeUnit.NANOSECONDS))
     val data = List(
       (1L, 1, "Hi"),
       (2L, 2, "Hello"),
@@ -246,5 +249,18 @@ class WindowAggregateITCase(mode: StateBackendMode)
       //   merged with [8L,10L], by [4L], till {15L}
     )
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
+    val intervalInMillis = interval.toMilliseconds
+    val preLateFireInterval = getMillisecondFromConfigDuration(tableConfig,
+      SQL_EXEC_EMIT_LATE_FIRE_DELAY)
+    if (preLateFireInterval != null && (preLateFireInterval != intervalInMillis)) {
+      // lateFireInterval of the two query config is not equal and not the default
+      throw new RuntimeException(
+        "Currently not support different lateFireInterval configs in one job")
+    }
+    tableConfig.getConfiguration.setBoolean(SQL_EXEC_EMIT_LATE_FIRE_ENABLED, true)
+    tableConfig.getConfiguration.setString(SQL_EXEC_EMIT_LATE_FIRE_DELAY, intervalInMillis + " ms")
   }
 }

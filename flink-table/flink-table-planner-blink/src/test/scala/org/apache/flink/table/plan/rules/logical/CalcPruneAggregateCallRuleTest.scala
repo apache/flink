@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.plan.rules.logical
 
-import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
@@ -32,8 +31,7 @@ class CalcPruneAggregateCallRuleTest extends PruneAggregateCallRuleTestBase {
   override def setup(): Unit = {
     super.setup()
     util.buildBatchProgram(FlinkBatchProgram.LOGICAL)
-
-    val programs = util.getTableEnv.getConfig.getCalciteConfig.getBatchProgram.get
+    val programs = util.getBatchProgram()
     programs.addLast("rules",
       FlinkHepRuleSetProgramBuilder.newBuilder
       .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
@@ -47,9 +45,6 @@ class CalcPruneAggregateCallRuleTest extends PruneAggregateCallRuleTestBase {
         FlinkCalcMergeRule.INSTANCE,
         PruneAggregateCallRule.CALC_ON_AGGREGATE)
       ).build())
-
-    val calciteConfig = CalciteConfig.createBuilder(util.tableEnv.getConfig.getCalciteConfig)
-      .replaceBatchProgram(programs).build()
-    util.tableEnv.getConfig.setCalciteConfig(calciteConfig)
+    util.replaceBatchProgram(programs)
   }
 }

@@ -39,10 +39,10 @@ class RemoveRedundantLocalSortAggRuleTest extends TableTestBase {
 
   @Test
   def testRemoveRedundantLocalSortAggWithSort(): Unit = {
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,HashAgg")
     // disable BroadcastHashJoin
-    util.tableEnv.getConfig.getConf.setLong(
+    util.tableEnv.getConfig.getConfiguration.setLong(
       OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
@@ -54,7 +54,7 @@ class RemoveRedundantLocalSortAggRuleTest extends TableTestBase {
 
   @Test
   def testRemoveRedundantLocalSortAggWithoutSort(): Unit = {
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin,HashAgg")
     val sqlQuery =
       """

@@ -135,7 +135,7 @@ abstract class BatchExecHashAggregateBase(
       AggWithoutKeysCodeGenerator.genWithoutKeys(
         ctx, relBuilder, aggInfos, inputType, outputType, isMerge, isFinal, "NoGrouping")
     } else {
-      val reservedManagedMem = config.getConf.getInteger(
+      val reservedManagedMem = config.getConfiguration.getInteger(
         ExecutionConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM) * NodeResourceConfig.SIZE_IN_MB
       new HashAggCodeGenerator(
         ctx, relBuilder, aggInfos, inputType, outputType, grouping, auxGrouping, isMerge, isFinal

@@ -114,7 +114,7 @@ class StreamExecSort(
   override protected def translateToPlanInternal(
       planner: StreamPlanner): Transformation[BaseRow] = {
     val config = planner.getTableConfig
-    if (!config.getConf.getBoolean(StreamExecSort.SQL_EXEC_SORT_NON_TEMPORAL_ENABLED)) {
+    if (!config.getConfiguration.getBoolean(StreamExecSort.SQL_EXEC_SORT_NON_TEMPORAL_ENABLED)) {
       throw new TableException("Sort on a non-time-attribute field is not supported.")
     }
 

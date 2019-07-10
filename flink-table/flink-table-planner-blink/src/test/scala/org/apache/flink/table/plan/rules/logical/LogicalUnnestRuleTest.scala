@@ -18,10 +18,9 @@
 
 package org.apache.flink.table.plan.rules.logical
 
-import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.plan.common.UnnestTestBase
 import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.util.TableTestUtil
+import org.apache.flink.table.util.{BatchTableTestUtil, TableTestUtil}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
@@ -45,9 +44,7 @@ class LogicalUnnestRuleTest extends UnnestTestBase {
         .add(RuleSets.ofList(LogicalUnnestRule.INSTANCE))
         .build()
     )
-    val calciteConfig = CalciteConfig.createBuilder(util.getTableEnv.getConfig.getCalciteConfig)
-      .replaceBatchProgram(programs).build()
-    util.getTableEnv.getConfig.setCalciteConfig(calciteConfig)
+    util.asInstanceOf[BatchTableTestUtil].replaceBatchProgram(programs)
   }
 
 }

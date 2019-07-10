@@ -162,7 +162,7 @@ class StreamExecGlobalGroupAggregate(
     val recordEqualiser = new EqualiserCodeGenerator(globalAggValueTypes)
       .generateRecordEqualiser("GroupAggValueEqualiser")
 
-    val operator = if (tableConfig.getConf.getBoolean(
+    val operator = if (tableConfig.getConfiguration.getBoolean(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)) {
       val aggFunction = new MiniBatchGlobalGroupAggFunction(
         localAggsHandler,

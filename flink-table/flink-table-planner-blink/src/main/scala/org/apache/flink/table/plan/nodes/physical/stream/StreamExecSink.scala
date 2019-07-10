@@ -125,7 +125,7 @@ class StreamExecSink[T](
             s"However, ${sink.getClass.getCanonicalName} doesn't implement this method.")
         }
         val configSinkParallelism = NodeResourceConfig.getSinkParallelism(
-          planner.getTableConfig.getConf)
+          planner.getTableConfig.getConfiguration)
 
         val maxSinkParallelism = dsSink.getTransformation.getMaxParallelism
 

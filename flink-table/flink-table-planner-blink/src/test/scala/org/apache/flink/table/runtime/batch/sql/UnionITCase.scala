@@ -48,7 +48,7 @@ class UnionITCase extends BatchTestBase {
     registerCollection("Table3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
     registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)
     registerCollection("Table6", data6, type6, "a, b, c", Array(false, false, false))
-    tEnv.getConfig.getConf.setString(
+    tEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashAgg")
   }
 
@@ -113,9 +113,9 @@ class UnionITCase extends BatchTestBase {
     */
   @Test
   def testJoinAfterDifferentTypeUnionAll(): Unit = {
-    tEnv.getConfig.getConf.setLong(
+    tEnv.getConfig.getConfiguration.setLong(
       OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
-    tEnv.getConfig.getConf.setString(
+    tEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
     checkResult(
       "SELECT a, c, g FROM (SELECT t1.a, t1.b, t1.c FROM Table3 t1 UNION ALL" +

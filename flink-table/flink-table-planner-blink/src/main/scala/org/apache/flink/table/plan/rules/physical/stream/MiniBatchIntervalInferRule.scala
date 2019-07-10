@@ -64,7 +64,7 @@ class MiniBatchIntervalInferRule extends RelOptRule(
     val miniBatchIntervalTrait = rel.getTraitSet.getTrait(MiniBatchIntervalTraitDef.INSTANCE)
     val inputs = getInputs(rel)
     val config = FlinkRelOptUtil.getTableConfigFromContext(rel)
-    val miniBatchEnabled = config.getConf.getBoolean(
+    val miniBatchEnabled = config.getConfiguration.getBoolean(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
 
     val updatedTrait = rel match {

@@ -17,10 +17,11 @@
  */
 package org.apache.flink.table.plan.rules.physical.batch
 
-import org.apache.flink.table.api.OperatorType
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecNestedLoopJoin
+import org.apache.flink.table.plan.util.OperatorType
+import org.apache.flink.table.util.TableConfigUtils.isOperatorDisabled
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -41,7 +42,7 @@ class BatchExecNestedLoopJoinRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-    tableConfig.isOperatorEnabled(OperatorType.NestedLoopJoin)
+    !isOperatorDisabled(tableConfig, OperatorType.NestedLoopJoin)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {

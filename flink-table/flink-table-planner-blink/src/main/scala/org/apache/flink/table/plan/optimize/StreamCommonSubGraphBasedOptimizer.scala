@@ -30,6 +30,8 @@ import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.sinks.{DataStreamTableSink, RetractStreamTableSink}
+import org.apache.flink.table.util.TableConfigUtils
+import org.apache.flink.table.util.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode
@@ -63,9 +65,9 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
           o.getTraitSet.getTrait(UpdateAsRetractionTraitDef.INSTANCE).sendsUpdatesAsRetractions
       }
       sinkBlock.setUpdateAsRetraction(retractionFromRoot)
-      val miniBatchInterval: MiniBatchInterval = if (config.getConf.getBoolean(
+      val miniBatchInterval: MiniBatchInterval = if (config.getConfiguration.getBoolean(
         ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)) {
-        val miniBatchLatency = config.getMillisecondFromConfigDuration(
+        val miniBatchLatency = getMillisecondFromConfigDuration(config,
           ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
         Preconditions.checkArgument(miniBatchLatency > 0,
           "MiniBatch Latency must be greater than 0 ms.", null)
@@ -154,8 +156,9 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       isSinkBlock: Boolean): RelNode = {
 
     val config = planner.getTableConfig
-    val programs = config.getCalciteConfig.getStreamProgram
-      .getOrElse(FlinkStreamProgram.buildProgram(config.getConf))
+    val calciteConfig = TableConfigUtils.getCalciteConfig(config)
+    val programs = calciteConfig.getStreamProgram
+      .getOrElse(FlinkStreamProgram.buildProgram(config.getConfiguration))
     Preconditions.checkNotNull(programs)
 
     programs.optimize(relNode, new StreamOptimizeContext() {

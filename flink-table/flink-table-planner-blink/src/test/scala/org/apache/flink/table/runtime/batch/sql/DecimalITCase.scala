@@ -773,7 +773,7 @@ class DecimalITCase extends BatchTestBase {
 
   @Test
   def testJoin1(): Unit = {
-    tEnv.getConfig.getConf.setString(
+    tEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
 
     checkQuery1(
@@ -786,7 +786,7 @@ class DecimalITCase extends BatchTestBase {
 
   @Test
   def testJoin2(): Unit = {
-    tEnv.getConfig.getConf.setString(
+    tEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
 
     checkQuery1(
@@ -799,7 +799,7 @@ class DecimalITCase extends BatchTestBase {
 
   @Test
   def testJoin3(): Unit = {
-    tEnv.getConfig.getConf.setString(
+    tEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
 
     checkQuery1(
@@ -813,7 +813,7 @@ class DecimalITCase extends BatchTestBase {
 
   @Test
   def testJoin4(): Unit = {
-    tEnv.getConfig.getConf.setString(
+    tEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
 
     checkQuery1(
@@ -826,7 +826,7 @@ class DecimalITCase extends BatchTestBase {
 
   @Test
   def testJoin5(): Unit = {
-    tEnv.getConfig.getConf.setString(
+    tEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
 
     checkQuery1(
@@ -839,7 +839,7 @@ class DecimalITCase extends BatchTestBase {
 
   @Test
   def testJoin6(): Unit = {
-    tEnv.getConfig.getConf.setString(
+    tEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
 
     checkQuery1(
@@ -852,7 +852,7 @@ class DecimalITCase extends BatchTestBase {
 
   @Test
   def testJoin7(): Unit = {
-    tEnv.getConfig.getConf.setString(
+    tEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
     checkQuery1(
       Seq(DECIMAL(8, 2), DECIMAL(8, 4), INT, DOUBLE),

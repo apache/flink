@@ -39,10 +39,10 @@ class RemoveRedundantLocalHashAggRuleTest extends TableTestBase {
 
   @Test
   def testRemoveRedundantLocalHashAgg_ShuffleKeyFromJoin(): Unit = {
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortMergeJoin,NestedLoopJoin,SortAgg")
     // disable BroadcastHashJoin
-    util.tableEnv.getConfig.getConf.setLong(
+    util.tableEnv.getConfig.getConfiguration.setLong(
       OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
     val sqlQuery =
       """
@@ -54,9 +54,9 @@ class RemoveRedundantLocalHashAggRuleTest extends TableTestBase {
 
   @Test
   def testRemoveRedundantLocalHashAgg_ShuffleKeyFromRank(): Unit = {
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
-    util.tableEnv.getConfig.getConf.setBoolean(
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
       BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED, true)
     val sqlQuery =
       """

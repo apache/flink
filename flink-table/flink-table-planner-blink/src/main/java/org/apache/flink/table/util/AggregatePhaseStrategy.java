@@ -16,19 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.batch.sql.agg
+package org.apache.flink.table.util;
 
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.ExecutionConfigOptions
+import org.apache.flink.table.api.OptimizerConfigOptions;
 
 /**
-  * AggregateITCase using HashAgg Operator.
-  */
-class HashAggITCase
-    extends AggregateITCaseBase("HashAggregate") {
+ * Aggregate phase strategy which could be specified in {@link OptimizerConfigOptions#SQL_OPTIMIZER_AGG_PHASE_STRATEGY}.
+ */
+public enum AggregatePhaseStrategy {
 
-  override def prepareAggOp(): Unit = {
-    tEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
-  }
+	/**
+	 * No special enforcer for aggregate stage. Whether to choose two stage aggregate or one stage aggregate depends on cost.
+	 */
+	AUTO,
+
+	/**
+	 * Enforce to use one stage aggregate which only has CompleteGlobalAggregate.
+	 */
+	ONE_PHASE,
+
+	/**
+	 * Enforce to use two stage aggregate which has localAggregate and globalAggregate.
+	 * NOTE: If aggregate call does not support split into two phase, still use one stage aggregate.
+	 */
+	TWO_PHASE
 }

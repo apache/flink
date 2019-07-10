@@ -79,7 +79,7 @@ class SelectivityEstimatorTest {
   private def mockScan(
       statistic: FlinkStatistic = FlinkStatistic.UNKNOWN,
       isFilterPushedDown: Boolean = false,
-      tableConfig: TableConfig = TableConfig.DEFAULT): TableScan = {
+      tableConfig: TableConfig = TableConfig.getDefault): TableScan = {
     val tableScan = mock(classOf[TableScan])
     val cluster = mock(classOf[RelOptCluster])
     val planner = mock(classOf[AbstractRelOptPlanner])

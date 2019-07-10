@@ -38,6 +38,15 @@ class TableConfig(object):
         else:
             self._j_table_config = j_table_config
 
+    def set_conf(self, key, value):
+        """
+        Adds the given key/value pair.
+
+        :param key: the key of the key/value pair to be added.
+        :param value: the value of the key/value pair to be added.
+        """
+        self._j_table_config.setConf(key, value)
+
     def get_timezone(self):
         """
         Returns the timezone id, either an abbreviation such as "PST", a full name such as

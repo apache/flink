@@ -26,7 +26,7 @@ class SortMergeSemiAntiJoinTest extends SemiAntiJoinTestBase {
 
   @Before
   def before(): Unit = {
-    util.tableEnv.getConfig.getConf.setString(
+    util.tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
     // the result plan may contains NestedLoopJoin (singleRowJoin)
     // which is converted by BatchExecSingleRowJoinRule

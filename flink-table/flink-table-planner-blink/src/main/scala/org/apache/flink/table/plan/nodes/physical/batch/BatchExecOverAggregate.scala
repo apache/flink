@@ -274,7 +274,7 @@ class BatchExecOverAggregate(
           val isAllFieldsFromInput = requiredDistribution.getKeys.forall(_ < inputFieldCnt)
           if (isAllFieldsFromInput) {
             val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-            if (tableConfig.getConf.getBoolean(
+            if (tableConfig.getConfiguration.getBoolean(
               BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)) {
               ImmutableIntList.of(grouping: _*).containsAll(requiredDistribution.getKeys)
             } else {
@@ -409,7 +409,7 @@ class BatchExecOverAggregate(
     } else {
       val windowFrames = createOverWindowFrames(config)
       new BufferDataOverWindowOperator(
-        config.getConf.getInteger(
+        config.getConfiguration.getInteger(
           ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM) * NodeResourceConfig.SIZE_IN_MB,
         windowFrames,
         genComparator,

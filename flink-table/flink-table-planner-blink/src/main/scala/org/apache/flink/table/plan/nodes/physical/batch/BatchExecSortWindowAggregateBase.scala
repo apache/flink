@@ -118,7 +118,7 @@ abstract class BatchExecSortWindowAggregateBase(
     val aggInfos = transformToBatchAggregateInfoList(
       aggCallToAggFunction.map(_._1), aggInputRowType)
 
-    val groupBufferLimitSize = planner.getTableConfig.getConf.getInteger(
+    val groupBufferLimitSize = planner.getTableConfig.getConfiguration.getInteger(
       ExecutionConfigOptions.SQL_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT)
 
     val (windowSize: Long, slideSize: Long) = WindowCodeGenerator.getWindowDef(window)

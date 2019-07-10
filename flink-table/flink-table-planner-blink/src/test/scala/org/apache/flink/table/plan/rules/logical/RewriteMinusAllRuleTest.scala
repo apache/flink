@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.util.TableTestBase
 
@@ -46,10 +45,7 @@ class RewriteMinusAllRuleTest extends TableTestBase {
         .add(RuleSets.ofList(RewriteMinusAllRule.INSTANCE))
         .build()
     )
-    val calciteConfig = CalciteConfig.createBuilder(util.tableEnv.getConfig.getCalciteConfig)
-      .replaceBatchProgram(programs).build()
-    util.tableEnv.getConfig.setCalciteConfig(calciteConfig)
-
+    util.replaceBatchProgram(programs)
 
     util.addTableSource[(Int, Long, String)]("T1", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String)]("T2", 'd, 'e, 'f)

@@ -116,7 +116,7 @@ class BatchExecSort(
     val keyTypes = keys.map(inputType.getTypeAt)
     val codeGen = new SortCodeGenerator(conf, keys, keyTypes, orders, nullsIsLast)
 
-    val reservedMemorySize = conf.getConf.getInteger(
+    val reservedMemorySize = conf.getConfiguration.getInteger(
       ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM) * NodeResourceConfig.SIZE_IN_MB
 
     val operator = new SortOperator(
