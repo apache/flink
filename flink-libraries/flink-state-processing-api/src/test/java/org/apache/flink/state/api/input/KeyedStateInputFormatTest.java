@@ -32,6 +32,7 @@ import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
 import org.apache.flink.state.api.input.splits.KeyGroupRangeInputSplit;
 import org.apache.flink.state.api.runtime.OperatorIDGenerator;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -48,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Tests for keyed state input format.
@@ -133,6 +135,24 @@ public class KeyedStateInputFormatTest {
 		readInputSplit(split, userFunction);
 
 		Assert.fail("KeyedStateReaderFunction did not fail on invalid RuntimeContext use");
+	}
+
+	@Test
+	public void testReadTime() throws Exception {
+		OperatorID operatorID = OperatorIDGenerator.fromUid("uid");
+
+		OperatorSubtaskState state = createOperatorSubtaskState(new KeyedProcessOperator<>(new StatefulFunctionWithTime()));
+		OperatorState operatorState = new OperatorState(operatorID, 1, 128);
+		operatorState.putState(0, state);
+
+		KeyedStateInputFormat<?, ?> format = new KeyedStateInputFormat<>(operatorState, new MemoryStateBackend(), Types.INT, new TimeReaderFunction());
+		KeyGroupRangeInputSplit split = format.createInputSplits(1)[0];
+
+		KeyedStateReaderFunction<Integer, Integer> userFunction = new TimeReaderFunction();
+
+		List<Integer> data = readInputSplit(split, userFunction);
+
+		Assert.assertEquals("Incorrect data read from input split", Arrays.asList(1, 1, 2, 2, 3, 3), data);
 	}
 
 	@Nonnull
@@ -245,6 +265,29 @@ public class KeyedStateInputFormatTest {
 		public void processElement(Integer value, Context ctx, Collector<Void> out) throws Exception {
 			state.update(value);
 			ctx.timerService().registerEventTimeTimer(value);
+			ctx.timerService().registerProcessingTimeTimer(value);
+		}
+	}
+
+	static class TimeReaderFunction extends KeyedStateReaderFunction<Integer, Integer> {
+		ValueState<Integer> state;
+
+		@Override
+		public void open(Configuration parameters) {
+			state = getRuntimeContext().getState(stateDescriptor);
+		}
+
+		@Override
+		public void readKey(Integer key, KeyedStateReaderFunction.Context ctx, Collector<Integer> out) throws Exception {
+			Set<Long> eventTimers = ctx.registeredEventTimeTimers();
+			Assert.assertEquals("Each key should have exactly one event timer for key " + key, 1, eventTimers.size());
+
+			out.collect(eventTimers.iterator().next().intValue());
+
+			Set<Long> procTimers = ctx.registeredProcessingTimeTimers();
+			Assert.assertEquals("Each key should have exactly one processing timer for key " + key, 1, procTimers.size());
+
+			out.collect(procTimers.iterator().next().intValue());
 		}
 	}
 }
