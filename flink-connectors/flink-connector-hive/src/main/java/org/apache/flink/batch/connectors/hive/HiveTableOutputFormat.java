@@ -160,6 +160,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		this.overwrite = overwrite;
 		isPartitioned = partitionColumns != null && !partitionColumns.isEmpty();
 		isDynamicPartition = isPartitioned && partitionColumns.size() > hiveTablePartition.getPartitionSpec().size();
+		hiveVersion = jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION, HiveShimLoader.getHiveVersion());
 	}
 
 	//  Custom serialization methods
@@ -175,6 +176,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		out.writeObject(partitionColumns);
 		out.writeObject(tablePath);
 		out.writeObject(tableProperties);
+		out.writeObject(hiveVersion);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -198,6 +200,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		tablePath = (ObjectPath) in.readObject();
 		partitionToWriter = new HashMap<>();
 		tableProperties = (Properties) in.readObject();
+		hiveVersion = (String) in.readObject();
 	}
 
 	@Override
@@ -296,7 +299,6 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 				Arrays.asList(rowTypeInfo.getFieldNames()).subList(0, rowTypeInfo.getArity() - partitionColumns.size()),
 				objectInspectors);
 		}
-		hiveVersion = jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION, HiveShimLoader.getHiveVersion());
 	}
 
 	@Override

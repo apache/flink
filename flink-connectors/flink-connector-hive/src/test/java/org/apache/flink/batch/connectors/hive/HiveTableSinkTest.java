@@ -23,21 +23,17 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
-import org.apache.flink.table.catalog.hive.HiveCatalogConfig;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.JobConf;
 import org.junit.AfterClass;
@@ -45,18 +41,14 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Tests {@link HiveTableSink}.
@@ -101,11 +93,7 @@ public class HiveTableSinkTest {
 		tableEnv.sqlQuery("select * from src").insertInto("destSink");
 		execEnv.execute();
 
-		List<String> result = hiveShell.executeQuery("select * from " + tblName);
-		assertEquals(toWrite.size(), result.size());
-		for (int i = 0; i < result.size(); i++) {
-			assertEquals(toWrite.get(i).toString().replaceAll(",", "\t"), result.get(i));
-		}
+		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
 
 		hiveCatalog.dropTable(tablePath, false);
 	}
@@ -130,10 +118,7 @@ public class HiveTableSinkTest {
 		List<CatalogPartitionSpec> partitionSpecs = hiveCatalog.listPartitions(tablePath);
 		assertEquals(toWrite.size(), partitionSpecs.size());
 
-		List<String> result = hiveShell.executeQuery("select * from " + tblName);
-		for (int i = 0; i < result.size(); i++) {
-			assertEquals(toWrite.get(i).toString().replaceAll(",", "\t"), result.get(i));
-		}
+		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
 
 		hiveCatalog.dropTable(tablePath, false);
 	}
@@ -235,10 +220,44 @@ public class HiveTableSinkTest {
 
 		// make sure new partition is created
 		assertEquals(toWrite.size(), hiveCatalog.listPartitions(tablePath).size());
-		CatalogPartition catalogPartition = hiveCatalog.getPartition(tablePath, new CatalogPartitionSpec(partSpec));
 
-		String partitionLocation = catalogPartition.getProperties().get(HiveCatalogConfig.PARTITION_LOCATION);
-		verifyWrittenData(new Path(partitionLocation, "0"), toWrite, 1);
+		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
+
+		hiveCatalog.dropTable(tablePath, false);
+	}
+
+	@Test
+	public void testInsertOverwrite() throws Exception {
+		String dbName = "default";
+		String tblName = "dest";
+		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 0);
+		ObjectPath tablePath = new ObjectPath(dbName, tblName);
+
+		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
+		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(execEnv);
+
+		// write some data and verify
+		List<Row> toWrite = generateRecords(5);
+		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
+
+		CatalogTable table = (CatalogTable) hiveCatalog.getTable(tablePath);
+		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), tablePath, table));
+		tableEnv.sqlQuery("select * from src").insertInto("destSink");
+		execEnv.execute();
+
+		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
+
+		// write some data to overwrite existing data and verify
+		toWrite = generateRecords(3);
+		tableEnv.registerDataSet("src1", execEnv.fromCollection(toWrite, rowTypeInfo));
+
+		HiveTableSink sink = new HiveTableSink(new JobConf(hiveConf), tablePath, table);
+		sink.setOverwrite(true);
+		tableEnv.registerTableSink("destSink1", sink);
+		tableEnv.sqlQuery("select * from src1").insertInto("destSink1");
+		execEnv.execute();
+
+		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
 
 		hiveCatalog.dropTable(tablePath, false);
 	}
@@ -269,20 +288,10 @@ public class HiveTableSinkTest {
 		return new CatalogTableImpl(tableSchema, Arrays.asList(partCols), new HashMap<>(), "");
 	}
 
-	private void verifyWrittenData(org.apache.hadoop.fs.Path outputFile, List<Row> expected, int numPartCols) throws Exception {
-		FileSystem fs = outputFile.getFileSystem(hiveConf);
-		assertTrue(fs.exists(outputFile));
-		int[] fields = IntStream.range(0, expected.get(0).getArity() - numPartCols).toArray();
-		try (BufferedReader reader = new BufferedReader(new InputStreamReader(fs.open(outputFile)))) {
-			int numWritten = 0;
-			String line = reader.readLine();
-			while (line != null) {
-				Row expectedRow = Row.project(expected.get(numWritten++), fields);
-				assertEquals(expectedRow.toString(), line.replaceAll("\u0001", ","));
-				line = reader.readLine();
-			}
-			reader.close();
-			assertEquals(expected.size(), numWritten);
+	private void verifyWrittenData(List<Row> expected, List<String> results) throws Exception {
+		assertEquals(expected.size(), results.size());
+		for (int i = 0; i < results.size(); i++) {
+			assertEquals(expected.get(i).toString().replaceAll(",", "\t"), results.get(i));
 		}
 	}
 
