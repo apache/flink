@@ -175,23 +175,7 @@ available.
 
 -   Gracefully stop a job with a savepoint (streaming jobs only):
 
-        ./bin/flink stop -s [targetDirectory] -d <jobID>
-
-
-**NOTE**: The difference between cancelling and stopping a (streaming) job is the following:
-
-On a cancel call, the operators in a job immediately receive a `cancel()` method call to cancel them as
-soon as possible.
-If operators are not not stopping after the cancel call, Flink will start interrupting the thread periodically
-until it stops.
-
-A "stop" call is a more graceful way of stopping a running streaming job, as the "stop" signal flows from
-source to sink. When the user requests to stop a job, all sources will be requested to send the last checkpoint barrier
-that will trigger a savepoint, and after the successful completion of that savepoint, they will finish by calling their
-`cancel()` method. If the `-d` flag is specified, then a `MAX_WATERMARK` will be emitted before the last checkpoint
-barrier. This will result all registered event-time timers to fire, thus flushing out any state that is waiting for
-a specific watermark, e.g. windows. The job will keep running until all sources properly shut down. This allows the
- job to finish processing all in-flight data.
+        ./bin/flink stop [-p targetDirectory] [-d] <jobID>
 
 ### Savepoints
 
@@ -219,6 +203,23 @@ If you don't specify a target directory, you need to have [configured a default 
 This will trigger a savepoint for the job with ID `jobId` and YARN application ID `yarnAppId`, and returns the path of the created savepoint.
 
 Everything else is the same as described in the above **Trigger a Savepoint** section.
+
+#### Stop
+
+Use the `stop` to gracefully stop a running streaming job with a savepoint.
+
+{% highlight bash %}
+./bin/flink stop [-p targetDirectory] [-d] <jobID>
+{% endhighlight %}
+
+A "stop" call is a more graceful way of stopping a running streaming job, as the "stop" signal flows from
+source to sink. When the user requests to stop a job, all sources will be requested to send the last checkpoint barrier
+that will trigger a savepoint, and after the successful completion of that savepoint, they will finish by calling their
+`cancel()` method. If the `-d` flag is specified, then a `MAX_WATERMARK` will be emitted before the last checkpoint
+barrier. This will result all registered event-time timers to fire, thus flushing out any state that is waiting for
+a specific watermark, e.g. windows. The job will keep running until all sources properly shut down. This allows the
+ job to finish processing all in-flight data.
+
 
 #### Cancel with a savepoint (deprecated)
 
@@ -426,7 +427,7 @@ Action "stop" stops a running program with a savepoint (streaming jobs only).
   "stop" action options:
      -d,--drain                           Send MAX_WATERMARK before taking the
                                           savepoint and stopping the pipelne.
-     -s,--withSavepoint <withSavepoint>   Path to the savepoint (for example
+     -p,--savepointPath <savepointPath>   Path to the savepoint (for example
                                           hdfs:///flink/savepoint-1537). If no
                                           directory is specified, the configured
                                           default will be used
