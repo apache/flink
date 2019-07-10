@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-在作业发生故障时 Flink 支持不同的重启策略来控制如何重启。如果没有为作业定义重启策略，集群启动时就会遵循默认的重启策略。
+Flink 在作业发生故障时支持不同的重启策略来控制如何重启。如果没有为作业定义重启策略，集群启动时就会遵循默认的重启策略。
 如果提交作业时设置了重启策略，该策略将覆盖掉集群的默认策略。
 
 * This will be replaced by the TOC
@@ -30,11 +30,11 @@ under the License.
 
 ## 概述
 
-通过 Flink 的配置文件 `flink-conf.yaml` 来设置默认的重启策略。配置参数 *restart-strategy* 定义了采取何种策略。如果没有启用checkpoint，就采用“不重启”策略。如果启用了checkpoint且没有配置重启策略，那么就采用固定延时重启策略，此时最大尝试重启次数由 `Integer.MAX_VALUE`  参数设置。下表列出了可用的重启策略和与其对应的配置值。
+通过 Flink 的配置文件 `flink-conf.yaml` 来设置默认的重启策略。配置参数 *restart-strategy* 定义了采取何种策略。如果没有启用 checkpoint，就采用“不重启”策略。如果启用了 checkpoint 且没有配置重启策略，那么就采用固定延时重启策略，此时最大尝试重启次数由 `Integer.MAX_VALUE`  参数设置。下表列出了可用的重启策略和与其对应的配置值。
 
 每个重启策略都有自己的一组配置参数来控制其行为。
 这些也是在配置文件中设置。
-后文对每个重启策略的描述中详细介绍了它们的配置值。
+后文的描述中会详细介绍每种重启策略的配置项。
 
 <table class="table table-bordered">
   <thead>
@@ -45,15 +45,15 @@ under the License.
   </thead>
   <tbody>
     <tr>
-        <td>固定延时重启</td>
+        <td>固定延时重启策略</td>
         <td>fixed-delay</td>
     </tr>
     <tr>
-        <td>故障率重启</td>
+        <td>故障率重启策略</td>
         <td>failure-rate</td>
     </tr>
     <tr>
-        <td>不重启</td>
+        <td>不重启策略</td>
         <td>none</td>
     </tr>
   </tbody>
@@ -117,12 +117,12 @@ restart-strategy: fixed-delay
     <tr>
         <td><code>restart-strategy.fixed-delay.attempts</code></td>
         <td>作业宣告失败之前 Flink 重试执行的最大次数</td>
-        <td>1，如果启用了 checkpoint 的话是 <code>Integer.MAX_VALUE</code></td>
+        <td>启用 checkpoint 的话是 <code>Integer.MAX_VALUE</code>，否则是 1</td>
     </tr>
     <tr>
         <td><code>restart-strategy.fixed-delay.delay</code></td>
-        <td>延时重试意味着执行遭遇故障后，并不立即重新启动，而是延后一段时间。当程序与外部系统有交互时延时重试可能会有所帮助，比如程序里有连接或者挂起的事务的话，在尝试重新执行之前应该等待连接或者挂起的事务达到超时。</td>
-        <td><code>akka.ask.timeout</code>，如果启用了 checkpoint 的话是 10 秒</td>
+        <td>延时重试意味着执行遭遇故障后，并不立即重新启动，而是延后一段时间。当程序与外部系统有交互时延时重试可能会有所帮助，比如程序里有连接或者挂起的事务的话，在尝试重新执行之前应该等待连接或者挂起的事务超时。</td>
+        <td>启用 checkpoint 的话是 10 秒，否则使用 <code>akka.ask.timeout</code> 的值</td>
     </tr>
   </tbody>
 </table>
@@ -181,7 +181,7 @@ restart-strategy: failure-rate
   <tbody>
     <tr>
         <td><it>restart-strategy.failure-rate.max-failures-per-interval</it></td>
-        <td>作业失败之前在给定的时间间隔内的最大重启次数</td>
+        <td>单个时间间隔内允许的最大重启次数</td>
         <td>1</td>
     </tr>
     <tr>
@@ -260,7 +260,7 @@ env.setRestartStrategy(RestartStrategies.noRestart())
 ### 备用重启策略
 
 使用群集定义的重启策略。
-这对于启用了checkpoint 的流处理程序很有帮助。
+这对于启用了 checkpoint 的流处理程序很有帮助。
 如果没有定义其他重启策略，默认选择固定延时重启策略。
 
 {% top %}
