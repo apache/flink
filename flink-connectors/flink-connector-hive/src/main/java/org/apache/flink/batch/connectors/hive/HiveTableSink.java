@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.sinks.OutputFormatTableSink;
+import org.apache.flink.table.sinks.OverwritableTableSink;
 import org.apache.flink.table.sinks.PartitionableTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
@@ -59,7 +60,7 @@ import java.util.stream.Collectors;
 /**
  * Table sink to write to Hive tables.
  */
-public class HiveTableSink extends OutputFormatTableSink<Row> implements PartitionableTableSink {
+public class HiveTableSink extends OutputFormatTableSink<Row> implements PartitionableTableSink, OverwritableTableSink {
 
 	private final JobConf jobConf;
 	private final CatalogTable catalogTable;
@@ -69,7 +70,6 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 
 	private Map<String, String> staticPartitionSpec = Collections.emptyMap();
 
-	// TODO: need OverwritableTableSink to configure this
 	private boolean overwrite = false;
 
 	public HiveTableSink(JobConf jobConf, ObjectPath tablePath, CatalogTable table) {
@@ -200,5 +200,10 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 				}
 			}
 		}
+	}
+
+	@Override
+	public void setOverwrite(boolean overwrite) {
+		this.overwrite = overwrite;
 	}
 }
