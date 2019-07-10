@@ -59,7 +59,7 @@ public abstract class BoundedDataTestBase {
 
 	protected abstract BoundedData createBoundedDataWithRegion(Path tempFilePath, int regionSize) throws IOException;
 
-	private BoundedData createBoundedData() throws IOException {
+	protected BoundedData createBoundedData() throws IOException {
 		return createBoundedData(createTempPath());
 	}
 
