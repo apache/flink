@@ -39,7 +39,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
@@ -660,7 +659,6 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * Schedules the current execution of this ExecutionVertex.
 	 *
 	 * @param slotProviderStrategy to allocate the slots from
-	 * @param queued if the allocation can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
 	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
 	 *                                                 Can be empty if the allocation ids are not required for scheduling.
@@ -669,12 +667,10 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 */
 	public CompletableFuture<Void> scheduleForExecution(
 			SlotProviderStrategy slotProviderStrategy,
-			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
 			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 		return this.currentExecution.scheduleForExecution(
 			slotProviderStrategy,
-			queued,
 			locationPreferenceConstraint,
 			allPreviousExecutionGraphAllocationIds);
 	}

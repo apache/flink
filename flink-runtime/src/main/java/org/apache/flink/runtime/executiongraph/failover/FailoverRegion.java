@@ -233,7 +233,6 @@ public class FailoverRegion {
 					try {
 						ev.scheduleForExecution(
 							executionGraph.getSlotProviderStrategy(),
-							executionGraph.isQueuedSchedulingAllowed(),
 							LocationPreferenceConstraint.ANY,
 							previousAllocationsInRegion); // some inputs not belonging to the failover region might have failed concurrently
 					}

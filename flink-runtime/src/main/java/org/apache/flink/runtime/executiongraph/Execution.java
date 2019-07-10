@@ -411,10 +411,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	public CompletableFuture<Void> scheduleForExecution() {
 		final ExecutionGraph executionGraph = getVertex().getExecutionGraph();
 		final SlotProviderStrategy resourceProvider = executionGraph.getSlotProviderStrategy();
-		final boolean allowQueued = executionGraph.isQueuedSchedulingAllowed();
 		return scheduleForExecution(
 			resourceProvider,
-			allowQueued,
 			LocationPreferenceConstraint.ANY,
 			Collections.emptySet());
 	}
@@ -425,8 +423,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 *       error sets the vertex state to failed and triggers the recovery logic.
 	 *
 	 * @param slotProviderStrategy The slot provider strategy to use to allocate slot for this execution attempt.
-	 * @param queued Flag to indicate whether the scheduler may queue this task if it cannot
-	 *               immediately deploy it.
 	 * @param locationPreferenceConstraint constraint for the location preferences
 	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
 	 *                                                 Can be empty if the allocation ids are not required for scheduling.
@@ -434,24 +430,19 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 */
 	public CompletableFuture<Void> scheduleForExecution(
 			SlotProviderStrategy slotProviderStrategy,
-			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
 			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 
 		assertRunningInJobMasterMainThread();
-		final ExecutionGraph executionGraph = vertex.getExecutionGraph();
-		final Time allocationTimeout = executionGraph.getAllocationTimeout();
 		try {
 			final CompletableFuture<Execution> allocationFuture = allocateResourcesForExecution(
 				slotProviderStrategy,
-				queued,
 				locationPreferenceConstraint,
-				allPreviousExecutionGraphAllocationIds,
-				allocationTimeout);
+				allPreviousExecutionGraphAllocationIds);
 
 			final CompletableFuture<Void> deploymentFuture;
 
-			if (allocationFuture.isDone() || queued) {
+			if (allocationFuture.isDone() || slotProviderStrategy.isQueuedSchedulingAllowed()) {
 				deploymentFuture = allocationFuture.thenRun(ThrowingRunnable.unchecked(this::deploy));
 			} else {
 				deploymentFuture = FutureUtils.completedExceptionally(
@@ -466,7 +457,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 						if (stripCompletionException instanceof TimeoutException) {
 							schedulingFailureCause = new NoResourceAvailableException(
-								"Could not allocate enough slots within timeout of " + allocationTimeout + " to run the job. " +
+								"Could not allocate enough slots to run the job. " +
 									"Please make sure that the cluster has enough resources.");
 						} else {
 							schedulingFailureCause = stripCompletionException;
@@ -491,26 +482,20 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * </ol>
 	 *
 	 * @param slotProviderStrategy to obtain a new slot from
-	 * @param queued if the allocation can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
 	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
 	 *                                                 Can be empty if the allocation ids are not required for scheduling.
-	 * @param allocationTimeout rpcTimeout for allocating a new slot
 	 * @return Future which is completed with this execution once the slot has been assigned
 	 * 			or with an exception if an error occurred.
 	 */
 	CompletableFuture<Execution> allocateResourcesForExecution(
 			SlotProviderStrategy slotProviderStrategy,
-			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
-			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds,
-			Time allocationTimeout) {
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 		return allocateAndAssignSlotForExecution(
 			slotProviderStrategy,
-			queued,
 			locationPreferenceConstraint,
-			allPreviousExecutionGraphAllocationIds,
-			allocationTimeout)
+			allPreviousExecutionGraphAllocationIds)
 			.thenCompose(slot -> registerProducedPartitions(slot.getTaskManagerLocation()));
 	}
 
@@ -518,20 +503,16 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 * Allocates and assigns a slot obtained from the slot provider to the execution.
 	 *
 	 * @param slotProviderStrategy to obtain a new slot from
-	 * @param queued if the allocation can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
 	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
 	 *                                                 Can be empty if the allocation ids are not required for scheduling.
-	 * @param allocationTimeout rpcTimeout for allocating a new slot
 	 * @return Future which is completed with the allocated slot once it has been assigned
 	 * 			or with an exception if an error occurred.
 	 */
 	private CompletableFuture<LogicalSlot> allocateAndAssignSlotForExecution(
 			SlotProviderStrategy slotProviderStrategy,
-			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
-			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds,
-			Time allocationTimeout) {
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 
 		checkNotNull(slotProviderStrategy);
 
@@ -856,7 +837,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final ExecutionGraph executionGraph = consumerVertex.getExecutionGraph();
 			consumerVertex.scheduleForExecution(
 				executionGraph.getSlotProviderStrategy(),
-				executionGraph.isQueuedSchedulingAllowed(),
 				LocationPreferenceConstraint.ANY, // there must be at least one known location
 				Collections.emptySet());
 		} catch (Throwable t) {

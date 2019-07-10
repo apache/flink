@@ -89,7 +89,6 @@ public class SchedulingUtils {
 
 				final CompletableFuture<Void> schedulingVertexFuture = executionVertex.scheduleForExecution(
 					slotProviderStrategy,
-					executionGraph.isQueuedSchedulingAllowed(),
 					LocationPreferenceConstraint.ANY,
 					previousAllocations);
 
@@ -118,7 +117,6 @@ public class SchedulingUtils {
 		// that way we do not have any operation that can fail between allocating the slots
 		// and adding them to the list. If we had a failure in between there, that would
 		// cause the slots to get lost
-		final boolean queued = executionGraph.isQueuedSchedulingAllowed();
 
 		// collecting all the slots may resize and fail in that operation without slots getting lost
 		final ArrayList<CompletableFuture<Execution>> allAllocationFutures = new ArrayList<>();
@@ -132,10 +130,8 @@ public class SchedulingUtils {
 			// these calls are not blocking, they only return futures
 			CompletableFuture<Execution> allocationFuture = ev.getCurrentExecutionAttempt().allocateResourcesForExecution(
 				slotProviderStrategy,
-				queued,
 				LocationPreferenceConstraint.ALL,
-				allPreviousAllocationIds,
-				executionGraph.getAllocationTimeout());
+				allPreviousAllocationIds);
 
 			allAllocationFutures.add(allocationFuture);
 		}

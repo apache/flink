@@ -46,6 +46,10 @@ abstract class SlotProviderStrategy {
 		this.allowQueuedScheduling = allowQueuedScheduling;
 	}
 
+	boolean isQueuedSchedulingAllowed() {
+		return allowQueuedScheduling;
+	}
+
 	/**
 	 * Allocating slot with specific requirement.
 	 *

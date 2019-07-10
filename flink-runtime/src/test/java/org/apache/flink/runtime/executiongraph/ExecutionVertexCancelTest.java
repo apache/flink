@@ -294,7 +294,6 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			{
 				vertex.scheduleForExecution(
 					TestingSlotProviderStrategy.from(new ProgrammedSlotProvider(1), false),
-					false,
 					LocationPreferenceConstraint.ALL,
 					Collections.emptySet());
 
@@ -335,7 +334,6 @@ public class ExecutionVertexCancelTest extends TestLogger {
 				setVertexState(vertex, ExecutionState.CANCELING);
 				vertex.scheduleForExecution(
 					TestingSlotProviderStrategy.from(new ProgrammedSlotProvider(1), false),
-					false,
 					LocationPreferenceConstraint.ALL,
 					Collections.emptySet());
 			}
