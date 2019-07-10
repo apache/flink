@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.function.BiConsumerWithException;
 
 /**
  * Interface for working with time and timers.
@@ -58,4 +59,16 @@ public interface InternalTimerService<N> {
 	 * Deletes the timer for the given key and namespace.
 	 */
 	void deleteEventTimeTimer(N namespace, long time);
+
+	/**
+	 * Performs an action for each registered timer. The timer service will
+	 * set the key context for the timers key before invoking the action.
+	 */
+	void forEachEventTimeTimer(BiConsumerWithException<N, Long, Exception> consumer) throws Exception;
+
+	/**
+	 * Performs an action for each registered timer. The timer service will
+	 * set the key context for the timers key before invoking the action.
+	 */
+	void forEachProcessingTimeTimer(BiConsumerWithException<N, Long, Exception> consumer) throws Exception;
 }
