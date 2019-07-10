@@ -296,7 +296,7 @@ class GroupWindowTest extends TableTestBase {
         term("select", "EXPR$0", "CAST(w$start) AS EXPR$1"),
         term("where",
           "AND(>($f1, 0), " +
-            "=(EXTRACT(FLAG(QUARTER), CAST(w$start)), 1))")
+            "=(EXTRACT(FLAG(QUARTER), w$start), 1:BIGINT))")
       )
 
     util.verifySql(sql, expected)
@@ -336,10 +336,10 @@ class GroupWindowTest extends TableTestBase {
         ),
         term("select",
           "/(-($f0, /(*($f1, $f1), $f2)), $f2) AS EXPR$0",
-          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))) AS EXPR$1",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5)) AS EXPR$2",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))), 0.5)) " +
-            "AS EXPR$3",
+          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))) AS EXPR$1",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, " +
+            "-($f2, 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3",
           "CAST(w$start) AS EXPR$4",
           "CAST(w$end) AS EXPR$5")
       )

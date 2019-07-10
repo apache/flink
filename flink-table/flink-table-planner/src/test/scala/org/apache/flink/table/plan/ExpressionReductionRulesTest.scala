@@ -56,16 +56,16 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
         "'b' AS EXPR$2",
-        "'STRING' AS EXPR$3",
+        "'STRING':VARCHAR(8) AS EXPR$3",
         "'teststring' AS EXPR$4",
-        "null AS EXPR$5",
-        "1990-10-24 23:00:01.123 AS EXPR$6",
-        "19 AS EXPR$7",
+        "null:INTEGER AS EXPR$5",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS EXPR$6",
+        "19:BIGINT AS EXPR$7",
         "false AS EXPR$8",
         "true AS EXPR$9",
-        "2 AS EXPR$10",
+        "2:DECIMAL(2, 0) AS EXPR$10",
         "true AS EXPR$11",
-        "'trueX' AS EXPR$12"
+        "'trueX':VARCHAR(65536) AS EXPR$12"
       ),
       term("where", ">(a, 8)")
     )
@@ -101,16 +101,16 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
         "'b' AS EXPR$2",
-        "'STRING' AS EXPR$3",
+        "'STRING':VARCHAR(8) AS EXPR$3",
         "'teststring' AS EXPR$4",
-        "null AS EXPR$5",
-        "1990-10-24 23:00:01.123 AS EXPR$6",
-        "19 AS EXPR$7",
+        "null:INTEGER AS EXPR$5",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS EXPR$6",
+        "19:BIGINT AS EXPR$7",
         "false AS EXPR$8",
         "true AS EXPR$9",
-        "2 AS EXPR$10",
+        "2:DECIMAL(2, 0) AS EXPR$10",
         "true AS EXPR$11",
-        "'trueX' AS EXPR$12"
+        "'trueX':VARCHAR(65536) AS EXPR$12"
       )
     )
 
@@ -161,11 +161,11 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01.123 AS _c4",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS _c4",
         "false AS _c5",
         "true AS _c6",
-        "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "2E0:DOUBLE AS _c7",
+        "'trueX':VARCHAR(65536) AS _c8"
       ),
       term("where", ">(a, 8)")
     )
@@ -197,11 +197,11 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01.123 AS _c4",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS _c4",
         "false AS _c5",
         "true AS _c6",
-        "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "2E0:DOUBLE AS _c7",
+        "'trueX':VARCHAR(65536) AS _c8"
       )
     )
 
@@ -254,16 +254,16 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
         "'b' AS EXPR$2",
-        "'STRING' AS EXPR$3",
+        "'STRING':VARCHAR(8) AS EXPR$3",
         "'teststring' AS EXPR$4",
-        "null AS EXPR$5",
-        "1990-10-24 23:00:01.123 AS EXPR$6",
-        "19 AS EXPR$7",
+        "null:INTEGER AS EXPR$5",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS EXPR$6",
+        "19:BIGINT AS EXPR$7",
         "false AS EXPR$8",
         "true AS EXPR$9",
-        "2 AS EXPR$10",
+        "2:DECIMAL(2, 0) AS EXPR$10",
         "true AS EXPR$11",
-        "'trueX' AS EXPR$12"
+        "'trueX':VARCHAR(65536) AS EXPR$12"
       ),
       term("where", ">(a, 8)")
     )
@@ -299,16 +299,16 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "+(7, a) AS EXPR$0",
         "+(b, 3) AS EXPR$1",
         "'b' AS EXPR$2",
-        "'STRING' AS EXPR$3",
+        "'STRING':VARCHAR(8) AS EXPR$3",
         "'teststring' AS EXPR$4",
-        "null AS EXPR$5",
-        "1990-10-24 23:00:01.123 AS EXPR$6",
-        "19 AS EXPR$7",
+        "null:INTEGER AS EXPR$5",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS EXPR$6",
+        "19:BIGINT AS EXPR$7",
         "false AS EXPR$8",
         "true AS EXPR$9",
-        "2 AS EXPR$10",
+        "2:DECIMAL(2, 0) AS EXPR$10",
         "true AS EXPR$11",
-        "'trueX' AS EXPR$12"
+        "'trueX':VARCHAR(65536) AS EXPR$12"
       )
     )
 
@@ -359,11 +359,11 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01.123 AS _c4",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS _c4",
         "false AS _c5",
         "true AS _c6",
-        "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "2E0:DOUBLE AS _c7",
+        "'trueX':VARCHAR(65536) AS _c8"
       ),
       term("where", ">(a, 8)")
     )
@@ -395,11 +395,11 @@ class ExpressionReductionRulesTest extends TableTestBase {
         "'b' AS _c1",
         "'STRING' AS _c2",
         "'teststring' AS _c3",
-        "1990-10-24 23:00:01.123 AS _c4",
+        "1990-10-24 23:00:01.123:TIMESTAMP(3) AS _c4",
         "false AS _c5",
         "true AS _c6",
-        "2E0 AS _c7",
-        "'trueX' AS _c8"
+        "2E0:DOUBLE AS _c7",
+        "'trueX':VARCHAR(65536) AS _c8"
       )
     )
 
