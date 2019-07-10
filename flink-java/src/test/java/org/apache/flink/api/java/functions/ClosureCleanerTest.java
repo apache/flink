@@ -210,6 +210,15 @@ public class ClosureCleanerTest {
 
 		ClosureCleaner.ensureSerializable(recursiveClass);
 	}
+
+	@Test
+	public void testBackReferencedClass() {
+		BackReferencedParentClass backReferencedParentClass = new BackReferencedParentClass();
+
+		ClosureCleaner.clean(backReferencedParentClass, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+
+		ClosureCleaner.ensureSerializable(backReferencedParentClass);
+	}
 }
 
 class CustomMap implements MapFunction<Integer, Integer> {
@@ -267,6 +276,24 @@ class RecursiveClass implements Serializable {
 
 	public RecursiveClass(RecursiveClass recurse) {
 		this.recurse = recurse;
+	}
+}
+
+class BackReferencedParentClass implements Serializable {
+
+	BackReferencedChildClass child;
+
+	BackReferencedParentClass() {
+		this.child = new BackReferencedChildClass(this);
+	}
+}
+
+class BackReferencedChildClass implements Serializable {
+
+	BackReferencedParentClass parent;
+
+	BackReferencedChildClass(BackReferencedParentClass parent) {
+		this.parent = parent;
 	}
 }
 

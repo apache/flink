@@ -37,6 +37,8 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * The closure cleaner is a utility that tries to truncate the closure (enclosing instance)
@@ -65,6 +67,10 @@ public class ClosureCleaner {
 	 *                          be loaded, in order to process during the closure cleaning.
 	 */
 	public static void clean(Object func, ExecutionConfig.ClosureCleanerLevel level, boolean checkSerializable) {
+		internalClean(func, level, checkSerializable, new HashSet<>());
+	}
+
+	private static void internalClean(Object func, ExecutionConfig.ClosureCleanerLevel level, boolean checkSerializable, Set<Object> checkedObjects) {
 		if (func == null) {
 			return;
 		}
@@ -112,7 +118,10 @@ public class ClosureCleaner {
 						LOG.debug("Dig to clean the {}", fieldObject.getClass().getName());
 					}
 
-					clean(fieldObject, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+					if (!checkedObjects.contains(fieldObject)) {
+						checkedObjects.add(fieldObject);
+						internalClean(fieldObject, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true, checkedObjects);
+					}
 				}
 			}
 		}
