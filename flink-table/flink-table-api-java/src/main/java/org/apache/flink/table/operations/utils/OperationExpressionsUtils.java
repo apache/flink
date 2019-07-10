@@ -32,10 +32,12 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.operations.QueryOperation;
 
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.expressions.ExpressionUtils.extractValue;
@@ -102,9 +104,10 @@ public class OperationExpressionsUtils {
 		AggregationAndPropertiesSplitter splitter = new AggregationAndPropertiesSplitter();
 		expressions.forEach(expr -> expr.accept(splitter));
 
+		AggregationAndPropertiesReplacer replacer =
+			new AggregationAndPropertiesReplacer(splitter.aggregates, splitter.properties);
 		List<Expression> projections = expressions.stream()
-			.map(expr -> expr.accept(new AggregationAndPropertiesReplacer(splitter.aggregates,
-				splitter.properties)))
+			.map(expr -> expr.accept(replacer))
 			.collect(Collectors.toList());
 
 		List<Expression> aggregates = nameExpressions(splitter.aggregates);
@@ -154,12 +157,18 @@ public class OperationExpressionsUtils {
 
 		private final Map<Expression, String> aggregates;
 		private final Map<Expression, String> properties;
+		private final Set<String> existedNames;
+		private int uniqueId;
+		private boolean replaceWithoutAlias;
 
 		private AggregationAndPropertiesReplacer(
 				Map<Expression, String> aggregates,
 				Map<Expression, String> properties) {
 			this.aggregates = aggregates;
 			this.properties = properties;
+			this.existedNames = new HashSet<>();
+			this.uniqueId = 0;
+			this.replaceWithoutAlias = false;
 		}
 
 		@Override
@@ -175,16 +184,30 @@ public class OperationExpressionsUtils {
 		@Override
 		public Expression visit(UnresolvedCallExpression unresolvedCall) {
 			if (aggregates.get(unresolvedCall) != null) {
-				return unresolvedRef(aggregates.get(unresolvedCall));
+				return refOrAlias(aggregates.get(unresolvedCall));
 			} else if (properties.get(unresolvedCall) != null) {
-				return unresolvedRef(properties.get(unresolvedCall));
+				return refOrAlias(properties.get(unresolvedCall));
 			}
 
+			// for aggregates and properties in a udf, there is no ambiguous column problem,
+			// so just replace it with the name.
+			replaceWithoutAlias = true;
 			final Expression[] args = unresolvedCall.getChildren()
 				.stream()
 				.map(c -> c.accept(this))
 				.toArray(Expression[]::new);
+			replaceWithoutAlias = false;
 			return unresolvedCall(unresolvedCall.getFunctionDefinition(), args);
+		}
+
+		private Expression refOrAlias(String name) {
+			if (replaceWithoutAlias || existedNames.add(name)) {
+				return unresolvedRef(name);
+			} else {
+				String finalName = name + "_" + uniqueId++;
+				existedNames.add(finalName);
+				return unresolvedCall(AS, unresolvedRef(name), valueLiteral(finalName));
+			}
 		}
 
 		@Override
