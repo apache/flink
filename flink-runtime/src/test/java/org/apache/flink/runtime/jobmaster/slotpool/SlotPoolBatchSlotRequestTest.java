@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -27,17 +26,12 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.runtime.util.clock.Clock;
 import org.apache.flink.runtime.util.clock.ManualClock;
-import org.apache.flink.runtime.util.clock.SystemClock;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -95,7 +89,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 	 */
 	@Test
 	public void testPendingBatchSlotRequestTimeout() throws Exception {
-		try (final SlotPoolImpl slotPool = new SlotPoolBuilder()
+		try (final SlotPoolImpl slotPool = new SlotPoolBuilder(mainThreadExecutor)
 				.build()) {
 			final CompletableFuture<PhysicalSlot> slotFuture = requestNewAllocatedBatchSlot(
 				slotPool,
@@ -121,8 +115,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 		final ComponentMainThreadExecutor directMainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
 		final ManualClock clock = new ManualClock();
 
-		try (final TestingSlotPoolImpl slotPool = new SlotPoolBuilder()
-				.setComponentMainThreadExecutor(directMainThreadExecutor)
+		try (final TestingSlotPoolImpl slotPool = new SlotPoolBuilder(directMainThreadExecutor)
 				.setClock(clock)
 				.setBatchSlotTimeout(batchSlotTimeout)
 				.build()) {
@@ -156,8 +149,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 		final ComponentMainThreadExecutor directMainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
 
 		final Time batchSlotTimeout = Time.milliseconds(1000L);
-		try (final SlotPoolImpl slotPool = new SlotPoolBuilder()
-			.setComponentMainThreadExecutor(directMainThreadExecutor)
+		try (final SlotPoolImpl slotPool = new SlotPoolBuilder(directMainThreadExecutor)
 			.setBatchSlotTimeout(batchSlotTimeout)
 			.setResourceManagerGateway(testingResourceManagerGateway)
 			.build()) {
@@ -181,8 +173,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 		final ComponentMainThreadExecutor directMainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
 
 		final Time batchSlotTimeout = Time.milliseconds(1000L);
-		try (final SlotPoolImpl slotPool = new SlotPoolBuilder()
-			.setComponentMainThreadExecutor(directMainThreadExecutor)
+		try (final SlotPoolImpl slotPool = new SlotPoolBuilder(directMainThreadExecutor)
 			.setBatchSlotTimeout(batchSlotTimeout)
 			.setResourceManagerGateway(testingResourceManagerGateway)
 			.build()) {
@@ -203,8 +194,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 		final ManualClock clock = new ManualClock();
 		final Time batchSlotTimeout = Time.milliseconds(1000L);
 
-		try (final TestingSlotPoolImpl slotPool = new SlotPoolBuilder()
-				.setComponentMainThreadExecutor(directMainThreadExecutor)
+		try (final TestingSlotPoolImpl slotPool = new SlotPoolBuilder(directMainThreadExecutor)
 				.setClock(clock)
 				.setBatchSlotTimeout(batchSlotTimeout)
 				.build()) {
@@ -294,46 +284,4 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 		).join();
 	}
 
-	private static class SlotPoolBuilder {
-
-		private ComponentMainThreadExecutor componentMainThreadExecutor = mainThreadExecutor;
-		private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
-		private Time batchSlotTimeout = Time.milliseconds(2L);
-		private Clock clock = SystemClock.getInstance();
-
-		private SlotPoolBuilder setComponentMainThreadExecutor(ComponentMainThreadExecutor componentMainThreadExecutor) {
-			this.componentMainThreadExecutor = componentMainThreadExecutor;
-			return this;
-		}
-
-		private SlotPoolBuilder setResourceManagerGateway(ResourceManagerGateway resourceManagerGateway) {
-			this.resourceManagerGateway = resourceManagerGateway;
-			return this;
-		}
-
-		private SlotPoolBuilder setBatchSlotTimeout(Time batchSlotTimeout) {
-			this.batchSlotTimeout = batchSlotTimeout;
-			return this;
-		}
-
-		private SlotPoolBuilder setClock(Clock clock) {
-			this.clock = clock;
-			return this;
-		}
-
-		private TestingSlotPoolImpl build() throws Exception {
-			final TestingSlotPoolImpl slotPool = new TestingSlotPoolImpl(
-				new JobID(),
-				clock,
-				TestingUtils.infiniteTime(),
-				TestingUtils.infiniteTime(),
-				batchSlotTimeout);
-
-			slotPool.start(JobMasterId.generate(), "foobar", componentMainThreadExecutor);
-
-			CompletableFuture.runAsync(() -> slotPool.connectToResourceManager(resourceManagerGateway), componentMainThreadExecutor).join();
-
-			return slotPool;
-		}
-	}
 }
