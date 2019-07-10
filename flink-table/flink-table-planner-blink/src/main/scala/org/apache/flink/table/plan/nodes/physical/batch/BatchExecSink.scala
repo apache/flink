@@ -28,7 +28,7 @@ import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig
+import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.planner.BatchPlanner
 import org.apache.flink.table.sinks.{DataStreamTableSink, RetractStreamTableSink, StreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.types.{ClassLogicalTypeConverter, DataType}
@@ -98,7 +98,7 @@ class BatchExecSink[T](
         }
         val sinkTransformation = dsSink.getTransformation
 
-        val configSinkParallelism = NodeResourceConfig.getSinkParallelism(
+        val configSinkParallelism = NodeResourceUtil.getSinkParallelism(
           planner.getTableConfig.getConfiguration)
 
         val maxSinkParallelism = sinkTransformation.getMaxParallelism

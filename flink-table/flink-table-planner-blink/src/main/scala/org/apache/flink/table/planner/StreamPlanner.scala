@@ -22,7 +22,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.Executor
-import org.apache.flink.table.executor.BatchExecutor
+import org.apache.flink.table.executor.StreamExecutor
 import org.apache.flink.table.operations.{ModifyOperation, Operation, QueryOperation}
 import org.apache.flink.table.plan.`trait`._
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
@@ -87,7 +87,9 @@ class StreamPlanner(
     val optimizedRelNodes = optimize(sinkRelNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
     val transformations = translateToPlan(execNodes)
-    val streamGraph = BatchExecutor.generateStreamGraph(getExecEnv, transformations, "")
+    val streamExecutor = new StreamExecutor(getExecEnv)
+    streamExecutor.setTableConfig(getTableConfig)
+    val streamGraph = streamExecutor.generateStreamGraph(transformations, "")
     val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
     val sb = new StringBuilder

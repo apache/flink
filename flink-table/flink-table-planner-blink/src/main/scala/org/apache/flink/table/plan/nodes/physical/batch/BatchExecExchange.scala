@@ -20,15 +20,16 @@ package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.runtime.io.network.DataExchangeMode
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.{PartitionTransformation, ShuffleMode}
 import org.apache.flink.streaming.runtime.partitioner.{BroadcastPartitioner, GlobalPartitioner, RebalancePartitioner}
+import org.apache.flink.table.api.ExecutionConfigOptions
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGeneratorContext, HashCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.common.CommonPhysicalExchange
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.planner.BatchPlanner
 import org.apache.flink.table.runtime.BinaryHashPartitioner
 import org.apache.flink.table.types.logical.RowType
@@ -44,50 +45,8 @@ import scala.collection.JavaConversions._
 /**
   * This RelNode represents a change of partitioning of the input elements.
   *
-  * This does not create a physical transformation If its relDistribution' type is not range,
-  * it only affects how upstream operations are connected to downstream operations.
-  *
-  * But if the type is range, this relNode will create some physical transformation because it
-  * need calculate the data distribution. To calculate the data distribution, the received stream
-  * will split in two process stream. For the first process stream, it will go through the sample
-  * and statistics to calculate the data distribution in pipeline mode. For the second process
-  * stream will been bocked. After the first process stream has been calculated successfully,
-  * then the two process stream  will union together. Thus it can partitioner the record based
-  * the data distribution. Then The RelNode will create the following transformations.
-  *
-  * +---------------------------------------------------------------------------------------------+
-  * |                                                                                             |
-  * | +-----------------------------+                                                             |
-  * | |       Transformation        | ------------------------------------>                       |
-  * | +-----------------------------+                                     |                       |
-  * |                 |                                                   |                       |
-  * |                 |                                                   |                       |
-  * |                 |forward & PIPELINED                                |                       |
-  * |                \|/                                                  |                       |
-  * | +--------------------------------------------+                      |                       |
-  * | | OneInputTransformation[LocalSample, n]     |                      |                       |
-  * | +--------------------------------------------+                      |                       |
-  * |                      |                                              |forward & BATCH        |
-  * |                      |forward & PIPELINED                           |                       |
-  * |                     \|/                                             |                       |
-  * | +--------------------------------------------------+                |                       |
-  * | |OneInputTransformation[SampleAndHistogram, 1]     |                |                       |
-  * | +--------------------------------------------------+                |                       |
-  * |                        |                                            |                       |
-  * |                        |broadcast & PIPELINED                       |                       |
-  * |                        |                                            |                       |
-  * |                       \|/                                          \|/                      |
-  * | +---------------------------------------------------+------------------------------+        |
-  * | |               TwoInputTransformation[AssignRangeId, n]                           |        |
-  * | +----------------------------------------------------+-----------------------------+        |
-  * |                                       |                                                     |
-  * |                                       |custom & PIPELINED                                   |
-  * |                                      \|/                                                    |
-  * | +---------------------------------------------------+------------------------------+        |
-  * | |               OneInputTransformation[RemoveRangeId, n]                           |        |
-  * | +----------------------------------------------------+-----------------------------+        |
-  * |                                                                                             |
-  * +---------------------------------------------------------------------------------------------+
+  * This does not create a physical transformation if its relDistribution' type is not range which
+  * is not supported now.
   */
 class BatchExecExchange(
     cluster: RelOptCluster,
@@ -103,9 +62,9 @@ class BatchExecExchange(
   // and different PartitionTransformation objects will be created which have same input.
   // cache input transformation to reuse
   private var reusedInput: Option[Transformation[BaseRow]] = None
-  // the required exchange mode for reusable ExchangeBatchExec
-  // if it's None, use value from getDataExchangeMode
-  private var requiredExchangeMode: Option[DataExchangeMode] = None
+  // the required shuffle mode for reusable ExchangeBatchExec
+  // if it's None, use value from getShuffleMode
+  private var requiredShuffleMode: Option[ShuffleMode] = None
 
   override def copy(
       traitSet: RelTraitSet,
@@ -116,25 +75,36 @@ class BatchExecExchange(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
-      .itemIf("exchange_mode", requiredExchangeMode.orNull,
-        requiredExchangeMode.contains(DataExchangeMode.BATCH))
+      .itemIf("shuffle_mode", requiredShuffleMode.orNull,
+        requiredShuffleMode.contains(ShuffleMode.BATCH))
   }
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  def setRequiredDataExchangeMode(exchangeMode: DataExchangeMode): Unit = {
-    require(exchangeMode != null)
-    requiredExchangeMode = Some(exchangeMode)
+  def setRequiredShuffleMode(shuffleMode: ShuffleMode): Unit = {
+    require(shuffleMode != null)
+    requiredShuffleMode = Some(shuffleMode)
   }
 
-  private[flink] def getDataExchangeMode(tableConf: Configuration): DataExchangeMode = {
-    requiredExchangeMode match {
-      case Some(mode) if mode eq DataExchangeMode.BATCH => mode
-      case _ => DataExchangeMode.PIPELINED
+  private[flink] def getShuffleMode(tableConf: Configuration): ShuffleMode = {
+    requiredShuffleMode match {
+      case Some(mode) if mode eq ShuffleMode.BATCH => mode
+      case _ =>
+        if (tableConf.getString(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE)
+            .equalsIgnoreCase(ShuffleMode.BATCH.toString)) {
+          ShuffleMode.BATCH
+        } else {
+          ShuffleMode.UNDEFINED
+        }
     }
   }
 
   override def getDamBehavior: DamBehavior = {
+    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
+    val shuffleMode = getShuffleMode(tableConfig.getConfiguration)
+    if (shuffleMode eq ShuffleMode.BATCH) {
+      return DamBehavior.FULL_DAM
+    }
     distribution.getType match {
       case RelDistribution.Type.RANGE_DISTRIBUTED => DamBehavior.FULL_DAM
       case _ => DamBehavior.PIPELINED
@@ -164,14 +134,8 @@ class BatchExecExchange(
     val inputType = input.getOutputType.asInstanceOf[BaseRowTypeInfo]
     val outputRowType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
-    val shuffleMode = requiredExchangeMode match {
-      case None => ShuffleMode.PIPELINED
-      case Some(mode) =>
-        mode match {
-          case DataExchangeMode.BATCH => ShuffleMode.BATCH
-          case DataExchangeMode.PIPELINED => ShuffleMode.PIPELINED
-        }
-    }
+    val conf = planner.getTableConfig
+    val shuffleMode = getShuffleMode(conf.getConfiguration)
 
     relDistribution.getType match {
       case RelDistribution.Type.ANY =>

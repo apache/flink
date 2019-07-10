@@ -23,6 +23,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.delegation.Executor;
 
 import java.util.List;
@@ -40,19 +41,16 @@ public class StreamExecutor extends ExecutorBase {
 	}
 
 	@Override
-	public void apply(List<Transformation<?>> transformations) {
-		transformations.forEach(getExecutionEnvironment()::addOperator);
-	}
-
-	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
-		try {
-			transformations.forEach(execEnv::addOperator);
-			return execEnv.execute(getNonEmptyJobName(jobName));
-		} finally {
-			transformations.clear();
-		}
+		return execEnv.execute(generateStreamGraph(transformations, jobName));
+	}
+
+	public StreamGraph generateStreamGraph(
+			List<Transformation<?>> transformations,
+			String jobName) throws Exception {
+		transformations.forEach(getExecutionEnvironment()::addOperator);
+		return getExecutionEnvironment().getStreamGraph(getNonEmptyJobName(jobName));
 	}
 
 }

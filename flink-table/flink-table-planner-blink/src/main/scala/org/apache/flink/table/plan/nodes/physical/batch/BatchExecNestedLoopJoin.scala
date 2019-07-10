@@ -21,12 +21,14 @@ package org.apache.flink.table.plan.nodes.physical.batch
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation
+import org.apache.flink.table.api.ExecutionConfigOptions
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGeneratorContext, NestedLoopJoinCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.ExpressionFormat
 import org.apache.flink.table.plan.nodes.exec.ExecNode
+import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.planner.BatchPlanner
 import org.apache.flink.table.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
 
@@ -150,13 +152,23 @@ class BatchExecNestedLoopJoin(
       condition
     ).gen()
 
-    new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+    val externalBufferMemoryInMb: Int = if (singleRowJoin) {
+      0
+    } else {
+      planner.getTableConfig.getConfiguration.getInteger(
+        ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM)
+    }
+    val resourceSpec = NodeResourceUtil.fromManagedMem(externalBufferMemoryInMb)
+
+    val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       lInput,
       rInput,
       getOperatorName,
       op,
       BaseRowTypeInfo.of(outputType),
       getResource.getParallelism)
+    ret.setResources(resourceSpec, resourceSpec)
+    ret
   }
 
   private def getOperatorName: String = {

@@ -70,6 +70,8 @@ abstract class PlannerBase(
     catalogManager: CatalogManager)
   extends Planner {
 
+  executor.asInstanceOf[ExecutorBase].setTableConfig(config)
+
   private val plannerContext: PlannerContext =
     new PlannerContext(
       config,

@@ -29,7 +29,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.`trait`.{AccMode, AccModeTraitDef}
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig
+import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.sinks._
@@ -124,7 +124,7 @@ class StreamExecSink[T](
             "implemented and return the sink transformation DataStreamSink. " +
             s"However, ${sink.getClass.getCanonicalName} doesn't implement this method.")
         }
-        val configSinkParallelism = NodeResourceConfig.getSinkParallelism(
+        val configSinkParallelism = NodeResourceUtil.getSinkParallelism(
           planner.getTableConfig.getConfiguration)
 
         val maxSinkParallelism = dsSink.getTransformation.getMaxParallelism

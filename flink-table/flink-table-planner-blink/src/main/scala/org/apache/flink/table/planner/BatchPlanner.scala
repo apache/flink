@@ -89,7 +89,9 @@ class BatchPlanner(
     val optimizedRelNodes = optimize(sinkRelNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
     val transformations = translateToPlan(execNodes)
-    val streamGraph = BatchExecutor.generateStreamGraph(getExecEnv, transformations, "")
+    val batchExecutor = new BatchExecutor(getExecEnv)
+    batchExecutor.setTableConfig(getTableConfig)
+    val streamGraph = batchExecutor.generateStreamGraph(transformations, "")
     val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
     val sb = new StringBuilder

@@ -29,7 +29,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.ExecNode
-import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig
+import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.plan.nodes.{ExpressionFormat, FlinkConventions}
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, JoinUtil}
 import org.apache.flink.table.planner.BatchPlanner
@@ -201,8 +201,9 @@ class BatchExecHashJoin(
     val rType = rInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
 
     val keyType = RowType.of(leftKeys.map(lType.getChildren().get(_)): _*)
-    val managedMemorySize = config.getConfiguration.getInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM) * NodeResourceConfig.SIZE_IN_MB
+    val managedMemoryInMB = config.getConfiguration.getInteger(
+      ExecutionConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM)
+    val managedMemory = managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB
     val condFunc = JoinUtil.generateConditionFunction(
       config, cluster.getRexBuilder, getJoinInfo, lType, rType)
 
@@ -234,7 +235,7 @@ class BatchExecHashJoin(
         pType,
         buildKeys,
         probeKeys,
-        managedMemorySize,
+        managedMemory,
         0,
         0,
         buildRowSize,
@@ -243,7 +244,7 @@ class BatchExecHashJoin(
         condFunc)
     } else {
       SimpleOperatorFactory.of(HashJoinOperator.newHashJoinOperator(
-        managedMemorySize,
+        managedMemory,
         0,
         0,
         hashJoinType,
@@ -260,13 +261,16 @@ class BatchExecHashJoin(
       ))
     }
 
-    new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+    val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       build,
       probe,
       getOperatorName,
       operator,
       BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
       getResource.getParallelism)
+    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
+    ret.setResources(resource, resource)
+    ret
   }
 
   private def getOperatorName: String = {

@@ -35,7 +35,7 @@ LogicalProject(a1=[$0], a2=[$1])
       <![CDATA[
 Calc(select=[a1, a2])
 +- NestedLoopJoin(joinType=[InnerJoin], where=[<(a1, cnt)], select=[a1, a2, cnt], build=[right], singleRowJoin=[true])
-   :- Exchange(distribution=[any], exchange_mode=[BATCH])
+   :- Exchange(distribution=[any], shuffle_mode=[BATCH])
    :  +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
    +- Exchange(distribution=[broadcast])
       +- HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS cnt])
@@ -147,7 +147,7 @@ LogicalProject(a1=[$0], a_sum=[$2])
     <Resource name="planAfter">
       <![CDATA[
 NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a1, a_sum], build=[right], singleRowJoin=[true])
-:- Exchange(distribution=[any], exchange_mode=[BATCH])
+:- Exchange(distribution=[any], shuffle_mode=[BATCH])
 :  +- Calc(select=[a1])
 :     +- TableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a1, a2)]]], fields=[a1, a2], reuse_id=[1])
 +- Exchange(distribution=[broadcast])

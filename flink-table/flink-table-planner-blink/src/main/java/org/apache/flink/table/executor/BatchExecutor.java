@@ -21,17 +21,18 @@ package org.apache.flink.table.executor;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.streaming.api.transformations.ShuffleMode;
+import org.apache.flink.table.api.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Executor;
-import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil;
 
 import java.util.List;
 
@@ -42,6 +43,8 @@ import java.util.List;
 @Internal
 public class BatchExecutor extends ExecutorBase {
 
+	private BatchExecEnvConfig batchExecEnvConfig = new BatchExecEnvConfig();
+
 	@VisibleForTesting
 	public BatchExecutor(StreamExecutionEnvironment executionEnvironment) {
 		super(executionEnvironment);
@@ -49,40 +52,100 @@ public class BatchExecutor extends ExecutorBase {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		if (transformations.isEmpty()) {
-			throw new TableException("No table sinks have been created yet. " +
-				"A program needs at least one sink that consumes data. ");
-		}
 		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
-		StreamGraph streamGraph = generateStreamGraph(execEnv, transformations, getNonEmptyJobName(jobName));
-
-		// TODO supports streamEnv.execute(streamGraph)
-		try {
-			return execEnv.execute(getNonEmptyJobName(jobName));
-		} finally {
-			transformations.clear();
-		}
+		StreamGraph streamGraph = generateStreamGraph(transformations, jobName);
+		return execEnv.execute(streamGraph);
 	}
 
-	public static StreamGraph generateStreamGraph(
-		StreamExecutionEnvironment execEnv,
-		List<Transformation<?>> transformations,
-		String jobName) throws Exception {
-		// TODO avoid cloning ExecutionConfig
-		ExecutionConfig executionConfig = InstantiationUtil.clone(execEnv.getConfig());
+	/**
+	 * Backup previous streamEnv config and set batch configs.
+	 */
+	private void backupAndUpdateStreamEnv(StreamExecutionEnvironment execEnv) {
+		batchExecEnvConfig.backup(execEnv);
+		ExecutionConfig executionConfig = execEnv.getConfig();
 		executionConfig.enableObjectReuse();
 		executionConfig.setLatencyTrackingInterval(-1);
-
-		return new StreamGraphGenerator(transformations, executionConfig, new CheckpointConfig())
-			.setChaining(execEnv.isChainingEnabled())
-			.setStateBackend(execEnv.getStateBackend())
-			.setDefaultBufferTimeout(-1)
-			.setTimeCharacteristic(TimeCharacteristic.ProcessingTime)
-			.setUserArtifacts(execEnv.getCachedFiles())
-			.setSlotSharingEnabled(false)
-			.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES)
-			.setJobName(jobName)
-			.generate();
+		execEnv.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+		execEnv.setBufferTimeout(-1);
+		if (isShuffleModeAllBatch()) {
+			executionConfig.setDefaultInputDependencyConstraint(InputDependencyConstraint.ALL);
+		}
 	}
 
+	/**
+	 * Translates transformationList to streamGraph.
+	 */
+	public StreamGraph generateStreamGraph(List<Transformation<?>> transformations, String jobName) {
+		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
+		backupAndUpdateStreamEnv(execEnv);
+		transformations.forEach(execEnv::addOperator);
+		StreamGraph streamGraph;
+		streamGraph = execEnv.getStreamGraph(getNonEmptyJobName(jobName));
+		// All transformations should set managed memory size.
+		ResourceSpec managedResourceSpec = NodeResourceUtil.fromManagedMem(0);
+		streamGraph.getStreamNodes().forEach(sn -> {
+			sn.setResources(sn.getMinResources().merge(managedResourceSpec), sn.getPreferredResources().merge(managedResourceSpec));
+		});
+		streamGraph.setChaining(true);
+		streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES);
+		streamGraph.setStateBackend(null);
+		streamGraph.getCheckpointConfig().setCheckpointInterval(Long.MAX_VALUE);
+		if (isShuffleModeAllBatch()) {
+			streamGraph.setBlockingConnectionsBetweenChains(true);
+		}
+		batchExecEnvConfig.restore(execEnv);
+		return streamGraph;
+	}
+
+	private boolean isShuffleModeAllBatch() {
+		String value = tableConfig.getConfiguration().getString(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE);
+		if (value.equalsIgnoreCase(ShuffleMode.BATCH.toString())) {
+			return true;
+		} else if (!value.equalsIgnoreCase(ShuffleMode.PIPELINED.toString())) {
+			throw new IllegalArgumentException(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE.key() +
+					" can only be set to " + ShuffleMode.BATCH.toString() + " or " + ShuffleMode.PIPELINED.toString());
+		}
+		return false;
+	}
+
+	/**
+	 * Batch configs that are set in {@link StreamExecutionEnvironment}. We should backup and change
+	 * these configs and restore finally.
+	 */
+	private static class BatchExecEnvConfig {
+
+		private boolean enableObjectReuse;
+		private long latencyTrackingInterval;
+		private long bufferTimeout;
+		private TimeCharacteristic timeCharacteristic;
+		private InputDependencyConstraint inputDependencyConstraint;
+
+		/**
+		 * Backup previous streamEnv config.
+		 */
+		public void backup(StreamExecutionEnvironment execEnv) {
+			ExecutionConfig executionConfig = execEnv.getConfig();
+			enableObjectReuse = executionConfig.isObjectReuseEnabled();
+			latencyTrackingInterval = executionConfig.getLatencyTrackingInterval();
+			timeCharacteristic = execEnv.getStreamTimeCharacteristic();
+			bufferTimeout = execEnv.getBufferTimeout();
+			inputDependencyConstraint = executionConfig.getDefaultInputDependencyConstraint();
+		}
+
+		/**
+		 * Restore previous streamEnv after execute batch jobs.
+		 */
+		public void restore(StreamExecutionEnvironment execEnv) {
+			ExecutionConfig executionConfig = execEnv.getConfig();
+			if (enableObjectReuse) {
+				executionConfig.enableObjectReuse();
+			} else {
+				executionConfig.disableObjectReuse();
+			}
+			executionConfig.setLatencyTrackingInterval(latencyTrackingInterval);
+			execEnv.setStreamTimeCharacteristic(timeCharacteristic);
+			execEnv.setBufferTimeout(bufferTimeout);
+			executionConfig.setDefaultInputDependencyConstraint(inputDependencyConstraint);
+		}
+	}
 }
