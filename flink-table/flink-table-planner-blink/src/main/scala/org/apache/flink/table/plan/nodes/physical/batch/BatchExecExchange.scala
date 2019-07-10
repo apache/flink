@@ -77,8 +77,6 @@ class BatchExecExchange(
     super.explainTerms(pw)
       .itemIf("shuffle_mode", requiredShuffleMode.orNull,
         requiredShuffleMode.contains(ShuffleMode.BATCH))
-        .itemIf("full_dam_behavior", getDamBehavior,
-          getDamBehavior.equals(DamBehavior.FULL_DAM))
   }
 
   //~ ExecNode methods -----------------------------------------------------------
@@ -96,7 +94,8 @@ class BatchExecExchange(
   }
 
   private def getShuffleModeFromConfig(tableConf: Configuration): ShuffleMode = {
-    if (tableConf.getBoolean(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE_ALL_BATCH)) {
+    if (tableConf.getString(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE)
+        .toLowerCase.endsWith(ShuffleMode.BATCH.toString)) {
       ShuffleMode.BATCH
     } else {
       ShuffleMode.UNDEFINED

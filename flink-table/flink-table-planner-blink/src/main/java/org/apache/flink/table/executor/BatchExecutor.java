@@ -29,6 +29,7 @@ import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.table.api.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil;
@@ -135,10 +136,13 @@ public class BatchExecutor extends ExecutorBase {
 	private boolean isShuffleModeAllBatch() {
 		ExecutionConfig.GlobalJobParameters parameters = getExecutionEnvironment().getConfig().getGlobalJobParameters();
 		if (parameters != null) {
-			String value = parameters.toMap().getOrDefault(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE_ALL_BATCH.key(),
-					ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE_ALL_BATCH.defaultValue().toString());
-			if (value.toLowerCase().equals("true")) {
+			String value = parameters.toMap().getOrDefault(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE.key(),
+					ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE.defaultValue());
+			if (value.toLowerCase().equals(ShuffleMode.BATCH.toString())) {
 				return true;
+			} else if (!value.toLowerCase().equals(ShuffleMode.PIPELINED.toString())) {
+				throw new IllegalArgumentException(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE +
+						" can only be set to " + ShuffleMode.BATCH.toString() + " or " + ShuffleMode.PIPELINED.toString());
 			}
 		}
 		return false;

@@ -24,6 +24,7 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
+import org.apache.flink.streaming.api.transformations.ShuffleMode
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableImpl}
@@ -483,13 +484,15 @@ abstract class TableTestUtil(
   protected val testingTableEnv: TestingTableEnvironment =
     TestingTableEnvironment.create(setting, catalogManager)
   val tableEnv: TableEnvironment = testingTableEnv
-  tableEnv.getConfig.getConf.setBoolean(
-    ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE_ALL_BATCH, false)
+  tableEnv.getConfig.getConf.setString(
+    ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE, ShuffleMode.PIPELINED.toString)
 
   private val env: StreamExecutionEnvironment = getPlanner.getExecEnv
   env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
   override def getTableEnv: TableEnvironment = tableEnv
+
+  def getStreamEnv: StreamExecutionEnvironment = env
 
   /**
     * Create a [[TestTableSource]] with the given schema, table stats and unique keys,

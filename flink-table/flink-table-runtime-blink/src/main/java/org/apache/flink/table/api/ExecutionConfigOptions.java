@@ -196,10 +196,11 @@ public class ExecutionConfigOptions {
 							"If the configure's value is \"NestedLoopJoin, ShuffleHashJoin\", NestedLoopJoin and ShuffleHashJoin " +
 							"are disabled. If configure's value is \"HashJoin\", ShuffleHashJoin and BroadcastHashJoin are disabled.");
 
-	public static final ConfigOption<Boolean> SQL_EXEC_SHUFFLE_MODE_ALL_BATCH =
-			key("sql.exec.shuffle-mode.all-batch")
-					.defaultValue(true)
-					.withDescription("Sets Whether all shuffle-mode is batch. If it is true, the job will run stage by stage. If it is false, " +
-							" the job will run in streaming mode, but it may cause resource deadlock that receiver waits for resource to start when " +
+	public static final ConfigOption<String> SQL_EXEC_SHUFFLE_MODE =
+			key("sql.exec.shuffle-mode")
+					.defaultValue("batch")
+					.withDescription("Sets exec shuffle mode. Only batch or pipeline can be set.\n" +
+							"batch: the job will run stage by stage. \n" +
+							"pipeline: the job will run in streaming mode, but it may cause resource deadlock that receiver waits for resource to start when " +
 							"the sender holds resource to wait to send data to the receiver.");
 }
