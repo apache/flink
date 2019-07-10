@@ -384,7 +384,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 
 		other.extendedResources.forEach((String name, Resource resource) -> {
 			resultExtendedResource.compute(name, (ignored, oldResource) -> {
-				Resource resultResource = oldResource.minus(resource);
+				Resource resultResource = oldResource.subtract(resource);
 				return resultResource.getValue() == 0 ? null : resultResource;
 			});
 		});
