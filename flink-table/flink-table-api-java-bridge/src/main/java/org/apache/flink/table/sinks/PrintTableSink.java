@@ -9,7 +9,7 @@ import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.table.utils.TableConnectorUtils;
 
 /**
- * A simple {@link TableSink} to emit data to the standard output or standard error stream.
+ * A simple {@link TableSink} to emit data to the standard output stream.
  */
 public class PrintTableSink implements BatchTableSink , AppendStreamTableSink {
 
@@ -17,8 +17,12 @@ public class PrintTableSink implements BatchTableSink , AppendStreamTableSink {
 	private TypeInformation<?>[] fieldTypes;
 
 	@Override
-	public void emitDataSet(DataSet dataSet) throws Exception {
-		dataSet.print();
+	public void emitDataSet(DataSet dataSet) {
+		try {
+			dataSet.print();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
