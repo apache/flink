@@ -150,7 +150,7 @@ public class SavepointHandlers extends AbstractAsynchronousOperationHandlers<Asy
 						HttpResponseStatus.BAD_REQUEST);
 			}
 
-			final boolean advanceToEndOfEventTime = request.getRequestBody().shouldAdvanceToEndOfEventTime();
+			final boolean advanceToEndOfEventTime = request.getRequestBody().shouldDrain();
 			final String targetDirectory = requestedTargetDirectory != null ? requestedTargetDirectory : defaultSavepointDir;
 			return gateway.stopWithSavepoint(jobId, targetDirectory, advanceToEndOfEventTime, RpcUtils.INF_TIMEOUT);
 		}
