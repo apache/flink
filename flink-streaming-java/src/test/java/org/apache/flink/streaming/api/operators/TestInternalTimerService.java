@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.function.BiConsumerWithException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -105,6 +106,22 @@ public class TestInternalTimerService<K, N> implements InternalTimerService<N> {
 		Timer<K, N> timer = new Timer<>(time, (K) keyContext.getCurrentKey(), namespace);
 		if (watermarkTimers.remove(timer)) {
 			watermarkTimersQueue.remove(timer);
+		}
+	}
+
+	@Override
+	public void forEachEventTimeTimer(BiConsumerWithException<N, Long, Exception> consumer) throws Exception {
+		for (Timer<K, N> timer : watermarkTimers) {
+			keyContext.setCurrentKey(timer.getKey());
+			consumer.accept(timer.getNamespace(), timer.getTimestamp());
+		}
+	}
+
+	@Override
+	public void forEachProcessingTimeTimer(BiConsumerWithException<N, Long, Exception> consumer) throws Exception {
+		for (Timer<K, N> timer : processingTimeTimers) {
+			keyContext.setCurrentKey(timer.getKey());
+			consumer.accept(timer.getNamespace(), timer.getTimestamp());
 		}
 	}
 
