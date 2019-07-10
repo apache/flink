@@ -510,7 +510,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 		asyncRequest.start();
 
 		expectedException.expect(IOException.class);
-		expectedException.expectMessage("Insufficient");
+		expectedException.expectMessage("Timeout");
 
 		try {
 			asyncRequest.sync();
