@@ -25,7 +25,7 @@ STAGE_BLINK_PLANNER="blink_planner"
 STAGE_CONNECTORS="connectors"
 STAGE_KAFKA_GELLY="kafka/gelly"
 STAGE_TESTS="tests"
-STAGE_CONNECTOR_HIVE_1="connector_hive_1"
+STAGE_CONNECTOR_HIVE_1_2_1="connector_hive_1_2_1"
 STAGE_MISC="misc"
 STAGE_CLEANUP="cleanup"
 
@@ -169,7 +169,7 @@ function get_compile_modules_for_stage() {
         (${STAGE_TESTS})
             echo "-pl $MODULES_TESTS -am"
         ;;
-        (${STAGE_CONNECTOR_HIVE_1})
+        (${STAGE_CONNECTOR_HIVE_1_2_1})
             echo "-pl $MODULES_CONNECTOR_HIVE -am -Phive-1.2.1"
         ;;
         (${STAGE_MISC})
@@ -220,7 +220,8 @@ function get_test_modules_for_stage() {
         (${STAGE_TESTS})
             echo "-pl $modules_tests"
         ;;
-        (${STAGE_CONNECTOR_HIVE_1})
+        (${STAGE_CONNECTOR_HIVE_1_2_1})
+            # We want to re-compile flink-connector-hive against Hive-1.2.1. Add clean here so that only flink-connector-hive is re-compiled.
             echo "-pl $MODULES_CONNECTOR_HIVE -Phive-1.2.1 clean"
         ;;
         (${STAGE_MISC})
