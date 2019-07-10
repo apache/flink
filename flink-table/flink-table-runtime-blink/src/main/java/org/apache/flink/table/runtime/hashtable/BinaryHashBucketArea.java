@@ -185,7 +185,7 @@ public class BinaryHashBucketArea {
 
 	private void setNewBuckets(MemorySegment[] buckets, int numBuckets, int threshold) {
 		this.buckets = buckets;
-		checkArgument(MathUtils.isPowerOf2(numBuckets));
+		checkArgument(MathUtils.isPowerOf2(buckets.length));
 		this.numBuckets = numBuckets;
 		this.numBucketsMask = numBuckets - 1;
 		this.overflowSegments = new MemorySegment[2];
