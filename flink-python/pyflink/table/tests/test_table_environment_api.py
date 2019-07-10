@@ -141,10 +141,25 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         table_config = TableConfig.get_default()
         table_config.set_idle_state_retention_time(
             datetime.timedelta(days=1), datetime.timedelta(days=2))
-        table_config.set_decimal_context(20, "UP")
 
         self.assertEqual(2 * 24 * 3600 * 1000, table_config.get_max_idle_state_retention_time())
         self.assertEqual(24 * 3600 * 1000, table_config.get_min_idle_state_retention_time())
+
+        table_config.set_decimal_context(20, "UNNECESSARY")
+        self.assertEqual((20, "UNNECESSARY"), table_config.get_decimal_context())
+        table_config.set_decimal_context(20, "HALF_EVEN")
+        self.assertEqual((20, "HALF_EVEN"), table_config.get_decimal_context())
+        table_config.set_decimal_context(20, "HALF_DOWN")
+        self.assertEqual((20, "HALF_DOWN"), table_config.get_decimal_context())
+        table_config.set_decimal_context(20, "HALF_UP")
+        self.assertEqual((20, "HALF_UP"), table_config.get_decimal_context())
+        table_config.set_decimal_context(20, "FLOOR")
+        self.assertEqual((20, "FLOOR"), table_config.get_decimal_context())
+        table_config.set_decimal_context(20, "CEILING")
+        self.assertEqual((20, "CEILING"), table_config.get_decimal_context())
+        table_config.set_decimal_context(20, "DOWN")
+        self.assertEqual((20, "DOWN"), table_config.get_decimal_context())
+        table_config.set_decimal_context(20, "UP")
         self.assertEqual((20, "UP"), table_config.get_decimal_context())
 
     def test_create_table_environment(self):
