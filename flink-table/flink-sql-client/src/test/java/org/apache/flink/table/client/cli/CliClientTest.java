@@ -194,11 +194,6 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
-		public void dropTable(SessionContext session, String ddl) throws SqlExecutionException {
-
-		}
-
-		@Override
 		public TableSchema getTableSchema(SessionContext session, String name) throws SqlExecutionException {
 			return null;
 		}
