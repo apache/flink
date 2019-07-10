@@ -49,6 +49,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.MapObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.StandardStructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.StructField;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.BinaryObjectInspector;
@@ -338,31 +339,17 @@ public class HiveInspectors {
 
 			Row row = new Row(fields.size());
 			// StandardStructObjectInspector.getStructFieldData in Hive-1.2.1 only accepts array or list as data
-			if (!data.getClass().isArray() && !(data instanceof List)) {
+			if (!data.getClass().isArray() && !(data instanceof List) && (inspector instanceof StandardStructObjectInspector)) {
 				data = new Object[]{data};
 			}
-			try {
-				for (int i = 0; i < row.getArity(); i++) {
-					row.setField(
-							i,
-							toFlinkObject(
-									fields.get(i).getFieldObjectInspector(),
-									structInspector.getStructFieldData(data, fields.get(i)))
-					);
-				}
-			} catch (ClassCastException e) {
-				//we catch exception here temporarily to handle Hive-1.2.1/Hive-2.x compatibility problem.
-				data = ((Object[]) data)[0];
-				for (int i = 0; i < row.getArity(); i++) {
-					row.setField(
-							i,
-							toFlinkObject(
-									fields.get(i).getFieldObjectInspector(),
-									structInspector.getStructFieldData(data, fields.get(i)))
-					);
-				}
+			for (int i = 0; i < row.getArity(); i++) {
+				row.setField(
+						i,
+						toFlinkObject(
+								fields.get(i).getFieldObjectInspector(),
+								structInspector.getStructFieldData(data, fields.get(i)))
+				);
 			}
-
 			return row;
 		}
 
