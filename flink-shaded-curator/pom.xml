@@ -69,6 +69,7 @@ under the License.
 									<includes>
 										<include>com/google/common/base/Function.class</include>
 										<include>com/google/common/base/Predicate.class</include>
+										<include>com/google/common/base/Preconditions.class</include>
 										<include>com/google/common/reflect/TypeToken.class</include>
 									</includes>
 								</filter>
@@ -82,6 +83,13 @@ under the License.
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
