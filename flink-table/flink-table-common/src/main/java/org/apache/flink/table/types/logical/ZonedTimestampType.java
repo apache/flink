@@ -49,11 +49,11 @@ import java.util.Set;
 @PublicEvolving
 public final class ZonedTimestampType extends LogicalType {
 
-	public static final int MIN_PRECISION = 0;
+	public static final int MIN_PRECISION = TimestampType.MIN_PRECISION;
 
-	public static final int MAX_PRECISION = 9;
+	public static final int MAX_PRECISION = TimestampType.MAX_PRECISION;
 
-	public static final int DEFAULT_PRECISION = 6;
+	public static final int DEFAULT_PRECISION = TimestampType.DEFAULT_PRECISION;
 
 	private static final String FORMAT = "TIMESTAMP(%d) WITH TIME ZONE";
 
