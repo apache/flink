@@ -213,11 +213,12 @@ class TableConfig(object):
 
     def get_decimal_context(self):
         """
-        Returns the default context for decimal division calculation.
+        Returns current context for decimal division calculation,
+        (precision=34, rounding_mode=HALF_EVEN) by default.
 
         .. seealso:: :func:`set_decimal_context`
 
-        :return: the default context for decimal division calculation.
+        :return: the current context for decimal division calculation.
         :rtype: (int, str)
         """
         j_math_context = self._j_table_config.getDecimalContext()
