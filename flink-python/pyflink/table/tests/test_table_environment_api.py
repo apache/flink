@@ -113,7 +113,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
             "sinks",
             source_sink_utils.TestAppendSink(field_names, field_types))
 
-        result = t_env.sql_query("select a + 1, b, c from %s" % source)
+        result = t_env.sql("select a + 1, b, c from %s" % source)
         result.insert_into("sinks")
         self.env.execute()
         actual = source_sink_utils.results()
@@ -130,26 +130,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
             "sinks",
             source_sink_utils.TestAppendSink(field_names, field_types))
 
-        t_env.sql_update("insert into sinks select * from %s" % source)
-        self.env.execute("test_sql_job")
-
-        actual = source_sink_utils.results()
-        expected = ['1,Hi,Hello', '2,Hello,Hello']
-        self.assert_equals(actual, expected)
-
-    def test_sql_update_with_query_config(self):
-        t_env = self.t_env
-        source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "sinks",
-            source_sink_utils.TestAppendSink(field_names, field_types))
-        query_config = StreamQueryConfig()
-        query_config.with_idle_state_retention_time(
-            datetime.timedelta(days=1), datetime.timedelta(days=2))
-
-        t_env.sql_update("insert into sinks select * from %s" % source, query_config)
+        t_env.sql("insert into sinks select * from %s" % source)
         self.env.execute("test_sql_job")
 
         actual = source_sink_utils.results()
