@@ -27,6 +27,7 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 
 import org.apache.flink.util.Preconditions;
@@ -70,6 +71,8 @@ public class NettyShuffleEnvironmentConfiguration {
 
 	private final String[] tempDirs;
 
+	private final BoundedBlockingSubpartitionType blockingSubpartitionType;
+
 	public NettyShuffleEnvironmentConfiguration(
 			int numNetworkBuffers,
 			int networkBufferSize,
@@ -81,7 +84,8 @@ public class NettyShuffleEnvironmentConfiguration {
 			boolean isCreditBased,
 			boolean isNetworkDetailedMetrics,
 			@Nullable NettyConfig nettyConfig,
-			String[] tempDirs) {
+			String[] tempDirs,
+			BoundedBlockingSubpartitionType blockingSubpartitionType) {
 
 		this.numNetworkBuffers = numNetworkBuffers;
 		this.networkBufferSize = networkBufferSize;
@@ -94,6 +98,7 @@ public class NettyShuffleEnvironmentConfiguration {
 		this.isNetworkDetailedMetrics = isNetworkDetailedMetrics;
 		this.nettyConfig = nettyConfig;
 		this.tempDirs = Preconditions.checkNotNull(tempDirs);
+		this.blockingSubpartitionType = Preconditions.checkNotNull(blockingSubpartitionType);
 	}
 
 	// ------------------------------------------------------------------------
@@ -142,6 +147,10 @@ public class NettyShuffleEnvironmentConfiguration {
 		return tempDirs;
 	}
 
+	public BoundedBlockingSubpartitionType getBlockingSubpartitionType() {
+		return blockingSubpartitionType;
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -183,6 +192,8 @@ public class NettyShuffleEnvironmentConfiguration {
 		Duration requestSegmentsTimeout = Duration.ofMillis(configuration.getLong(
 				NettyShuffleEnvironmentOptions.NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS));
 
+		BoundedBlockingSubpartitionType blockingSubpartitionType = getBlockingSubpartitionType(configuration);
+
 		return new NettyShuffleEnvironmentConfiguration(
 			numberOfNetworkBuffers,
 			pageSize,
@@ -194,7 +205,8 @@ public class NettyShuffleEnvironmentConfiguration {
 			isCreditBased,
 			isNetworkDetailedMetrics,
 			nettyConfig,
-			tempDirs);
+			tempDirs,
+			blockingSubpartitionType);
 	}
 
 	/**
@@ -479,6 +491,19 @@ public class NettyShuffleEnvironmentConfiguration {
 		}
 
 		return nettyConfig;
+	}
+
+	private static BoundedBlockingSubpartitionType getBlockingSubpartitionType(Configuration config) {
+		String transport = config.getString(NettyShuffleEnvironmentOptions.NETWORK_BOUNDED_BLOCKING_SUBPARTITION_TYPE);
+
+		switch (transport) {
+			case "mmap":
+				return BoundedBlockingSubpartitionType.FILE_MMAP;
+			case "file":
+				return BoundedBlockingSubpartitionType.FILE;
+			default:
+				return BoundedBlockingSubpartitionType.AUTO;
+		}
 	}
 
 	// ------------------------------------------------------------------------

@@ -46,8 +46,6 @@ public class ResultPartitionFactory {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResultPartitionFactory.class);
 
-	private static final BoundedBlockingSubpartitionType BOUNDED_BLOCKING_TYPE = getBoundedBlockingType();
-
 	@Nonnull
 	private final ResultPartitionManager partitionManager;
 
@@ -56,6 +54,8 @@ public class ResultPartitionFactory {
 
 	@Nonnull
 	private final BufferPoolFactory bufferPoolFactory;
+
+	private final BoundedBlockingSubpartitionType blockingSubpartitionType;
 
 	private final int networkBuffersPerChannel;
 
@@ -67,6 +67,7 @@ public class ResultPartitionFactory {
 		@Nonnull ResultPartitionManager partitionManager,
 		@Nonnull FileChannelManager channelManager,
 		@Nonnull BufferPoolFactory bufferPoolFactory,
+		BoundedBlockingSubpartitionType blockingSubpartitionType,
 		int networkBuffersPerChannel,
 		int floatingNetworkBuffersPerGate,
 		int networkBufferSize) {
@@ -76,6 +77,7 @@ public class ResultPartitionFactory {
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
 		this.bufferPoolFactory = bufferPoolFactory;
+		this.blockingSubpartitionType = blockingSubpartitionType;
 		this.networkBufferSize = networkBufferSize;
 	}
 
@@ -123,7 +125,7 @@ public class ResultPartitionFactory {
 				partitionManager,
 				bufferPoolFactory);
 
-		createSubpartitions(partition, type, subpartitions);
+		createSubpartitions(partition, type, blockingSubpartitionType, subpartitions);
 
 		LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
 
@@ -133,12 +135,13 @@ public class ResultPartitionFactory {
 	private void createSubpartitions(
 			ResultPartition partition,
 			ResultPartitionType type,
+			BoundedBlockingSubpartitionType blockingSubpartitionType,
 			ResultSubpartition[] subpartitions) {
 
 		// Create the subpartitions.
 		switch (type) {
 			case BLOCKING:
-				initializeBoundedBlockingPartitions(subpartitions, partition, networkBufferSize, channelManager);
+				initializeBoundedBlockingPartitions(subpartitions, partition, blockingSubpartitionType, networkBufferSize, channelManager);
 				break;
 
 			case PIPELINED:
@@ -157,6 +160,7 @@ public class ResultPartitionFactory {
 	private static void initializeBoundedBlockingPartitions(
 		ResultSubpartition[] subpartitions,
 		ResultPartition parent,
+		BoundedBlockingSubpartitionType blockingSubpartitionType,
 		int networkBufferSize,
 		FileChannelManager channelManager) {
 
@@ -164,7 +168,7 @@ public class ResultPartitionFactory {
 		try {
 			for (; i < subpartitions.length; i++) {
 				final File spillFile = channelManager.createChannel().getPathFile();
-				subpartitions[i] = BOUNDED_BLOCKING_TYPE.create(i, parent, spillFile, networkBufferSize);
+				subpartitions[i] = blockingSubpartitionType.create(i, parent, spillFile, networkBufferSize);
 			}
 		}
 		catch (IOException e) {
@@ -201,7 +205,7 @@ public class ResultPartitionFactory {
 		};
 	}
 
-	private static BoundedBlockingSubpartitionType getBoundedBlockingType() {
+	static BoundedBlockingSubpartitionType getBoundedBlockingType() {
 		switch (MemoryArchitecture.get()) {
 			case _64_BIT:
 				return BoundedBlockingSubpartitionType.FILE_MMAP;
