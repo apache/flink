@@ -18,7 +18,7 @@
 
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BASE_URL } from 'config';
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
@@ -28,22 +28,22 @@ export class JobManagerService {
    * Load JM config
    */
   loadConfig() {
-    return this.httpClient.get<Array<{ key: string; value: string }>>(`${BASE_URL}/jobmanager/config`);
+    return this.httpClient.get<Array<{ key: string; value: string }>>(`${this.configService.BASE_URL}/jobmanager/config`);
   }
 
   /**
    * Load JM logs
    */
   loadLogs() {
-    return this.httpClient.get(`${BASE_URL}/jobmanager/log`, { responseType: 'text' });
+    return this.httpClient.get(`${this.configService.BASE_URL}/jobmanager/log`, { responseType: 'text' });
   }
 
   /**
    * Load JM stdout
    */
   loadStdout() {
-    return this.httpClient.get(`${BASE_URL}/jobmanager/stdout`, { responseType: 'text' });
+    return this.httpClient.get(`${this.configService.BASE_URL}/jobmanager/stdout`, { responseType: 'text' });
   }
 
-  constructor(private httpClient: HttpClient) {}
+  constructor(private httpClient: HttpClient, private configService: ConfigService) {}
 }

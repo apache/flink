@@ -33,7 +33,7 @@ import { DagreComponent } from 'share/common/dagre/dagre.component';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SubmitComponent implements OnInit, OnDestroy {
-  @ViewChild(DagreComponent) dagreComponent: DagreComponent;
+  @ViewChild(DagreComponent, { static: false }) dagreComponent: DagreComponent;
   expandedMap = new Map();
   isLoading = true;
   destroy$ = new Subject();
@@ -140,7 +140,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
         this.validateForm.get('allowNonRestoredState')!.value
       )
       .subscribe(data => {
-        this.router.navigate(['job', data.jobid]).then();
+        this.router.navigate(['job', data.jobid], { queryParamsHandling: 'merge' }).then();
       });
   }
 

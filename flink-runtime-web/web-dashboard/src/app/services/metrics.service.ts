@@ -19,13 +19,13 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { map } from 'rxjs/operators';
-import { BASE_URL, LONG_MIN_VALUE } from 'config';
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class MetricsService {
-  constructor(private httpClient: HttpClient) {}
+  constructor(private httpClient: HttpClient, private configService: ConfigService) {}
 
   /**
    * Get available metric list
@@ -34,7 +34,7 @@ export class MetricsService {
    */
   getAllAvailableMetrics(jobId: string, vertexId: string) {
     return this.httpClient
-      .get<Array<{ id: string; value: string }>>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/metrics`)
+      .get<Array<{ id: string; value: string }>>(`${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/${jobId}/vertices/${vertexId}/metrics`)
       .pipe(
         map(item =>
           item.sort((pre, next) => {
@@ -62,7 +62,7 @@ export class MetricsService {
     const metricName = listOfMetricName.join(',');
     return this.httpClient
       .get<Array<{ id: string; value: string }>>(
-        `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/metrics?get=${metricName}`
+        `${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/${jobId}/vertices/${vertexId}/metrics?get=${metricName}`
       )
       .pipe(
         map(arr => {
@@ -100,7 +100,7 @@ export class MetricsService {
             minValue = value;
           }
         }
-        if (!isNaN(minValue) && minValue > LONG_MIN_VALUE) {
+        if (!isNaN(minValue) && minValue > this.configService.LONG_MIN_VALUE) {
           lowWatermark = minValue;
         } else {
           lowWatermark = NaN;

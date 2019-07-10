@@ -40,7 +40,7 @@ import { DagreComponent } from 'share/common/dagre/dagre.component';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewComponent implements OnInit, OnDestroy {
-  @ViewChild(DagreComponent) dagreComponent: DagreComponent;
+  @ViewChild(DagreComponent, { static: true }) dagreComponent: DagreComponent;
   nodes: NodesItemCorrectInterface[] = [];
   links: NodesItemLinkInterface[] = [];
   destroy$ = new Subject();
@@ -51,7 +51,7 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
 
   onNodeClick(node: NodesItemCorrectInterface) {
     if (!(this.selectedNode && this.selectedNode.id === node.id)) {
-      this.router.navigate([node.id], { relativeTo: this.activatedRoute }).then();
+      this.router.navigate([node.id], { relativeTo: this.activatedRoute, queryParamsHandling: 'merge' }).then();
     }
   }
 

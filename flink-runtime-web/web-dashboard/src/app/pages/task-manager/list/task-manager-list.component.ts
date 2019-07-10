@@ -62,7 +62,7 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
   }
 
   navigateTo(taskManager: TaskmanagersItemInterface) {
-    this.router.navigate([taskManager.id, 'metrics'], { relativeTo: this.activatedRoute }).then();
+    this.router.navigate([taskManager.id, 'metrics'], { relativeTo: this.activatedRoute, queryParamsHandling: 'merge' }).then();
   }
 
   constructor(

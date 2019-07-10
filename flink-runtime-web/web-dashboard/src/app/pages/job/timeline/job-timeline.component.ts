@@ -30,10 +30,7 @@ import * as G2 from '@antv/g2';
 import { Subject } from 'rxjs';
 import { distinctUntilChanged, filter, takeUntil } from 'rxjs/operators';
 import { JobDetailCorrectInterface, VerticesItemRangeInterface } from 'interfaces';
-import { JobService } from 'services';
-import { COLOR_MAP } from 'config';
-
-/// <reference path="../../../../../node_modules/@antv/g2/src/index.d.ts" />
+import { ConfigService, JobService } from 'services';
 
 @Component({
   selector       : 'flink-job-timeline',
@@ -50,8 +47,8 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
   jobDetail: JobDetailCorrectInterface;
   selectedName: string;
   isShowSubTaskTimeLine = false;
-  @ViewChild('mainTimeLine') mainTimeLine: ElementRef;
-  @ViewChild('subTaskTimeLine') subTaskTimeLine: ElementRef;
+  @ViewChild('mainTimeLine', { static: false }) mainTimeLine: ElementRef;
+  @ViewChild('subTaskTimeLine', { static: false }) subTaskTimeLine: ElementRef;
 
   updateSubTaskChart(vertexId: string) {
     this.listOfSubTaskTimeLine = [];
@@ -123,7 +120,7 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
     .interval()
     .position('id*range')
     // @ts-ignore
-    .color('status', (type: any) => COLOR_MAP[ type ])
+    .color('status', (type: any) => this.configService.COLOR_MAP[ type ])
     .label('name', {
       offset   : -20,
       formatter: (text: string) => {
@@ -167,11 +164,10 @@ export class JobTimelineComponent implements AfterViewInit, OnDestroy {
     .interval()
     .position('name*range')
     // @ts-ignore
-    .color('status', (type: any) => COLOR_MAP[ type ]);
+    .color('status', (type: any) => this.configService.COLOR_MAP[ type ]);
   }
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {
-  }
+  constructor(private jobService: JobService, private configService: ConfigService, private cdr: ChangeDetectorRef) {}
 
   ngAfterViewInit() {
     this.setUpMainChart();

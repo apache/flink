@@ -65,7 +65,7 @@ export class JobListComponent implements OnInit, OnDestroy {
   }
 
   navigateToJob(jid: string) {
-    this.router.navigate(['job', jid]).then();
+    this.router.navigate(['job', jid], { queryParamsHandling: 'merge' }).then();
   }
 
   constructor(

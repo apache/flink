@@ -1,7 +1,12 @@
 {
   "compileOnSave": false,
+  "files": [
+    "node_modules/monaco-editor/monaco.d.ts",
+    "node_modules/@antv/g2/src/index.d.ts"
+  ],
   "compilerOptions": {
     "baseUrl": "./",
+    "downlevelIteration": true,
     "paths": {
       "services": [
         "src/app/services"
@@ -22,12 +27,12 @@
     "outDir": "./dist/out-tsc",
     "sourceMap": true,
     "declaration": false,
-    "module": "es2015",
+    "module": "esnext",
     "moduleResolution": "node",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "importHelpers": true,
-    "target": "es5",
+    "target": "es2015",
     "typeRoots": [
       "node_modules/@types"
     ],

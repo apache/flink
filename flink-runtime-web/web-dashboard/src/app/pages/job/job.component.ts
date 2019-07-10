@@ -46,7 +46,8 @@ export class JobComponent implements OnInit, OnDestroy {
         flatMap(() => this.jobService.loadJob(this.activatedRoute.snapshot.params.jid))
       )
       .subscribe(
-        () => {
+        job => {
+          this.jobService.setJobDetail(job);
           this.isLoading = false;
           this.cdr.markForCheck();
         },

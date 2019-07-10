@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-/// <reference path="../../../../../node_modules/monaco-editor/monaco.d.ts" />
-
 import { AfterViewInit, Component, ElementRef, ChangeDetectionStrategy, Input, OnDestroy } from '@angular/core';
 import { fromEvent, merge, Subject } from 'rxjs';
 import { debounceTime, takeUntil } from 'rxjs/operators';

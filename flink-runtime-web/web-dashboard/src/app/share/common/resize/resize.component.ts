@@ -57,7 +57,7 @@ export class ResizeComponent implements OnInit, OnDestroy {
   @Output() leftChange = new EventEmitter();
   @Output() topChange = new EventEmitter();
   @Output() resizeEnd = new EventEmitter<{ left: number; top: number }>();
-  @ViewChild('trigger') trigger: ElementRef<HTMLDivElement>;
+  @ViewChild('trigger', { static: true }) trigger: ElementRef<HTMLDivElement>;
 
   startMove() {
     this.isMoving = true;

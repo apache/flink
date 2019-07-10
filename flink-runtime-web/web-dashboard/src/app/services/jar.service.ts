@@ -18,10 +18,10 @@
 
 import { HttpClient, HttpRequest, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BASE_URL } from 'config';
 import { JarListInterface, NodesItemCorrectInterface, PlanInterface, VerticesLinkInterface } from 'interfaces';
 import { of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
@@ -31,7 +31,7 @@ export class JarService {
    * Get uploaded jar list
    */
   loadJarList() {
-    return this.httpClient.get<JarListInterface>(`${BASE_URL}/jars`).pipe(
+    return this.httpClient.get<JarListInterface>(`${this.configService.BASE_URL}/jars`).pipe(
       catchError(() => {
         return of({
           address: '',
@@ -49,7 +49,7 @@ export class JarService {
   uploadJar(fd: File) {
     const formData = new FormData();
     formData.append('jarfile', fd, fd.name);
-    const req = new HttpRequest('POST', `${BASE_URL}/jars/upload`, formData, {
+    const req = new HttpRequest('POST', `${this.configService.BASE_URL}/jars/upload`, formData, {
       reportProgress: true
     });
     return this.httpClient.request(req);
@@ -60,7 +60,7 @@ export class JarService {
    * @param jarId
    */
   deleteJar(jarId: string) {
-    return this.httpClient.delete(`${BASE_URL}/jars/${jarId}`);
+    return this.httpClient.delete(`${this.configService.BASE_URL}/jars/${jarId}`);
   }
 
   /**
@@ -97,7 +97,7 @@ export class JarService {
     if (allowNonRestoredState) {
       params = params.append('allowNonRestoredState', allowNonRestoredState);
     }
-    return this.httpClient.post<{ jobid: string }>(`${BASE_URL}/jars/${jarId}/run`, requestParam, { params });
+    return this.httpClient.post<{ jobid: string }>(`${this.configService.BASE_URL}/jars/${jarId}/run`, requestParam, { params });
   }
 
   /**
@@ -118,7 +118,7 @@ export class JarService {
     if (programArgs) {
       params = params.append('program-args', programArgs);
     }
-    return this.httpClient.get<PlanInterface>(`${BASE_URL}/jars/${jarId}/plan`, { params }).pipe(
+    return this.httpClient.get<PlanInterface>(`${this.configService.BASE_URL}/jars/${jarId}/plan`, { params }).pipe(
       map(data => {
         const links: VerticesLinkInterface[] = [];
         let nodes: NodesItemCorrectInterface[] = [];
@@ -142,5 +142,5 @@ export class JarService {
     );
   }
 
-  constructor(private httpClient: HttpClient) {}
+  constructor(private httpClient: HttpClient, private configService: ConfigService) {}
 }
