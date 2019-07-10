@@ -156,6 +156,7 @@ under the License.
 				"mvn dependency:tree" as of Calcite 1.20:
 
 				[INFO] +- org.apache.calcite:calcite-core:jar:1.20.0:compile
+				[INFO] |  +- commons-codec:commons-codec:jar:1.10:compile
 				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.20.0:compile
 				[INFO] |  +- org.apache.commons:commons-lang3:jar:3.3.2:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.9.6:compile
@@ -320,6 +321,7 @@ under the License.
 									<include>com.fasterxml.jackson.core:jackson-core</include>
 									<include>com.fasterxml.jackson.core:jackson-databind</include>
 									<include>com.fasterxml.jackson.core:jackson-annotations</include>
+									<include>commons-codec:commons-codec</include>
 
 									<!-- flink-table-runtime-blink dependencies -->
 									<include>org.codehaus.janino:*</include>

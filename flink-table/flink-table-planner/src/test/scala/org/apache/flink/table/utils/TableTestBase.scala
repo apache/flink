@@ -111,6 +111,7 @@ abstract class TableTestUtil(verifyCatalogPath: Boolean = false) {
     // we remove the charset for testing because it
     // depends on the native machine (Little/Big Endian)
     val actualNoCharset = actual.replace("_UTF-16LE'", "'").replace("_UTF-16BE'", "'")
+      .replace(" CHARACTER SET \"UTF-16LE\"", "").replace(" CHARACTER SET \"UTF-16BE\"", "")
 
     val expectedLines = expected.split("\n").map(_.trim)
     val actualLines = actualNoCharset.split("\n").map(_.trim)

@@ -17,12 +17,6 @@
  */
 package org.apache.flink.table.plan.nodes.dataset
 
-import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.rex.{RexCall, RexNode}
-import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
@@ -35,6 +29,13 @@ import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.CorrelateFlatMapRunner
 import org.apache.flink.types.Row
 
+import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.JoinRelType
+import org.apache.calcite.rel.metadata.RelMetadataQuery
+import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rex.{RexCall, RexNode}
+
 /**
   * Flink RelNode which matches along with join a user defined table function.
   */
@@ -46,7 +47,7 @@ class DataSetCorrelate(
     condition: Option[RexNode],
     relRowType: RelDataType,
     joinRowType: RelDataType,
-    joinType: SemiJoinType,
+    joinType: JoinRelType,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, inputNode)
   with CommonCorrelate

@@ -19,7 +19,7 @@ void TableColumn(TableCreationContext context) :
 {
 }
 {
-    (
+    (LOOKAHEAD(2)
         TableColumn2(context.columnList)
     |
         context.primaryKeyList = PrimaryKey()
@@ -210,7 +210,11 @@ SqlDrop SqlDropTable(Span s, boolean replace) :
 {
     <TABLE>
 
-    [<IF> <EXISTS> { ifExists = true; } ]
+    (
+        <IF> <EXISTS> { ifExists = true; }
+    |
+        { ifExists = false; }
+    )
 
     tableName = CompoundIdentifier()
 
@@ -352,7 +356,11 @@ SqlDrop SqlDropView(Span s, boolean replace) :
 }
 {
     <VIEW>
-    [<IF> <EXISTS> { ifExists = true; } ]
+    (
+        <IF> <EXISTS> { ifExists = true; }
+    |
+        { ifExists = false; }
+    )
     viewName = CompoundIdentifier()
     {
         return new SqlDropView(s.pos(), viewName, ifExists);
@@ -375,17 +383,16 @@ SqlIdentifier SqlArrayType() :
 
 SqlIdentifier SqlMapType() :
 {
-    SqlParserPos pos;
     SqlDataTypeSpec keyType;
     SqlDataTypeSpec valType;
 }
 {
-    <MAP> { pos = getPos(); }
+    <MAP>
     <LT> keyType = DataType()
     <COMMA> valType = DataType()
     <GT>
     {
-        return new SqlMapType(pos, keyType, valType);
+        return new SqlMapType(getPos(), keyType, valType);
     }
 }
 

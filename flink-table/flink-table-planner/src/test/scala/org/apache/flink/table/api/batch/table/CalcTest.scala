@@ -133,7 +133,8 @@ class CalcTest extends TableTestBase {
     val expected = unaryNode(
       "DataSetCalc",
       batchTableNode(sourceTable),
-      term("select", "'ABC' AS _c0", "1234 AS _c1", "0001-01-01 01:01:00 AS _c2")
+      term("select", "'ABC' AS _c0", "1234:DECIMAL(1073741823, 0) AS _c1",
+        "0001-01-01 01:01:00:TIMESTAMP(3) AS _c2")
     )
 
     util.verifyTable(resultTable, expected)
