@@ -55,6 +55,7 @@ import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -607,6 +608,16 @@ public class LogicalTypesTest {
 		testConversions(symbolType, new Class[]{TimeIntervalUnit.class}, new Class[]{TimeIntervalUnit.class});
 
 		testInvalidStringSerializability(symbolType);
+	}
+
+	@Test
+	public void testUnresolvedUserDefinedType() {
+		final UnresolvedUserDefinedType unresolvedType =
+			new UnresolvedUserDefinedType("catalog", "database", "Type");
+
+		testEquality(unresolvedType, new UnresolvedUserDefinedType("different", "database", "Type"));
+
+		testStringSummary(unresolvedType, "`catalog`.`database`.`Type`");
 	}
 
 	@Test
