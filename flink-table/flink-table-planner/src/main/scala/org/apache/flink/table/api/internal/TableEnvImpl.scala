@@ -552,15 +552,13 @@ abstract class TableEnvImpl(
 
         val catalog = catalogManager.getCatalog(s.getTablePath.get(0))
         val catalogTable = s.getCatalogTable.get().asInstanceOf[CatalogTable]
-        if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
-          val tableFactory = catalog.get().getTableFactory.get()
-          tableFactory match {
-            case factory: TableSinkFactory[_] =>
-              val dbName = s.getTablePath.get(1)
-              val tableName = s.getTablePath.get(2)
-              return Option(factory.createTableSink(
-                new ObjectPath(dbName, tableName), catalogTable))
-            case _ =>
+        if (catalog.isPresent) {
+          val dbName = s.getTablePath.get(1)
+          val tableName = s.getTablePath.get(2)
+          val sink = TableFactoryUtil.createTableSinkForCatalogTable(
+            catalog.get(), catalogTable, new ObjectPath(dbName, tableName))
+          if (sink.isPresent) {
+            return Option(sink.get())
           }
         }
         val sinkProperties = catalogTable.toProperties
