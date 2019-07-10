@@ -34,6 +34,8 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
+import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
@@ -44,6 +46,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
@@ -438,8 +441,15 @@ public class ExecutionGraphTestUtils {
 	}
 
 	public static ExecutionJobVertex getExecutionVertex(
-			JobVertexID id, ScheduledExecutorService executor) 
-		throws Exception {
+			JobVertexID id,
+			ScheduledExecutorService executor) throws Exception {
+		return getExecutionVertex(id, executor, ScheduleMode.LAZY_FROM_SOURCES);
+	}
+
+	public static ExecutionJobVertex getExecutionVertex(
+			JobVertexID id,
+			ScheduledExecutorService executor,
+			ScheduleMode scheduleMode) throws Exception {
 
 		JobVertex ajv = new JobVertex("TestVertex", id);
 		ajv.setInvokableClass(AbstractInvokable.class);
@@ -447,6 +457,7 @@ public class ExecutionGraphTestUtils {
 		ExecutionGraph graph = new TestingExecutionGraphBuilder(ajv)
 			.setIoExecutor(executor)
 			.setFutureExecutor(executor)
+			.setScheduleMode(scheduleMode)
 			.build();
 
 		graph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
@@ -550,6 +561,7 @@ public class ExecutionGraphTestUtils {
 		private Configuration jobMasterConfig = new Configuration();
 		private JobGraph jobGraph;
 		private PartitionTracker partitionTracker = NoOpPartitionTracker.INSTANCE;
+		private FailoverStrategy.Factory failoverStrategyFactory = new RestartAllStrategy.Factory();
 
 		public TestingExecutionGraphBuilder(final JobVertex ... jobVertices) {
 			this(new JobID(), "test job", jobVertices);
@@ -636,6 +648,26 @@ public class ExecutionGraphTestUtils {
 			return this;
 		}
 
+		public TestingExecutionGraphBuilder allowQueuedScheduling() {
+			jobGraph.setAllowQueuedScheduling(true);
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setAllowQueuedScheduling(boolean allowQueuedScheduling) {
+			jobGraph.setAllowQueuedScheduling(allowQueuedScheduling);
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setScheduleMode(ScheduleMode scheduleMode) {
+			jobGraph.setScheduleMode(scheduleMode);
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setFailoverStrategyFactory(FailoverStrategy.Factory failoverStrategyFactory) {
+			this.failoverStrategyFactory = failoverStrategyFactory;
+			return this;
+		}
+
 		public ExecutionGraph build() throws JobException, JobExecutionException {
 			return ExecutionGraphBuilder.buildGraph(
 				null,
@@ -653,8 +685,8 @@ public class ExecutionGraphTestUtils {
 				allocationTimeout,
 				TEST_LOGGER,
 				shuffleMaster,
-				partitionTracker
-			);
+				partitionTracker,
+				failoverStrategyFactory);
 		}
 	}
 }

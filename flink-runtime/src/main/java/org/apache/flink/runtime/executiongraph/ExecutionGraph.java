@@ -262,12 +262,12 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	/** Flag to indicate whether the scheduler may queue tasks for execution, or needs to be able
 	 * to deploy them immediately. */
-	private boolean allowQueuedScheduling = false;
+	private final boolean allowQueuedScheduling;
 
 	/** The mode of scheduling. Decides how to select the initial set of tasks to be deployed.
 	 * May indicate to deploy all sources, or to deploy everything, or to deploy via backtracking
 	 * from results than need to be materialized. */
-	private ScheduleMode scheduleMode = ScheduleMode.LAZY_FROM_SOURCES;
+	private final ScheduleMode scheduleMode;
 
 	/** The maximum number of prior execution attempts kept in history. */
 	private final int maxPriorAttemptsHistoryLength;
@@ -427,7 +427,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			new PartitionTrackerImpl(
 				jobInformation.getJobId(),
 				NettyShuffleMaster.INSTANCE,
-				ignored -> Optional.empty()));
+				ignored -> Optional.empty()),
+			ScheduleMode.LAZY_FROM_SOURCES,
+			false);
 	}
 
 	public ExecutionGraph(
@@ -445,7 +447,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory,
 			ShuffleMaster<?> shuffleMaster,
 			boolean forcePartitionReleaseOnConsumption,
-			PartitionTracker partitionTracker) throws IOException {
+			PartitionTracker partitionTracker,
+			ScheduleMode scheduleMode,
+			boolean allowQueuedScheduling) throws IOException {
 
 		checkNotNull(futureExecutor);
 
@@ -501,6 +505,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		this.partitionTracker = checkNotNull(partitionTracker);
 
+		this.scheduleMode = checkNotNull(scheduleMode);
+
+		this.allowQueuedScheduling = allowQueuedScheduling;
+
 		LOG.info("Job recovers via failover strategy: {}", failoverStrategy.getStrategyName());
 	}
 
@@ -522,14 +530,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	public boolean isQueuedSchedulingAllowed() {
 		return this.allowQueuedScheduling;
-	}
-
-	public void setQueuedSchedulingAllowed(boolean allowed) {
-		this.allowQueuedScheduling = allowed;
-	}
-
-	public void setScheduleMode(ScheduleMode scheduleMode) {
-		this.scheduleMode = scheduleMode;
 	}
 
 	public ScheduleMode getScheduleMode() {

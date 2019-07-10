@@ -86,7 +86,6 @@ import java.util.function.Consumer;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.completeCancellingForAllVertices;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
-import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createSimpleTestGraph;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.finishAllVertices;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.switchToRunning;
 import static org.hamcrest.Matchers.is;
@@ -471,19 +470,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	@Test
 	public void testLocalFailAndRestart() throws Exception {
 		final int parallelism = 10;
-		SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
-
 		final TestRestartStrategy triggeredRestartStrategy = TestRestartStrategy.manuallyTriggered();
 
-		final ExecutionGraph eg = createSimpleTestGraph(
-			TEST_JOB_ID,
-			taskManagerGateway,
-			triggeredRestartStrategy,
-			createNoOpVertex(parallelism));
+		final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(TEST_JOB_ID, createNoOpVertex(parallelism))
+			.setScheduleMode(ScheduleMode.EAGER)
+			.setRestartStrategy(triggeredRestartStrategy)
+			.build();
 
 		eg.start(mainThreadExecutor);
-
-		eg.setScheduleMode(ScheduleMode.EAGER);
 		eg.scheduleForExecution();
 
 		switchToRunning(eg);
@@ -521,10 +515,14 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		final SlotProvider slots = new SimpleSlotProvider(TEST_JOB_ID, parallelism, taskManagerGateway);
 		final TestRestartStrategy restartStrategy = TestRestartStrategy.manuallyTriggered();
 
-		final ExecutionGraph eg = createSimpleTestGraph(TEST_JOB_ID, slots, restartStrategy, vertex);
+		final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(TEST_JOB_ID, vertex)
+			.setSlotProvider(slots)
+			.setRestartStrategy(restartStrategy)
+			.setScheduleMode(ScheduleMode.EAGER)
+			.build();
+
 		eg.start(mainThreadExecutor);
 
-		eg.setScheduleMode(ScheduleMode.EAGER);
 		eg.scheduleForExecution();
 
 		switchToRunning(eg);
@@ -580,17 +578,16 @@ public class ExecutionGraphRestartTest extends TestLogger {
 
 			TestRestartStrategy restartStrategy = TestRestartStrategy.directExecuting();
 
-			final ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraph(
-				TEST_JOB_ID,
-				scheduler,
-				restartStrategy,
-				executor,
-				source,
-				sink);
+			final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(TEST_JOB_ID, source, sink)
+				.setSlotProvider(scheduler)
+				.setIoExecutor(executor)
+				.setFutureExecutor(executor)
+				.setRestartStrategy(restartStrategy)
+				.setScheduleMode(ScheduleMode.EAGER)
+				.build();
 
 			eg.start(mainThreadExecutor);
 
-			eg.setScheduleMode(ScheduleMode.EAGER);
 			eg.scheduleForExecution();
 
 			switchToRunning(eg);
@@ -641,11 +638,15 @@ public class ExecutionGraphRestartTest extends TestLogger {
 			TestRestartStrategy restartStrategy =
 				new TestRestartStrategy(numRestarts, false);
 
-			final ExecutionGraph eg = ExecutionGraphTestUtils.createExecutionGraph(
-				TEST_JOB_ID, scheduler, restartStrategy, executor, source, sink);
+			final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(TEST_JOB_ID, source, sink)
+				.setSlotProvider(scheduler)
+				.setRestartStrategy(restartStrategy)
+				.setIoExecutor(executor)
+				.setFutureExecutor(executor)
+				.setScheduleMode(ScheduleMode.EAGER)
+				.build();
 
 			eg.start(mainThreadExecutor);
-			eg.setScheduleMode(ScheduleMode.EAGER);
 			eg.scheduleForExecution();
 
 			// wait until no more changes happen
@@ -670,11 +671,13 @@ public class ExecutionGraphRestartTest extends TestLogger {
 	public void testFailureWhileRestarting() throws Exception {
 
 		final TestRestartStrategy restartStrategy = TestRestartStrategy.manuallyTriggered();
-		final ExecutionGraph executionGraph = createSimpleExecutionGraph(
-			restartStrategy, new TestingSlotProvider(ignored -> new CompletableFuture<>()), createJobGraph());
+		final ExecutionGraph executionGraph = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(createJobGraph())
+			.setRestartStrategy(restartStrategy)
+			.setSlotProvider(new TestingSlotProvider(ignored -> new CompletableFuture<>()))
+			.allowQueuedScheduling()
+			.build();
 
 		executionGraph.start(mainThreadExecutor);
-		executionGraph.setQueuedSchedulingAllowed(true);
 		executionGraph.scheduleForExecution();
 
 		assertThat(executionGraph.getState(), is(JobStatus.RUNNING));

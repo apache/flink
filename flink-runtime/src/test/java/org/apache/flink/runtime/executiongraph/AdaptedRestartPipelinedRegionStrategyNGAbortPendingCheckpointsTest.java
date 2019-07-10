@@ -20,7 +20,6 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
@@ -40,7 +39,6 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -117,20 +115,13 @@ public class AdaptedRestartPipelinedRegionStrategyNGAbortPendingCheckpointsTest 
 	}
 
 	private ExecutionGraph createExecutionGraph(final JobGraph jobGraph) throws Exception {
-		final ExecutionGraph executionGraph = new ExecutionGraph(
-			new DummyJobInformation(
-				jobGraph.getJobID(),
-				jobGraph.getName()),
-			TestingUtils.defaultExecutor(),
-			TestingUtils.defaultExecutor(),
-			AkkaUtils.getDefaultTimeout(),
-			new InfiniteDelayRestartStrategy(10),
-			AdaptedRestartPipelinedRegionStrategyNG::new,
-			new SimpleSlotProvider(jobGraph.getJobID(), 1));
+		final ExecutionGraph executionGraph = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jobGraph)
+			.setRestartStrategy(new InfiniteDelayRestartStrategy(10))
+			.setFailoverStrategyFactory(AdaptedRestartPipelinedRegionStrategyNG::new)
+			.setSlotProvider(new SimpleSlotProvider(jobGraph.getJobID(), 1))
+			.build();
 
-		executionGraph.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
 		enableCheckpointing(executionGraph);
-		executionGraph.setScheduleMode(jobGraph.getScheduleMode());
 		executionGraph.start(componentMainThreadExecutor);
 		executionGraph.scheduleForExecution();
 		manualMainThreadExecutor.triggerAll();

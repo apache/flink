@@ -370,26 +370,13 @@ public class FailoverRegionTest extends TestLogger {
 
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
-		List<JobVertex> ordered = new ArrayList<>(Arrays.asList(v1, v2));
+		ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jobId, jobName, v1, v2)
+			.setRestartStrategy(new InfiniteDelayRestartStrategy(10))
+			.setFailoverStrategyFactory(new FailoverPipelinedRegionWithDirectExecutor())
+			.setSlotProvider(slotProvider)
+			.setScheduleMode(ScheduleMode.EAGER)
+			.build();
 
-		ExecutionGraph eg = new ExecutionGraph(
-			new DummyJobInformation(
-				jobId,
-				jobName),
-			TestingUtils.defaultExecutor(),
-			TestingUtils.defaultExecutor(),
-			AkkaUtils.getDefaultTimeout(),
-			new InfiniteDelayRestartStrategy(10),
-			new FailoverPipelinedRegionWithDirectExecutor(),
-			slotProvider);
-		try {
-			eg.attachJobGraph(ordered);
-		}
-		catch (JobException e) {
-			e.printStackTrace();
-			fail("Job failed with exception: " + e.getMessage());
-		}
-		eg.setScheduleMode(ScheduleMode.EAGER);
 		eg.scheduleForExecution();
 		RestartPipelinedRegionStrategy strategy = (RestartPipelinedRegionStrategy)eg.getFailoverStrategy();
 

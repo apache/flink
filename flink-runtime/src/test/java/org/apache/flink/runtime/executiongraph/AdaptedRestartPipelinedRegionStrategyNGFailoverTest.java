@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -48,7 +47,6 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
@@ -381,19 +379,11 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 			final JobGraph jobGraph,
 			final RestartStrategy restartStrategy) throws Exception {
 
-		final ExecutionGraph eg = new ExecutionGraph(
-			new DummyJobInformation(
-				jobGraph.getJobID(),
-				jobGraph.getName()),
-			TestingUtils.defaultExecutor(),
-			TestingUtils.defaultExecutor(),
-			AkkaUtils.getDefaultTimeout(),
-			restartStrategy,
-			TestAdaptedRestartPipelinedRegionStrategyNG::new,
-			slotProvider);
-		eg.attachJobGraph(jobGraph.getVerticesSortedTopologicallyFromSources());
-
-		eg.setScheduleMode(jobGraph.getScheduleMode());
+		final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jobGraph)
+			.setRestartStrategy(restartStrategy)
+			.setFailoverStrategyFactory(TestAdaptedRestartPipelinedRegionStrategyNG::new)
+			.setSlotProvider(slotProvider)
+			.build();
 
 		eg.start(componentMainThreadExecutor);
 		eg.scheduleForExecution();

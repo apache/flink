@@ -123,6 +123,8 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+		jobGraph.setAllowQueuedScheduling(true);
 
 		final CompletableFuture<LogicalSlot> sourceFuture = new CompletableFuture<>();
 		final CompletableFuture<LogicalSlot> targetFuture = new CompletableFuture<>();
@@ -142,8 +144,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final SimpleSlot sourceSlot = createSlot(gatewaySource, jobId);
 		final SimpleSlot targetSlot = createSlot(gatewayTarget, jobId);
 
-		eg.setScheduleMode(ScheduleMode.EAGER);
-		eg.setQueuedSchedulingAllowed(true);
 		eg.scheduleForExecution();
 
 		// job should be running
@@ -191,6 +191,8 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+		jobGraph.setAllowQueuedScheduling(true);
 
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		final CompletableFuture<LogicalSlot>[] sourceFutures = new CompletableFuture[parallelism];
@@ -233,8 +235,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		//
 		//  kick off the scheduling
 		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		eg.setScheduleMode(ScheduleMode.EAGER);
-		eg.setQueuedSchedulingAllowed(true);
 		eg.scheduleForExecution();
 
 		verifyNothingDeployed(eg, sourceTaskManagers);
@@ -288,6 +288,8 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test", sourceVertex, targetVertex);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+		jobGraph.setAllowQueuedScheduling(true);
 
 		//
 		//  Create the slots, futures, and the slot provider
@@ -329,11 +331,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 			targetFutures[i].complete(targetSlots[i]);
 		}
 
-		//
 		//  kick off the scheduling
-
-		eg.setScheduleMode(ScheduleMode.EAGER);
-		eg.setQueuedSchedulingAllowed(true);
 		eg.scheduleForExecution();
 
 		// fail one slot
@@ -374,6 +372,8 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		final JobID jobId = new JobID();
 		final JobGraph jobGraph = new JobGraph(jobId, "test", vertex);
+		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+		jobGraph.setAllowQueuedScheduling(true);
 
 		final BlockingQueue<AllocationID> returnedSlots = new ArrayBlockingQueue<>(2);
 		final TestingSlotOwner slotOwner = new TestingSlotOwner();
@@ -400,8 +400,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		//  kick off the scheduling
 		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
-		eg.setScheduleMode(ScheduleMode.EAGER);
-		eg.setQueuedSchedulingAllowed(true);
 		eg.scheduleForExecution();
 
 		//  we complete another future
