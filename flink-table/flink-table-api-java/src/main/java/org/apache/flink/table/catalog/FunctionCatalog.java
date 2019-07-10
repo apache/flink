@@ -168,7 +168,6 @@ public class FunctionCatalog implements FunctionLookup {
 
 		Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
 
-		// First, check Hive UDFs since HiveCatalog provides its own FunctionDefinitionFactory
 		// TODO: may consider built-in FunctionDefinitionFactory
 		if (catalog.getFunctionDefinitionFactory().isPresent()) {
 			try {

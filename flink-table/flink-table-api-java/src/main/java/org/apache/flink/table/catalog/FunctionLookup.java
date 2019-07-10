@@ -34,10 +34,6 @@ public interface FunctionLookup {
 
 	/**
 	 * Lookup a function by name. The lookup is case insensitive.
-	 *
-	 * TODO: 1) replace string with ObjectIdentifier so users can reference functions across catalogs
-	 * TODO: 2) should pass in an array of Expressions to get literals and input arg types, in order
-	 * 	to instantiate Hive functions, compute the result/accumulator type, and create corresponding FunctionDefinition
 	 */
 	Optional<Result> lookupFunction(String name);
 

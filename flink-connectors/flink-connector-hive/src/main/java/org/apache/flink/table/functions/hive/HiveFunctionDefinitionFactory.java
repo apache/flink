@@ -21,6 +21,8 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.config.CatalogConfig;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -28,22 +30,34 @@ import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.types.DataType;
 
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.ql.exec.UDAF;
 import org.apache.hadoop.hive.ql.exec.UDF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFResolver2;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
+import org.apache.hadoop.mapred.JobConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Factory to create {@link FunctionDefinition} for Hive user defined functions.
  */
 public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory {
 	private static final Logger LOG = LoggerFactory.getLogger(HiveFunctionDefinitionFactory.class);
+
+	private final String hiveVersion;
+
+	public HiveFunctionDefinitionFactory(HiveConf hiveConf) {
+		checkNotNull(hiveConf);
+
+		this.hiveVersion = new JobConf(hiveConf).get(HiveCatalogValidator.CATALOG_HIVE_VERSION, HiveShimLoader.getHiveVersion());
+	}
 
 	@Override
 	public FunctionDefinition createFunctionDefinition(
@@ -98,7 +112,7 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 		} else if (GenericUDAFResolver2.class.isAssignableFrom(clazz)) {
 			LOG.info("Transforming Hive function '{}' into a HiveGenericUDAF with no UDAF bridging", name);
 
-			HiveGenericUDAF udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), false);
+			HiveGenericUDAF udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), false, hiveVersion);
 
 			udaf.setArgumentTypesAndConstants(constantArguments, argTypes);
 
@@ -111,7 +125,7 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 		} else if (UDAF.class.isAssignableFrom(clazz)) {
 			LOG.info("Transforming Hive function '{}' into a HiveGenericUDAF with UDAF bridging", name);
 
-			HiveGenericUDAF udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), true);
+			HiveGenericUDAF udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), true, hiveVersion);
 
 			udaf.setArgumentTypesAndConstants(constantArguments, argTypes);
 
