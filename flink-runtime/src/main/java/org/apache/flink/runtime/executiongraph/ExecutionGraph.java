@@ -237,8 +237,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	/** Strategy to use for restarts. */
 	private final RestartStrategy restartStrategy;
 
-	/** The slot provider to use for allocating slots for tasks as they are needed. */
-	private final SlotProvider slotProvider;
+	/** The slot provider strategy to use for allocating slots for tasks as they are needed. */
+	private final SlotProviderStrategy slotProviderStrategy;
 
 	/** The classloader for the user code. Needed for calls into user code classes. */
 	private final ClassLoader userClassLoader;
@@ -457,12 +457,20 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		this.blobWriter = Preconditions.checkNotNull(blobWriter);
 
+		this.scheduleMode = checkNotNull(scheduleMode);
+
+		this.allowQueuedScheduling = allowQueuedScheduling;
+
 		this.jobInformationOrBlobKey = BlobWriter.serializeAndTryOffload(jobInformation, jobInformation.getJobId(), blobWriter);
 
 		this.futureExecutor = Preconditions.checkNotNull(futureExecutor);
 		this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
 
-		this.slotProvider = Preconditions.checkNotNull(slotProvider, "scheduler");
+		this.slotProviderStrategy = SlotProviderStrategy.from(
+			scheduleMode,
+			slotProvider,
+			allocationTimeout,
+			allowQueuedScheduling);
 		this.userClassLoader = Preconditions.checkNotNull(userClassLoader, "userClassLoader");
 
 		this.tasks = new ConcurrentHashMap<>(16);
@@ -504,10 +512,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 
 		this.partitionTracker = checkNotNull(partitionTracker);
-
-		this.scheduleMode = checkNotNull(scheduleMode);
-
-		this.allowQueuedScheduling = allowQueuedScheduling;
 
 		LOG.info("Job recovers via failover strategy: {}", failoverStrategy.getStrategyName());
 	}
@@ -671,8 +675,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		return jsonPlan;
 	}
 
-	public SlotProvider getSlotProvider() {
-		return slotProvider;
+	public SlotProviderStrategy getSlotProviderStrategy() {
+		return slotProviderStrategy;
 	}
 
 	public Either<SerializedValue<JobInformation>, PermanentBlobKey> getJobInformationOrBlobKey() {

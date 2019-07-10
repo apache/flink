@@ -59,7 +59,7 @@ public class SlotPoolBuilder {
 		return this;
 	}
 
-	TestingSlotPoolImpl build() throws Exception {
+	public TestingSlotPoolImpl build() throws Exception {
 		final TestingSlotPoolImpl slotPool = new TestingSlotPoolImpl(
 			new JobID(),
 			clock,

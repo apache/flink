@@ -54,6 +54,7 @@ public class SchedulingUtils {
 
 		switch (scheduleMode) {
 			case LAZY_FROM_SOURCES:
+			case LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST:
 				return scheduleLazy(vertices, executionGraph);
 
 			case EAGER:
@@ -76,8 +77,9 @@ public class SchedulingUtils {
 
 		executionGraph.assertRunningInJobMasterMainThread();
 
+		final SlotProviderStrategy slotProviderStrategy = executionGraph.getSlotProviderStrategy();
 		final Set<AllocationID> previousAllocations = computePriorAllocationIdsIfRequiredByScheduling(
-			vertices, executionGraph.getSlotProvider());
+			vertices, slotProviderStrategy.asSlotProvider());
 
 		final ArrayList<CompletableFuture<Void>> schedulingFutures = new ArrayList<>();
 		for (ExecutionVertex executionVertex : vertices) {
@@ -86,7 +88,7 @@ public class SchedulingUtils {
 				executionVertex.checkInputDependencyConstraints()) {
 
 				final CompletableFuture<Void> schedulingVertexFuture = executionVertex.scheduleForExecution(
-					executionGraph.getSlotProvider(),
+					slotProviderStrategy,
 					executionGraph.isQueuedSchedulingAllowed(),
 					LocationPreferenceConstraint.ANY,
 					previousAllocations);
@@ -121,14 +123,15 @@ public class SchedulingUtils {
 		// collecting all the slots may resize and fail in that operation without slots getting lost
 		final ArrayList<CompletableFuture<Execution>> allAllocationFutures = new ArrayList<>();
 
+		final SlotProviderStrategy slotProviderStrategy = executionGraph.getSlotProviderStrategy();
 		final Set<AllocationID> allPreviousAllocationIds = Collections.unmodifiableSet(
-			computePriorAllocationIdsIfRequiredByScheduling(vertices, executionGraph.getSlotProvider()));
+			computePriorAllocationIdsIfRequiredByScheduling(vertices, slotProviderStrategy.asSlotProvider()));
 
 		// allocate the slots (obtain all their futures)
 		for (ExecutionVertex ev : vertices) {
 			// these calls are not blocking, they only return futures
 			CompletableFuture<Execution> allocationFuture = ev.getCurrentExecutionAttempt().allocateResourcesForExecution(
-				executionGraph.getSlotProvider(),
+				slotProviderStrategy,
 				queued,
 				LocationPreferenceConstraint.ALL,
 				allPreviousAllocationIds,

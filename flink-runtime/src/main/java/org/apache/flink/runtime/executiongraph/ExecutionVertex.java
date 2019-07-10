@@ -659,7 +659,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	/**
 	 * Schedules the current execution of this ExecutionVertex.
 	 *
-	 * @param slotProvider to allocate the slots from
+	 * @param slotProviderStrategy to allocate the slots from
 	 * @param queued if the allocation can be queued
 	 * @param locationPreferenceConstraint constraint for the location preferences
 	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
@@ -668,12 +668,12 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * can also completed exceptionally.
 	 */
 	public CompletableFuture<Void> scheduleForExecution(
-			SlotProvider slotProvider,
+			SlotProviderStrategy slotProviderStrategy,
 			boolean queued,
 			LocationPreferenceConstraint locationPreferenceConstraint,
 			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 		return this.currentExecution.scheduleForExecution(
-			slotProvider,
+			slotProviderStrategy,
 			queued,
 			locationPreferenceConstraint,
 			allPreviousExecutionGraphAllocationIds);

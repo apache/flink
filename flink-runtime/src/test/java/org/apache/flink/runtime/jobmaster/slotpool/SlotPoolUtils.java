@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -57,7 +58,22 @@ public class SlotPoolUtils {
 			.thenCompose(Function.identity());
 	}
 
-	public static ResourceID offerSlots(SlotPoolImpl slotPool, ComponentMainThreadExecutor mainThreadExecutor, List<ResourceProfile> resourceProfiles) {
+	public static ResourceID offerSlots(
+			SlotPoolImpl slotPool,
+			ComponentMainThreadExecutor mainThreadExecutor,
+			List<ResourceProfile> resourceProfiles) {
+		return offerSlots(
+			slotPool,
+			mainThreadExecutor,
+			resourceProfiles,
+			new SimpleAckingTaskManagerGateway());
+	}
+
+	public static ResourceID offerSlots(
+			SlotPoolImpl slotPool,
+			ComponentMainThreadExecutor mainThreadExecutor,
+			List<ResourceProfile> resourceProfiles,
+			TaskManagerGateway taskManagerGateway) {
 		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
 		CompletableFuture.runAsync(
 			() -> {
@@ -70,7 +86,7 @@ public class SlotPoolUtils {
 
 				final Collection<SlotOffer> acceptedOffers = slotPool.offerSlots(
 					taskManagerLocation,
-					new SimpleAckingTaskManagerGateway(),
+					taskManagerGateway,
 					slotOffers);
 
 				assertThat(acceptedOffers, is(slotOffers));

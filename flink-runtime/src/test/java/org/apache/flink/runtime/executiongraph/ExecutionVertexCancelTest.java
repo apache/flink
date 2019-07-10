@@ -292,7 +292,11 @@ public class ExecutionVertexCancelTest extends TestLogger {
 			// scheduling after being canceled should be tolerated (no exception) because
 			// it can occur as the result of races
 			{
-				vertex.scheduleForExecution(new ProgrammedSlotProvider(1), false, LocationPreferenceConstraint.ALL, Collections.emptySet());
+				vertex.scheduleForExecution(
+					TestingSlotProviderStrategy.from(new ProgrammedSlotProvider(1), false),
+					false,
+					LocationPreferenceConstraint.ALL,
+					Collections.emptySet());
 
 				assertEquals(ExecutionState.CANCELED, vertex.getExecutionState());
 			}
@@ -329,7 +333,11 @@ public class ExecutionVertexCancelTest extends TestLogger {
 				ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 						AkkaUtils.getDefaultTimeout());
 				setVertexState(vertex, ExecutionState.CANCELING);
-				vertex.scheduleForExecution(new ProgrammedSlotProvider(1), false, LocationPreferenceConstraint.ALL, Collections.emptySet());
+				vertex.scheduleForExecution(
+					TestingSlotProviderStrategy.from(new ProgrammedSlotProvider(1), false),
+					false,
+					LocationPreferenceConstraint.ALL,
+					Collections.emptySet());
 			}
 			catch (Exception e) {
 				fail("should not throw an exception");
