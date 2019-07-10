@@ -21,8 +21,6 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -43,7 +41,6 @@ import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.clock.Clock;
-import org.apache.flink.runtime.util.clock.SystemClock;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
@@ -136,16 +133,6 @@ public class SlotPoolImpl implements SlotPool {
 
 	// ------------------------------------------------------------------------
 
-	@VisibleForTesting
-	public SlotPoolImpl(JobID jobId) {
-		this(
-			jobId,
-			SystemClock.getInstance(),
-			AkkaUtils.getDefaultTimeout(),
-			AkkaUtils.getDefaultTimeout(),
-			Time.milliseconds(JobManagerOptions.SLOT_IDLE_TIMEOUT.defaultValue()));
-	}
-
 	public SlotPoolImpl(
 			JobID jobId,
 			Clock clock,
@@ -170,6 +157,34 @@ public class SlotPoolImpl implements SlotPool {
 		this.jobManagerAddress = null;
 
 		this.componentMainThreadExecutor = null;
+	}
+
+	// ------------------------------------------------------------------------
+	//  Getters
+	// ------------------------------------------------------------------------
+
+	private Collection<SlotInfo> getAllocatedSlotsInformation() {
+		return allocatedSlots.listSlotInfo();
+	}
+
+	@VisibleForTesting
+	AllocatedSlots getAllocatedSlots() {
+		return allocatedSlots;
+	}
+
+	@VisibleForTesting
+	AvailableSlots getAvailableSlots() {
+		return availableSlots;
+	}
+
+	@VisibleForTesting
+	DualKeyLinkedMap<SlotRequestId, AllocationID, PendingRequest> getPendingRequests() {
+		return pendingRequests;
+	}
+
+	@VisibleForTesting
+	Map<SlotRequestId, PendingRequest> getWaitingForResourceManager() {
+		return waitingForResourceManager;
 	}
 
 	// ------------------------------------------------------------------------
@@ -431,10 +446,6 @@ public class SlotPoolImpl implements SlotPool {
 	@Nonnull
 	public Collection<SlotInfo> getAvailableSlotsInformation() {
 		return availableSlots.listSlotInfo();
-	}
-
-	private Collection<SlotInfo> getAllocatedSlotsInformation() {
-		return allocatedSlots.listSlotInfo();
 	}
 
 	private void releaseSingleSlot(SlotRequestId slotRequestId, Throwable cause) {
@@ -797,7 +808,7 @@ public class SlotPoolImpl implements SlotPool {
 	/**
 	 * Check the available slots, release the slot that is idle for a long time.
 	 */
-	private void checkIdleSlot() {
+	protected void checkIdleSlot() {
 
 		// The timestamp in SlotAndTimestamp is relative
 		final long currentRelativeTimeMillis = clock.relativeTimeMillis();
@@ -838,7 +849,7 @@ public class SlotPoolImpl implements SlotPool {
 		scheduleRunAsync(this::checkIdleSlot, idleSlotTimeout);
 	}
 
-	private void checkBatchSlotTimeout() {
+	protected void checkBatchSlotTimeout() {
 		final Collection<PendingRequest> pendingBatchRequests = getPendingBatchRequests();
 
 		if (!pendingBatchRequests.isEmpty()) {
@@ -941,36 +952,6 @@ public class SlotPoolImpl implements SlotPool {
 
 		builder.append("\t}\n");
 		return builder.toString();
-	}
-
-	@VisibleForTesting
-	protected AllocatedSlots getAllocatedSlots() {
-		return allocatedSlots;
-	}
-
-	@VisibleForTesting
-	protected AvailableSlots getAvailableSlots() {
-		return availableSlots;
-	}
-
-	@VisibleForTesting
-	DualKeyLinkedMap<SlotRequestId, AllocationID, PendingRequest> getPendingRequests() {
-		return pendingRequests;
-	}
-
-	@VisibleForTesting
-	Map<SlotRequestId, PendingRequest> getWaitingForResourceManager() {
-		return waitingForResourceManager;
-	}
-
-	@VisibleForTesting
-	void triggerCheckIdleSlot() {
-		runAsync(this::checkIdleSlot);
-	}
-
-	@VisibleForTesting
-	void triggerCheckBatchSlotTimeout() {
-		runAsync(this::checkBatchSlotTimeout);
 	}
 
 	/**
@@ -1328,7 +1309,7 @@ public class SlotPoolImpl implements SlotPool {
 	/**
 	 * A pending request for a slot.
 	 */
-	private static class PendingRequest {
+	protected static class PendingRequest {
 
 		private final SlotRequestId slotRequestId;
 

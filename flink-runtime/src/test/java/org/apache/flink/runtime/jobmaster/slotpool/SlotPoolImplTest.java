@@ -58,6 +58,8 @@ import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -115,7 +117,7 @@ public class SlotPoolImplTest extends TestLogger {
 		CompletableFuture<SlotRequest> slotRequestFuture = new CompletableFuture<>();
 		resourceManagerGateway.setRequestSlotConsumer(slotRequestFuture::complete);
 
-		try (SlotPoolImpl slotPool = new SlotPoolImpl(jobId)) {
+		try (SlotPoolImpl slotPool = createSlotPoolImpl()) {
 			setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
 			Scheduler scheduler = setupScheduler(slotPool, mainThreadExecutor);
 			slotPool.registerTaskManager(taskManagerLocation.getResourceID());
@@ -145,6 +147,11 @@ public class SlotPoolImplTest extends TestLogger {
 		}
 	}
 
+	@Nonnull
+	private SlotPoolImpl createSlotPoolImpl() {
+		return new TestingSlotPoolImpl(jobId);
+	}
+
 	@Test
 	public void testAllocationFulfilledByReturnedSlot() throws Exception {
 		final ArrayBlockingQueue<SlotRequest> slotRequestQueue = new ArrayBlockingQueue<>(2);
@@ -155,7 +162,7 @@ public class SlotPoolImplTest extends TestLogger {
 			}
 		});
 
-		try (SlotPoolImpl slotPool = new SlotPoolImpl(jobId)) {
+		try (SlotPoolImpl slotPool = createSlotPoolImpl()) {
 			setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
 			Scheduler scheduler = setupScheduler(slotPool, mainThreadExecutor);
 			slotPool.registerTaskManager(taskManagerLocation.getResourceID());
@@ -214,7 +221,7 @@ public class SlotPoolImplTest extends TestLogger {
 		final CompletableFuture<SlotRequest> slotRequestFuture = new CompletableFuture<>();
 		resourceManagerGateway.setRequestSlotConsumer(slotRequestFuture::complete);
 
-		try (SlotPoolImpl slotPool = new SlotPoolImpl(jobId)) {
+		try (SlotPoolImpl slotPool = createSlotPoolImpl()) {
 			setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
 			Scheduler scheduler = setupScheduler(slotPool, mainThreadExecutor);
 			slotPool.registerTaskManager(taskManagerLocation.getResourceID());
@@ -267,7 +274,7 @@ public class SlotPoolImplTest extends TestLogger {
 
 		resourceManagerGateway.setRequestSlotConsumer(slotRequestFuture::complete);
 
-		try (SlotPoolImpl slotPool = new SlotPoolImpl(jobId)) {
+		try (SlotPoolImpl slotPool = createSlotPoolImpl()) {
 			setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
 			Scheduler scheduler = setupScheduler(slotPool, mainThreadExecutor);
 			slotPool.registerTaskManager(taskManagerLocation.getResourceID());
@@ -332,7 +339,7 @@ public class SlotPoolImplTest extends TestLogger {
 
 		resourceManagerGateway.setRequestSlotConsumer(slotRequestFuture::complete);
 
-		try (SlotPoolImpl slotPool = new SlotPoolImpl(jobId)) {
+		try (SlotPoolImpl slotPool = createSlotPoolImpl()) {
 			setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
 			Scheduler scheduler = setupScheduler(slotPool, mainThreadExecutor);
 			slotPool.registerTaskManager(taskManagerLocation.getResourceID());
@@ -391,7 +398,7 @@ public class SlotPoolImplTest extends TestLogger {
 	@Test
 	public void testFulfillingSlotRequestsWithUnusedOfferedSlots() throws Exception {
 
-		try (SlotPoolImpl slotPool = new SlotPoolImpl(jobId)) {
+		try (SlotPoolImpl slotPool = createSlotPoolImpl()) {
 			final ArrayBlockingQueue<AllocationID> allocationIds = new ArrayBlockingQueue<>(2);
 			resourceManagerGateway.setRequestSlotConsumer(
 				(SlotRequest slotRequest) -> allocationIds.offer(slotRequest.getAllocationId()));
@@ -460,7 +467,7 @@ public class SlotPoolImplTest extends TestLogger {
 	@Test
 	public void testShutdownReleasesAllSlots() throws Exception {
 
-		try (SlotPoolImpl slotPool = new SlotPoolImpl(jobId)) {
+		try (SlotPoolImpl slotPool = createSlotPoolImpl()) {
 			setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
 
 			slotPool.registerTaskManager(taskManagerLocation.getResourceID());
@@ -511,12 +518,7 @@ public class SlotPoolImplTest extends TestLogger {
 	public void testCheckIdleSlot() throws Exception {
 		final ManualClock clock = new ManualClock();
 
-		try (SlotPoolImpl slotPool = new SlotPoolImpl(
-				jobId,
-				clock,
-				TestingUtils.infiniteTime(),
-				timeout,
-				TestingUtils.infiniteTime())) {
+		try (TestingSlotPoolImpl slotPool = createSlotPoolImpl(clock)) {
 			final BlockingQueue<AllocationID> freedSlots = new ArrayBlockingQueue<>(1);
 			taskManagerGateway.setFreeSlotFunction(
 				(AllocationID allocationId, Throwable cause) -> {
@@ -558,6 +560,16 @@ public class SlotPoolImplTest extends TestLogger {
 		}
 	}
 
+	@Nonnull
+	private TestingSlotPoolImpl createSlotPoolImpl(ManualClock clock) {
+		return new TestingSlotPoolImpl(
+			jobId,
+			clock,
+			TestingUtils.infiniteTime(),
+			timeout,
+			TestingUtils.infiniteTime());
+	}
+
 	/**
 	 * Tests that idle slots which cannot be released will be discarded. See FLINK-11059.
 	 */
@@ -565,12 +577,7 @@ public class SlotPoolImplTest extends TestLogger {
 	public void testDiscardIdleSlotIfReleasingFailed() throws Exception {
 		final ManualClock clock = new ManualClock();
 
-		try (SlotPoolImpl slotPool = new SlotPoolImpl(
-				jobId,
-				clock,
-				TestingUtils.infiniteTime(),
-				timeout,
-				TestingUtils.infiniteTime())) {
+		try (TestingSlotPoolImpl slotPool = createSlotPoolImpl(clock)) {
 
 			setupSlotPool(slotPool, resourceManagerGateway, mainThreadExecutor);
 			Scheduler scheduler = setupScheduler(slotPool, mainThreadExecutor);
@@ -613,7 +620,7 @@ public class SlotPoolImplTest extends TestLogger {
 	@Test
 	public void testFreeFailedSlots() throws Exception {
 
-		try (SlotPoolImpl slotPool = new SlotPoolImpl(jobId)) {
+		try (SlotPoolImpl slotPool = createSlotPoolImpl()) {
 			final int parallelism = 5;
 			final ArrayBlockingQueue<AllocationID> allocationIds = new ArrayBlockingQueue<>(parallelism);
 			resourceManagerGateway.setRequestSlotConsumer(
@@ -674,7 +681,7 @@ public class SlotPoolImplTest extends TestLogger {
 	@Test
 	public void testCreateAllocatedSlotReport() throws Exception {
 
-		try (SlotPoolImpl slotPool = new SlotPoolImpl(jobId)) {
+		try (SlotPoolImpl slotPool = createSlotPoolImpl()) {
 
 			final ArrayBlockingQueue<AllocationID> allocationIds = new ArrayBlockingQueue<>(1);
 			resourceManagerGateway.setRequestSlotConsumer(
