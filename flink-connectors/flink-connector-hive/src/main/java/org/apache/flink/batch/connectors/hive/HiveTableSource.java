@@ -64,29 +64,34 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 	//partitionList represent all partitions in map list format used in partition-pruning situation.
 	private List<Map<String, String>> partitionList = new ArrayList<>();
 	private Map<Map<String, String>, HiveTablePartition> partitionSpec2HiveTablePartition = new HashMap<>();
+	private boolean initAllPartitions;
 
 	public HiveTableSource(JobConf jobConf, ObjectPath tablePath, CatalogTable catalogTable) {
-		this.jobConf = jobConf;
-		this.tablePath = tablePath;
-		this.catalogTable = catalogTable;
+		this.jobConf = Preconditions.checkNotNull(jobConf);
+		this.tablePath = Preconditions.checkNotNull(tablePath);
+		this.catalogTable = Preconditions.checkNotNull(catalogTable);
 		this.hiveVersion = jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION, HiveShimLoader.getHiveVersion());
-		initAllPartitions();
+		initAllPartitions = false;
 	}
 
 	private HiveTableSource(JobConf jobConf, ObjectPath tablePath, CatalogTable catalogTable,
 							List<HiveTablePartition> allHivePartitions,
 							String hiveVersion,
 							List<Map<String, String>> partitionList) {
-		this.jobConf = jobConf;
-		this.tablePath = tablePath;
-		this.catalogTable = catalogTable;
+		this.jobConf = Preconditions.checkNotNull(jobConf);
+		this.tablePath = Preconditions.checkNotNull(tablePath);
+		this.catalogTable = Preconditions.checkNotNull(catalogTable);
 		this.allHivePartitions = allHivePartitions;
 		this.hiveVersion = hiveVersion;
 		this.partitionList = partitionList;
+		this.initAllPartitions = true;
 	}
 
 	@Override
 	public InputFormat getInputFormat() {
+		if (!initAllPartitions) {
+			initAllPartitions();
+		}
 		return new HiveTableInputFormat(jobConf, catalogTable, allHivePartitions);
 	}
 
@@ -107,6 +112,9 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 
 	@Override
 	public List<Map<String, String>> getPartitions() {
+		if (!initAllPartitions) {
+			initAllPartitions();
+		}
 		return partitionList;
 	}
 
@@ -166,6 +174,7 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 		} catch (TException e) {
 			throw new FlinkHiveException("Failed to collect all partitions from hive metaStore", e);
 		}
+		initAllPartitions = true;
 	}
 
 	private Object restorePartitionValueFromFromType(String valStr, DataType type) {
