@@ -82,8 +82,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	private final CatalogManager catalogManager;
 
-	private final String defaultCatalogName;
-	private final String defaultDatabaseName;
+	private final String builtinCatalogName;
+	private final String builtinDatabaseName;
 	private final OperationTreeBuilder operationTreeBuilder;
 	private final List<ModifyOperation> bufferedModifyOperations = new ArrayList<>();
 
@@ -103,8 +103,10 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		this.execEnv = executor;
 
 		this.tableConfig = tableConfig;
-		this.defaultCatalogName = catalogManager.getCurrentCatalog();
-		this.defaultDatabaseName = catalogManager.getCurrentDatabase();
+		// The current catalog and database are definitely builtin,
+		// see #create(EnvironmentSettings)
+		this.builtinCatalogName = catalogManager.getCurrentCatalog();
+		this.builtinDatabaseName = catalogManager.getCurrentDatabase();
 
 		this.functionCatalog = functionCatalog;
 		this.planner = planner;
@@ -191,7 +193,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		}
 
 		CatalogBaseTable tableTable = new QueryOperationCatalogView(table.getQueryOperation());
-		registerTableInternal(new String[] { name }, tableTable, false);
+		registerTableInternal(name, tableTable);
 	}
 
 	@Override
@@ -300,7 +302,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		Operation operation = operations.get(0);
 		if (operation instanceof CreateTableOperation) {
 			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
-			registerTableInternal(
+			registerCatalogTableInternal(
 				createTableOperation.getTablePath(),
 				createTableOperation.getCatalogTable(),
 				createTableOperation.isIgnoreIfExists());
@@ -470,7 +472,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	 * @param ignoreIfExists If true, do nothing if there is already same table name under
 	 *                       the {@code path}. If false, a TableAlreadyExistException throws.
 	 */
-	private void registerTableInternal(String[] path,
+	private void registerCatalogTableInternal(String[] path,
 			CatalogBaseTable catalogTable,
 			boolean ignoreIfExists) {
 		String[] fullName = catalogManager.getFullTablePath(Arrays.asList(path));
@@ -484,10 +486,26 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		}
 	}
 
+	protected void registerTableInternal(String name, CatalogBaseTable table) {
+		try {
+			checkValidTableName(name);
+			ObjectPath path = new ObjectPath(builtinDatabaseName, name);
+			Optional<Catalog> catalog = catalogManager.getCatalog(builtinCatalogName);
+			if (catalog.isPresent()) {
+				catalog.get().createTable(
+					path,
+					table,
+					false);
+			}
+		} catch (Exception e) {
+			throw new TableException("Could not register table", e);
+		}
+	}
+
 	private void replaceTableInternal(String name, CatalogBaseTable table) {
 		try {
-			ObjectPath path = new ObjectPath(defaultDatabaseName, name);
-			Optional<Catalog> catalog = catalogManager.getCatalog(defaultCatalogName);
+			ObjectPath path = new ObjectPath(builtinDatabaseName, name);
+			Optional<Catalog> catalog = catalogManager.getCatalog(builtinCatalogName);
 			if (catalog.isPresent()) {
 				catalog.get().alterTable(
 					path,
@@ -507,7 +525,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	private void registerTableSourceInternal(String name, TableSource<?> tableSource) {
 		validateTableSource(tableSource);
-		Optional<CatalogBaseTable> table = getCatalogTable(defaultCatalogName, defaultDatabaseName, name);
+		Optional<CatalogBaseTable> table = getCatalogTable(builtinCatalogName, builtinDatabaseName, name);
 
 		if (table.isPresent()) {
 			if (table.get() instanceof ConnectorCatalogTable<?, ?>) {
@@ -527,13 +545,12 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					"Table '%s' already exists. Please choose a different name.", name));
 			}
 		} else {
-			registerTableInternal(new String[] { name },
-				ConnectorCatalogTable.source(tableSource, false), false);
+			registerTableInternal(name, ConnectorCatalogTable.source(tableSource, false));
 		}
 	}
 
 	private void registerTableSinkInternal(String name, TableSink<?> tableSink) {
-		Optional<CatalogBaseTable> table = getCatalogTable(defaultCatalogName, defaultDatabaseName, name);
+		Optional<CatalogBaseTable> table = getCatalogTable(builtinCatalogName, builtinDatabaseName, name);
 
 		if (table.isPresent()) {
 			if (table.get() instanceof ConnectorCatalogTable<?, ?>) {
@@ -553,8 +570,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					"Table '%s' already exists. Please choose a different name.", name));
 			}
 		} else {
-			registerTableInternal(new String[] { name },
-				ConnectorCatalogTable.sink(tableSink, false), false);
+			registerTableInternal(name, ConnectorCatalogTable.sink(tableSink, false));
 		}
 	}
 
