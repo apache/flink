@@ -53,7 +53,6 @@ Important classes of Flink Table API:
 """
 from __future__ import absolute_import
 
-from pyflink.table.query_config import BatchQueryConfig, StreamQueryConfig
 from pyflink.table.table import Table, GroupedTable, GroupWindowedTable, OverWindowedTable, \
     WindowGroupedTable
 from pyflink.table.table_config import TableConfig
@@ -74,8 +73,6 @@ __all__ = [
     'OverWindowedTable',
     'WindowGroupedTable',
     'TableConfig',
-    'StreamQueryConfig',
-    'BatchQueryConfig',
     'TableSink',
     'TableSource',
     'WriteMode',
