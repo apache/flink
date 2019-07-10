@@ -42,7 +42,6 @@ public class SessionContext {
 
 	private final Map<String, ViewEntry> views;
 
-	// Make current catalog static so that every session instance can see it.
 	private volatile Catalog currentCatalog;
 
 	public SessionContext(String name, Environment defaultEnvironment) {
