@@ -121,7 +121,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 		final ComponentMainThreadExecutor directMainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
 		final ManualClock clock = new ManualClock();
 
-		try (final SlotPoolImpl slotPool = new SlotPoolBuilder()
+		try (final TestingSlotPoolImpl slotPool = new SlotPoolBuilder()
 				.setComponentMainThreadExecutor(directMainThreadExecutor)
 				.setClock(clock)
 				.setBatchSlotTimeout(batchSlotTimeout)
@@ -203,7 +203,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 		final ManualClock clock = new ManualClock();
 		final Time batchSlotTimeout = Time.milliseconds(1000L);
 
-		try (final SlotPoolImpl slotPool = new SlotPoolBuilder()
+		try (final TestingSlotPoolImpl slotPool = new SlotPoolBuilder()
 				.setComponentMainThreadExecutor(directMainThreadExecutor)
 				.setClock(clock)
 				.setBatchSlotTimeout(batchSlotTimeout)
@@ -237,7 +237,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 		}
 	}
 
-	private void advanceTimeAndTriggerCheckBatchSlotTimeout(SlotPoolImpl slotPool, ManualClock clock, Time batchSlotTimeout) {
+	private void advanceTimeAndTriggerCheckBatchSlotTimeout(TestingSlotPoolImpl slotPool, ManualClock clock, Time batchSlotTimeout) {
 		// trigger batch slot timeout check which marks unfulfillable slots
 		slotPool.triggerCheckBatchSlotTimeout();
 
@@ -321,8 +321,8 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 			return this;
 		}
 
-		private SlotPoolImpl build() throws Exception {
-			final SlotPoolImpl slotPool = new SlotPoolImpl(
+		private TestingSlotPoolImpl build() throws Exception {
+			final TestingSlotPoolImpl slotPool = new TestingSlotPoolImpl(
 				new JobID(),
 				clock,
 				TestingUtils.infiniteTime(),

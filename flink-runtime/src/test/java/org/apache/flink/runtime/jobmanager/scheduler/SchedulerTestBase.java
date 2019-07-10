@@ -36,10 +36,10 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SchedulerImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolImpl;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotSharingManager;
+import org.apache.flink.runtime.jobmaster.slotpool.TestingSlotPoolImpl;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -71,7 +71,7 @@ public class SchedulerTestBase extends TestLogger {
 	@Before
 	public void setup() throws Exception {
 		final JobID jobId = new JobID();
-		final SlotPool slotPool = new SlotPoolImpl(jobId);
+		final SlotPool slotPool = new TestingSlotPoolImpl(jobId);
 		final TestingScheduler testingScheduler = new TestingScheduler(
 			new HashMap<>(16),
 			LocationPreferenceSlotSelectionStrategy.INSTANCE,

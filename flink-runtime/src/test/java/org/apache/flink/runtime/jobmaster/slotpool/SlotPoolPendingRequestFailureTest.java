@@ -175,7 +175,7 @@ public class SlotPoolPendingRequestFailureTest extends TestLogger {
 	}
 
 	private SlotPoolImpl setUpSlotPool(ComponentMainThreadExecutor componentMainThreadExecutor) throws Exception {
-		final SlotPoolImpl slotPool = new SlotPoolImpl(jobId);
+		final SlotPoolImpl slotPool = new TestingSlotPoolImpl(jobId);
 		slotPool.start(JobMasterId.generate(), "foobar", componentMainThreadExecutor);
 		slotPool.connectToResourceManager(resourceManagerGateway);
 
