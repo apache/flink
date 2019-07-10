@@ -18,6 +18,8 @@
 
 package org.apache.flink.metrics;
 
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import static org.apache.flink.metrics.View.UPDATE_INTERVAL_SECONDS;
@@ -26,7 +28,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for the MeterView.
  */
-public class MeterViewTest {
+public class MeterViewTest extends TestLogger {
 	@Test
 	public void testGetCount() {
 		Counter c = new SimpleCounter();
