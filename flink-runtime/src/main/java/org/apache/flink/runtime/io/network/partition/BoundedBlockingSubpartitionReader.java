@@ -37,6 +37,9 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	/** The result subpartition that we read. */
 	private final BoundedBlockingSubpartition parent;
 
+	/** The listener that is notified when there are available buffers for this subpartition view. */
+	private final BufferAvailabilityListener availabilityListener;
+
 	/** The next buffer (look ahead). Null once the data is depleted or reader is disposed. */
 	@Nullable
 	private Buffer nextBuffer;
@@ -57,16 +60,20 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	 */
 	BoundedBlockingSubpartitionReader(
 			BoundedBlockingSubpartition parent,
-			BoundedData.Reader dataReader,
-			int numDataBuffers) throws IOException {
-
-		checkArgument(numDataBuffers >= 0);
+			BoundedData data,
+			int numDataBuffers,
+			BufferAvailabilityListener availabilityListener) throws IOException {
 
 		this.parent = checkNotNull(parent);
-		this.dataReader = checkNotNull(dataReader);
+
+		checkNotNull(data);
+		this.dataReader = data.createReader(this);
+		this.nextBuffer = dataReader.nextBuffer();
+
+		checkArgument(numDataBuffers >= 0);
 		this.dataBufferBacklog = numDataBuffers;
 
-		this.nextBuffer = dataReader.nextBuffer();
+		this.availabilityListener = checkNotNull(availabilityListener);
 	}
 
 	@Nullable
@@ -89,9 +96,31 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 		return BufferAndBacklog.fromBufferAndLookahead(current, nextBuffer, dataBufferBacklog);
 	}
 
+	/**
+	 * This method is actually only meaningful for the {@link BoundedBlockingSubpartitionType#FILE}.
+	 *
+	 * <p>For the other types the {@link #nextBuffer} can not be ever set to null, so it is no need
+	 * to notify available via this method. But the implementation is also compatible with other
+	 * types even though called by mistake.
+	 */
 	@Override
 	public void notifyDataAvailable() {
-		throw new IllegalStateException("No data should become available on a blocking partition during consumption.");
+		if (nextBuffer == null) {
+			assert dataReader != null;
+
+			try {
+				nextBuffer = dataReader.nextBuffer();
+			} catch (IOException ex) {
+				// this exception wrapper is only for avoiding throwing IOException explicitly
+				// in relevant interface methods
+				throw new IllegalStateException("No data available while reading", ex);
+			}
+
+			// next buffer is null indicates the end of partition
+			if (nextBuffer != null) {
+				availabilityListener.notifyDataAvailable();
+			}
+		}
 	}
 
 	@Override
