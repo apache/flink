@@ -97,9 +97,9 @@ public class ExecutionEntry extends ConfigEntry {
 
 	private static final String EXECUTION_RESTART_STRATEGY_MAX_FAILURES_PER_INTERVAL = "restart-strategy.max-failures-per-interval";
 
-	private static final String EXECUTION_CURRNET_CATALOG = "current-catalog";
+	public static final String EXECUTION_CURRNET_CATALOG = "current-catalog";
 
-	private static final String EXECUTION_CURRNET_DATABASE = "current-database";
+	public static final String EXECUTION_CURRNET_DATABASE = "current-database";
 
 	private ExecutionEntry(DescriptorProperties properties) {
 		super(properties);
