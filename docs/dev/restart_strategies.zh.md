@@ -260,7 +260,7 @@ env.setRestartStrategy(RestartStrategies.noRestart())
 ### 备用重启策略
 
 使用群集定义的重启策略。
-这对于启用了checkpoint的流处理程序很有帮助。
+这对于启用了checkpoint 的流处理程序很有帮助。
 如果没有定义其他重启策略，默认选择固定延时重启策略。
 
 {% top %}
