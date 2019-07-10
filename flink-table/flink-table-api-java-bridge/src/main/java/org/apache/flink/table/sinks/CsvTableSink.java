@@ -31,6 +31,8 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 
+import java.util.LinkedHashMap;
+
 /**
  * A simple {@link TableSink} to emit data as CSV files.
  */
@@ -80,17 +82,6 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 	 */
 	public CsvTableSink(String path, String fieldDelim) {
 		this(path, fieldDelim, -1, null);
-	}
-
-	/**
-	 * A simple {@link TableSink} to emit data as CSV files, with default parallelism.
-	 *
-	 * @param path       The output path to write the Table to.
-	 * @param fieldDelim The field delimiter
-	 * @param writeMode  The write mode to specify whether existing files are overwritten or not.
-	 */
-	public CsvTableSink(String path, String fieldDelim, FileSystem.WriteMode writeMode) {
-		this(path, fieldDelim, -1, writeMode);
 	}
 
 	@Override
@@ -161,6 +152,112 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 	@Override
 	public TypeInformation<?>[] getFieldTypes() {
 		return fieldTypes;
+	}
+
+	/**
+	 * Return a new builder that builds a CsvTableSink. For example:
+	 * <pre>
+	 * CsvTableSource source = new CsvTableSource.builder()
+	 *     .path("/path/to/..")
+	 *     .field("myfield", Types.STRING)
+	 *     .field("myfield2", Types.INT)
+	 *     .build();
+	 * </pre>
+	 *
+	 * @return a new builder to build a CsvTableSink
+	 */
+	public static Builder builder() {
+		return new Builder();
+	}
+
+	/**
+	 * A builder for creating CsvTableSink instances.
+	 */
+	public static class Builder {
+		private LinkedHashMap<String, TypeInformation<?>> schema = new LinkedHashMap<>();
+		private String path;
+		private String fieldDelim;
+		private int numFiles = -1; ;
+		private FileSystem.WriteMode writeMode;
+
+		/**
+		 * Sets the path to the CSV file. Required.
+		 *
+		 * @param path the path to the CSV file
+		 */
+		public Builder path(String path) {
+			this.path = path;
+			return this;
+		}
+
+		/**
+		 * Sets the field delimiter, "," by default.
+		 *
+		 * @param delim the field delimiter
+		 */
+		public Builder fieldDelimiter(String delim) {
+			this.fieldDelim = delim;
+			return this;
+		}
+
+		/**
+		 * Sets the number of files to write to.
+		 *
+		 * @param numFiles the number of files to write to
+		 */
+		public Builder numFiles(int numFiles) {
+			this.numFiles = numFiles;
+			return this;
+		}
+
+		/**
+		 * Sets the write mode to specify whether existing files are overwritten or not.
+		 *
+		 * @param writeMode the write mode to specify whether existing files are overwritten or not
+		 */
+		public Builder writeMode(FileSystem.WriteMode writeMode) {
+			this.writeMode = writeMode;
+			return this;
+		}
+
+		/**
+		 * Adds a field with the field name and the type information. This method can be
+		 * called multiple times. The call order of this method defines also the order of the fields
+		 * in a row.
+		 *
+		 * @param fieldName the field name
+		 * @param fieldType the type information of the field
+		 */
+		public Builder field(String fieldName, TypeInformation<?> fieldType) {
+			if (schema.containsKey(fieldName)) {
+				throw new IllegalArgumentException("Duplicate field name " + fieldName);
+			}
+			schema.put(fieldName, fieldType);
+			return this;
+		}
+
+		/**
+		 * Apply the current values and constructs a newly-created CsvTableSink.
+		 *
+		 * @return a newly-created CsvTableSink
+		 */
+		public CsvTableSink build() {
+			if (path == null) {
+				throw new IllegalArgumentException("Path must be defined.");
+			}
+
+			CsvTableSink csvTableSink = new CsvTableSink(
+				path,
+				fieldDelim,
+				numFiles,
+				writeMode);
+
+			if(schema.size() != 0){
+				csvTableSink.fieldNames = schema.keySet().toArray(new String[0]);
+				csvTableSink.fieldTypes	= schema.values().toArray(new TypeInformation<?>[0]);
+			}
+			return csvTableSink;
+		}
 	}
 
 	/**
