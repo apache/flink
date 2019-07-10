@@ -21,6 +21,7 @@ package org.apache.flink.table.types.logical;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
+import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
@@ -97,6 +98,8 @@ public abstract class LogicalType implements Serializable {
 	/**
 	 * Returns a string that fully serializes this instance. The serialized string can be used for
 	 * transmitting or persisting a type.
+	 *
+	 * <p>See {@link LogicalTypeParser} for the reverse operation.
 	 *
 	 * @return detailed string for transmission or persistence
 	 */
