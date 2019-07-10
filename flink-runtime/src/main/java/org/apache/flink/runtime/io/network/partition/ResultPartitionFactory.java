@@ -61,18 +61,22 @@ public class ResultPartitionFactory {
 
 	private final int floatingNetworkBuffersPerGate;
 
+	private final int networkBufferSize;
+
 	public ResultPartitionFactory(
 		@Nonnull ResultPartitionManager partitionManager,
 		@Nonnull FileChannelManager channelManager,
 		@Nonnull BufferPoolFactory bufferPoolFactory,
 		int networkBuffersPerChannel,
-		int floatingNetworkBuffersPerGate) {
+		int floatingNetworkBuffersPerGate,
+		int networkBufferSize) {
 
 		this.partitionManager = partitionManager;
 		this.channelManager = channelManager;
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
 		this.bufferPoolFactory = bufferPoolFactory;
+		this.networkBufferSize = networkBufferSize;
 	}
 
 	public ResultPartition create(
@@ -119,7 +123,7 @@ public class ResultPartitionFactory {
 				partitionManager,
 				bufferPoolFactory);
 
-		createSubpartitions(partition, type, subpartitions, this.bufferPoolFactory.getBufferSize());
+		createSubpartitions(partition, type, subpartitions);
 
 		LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
 
@@ -129,8 +133,7 @@ public class ResultPartitionFactory {
 	private void createSubpartitions(
 			ResultPartition partition,
 			ResultPartitionType type,
-			ResultSubpartition[] subpartitions,
-			int networkBufferSize) {
+			ResultSubpartition[] subpartitions) {
 
 		// Create the subpartitions.
 		switch (type) {

@@ -74,8 +74,8 @@ public class ResultPartitionFactoryTest extends TestLogger {
 			fileChannelManager,
 			new NetworkBufferPool(1, 64, 1),
 			1,
-			1
-		);
+			1,
+			64);
 
 		ResultPartitionType partitionType = ResultPartitionType.BLOCKING;
 		final ResultPartitionDeploymentDescriptor descriptor = new ResultPartitionDeploymentDescriptor(

@@ -52,6 +52,8 @@ public class ResultPartitionBuilder {
 
 	private int floatingNetworkBuffersPerGate = 1;
 
+	private int networkBufferSize = 1;
+
 	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 	private Optional<FunctionWithException<BufferPoolOwner, BufferPool, IOException>> bufferPoolFactory = Optional.empty();
 
@@ -90,6 +92,7 @@ public class ResultPartitionBuilder {
 	public ResultPartitionBuilder setupBufferPoolFactoryFromNettyShuffleEnvironment(NettyShuffleEnvironment environment) {
 		return setNetworkBuffersPerChannel(environment.getConfiguration().networkBuffersPerChannel())
 			.setFloatingNetworkBuffersPerGate(environment.getConfiguration().floatingNetworkBuffersPerGate())
+			.setNetworkBufferSize(environment.getConfiguration().networkBufferSize())
 			.setNetworkBufferPool(environment.getNetworkBufferPool());
 	}
 
@@ -105,6 +108,11 @@ public class ResultPartitionBuilder {
 
 	private ResultPartitionBuilder setFloatingNetworkBuffersPerGate(int floatingNetworkBuffersPerGate) {
 		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
+		return this;
+	}
+
+	public ResultPartitionBuilder setNetworkBufferSize(int networkBufferSize) {
+		this.networkBufferSize = networkBufferSize;
 		return this;
 	}
 
@@ -125,7 +133,8 @@ public class ResultPartitionBuilder {
 			channelManager,
 			networkBufferPool,
 			networkBuffersPerChannel,
-			floatingNetworkBuffersPerGate);
+			floatingNetworkBuffersPerGate,
+			networkBufferSize);
 
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
 			resultPartitionFactory.createBufferPoolFactory(numberOfSubpartitions, partitionType));
