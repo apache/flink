@@ -38,6 +38,8 @@ public class ResultPartitionBuilder {
 
 	private ResultPartitionType partitionType = ResultPartitionType.PIPELINED;
 
+	private BoundedBlockingSubpartitionType blockingSubpartitionType = BoundedBlockingSubpartitionType.AUTO;
+
 	private int numberOfSubpartitions = 1;
 
 	private int numTargetKeyGroups = 1;
@@ -127,11 +129,17 @@ public class ResultPartitionBuilder {
 		return this;
 	}
 
+	public ResultPartitionBuilder setBoundedBlockingSubpartitionType(BoundedBlockingSubpartitionType blockingSubpartitionType) {
+		this.blockingSubpartitionType = blockingSubpartitionType;
+		return this;
+	}
+
 	public ResultPartition build() {
 		ResultPartitionFactory resultPartitionFactory = new ResultPartitionFactory(
 			partitionManager,
 			channelManager,
 			networkBufferPool,
+			blockingSubpartitionType,
 			networkBuffersPerChannel,
 			floatingNetworkBuffersPerGate,
 			networkBufferSize);

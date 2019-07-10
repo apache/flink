@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -141,7 +142,8 @@ public class NettyShuffleEnvironmentBuilder {
 				isCreditBased,
 				isNetworkDetailedMetrics,
 				nettyConfig,
-				tempDirs),
+				tempDirs,
+				BoundedBlockingSubpartitionType.AUTO),
 			taskManagerLocation,
 			taskEventDispatcher,
 			metricGroup);

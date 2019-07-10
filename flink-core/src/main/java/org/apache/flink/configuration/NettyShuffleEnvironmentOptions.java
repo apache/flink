@@ -153,6 +153,13 @@ public class NettyShuffleEnvironmentOptions {
 					"tasks have occupied all the buffers and the downstream tasks are waiting for the exclusive buffers. The timeout breaks" +
 					"the tie by failing the request of exclusive buffers and ask users to increase the number of total buffers.");
 
+	@Documentation.ExcludeFromDocumentation("This option is only used for testing at the moment.")
+	public static final ConfigOption<String> NETWORK_BOUNDED_BLOCKING_SUBPARTITION_TYPE =
+		key("taskmanager.network.bounded-blocking-subpartition-type")
+			.defaultValue("auto")
+			.withDescription("The bounded blocking subpartition type, either \"mmap\" or \"file\". The default \"auto\" means selecting the" +
+					"property type automatically based on system memory architecture.");
+
 	// ------------------------------------------------------------------------
 	//  Netty Options
 	// ------------------------------------------------------------------------
