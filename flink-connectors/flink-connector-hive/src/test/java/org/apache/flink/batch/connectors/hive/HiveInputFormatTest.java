@@ -39,6 +39,7 @@ import org.apache.flink.types.Row;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.mapred.JobConf;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -105,8 +106,8 @@ public class HiveInputFormatTest {
 		sd.setSerdeInfo(new SerDeInfo());
 		sd.getSerdeInfo().setSerializationLib(DEFAULT_HIVE_INPUT_FORMAT_TEST_SERDE_CLASS);
 		sd.getSerdeInfo().setParameters(new HashMap<>());
-		sd.getSerdeInfo().getParameters().put("serialization.format", "1");
-		sd.getSerdeInfo().getParameters().put("field.delim", ",");
+		sd.getSerdeInfo().getParameters().put(serdeConstants.SERIALIZATION_FORMAT, "1");
+		sd.getSerdeInfo().getParameters().put(serdeConstants.FIELD_DELIM, ",");
 		sd.setCols(HiveTableUtil.createHiveColumns(tableSchema));
 		tbl.setSd(sd);
 		tbl.setPartitionKeys(new ArrayList<>());
@@ -155,12 +156,10 @@ public class HiveInputFormatTest {
 		sd.setSerdeInfo(new SerDeInfo());
 		sd.getSerdeInfo().setSerializationLib(DEFAULT_HIVE_INPUT_FORMAT_TEST_SERDE_CLASS);
 		sd.getSerdeInfo().setParameters(new HashMap<>());
-		sd.getSerdeInfo().getParameters().put("serialization.format", "1");
-		sd.getSerdeInfo().getParameters().put("field.delim", ";");
-		//org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe use 'colelction.delim' as a delimiter config key
-		// it may be a typo of this class
-		sd.getSerdeInfo().getParameters().put("colelction.delim", ",");
-		sd.getSerdeInfo().getParameters().put("mapkey.delim", ":");
+		sd.getSerdeInfo().getParameters().put(serdeConstants.SERIALIZATION_FORMAT, "1");
+		sd.getSerdeInfo().getParameters().put(serdeConstants.FIELD_DELIM, ";");
+		sd.getSerdeInfo().getParameters().put(serdeConstants.COLLECTION_DELIM, ",");
+		sd.getSerdeInfo().getParameters().put(serdeConstants.MAPKEY_DELIM, ":");
 		sd.setCols(HiveTableUtil.createHiveColumns(builder.build()));
 		tbl.setSd(sd);
 		tbl.setPartitionKeys(new ArrayList<>());
