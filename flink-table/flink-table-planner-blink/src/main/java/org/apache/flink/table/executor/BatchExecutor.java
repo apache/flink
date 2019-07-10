@@ -21,17 +21,17 @@ package org.apache.flink.table.executor;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
-import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Executor;
-import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil;
 
 import java.util.List;
 
@@ -42,6 +42,12 @@ import java.util.List;
 @Internal
 public class BatchExecutor extends ExecutorBase {
 
+	private boolean enableObjectReuse;
+	private long latencyTrackingInterval;
+	private long bufferTimeout;
+	private TimeCharacteristic timeCharacteristic;
+	private InputDependencyConstraint inputDependencyConstraint;
+
 	@VisibleForTesting
 	public BatchExecutor(StreamExecutionEnvironment executionEnvironment) {
 		super(executionEnvironment);
@@ -49,40 +55,92 @@ public class BatchExecutor extends ExecutorBase {
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		if (transformations.isEmpty()) {
-			throw new TableException("No table sinks have been created yet. " +
-				"A program needs at least one sink that consumes data. ");
-		}
 		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
-		StreamGraph streamGraph = generateStreamGraph(execEnv, transformations, getNonEmptyJobName(jobName));
-
-		// TODO supports streamEnv.execute(streamGraph)
-		try {
-			return execEnv.execute(getNonEmptyJobName(jobName));
-		} finally {
-			transformations.clear();
-		}
+		StreamGraph streamGraph = generateStreamGraph(transformations, jobName);
+		return execEnv.execute(streamGraph);
 	}
 
-	public static StreamGraph generateStreamGraph(
-		StreamExecutionEnvironment execEnv,
-		List<Transformation<?>> transformations,
-		String jobName) throws Exception {
-		// TODO avoid cloning ExecutionConfig
-		ExecutionConfig executionConfig = InstantiationUtil.clone(execEnv.getConfig());
+	/**
+	 * Backup previous streamEnv config and set batch configs.
+	 */
+	private void backupAndUpdateStreamEnv(StreamExecutionEnvironment execEnv) {
+		ExecutionConfig executionConfig = execEnv.getConfig();
+
+		enableObjectReuse = executionConfig.isObjectReuseEnabled();
 		executionConfig.enableObjectReuse();
+
+		latencyTrackingInterval = executionConfig.getLatencyTrackingInterval();
 		executionConfig.setLatencyTrackingInterval(-1);
 
-		return new StreamGraphGenerator(transformations, executionConfig, new CheckpointConfig())
-			.setChaining(execEnv.isChainingEnabled())
-			.setStateBackend(execEnv.getStateBackend())
-			.setDefaultBufferTimeout(-1)
-			.setTimeCharacteristic(TimeCharacteristic.ProcessingTime)
-			.setUserArtifacts(execEnv.getCachedFiles())
-			.setSlotSharingEnabled(false)
-			.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES)
-			.setJobName(jobName)
-			.generate();
+		timeCharacteristic = execEnv.getStreamTimeCharacteristic();
+		execEnv.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+
+		bufferTimeout = execEnv.getBufferTimeout();
+		execEnv.setBufferTimeout(-1);
+
+		inputDependencyConstraint = executionConfig.getDefaultInputDependencyConstraint();
+		if (isShuffleModeAllBatch()) {
+			executionConfig.setDefaultInputDependencyConstraint(InputDependencyConstraint.ALL);
+		}
 	}
 
+	/**
+	 * Restore previous streamEnv after execute batch jobs.
+	 */
+	private void restoreStreamEnv(StreamExecutionEnvironment execEnv) {
+		ExecutionConfig executionConfig = execEnv.getConfig();
+		if (enableObjectReuse) {
+			executionConfig.enableObjectReuse();
+		} else {
+			executionConfig.disableObjectReuse();
+		}
+		executionConfig.setLatencyTrackingInterval(latencyTrackingInterval);
+		execEnv.setStreamTimeCharacteristic(timeCharacteristic);
+		execEnv.setBufferTimeout(bufferTimeout);
+		if (isShuffleModeAllBatch()) {
+			executionConfig.setDefaultInputDependencyConstraint(inputDependencyConstraint);
+		}
+	}
+
+	/**
+	 * Translates transformationList to streamGraph.
+	 */
+	public StreamGraph generateStreamGraph(
+			List<Transformation<?>> transformations,
+			String jobName) throws Exception {
+		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
+		backupAndUpdateStreamEnv(execEnv);
+		transformations.forEach(execEnv::addOperator);
+		StreamGraph streamGraph;
+		try {
+			streamGraph = execEnv.getStreamGraph(getNonEmptyJobName(jobName));
+			// If one transformation uses managed memory, all transformations should set managed memory to 0.
+			ResourceSpec managedResourceSpec = NodeResourceUtil.fromManagedMem(0);
+			streamGraph.getStreamNodes().forEach(sn -> {
+				sn.setResources(sn.getMinResources().merge(managedResourceSpec), sn.getPreferredResources().merge(managedResourceSpec));
+			});
+			streamGraph.setChaining(true);
+			streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES);
+			streamGraph.setStateBackend(null);
+			streamGraph.getCheckpointConfig().setCheckpointInterval(Long.MAX_VALUE);
+			if (isShuffleModeAllBatch()) {
+				streamGraph.setBlockingConnectionsBetweenChains(true);
+			}
+		} finally {
+			restoreStreamEnv(execEnv);
+		}
+		return streamGraph;
+	}
+
+	private boolean isShuffleModeAllBatch() {
+		ExecutionConfig.GlobalJobParameters parameters = getExecutionEnvironment().getConfig().getGlobalJobParameters();
+		if (parameters != null) {
+			String value = parameters.toMap().getOrDefault(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE_ALL_BATCH.key(),
+					ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE_ALL_BATCH.defaultValue().toString());
+			if (value.toLowerCase().equals("true")) {
+				return true;
+			}
+		}
+		return false;
+	}
 }

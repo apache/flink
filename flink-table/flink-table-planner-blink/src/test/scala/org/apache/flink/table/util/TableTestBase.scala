@@ -483,6 +483,8 @@ abstract class TableTestUtil(
   protected val testingTableEnv: TestingTableEnvironment =
     TestingTableEnvironment.create(setting, catalogManager)
   val tableEnv: TableEnvironment = testingTableEnv
+  tableEnv.getConfig.getConf.setBoolean(
+    ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE_ALL_BATCH, false)
 
   private val env: StreamExecutionEnvironment = getPlanner.getExecEnv
   env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)

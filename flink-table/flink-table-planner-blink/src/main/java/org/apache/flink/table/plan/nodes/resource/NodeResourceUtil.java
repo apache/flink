@@ -18,13 +18,14 @@
 
 package org.apache.flink.table.plan.nodes.resource;
 
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ExecutionConfigOptions;
 
 /**
  * Deal with resource config for {@link org.apache.flink.table.plan.nodes.exec.ExecNode}.
  */
-public class NodeResourceConfig {
+public class NodeResourceUtil {
 
 	/**
 	 * How many Bytes per MB.
@@ -66,5 +67,11 @@ public class NodeResourceConfig {
 			parallelism = envParallelism;
 		}
 		return parallelism;
+	}
+
+	public static ResourceSpec fromManagedMem(int managedMem) {
+		ResourceSpec.Builder builder = ResourceSpec.newBuilder();
+		builder.setManagedMemoryInMB(managedMem);
+		return builder.build();
 	}
 }

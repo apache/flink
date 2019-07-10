@@ -28,7 +28,7 @@ import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.cost.FlinkCost._
 import org.apache.flink.table.plan.cost.FlinkCostFactory
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig
+import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.plan.util.FlinkRelMdUtil
 import org.apache.flink.table.planner.BatchPlanner
@@ -131,22 +131,27 @@ abstract class BatchExecHashAggregateBase(
     val aggInfos = transformToBatchAggregateInfoList(
       aggCallToAggFunction.map(_._1), aggInputRowType)
 
+    var managedMemoryInMB = 0
     val generatedOperator = if (grouping.isEmpty) {
       AggWithoutKeysCodeGenerator.genWithoutKeys(
         ctx, relBuilder, aggInfos, inputType, outputType, isMerge, isFinal, "NoGrouping")
     } else {
-      val reservedManagedMem = config.getConfiguration.getInteger(
-        ExecutionConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM) * NodeResourceConfig.SIZE_IN_MB
+      managedMemoryInMB = config.getConfiguration.getInteger(
+        ExecutionConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM)
+      val managedMemory = managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB
       new HashAggCodeGenerator(
         ctx, relBuilder, aggInfos, inputType, outputType, grouping, auxGrouping, isMerge, isFinal
-      ).genWithKeys(reservedManagedMem)
+      ).genWithKeys(managedMemory)
     }
     val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
-    new OneInputTransformation(
+    val ret = new OneInputTransformation(
       input,
       getOperatorName,
       operator,
       BaseRowTypeInfo.of(outputType),
       getResource.getParallelism)
+    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
+    ret.setResources(resource, resource)
+    ret
   }
 }

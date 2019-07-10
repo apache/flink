@@ -107,12 +107,12 @@ public class ExecutionConfigOptions {
 
 	public static final ConfigOption<Integer> SQL_RESOURCE_HASH_AGG_TABLE_MEM =
 			key("sql.resource.hash-agg.table.memory.mb")
-					.defaultValue(256)
+					.defaultValue(128)
 					.withDescription("Sets the table memory size of hashAgg operator.");
 
 	public static final ConfigOption<Integer> SQL_RESOURCE_HASH_JOIN_TABLE_MEM =
 			key("sql.resource.hash-join.table.memory.mb")
-					.defaultValue(512)
+					.defaultValue(128)
 					.withDescription("Sets the HashTable reserved memory for hashJoin operator. It defines the lower limit.");
 
 	public static final ConfigOption<Integer> SQL_RESOURCE_SORT_BUFFER_MEM =
@@ -195,4 +195,11 @@ public class ExecutionConfigOptions {
 							"means a kind of disabled operator. Its default value is empty that means no operators are disabled. " +
 							"If the configure's value is \"NestedLoopJoin, ShuffleHashJoin\", NestedLoopJoin and ShuffleHashJoin " +
 							"are disabled. If configure's value is \"HashJoin\", ShuffleHashJoin and BroadcastHashJoin are disabled.");
+
+	public static final ConfigOption<Boolean> SQL_EXEC_SHUFFLE_MODE_ALL_BATCH =
+			key("sql.exec.shuffle-mode.all-batch")
+					.defaultValue(true)
+					.withDescription("Sets Whether all shuffle-mode is batch. If it is true, the job will run stage by stage. If it is false, " +
+							" the job will run in streaming mode, but it may cause resource deadlock that receiver waits for resource to start when " +
+							"the sender holds resource to wait to send data to the receiver.");
 }

@@ -21,6 +21,7 @@ package org.apache.flink.table.executor;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.util.StringUtils;
 
@@ -50,6 +51,10 @@ public abstract class ExecutorBase implements Executor {
 	public StreamExecutionEnvironment getExecutionEnvironment() {
 		return executionEnvironment;
 	}
+
+	public abstract StreamGraph generateStreamGraph(
+			List<Transformation<?>> transformations,
+			String jobName) throws Exception;
 
 	protected String getNonEmptyJobName(String jobName) {
 		if (StringUtils.isNullOrWhitespaceOnly(jobName)) {

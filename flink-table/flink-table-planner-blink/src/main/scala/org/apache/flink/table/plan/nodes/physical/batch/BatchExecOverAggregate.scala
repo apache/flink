@@ -35,7 +35,7 @@ import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistri
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.physical.batch.OverWindowMode.OverWindowMode
-import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig
+import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.plan.util.OverAggregateUtil.getLongBoundary
@@ -378,6 +378,7 @@ class BatchExecOverAggregate(
       collation.map(_._1),
       collation.map(_._2))
 
+    var managedMemoryInMB: Int = 0
     val operator = if (!needBufferData) {
       //operator needn't cache data
       val aggHandlers = modeToGroupToAggCallToAggFunction.map { case (_, _, aggCallToAggFunction) =>
@@ -408,15 +409,19 @@ class BatchExecOverAggregate(
       new NonBufferOverWindowOperator(aggHandlers, genComparator, resetAccumulators)
     } else {
       val windowFrames = createOverWindowFrames(config)
+      managedMemoryInMB = config.getConfiguration.getInteger(
+        ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM)
       new BufferDataOverWindowOperator(
-        config.getConfiguration.getInteger(
-          ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM) * NodeResourceConfig.SIZE_IN_MB,
+        managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB,
         windowFrames,
         genComparator,
         inputType.getChildren.forall(t => BinaryRow.isInFixedLengthPart(t)))
     }
-    new OneInputTransformation(
+    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
+    val ret = new OneInputTransformation(
       input, "OverAggregate", operator, BaseRowTypeInfo.of(outputType), getResource.getParallelism)
+    ret.setResources(resource, resource)
+    ret
   }
 
   def createOverWindowFrames(config: TableConfig): Array[OverWindowFrame] = {

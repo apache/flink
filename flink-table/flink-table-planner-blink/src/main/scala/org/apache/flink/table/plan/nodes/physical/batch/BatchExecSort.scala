@@ -27,7 +27,7 @@ import org.apache.flink.table.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig
+import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, RelExplainUtil, SortUtil}
 import org.apache.flink.table.planner.BatchPlanner
 import org.apache.flink.table.runtime.sort.SortOperator
@@ -116,19 +116,23 @@ class BatchExecSort(
     val keyTypes = keys.map(inputType.getTypeAt)
     val codeGen = new SortCodeGenerator(conf, keys, keyTypes, orders, nullsIsLast)
 
-    val reservedMemorySize = conf.getConfiguration.getInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM) * NodeResourceConfig.SIZE_IN_MB
+    val managedMemoryInMB = conf.getConfiguration.getInteger(
+      ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM)
+    val managedMemory = managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB
 
     val operator = new SortOperator(
-      reservedMemorySize,
+      managedMemory,
       codeGen.generateNormalizedKeyComputer("BatchExecSortComputer"),
       codeGen.generateRecordComparator("BatchExecSortComparator"))
 
-    new OneInputTransformation(
+    val ret = new OneInputTransformation(
       input,
       s"Sort(${RelExplainUtil.collationToString(sortCollation, getRowType)})",
       operator.asInstanceOf[OneInputStreamOperator[BaseRow, BaseRow]],
       BaseRowTypeInfo.of(outputType),
       getResource.getParallelism)
+    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
+    ret.setResources(resource, resource)
+    ret
   }
 }
