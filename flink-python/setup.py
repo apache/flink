@@ -140,7 +140,7 @@ run sdist.
     scripts.append("pyflink/find_flink_home.py")
 
     setup(
-        name='pyflink',
+        name='apache-flink',
         version=VERSION,
         packages=['pyflink',
                   'pyflink.table',
