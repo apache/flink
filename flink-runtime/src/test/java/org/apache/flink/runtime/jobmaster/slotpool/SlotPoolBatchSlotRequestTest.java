@@ -25,12 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
-import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
-import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.clock.ManualClock;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -41,7 +36,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -50,9 +44,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
@@ -91,7 +82,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 	public void testPendingBatchSlotRequestTimeout() throws Exception {
 		try (final SlotPoolImpl slotPool = new SlotPoolBuilder(mainThreadExecutor)
 				.build()) {
-			final CompletableFuture<PhysicalSlot> slotFuture = requestNewAllocatedBatchSlot(
+			final CompletableFuture<PhysicalSlot> slotFuture = SlotPoolUtils.requestNewAllocatedBatchSlot(
 				slotPool,
 				mainThreadExecutor,
 				ResourceProfile.UNKNOWN);
@@ -120,11 +111,11 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 				.setBatchSlotTimeout(batchSlotTimeout)
 				.build()) {
 
-			offerSlots(slotPool, directMainThreadExecutor, Collections.singletonList(resourceProfile));
+			SlotPoolUtils.offerSlots(slotPool, directMainThreadExecutor, Collections.singletonList(resourceProfile));
 
-			final CompletableFuture<PhysicalSlot> firstSlotFuture = requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, resourceProfile);
-			final CompletableFuture<PhysicalSlot> secondSlotFuture = requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, ResourceProfile.UNKNOWN);
-			final CompletableFuture<PhysicalSlot> thirdSlotFuture = requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, smallerResourceProfile);
+			final CompletableFuture<PhysicalSlot> firstSlotFuture = SlotPoolUtils.requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, resourceProfile);
+			final CompletableFuture<PhysicalSlot> secondSlotFuture = SlotPoolUtils.requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, ResourceProfile.UNKNOWN);
+			final CompletableFuture<PhysicalSlot> thirdSlotFuture = SlotPoolUtils.requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, smallerResourceProfile);
 
 			final List<CompletableFuture<PhysicalSlot>> slotFutures = Arrays.asList(firstSlotFuture, secondSlotFuture, thirdSlotFuture);
 			advanceTimeAndTriggerCheckBatchSlotTimeout(slotPool, clock, batchSlotTimeout);
@@ -154,9 +145,9 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 			.setResourceManagerGateway(testingResourceManagerGateway)
 			.build()) {
 
-			final CompletableFuture<PhysicalSlot> slotFuture = requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, resourceProfile);
+			final CompletableFuture<PhysicalSlot> slotFuture = SlotPoolUtils.requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, resourceProfile);
 
-			failAllocation(slotPool, directMainThreadExecutor, allocationIdFuture.get());
+			SlotPoolUtils.failAllocation(slotPool, directMainThreadExecutor, allocationIdFuture.get());
 
 			assertThat(slotFuture.isDone(), is(false));
 		}
@@ -178,7 +169,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 			.setResourceManagerGateway(testingResourceManagerGateway)
 			.build()) {
 
-			final CompletableFuture<PhysicalSlot> slotFuture = requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, resourceProfile);
+			final CompletableFuture<PhysicalSlot> slotFuture = SlotPoolUtils.requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, resourceProfile);
 
 			assertThat(slotFuture.isDone(), is(false));
 		}
@@ -198,10 +189,10 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 				.setClock(clock)
 				.setBatchSlotTimeout(batchSlotTimeout)
 				.build()) {
-			final ResourceID taskManagerResourceId = offerSlots(slotPool, directMainThreadExecutor, Collections.singletonList(resourceProfile));
-			final CompletableFuture<PhysicalSlot> firstSlotFuture = requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, resourceProfile);
-			final CompletableFuture<PhysicalSlot> secondSlotFuture = requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, ResourceProfile.UNKNOWN);
-			final CompletableFuture<PhysicalSlot> thirdSlotFuture = requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, smallerResourceProfile);
+			final ResourceID taskManagerResourceId = SlotPoolUtils.offerSlots(slotPool, directMainThreadExecutor, Collections.singletonList(resourceProfile));
+			final CompletableFuture<PhysicalSlot> firstSlotFuture = SlotPoolUtils.requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, resourceProfile);
+			final CompletableFuture<PhysicalSlot> secondSlotFuture = SlotPoolUtils.requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, ResourceProfile.UNKNOWN);
+			final CompletableFuture<PhysicalSlot> thirdSlotFuture = SlotPoolUtils.requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, smallerResourceProfile);
 
 			final List<CompletableFuture<PhysicalSlot>> slotFutures = Arrays.asList(firstSlotFuture, secondSlotFuture, thirdSlotFuture);
 
@@ -210,7 +201,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 
 			assertThat(CompletableFuture.anyOf(slotFutures.toArray(COMPLETABLE_FUTURES_EMPTY_ARRAY)).isDone(), is(false));
 
-			releaseTaskManager(slotPool, directMainThreadExecutor, taskManagerResourceId);
+			SlotPoolUtils.releaseTaskManager(slotPool, directMainThreadExecutor, taskManagerResourceId);
 
 			advanceTimeAndTriggerCheckBatchSlotTimeout(slotPool, clock, batchSlotTimeout);
 
@@ -237,51 +228,4 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 		// timeout all as unfulfillable marked slots
 		slotPool.triggerCheckBatchSlotTimeout();
 	}
-
-	private CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
-			SlotPool slotPool,
-			ComponentMainThreadExecutor mainThreadExecutor,
-			ResourceProfile resourceProfile) {
-		return CompletableFuture
-			.supplyAsync(() -> slotPool.requestNewAllocatedBatchSlot(new SlotRequestId(), resourceProfile), mainThreadExecutor)
-			.thenCompose(Function.identity());
-	}
-
-	private ResourceID offerSlots(SlotPoolImpl slotPool, ComponentMainThreadExecutor mainThreadExecutor, List<ResourceProfile> resourceProfiles) {
-		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
-		CompletableFuture.runAsync(
-			() -> {
-				slotPool.registerTaskManager(taskManagerLocation.getResourceID());
-
-				final Collection<SlotOffer> slotOffers = IntStream
-					.range(0, resourceProfiles.size())
-					.mapToObj(i -> new SlotOffer(new AllocationID(), i, resourceProfiles.get(i)))
-					.collect(Collectors.toList());
-
-				final Collection<SlotOffer> acceptedOffers = slotPool.offerSlots(
-					taskManagerLocation,
-					new SimpleAckingTaskManagerGateway(),
-					slotOffers);
-
-				assertThat(acceptedOffers, is(slotOffers));
-			},
-			mainThreadExecutor
-		).join();
-
-		return taskManagerLocation.getResourceID();
-	}
-
-	private void failAllocation(SlotPoolImpl slotPool, ComponentMainThreadExecutor mainThreadExecutor, AllocationID allocationId) {
-		CompletableFuture.runAsync(
-			() -> slotPool.failAllocation(allocationId, new FlinkException("Test exception")),
-			mainThreadExecutor).join();
-	}
-
-	private void releaseTaskManager(SlotPoolImpl slotPool, ComponentMainThreadExecutor mainThreadExecutor, ResourceID taskManagerResourceId) {
-		CompletableFuture.runAsync(
-			() -> slotPool.releaseTaskManager(taskManagerResourceId, new FlinkException("Let's get rid of the offered slot.")),
-			mainThreadExecutor
-		).join();
-	}
-
 }
