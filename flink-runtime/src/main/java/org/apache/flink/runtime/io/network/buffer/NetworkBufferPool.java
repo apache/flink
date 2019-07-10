@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
@@ -31,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -76,7 +78,7 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 	private final long requestSegmentsTimeoutInMillis;
 
 	public NetworkBufferPool(int numberOfSegmentsToAllocate, int segmentSize, int numberOfSegmentsToRequest) {
-		this(numberOfSegmentsToAllocate, segmentSize, numberOfSegmentsToRequest, Long.MAX_VALUE);
+		this(numberOfSegmentsToAllocate, segmentSize, numberOfSegmentsToRequest, Integer.MAX_VALUE);
 	}
 
 	/**
@@ -191,7 +193,7 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 
 		final List<MemorySegment> segments = new ArrayList<>(numberOfSegmentsToRequest);
 		try {
-			long startTimeInNanos = System.nanoTime();
+			final Deadline deadline = Deadline.now().plus(Duration.ofMillis(requestSegmentsTimeoutInMillis));
 			while (true) {
 				if (isDestroyed) {
 					throw new IllegalStateException("Buffer pool is destroyed.");
@@ -206,7 +208,7 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 					break;
 				}
 
-				if ((System.nanoTime() - startTimeInNanos) / 1_000_000 >= requestSegmentsTimeoutInMillis) {
+				if (!deadline.hasTimeLeft()) {
 					throw new IOException(String.format("Insufficient number of network buffers: " +
 									"requesting exclusive buffers timeout. The total number of network " +
 									"buffers is currently set to %d of %d bytes each. You can increase this " +

@@ -485,7 +485,7 @@ public class NetworkBufferPoolTest extends TestLogger {
 	public void testRequestMemorySegmentsTimeout() throws Exception {
 		final int numBuffers = 10;
 		final int numberOfSegmentsToRequest = 2;
-		final long requestSegmentsTimeoutInMillis = 1000L;
+		final long requestSegmentsTimeoutInMillis = 50L;
 
 		NetworkBufferPool globalPool = new NetworkBufferPool(
 				numBuffers,
@@ -509,12 +509,12 @@ public class NetworkBufferPoolTest extends TestLogger {
 
 		asyncRequest.start();
 
+		expectedException.expect(IOException.class);
+		expectedException.expectMessage("Insufficient");
+
 		try {
-			asyncRequest.trySync(requestSegmentsTimeoutInMillis * 10);
-			fail("Requesting exclusive buffer does not timeout and throw exception as expected.");
-		} catch (IOException ignored) {
-			// Expected exception
-		}  finally {
+			asyncRequest.sync();
+		} finally {
 			globalPool.destroy();
 		}
 	}
