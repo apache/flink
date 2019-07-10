@@ -22,6 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.slotpool.Scheduler;
@@ -45,6 +46,23 @@ import static org.apache.flink.util.Preconditions.checkState;
  * It is used for normal scheduling and legacy failover strategy re-scheduling.
  */
 public class SchedulingUtils {
+
+	public static CompletableFuture<Void> schedule(
+			ScheduleMode scheduleMode,
+			final Iterable<ExecutionVertex> vertices,
+			final ExecutionGraph executionGraph) {
+
+		switch (scheduleMode) {
+			case LAZY_FROM_SOURCES:
+				return scheduleLazy(vertices, executionGraph);
+
+			case EAGER:
+				return scheduleEager(vertices, executionGraph);
+
+			default:
+				throw new IllegalStateException(String.format("Schedule mode %s is invalid.", scheduleMode));
+		}
+	}
 
 	/**
 	 * Schedule vertices lazy. That means only vertices satisfying its input constraint will be scheduled.

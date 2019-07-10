@@ -940,21 +940,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
 
-			final CompletableFuture<Void> newSchedulingFuture;
-
-			switch (scheduleMode) {
-
-				case LAZY_FROM_SOURCES:
-					newSchedulingFuture = scheduleLazy();
-					break;
-
-				case EAGER:
-					newSchedulingFuture = scheduleEager();
-					break;
-
-				default:
-					throw new JobException("Schedule mode is invalid.");
-			}
+			final CompletableFuture<Void> newSchedulingFuture = SchedulingUtils.schedule(
+				scheduleMode,
+				getAllExecutionVertices(),
+				this);
 
 			if (state == JobStatus.RUNNING && currentGlobalModVersion == globalModVersion) {
 				schedulingFuture = newSchedulingFuture;
@@ -976,18 +965,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		else {
 			throw new IllegalStateException("Job may only be scheduled from state " + JobStatus.CREATED);
 		}
-	}
-
-	private CompletableFuture<Void> scheduleLazy() {
-		return SchedulingUtils.scheduleLazy(getAllExecutionVertices(), this);
-	}
-
-	/**
-	 * @return Future which is completed once the {@link ExecutionGraph} has been scheduled.
-	 * The future can also be completed exceptionally if an error happened.
-	 */
-	private CompletableFuture<Void> scheduleEager() {
-		return SchedulingUtils.scheduleEager(getAllExecutionVertices(), this);
 	}
 
 	public void cancel() {

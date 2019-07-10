@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.executiongraph.failover;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -210,20 +209,10 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 		// which may cause lots of partition state checks in EAGER mode
 		final List<ExecutionVertex> sortedVertices = sortVerticesTopologically(vertices);
 
-		final CompletableFuture<Void> newSchedulingFuture;
-		switch (executionGraph.getScheduleMode()) {
-
-			case LAZY_FROM_SOURCES:
-				newSchedulingFuture = SchedulingUtils.scheduleLazy(sortedVertices, executionGraph);
-				break;
-
-			case EAGER:
-				newSchedulingFuture = SchedulingUtils.scheduleEager(sortedVertices, executionGraph);
-				break;
-
-			default:
-				throw new JobException("Schedule mode is invalid.");
-		}
+		final CompletableFuture<Void> newSchedulingFuture = SchedulingUtils.schedule(
+			executionGraph.getScheduleMode(),
+			sortedVertices,
+			executionGraph);
 
 		// if no global failover is triggered in the scheduling process,
 		// register a failure handling callback to the scheduling
