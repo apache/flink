@@ -46,7 +46,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val config = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-    if (!config.getConf.getBoolean(
+    if (!config.getConfiguration.getBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_PREDICATE_PUSHDOWN_ENABLED)) {
       return false
     }

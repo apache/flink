@@ -257,8 +257,8 @@ abstract class PlannerBase(
     val execEnv = getExecEnv
     if (execEnv != null && execEnv.getConfig != null) {
       val parameters = new Configuration()
-      if (config != null && config.getConf != null) {
-        parameters.addAll(config.getConf)
+      if (config != null && config.getConfiguration != null) {
+        parameters.addAll(config.getConfiguration)
       }
 
       if (execEnv.getConfig.getGlobalJobParameters != null) {

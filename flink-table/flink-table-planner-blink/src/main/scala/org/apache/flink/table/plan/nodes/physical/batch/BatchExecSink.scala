@@ -99,7 +99,7 @@ class BatchExecSink[T](
         val sinkTransformation = dsSink.getTransformation
 
         val configSinkParallelism = NodeResourceConfig.getSinkParallelism(
-          planner.getTableConfig.getConf)
+          planner.getTableConfig.getConfiguration)
 
         val maxSinkParallelism = sinkTransformation.getMaxParallelism
 

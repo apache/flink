@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.plan.rules.logical
 
-import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.plan.common.AggregateReduceGroupingTestBase
 import org.apache.flink.table.plan.optimize.program.FlinkBatchProgram
 
@@ -34,13 +33,10 @@ class AggregateReduceGroupingRuleTest extends AggregateReduceGroupingTestBase {
     util.buildBatchProgram(FlinkBatchProgram.LOGICAL_REWRITE)
 
     // remove FlinkAggregateRemoveRule to prevent the agg from removing
-    val programs = util.getTableEnv.getConfig.getCalciteConfig.getBatchProgram
-      .getOrElse(FlinkBatchProgram.buildProgram(util.getTableEnv.getConfig.getConf))
+    val programs = util.getBatchProgram()
     programs.getFlinkRuleSetProgram(FlinkBatchProgram.LOGICAL).get
       .remove(RuleSets.ofList(FlinkAggregateRemoveRule.INSTANCE))
-    val calciteConfig = CalciteConfig.createBuilder(util.tableEnv.getConfig.getCalciteConfig)
-      .replaceBatchProgram(programs).build()
-    util.tableEnv.getConfig.setCalciteConfig(calciteConfig)
+    util.replaceBatchProgram(programs)
 
     super.setup()
   }

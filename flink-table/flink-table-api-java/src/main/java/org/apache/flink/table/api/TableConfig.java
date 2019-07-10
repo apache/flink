@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 
 import java.math.MathContext;
@@ -69,6 +70,38 @@ public class TableConfig {
 	 * State will be cleared and removed if it was not updated for the defined period of time.
 	 */
 	private long maxIdleStateRetentionTime = 0L;
+
+	/**
+	 * A configuration object to hold all key/value configuration.
+	 */
+	private Configuration configuration = new Configuration();
+
+	/**
+	 * Returns all key/value configuration.
+	 */
+	public Configuration getConfiguration() {
+		return configuration;
+	}
+
+	/**
+	 * Adds the given key/value configuration.
+	 *
+	 * @param configuration key/value configuration to adds
+	 */
+	public void addConfiguration(Configuration configuration) {
+		Preconditions.checkNotNull(configuration);
+		this.configuration.addAll(configuration);
+	}
+
+	/**
+	 * Adds the given key/value pair.
+	 *
+	 * @param key the key of the key/value pair to be added
+	 * @param value the value of the key/value pair to be added
+	 */
+	public void setConf(String key, String value) {
+		configuration.setString(key, value);
+	}
 
 	/**
 	 * Returns the timezone for date/time/timestamp conversions.

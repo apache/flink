@@ -81,7 +81,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   @Before
   override def before(): Unit = {
     super.before()
-    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(1))
+    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
   }
 
   @Test
@@ -1055,7 +1055,7 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .groupBy('bb)
       .select('bb, 'c.count as 'c)
 
-    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(1))
+    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
 
     val t = leftTableWithPk
       .join(rightTableWithPk, 'b === 'bb)

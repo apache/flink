@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.plan.optimize.program.{FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE, StreamOptimizeContext}
 import org.apache.flink.table.util.TableTestBase
 
@@ -56,9 +55,7 @@ class FlinkAggregateOuterJoinTransposeRuleTest extends TableTestBase {
         ))
         .build()
     )
-    val calciteConfig = CalciteConfig.createBuilder(util.tableEnv.getConfig.getCalciteConfig)
-      .replaceStreamProgram(program).build()
-    util.tableEnv.getConfig.setCalciteConfig(calciteConfig)
+    util.replaceStreamProgram(program)
 
     util.addTableSource[(Int, Long, String, Int)]("T", 'a, 'b, 'c, 'd)
   }

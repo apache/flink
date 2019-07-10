@@ -114,9 +114,9 @@ class SplitAggregateRule extends RelOptRule(
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
     val agg: FlinkLogicalAggregate = call.rel(0)
 
-    val isMiniBatchEnabled = tableConfig.getConf.getBoolean(
+    val isMiniBatchEnabled = tableConfig.getConfiguration.getBoolean(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
-    val splitSkewDistinctAggEnabled = tableConfig.getConf.getBoolean(
+    val splitSkewDistinctAggEnabled = tableConfig.getConfiguration.getBoolean(
       OptimizerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED)
     val isAllAggSplittable = doAllAggSupportSplit(agg.getAggCallList)
 
@@ -144,7 +144,7 @@ class SplitAggregateRule extends RelOptRule(
     }.distinct.diff(aggGroupSet).sorted.toArray
 
     val hashFieldsMap: util.Map[Int, Int] = new util.HashMap()
-    val buckets = tableConfig.getConf.getInteger(
+    val buckets = tableConfig.getConfiguration.getInteger(
       OptimizerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM)
 
     if (hashFieldIndexes.nonEmpty) {

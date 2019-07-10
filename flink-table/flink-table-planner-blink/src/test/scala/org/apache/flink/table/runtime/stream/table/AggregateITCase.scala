@@ -46,7 +46,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
   @Before
   override def before(): Unit = {
     super.before()
-    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(1))
+    tEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
   }
 
   @Test

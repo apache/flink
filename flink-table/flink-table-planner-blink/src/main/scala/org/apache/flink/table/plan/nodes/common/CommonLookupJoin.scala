@@ -17,15 +17,15 @@
  */
 package org.apache.flink.table.plan.nodes.common
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo, TypeExtractor}
 import org.apache.flink.streaming.api.datastream.AsyncDataStream.OutputMode
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.operators.ProcessOperator
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{TableConfig, ExecutionConfigOptions, TableException, TableSchema}
+import org.apache.flink.table.api.{ExecutionConfigOptions, TableConfig, TableException, TableSchema}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.LookupJoinCodeGenerator._
 import org.apache.flink.table.codegen.{CodeGeneratorContext, LookupJoinCodeGenerator}
@@ -44,7 +44,10 @@ import org.apache.flink.table.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.types.logical.{LogicalType, RowType, TypeInformationAnyType}
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.util.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.types.Row
+
+import com.google.common.primitives.Primitives
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
@@ -55,15 +58,12 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.mapping.IntPair
-import com.google.common.primitives.Primitives
+
 import java.util.Collections
 import java.util.concurrent.CompletableFuture
 
-import org.apache.flink.api.dag.Transformation
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.concurrent.duration.Duration
 
 /**
   * Common abstract RelNode for temporal table join which shares most methods.
@@ -186,9 +186,9 @@ abstract class CommonLookupJoin(
     val leftOuterJoin = joinType == JoinRelType.LEFT
 
     val operator = if (lookupableTableSource.isAsyncEnabled) {
-      val asyncBufferCapacity= config.getConf
+      val asyncBufferCapacity= config.getConfiguration
         .getInteger(ExecutionConfigOptions.SQL_EXEC_LOOKUP_ASYNC_BUFFER_CAPACITY)
-      val asyncTimeout = config.getMillisecondFromConfigDuration(
+      val asyncTimeout = getMillisecondFromConfigDuration(config,
         ExecutionConfigOptions.SQL_EXEC_LOOKUP_ASYNC_TIMEOUT)
 
       val asyncLookupFunction = lookupableTableSource

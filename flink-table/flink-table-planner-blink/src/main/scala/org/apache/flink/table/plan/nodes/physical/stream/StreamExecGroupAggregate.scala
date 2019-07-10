@@ -167,7 +167,7 @@ class StreamExecGroupAggregate(
       .generateRecordEqualiser("GroupAggValueEqualiser")
     val inputCountIndex = aggInfoList.getIndexOfCountStar
 
-    val isMiniBatchEnabled = tableConfig.getConf.getBoolean(
+    val isMiniBatchEnabled = tableConfig.getConfiguration.getBoolean(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
 
     val operator = if (isMiniBatchEnabled) {

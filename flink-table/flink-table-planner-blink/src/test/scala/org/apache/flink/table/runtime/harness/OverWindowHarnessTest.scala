@@ -20,19 +20,20 @@ package org.apache.flink.table.runtime.harness
 
 import java.lang.{Long => JLong}
 import java.util.concurrent.ConcurrentLinkedQueue
-
 import org.apache.flink.api.scala._
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{EnvironmentSettings, StreamQueryConfig, TableConfig, Types}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.runtime.util.StreamRecordUtils.baserow
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryrow
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.types.Row
-import org.junit.Test
+
+import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -40,6 +41,14 @@ import scala.collection.mutable
 
 @RunWith(classOf[Parameterized])
 class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
+
+  @Before
+  override def before(): Unit = {
+    super.before()
+    val setting = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    val config = new TestTableConfig
+    this.tEnv = StreamTableEnvironmentImpl.create(env, setting, config)
+  }
 
   @Test
   def testProcTimeBoundedRowsOver(): Unit = {
@@ -59,8 +68,8 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    tEnv.getConfig.withIdleStateRetentionTime(Time.seconds(2))
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
+    val queryConfig = new TestStreamQueryConfig(Time.seconds(2), Time.seconds(4))
+    val testHarness = createHarnessTester(t1.toAppendStream[Row](queryConfig), "OverAggregate")
     val assertor = new BaseRowHarnessAssertor(
       Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG, Types.LONG, Types.LONG))
 
@@ -168,8 +177,8 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    tEnv.getConfig.withIdleStateRetentionTime(Time.seconds(2))
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
+    val queryConfig = new TestStreamQueryConfig(Time.seconds(2), Time.seconds(4))
+    val testHarness = createHarnessTester(t1.toAppendStream[Row](queryConfig), "OverAggregate")
     val assertor = new BaseRowHarnessAssertor(
       Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG, Types.LONG))
     testHarness.open()
@@ -297,8 +306,8 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    tEnv.getConfig.withIdleStateRetentionTime(Time.seconds(2))
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
+    val queryConfig = new TestStreamQueryConfig(Time.seconds(2), Time.seconds(4))
+    val testHarness = createHarnessTester(t1.toAppendStream[Row](queryConfig), "OverAggregate")
     val assertor = new BaseRowHarnessAssertor(
       Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG, Types.LONG))
 
@@ -400,8 +409,8 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    tEnv.getConfig.withIdleStateRetentionTime(Time.seconds(1))
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
+    val queryConfig = new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))
+    val testHarness = createHarnessTester(t1.toAppendStream[Row](queryConfig), "OverAggregate")
     val assertor = new BaseRowHarnessAssertor(
       Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG))
 
@@ -549,8 +558,8 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    tEnv.getConfig.withIdleStateRetentionTime(Time.seconds(1))
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
+    val queryConfig = new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))
+    val testHarness = createHarnessTester(t1.toAppendStream[Row](queryConfig), "OverAggregate")
     val assertor = new BaseRowHarnessAssertor(
       Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG))
 
@@ -697,8 +706,8 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    tEnv.getConfig.withIdleStateRetentionTime(Time.seconds(1))
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
+    val queryConfig = new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))
+    val testHarness = createHarnessTester(t1.toAppendStream[Row](queryConfig), "OverAggregate")
     val assertor = new BaseRowHarnessAssertor(
       Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG))
 
@@ -835,8 +844,8 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
       """.stripMargin
     val t1 = tEnv.sqlQuery(sql)
 
-    tEnv.getConfig.withIdleStateRetentionTime(Time.seconds(1))
-    val testHarness = createHarnessTester(t1.toAppendStream[Row], "OverAggregate")
+    val queryConfig = new TestStreamQueryConfig(Time.seconds(1), Time.seconds(2))
+    val testHarness = createHarnessTester(t1.toAppendStream[Row](queryConfig), "OverAggregate")
     val assertor = new BaseRowHarnessAssertor(
       Array(Types.LONG, Types.STRING, Types.LONG, Types.LONG, Types.LONG))
 
@@ -949,5 +958,29 @@ class OverWindowHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode
 
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
     testHarness.close()
+  }
+
+  /**
+    * Test class used to test min and max retention time.
+    */
+  class TestStreamQueryConfig(min: Time, max: Time) extends StreamQueryConfig {
+    override def getMinIdleStateRetentionTime: Long = min.toMilliseconds
+    override def getMaxIdleStateRetentionTime: Long = max.toMilliseconds
+  }
+
+  class TestTableConfig extends TableConfig {
+
+    private var minIdleStateRetentionTime = 0L
+
+    private var maxIdleStateRetentionTime = 0L
+
+    override def getMinIdleStateRetentionTime: Long = minIdleStateRetentionTime
+
+    override def getMaxIdleStateRetentionTime: Long = maxIdleStateRetentionTime
+
+    override def setIdleStateRetentionTime(minTime: Time, maxTime: Time): Unit = {
+      minIdleStateRetentionTime = minTime.toMilliseconds
+      maxIdleStateRetentionTime = maxTime.toMilliseconds
+    }
   }
 }

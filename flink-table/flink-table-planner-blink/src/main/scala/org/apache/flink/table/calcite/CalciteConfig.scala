@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.calcite
 
+import org.apache.flink.table.api.PlannerConfig
 import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, StreamOptimizeContext}
 import org.apache.flink.util.Preconditions
 
@@ -146,7 +147,7 @@ class CalciteConfigBuilder {
 /**
   * Calcite configuration for defining a custom Calcite configuration for Table and SQL API.
   */
-trait CalciteConfig {
+trait CalciteConfig extends PlannerConfig {
 
   /**
     * Returns a custom batch table optimize program

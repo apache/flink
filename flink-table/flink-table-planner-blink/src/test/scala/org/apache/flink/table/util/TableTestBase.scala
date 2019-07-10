@@ -41,17 +41,15 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, DataStreamQueryOperation, ModifyOperation, PlannerQueryOperation, QueryOperation, RichTableSourceQueryOperation}
 import org.apache.flink.table.plan.nodes.calcite.LogicalWatermarkAssigner
 import org.apache.flink.table.plan.nodes.exec.ExecNode
-import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkStreamProgram}
+import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram, FlinkChainedProgram, FlinkStreamProgram, StreamOptimizeContext}
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.planner.PlannerBase
 import org.apache.flink.table.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
-import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.types.logical.LogicalType
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.types.Row
 
 import org.apache.calcite.rel.RelNode
@@ -698,7 +696,7 @@ case class StreamTableTestUtil(
   }
 
   def buildStreamProgram(firstProgramNameToRemove: String): Unit = {
-    val program = FlinkStreamProgram.buildProgram(tableEnv.getConfig.getConf)
+    val program = FlinkStreamProgram.buildProgram(tableEnv.getConfig.getConfiguration)
     var startRemove = false
     program.getProgramNames.foreach {
       name =>
@@ -709,17 +707,23 @@ case class StreamTableTestUtil(
           program.remove(name)
         }
     }
-    val calciteConfig = CalciteConfig.createBuilder(tableEnv.getConfig.getCalciteConfig)
-      .replaceStreamProgram(program).build()
-    tableEnv.getConfig.setCalciteConfig(calciteConfig)
+    replaceStreamProgram(program)
   }
 
+  def replaceStreamProgram(program: FlinkChainedProgram[StreamOptimizeContext]): Unit = {
+    var calciteConfig = TableConfigUtils.getCalciteConfig(tableEnv.getConfig)
+    calciteConfig = CalciteConfig.createBuilder(calciteConfig)
+      .replaceStreamProgram(program).build()
+    tableEnv.getConfig.setPlannerConfig(calciteConfig)
+  }
+
+
   def enableMiniBatch(): Unit = {
-    tableEnv.getConfig.getConf.setBoolean(
+    tableEnv.getConfig.getConfiguration.setBoolean(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
-    tableEnv.getConfig.getConf.setString(
+    tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
-    tableEnv.getConfig.getConf.setLong(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_SIZE, 3L)
+    tableEnv.getConfig.getConfiguration.setLong(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_SIZE, 3L)
   }
 
   def createAppendTableSink(
@@ -770,7 +774,7 @@ case class BatchTableTestUtil(
   extends TableTestUtil(test, true, catalogManager) {
 
   def buildBatchProgram(firstProgramNameToRemove: String): Unit = {
-    val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig.getConf)
+    val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig.getConfiguration)
     var startRemove = false
     program.getProgramNames.foreach {
       name =>
@@ -781,9 +785,21 @@ case class BatchTableTestUtil(
           program.remove(name)
         }
     }
-    val calciteConfig = CalciteConfig.createBuilder(tableEnv.getConfig.getCalciteConfig)
+    replaceBatchProgram(program)
+  }
+
+  def replaceBatchProgram(program: FlinkChainedProgram[BatchOptimizeContext]): Unit = {
+    var calciteConfig = TableConfigUtils.getCalciteConfig(tableEnv.getConfig)
+    calciteConfig = CalciteConfig.createBuilder(calciteConfig)
       .replaceBatchProgram(program).build()
-    tableEnv.getConfig.setCalciteConfig(calciteConfig)
+    tableEnv.getConfig.setPlannerConfig(calciteConfig)
+  }
+
+  def getBatchProgram(): FlinkChainedProgram[BatchOptimizeContext] = {
+    val tableConfig = tableEnv.getConfig
+    val calciteConfig = TableConfigUtils.getCalciteConfig(tableConfig)
+    calciteConfig.getBatchProgram.getOrElse(FlinkBatchProgram.buildProgram(
+      tableConfig.getConfiguration))
   }
 
   def createCollectTableSink(

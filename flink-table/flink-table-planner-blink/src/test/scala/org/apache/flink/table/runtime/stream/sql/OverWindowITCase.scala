@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.stream.sql
 
-import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
@@ -256,8 +255,6 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
 
   @Test
   def testProcTimeUnboundedNonPartitionedRangeOver(): Unit = {
-    tEnv.getConfig.withIdleStateRetentionTime(Time.hours(2))
-
     val t1 = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
 
     tEnv.registerTable("T1", t1)

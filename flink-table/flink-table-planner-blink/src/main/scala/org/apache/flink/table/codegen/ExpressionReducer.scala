@@ -25,7 +25,7 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.FunctionCodeGenerator.generateFunction
 import org.apache.flink.table.dataformat.BinaryStringUtil.safeToString
-import org.apache.flink.table.dataformat.{BinaryString, BinaryStringUtil, Decimal, GenericRow}
+import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow}
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.types.logical.RowType
 
@@ -100,7 +100,11 @@ class ExpressionReducer(
       case _ => throw new TableException("RichMapFunction[GenericRow, GenericRow] required here")
     }
 
-    val parameters = if (config.getConf != null) config.getConf else new Configuration()
+    val parameters = if (config.getConfiguration != null) {
+      config.getConfiguration
+    } else {
+      new Configuration()
+    }
     val reduced = try {
       richMapFunction.open(parameters)
       // execute

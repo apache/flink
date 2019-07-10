@@ -62,7 +62,7 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
 
   private val rexBuilder = rel.getCluster.getRexBuilder
   private val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(rel)
-  private val maxCnfNodeCount = tableConfig.getConf.getInteger(
+  private val maxCnfNodeCount = tableConfig.getConfiguration.getInteger(
     SelectivityEstimator.SQL_OPTIMIZER_CNF_NODES_LIMIT)
 
   // these default values is referred to RelMdUtil#guessSelectivity

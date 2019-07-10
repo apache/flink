@@ -50,10 +50,10 @@ class SplitAggregateITCase(
     super.before()
 
     if (partialAggMode.isPartialAggEnabled) {
-      tEnv.getConfig.getConf.setBoolean(
+      tEnv.getConfig.getConfiguration.setBoolean(
         OptimizerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
     } else {
-      tEnv.getConfig.getConf.setBoolean(
+      tEnv.getConfig.getConfiguration.setBoolean(
         OptimizerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, false)
     }
 
