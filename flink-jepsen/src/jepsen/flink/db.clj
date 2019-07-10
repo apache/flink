@@ -36,13 +36,13 @@
 
 (def taskmanager-slots 3)
 
-(defn flink-configuration
+(defn- default-flink-configuration
   [test node]
   {:high-availability                  "zookeeper"
    :high-availability.zookeeper.quorum (zookeeper-quorum test)
-   :high-availability.storageDir       (str (:ha-storage-dir test) "/ha")
+   :high-availability.storageDir       "hdfs:///flink/ha"
    :jobmanager.rpc.address             node
-   :state.savepoints.dir               (str (:ha-storage-dir test) "/savepoints")
+   :state.savepoints.dir               "hdfs:///flink/savepoints"
    :rest.address                       node
    :rest.port                          8081
    :rest.bind-address                  "0.0.0.0"
@@ -51,6 +51,12 @@
    :slotmanager.taskmanager-timeout    10000
    :state.backend.local-recovery       "true"
    :taskmanager.registration.timeout   "30 s"})
+
+(defn flink-configuration
+  [test node]
+  (let [additional-config (-> test :test-spec :flink-config)]
+    (merge (default-flink-configuration test node)
+           additional-config)))
 
 (defn write-configuration!
   "Writes the flink-conf.yaml to the flink conf directory"
