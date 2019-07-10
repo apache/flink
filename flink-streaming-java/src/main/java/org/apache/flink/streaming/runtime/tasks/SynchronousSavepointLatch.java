@@ -66,11 +66,13 @@ class SynchronousSavepointLatch {
 		}
 	}
 
-	void blockUntilCheckpointIsAcknowledged() throws Exception {
+	void blockUntilCheckpointIsAcknowledged() throws InterruptedException {
 		synchronized (synchronizationPoint) {
-			if (completionResult == null && isSet()) {
-				waiting = true;
-				synchronizationPoint.wait();
+			if (isSet()) {
+				while (completionResult == null) {
+					waiting = true;
+					synchronizationPoint.wait();
+				}
 				waiting = false;
 			}
 		}
