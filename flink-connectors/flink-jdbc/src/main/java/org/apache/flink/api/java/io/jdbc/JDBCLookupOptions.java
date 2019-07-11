@@ -19,6 +19,7 @@
 package org.apache.flink.api.java.io.jdbc;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 import static org.apache.flink.api.java.io.jdbc.JDBCUpsertOutputFormat.DEFAULT_MAX_RETRY_TIMES;
 
@@ -53,8 +54,20 @@ public class JDBCLookupOptions implements Serializable {
 		return new Builder();
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (o instanceof JDBCLookupOptions) {
+			JDBCLookupOptions options = (JDBCLookupOptions) o;
+			return Objects.equals(cacheMaxSize, options.cacheMaxSize) &&
+				Objects.equals(cacheExpireMs, options.cacheExpireMs) &&
+				Objects.equals(maxRetryTimes, options.maxRetryTimes);
+		} else {
+			return false;
+		}
+	}
+
 	/**
-	 * Builder of {@link JDBCOptions}.
+	 * Builder of {@link JDBCLookupOptions}.
 	 */
 	public static class Builder {
 		private long cacheMaxSize = -1L;
