@@ -28,6 +28,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -485,13 +486,13 @@ public class NetworkBufferPoolTest extends TestLogger {
 	public void testRequestMemorySegmentsTimeout() throws Exception {
 		final int numBuffers = 10;
 		final int numberOfSegmentsToRequest = 2;
-		final long requestSegmentsTimeoutInMillis = 50L;
+		final Duration requestSegmentsTimeout = Duration.ofMillis(50L);
 
 		NetworkBufferPool globalPool = new NetworkBufferPool(
 				numBuffers,
 				128,
 				numberOfSegmentsToRequest,
-				requestSegmentsTimeoutInMillis);
+				requestSegmentsTimeout);
 
 		BufferPool localBufferPool = globalPool.createBufferPool(0, numBuffers);
 		for (int i = 0; i < numBuffers; ++i) {

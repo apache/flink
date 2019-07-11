@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MathUtils;
 
+import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,10 +76,10 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 
 	private final int numberOfSegmentsToRequest;
 
-	private final long requestSegmentsTimeoutInMillis;
+	private final Duration requestSegmentsTimeout;
 
 	public NetworkBufferPool(int numberOfSegmentsToAllocate, int segmentSize, int numberOfSegmentsToRequest) {
-		this(numberOfSegmentsToAllocate, segmentSize, numberOfSegmentsToRequest, Integer.MAX_VALUE);
+		this(numberOfSegmentsToAllocate, segmentSize, numberOfSegmentsToRequest, Duration.ofMillis(Integer.MAX_VALUE));
 	}
 
 	/**
@@ -88,7 +89,7 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 		int numberOfSegmentsToAllocate,
 		int segmentSize,
 		int numberOfSegmentsToRequest,
-		long requestSegmentsTimeoutInMillis) {
+		Duration requestSegmentsTimeout) {
 
 		this.totalNumberOfMemorySegments = numberOfSegmentsToAllocate;
 		this.memorySegmentSize = segmentSize;
@@ -96,9 +97,10 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 		checkArgument(numberOfSegmentsToRequest > 0, "The number of required buffers should be larger than 0.");
 		this.numberOfSegmentsToRequest = numberOfSegmentsToRequest;
 
-		checkArgument(requestSegmentsTimeoutInMillis > 0,
-				"The timeout for requesting exclusive buffers should be larger than 0.");
-		this.requestSegmentsTimeoutInMillis = requestSegmentsTimeoutInMillis;
+		Preconditions.checkNotNull(requestSegmentsTimeout);
+		checkArgument(requestSegmentsTimeout.toMillis() > 0,
+				"The timeout for requesting exclusive buffers should be positive.");
+		this.requestSegmentsTimeout = requestSegmentsTimeout;
 
 		final long sizeInLong = (long) segmentSize;
 
@@ -166,7 +168,7 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 
 		final List<MemorySegment> segments = new ArrayList<>(numberOfSegmentsToRequest);
 		try {
-			final Deadline deadline = Deadline.fromNow(Duration.ofMillis(requestSegmentsTimeoutInMillis));
+			final Deadline deadline = Deadline.fromNow(requestSegmentsTimeout);
 			while (true) {
 				if (isDestroyed) {
 					throw new IllegalStateException("Buffer pool is destroyed.");
