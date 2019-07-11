@@ -157,6 +157,8 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 			String tableName = tablePath.getObjectName();
 			List<String> partitionColNames = catalogTable.getPartitionKeys();
 			if (partitionColNames != null && partitionColNames.size() > 0) {
+				final String defaultPartitionName = jobConf.get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
+						HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
 				List<Partition> partitions =
 						client.listPartitions(dbName, tableName, (short) -1);
 				for (Partition partition : partitions) {
@@ -168,7 +170,14 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 						String partitionValue = partition.getValues().get(i);
 						partitionSpec.put(partitionColName, partitionValue);
 						DataType type = catalogTable.getSchema().getFieldDataType(partitionColName).get();
-						Object partitionObject = restorePartitionValueFromFromType(partitionValue, type);
+						Object partitionObject;
+						if (defaultPartitionName.equals(partitionValue)) {
+							LogicalTypeRoot typeRoot = type.getLogicalType().getTypeRoot();
+							// while this is inline with Hive, seems it should be null for string columns as well
+							partitionObject = typeRoot == LogicalTypeRoot.CHAR || typeRoot == LogicalTypeRoot.VARCHAR ? defaultPartitionName : null;
+						} else {
+							partitionObject = restorePartitionValueFromFromType(partitionValue, type);
+						}
 						partitionColValues.put(partitionColName, partitionObject);
 					}
 					HiveTablePartition hiveTablePartition = new HiveTablePartition(sd, partitionColValues);
