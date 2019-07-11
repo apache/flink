@@ -164,7 +164,7 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 故障率重启策略在故障发生之后重启作业，但是当**故障率**（每个时间间隔发生故障的次数）超过设定的限制时，作业会最终失败。
 在连续的两次重启尝试之间，重启策略等待一段固定长度的时间。
 
-通过在 flink-conf.yaml 中设置如下配置参数，默认启用此策略。
+通过在 `flink-conf.yaml` 中设置如下配置参数，默认启用此策略。
 
 {% highlight yaml %}
 restart-strategy: failure-rate
