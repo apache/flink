@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.util
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
@@ -27,6 +27,7 @@ import org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCal
 import org.apache.flink.table.expressions.{Expression, FieldReferenceExpression, UnresolvedCallExpression, ValueLiteralExpression}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND
+import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
@@ -35,7 +36,7 @@ import org.apache.flink.types.Row
 
 import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.util
-import java.util.{Collections, List => JList}
+import java.util.{Collections, List => JList, Map => JMap}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -151,7 +152,7 @@ class TestTableSourceWithTime[T](
     dataStream
   }
 
-  override def getRowtimeAttributeDescriptors: util.List[RowtimeAttributeDescriptor] = {
+  override def getRowtimeAttributeDescriptors: JList[RowtimeAttributeDescriptor] = {
     // return a RowtimeAttributeDescriptor if rowtime attribute is defined
     if (rowtime != null) {
       Collections.singletonList(new RowtimeAttributeDescriptor(
@@ -159,7 +160,7 @@ class TestTableSourceWithTime[T](
         new ExistingField(rowtime),
         new AscendingTimestamps))
     } else {
-      Collections.EMPTY_LIST.asInstanceOf[util.List[RowtimeAttributeDescriptor]]
+      Collections.EMPTY_LIST.asInstanceOf[JList[RowtimeAttributeDescriptor]]
     }
   }
 
@@ -171,7 +172,7 @@ class TestTableSourceWithTime[T](
 
   override def explainSource(): String = ""
 
-  override def getFieldMapping: util.Map[String, String] = {
+  override def getFieldMapping: JMap[String, String] = {
     if (mapping != null) mapping else null
   }
 }
@@ -350,7 +351,7 @@ class TestFilterableTableSource(
     filterPredicates: Seq[Expression] = Seq(),
     val filterPushedDown: Boolean = false)
   extends StreamTableSource[Row]
-    with FilterableTableSource[Row] {
+  with FilterableTableSource[Row] {
 
   val fieldNames: Array[String] = rowTypeInfo.getFieldNames
 
@@ -537,4 +538,72 @@ object TestFilterableTableSource {
         cnt.toDouble.asInstanceOf[AnyRef])
     }
   }
+}
+
+/**
+  * A data source that implements some very basic partitionable table source in-memory.
+  *
+  * @param isBounded whether this is a bounded source
+  * @param remainingPartitions remaining partitions after partition pruning
+  */
+class TestPartitionableTableSource(
+    override val isBounded: Boolean,
+    remainingPartitions: JList[JMap[String, String]] = null)
+  extends StreamTableSource[Row]
+  with PartitionableTableSource {
+
+  private val fieldTypes: Array[TypeInformation[_]] = Array(
+    BasicTypeInfo.INT_TYPE_INFO,
+    BasicTypeInfo.STRING_TYPE_INFO,
+    BasicTypeInfo.STRING_TYPE_INFO,
+    BasicTypeInfo.INT_TYPE_INFO)
+  // 'part1' and 'part2' are partition fields
+  private val fieldNames = Array("id", "name", "part1", "part2")
+  private val returnType = new RowTypeInfo(fieldTypes, fieldNames)
+
+  private val data = mutable.Map[String, Seq[Row]](
+    "part1=A,part2=1" -> Seq(row(1, "Anna", "A", 1), row(2, "Jack", "A", 1)),
+    "part1=A,part2=2" -> Seq(row(3, "John", "A", 2), row(4, "nosharp", "A", 2)),
+    "part1=B,part2=3" -> Seq(row(5, "Peter", "B", 3), row(6, "Lucy", "B", 3)),
+    "part1=C,part2=1" -> Seq(row(7, "He", "C", 1), row(8, "Le", "C", 1))
+  )
+
+  override def getPartitions: JList[JMap[String, String]] = List(
+    Map("part1"->"A", "part2"->"1").asJava,
+    Map("part1"->"A", "part2"->"2").asJava,
+    Map("part1"->"B", "part2"->"3").asJava,
+    Map("part1"->"C", "part2"->"1").asJava
+  ).asJava
+
+  override def getPartitionFieldNames: JList[String] = List("part1", "part2").asJava
+
+  override def applyPartitionPruning(
+      remainingPartitions: JList[JMap[String, String]]): TableSource[_] = {
+    new TestPartitionableTableSource(isBounded, remainingPartitions)
+  }
+
+  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
+    val remainingData = if (remainingPartitions != null) {
+      val remainingPartitionList = remainingPartitions.map {
+        m => s"part1=${m.get("part1")},part2=${m.get("part2")}"
+      }
+      data.filterKeys(remainingPartitionList.contains).values.flatten
+    } else {
+      data.values.flatten
+    }
+
+    execEnv.fromCollection[Row](remainingData, getReturnType).setParallelism(1).setMaxParallelism(1)
+  }
+
+  override def explainSource(): String = {
+    if (remainingPartitions != null) {
+      s"partitions=${remainingPartitions.mkString(", ")}"
+    } else {
+      ""
+    }
+  }
+
+  override def getReturnType: TypeInformation[Row] = returnType
+
+  override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
 }

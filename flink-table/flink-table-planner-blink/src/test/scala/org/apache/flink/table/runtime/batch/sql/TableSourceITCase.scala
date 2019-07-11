@@ -24,7 +24,7 @@ import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.types.TypeInfoDataTypeConverter
-import org.apache.flink.table.util.{TestFilterableTableSource, TestNestedProjectableTableSource, TestProjectableTableSource, TestTableSources}
+import org.apache.flink.table.util.{TestFilterableTableSource, TestNestedProjectableTableSource, TestPartitionableTableSource, TestProjectableTableSource, TestTableSources}
 import org.apache.flink.types.Row
 
 import org.junit.{Before, Ignore, Test}
@@ -148,6 +148,15 @@ class TableSourceITCase extends BatchTestBase {
         row(6, "Record_6"),
         row(7, "Record_7"),
         row(8, "Record_8"))
+    )
+  }
+
+  @Test
+  def testTableSourceWithPartitionable(): Unit = {
+    tEnv.registerTableSource("PartitionableTable", new TestPartitionableTableSource(true))
+    checkResult(
+      "SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A'",
+      Seq(row(3, "John", "A", 2), row(4, "nosharp", "A", 2))
     )
   }
 

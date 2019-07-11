@@ -41,8 +41,8 @@ class BatchExecScanTableSourceRule
   /** Rule must only match if TableScan targets a bounded [[StreamTableSource]] */
   override def matches(call: RelOptRuleCall): Boolean = {
     val scan: TableScan = call.rel(0).asInstanceOf[TableScan]
-    val dataSetTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
-    dataSetTable match {
+    val tableSourceTable = scan.getTable.unwrap(classOf[TableSourceTable[_]])
+    tableSourceTable match {
       case tst: TableSourceTable[_] =>
         tst.tableSource match {
           case sts: StreamTableSource[_] => sts.isBounded

@@ -218,16 +218,14 @@ class ExpressionReducer(
   *
   * @param parameters User-defined configuration set in [[TableConfig]].
   */
-private class ConstantFunctionContext(parameters: Configuration) extends FunctionContext(null) {
+class ConstantFunctionContext(parameters: Configuration) extends FunctionContext(null) {
 
   override def getMetricGroup: MetricGroup = {
-    throw new UnsupportedOperationException(
-      "getMetricGroup is not supported when reducing expression")
+    throw new UnsupportedOperationException("getMetricGroup is not supported when optimizing")
   }
 
   override def getCachedFile(name: String): File = {
-    throw new UnsupportedOperationException(
-      "getCachedFile is not supported when reducing expression")
+    throw new UnsupportedOperationException("getCachedFile is not supported when optimizing")
   }
 
   /**
@@ -246,7 +244,7 @@ private class ConstantFunctionContext(parameters: Configuration) extends Functio
 /**
   * Constant expression code generator context.
   */
-private class ConstantCodeGeneratorContext(tableConfig: TableConfig)
+class ConstantCodeGeneratorContext(tableConfig: TableConfig)
   extends CodeGeneratorContext(tableConfig) {
   override def addReusableFunction(
       function: UserDefinedFunction,

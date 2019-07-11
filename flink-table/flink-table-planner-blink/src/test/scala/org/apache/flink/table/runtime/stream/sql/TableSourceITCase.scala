@@ -23,9 +23,11 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.{StreamingTestBase, TestingAppendSink}
 import org.apache.flink.table.util._
 import org.apache.flink.types.Row
+
 import org.junit.Assert._
 import org.junit.Test
 
@@ -313,6 +315,20 @@ class TableSourceITCase extends StreamingTestBase {
     env.execute()
 
     val expected = Seq("5,Record_5", "6,Record_6", "7,Record_7", "8,Record_8")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testTableSourceWithPartitionable(): Unit = {
+    tEnv.registerTableSource("PartitionableTable", new TestPartitionableTableSource(true))
+
+    val sqlQuery = "SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A'"
+    val result = tEnv.sqlQuery(sqlQuery).toAppendStream[Row]
+    val sink = new TestingAppendSink
+    result.addSink(sink)
+    env.execute()
+
+    val expected = Seq("3,John,A,2", "4,nosharp,A,2")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 

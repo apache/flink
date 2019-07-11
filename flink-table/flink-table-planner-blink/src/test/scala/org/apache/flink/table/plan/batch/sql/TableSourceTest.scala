@@ -23,7 +23,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.expressions.utils.Func1
 import org.apache.flink.table.types.TypeInfoDataTypeConverter
-import org.apache.flink.table.util._
+import org.apache.flink.table.util.{TestPartitionableTableSource, _}
 import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}
@@ -46,6 +46,7 @@ class TableSourceTest extends TableTestBase {
       Seq.empty[Row])
     )
     util.tableEnv.registerTableSource("FilterableTable", TestFilterableTableSource(true))
+    util.tableEnv.registerTableSource("PartitionableTable", new TestPartitionableTableSource(true))
   }
 
   @Test
@@ -144,6 +145,17 @@ class TableSourceTest extends TableTestBase {
   def testFilterPushDownWithUdf(): Unit = {
     util.addFunction("myUdf", Func1)
     util.verifyPlan("SELECT * FROM FilterableTable WHERE amount > 2 AND myUdf(amount) < 32")
+  }
+
+  @Test
+  def testPartitionTableSource(): Unit = {
+    util.verifyPlan("SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A' ")
+  }
+
+  @Test
+  def testPartitionTableSourceWithUdf(): Unit = {
+    util.addFunction("MyUdf", Func1)
+    util.verifyPlan("SELECT * FROM PartitionableTable WHERE id > 2 AND MyUdf(part2) < 3")
   }
 
   @Test
