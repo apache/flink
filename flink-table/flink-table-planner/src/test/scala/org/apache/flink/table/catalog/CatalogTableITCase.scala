@@ -131,9 +131,9 @@ class CatalogTableITCase(isStreaming: Boolean) {
         |insert into t2
         |select t1.a, t1.b, (t1.a + 1) as c from t1
       """.stripMargin
-    tableEnv.sql(sourceDDL)
-    tableEnv.sql(sinkDDL)
-    tableEnv.sql(query)
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
     execJob("testJob")
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
@@ -167,9 +167,9 @@ class CatalogTableITCase(isStreaming: Boolean) {
         |insert into t2(a, b)
         |select t1.a, t1.b from t1
       """.stripMargin
-    tableEnv.sql(sourceDDL)
-    tableEnv.sql(sinkDDL)
-    tableEnv.sql(query)
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
     execJob("testJob")
     assertEquals(SOURCE_DATA.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
@@ -220,9 +220,9 @@ class CatalogTableITCase(isStreaming: Boolean) {
         |  join t1 b
         |  on a.a = b.b
       """.stripMargin
-    tableEnv.sql(sourceDDL)
-    tableEnv.sql(sinkDDL)
-    tableEnv.sql(query)
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
     execJob("testJob")
     assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
@@ -270,9 +270,9 @@ class CatalogTableITCase(isStreaming: Boolean) {
         |insert into t2
         |select sum(a), t1.b from t1 group by t1.b
       """.stripMargin
-    tableEnv.sql(sourceDDL)
-    tableEnv.sql(sinkDDL)
-    tableEnv.sql(query)
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
     execJob("testJob")
     assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
@@ -311,9 +311,9 @@ class CatalogTableITCase(isStreaming: Boolean) {
         |select sum(a), sum(b) from t1 group by TUMBLE(c, INTERVAL '1' SECOND)
       """.stripMargin
 
-    tableEnv.sql(sourceDDL)
-    tableEnv.sql(sinkDDL)
-    tableEnv.sql(query)
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
     execJob("testJob")
     assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
   }
@@ -352,9 +352,9 @@ class CatalogTableITCase(isStreaming: Boolean) {
         |select sum(a), sum(b) from t1 group by TUMBLE(wm, INTERVAL '1' SECOND)
       """.stripMargin
 
-    tableEnv.sql(sourceDDL)
-    tableEnv.sql(sinkDDL)
-    tableEnv.sql(query)
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
     execJob("testJob")
     assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
   }
@@ -393,9 +393,9 @@ class CatalogTableITCase(isStreaming: Boolean) {
         |select sum(a), sum(b) from t1 group by TUMBLE(c, INTERVAL '1' SECOND)
       """.stripMargin
 
-    tableEnv.sql(sourceDDL)
-    tableEnv.sql(sinkDDL)
-    tableEnv.sql(query)
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
     execJob("testJob")
     assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
   }
@@ -434,9 +434,9 @@ class CatalogTableITCase(isStreaming: Boolean) {
         |select sum(a), sum(b) from t1 group by TUMBLE(wm, INTERVAL '1' SECOND)
       """.stripMargin
 
-    tableEnv.sql(sourceDDL)
-    tableEnv.sql(sinkDDL)
-    tableEnv.sql(query)
+    tableEnv.sqlUpdate(sourceDDL)
+    tableEnv.sqlUpdate(sinkDDL)
+    tableEnv.sqlUpdate(query)
     execJob("testJob")
     assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
   }

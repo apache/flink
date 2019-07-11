@@ -30,8 +30,6 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
-import javax.annotation.Nullable;
-
 import java.util.Optional;
 
 /**
@@ -323,69 +321,6 @@ public interface TableEnvironment {
 	String[] getCompletionHints(String statement, int position);
 
 	/**
-	 * Evaluates single sql statement including DDLs and DMLs.
-	 *
-	 * <p>Note: Always use this interface to execute a sql query. It only supports
-	 * to execute one sql statement a time.
-	 *
-	 * <p>A DDL statement can execute to create/drop a table/view:
-	 * For example, the below DDL statement would create a CSV table named `tbl1`
-	 * into the current catalog:
-	 * <blockquote><pre>
-	 *   create table tbl1(
-	 *     a int,
-	 *     b bigint,
-	 *     c varchar
-	 *   ) with (
-	 *     connector = 'csv',
-	 *     csv.path = 'xxx'
-	 *   )
-	 * </pre></blockquote>
-	 *
-	 * <p>The returns table format for different kind of statement:
-	 * <ul>
-	 *   <li>DDL: returns null.</li>
-	 *   <li>DML: a sql insert returns null; a sql query(select) returns
-	 *   a table to describe the query data set, it can be further queried through
-	 *   the Table API, or directly write to sink with
-	 *   {@link #insertInto(Table, String, String...)}.</li>
-	 * </ul>
-	 *
-	 * <p>SQL queries can directly execute as follows:
-	 *
-	 * <blockquote><pre>
-	 *   String sinkDDL = "create table sinkTable(
-	 *                       a int,
-	 *                       b varchar
-	 *                     ) with (
-	 *                       connector = 'csv',
-	 *                       csv.path = 'xxx'
-	 *                     )";
-	 *
-	 *  String sourceDDL ="create table sourceTable(
-	 *                       a int,
-	 *                       b varchar
-	 *                     ) with (
-	 *                       connector = 'kafka',
-	 *                       kafka.topic = 'xxx',
-	 *                       kafka.endpoint = 'x.x.x'
-	 *                     )";
-	 *
-	 *  String query = "INSERT INTO sinkTable SELECT * FROM sourceTable";
-	 *
-	 *  tEnv.sql(sourceDDL);
-	 *  tEnv.sql(sinkDDL);
-	 *  tEnv.sql(query);
-	 *  tEnv.execute("MyJob");
-	 * </pre></blockquote>
-	 * This code snippet creates a job to read data from Kafka source into a CSV sink.
-	 *
-	 * @param statement The SQL statement to evaluate.
-	 */
-	@Nullable
-	Table sql(String statement);
-
-	/**
 	 * Evaluates a SQL query on registered tables and retrieves the result as a {@link Table}.
 	 *
 	 * <p>All tables referenced by the query must be registered in the TableEnvironment.
@@ -402,17 +337,14 @@ public interface TableEnvironment {
 	 * }
 	 * </pre>
 	 *
-	 * @deprecated Use {@link #sql(String)}.
-	 *
 	 * @param query The SQL query to evaluate.
 	 * @return The result of the query as Table
 	 */
-	@Deprecated
 	Table sqlQuery(String query);
 
 	/**
 	 * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
-	 * NOTE: Currently only SQL INSERT statements are supported.
+	 * NOTE: Currently only SQL INSERT statements and CREATE TABLE statements are supported.
 	 *
 	 * <p>All tables referenced by the query must be registered in the TableEnvironment.
 	 * A {@link Table} is automatically registered when its {@link Table#toString()} method is
@@ -430,11 +362,56 @@ public interface TableEnvironment {
 	 * }
 	 * </pre>
 	 *
-	 * @deprecated Use {@link #sql(String)}.
+	 * <p>A DDL statement can also be executed to create a table:
+	 * For example, the below DDL statement would create a CSV table named `tbl1`
+	 * into the current catalog:
+	 * <blockquote><pre>
+	 *    create table tbl1(
+	 *      a int,
+	 *      b bigint,
+	 *      c varchar
+	 *    ) with (
+	 *      connector.type = 'filesystem',
+	 *      format.type = 'csv',
+	 *      connector.path = 'xxx'
+	 *    )
+	 * </pre></blockquote>
+	 *
+	 * <p>SQL queries can directly execute as follows:
+	 *
+	 * <blockquote><pre>
+	 *    String sinkDDL = "create table sinkTable(
+	 *                        a int,
+	 *                        b varchar
+	 *                      ) with (
+	 *                        connector.type = 'filesystem',
+	 *                        format.type = 'csv',
+	 *                        connector.path = 'xxx'
+	 *                      )";
+	 *
+	 *    String sourceDDL ="create table sourceTable(
+	 *                        a int,
+	 *                        b varchar
+	 *                      ) with (
+	 *                        connector.type = 'kafka',
+	 *                        `update-mode` = 'append',
+	 *                        connector.topic = 'xxx',
+	 *                        connector.properties.0.key = 'k0',
+	 *                        connector.properties.0.value = 'v0',
+	 *                        ...
+	 *                      )";
+	 *
+	 *    String query = "INSERT INTO sinkTable SELECT * FROM sourceTable";
+	 *
+	 *    tEnv.sqlUpdate(sourceDDL);
+	 *    tEnv.sqlUpdate(sinkDDL);
+	 *    tEnv.sqlUpdate(query);
+	 *    tEnv.execute("MyJob");
+	 * </pre></blockquote>
+	 * This code snippet creates a job to read data from Kafka source into a CSV sink.
 	 *
 	 * @param stmt The SQL statement to evaluate.
 	 */
-	@Deprecated
 	void sqlUpdate(String stmt);
 
 	/**

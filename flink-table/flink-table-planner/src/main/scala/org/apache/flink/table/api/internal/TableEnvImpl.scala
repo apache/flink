@@ -414,45 +414,6 @@ abstract class TableEnvImpl(
     planner.getCompletionHints(statement, position)
   }
 
-  override def sql(statement: String): Table = {
-    val planner = getFlinkPlanner
-    // parse the sql query
-    val parsed = planner.parse(statement)
-    if (null != parsed) {
-      parsed match {
-        case insert: SqlInsert =>
-          val query = insert.getSource
-          val tableOperation = SqlToOperationConverter
-            .convert(planner, query)
-            .asInstanceOf[QueryOperation]
-          // get query result as Table
-          val queryResult = createTable(tableOperation)
-
-          // get name of sink table
-          val targetTablePath = insert.getTargetTable.asInstanceOf[SqlIdentifier].names
-
-          // insert query result into sink table
-          insertInto(queryResult, targetTablePath.asScala:_*)
-          // returns null for SQL INSERT statement now
-          null
-        case createTable: SqlCreateTable =>
-          val operation = SqlToOperationConverter
-            .convert(planner, createTable)
-            .asInstanceOf[CreateTableOperation]
-          registerCatalogTableInternal(operation.getTablePath,
-            operation.getCatalogTable,
-            operation.isIgnoreIfExists)
-          // returns null for DDL statement now
-          null
-        case query: SqlNode if query.getKind.belongsTo(SqlKind.QUERY) =>
-          createTable(SqlToOperationConverter.convert(planner, query)
-            .asInstanceOf[PlannerQueryOperation])
-      }
-    } else {
-      throw new TableException("Unsupported SQL query!")
-    }
-  }
-
   override def sqlQuery(query: String): Table = {
     val planner = getFlinkPlanner
     // parse the sql query
@@ -489,6 +450,13 @@ abstract class TableEnvImpl(
 
         // insert query result into sink table
         insertInto(queryResult, targetTablePath.asScala:_*)
+      case createTable: SqlCreateTable =>
+        val operation = SqlToOperationConverter
+          .convert(planner, createTable)
+          .asInstanceOf[CreateTableOperation]
+        registerCatalogTableInternal(operation.getTablePath,
+          operation.getCatalogTable,
+          operation.isIgnoreIfExists)
       case _ =>
         throw new TableException(
           "Unsupported SQL query! sqlUpdate() only accepts SQL statements of type INSERT.")

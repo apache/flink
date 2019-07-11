@@ -112,7 +112,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
             "sinks",
             source_sink_utils.TestAppendSink(field_names, field_types))
 
-        result = t_env.sql("select a + 1, b, c from %s" % source)
+        result = t_env.sql_query("select a + 1, b, c from %s" % source)
         result.insert_into("sinks")
         self.env.execute()
         actual = source_sink_utils.results()
@@ -129,7 +129,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
             "sinks",
             source_sink_utils.TestAppendSink(field_names, field_types))
 
-        t_env.sql("insert into sinks select * from %s" % source)
+        t_env.sql_update("insert into sinks select * from %s" % source)
         self.env.execute("test_sql_job")
 
         actual = source_sink_utils.results()

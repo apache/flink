@@ -234,14 +234,49 @@ class TableEnvironment(object):
         """
         return self._j_tenv.explain(table._j_table)
 
-    def sql(self, query):
+    def sql_query(self, query):
         """
-        Evaluates single sql statement including DDLs and DMLs.
+        Evaluates a SQL query on registered tables and retrieves the result as a :class:`Table`.
 
-        Note: Always use this interface to execute a sql query. It only supports
-        to execute one sql statement a time.
+        All tables referenced by the query must be registered in the TableEnvironment.
 
-        A DDL statement can execute to create/drop a table/view:
+        A :class:`Table` is automatically registered when its :func:`~Table.__str__` method is
+        called, for example when it is embedded into a String.
+
+        Hence, SQL queries can directly reference a :class:`Table` as follows:
+        ::
+
+            >>> table = ...
+            # the table is not registered to the table environment
+            >>> table_env.sql_query("SELECT * FROM %s" % table)
+
+        :param query: The sql query string.
+        :return: The result :class:`Table`.
+        """
+        j_table = self._j_tenv.sqlQuery(query)
+        return Table(j_table)
+
+    def sql_update(self, stmt):
+        """
+        Evaluates a SQL statement such as INSERT, UPDATE or DELETE or a DDL statement
+
+        .. note::
+
+            Currently only SQL INSERT statements and CREATE TABLE statements are supported.
+
+        All tables referenced by the query must be registered in the TableEnvironment.
+        A :class:`Table` is automatically registered when its :func:`~Table.__str__` method is
+        called, for example when it is embedded into a String.
+        Hence, SQL queries can directly reference a :class:`Table` as follows:
+        ::
+
+            # register the table sink into which the result is inserted.
+            >>> table_env.register_table_sink("sink_table", table_sink)
+            >>> source_table = ...
+            # source_table is not registered to the table environment
+            >>> table_env.sql_update("INSERT INTO sink_table SELECT * FROM %s" % source_table)
+
+        A DDL statement can also be executed to create/drop a table:
         For example, the below DDL statement would create a CSV table named `tbl1`
         into the current catalog::
 
@@ -250,17 +285,10 @@ class TableEnvironment(object):
                 b bigint,
                 c varchar
             ) with (
-                connector = 'csv',
-                csv.path = 'xxx'
+                connector.type = 'filesystem',
+                format.type = 'csv',
+                connector.path = 'xxx'
             )
-
-        The returns table format for different kind of statement:
-
-        DDL: returns None.
-
-        DML: a sql insert returns None; a sql query(select) returns a table
-        to describe the query data set, it can be further queried through the Table API,
-        or directly write to sink with :func:`Table.insert_into`.
 
         SQL queries can directly execute as follows:
         ::
@@ -271,9 +299,11 @@ class TableEnvironment(object):
             ...     a int,
             ...     b varchar
             ... ) with (
-            ...     connector = 'kafka',
-            ...     kafka.topic = 'xxx',
-            ...     kafka.endpoint = 'x.x.x'
+            ...     connector.type = 'kafka',
+            ...     `update-mode` = 'append',
+            ...     connector.topic = 'xxx',
+            ...     connector.properties.0.key = 'k0',
+            ...     connector.properties.0.value = 'v0'
             ... )
             ... '''
 
@@ -283,8 +313,9 @@ class TableEnvironment(object):
             ...     a int,
             ...     b varchar
             ... ) with (
-            ...     connector = 'csv',
-            ...     csv.path = 'xxx'
+            ...     connector.type = 'filesystem',
+            ...     format.type = 'csv',
+            ...     connector.path = 'xxx'
             ... )
             ... '''
 
@@ -294,14 +325,11 @@ class TableEnvironment(object):
             >>> table_env.sql(query)
             >>> table_env.execute("MyJob")
 
-        This code snippet creates a job to read data from Kafka source into a CSV sink.
-
-        :param query: The SQL statement to evaluate.
+        :param stmt: The SQL statement to evaluate.
+        :param query_config: The :class:`QueryConfig` to use.
         """
-        j_table = self._j_tenv.sql(query)
-        if j_table is None:
-            return None
-        return Table(j_table)
+        # type: (str) -> None
+        self._j_tenv.sqlUpdate(stmt)
 
     def get_current_catalog(self):
         """
