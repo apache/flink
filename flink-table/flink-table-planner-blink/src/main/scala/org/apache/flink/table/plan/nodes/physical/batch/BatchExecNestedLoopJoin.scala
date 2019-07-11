@@ -155,7 +155,7 @@ class BatchExecNestedLoopJoin(
     val externalBufferMemoryInMb: Int = if (singleRowJoin) {
       0
     } else {
-      planner.getTableConfig.getConf.getInteger(
+      planner.getTableConfig.getConfiguration.getInteger(
         ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM)
     }
     val resourceSpec = NodeResourceUtil.fromManagedMem(externalBufferMemoryInMb)

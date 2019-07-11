@@ -161,7 +161,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], a0=[$3], b0=[$4], c0=[$5], a1=[$6], b1=[$
     <Resource name="planAfter">
       <![CDATA[
 HashJoin(joinType=[InnerJoin], where=[=(c, c1)], select=[a, b, c, a0, b0, c0, a1, b1, c1, a00, b00, c00], build=[right])
-:- Exchange(distribution=[hash[c]], shuffle_mode=[BATCH])
+:- Exchange(distribution=[hash[c]])
 :  +- HashJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, c, a0, b0, c0], build=[left])
 :     :- Calc(select=[a, b, c], where=[>(b, 10)])
 :     :  +- SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS b, Final_MAX(max$1) AS c], reuse_id=[1])

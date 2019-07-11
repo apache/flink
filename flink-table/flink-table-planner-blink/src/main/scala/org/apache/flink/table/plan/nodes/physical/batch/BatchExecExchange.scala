@@ -95,7 +95,7 @@ class BatchExecExchange(
 
   private def getShuffleModeFromConfig(tableConf: Configuration): ShuffleMode = {
     if (tableConf.getString(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE)
-        .toLowerCase.endsWith(ShuffleMode.BATCH.toString)) {
+        .equalsIgnoreCase(ShuffleMode.BATCH.toString)) {
       ShuffleMode.BATCH
     } else {
       ShuffleMode.UNDEFINED
@@ -104,7 +104,7 @@ class BatchExecExchange(
 
   override def getDamBehavior: DamBehavior = {
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-    val shuffleMode = getShuffleMode(tableConfig.getConf)
+    val shuffleMode = getShuffleMode(tableConfig.getConfiguration)
     if (shuffleMode eq ShuffleMode.BATCH) {
       return DamBehavior.FULL_DAM
     }
@@ -138,7 +138,7 @@ class BatchExecExchange(
     val outputRowType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
     val conf = planner.getTableConfig
-    val shuffleMode = getShuffleMode(conf.getConf)
+    val shuffleMode = getShuffleMode(conf.getConfiguration)
 
     relDistribution.getType match {
       case RelDistribution.Type.ANY =>

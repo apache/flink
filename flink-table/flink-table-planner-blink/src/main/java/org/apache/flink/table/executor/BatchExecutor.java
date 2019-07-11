@@ -138,9 +138,9 @@ public class BatchExecutor extends ExecutorBase {
 		if (parameters != null) {
 			String value = parameters.toMap().getOrDefault(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE.key(),
 					ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE.defaultValue());
-			if (value.toLowerCase().equals(ShuffleMode.BATCH.toString())) {
+			if (value.equalsIgnoreCase(ShuffleMode.BATCH.toString())) {
 				return true;
-			} else if (!value.toLowerCase().equals(ShuffleMode.PIPELINED.toString())) {
+			} else if (!value.equalsIgnoreCase(ShuffleMode.PIPELINED.toString())) {
 				throw new IllegalArgumentException(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE +
 						" can only be set to " + ShuffleMode.BATCH.toString() + " or " + ShuffleMode.PIPELINED.toString());
 			}

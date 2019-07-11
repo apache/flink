@@ -298,7 +298,7 @@ Sink(name=[sink2], fields=[a1, b, c1])
       :- Exchange(distribution=[hash[a3]])
       :  +- Calc(select=[a AS a3, c AS c1], where=[<(b, 5)])
       :     +- Reused(reference_id=[2])
-      +- Exchange(distribution=[hash[a1]], shuffle_mode=[BATCH])
+      +- Exchange(distribution=[hash[a1]])
          +- Calc(select=[a1, b])
             +- Reused(reference_id=[3])
 ]]>

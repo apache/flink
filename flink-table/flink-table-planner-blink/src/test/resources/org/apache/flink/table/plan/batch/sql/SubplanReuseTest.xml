@@ -1094,13 +1094,8 @@ NestedLoopJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, rand
 :- SortAggregate(isMerge=[false], groupBy=[random], select=[random])
 :  +- Sort(orderBy=[random ASC])
 :     +- Exchange(distribution=[hash[random]])
-<<<<<<< HEAD
 :        +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(random, random0)], select=[random], build=[right])
-:           :- Exchange(distribution=[any], exchange_mode=[BATCH])
-=======
-:        +- NestedLoopJoin(joinType=[LeftSemiJoin], where=[OR(=(random, random0), AND(IS NULL(random), IS NULL(random0)))], select=[random], build=[right])
 :           :- Exchange(distribution=[any], shuffle_mode=[BATCH])
->>>>>>> [FLINK-13121] set batch properties to runtime in blink batch executor.
 :           :  +- Calc(select=[random], reuse_id=[1])
 :           :     +- SortLimit(orderBy=[EXPR$1 ASC], offset=[0], fetch=[1], global=[true])
 :           :        +- Exchange(distribution=[single])

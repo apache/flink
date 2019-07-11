@@ -62,7 +62,8 @@ class BatchExecutorTest extends TableTestBase {
 
   @Test
   def testRestoreConfigWhenBatchShuffleMode(): Unit = {
-    util.getTableEnv.getConfig.getConf.setString(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE,
+    util.getTableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE,
       ShuffleMode.BATCH.toString)
     util.getStreamEnv.setBufferTimeout(11)
     util.getStreamEnv.getConfig.disableObjectReuse()

@@ -484,7 +484,7 @@ abstract class TableTestUtil(
   protected val testingTableEnv: TestingTableEnvironment =
     TestingTableEnvironment.create(setting, catalogManager)
   val tableEnv: TableEnvironment = testingTableEnv
-  tableEnv.getConfig.getConf.setString(
+  tableEnv.getConfig.getConfiguration.setString(
     ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE, ShuffleMode.PIPELINED.toString)
 
   private val env: StreamExecutionEnvironment = getPlanner.getExecEnv
