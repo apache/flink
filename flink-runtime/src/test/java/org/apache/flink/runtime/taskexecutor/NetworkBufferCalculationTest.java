@@ -59,10 +59,22 @@ public class NetworkBufferCalculationTest extends TestLogger {
 		assertEquals((200L << 20) + 3 /* slightly too many due to floating point imprecision */,
 			NettyShuffleEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 800L << 20)); // 800MB
 
+		config = getConfig(
+			Long.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()),
+			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
+			0.6f, networkBufMin, networkBufMax, MemoryType.HEAP);
+		assertEquals((600L << 20),
+			NettyShuffleEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 400L << 20)); // 400MB
+
 		config = getConfig(10, TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.1f, networkBufMin, networkBufMax, MemoryType.OFF_HEAP);
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,
 			NettyShuffleEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 890L << 20)); // 890MB
+
+		config = getConfig(10, TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
+				0.6f, networkBufMin, networkBufMax, MemoryType.OFF_HEAP);
+		assertEquals((590L << 20),
+			NettyShuffleEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 400L << 20)); // 400MB
 
 		config = getConfig(0, 0.1f, 0.1f, networkBufMin, networkBufMax, MemoryType.OFF_HEAP);
 		assertEquals((100L << 20) + 1 /* one too many due to floating point imprecision */,

@@ -94,6 +94,12 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 		compareNetworkBufJavaVsScript(
 			getConfig(totalMemoryInMB, true, 0.1f, networkBufMin, networkBufMax, managedMemSize, 0.1f), 0.0f);
 
+		compareNetworkBufJavaVsScript(
+			getConfig(totalMemoryInMB, false, 0.6f, networkBufMin, networkBufMax, managedMemSize, managedMemFrac), 0.0f);
+
+		compareNetworkBufJavaVsScript(
+			getConfig(totalMemoryInMB, true, 0.6f, networkBufMin, networkBufMax, 10 /*MB*/, managedMemFrac), 0.0f);
+
 		// some automated tests with random (but valid) values
 
 		Random ran = new Random();
@@ -126,6 +132,12 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 
 		compareHeapSizeJavaVsScript(
 			getConfig(totalMemoryInMB, true, 0.1f, networkBufMin, networkBufMax, managedMemSize, 0.1f), 0.0f);
+
+		compareHeapSizeJavaVsScript(
+			getConfig(totalMemoryInMB, false, 0.6f, networkBufMin, networkBufMax, managedMemSize, managedMemFrac), 0.0f);
+
+		compareHeapSizeJavaVsScript(
+			getConfig(totalMemoryInMB, true, 0.6f, networkBufMin, networkBufMax, 10 /*MB*/, managedMemFrac), 0.0f);
 
 		// some automated tests with random (but valid) values
 
