@@ -24,6 +24,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
+import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -46,6 +47,8 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * Simple function catalog to store {@link FunctionDefinition}s in catalogs.
  */
@@ -64,7 +67,7 @@ public class FunctionCatalog implements FunctionLookup {
 	private PlannerTypeInferenceUtil plannerTypeInferenceUtil;
 
 	public FunctionCatalog(CatalogManager catalogManager) {
-		this.catalogManager = catalogManager;
+		this.catalogManager = checkNotNull(catalogManager);
 	}
 
 	public void setPlannerTypeInferenceUtil(PlannerTypeInferenceUtil plannerTypeInferenceUtil) {
@@ -169,13 +172,15 @@ public class FunctionCatalog implements FunctionLookup {
 		Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
 
 		// TODO: may consider built-in FunctionDefinitionFactory
-		if (catalog.getFunctionDefinitionFactory().isPresent()) {
+		if (catalog.getTableFactory().isPresent() &&
+				catalog.getTableFactory().get() instanceof FunctionDefinitionFactory) {
 			try {
 				CatalogFunction catalogFunction = catalog.getFunction(
 					new ObjectPath(catalogManager.getCurrentDatabase(), functionName));
 
-				userCandidate = catalog.getFunctionDefinitionFactory().get()
-					.createFunctionDefinition(functionName, catalogFunction);
+				FunctionDefinitionFactory factory = (FunctionDefinitionFactory) catalog.getTableFactory().get();
+
+				userCandidate = factory.createFunctionDefinition(functionName, catalogFunction);
 			} catch (FunctionNotExistException e) {
 				// Ignore
 			}
