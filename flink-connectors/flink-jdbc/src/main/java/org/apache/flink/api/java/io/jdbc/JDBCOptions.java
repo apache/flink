@@ -21,12 +21,13 @@ package org.apache.flink.api.java.io.jdbc;
 import org.apache.flink.api.java.io.jdbc.dialect.JDBCDialect;
 import org.apache.flink.api.java.io.jdbc.dialect.JDBCDialects;
 
+import java.util.Objects;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Options for the JDBC connector.
+ * Common options of {@link JDBCScanOptions} and {@link JDBCLookupOptions} for the JDBC connector.
  */
 public class JDBCOptions {
 
@@ -73,6 +74,21 @@ public class JDBCOptions {
 
 	public static Builder builder() {
 		return new Builder();
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (o instanceof JDBCOptions) {
+			JDBCOptions options = (JDBCOptions) o;
+			return Objects.equals(dbURL, options.dbURL) &&
+				Objects.equals(tableName, options.tableName) &&
+				Objects.equals(driverName, options.driverName) &&
+				Objects.equals(username, options.username) &&
+				Objects.equals(password, options.password) &&
+				Objects.equals(dialect.getClass().getName(), options.dialect.getClass().getName());
+		} else {
+			return false;
+		}
 	}
 
 	/**

@@ -126,6 +126,6 @@ public interface JDBCDialect extends Serializable {
 				.map(f -> quoteIdentifier(f) + "=?")
 				.collect(Collectors.joining(" AND "));
 		return "SELECT " + selectExpressions + " FROM " +
-				quoteIdentifier(tableName) + " WHERE " + fieldExpressions;
+				quoteIdentifier(tableName) + (conditionFields.length > 0 ? " WHERE " + fieldExpressions : "");
 	}
 }

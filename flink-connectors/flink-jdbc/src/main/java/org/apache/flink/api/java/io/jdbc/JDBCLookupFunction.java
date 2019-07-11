@@ -114,7 +114,7 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 		try {
 			establishConnection();
 			statement = dbConn.prepareStatement(query);
-			this.cache = cacheMaxSize == -1 ? null : CacheBuilder.newBuilder()
+			this.cache = cacheMaxSize == -1 || cacheExpireMs == -1 ? null : CacheBuilder.newBuilder()
 					.expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
 					.maximumSize(cacheMaxSize)
 					.build();

@@ -33,6 +33,7 @@ import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 import static org.apache.flink.api.java.io.jdbc.AbstractJDBCOutputFormat.DEFAULT_FLUSH_INTERVAL_MILLS;
 import static org.apache.flink.api.java.io.jdbc.AbstractJDBCOutputFormat.DEFAULT_FLUSH_MAX_SIZE;
@@ -143,6 +144,22 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 
 	public static Builder builder() {
 		return new Builder();
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (o instanceof JDBCUpsertTableSink) {
+			JDBCUpsertTableSink sink = (JDBCUpsertTableSink) o;
+			return Objects.equals(schema, sink.schema) &&
+				Objects.equals(options, sink.options) &&
+				Objects.equals(flushMaxSize, sink.flushMaxSize) &&
+				Objects.equals(flushIntervalMills, sink.flushIntervalMills) &&
+				Objects.equals(maxRetryTime, sink.maxRetryTime) &&
+				Arrays.equals(keyFields, sink.keyFields) &&
+				Objects.equals(isAppendOnly, sink.isAppendOnly);
+		} else {
+			return false;
+		}
 	}
 
 	/**
