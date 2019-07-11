@@ -362,7 +362,7 @@ public interface TableEnvironment {
 	 * }
 	 * </pre>
 	 *
-	 * <p>A DDL statement can also execute to create a table:
+	 * <p>A DDL statement can also be executed to create a table:
 	 * For example, the below DDL statement would create a CSV table named `tbl1`
 	 * into the current catalog:
 	 * <blockquote><pre>
@@ -371,8 +371,9 @@ public interface TableEnvironment {
 	 *      b bigint,
 	 *      c varchar
 	 *    ) with (
-	 *      connector = 'csv',
-	 *      csv.path = 'xxx'
+	 *      connector.type = 'filesystem',
+	 *      format.type = 'csv',
+	 *      connector.path = 'xxx'
 	 *    )
 	 * </pre></blockquote>
 	 *
@@ -383,17 +384,21 @@ public interface TableEnvironment {
 	 *                        a int,
 	 *                        b varchar
 	 *                      ) with (
-	 *                        connector = 'csv',
-	 *                        csv.path = 'xxx'
+	 *                        connector.type = 'filesystem',
+	 *                        format.type = 'csv',
+	 *                        connector.path = 'xxx'
 	 *                      )";
 	 *
 	 *    String sourceDDL ="create table sourceTable(
 	 *                        a int,
 	 *                        b varchar
 	 *                      ) with (
-	 *                        connector = 'kafka',
-	 *                        kafka.topic = 'xxx',
-	 *                        kafka.endpoint = 'x.x.x'
+	 *                        connector.type = 'kafka',
+	 *                        `update-mode` = 'append',
+	 *                        connector.topic = 'xxx',
+	 *                        connector.properties.0.key = 'k0',
+	 *                        connector.properties.0.value = 'v0',
+	 *                        ...
 	 *                      )";
 	 *
 	 *    String query = "INSERT INTO sinkTable SELECT * FROM sourceTable";
