@@ -106,7 +106,9 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 				GenericTypeInfo.of(Row.class)
 			);
 		} else if (GenericUDAFResolver2.class.isAssignableFrom(clazz)) {
-			LOG.info("Transforming Hive function '{}' into a HiveGenericUDAF with no UDAF bridging", name);
+			LOG.info(
+				"Transforming Hive function '{}' into a HiveGenericUDAF with no UDAF bridging and Hive version %s",
+				name, hiveVersion);
 
 			HiveGenericUDAF udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), false, hiveVersion);
 
@@ -117,15 +119,17 @@ public class HiveFunctionDefinitionFactory implements FunctionDefinitionFactory 
 				GenericTypeInfo.of(GenericUDAFEvaluator.AggregationBuffer.class)
 			);
 		} else if (UDAF.class.isAssignableFrom(clazz)) {
-			LOG.info("Transforming Hive function '{}' into a HiveGenericUDAF with UDAF bridging", name);
+			LOG.info(
+				"Transforming Hive function '{}' into a HiveGenericUDAF with UDAF bridging and Hive version %s",
+				name, hiveVersion);
 
 			HiveGenericUDAF udaf = new HiveGenericUDAF(new HiveFunctionWrapper<>(functionClassName), true, hiveVersion);
 
 			return new AggregateFunctionDefinition(
 				name,
 				udaf,
-				udaf.getResultType(),
-				udaf.getAccumulatorType()
+				GenericTypeInfo.of(Object.class),
+				GenericTypeInfo.of(GenericUDAFEvaluator.AggregationBuffer.class)
 			);
 		} else {
 			throw new IllegalArgumentException(
