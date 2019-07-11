@@ -260,7 +260,12 @@ public class NettyShuffleEnvironmentConfiguration {
 		//              = jvmTotal - Math.min(networkBufMax, Math.max(networkBufMin, jvmHeap * netFraction)
 		// jvmTotal = jvmHeapNoNet / (1.0 - networkBufFraction)
 		float networkBufFraction = config.getFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
-		long networkBufSize = (long) (jvmHeapNoNet / (1.0 - networkBufFraction) * networkBufFraction);
+
+		// Converts to double for higher precision. Converting via string achieve higher precision for those
+		// numbers can not be represented preciously by float, like 0.4f.
+		double heapNoNetFraction = 1.0 - Double.valueOf(Float.toString(networkBufFraction));
+		long totalJavaMemorySize = (long) (jvmHeapNoNet / heapNoNetFraction);
+		long networkBufSize = (long) (totalJavaMemorySize * networkBufFraction);
 
 		// Do not need to check the maximum allowed memory since the computed total memory should always
 		// be larger than the computed network buffer memory as long as the fraction is less than 1.
