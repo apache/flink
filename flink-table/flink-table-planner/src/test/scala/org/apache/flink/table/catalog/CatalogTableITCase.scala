@@ -440,6 +440,103 @@ class CatalogTableITCase(isStreaming: Boolean) {
     execJob("testJob")
     assertEquals(TestCollectionTableFactory.RESULT.sorted, sourceData.sorted)
   }
+
+  @Test
+  def testDropTableWithFullPath(): Unit = {
+    val ddl1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  connector = 'COLLECTION'
+        |)
+      """.stripMargin
+    val ddl2 =
+      """
+        |create table t2(
+        |  a bigint,
+        |  b bigint
+        |) with (
+        |  connector = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    tableEnv.sqlUpdate(ddl1)
+    tableEnv.sqlUpdate(ddl2)
+    assert(tableEnv.listTables().sameElements(Array[String]("t1", "t2")))
+    tableEnv.sqlUpdate("DROP TABLE default_catalog.default_database.t2")
+    assert(tableEnv.listTables().sameElements(Array("t1")))
+  }
+
+  @Test
+  def testDropTableWithPartialPath(): Unit = {
+    val ddl1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  connector = 'COLLECTION'
+        |)
+      """.stripMargin
+    val ddl2 =
+      """
+        |create table t2(
+        |  a bigint,
+        |  b bigint
+        |) with (
+        |  connector = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    tableEnv.sqlUpdate(ddl1)
+    tableEnv.sqlUpdate(ddl2)
+    assert(tableEnv.listTables().sameElements(Array[String]("t1", "t2")))
+    tableEnv.sqlUpdate("DROP TABLE default_database.t2")
+    tableEnv.sqlUpdate("DROP TABLE t1")
+    assert(tableEnv.listTables().isEmpty)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testDropTableWithInvalidPath(): Unit = {
+    val ddl1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  connector = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    tableEnv.sqlUpdate(ddl1)
+    assert(tableEnv.listTables().sameElements(Array[String]("t1")))
+    tableEnv.sqlUpdate("DROP TABLE catalog1.database1.t1")
+    assert(tableEnv.listTables().isEmpty)
+  }
+
+  @Test
+  def testDropTableWithInvalidPathIfExists(): Unit = {
+    val ddl1 =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b bigint,
+        |  c varchar
+        |) with (
+        |  connector = 'COLLECTION'
+        |)
+      """.stripMargin
+
+    tableEnv.sqlUpdate(ddl1)
+    assert(tableEnv.listTables().sameElements(Array[String]("t1")))
+    tableEnv.sqlUpdate("DROP TABLE IF EXISTS catalog1.database1.t1")
+    assert(tableEnv.listTables().sameElements(Array[String]("t1")))
+  }
 }
 
 object CatalogTableITCase {

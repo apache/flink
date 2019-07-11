@@ -20,6 +20,7 @@ package org.apache.flink.table.sqlexec;
 
 import org.apache.flink.sql.parser.SqlProperty;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
+import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
@@ -31,6 +32,7 @@ import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.PlannerQueryOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.rel.RelRoot;
@@ -68,7 +70,7 @@ public class SqlToOperationConverter {
 
 	/**
 	 * This is the main entrance for executing all kinds of DDL/DML {@code SqlNode}s, different
-	 * SqlNode will have it's implementation in the #execute(type) method whose 'type' argument
+	 * SqlNode will have it's implementation in the #convert(type) method whose 'type' argument
 	 * is subclass of {@code SqlNode}.
 	 *
 	 * @param flinkPlanner     FlinkPlannerImpl to convert sql node to rel node
@@ -80,6 +82,8 @@ public class SqlToOperationConverter {
 		SqlToOperationConverter converter = new SqlToOperationConverter(flinkPlanner);
 		if (validated instanceof SqlCreateTable) {
 			return converter.convert((SqlCreateTable) validated);
+		} else if (validated instanceof SqlDropTable){
+			return converter.convert((SqlDropTable) validated);
 		} else {
 			return converter.convert(validated);
 		}
@@ -128,6 +132,11 @@ public class SqlToOperationConverter {
 			tableComment);
 		return new CreateTableOperation(sqlCreateTable.fullTableName(), catalogTable,
 			sqlCreateTable.isIfNotExists());
+	}
+
+	/** Convert DROP TABLE statement. */
+	private Operation convert(SqlDropTable sqlDropTable) {
+		return new DropTableOperation(sqlDropTable.fullTableName(), sqlDropTable.getIfExists());
 	}
 
 	/** Fallback method for sql query. */
