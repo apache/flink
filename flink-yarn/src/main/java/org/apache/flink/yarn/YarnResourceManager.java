@@ -46,6 +46,8 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
+import org.apache.flink.shaded.guava18.com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.Container;
@@ -76,6 +78,10 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The yarn implementation of the resource manager. Used when the system is started
@@ -131,6 +137,11 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	private final Resource resource;
 
+	/**
+	 * Executor for starting new yarn containers.
+	 */
+	private final Executor startContainerExecutor;
+
 	public YarnResourceManager(
 			RpcService rpcService,
 			String resourceManagerEndpointId,
@@ -185,6 +196,10 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		this.resource = Resource.newInstance(defaultTaskManagerMemoryMB, defaultCpus);
 
 		this.slotsPerWorker = createWorkerSlotProfiles(flinkConfig);
+		this.startContainerExecutor = new ThreadPoolExecutor(0, flinkConfig.getInteger(YarnConfigOptions.CONTAINER_LAUNCHER_NUM_MAX),
+			60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(), new ThreadFactoryBuilder()
+			.setNameFormat("ContainerLauncher #%d")
+			.build());
 	}
 
 	protected AMRMClientAsync<AMRMClient.ContainerRequest> createAndStartResourceManagerClient(
@@ -391,23 +406,33 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 					workerNodeMap.put(resourceId, new YarnWorkerNode(container));
 
-					try {
-						// Context information used to start a TaskExecutor Java process
-						ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(
-							container.getResource(),
-							containerIdStr,
-							container.getNodeId().getHost());
+					startContainerExecutor.execute(new Runnable() {
+						@Override
+						public void run() {
+							if (workerNodeMap.get(resourceId) == null) {
+								log.info("Skip launching container {}, container doesn't exist in container worker map",
+									containerIdStr);
+								return;
+							}
+							try {
+								// Context information used to start a TaskExecutor Java process
+								ContainerLaunchContext taskExecutorLaunchContext = createTaskExecutorLaunchContext(
+									container.getResource(),
+									containerIdStr,
+									container.getNodeId().getHost());
 
-						nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
-					} catch (Throwable t) {
-						log.error("Could not start TaskManager in container {}.", container.getId(), t);
+								nodeManagerClient.startContainer(container, taskExecutorLaunchContext);
+							} catch (Throwable t) {
+								log.error("Could not start TaskManager in container {}.", container.getId(), t);
 
-						// release the failed container
-						workerNodeMap.remove(resourceId);
-						resourceManagerClient.releaseAssignedContainer(container.getId());
-						// and ask for a new one
-						requestYarnContainerIfRequired();
-					}
+								// release the failed container
+								workerNodeMap.remove(resourceId);
+								resourceManagerClient.releaseAssignedContainer(container.getId());
+								// and ask for a new one
+								requestYarnContainerIfRequired();
+							}
+						}
+					});
 				} else {
 					// return the excessive containers
 					log.info("Returning excess container {}.", container.getId());
