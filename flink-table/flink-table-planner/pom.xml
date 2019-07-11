@@ -364,6 +364,10 @@ under the License.
 									<pattern>com.fasterxml</pattern>
 									<shadedPattern>org.apache.flink.calcite.shaded.com.fasterxml</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>org.apache.commons.codec</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.codec</shadedPattern>
+								</relocation>
 
 								<!-- flink-table-planner dependencies -->
 								<relocation>
