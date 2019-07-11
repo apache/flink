@@ -533,5 +533,28 @@ under the License.
 				<hiverunner.version>3.2.1</hiverunner.version>
 			</properties>
 		</profile>
+		<profile>
+			<id>java9</id>
+			<activation>
+				<jdk>9</jdk>
+			</activation>
+
+			<dependencyManagement>
+				<dependencies>
+					<dependency>
+						<groupId>org.apache.hbase</groupId>
+						<artifactId>hbase-annotations</artifactId>
+						<scope>test</scope>
+						<exclusions>
+							<exclusion>
+								<!-- This dependency is not available with java 9.-->
+								<groupId>jdk.tools</groupId>
+								<artifactId>jdk.tools</artifactId>
+							</exclusion>
+						</exclusions>
+					</dependency>
+				</dependencies>
+			</dependencyManagement>
+		</profile>
 	</profiles>
 </project>
