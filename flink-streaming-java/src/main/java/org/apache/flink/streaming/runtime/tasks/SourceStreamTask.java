@@ -127,6 +127,10 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	@Override
 	protected void finishTask() throws Exception {
+		// We tell the mailbox to finish, to prevent any exceptions that might occur during
+		// finishing from leading to a FAILED state. This could happen, for example, when cancelling
+		// sources as part of a "stop-with-savepoint".
+		mailboxProcessor.allActionsCompleted();
 		cancelTask();
 	}
 
