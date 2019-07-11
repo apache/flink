@@ -50,12 +50,19 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * </ol>
  */
 @Internal
-public class ResourceSpec implements Serializable {
+public final class ResourceSpec implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
+	/**
+	 * A ResourceSpec that indicates an unknown set of resources.
+	 */
 	public static final ResourceSpec UNKNOWN = new ResourceSpec();
 
+	/**
+	 * The default ResourceSpec used for operators and transformation functions.
+	 * Currently equal to {@link #UNKNOWN}.
+	 */
 	public static final ResourceSpec DEFAULT = UNKNOWN;
 
 	public static final String GPU_NAME = "GPU";
@@ -91,7 +98,7 @@ public class ResourceSpec implements Serializable {
 	 * @param managedMemoryInMB The size of managed memory, in megabytes.
 	 * @param extendedResources The extended resources, associated with the resource manager used
 	 */
-	protected ResourceSpec(
+	private ResourceSpec(
 			double cpuCores,
 			int heapMemoryInMB,
 			int directMemoryInMB,
@@ -273,9 +280,9 @@ public class ResourceSpec implements Serializable {
 
 	@Override
 	public String toString() {
-		String extend = "";
+		StringBuilder extend = new StringBuilder();
 		for (Resource resource : extendedResources.values()) {
-			extend += ", " + resource.getName() + "=" + resource.getValue();
+			extend.append(", ").append(resource.getName()).append("=").append(resource.getValue());
 		}
 		return "ResourceSpec{" +
 				"cpuCores=" + cpuCores +
