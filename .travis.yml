@@ -120,41 +120,41 @@ jobs:
     - if: type = cron
       stage: compile
       script: ./tools/travis_controller.sh compile
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -Pskip-hive-tests"
       name: compile - hadoop 2.4.1
     - if: type = cron
       stage: test
       script: ./tools/travis_controller.sh core
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -Pskip-hive-tests"
       name: core - hadoop 2.4.1
     - if: type = cron
       script: ./tools/travis_controller.sh libraries
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -Pskip-hive-tests"
       name: libraries - hadoop 2.4.1
     - if: type = cron
       script: ./tools/travis_controller.sh blink_planner
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -Pskip-hive-tests"
       name: blink_planner - hadoop 2.4.1
     - if: type = cron
       script: ./tools/travis_controller.sh connectors
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -Pskip-hive-tests"
       name: connectors - hadoop 2.4.1
     - if: type = cron
       script: ./tools/travis_controller.sh kafka/gelly
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -Pskip-hive-tests"
       name: kafka/gelly - hadoop 2.4.1
     - if: type = cron
       script: ./tools/travis_controller.sh tests
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -Pskip-hive-tests"
       name: tests - hadoop 2.4.1
     - if: type = cron
       script: ./tools/travis_controller.sh misc
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -Pskip-hive-tests"
       name: misc - hadoop 2.4.1
     - if: type = cron
       stage: cleanup
       script: ./tools/travis_controller.sh cleanup
-      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis"
+      env: PROFILE="-Dhadoop.version=2.4.1 -Pinclude-kinesis -Pskip-hive-tests"
       name: cleanup - hadoop 2.4.1
     # scala 2.12 profile
     - if: type = cron
