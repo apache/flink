@@ -139,7 +139,7 @@ public class ResourceSpec implements Serializable {
 	 * @return The new resource with merged values.
 	 */
 	public ResourceSpec merge(ResourceSpec other) {
-		if (this == UNKNOWN || other == UNKNOWN) {
+		if (this.equals(UNKNOWN) || other.equals(UNKNOWN)) {
 			return UNKNOWN;
 		}
 

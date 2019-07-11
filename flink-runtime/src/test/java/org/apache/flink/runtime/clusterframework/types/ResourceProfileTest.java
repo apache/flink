@@ -20,6 +20,7 @@ package org.apache.flink.runtime.clusterframework.types;
 
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.resources.GPUResource;
+import org.apache.flink.core.testutils.CommonTestUtils;
 
 import org.junit.Test;
 
@@ -247,5 +248,13 @@ public class ResourceProfileTest {
 				Collections.emptyMap());
 
 		assertEquals(rp1, rp1.subtract(rp2));
+	}
+
+	@Test
+	public void testFromSpecWithSerializationCopy() throws Exception {
+		final ResourceSpec copiedSpec = CommonTestUtils.createCopySerializable(ResourceSpec.UNKNOWN);
+		final ResourceProfile profile = ResourceProfile.fromResourceSpec(copiedSpec, 0);
+
+		assertEquals(ResourceProfile.fromResourceSpec(ResourceSpec.UNKNOWN, 0), profile);
 	}
 }

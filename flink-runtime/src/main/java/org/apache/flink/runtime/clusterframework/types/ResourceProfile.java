@@ -445,7 +445,7 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 	}
 
 	public static ResourceProfile fromResourceSpec(ResourceSpec resourceSpec, int networkMemory) {
-		if (resourceSpec == ResourceSpec.UNKNOWN) {
+		if (ResourceSpec.UNKNOWN.equals(resourceSpec)) {
 			return UNKNOWN;
 		}
 

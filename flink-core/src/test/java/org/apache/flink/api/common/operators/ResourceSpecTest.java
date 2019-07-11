@@ -157,4 +157,52 @@ public class ResourceSpecTest extends TestLogger {
 		ResourceSpec rs2 = CommonTestUtils.createCopySerializable(rs1);
 		assertEquals(rs1, rs2);
 	}
+
+	@Test
+	public void testMergeThisUnknown() throws Exception {
+		final ResourceSpec spec1 = ResourceSpec.UNKNOWN;
+		final ResourceSpec spec2 = ResourceSpec.newBuilder()
+				.setCpuCores(1.0)
+				.setHeapMemoryInMB(100)
+				.setGPUResource(1.1)
+				.build();
+
+		final ResourceSpec merged = spec1.merge(spec2);
+
+		assertEquals(ResourceSpec.UNKNOWN, merged);
+	}
+
+	@Test
+	public void testMergeOtherUnknown() throws Exception {
+		final ResourceSpec spec1 = ResourceSpec.newBuilder()
+			.setCpuCores(1.0)
+			.setHeapMemoryInMB(100)
+			.setGPUResource(1.1)
+			.build();
+		final ResourceSpec spec2 = ResourceSpec.UNKNOWN;
+
+		final ResourceSpec merged = spec1.merge(spec2);
+
+		assertEquals(ResourceSpec.UNKNOWN, merged);
+	}
+
+	@Test
+	public void testMergeBothUnknown() throws Exception {
+		final ResourceSpec spec1 = ResourceSpec.UNKNOWN;
+		final ResourceSpec spec2 = ResourceSpec.UNKNOWN;
+
+		final ResourceSpec merged = spec1.merge(spec2);
+
+		assertEquals(ResourceSpec.UNKNOWN, merged);
+	}
+
+	@Test
+	public void testMergeWithSerializationCopy() throws Exception {
+		final ResourceSpec spec1 = CommonTestUtils.createCopySerializable(ResourceSpec.UNKNOWN);
+		final ResourceSpec spec2 = CommonTestUtils.createCopySerializable(ResourceSpec.UNKNOWN);
+
+		final ResourceSpec merged = spec1.merge(spec2);
+
+		assertEquals(ResourceSpec.UNKNOWN, merged);
+	}
 }
