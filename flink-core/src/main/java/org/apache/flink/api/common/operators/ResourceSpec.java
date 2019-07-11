@@ -287,6 +287,19 @@ public class ResourceSpec implements Serializable {
 				'}';
 	}
 
+	// ------------------------------------------------------------------------
+	//  serialization
+	// ------------------------------------------------------------------------
+
+	private Object readResolve() {
+		// try to preserve the singleton property for UNKNOWN
+		return this.equals(UNKNOWN) ? UNKNOWN : this;
+	}
+
+	// ------------------------------------------------------------------------
+	//  builder
+	// ------------------------------------------------------------------------
+
 	public static Builder newBuilder() {
 		return new Builder();
 	}

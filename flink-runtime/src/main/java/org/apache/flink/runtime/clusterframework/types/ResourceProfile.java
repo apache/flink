@@ -444,6 +444,19 @@ public class ResourceProfile implements Serializable, Comparable<ResourceProfile
 			'}';
 	}
 
+	// ------------------------------------------------------------------------
+	//  serialization
+	// ------------------------------------------------------------------------
+
+	private Object readResolve() {
+		// try to preserve the singleton property for UNKNOWN
+		return this.equals(UNKNOWN) ? UNKNOWN : this;
+	}
+
+	// ------------------------------------------------------------------------
+	//  factories
+	// ------------------------------------------------------------------------
+
 	public static ResourceProfile fromResourceSpec(ResourceSpec resourceSpec, int networkMemory) {
 		if (ResourceSpec.UNKNOWN.equals(resourceSpec)) {
 			return UNKNOWN;

@@ -26,6 +26,7 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -204,5 +205,12 @@ public class ResourceSpecTest extends TestLogger {
 		final ResourceSpec merged = spec1.merge(spec2);
 
 		assertEquals(ResourceSpec.UNKNOWN, merged);
+	}
+
+	@Test
+	public void testSingletonPropertyOfUnknown() throws Exception {
+		final ResourceSpec copiedSpec = CommonTestUtils.createCopySerializable(ResourceSpec.UNKNOWN);
+
+		assertSame(ResourceSpec.UNKNOWN, copiedSpec);
 	}
 }
