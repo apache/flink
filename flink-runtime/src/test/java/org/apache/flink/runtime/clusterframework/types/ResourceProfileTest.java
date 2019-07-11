@@ -29,6 +29,7 @@ import java.util.Collections;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -256,5 +257,12 @@ public class ResourceProfileTest {
 		final ResourceProfile profile = ResourceProfile.fromResourceSpec(copiedSpec, 0);
 
 		assertEquals(ResourceProfile.fromResourceSpec(ResourceSpec.UNKNOWN, 0), profile);
+	}
+
+	@Test
+	public void testSingletonPropertyOfUnknown() throws Exception {
+		final ResourceProfile copiedProfile = CommonTestUtils.createCopySerializable(ResourceProfile.UNKNOWN);
+
+		assertSame(ResourceProfile.UNKNOWN, copiedProfile);
 	}
 }
