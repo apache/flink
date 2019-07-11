@@ -25,6 +25,8 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 
+import java.time.Duration;
+
 /**
  * Builder for the {@link NettyShuffleEnvironment}.
  */
@@ -45,6 +47,8 @@ public class NettyShuffleEnvironmentBuilder {
 	private int networkBuffersPerChannel = 2;
 
 	private int floatingNetworkBuffersPerGate = 8;
+
+	private Duration requestSegmentsTimeout = Duration.ofMillis(30000L);
 
 	private boolean isCreditBased = true;
 
@@ -95,6 +99,10 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
+	public void setRequestSegmentsTimeout(Duration requestSegmentsTimeout) {
+		this.requestSegmentsTimeout = requestSegmentsTimeout;
+	}
+
 	public NettyShuffleEnvironmentBuilder setIsCreditBased(boolean isCreditBased) {
 		this.isCreditBased = isCreditBased;
 		return this;
@@ -129,6 +137,7 @@ public class NettyShuffleEnvironmentBuilder {
 				partitionRequestMaxBackoff,
 				networkBuffersPerChannel,
 				floatingNetworkBuffersPerGate,
+				requestSegmentsTimeout,
 				isCreditBased,
 				isNetworkDetailedMetrics,
 				nettyConfig,
