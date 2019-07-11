@@ -202,10 +202,6 @@ under the License.
 					<groupId>net.hydromatic</groupId>
 					<artifactId>aggdesigner-algorithm</artifactId>
 				</exclusion>
-				<exclusion>
-					<groupId>commons-codec</groupId>
-					<artifactId>commons-codec</artifactId>
-				</exclusion>
 			</exclusions>
 		</dependency>
 
