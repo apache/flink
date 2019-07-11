@@ -124,13 +124,7 @@ public class DatadogHttpClient {
 	 */
 	protected static class EmptyCallback implements Callback {
 
-		protected static final String FAILED_SENDING_REQUEST_TO_DATADOG = "Failed to send request to Datadog (response code was {})";
-
 		private static final EmptyCallback singleton = new EmptyCallback();
-
-		public Logger getLogger() {
-			return LOGGER;
-		}
 
 		public static Callback getEmptyCallback() {
 			return singleton;
@@ -138,14 +132,13 @@ public class DatadogHttpClient {
 
 		@Override
 		public void onFailure(Call call, IOException e) {
-			LOGGER.debug("Failed sending request to Datadog" , e);
+			LOGGER.warn("Failed sending request to Datadog", e);
 		}
 
 		@Override
 		public void onResponse(Call call, Response response) throws IOException {
-
 			if (!response.isSuccessful()) {
-				getLogger().warn(FAILED_SENDING_REQUEST_TO_DATADOG, response.code());
+				LOGGER.warn("Failed to send request to Datadog (response code was {} and response body was {})", response.code(), response.body());
 			}
 
 			response.close();
