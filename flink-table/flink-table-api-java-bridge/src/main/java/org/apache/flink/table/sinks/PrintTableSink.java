@@ -8,6 +8,8 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.table.utils.TableConnectorUtils;
 
+import java.io.IOException;
+
 /**
  * A simple {@link TableSink} to emit data to the standard output stream.
  */
@@ -17,8 +19,18 @@ public class PrintTableSink implements BatchTableSink , AppendStreamTableSink {
 	private TypeInformation<?>[] fieldTypes;
 
 	@Override
-	public void emitDataSet(DataSet dataSet) throws Exception {
-		dataSet.print();
+	public void emitDataSet(DataSet dataSet) {
+		try {
+			dataSet.print() ;
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException("Cannot find type class of collected data type.", e);
+		} catch (IOException e) {
+			throw new RuntimeException("Serialization error while deserializing collected data", e);
+		} catch (RuntimeException e){
+			throw new RuntimeException("The call to collect() could not retrieve the DataSet.");
+		}catch (Exception e){
+			throw new RuntimeException(e.getMessage());
+		}
 	}
 
 	@Override
