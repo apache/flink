@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink 在作业发生故障时支持不同的重启策略来控制如何重启。如果没有为作业定义重启策略，集群启动时就会遵循默认的重启策略。
+Flink 在作业发生故障时支持不同的重启策略。如果没有为作业定义重启策略，集群启动时就会遵循默认的重启策略。
 如果提交作业时设置了重启策略，该策略将覆盖掉集群的默认策略。
 
 * This will be replaced by the TOC
@@ -30,10 +30,10 @@ Flink 在作业发生故障时支持不同的重启策略来控制如何重启�
 
 ## 概述
 
-通过 Flink 的配置文件 `flink-conf.yaml` 来设置默认的重启策略。配置参数 *restart-strategy* 定义了采取何种策略。如果没有启用 checkpoint，就采用“不重启”策略。如果启用了 checkpoint 且没有配置重启策略，那么就采用固定延时重启策略，此时最大尝试重启次数由 `Integer.MAX_VALUE`  参数设置。下表列出了可用的重启策略和与其对应的配置值。
+通过 Flink 的配置文件 `flink-conf.yaml` 来设置默认的重启策略。配置参数 *restart-strategy* 定义了采取何种策略。如果没有启用 checkpoint，就采用“不重启”策略。如果启用了 checkpoint 且没有配置重启策略，那么就采用固定延时重启策略，此时最大尝试重启次数由 `Integer.MAX_VALUE` 参数设置。下表列出了可用的重启策略和与其对应的配置值。
 
 每个重启策略都有自己的一组配置参数来控制其行为。
-这些也是在配置文件中设置。
+这些参数也在配置文件中设置。
 后文的描述中会详细介绍每种重启策略的配置项。
 
 <table class="table table-bordered">
