@@ -20,7 +20,6 @@ package org.apache.flink.table.factories;
 
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.types.DataType;
 
 /**
  * A factory to create {@link FunctionDefinition}.
@@ -33,11 +32,7 @@ public interface FunctionDefinitionFactory extends TableFactory {
 	 *
 	 * @param name name of the {@link CatalogFunction}
 	 * @param catalogFunction the catalog function
-	 * @param constantArguments arguments of a function call (only literal arguments
-	 *                  are passed, nulls for non-literal ones)
-	 * @param argTypes types of arguments
 	 * @return a {@link FunctionDefinition}
 	 */
-	FunctionDefinition createFunctionDefinition(
-		String name, CatalogFunction catalogFunction, Object[] constantArguments, DataType[] argTypes);
+	FunctionDefinition createFunctionDefinition(String name, CatalogFunction catalogFunction);
 }

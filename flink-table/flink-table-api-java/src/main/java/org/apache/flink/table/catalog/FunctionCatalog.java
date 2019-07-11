@@ -175,7 +175,7 @@ public class FunctionCatalog implements FunctionLookup {
 					new ObjectPath(catalogManager.getCurrentDatabase(), functionName));
 
 				userCandidate = catalog.getFunctionDefinitionFactory().get()
-					.createFunctionDefinition(functionName, catalogFunction, null, null);
+					.createFunctionDefinition(functionName, catalogFunction);
 			} catch (FunctionNotExistException e) {
 				// Ignore
 			}
