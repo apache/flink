@@ -362,7 +362,7 @@ public interface TableEnvironment {
 	 * }
 	 * </pre>
 	 *
-	 * <p>A DDL statement can also execute to create a table/view:
+	 * <p>A DDL statement can also execute to create a table:
 	 * For example, the below DDL statement would create a CSV table named `tbl1`
 	 * into the current catalog:
 	 * <blockquote><pre>

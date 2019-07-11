@@ -276,7 +276,7 @@ class TableEnvironment(object):
             # source_table is not registered to the table environment
             >>> table_env.sql_update("INSERT INTO sink_table SELECT * FROM %s" % source_table)
 
-        A DDL statement can also execute to create/drop a table/view:
+        A DDL statement can also execute to create/drop a table:
         For example, the below DDL statement would create a CSV table named `tbl1`
         into the current catalog::
 
