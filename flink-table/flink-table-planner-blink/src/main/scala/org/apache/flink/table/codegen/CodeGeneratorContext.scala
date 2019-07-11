@@ -647,11 +647,11 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
 
     val openFunction = if (contextTerm != null) {
       s"""
-         |$fieldTerm.open(new ${classOf[FunctionContext].getCanonicalName}($contextTerm));
+         |$fieldTerm.open(new ${functionContextClass.getCanonicalName}($contextTerm));
        """.stripMargin
     } else {
       s"""
-         |$fieldTerm.open(new ${classOf[FunctionContext].getCanonicalName}(getRuntimeContext()));
+         |$fieldTerm.open(new ${functionContextClass.getCanonicalName}(getRuntimeContext()));
        """.stripMargin
     }
     reusableOpenStatements.add(openFunction)
