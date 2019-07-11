@@ -84,6 +84,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadPoolExecutor;
 
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_APP_ID;
 import static org.apache.flink.yarn.YarnConfigKeys.ENV_CLIENT_HOME_DIR;
@@ -310,6 +311,14 @@ public class YarnResourceManagerTest extends TestLogger {
 				stopResourceManager();
 			}
 		}
+
+		public void waitForThreadPoolExecution() throws Exception {
+			ThreadPoolExecutor executor = (ThreadPoolExecutor) resourceManager.getStartContainerExecutor();
+			while (!(executor.getQueue().size() == 0 && executor.getActiveCount() == 0)) {
+				log.info("Waiting for all launch container requests been executed.");
+				Thread.sleep(500);
+			}
+		}
 	}
 
 	private static Container mockContainer(String host, int port, int containerId, Resource resource) {
@@ -364,6 +373,7 @@ public class YarnResourceManagerTest extends TestLogger {
 					.when(mockResourceManagerClient).getMatchingRequests(any(Priority.class), anyString(), any(Resource.class));
 
 				resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
+				waitForThreadPoolExecution();
 				verify(mockResourceManagerClient).addContainerRequest(any(AMRMClient.ContainerRequest.class));
 				verify(mockNMClient).startContainer(eq(testingContainer), any(ContainerLaunchContext.class));
 
@@ -462,6 +472,7 @@ public class YarnResourceManagerTest extends TestLogger {
 					.when(mockResourceManagerClient).getMatchingRequests(any(Priority.class), anyString(), any(Resource.class));
 
 				resourceManager.onContainersAllocated(ImmutableList.of(testingContainer));
+				waitForThreadPoolExecution();
 				verify(mockResourceManagerClient).addContainerRequest(any(AMRMClient.ContainerRequest.class));
 				verify(mockResourceManagerClient).removeContainerRequest(any(AMRMClient.ContainerRequest.class));
 				verify(mockNMClient).startContainer(eq(testingContainer), any(ContainerLaunchContext.class));

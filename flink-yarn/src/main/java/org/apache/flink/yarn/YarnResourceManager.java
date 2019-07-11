@@ -599,4 +599,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 				.put(ENV_FLINK_NODE_ID, host);
 		return taskExecutorLaunchContext;
 	}
+
+	@VisibleForTesting
+	Executor getStartContainerExecutor() {
+		return startContainerExecutor;
+	}
 }
