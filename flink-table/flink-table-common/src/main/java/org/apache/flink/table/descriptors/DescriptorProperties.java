@@ -29,8 +29,10 @@ import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.TypeStringUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TimeUtils;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -548,6 +550,26 @@ public class DescriptorProperties {
 	}
 
 	/**
+	 * Returns a Java {@link Duration} under the given key if it exists.
+	 */
+	public Optional<Duration> getOptionalDuration(String key) {
+		return optionalGet(key).map((value) -> {
+			try {
+				return TimeUtils.parseDuration(value);
+			} catch (Exception e) {
+				throw new ValidationException("Invalid duration value for key '" + key + "'.", e);
+			}
+		});
+	}
+
+	/**
+	 * Returns a java {@link Duration} under the given existing key.
+	 */
+	public Duration getDuration(String key) {
+		return getOptionalDuration(key).orElseThrow(exceptionSupplier(key));
+	}
+
+	/**
 	 * Returns the property keys of fixed indexed properties.
 	 *
 	 * <p>For example:
@@ -1039,6 +1061,34 @@ public class DescriptorProperties {
 				}
 				return bytes;
 			}
+		);
+	}
+
+	/**
+	 * Validates a java {@link Duration}.
+	 */
+	public void validateDuration(String key, boolean isOptional) {
+		validateDuration(key, isOptional, 0L, Long.MAX_VALUE);
+	}
+
+	/**
+	 * Validates a java {@link Duration}. The boundaries are inclusive and in milliseconds.
+	 */
+	public void validateDuration(String key, boolean isOptional, long min) {
+		validateDuration(key, isOptional, min, Long.MAX_VALUE);
+	}
+
+	/**
+	 * Validates a java {@link Duration}. The boundaries are inclusive and in milliseconds.
+	 */
+	public void validateDuration(String key, boolean isOptional, long min, long max) {
+		validateComparable(
+			key,
+			isOptional,
+			min,
+			max,
+			"time interval (in milliseconds)",
+			value -> TimeUtils.parseDuration(value).toMillis()
 		);
 	}
 
