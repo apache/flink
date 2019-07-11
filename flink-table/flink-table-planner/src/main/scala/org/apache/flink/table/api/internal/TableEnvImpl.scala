@@ -20,10 +20,11 @@ package org.apache.flink.table.api.internal
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.sql.parser.ddl.SqlCreateTable
+import org.apache.flink.sql.parser.ddl.{SqlCreateTable, SqlDropTable}
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder}
 import org.apache.flink.table.catalog._
+import org.apache.flink.table.catalog.exceptions.TableNotExistException
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
@@ -457,6 +458,23 @@ abstract class TableEnvImpl(
         registerCatalogTableInternal(operation.getTablePath,
           operation.getCatalogTable,
           operation.isIgnoreIfExists)
+      case dropTable: SqlDropTable =>
+        val name = dropTable.fullTableName()
+        val isIfExists = dropTable.getIfExists
+        val paths = catalogManager.getFullTablePath(name.toList)
+        val catalog = getCatalog(paths(0))
+        if (!catalog.isPresent) {
+          if (!isIfExists) {
+            throw new TableException(s"Catalog ${paths(0)} does not exist.")
+          }
+        } else {
+          try
+            catalog.get().dropTable(new ObjectPath(paths(1), paths(2)), isIfExists)
+          catch {
+            case e: TableNotExistException =>
+              throw new TableException(e.getMessage)
+          }
+        }
       case _ =>
         throw new TableException(
           "Unsupported SQL query! sqlUpdate() only accepts SQL statements of type INSERT.")
