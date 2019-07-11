@@ -62,7 +62,7 @@ under the License.
 					<skip>true</skip>
 				</configuration>
 			</plugin>
-			<!-- deactivate the shade plugin for the quickstart archetypes -->
+			<!-- deactivate the shade plugin for the walkthrough archetypes -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
