@@ -28,10 +28,13 @@ import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
+import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.planner.operations.DataStreamQueryOperation;
 import org.apache.flink.table.planner.operations.RichTableSourceQueryOperation;
 import org.apache.flink.table.planner.plan.schema.TableSinkTable;
@@ -54,6 +57,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static java.lang.String.format;
+import static org.apache.flink.table.util.CatalogTableStatisticsConverter.convertToTableStats;
 
 /**
  * A mapping between Flink catalog's database and Calcite's schema.
@@ -97,7 +101,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 				}
 				return QueryOperationCatalogViewTable.createCalciteTable(view);
 			} else if (table instanceof ConnectorCatalogTable) {
-				return convertConnectorTable((ConnectorCatalogTable<?, ?>) table);
+				return convertConnectorTable((ConnectorCatalogTable<?, ?>) table, tablePath);
 			} else if (table instanceof CatalogTable) {
 				return convertCatalogTable(tablePath, (CatalogTable) table);
 			} else {
@@ -114,25 +118,32 @@ class DatabaseCalciteSchema extends FlinkSchema {
 		}
 	}
 
-	private Table convertConnectorTable(ConnectorCatalogTable<?, ?> table) {
-		Optional<TableSourceTable> tableSourceTable = table.getTableSource()
-			.map(tableSource -> {
-				if (!(tableSource instanceof StreamTableSource ||
+	private Table convertConnectorTable(
+			ConnectorCatalogTable<?, ?> table,
+			ObjectPath tablePath) throws TableNotExistException {
+		if (table.getTableSource().isPresent()) {
+			TableSource<?> tableSource = table.getTableSource().get();
+			if (!(tableSource instanceof StreamTableSource ||
 					tableSource instanceof LookupableTableSource)) {
-					throw new TableException(
+				throw new TableException(
 						"Only StreamTableSource and LookupableTableSource can be used in Blink planner.");
-				}
-				if (!isStreamingMode && tableSource instanceof StreamTableSource &&
+			}
+			if (!isStreamingMode && tableSource instanceof StreamTableSource &&
 					!((StreamTableSource<?>) tableSource).isBounded()) {
-					throw new TableException("Only bounded StreamTableSource can be used in batch mode.");
-				}
-				return new TableSourceTable<>(
+				throw new TableException("Only bounded StreamTableSource can be used in batch mode.");
+			}
+
+			TableStats tableStats = TableStats.UNKNOWN;
+			// TODO supports stats for partitionable table
+			if (!table.isPartitioned()) {
+				CatalogTableStatistics tableStatistics = catalog.getTableStatistics(tablePath);
+				CatalogColumnStatistics columnStatistics = catalog.getTableColumnStatistics(tablePath);
+				tableStats = convertToTableStats(tableStatistics, columnStatistics);
+			}
+			return new TableSourceTable<>(
 					tableSource,
 					isStreamingMode,
-					FlinkStatistic.UNKNOWN());
-			});
-		if (tableSourceTable.isPresent()) {
-			return tableSourceTable.get();
+					FlinkStatistic.builder().tableStats(tableStats).build());
 		} else {
 			Optional<TableSinkTable> tableSinkTable = table.getTableSink()
 				.map(tableSink -> new TableSinkTable<>(
