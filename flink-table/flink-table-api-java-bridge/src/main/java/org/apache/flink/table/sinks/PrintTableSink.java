@@ -17,12 +17,8 @@ public class PrintTableSink implements BatchTableSink , AppendStreamTableSink {
 	private TypeInformation<?>[] fieldTypes;
 
 	@Override
-	public void emitDataSet(DataSet dataSet) {
-		try {
-			dataSet.print();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+	public void emitDataSet(DataSet dataSet) throws Exception {
+		dataSet.print();
 	}
 
 	@Override
@@ -32,7 +28,6 @@ public class PrintTableSink implements BatchTableSink , AppendStreamTableSink {
 
 	@Override
 	public DataStreamSink<?> consumeDataStream(DataStream dataStream) {
-
 		DataStreamSink sink = dataStream.addSink(new PrintSinkFunction());
 		sink.name(TableConnectorUtils.generateRuntimeName(PrintTableSink.class, fieldNames));
 		return sink;

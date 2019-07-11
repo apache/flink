@@ -31,5 +31,5 @@ import org.apache.flink.table.api.Table;
 public interface BatchTableSink<T> extends TableSink<T> {
 
 	/** Emits the DataSet. */
-	void emitDataSet(DataSet<T> dataSet);
+	void emitDataSet(DataSet<T> dataSet) throws Exception;
 }

@@ -623,6 +623,8 @@ class TableSinkITCase extends AbstractTestBase {
     val tEnv = StreamTableEnvironment.create(env)
     env.setParallelism(4)
 
+    StreamITCase.testResults = mutable.MutableList()
+
     tEnv.registerTableSink(
       "printSink",
       new PrintTableSink().configure(
@@ -633,10 +635,12 @@ class TableSinkITCase extends AbstractTestBase {
       .assignAscendingTimestamps(_._2)
       .map(x => x).setParallelism(4) // increase DOP to 4
 
-    input.toTable(tEnv, 'a, 'b.rowtime, 'c)
+    val result = input.toTable(tEnv, 'a, 'b.rowtime, 'c)
       .where('a < 5 || 'a > 17)
       .select('c, 'b)
-      .insertInto("printSink")
+
+    result.insertInto("printSink")
+    result.toAppendStream[Row].addSink(new StreamITCase.StringSink[Row])
 
     env.execute()
 
@@ -648,7 +652,9 @@ class TableSinkITCase extends AbstractTestBase {
       "Comment#12,1970-01-01 00:00:00.006",
       "Comment#13,1970-01-01 00:00:00.006",
       "Comment#14,1970-01-01 00:00:00.006",
-      "Comment#15,1970-01-01 00:00:00.006").mkString("\n")
+      "Comment#15,1970-01-01 00:00:00.006")
+
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
   }
 }
 
