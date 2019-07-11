@@ -49,6 +49,12 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	private volatile boolean externallyInducedCheckpoints;
 
+	/**
+	 * Indicates whether this Task was purposefully finished (by finishTask()), in this case we
+	 * want to ignore exceptions thrown after finishing, to ensure shutdown works smoothly.
+	 */
+	private volatile boolean isFinished = false;
+
 	public SourceStreamTask(Environment env) {
 		super(env);
 	}
@@ -118,7 +124,9 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		}
 
 		sourceThread.join();
-		sourceThread.checkThrowSourceExecutionException();
+		if (!isFinished) {
+			sourceThread.checkThrowSourceExecutionException();
+		}
 
 		context.allActionsCompleted();
 	}
@@ -147,6 +155,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	@Override
 	protected void finishTask() throws Exception {
+		isFinished = true;
 		cancelTask();
 	}
 
