@@ -61,7 +61,6 @@ import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
 import java.util.ArrayList;
@@ -295,40 +294,6 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
-	public Table sql(String statement) {
-		List<Operation> operations = planner.parse(statement);
-		Preconditions.checkState(operations.size() == 1,
-			"sql() only accepts a single SQL statement a time.");
-		Operation operation = operations.get(0);
-		if (operation instanceof CreateTableOperation) {
-			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
-			registerCatalogTableInternal(
-				createTableOperation.getTablePath(),
-				createTableOperation.getCatalogTable(),
-				createTableOperation.isIgnoreIfExists());
-			// returns null for DDL statement now.
-			return null;
-		} else if (operation instanceof ModifyOperation) {
-			List<ModifyOperation> modifyOperations =
-				Collections.singletonList((ModifyOperation) operation);
-			if (isEagerOperationTranslation()) {
-				translate(modifyOperations);
-			} else {
-				buffer(modifyOperations);
-			}
-			// returns null for SQL INSERT statement now.
-			return null;
-		} else if (operation instanceof QueryOperation){
-			return createTable((QueryOperation) operation);
-		} else {
-			throw new ValidationException(
-				"Unsupported SQL query! sqlQuery() only accepts a single SQL query of type " +
-					"SELECT, UNION, INTERSECT, EXCEPT, VALUES, and ORDER_BY; or DDL of type " +
-					"CREATE TABLE, CREATE VIEW; or DML of type INSERT INTO.");
-		}
-	}
-
-	@Override
 	public Table sqlQuery(String query) {
 		List<Operation> operations = planner.parse(query);
 
@@ -371,7 +336,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 		if (operations.size() != 1) {
 			throw new TableException(
-				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type INSERT.");
+				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
+					"INSERT or CREATE TABLE");
 		}
 
 		Operation operation = operations.get(0);
@@ -383,6 +349,12 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			} else {
 				buffer(modifyOperations);
 			}
+		} else if (operation instanceof CreateTableOperation) {
+			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
+			registerCatalogTableInternal(
+				createTableOperation.getTablePath(),
+				createTableOperation.getCatalogTable(),
+				createTableOperation.isIgnoreIfExists());
 		} else {
 			throw new TableException(
 				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of type INSERT.");
