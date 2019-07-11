@@ -53,7 +53,6 @@ import org.junit.runners.model.InitializationError;
 import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.net.www.ParseUtil;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -63,6 +62,7 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
+import java.net.URLEncoder;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -356,7 +356,7 @@ public class FlinkStandaloneHiveRunner extends BlockJUnit4ClassRunner {
 		List<String> cpElements = new ArrayList<>();
 		String classpath = System.getProperty("java.class.path");
 		for (String path : Splitter.on(File.pathSeparator).split(classpath)) {
-			cpElements.add(ParseUtil.encodePath(path));
+			cpElements.add(URLEncoder.encode(path, StandardCharsets.UTF_8.name()));
 		}
 		args.add("-cp");
 		args.add(String.join(File.pathSeparator, cpElements));
