@@ -89,16 +89,13 @@ class BatchExecExchange(
   private[flink] def getShuffleMode(tableConf: Configuration): ShuffleMode = {
     requiredShuffleMode match {
       case Some(mode) if mode eq ShuffleMode.BATCH => mode
-      case _ => getShuffleModeFromConfig(tableConf)
-    }
-  }
-
-  private def getShuffleModeFromConfig(tableConf: Configuration): ShuffleMode = {
-    if (tableConf.getString(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE)
-        .equalsIgnoreCase(ShuffleMode.BATCH.toString)) {
-      ShuffleMode.BATCH
-    } else {
-      ShuffleMode.UNDEFINED
+      case _ =>
+        if (tableConf.getString(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE)
+            .equalsIgnoreCase(ShuffleMode.BATCH.toString)) {
+          ShuffleMode.BATCH
+        } else {
+          ShuffleMode.UNDEFINED
+        }
     }
   }
 
