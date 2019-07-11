@@ -47,9 +47,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Collection;
 
-/**
- * mack state backend.
- */
+/** mack state backend. */
 public class MockStateBackend extends AbstractStateBackend {
 	private static final long serialVersionUID = 995676510267499393L;
 
