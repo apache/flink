@@ -18,13 +18,14 @@
 
 package org.apache.flink.api.common.operators;
 
-import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -80,8 +81,8 @@ public class ResourceSpecTest extends TestLogger {
 	public void testEquals() throws Exception {
 		ResourceSpec rs1 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
 		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
-		assertTrue(rs1.equals(rs2));
-		assertTrue(rs2.equals(rs1));
+		assertEquals(rs1, rs2);
+		assertEquals(rs2, rs1);
 
 		ResourceSpec rs3 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
@@ -93,14 +94,14 @@ public class ResourceSpecTest extends TestLogger {
 				setHeapMemoryInMB(100).
 				setGPUResource(1).
 				build();
-		assertFalse(rs3.equals(rs4));
+		assertNotEquals(rs3, rs4);
 
 		ResourceSpec rs5 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
 				setHeapMemoryInMB(100).
 				setGPUResource(2.2).
 				build();
-		assertTrue(rs3.equals(rs5));
+		assertEquals(rs3, rs5);
 	}
 
 	@Test
@@ -119,7 +120,7 @@ public class ResourceSpecTest extends TestLogger {
 				setHeapMemoryInMB(100).
 				setGPUResource(1).
 				build();
-		assertFalse(rs3.hashCode() == rs4.hashCode());
+		assertNotEquals(rs3.hashCode(), rs4.hashCode());
 
 		ResourceSpec rs5 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
@@ -152,8 +153,8 @@ public class ResourceSpecTest extends TestLogger {
 				setHeapMemoryInMB(100).
 				setGPUResource(1.1).
 				build();
-		byte[] buffer = InstantiationUtil.serializeObject(rs1);
-		ResourceSpec rs2 = InstantiationUtil.deserializeObject(buffer, ClassLoader.getSystemClassLoader());
+
+		ResourceSpec rs2 = CommonTestUtils.createCopySerializable(rs1);
 		assertEquals(rs1, rs2);
 	}
 }

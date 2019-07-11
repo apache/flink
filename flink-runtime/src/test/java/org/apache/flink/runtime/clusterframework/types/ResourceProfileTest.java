@@ -27,9 +27,13 @@ import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/**
+ * Tests for the {@link ResourceProfile}.
+ */
 public class ResourceProfileTest {
 
 	@Test
@@ -81,7 +85,7 @@ public class ResourceProfileTest {
 	public void testEquals() throws Exception {
 		ResourceSpec rs1 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
 		ResourceSpec rs2 = ResourceSpec.newBuilder().setCpuCores(1.0).setHeapMemoryInMB(100).build();
-		assertTrue(ResourceProfile.fromResourceSpec(rs1, 0).equals(ResourceProfile.fromResourceSpec(rs2, 0)));
+		assertEquals(ResourceProfile.fromResourceSpec(rs1, 0), ResourceProfile.fromResourceSpec(rs2, 0));
 
 		ResourceSpec rs3 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
@@ -93,14 +97,14 @@ public class ResourceProfileTest {
 				setHeapMemoryInMB(100).
 				setGPUResource(1.1).
 				build();
-		assertFalse(ResourceProfile.fromResourceSpec(rs3, 0).equals(ResourceProfile.fromResourceSpec(rs4, 0)));
+		assertNotEquals(ResourceProfile.fromResourceSpec(rs3, 0), ResourceProfile.fromResourceSpec(rs4, 0));
 
 		ResourceSpec rs5 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
 				setHeapMemoryInMB(100).
 				setGPUResource(2.2).
 				build();
-		assertTrue(ResourceProfile.fromResourceSpec(rs3, 100).equals(ResourceProfile.fromResourceSpec(rs5, 100)));
+		assertEquals(ResourceProfile.fromResourceSpec(rs3, 100), ResourceProfile.fromResourceSpec(rs5, 100));
 
 		ResourceProfile rp1 = new ResourceProfile(1.0, 100, 100, 100, 100, 100, Collections.emptyMap());
 		ResourceProfile rp2 = new ResourceProfile(1.1, 100, 100, 100, 100, 100, Collections.emptyMap());
@@ -111,13 +115,13 @@ public class ResourceProfileTest {
 		ResourceProfile rp7 = new ResourceProfile(1.0, 100, 100, 100, 100, 110, Collections.emptyMap());
 		ResourceProfile rp8 = new ResourceProfile(1.0, 100, 100, 100, 100, 100, Collections.emptyMap());
 
-		assertFalse(rp1.equals(rp2));
-		assertFalse(rp1.equals(rp3));
-		assertFalse(rp1.equals(rp4));
-		assertFalse(rp1.equals(rp5));
-		assertFalse(rp1.equals(rp6));
-		assertFalse(rp1.equals(rp7));
-		assertTrue(rp1.equals(rp8));
+		assertNotEquals(rp1, rp2);
+		assertNotEquals(rp1, rp3);
+		assertNotEquals(rp1, rp4);
+		assertNotEquals(rp1, rp5);
+		assertNotEquals(rp1, rp6);
+		assertNotEquals(rp1, rp7);
+		assertEquals(rp1, rp8);
 	}
 
 	@Test
@@ -141,7 +145,6 @@ public class ResourceProfileTest {
 				build();
 		assertEquals(1, ResourceProfile.fromResourceSpec(rs3, 0).compareTo(ResourceProfile.fromResourceSpec(rs4, 0)));
 		assertEquals(-1, ResourceProfile.fromResourceSpec(rs4, 0).compareTo(ResourceProfile.fromResourceSpec(rs3, 0)));
-
 
 		ResourceSpec rs5 = ResourceSpec.newBuilder().
 				setCpuCores(1.0).
@@ -194,11 +197,11 @@ public class ResourceProfileTest {
 
 	@Test
 	public void testMergeWithOverflow() throws Exception {
-		final double LARGE_DOUBLE = Double.MAX_VALUE - 1.0;
-		final int LARGE_INTEGER = Integer.MAX_VALUE - 100;
+		final double largeDouble = Double.MAX_VALUE - 1.0;
+		final int largeInteger = Integer.MAX_VALUE - 100;
 
 		ResourceProfile rp1 = new ResourceProfile(3.0, 300, 300, 300, 300, 300, Collections.emptyMap());
-		ResourceProfile rp2 = new ResourceProfile(LARGE_DOUBLE, LARGE_INTEGER, LARGE_INTEGER, LARGE_INTEGER, LARGE_INTEGER, LARGE_INTEGER, Collections.emptyMap());
+		ResourceProfile rp2 = new ResourceProfile(largeDouble, largeInteger, largeInteger, largeInteger, largeInteger, largeInteger, Collections.emptyMap());
 
 		assertEquals(ResourceProfile.ANY, rp2.merge(rp2));
 		assertEquals(ResourceProfile.ANY, rp2.merge(rp1));
@@ -220,7 +223,7 @@ public class ResourceProfileTest {
 		assertEquals(rp5, rp4.subtract(rp1));
 
 		try {
-			ResourceProfile ignored = rp1.subtract(rp2);
+			rp1.subtract(rp2);
 			fail("The subtract should failed due to trying to subtract a larger resource");
 		} catch (IllegalArgumentException ex) {
 			// Ignore ex.
