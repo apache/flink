@@ -248,7 +248,7 @@ abstract class PlannerBase(
 
         val catalog = catalogManager.getCatalog(s.getTablePath.get(0))
         val catalogTable = s.getCatalogTable.get().asInstanceOf[CatalogTable]
-        if (catalog.isPresent) {
+        if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
           val dbName = s.getTablePath.get(1)
           val tableName = s.getTablePath.get(2)
           val sink = TableFactoryUtil.createTableSinkForCatalogTable(
