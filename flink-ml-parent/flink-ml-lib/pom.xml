@@ -56,5 +56,9 @@ under the License.
 			<artifactId>core</artifactId>
 			<version>1.1.2</version>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-math3</artifactId>
+		</dependency>
 	</dependencies>
 </project>
