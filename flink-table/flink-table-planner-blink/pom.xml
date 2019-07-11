@@ -328,6 +328,12 @@ under the License.
 								</includes>
 							</artifactSet>
 							<relocations>
+								<!-- Calcite is not relocated for now, because we expose it at some locations such as CalciteConfig -->
+								<!--<relocation>
+									<pattern>org.apache.calcite</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.calcite</shadedPattern>
+								</relocation>-->
+
 								<!-- Calcite's dependencies -->
 								<relocation>
 									<pattern>com.google</pattern>
@@ -341,6 +347,18 @@ under the License.
 									<pattern>com.fasterxml</pattern>
 									<shadedPattern>org.apache.flink.calcite.shaded.com.fasterxml</shadedPattern>
 								</relocation>
+								<relocation>
+									<pattern>org.apache.commons.codec</pattern>
+									<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.codec</shadedPattern>
+								</relocation>
+
+								<!-- flink-table-planner dependencies -->
+								<!-- not relocated for now, because we need to change the contents of the properties field otherwise -->
+								<!--<relocation>
+									<pattern>org.codehaus</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.org.codehaus</shadedPattern>
+								</relocation>-->
+
 							</relocations>
 						</configuration>
 					</execution>
