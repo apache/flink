@@ -150,15 +150,7 @@ public class FunctionCatalog implements FunctionLookup {
 				.map(FunctionDefinition::toString)
 				.collect(Collectors.toList()));
 
-		// Get built-in functions
-		result.addAll(
-			BuiltInFunctionDefinitions.getDefinitions()
-				.stream()
-				.map(f -> f.getName())
-				.collect(Collectors.toList()));
-
 		return result.stream()
-			.map(n -> normalizeName(n))
 			.collect(Collectors.toList())
 			.toArray(new String[0]);
 	}
