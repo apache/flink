@@ -95,44 +95,43 @@ class StreamTableEnvironmentImpl (
   }
 
   override def toAppendStream[T: TypeInformation](table: Table): DataStream[T] = {
-    toAppendStream(table, new StreamQueryConfig)
-  }
-
-  override def toAppendStream[T: TypeInformation](
-      table: Table,
-      queryConfig: StreamQueryConfig)
-    : DataStream[T] = {
     val returnType = createTypeInformation[T]
 
     val modifyOperation = new OutputConversionModifyOperation(
       table.getQueryOperation,
       TypeConversions.fromLegacyInfoToDataType(returnType),
       OutputConversionModifyOperation.UpdateMode.APPEND)
-    tableConfig.setIdleStateRetentionTime(
-      Time.milliseconds(queryConfig.getMinIdleStateRetentionTime),
-      Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
     toDataStream(table, modifyOperation)
   }
 
-  override def toRetractStream[T: TypeInformation](table: Table): DataStream[(Boolean, T)] = {
-    toRetractStream(table, new StreamQueryConfig)
-  }
-
-  override def toRetractStream[T: TypeInformation](
+  override def toAppendStream[T: TypeInformation](
       table: Table,
       queryConfig: StreamQueryConfig)
-    : DataStream[(Boolean, T)] = {
+    : DataStream[T] = {
+    tableConfig.setIdleStateRetentionTime(
+      Time.milliseconds(queryConfig.getMinIdleStateRetentionTime),
+      Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
+    toAppendStream(table)
+  }
+
+  override def toRetractStream[T: TypeInformation](table: Table): DataStream[(Boolean, T)] = {
     val returnType = createTypeInformation[(Boolean, T)]
 
     val modifyOperation = new OutputConversionModifyOperation(
       table.getQueryOperation,
       TypeConversions.fromLegacyInfoToDataType(returnType),
       OutputConversionModifyOperation.UpdateMode.RETRACT)
+    toDataStream(table, modifyOperation)
+  }
 
+  override def toRetractStream[T: TypeInformation](
+      table: Table,
+      queryConfig: StreamQueryConfig)
+    : DataStream[(Boolean, T)] = {
     tableConfig.setIdleStateRetentionTime(
         Time.milliseconds(queryConfig.getMinIdleStateRetentionTime),
         Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
-    toDataStream(table, modifyOperation)
+    toRetractStream(table)
   }
 
   override def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
