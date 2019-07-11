@@ -176,6 +176,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		out.writeObject(partitionColumns);
 		out.writeObject(tablePath);
 		out.writeObject(tableProperties);
+		out.writeObject(hiveVersion);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -199,7 +200,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		tablePath = (ObjectPath) in.readObject();
 		partitionToWriter = new HashMap<>();
 		tableProperties = (Properties) in.readObject();
-		hiveVersion = jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION, HiveShimLoader.getHiveVersion());
+		hiveVersion = (String) in.readObject();
 	}
 
 	@Override
