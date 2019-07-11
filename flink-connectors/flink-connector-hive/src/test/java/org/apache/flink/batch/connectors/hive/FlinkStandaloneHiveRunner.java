@@ -22,7 +22,6 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava18.com.google.common.base.Joiner;
-import org.apache.flink.shaded.guava18.com.google.common.base.Splitter;
 import org.apache.flink.shaded.guava18.com.google.common.base.Throwables;
 import org.apache.flink.shaded.guava18.com.google.common.io.Resources;
 
@@ -53,7 +52,6 @@ import org.junit.runners.model.InitializationError;
 import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.net.www.ParseUtil;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -353,13 +351,8 @@ public class FlinkStandaloneHiveRunner extends BlockJUnit4ClassRunner {
 		String javaHome = System.getProperty("java.home");
 		args.add(Joiner.on(File.separator).join(javaHome, "bin", "java"));
 		// set classpath
-		List<String> cpElements = new ArrayList<>();
-		String classpath = System.getProperty("java.class.path");
-		for (String path : Splitter.on(File.pathSeparator).split(classpath)) {
-			cpElements.add(ParseUtil.encodePath(path));
-		}
 		args.add("-cp");
-		args.add(String.join(File.pathSeparator, cpElements));
+		args.add(System.getProperty("java.class.path"));
 
 		// set sys properties
 		// TODO: generate hive-site.xml at runtime?
