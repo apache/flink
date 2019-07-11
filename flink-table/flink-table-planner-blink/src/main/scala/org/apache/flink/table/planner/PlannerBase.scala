@@ -37,6 +37,7 @@ import org.apache.flink.table.plan.optimize.Optimizer
 import org.apache.flink.table.plan.reuse.SubplanReuser
 import org.apache.flink.table.plan.util.SameRelObjectShuttle
 import org.apache.flink.table.sinks.{DataStreamTableSink, TableSink, TableSinkUtils}
+import org.apache.flink.table.sqlexec.SqlToOperationConverter
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 import org.apache.flink.table.util.JavaScalaConversionUtil
 
@@ -114,24 +115,26 @@ abstract class PlannerBase(
     val planner = getFlinkPlanner
     // parse the sql query
     val parsed = planner.parse(stmt)
-    if (null != parsed && parsed.getKind.belongsTo(SqlKind.QUERY)) {
-      // validate the sql query
-      val validated = planner.validate(parsed)
-      // transform to a relational tree
-      val relational = planner.rel(validated)
-      List(new PlannerQueryOperation(relational.project()))
-    } else if (null != parsed && parsed.isInstanceOf[SqlInsert]) {
-      val insert = parsed.asInstanceOf[SqlInsert]
-      // validate the SQL query
-      val query = insert.getSource
-      val validatedQuery = planner.validate(query)
-      val sinkOperation = new CatalogSinkModifyOperation(
-        insert.getTargetTable.asInstanceOf[SqlIdentifier].names,
-        new PlannerQueryOperation(planner.rel(validatedQuery).rel)
-      )
-      List(sinkOperation)
-    } else {
-      throw new TableException(s"Unsupported query: $stmt")
+    parsed match {
+      case insert: SqlInsert =>
+        // get name of sink table
+        val targetTablePath = insert.getTargetTable.asInstanceOf[SqlIdentifier].names
+
+        List(new CatalogSinkModifyOperation(
+          targetTablePath,
+          SqlToOperationConverter.convert(planner,
+            insert.getSource).asInstanceOf[PlannerQueryOperation]).asInstanceOf[Operation])
+      case query if query.getKind.belongsTo(SqlKind.QUERY) =>
+        // validate the sql query
+        val validated = planner.validate(query)
+        // transform to a relational tree
+        val relational = planner.rel(validated)
+        // can not use SqlToOperationConverter because of the project()
+        List(new PlannerQueryOperation(relational.project()))
+      case ddl if ddl.getKind.belongsTo(SqlKind.DDL) =>
+        List(SqlToOperationConverter.convert(planner, ddl))
+      case _ =>
+        throw new TableException(s"Unsupported query: $stmt")
     }
   }
 

@@ -18,10 +18,8 @@
 
 package org.apache.flink.table.catalog
 
-import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.{TableEnvironment, TableException}
-import org.apache.flink.table.api.scala.{BatchTableEnvironment, StreamTableEnvironment}
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
+import org.apache.flink.table.api.{EnvironmentSettings, ExecutionConfigOptions, TableEnvironment, TableException}
 import org.apache.flink.table.factories.utils.TestCollectionTableFactory
 import org.apache.flink.types.Row
 
@@ -38,16 +36,18 @@ import scala.collection.JavaConversions._
 @RunWith(classOf[Parameterized])
 class CatalogTableITCase(isStreaming: Boolean) {
 
-  private val batchExec: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
-  private var batchEnv: BatchTableEnvironment = _
-  private val streamExec: StreamExecutionEnvironment = StreamExecutionEnvironment
-    .getExecutionEnvironment
-  private var streamEnv: StreamTableEnvironment = _
+  private val settings = if (isStreaming) {
+    EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+  } else {
+    EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+  }
+
+  private val tableEnv: TableEnvironment = TableEnvironmentImpl.create(settings)
 
   private val SOURCE_DATA = List(
-      toRow(1, "a"),
-      toRow(2, "b"),
-      toRow(3, "c")
+    toRow(1, "a"),
+    toRow(2, "b"),
+    toRow(3, "c")
   )
 
   private val DIM_DATA = List(
@@ -64,10 +64,9 @@ class CatalogTableITCase(isStreaming: Boolean) {
 
   @Before
   def before(): Unit = {
-    batchExec.setParallelism(4)
-    streamExec.setParallelism(4)
-    batchEnv = BatchTableEnvironment.create(batchExec)
-    streamEnv = StreamTableEnvironment.create(streamExec)
+    tableEnv.getConfig
+      .getConfiguration
+      .setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
     TestCollectionTableFactory.reset()
     TestCollectionTableFactory.isStreaming = isStreaming
   }
@@ -80,20 +79,8 @@ class CatalogTableITCase(isStreaming: Boolean) {
     row
   }
 
-  def tableEnv: TableEnvironment = {
-    if (isStreaming) {
-      streamEnv
-    } else {
-      batchEnv
-    }
-  }
-
   def execJob(name: String) = {
-    if (isStreaming) {
-      streamExec.execute(name)
-    } else {
-      batchExec.execute(name)
-    }
+    tableEnv.execute(name)
   }
 
   @Test

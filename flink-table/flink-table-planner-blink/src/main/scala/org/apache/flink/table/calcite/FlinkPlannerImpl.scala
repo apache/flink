@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.calcite
 
+import org.apache.flink.sql.parser.ExtendedSqlNode
 import org.apache.flink.table.api.{SqlParserException, TableException, ValidationException}
 
 import com.google.common.collect.ImmutableList
@@ -30,7 +31,7 @@ import org.apache.calcite.rel.{RelFieldCollation, RelRoot}
 import org.apache.calcite.sql.advise.{SqlAdvisor, SqlAdvisorValidator}
 import org.apache.calcite.sql.parser.{SqlParser, SqlParseException => CSqlParseException}
 import org.apache.calcite.sql.validate.SqlValidator
-import org.apache.calcite.sql.{SqlNode, SqlOperatorTable}
+import org.apache.calcite.sql.{SqlKind, SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{RelDecorrelator, SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
 
@@ -97,16 +98,28 @@ class FlinkPlannerImpl(
   }
 
   def validate(sqlNode: SqlNode): SqlNode = {
+    val catalogReader = catalogReaderSupplier.apply(false)
+    // do pre-validate rewrite.
+    sqlNode.accept(new PreValidateReWriter(catalogReader, typeFactory))
+    // do extended validation.
+    sqlNode match {
+      case node: ExtendedSqlNode =>
+        node.validate()
+      case _ =>
+    }
+    // no need to validate row type for DDL nodes.
+    if (sqlNode.getKind.belongsTo(SqlKind.DDL)) {
+      return sqlNode
+    }
     validator = new FlinkCalciteSqlValidator(
       operatorTable,
-      catalogReaderSupplier(false), typeFactory)
+      catalogReader,
+      typeFactory)
     validator.setIdentifierExpansion(true)
     validator.setDefaultNullCollation(FlinkPlannerImpl.defaultNullCollation)
-
     try {
       validator.validate(sqlNode)
-    }
-    catch {
+    } catch {
       case e: RuntimeException =>
         throw new ValidationException(s"SQL validation failed. ${e.getMessage}", e)
     }

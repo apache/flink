@@ -477,7 +477,8 @@ abstract class TableEnvImpl(
         }
       case _ =>
         throw new TableException(
-          "Unsupported SQL query! sqlUpdate() only accepts SQL statements of type INSERT.")
+          "Unsupported SQL query! sqlUpdate() only accepts SQL statements of " +
+            "type INSERT, CREATE TABLE, DROP TABLE.")
     }
   }
 

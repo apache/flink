@@ -48,6 +48,7 @@ public class DropTableOperation implements DropOperation {
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> params = new LinkedHashMap<>();
+		params.put("tableName", tableName);
 		params.put("IfExists", ifExists);
 
 		return OperationUtils.formatWithChildren(
