@@ -54,7 +54,6 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -179,7 +178,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 	public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(
 		long checkpointId,
 		long timestamp,
-		@Nullable CheckpointStreamFactory streamFactory,
+		@Nonnull CheckpointStreamFactory streamFactory,
 		@Nonnull CheckpointOptions checkpointOptions) {
 		return new FutureTask<>(() ->
 			SnapshotResult.of(new MockKeyedStateHandle<>(copy(stateValues, stateSnapshotFilters))));
