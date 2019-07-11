@@ -188,6 +188,14 @@ public class YarnConfigOptions {
 		.defaultValue("")
 		.withDescription("A comma-separated list of tags to apply to the Flink YARN application.");
 
+	/**
+	 * The max number of threads for starting yarn containers in yarn resource manager.
+	 */
+	public static final ConfigOption<Integer> CONTAINER_LAUNCHER_NUM_MAX =
+		key("yarn.max-container-launcher-number")
+			.defaultValue(100)
+			.withDescription("The max number of threads for starting yarn containers in yarn resource manager.");
+
 	// ------------------------------------------------------------------------
 
 	/** This class is not meant to be instantiated. */
