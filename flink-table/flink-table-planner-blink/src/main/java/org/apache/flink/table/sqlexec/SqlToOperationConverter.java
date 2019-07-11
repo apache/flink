@@ -33,7 +33,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.PlannerQueryOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
-import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter;
 
 import org.apache.calcite.rel.RelRoot;
 import org.apache.calcite.rel.type.RelDataType;
@@ -73,7 +73,7 @@ public class SqlToOperationConverter {
 	 * SqlNode will have it's implementation in the #convert(type) method whose 'type' argument
 	 * is subclass of {@code SqlNode}.
 	 *
-	 * @param flinkPlanner     FlinkPlannerImpl to convert sql node to rel node
+	 * @param flinkPlanner     FlinkPlannerImpl to convertCreateTable sql node to rel node
 	 * @param sqlNode          SqlNode to execute on
 	 */
 	public static Operation convert(FlinkPlannerImpl flinkPlanner, SqlNode sqlNode) {
@@ -182,7 +182,8 @@ public class SqlToOperationConverter {
 			final RelDataType relType = column.getType().deriveType(factory,
 				column.getType().getNullable());
 			builder.field(column.getName().getSimple(),
-				TypeConversions.fromLegacyInfoToDataType(FlinkTypeFactory.toTypeInfo(relType)));
+				LogicalTypeDataTypeConverter.fromLogicalTypeToDataType(
+					FlinkTypeFactory.toLogicalType(relType)));
 			physicalSchema = builder.build();
 		}
 		assert physicalSchema != null;
