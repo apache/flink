@@ -94,16 +94,6 @@ public class TableConfig {
 	}
 
 	/**
-	 * Adds the given key/value pair.
-	 *
-	 * @param key the key of the key/value pair to be added
-	 * @param value the value of the key/value pair to be added
-	 */
-	public void setConf(String key, String value) {
-		configuration.setString(key, value);
-	}
-
-	/**
 	 * Returns the zone id for timestamp with local time zone.
 	 */
 	public ZoneId getLocalTimeZone() {
