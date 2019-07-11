@@ -40,6 +40,7 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
@@ -57,6 +58,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -337,7 +339,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		if (operations.size() != 1) {
 			throw new TableException(
 				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-					"INSERT or CREATE TABLE");
+					"INSERT, CREATE TABLE, DROP TABLE");
 		}
 
 		Operation operation = operations.get(0);
@@ -355,9 +357,26 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				createTableOperation.getTablePath(),
 				createTableOperation.getCatalogTable(),
 				createTableOperation.isIgnoreIfExists());
+		} else if (operation instanceof DropTableOperation) {
+			String[] name = ((DropTableOperation) operation).getTableName();
+			boolean isIfExists = ((DropTableOperation) operation).isIfExists();
+			String[] paths = catalogManager.getFullTablePath(Arrays.asList(name));
+			Optional<Catalog> catalog = getCatalog(paths[0]);
+			if (!catalog.isPresent()) {
+				if (!isIfExists) {
+					throw new TableException("Catalog " + paths[0] + " does not exist.");
+				}
+			} else {
+				try {
+					catalog.get().dropTable(new ObjectPath(paths[1], paths[2]), isIfExists);
+				} catch (TableNotExistException e) {
+					throw new TableException(e.getMessage());
+				}
+			}
 		} else {
 			throw new TableException(
-				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of type INSERT.");
+				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
+					"type INSERT, CREATE TABLE, DROP TABLE");
 		}
 	}
 
