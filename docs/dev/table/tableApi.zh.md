@@ -119,7 +119,7 @@ orders = t_env.scan("Orders")  # schema (a, b, c, rowtime)
 
 orders.group_by("a").select("a, b.count as cnt").insert_into("result")
 
-env.execute()
+t_env.execute("python_job")
 
 {% endhighlight %}
 

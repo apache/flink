@@ -70,7 +70,7 @@ The example below is a simple program in the Python shell:
 ...     .register_table_sink("stream_sink")
 >>> t.select("a + 1, b, c")\
 ...     .insert_into("stream_sink")
->>> s_env.execute()
+>>> st_env.execute("stream_job")
 >>> # If the job runs in local mode, you can exec following code in Python shell to see the result:
 >>> with open(sink_path, 'r') as f:
 ...     print(f.read())
@@ -102,7 +102,7 @@ The example below is a simple program in the Python shell:
 ...     .register_table_sink("batch_sink")
 >>> t.select("a + 1, b, c")\
 ...     .insert_into("batch_sink")
->>> b_env.execute()
+>>> bt_env.execute("batch_job")
 >>> # If the job runs in local mode, you can exec following code in Python shell to see the result:
 >>> with open(sink_path, 'r') as f:
 ...     print(f.read())

@@ -116,7 +116,7 @@ sql_result  = table_env.sql_query("SELECT ... FROM table2 ...")
 tapi_result.insert_into("outputTable")
 
 # execute
-env.execute()
+table_env.execute("python_job")
 
 {% endhighlight %}
 </div>

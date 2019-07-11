@@ -496,17 +496,20 @@ class TableEnvironment(object):
         Triggers the program execution. The environment will execute all parts of
         the program.
 
-        <p>The program execution will be logged and displayed with the provided name
+        The program execution will be logged and displayed with the provided name.
 
-        <p><b>NOTE:</b>It is highly advised to set all parameters in the :class:`TableConfig`
-        on the very beginning of the program. It is undefined what configurations values will
-        be used for the execution if queries are mixed with config changes. It depends on
-        the characteristic of the particular parameter. For some of them the value from the
-        point in time of query construction (e.g. the currentCatalog) will be used. On the
-        other hand some values might be evaluated according to the state from the time when
-        this method is called (e.g. timeZone).
+        .. note::
 
-        :param job_name Desired name of the job
+            It is highly advised to set all parameters in the :class:`TableConfig`
+            on the very beginning of the program. It is undefined what configurations values will
+            be used for the execution if queries are mixed with config changes. It depends on
+            the characteristic of the particular parameter. For some of them the value from the
+            point in time of query construction (e.g. the current catalog) will be used. On the
+            other hand some values might be evaluated according to the state from the time when
+            this method is called (e.g. timezone).
+
+        :param job_name: Desired name of the job.
+        :type job_name: str
         """
         self._j_tenv.execute(job_name)
 
@@ -687,20 +690,6 @@ class StreamTableEnvironment(TableEnvironment):
         return StreamTableDescriptor(
             self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
 
-    def execute(self, job_name):
-        """
-        Triggers the program execution. The environment will execute all parts of
-        the program.
-
-        The program execution will be logged and displayed with the provided name
-
-        It calls the StreamExecutionEnvironment#execute on the underlying
-        :class:`StreamExecutionEnvironment`. This environment translates queries eagerly.
-
-        :param job_name Desired name of the job
-        """
-        self._j_tenv.execute(job_name)
-
     @staticmethod
     def create(stream_execution_environment, table_config=None):
         """
@@ -787,20 +776,6 @@ class BatchTableEnvironment(TableEnvironment):
         # type: (ConnectorDescriptor) -> BatchTableDescriptor
         return BatchTableDescriptor(
             self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
-
-    def execute(self, job_name):
-        """
-        Triggers the program execution. The environment will execute all parts of
-        the program.
-
-        The program execution will be logged and displayed with the provided name
-
-        It calls the ExecutionEnvironment#execute on the underlying
-        :class:`ExecutionEnvironment`. This environment translates queries eagerly.
-
-        :param job_name Desired name of the job
-        """
-        self._j_tenv.execute(job_name)
 
     @staticmethod
     def create(execution_environment, table_config=None):
