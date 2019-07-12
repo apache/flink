@@ -54,7 +54,12 @@ public class BatchExecutor extends ExecutorBase {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
 		StreamGraph streamGraph = generateStreamGraph(transformations, jobName);
-		return execEnv.execute(streamGraph);
+		backupAndUpdateStreamEnv(execEnv);
+		try {
+			return execEnv.execute(streamGraph);
+		} finally {
+			batchExecEnvConfig.restore(execEnv);
+		}
 	}
 
 	/**
