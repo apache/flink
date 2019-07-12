@@ -239,6 +239,7 @@ public class LocalExecutor implements Executor {
 
 		context.wrapClassLoader(() -> {
 			tableEnv.useCatalog(catalogName);
+			session.setCurrentCatalog(catalogName);
 			return null;
 		});
 	}
@@ -252,6 +253,7 @@ public class LocalExecutor implements Executor {
 
 		context.wrapClassLoader(() -> {
 			tableEnv.useDatabase(databaseName);
+			session.setCurrentDatabase(databaseName);
 			return null;
 		});
 	}
