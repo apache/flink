@@ -82,7 +82,7 @@ class SinkTest extends TableTestBase {
     util.tableEnv.useCatalog(catalog.getName)
     val catalogTable = new CatalogTableImpl(schema, Map[String, String]().asJava, "")
     catalog.createTable(new ObjectPath("default", "tbl"), catalogTable, false)
-    util.tableEnv.sql("select 1").insertInto("tbl")
+    util.tableEnv.sqlQuery("select 1").insertInto("tbl")
     util.tableEnv.explain(false)
     // verify we tried to get table factory from catalog
     Mockito.verify(catalog, Mockito.atLeast(1)).getTableFactory

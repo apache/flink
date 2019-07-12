@@ -97,7 +97,7 @@ public class HiveTableSinkTest {
 		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sql("select * from src").insertInto("hive", "default", "dest");
+		tableEnv.sqlQuery("select * from src").insertInto("hive", "default", "dest");
 		execEnv.execute();
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
@@ -122,7 +122,7 @@ public class HiveTableSinkTest {
 		tableEnv.registerDataSet("src", execEnv.fromCollection(toWrite, rowTypeInfo));
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sql("select * from src").insertInto("hive", "default", "dest");
+		tableEnv.sqlQuery("select * from src").insertInto("hive", "default", "dest");
 		execEnv.execute();
 
 		List<CatalogPartitionSpec> partitionSpecs = hiveCatalog.listPartitions(tablePath);
@@ -170,7 +170,7 @@ public class HiveTableSinkTest {
 		tableEnv.registerDataSet("complexSrc", execEnv.fromCollection(toWrite, rowTypeInfo));
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sql("select * from complexSrc").insertInto("hive", "default", "dest");
+		tableEnv.sqlQuery("select * from complexSrc").insertInto("hive", "default", "dest");
 		execEnv.execute();
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
@@ -197,7 +197,7 @@ public class HiveTableSinkTest {
 		toWrite.add(row);
 
 		tableEnv.registerDataSet("nestedSrc", execEnv.fromCollection(toWrite, rowTypeInfo));
-		tableEnv.sql("select * from nestedSrc").insertInto("hive", "default", "dest");
+		tableEnv.sqlQuery("select * from nestedSrc").insertInto("hive", "default", "dest");
 		execEnv.execute();
 
 		result = hiveShell.executeQuery("select * from " + tblName);
