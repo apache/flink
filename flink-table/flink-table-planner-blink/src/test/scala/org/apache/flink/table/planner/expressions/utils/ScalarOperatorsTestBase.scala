@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.expressions.utils
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.dataformat.Decimal
+import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
 import org.apache.flink.types.Row
@@ -72,4 +73,8 @@ abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
       /* 17 */ DecimalTypeInfo.of(19, 1)
     )
   }
+
+  override def functions: Map[String, ScalarFunction] = Map(
+    "shouldNotExecuteFunc" -> ShouldNotExecuteFunc
+  )
 }
