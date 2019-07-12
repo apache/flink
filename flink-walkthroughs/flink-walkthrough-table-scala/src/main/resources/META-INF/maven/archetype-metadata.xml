@@ -24,9 +24,9 @@ under the License.
 	name="flink-walkthrough-table-scala">
 	<fileSets>
 		<fileSet filtered="true" packaged="true" encoding="UTF-8">
-			<directory>src/main/java</directory>
+			<directory>src/main/scala</directory>
 			<includes>
-				<include>**/*.java</include>
+				<include>**/*.scala</include>
 			</includes>
 		</fileSet>
 		<fileSet encoding="UTF-8">

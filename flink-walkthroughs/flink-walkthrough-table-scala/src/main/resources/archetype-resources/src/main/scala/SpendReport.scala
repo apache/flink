@@ -28,13 +28,13 @@ object SpendReport {
     val tEnv = BatchTableEnvironment.create(env)
 
     tEnv.registerTableSource("transactions", new TransactionTableSource)
-    tEnv.registerTableSink("stdout", new SpendReportTableSink)
+    tEnv.registerTableSink("spend_report", new SpendReportTableSink)
 
     val truncateDateToHour = new TruncateDateToHour
 
     tEnv
       .scan("transactions")
-      .insertInto("stdout")
+      .insertInto("spend_report")
 
     env.execute("Spend Report")
   }

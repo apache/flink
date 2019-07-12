@@ -394,6 +394,7 @@ public class SpendReport {
 package spendreport;
 
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.table.api.Tumble
 import org.apache.flink.table.api.scala._
 import org.apache.flink.walkthrough.common.table._
@@ -401,8 +402,8 @@ import org.apache.flink.walkthrough.common.table._
 object SpendReport {
 
     def main(args: Array[String]): Unit = {
-        val env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+        val env = StreamExecutionEnvironment.getExecutionEnvironment
+        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
         val tEnv = StreamTableEnvironment.create(env);
 

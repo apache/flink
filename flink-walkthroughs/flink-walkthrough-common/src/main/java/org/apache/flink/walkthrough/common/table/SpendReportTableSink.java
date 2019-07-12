@@ -18,17 +18,24 @@
 
 package org.apache.flink.walkthrough.common.table;
 
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.io.PrintingOutputFormat;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.BatchTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 /**
  * A simple table sink for writing to stdout.
@@ -55,14 +62,14 @@ public class SpendReportTableSink implements AppendStreamTableSink<Row>, BatchTa
 	public void emitDataSet(DataSet<Row> dataSet) {
 		dataSet
 			.map(SpendReportTableSink::format)
-			.output(new PrintingOutputFormat<>(false));
+			.output(new LoggerOutputFormat());
 	}
 
 	@Override
 	public void emitDataStream(DataStream<Row> dataStream) {
 		dataStream
 			.map(SpendReportTableSink::format)
-			.print();
+			.writeUsingOutputFormat(new LoggerOutputFormat());
 	}
 
 	@Override
@@ -92,5 +99,29 @@ public class SpendReportTableSink implements AppendStreamTableSink<Row>, BatchTa
 
 	private static String format(Row row) {
 		return String.format("%s, %s, $%.2f", row.getField(0), row.getField(1), row.getField(2));
+	}
+
+	private static class LoggerOutputFormat implements OutputFormat<String> {
+		private static final Logger LOG = LoggerFactory.getLogger(LoggerOutputFormat.class);
+
+		@Override
+		public void configure(Configuration parameters) {
+
+		}
+
+		@Override
+		public void open(int taskNumber, int numTasks) throws IOException {
+
+		}
+
+		@Override
+		public void writeRecord(String record) throws IOException {
+			LOG.info(record);
+		}
+
+		@Override
+		public void close() throws IOException {
+
+		}
 	}
 }

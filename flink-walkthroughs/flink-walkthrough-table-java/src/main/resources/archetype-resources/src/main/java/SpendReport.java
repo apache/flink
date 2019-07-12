@@ -18,11 +18,8 @@
 
 package ${package};
 
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.walkthrough.common.table.SpendReportTableSink;
 import org.apache.flink.walkthrough.common.table.TransactionTableSource;
 import org.apache.flink.walkthrough.common.table.TruncateDateToHour;
