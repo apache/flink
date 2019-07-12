@@ -48,11 +48,18 @@ under the License.
 			<artifactId>flink-table-api-java</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-
 		<!-- External dependencies -->
 		<dependency>
 			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-reflect</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.scala-lang</groupId>
 			<artifactId>scala-library</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-compiler</artifactId>
 		</dependency>
 	</dependencies>
 

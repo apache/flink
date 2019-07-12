@@ -110,14 +110,14 @@ while read line; do
         block_name=""
         block_infected=0
     elif [[ $in_block -eq 1 ]]; then
-        echo $line | grep "org.scala-lang" | grep --invert-match "org.scala-lang.*:.*:.*:test" >/dev/null
+        echo $line | grep -E "org.scala-lang|- [^:]+:[^:]+_2\.1[0-9]" | grep --invert-match "org.scala-lang.*:.*:.*:test" | grep --invert-match "[^:]*:[^:]*_2\.1[0-9]:.*:.*:test" >/dev/null
         if [ $? -eq 0 ]; then
             #echo $block_name
             infected="$block_name $infected"
             block_infected=1
         fi
     fi
-done < <(mvn -nsu dependency:tree -Dincludes=org.scala-lang -pl ${excluded_modules} ${MAVEN_ARGUMENTS} | tee /dev/tty)
+done < <(mvn -nsu dependency:tree -Dincludes=org.scala-lang,:*_2.1*:: -pl ${excluded_modules} ${MAVEN_ARGUMENTS} | tee /dev/tty)
 
 
 # deduplicate and sort
@@ -141,7 +141,7 @@ echo
 echo "Checking Scala-free modules:"
 
 for module in $clean; do
-    out=`find . -maxdepth 3 -name 'pom.xml' -not -path '*target*' -exec grep "${module}_\d\+\.\d\+</artifactId>" "{}" \;`
+    out=`find . -maxdepth 3 -name 'pom.xml' -not -path '*target*' -exec grep "${module}_\\${scala.binary.version}</artifactId>" "{}" \;`
     if [[ "$out" == "" ]]; then
         printf "$GREEN OK $NC $module\n"
     else
