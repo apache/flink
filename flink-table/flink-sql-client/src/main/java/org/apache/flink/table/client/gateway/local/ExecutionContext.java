@@ -78,6 +78,7 @@ import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -302,11 +303,25 @@ public class ExecutionContext<T> {
 			// register catalogs
 			catalogs.forEach(tableEnv::registerCatalog);
 
-			// set current catalog and current database
+			// set current catalog
+			Optional<String> potentialCatalog = Optional.empty();
 			if (sessionContext.getCurrentCatalog().isPresent()) {
-				tableEnv.useCatalog(sessionContext.getCurrentCatalog().get());
+				potentialCatalog = sessionContext.getCurrentCatalog();
 			} else if (mergedEnv.getExecution().getCurrentCatalog().isPresent()) {
-				tableEnv.useCatalog(mergedEnv.getExecution().getCurrentCatalog().get());
+				potentialCatalog = mergedEnv.getExecution().getCurrentCatalog();
+			}
+
+			// set current database to default
+			if (potentialCatalog.isPresent()) {
+				String currentCatalog = potentialCatalog.get();
+				tableEnv.useCatalog(currentCatalog);
+
+				if (last command is use catalog) {
+					// set current db to the catalog's default db
+					sessionContext.setCurrentDatabase(tableEnv.getCatalog(currentCatalog).get().getDefaultDatabase());
+				} else if (last command is use database) {
+					// do nothing because sessionContext.current_db is the latest db
+				}
 			}
 
 			if (sessionContext.getCurrentDatabase().isPresent()) {
