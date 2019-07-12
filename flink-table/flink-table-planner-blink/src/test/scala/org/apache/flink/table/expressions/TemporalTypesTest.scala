@@ -523,7 +523,7 @@ class TemporalTypesTest extends ExpressionTestBase {
       "2017-11-29 18:58:58.998")
 
     val sdf = new SimpleDateFormat("yyyy-MM-dd")
-    sdf.setTimeZone(TimeZone.getTimeZone(config.getLocalTimeZone))
+    sdf.setTimeZone(TimeZone.getTimeZone("UTC"))
     val currMillis = System.currentTimeMillis()
     val ts = new Timestamp(currMillis)
     val currDateStr = sdf.format(ts)
