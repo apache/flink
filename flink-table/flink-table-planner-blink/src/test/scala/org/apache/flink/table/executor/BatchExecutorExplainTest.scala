@@ -32,7 +32,7 @@ import org.junit.{Before, Test}
 /**
   * Test for streamEnv config save and restore when run batch jobs.
   */
-class BatchExecutorTest extends TableTestBase {
+class BatchExecutorExplainTest extends TableTestBase {
 
   private var util: BatchTableTestUtil = _
 
@@ -51,6 +51,7 @@ class BatchExecutorTest extends TableTestBase {
     util.getStreamEnv.getConfig.setLatencyTrackingInterval(100)
     util.getStreamEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     util.getStreamEnv.getConfig.setDefaultInputDependencyConstraint(InputDependencyConstraint.ANY)
+    util.getStreamEnv.getCheckpointConfig.setCheckpointInterval(5000)
     util.verifyExplain("SELECT * FROM MyTable")
     assertEquals(11, util.getStreamEnv.getBufferTimeout)
     assertTrue(!util.getStreamEnv.getConfig.isObjectReuseEnabled)
@@ -58,6 +59,7 @@ class BatchExecutorTest extends TableTestBase {
     assertEquals(TimeCharacteristic.EventTime, util.getStreamEnv.getStreamTimeCharacteristic)
     assertEquals(InputDependencyConstraint.ANY,
       util.getStreamEnv.getConfig.getDefaultInputDependencyConstraint)
+    assertEquals(5000, util.getStreamEnv.getCheckpointConfig.getCheckpointInterval)
   }
 
   @Test
@@ -65,6 +67,7 @@ class BatchExecutorTest extends TableTestBase {
     util.getTableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE,
       ShuffleMode.BATCH.toString)
+    util.getStreamEnv.getCheckpointConfig.setCheckpointInterval(5000)
     util.getStreamEnv.setBufferTimeout(11)
     util.getStreamEnv.getConfig.disableObjectReuse()
     util.getStreamEnv.getConfig.setLatencyTrackingInterval(100)
@@ -77,5 +80,6 @@ class BatchExecutorTest extends TableTestBase {
     assertEquals(TimeCharacteristic.EventTime, util.getStreamEnv.getStreamTimeCharacteristic)
     assertEquals(InputDependencyConstraint.ANY,
       util.getStreamEnv.getConfig.getDefaultInputDependencyConstraint)
+    assertEquals(5000, util.getStreamEnv.getCheckpointConfig.getCheckpointInterval)
   }
 }

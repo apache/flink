@@ -36,6 +36,8 @@ import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil;
 
 import java.util.List;
 
+import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
+
 /**
  * An implementation of {@link Executor} that is backed by a {@link StreamExecutionEnvironment}.
  * This is the only executor that {@link org.apache.flink.table.planner.BatchPlanner} supports.
@@ -53,9 +55,10 @@ public class BatchExecutor extends ExecutorBase {
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
-		StreamGraph streamGraph = generateStreamGraph(transformations, jobName);
-		backupAndUpdateStreamEnv(execEnv);
+		batchExecEnvConfig.backup(execEnv);
+		setBatchEnvConfig(execEnv);
 		try {
+			StreamGraph streamGraph = getBatchStreamGraph(transformations, jobName, execEnv);
 			return execEnv.execute(streamGraph);
 		} finally {
 			batchExecEnvConfig.restore(execEnv);
@@ -65,14 +68,14 @@ public class BatchExecutor extends ExecutorBase {
 	/**
 	 * Backup previous streamEnv config and set batch configs.
 	 */
-	private void backupAndUpdateStreamEnv(StreamExecutionEnvironment execEnv) {
-		batchExecEnvConfig.backup(execEnv);
+	private void setBatchEnvConfig(StreamExecutionEnvironment execEnv) {
 		ExecutionConfig executionConfig = execEnv.getConfig();
 		executionConfig.enableObjectReuse();
 		executionConfig.setLatencyTrackingInterval(-1);
 		execEnv.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		execEnv.setBufferTimeout(-1);
-		if (isShuffleModeAllBatch()) {
+		execEnv.getCheckpointConfig().setCheckpointInterval(Long.MAX_VALUE);
+		if (isShuffleModeBatch()) {
 			executionConfig.setDefaultInputDependencyConstraint(InputDependencyConstraint.ALL);
 		}
 	}
@@ -82,10 +85,21 @@ public class BatchExecutor extends ExecutorBase {
 	 */
 	public StreamGraph generateStreamGraph(List<Transformation<?>> transformations, String jobName) {
 		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
-		backupAndUpdateStreamEnv(execEnv);
+		batchExecEnvConfig.backup(execEnv);
+		setBatchEnvConfig(execEnv);
+		try {
+			return getBatchStreamGraph(transformations, jobName, execEnv);
+		} finally {
+			batchExecEnvConfig.restore(execEnv);
+		}
+	}
+
+	private StreamGraph getBatchStreamGraph(
+			List<Transformation<?>> transformations,
+			String jobName,
+			StreamExecutionEnvironment execEnv) {
 		transformations.forEach(execEnv::addOperator);
-		StreamGraph streamGraph;
-		streamGraph = execEnv.getStreamGraph(getNonEmptyJobName(jobName));
+		StreamGraph streamGraph = execEnv.getStreamGraph(getNonEmptyJobName(jobName));
 		// All transformations should set managed memory size.
 		ResourceSpec managedResourceSpec = NodeResourceUtil.fromManagedMem(0);
 		streamGraph.getStreamNodes().forEach(sn -> {
@@ -94,15 +108,13 @@ public class BatchExecutor extends ExecutorBase {
 		streamGraph.setChaining(true);
 		streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES);
 		streamGraph.setStateBackend(null);
-		streamGraph.getCheckpointConfig().setCheckpointInterval(Long.MAX_VALUE);
-		if (isShuffleModeAllBatch()) {
+		if (isShuffleModeBatch()) {
 			streamGraph.setBlockingConnectionsBetweenChains(true);
 		}
-		batchExecEnvConfig.restore(execEnv);
 		return streamGraph;
 	}
 
-	private boolean isShuffleModeAllBatch() {
+	private boolean isShuffleModeBatch() {
 		String value = tableConfig.getConfiguration().getString(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE);
 		if (value.equalsIgnoreCase(ShuffleMode.BATCH.toString())) {
 			return true;
@@ -124,6 +136,7 @@ public class BatchExecutor extends ExecutorBase {
 		private long bufferTimeout;
 		private TimeCharacteristic timeCharacteristic;
 		private InputDependencyConstraint inputDependencyConstraint;
+		private long checkpointInterval;
 
 		/**
 		 * Backup previous streamEnv config.
@@ -135,6 +148,7 @@ public class BatchExecutor extends ExecutorBase {
 			timeCharacteristic = execEnv.getStreamTimeCharacteristic();
 			bufferTimeout = execEnv.getBufferTimeout();
 			inputDependencyConstraint = executionConfig.getDefaultInputDependencyConstraint();
+			checkpointInterval = execEnv.getCheckpointConfig().getCheckpointInterval();
 		}
 
 		/**
@@ -151,6 +165,9 @@ public class BatchExecutor extends ExecutorBase {
 			execEnv.setStreamTimeCharacteristic(timeCharacteristic);
 			execEnv.setBufferTimeout(bufferTimeout);
 			executionConfig.setDefaultInputDependencyConstraint(inputDependencyConstraint);
+			if (checkpointInterval >= MINIMAL_CHECKPOINT_TIME) {
+				execEnv.getCheckpointConfig().setCheckpointInterval(checkpointInterval);
+			}
 		}
 	}
 }
