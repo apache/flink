@@ -84,7 +84,9 @@ public class BatchExecutor extends ExecutorBase {
 		// All transformations should set managed memory size.
 		ResourceSpec managedResourceSpec = NodeResourceUtil.fromManagedMem(0);
 		streamGraph.getStreamNodes().forEach(sn -> {
-			sn.setResources(sn.getMinResources().merge(managedResourceSpec), sn.getPreferredResources().merge(managedResourceSpec));
+			if (sn.getMinResources().equals(ResourceSpec.DEFAULT)) {
+				sn.setResources(managedResourceSpec, managedResourceSpec);
+			}
 		});
 		streamGraph.setChaining(true);
 		streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES);
