@@ -27,6 +27,7 @@ import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.locks.Condition;
@@ -40,38 +41,15 @@ import java.util.concurrent.locks.ReentrantLock;
 public class MailboxImpl implements Mailbox {
 
 	/**
-	 * Node for the embedded linked list that represents the mailbox queue.
-	 */
-	static final class Node {
-
-		/** The payload. */
-		final Runnable letter;
-
-		/** Link to the next node in the list. */
-		@Nullable
-		Node next;
-
-		Node(Runnable letter) {
-			this.letter = letter;
-		}
-	}
-
-	/**
-	 * The head of the linked list of mailbox actions.
-	 */
-	@Nullable
-	private Node head;
-
-	/**
-	 * The tail of the linked list of mailbox actions.
-	 */
-	@Nullable
-	private Node tail;
-
-	/**
 	 * Lock for all concurrent ops.
 	 */
 	private final ReentrantLock lock;
+
+	/**
+	 * Internal queue of letters.
+	 */
+	@GuardedBy("lock")
+	private final LinkedList<Runnable> queue;
 
 	/**
 	 * Condition that is triggered when the mailbox is no longer empty.
@@ -80,7 +58,7 @@ public class MailboxImpl implements Mailbox {
 	private final Condition notEmpty;
 
 	/**
-	 * Number of letters in the mailbox.
+	 * Number of letters in the mailbox. We track it separately from the queue#size to avoid locking on {@link #hasMail()}.
 	 */
 	@GuardedBy("lock")
 	private volatile int count;
@@ -95,8 +73,7 @@ public class MailboxImpl implements Mailbox {
 		this.lock = new ReentrantLock();
 		this.notEmpty = lock.newCondition();
 		this.state = State.CLOSED;
-		this.head = null;
-		this.tail = null;
+		this.queue = new LinkedList<>();
 		this.count = 0;
 	}
 
@@ -136,11 +113,10 @@ public class MailboxImpl implements Mailbox {
 
 	@Override
 	public void putMail(@Nonnull Runnable letter) throws MailboxStateException {
-		final Node newTailNode = new Node(letter);
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
-			putTailInternal(newTailNode);
+			putTailInternal(letter);
 		} finally {
 			lock.unlock();
 		}
@@ -151,10 +127,9 @@ public class MailboxImpl implements Mailbox {
 	@Override
 	public void putFirst(@Nonnull Runnable priorityLetter) throws MailboxStateException {
 		final ReentrantLock lock = this.lock;
-		final Node newHeadNode = new Node(priorityLetter);
 		lock.lock();
 		try {
-			putHeadInternal(newHeadNode);
+			putHeadInternal(priorityLetter);
 		} finally {
 			lock.unlock();
 		}
@@ -162,33 +137,18 @@ public class MailboxImpl implements Mailbox {
 
 	//------------------------------------------------------------------------------------------------------------------
 
-	private void putHeadInternal(final Node newHead) throws MailboxStateException {
+	private void putHeadInternal(Runnable newHead) throws MailboxStateException {
 		assert lock.isHeldByCurrentThread();
 		checkPutStateConditions();
-
-		if (head == null) {
-			tail = newHead;
-		} else {
-			newHead.next = head;
-		}
-
-		head = newHead;
-
+		queue.addFirst(newHead);
 		incrementCountAndCheckOverflow();
 		notEmpty.signal();
 	}
 
-	private void putTailInternal(final Node newTail) throws MailboxStateException {
+	private void putTailInternal(Runnable newTail) throws MailboxStateException {
 		assert lock.isHeldByCurrentThread();
 		checkPutStateConditions();
-
-		if (tail == null) {
-			head = newTail;
-		} else {
-			tail.next = newTail;
-		}
-		tail = newTail;
-
+		queue.addLast(newTail);
 		incrementCountAndCheckOverflow();
 		notEmpty.signal();
 	}
@@ -201,34 +161,18 @@ public class MailboxImpl implements Mailbox {
 	private Runnable takeHeadInternal() throws MailboxStateException {
 		assert lock.isHeldByCurrentThread();
 		checkTakeStateConditions();
-
-		if (head == null) {
-			return null;
+		Runnable oldHead = queue.pollFirst();
+		if (oldHead != null) {
+			--count;
 		}
-
-		final Node oldHead = head;
-		final Node newHead = head.next;
-
-		head = newHead;
-
-		if (newHead == null) {
-			tail = null;
-		}
-
-		--count;
-		return oldHead.letter;
+		return oldHead;
 	}
 
 	private void drainAllLetters(List<Runnable> drainInto) {
 		assert lock.isHeldByCurrentThread();
-		Node localHead = head;
-		while (localHead != null) {
-			drainInto.add(localHead.letter);
-			localHead = localHead.next;
-		}
+		drainInto.addAll(queue);
+		queue.clear();
 		count = 0;
-		head = null;
-		tail = null;
 	}
 
 	private boolean isEmpty() {

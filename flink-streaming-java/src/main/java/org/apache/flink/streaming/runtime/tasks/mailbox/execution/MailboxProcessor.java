@@ -28,6 +28,7 @@ import org.apache.flink.util.WrappingRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -113,7 +114,11 @@ public class MailboxProcessor {
 	 * {@link java.util.concurrent.RunnableFuture} that are still contained in the mailbox.
 	 */
 	public void close() {
-		FutureUtils.cancelRunnableFutures(mailboxExecutor.shutdownNow());
+		List<Runnable> droppedLetters = mailboxExecutor.shutdownNow();
+		if (!droppedLetters.isEmpty()) {
+			LOG.debug("Closing the mailbox dropped letters {}.", droppedLetters);
+			FutureUtils.cancelRunnableFutures(droppedLetters);
+		}
 	}
 
 	/**
