@@ -186,7 +186,7 @@ Currently `HiveCatalog` supports most Flink data types with the following mappin
 | MULTISET      |  N/A |
 
 
-Note that we only covers most commonly used data types for now.
+Note that we only cover most commonly used data types for now.
 
 The following limitations in Hive's data types impact the mapping between Flink and Hive:
 
@@ -210,7 +210,7 @@ To register a catalog in Table API, users can create a catalog instance and regi
 
 To use pre-defined catalogs (`GenericInMemoryCatalog` and `HiveCatalog`) in SQL CLI, please refer to [SQL Clinet]({{ site.baseurl }}/dev/table/sqlClient.html)
 
-To use custom catalog in SQL CLI, users should develop both a catalog and its corresponding catalog factory by implementing `Catalog` and `CatalogFactory` interfaces respectively.
+To use custom catalogs in SQL CLI, users should develop both a catalog and its corresponding catalog factory by implementing `Catalog` and `CatalogFactory` interfaces respectively.
 
 The catalog factory defines a set of properties for configuring the catalog when SQL CLI bootstraps. The set of properties will be passed to a discovery service where the service tries to match the properties to a `CatalogFactory` and initiate an corresponding catalog instance.
 
@@ -311,9 +311,9 @@ myHive1.listPartitions(myTablePath);
 
 
 
-## Use HiveCatalog in Flink SQL Cli
+## Use HiveCatalog in Flink SQL Client
 
-Users can specify catalogs in the yaml config file of Flink SQL CLI. See [SQL Cli]({{ site.baseurl }}/dev/table/sqlClient.html) for more details.
+Users can specify catalogs in the yaml config file of Flink SQL CLI. See [SQL Client]({{ site.baseurl }}/dev/table/sqlClient.html) for more details.
 
 ```yaml
 catalogs:
