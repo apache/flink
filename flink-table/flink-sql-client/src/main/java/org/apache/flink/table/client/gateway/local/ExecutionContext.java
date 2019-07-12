@@ -315,13 +315,6 @@ public class ExecutionContext<T> {
 			if (potentialCatalog.isPresent()) {
 				String currentCatalog = potentialCatalog.get();
 				tableEnv.useCatalog(currentCatalog);
-
-				if (last command is use catalog) {
-					// set current db to the catalog's default db
-					sessionContext.setCurrentDatabase(tableEnv.getCatalog(currentCatalog).get().getDefaultDatabase());
-				} else if (last command is use database) {
-					// do nothing because sessionContext.current_db is the latest db
-				}
 			}
 
 			if (sessionContext.getCurrentDatabase().isPresent()) {
