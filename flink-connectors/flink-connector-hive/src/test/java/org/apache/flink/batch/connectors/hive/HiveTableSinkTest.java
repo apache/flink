@@ -242,7 +242,7 @@ public class HiveTableSinkTest {
 
 		CatalogTable table = (CatalogTable) hiveCatalog.getTable(tablePath);
 		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), tablePath, table));
-		tableEnv.sql("select * from src").insertInto("destSink");
+		tableEnv.sqlQuery("select * from src").insertInto("destSink");
 		execEnv.execute();
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
@@ -254,7 +254,7 @@ public class HiveTableSinkTest {
 		HiveTableSink sink = new HiveTableSink(new JobConf(hiveConf), tablePath, table);
 		sink.setOverwrite(true);
 		tableEnv.registerTableSink("destSink1", sink);
-		tableEnv.sql("select * from src1").insertInto("destSink1");
+		tableEnv.sqlQuery("select * from src1").insertInto("destSink1");
 		execEnv.execute();
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
