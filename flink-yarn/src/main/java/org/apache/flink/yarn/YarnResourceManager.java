@@ -328,6 +328,11 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		return slotsPerWorker;
 	}
 
+	@VisibleForTesting
+	Configuration getFlinkConfig() {
+		return flinkConfig;
+	}
+
 	@Override
 	public boolean stopWorker(final YarnWorkerNode workerNode) {
 		final Container container = workerNode.getContainer();
