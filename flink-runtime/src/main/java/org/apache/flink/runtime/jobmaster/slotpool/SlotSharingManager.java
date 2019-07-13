@@ -181,14 +181,18 @@ public class SlotSharingManager {
 	}
 
 	@Nonnull
-	public Collection<SlotInfo> listResolvedRootSlotInfo(@Nullable AbstractID groupId) {
+	public Collection<SlotSelectionStrategy.SlotInfoAndRemainingResource> listResolvedRootSlotInfo(@Nullable AbstractID groupId) {
 		return resolvedRootSlots
 			.values()
 			.stream()
-			.flatMap((Map<AllocationID, MultiTaskSlot> map) -> map.values().stream())
-			.filter((MultiTaskSlot multiTaskSlot) -> !multiTaskSlot.contains(groupId))
-			.map((MultiTaskSlot multiTaskSlot) -> (SlotInfo) multiTaskSlot.getSlotContextFuture().join())
-			.collect(Collectors.toList());
+				.flatMap((Map<AllocationID, MultiTaskSlot> map) -> map.values().stream())
+				.filter((MultiTaskSlot multiTaskSlot) -> !multiTaskSlot.contains(groupId))
+				.map((MultiTaskSlot multiTaskSlot) -> {
+					SlotInfo slotInfo = multiTaskSlot.getSlotContextFuture().join();
+					return new SlotSelectionStrategy.SlotInfoAndRemainingResource(
+							slotInfo,
+							slotInfo.getResourceProfile().subtract(multiTaskSlot.getReservedResources()));
+				}).collect(Collectors.toList());
 	}
 
 	@Nullable
