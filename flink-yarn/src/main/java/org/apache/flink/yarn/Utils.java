@@ -191,15 +191,18 @@ public final class Utils {
 				iter++;
 			}
 		}
-		long dstModificationTime = -1;
+
+		final long dstModificationTime;
 		if (fss != null && fss.length >  0) {
 			dstModificationTime = fss[0].getModificationTime();
+			LOG.debug("Got modification time {} from remote path {}", dstModificationTime, dst);
+		} else {
+			dstModificationTime = localFile.lastModified();
+			LOG.debug("Failed to fetch remote modification time from {}, using local timestamp {}", dst, dstModificationTime);
 		}
-		LOG.debug("Got modification time {} from remote path {}", dstModificationTime, dst);
 
 		// now create the resource instance
-		LocalResource resource = registerLocalResource(dst, localFile.length(), dstModificationTime > 0 ? dstModificationTime
-			: localFile.lastModified());
+		LocalResource resource = registerLocalResource(dst, localFile.length(), dstModificationTime);
 		return Tuple2.of(dst, resource);
 	}
 
