@@ -49,6 +49,7 @@ import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcherImpl;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.VoidMetricFetcher;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.util.ResourceManagerUtil;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderGatewayRetriever;
@@ -167,8 +168,9 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				hostname,
 				ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
 
+			Configuration resourceManagerConfig = ResourceManagerUtil.getResourceManagerConfiguration(configuration);
 			resourceManager = resourceManagerFactory.createResourceManager(
-				configuration,
+				resourceManagerConfig,
 				ResourceID.generate(),
 				rpcService,
 				highAvailabilityServices,
