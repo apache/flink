@@ -517,11 +517,12 @@ public class YarnResourceManagerTest extends TestLogger {
 			runTest(() -> {
 
 				ResourceProfile rmCalculatedResourceProfile = resourceManager.getSlotsPerWorker().iterator().next();
+				Configuration tmConfig = resourceManager.getFlinkConfig();
 
 				ResourceProfile tmCalculatedResourceProfile =
 					TaskManagerServices.computeSlotResourceProfile(
-						config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS),
-						MemorySize.parse(config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE)).getBytes());
+						tmConfig.getInteger(TaskManagerOptions.NUM_TASK_SLOTS),
+						MemorySize.parse(tmConfig.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE)).getBytes());
 
 				assertEquals(rmCalculatedResourceProfile, tmCalculatedResourceProfile);
 			});
