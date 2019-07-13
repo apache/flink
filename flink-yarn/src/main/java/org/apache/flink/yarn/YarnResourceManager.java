@@ -184,7 +184,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		this.defaultCpus = flinkConfig.getInteger(YarnConfigOptions.VCORES, numberOfTaskSlots);
 		this.resource = Resource.newInstance(defaultTaskManagerMemoryMB, defaultCpus);
 
-		this.slotsPerWorker = updateTaskManagerConfigAndCreateWorkerSlotProfiles(flinkConfig, defaultTaskManagerMemoryMB, numberOfTaskSlots);
+		this.slotsPerWorker = updateTaskManagerConfigAndCreateWorkerSlotProfiles(this.flinkConfig, defaultTaskManagerMemoryMB, numberOfTaskSlots);
 		setFailUnfulfillableRequest(true);
 	}
 
