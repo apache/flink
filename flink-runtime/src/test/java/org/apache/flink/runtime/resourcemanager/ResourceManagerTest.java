@@ -20,7 +20,11 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.HardwareDescription;
@@ -38,6 +42,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
+import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
@@ -46,7 +51,6 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -60,6 +64,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -151,12 +156,12 @@ public class ResourceManagerTest extends TestLogger {
 
 		TaskManagerInfo taskManagerInfo = taskManagerInfoFuture.get();
 
-		Assert.assertEquals(taskManagerId, taskManagerInfo.getResourceId());
-		Assert.assertEquals(hardwareDescription, taskManagerInfo.getHardwareDescription());
-		Assert.assertEquals(taskExecutorGateway.getAddress(), taskManagerInfo.getAddress());
-		Assert.assertEquals(dataPort, taskManagerInfo.getDataPort());
-		Assert.assertEquals(0, taskManagerInfo.getNumberSlots());
-		Assert.assertEquals(0, taskManagerInfo.getNumberAvailableSlots());
+		assertEquals(taskManagerId, taskManagerInfo.getResourceId());
+		assertEquals(hardwareDescription, taskManagerInfo.getHardwareDescription());
+		assertEquals(taskExecutorGateway.getAddress(), taskManagerInfo.getAddress());
+		assertEquals(dataPort, taskManagerInfo.getDataPort());
+		assertEquals(0, taskManagerInfo.getNumberSlots());
+		assertEquals(0, taskManagerInfo.getNumberAvailableSlots());
 	}
 
 	private void registerTaskExecutor(ResourceManagerGateway resourceManagerGateway, ResourceID taskExecutorId, String taskExecutorAddress) throws Exception {
@@ -269,5 +274,25 @@ public class ResourceManagerTest extends TestLogger {
 		resourceManagerLeaderElectionService.isLeader(resourceManagerId.toUUID()).get();
 
 		return resourceManager;
+	}
+
+	/**
+	 * Tests that RM and TM create the same slot resource profiles.
+	 */
+	@Test
+	public void testCreateWorkerSlotProfiles() {
+		final Configuration config = new Configuration();
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "100m");
+		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 5);
+
+		final ResourceProfile rmCalculatedResourceProfile =
+			ResourceManager.createWorkerSlotProfiles(config).iterator().next();
+
+		final ResourceProfile tmCalculatedResourceProfile =
+			TaskManagerServices.computeSlotResourceProfile(
+				config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS),
+				MemorySize.parse(config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE)).getBytes());
+
+		assertEquals(rmCalculatedResourceProfile, tmCalculatedResourceProfile);
 	}
 }
