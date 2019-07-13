@@ -200,7 +200,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 
 		final ContaineredTaskManagerParameters containeredTaskManagerParameters = taskManagerParameters.containeredParameters();
 		this.slotsPerWorker = updateTaskManagerConfigAndCreateWorkerSlotProfiles(
-			flinkConfig, containeredTaskManagerParameters.taskManagerTotalMemoryMB(), containeredTaskManagerParameters.numSlots());
+			this.flinkConfig, containeredTaskManagerParameters.taskManagerTotalMemoryMB(), containeredTaskManagerParameters.numSlots());
 		setFailUnfulfillableRequest(true);
 	}
 
