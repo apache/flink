@@ -234,8 +234,8 @@ If no savepoint directory is configured, you need to configure a default savepoi
 The job will only be cancelled if the savepoint succeeds.
 
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-    <b>Note</b>: Cancelling a job with savepoint is deprecated. Use "stop" instead.</p>
-{% endunless %}
+    <b>Note</b>: Cancelling a job with savepoint is deprecated. Use "stop" instead.
+</p>
 
 #### Restore a savepoint
 
