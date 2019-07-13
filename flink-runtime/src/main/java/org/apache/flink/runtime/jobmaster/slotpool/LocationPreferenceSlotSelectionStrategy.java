@@ -22,7 +22,6 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
-import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
 import javax.annotation.Nonnull;
@@ -48,7 +47,7 @@ public enum LocationPreferenceSlotSelectionStrategy implements SlotSelectionStra
 
 	@Override
 	public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
-		@Nonnull Collection<? extends SlotInfo> availableSlots,
+		@Nonnull Collection<SlotInfoAndResources> availableSlots,
 		@Nonnull SlotProfile slotProfile) {
 
 		Collection<TaskManagerLocation> locationPreferences = slotProfile.getPreferredLocations();
@@ -67,12 +66,12 @@ public enum LocationPreferenceSlotSelectionStrategy implements SlotSelectionStra
 
 	@Nonnull
 	private Optional<SlotInfoAndLocality> selectWithoutLocationPreference(
-		@Nonnull Collection<? extends SlotInfo> availableSlots,
+		@Nonnull Collection<SlotInfoAndResources> availableSlots,
 		@Nonnull ResourceProfile resourceProfile) {
 
-		for (SlotInfo candidate : availableSlots) {
-			if (candidate.getResourceProfile().isMatching(resourceProfile)) {
-				return Optional.of(SlotInfoAndLocality.of(candidate, Locality.UNCONSTRAINED));
+		for (SlotInfoAndResources candidate : availableSlots) {
+			if (candidate.getRemainingResources().isMatching(resourceProfile)) {
+				return Optional.of(SlotInfoAndLocality.of(candidate.getSlotInfo(), Locality.UNCONSTRAINED));
 			}
 		}
 		return Optional.empty();
@@ -80,7 +79,7 @@ public enum LocationPreferenceSlotSelectionStrategy implements SlotSelectionStra
 
 	@Nonnull
 	private Optional<SlotInfoAndLocality> selectWitLocationPreference(
-		@Nonnull Collection<? extends SlotInfo> availableSlots,
+		@Nonnull Collection<SlotInfoAndResources> availableSlots,
 		@Nonnull Collection<TaskManagerLocation> locationPreferences,
 		@Nonnull ResourceProfile resourceProfile) {
 
@@ -93,21 +92,21 @@ public enum LocationPreferenceSlotSelectionStrategy implements SlotSelectionStra
 			preferredFQHostNames.merge(locationPreference.getFQDNHostname(), 1, Integer::sum);
 		}
 
-		SlotInfo bestCandidate = null;
+		SlotInfoAndResources bestCandidate = null;
 		Locality bestCandidateLocality = Locality.UNKNOWN;
 		int bestCandidateScore = Integer.MIN_VALUE;
 
-		for (SlotInfo candidate : availableSlots) {
+		for (SlotInfoAndResources candidate : availableSlots) {
 
-			if (candidate.getResourceProfile().isMatching(resourceProfile)) {
+			if (candidate.getRemainingResources().isMatching(resourceProfile)) {
 
 				// this gets candidate is local-weigh
 				Integer localWeigh = preferredResourceIDs.getOrDefault(
-					candidate.getTaskManagerLocation().getResourceID(), 0);
+					candidate.getSlotInfo().getTaskManagerLocation().getResourceID(), 0);
 
 				// this gets candidate is host-local-weigh
 				Integer hostLocalWeigh = preferredFQHostNames.getOrDefault(
-					candidate.getTaskManagerLocation().getFQDNHostname(), 0);
+					candidate.getSlotInfo().getTaskManagerLocation().getFQDNHostname(), 0);
 
 				int candidateScore = LOCALITY_EVALUATION_FUNCTION.apply(localWeigh, hostLocalWeigh);
 				if (candidateScore > bestCandidateScore) {
@@ -122,7 +121,7 @@ public enum LocationPreferenceSlotSelectionStrategy implements SlotSelectionStra
 
 		// at the end of the iteration, we return the candidate with best possible locality or null.
 		return bestCandidate != null ?
-			Optional.of(SlotInfoAndLocality.of(bestCandidate, bestCandidateLocality)) :
+			Optional.of(SlotInfoAndLocality.of(bestCandidate.getSlotInfo(), bestCandidateLocality)) :
 			Optional.empty();
 	}
 }
