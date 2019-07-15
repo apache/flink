@@ -1,5 +1,5 @@
 ---
-title: "重启策略"
+title: "Task 故障恢复"
 nav-parent_id: execution
 nav-pos: 50
 ---
@@ -22,15 +22,21 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink 在作业发生故障时支持不同的重启策略。如果没有为作业定义重启策略，集群启动时就会遵循默认的重启策略。
-如果提交作业时设置了重启策略，该策略将覆盖掉集群的默认策略。
+当 Task 发生故障时，Flink 需要重启出错的 Task 以及其他受到影响的 Task ，以使得作业恢复到正常执行状态。
+
+Flink 通过重启策略和故障恢复策略来控制 Task 重启：重启策略决定是否可以重启以及重启的间隔；故障恢复策略决定哪些 Task 需要重启。
 
 * This will be replaced by the TOC
 {:toc}
 
-## 概述
+## 重启策略
 
-通过 Flink 的配置文件 `flink-conf.yaml` 来设置默认的重启策略。配置参数 *restart-strategy* 定义了采取何种策略。如果没有启用 checkpoint，就采用“不重启”策略。如果启用了 checkpoint 且没有配置重启策略，那么就采用固定延时重启策略，此时最大尝试重启次数由 `Integer.MAX_VALUE` 参数设置。下表列出了可用的重启策略和与其对应的配置值。
+Flink 作业如果没有定义重启策略，则会遵循集群启动时加载的默认重启策略。
+如果提交作业时设置了重启策略，该策略将覆盖掉集群的默认策略。
+
+通过 Flink 的配置文件 `flink-conf.yaml` 来设置默认的重启策略。配置参数 *restart-strategy* 定义了采取何种策略。
+如果没有启用 checkpoint，就采用“不重启”策略。如果启用了 checkpoint 且没有配置重启策略，那么就采用固定延时重启策略，
+此时最大尝试重启次数由 `Integer.MAX_VALUE` 参数设置。下表列出了可用的重启策略和与其对应的配置值。
 
 每个重启策略都有自己的一组配置参数来控制其行为。
 这些参数也在配置文件中设置。
@@ -88,7 +94,6 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 </div>
 
 
-## 重启策略
 
 以下部分详细描述重启策略的配置项。
 
@@ -259,5 +264,51 @@ env.setRestartStrategy(RestartStrategies.noRestart())
 使用群集定义的重启策略。
 这对于启用了 checkpoint 的流处理程序很有帮助。
 如果没有定义其他重启策略，默认选择固定延时重启策略。
+
+## 故障恢复策略
+
+Flink 支持多种不同的故障恢复策略，该策略需要通过 Flink 配置文件 `flink-conf.yaml` 中的 *jobmanager.execution.failover-strategy*
+配置项进行配置。
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 50%">故障恢复策略</th>
+      <th class="text-left">jobmanager.execution.failover-strategy 配置值</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td>全图重启</td>
+        <td>full</td>
+    </tr>
+    <tr>
+        <td>基于 Region 的局部重启</td>
+        <td>region</td>
+    </tr>
+  </tbody>
+</table>
+
+### 全图重启故障恢复策略
+
+在全图重启故障恢复策略下，Task 发生故障时会重启作业中的所有 Task 进行故障恢复。
+
+### 基于 Region 的局部重启故障恢复策略
+
+该策略会将作业中的所有 Task 划分为数个 Region。当有 Task 发生故障时，它会尝试找出进行故障恢复需要重启的最小 Region 集合。
+相比于全局重启故障恢复策略，这种策略在一些场景下的故障恢复需要重启的 Task 会更少。
+
+此处 Region 指以 Pipelined 形式进行数据交换的 Task 集合。也就是说，Batch 形式的数据交换会构成 Region 的边界。
+- DataStream 和 流式 Table/SQL 作业的所有数据交换都是 Pipelined 形式的。
+- 批处理式 Table/SQL 作业的所有数据交换默认都是 Batch 形式的。
+- DataSet 作业中的数据交换形式会根据 [ExecutionConfig]({{ site.baseurl }}/zh/dev/execution_configuration.html) 
+  中配置的 [ExecutionMode]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/ExecutionMode.html)
+  决定。
+
+需要重启的 Region 的判断逻辑如下：
+1. 出错 Task 所在 Region 需要重启。
+2. 如果要重启的 Region 需要消费的数据有部分无法访问（丢失或损坏），产出该部分数据的 Region 也需要重启。
+3. 需要重启的 Region 的下游 Region 也需要重启。这是出于保障数据一致性的考虑，因为一些非确定性的计算或者分发会导致同一个
+   Result Partition 每次产生时包含的数据都不相同。
 
 {% top %}

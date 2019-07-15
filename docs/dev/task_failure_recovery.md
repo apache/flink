@@ -1,5 +1,5 @@
 ---
-title: "Restart Strategies"
+title: "Task Failure Recovery"
 nav-parent_id: execution
 nav-pos: 50
 ---
@@ -22,14 +22,19 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink supports different restart strategies which control how the jobs are restarted in case of a failure.
-The cluster can be started with a default restart strategy which is always used when no job specific restart strategy has been defined.
-In case that the job is submitted with a restart strategy, this strategy overrides the cluster's default setting.
+When a task failure happens, Flink needs to restart the failed task and other affected tasks to recover the job to a normal state.
+
+Restart strategies and failover strategies are used to control the task restarting.
+Restart strategies decide whether and when the failed/affected tasks can be restarted.
+Failover strategies decide which tasks should be restarted to recover the job.
 
 * This will be replaced by the TOC
 {:toc}
 
-## Overview
+## Restart Strategies
+
+The cluster can be started with a default restart strategy which is always used when no job specific restart strategy has been defined.
+In case that the job is submitted with a restart strategy, this strategy overrides the cluster's default setting.
 
 The default restart strategy is set via Flink's configuration file `flink-conf.yaml`.
 The configuration parameter *restart-strategy* defines which strategy is taken.
@@ -93,8 +98,6 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 </div>
 </div>
 
-
-## Restart Strategies
 
 The following sections describe restart strategy specific configuration options.
 
@@ -263,5 +266,54 @@ env.setRestartStrategy(RestartStrategies.noRestart())
 The cluster defined restart strategy is used. 
 This is helpful for streaming programs which enable checkpointing.
 By default, a fixed delay restart strategy is chosen if there is no other restart strategy defined.
+
+## Failover Strategies
+
+Flink supports different failover strategies which can be configured via the configuration parameter
+*jobmanager.execution.failover-strategy* in Flink's configuration file `flink-conf.yaml`.
+
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 50%">Failover Strategy</th>
+      <th class="text-left">Value for jobmanager.execution.failover-strategy</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+        <td>Restart all</td>
+        <td>full</td>
+    </tr>
+    <tr>
+        <td>Restart pipelined region</td>
+        <td>region</td>
+    </tr>
+  </tbody>
+</table>
+
+### Restart All Failover Strategy
+
+This strategy restarts all tasks in the job to recover from a task failure.
+
+### Restart Pipelined Region Failover Strategy
+
+This strategy groups tasks into disjoint regions. When a task failure is detected, 
+this strategy computes the smallest set of regions that must be restarted to recover from the failure. 
+For some jobs this can result in fewer tasks that will be restarted compared to the Restart All Failover Strategy.
+
+A region is a set of tasks that communicate via pipelined data exchanges. 
+That is, batch data exchanges denote the boundaries of a region.
+- All data exchanges in a DataStream job or Streaming Table/SQL job are pipelined.
+- All data exchanges in a Batch Table/SQL job are batched by default.
+- The data exchange types in a DataSet job are determined by the 
+  [ExecutionMode]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/ExecutionMode.html) 
+  which can be set through [ExecutionConfig]({{ site.baseurl }}/dev/execution_configuration.html).
+
+The regions to restart are decided as below:
+1. The region containing the failed task will be restarted.
+2. If a result partition is not available while it is required by a region that will be restarted,
+   the region producing the result partition will be restarted as well.
+3. If a region is to be restarted, all of its consumer regions will also be restarted. This is to guarantee
+   data consistency because nondeterministic processing or partitioning can result in different partitions.
 
 {% top %}
