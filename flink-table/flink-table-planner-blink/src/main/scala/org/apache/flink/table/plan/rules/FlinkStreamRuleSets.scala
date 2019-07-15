@@ -249,7 +249,7 @@ object FlinkStreamRuleSets {
     // remove aggregation if it does not aggregate and input is already distinct
     FlinkAggregateRemoveRule.INSTANCE,
     // push aggregate through join
-    FlinkAggregateJoinTransposeRule.LEFT_RIGHT_OUTER_JOIN_EXTENDED,
+    FlinkAggregateJoinTransposeRule.EXTENDED,
     // using variants of aggregate union rule
     AggregateUnionAggregateRule.AGG_ON_FIRST_INPUT,
     AggregateUnionAggregateRule.AGG_ON_SECOND_INPUT,
