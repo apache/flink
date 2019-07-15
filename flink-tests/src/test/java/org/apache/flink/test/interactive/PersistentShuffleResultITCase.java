@@ -59,7 +59,7 @@ public class PersistentShuffleResultITCase extends TestLogger {
 
 		ds.collect();
 
-		DefaultIntermediateResultDescriptor meta = env.getPersistentIntermediateResultDescriptor();
+		DefaultIntermediateResultDescriptor meta = env.getIntermediateResultDescriptor();
 
 		// only one cached IntermediateDataSet
 		Assert.assertEquals(1, meta.getIntermediateResultDescriptions().size());

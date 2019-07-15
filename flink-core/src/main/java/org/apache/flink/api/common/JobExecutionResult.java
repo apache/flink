@@ -52,10 +52,10 @@ public class JobExecutionResult extends JobSubmissionResult {
 	 * @param jobID The job's ID.
 	 * @param netRuntime The net runtime of the job (excluding pre-flight phase like the optimizer) in milliseconds
 	 * @param accumulators A map of all accumulators produced by the job.
-	 * @param persistentIntermediateResultDescriptor BLOCKING_PERSISTENT ResultPartition locations of this Job Execution.
+	 * @param intermediateResultDescriptor BLOCKING_PERSISTENT ResultPartition locations of this Job Execution.
 	 */
 	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, OptionalFailure<Object>> accumulators,
-							  IntermediateResultDescriptor persistentIntermediateResultDescriptor) {
+							  IntermediateResultDescriptor intermediateResultDescriptor) {
 		super(jobID);
 		this.netRuntime = netRuntime;
 
@@ -66,8 +66,8 @@ public class JobExecutionResult extends JobSubmissionResult {
 		}
 
 		this.intermediateResultDescriptor =
-			persistentIntermediateResultDescriptor == null ?
-				new DefaultIntermediateResultDescriptor() : persistentIntermediateResultDescriptor;
+			intermediateResultDescriptor == null ?
+				new DefaultIntermediateResultDescriptor() : intermediateResultDescriptor;
 	}
 
 	/**

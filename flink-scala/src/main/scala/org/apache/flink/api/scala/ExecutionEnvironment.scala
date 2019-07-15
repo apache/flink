@@ -564,11 +564,11 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
-    * Get PersistentIntermediateResultDescriptor.
-    * @return PersistentIntermediateResultDescriptor collected form previous jobs.
+    * Get IntermediateResultDescriptor.
+    * @return IntermediateResultDescriptor collected form previous jobs.
     */
-  def getPersistentIntermediateResultDescriptor() = {
-    javaEnv.getPersistentIntermediateResultDescriptor
+  def getIntermediateResultDescriptor() = {
+    javaEnv.getIntermediateResultDescriptor
   }
 }
 

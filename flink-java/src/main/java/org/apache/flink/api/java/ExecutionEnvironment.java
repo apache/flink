@@ -119,7 +119,7 @@ public abstract class ExecutionEnvironment {
 
 	private final ExecutionConfig config = new ExecutionConfig();
 
-	private final DefaultIntermediateResultDescriptor persistentIntermediateResultDescriptor =
+	private final DefaultIntermediateResultDescriptor intermediateResultDescriptor =
 		new DefaultIntermediateResultDescriptor();
 
 	/** Result from the latest execution, to make it retrievable when using eager execution methods. */
@@ -823,7 +823,7 @@ public abstract class ExecutionEnvironment {
 	 */
 	public JobExecutionResult execute() throws Exception {
 		JobExecutionResult result =  execute(getDefaultName());
-		persistentIntermediateResultDescriptor.mergeDescriptor(
+		intermediateResultDescriptor.mergeDescriptor(
 			result.getIntermediateResultDescriptor()
 		);
 		return result;
@@ -1292,10 +1292,10 @@ public abstract class ExecutionEnvironment {
 	}
 
 	/**
-	 * Get PersistentIntermediateResultDescriptor.
-	 * @return PersistentIntermediateResultDescriptor collected form previous jobs.
+	 * Get IntermediateResultDescriptor.
+	 * @return IntermediateResultDescriptor collected form previous jobs.
 	 */
-	public DefaultIntermediateResultDescriptor getPersistentIntermediateResultDescriptor() {
-		return persistentIntermediateResultDescriptor;
+	public DefaultIntermediateResultDescriptor getIntermediateResultDescriptor() {
+		return intermediateResultDescriptor;
 	}
 }
