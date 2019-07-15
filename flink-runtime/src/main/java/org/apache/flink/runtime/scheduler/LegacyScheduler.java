@@ -30,6 +30,8 @@ import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -75,6 +77,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.function.FunctionUtils;
@@ -618,6 +621,13 @@ public class LegacyScheduler implements SchedulerNG {
 			.handle((completedCheckpoint, throwable) -> {
 				if (throwable != null) {
 					log.info("Failed during stopping job {} with a savepoint. Reason: {}", jobGraph.getJobID(), throwable.getMessage());
+					// it's possible this failure hasn't triggered a task failure, but rather the savepoint was aborted
+					// "softly" (for example on checkpoints barriers alignment, due to buffer limits).
+					// such situation may leave other tasks of the job in a blocking state.
+					// to workaround this, we fail the whole job.
+					if (!isCheckpointPreFlightFailure(throwable)) {
+						executionGraph.failGlobal(throwable);
+					}
 					throw new CompletionException(throwable);
 				}
 				return completedCheckpoint.getExternalPointer();
@@ -648,5 +658,12 @@ public class LegacyScheduler implements SchedulerNG {
 			.map(Execution::getAssignedResourceLocation)
 			.map(TaskManagerLocation::toString)
 			.orElse("Unknown location");
+	}
+
+	private static boolean isCheckpointPreFlightFailure(Throwable throwable) {
+		return ExceptionUtils.findThrowable(throwable, CheckpointException.class)
+			.map(CheckpointException::getCheckpointFailureReason)
+			.map(CheckpointFailureReason::isPreFlight)
+			.orElse(false);
 	}
 }
