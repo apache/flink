@@ -19,14 +19,12 @@
 package org.apache.flink.table.delegation;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeInferenceUtil;
 
-import java.lang.reflect.Constructor;
 import java.util.List;
 
 /**
@@ -36,40 +34,10 @@ import java.util.List;
 @Internal
 public interface PlannerTypeInferenceUtil {
 
-	static PlannerTypeInferenceUtil create() {
-		return SingletonPlannerTypeInferenceUtil.getPlannerTypeInferenceUtil();
-	}
-
 	/**
 	 * Same behavior as {@link TypeInferenceUtil#runTypeInference(TypeInference, CallContext)}.
 	 */
 	TypeInferenceUtil.Result runTypeInference(
 		UnresolvedCallExpression unresolvedCall,
 		List<ResolvedExpression> resolvedArgs);
-
-	/**
-	 * A singleton pattern utility for avoiding creating many {@link PlannerTypeInferenceUtil}.
-	 */
-	class SingletonPlannerTypeInferenceUtil {
-
-		private static PlannerTypeInferenceUtil plannerTypeInferenceUtil;
-
-		public static PlannerTypeInferenceUtil getPlannerTypeInferenceUtil() {
-			if (plannerTypeInferenceUtil == null) {
-				try {
-					final Class<?> clazz =
-						Class.forName("org.apache.flink.table.expressions.PlannerTypeInferenceUtilImpl");
-					final Constructor<?> con = clazz.getConstructor();
-					plannerTypeInferenceUtil = (PlannerTypeInferenceUtil) con.newInstance();
-				} catch (Throwable t) {
-					throw new TableException("Instantiation of PlannerTypeInferenceUtil failed.", t);
-				}
-			}
-			return plannerTypeInferenceUtil;
-		}
-
-		private SingletonPlannerTypeInferenceUtil() {
-			// no instantiation
-		}
-	}
 }

@@ -162,7 +162,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 				UnresolvedCallExpression unresolvedCall,
 				List<ResolvedExpression> resolvedArgs) {
 
-			final PlannerTypeInferenceUtil util = PlannerTypeInferenceUtil.create();
+			final PlannerTypeInferenceUtil util = resolutionContext.functionLookup().getPlannerTypeInferenceUtil();
 
 			final TypeInferenceUtil.Result inferenceResult = util.runTypeInference(
 				unresolvedCall,
