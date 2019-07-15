@@ -656,7 +656,7 @@ public class TaskTest extends TestLogger {
 			final CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
 			when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
 
-			task.requestPartitionProducerState(resultId, partitionId).thenAccept(checkResult ->
+			task.requestPartitionProducerState(resultId, partitionId, checkResult ->
 				assertThat(remoteChannelStateChecker.isProducerReadyOrAbortConsumption(checkResult), is(false))
 			);
 
@@ -680,7 +680,7 @@ public class TaskTest extends TestLogger {
 			final CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
 			when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
 
-			task.requestPartitionProducerState(resultId, partitionId).thenAccept(checkResult ->
+			task.requestPartitionProducerState(resultId, partitionId, checkResult ->
 				assertThat(remoteChannelStateChecker.isProducerReadyOrAbortConsumption(checkResult), is(false))
 			);
 
@@ -711,7 +711,7 @@ public class TaskTest extends TestLogger {
 				CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
 				when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
 
-				task.requestPartitionProducerState(resultId, partitionId).thenAccept(checkResult -> {
+				task.requestPartitionProducerState(resultId, partitionId, checkResult -> {
 					if (remoteChannelStateChecker.isProducerReadyOrAbortConsumption(checkResult)) {
 						callCount.incrementAndGet();
 					}
@@ -749,7 +749,7 @@ public class TaskTest extends TestLogger {
 				CompletableFuture<ExecutionState> promise = new CompletableFuture<>();
 				when(partitionChecker.requestPartitionProducerState(eq(task.getJobID()), eq(resultId), eq(partitionId))).thenReturn(promise);
 
-				task.requestPartitionProducerState(resultId, partitionId).thenAccept(checkResult -> {
+				task.requestPartitionProducerState(resultId, partitionId, checkResult -> {
 					if (remoteChannelStateChecker.isProducerReadyOrAbortConsumption(checkResult)) {
 						callCount.incrementAndGet();
 					}
