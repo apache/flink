@@ -26,6 +26,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.walkthrough.common.entity.Transaction;
 
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.util.Iterator;
 
 /**
@@ -53,7 +54,7 @@ public class TransactionRowInputFormat extends GenericInputFormat<Row> implement
 		Transaction transaction = transactions.next();
 		return Row.of(
 			transaction.getAccountId(),
-			transaction.getTimestamp(),
+			new Timestamp(transaction.getTimestamp()),
 			transaction.getAmount());
 	}
 }

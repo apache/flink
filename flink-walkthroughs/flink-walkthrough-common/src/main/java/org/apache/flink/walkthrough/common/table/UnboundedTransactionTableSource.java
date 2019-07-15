@@ -18,14 +18,12 @@
 
 package org.apache.flink.walkthrough.common.table;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.sources.BatchTableSource;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -34,7 +32,6 @@ import org.apache.flink.table.sources.wmstrategies.BoundedOutOfOrderTimestamps;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.walkthrough.common.entity.Transaction;
-import org.apache.flink.walkthrough.common.source.TransactionInputFormat;
 import org.apache.flink.walkthrough.common.source.TransactionSource;
 
 import java.sql.Timestamp;
@@ -42,21 +39,15 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * A table source for transactions.
+ * A table source for reading an unbounded set of transactions.
+ *
+ * <p>This table could be backed by a message queue or other streaming data source.
  */
+@PublicEvolving
 @SuppressWarnings("deprecation")
-public class TransactionTableSource
+public class UnboundedTransactionTableSource
 	implements StreamTableSource<Row>,
-	BatchTableSource<Row>,
 	DefinedRowtimeAttributes {
-
-	@Override
-	public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
-		return execEnv
-			.createInput(new TransactionInputFormat())
-			.map(transactionRowMapFunction())
-			.returns(getTableSchema().toRowType());
-	}
 
 	@Override
 	public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {

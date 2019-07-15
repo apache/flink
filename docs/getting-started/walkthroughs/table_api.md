@@ -1,8 +1,8 @@
 ---
 title: "Table API"
-nav-id: tableapitutorials
+nav-id: tableapiwalkthrough
 nav-title: 'Table API'
-nav-parent_id: apitutorials
+nav-parent_id: walkthroughs
 nav-pos: 1
 ---
 <!--
@@ -33,7 +33,7 @@ The Table API in Flink is commonly used to ease the definition of data analytics
 ## What Will You Be Building? 
 
 In this tutorial, you'll learn how to build a continuous ETL pipeline for tracking financial transactions by account over time.
-You will start by building our report as a nightly batch job, and then migrate to a streaming pipeline to see how batch is just a special case of streaming. 
+You will start by building your report as a nightly batch job, and then migrate to a streaming pipeline.
 
 ## Prerequisites
 
@@ -101,7 +101,7 @@ After importing the project into your editor, you will see a file following code
 ExecutionEnvironment env   = ExecutionEnvironment.getExecutionEnvironment();
 BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
-tEnv.registerTableSource("transactions", new TransactionTableSource());
+tEnv.registerTableSource("transactions", new BoundedTransactionTableSource());
 tEnv.registerTableSink("spend_report", new SpendReportTableSink());
 tEnv.registerFunction("truncateDateToHour", new TruncateDateToHour());
 
@@ -115,11 +115,11 @@ env.execute("Spend Report");
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val env  = ExecutionEnvironment.getExecutionEnvironment()
+val env  = ExecutionEnvironment.getExecutionEnvironment
 val tEnv = BatchTableEnvironment.create(env)
 
-tEnv.registerTableSource("transactions", new TransactionTableSource())
-tEnv.registerTableSink("spend_report", new SpendReportTableSink())
+tEnv.registerTableSource("transactions", new BoundedTransactionTableSource)
+tEnv.registerTableSink("spend_report", new SpendReportTableSink)
 
 val truncateDateToHour = new TruncateDateToHour
 
@@ -139,7 +139,7 @@ Let's break down this code by component.
 #### The Execution Environment
 
 The first two lines set up your `ExecutionEnvironment`.
-The execution environment is how you can set properties for your deployments, specify whether you are writing a batch or streaming application, and create your sources.
+The execution environment is how you can set properties for your Job, specify whether you are writing a batch or streaming application, and create your sources.
 This walkthrough begins with the batch environment since we are building a periodic batch report.
 It is then wrapped in a `BatchTableEnvironment` to have full access to the Table API.
 
@@ -153,8 +153,8 @@ BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val env  = ExecutionEnvironment.getExecutionEnvironment();
-val tEnv = BatchTableEnvironment.create(env);
+val env  = ExecutionEnvironment.getExecutionEnvironment
+val tEnv = BatchTableEnvironment.create(env)
 {% endhighlight %}
 </div>
 </div>
@@ -163,30 +163,30 @@ val tEnv = BatchTableEnvironment.create(env);
 #### Registering Tables
 
 Next, tables are registered in the execution environment that you can use to connect to external systems for reading and writing both batch and streaming data.
-A table source provides access to data stored in external systems (such as a database, key-value store, message queue, or file system).
+A table source provides access to data stored in external systems; such as a database, key-value store, message queue, or file system.
 A table sink emits a table to an external storage system.
 Depending on the type of source and sink, they support different formats such as CSV, JSON, Avro, or Parquet.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-tEnv.registerTableSource("transactions", new TransactionTableSource());
+tEnv.registerTableSource("transactions", new BoundedTransactionTableSource());
 tEnv.registerTableSink("spend_report", new SpendReportTableSink());
 {% endhighlight %}
 </div>
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-tEnv.registerTableSource("transactions", new TransactionTableSource())
-tEnv.registerTableSink("spend_report", new SpendReportTableSink())
+tEnv.registerTableSource("transactions", new BoundedTransactionTableSource)
+tEnv.registerTableSink("spend_report", new SpendReportTableSink)
 {% endhighlight %}
 </div>
 </div>
 
 Two tables are registered, a transaction input table, and a spend report output table.
 The transactions (`transactions`) table lets us read credit card transactions, which contain account ID's (`accountId`), timestamps (`timestamp`), and US$ amounts (`amount`). 
-The spend report (`spend_report`) table writes the output of a job to standard output so you can easily see your results. 
-Both tables support running batch and streaming applications.
+In practice, the `BoundedTransactionTableSource` may be backed by a filesystem, database, or other static sources.
+The spend report (`spend_report`) table logs each row with log level **INFO**, instead of writing to persistent storage, so you can easily see your results. 
 
 #### Registering A UDF
 
@@ -230,12 +230,12 @@ tEnv
 </div>
 </div>
 
-Initially, the job reads all transactions and writes them to standard output.
+Initially, the Job reads all transactions and logs them out with log level **INFO**.
 
 #### Execute
 
 Flink applications are built lazily and shipped to the cluster for execution only once fully formed. 
-You call `ExecutionEnvironment#execute` to begin the execution of your job. 
+You call `ExecutionEnvironment#execute` to begin the execution of your Job. 
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -253,7 +253,7 @@ env.execute("Spend Report")
 
 ## Attempt One
 
-Now with a  skeleton of a job set-up, you are ready to add some business logic.
+Now with the skeleton of a Job set-up, you are ready to add some business logic.
 The goal is to build a report that shows the total spend for each account across each hour of the day.
 Just like a SQL query, Flink can select the required fields and group by your keys. 
 Because the timestamp field has millisecond granularity, you can use the UDF to round it down to the nearest hour.
@@ -287,7 +287,7 @@ tEnv
 
 While this works, using a custom function to group by time is overly complex.
 The `timestamp` column represents the [event time]({{ site.baseurl }}/dev/event_time.html) of each row, where event time is the logical time when an event took place in the real world.
-Flink understands the concept of event time, which you can leverage this to clean up your code. 
+Flink understands the concept of event time, which you can leverage to clean up your code. 
 
 Grouping data based on time is a typical operation in data processing, especially when working with infinite streams.
 A grouping based on time is called a [window]({{ site.baseurl }} /dev/stream/operators/windows.html) and Flink offers flexible windowing semantics. 
@@ -325,8 +325,10 @@ Using time window-based aggregations enables Flink to perform specific optimizat
 
 ## Once More, With Streaming!
 
-With yxour business logic implemented, it is time to go from batch to streaming.
-Because the Table API supports running against both batch and streaming runners with the same semantics, migrating is as simple as changing the execution context.
+Because Flink's Table API offers consistent semantics for both batch and streaming, migrating from one to the other requires just two steps.
+
+The first step is to replace the batch `ExecutionEnvironment` with its streaming counterpart, `StreamExecutionEnvironment` which creates a continuous streaming Job.
+It includes stream specific configurations, such as the time characteristic, which when set to [event time]({{ site.baseurl }}/dev/event_time.html)  guarantees consistent results even when faced with out-of-order events or Job failure.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -340,7 +342,7 @@ StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
-val env = StreamExecutionEnvironment.getExecutionEnvironment();
+val env = StreamExecutionEnvironment.getExecutionEnvironment
 env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
 val tEnv = StreamTableEnvironment.create(env)
@@ -348,6 +350,23 @@ val tEnv = StreamTableEnvironment.create(env)
 </div>
 </div>
 
+The second step is to migrate from a bounded data source to an infinite data source.
+The project comes with an `UnboundedTransactionTableSource` that continuously reads transaction events in real-time.
+In practice, this table might read from a streaming source such as Apache Kafka, AWS Kinesis, or Pravega.
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+tEnv.registerTableSource("transactions", new UnboundedTransactionTableSource());
+{% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+tEnv.registerTableSource("transactions", new UnboundedTransactionTableSource)
+{% endhighlight %}
+</div>
+</div>
 
 And that's it, a fully functional, stateful, distributed streaming application!
 
@@ -373,7 +392,7 @@ public class SpendReport {
 
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
-        tEnv.registerTableSource("transactions", new TransactionTableSource());
+        tEnv.registerTableSource("transactions", new UnboundedTransactionTableSource());
         tEnv.registerTableSink("spend_report", new SpendReportTableSink());
 
         tEnv
@@ -407,8 +426,8 @@ object SpendReport {
 
         val tEnv = StreamTableEnvironment.create(env);
 
-        tEnv.registerTableSource("transactions", new TransactionTableSource())
-        tEnv.registerTableSink("spend_report", new SpendReportTableSink())
+        tEnv.registerTableSource("transactions", new UnboundedTransactionTableSource)
+        tEnv.registerTableSink("spend_report", new SpendReportTableSink)
 
         tEnv
             .scan("transactions")

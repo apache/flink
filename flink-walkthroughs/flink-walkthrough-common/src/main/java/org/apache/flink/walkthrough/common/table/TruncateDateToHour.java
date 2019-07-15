@@ -32,6 +32,7 @@ public class TruncateDateToHour extends ScalarFunction {
 
 	private static final long ONE_HOUR = 60 * 60 * 1000;
 
+	@SuppressWarnings("unused")
 	public long eval(long timestamp) {
 		return timestamp - (timestamp % ONE_HOUR);
 	}

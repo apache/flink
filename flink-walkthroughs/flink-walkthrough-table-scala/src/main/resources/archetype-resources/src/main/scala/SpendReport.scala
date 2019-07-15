@@ -27,7 +27,7 @@ object SpendReport {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
 
-    tEnv.registerTableSource("transactions", new TransactionTableSource)
+    tEnv.registerTableSource("transactions", new BoundedTransactionTableSource)
     tEnv.registerTableSink("spend_report", new SpendReportTableSink)
 
     val truncateDateToHour = new TruncateDateToHour
