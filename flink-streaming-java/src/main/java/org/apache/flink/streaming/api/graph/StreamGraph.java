@@ -283,8 +283,9 @@ public class StreamGraph extends StreamingPlan {
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
 
-		Class<? extends AbstractInvokable> vertexClass = taskOperatorFactory.isOperatorSelectiveReading() ?
-			TwoInputSelectableStreamTask.class : TwoInputStreamTask.class;
+		Class<? extends AbstractInvokable> vertexClass =
+			taskOperatorFactory.isOperatorSelectiveReading(Thread.currentThread().getContextClassLoader()) ?
+				TwoInputSelectableStreamTask.class : TwoInputStreamTask.class;
 
 		addNode(vertexID, slotSharingGroup, coLocationGroup, vertexClass, taskOperatorFactory, operatorName);
 
