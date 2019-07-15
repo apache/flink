@@ -456,6 +456,8 @@ catalogs:
 
 Currently Flink supports two types of catalog - `FlinkInMemoryCatalog` and `HiveCatalog`.
 
+For more information about catalog, see [Catalogs]({{ site.baseurl }}/dev/table/catalog.html).
+
 Detached SQL Queries
 --------------------
 
