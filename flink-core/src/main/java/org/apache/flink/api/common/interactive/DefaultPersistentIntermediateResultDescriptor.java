@@ -27,29 +27,29 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * This implementation is used in runtime environment.
- * See {@link PersistentIntermediateResultDescriptor} for more details.
+ * This is the default implementation of IntermediateResultDescriptor.
+ * See {@link IntermediateResultDescriptor} for more details.
  */
 public class DefaultPersistentIntermediateResultDescriptor
-	implements PersistentIntermediateResultDescriptor {
+	implements IntermediateResultDescriptor {
 
-	private final Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> persistentShuffleDescriptors = new HashMap<>();
+	private final Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> intermediateResultDescriptors = new HashMap<>();
 
 	private final Set<AbstractID> incompleteIntermediateDataSetIds = new HashSet<>();
 
 	public DefaultPersistentIntermediateResultDescriptor() {}
 
 	public DefaultPersistentIntermediateResultDescriptor(
-		Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> persistentShuffleDescriptors,
+		Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> intermediateResultDescriptors,
 		Set<AbstractID> incompleteIntermediateDataSetIds) {
 
-		this.persistentShuffleDescriptors.putAll(persistentShuffleDescriptors);
+		this.intermediateResultDescriptors.putAll(intermediateResultDescriptors);
 		this.incompleteIntermediateDataSetIds.addAll(incompleteIntermediateDataSetIds);
 	}
 
 	@Override
-	public Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> getPersistentShuffleDescriptors() {
-		return persistentShuffleDescriptors;
+	public Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> getIntermediateResultDescriptors() {
+		return intermediateResultDescriptors;
 	}
 
 	@Override
@@ -58,8 +58,8 @@ public class DefaultPersistentIntermediateResultDescriptor
 	}
 
 	@Override
-	public void mergeDescriptor(PersistentIntermediateResultDescriptor newPersistentShuffleDescriptor) {
-		persistentShuffleDescriptors.putAll(newPersistentShuffleDescriptor.getPersistentShuffleDescriptors());
+	public void mergeDescriptor(IntermediateResultDescriptor newPersistentShuffleDescriptor) {
+		intermediateResultDescriptors.putAll(newPersistentShuffleDescriptor.getIntermediateResultDescriptors());
 		incompleteIntermediateDataSetIds.addAll(newPersistentShuffleDescriptor.getIncompleteIntermediateDataSetIds());
 	}
 }
