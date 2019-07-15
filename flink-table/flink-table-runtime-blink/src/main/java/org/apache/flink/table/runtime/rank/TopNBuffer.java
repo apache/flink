@@ -75,6 +75,10 @@ class TopNBuffer implements Serializable {
 	 * @param values record lists to be associated with the specified key
 	 */
 	void putAll(BaseRow sortKey, Collection<BaseRow> values) {
+		Collection<BaseRow> oldValues = treeMap.get(sortKey);
+		if (oldValues != null) {
+			currentTopNum -= oldValues.size();
+		}
 		treeMap.put(sortKey, values);
 		currentTopNum += values.size();
 	}
@@ -145,18 +149,18 @@ class TopNBuffer implements Serializable {
 	 */
 	BaseRow getElement(int rank) {
 		int curRank = 0;
-		Iterator<Map.Entry<BaseRow, Collection<BaseRow>>> iter = treeMap.entrySet().iterator();
-		while (iter.hasNext()) {
-			Map.Entry<BaseRow, Collection<BaseRow>> entry = iter.next();
+		for (Map.Entry<BaseRow, Collection<BaseRow>> entry : treeMap.entrySet()) {
 			Collection<BaseRow> list = entry.getValue();
 
-			Iterator<BaseRow> listIter = list.iterator();
-			while (listIter.hasNext()) {
-				BaseRow elem = listIter.next();
-				curRank += 1;
-				if (curRank == rank) {
-					return elem;
+			if (curRank + list.size() >= rank) {
+				for (BaseRow elem : list) {
+					curRank += 1;
+					if (curRank == rank) {
+						return elem;
+					}
 				}
+			} else {
+				curRank += list.size();
 			}
 		}
 		return null;
