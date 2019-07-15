@@ -118,6 +118,7 @@ public class StringWriterTest {
 		FSDataInputStream inStream = dfs.open(outputFile);
 		byte[] buffer = new byte[inputData.getBytes(charset).length];
 		readFully(inStream, buffer);
+		inStream.close();
 		String outputData = new String(buffer, charset);
 		Assert.assertEquals(inputData, outputData);
 
