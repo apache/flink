@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -37,6 +38,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -90,6 +92,11 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 				TimeUnit.MILLISECONDS
 			);
 		}
+	}
+
+	@VisibleForTesting
+	CompletableFuture<Boolean> isFailingUnfulfillableRequestAsync() {
+		return CompletableFuture.supplyAsync(this::isFailingUnfulfillableRequest, getMainThreadExecutor());
 	}
 
 	@Override

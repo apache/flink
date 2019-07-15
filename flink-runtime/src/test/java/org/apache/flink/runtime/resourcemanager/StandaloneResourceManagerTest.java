@@ -20,24 +20,25 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.resourcemanager.utils.MockResourceManagerRuntimeServices;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.function.SupplierWithException;
 import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.time.Duration;
 import java.util.UUID;
-import java.util.function.Supplier;
+import java.util.concurrent.ExecutionException;
 
-import static org.junit.Assert.assertFalse;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
@@ -54,36 +55,29 @@ public class StandaloneResourceManagerTest extends TestLogger {
 
 	@Test
 	public void testStartupPeriod() throws Exception {
-		final Tuple2<StandaloneResourceManager, SlotManager> managers = createResourceManagerAndSlotManager(Time.milliseconds(1));
-		final StandaloneResourceManager rm = managers.f0;
-		final SlotManager sm = managers.f1;
+		final StandaloneResourceManager rm = createResourceManager(Time.milliseconds(1L));
+		final Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10L));
 
-		assertHappensUntil(sm::isFailingUnfulfillableRequest, Deadline.fromNow(Duration.ofSeconds(10)));
+		assertHappensUntil(() -> isFailingUnfulfillableRequest(rm), deadline);
 
 		rm.close();
 	}
 
 	@Test
 	public void testNoStartupPeriod() throws Exception {
-		final Tuple2<StandaloneResourceManager, SlotManager> managers = createResourceManagerAndSlotManager(Time.milliseconds(-1));
-		final StandaloneResourceManager rm = managers.f0;
-		final SlotManager sm = managers.f1;
+		final StandaloneResourceManager rm = createResourceManager(Time.milliseconds(-1L));
 
 		// startup includes initialization and granting leadership, so by the time we are
 		// here, the initialization method scheduling the startup period will have been executed.
 
-		assertFalse(fatalErrorHandler.hasExceptionOccurred());
-		assertFalse(sm.isFailingUnfulfillableRequest());
+		assertThat(fatalErrorHandler.hasExceptionOccurred(), is(false));
+
+		assertThat(isFailingUnfulfillableRequest(rm), is(false));
 
 		rm.close();
 	}
 
 	private StandaloneResourceManager createResourceManager(Time startupPeriod) throws Exception {
-		return createResourceManagerAndSlotManager(startupPeriod).f0;
-	}
-
-	private Tuple2<StandaloneResourceManager, SlotManager> createResourceManagerAndSlotManager(
-			Time startupPeriod) throws Exception {
 
 		final MockResourceManagerRuntimeServices rmServices = new MockResourceManagerRuntimeServices(
 			RPC_SERVICE.getTestingRpcService(),
@@ -106,10 +100,22 @@ public class StandaloneResourceManagerTest extends TestLogger {
 		rm.start();
 		rmServices.grantLeadership();
 
-		return new Tuple2<>(rm, rmServices.slotManager);
+		return rm;
 	}
 
-	private static void assertHappensUntil(Supplier<Boolean> condition, Deadline until) throws InterruptedException {
+	private static boolean isFailingUnfulfillableRequest(
+			StandaloneResourceManager resourceManager) throws InterruptedException {
+		try {
+			return resourceManager.isFailingUnfulfillableRequestAsync().get();
+		} catch (ExecutionException e) {
+			ExceptionUtils.rethrow(e);
+			return false; // should be unreachable
+		}
+	}
+
+	private static void assertHappensUntil(
+			SupplierWithException<Boolean, InterruptedException> condition,
+			Deadline until) throws InterruptedException {
 		while (!condition.get()) {
 			if (!until.hasTimeLeft()) {
 				fail("condition was not fulfilled before the deadline");
