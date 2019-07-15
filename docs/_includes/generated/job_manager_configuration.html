@@ -18,6 +18,11 @@
             <td>The maximum number of prior execution attempts kept in history.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.execution.failover-strategy</h5></td>
+            <td style="word-wrap: break-word;">"full"</td>
+            <td>This option specifies the failover strategy, i.e. how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Use RestartAllStrategy to restarts all tasks to recover the job.</li><li>'region': Use AdaptedRestartPipelinedRegionStrategyNG to restart all tasks that could be affected by the task failure. The affected vertices consist of vertices in affected regions(pipelined connected sub-graphs), include the region of the failed task, any downstream region of an affected region, andany region that produces a result partition required by affected regions if the result partition is not available by then.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.heap.size</h5></td>
             <td style="word-wrap: break-word;">"1024m"</td>
             <td>JVM heap size for the JobManager.</td>
