@@ -322,7 +322,7 @@ USE CATALOG mycatalog;
 {% endhighlight %}
             <p>Set current database of the current catalog for the session</p>
 {% highlight sql %}
-USE DATABASE mydatabase;
+USE mydatabase;
 {% endhighlight %}
       </td>
     </tr>
