@@ -28,6 +28,7 @@ import java.util.Set;
  *  ExecutionEnvironment also have an instance of IntermediateResultDescriptor, the mergeDescriptor method will be called
  *  when an IntermediateResultDescriptor is sent back to ExecutionEnvironment, so the ExecutionEnvironment can keep all the
  *  IntermediateResultDescriptors which created by its submitted jobs.
+ *  As for InteractiveProgramming, the Planner can check the shuffle result existence for a sub-tree and decide whether to reuse the shuffle result.
  *
  *  @param <IR> Type for identify an intermediate result.
  *  @param <DESC> Type for identify the description of the intermediate result.
