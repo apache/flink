@@ -50,7 +50,7 @@ public class DefaultIntermediateResultDescriptor
 	/**
 	 * Return the mapping from intermediate result to its (ResultPartitionID, ShuffleDescriptor) tuples.
 	 * We use AbstractID here due to package visibility, and the ShuffleDescriptor are serialized in form of
-	 * SerializedValue<Object>, the deserialization will only be triggered in JM before an Execution.
+	 * SerializedValue, the deserialization will only be triggered in JM before an Execution.
 	 *
 	 * @return Mapping from IntermediateDataSetID to its (ResultPartitionID, ShuffleDescriptor) tuples.
 	 */
