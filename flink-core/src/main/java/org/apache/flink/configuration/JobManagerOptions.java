@@ -117,11 +117,11 @@ public class JobManagerOptions {
 					text("'full': Use RestartAllStrategy to restarts all tasks to recover the job."),
 					text("'region': Use AdaptedRestartPipelinedRegionStrategyNG to restart all tasks " +
 						"that could be affected by the task failure. The affected vertices consist of " +
-						"vertices in affected regions(pipelined connected sub-graphs), include " +
+						"vertices in affected regions(pipelined connected sub-graphs), including " +
 						"the region of the failed task, " +
-						"any downstream region of an affected region, and" +
-						"any region that produces a result partition required by affected regions " +
-						"if the result partition is not available by then.")
+						"downstream regions of affected regions, and" +
+						"regions that produces result partitions which are required by affected " +
+						"regions but are not available.")
 				).build());
 
 	/**
