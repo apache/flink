@@ -65,9 +65,7 @@ object ExpandCodeGenerator {
       ctx,
       opName,
       processCode,
-      "",
       inputType,
-      config,
       inputTerm = inputTerm,
       lazyInputUnboxingCode = false)
 

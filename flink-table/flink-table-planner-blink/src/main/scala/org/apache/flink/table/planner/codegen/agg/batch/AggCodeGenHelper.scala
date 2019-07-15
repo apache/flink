@@ -709,9 +709,8 @@ object AggCodeGenHelper {
       ctx,
       name,
       processCode,
-      endInputCode,
       inputType,
-      ctx.tableConfig,
+      endInputCode = Some(endInputCode),
       lazyInputUnboxingCode = true)
   }
 }

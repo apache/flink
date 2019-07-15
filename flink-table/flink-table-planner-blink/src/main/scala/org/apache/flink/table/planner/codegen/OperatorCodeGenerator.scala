@@ -21,7 +21,6 @@ import org.apache.flink.streaming.api.graph.StreamConfig
 import org.apache.flink.streaming.api.operators.{BoundedMultiInput, BoundedOneInput, InputSelectable, InputSelection, OneInputStreamOperator, Output, StreamOperator, TwoInputStreamOperator}
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.runtime.tasks.StreamTask
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.utils.Logging
@@ -47,10 +46,9 @@ object OperatorCodeGenerator extends Logging {
       ctx: CodeGeneratorContext,
       name: String,
       processCode: String,
-      endInputCode: String,
       inputType: LogicalType,
-      config: TableConfig,
       inputTerm: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
+      endInputCode: Option[String] = None,
       lazyInputUnboxingCode: Boolean = false,
       converter: String => String = a => a): GeneratedOperator[OneInputStreamOperator[IN, OUT]] = {
     addReuseOutElement(ctx)
@@ -58,10 +56,23 @@ object OperatorCodeGenerator extends Logging {
     val abstractBaseClass = ctx.getOperatorBaseClass
     val baseClass = classOf[OneInputStreamOperator[IN, OUT]]
     val inputTypeTerm = boxedTypeTermForType(inputType)
+
+    val (endInput, endInputImpl) = endInputCode match {
+      case None => ("", "")
+      case Some(code) =>
+        (s"""
+           |@Override
+           |public void endInput() throws Exception {
+           |  ${ctx.reuseLocalVariableCode()}
+           |  $code
+           |}
+         """.stripMargin, s", ${className[BoundedOneInput]}")
+    }
+
     val operatorCode =
       j"""
       public class $operatorName extends ${abstractBaseClass.getCanonicalName}
-          implements ${baseClass.getCanonicalName}, ${className[BoundedOneInput]} {
+          implements ${baseClass.getCanonicalName}$endInputImpl {
 
         private final Object[] references;
         ${ctx.reuseMemberCode()}
@@ -91,20 +102,7 @@ object OperatorCodeGenerator extends Logging {
           $processCode
         }
 
-        @Override
-        public void endInput() throws Exception {
-          ${
-            if (endInputCode.nonEmpty) {
-              s"""
-                 |${ctx.reuseLocalVariableCode()}
-                 |$endInputCode
-                 """.stripMargin
-            } else {
-              ""
-            }
-          }
-          ${ctx.reuseEndInputCode()}
-        }
+        $endInput
 
         @Override
         public void close() throws Exception {
@@ -124,14 +122,14 @@ object OperatorCodeGenerator extends Logging {
       ctx: CodeGeneratorContext,
       name: String,
       processCode1: String,
-      endInputCode1: String,
       processCode2: String,
-      endInputCode2: String,
-      nextSelection: String,
       input1Type: LogicalType,
       input2Type: LogicalType,
       input1Term: String = CodeGenUtils.DEFAULT_INPUT1_TERM,
       input2Term: String = CodeGenUtils.DEFAULT_INPUT2_TERM,
+      nextSelectionCode: Option[String] = None,
+      endInputCode1: Option[String] = None,
+      endInputCode2: Option[String] = None,
       useTimeCollect: Boolean = false)
     : GeneratedOperator[TwoInputStreamOperator[IN1, IN2, OUT]] = {
     addReuseOutElement(ctx)
@@ -141,11 +139,51 @@ object OperatorCodeGenerator extends Logging {
     val inputTypeTerm1 = boxedTypeTermForType(input1Type)
     val inputTypeTerm2 = boxedTypeTermForType(input2Type)
 
+    val (nextSel, nextSelImpl) = nextSelectionCode match {
+      case None => ("", "")
+      case Some(code) =>
+        val end1 = endInputCode1.getOrElse("")
+        val end2 = endInputCode2.getOrElse("")
+        (s"""
+            |@Override
+            |public $INPUT_SELECTION nextSelection() {
+            |  $code
+            |}
+         """.stripMargin, s", ${className[InputSelectable]}")
+    }
+
+    val (endInput, endInputImpl) = (endInputCode1, endInputCode2) match {
+      case (None, None) => ("", "")
+      case (_, _) =>
+        val end1 = endInputCode1.getOrElse("")
+        val end2 = endInputCode2.getOrElse("")
+        (s"""
+           |private void endInput1() throws Exception {
+           |  $end1
+           |}
+           |
+           |private void endInput2() throws Exception {
+           |  $end2
+           |}
+           |
+           |@Override
+           |public void endInput(int inputId) throws Exception {
+           |  switch (inputId) {
+           |    case 1:
+           |      endInput1();
+           |      break;
+           |    case 2:
+           |      endInput2();
+           |      break;
+           |  }
+           |}
+         """.stripMargin, s", ${className[BoundedMultiInput]}")
+    }
+
     val operatorCode =
       j"""
       public class $operatorName extends ${abstractBaseClass.getCanonicalName}
-          implements ${baseClass.getCanonicalName},
-           ${className[BoundedMultiInput]}, ${className[InputSelectable]} {
+          implements ${baseClass.getCanonicalName}$nextSelImpl$endInputImpl {
 
         public static org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger("$operatorName");
 
@@ -176,10 +214,6 @@ object OperatorCodeGenerator extends Logging {
           $processCode1
         }
 
-        private void endInput1() throws Exception {
-          $endInputCode1
-        }
-
         @Override
         public void processElement2($STREAM_RECORD $ELEMENT)
          throws Exception {
@@ -188,26 +222,9 @@ object OperatorCodeGenerator extends Logging {
           $processCode2
         }
 
-        private void endInput2() throws Exception {
-          $endInputCode2
-        }
+        $nextSel
 
-        @Override
-        public void endInput(int inputId) throws Exception {
-          switch (inputId) {
-            case 1:
-              endInput1();
-              break;
-            case 2:
-              endInput2();
-              break;
-          }
-        }
-
-        @Override
-        public $INPUT_SELECTION nextSelection() {
-          $nextSelection
-        }
+        $endInput
 
         @Override
         public void close() throws Exception {

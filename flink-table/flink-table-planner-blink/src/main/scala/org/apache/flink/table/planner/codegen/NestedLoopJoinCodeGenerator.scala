@@ -133,18 +133,19 @@ class NestedLoopJoinCodeGenerator(
       ctx,
       "BatchNestedLoopJoin",
       processCode1,
-      endInputCode1,
       processCode2,
-      endInputCode2,
-      s"""
-         |if ($buildEnd) {
-         |  return $INPUT_SELECTION.${if (leftIsBuild) "SECOND" else "FIRST"};
-         |} else {
-         |  return $INPUT_SELECTION.${if (leftIsBuild) "FIRST" else "SECOND"};
-         |}
-       """.stripMargin,
       leftType,
-      rightType)
+      rightType,
+      nextSelectionCode = Some(
+        s"""
+           |if ($buildEnd) {
+           |  return $INPUT_SELECTION.${if (leftIsBuild) "SECOND" else "FIRST"};
+           |} else {
+           |  return $INPUT_SELECTION.${if (leftIsBuild) "FIRST" else "SECOND"};
+           |}
+         """.stripMargin),
+      endInputCode1 = Some(endInputCode1),
+      endInputCode2 = Some(endInputCode2))
     new CodeGenOperatorFactory[BaseRow](genOp)
   }
 
