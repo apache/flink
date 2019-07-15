@@ -67,6 +67,8 @@ abstract class TableEnvImpl(
   private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog(
     builtinCatalogName,
     builtinDatabaseName)
+  // temporary utility until we don't use planner expressions anymore
+  functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
 
   // temporary bridge between API and planner
   private[flink] val expressionBridge: ExpressionBridge[PlannerExpression] =

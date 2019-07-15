@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -33,6 +34,7 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedAggregateFunction;
 import org.apache.flink.table.functions.UserFunctionsTypeHelper;
+import org.apache.flink.util.Preconditions;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -51,9 +53,20 @@ public class FunctionCatalog implements FunctionLookup {
 
 	private final Map<String, FunctionDefinition> userFunctions = new LinkedHashMap<>();
 
-	public FunctionCatalog(String defaultCatalogName, String defaultDatabaseName) {
+	/**
+	 * Temporary utility until the new type inference is fully functional. It needs to be set by the planner.
+	 */
+	private PlannerTypeInferenceUtil plannerTypeInferenceUtil;
+
+	public FunctionCatalog(
+			String defaultCatalogName,
+			String defaultDatabaseName) {
 		this.defaultCatalogName = defaultCatalogName;
 		this.defaultDatabaseName = defaultDatabaseName;
+	}
+
+	public void setPlannerTypeInferenceUtil(PlannerTypeInferenceUtil plannerTypeInferenceUtil) {
+		this.plannerTypeInferenceUtil = plannerTypeInferenceUtil;
 	}
 
 	public void registerScalarFunction(String name, ScalarFunction function) {
@@ -145,6 +158,14 @@ public class FunctionCatalog implements FunctionLookup {
 			ObjectIdentifier.of(defaultCatalogName, defaultDatabaseName, name),
 			definition)
 		);
+	}
+
+	@Override
+	public PlannerTypeInferenceUtil getPlannerTypeInferenceUtil() {
+		Preconditions.checkNotNull(
+			plannerTypeInferenceUtil,
+			"A planner should have set the type inference utility.");
+		return plannerTypeInferenceUtil;
 	}
 
 	private void registerFunction(String name, FunctionDefinition functionDefinition) {
