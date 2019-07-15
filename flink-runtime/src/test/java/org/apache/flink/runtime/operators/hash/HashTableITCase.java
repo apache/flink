@@ -64,14 +64,14 @@ public class HashTableITCase extends TestLogger {
 	private MemoryManager memManager;
 	private IOManager ioManager;
 	
-	private TypeSerializer<Record> recordBuildSideAccesssor;
-	private TypeSerializer<Record> recordProbeSideAccesssor;
+	private TypeSerializer<Record> recordBuildSideAccessor;
+	private TypeSerializer<Record> recordProbeSideAccessor;
 	private TypeComparator<Record> recordBuildSideComparator;
 	private TypeComparator<Record> recordProbeSideComparator;
 	private TypePairComparator<Record, Record> pactRecordComparator;
 	
-	private TypeSerializer<IntPair> pairBuildSideAccesssor;
-	private TypeSerializer<IntPair> pairProbeSideAccesssor;
+	private TypeSerializer<IntPair> pairBuildSideAccessor;
+	private TypeSerializer<IntPair> pairProbeSideAccessor;
 	private TypeComparator<IntPair> pairBuildSideComparator;
 	private TypeComparator<IntPair> pairProbeSideComparator;
 	private TypePairComparator<IntPair, IntPair> pairComparator;
@@ -83,14 +83,14 @@ public class HashTableITCase extends TestLogger {
 		@SuppressWarnings("unchecked")
 		final Class<? extends Value>[] keyType = (Class<? extends Value>[]) new Class[] { IntValue.class };
 		
-		this.recordBuildSideAccesssor = RecordSerializer.get();
-		this.recordProbeSideAccesssor = RecordSerializer.get();
+		this.recordBuildSideAccessor = RecordSerializer.get();
+		this.recordProbeSideAccessor = RecordSerializer.get();
 		this.recordBuildSideComparator = new RecordComparator(keyPos, keyType);
 		this.recordProbeSideComparator = new RecordComparator(keyPos, keyType);
 		this.pactRecordComparator = new RecordPairComparatorFirstInt();
 		
-		this.pairBuildSideAccesssor = new IntPairSerializer();
-		this.pairProbeSideAccesssor = new IntPairSerializer();
+		this.pairBuildSideAccessor = new IntPairSerializer();
+		this.pairProbeSideAccessor = new IntPairSerializer();
 		this.pairBuildSideComparator = new IntPairComparator();
 		this.pairProbeSideComparator = new IntPairComparator();
 		this.pairComparator = new IntPairPairComparator();
@@ -159,7 +159,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
-			this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+			this.recordBuildSideAccessor, this.recordProbeSideAccessor,
 			this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 			memSegments, ioManager);
 		join.open(buildInput, probeInput);
@@ -210,7 +210,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
-				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+				this.recordBuildSideAccessor, this.recordProbeSideAccessor,
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
@@ -262,7 +262,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
-				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+				this.recordBuildSideAccessor, this.recordProbeSideAccessor,
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
@@ -374,7 +374,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
-				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+				this.recordBuildSideAccessor, this.recordProbeSideAccessor,
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
@@ -487,7 +487,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
-				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+				this.recordBuildSideAccessor, this.recordProbeSideAccessor,
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
@@ -596,7 +596,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
-				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+				this.recordBuildSideAccessor, this.recordProbeSideAccessor,
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
@@ -651,7 +651,7 @@ public class HashTableITCase extends TestLogger {
 		}
 
 		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
-				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+				this.recordBuildSideAccessor, this.recordProbeSideAccessor,
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, new UniformRecordGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true));
@@ -701,7 +701,7 @@ public class HashTableITCase extends TestLogger {
 		}
 
 		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
-				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor,
+				this.recordBuildSideAccessor, this.recordProbeSideAccessor,
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, new UniformRecordGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true), true);
@@ -750,7 +750,7 @@ public class HashTableITCase extends TestLogger {
 		}		
 				
 		final MutableHashTable<Record, Record> join = new MutableHashTable<Record, Record>(
-				this.recordBuildSideAccesssor, this.recordProbeSideAccesssor, 
+				this.recordBuildSideAccessor, this.recordProbeSideAccessor,
 				this.recordBuildSideComparator, this.recordProbeSideComparator, this.pactRecordComparator,
 				memSegments, ioManager);
 		join.open(buildInput, new UniformRecordGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true));
@@ -805,7 +805,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-			this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+			this.pairBuildSideAccessor, this.pairProbeSideAccessor,
 			this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 			memSegments, ioManager);
 		join.open(buildInput, probeInput);
@@ -854,7 +854,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideAccessor, this.pairProbeSideAccessor,
 				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
@@ -906,7 +906,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideAccessor, this.pairProbeSideAccessor,
 				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
@@ -1018,7 +1018,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideAccessor, this.pairProbeSideAccessor,
 				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
@@ -1130,7 +1130,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideAccessor, this.pairProbeSideAccessor,
 				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
@@ -1238,7 +1238,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideAccessor, this.pairProbeSideAccessor,
 				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
@@ -1293,7 +1293,7 @@ public class HashTableITCase extends TestLogger {
 		}
 
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideAccessor, this.pairProbeSideAccessor,
 				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 				memSegments, ioManager);
 		join.open(buildInput, new UniformIntPairGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true));
@@ -1342,7 +1342,7 @@ public class HashTableITCase extends TestLogger {
 		}
 				
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideAccessor, this.pairProbeSideAccessor,
 				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 				memSegments, ioManager);
 		join.open(buildInput, new UniformIntPairGenerator(NUM_PROBE_KEYS, NUM_PROBE_VALS, true));
@@ -1392,7 +1392,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor, 
+				this.pairBuildSideAccessor, this.pairProbeSideAccessor,
 				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 			memSegments, ioManager);
 		join.open(buildInput, probeInput);
@@ -1468,7 +1468,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-				this.pairBuildSideAccesssor, this.pairProbeSideAccesssor,
+				this.pairBuildSideAccessor, this.pairProbeSideAccessor,
 				this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 				memSegments, ioManager);
 		join.open(buildInput, probeInput);
@@ -1553,7 +1553,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-			this.pairBuildSideAccesssor, this.pairProbeSideAccesssor,
+			this.pairBuildSideAccessor, this.pairProbeSideAccessor,
 			this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 			memSegments, ioManager);
 		join.open(buildInput, probeInput);
@@ -1599,7 +1599,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-			this.pairBuildSideAccesssor, this.pairProbeSideAccesssor,
+			this.pairBuildSideAccessor, this.pairProbeSideAccessor,
 			this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 			memSegments, ioManager);
 		join.open(buildInput, probeInput, true);
@@ -1648,7 +1648,7 @@ public class HashTableITCase extends TestLogger {
 		// ----------------------------------------------------------------------------------------
 		
 		final MutableHashTable<IntPair, IntPair> join = new MutableHashTable<IntPair, IntPair>(
-			this.pairBuildSideAccesssor, this.pairProbeSideAccesssor,
+			this.pairBuildSideAccessor, this.pairProbeSideAccessor,
 			this.pairBuildSideComparator, this.pairProbeSideComparator, this.pairComparator,
 			memSegments, ioManager);
 		join.open(buildInput, probeInput, true);
