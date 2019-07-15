@@ -135,6 +135,8 @@ public abstract class MinWithRetractAggFunction<T extends Comparable>
 		// when both of them are expired.
 		if (!hasMin) {
 			acc.mapSize = 0L;
+			// we should also override min value, because it may have an old value.
+			acc.min = null;
 		}
 	}
 
@@ -142,7 +144,7 @@ public abstract class MinWithRetractAggFunction<T extends Comparable>
 		boolean needUpdateMin = false;
 		for (MinWithRetractAccumulator<T> a : its) {
 			// set min element
-			if (acc.mapSize == 0 || (a.min != null && acc.min.compareTo(a.min) > 0)) {
+			if (acc.mapSize == 0 || (a.mapSize > 0 && a.min != null && acc.min.compareTo(a.min) > 0)) {
 				acc.min = a.min;
 			}
 			// merge the count for each key
@@ -195,7 +197,7 @@ public abstract class MinWithRetractAggFunction<T extends Comparable>
 
 	@Override
 	public T getValue(MinWithRetractAccumulator<T> acc) {
-		if (acc.mapSize != 0) {
+		if (acc.mapSize > 0) {
 			return acc.min;
 		} else {
 			return null;
