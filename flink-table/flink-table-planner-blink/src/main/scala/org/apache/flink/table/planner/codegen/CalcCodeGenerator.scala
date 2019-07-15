@@ -63,9 +63,7 @@ object CalcCodeGenerator {
         ctx,
         opName,
         processCode,
-        "",
         inputType,
-        config,
         inputTerm = inputTerm,
         lazyInputUnboxingCode = true)
 

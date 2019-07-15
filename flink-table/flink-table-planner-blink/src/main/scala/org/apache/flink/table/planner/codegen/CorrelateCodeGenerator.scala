@@ -273,12 +273,7 @@ object CorrelateCodeGenerator {
     }
 
     val genOperator = OperatorCodeGenerator.generateOneInputStreamOperator[BaseRow, BaseRow](
-      ctx,
-      ruleDescription,
-      body,
-      "",
-      inputType,
-      config)
+      ctx, ruleDescription, body, inputType)
     new CodeGenOperatorFactory(genOperator)
   }
 
