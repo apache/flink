@@ -116,13 +116,15 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 			this.scheduler = Executors.newScheduledThreadPool(
 					1, new ExecutorThreadFactory("jdbc-upsert-output-format"));
 			this.scheduledFuture = this.scheduler.scheduleWithFixedDelay(() -> {
-				if (closed) {
-					return;
-				}
-				try {
-					flush();
-				} catch (Exception e) {
-					flushException = e;
+				synchronized (JDBCUpsertOutputFormat.this) {
+					if (closed) {
+						return;
+					}
+					try {
+						flush();
+					} catch (Exception e) {
+						flushException = e;
+					}
 				}
 			}, flushIntervalMills, flushIntervalMills, TimeUnit.MILLISECONDS);
 		}
@@ -184,15 +186,6 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 		if (this.scheduledFuture != null) {
 			scheduledFuture.cancel(false);
 			this.scheduler.shutdown();
-
-			try {
-				if (!scheduler.awaitTermination(10, TimeUnit.MINUTES)) {
-					throw new RuntimeException(
-							"The scheduled executor service can not properly terminate.");
-				}
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			}
 		}
 
 		if (batchCount > 0) {
