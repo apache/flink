@@ -120,8 +120,7 @@ public class JobManagerOptions {
 						"vertices in affected regions(pipelined connected sub-graphs), including " +
 						"the region of the failed task, " +
 						"downstream regions of affected regions, and" +
-						"regions that produces result partitions which are required by affected " +
-						"regions but are not available.")
+						"producer regions of required but unavailable result partitions for this recovery.")
 				).build());
 
 	/**
