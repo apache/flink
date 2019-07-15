@@ -224,15 +224,21 @@ class TableEnvironment(object):
         j_table_name_array = self._j_tenv.listTables()
         return [item for item in j_table_name_array]
 
-    def explain(self, table):
+    def explain(self, table=None, extended=False):
         """
         Returns the AST of the specified Table API and SQL queries and the execution plan to compute
-        the result of the given :class:`Table`.
+        the result of the given :class:`Table` or multi-sinks plan.
 
-        :param table: The table to be explained.
+        :param table: The table to be explained. If table is None, explain for multi-sinks plan,
+                      else for given table.
+        :param extended: If the plan should contain additional properties.
+                         e.g. estimated cost, traits
         :return: The table for which the AST and execution plan will be returned.
         """
-        return self._j_tenv.explain(table._j_table)
+        if table is None:
+            return self._j_tenv.explain(extended)
+        else:
+            return self._j_tenv.explain(table._j_table, extended)
 
     def sql_query(self, query):
         """
