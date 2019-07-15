@@ -25,7 +25,7 @@ import org.apache.flink.table.runtime.rank.{RankRange, RankType}
 import org.apache.flink.table.sinks.TableSink
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.plan.{Contexts, RelOptCluster, RelOptTable, RelTraitSet}
+import org.apache.calcite.plan.{Contexts, RelOptCluster, RelOptTable}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
 import org.apache.calcite.rel.core.RelFactories._
 import org.apache.calcite.rel.core._
@@ -106,13 +106,6 @@ object FlinkLogicalRelFactories {
         fetch: RexNode): RelNode = {
       FlinkLogicalSort.create(input, collation, offset, fetch)
     }
-
-    @deprecated // to be removed before 2.0
-    def createSort(
-        traits: RelTraitSet, input: RelNode,
-        collation: RelCollation, offset: RexNode, fetch: RexNode): RelNode = {
-      createSort(input, collation, offset, fetch)
-    }
   }
 
   /**
@@ -176,22 +169,6 @@ object FlinkLogicalRelFactories {
         joinType: JoinRelType,
         semiJoinDone: Boolean): RelNode = {
       FlinkLogicalJoin.create(left, right, condition, joinType)
-    }
-
-    def createJoin(
-        left: RelNode,
-        right: RelNode,
-        condition: RexNode,
-        joinType: JoinRelType,
-        variablesStopped: util.Set[String],
-        semiJoinDone: Boolean): RelNode = {
-      createJoin(
-        left,
-        right,
-        condition,
-        CorrelationId.setOf(variablesStopped),
-        joinType,
-        semiJoinDone)
     }
   }
 
