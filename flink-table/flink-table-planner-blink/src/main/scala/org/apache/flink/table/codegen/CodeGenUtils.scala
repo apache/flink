@@ -445,11 +445,10 @@ object CodeGenUtils {
           if (ctx.nullCheck) {
             s"""
                |${fieldExpr.code}
-               |if (${fieldExpr.nullTerm}) {
-               |  ${binaryWriterWriteNull(indexTerm, writer, fieldType)};
-               |} else {
-               |  $writeField;
-               |}
+               |${getSimplifiedIfConditionCode(
+                  fieldExpr.nullTerm,
+                  binaryWriterWriteNull(indexTerm, writer, fieldType),
+                  writeField)}
              """.stripMargin
           } else {
             s"""
@@ -464,11 +463,10 @@ object CodeGenUtils {
           if (ctx.nullCheck) {
             s"""
                |${fieldExpr.code}
-               |if (${fieldExpr.nullTerm}) {
-               |  ${binaryRowSetNull(indexTerm, rowTerm, fieldType)};
-               |} else {
-               |  $writeField;
-               |}
+               |${getSimplifiedIfConditionCode(
+                  fieldExpr.nullTerm,
+                  binaryRowSetNull(indexTerm, rowTerm, fieldType),
+                  writeField)}
              """.stripMargin
           } else {
             s"""
@@ -486,11 +484,10 @@ object CodeGenUtils {
       if (ctx.nullCheck) {
         s"""
            |${fieldExpr.code}
-           |if (${fieldExpr.nullTerm}) {
-           |  $rowTerm.setNullAt($indexTerm);
-           |} else {
-           |  $writeField;
-           |}
+           |${getSimplifiedIfConditionCode(
+              fieldExpr.nullTerm,
+              rowTerm + ".setNullAt(" + indexTerm + ")" ,
+              writeField)}
           """.stripMargin
       } else {
         s"""
@@ -501,6 +498,21 @@ object CodeGenUtils {
     } else {
       throw new UnsupportedOperationException("Not support set field for " + rowClass)
     }
+  }
+
+  private def getSimplifiedIfConditionCode(
+    nullTerm: String, ifCode: String , elseCode: String) : String = if (nullTerm == "true") {
+    s"$ifCode;"
+  } else if (nullTerm == "false") {
+    s"$elseCode;"
+  } else {
+    s"""
+       |if (${nullTerm}) {
+       |  $ifCode;
+       |} else {
+       |  $elseCode;
+       |}
+          """.stripMargin
   }
 
   // -------------------------- BinaryRow Set Field -------------------------------
