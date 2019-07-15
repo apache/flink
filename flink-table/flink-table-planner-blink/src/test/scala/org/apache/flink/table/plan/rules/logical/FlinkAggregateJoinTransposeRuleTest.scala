@@ -34,9 +34,8 @@ import org.junit.{Before, Test}
 
 /**
   * Test for [[FlinkAggregateJoinTransposeRule]].
-  * this class only test inner join.
   */
-class FlinkAggregateInnerJoinTransposeRuleTest extends TableTestBase {
+class FlinkAggregateJoinTransposeRuleTest extends TableTestBase {
   private val util = batchTestUtil()
 
   @Before
