@@ -20,8 +20,8 @@ package org.apache.flink.api.common;
 
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.interactive.DefaultPersistentIntermediateResultDescriptor;
-import org.apache.flink.api.common.interactive.PersistentIntermediateResultDescriptor;
+import org.apache.flink.api.common.interactive.DefaultIntermediateResultDescriptor;
+import org.apache.flink.api.common.interactive.IntermediateResultDescriptor;
 import org.apache.flink.util.OptionalFailure;
 
 import java.util.Collections;
@@ -40,7 +40,7 @@ public class JobExecutionResult extends JobSubmissionResult {
 
 	private final Map<String, OptionalFailure<Object>> accumulatorResults;
 
-	private final PersistentIntermediateResultDescriptor persistentIntermediateResultDescriptor;
+	private final IntermediateResultDescriptor intermediateResultDescriptor;
 
 	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, OptionalFailure<Object>> accumulators) {
 		this(jobID, netRuntime, accumulators, null);
@@ -55,7 +55,7 @@ public class JobExecutionResult extends JobSubmissionResult {
 	 * @param persistentIntermediateResultDescriptor BLOCKING_PERSISTENT ResultPartition locations of this Job Execution.
 	 */
 	public JobExecutionResult(JobID jobID, long netRuntime, Map<String, OptionalFailure<Object>> accumulators,
-							  PersistentIntermediateResultDescriptor persistentIntermediateResultDescriptor) {
+							  IntermediateResultDescriptor persistentIntermediateResultDescriptor) {
 		super(jobID);
 		this.netRuntime = netRuntime;
 
@@ -65,9 +65,9 @@ public class JobExecutionResult extends JobSubmissionResult {
 			this.accumulatorResults = Collections.emptyMap();
 		}
 
-		this.persistentIntermediateResultDescriptor =
+		this.intermediateResultDescriptor =
 			persistentIntermediateResultDescriptor == null ?
-				new DefaultPersistentIntermediateResultDescriptor() : persistentIntermediateResultDescriptor;
+				new DefaultIntermediateResultDescriptor() : persistentIntermediateResultDescriptor;
 	}
 
 	/**
@@ -138,8 +138,8 @@ public class JobExecutionResult extends JobSubmissionResult {
 		return (Integer) result;
 	}
 
-	public PersistentIntermediateResultDescriptor getPersistentIntermediateResultDescriptor() {
-		return persistentIntermediateResultDescriptor;
+	public IntermediateResultDescriptor getIntermediateResultDescriptor() {
+		return intermediateResultDescriptor;
 	}
 
 	/**

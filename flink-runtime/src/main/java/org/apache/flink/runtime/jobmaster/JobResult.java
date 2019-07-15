@@ -22,8 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.api.common.interactive.DefaultPersistentIntermediateResultDescriptor;
-import org.apache.flink.api.common.interactive.PersistentIntermediateResultDescriptor;
+import org.apache.flink.api.common.interactive.DefaultIntermediateResultDescriptor;
+import org.apache.flink.api.common.interactive.IntermediateResultDescriptor;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -62,7 +62,7 @@ public class JobResult implements Serializable {
 
 	private final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults;
 
-	private final PersistentIntermediateResultDescriptor persistentIntermediateResultDescriptor;
+	private final IntermediateResultDescriptor intermediateResultDescriptor;
 
 	private final long netRuntime;
 
@@ -74,7 +74,7 @@ public class JobResult implements Serializable {
 			final JobID jobId,
 			final ApplicationStatus applicationStatus,
 			final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults,
-			final PersistentIntermediateResultDescriptor persistentIntermediateResultDescriptor,
+			final IntermediateResultDescriptor intermediateResultDescriptor,
 			final long netRuntime,
 			@Nullable final SerializedThrowable serializedThrowable) {
 
@@ -83,7 +83,7 @@ public class JobResult implements Serializable {
 		this.jobId = requireNonNull(jobId);
 		this.applicationStatus = requireNonNull(applicationStatus);
 		this.accumulatorResults = requireNonNull(accumulatorResults);
-		this.persistentIntermediateResultDescriptor = requireNonNull(persistentIntermediateResultDescriptor);
+		this.intermediateResultDescriptor = requireNonNull(intermediateResultDescriptor);
 		this.netRuntime = netRuntime;
 		this.serializedThrowable = serializedThrowable;
 	}
@@ -137,7 +137,7 @@ public class JobResult implements Serializable {
 				AccumulatorHelper.deserializeAccumulators(
 					accumulatorResults,
 					classLoader),
-				persistentIntermediateResultDescriptor);
+				intermediateResultDescriptor);
 		} else {
 			final Throwable cause;
 
@@ -173,7 +173,7 @@ public class JobResult implements Serializable {
 
 		private Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults;
 
-		private PersistentIntermediateResultDescriptor persistentIntermediateResultDescriptor;
+		private IntermediateResultDescriptor intermediateResultDescriptor;
 
 		private long netRuntime = -1;
 
@@ -204,8 +204,8 @@ public class JobResult implements Serializable {
 			return this;
 		}
 
-		public Builder resultPartitionDescriptors(final PersistentIntermediateResultDescriptor persistentIntermediateResultDescriptor) {
-			this.persistentIntermediateResultDescriptor = persistentIntermediateResultDescriptor;
+		public Builder resultPartitionDescriptors(final IntermediateResultDescriptor intermediateResultDescriptor) {
+			this.intermediateResultDescriptor = intermediateResultDescriptor;
 			return this;
 		}
 
@@ -214,7 +214,7 @@ public class JobResult implements Serializable {
 				jobId,
 				applicationStatus,
 				accumulatorResults == null ? Collections.emptyMap() : accumulatorResults,
-				persistentIntermediateResultDescriptor == null ? new DefaultPersistentIntermediateResultDescriptor() : persistentIntermediateResultDescriptor,
+				intermediateResultDescriptor == null ? new DefaultIntermediateResultDescriptor() : intermediateResultDescriptor,
 				netRuntime,
 				serializedThrowable);
 		}
@@ -246,7 +246,7 @@ public class JobResult implements Serializable {
 		final long guardedNetRuntime = Math.max(netRuntime, 0L);
 		builder.netRuntime(guardedNetRuntime);
 		builder.accumulatorResults(accessExecutionGraph.getAccumulatorsSerialized());
-		builder.resultPartitionDescriptors(accessExecutionGraph.getPersistentIntermediateResultDescriptor());
+		builder.resultPartitionDescriptors(accessExecutionGraph.getIntermediateResultDescriptor());
 
 		if (jobStatus != JobStatus.FINISHED) {
 			final ErrorInfo errorInfo = accessExecutionGraph.getFailureInfo();

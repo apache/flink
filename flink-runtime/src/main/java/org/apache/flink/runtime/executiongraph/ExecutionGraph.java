@@ -24,7 +24,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.api.common.interactive.PersistentIntermediateResultDescriptor;
+import org.apache.flink.api.common.interactive.DefaultIntermediateResultDescriptor;
+import org.apache.flink.api.common.interactive.IntermediateResultDescriptor;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -54,7 +55,6 @@ import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.P
 import org.apache.flink.runtime.executiongraph.restart.ExecutionGraphRestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.api.common.interactive.DefaultPersistentIntermediateResultDescriptor;
 import org.apache.flink.runtime.io.network.partition.PartitionTracker;
 import org.apache.flink.runtime.io.network.partition.PartitionTrackerImpl;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -854,7 +854,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	@Override
-	public PersistentIntermediateResultDescriptor getPersistentIntermediateResultDescriptor() {
+	public IntermediateResultDescriptor getIntermediateResultDescriptor() {
 		Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> resultPartitionDescriptors = new HashMap<>();
 
 		// keep record of all failed IntermediateDataSetID
@@ -877,7 +877,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			}
 		}
 
-		return new DefaultPersistentIntermediateResultDescriptor(resultPartitionDescriptors, failedIntermediateDataSetIds);
+		return new DefaultIntermediateResultDescriptor(resultPartitionDescriptors, failedIntermediateDataSetIds);
 	}
 
 	private static SerializedValue<OptionalFailure<Object>> serializeAccumulator(String name, OptionalFailure<Accumulator<?, ?>> accumulator) {

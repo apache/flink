@@ -19,7 +19,7 @@
 package org.apache.flink.test.interactive;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.interactive.PersistentIntermediateResultDescriptor;
+import org.apache.flink.api.common.interactive.DefaultIntermediateResultDescriptor;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.BlockingShuffleOutputFormat;
@@ -59,17 +59,17 @@ public class PersistentShuffleResultITCase extends TestLogger {
 
 		ds.collect();
 
-		PersistentIntermediateResultDescriptor meta = env.getPersistentIntermediateResultDescriptor();
+		DefaultIntermediateResultDescriptor meta = env.getPersistentIntermediateResultDescriptor();
 
 		// only one cached IntermediateDataSet
-		Assert.assertEquals(1, meta.getPersistentShuffleDescriptors().size());
+		Assert.assertEquals(1, meta.getIntermediateResultDescriptions().size());
 
-		AbstractID intermediateDataSetID = meta.getPersistentShuffleDescriptors().keySet().iterator().next();
+		AbstractID intermediateDataSetID = meta.getIntermediateResultDescriptions().keySet().iterator().next();
 
 		// IntermediateDataSetID should be the same
 		Assert.assertEquals(intermediateDataSetID, intermediateDataSetID);
 
-		Map<AbstractID, SerializedValue<Object>> descriptors = meta.getPersistentShuffleDescriptors().get(intermediateDataSetID);
+		Map<AbstractID, SerializedValue<Object>> descriptors = meta.getIntermediateResultDescriptions().get(intermediateDataSetID);
 
 		// only one shuffle descriptor
 		Assert.assertEquals(1, descriptors.size());

@@ -30,16 +30,16 @@ import java.util.Set;
  * This is the default implementation of IntermediateResultDescriptor.
  * See {@link IntermediateResultDescriptor} for more details.
  */
-public class DefaultPersistentIntermediateResultDescriptor
-	implements IntermediateResultDescriptor {
+public class DefaultIntermediateResultDescriptor
+	implements IntermediateResultDescriptor<AbstractID, Map<AbstractID, SerializedValue<Object>>> {
 
 	private final Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> intermediateResultDescriptors = new HashMap<>();
 
 	private final Set<AbstractID> incompleteIntermediateDataSetIds = new HashSet<>();
 
-	public DefaultPersistentIntermediateResultDescriptor() {}
+	public DefaultIntermediateResultDescriptor() {}
 
-	public DefaultPersistentIntermediateResultDescriptor(
+	public DefaultIntermediateResultDescriptor(
 		Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> intermediateResultDescriptors,
 		Set<AbstractID> incompleteIntermediateDataSetIds) {
 
@@ -47,19 +47,25 @@ public class DefaultPersistentIntermediateResultDescriptor
 		this.incompleteIntermediateDataSetIds.addAll(incompleteIntermediateDataSetIds);
 	}
 
+	/**
+	 * Return the mapping from intermediate result to its (ResultPartitionID, ShuffleDescriptor) tuples.
+	 * We use AbstractID here due to package visibility, and the ShuffleDescriptor are serialized in form of
+	 * SerializedValue<Object>, the deserialization will only be triggered in JM before an Execution.
+	 * @return Mapping from IntermediateDataSetID to its (ResultPartitionID, ShuffleDescriptor) tuples.
+	 */
 	@Override
-	public Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> getIntermediateResultDescriptors() {
+	public Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> getIntermediateResultDescriptions() {
 		return intermediateResultDescriptors;
 	}
 
 	@Override
-	public Set<AbstractID> getIncompleteIntermediateDataSetIds() {
+	public Set<AbstractID> getIncompleteIntermediateDataSets() {
 		return incompleteIntermediateDataSetIds;
 	}
 
 	@Override
-	public void mergeDescriptor(IntermediateResultDescriptor newPersistentShuffleDescriptor) {
-		intermediateResultDescriptors.putAll(newPersistentShuffleDescriptor.getIntermediateResultDescriptors());
-		incompleteIntermediateDataSetIds.addAll(newPersistentShuffleDescriptor.getIncompleteIntermediateDataSetIds());
+	public void mergeDescriptor(IntermediateResultDescriptor<AbstractID, Map<AbstractID, SerializedValue<Object>>> newPersistentShuffleDescriptor) {
+		intermediateResultDescriptors.putAll(newPersistentShuffleDescriptor.getIntermediateResultDescriptions());
+		incompleteIntermediateDataSetIds.addAll(newPersistentShuffleDescriptor.getIncompleteIntermediateDataSets());
 	}
 }

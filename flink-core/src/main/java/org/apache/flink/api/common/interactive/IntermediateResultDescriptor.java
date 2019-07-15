@@ -18,9 +18,6 @@
 
 package org.apache.flink.api.common.interactive;
 
-import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.SerializedValue;
-
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;
@@ -31,29 +28,29 @@ import java.util.Set;
  *  ExecutionEnvironment also have an instance of IntermediateResultDescriptor, the mergeDescriptor method will be called
  *  when an IntermediateResultDescriptor is sent back to ExecutionEnvironment, so the ExecutionEnvironment can keep all the
  *  IntermediateResultDescriptors which created by its submitted jobs.
+ *  @param <IR> Type for identify an intermediate result.
+ *  @param <DESC> Type for identify the description of the intermediate result.
  */
-public interface IntermediateResultDescriptor extends Serializable {
+public interface IntermediateResultDescriptor<IR, DESC> extends Serializable {
 
 	/**
-	 * Return the mapping from IntermediateDataSetID to its (ResultPartitionID, ShuffleDescriptor) tuples.
-	 * We use AbstractID here due to package visibility, and the ShuffleDescriptor are serialized in form of
-	 * SerializedValue<Object>, the deserialization will only be triggered in JM before an Execution.
-	 * @return Mapping from IntermediateDataSetID to its (ResultPartitionID, ShuffleDescriptor) tuples.
+	 * Return the mapping from intermediate result to its descriptions.
+	 * @return from intermediate result to its descriptions.
 	 */
-	Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> getIntermediateResultDescriptors();
+	Map<IR, DESC> getIntermediateResultDescriptions();
 
 	/**
-	 * Some ShuffleDescriptor may be missing if any error occurs in collecting IntermediateResultDescriptor.
-	 * We keep track of this IntermediateDataSetID so the client can decide what to do.
-	 * Generally a result partition request will be proposed.
-	 * @return incomplete IntermediateDataSetIds
+	 * Some description may be missing if any error occurs in collecting the .
+	 * We keep track of this intermediate result so the client can decide what to do.
+	 * Generally a result partition delete request will be proposed.
+	 * @return incomplete IntermediateDataSets
 	 */
-	Set<AbstractID> getIncompleteIntermediateDataSetIds();
+	Set<IR> getIncompleteIntermediateDataSets();
 
 	/**
 	 * Merge another Descriptor, this helps to combine other intermediate descriptors that created by other job.
-	 * The implementation should add other PersistentShuffleDescriptors and IncompleteIntermediateDataSetIds to itself.
+	 * The implementation should add other IntermediateResultDescriptions and IncompleteIntermediateDataSets to itself.
 	 * @param other the other IntermediateResultDescriptor created by some other job.
 	 */
-	void mergeDescriptor(IntermediateResultDescriptor other);
+	void mergeDescriptor(IntermediateResultDescriptor<IR, DESC> other);
 }

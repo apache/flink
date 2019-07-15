@@ -27,8 +27,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
-import org.apache.flink.api.common.interactive.DefaultPersistentIntermediateResultDescriptor;
-import org.apache.flink.api.common.interactive.PersistentIntermediateResultDescriptor;
+import org.apache.flink.api.common.interactive.DefaultIntermediateResultDescriptor;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.OperatorInformation;
@@ -120,8 +119,8 @@ public abstract class ExecutionEnvironment {
 
 	private final ExecutionConfig config = new ExecutionConfig();
 
-	private final PersistentIntermediateResultDescriptor persistentIntermediateResultDescriptor =
-		new DefaultPersistentIntermediateResultDescriptor();
+	private final DefaultIntermediateResultDescriptor persistentIntermediateResultDescriptor =
+		new DefaultIntermediateResultDescriptor();
 
 	/** Result from the latest execution, to make it retrievable when using eager execution methods. */
 	protected JobExecutionResult lastJobExecutionResult;
@@ -825,7 +824,7 @@ public abstract class ExecutionEnvironment {
 	public JobExecutionResult execute() throws Exception {
 		JobExecutionResult result =  execute(getDefaultName());
 		persistentIntermediateResultDescriptor.mergeDescriptor(
-			result.getPersistentIntermediateResultDescriptor()
+			result.getIntermediateResultDescriptor()
 		);
 		return result;
 	}
@@ -1296,7 +1295,7 @@ public abstract class ExecutionEnvironment {
 	 * Get PersistentIntermediateResultDescriptor.
 	 * @return PersistentIntermediateResultDescriptor collected form previous jobs.
 	 */
-	public PersistentIntermediateResultDescriptor getPersistentIntermediateResultDescriptor() {
+	public DefaultIntermediateResultDescriptor getPersistentIntermediateResultDescriptor() {
 		return persistentIntermediateResultDescriptor;
 	}
 }
