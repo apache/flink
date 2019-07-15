@@ -1070,13 +1070,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 		slotManager.setFailUnfulfillableRequest(failUnfulfillableRequest);
 	}
 
-	/**
-	 * Returns whether {@link SlotManager} is to fail unfulfillable slot requests.
-	 */
-	boolean isFailingUnfulfillableRequest() {
-		return slotManager.isFailingUnfulfillableRequest();
-	}
-
 	// ------------------------------------------------------------------------
 	//  Static utility classes
 	// ------------------------------------------------------------------------
