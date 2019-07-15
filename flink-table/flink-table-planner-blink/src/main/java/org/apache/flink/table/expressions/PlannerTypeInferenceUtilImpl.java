@@ -43,6 +43,8 @@ import static org.apache.flink.table.util.JavaScalaConversionUtil.toJava;
 @Internal
 public final class PlannerTypeInferenceUtilImpl implements PlannerTypeInferenceUtil {
 
+	public static final PlannerTypeInferenceUtil INSTANCE = new PlannerTypeInferenceUtilImpl();
+
 	private static final PlannerExpressionConverter CONVERTER = PlannerExpressionConverter.INSTANCE();
 
 	@Override
