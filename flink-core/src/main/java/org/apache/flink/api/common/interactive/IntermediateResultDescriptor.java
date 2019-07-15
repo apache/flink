@@ -28,6 +28,7 @@ import java.util.Set;
  *  ExecutionEnvironment also have an instance of IntermediateResultDescriptor, the mergeDescriptor method will be called
  *  when an IntermediateResultDescriptor is sent back to ExecutionEnvironment, so the ExecutionEnvironment can keep all the
  *  IntermediateResultDescriptors which created by its submitted jobs.
+ *
  *  @param <IR> Type for identify an intermediate result.
  *  @param <DESC> Type for identify the description of the intermediate result.
  */
@@ -35,7 +36,8 @@ public interface IntermediateResultDescriptor<IR, DESC> extends Serializable {
 
 	/**
 	 * Return the mapping from intermediate result to its descriptions.
-	 * @return from intermediate result to its descriptions.
+	 *
+	 * @return intermediate result to its descriptions.
 	 */
 	Map<IR, DESC> getIntermediateResultDescriptions();
 
@@ -43,6 +45,7 @@ public interface IntermediateResultDescriptor<IR, DESC> extends Serializable {
 	 * Some description may be missing if any error occurs in collecting the .
 	 * We keep track of this intermediate result so the client can decide what to do.
 	 * Generally a result partition delete request will be proposed.
+	 *
 	 * @return incomplete IntermediateDataSets
 	 */
 	Set<IR> getIncompleteIntermediateDataSets();
@@ -50,6 +53,7 @@ public interface IntermediateResultDescriptor<IR, DESC> extends Serializable {
 	/**
 	 * Merge another Descriptor, this helps to combine other intermediate descriptors that created by other job.
 	 * The implementation should add other IntermediateResultDescriptions and IncompleteIntermediateDataSets to itself.
+	 *
 	 * @param other the other IntermediateResultDescriptor created by some other job.
 	 */
 	void mergeDescriptor(IntermediateResultDescriptor<IR, DESC> other);
