@@ -54,7 +54,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   /**
     * term of the [[ProcessFunction]]'s context, can be changed when needed
     */
-  var contextTerm = "ctx"
+  var contextTerm: String = ExprCodeGenerator.PROCESS_FUNCTION_DEFAULT_CONTEXT_TERM
 
   /**
     * information of the first input
@@ -443,7 +443,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case (o@_, _) => o.accept(this)
     }
 
-    generateCallExpression(ctx, call.getOperator, operands, resultType)
+    ExprCodeGenerator.generateCallExpression(
+      ctx, call.getOperator, operands, resultType, contextTerm)
   }
 
   override def visitOver(over: RexOver): GeneratedExpression =
@@ -454,14 +455,18 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
   override def visitPatternFieldRef(fieldRef: RexPatternFieldRef): GeneratedExpression =
     throw new CodeGenException("Pattern field references are not supported yet.")
+}
 
-  // ----------------------------------------------------------------------------------------
+object ExprCodeGenerator {
 
-  private def generateCallExpression(
+  val PROCESS_FUNCTION_DEFAULT_CONTEXT_TERM = "ctx"
+
+  def generateCallExpression(
       ctx: CodeGeneratorContext,
       operator: SqlOperator,
       operands: Seq[GeneratedExpression],
-      resultType: LogicalType): GeneratedExpression = {
+      resultType: LogicalType,
+      contextTerm: String = PROCESS_FUNCTION_DEFAULT_CONTEXT_TERM): GeneratedExpression = {
     operator match {
       // arithmetic
       case PLUS if isNumeric(resultType) =>
@@ -740,9 +745,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
               resultType)
             .getOrElse(
               throw new CodeGenException(s"Unsupported call: " +
-              s"$sqlOperator(${operands.map(_.resultType).mkString(", ")}) \n" +
-              s"If you think this function should be supported, " +
-              s"you can create an issue and start a discussion for it."))
+                s"$sqlOperator(${operands.map(_.resultType).mkString(", ")}) \n" +
+                s"If you think this function should be supported, " +
+                s"you can create an issue and start a discussion for it."))
             .generate(ctx, operands, resultType)
         }
 
