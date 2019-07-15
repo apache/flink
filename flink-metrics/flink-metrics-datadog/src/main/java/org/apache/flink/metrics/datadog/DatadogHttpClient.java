@@ -138,7 +138,7 @@ public class DatadogHttpClient {
 		@Override
 		public void onResponse(Call call, Response response) throws IOException {
 			if (!response.isSuccessful()) {
-				LOGGER.warn("Failed to send request to Datadog (response code was {} and response body was {})", response.code(), response.body());
+				LOGGER.warn("Failed to send request to Datadog (response was {})", response);
 			}
 
 			response.close();
