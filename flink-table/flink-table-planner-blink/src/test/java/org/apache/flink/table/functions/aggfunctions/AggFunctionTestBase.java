@@ -32,6 +32,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -139,6 +140,47 @@ public abstract class AggFunctionTestBase<T, ACC> {
 				T result = aggregator.getValue(acc);
 				validateResult(expected, result);
 			}
+		}
+	}
+
+	@Test
+	public void testMergeReservedAccumulator() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+		AggregateFunction<T, ACC> aggregator = getAggregator();
+		boolean hasMerge = UserDefinedFunctionUtils.ifMethodExistInFunction("merge", aggregator);
+		boolean hasRetract = UserDefinedFunctionUtils.ifMethodExistInFunction("retract", aggregator);
+		if (!hasMerge || !hasRetract) {
+			// this test only verify AggregateFunctions which has merge() and retract() method
+			return;
+		}
+
+		Method mergeFunc = aggregator.getClass().getMethod("merge", getAccClass(), Iterable.class);
+		List<List<T>> inputValueSets = getInputValueSets();
+		int size = getInputValueSets().size();
+
+		// iterate over input sets
+		for (int i = 0; i < size; ++i) {
+			List<T> inputValues = inputValueSets.get(i);
+			List<ACC> accumulators = new ArrayList<>();
+			List<ACC> reversedAccumulators = new ArrayList<>();
+			// prepare accumulators
+			accumulators.add(accumulateValues(inputValues));
+			// prepare reversed accumulators
+			ACC retractedAcc = aggregator.createAccumulator();
+			retractValues(retractedAcc, inputValues);
+			reversedAccumulators.add(retractedAcc);
+			// prepare accumulator only contain two elements
+			ACC accWithSubset = accumulateValues(inputValues.subList(0, 2));
+			T expectedValue = aggregator.getValue(accWithSubset);
+
+			// merge
+			ACC acc = aggregator.createAccumulator();
+			mergeFunc.invoke(aggregator, acc, accumulators);
+			mergeFunc.invoke(aggregator, acc, reversedAccumulators);
+			mergeFunc.invoke(aggregator, accWithSubset, Collections.singleton(acc));
+
+			// getValue
+			T result = aggregator.getValue(accWithSubset);
+			validateResult(expectedValue, result);
 		}
 	}
 
