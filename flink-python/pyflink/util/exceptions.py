@@ -28,6 +28,12 @@ class JavaException(Exception):
         return repr(self.msg)
 
 
+class TableException(JavaException):
+    """
+    General Exception for all errors during table handling.
+    """
+
+
 class CatalogException(JavaException):
     """
     A catalog-related exception.
@@ -106,6 +112,8 @@ class TableNotPartitionedException(JavaException):
 
 # Mapping from JavaException to PythonException
 exception_mapping = {
+    "org.apache.flink.table.api.TableException":
+        TableException,
     "org.apache.flink.table.catalog.exceptions.CatalogException":
         CatalogException,
     "org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException":
