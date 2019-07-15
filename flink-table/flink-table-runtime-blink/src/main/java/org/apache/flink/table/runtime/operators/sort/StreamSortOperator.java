@@ -26,7 +26,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
-import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -45,13 +44,12 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Operator for stream sort.
  */
 public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
-		OneInputStreamOperator<BaseRow, BaseRow>, BoundedOneInput {
+		OneInputStreamOperator<BaseRow, BaseRow> {
 
 	private static final long serialVersionUID = 9042068324817807379L;
 
@@ -113,24 +111,6 @@ public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
 	}
 
 	@Override
-	public void endInput() throws Exception {
-		if (!inputBuffer.isEmpty()) {
-			List<BaseRow> rowsSet = new ArrayList<>();
-			inputBuffer.keySet().forEach(rowsSet::add);
-			// sort the rows
-			rowsSet.sort(comparator);
-
-			// Emit the rows in order
-			rowsSet.forEach((BaseRow row) -> {
-				long count = inputBuffer.get(row);
-				for (int i = 1; i <= count; i++) {
-					collector.collect(row);
-				}
-			});
-		}
-	}
-
-	@Override
 	public void initializeState(StateInitializationContext context) throws Exception {
 		super.initializeState(context);
 		TupleTypeInfo<Tuple2<BaseRow, Long>> tupleType = new TupleTypeInfo<>(inputRowType, Types.LONG);
@@ -145,8 +125,7 @@ public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
 		bufferState.clear();
 
 		List<Tuple2<BaseRow, Long>> dataToFlush = new ArrayList<>(inputBuffer.size());
-		inputBuffer.entrySet().forEach(
-				(Map.Entry<BaseRow, Long> entry) -> dataToFlush.add(Tuple2.of(entry.getKey(), entry.getValue())));
+		inputBuffer.forEach((key, value) -> dataToFlush.add(Tuple2.of(key, value)));
 
 		// batch put
 		bufferState.addAll(dataToFlush);
@@ -155,6 +134,22 @@ public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
 	@Override
 	public void close() throws Exception {
 		LOG.info("Closing StreamSortOperator");
+
+		// BoundedOneInput can not coexistence with checkpoint, so we emit output in close.
+		if (!inputBuffer.isEmpty()) {
+			List<BaseRow> rowsSet = new ArrayList<>();
+			rowsSet.addAll(inputBuffer.keySet());
+			// sort the rows
+			rowsSet.sort(comparator);
+
+			// Emit the rows in order
+			rowsSet.forEach((BaseRow row) -> {
+				long count = inputBuffer.get(row);
+				for (int i = 1; i <= count; i++) {
+					collector.collect(row);
+				}
+			});
+		}
 		super.close();
 	}
 }

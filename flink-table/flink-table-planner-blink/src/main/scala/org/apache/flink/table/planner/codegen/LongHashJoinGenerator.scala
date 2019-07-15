@@ -323,11 +323,6 @@ object LongHashJoinGenerator {
          |}
        """.stripMargin,
       s"""
-         |LOG.info("Finish build phase.");
-         |table.endBuild();
-         |$buildEnd = true;
-       """.stripMargin,
-      s"""
          |$BASE_ROW row = ($BASE_ROW) element.getValue();
          |$nullCheckProbeCode
          |if (!$nullCheckProbeTerm) {
@@ -337,22 +332,30 @@ object LongHashJoinGenerator {
          |}
          |$nullOuterJoin
        """.stripMargin,
-      s"""
-         |LOG.info("Finish probe phase.");
-         |while (this.table.nextMatching()) {
-         |  joinWithNextKey();
-         |}
-         |LOG.info("Finish rebuild phase.");
-       """.stripMargin,
-      s"""
-         |if ($buildEnd) {
-         |  return $INPUT_SELECTION.SECOND;
-         |} else {
-         |  return $INPUT_SELECTION.FIRST;
-         |}
-       """.stripMargin,
       buildType,
-      probeType)
+      probeType,
+      nextSelectionCode = Some(
+        s"""
+           |if ($buildEnd) {
+           |  return $INPUT_SELECTION.SECOND;
+           |} else {
+           |  return $INPUT_SELECTION.FIRST;
+           |}
+         """.stripMargin),
+      endInputCode1 = Some(
+        s"""
+           |LOG.info("Finish build phase.");
+           |table.endBuild();
+           |$buildEnd = true;
+       """.stripMargin),
+      endInputCode2 = Some(
+        s"""
+           |LOG.info("Finish probe phase.");
+           |while (this.table.nextMatching()) {
+           |  joinWithNextKey();
+           |}
+           |LOG.info("Finish rebuild phase.");
+         """.stripMargin))
 
     new CodeGenOperatorFactory[BaseRow](genOp)
   }

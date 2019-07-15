@@ -76,7 +76,6 @@ public class StreamSortOperatorTest {
 
 		// do a snapshot, data could be recovered from state
 		OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
-		operator.endInput();
 		testHarness.close();
 		assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
 
@@ -88,7 +87,6 @@ public class StreamSortOperatorTest {
 		testHarness.open();
 		testHarness.processElement(record("abc", 1));
 		testHarness.processElement(record("aa", 1));
-		operator.endInput();
 		testHarness.close();
 
 		expectedOutput.add(record("aa", 1));

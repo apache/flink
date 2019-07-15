@@ -175,7 +175,6 @@ object SinkCodeGenerator {
           """.stripMargin
     }
 
-    val endInputCode = ""
     val generated = OperatorCodeGenerator.generateOneInputStreamOperator[BaseRow, OUT](
       ctx,
       operatorName,
@@ -183,9 +182,7 @@ object SinkCodeGenerator {
          |$fieldIndexProcessCode
          |$retractProcessCode
          |""".stripMargin,
-      endInputCode,
-      fromTypeInfoToLogicalType(inputTypeInfo),
-      config)
+      fromTypeInfoToLogicalType(inputTypeInfo))
     (new CodeGenOperatorFactory[OUT](generated), outputTypeInfo.asInstanceOf[TypeInformation[OUT]])
   }
 
