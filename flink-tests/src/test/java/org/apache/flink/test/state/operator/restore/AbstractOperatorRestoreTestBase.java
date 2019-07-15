@@ -68,8 +68,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 	private static final Duration TEST_TIMEOUT = Duration.ofSeconds(10000L);
 	private static final Pattern PATTERN_CANCEL_WITH_SAVEPOINT_TOLERATED_EXCEPTIONS = Pattern
 		.compile(
-			"(savepoint for the job .* failed)" +
-				"|(was not running)" +
+			"(was not running)" +
 				"|(Not all required tasks are currently running)" +
 				"|(Checkpoint was declined \\(tasks not ready\\))"
 		);
