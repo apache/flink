@@ -31,7 +31,6 @@ import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.Join;
-import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.logical.LogicalAggregate;
@@ -46,7 +45,6 @@ import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlAggFunction;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlSplittableAggFunction;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
@@ -73,7 +71,6 @@ import scala.collection.Seq;
  * This rule is copied from Calcite's {@link org.apache.calcite.rel.rules.AggregateJoinTransposeRule}.
  * Modification:
  * - Do not match temporal join since lookup table source doesn't support aggregate.
- * - Support Left/Right Outer Join
  * - Fix type mismatch error
  * - Support aggregate with AUXILIARY_GROUP
  */
@@ -86,25 +83,19 @@ import scala.collection.Seq;
 public class FlinkAggregateJoinTransposeRule extends RelOptRule {
 	public static final FlinkAggregateJoinTransposeRule INSTANCE =
 			new FlinkAggregateJoinTransposeRule(LogicalAggregate.class, LogicalJoin.class,
-					RelFactories.LOGICAL_BUILDER, false, false);
+					RelFactories.LOGICAL_BUILDER, false);
 
 	/** Extended instance of the rule that can push down aggregate functions. */
 	public static final FlinkAggregateJoinTransposeRule EXTENDED =
 			new FlinkAggregateJoinTransposeRule(LogicalAggregate.class, LogicalJoin.class,
-					RelFactories.LOGICAL_BUILDER, true, false);
-
-	public static final FlinkAggregateJoinTransposeRule LEFT_RIGHT_OUTER_JOIN_EXTENDED =
-			new FlinkAggregateJoinTransposeRule(LogicalAggregate.class, LogicalJoin.class,
-					RelFactories.LOGICAL_BUILDER, true, true);
+					RelFactories.LOGICAL_BUILDER, true);
 
 	private final boolean allowFunctions;
-
-	private final boolean allowLeftOrRightOuterJoin;
 
 	/** Creates an FlinkAggregateJoinTransposeRule. */
 	public FlinkAggregateJoinTransposeRule(Class<? extends Aggregate> aggregateClass,
 			Class<? extends Join> joinClass, RelBuilderFactory relBuilderFactory,
-			boolean allowFunctions, boolean allowLeftOrRightOuterJoin) {
+			boolean allowFunctions) {
 		super(
 				operandJ(aggregateClass, null,
 						aggregate -> aggregate.getGroupType() == Aggregate.Group.SIMPLE,
@@ -112,7 +103,6 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
 				relBuilderFactory, null);
 
 		this.allowFunctions = allowFunctions;
-		this.allowLeftOrRightOuterJoin = allowLeftOrRightOuterJoin;
 	}
 
 	@Deprecated // to be removed before 2.0
@@ -121,7 +111,7 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
 			Class<? extends Join> joinClass,
 			RelFactories.JoinFactory joinFactory) {
 		this(aggregateClass, joinClass,
-				RelBuilder.proto(aggregateFactory, joinFactory), false, false);
+				RelBuilder.proto(aggregateFactory, joinFactory), false);
 	}
 
 	@Deprecated // to be removed before 2.0
@@ -131,7 +121,7 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
 			RelFactories.JoinFactory joinFactory,
 			boolean allowFunctions) {
 		this(aggregateClass, joinClass,
-				RelBuilder.proto(aggregateFactory, joinFactory), allowFunctions, false);
+				RelBuilder.proto(aggregateFactory, joinFactory), allowFunctions);
 	}
 
 	@Deprecated // to be removed before 2.0
@@ -141,7 +131,7 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
 			RelFactories.JoinFactory joinFactory,
 			RelFactories.ProjectFactory projectFactory) {
 		this(aggregateClass, joinClass,
-				RelBuilder.proto(aggregateFactory, joinFactory, projectFactory), false, false);
+				RelBuilder.proto(aggregateFactory, joinFactory, projectFactory), false);
 	}
 
 	@Deprecated // to be removed before 2.0
@@ -153,7 +143,7 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
 			boolean allowFunctions) {
 		this(aggregateClass, joinClass,
 				RelBuilder.proto(aggregateFactory, joinFactory, projectFactory),
-				allowFunctions, false);
+				allowFunctions);
 	}
 
 	private boolean containsSnapshot(RelNode relNode) {
@@ -189,13 +179,6 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
 		final RexBuilder rexBuilder = origAgg.getCluster().getRexBuilder();
 		final RelBuilder relBuilder = call.builder();
 
-		boolean isLeftOrRightOuterJoin =
-				join.getJoinType() == JoinRelType.LEFT || join.getJoinType() == JoinRelType.RIGHT;
-
-		if (join.getJoinType() != JoinRelType.INNER && !(allowLeftOrRightOuterJoin && isLeftOrRightOuterJoin)) {
-			return;
-		}
-
 		// converts an aggregate with AUXILIARY_GROUP to a regular aggregate.
 		// if the converted aggregate can be push down,
 		// AggregateReduceGroupingRule will try reduce grouping of new aggregates created by this rule
@@ -210,16 +193,13 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
 					== null) {
 				return;
 			}
-			if (allowLeftOrRightOuterJoin && isLeftOrRightOuterJoin) {
-				// todo do not support max/min agg until we've built the proper model
-				if (aggregateCall.getAggregation().kind == SqlKind.MAX ||
-						aggregateCall.getAggregation().kind == SqlKind.MIN) {
-					return;
-				}
-			}
 			if (aggregateCall.filterArg >= 0 || aggregateCall.isDistinct()) {
 				return;
 			}
+		}
+
+		if (join.getJoinType() != JoinRelType.INNER) {
+			return;
 		}
 
 		if (!allowFunctions && !aggregate.getAggCallList().isEmpty()) {
@@ -229,19 +209,8 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
 		// Do the columns used by the join appear in the output of the aggregate?
 		final ImmutableBitSet aggregateColumns = aggregate.getGroupSet();
 		final RelMetadataQuery mq = call.getMetadataQuery();
-		ImmutableBitSet keyColumns;
-		if (!isLeftOrRightOuterJoin) {
-			keyColumns = keyColumns(aggregateColumns,
-					mq.getPulledUpPredicates(join).pulledUpPredicates);
-		} else {
-			// this is an incomplete implementation
-			if (isAggregateKeyApplicable(aggregateColumns, join)) {
-				keyColumns = keyColumns(aggregateColumns,
-						com.google.common.collect.ImmutableList.copyOf(RelOptUtil.conjunctions(join.getCondition())));
-			} else {
-				keyColumns = aggregateColumns;
-			}
-		}
+		final ImmutableBitSet keyColumns = keyColumns(aggregateColumns,
+				mq.getPulledUpPredicates(join).pulledUpPredicates);
 		final ImmutableBitSet joinColumns =
 				RelOptUtil.InputFinder.bits(join.getCondition());
 		final boolean allColumnsInAggregate =
@@ -423,7 +392,7 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
 					splitter.topSplit(rexBuilder, registry(projects),
 							groupIndicatorCount, relBuilder.peek().getRowType(), aggCall.e,
 							leftSubTotal == null ? -1 : leftSubTotal,
-							rightSubTotal == null ? -1 : rightSubTotal + newLeftWidth, join.getJoinType()));
+							rightSubTotal == null ? -1 : rightSubTotal + newLeftWidth));
 		}
 
 		relBuilder.project(projects);
@@ -544,14 +513,6 @@ public class FlinkAggregateJoinTransposeRule extends RelOptRule {
 					}
 				}
 		}
-	}
-
-	private static boolean isAggregateKeyApplicable(ImmutableBitSet aggregateKeys, Join join) {
-		JoinInfo joinInfo = join.analyzeCondition();
-		return (join.getJoinType() == JoinRelType.LEFT && joinInfo.leftSet().contains(aggregateKeys)) ||
-				(join.getJoinType() == JoinRelType.RIGHT &&
-						joinInfo.rightSet().shift(join.getInput(0).getRowType().getFieldCount())
-								.contains(aggregateKeys));
 	}
 
 	private static void populateEquivalence(Map<Integer, BitSet> equivalence,
