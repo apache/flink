@@ -23,9 +23,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl
+import org.apache.flink.sql.parser.validate.FlinkSqlConformance
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import org.apache.flink.table.api.{TableConfigOptions, TableSchema}
+import org.apache.flink.table.api.{ExecutionConfigOptions, TableConfig, TableException, TableSchema}
+import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.runtime.batch.sql.PartitionableSinkITCase._
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
@@ -34,15 +37,16 @@ import org.apache.flink.table.sinks.{PartitionableTableSink, StreamTableSink, Ta
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.types.Row
 
+import org.apache.calcite.config.Lex
+import org.apache.calcite.sql.parser.SqlParser
+import org.junit.Assert._
 import org.junit.{Before, Test}
 
 import java.util.concurrent.LinkedBlockingQueue
-import java.util.{HashMap => JHashMap, LinkedList => JLinkedList, List => JList, Map => JMap}
+import java.util.{LinkedList => JLinkedList, List => JList, Map => JMap}
 
 import scala.collection.JavaConversions._
 import scala.collection.Seq
-
-import org.junit.Assert._
 
 /**
   * Test cases for [[org.apache.flink.table.sinks.PartitionableTableSink]].
@@ -50,12 +54,28 @@ import org.junit.Assert._
 class PartitionableSinkITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
+    super.before()
     env.setParallelism(3)
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
-    registerCollection("nonSortTable", data, type3, "a, b, c", dataNullables)
-    registerCollection("sortTable", data1, type3, "a, b, c", dataNullables)
+    tEnv.getConfig
+      .getConfiguration
+      .setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+    registerCollection("nonSortTable", testData, type3, "a, b, c", dataNullables)
+    registerCollection("sortTable", testData1, type3, "a, b, c", dataNullables)
     PartitionableSinkITCase.init()
+  }
+
+  override def getTableConfig: TableConfig = {
+    val parserConfig = SqlParser.configBuilder
+      .setParserFactory(FlinkSqlParserImpl.FACTORY)
+      .setConformance(FlinkSqlConformance.HIVE) // set up hive dialect
+      .setLex(Lex.JAVA)
+      .setIdentifierMaxLength(256).build
+    val plannerConfig = CalciteConfig.createBuilder(CalciteConfig.DEFAULT)
+      .replaceSqlParserConfig(parserConfig)
+    val tableConfig = new TableConfig
+    tableConfig.setPlannerConfig(plannerConfig.build())
+    tableConfig
   }
 
   @Test
@@ -77,26 +97,78 @@ class PartitionableSinkITCase extends BatchTestBase {
     tEnv.sqlUpdate("insert into sinkTable select a, b, c from sortTable")
     tEnv.execute("testJob")
     val resultSet = List(RESULT1, RESULT2, RESULT3)
-    resultSet.foreach(l => assertSortedByFirstField(l))
+    resultSet.foreach(l => assertSortedByFirstNField(l, 1))
+    assertEquals(resultSet.map(l => collectDistinctGroupCount(l, 2)).sum, 4)
   }
 
-  private def assertSortedByFirstField(r: JLinkedList[Row]): Unit = {
-    val firstFields = r.map(r => r.getField(0).asInstanceOf[Int])
+  @Test
+  def testInsertWithStaticPartitions(): Unit = {
+    val testSink = registerTableSink(grouping = true)
+    tEnv.sqlUpdate("insert into sinkTable partition(a=1) select b, c from sortTable")
+    tEnv.execute("testJob")
+    // this sink should have been set up with static partitions
+    assertEquals(testSink.getStaticPartitions.toMap, Map("a" -> "1"))
+    val resultSet = List(RESULT1, RESULT2, RESULT3)
+    val result = resultSet.filter(l => l.size() == 11)
+    assert(result.size == 1)
+    result.get(0).forall(r => r.getField(0).asInstanceOf[Int] == 1)
+  }
+
+  @Test
+  def testInsertWithStaticAndDynamicPartitions(): Unit = {
+    val testSink = registerTableSink(grouping = true, partitionColumns = Array("a", "b"))
+    tEnv.sqlUpdate("insert into sinkTable partition(a=1) select b, c from sortTable")
+    tEnv.execute("testJob")
+    // this sink should have been set up with static partitions
+    assertEquals(testSink.getStaticPartitions.toMap, Map("a" -> "1"))
+    val resultSet = List(RESULT1, RESULT2, RESULT3)
+    resultSet.foreach(l => assertSortedByFirstNField(l, 2))
+    assertEquals(resultSet.map(l => collectDistinctGroupCount(l, 2)).sum, 4)
+  }
+
+  @Test(expected = classOf[TableException])
+  def testDynamicPartitionInFrontOfStaticPartition(): Unit = {
+    // Static partition column b should appear before dynamic partition a
+    registerTableSink(grouping = true, partitionColumns = Array("a", "b"))
+    tEnv.sqlUpdate("insert into sinkTable partition(b=1) select a, c from sortTable")
+    tEnv.execute("testJob")
+  }
+
+  private def assertSortedByFirstNField(r: JLinkedList[Row], n: Int): Unit = {
+    val firstFields = r.map { r =>
+      val builder: StringBuilder = new StringBuilder
+      0 until n foreach(i => builder.append(r.getField(i)))
+      Integer.parseInt(builder.toString())
+    }
     assertArrayEquals(firstFields.toArray, firstFields.sorted.toArray)
   }
 
-  private def registerTableSink(grouping: Boolean): Unit = {
-    tEnv.registerTableSink("sinkTable", new TestSink(grouping))
+  private def collectDistinctGroupCount(r: JLinkedList[Row], n: Int): Int = {
+    val groupSet = scala.collection.mutable.SortedSet[Int]()
+    r.foreach { r =>
+      val builder: StringBuilder = new StringBuilder
+      0 until n foreach(i => builder.append(r.getField(i)))
+      groupSet += Integer.parseInt(builder.toString())
+    }
+    groupSet.size
   }
 
-  private class TestSink(supportsGrouping: Boolean)
+  private def registerTableSink(grouping: Boolean,
+      partitionColumns: Array[String] = Array[String]("a")): TestSink = {
+    val testSink = new TestSink(grouping, partitionColumns)
+    tEnv.registerTableSink("sinkTable", testSink)
+    testSink
+  }
+
+  private class TestSink(supportsGrouping: Boolean, partitionColumns: Array[String])
     extends StreamTableSink[Row]
     with PartitionableTableSink {
+    private var staticPartitions: JMap[String, String] = _
 
-    override def getPartitionFieldNames: JList[String] = List("a")
+    override def getPartitionFieldNames: JList[String] = partitionColumns.toList
 
     override def setStaticPartition(partitions: JMap[String, String]): Unit =
-      new JHashMap[String, String]()
+      this.staticPartitions = partitions
 
     override def configure(fieldNames: Array[String],
       fieldTypes: Array[TypeInformation[_]]): TableSink[Row] = this
@@ -119,6 +191,10 @@ class PartitionableSinkITCase extends BatchTestBase {
     override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
       dataStream.addSink(new UnsafeMemorySinkFunction(type3))
         .setParallelism(dataStream.getParallelism)
+    }
+
+    def getStaticPartitions: JMap[String, String] = {
+      staticPartitions
     }
   }
 }
@@ -163,7 +239,7 @@ object PartitionableSinkITCase {
   val dataType = Array(new IntType(), new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH))
   val dataNullables = Array(false, false, false)
 
-  val data = Seq(
+  val testData = Seq(
     row(3, 2L, "Hello03"),
     row(1, 5L, "Hi"),
     row(1, 5L, "Hi01"),
@@ -180,7 +256,7 @@ object PartitionableSinkITCase {
     row(2, 2L, "Hello world, how are you?")
   )
 
-  val data1 = Seq(
+  val testData1 = Seq(
     row(2, 2L, "Hi"),
     row(1, 1L, "Hello world"),
     row(2, 2L, "Hello"),

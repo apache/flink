@@ -484,8 +484,9 @@ abstract class TableTestUtil(
     isStreamingMode: Boolean,
     catalogManager: Option[CatalogManager] = None)
   extends TableTestUtilBase(test, isStreamingMode) {
+  protected val tableConfig: TableConfig = new TableConfig
   protected val testingTableEnv: TestingTableEnvironment =
-    TestingTableEnvironment.create(setting, catalogManager)
+    TestingTableEnvironment.create(setting, catalogManager, tableConfig)
   val tableEnv: TableEnvironment = testingTableEnv
   tableEnv.getConfig.getConfiguration.setString(
     ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE, ShuffleMode.PIPELINED.toString)
@@ -983,7 +984,8 @@ object TestingTableEnvironment {
 
   def create(
       settings: EnvironmentSettings,
-      catalogManager: Option[CatalogManager] = None): TestingTableEnvironment = {
+      catalogManager: Option[CatalogManager] = None,
+      tableConfig: TableConfig): TestingTableEnvironment = {
     val catalogMgr = catalogManager match {
       case Some(c) => c
       case _ =>
@@ -996,7 +998,6 @@ object TestingTableEnvironment {
     val executorProperties = settings.toExecutorProperties
     val executor = ComponentFactoryService.find(classOf[ExecutorFactory],
       executorProperties).create(executorProperties)
-    val tableConfig = new TableConfig
     val planner = ComponentFactoryService.find(classOf[PlannerFactory], plannerProperties)
       .create(plannerProperties, executor, tableConfig, functionCatalog, catalogMgr)
       .asInstanceOf[PlannerBase]

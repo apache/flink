@@ -18,28 +18,32 @@
 
 package org.apache.flink.table.sinks
 
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.operations.QueryOperation
+import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.operations.CatalogSinkModifyOperation
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.PlannerTypeUtils
 
 import java.util.{List => JList}
 
+import collection.JavaConversions._
+
 object TableSinkUtils {
 
   /**
-    * Checks if the given [[QueryOperation]] can be written to the given [[TableSink]].
-    * It checks if the names & the field types match.
+    * Checks if the given [[CatalogSinkModifyOperation]]'s query can be written to
+    * the given [[TableSink]]. It checks if the names & the field types match. If the table
+    * sink is a [[PartitionableTableSink]], also check that the partitions are valid.
     *
-    * @param query    The query that is supposed to be written.
-    * @param sinkPath Tha path of the sink. It is needed just for logging. It does not
-    *                 participate in the validation.
+    * @param sinkOperation The sink operation with the query that is supposed to be written.
+    * @param sinkPath      Tha path of the sink. It is needed just for logging. It does not
+    *                      participate in the validation.
     * @param sink     The sink that we want to write to.
     */
   def validateSink(
-      query: QueryOperation,
+      sinkOperation: CatalogSinkModifyOperation,
       sinkPath: JList[String],
       sink: TableSink[_]): Unit = {
+    val query = sinkOperation.getChild
     // validate schema of source table and table sink
     val srcFieldTypes = query.getTableSchema.getFieldDataTypes
     val sinkFieldTypes = sink.getTableSchema.getFieldDataTypes
@@ -66,6 +70,20 @@ object TableSinkUtils {
           s"$sinkPath do not match.\n" +
           s"Query result schema: $srcSchema\n" +
           s"TableSink schema:    $sinkSchema")
+    }
+    // check partitions are valid
+    sink match {
+      case partitionableTableSink: PartitionableTableSink =>
+        val partitionFields = partitionableTableSink.getPartitionFieldNames
+        val staticPartitions = sinkOperation.getStaticPartitions
+        staticPartitions.map(_._1) zip partitionFields.slice(0, staticPartitions.size()) foreach {
+          case (p1, p2) =>
+            if (p1 != p2) {
+              throw new TableException(s"Static partition column $p1 " +
+                s"should appear before dynamic partition $p2.")
+            }
+        }
+      case _ =>
     }
   }
 }
