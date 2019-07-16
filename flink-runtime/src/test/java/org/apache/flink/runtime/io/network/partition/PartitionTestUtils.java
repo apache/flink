@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.util.EnumSet;
 import java.util.Optional;
 
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -157,5 +158,12 @@ public class PartitionTestUtils {
 			1,
 			true,
 			releaseType);
+	}
+
+	public static void writeBuffers(ResultPartition partition, int numberOfBuffers, int bufferSize) throws IOException {
+		for (int i = 0; i < numberOfBuffers; i++) {
+			partition.addBufferConsumer(createFilledBufferConsumer(bufferSize, bufferSize), 0);
+		}
+		partition.finish();
 	}
 }

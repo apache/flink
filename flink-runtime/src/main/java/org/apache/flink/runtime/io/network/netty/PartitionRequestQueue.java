@@ -138,9 +138,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		}
 
 		for (NetworkSequenceViewReader reader : allReaders.values()) {
-			reader.notifySubpartitionConsumed();
-			reader.releaseAllResources();
-			markAsReleased(reader.getReceiverId());
+			releaseViewReader(reader);
 		}
 		allReaders.clear();
 	}
@@ -181,19 +179,14 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 				return;
 			}
 
-			// Cancel the request for the input channel
-			int size = availableReaders.size();
-			for (int i = 0; i < size; i++) {
-				NetworkSequenceViewReader reader = pollAvailableReader();
-				if (reader.getReceiverId().equals(toCancel)) {
-					reader.releaseAllResources();
-					markAsReleased(reader.getReceiverId());
-				} else {
-					registerAvailableReader(reader);
-				}
-			}
+			// remove reader from queue of available readers
+			availableReaders.removeIf(reader -> reader.getReceiverId().equals(toCancel));
 
-			allReaders.remove(toCancel);
+			// remove reader from queue of all readers and release its resource
+			final NetworkSequenceViewReader toRelease = allReaders.remove(toCancel);
+			if (toRelease != null) {
+				releaseViewReader(toRelease);
+			}
 		} else {
 			ctx.fireUserEventTriggered(msg);
 		}
@@ -308,12 +301,18 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 	private void releaseAllResources() throws IOException {
 		// note: this is only ever executed by one thread: the Netty IO thread!
 		for (NetworkSequenceViewReader reader : allReaders.values()) {
-			reader.releaseAllResources();
-			markAsReleased(reader.getReceiverId());
+			releaseViewReader(reader);
 		}
 
 		availableReaders.clear();
 		allReaders.clear();
+	}
+
+	private void releaseViewReader(NetworkSequenceViewReader reader) throws IOException {
+		reader.notifySubpartitionConsumed();
+		reader.setRegisteredAsAvailable(false);
+		reader.releaseAllResources();
+		markAsReleased(reader.getReceiverId());
 	}
 
 	/**
