@@ -19,19 +19,30 @@
 package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.io.disk.FileChannelManager;
+import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
 import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
+import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
+import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.ResultSubpartition;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -41,6 +52,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -53,6 +65,22 @@ import static org.junit.Assert.assertTrue;
  * Tests for {@link PartitionRequestQueue}.
  */
 public class PartitionRequestQueueTest {
+
+	private static final String TEMP_DIR = EnvironmentInformation.getTemporaryFileDirectory();
+
+	private static final int BUFFER_SIZE = 1024 * 1024;
+
+	private static FileChannelManager fileChannelManager;
+
+	@BeforeClass
+	public static void setUp() {
+		fileChannelManager = new FileChannelManagerImpl(new String[] {TEMP_DIR}, "testing");
+	}
+
+	@AfterClass
+	public static void shutdown() throws Exception {
+		fileChannelManager.close();
+	}
 
 	/**
 	 * In case of enqueuing an empty reader and a reader that actually has some buffers when channel is not writable,
@@ -346,6 +374,68 @@ public class PartitionRequestQueueTest {
 			assertThat(channel.readOutbound(), instanceOf(NettyMessage.BufferResponse.class));
 		}
 		assertNull(channel.readOutbound());
+	}
+
+	@Test
+	public void testCancelPartitionRequestForUnavailableView() throws Exception {
+		testCancelPartitionRequest(false);
+	}
+
+	@Test
+	public void testCancelPartitionRequestForAvailableView() throws Exception {
+		testCancelPartitionRequest(true);
+	}
+
+	private void testCancelPartitionRequest(boolean isAvailableView) throws Exception {
+		// setup
+		final ResultPartitionManager partitionManager = new ResultPartitionManager();
+		final ResultPartition partition = createPartitionWithFilledData(partitionManager);
+		final InputChannelID receiverId = new InputChannelID();
+		final PartitionRequestQueue queue = new PartitionRequestQueue();
+		final CreditBasedSequenceNumberingViewReader reader = new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
+		final EmbeddedChannel channel = new EmbeddedChannel(queue);
+
+		reader.requestSubpartitionView(partitionManager, partition.getPartitionId(), 0);
+		// add this reader into allReaders queue
+		queue.notifyReaderCreated(reader);
+
+		// block the channel so that we see an intermediate state in the test
+		blockChannel(channel);
+
+		// add credit to make this reader available for adding into availableReaders queue
+		if (isAvailableView) {
+			queue.addCredit(receiverId, 1);
+			assertThat(queue.getAvailableReaders().contains(reader), is(true));
+		}
+
+		// cancel this subpartition view
+		queue.cancel(receiverId);
+		channel.runPendingTasks();
+
+		assertThat(queue.getAvailableReaders().contains(reader), is(false));
+		// the partition and its reader view should all be released
+		assertThat(reader.isReleased(), is(true));
+		assertThat(partition.isReleased(), is(true));
+		for (ResultSubpartition subpartition : partition.getAllPartitions()) {
+			assertThat(subpartition.isReleased(), is(true));
+		}
+
+		// cleanup
+		channel.close();
+	}
+
+	private static ResultPartition createPartitionWithFilledData(ResultPartitionManager partitionManager) throws Exception {
+		final ResultPartition partition = new ResultPartitionBuilder()
+			.setResultPartitionType(ResultPartitionType.BLOCKING)
+			.setFileChannelManager(fileChannelManager)
+			.setResultPartitionManager(partitionManager)
+			.isReleasedOnConsumption(true)
+			.build();
+
+		partitionManager.registerResultPartition(partition);
+		PartitionTestUtils.writeBuffers(partition, 1, BUFFER_SIZE);
+
+		return partition;
 	}
 
 	/**
