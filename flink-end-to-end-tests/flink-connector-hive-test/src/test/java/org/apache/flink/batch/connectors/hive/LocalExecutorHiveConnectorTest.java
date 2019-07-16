@@ -18,17 +18,20 @@
 
 package org.apache.flink.batch.connectors.hive;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.util.DummyCustomCommandLine;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.WebOptions;
+import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
+import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
 import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.local.LocalExecutor;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
@@ -43,7 +46,6 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -51,12 +53,15 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests Hive connector with LocalExecutor.
@@ -93,20 +98,23 @@ public class LocalExecutorHiveConnectorTest {
 	}
 
 	@Test
-	@Ignore
 	public void testDefaultPartitionName() throws Exception {
 		hiveShell.execute("create database db1");
 		hiveShell.execute("create table db1.src (x int, y int)");
 		hiveShell.execute("create table db1.part (x int) partitioned by (y int)");
 		hiveShell.insertInto("db1", "src").addRow(1, 1).addRow(2, null).commit();
 		// test generating partitions with default name
-		executor.executeUpdate(session, "insert into db1.part select x,y from db1.src");
+		waitForJobFinish(executor.executeUpdate(session, "insert into db1.part select x,y from db1.src"));
 		HiveConf hiveConf = hiveShell.getHiveConf();
 		String defaultPartName = hiveConf.getVar(HiveConf.ConfVars.DEFAULTPARTITIONNAME);
 		Table hiveTable = hmsClient.getTable("db1", "part");
 		Path defaultPartPath = new Path(hiveTable.getSd().getLocation(), "y=" + defaultPartName);
 		FileSystem fs = defaultPartPath.getFileSystem(hiveConf);
 		assertTrue(fs.exists(defaultPartPath));
+
+		// TODO: test reading from Flink side once FLINK-13279 is fixed
+		assertEquals(new HashSet<>(Arrays.asList("1\t1", "2\tNULL")),
+				new HashSet<>(hiveShell.executeQuery("select * from db1.part")));
 
 		hiveShell.execute("drop database db1 cascade");
 	}
@@ -137,5 +145,23 @@ public class LocalExecutorHiveConnectorTest {
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
 		config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
 		return config;
+	}
+
+	private static void waitForJobFinish(ProgramTargetDescriptor targetDescriptor) throws Exception {
+		boolean isRunning = true;
+		while (isRunning) {
+			Thread.sleep(50); // slow the processing down
+			final JobStatus jobStatus = MINI_CLUSTER_RESOURCE.getClusterClient().getJobStatus(JobID.fromHexString(targetDescriptor.getJobId())).get();
+			switch (jobStatus) {
+				case CREATED:
+				case RUNNING:
+					continue;
+				case FINISHED:
+					isRunning = false;
+					break;
+				default:
+					fail("Unexpected job status.");
+			}
+		}
 	}
 }
