@@ -75,6 +75,14 @@
 			<fileMode>0644</fileMode>
 		</file>
 
+		<!-- State Processor API -->
+		<file>
+			<source>../flink-libraries/flink-state-processing-api/target/flink-state-processor-api_${scala.binary.version}-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-state-processor-api_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
 		<!-- Metrics -->
 		<file>
 			<source>../flink-metrics/flink-metrics-graphite/target/flink-metrics-graphite-${project.version}.jar</source>
