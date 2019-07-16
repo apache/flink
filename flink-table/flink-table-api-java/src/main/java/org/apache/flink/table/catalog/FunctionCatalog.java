@@ -159,32 +159,31 @@ public class FunctionCatalog implements FunctionLookup {
 	public Optional<FunctionLookup.Result> lookupFunction(String name) {
 		String functionName = normalizeName(name);
 
-		FunctionDefinition userCandidate = null;
+		FunctionDefinition userCandidate;
 
 		Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
-		ObjectPath functionPath = new ObjectPath(catalogManager.getCurrentDatabase(), functionName);
 
-		if (catalog.functionExists(functionPath)) {
+		try {
+			CatalogFunction catalogFunction = catalog.getFunction(
+				new ObjectPath(catalogManager.getCurrentDatabase(), functionName));
+
 			if (catalog.getTableFactory().isPresent() &&
 				catalog.getTableFactory().get() instanceof FunctionDefinitionFactory) {
-				try {
-					CatalogFunction catalogFunction = catalog.getFunction(functionPath);
 
-					FunctionDefinitionFactory factory = (FunctionDefinitionFactory) catalog.getTableFactory().get();
+				FunctionDefinitionFactory factory = (FunctionDefinitionFactory) catalog.getTableFactory().get();
 
-					userCandidate = factory.createFunctionDefinition(functionName, catalogFunction);
+				userCandidate = factory.createFunctionDefinition(functionName, catalogFunction);
 
-					return Optional.of(
-						new FunctionLookup.Result(
-							ObjectIdentifier.of(catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase(), name),
-							userCandidate)
-					);
-				} catch (FunctionNotExistException e) {
-					// Ignore
-				}
+				return Optional.of(
+					new FunctionLookup.Result(
+						ObjectIdentifier.of(catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase(), name),
+						userCandidate)
+				);
 			} else {
 				// TODO: should go thru function definition discover service
 			}
+		} catch (FunctionNotExistException e) {
+			// Ignore
 		}
 
 		// If no corresponding function is found in catalog, check in-memory functions
