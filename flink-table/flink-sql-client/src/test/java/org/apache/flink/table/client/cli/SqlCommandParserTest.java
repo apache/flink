@@ -76,6 +76,7 @@ public class SqlCommandParserTest {
 		testInvalidSqlCommand("source"); // missing path
 		testValidSqlCommand("USE CATALOG default", new SqlCommandCall(SqlCommand.USE_CATALOG, new String[]{"default"}));
 		testValidSqlCommand("use default", new SqlCommandCall(SqlCommand.USE_DATABASE, new String[] {"default"}));
+		testInvalidSqlCommand("use catalog");
 	}
 
 	private void testInvalidSqlCommand(String stmt) {
