@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
@@ -72,6 +73,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -826,6 +828,13 @@ public class FlinkKinesisConsumerTest {
 	}
 
 	@Test
+	public void testSourceSynchronization1000times() throws Exception {
+		for (int i = 0; i < 1000; i++) {
+			testSourceSynchronization();
+		}
+	}
+
+	//@Test
 	public void testSourceSynchronization() throws Exception {
 
 		final String streamName = "fakeStreamName";
@@ -833,6 +842,7 @@ public class FlinkKinesisConsumerTest {
 		final long autoWatermarkInterval = 1_000;
 		final long watermarkSyncInterval = autoWatermarkInterval + 1;
 
+		TestWatermarkTracker.WATERMARK.set(0);
 		HashMap<String, String> subscribedStreamsToLastDiscoveredShardIds = new HashMap<>();
 		subscribedStreamsToLastDiscoveredShardIds.put(streamName, null);
 
@@ -947,6 +957,7 @@ public class FlinkKinesisConsumerTest {
 		expectedResults.add(new Watermark(-4));
 		// verify watermark
 		awaitRecordCount(results, expectedResults.size());
+		assertEquals("element count " + results, expectedResults.size(), results.size());
 		assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
 		assertEquals(0, TestWatermarkTracker.WATERMARK.get());
 
@@ -977,6 +988,7 @@ public class FlinkKinesisConsumerTest {
 		// Trigger watermark update and emit
 		testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
 		expectedResults.add(new Watermark(3000));
+		awaitRecordCount(results, expectedResults.size());
 		assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
 
 		sourceFunc.cancel();
@@ -984,8 +996,8 @@ public class FlinkKinesisConsumerTest {
 	}
 
 	private void awaitRecordCount(ConcurrentLinkedQueue<? extends Object> queue, int count) throws Exception {
-		long timeoutMillis = System.currentTimeMillis() + 10_000;
-		while (System.currentTimeMillis() < timeoutMillis && queue.size() < count) {
+		Deadline deadline  = Deadline.fromNow(Duration.ofSeconds(10));
+		while (deadline.hasTimeLeft() && queue.size() < count) {
 			Thread.sleep(10);
 		}
 	}
