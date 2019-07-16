@@ -389,10 +389,6 @@ under the License.
                     <artifactId>hive-jdbc</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>org.apache.hive.hcatalog</groupId>
-                    <artifactId>hive-webhcat-java-client</artifactId>
-                </exclusion>
-                <exclusion>
                     <groupId>org.apache.hive</groupId>
                     <artifactId>hive-service</artifactId>
                 </exclusion>
@@ -400,10 +396,6 @@ under the License.
                     <groupId>org.apache.hive</groupId>
                     <artifactId>hive-contrib</artifactId>
                 </exclusion>
-				<exclusion>
-					<groupId>org.apache.tez</groupId>
-					<artifactId>tez-dag</artifactId>
-				</exclusion>
 				<exclusion>
 					<groupId>org.apache.tez</groupId>
 					<artifactId>tez-common</artifactId>
