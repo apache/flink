@@ -177,7 +177,6 @@ public class SqlDateTimeUtils {
 		return time + LOCAL_TZ.getOffset(time);
 	}
 
-
 	// --------------------------------------------------------------------------------------------
 	// int/long/double/Decimal --> Date/Timestamp internal representation
 	// --------------------------------------------------------------------------------------------
@@ -201,7 +200,6 @@ public class SqlDateTimeUtils {
 	// --------------------------------------------------------------------------------------------
 	// String --> String/timestamp conversion
 	// --------------------------------------------------------------------------------------------
-
 
 	// --------------------------------------------------------------------------------------------
 	// String --> Timestamp conversion
@@ -1091,4 +1089,205 @@ public class SqlDateTimeUtils {
 	public static long timeToTimestampWithLocalZone(int time, TimeZone tz) {
 		return unixTimestampToLocalDateTime(time).atZone(tz.toZoneId()).toInstant().toEpochMilli();
 	}
+
+	private static boolean isInteger(String s) {
+		boolean isInt = s.length() > 0;
+		for (int i = 0; i < s.length(); i++) {
+			if (s.charAt(i) < '0' || s.charAt(i) > '9') {
+				isInt = false;
+				break;
+			}
+		}
+		return isInt;
+	}
+
+	private static boolean isLeapYear(int s) {
+		return s % 400 == 0 || (s % 4 == 0 && s % 100 != 0);
+	}
+
+	private static boolean isIllegalDate(int y, int m, int d) {
+		int[] monthOf31Days = new int[]{1, 3, 5, 7, 8, 10, 12};
+		if (y < 0 || y > 9999 || m < 1 || m > 12 || d < 1 || d > 31) {
+			return false;
+		}
+		if (m == 2 && d > 28) {
+			if (!(isLeapYear(y) && d == 29)) {
+				return false;
+			}
+		}
+		if (d == 31) {
+			for (int i: monthOf31Days) {
+				if (i == m) {
+					return true;
+				}
+			}
+			return false;
+		}
+		return true;
+	}
+
+	public static Integer dateStringToUnixDate(String s) {
+		// allow timestamp str to date, e.g. 2017-12-12 09:30:00.0
+		int ws1 = s.indexOf(" ");
+		if (ws1 > 0) {
+			s = s.substring(0, ws1);
+		}
+		int hyphen1 = s.indexOf('-');
+		int y;
+		int m;
+		int d;
+		if (hyphen1 < 0) {
+			if (!isInteger(s.trim())) {
+				return null;
+			}
+			y = Integer.parseInt(s.trim());
+			m = 1;
+			d = 1;
+		} else {
+			if (!isInteger(s.substring(0, hyphen1).trim())) {
+				return null;
+			}
+			y = Integer.parseInt(s.substring(0, hyphen1).trim());
+			final int hyphen2 = s.indexOf('-', hyphen1 + 1);
+			if (hyphen2 < 0) {
+				if (!isInteger(s.substring(hyphen1 + 1).trim())) {
+					return null;
+				}
+				m = Integer.parseInt(s.substring(hyphen1 + 1).trim());
+				d = 1;
+			} else {
+				if (!isInteger(s.substring(hyphen1 + 1, hyphen2).trim())) {
+					return null;
+				}
+				m = Integer.parseInt(s.substring(hyphen1 + 1, hyphen2).trim());
+				if (!isInteger(s.substring(hyphen2 + 1).trim())) {
+					return null;
+				}
+				d = Integer.parseInt(s.substring(hyphen2 + 1).trim());
+			}
+		}
+		if (!isIllegalDate(y, m, d)) {
+			return null;
+		}
+		return DateTimeUtils.ymdToUnixDate(y, m, d);
+	}
+
+	public static Integer timeStringToUnixDate(String v) {
+		return timeStringToUnixDate(v, 0);
+	}
+
+	public static Integer timeStringToUnixDate(String v, int start) {
+		final int colon1 = v.indexOf(':', start);
+		//timezone hh:mm:ss[.ssssss][[+|-]hh:mm:ss]
+		//refer https://www.w3.org/TR/NOTE-datetime
+		int timezoneHour;
+		int timezoneMinute;
+		int hour;
+		int minute;
+		int second;
+		int milli;
+		int operator = -1;
+		int end = v.length();
+		int timezone = v.indexOf('-', start);
+		if (timezone < 0) {
+			timezone = v.indexOf('+', start);
+			operator = 1;
+		}
+		if (timezone < 0) {
+			timezoneHour = 0;
+			timezoneMinute = 0;
+		} else {
+			end = timezone;
+			final int colon3 = v.indexOf(':', timezone);
+			if (colon3 < 0) {
+				if (!isInteger(v.substring(timezone + 1).trim())) {
+					return null;
+				}
+				timezoneHour = Integer.parseInt(v.substring(timezone + 1).trim());
+				timezoneMinute = 0;
+			} else {
+				if (!isInteger(v.substring(timezone + 1, colon3).trim())) {
+					return null;
+				}
+				timezoneHour = Integer.parseInt(v.substring(timezone + 1, colon3).trim());
+				if (!isInteger(v.substring(colon3 + 1).trim())) {
+					return null;
+				}
+				timezoneMinute = Integer.parseInt(v.substring(colon3 + 1).trim());
+			}
+		}
+		if (colon1 < 0) {
+			if (!isInteger(v.substring(start, end).trim())) {
+				return null;
+			}
+			hour = Integer.parseInt(v.substring(start, end).trim());
+			minute = 1;
+			second = 1;
+			milli = 0;
+		} else {
+			if (!isInteger(v.substring(start, colon1).trim())) {
+				return null;
+			}
+			hour = Integer.parseInt(v.substring(start, colon1).trim());
+			final int colon2 = v.indexOf(':', colon1 + 1);
+			if (colon2 < 0) {
+				if (!isInteger(v.substring(colon1 + 1, end).trim())) {
+					return null;
+				}
+				minute = Integer.parseInt(v.substring(colon1 + 1, end).trim());
+				second = 1;
+				milli = 0;
+			} else {
+				if (!isInteger(v.substring(colon1 + 1, colon2).trim())) {
+					return null;
+				}
+				minute = Integer.parseInt(v.substring(colon1 + 1, colon2).trim());
+				int dot = v.indexOf('.', colon2);
+				if (dot < 0) {
+					if (!isInteger(v.substring(colon2 + 1, end).trim())) {
+						return null;
+					}
+					second = Integer.parseInt(v.substring(colon2 + 1, end).trim());
+					milli = 0;
+				} else {
+					if (!isInteger(v.substring(colon2 + 1, dot).trim())) {
+						return null;
+					}
+					second = Integer.parseInt(v.substring(colon2 + 1, dot).trim());
+					milli = parseFraction(v.substring(dot + 1, end).trim(), 100);
+				}
+			}
+		}
+		hour += operator * timezoneHour;
+		minute += operator * timezoneMinute;
+		return hour * (int) MILLIS_PER_HOUR
+			+ minute * (int) MILLIS_PER_MINUTE
+			+ second * (int) MILLIS_PER_SECOND
+			+ milli;
+	}
+
+	/** Parses a fraction, multiplying the first character by {@code multiplier},
+	 * the second character by {@code multiplier / 10},
+	 * the third character by {@code multiplier / 100}, and so forth.
+	 *
+	 * <p>For example, {@code parseFraction("1234", 100)} yields {@code 123}. */
+	private static int parseFraction(String v, int multiplier) {
+		int r = 0;
+		for (int i = 0; i < v.length(); i++) {
+			char c = v.charAt(i);
+			int x = c < '0' || c > '9' ? 0 : (c - '0');
+			r += multiplier * x;
+			if (multiplier < 10) {
+				// We're at the last digit. Check for rounding.
+				if (i + 1 < v.length()
+					&& v.charAt(i + 1) >= '5') {
+					++r;
+				}
+				break;
+			}
+			multiplier /= 10;
+		}
+		return r;
+	}
+
 }

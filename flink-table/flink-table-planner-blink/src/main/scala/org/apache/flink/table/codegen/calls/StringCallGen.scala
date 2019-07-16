@@ -184,7 +184,7 @@ object StringCallGen {
       // Date/Time & BinaryString Converting -- start
 
       case TO_DATE if operands.size == 1 && isCharacterString(operands.head.resultType) =>
-        methodGen(BuiltInMethod.STRING_TO_DATE.method)
+        methodGen(BuiltInMethods.STRING_TO_DATE)
 
       case TO_DATE if operands.size == 2 &&
           isCharacterString(operands.head.resultType) &&
