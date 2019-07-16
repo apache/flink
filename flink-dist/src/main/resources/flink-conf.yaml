@@ -120,6 +120,12 @@ parallelism.default: 1
 #
 # state.backend.incremental: false
 
+# The failover strategy, i.e., how the job computation recovers from task failures.
+# Only restart tasks that may have been affected by the task failure, which typically includes
+# downstream tasks and potentially upstream tasks if their produced data is no longer available for consumption.
+
+jobmanager.execution.failover-strategy: region
+
 #==============================================================================
 # Rest & web frontend
 #==============================================================================
