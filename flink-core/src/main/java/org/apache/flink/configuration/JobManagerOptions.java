@@ -186,7 +186,7 @@ public class JobManagerOptions {
 	@Documentation.ExcludeFromDocumentation("dev use only; likely temporary")
 	public static final ConfigOption<Boolean> FORCE_PARTITION_RELEASE_ON_CONSUMPTION =
 			key("jobmanager.scheduler.partition.force-release-on-consumption")
-			.defaultValue(true);
+			.defaultValue(false);
 
 	// ---------------------------------------------------------------------------------------------
 
