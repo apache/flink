@@ -128,7 +128,7 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 	@Override
 	public void invoke(IN value) throws Exception {
 		checkAsyncErrors();
-		tryAcquire();
+		tryAcquire(1);
 		final ListenableFuture<V> result;
 		try {
 			result = send(value);
@@ -144,10 +144,6 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 	}
 
 	public abstract ListenableFuture<V> send(IN value);
-
-	private void tryAcquire() throws InterruptedException, TimeoutException {
-		tryAcquire(1);
-	}
 
 	private void tryAcquire(int permits) throws InterruptedException, TimeoutException {
 		if (!semaphore.tryAcquire(permits, config.getMaxConcurrentRequestsTimeout().toMillis(), TimeUnit.MILLISECONDS)) {
