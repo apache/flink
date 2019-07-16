@@ -143,6 +143,12 @@ class PartitionableSinkITCase extends BatchTestBase {
     assertArrayEquals(firstFields.toArray, firstFields.sorted.toArray)
   }
 
+  /**
+    * Collect the group cnt with the specified number of key fields.
+    * @param r the rows to group by
+    * @param n the number of grouping fields
+    * @return the group count of the rows
+    */
   private def collectDistinctGroupCount(r: JLinkedList[Row], n: Int): Int = {
     val groupSet = scala.collection.mutable.SortedSet[Int]()
     r.foreach { r =>
