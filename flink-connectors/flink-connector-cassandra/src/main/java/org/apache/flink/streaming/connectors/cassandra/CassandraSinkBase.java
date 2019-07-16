@@ -146,10 +146,15 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 	public abstract ListenableFuture<V> send(IN value);
 
 	private void tryAcquire() throws InterruptedException, TimeoutException {
-		if (!semaphore.tryAcquire(config.getMaxConcurrentRequestsTimeout().toMillis(), TimeUnit.MILLISECONDS)) {
+		tryAcquire(1);
+	}
+
+	private void tryAcquire(int permits) throws InterruptedException, TimeoutException {
+		if (!semaphore.tryAcquire(permits, config.getMaxConcurrentRequestsTimeout().toMillis(), TimeUnit.MILLISECONDS)) {
 			throw new TimeoutException(
 				String.format(
-					"Failed to acquire 1 permit of %d to send value in %s.",
+					"Failed to acquire %d out of %d permits to send value in %s.",
+					permits,
 					config.getMaxConcurrentRequests(),
 					config.getMaxConcurrentRequestsTimeout()
 				)
@@ -165,16 +170,7 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 	}
 
 	private void flush() throws InterruptedException, TimeoutException {
-		if (!semaphore.tryAcquire(config.getMaxConcurrentRequests(), config.getMaxConcurrentRequestsTimeout().toMillis(), TimeUnit.MILLISECONDS)) {
-			throw new TimeoutException(
-				String.format(
-					"Failed to acquire all permits (%s) for flush in %s, only %s available",
-					config.getMaxConcurrentRequests(),
-					config.getMaxConcurrentRequestsTimeout(),
-					semaphore.availablePermits()
-				)
-			);
-		}
+		tryAcquire(config.getMaxConcurrentRequests());
 		semaphore.release(config.getMaxConcurrentRequests());
 	}
 
