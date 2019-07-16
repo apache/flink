@@ -485,4 +485,9 @@ object BuiltInMethods {
     "convertTz",
     classOf[String], classOf[String], classOf[String], classOf[String])
 
+  val STRING_TO_DATE = Types.lookupMethod(
+    classOf[SqlDateTimeUtils], "dateStringToUnixDate", classOf[String])
+
+  val STRING_TO_TIME = Types.lookupMethod(
+    classOf[SqlDateTimeUtils], "timeStringToUnixDate", classOf[String])
 }

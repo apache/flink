@@ -892,7 +892,7 @@ object ScalarOperatorGens {
         operand,
         resultNullable = true) {
         operandTerm =>
-          s"${qualifyMethod(BuiltInMethod.STRING_TO_DATE.method)}($operandTerm.toString())"
+          s"${qualifyMethod(BuiltInMethods.STRING_TO_DATE)}($operandTerm.toString())"
       }
 
     // String -> Time
@@ -903,7 +903,7 @@ object ScalarOperatorGens {
         operand, 
         resultNullable = true) {
         operandTerm =>
-          s"${qualifyMethod(BuiltInMethod.STRING_TO_TIME.method)}($operandTerm.toString())"
+          s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
       }
 
     // String -> Timestamp
@@ -2146,9 +2146,9 @@ object ScalarOperatorGens {
       operandTerm: String): String =
     targetType.getTypeRoot match {
       case DATE =>
-        s"${qualifyMethod(BuiltInMethod.STRING_TO_DATE.method)}($operandTerm.toString())"
+        s"${qualifyMethod(BuiltInMethods.STRING_TO_DATE)}($operandTerm.toString())"
       case TIME_WITHOUT_TIME_ZONE =>
-        s"${qualifyMethod(BuiltInMethod.STRING_TO_TIME.method)}($operandTerm.toString())"
+        s"${qualifyMethod(BuiltInMethods.STRING_TO_TIME)}($operandTerm.toString())"
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
         s"""
            |${qualifyMethod(BuiltInMethods.STRING_TO_TIMESTAMP)}($operandTerm.toString())
