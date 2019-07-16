@@ -209,10 +209,10 @@ public class FailoverRegion {
 			if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
 				// if we have checkpointed state, reload it into the executions
 				if (executionGraph.getCheckpointCoordinator() != null) {
-					// we restart the checkpoint scheduler for
+					// we abort pending checkpoints for
 					// i) enable new checkpoint could be triggered without waiting for last checkpoint expired.
 					// ii) ensure the EXACTLY_ONCE semantics if needed.
-					executionGraph.getCheckpointCoordinator().abortPendingCheckpoints(
+					executionGraph.getCheckpointCoordinator().abortPendingCheckpointsWithTriggerValidation(
 						new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION));
 
 					executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedState(

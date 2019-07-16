@@ -192,7 +192,7 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 			// abort pending checkpoints to
 			// i) enable new checkpoint triggering without waiting for last checkpoint expired.
 			// ii) ensure the EXACTLY_ONCE semantics if needed.
-			executionGraph.getCheckpointCoordinator().abortPendingCheckpoints(
+			executionGraph.getCheckpointCoordinator().abortPendingCheckpointsWithTriggerValidation(
 				new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION));
 
 			final Map<JobVertexID, ExecutionJobVertex> involvedExecutionJobVertices =
