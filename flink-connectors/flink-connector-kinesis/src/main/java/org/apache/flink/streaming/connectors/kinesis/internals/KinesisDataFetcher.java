@@ -270,8 +270,6 @@ public class KinesisDataFetcher<T> {
 		@Override
 		public void emit(RecordWrapper<T> record, RecordQueue<RecordWrapper<T>> queue) {
 			emitRecordAndUpdateState(record);
-			ShardWatermarkState<T> sws = shardWatermarks.get(queue.getQueueId());
-			sws.lastEmittedRecordWatermark = record.watermark;
 		}
 	}
 
@@ -287,11 +285,6 @@ public class KinesisDataFetcher<T> {
 					@Override
 					public void put(RecordWrapper<T> record) {
 						emit(record, this);
-					}
-
-					@Override
-					public int getQueueId() {
-						return producerIndex;
 					}
 
 					@Override
@@ -770,6 +763,8 @@ public class KinesisDataFetcher<T> {
 		synchronized (checkpointLock) {
 			if (rw.getValue() != null) {
 				sourceContext.collectWithTimestamp(rw.getValue(), rw.timestamp);
+				ShardWatermarkState<T> sws = shardWatermarks.get(rw.shardStateIndex);
+				sws.lastEmittedRecordWatermark = rw.watermark;
 			} else {
 				LOG.warn("Skipping non-deserializable record at sequence number {} of shard {}.",
 					rw.lastSequenceNumber,
