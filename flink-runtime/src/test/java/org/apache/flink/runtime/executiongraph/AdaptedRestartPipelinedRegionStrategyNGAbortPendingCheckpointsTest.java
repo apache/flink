@@ -21,12 +21,10 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
-import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
-import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -54,10 +52,9 @@ import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests for {@link AdaptedRestartPipelinedRegionStrategyNG}.
@@ -82,31 +79,30 @@ public class AdaptedRestartPipelinedRegionStrategyNGAbortPendingCheckpointsTest 
 		final Iterator<ExecutionVertex> vertexIterator = executionGraph.getAllExecutionVertices().iterator();
 		final ExecutionVertex firstExecutionVertex = vertexIterator.next();
 
-		setTaskRunning(executionGraph, firstExecutionVertex, vertexIterator.next());
+		setTasksRunning(executionGraph, firstExecutionVertex, vertexIterator.next());
 
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
 		checkState(checkpointCoordinator != null);
 
 		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(),  false);
-		final int pendingCheckpointsBeforeFailure = checkpointCoordinator.getNumberOfPendingCheckpoints();
+		assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
 		long checkpointId = checkpointCoordinator.getPendingCheckpoints().keySet().iterator().next();
 
 		AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
-			firstExecutionVertex.getJobId(),
+			jobGraph.getJobID(),
 			firstExecutionVertex.getCurrentExecutionAttempt().getAttemptId(),
-			checkpointId,
-			mock(CheckpointMetrics.class),
-			mock(TaskStateSnapshot.class));
+			checkpointId);
 
-		// not let the first checkpoint to be discarded when firstExecutionVertex has been acknowledged.
+		// let the first vertex acknowledge the checkpoint, and fail it afterwards
+		// the failover strategy should then cancel all pending checkpoints on restart
 		checkpointCoordinator.receiveAcknowledgeMessage(acknowledgeCheckpoint, "Unknown location");
+		assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
 		failVertex(firstExecutionVertex);
 
-		assertThat(pendingCheckpointsBeforeFailure, is(equalTo(1)));
 		assertNoPendingCheckpoints(checkpointCoordinator);
 	}
 
-	private void setTaskRunning(final ExecutionGraph executionGraph, final ExecutionVertex... executionVertices) {
+	private void setTasksRunning(final ExecutionGraph executionGraph, final ExecutionVertex... executionVertices) {
 		for (ExecutionVertex executionVertex : executionVertices) {
 			executionGraph.updateState(
 				new TaskExecutionState(executionGraph.getJobID(),
