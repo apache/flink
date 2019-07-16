@@ -21,22 +21,25 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.AdaptedRestartPipelinedRegionStrategyNG;
-import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
+import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.TestLogger;
@@ -54,6 +57,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for {@link AdaptedRestartPipelinedRegionStrategyNG}.
@@ -76,39 +80,54 @@ public class AdaptedRestartPipelinedRegionStrategyNGAbortPendingCheckpointsTest 
 		final ExecutionGraph executionGraph = createExecutionGraph(jobGraph);
 
 		final Iterator<ExecutionVertex> vertexIterator = executionGraph.getAllExecutionVertices().iterator();
-		final ExecutionVertex onlyExecutionVertex = vertexIterator.next();
+		final ExecutionVertex firstExecutionVertex = vertexIterator.next();
 
-		setTaskRunning(executionGraph, onlyExecutionVertex);
+		setTaskRunning(executionGraph, firstExecutionVertex, vertexIterator.next());
 
 		final CheckpointCoordinator checkpointCoordinator = executionGraph.getCheckpointCoordinator();
 		checkState(checkpointCoordinator != null);
 
 		checkpointCoordinator.triggerCheckpoint(System.currentTimeMillis(),  false);
 		final int pendingCheckpointsBeforeFailure = checkpointCoordinator.getNumberOfPendingCheckpoints();
+		long checkpointId = checkpointCoordinator.getPendingCheckpoints().keySet().iterator().next();
 
-		failVertex(onlyExecutionVertex);
+		AcknowledgeCheckpoint acknowledgeCheckpoint = new AcknowledgeCheckpoint(
+			firstExecutionVertex.getJobId(),
+			firstExecutionVertex.getCurrentExecutionAttempt().getAttemptId(),
+			checkpointId,
+			mock(CheckpointMetrics.class),
+			mock(TaskStateSnapshot.class));
+
+		// not let the first checkpoint to be discarded when firstExecutionVertex has been acknowledged.
+		checkpointCoordinator.receiveAcknowledgeMessage(acknowledgeCheckpoint, "Unknown location");
+		failVertex(firstExecutionVertex);
 
 		assertThat(pendingCheckpointsBeforeFailure, is(equalTo(1)));
 		assertNoPendingCheckpoints(checkpointCoordinator);
 	}
 
-	private void setTaskRunning(final ExecutionGraph executionGraph, final ExecutionVertex executionVertex) {
-		executionGraph.updateState(
-			new TaskExecutionState(executionGraph.getJobID(),
-				executionVertex.getCurrentExecutionAttempt().getAttemptId(),
-				ExecutionState.RUNNING));
+	private void setTaskRunning(final ExecutionGraph executionGraph, final ExecutionVertex... executionVertices) {
+		for (ExecutionVertex executionVertex : executionVertices) {
+			executionGraph.updateState(
+				new TaskExecutionState(executionGraph.getJobID(),
+					executionVertex.getCurrentExecutionAttempt().getAttemptId(),
+					ExecutionState.RUNNING));
+		}
 	}
 
 	private void failVertex(final ExecutionVertex onlyExecutionVertex) {
 		onlyExecutionVertex.getCurrentExecutionAttempt().fail(new Exception("Test Exception"));
 		manualMainThreadExecutor.triggerAll();
+		manualMainThreadExecutor.triggerScheduledTasks();
 	}
 
 	private static JobGraph createStreamingJobGraph() {
 		final JobVertex v1 = new JobVertex("vertex1");
+		final JobVertex v2 = new JobVertex("vertex2");
 		v1.setInvokableClass(AbstractInvokable.class);
+		v2.setInvokableClass(AbstractInvokable.class);
 
-		final JobGraph jobGraph = new JobGraph(v1);
+		final JobGraph jobGraph = new JobGraph(v1, v2);
 		jobGraph.setScheduleMode(ScheduleMode.EAGER);
 
 		return jobGraph;
@@ -116,9 +135,9 @@ public class AdaptedRestartPipelinedRegionStrategyNGAbortPendingCheckpointsTest 
 
 	private ExecutionGraph createExecutionGraph(final JobGraph jobGraph) throws Exception {
 		final ExecutionGraph executionGraph = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jobGraph)
-			.setRestartStrategy(new InfiniteDelayRestartStrategy(10))
+			.setRestartStrategy(new FixedDelayRestartStrategy(10, 0))
 			.setFailoverStrategyFactory(AdaptedRestartPipelinedRegionStrategyNG::new)
-			.setSlotProvider(new SimpleSlotProvider(jobGraph.getJobID(), 1))
+			.setSlotProvider(new SimpleSlotProvider(jobGraph.getJobID(), 2))
 			.build();
 
 		enableCheckpointing(executionGraph);
