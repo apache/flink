@@ -97,7 +97,10 @@ public class AdaptedRestartPipelinedRegionStrategyNGAbortPendingCheckpointsTest 
 		// the failover strategy should then cancel all pending checkpoints on restart
 		checkpointCoordinator.receiveAcknowledgeMessage(acknowledgeCheckpoint, "Unknown location");
 		assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
+
 		failVertex(firstExecutionVertex);
+		assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
+		manualMainThreadExecutor.triggerScheduledTasks();
 
 		assertNoPendingCheckpoints(checkpointCoordinator);
 	}
@@ -114,7 +117,6 @@ public class AdaptedRestartPipelinedRegionStrategyNGAbortPendingCheckpointsTest 
 	private void failVertex(final ExecutionVertex onlyExecutionVertex) {
 		onlyExecutionVertex.getCurrentExecutionAttempt().fail(new Exception("Test Exception"));
 		manualMainThreadExecutor.triggerAll();
-		manualMainThreadExecutor.triggerScheduledTasks();
 	}
 
 	private static JobGraph createStreamingJobGraph() {
