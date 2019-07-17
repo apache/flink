@@ -213,6 +213,10 @@ function install_tox() {
         fi
     fi
 
+    # virtualenv in conda-forge is not compatible with py27 and py34, so we install it from the
+    # default repository.
+    $CONDA_PATH install -p $CONDA_HOME virtualenv -y -q 2>&1 >/dev/null
+    
     $CONDA_PATH install -p $CONDA_HOME -c conda-forge tox -y -q 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "conda install tox failed \
