@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl
@@ -42,8 +40,7 @@ import org.apache.calcite.sql.parser.SqlParser
 import org.junit.Assert._
 import org.junit.{Before, Test}
 
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.{LinkedList => JLinkedList, List => JList, Map => JMap}
+import java.util.{ArrayList => JArrayList, LinkedList => JLinkedList, List => JList, Map => JMap}
 
 import scala.collection.JavaConversions._
 import scala.collection.Seq
@@ -84,11 +81,23 @@ class PartitionableSinkITCase extends BatchTestBase {
     tEnv.sqlUpdate("insert into sinkTable select a, max(b), c"
       + " from nonSortTable group by a, c")
     tEnv.execute("testJob")
-    val resultSet = List(RESULT1, RESULT2, RESULT3)
-    assert(resultSet.exists(l => l.size() == 3))
-    resultSet.filter(l => l.size() == 3).foreach{ list =>
-      assert(list.forall(r => r.getField(0).toString == "1"))
-    }
+    assertEquals(List("1,5,Hi",
+      "1,5,Hi01",
+      "1,5,Hi02"),
+      RESULT1.sorted)
+    assert(RESULT2.isEmpty)
+    assertEquals(List("2,1,Hello world01",
+      "2,1,Hello world02",
+      "2,1,Hello world03",
+      "2,1,Hello world04",
+      "2,2,Hello world, how are you?",
+      "3,1,Hello world",
+      "3,2,Hello",
+      "3,2,Hello01",
+      "3,2,Hello02",
+      "3,2,Hello03",
+      "3,2,Hello04"),
+      RESULT3.sorted)
   }
 
   @Test
@@ -96,9 +105,20 @@ class PartitionableSinkITCase extends BatchTestBase {
     registerTableSink(grouping = true)
     tEnv.sqlUpdate("insert into sinkTable select a, b, c from sortTable")
     tEnv.execute("testJob")
-    val resultSet = List(RESULT1, RESULT2, RESULT3)
-    resultSet.foreach(l => assertSortedByFirstNField(l, 1))
-    assertEquals(resultSet.map(l => collectDistinctGroupCount(l, 2)).sum, 4)
+    assertEquals(List("1,1,Hello world",
+      "1,1,Hello world, how are you?"),
+      RESULT1.toList)
+    assertEquals(List("4,4,你好，陌生人",
+      "4,4,你好，陌生人，我是",
+      "4,4,你好，陌生人，我是中国人",
+      "4,4,你好，陌生人，我是中国人，你来自哪里？"),
+      RESULT2.toList)
+    assertEquals(List("2,2,Hi",
+      "2,2,Hello",
+      "3,3,I'm fine, thank",
+      "3,3,I'm fine, thank you",
+      "3,3,I'm fine, thank you, and you?"),
+      RESULT3.toList)
   }
 
   @Test
@@ -108,10 +128,20 @@ class PartitionableSinkITCase extends BatchTestBase {
     tEnv.execute("testJob")
     // this sink should have been set up with static partitions
     assertEquals(testSink.getStaticPartitions.toMap, Map("a" -> "1"))
-    val resultSet = List(RESULT1, RESULT2, RESULT3)
-    val result = resultSet.filter(l => l.size() == 11)
-    assert(result.size == 1)
-    result.get(0).forall(r => r.getField(0).asInstanceOf[Int] == 1)
+    assertEquals(List("1,2,Hi",
+      "1,1,Hello world",
+      "1,2,Hello",
+      "1,1,Hello world, how are you?",
+      "1,3,I'm fine, thank",
+      "1,3,I'm fine, thank you",
+      "1,3,I'm fine, thank you, and you?",
+      "1,4,你好，陌生人",
+      "1,4,你好，陌生人，我是",
+      "1,4,你好，陌生人，我是中国人",
+      "1,4,你好，陌生人，我是中国人，你来自哪里？"),
+      RESULT1.toList)
+    assert(RESULT2.isEmpty)
+    assert(RESULT3.isEmpty)
   }
 
   @Test
@@ -121,42 +151,27 @@ class PartitionableSinkITCase extends BatchTestBase {
     tEnv.execute("testJob")
     // this sink should have been set up with static partitions
     assertEquals(testSink.getStaticPartitions.toMap, Map("a" -> "1"))
-    val resultSet = List(RESULT1, RESULT2, RESULT3)
-    resultSet.foreach(l => assertSortedByFirstNField(l, 2))
-    assertEquals(resultSet.map(l => collectDistinctGroupCount(l, 2)).sum, 4)
+    assertEquals(List("1,3,I'm fine, thank",
+      "1,3,I'm fine, thank you",
+      "1,3,I'm fine, thank you, and you?"),
+      RESULT1.toList)
+    assertEquals(List("1,2,Hi",
+      "1,2,Hello"),
+      RESULT2.toList)
+    assertEquals(List("1,1,Hello world",
+      "1,1,Hello world, how are you?",
+      "1,4,你好，陌生人",
+      "1,4,你好，陌生人，我是",
+      "1,4,你好，陌生人，我是中国人",
+      "1,4,你好，陌生人，我是中国人，你来自哪里？"),
+      RESULT3.toList)
   }
 
   @Test(expected = classOf[TableException])
   def testDynamicPartitionInFrontOfStaticPartition(): Unit = {
-    // Static partition column b should appear before dynamic partition a
     registerTableSink(grouping = true, partitionColumns = Array("a", "b"))
     tEnv.sqlUpdate("insert into sinkTable partition(b=1) select a, c from sortTable")
     tEnv.execute("testJob")
-  }
-
-  private def assertSortedByFirstNField(r: JLinkedList[Row], n: Int): Unit = {
-    val firstFields = r.map { r =>
-      val builder: StringBuilder = new StringBuilder
-      0 until n foreach(i => builder.append(r.getField(i)))
-      Integer.parseInt(builder.toString())
-    }
-    assertArrayEquals(firstFields.toArray, firstFields.sorted.toArray)
-  }
-
-  /**
-    * Collect the group cnt with the specified number of key fields.
-    * @param r the rows to group by
-    * @param n the number of grouping fields
-    * @return the group count of the rows
-    */
-  private def collectDistinctGroupCount(r: JLinkedList[Row], n: Int): Int = {
-    val groupSet = scala.collection.mutable.SortedSet[Int]()
-    r.foreach { r =>
-      val builder: StringBuilder = new StringBuilder
-      0 until n foreach(i => builder.append(r.getField(i)))
-      groupSet += Integer.parseInt(builder.toString())
-    }
-    groupSet.size
   }
 
   private def registerTableSink(grouping: Boolean,
@@ -206,20 +221,19 @@ class PartitionableSinkITCase extends BatchTestBase {
 }
 
 object PartitionableSinkITCase {
-  val RESULT1 = new JLinkedList[Row]()
-  val RESULT2 = new JLinkedList[Row]()
-  val RESULT3 = new JLinkedList[Row]()
-  val RESULT_QUEUE: LinkedBlockingQueue[JLinkedList[Row]] =
-    new LinkedBlockingQueue[JLinkedList[Row]]()
+  val RESULT1 = new JLinkedList[String]()
+  val RESULT2 = new JLinkedList[String]()
+  val RESULT3 = new JLinkedList[String]()
+  val RESULT_QUEUE: JList[JLinkedList[String]] = new JArrayList[JLinkedList[String]]()
 
   def init(): Unit = {
     RESULT1.clear()
     RESULT2.clear()
     RESULT3.clear()
     RESULT_QUEUE.clear()
-    RESULT_QUEUE.put(RESULT1)
-    RESULT_QUEUE.put(RESULT2)
-    RESULT_QUEUE.put(RESULT3)
+    RESULT_QUEUE.add(RESULT1)
+    RESULT_QUEUE.add(RESULT2)
+    RESULT_QUEUE.add(RESULT3)
   }
 
   /**
@@ -227,17 +241,16 @@ object PartitionableSinkITCase {
     */
   class UnsafeMemorySinkFunction(outputType: TypeInformation[Row])
     extends RichSinkFunction[Row] {
-    private var serializer: TypeSerializer[Row] = _
-    private var resultSet: JLinkedList[Row] = _
+    private var resultSet: JLinkedList[String] = _
 
     override def open(param: Configuration): Unit = {
-      serializer = outputType.createSerializer(new ExecutionConfig)
-      resultSet = RESULT_QUEUE.poll()
+      val taskId = getRuntimeContext.getIndexOfThisSubtask
+      resultSet = RESULT_QUEUE.get(taskId)
     }
 
     @throws[Exception]
     override def invoke(row: Row): Unit = {
-      resultSet.add(serializer.copy(row))
+      resultSet.add(row.toString)
     }
   }
 

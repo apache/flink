@@ -99,15 +99,12 @@ object PreValidateReWriter {
       case t: RelOptTable => t
       case _ => null
     }
-    def tester(idx: Integer): Boolean = {
-      !assignedFields.contains(idx)
-    }
     for (node <- partitions.getList) {
       val sqlProperty = node.asInstanceOf[SqlProperty]
       val id = sqlProperty.getKey
       val targetField = SqlValidatorUtil.getTargetField(targetRowType,
         typeFactory, id, calciteCatalogReader, relOptTable)
-      validateField(tester, id, targetField)
+      validateField(idx => !assignedFields.contains(idx), id, targetField)
       val value = sqlProperty.getValue.asInstanceOf[SqlLiteral]
       assignedFields.put(targetField.getIndex,
         maybeCast(value, value.createSqlType(typeFactory), targetField.getType, typeFactory))

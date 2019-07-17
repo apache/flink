@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.sinks
 
-import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.operations.{CatalogSinkModifyOperation, QueryOperation}
+import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.operations.QueryOperation
+
 import java.util.{List => JList}
 
 object TableSinkUtils {
@@ -61,6 +62,14 @@ object TableSinkUtils {
           s"${sinkPath} do not match.\n" +
           s"Query result schema: $srcSchema\n" +
           s"TableSink schema:    $sinkSchema")
+    }
+
+    sink match {
+      case partitionableSink: PartitionableTableSink
+        if partitionableSink.getPartitionFieldNames.size() > 0 =>
+        throw new TableException("Partitionable sink is not supported in Flink planner yet," +
+          " please use Blink planner.")
+      case _ =>
     }
   }
 }

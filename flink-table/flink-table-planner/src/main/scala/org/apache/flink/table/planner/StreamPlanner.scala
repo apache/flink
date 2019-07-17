@@ -161,11 +161,6 @@ class StreamPlanner(
         getTableSink(catalogSink.getTablePath)
           .map(sink => {
             TableSinkUtils.validateSink(catalogSink.getChild, catalogSink.getTablePath, sink)
-            sink match {
-              case partitionableSink: PartitionableTableSink =>
-                partitionableSink.setStaticPartition(catalogSink.getStaticPartitions)
-              case _ =>
-            }
             writeToSink(catalogSink.getChild, sink, unwrapQueryConfig)
           }) match {
           case Some(t) => t

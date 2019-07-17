@@ -45,14 +45,19 @@ class StreamExecSinkRule extends ConverterRule(
       case partitionSink: PartitionableTableSink
         if partitionSink.getPartitionFieldNames != null &&
           partitionSink.getPartitionFieldNames.nonEmpty =>
-        val partitionIndices = partitionSink
-          .getPartitionFieldNames
+        val partitionFields = partitionSink.getPartitionFieldNames
+        val partitionIndices = partitionFields
           .map(partitionSink.getTableSchema.getFieldNames.indexOf(_))
         // validate
         partitionIndices.foreach { idx =>
           if (idx < 0) {
-            throw new TableException("Partition fields must be in the schema.")
+            throw new TableException(s"Partitionable sink ${sinkNode.sinkName} field " +
+              s"${partitionFields.get(idx)} must be in the schema.")
           }
+        }
+
+        if (partitionSink.configurePartitionGrouping(false)) {
+          throw new TableException("Partition grouping in stream mode is not supported yet!")
         }
 
         if (!partitionSink.isInstanceOf[DataStreamTableSink[_]]) {
