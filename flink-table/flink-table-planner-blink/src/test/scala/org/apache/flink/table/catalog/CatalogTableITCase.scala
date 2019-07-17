@@ -34,9 +34,9 @@ import scala.collection.JavaConversions._
 
 /** Test cases for catalog table. */
 @RunWith(classOf[Parameterized])
-class CatalogTableITCase(isStreaming: Boolean) {
+class CatalogTableITCase(isStreamingMode: Boolean) {
 
-  private val settings = if (isStreaming) {
+  private val settings = if (isStreamingMode) {
     EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
   } else {
     EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
@@ -68,7 +68,7 @@ class CatalogTableITCase(isStreaming: Boolean) {
       .getConfiguration
       .setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
     TestCollectionTableFactory.reset()
-    TestCollectionTableFactory.isStreaming = isStreaming
+    TestCollectionTableFactory.isStreaming = isStreamingMode
   }
 
   def toRow(args: Any*):Row = {
@@ -216,7 +216,7 @@ class CatalogTableITCase(isStreaming: Boolean) {
 
   @Test
   def testInsertWithAggregateSource(): Unit = {
-    if (isStreaming) {
+    if (isStreamingMode) {
       return
     }
     val sourceData = List(

@@ -45,7 +45,7 @@ class StreamPlanner(
     config: TableConfig,
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager)
-  extends PlannerBase(executor, config, functionCatalog, catalogManager) {
+  extends PlannerBase(executor, config, functionCatalog, catalogManager, isStreamingMode = true) {
 
   override protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]] = {
     Array(

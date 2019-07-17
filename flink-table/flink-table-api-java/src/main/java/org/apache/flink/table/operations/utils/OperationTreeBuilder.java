@@ -122,15 +122,15 @@ public final class OperationTreeBuilder {
 	public static OperationTreeBuilder create(
 			FunctionLookup functionCatalog,
 			TableReferenceLookup tableReferenceLookup,
-			boolean isStreaming) {
+			boolean isStreamingMode) {
 		return new OperationTreeBuilder(
 			functionCatalog,
 			tableReferenceLookup,
 			new ProjectionOperationFactory(),
-			new SortOperationFactory(isStreaming),
+			new SortOperationFactory(isStreamingMode),
 			new CalculatedTableFactory(),
-			new SetOperationFactory(isStreaming),
-			new AggregateOperationFactory(isStreaming),
+			new SetOperationFactory(isStreamingMode),
+			new AggregateOperationFactory(isStreamingMode),
 			new JoinOperationFactory()
 		);
 	}

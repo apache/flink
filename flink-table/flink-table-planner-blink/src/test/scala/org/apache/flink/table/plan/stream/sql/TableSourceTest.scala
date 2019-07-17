@@ -20,8 +20,10 @@ package org.apache.flink.table.plan.stream.sql
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.api.{DataTypes, TableSchema, Types, ValidationException}
 import org.apache.flink.table.expressions.utils.Func1
+import org.apache.flink.table.sources.TableSource
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.util._
 import org.apache.flink.types.Row
 
@@ -31,10 +33,41 @@ class TableSourceTest extends TableTestBase {
 
   private val util = streamTestUtil()
 
+  private val tableSchema = TableSchema.builder().fields(
+    Array("a", "b", "c"),
+    Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
+
   @Before
   def setup(): Unit = {
     util.tableEnv.registerTableSource("FilterableTable", TestFilterableTableSource(false))
     util.tableEnv.registerTableSource("PartitionableTable", new TestPartitionableTableSource(false))
+  }
+
+  @Test
+  def testBoundedStreamTableSource(): Unit = {
+    util.tableEnv.registerTableSource("MyTable", new TestTableSource(true, tableSchema))
+    util.verifyPlan("SELECT * FROM MyTable")
+  }
+
+  @Test
+  def testUnboundedStreamTableSource(): Unit = {
+    util.tableEnv.registerTableSource("MyTable", new TestTableSource(false, tableSchema))
+    util.verifyPlan("SELECT * FROM MyTable")
+  }
+
+  @Test
+  def testNonStreamTableSource(): Unit = {
+    val tableSource = new TableSource[Row]() {
+
+      override def getProducedDataType: DataType = tableSchema.toRowDataType
+
+      override def getTableSchema: TableSchema = tableSchema
+    }
+    util.tableEnv.registerTableSource("MyTable", tableSource)
+    thrown.expect(classOf[ValidationException])
+    thrown.expectMessage(
+      "Only StreamTableSource and LookupableTableSource can be used in Blink planner.")
+    util.verifyPlan("SELECT * FROM MyTable")
   }
 
   @Test
@@ -347,7 +380,7 @@ class TableSourceTest extends TableTestBase {
     row.setField(3, DateTimeTestUtil.localDateTime("2017-01-24 12:45:01.234"))
 
     val tableSource = TestFilterableTableSource(
-      isBatch = false, rowTypeInfo, Seq(row), Set("dv", "tv", "tsv"))
+      isBounded = false, rowTypeInfo, Seq(row), Set("dv", "tv", "tsv"))
     util.tableEnv.registerTableSource("FilterableTable1", tableSource)
 
     val sqlQuery =

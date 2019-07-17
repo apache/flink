@@ -45,8 +45,8 @@ public class ShuffleStageGeneratorTest extends MockNodeTestBase {
 
 	private Map<ExecNode<?, ?>, Integer> finalParallelismNodeMap;
 
-	public ShuffleStageGeneratorTest(boolean isBatch) {
-		super(isBatch);
+	public ShuffleStageGeneratorTest(boolean isBatchMode) {
+		super(isBatchMode);
 	}
 
 	@Before
@@ -313,7 +313,7 @@ public class ShuffleStageGeneratorTest extends MockNodeTestBase {
 		}
 	}
 
-	@Parameterized.Parameters(name = "isBatch = {0}")
+	@Parameterized.Parameters(name = "isBatchMode = {0}")
 	public static Collection<Object[]> runMode() {
 		return Arrays.asList(
 				new Object[] { false, },

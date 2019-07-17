@@ -125,7 +125,7 @@ class PushPartitionIntoTableSourceScanRule extends RelOptRule(
       FlinkStatistic.builder().statistic(statistic).tableStats(null).build()
     }
     val newTableSourceTable = new TableSourceTable(
-      newTableSource, tableSourceTable.isStreaming, newStatistic)
+      newTableSource, tableSourceTable.isStreamingMode, newStatistic)
    val newRelOptTable = relOptTable.copy(newTableSourceTable, relOptTable.getRowType)
 
     val newScan = new LogicalTableScan(scan.getCluster, scan.getTraitSet, newRelOptTable)
