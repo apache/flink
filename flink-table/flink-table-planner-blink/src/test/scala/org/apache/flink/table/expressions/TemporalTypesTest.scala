@@ -642,16 +642,52 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testSqlApi("FROM_UNIXTIME(cast(NUll as bigInt))", nullable)
 
+    testSqlApi("TO_DATE(cast(NUll as varchar))", nullable)
+
+    testSqlApi("TO_TIMESTAMP_TZ(cast(NUll as varchar), 'Asia/Shanghai')", nullable)
+
+    testSqlApi(
+      "DATE_FORMAT_TZ(cast(NUll as timestamp), 'yyyy/MM/dd HH:mm:ss', 'Asia/Shanghai')",
+      nullable)
+  }
+
+  @Test
+  def testInvalidInputCase(): Unit = {
+    val invalidStr = "invalid value"
+    testSqlApi(s"DATE_FORMAT('$invalidStr', 'yyyy/MM/dd HH:mm:ss')", nullable)
+    testSqlApi(s"TO_TIMESTAMP('$invalidStr', 'yyyy-mm-dd')", nullable)
+    testSqlApi(s"TO_DATE('$invalidStr')", nullable)
+    testSqlApi(s"TO_TIMESTAMP_TZ('$invalidStr', 'Asia/Shanghai')", nullable)
+    testSqlApi(
+      s"CONVERT_TZ('$invalidStr', 'yyyy-MM-dd HH:mm:ss', 'UTC', 'Asia/Shanghai')",
+      nullable)
+  }
+
+  @Test
+  def testTypeInferenceWithInvalidInput(): Unit = {
+    val invalidStr = "invalid value"
+    val cases = Seq(
+      s"DATE_FORMAT('$invalidStr', 'yyyy/MM/dd HH:mm:ss')",
+      s"TO_TIMESTAMP('$invalidStr', 'yyyy-mm-dd')",
+      s"TO_DATE('$invalidStr')",
+      s"TO_TIMESTAMP_TZ('$invalidStr', 'Asia/Shanghai')",
+      s"CONVERT_TZ('$invalidStr', 'yyyy-MM-dd HH:mm:ss', 'UTC', 'Asia/Shanghai')")
+
+    cases.foreach {
+      caseExpr =>
+        testSqlApi(
+          s"CASE WHEN ($caseExpr) is null THEN '$nullable' ELSE '$notNullable' END", nullable)
+    }
   }
 
   @Test
   def testTimeZoneFunction(): Unit = {
     testSqlApi("TO_TIMESTAMP_TZ('2018-03-14 11:00:00', 'Asia/Shanghai')", "2018-03-14 03:00:00.000")
     testSqlApi("TO_TIMESTAMP_TZ('2018-03-14 11:00:00', 'yyyy-MM-dd HH:mm:ss', 'Asia/Shanghai')",
-      "2018-03-14 03:00:00.000")
+               "2018-03-14 03:00:00.000")
 
     testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'yyyy-MM-dd HH:mm:ss', 'UTC', 'Asia/Shanghai')",
-      "2018-03-14 19:00:00")
+               "2018-03-14 19:00:00")
 
     testSqlApi("TO_TIMESTAMP_TZ(f14, 'UTC')", "null")
 
@@ -660,7 +696,6 @@ class TemporalTypesTest extends ExpressionTestBase {
     // TODO: it is would be better to report the error at compiling stage. timezone/format codegen
     testSqlApi("TO_TIMESTAMP_TZ('2018-03-14 11:00:00', 'invalid_tz')", "2018-03-14 11:00:00.000")
   }
-
 
   // ----------------------------------------------------------------------------------------------
 
