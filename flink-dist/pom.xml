@@ -351,7 +351,6 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-python_${scala.binary.version}</artifactId>
-			<classifier>java-binding</classifier>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
