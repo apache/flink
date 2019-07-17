@@ -59,6 +59,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -247,7 +248,7 @@ public class SourceStreamTaskTest {
 				BasicTypeInfo.STRING_TYPE_INFO);
 
 		final CompletableFuture<Void> operatorRunningWaitingFuture = new CompletableFuture<>();
-		ExceptionThrowingSource.setIsInRunLoop(operatorRunningWaitingFuture);
+		ExceptionThrowingSource.setIsInRunLoopFuture(operatorRunningWaitingFuture);
 
 		testHarness.setupOutputForSingletonOperatorChain();
 		StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -281,7 +282,7 @@ public class SourceStreamTaskTest {
 				BasicTypeInfo.STRING_TYPE_INFO);
 
 		final CompletableFuture<Void> operatorRunningWaitingFuture = new CompletableFuture<>();
-		ExceptionThrowingSource.setIsInRunLoop(operatorRunningWaitingFuture);
+		ExceptionThrowingSource.setIsInRunLoopFuture(operatorRunningWaitingFuture);
 
 		testHarness.setupOutputForSingletonOperatorChain();
 		StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -487,12 +488,14 @@ public class SourceStreamTaskTest {
 			}
 		}
 
-		public static void setIsInRunLoop(@Nonnull final CompletableFuture<Void> waitingLatch) {
+		public static void setIsInRunLoopFuture(@Nonnull final CompletableFuture<Void> waitingLatch) {
 			ExceptionThrowingSource.isInRunLoop = waitingLatch;
 		}
 
 		@Override
 		public void run(SourceContext<String> ctx) throws TestException {
+			checkState(isInRunLoop != null && !isInRunLoop.isDone());
+
 			while (running) {
 				if (!isInRunLoop.isDone()) {
 					isInRunLoop.complete(null);
@@ -505,7 +508,6 @@ public class SourceStreamTaskTest {
 
 		@Override
 		public void cancel() {
-			System.out.println("SETTING TO " + isInRunLoop);
 			running = false;
 		}
 	}
