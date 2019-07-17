@@ -721,7 +721,7 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   private def throwError(msg: String, next: Input): Nothing = {
     val improvedMsg = msg.replace("string matching regex `\\z'", "End of expression")
 
-    throw ExpressionParserException(
+    throw new ExpressionParserException(
       s"""Could not parse expression at column ${next.pos.column}: $improvedMsg
         |${next.pos.longString}""".stripMargin)
   }
