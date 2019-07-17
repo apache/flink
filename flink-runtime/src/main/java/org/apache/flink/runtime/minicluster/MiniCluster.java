@@ -93,7 +93,8 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -125,7 +126,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	private final Time rpcTimeout;
 
 	@GuardedBy("lock")
-	private final List<TaskExecutor> taskManagers;
+	private final Map<ResourceID, TaskExecutor> taskManagers;
 
 	private final TerminatingFatalErrorHandlerFactory taskManagerTerminatingFatalErrorHandlerFactory = new TerminatingFatalErrorHandlerFactory();
 
@@ -198,7 +199,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		this.terminationFuture = CompletableFuture.completedFuture(null);
 		running = false;
 
-		this.taskManagers = new ArrayList<>(miniClusterConfiguration.getNumTaskManagers());
+		this.taskManagers = new HashMap<>(miniClusterConfiguration.getNumTaskManagers());
 	}
 
 	public CompletableFuture<URI> getRestAddress() {
@@ -228,6 +229,18 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		synchronized (lock) {
 			return Collections.unmodifiableCollection(dispatcherResourceManagerComponents);
 		}
+	}
+
+	@VisibleForTesting
+	@Nonnull
+	protected Map<ResourceID, TaskExecutor> getTaskManagers() {
+		return taskManagers;
+	}
+
+	@VisibleForTesting
+	@Nonnull
+	protected Object getManipulationLock() {
+		return lock;
 	}
 
 	// ------------------------------------------------------------------------
@@ -485,23 +498,26 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	}
 
 	@VisibleForTesting
-	void startTaskExecutor() throws Exception {
+	ResourceID startTaskExecutor() throws Exception {
 		synchronized (lock) {
 			final Configuration configuration = miniClusterConfiguration.getConfiguration();
 
+			final ResourceID resourceID = new ResourceID(UUID.randomUUID().toString());
 			final TaskExecutor taskExecutor = TaskManagerRunner.startTaskManager(
 				configuration,
-				new ResourceID(UUID.randomUUID().toString()),
+				resourceID,
 				taskManagerRpcServiceFactory.createRpcService(),
 				haServices,
 				heartbeatServices,
 				metricRegistry,
 				blobCacheService,
 				useLocalCommunication(),
-				taskManagerTerminatingFatalErrorHandlerFactory.create(taskManagers.size()));
+				taskManagerTerminatingFatalErrorHandlerFactory.create(resourceID));
 
+			taskManagers.put(resourceID, taskExecutor);
 			taskExecutor.start();
-			taskManagers.add(taskExecutor);
+
+			return resourceID;
 		}
 	}
 
@@ -510,23 +526,16 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		return miniClusterConfiguration.getNumTaskManagers() == 1;
 	}
 
+	@VisibleForTesting
 	@GuardedBy("lock")
-	private Collection<? extends CompletableFuture<Void>> terminateTaskExecutors() {
+	protected Collection<? extends CompletableFuture<Void>> terminateTaskExecutors() {
 		final Collection<CompletableFuture<Void>> terminationFutures = new ArrayList<>(taskManagers.size());
-		for (int i = 0; i < taskManagers.size(); i++) {
-			terminationFutures.add(terminateTaskExecutor(i));
+		for (TaskExecutor taskExecutor : taskManagers.values()) {
+			terminationFutures.add(taskExecutor.closeAsync());
 		}
+		taskManagers.clear();
 
 		return terminationFutures;
-	}
-
-	@VisibleForTesting
-	@Nonnull
-	protected CompletableFuture<Void> terminateTaskExecutor(int index) {
-		synchronized (lock) {
-			final TaskExecutor taskExecutor = taskManagers.get(index);
-			return taskExecutor.closeAsync();
-		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -744,6 +753,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		for (DispatcherResourceManagerComponent<?> dispatcherResourceManagerComponent : dispatcherResourceManagerComponents) {
 			terminationFutures.add(dispatcherResourceManagerComponent.closeAsync());
 		}
+		dispatcherResourceManagerComponents.clear();
 
 		final FutureUtils.ConjunctFuture<Void> dispatcherTerminationFuture = FutureUtils.completeAll(terminationFutures);
 
@@ -921,20 +931,24 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 	private class TerminatingFatalErrorHandler implements FatalErrorHandler {
 
-		private final int index;
+		private final ResourceID resourceID;
 
-		private TerminatingFatalErrorHandler(int index) {
-			this.index = index;
+		private TerminatingFatalErrorHandler(ResourceID resourceID) {
+			this.resourceID = resourceID;
 		}
 
 		@Override
 		public void onFatalError(Throwable exception) {
 			// first check if we are still running
 			if (running) {
-				LOG.error("TaskManager #{} failed.", index, exception);
+				LOG.error("TaskManager {} failed.", resourceID, exception);
 
 				synchronized (lock) {
-					taskManagers.get(index).closeAsync();
+					final TaskExecutor taskExecutor = taskManagers.remove(resourceID);
+					if (taskExecutor != null) {
+						taskExecutor.closeAsync();
+					}
+					// else means task execution has already been shut down
 				}
 			}
 		}
@@ -953,14 +967,14 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 		/**
 		 * Create a new {@link TerminatingFatalErrorHandler} for the {@link TaskExecutor} with
-		 * the given index.
+		 * the given resource id.
 		 *
-		 * @param index into the {@link #taskManagers} collection to identify the correct {@link TaskExecutor}.
+		 * @param resourceID the unique id to identify the {@link TaskExecutor}.
 		 * @return {@link TerminatingFatalErrorHandler} for the given index
 		 */
 		@GuardedBy("lock")
-		private TerminatingFatalErrorHandler create(int index) {
-			return new TerminatingFatalErrorHandler(index);
+		private TerminatingFatalErrorHandler create(ResourceID resourceID) {
+			return new TerminatingFatalErrorHandler(resourceID);
 		}
 	}
 }

@@ -95,7 +95,7 @@ public class TaskExecutorITCase extends TestLogger {
 		final CompletableFuture<JobResult> jobResultFuture = submitJobAndWaitUntilRunning(jobGraph);
 
 		// kill one TaskExecutor which should fail the job execution
-		miniCluster.terminateTaskExecutor(0);
+		miniCluster.terminateAndRemoveTaskExecutor(0);
 
 		final JobResult jobResult = jobResultFuture.get();
 
@@ -122,7 +122,7 @@ public class TaskExecutorITCase extends TestLogger {
 		// start an additional TaskExecutor
 		miniCluster.startTaskExecutor();
 
-		miniCluster.terminateTaskExecutor(0).get(); // this should fail the job
+		miniCluster.terminateAndRemoveTaskExecutor(0).get(); // this should fail the job
 
 		BlockingOperator.unblock();
 
