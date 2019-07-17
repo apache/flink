@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.hashtable;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.SeekableDataInputView;
@@ -245,9 +246,10 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 		return iterator;
 	}
 
-//	public MatchIterator get(long key) {
-//		return get(key, hashLong(key, recursionLevel));
-//	}
+	@VisibleForTesting
+	public MatchIterator get(long key) {
+		return get(key, hashLong(key, recursionLevel));
+	}
 
 	/**
 	 * Returns an iterator for all the values for the given key, or null if no value found.
@@ -651,6 +653,11 @@ public class LongHashPartition extends AbstractPagedInputView implements Seekabl
 			longTable.returnAll(Arrays.asList(buckets));
 			buckets = null;
 		}
+	}
+
+	@VisibleForTesting
+	public void append(long key, BinaryRow row) throws IOException {
+		insertIntoTable(key, hashLong(key, recursionLevel), row);
 	}
 
 	// ------------------ PagedInputView for read end --------------------
