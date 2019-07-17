@@ -42,6 +42,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
@@ -244,13 +246,16 @@ public class SourceStreamTaskTest {
 				SourceStreamTask::new,
 				BasicTypeInfo.STRING_TYPE_INFO);
 
+		final CompletableFuture<Void> waitingLatch = new CompletableFuture<>();
+		ExceptionThrowingSource.setIsInRunLoop(waitingLatch);
+
 		testHarness.setupOutputForSingletonOperatorChain();
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		streamConfig.setStreamOperator(new StreamSource<>(new ExceptionThrowingSource()));
 		streamConfig.setOperatorID(new OperatorID());
 
 		testHarness.invoke();
-		ExceptionThrowingSource.isInRunLoop.get();
+		waitingLatch.get();
 		testHarness.getTask().cancel();
 
 		Optional<ExceptionThrowingSource.TestException> testException = Optional.empty();
@@ -275,13 +280,16 @@ public class SourceStreamTaskTest {
 				SourceStreamTask::new,
 				BasicTypeInfo.STRING_TYPE_INFO);
 
+		final CompletableFuture<Void> waitingLatch = new CompletableFuture<>();
+		ExceptionThrowingSource.setIsInRunLoop(waitingLatch);
+
 		testHarness.setupOutputForSingletonOperatorChain();
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		streamConfig.setStreamOperator(new StreamSource<>(new ExceptionThrowingSource()));
 		streamConfig.setOperatorID(new OperatorID());
 
 		testHarness.invoke();
-		ExceptionThrowingSource.isInRunLoop.get();
+		waitingLatch.get();
 		testHarness.getTask().finishTask();
 
 		testHarness.waitForTaskCompletion();
@@ -469,13 +477,18 @@ public class SourceStreamTaskTest {
 	 */
 	private static class ExceptionThrowingSource implements SourceFunction<String> {
 
+		private static volatile CompletableFuture<Void> isInRunLoop;
+
 		private volatile boolean running = true;
-		static CompletableFuture<Void> isInRunLoop = new CompletableFuture<>();
 
 		public static class TestException extends RuntimeException {
 			public TestException(String message) {
 				super(message);
 			}
+		}
+
+		public static void setIsInRunLoop(@Nonnull final CompletableFuture<Void> waitingLatch) {
+			ExceptionThrowingSource.isInRunLoop = waitingLatch;
 		}
 
 		@Override
@@ -492,6 +505,7 @@ public class SourceStreamTaskTest {
 
 		@Override
 		public void cancel() {
+			System.out.println("SETTING TO " + isInRunLoop);
 			running = false;
 		}
 	}
