@@ -117,11 +117,6 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		sourceThread.start();
 		sourceThread.getCompletionFuture().whenComplete((Void ignore, Throwable sourceThreadThrowable) -> {
 			if (sourceThreadThrowable == null || isFinished) {
-
-				// the isFinished is only set in the case of SYNC_SAVEPOINT. In this case, the final savepoint is
-				// already completed, so we do not risk the POISON_PILL to overpass the savepoint barrier and lead
-				// to a deadlock.
-
 				mailboxProcessor.allActionsCompleted();
 			} else {
 				mailboxProcessor.reportThrowable(sourceThreadThrowable);
