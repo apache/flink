@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
-import org.apache.flink.table.api.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil;
 

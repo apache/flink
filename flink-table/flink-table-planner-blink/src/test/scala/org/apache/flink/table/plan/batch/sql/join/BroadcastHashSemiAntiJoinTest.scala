@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.plan.batch.sql.join
 
-import org.apache.flink.table.api.{OptimizerConfigOptions, ExecutionConfigOptions, TableException}
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.api.TableException
 
 import org.junit.{Before, Test}
 

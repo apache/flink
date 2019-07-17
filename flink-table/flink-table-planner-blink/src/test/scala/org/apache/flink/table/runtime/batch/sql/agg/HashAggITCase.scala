@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.runtime.batch.sql.agg
 
-import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.ExecutionConfigOptions
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 
 /**
   * AggregateITCase using HashAgg Operator.

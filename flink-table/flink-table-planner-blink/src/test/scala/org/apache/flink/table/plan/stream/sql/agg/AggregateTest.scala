@@ -20,8 +20,9 @@ package org.apache.flink.table.plan.stream.sql.agg
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{ExecutionConfigOptions, TableException, Types, ValidationException}
+import org.apache.flink.table.api.{TableException, Types, ValidationException}
 import org.apache.flink.table.typeutils.DecimalTypeInfo
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 

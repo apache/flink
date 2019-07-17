@@ -26,7 +26,8 @@ import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import org.apache.flink.table.api.{ExecutionConfigOptions, TableConfig, TableException, TableSchema, ValidationException}
+import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.{TableConfig, TableSchema, ValidationException}
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.runtime.batch.sql.PartitionableSinkITCase._
 import org.apache.flink.table.runtime.utils.BatchTestBase
@@ -35,6 +36,7 @@ import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.sinks.{PartitionableTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.types.Row
+
 import org.apache.calcite.config.Lex
 import org.apache.calcite.sql.parser.SqlParser
 import org.junit.Assert._

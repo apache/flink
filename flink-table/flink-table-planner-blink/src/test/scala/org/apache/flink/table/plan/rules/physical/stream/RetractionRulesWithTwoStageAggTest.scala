@@ -20,8 +20,8 @@ package org.apache.flink.table.plan.rules.physical.stream
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.OptimizerConfigOptions
 import org.apache.flink.table.util.{AggregatePhaseStrategy, TableTestBase}
 
 import org.junit.{Before, Test}

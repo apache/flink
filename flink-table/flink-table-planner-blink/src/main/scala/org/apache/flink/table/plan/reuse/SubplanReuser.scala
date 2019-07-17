@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.plan.reuse
 
-import org.apache.flink.table.api.{OptimizerConfigOptions, TableConfig, TableException}
+import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableSourceScan
 import org.apache.flink.table.plan.nodes.physical.PhysicalTableSourceScan

@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.plan.rules.physical.batch
 
-import org.apache.flink.table.api.{OptimizerConfigOptions, TableConfig, TableException}
+import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
