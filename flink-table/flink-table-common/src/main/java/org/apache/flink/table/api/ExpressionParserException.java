@@ -16,35 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api
+package org.apache.flink.table.api;
 
 /**
-  * Exception for adding an already existent table
-  *
-  * @param catalog    catalog name
-  * @param table      table name
-  * @param cause      the cause
-  */
-case class TableAlreadyExistException(
-    catalog: String,
-    table: String,
-    cause: Throwable)
-    extends RuntimeException(s"Table $catalog.$table already exists.", cause) {
+ * Exception for all errors occurring during expression parsing.
+ */
+public class ExpressionParserException extends RuntimeException {
 
-  def this(catalog: String, table: String) = this(catalog, table, null)
-
-}
-
-/**
-  * Exception for adding an already existent catalog
-  *
-  * @param catalog catalog name
-  * @param cause the cause
-  */
-case class CatalogAlreadyExistException(
-    catalog: String,
-    cause: Throwable)
-    extends RuntimeException(s"Catalog $catalog already exists.", cause) {
-
-  def this(catalog: String) = this(catalog, null)
+	public ExpressionParserException(String msg) {
+		super(msg);
+	}
 }
