@@ -50,6 +50,12 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	private volatile boolean externallyInducedCheckpoints;
 
+	/**
+	 * Indicates whether this Task was purposefully finished (by finishTask()), in this case we
+	 * want to ignore exceptions thrown after finishing, to ensure shutdown works smoothly.
+	 */
+	private volatile boolean isFinished = false;
+
 	public SourceStreamTask(Environment env) {
 		super(env);
 	}
@@ -110,7 +116,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 		final LegacySourceFunctionThread sourceThread = new LegacySourceFunctionThread(getName());
 		sourceThread.start();
 		sourceThread.getCompletionFuture().whenComplete((Void ignore, Throwable sourceThreadThrowable) -> {
-			if (sourceThreadThrowable == null) {
+			if (sourceThreadThrowable == null || isFinished) {
 				mailboxProcessor.allActionsCompleted();
 			} else {
 				mailboxProcessor.reportThrowable(sourceThreadThrowable);
@@ -127,10 +133,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	@Override
 	protected void finishTask() throws Exception {
-		// We tell the mailbox to finish, to prevent any exceptions that might occur during
-		// finishing from leading to a FAILED state. This could happen, for example, when cancelling
-		// sources as part of a "stop-with-savepoint".
-		mailboxProcessor.allActionsCompleted();
+		isFinished = true;
 		cancelTask();
 	}
 
