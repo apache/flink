@@ -25,9 +25,8 @@ import java.util.Set;
 /**
  *  This helps keep track of the shuffle descriptors of a job, and we only collect BLOCKING_PERSISTENT type for now.
  *  IntermediateResultDescriptor will be created when a job finishes and sent back to ExecutionEnvironment.
- *  ExecutionEnvironment also have an instance of IntermediateResultDescriptor, the mergeDescriptor method will be called
- *  when an IntermediateResultDescriptor is sent back to ExecutionEnvironment, so the ExecutionEnvironment can keep all the
- *  IntermediateResultDescriptors which created by its submitted jobs.
+ *  ExecutionEnvironment also have an instance of IntermediateResultDescriptor for combining all the returned IntermediateResultDescriptor,
+ *  so the ExecutionEnvironment can keep all the IntermediateResultDescriptors which created by its submitted jobs.
  *  As for InteractiveProgramming, the Planner can check the shuffle result existence for a sub-tree and decide whether to reuse the shuffle result.
  *
  *  @param <IR> Type for identify an intermediate result.
@@ -50,12 +49,4 @@ public interface IntermediateResultDescriptor<IR, DESC> extends Serializable {
 	 * @return incomplete IntermediateDataSets
 	 */
 	Set<IR> getIncompleteIntermediateDataSets();
-
-	/**
-	 * Merge another Descriptor, this helps to combine other intermediate descriptors that created by other job.
-	 * The implementation should add other IntermediateResultDescriptions and IncompleteIntermediateDataSets to itself.
-	 *
-	 * @param other the other IntermediateResultDescriptor created by some other job.
-	 */
-	void mergeDescriptor(IntermediateResultDescriptor<IR, DESC> other);
 }

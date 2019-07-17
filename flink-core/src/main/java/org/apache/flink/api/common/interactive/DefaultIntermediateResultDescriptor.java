@@ -63,10 +63,4 @@ public class DefaultIntermediateResultDescriptor
 	public Set<AbstractID> getIncompleteIntermediateDataSets() {
 		return incompleteIntermediateDataSetIds;
 	}
-
-	@Override
-	public void mergeDescriptor(IntermediateResultDescriptor<AbstractID, Map<AbstractID, SerializedValue<Object>>> newPersistentShuffleDescriptor) {
-		intermediateResultDescriptors.putAll(newPersistentShuffleDescriptor.getIntermediateResultDescriptions());
-		incompleteIntermediateDataSetIds.addAll(newPersistentShuffleDescriptor.getIncompleteIntermediateDataSets());
-	}
 }

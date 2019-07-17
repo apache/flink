@@ -823,9 +823,10 @@ public abstract class ExecutionEnvironment {
 	 */
 	public JobExecutionResult execute() throws Exception {
 		JobExecutionResult result =  execute(getDefaultName());
-		intermediateResultDescriptor.mergeDescriptor(
-			result.getIntermediateResultDescriptor()
-		);
+		intermediateResultDescriptor.getIntermediateResultDescriptions()
+			.putAll(result.getIntermediateResultDescriptor().getIntermediateResultDescriptions());
+		intermediateResultDescriptor.getIncompleteIntermediateDataSets()
+			.addAll(result.getIntermediateResultDescriptor().getIncompleteIntermediateDataSets());
 		return result;
 	}
 
