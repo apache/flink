@@ -478,29 +478,9 @@ public class CheckpointCoordinator {
 					throw new CheckpointException(CheckpointFailureReason.ALREADY_QUEUED);
 				}
 
-				// if too many checkpoints are currently in progress, we need to mark that a request is queued
-				if (pendingCheckpoints.size() >= maxConcurrentCheckpointAttempts) {
-					triggerRequestQueued = true;
-					if (currentPeriodicTrigger != null) {
-						currentPeriodicTrigger.cancel(false);
-						currentPeriodicTrigger = null;
-					}
-					throw new CheckpointException(CheckpointFailureReason.TOO_MANY_CONCURRENT_CHECKPOINTS);
-				}
+				checkConcurrentCheckpoints();
 
-				// make sure the minimum interval between checkpoints has passed
-				final long durationTillNextMillis = getDurationTillNextMillis();
-
-				if (durationTillNextMillis > 0) {
-					if (currentPeriodicTrigger != null) {
-						currentPeriodicTrigger.cancel(false);
-						currentPeriodicTrigger = null;
-					}
-					// Reassign the new trigger to the currentPeriodicTrigger
-					currentPeriodicTrigger = scheduleTriggerWithDelay(durationTillNextMillis);
-
-					throw new CheckpointException(CheckpointFailureReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS);
-				}
+				checkMinPauseBetweenCheckpoints();
 			}
 		}
 
@@ -620,29 +600,9 @@ public class CheckpointCoordinator {
 							throw new CheckpointException(CheckpointFailureReason.ALREADY_QUEUED);
 						}
 
-						if (pendingCheckpoints.size() >= maxConcurrentCheckpointAttempts) {
-							triggerRequestQueued = true;
-							if (currentPeriodicTrigger != null) {
-								currentPeriodicTrigger.cancel(false);
-								currentPeriodicTrigger = null;
-							}
-							throw new CheckpointException(CheckpointFailureReason.TOO_MANY_CONCURRENT_CHECKPOINTS);
-						}
+						checkConcurrentCheckpoints();
 
-						// make sure the minimum interval between checkpoints has passed
-						final long durationTillNextMillis = getDurationTillNextMillis();
-
-						if (durationTillNextMillis > 0) {
-							if (currentPeriodicTrigger != null) {
-								currentPeriodicTrigger.cancel(false);
-								currentPeriodicTrigger = null;
-							}
-
-							// Reassign the new trigger to the currentPeriodicTrigger
-							currentPeriodicTrigger = scheduleTriggerWithDelay(durationTillNextMillis);
-
-							throw new CheckpointException(CheckpointFailureReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS);
-						}
+						checkMinPauseBetweenCheckpoints();
 					}
 
 					LOG.info("Triggering checkpoint {} @ {} for job {}.", checkpointID, timestamp, job);
@@ -1244,9 +1204,7 @@ public class CheckpointCoordinator {
 			stopCheckpointScheduler();
 
 			periodicScheduling = true;
-			long initialDelay = ThreadLocalRandom.current().nextLong(
-				minPauseBetweenCheckpointsNanos / 1_000_000L, baseInterval + 1L);
-			currentPeriodicTrigger = scheduleTriggerWithDelay(initialDelay);
+			currentPeriodicTrigger = scheduleTriggerWithDelay(getRandomInitDelay());
 		}
 	}
 
@@ -1267,29 +1225,10 @@ public class CheckpointCoordinator {
 	}
 
 	/**
-	 * Aborts all the pending checkpoints and check whether {@code currentPeriodicTrigger} has been assigned as null.
-	 * If so, we would create a new trigger as {@code currentPeriodicTrigger}.
-	 *
-	 * @param exception The exception.
-	 */
-	public void abortPendingCheckpointsWithTriggerValidation(CheckpointException exception) {
-		synchronized (lock) {
-			abortPendingCheckpoints(exception);
-
-			// after abort checkpoints we would check whether currentPeriodicTrigger is null
-			triggerRequestQueued = false;
-			if (periodicScheduling && currentPeriodicTrigger == null) {
-				final long durationTillNextMillis = getDurationTillNextMillis();
-				currentPeriodicTrigger = scheduleTriggerWithDelay(durationTillNextMillis);
-			}
-		}
-	}
-
-	/**
 	 * Aborts all the pending checkpoints due to en exception.
 	 * @param exception The exception.
 	 */
-	private void abortPendingCheckpoints(CheckpointException exception) {
+	public void abortPendingCheckpoints(CheckpointException exception) {
 		synchronized (lock) {
 			for (PendingCheckpoint p : pendingCheckpoints.values()) {
 				failPendingCheckpoint(p, exception.getCheckpointFailureReason());
@@ -1299,15 +1238,52 @@ public class CheckpointCoordinator {
 		}
 	}
 
-	private ScheduledFuture<?> scheduleTriggerWithDelay(long durationTillNextMillis) {
-		return timer.scheduleAtFixedRate(
-			new ScheduledTrigger(),
-			durationTillNextMillis, baseInterval, TimeUnit.MILLISECONDS);
+	/**
+	 * If too many checkpoints are currently in progress, we need to mark that a request is queued
+	 *
+	 * @throws CheckpointException If too many checkpoints are currently in progress.
+	 */
+	private void checkConcurrentCheckpoints() throws CheckpointException {
+		if (pendingCheckpoints.size() >= maxConcurrentCheckpointAttempts) {
+			triggerRequestQueued = true;
+			if (currentPeriodicTrigger != null) {
+				currentPeriodicTrigger.cancel(false);
+				currentPeriodicTrigger = null;
+			}
+			throw new CheckpointException(CheckpointFailureReason.TOO_MANY_CONCURRENT_CHECKPOINTS);
+		}
 	}
 
-	private long getDurationTillNextMillis() {
+	/**
+	 * Make sure the minimum interval between checkpoints has passed
+	 *
+	 * @throws CheckpointException If the minimum interval between checkpoints has not passed.
+	 */
+	private void checkMinPauseBetweenCheckpoints() throws CheckpointException {
 		final long earliestNext = lastCheckpointCompletionNanos + minPauseBetweenCheckpointsNanos;
-		return (earliestNext - System.nanoTime()) / 1_000_000;
+		final long durationTillNextMillis = (earliestNext - System.nanoTime()) / 1_000_000;
+
+		if (durationTillNextMillis > 0) {
+			if (currentPeriodicTrigger != null) {
+				currentPeriodicTrigger.cancel(false);
+				currentPeriodicTrigger = null;
+			}
+			// Reassign the new trigger to the currentPeriodicTrigger
+			currentPeriodicTrigger = scheduleTriggerWithDelay(durationTillNextMillis);
+
+			throw new CheckpointException(CheckpointFailureReason.MINIMUM_TIME_BETWEEN_CHECKPOINTS);
+		}
+	}
+
+	private long getRandomInitDelay() {
+		return ThreadLocalRandom.current().nextLong(
+			minPauseBetweenCheckpointsNanos / 1_000_000L, baseInterval + 1L);
+	}
+
+	private ScheduledFuture<?> scheduleTriggerWithDelay(long initDelay) {
+		return timer.scheduleAtFixedRate(
+			new ScheduledTrigger(),
+			initDelay, baseInterval, TimeUnit.MILLISECONDS);
 	}
 
 	// ------------------------------------------------------------------------
@@ -1417,6 +1393,13 @@ public class CheckpointCoordinator {
 	}
 
 	private void failPendingCheckpoint(
+		final PendingCheckpoint pendingCheckpoint,
+		final CheckpointFailureReason reason) {
+
+		failPendingCheckpoint(pendingCheckpoint, reason, null);
+	}
+
+	private void failPendingCheckpoint(
 			final PendingCheckpoint pendingCheckpoint,
 			final CheckpointFailureReason reason,
 			final Throwable cause) {
@@ -1424,12 +1407,18 @@ public class CheckpointCoordinator {
 		CheckpointException exception = new CheckpointException(reason, cause);
 		pendingCheckpoint.abort(reason, cause);
 		failureManager.handleCheckpointException(exception, pendingCheckpoint.getCheckpointId());
+
+		if (!shutdown && periodicScheduling && currentPeriodicTrigger == null) {
+			synchronized (lock) {
+				if (pendingCheckpoints.isEmpty() || allPendingCheckpointsDiscarded()) {
+					triggerRequestQueued = false;
+					currentPeriodicTrigger = scheduleTriggerWithDelay(getRandomInitDelay());
+				}
+			}
+		}
 	}
 
-	private void failPendingCheckpoint(
-			final PendingCheckpoint pendingCheckpoint,
-			final CheckpointFailureReason reason) {
-
-		failPendingCheckpoint(pendingCheckpoint, reason, null);
+	private boolean allPendingCheckpointsDiscarded() {
+		return pendingCheckpoints.values().stream().allMatch(PendingCheckpoint::isDiscarded);
 	}
 }
