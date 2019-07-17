@@ -80,7 +80,9 @@ import java.util.stream.Collectors;
  */
 @Internal
 public class TableEnvironmentImpl implements TableEnvironment {
-
+	// Flag that tells if the TableSource/TableSink used in this environment is stream table source/sink,
+	// and this should always be true. This avoids too many hard code.
+	private static final boolean IS_STREAM_TABLE = true;
 	private final CatalogManager catalogManager;
 
 	private final String builtinCatalogName;
@@ -99,7 +101,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			Executor executor,
 			FunctionCatalog functionCatalog,
 			Planner planner,
-			boolean isStreaming) {
+			boolean isStreamingMode) {
 		this.catalogManager = catalogManager;
 		this.execEnv = executor;
 
@@ -117,7 +119,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 				Optional<CatalogQueryOperation> catalogTableOperation = scanInternal(path);
 				return catalogTableOperation.map(tableOperation -> new TableReferenceExpression(path, tableOperation));
 			},
-			isStreaming
+			isStreamingMode
 		);
 	}
 
@@ -144,7 +146,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			executor,
 			functionCatalog,
 			planner,
-			!settings.isBatchMode()
+			settings.isStreamingMode()
 		);
 	}
 
@@ -155,7 +157,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public Table fromTableSource(TableSource<?> source) {
-		return createTable(new TableSourceQueryOperation<>(source, false));
+		// only accept StreamTableSource and LookupableTableSource here
+		// TODO should add a validation, while StreamTableSource is in flink-table-api-java-bridge module now
+		return createTable(new TableSourceQueryOperation<>(source, !IS_STREAM_TABLE));
 	}
 
 	@Override
@@ -198,6 +202,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public void registerTableSource(String name, TableSource<?> tableSource) {
+		// only accept StreamTableSource and LookupableTableSource here
+		// TODO should add a validation, while StreamTableSource is in flink-table-api-java-bridge module now
 		registerTableSourceInternal(name, tableSource);
 	}
 
@@ -528,14 +534,14 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					replaceTableInternal(
 						name,
 						ConnectorCatalogTable
-							.sourceAndSink(tableSource, sourceSinkTable.getTableSink().get(), false));
+							.sourceAndSink(tableSource, sourceSinkTable.getTableSink().get(), !IS_STREAM_TABLE));
 				}
 			} else {
 				throw new ValidationException(String.format(
 					"Table '%s' already exists. Please choose a different name.", name));
 			}
 		} else {
-			registerTableInternal(name, ConnectorCatalogTable.source(tableSource, false));
+			registerTableInternal(name, ConnectorCatalogTable.source(tableSource, !IS_STREAM_TABLE));
 		}
 	}
 
@@ -553,14 +559,14 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					replaceTableInternal(
 						name,
 						ConnectorCatalogTable
-							.sourceAndSink(sourceSinkTable.getTableSource().get(), tableSink, false));
+							.sourceAndSink(sourceSinkTable.getTableSource().get(), tableSink, !IS_STREAM_TABLE));
 				}
 			} else {
 				throw new ValidationException(String.format(
 					"Table '%s' already exists. Please choose a different name.", name));
 			}
 		} else {
-			registerTableInternal(name, ConnectorCatalogTable.sink(tableSink, false));
+			registerTableInternal(name, ConnectorCatalogTable.sink(tableSink, !IS_STREAM_TABLE));
 		}
 	}
 

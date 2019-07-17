@@ -105,13 +105,13 @@ abstract class TableTestBase {
   }
 }
 
-abstract class TableTestUtilBase(test: TableTestBase, isBatch: Boolean) {
+abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) {
   protected lazy val diffRepository: DiffRepository = DiffRepository.lookup(test.getClass)
 
-  protected val setting: EnvironmentSettings = if (isBatch) {
-    EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
-  } else {
+  protected val setting: EnvironmentSettings = if (isStreamingMode) {
     EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+  } else {
+    EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
   }
 
   // a counter for unique table names
@@ -123,6 +123,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isBatch: Boolean) {
   }
 
   protected def getTableEnv: TableEnvironment
+
+  protected def isBounded: Boolean = !isStreamingMode
 
   def getPlanner: PlannerBase = {
     getTableEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
@@ -190,7 +192,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isBatch: Boolean) {
       FieldInfoUtils.getFieldsInfo(typeInfo, fields.toArray).toTableSchema
     }
 
-    addTableSource(name, new TestTableSource(isBatch, tableSchema))
+    addTableSource(name, new TestTableSource(isBounded, tableSchema))
   }
 
   /**
@@ -207,7 +209,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isBatch: Boolean) {
       types: Array[TypeInformation[_]],
       fields: Array[String]): Table = {
     val schema = new TableSchema(fields, types)
-    val tableSource = new TestTableSource(isBatch, schema)
+    val tableSource = new TestTableSource(isBounded, schema)
     addTableSource(name, tableSource)
   }
 
@@ -478,9 +480,10 @@ abstract class TableTestUtilBase(test: TableTestBase, isBatch: Boolean) {
 
 abstract class TableTestUtil(
     test: TableTestBase,
-    isBatch: Boolean,
+    // determines if the table environment should work in a batch or streaming mode
+    isStreamingMode: Boolean,
     catalogManager: Option[CatalogManager] = None)
-  extends TableTestUtilBase(test, isBatch) {
+  extends TableTestUtilBase(test, isStreamingMode) {
   protected val testingTableEnv: TestingTableEnvironment =
     TestingTableEnvironment.create(setting, catalogManager)
   val tableEnv: TableEnvironment = testingTableEnv
@@ -510,7 +513,7 @@ abstract class TableTestUtil(
       fields: Array[String],
       statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): Table = {
     val schema = new TableSchema(fields, types)
-    val tableSource = new TestTableSource(isBatch, schema)
+    val tableSource = new TestTableSource(isBounded, schema)
     addTableSource(name, tableSource, statistic)
   }
 
@@ -529,7 +532,7 @@ abstract class TableTestUtil(
     // TODO RichTableSourceQueryOperation should be deleted and use registerTableSource method
     //  instead of registerTable method here after unique key in TableSchema is ready
     //  and setting catalog statistic to TableSourceTable in DatabaseCalciteSchema is ready
-    val operation = new RichTableSourceQueryOperation(tableSource, isBatch, statistic)
+    val operation = new RichTableSourceQueryOperation(tableSource, statistic)
     val table = testingTableEnv.createTable(operation)
     testingTableEnv.registerTable(name, table)
     testingTableEnv.scan(name)
@@ -593,8 +596,8 @@ abstract class TableTestUtil(
 
 abstract class ScalaTableTestUtil(
     test: TableTestBase,
-    isBatch: Boolean)
-  extends TableTestUtilBase(test, isBatch) {
+    isStreamingMode: Boolean)
+  extends TableTestUtilBase(test, isStreamingMode) {
   // scala env
   val env = new ScalaStreamExecEnv(new LocalStreamEnvironment())
   env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
@@ -620,8 +623,8 @@ abstract class ScalaTableTestUtil(
 
 abstract class JavaTableTestUtil(
     test: TableTestBase,
-    isBatch: Boolean)
-  extends TableTestUtilBase(test, isBatch) {
+    isStreamingMode: Boolean)
+  extends TableTestUtilBase(test, isStreamingMode) {
   // java env
   val env = new LocalStreamEnvironment()
   env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
@@ -653,7 +656,7 @@ abstract class JavaTableTestUtil(
 case class StreamTableTestUtil(
     test: TableTestBase,
     catalogManager: Option[CatalogManager] = None)
-  extends TableTestUtil(test, false, catalogManager) {
+  extends TableTestUtil(test, isStreamingMode = true, catalogManager) {
 
   /**
     * Register a table with specific row time field and offset.
@@ -776,14 +779,13 @@ case class StreamTableTestUtil(
 /**
   * Utility for stream scala table test.
   */
-case class ScalaStreamTableTestUtil(test: TableTestBase) extends ScalaTableTestUtil(test, false) {
+case class ScalaStreamTableTestUtil(test: TableTestBase) extends ScalaTableTestUtil(test, true) {
 }
 
 /**
   * Utility for stream java table test.
   */
-case class JavaStreamTableTestUtil(test: TableTestBase) extends JavaTableTestUtil(test, false) {
-
+case class JavaStreamTableTestUtil(test: TableTestBase) extends JavaTableTestUtil(test, true) {
 }
 
 /**
@@ -792,7 +794,7 @@ case class JavaStreamTableTestUtil(test: TableTestBase) extends JavaTableTestUti
 case class BatchTableTestUtil(
     test: TableTestBase,
     catalogManager: Option[CatalogManager] = None)
-  extends TableTestUtil(test, true, catalogManager) {
+  extends TableTestUtil(test, isStreamingMode = false, catalogManager) {
 
   def buildBatchProgram(firstProgramNameToRemove: String): Unit = {
     val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig.getConfiguration)
@@ -835,25 +837,22 @@ case class BatchTableTestUtil(
 /**
   * Utility for batch scala table test.
   */
-case class ScalaBatchTableTestUtil(test: TableTestBase) extends ScalaTableTestUtil(test, true) {
+case class ScalaBatchTableTestUtil(test: TableTestBase) extends ScalaTableTestUtil(test, false) {
 }
 
 /**
   * Utility for batch java table test.
   */
-case class JavaBatchTableTestUtil(test: TableTestBase) extends JavaTableTestUtil(test, true) {
+case class JavaBatchTableTestUtil(test: TableTestBase) extends JavaTableTestUtil(test, false) {
 }
 
 /**
   * Batch/Stream [[org.apache.flink.table.sources.TableSource]] for testing.
   */
-class TestTableSource(isBatch: Boolean, schema: TableSchema)
+class TestTableSource(val isBounded: Boolean, schema: TableSchema)
   extends StreamTableSource[Row] {
 
-  override def isBounded: Boolean = isBatch
-
-  override def getDataStream(
-      execEnv: environment.StreamExecutionEnvironment): DataStream[Row] = {
+  override def getDataStream(execEnv: environment.StreamExecutionEnvironment): DataStream[Row] = {
     execEnv.fromCollection(List[Row](), getReturnType)
   }
 
@@ -871,14 +870,14 @@ class TestingTableEnvironment private(
     executor: Executor,
     functionCatalog: FunctionCatalog,
     planner: PlannerBase,
-    isStreaming: Boolean)
+    isStreamingMode: Boolean)
   extends TableEnvironmentImpl(
     catalogManager,
     tableConfig,
     executor,
     functionCatalog,
     planner,
-    isStreaming) {
+    isStreamingMode) {
 
   private val bufferedOperations: util.List[ModifyOperation] = new util.ArrayList[ModifyOperation]
 
@@ -1002,7 +1001,7 @@ object TestingTableEnvironment {
       .create(plannerProperties, executor, tableConfig, functionCatalog, catalogMgr)
       .asInstanceOf[PlannerBase]
     new TestingTableEnvironment(
-      catalogMgr, tableConfig, executor, functionCatalog, planner, !settings.isBatchMode)
+      catalogMgr, tableConfig, executor, functionCatalog, planner, settings.isStreamingMode)
   }
 }
 

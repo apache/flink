@@ -75,7 +75,7 @@ class StreamPlanner(
   functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
 
   private val internalSchema: CalciteSchema =
-    asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false))
+    asRootSchema(new CatalogManagerCalciteSchema(catalogManager, true))
 
   // temporary bridge between API and planner
   private val expressionBridge: ExpressionBridge[PlannerExpression] =

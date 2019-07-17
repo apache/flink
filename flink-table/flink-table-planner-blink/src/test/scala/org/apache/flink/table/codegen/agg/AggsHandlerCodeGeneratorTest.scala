@@ -28,7 +28,7 @@ import org.junit.{Assert, Test}
 
 import java.lang
 
-class AggsHandlerCodeGeneratorTest extends AggTestBase(isBatch = false) {
+class AggsHandlerCodeGeneratorTest extends AggTestBase(isBatchMode = false) {
 
   @Test
   def testAvg(): Unit = {

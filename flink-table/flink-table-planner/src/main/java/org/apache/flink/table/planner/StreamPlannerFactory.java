@@ -59,7 +59,7 @@ public final class StreamPlannerFactory implements PlannerFactory {
 	public Map<String, String> requiredContext() {
 		DescriptorProperties properties = new DescriptorProperties();
 
-		properties.putBoolean(EnvironmentSettings.BATCH_MODE, false);
+		properties.putBoolean(EnvironmentSettings.STREAMING_MODE, true);
 		return properties.asMap();
 	}
 

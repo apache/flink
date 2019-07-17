@@ -49,11 +49,11 @@ import java.util.stream.Stream;
 public class CatalogManagerCalciteSchema implements Schema {
 
 	private final CatalogManager catalogManager;
-	private boolean isBatch;
+	private boolean isStreamingMode;
 
-	public CatalogManagerCalciteSchema(CatalogManager catalogManager, boolean isBatch) {
+	public CatalogManagerCalciteSchema(CatalogManager catalogManager, boolean isStreamingMode) {
 		this.catalogManager = catalogManager;
-		this.isBatch = isBatch;
+		this.isStreamingMode = isStreamingMode;
 	}
 
 	@Override
@@ -89,11 +89,11 @@ public class CatalogManagerCalciteSchema implements Schema {
 	@Override
 	public Schema getSubSchema(String name) {
 		Optional<Schema> externalSchema = catalogManager.getExternalCatalog(name)
-			.map(externalCatalog -> new ExternalCatalogSchema(isBatch, name, externalCatalog));
+			.map(externalCatalog -> new ExternalCatalogSchema(isStreamingMode, name, externalCatalog));
 
 		return externalSchema.orElseGet(() ->
 			catalogManager.getCatalog(name)
-				.map(catalog -> new CatalogCalciteSchema(isBatch, name, catalog))
+				.map(catalog -> new CatalogCalciteSchema(isStreamingMode, name, catalog))
 				.orElse(null)
 		);
 	}

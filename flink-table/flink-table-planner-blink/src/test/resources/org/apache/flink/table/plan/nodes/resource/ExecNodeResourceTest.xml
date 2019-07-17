@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testConfigSourceParallelism[isBatch=false]">
+  <TestCase name="testConfigSourceParallelism[isBatchMode=false]">
     <Resource name="sql">
       <![CDATA[SELECT sum(a) as sum_a, c FROM table3 group by c order by c limit 2]]>
     </Resource>
@@ -32,7 +32,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testConfigSourceParallelism[isBatch=true]">
+  <TestCase name="testConfigSourceParallelism[isBatchMode=true]">
     <Resource name="sql">
       <![CDATA[SELECT sum(a) as sum_a, c FROM table3 group by c order by c limit 2]]>
     </Resource>
@@ -50,7 +50,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSortLimit[isBatch=false]">
+  <TestCase name="testSortLimit[isBatchMode=false]">
     <Resource name="sql">
       <![CDATA[SELECT sum(a) as sum_a, c FROM table3 group by c order by c limit 2]]>
     </Resource>
@@ -66,7 +66,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSourcePartitionMaxNum[isBatch=true]">
+  <TestCase name="testSourcePartitionMaxNum[isBatchMode=true]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM table3]]>
     </Resource>
@@ -76,7 +76,7 @@ TableSourceScan(table=[[default_catalog, default_database, table3, source: [Mock
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSortLimit[isBatch=true]">
+  <TestCase name="testSortLimit[isBatchMode=true]">
     <Resource name="sql">
       <![CDATA[SELECT sum(a) as sum_a, c FROM table3 group by c order by c limit 2]]>
     </Resource>
@@ -94,7 +94,7 @@ Calc(select=[sum_a, c], resource=[{parallelism=1}])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testUnionQuery[isBatch=true]">
+  <TestCase name="testUnionQuery[isBatchMode=true]">
     <Resource name="sql">
       <![CDATA[SELECT sum(a) as sum_a, g FROM (SELECT a, b, c FROM table3 UNION ALL SELECT a, b, c FROM table4), table5 WHERE b = e group by g]]>
     </Resource>
@@ -118,7 +118,7 @@ Calc(select=[sum_a, g], resource=[{parallelism=18}])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSourcePartitionMaxNum[isBatch=false]">
+  <TestCase name="testSourcePartitionMaxNum[isBatchMode=false]">
     <Resource name="sql">
       <![CDATA[SELECT * FROM table3]]>
     </Resource>
@@ -128,7 +128,7 @@ TableSourceScan(table=[[default_catalog, default_database, table3, source: [Mock
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testUnionQuery[isBatch=false]">
+  <TestCase name="testUnionQuery[isBatchMode=false]">
     <Resource name="sql">
       <![CDATA[SELECT sum(a) as sum_a, g FROM (SELECT a, b, c FROM table3 UNION ALL SELECT a, b, c FROM table4), table5 WHERE b = e group by g]]>
     </Resource>

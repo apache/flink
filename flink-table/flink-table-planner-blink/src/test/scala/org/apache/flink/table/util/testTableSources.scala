@@ -132,7 +132,7 @@ object TestTableSources {
 }
 
 class TestTableSourceWithTime[T](
-    isBatch: Boolean,
+    val isBounded: Boolean,
     tableSchema: TableSchema,
     returnType: TypeInformation[T],
     values: Seq[T],
@@ -143,8 +143,6 @@ class TestTableSourceWithTime[T](
   with DefinedRowtimeAttributes
   with DefinedProctimeAttribute
   with DefinedFieldMapping {
-
-  override def isBounded: Boolean = isBatch
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[T] = {
     val dataStream = execEnv.fromCollection(values, returnType)
@@ -206,7 +204,7 @@ class TestPreserveWMTableSource[T](
 }
 
 class TestProjectableTableSource(
-    isBatch: Boolean,
+    isBounded: Boolean,
     tableSchema: TableSchema,
     returnType: TypeInformation[Row],
     values: Seq[Row],
@@ -214,7 +212,7 @@ class TestProjectableTableSource(
     proctime: String = null,
     fieldMapping: Map[String, String] = null)
   extends TestTableSourceWithTime[Row](
-    isBatch,
+    isBounded,
     tableSchema,
     returnType,
     values,
@@ -256,7 +254,7 @@ class TestProjectableTableSource(
     }
 
     new TestProjectableTableSource(
-      isBatch,
+      isBounded,
       newTableSchema,
       projectedReturnType,
       projectedValues,
@@ -272,14 +270,14 @@ class TestProjectableTableSource(
 }
 
 class TestNestedProjectableTableSource(
-    isBatch: Boolean,
+    isBounded: Boolean,
     tableSchema: TableSchema,
     returnType: TypeInformation[Row],
     values: Seq[Row],
     rowtime: String = null,
     proctime: String = null)
   extends TestTableSourceWithTime[Row](
-    isBatch,
+    isBounded,
     tableSchema,
     returnType,
     values,
@@ -316,7 +314,7 @@ class TestNestedProjectableTableSource(
     }
 
     val copy = new TestNestedProjectableTableSource(
-      isBatch,
+      isBounded,
       newTableSchema,
       projectedReturnType,
       projectedValues,
@@ -336,7 +334,7 @@ class TestNestedProjectableTableSource(
   * A data source that implements some very basic filtering in-memory in order to test
   * expression push-down logic.
   *
-  * @param isBatch whether this is a bounded source
+  * @param isBounded whether this is a bounded source
   * @param rowTypeInfo The type info for the rows.
   * @param data The data that filtering is applied to in order to get the final dataset.
   * @param filterableFields The fields that are allowed to be filtered.
@@ -344,7 +342,7 @@ class TestNestedProjectableTableSource(
   * @param filterPushedDown Whether predicates have been pushed down yet.
   */
 class TestFilterableTableSource(
-    isBatch: Boolean,
+    val isBounded: Boolean,
     rowTypeInfo: RowTypeInfo,
     data: Seq[Row],
     filterableFields: Set[String] = Set(),
@@ -356,8 +354,6 @@ class TestFilterableTableSource(
   val fieldNames: Array[String] = rowTypeInfo.getFieldNames
 
   val fieldTypes: Array[TypeInformation[_]] = rowTypeInfo.getFieldTypes
-
-  override def isBounded: Boolean = isBatch
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
     execEnv.fromCollection[Row](applyPredicatesToRows(data).asJava, getReturnType)
@@ -386,7 +382,7 @@ class TestFilterableTableSource(
     }
 
     new TestFilterableTableSource(
-      isBatch,
+      isBounded,
       rowTypeInfo,
       data,
       filterableFields,
@@ -496,14 +492,14 @@ object TestFilterableTableSource {
   /**
     * @return The default filterable table source.
     */
-  def apply(isBatch: Boolean): TestFilterableTableSource = {
-    apply(isBatch, defaultTypeInfo, defaultRows, defaultFilterableFields)
+  def apply(isBounded: Boolean): TestFilterableTableSource = {
+    apply(isBounded, defaultTypeInfo, defaultRows, defaultFilterableFields)
   }
 
   /**
     * A filterable data source with custom data.
     *
-    * @param isBatch whether this is a bounded source
+    * @param isBounded whether this is a bounded source
     * @param rowTypeInfo The type of the data. Its expected that both types and field
     *                    names are provided.
     * @param rows The data as a sequence of rows.
@@ -511,11 +507,11 @@ object TestFilterableTableSource {
     * @return The table source.
     */
   def apply(
-      isBatch: Boolean,
+      isBounded: Boolean,
       rowTypeInfo: RowTypeInfo,
       rows: Seq[Row],
       filterableFields: Set[String]): TestFilterableTableSource = {
-    new TestFilterableTableSource(isBatch, rowTypeInfo, rows, filterableFields)
+    new TestFilterableTableSource(isBounded, rowTypeInfo, rows, filterableFields)
   }
 
   private lazy val defaultFilterableFields = Set("amount")

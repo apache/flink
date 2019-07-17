@@ -39,37 +39,37 @@ object ExternalTableUtil extends Logging {
     * @param externalTable the [[ExternalCatalogTable]] instance which to convert
     * @return converted [[TableSourceTable]] instance from the input catalog table
     */
-  def fromExternalCatalogTable[T](isBatch: Boolean, externalTable: ExternalCatalogTable)
+  def fromExternalCatalogTable[T](isStreamingMode: Boolean, externalTable: ExternalCatalogTable)
     : Option[TableSourceTable[T]] = {
 
     val statistics = new FlinkStatistic(toScala(externalTable.getTableStats))
 
     if (externalTable.isTableSource) {
-      Some(createTableSource(isBatch, externalTable, statistics))
+      Some(createTableSource(isStreamingMode, externalTable, statistics))
     } else {
       None
     }
   }
 
   private def createTableSource[T](
-      isBatch: Boolean,
+      isStreamingMode: Boolean,
       externalTable: ExternalCatalogTable,
       statistics: FlinkStatistic)
     : TableSourceTable[T] = {
-    val source = if (isModeCompatibleWithTable(isBatch, externalTable)) {
+    val source = if (isModeCompatibleWithTable(isStreamingMode, externalTable)) {
       TableFactoryUtil.findAndCreateTableSource(externalTable)
     } else {
       throw new ValidationException(
         "External catalog table does not support the current environment for a table source.")
     }
 
-    new TableSourceTable[T](source.asInstanceOf[TableSource[T]], !isBatch, statistics)
+    new TableSourceTable[T](source.asInstanceOf[TableSource[T]], isStreamingMode, statistics)
   }
 
   private def isModeCompatibleWithTable[T](
-      isBatch: Boolean,
+      isStreamingMode: Boolean,
       externalTable: ExternalCatalogTable)
     : Boolean = {
-    isBatch && externalTable.isBatchTable || !isBatch && externalTable.isStreamTable
+    !isStreamingMode && externalTable.isBatchTable || isStreamingMode && externalTable.isStreamTable
   }
 }

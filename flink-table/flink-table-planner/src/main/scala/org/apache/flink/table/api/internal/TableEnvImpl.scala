@@ -85,21 +85,23 @@ abstract class TableEnvImpl(
   private[flink] val operationTreeBuilder = OperationTreeBuilder.create(
     functionCatalog,
     tableLookup,
-    !isBatch)
+    isStreamingMode)
 
   protected val planningConfigurationBuilder: PlanningConfigurationBuilder =
     new PlanningConfigurationBuilder(
       config,
       functionCatalog,
-      asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isBatch)),
+      asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
       expressionBridge)
 
   def getConfig: TableConfig = config
 
-  private def isBatch: Boolean = this match {
-    case _: BatchTableEnvImpl => true
-    case _ => false
+  private def isStreamingMode: Boolean = this match {
+    case _: BatchTableEnvImpl => false
+    case _ => true
   }
+
+  private def isBatchTable: Boolean = !isStreamingMode
 
   override def registerExternalCatalog(name: String, externalCatalog: ExternalCatalog): Unit = {
     catalogManager.registerExternalCatalog(name, externalCatalog)
@@ -237,7 +239,7 @@ abstract class TableEnvImpl(
   }
 
   override def fromTableSource(source: TableSource[_]): Table = {
-    createTable(new TableSourceQueryOperation(source, isBatch))
+    createTable(new TableSourceQueryOperation(source, isBatchTable))
   }
 
   /**
@@ -276,12 +278,12 @@ abstract class TableEnvImpl(
           replaceTableInternal(
             name,
             ConnectorCatalogTable
-              .sourceAndSink(tableSource, table.getTableSink.get, isBatch))
+              .sourceAndSink(tableSource, table.getTableSink.get, isBatchTable))
         }
 
       // no table is registered
       case _ =>
-        registerTableInternal(name, ConnectorCatalogTable.source(tableSource, isBatch))
+        registerTableInternal(name, ConnectorCatalogTable.source(tableSource, isBatchTable))
     }
   }
 
@@ -303,12 +305,12 @@ abstract class TableEnvImpl(
           replaceTableInternal(
             name,
             ConnectorCatalogTable
-              .sourceAndSink(table.getTableSource.get, tableSink, isBatch))
+              .sourceAndSink(table.getTableSource.get, tableSink, isBatchTable))
         }
 
       // no table is registered
       case _ =>
-        registerTableInternal(name, ConnectorCatalogTable.sink(tableSink, isBatch))
+        registerTableInternal(name, ConnectorCatalogTable.sink(tableSink, isBatchTable))
     }
   }
 

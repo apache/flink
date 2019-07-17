@@ -53,10 +53,10 @@ import static org.mockito.Mockito.when;
 public class MockNodeTestBase {
 
 	protected List<ExecNode> nodeList;
-	private final boolean isBatch;
+	private final boolean isBatchMode;
 
-	public MockNodeTestBase(boolean isBatch) {
-		this.isBatch = isBatch;
+	public MockNodeTestBase(boolean isBatchMode) {
+		this.isBatchMode = isBatchMode;
 	}
 
 	private void updateNode(int index, ExecNode<?, ?> node) {
@@ -90,25 +90,25 @@ public class MockNodeTestBase {
 	}
 
 	protected ExecNode<?, ?> updateCalc(int index) {
-		ExecNode<?, ?> node = isBatch ? mock(BatchExecCalc.class) : mock(StreamExecCalc.class);
+		ExecNode<?, ?> node = isBatchMode ? mock(BatchExecCalc.class) : mock(StreamExecCalc.class);
 		updateNode(index, node);
 		return node;
 	}
 
 	protected ExecNode<?, ?> updateValues(int index) {
-		ExecNode<?, ?> node = isBatch ? mock(BatchExecValues.class) : mock(StreamExecValues.class);
+		ExecNode<?, ?> node = isBatchMode ? mock(BatchExecValues.class) : mock(StreamExecValues.class);
 		updateNode(index, node);
 		return node;
 	}
 
 	protected ExecNode<?, ?> updateUnion(int index) {
-		ExecNode<?, ?> node = isBatch ? mock(BatchExecUnion.class) : mock(StreamExecUnion.class);
+		ExecNode<?, ?> node = isBatchMode ? mock(BatchExecUnion.class) : mock(StreamExecUnion.class);
 		updateNode(index, node);
 		return node;
 	}
 
 	protected ExecNode<?, ?> updateExchange(int index) {
-		ExecNode<?, ?> node = isBatch ? mock(BatchExecExchange.class, RETURNS_DEEP_STUBS) :
+		ExecNode<?, ?> node = isBatchMode ? mock(BatchExecExchange.class, RETURNS_DEEP_STUBS) :
 				mock(StreamExecExchange.class, RETURNS_DEEP_STUBS);
 		updateNode(index, node);
 		return node;
@@ -116,7 +116,7 @@ public class MockNodeTestBase {
 
 	protected ExecNode<?, ?> updateExchange(int index, RelDistribution.Type type) {
 		ExecNode<?, ?> node = updateExchange(index);
-		if (isBatch) {
+		if (isBatchMode) {
 			when(((BatchExecExchange) node).getDistribution().getType()).thenReturn(type);
 		} else {
 			when(((StreamExecExchange) node).getDistribution().getType()).thenReturn(type);
@@ -125,14 +125,14 @@ public class MockNodeTestBase {
 	}
 
 	protected ExecNode<?, ?> updateTableSource(int index) {
-		ExecNode<?, ?> node = isBatch ? mock(BatchExecTableSourceScan.class) : mock(StreamExecTableSourceScan.class);
+		ExecNode<?, ?> node = isBatchMode ? mock(BatchExecTableSourceScan.class) : mock(StreamExecTableSourceScan.class);
 		updateNode(index, node);
 		return node;
 	}
 
 	protected ExecNode<?, ?> updateTableSource(int index, int maxParallelism) {
 		ExecNode<?, ?> node = updateTableSource(index);
-		if (isBatch) {
+		if (isBatchMode) {
 			when(((BatchExecTableSourceScan) node).getSourceTransformation(any()).getMaxParallelism()).thenReturn(maxParallelism);
 		} else {
 			when(((StreamExecTableSourceScan) node).getSourceTransformation(any()).getMaxParallelism()).thenReturn(maxParallelism);
@@ -141,14 +141,14 @@ public class MockNodeTestBase {
 	}
 
 	protected ExecNode<?, ?> updateStreamScan(int index) {
-		ExecNode<?, ?> node = isBatch ? mock(BatchExecBoundedStreamScan.class) : mock(StreamExecDataStreamScan.class);
+		ExecNode<?, ?> node = isBatchMode ? mock(BatchExecBoundedStreamScan.class) : mock(StreamExecDataStreamScan.class);
 		updateNode(index, node);
 		return node;
 	}
 
 	protected ExecNode<?, ?> updateStreamScan(int index, int parallelism) {
 		ExecNode<?, ?> node = updateStreamScan(index);
-		if (isBatch) {
+		if (isBatchMode) {
 			when(((BatchExecBoundedStreamScan) nodeList.get(4)).getSourceTransformation().getParallelism()).thenReturn(parallelism);
 		} else {
 			when(((StreamExecDataStreamScan) nodeList.get(4)).getSourceTransformation().getParallelism()).thenReturn(parallelism);
@@ -159,7 +159,7 @@ public class MockNodeTestBase {
 	protected void createNodeList(int num) {
 		nodeList = new LinkedList<>();
 		for (int i = 0; i < num; i++) {
-			ExecNode<?, ?>  node = isBatch ? mock(BatchExecCalc.class) : mock(StreamExecCalc.class);
+			ExecNode<?, ?>  node = isBatchMode ? mock(BatchExecCalc.class) : mock(StreamExecCalc.class);
 			when(node.getInputNodes()).thenReturn(new ArrayList<>());
 			when(node.getResource()).thenReturn(new NodeResource());
 			when(node.toString()).thenReturn("id: " + i);

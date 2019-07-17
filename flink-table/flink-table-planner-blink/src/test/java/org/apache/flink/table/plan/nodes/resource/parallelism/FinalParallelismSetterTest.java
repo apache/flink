@@ -44,8 +44,8 @@ public class FinalParallelismSetterTest extends MockNodeTestBase {
 
 	private StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 
-	public FinalParallelismSetterTest(boolean isBatch) {
-		super(isBatch);
+	public FinalParallelismSetterTest(boolean isBatchMode) {
+		super(isBatchMode);
 	}
 
 	@Before
@@ -108,7 +108,7 @@ public class FinalParallelismSetterTest extends MockNodeTestBase {
 		assertEquals(1, finalParallelismNodeMap.get(nodeList.get(7)).intValue());
 	}
 
-	@Parameterized.Parameters(name = "isBatch = {0}")
+	@Parameterized.Parameters(name = "isBatchMode = {0}")
 	public static Collection<Object[]> runMode() {
 		return Arrays.asList(
 				new Object[] { false, },

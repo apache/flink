@@ -41,12 +41,12 @@ import java.util.Set;
 @Internal
 public class CatalogCalciteSchema implements Schema {
 
-	private final boolean isBatch;
+	private final boolean isStreamingMode;
 	private final String catalogName;
 	private final Catalog catalog;
 
-	public CatalogCalciteSchema(boolean isBatch, String catalogName, Catalog catalog) {
-		this.isBatch = isBatch;
+	public CatalogCalciteSchema(boolean isStreamingMode, String catalogName, Catalog catalog) {
+		this.isStreamingMode = isStreamingMode;
 		this.catalogName = catalogName;
 		this.catalog = catalog;
 	}
@@ -61,7 +61,7 @@ public class CatalogCalciteSchema implements Schema {
 	public Schema getSubSchema(String schemaName) {
 
 		if (catalog.databaseExists(schemaName)) {
-			return new DatabaseCalciteSchema(isBatch, schemaName, catalogName, catalog);
+			return new DatabaseCalciteSchema(isStreamingMode, schemaName, catalogName, catalog);
 		} else {
 			return null;
 		}

@@ -49,10 +49,10 @@ public class BlinkExecutorFactory implements ExecutorFactory {
 	 * @return instance of a {@link Executor}
 	 */
 	public Executor create(Map<String, String> properties, StreamExecutionEnvironment executionEnvironment) {
-		if (Boolean.valueOf(properties.getOrDefault(EnvironmentSettings.BATCH_MODE, "false"))) {
-			return new BatchExecutor(executionEnvironment);
-		} else {
+		if (Boolean.valueOf(properties.getOrDefault(EnvironmentSettings.STREAMING_MODE, "true"))) {
 			return new StreamExecutor(executionEnvironment);
+		} else {
+			return new BatchExecutor(executionEnvironment);
 		}
 	}
 
@@ -69,7 +69,7 @@ public class BlinkExecutorFactory implements ExecutorFactory {
 
 	@Override
 	public List<String> supportedProperties() {
-		return Arrays.asList(EnvironmentSettings.BATCH_MODE, EnvironmentSettings.CLASS_NAME);
+		return Arrays.asList(EnvironmentSettings.STREAMING_MODE, EnvironmentSettings.CLASS_NAME);
 	}
 
 	@Override

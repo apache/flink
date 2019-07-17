@@ -39,10 +39,13 @@ public class CatalogCalciteSchema extends FlinkSchema {
 
 	private final String catalogName;
 	private final Catalog catalog;
+	// Flag that tells if the current planner should work in a batch or streaming mode.
+	private final boolean isStreamingMode;
 
-	public CatalogCalciteSchema(String catalogName, Catalog catalog) {
+	public CatalogCalciteSchema(String catalogName, Catalog catalog, boolean isStreamingMode) {
 		this.catalogName = catalogName;
 		this.catalog = catalog;
+		this.isStreamingMode = isStreamingMode;
 	}
 
 	/**
@@ -54,7 +57,7 @@ public class CatalogCalciteSchema extends FlinkSchema {
 	@Override
 	public Schema getSubSchema(String schemaName) {
 		if (catalog.databaseExists(schemaName)) {
-			return new DatabaseCalciteSchema(schemaName, catalogName, catalog);
+			return new DatabaseCalciteSchema(schemaName, catalogName, catalog, isStreamingMode);
 		} else {
 			return null;
 		}
