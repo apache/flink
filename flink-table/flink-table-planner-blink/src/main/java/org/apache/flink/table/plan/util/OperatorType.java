@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.util;
 
-import org.apache.flink.table.api.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 
 /**
  * Some dedicated operator type which is used in
