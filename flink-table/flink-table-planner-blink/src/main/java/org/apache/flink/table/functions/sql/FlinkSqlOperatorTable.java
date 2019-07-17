@@ -570,7 +570,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction DATE_FORMAT = new SqlFunction(
 		"DATE_FORMAT",
 		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.FORCE_NULLABLE),
 		InferTypes.RETURN_TYPE,
 		OperandTypes.or(
 			OperandTypes.sequence("'(TIMESTAMP, FORMAT)'",
@@ -792,7 +792,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction TO_TIMESTAMP = new SqlFunction(
 		"TO_TIMESTAMP",
 		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.TIMESTAMP), SqlTypeTransforms.TO_NULLABLE),
+		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.TIMESTAMP), SqlTypeTransforms.FORCE_NULLABLE),
 		null,
 		OperandTypes.or(
 			OperandTypes.family(SqlTypeFamily.NUMERIC),
@@ -811,7 +811,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction TO_DATE = new SqlFunction(
 		"TO_DATE",
 		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.DATE), SqlTypeTransforms.TO_NULLABLE),
+		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.DATE), SqlTypeTransforms.FORCE_NULLABLE),
 		null,
 		OperandTypes.or(
 			OperandTypes.family(SqlTypeFamily.NUMERIC),
@@ -822,7 +822,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction TO_TIMESTAMP_TZ = new SqlFunction(
 		"TO_TIMESTAMP_TZ",
 		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.TIMESTAMP), SqlTypeTransforms.TO_NULLABLE),
+		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.TIMESTAMP), SqlTypeTransforms.FORCE_NULLABLE),
 		null,
 		OperandTypes.or(
 			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING),
@@ -842,7 +842,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction CONVERT_TZ = new SqlFunction(
 		"CONVERT_TZ",
 		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.FORCE_NULLABLE),
 		null,
 		OperandTypes.or(
 			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
