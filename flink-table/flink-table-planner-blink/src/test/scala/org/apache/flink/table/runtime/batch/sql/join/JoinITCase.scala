@@ -22,7 +22,8 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO}
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
-import org.apache.flink.table.api.{ExecutionConfigOptions, Types}
+import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.expressions.utils.FuncWithOpen
 import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}

@@ -19,7 +19,7 @@ package org.apache.flink.table.runtime.utils
 
 import java.util
 import org.apache.flink.api.common.time.Time
-import org.apache.flink.table.api.OptimizerConfigOptions
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.runtime.utils.StreamingWithAggTestBase._
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}

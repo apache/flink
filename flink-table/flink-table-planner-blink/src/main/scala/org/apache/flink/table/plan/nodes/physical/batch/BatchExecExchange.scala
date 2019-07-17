@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.{PartitionTransformation, ShuffleMode}
 import org.apache.flink.streaming.runtime.partitioner.{BroadcastPartitioner, GlobalPartitioner, RebalancePartitioner}
-import org.apache.flink.table.api.ExecutionConfigOptions
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.{CodeGeneratorContext, HashCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow

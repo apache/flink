@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.runtime.batch.sql.join
 
-import org.apache.flink.table.api.{OptimizerConfigOptions, ExecutionConfigOptions, TableEnvironment}
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 
 /**

@@ -26,7 +26,8 @@ import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.common.typeinfo.Types.INSTANT
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{ExecutionConfigOptions, ValidationException}
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter, LocalDateTimeConverter}
 import org.apache.flink.table.dataformat.Decimal
 import org.apache.flink.table.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}

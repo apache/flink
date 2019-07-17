@@ -29,8 +29,8 @@ import java.util.Set;
 
 import scala.concurrent.duration.Duration;
 
-import static org.apache.flink.table.api.ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS;
-import static org.apache.flink.table.api.OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS;
+import static org.apache.flink.table.api.config.OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY;
 
 /**
  * Utility class for {@link TableConfig} related helper functions.

@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.batch.sql.join
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.ExecutionConfigOptions
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.runtime.batch.sql.join.JoinITCaseHelper.disableOtherJoinOpForJoin
 import org.apache.flink.table.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
 import org.apache.flink.table.runtime.utils.BatchTestBase

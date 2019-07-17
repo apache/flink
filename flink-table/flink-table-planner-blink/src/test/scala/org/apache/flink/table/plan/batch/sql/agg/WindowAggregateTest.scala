@@ -18,8 +18,9 @@
 package org.apache.flink.table.plan.batch.sql.agg
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{OptimizerConfigOptions, TableException, ValidationException}
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.util.{AggregatePhaseStrategy, CountAggFunction, TableTestBase}
 

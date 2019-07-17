@@ -25,7 +25,7 @@ import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.operators.sort.IndexedSorter;
 import org.apache.flink.runtime.operators.sort.QuickSort;
-import org.apache.flink.table.api.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.generated.NormalizedKeyComputer;
 import org.apache.flink.table.generated.RecordComparator;

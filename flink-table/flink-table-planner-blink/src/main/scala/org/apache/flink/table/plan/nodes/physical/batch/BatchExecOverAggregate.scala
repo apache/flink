@@ -22,7 +22,8 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.CalcitePair
-import org.apache.flink.table.api.{ExecutionConfigOptions, TableConfig}
+import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator

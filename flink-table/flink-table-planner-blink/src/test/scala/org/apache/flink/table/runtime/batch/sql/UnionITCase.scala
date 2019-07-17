@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.flink.table.api.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.dataformat.BinaryString.fromString
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.{binaryRow, row}

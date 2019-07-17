@@ -23,8 +23,9 @@ import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.transformations.ShuffleMode
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableImpl}
-import org.apache.flink.table.api.{EnvironmentSettings, ExecutionConfigOptions, SqlParserException, Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.api.{EnvironmentSettings, SqlParserException, Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.stats.FlinkStatistic

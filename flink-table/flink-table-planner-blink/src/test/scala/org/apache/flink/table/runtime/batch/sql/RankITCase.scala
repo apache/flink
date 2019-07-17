@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.flink.table.api.ExecutionConfigOptions
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._

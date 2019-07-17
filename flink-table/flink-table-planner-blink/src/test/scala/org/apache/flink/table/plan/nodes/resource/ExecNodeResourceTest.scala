@@ -24,7 +24,8 @@ import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.environment
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory
 import org.apache.flink.streaming.api.transformations.{SinkTransformation, SourceTransformation}
-import org.apache.flink.table.api.{ExecutionConfigOptions, TableConfig, TableSchema, Types}
+import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.{TableConfig, TableSchema, Types}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
 import org.apache.flink.table.sinks.{AppendStreamTableSink, StreamTableSink, TableSink}

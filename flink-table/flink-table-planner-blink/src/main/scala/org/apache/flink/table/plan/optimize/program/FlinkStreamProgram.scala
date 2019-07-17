@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.optimize.program
 
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.table.api.OptimizerConfigOptions
+import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.rules.{FlinkBatchRuleSets, FlinkStreamRuleSets}
 
