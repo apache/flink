@@ -32,7 +32,9 @@ case class Abs(child: PlannerExpression) extends UnaryExpression {
 }
 
 case class Ceil(child: PlannerExpression) extends UnaryExpression {
-  override private[flink] def resultType: TypeInformation[_] = LONG_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = {
+    ReturnTypeInference.inferCeil(this)
+  }
 
   override private[flink] def validateInput(): ValidationResult =
     TypeInfoCheckUtils.assertNumericExpr(child.resultType, "Ceil")
@@ -50,7 +52,9 @@ case class Exp(child: PlannerExpression) extends UnaryExpression with InputTypeS
 
 
 case class Floor(child: PlannerExpression) extends UnaryExpression {
-  override private[flink] def resultType: TypeInformation[_] = LONG_TYPE_INFO
+  override private[flink] def resultType: TypeInformation[_] = {
+    ReturnTypeInference.inferFloor(this)
+  }
 
   override private[flink] def validateInput(): ValidationResult =
     TypeInfoCheckUtils.assertNumericExpr(child.resultType, "Floor")
@@ -258,7 +262,9 @@ case class Sign(child: PlannerExpression) extends UnaryExpression {
 
 case class Round(left: PlannerExpression, right: PlannerExpression)
   extends BinaryExpression {
-  override private[flink] def resultType: TypeInformation[_] = left.resultType
+  override private[flink] def resultType: TypeInformation[_] = {
+    ReturnTypeInference.inferRound(this)
+  }
 
   override private[flink] def validateInput(): ValidationResult = {
     if (!TypeInfoCheckUtils.isInteger(right.resultType)) {

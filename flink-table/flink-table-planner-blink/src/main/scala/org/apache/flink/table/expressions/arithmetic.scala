@@ -17,10 +17,10 @@
  */
 package org.apache.flink.table.expressions
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.{fromLogicalTypeToTypeInfo, fromTypeInfoToLogicalType}
-import org.apache.flink.table.typeutils.{DecimalTypeInfo, TypeCoercion}
+import org.apache.flink.table.typeutils.TypeCoercion
 import org.apache.flink.table.typeutils.TypeInfoCheckUtils._
 import org.apache.flink.table.validate._
 
@@ -71,6 +71,10 @@ case class Plus(left: PlannerExpression, right: PlannerExpression) extends Binar
         s"but was '$left' : '${left.resultType}' and '$right' : '${right.resultType}'.")
     }
   }
+
+  override private[flink] def resultType: TypeInformation[_] = {
+    ReturnTypeInference.inferPlus(this)
+  }
 }
 
 case class UnaryMinus(child: PlannerExpression) extends UnaryExpression {
@@ -111,6 +115,10 @@ case class Minus(left: PlannerExpression, right: PlannerExpression) extends Bina
         s"but was '$left' : '${left.resultType}' and '$right' : '${right.resultType}'.")
     }
   }
+
+  override private[flink] def resultType: TypeInformation[_] = {
+    ReturnTypeInference.inferMinus(this)
+  }
 }
 
 case class Div(left: PlannerExpression, right: PlannerExpression) extends BinaryArithmetic {
@@ -118,17 +126,20 @@ case class Div(left: PlannerExpression, right: PlannerExpression) extends Binary
 
   private[flink] val sqlOperator = FlinkSqlOperatorTable.DIVIDE
 
-  override private[flink] def resultType: TypeInformation[_] =
-    super.resultType match {
-      case dt: DecimalTypeInfo => dt
-      case _ => BasicTypeInfo.DOUBLE_TYPE_INFO
-    }
+  override private[flink] def resultType: TypeInformation[_] = {
+    ReturnTypeInference.inferDiv(this)
+  }
+
 }
 
 case class Mul(left: PlannerExpression, right: PlannerExpression) extends BinaryArithmetic {
   override def toString = s"($left * $right)"
 
   private[flink] val sqlOperator = FlinkSqlOperatorTable.MULTIPLY
+
+  override private[flink] def resultType: TypeInformation[_] = {
+    ReturnTypeInference.inferMul(this)
+  }
 }
 
 case class Mod(left: PlannerExpression, right: PlannerExpression) extends BinaryArithmetic {

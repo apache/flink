@@ -25,7 +25,7 @@ import org.apache.flink.table.expressions.{E => PlannerE, UUID => PlannerUUID}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{CHAR, DECIMAL, SYMBOL, TIMESTAMP_WITHOUT_TIME_ZONE}
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks._
-import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
+import org.apache.flink.table.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 
 import _root_.scala.collection.JavaConverters._
 
@@ -53,14 +53,14 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
         assert(children.size == 2)
         return Cast(
           children.head.accept(this),
-          fromDataTypeToLegacyInfo(
+          fromDataTypeToTypeInfo(
             children(1).asInstanceOf[TypeLiteralExpression].getOutputDataType))
 
       case REINTERPRET_CAST =>
         assert(children.size == 3)
         Reinterpret(
           children.head.accept(this),
-          fromDataTypeToLegacyInfo(
+          fromDataTypeToTypeInfo(
             children(1).asInstanceOf[TypeLiteralExpression].getOutputDataType),
           getValue[Boolean](children(2).accept(this)))
 
@@ -749,7 +749,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       }
     }
 
-    fromDataTypeToLegacyInfo(literal.getOutputDataType)
+    fromDataTypeToTypeInfo(literal.getOutputDataType)
   }
 
   private def getSymbol(symbol: TableSymbol): PlannerSymbol = symbol match {
@@ -786,7 +786,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
   override def visit(fieldReference: FieldReferenceExpression): PlannerExpression = {
     PlannerResolvedFieldReference(
       fieldReference.getName,
-      fromDataTypeToLegacyInfo(fieldReference.getOutputDataType))
+      fromDataTypeToTypeInfo(fieldReference.getOutputDataType))
   }
 
   override def visit(fieldReference: UnresolvedReferenceExpression)
@@ -834,7 +834,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
   private def translateWindowReference(reference: Expression): PlannerExpression = reference match {
     case expr : LocalReferenceExpression =>
-      WindowReference(expr.getName, Some(fromDataTypeToLegacyInfo(expr.getOutputDataType)))
+      WindowReference(expr.getName, Some(fromDataTypeToTypeInfo(expr.getOutputDataType)))
     //just because how the datastream is converted to table
     case expr: UnresolvedReferenceExpression =>
       UnresolvedFieldReference(expr.getName)

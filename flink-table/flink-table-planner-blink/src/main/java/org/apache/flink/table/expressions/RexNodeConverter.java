@@ -368,16 +368,24 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
 	private RexNode convertNotBetween(List<Expression> children) {
 		List<RexNode> childrenRexNode = convertCallChildren(children);
+		Preconditions.checkArgument(childrenRexNode.size() == 3);
+		RexNode expr = childrenRexNode.get(0);
+		RexNode lowerBound = childrenRexNode.get(1);
+		RexNode upperBound = childrenRexNode.get(2);
 		return relBuilder.or(
-				relBuilder.call(FlinkSqlOperatorTable.LESS_THAN, childrenRexNode),
-				relBuilder.call(FlinkSqlOperatorTable.GREATER_THAN, childrenRexNode));
+				relBuilder.call(FlinkSqlOperatorTable.LESS_THAN, expr, lowerBound),
+				relBuilder.call(FlinkSqlOperatorTable.GREATER_THAN, expr, upperBound));
 	}
 
 	private RexNode convertBetween(List<Expression> children) {
 		List<RexNode> childrenRexNode = convertCallChildren(children);
+		Preconditions.checkArgument(childrenRexNode.size() == 3);
+		RexNode expr = childrenRexNode.get(0);
+		RexNode lowerBound = childrenRexNode.get(1);
+		RexNode upperBound = childrenRexNode.get(2);
 		return relBuilder.and(
-				relBuilder.call(FlinkSqlOperatorTable.GREATER_THAN_OR_EQUAL, childrenRexNode),
-				relBuilder.call(FlinkSqlOperatorTable.LESS_THAN_OR_EQUAL, childrenRexNode));
+				relBuilder.call(FlinkSqlOperatorTable.GREATER_THAN_OR_EQUAL, expr, lowerBound),
+				relBuilder.call(FlinkSqlOperatorTable.LESS_THAN_OR_EQUAL, expr, upperBound));
 	}
 
 	private RexNode convertCeil(List<Expression> children) {
