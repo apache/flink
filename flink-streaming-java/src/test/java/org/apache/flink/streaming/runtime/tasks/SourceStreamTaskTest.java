@@ -246,8 +246,8 @@ public class SourceStreamTaskTest {
 				SourceStreamTask::new,
 				BasicTypeInfo.STRING_TYPE_INFO);
 
-		final CompletableFuture<Void> waitingLatch = new CompletableFuture<>();
-		ExceptionThrowingSource.setIsInRunLoop(waitingLatch);
+		final CompletableFuture<Void> operatorRunningWaitingFuture = new CompletableFuture<>();
+		ExceptionThrowingSource.setIsInRunLoop(operatorRunningWaitingFuture);
 
 		testHarness.setupOutputForSingletonOperatorChain();
 		StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -255,7 +255,7 @@ public class SourceStreamTaskTest {
 		streamConfig.setOperatorID(new OperatorID());
 
 		testHarness.invoke();
-		waitingLatch.get();
+		operatorRunningWaitingFuture.get();
 		testHarness.getTask().cancel();
 
 		Optional<ExceptionThrowingSource.TestException> testException = Optional.empty();
@@ -280,8 +280,8 @@ public class SourceStreamTaskTest {
 				SourceStreamTask::new,
 				BasicTypeInfo.STRING_TYPE_INFO);
 
-		final CompletableFuture<Void> waitingLatch = new CompletableFuture<>();
-		ExceptionThrowingSource.setIsInRunLoop(waitingLatch);
+		final CompletableFuture<Void> operatorRunningWaitingFuture = new CompletableFuture<>();
+		ExceptionThrowingSource.setIsInRunLoop(operatorRunningWaitingFuture);
 
 		testHarness.setupOutputForSingletonOperatorChain();
 		StreamConfig streamConfig = testHarness.getStreamConfig();
@@ -289,7 +289,7 @@ public class SourceStreamTaskTest {
 		streamConfig.setOperatorID(new OperatorID());
 
 		testHarness.invoke();
-		waitingLatch.get();
+		operatorRunningWaitingFuture.get();
 		testHarness.getTask().finishTask();
 
 		testHarness.waitForTaskCompletion();
