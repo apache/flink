@@ -19,7 +19,6 @@
 package org.apache.flink.table.sources
 
 import java.sql.Timestamp
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.RelNode
@@ -29,10 +28,12 @@ import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.{TableException, Types, ValidationException}
+import org.apache.flink.table.api.{DataTypes, TableException, Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions.{Cast, PlannerExpression, PlannerResolvedFieldReference, ResolvedFieldReference}
-import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{typeLiteral, unresolvedCall}
+import org.apache.flink.table.expressions.{PlannerExpressionConverter, ResolvedFieldReference}
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST
+import org.apache.flink.table.types.utils.TypeConversions.{fromDataTypeToLegacyInfo, fromLegacyInfoToDataType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import scala.collection.JavaConverters._
@@ -266,17 +267,23 @@ object TableSourceUtil {
         // push an empty values node with the physical schema on the relbuilder
         relBuilder.push(createSchemaRelNode(resolvedFields))
         // get extraction expression
-        resolvedFields.map(f => PlannerResolvedFieldReference(f._1, f._3))
+        resolvedFields.map(f => new ResolvedFieldReference(f._1, f._3, f._2))
       } else {
-        new Array[PlannerResolvedFieldReference](0)
+        new Array[ResolvedFieldReference](0)
       }
 
-      val expression = tsExtractor
-        .getExpression(fieldAccesses.map(_.asInstanceOf[ResolvedFieldReference]))
+      val expression = tsExtractor.getExpression(fieldAccesses)
       // add cast to requested type and convert expression to RexNode
-      // TODO we cast to planner expressions as a temporary solution to keep the old interfaces
-      val rexExpression = Cast(expression.asInstanceOf[PlannerExpression], resultType)
-        .toRexNode(relBuilder)
+      // If resultType is TimeIndicatorTypeInfo, its internal format is long, but cast
+      // from Timestamp is java.sql.Timestamp. So we need cast to long first.
+      val castExpression = unresolvedCall(CAST,
+        unresolvedCall(CAST, expression, typeLiteral(DataTypes.BIGINT())),
+        typeLiteral(fromLegacyInfoToDataType(resultType)))
+
+      // TODO we convert to planner expressions as a temporary solution
+      val rexExpression = castExpression
+          .accept(PlannerExpressionConverter.INSTANCE)
+          .toRexNode(relBuilder)
       relBuilder.clear()
       rexExpression
     }

@@ -92,7 +92,7 @@ case class GetCompositeField(child: PlannerExpression, key: Any) extends UnaryEx
       } else {
         None
       }
-    case c: ResolvedFieldReference =>
+    case c: PlannerResolvedFieldReference =>
       val keySuffix = if (key.isInstanceOf[Int]) s"_$key" else key
       Some(s"${c.name}$$$keySuffix")
     case _ => None
