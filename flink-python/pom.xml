@@ -135,17 +135,18 @@ under the License.
 				<executions>
 					<execution>
 						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
-							<shadedArtifactAttached>true</shadedArtifactAttached>
-							<shadedClassifierName>java-binding</shadedClassifierName>
 							<artifactSet>
 								<includes combine.children="append">
 									<include>net.razorvine:*</include>
 									<include>net.sf.py4j:*</include>
 								</includes>
 							</artifactSet>
-							<relocations>
+							<relocations combine.children="append">
 								<relocation>
 									<pattern>py4j</pattern>
 									<shadedPattern>org.apache.flink.api.python.shaded.py4j</shadedPattern>
