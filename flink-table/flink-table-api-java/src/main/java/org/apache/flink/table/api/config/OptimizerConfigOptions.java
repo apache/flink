@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api;
+package org.apache.flink.table.api.config;
 
 import org.apache.flink.configuration.ConfigOption;
 
@@ -24,6 +24,8 @@ import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
  * This class holds configuration constants used by Flink's table planner module.
+ *
+ * <p>This is only used for the Blink planner.
  */
 public class OptimizerConfigOptions {
 

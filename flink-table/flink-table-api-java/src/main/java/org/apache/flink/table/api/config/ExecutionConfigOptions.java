@@ -16,15 +16,16 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api;
+package org.apache.flink.table.api.config;
 
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.table.runtime.window.grouping.HeapWindowsGrouping;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
 /**
  * This class holds configuration constants used by Flink's table module.
+ *
+ * <p>This is only used for the Blink planner.
  */
 public class ExecutionConfigOptions {
 
@@ -48,7 +49,7 @@ public class ExecutionConfigOptions {
 					.withDescription("Default limit when user don't set a limit after order by. ");
 
 	public static final ConfigOption<Integer> SQL_EXEC_SORT_FILE_HANDLES_MAX_NUM =
-			key("sql.exec.sort.file-handles.num.max")
+			key("sql.exec.sort.max-num-file-handles")
 					.defaultValue(128)
 					.withDescription("The maximal fan-in for external merge sort. It limits the number of file handles per operator. " +
 							"If it is too small, may cause intermediate merging. But if it is too large, " +
@@ -125,10 +126,10 @@ public class ExecutionConfigOptions {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * See {@link HeapWindowsGrouping}.
+	 * See {@code org.apache.flink.table.runtime.window.grouping.HeapWindowsGrouping}.
 	 */
 	public static final ConfigOption<Integer> SQL_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT =
-			key("sql.exec.window-agg.buffer-size.limit")
+			key("sql.exec.window-agg.buffer-size-limit")
 					.defaultValue(100 * 1000)
 					.withDescription("Sets the window elements buffer size limit used in group window agg operator.");
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.util;
 
-import org.apache.flink.table.api.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 
 /**
  * Aggregate phase strategy which could be specified in {@link OptimizerConfigOptions#SQL_OPTIMIZER_AGG_PHASE_STRATEGY}.
