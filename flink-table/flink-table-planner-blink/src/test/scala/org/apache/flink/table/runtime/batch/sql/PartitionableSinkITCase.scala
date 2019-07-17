@@ -38,7 +38,8 @@ import org.apache.flink.types.Row
 import org.apache.calcite.config.Lex
 import org.apache.calcite.sql.parser.SqlParser
 import org.junit.Assert._
-import org.junit.{Before, Test}
+import org.junit.rules.ExpectedException
+import org.junit.{Before, Rule, Test}
 
 import java.util.{ArrayList => JArrayList, LinkedList => JLinkedList, List => JList, Map => JMap}
 
@@ -49,6 +50,11 @@ import scala.collection.Seq
   * Test cases for [[org.apache.flink.table.sinks.PartitionableTableSink]].
   */
 class PartitionableSinkITCase extends BatchTestBase {
+
+  private val _expectedException = ExpectedException.none
+
+  @Rule
+  def expectedEx: ExpectedException = _expectedException
 
   @Before
   override def before(): Unit = {
@@ -167,8 +173,11 @@ class PartitionableSinkITCase extends BatchTestBase {
       RESULT3.toList)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testDynamicPartitionInFrontOfStaticPartition(): Unit = {
+    expectedEx.expect(classOf[TableException])
+    expectedEx.expectMessage("Static partition column b "
+      + "should appear before dynamic partition a")
     registerTableSink(grouping = true, partitionColumns = Array("a", "b"))
     tEnv.sqlUpdate("insert into sinkTable partition(b=1) select a, c from sortTable")
     tEnv.execute("testJob")
