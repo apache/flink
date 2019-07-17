@@ -2447,7 +2447,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       'f16.ceil(TimeIntervalUnit.YEAR),
       "f16.ceil(YEAR)",
       "CEIL(f16 TO YEAR)",
-      "1996-01-01")
+      "1997-01-01")
 
     testAllApis(
       'f16.ceil(TimeIntervalUnit.MONTH),

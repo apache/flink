@@ -835,7 +835,7 @@ public class DateTimeUtils {
 	}
 
 	public static long unixDateCeil(TimeUnitRange range, long date) {
-		return julianDateFloor(range, (int) date + EPOCH_JULIAN, true);
+		return julianDateFloor(range, (int) date + EPOCH_JULIAN, false);
 	}
 
 	private static int julianDateFloor(TimeUnitRange range, int julian,
