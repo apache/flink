@@ -20,7 +20,7 @@
         <tr>
             <td><h5>jobmanager.execution.failover-strategy</h5></td>
             <td style="word-wrap: break-word;">"full"</td>
-            <td>This option specifies the failover strategy, i.e. how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Use RestartAllStrategy to restarts all tasks to recover the job.</li><li>'region': Use AdaptedRestartPipelinedRegionStrategyNG to restart all tasks that could be affected by the task failure. The affected vertices consist of vertices in affected regions(pipelined connected sub-graphs), including the region of the failed task, downstream regions of affected regions, andproducer regions of required but unavailable result partitions for this recovery.</li></ul></td>
+            <td>This option specifies how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Restarts all tasks to recover the job.</li><li>'region': Restarts all tasks that could be affected by the task failure. The affected vertices consist of vertices in affected regions (pipelined connected sub-graphs), including the region of the failed task, downstream regions of affected regions, andproducer regions of required but unavailable result partitions for this recovery.</li></ul></td>
         </tr>
         <tr>
             <td><h5>jobmanager.heap.size</h5></td>

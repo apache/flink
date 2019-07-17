@@ -110,14 +110,13 @@ public class JobManagerOptions {
 		key("jobmanager.execution.failover-strategy")
 			.defaultValue("full")
 			.withDescription(Description.builder()
-				.text("This option specifies the failover strategy, i.e. " +
-					"how the job computation recovers from task failures. " +
+				.text("This option specifies how the job computation recovers from task failures. " +
 					"Accepted values are:")
 				.list(
-					text("'full': Use RestartAllStrategy to restarts all tasks to recover the job."),
-					text("'region': Use AdaptedRestartPipelinedRegionStrategyNG to restart all tasks " +
-						"that could be affected by the task failure. The affected vertices consist of " +
-						"vertices in affected regions(pipelined connected sub-graphs), including " +
+					text("'full': Restarts all tasks to recover the job."),
+					text("'region': Restarts all tasks that could be affected by the task failure. " +
+						"The affected vertices consist of vertices in affected regions " +
+						"(pipelined connected sub-graphs), including " +
 						"the region of the failed task, " +
 						"downstream regions of affected regions, and" +
 						"producer regions of required but unavailable result partitions for this recovery.")
