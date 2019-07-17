@@ -42,6 +42,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
@@ -56,6 +58,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -240,13 +243,16 @@ public class SourceStreamTaskTest {
 				SourceStreamTask::new,
 				BasicTypeInfo.STRING_TYPE_INFO);
 
+		final CompletableFuture<Void> operatorRunningWaitingFuture = new CompletableFuture<>();
+		ExceptionThrowingSource.setIsInRunLoopFuture(operatorRunningWaitingFuture);
+
 		testHarness.setupOutputForSingletonOperatorChain();
 		StreamConfig streamConfig = testHarness.getStreamConfig();
 		streamConfig.setStreamOperator(new StreamSource<>(new ExceptionThrowingSource()));
 		streamConfig.setOperatorID(new OperatorID());
 
 		testHarness.invoke();
-		ExceptionThrowingSource.isInRunLoop.get();
+		operatorRunningWaitingFuture.get();
 		testHarness.getTask().finishTask();
 
 		testHarness.waitForTaskCompletion();
@@ -434,8 +440,9 @@ public class SourceStreamTaskTest {
 	 */
 	private static class ExceptionThrowingSource implements SourceFunction<String> {
 
+		private static volatile CompletableFuture<Void> isInRunLoop;
+
 		private volatile boolean running = true;
-		static CompletableFuture<Void> isInRunLoop = new CompletableFuture<>();
 
 		public static class TestException extends RuntimeException {
 			public TestException(String message) {
@@ -443,8 +450,14 @@ public class SourceStreamTaskTest {
 			}
 		}
 
+		public static void setIsInRunLoopFuture(@Nonnull final CompletableFuture<Void> waitingLatch) {
+			ExceptionThrowingSource.isInRunLoop = waitingLatch;
+		}
+
 		@Override
 		public void run(SourceContext<String> ctx) throws TestException {
+			checkState(isInRunLoop != null && !isInRunLoop.isDone());
+
 			while (running) {
 				if (!isInRunLoop.isDone()) {
 					isInRunLoop.complete(null);
