@@ -138,7 +138,6 @@ public class DataFormatConverters {
 	 *                   lost its specific Java format. Only DataType retains all its
 	 *                   Java format information.
 	 */
-	@Deprecated
 	public static DataFormatConverter getConverterForDataType(DataType originDataType) {
 		DataType dataType = originDataType.nullable();
 		DataFormatConverter converter = TYPE_TO_CONVERTER.get(dataType);
