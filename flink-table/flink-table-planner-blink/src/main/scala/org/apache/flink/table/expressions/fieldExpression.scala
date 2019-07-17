@@ -67,7 +67,7 @@ case class UnresolvedFieldReference(name: String) extends Attribute {
 
 case class PlannerResolvedFieldReference(
     name: String,
-    resultType: TypeInformation[_]) extends Attribute with ResolvedFieldReference {
+    resultType: TypeInformation[_]) extends Attribute {
 
   override def toString = s"'$name"
 
