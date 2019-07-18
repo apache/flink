@@ -150,9 +150,7 @@ public class FunctionCatalog implements FunctionLookup {
 				.map(FunctionDefinition::toString)
 				.collect(Collectors.toList()));
 
-		return result.stream()
-			.collect(Collectors.toList())
-			.toArray(new String[0]);
+		return result.toArray(new String[0]);
 	}
 
 	@Override
@@ -180,7 +178,7 @@ public class FunctionCatalog implements FunctionLookup {
 						userCandidate)
 				);
 			} else {
-				// TODO: should go thru function definition discover service
+				// TODO: should go through function definition discover service
 			}
 		} catch (FunctionNotExistException e) {
 			// Ignore
@@ -206,10 +204,11 @@ public class FunctionCatalog implements FunctionLookup {
 				.map(Function.identity());
 		}
 
-		String defaultCatalogName = catalogManager.getDefaultCatalogName();
-
 		return foundDefinition.map(definition -> new FunctionLookup.Result(
-			ObjectIdentifier.of(defaultCatalogName, catalogManager.getCatalog(defaultCatalogName).get().getDefaultDatabase(), name),
+			ObjectIdentifier.of(
+				catalogManager.getBuiltInCatalogName(),
+				catalogManager.getBuiltInDatabaseName(),
+				name),
 			definition)
 		);
 	}
