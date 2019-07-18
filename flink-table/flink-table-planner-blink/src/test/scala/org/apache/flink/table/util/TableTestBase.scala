@@ -849,7 +849,7 @@ case class JavaBatchTableTestUtil(test: TableTestBase) extends JavaTableTestUtil
 /**
   * Batch/Stream [[org.apache.flink.table.sources.TableSource]] for testing.
   */
-class TestTableSource(val isBounded: Boolean, schema: TableSchema)
+class TestTableSource(override val isBounded: Boolean, schema: TableSchema)
   extends StreamTableSource[Row] {
 
   override def getDataStream(execEnv: environment.StreamExecutionEnvironment): DataStream[Row] = {
