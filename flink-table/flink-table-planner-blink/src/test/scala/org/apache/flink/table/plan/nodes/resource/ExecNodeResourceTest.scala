@@ -180,7 +180,7 @@ object ExecNodeResourceTest {
 /**
   * Batch/Stream [[org.apache.flink.table.sources.TableSource]] for resource testing.
   */
-class MockTableSource(val isBounded: Boolean, schema: TableSchema)
+class MockTableSource(override val isBounded: Boolean, schema: TableSchema)
     extends StreamTableSource[BaseRow] {
 
   override def getDataStream(

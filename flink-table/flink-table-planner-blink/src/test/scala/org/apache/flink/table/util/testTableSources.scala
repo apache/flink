@@ -132,7 +132,7 @@ object TestTableSources {
 }
 
 class TestTableSourceWithTime[T](
-    val isBounded: Boolean,
+    override val isBounded: Boolean,
     tableSchema: TableSchema,
     returnType: TypeInformation[T],
     values: Seq[T],
@@ -342,7 +342,7 @@ class TestNestedProjectableTableSource(
   * @param filterPushedDown Whether predicates have been pushed down yet.
   */
 class TestFilterableTableSource(
-    val isBounded: Boolean,
+    override val isBounded: Boolean,
     rowTypeInfo: RowTypeInfo,
     data: Seq[Row],
     filterableFields: Set[String] = Set(),
