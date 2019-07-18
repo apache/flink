@@ -315,6 +315,7 @@ public class CatalogManager {
 	 * <ol>
 	 *     <li>{@code [current-catalog].[current-database].[tablePath]}</li>
 	 *     <li>{@code [current-catalog].[tablePath]}</li>
+	 *     <li>{@code [builtin-catalog].[default-database].[tablePath]}</li>
 	 *     <li>{@code [tablePath]}</li>
 	 * </ol>
 	 *
@@ -330,6 +331,7 @@ public class CatalogManager {
 		List<List<String>> prefixes = asList(
 			asList(currentCatalogName, currentDatabaseName),
 			singletonList(currentCatalogName),
+			asList(builtinCatalogName, catalogs.get(builtinCatalogName).getDefaultDatabase()),
 			emptyList()
 		);
 

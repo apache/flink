@@ -89,7 +89,9 @@ class FlinkRelMdHandlerTestBase {
         ConventionTraitDef.INSTANCE,
         FlinkRelDistributionTraitDef.INSTANCE,
         RelCollationTraitDef.INSTANCE
-      )
+      ),
+      builtinCatalog,
+      builtinDatabase
     )
   val typeFactory: FlinkTypeFactory = plannerContext.getTypeFactory
   val mq: FlinkRelMetadataQuery = FlinkRelMetadataQuery.instance()

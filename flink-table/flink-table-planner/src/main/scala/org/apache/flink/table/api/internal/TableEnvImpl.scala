@@ -93,7 +93,11 @@ abstract class TableEnvImpl(
       config,
       functionCatalog,
       asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
-      expressionBridge)
+      expressionBridge,
+      catalogManager.getBuiltinCatalogName,
+      JavaScalaConversionUtil
+        .toScala(catalogManager.getCatalog(catalogManager.getBuiltinCatalogName))
+        .map(_.getDefaultDatabase).get)
 
   def getConfig: TableConfig = config
 

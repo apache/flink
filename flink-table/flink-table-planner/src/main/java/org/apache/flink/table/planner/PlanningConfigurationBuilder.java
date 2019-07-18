@@ -77,19 +77,25 @@ public class PlanningConfigurationBuilder {
 	private final Context context;
 	private final TableConfig tableConfig;
 	private final FunctionCatalog functionCatalog;
+	private final String builtinCatalog;
+	private final String builtinDatabase;
 	private CalciteSchema rootSchema;
 
 	public PlanningConfigurationBuilder(
 			TableConfig tableConfig,
 			FunctionCatalog functionCatalog,
 			CalciteSchema rootSchema,
-			ExpressionBridge<PlannerExpression> expressionBridge) {
+			ExpressionBridge<PlannerExpression> expressionBridge,
+			String builtinCatalog,
+			String builtinDatabase) {
 		this.tableConfig = tableConfig;
 		this.functionCatalog = functionCatalog;
 
 		// the converter is needed when calling temporal table functions from SQL, because
 		// they reference a history table represented with a tree of table operations
 		this.context = Contexts.of(expressionBridge);
+		this.builtinCatalog = builtinCatalog;
+		this.builtinDatabase = builtinDatabase;
 
 		this.planner = new VolcanoPlanner(costFactory, context);
 		planner.setExecutor(new ExpressionReducer(tableConfig));
@@ -180,7 +186,8 @@ public class PlanningConfigurationBuilder {
 			rootSchema,
 			asList(
 				asList(currentCatalog, currentDatabase),
-				singletonList(currentCatalog)
+				singletonList(currentCatalog),
+				asList(builtinCatalog, builtinDatabase)
 			),
 			typeFactory,
 			CalciteConfig.connectionConfig(parserConfig));

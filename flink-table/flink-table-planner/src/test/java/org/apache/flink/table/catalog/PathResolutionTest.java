@@ -122,7 +122,14 @@ public class PathResolutionTest {
 				.withCatalogManager(catalogWithSpecialCharacters())
 				.tableApiLookupPath("default db", "tab 1")
 				.sqlLookupPath("`default db`.`tab 1`")
-				.expectPath(BUILTIN_CATALOG_NAME, "default db", "tab 1")
+				.expectPath(BUILTIN_CATALOG_NAME, "default db", "tab 1"),
+
+			testSpec("fallBackToBuiltinCatalog")
+				.withCatalogManager(simpleCatalog())
+				.withDefaultPath("cat1", "db1")
+				.tableApiLookupPath("tab2")
+				.sqlLookupPath("tab2")
+				.expectPath(BUILTIN_CATALOG_NAME, "default", "tab2")
 		);
 	}
 
@@ -131,11 +138,13 @@ public class PathResolutionTest {
 			.builtin(
 				database(
 					"default",
-					table("tab1")
+					table("tab1"),
+					table("tab2")
 				),
 				database(
 					"db1",
-					table("tab1")
+					table("tab1"),
+					table("tab2")
 				)
 			)
 			.catalog(

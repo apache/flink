@@ -83,7 +83,9 @@ abstract class PlannerBase(
       config,
       functionCatalog,
       asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
-      getTraitDefs.toList
+      getTraitDefs.toList,
+      catalogManager.getBuiltinCatalogName,
+      catalogManager.getCatalog(catalogManager.getBuiltinCatalogName).get().getDefaultDatabase
     )
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */

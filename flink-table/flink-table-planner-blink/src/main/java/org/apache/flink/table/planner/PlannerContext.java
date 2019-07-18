@@ -74,13 +74,19 @@ public class PlannerContext {
 	private final FunctionCatalog functionCatalog;
 	private final FrameworkConfig frameworkConfig;
 	private final RelOptCluster cluster;
+	private final String builtinCatalog;
+	private final String builtinDatabase;
 
 	public PlannerContext(
 			TableConfig tableConfig,
 			FunctionCatalog functionCatalog,
 			CalciteSchema rootSchema,
-			List<RelTraitDef> traitDefs) {
+			List<RelTraitDef> traitDefs,
+			String builtinCatalog,
+			String builtinDatabase) {
 		this.tableConfig = tableConfig;
+		this.builtinCatalog = builtinCatalog;
+		this.builtinDatabase = builtinDatabase;
 		this.functionCatalog = functionCatalog;
 		this.frameworkConfig = createFrameworkConfig(rootSchema, traitDefs);
 
@@ -160,7 +166,8 @@ public class PlannerContext {
 				CalciteSchema.from(rootSchema),
 				asList(
 						asList(currentCatalog, currentDatabase),
-						singletonList(currentCatalog)
+						singletonList(currentCatalog),
+						asList(builtinCatalog, builtinDatabase)
 				),
 				typeFactory,
 				CalciteConfig$.MODULE$.connectionConfig(newSqlParserConfig));

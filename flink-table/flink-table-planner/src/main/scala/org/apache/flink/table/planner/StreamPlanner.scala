@@ -86,7 +86,11 @@ class StreamPlanner(
       config,
       functionCatalog,
       internalSchema,
-      expressionBridge)
+      expressionBridge,
+      catalogManager.getBuiltinCatalogName,
+      JavaScalaConversionUtil
+        .toScala(catalogManager.getCatalog(catalogManager.getBuiltinCatalogName))
+        .map(_.getDefaultDatabase).get)
 
   @VisibleForTesting
   private[flink] val optimizer: StreamOptimizer = new StreamOptimizer(
