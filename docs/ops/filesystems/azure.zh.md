@@ -38,7 +38,7 @@ wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path
 wasbs://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>
 {% endhighlight %}
 
-Below shows how to use Azure Blob Storage with Flink:
+See below for how to use Azure Blob Storage in a Flink job:
 
 {% highlight java %}
 // Read from Azure Blob storage
@@ -51,12 +51,13 @@ stream.writeAsText("wasb://<your-container>@$<your-azure-account>.blob.core.wind
 env.setStateBackend(new FsStateBackend("wasb://<your-container>@$<your-azure-account>.blob.core.windows.net/<object-path>"));
 {% endhighlight %}
 
-### Shaded Hadoop Azure Blob Storage file system 
+### Shaded Hadoop Azure Blob Storage file system
 
-To use `flink-azure-fs-hadoop,` copy the respective JAR file from the opt directory to the lib directory of your Flink distribution before starting Flink, e.g.
+To use `flink-azure-fs-hadoop,` copy the respective JAR file from the `opt` directory to the `plugins` directory of your Flink distribution before starting Flink, e.g.
 
 {% highlight bash %}
-cp ./opt/flink-azure-fs-hadoop-{{ site.version }}.jar ./lib/
+mkdir ./plugins/azure-fs-hadoop
+cp ./opt/flink-azure-fs-hadoop-{{ site.version }}.jar ./plugins/azure-fs-hadoop/
 {% endhighlight %}
 
 `flink-azure-fs-hadoop` registers default FileSystem wrappers for URIs with the *wasb://* and *wasbs://* (SSL encrypted access) scheme.
@@ -74,4 +75,4 @@ There are some required configurations that must be added to `flink-conf.yaml`:
 fs.azure.account.key.youraccount.blob.core.windows.net: Azure Blob Storage access key
 {% endhighlight %}
 
-{% top %} 
+{% top %}

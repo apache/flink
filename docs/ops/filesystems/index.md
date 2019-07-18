@@ -25,7 +25,7 @@ under the License.
 -->
 
 Apache Flink uses file systems to consume and persistently store data, both for the results of applications and for fault tolerance and recovery.
-These are some of most of the popular file systems, including *local*, *hadoop-compatible*, *S3*, *MapR FS*, *OpenStack Swift FS*, *Aliyun OSS* and *Azure Blob Storage*.
+These are some of most of the popular file systems, including *local*, *hadoop-compatible*, *Amazon S3*, *MapR FS*, *OpenStack Swift FS*, *Aliyun OSS* and *Azure Blob Storage*.
 
 The file system used for a particular file is determined by its URI scheme.
 For example, `file:///home/user/text.txt` refers to a file in the local file system, while `hdfs://namenode:50010/data/user/text.txt` is a file in a specific HDFS cluster.
@@ -35,31 +35,53 @@ File system instances are instantiated once per process and then cached/pooled, 
 * This will be replaced by the TOC
 {:toc}
 
-## Built-in File Systems
+## Local File System
 
-Flink ships with implementations for the following file systems:
+Flink has built-in support for the file system of the local machine, including any NFS or SAN drives mounted into that local file system.
+It can be used by default without additional configuration. Local files are referenced with the *file://* URI scheme.
 
-  - **local**: This file system is used when the scheme is *"file://"*, and it represents the file system of the local machine, including any NFS or SAN drives mounted into that local file system.
+## Pluggable File Systems
 
-  - **S3**: Flink directly provides file systems to talk to Amazon S3 with two alternative implementations, `flink-s3-fs-presto` and `flink-s3-fs-hadoop`. Both implementations are self-contained with no dependency footprint.
-    
-  - **MapR FS**: The MapR file system *"maprfs://"* is automatically available when the MapR libraries are in the classpath.  
+The Apache Flink project supports the following file systems:
+
+  - [**Amazon S3**](./s3.html) object storage is supported by two alternative implementations: `flink-s3-fs-presto` and `flink-s3-fs-hadoop`.
+  Both implementations are self-contained with no dependency footprint.
+
+  - **MapR FS** file system adapter is already supported in the main Flink distribution under the *maprfs://* URI scheme.
+  You must provide the MapR libraries in the classpath (for example in `lib` directory).
+
+  - **OpenStack Swift FS** is supported by `flink-swift-fs-hadoop` and registered under the *swift://* URI scheme.
+  The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
+  To use it when using Flink as a library, add the respective maven dependency (`org.apache.flink:flink-swift-fs-hadoop:{{ site.version }}`).
   
-  - **OpenStack Swift FS**: Flink directly provides a file system to talk to the OpenStack Swift file system, registered under the scheme *"swift://"*. 
-  The implementation of `flink-swift-fs-hadoop` is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
-  To use it when using Flink as a library, add the respective maven dependency (`org.apache.flink:flink-swift-fs-hadoop:{{ site.version }}`
-  When starting a Flink application from the Flink binaries, copy or move the respective jar file from the `opt` folder to the `lib` folder.
-  
-  - **Azure Blob Storage**: 
-    Flink directly provides a file system to work with Azure Blob Storage. 
-    This filesystem is registered under the scheme *"wasb(s)://"*.
-    The implementation is self-contained with no dependency footprint.
+  - **[Aliyun Object Storage Service](./oss.html)** is supported by `flink-oss-fs-hadoop` and registered under the *oss://* URI scheme.
+  The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
 
-## HDFS and Hadoop File System support 
+  - **[Azure Blob Storage](./azure.html)** is supported by `flink-azure-fs-hadoop` and registered under the *wasb(s)://* URI schemes.
+  The implementation is based on the [Hadoop Project](https://hadoop.apache.org/) but is self-contained with no dependency footprint.
+
+Except **MapR FS**, you can use any of them as plugins. 
+
+To use a pluggable file systems, copy the corresponding JAR file from the `opt` directory to a directory under `plugins` directory
+of your Flink distribution before starting Flink, e.g.
+
+{% highlight bash %}
+mkdir ./plugins/s3-fs-hadoop
+cp ./opt/flink-s3-fs-hadoop-{{ site.version }}.jar ./plugins/s3-fs-hadoop/
+{% endhighlight %}
+
+<span class="label label-danger">Attention</span> The plugin mechanism for file systems was introduced in Flink version `1.9` to
+support dedicated Java class loaders per plugin and to move away from the class shading mechanism.
+You can still use the provided file systems (or your own implementations) via the old mechanism by copying the corresponding
+JAR file into `lib` directory.
+
+It's encouraged to use the plugin-based loading mechanism for file systems that support it. Loading file systems components from the `lib`
+directory may be not supported in future Flink versions.
+
+## HDFS and Hadoop File System support
 
 For all schemes where Flink cannot find a directly supported file system, it falls back to Hadoop.
 All Hadoop file systems are automatically available when `flink-runtime` and the Hadoop libraries are on the classpath.
-
 
 This way, Flink seamlessly supports all of Hadoop file systems, and all Hadoop-compatible file systems (HCFS).
 
@@ -83,17 +105,21 @@ fs.hdfs.hadoopconf: /path/to/etc/hadoop
 This registers `/path/to/etc/hadoop` as Hadoop's configuration directory and is where Flink will look for the `core-site.xml` and `hdfs-site.xml` files.
 
 
-## Adding new File System Implementations
+## Adding a new pluggable File System implementation
 
-File systems are represented via the `org.apache.flink.core.fs.FileSystem` class, which captures the ways to access and modify files and objects in that file system. 
-Implementations are discovered by Flink through Java's service abstraction, making it easy to add new file system implementations.
+File systems are represented via the `org.apache.flink.core.fs.FileSystem` class, which captures the ways to access and modify files and objects in that file system.
 
 To add a new file system:
 
   - Add the File System implementation, which is a subclass of `org.apache.flink.core.fs.FileSystem`.
   - Add a factory that instantiates that file system and declares the scheme under which the FileSystem is registered. This must be a subclass of `org.apache.flink.core.fs.FileSystemFactory`.
-  - Add a service entry. Create a file `META-INF/services/org.apache.flink.core.fs.FileSystemFactory` which contains the class name of your file system factory class.
+  - Add a service entry. Create a file `META-INF/services/org.apache.flink.core.fs.FileSystemFactory` which contains the class name of your file system factory class
+  (see the [Java Service Loader docs](https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html) for more details).
 
-See the [Java Service Loader docs](https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html) for more details on how service loaders work.
+During plugins discovery, the file system factory class will be loaded by a dedicated Java class loader to avoid class conflicts with other plugins and Flink components.
+The same class loader should be used during file system instantiation and the file system operation calls.
+
+<span class="label label-warning">Warning</span> In practice, it means you should avoid using `Thread.currentThread().getContextClassLoader()` class loader
+in your implementation. 
 
 {% top %}
