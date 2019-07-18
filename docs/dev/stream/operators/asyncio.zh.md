@@ -29,7 +29,7 @@ under the License.
 本文讲解 Flink 用于访问外部数据存储的异步 I/O API。
 对于不熟悉异步或者事件驱动编程的用户，建议先储备一些关于 Future 和事件驱动编程的知识。
 
-提示：这篇文档 [FLIP-12: 异步 I/O 的设计和实现](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65870673) 介绍了关于设计和实现异步 I/O 功能的细节。
+提示：这篇文档 [FLIP-12: 异步 I/O 的设计和实现](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65870673)介绍了关于设计和实现异步 I/O 功能的细节。
 
 ## 对于异步 I/O 操作的需求
 
