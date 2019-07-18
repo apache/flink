@@ -601,8 +601,8 @@ public class SingleInputGate extends InputGate {
 	void triggerPartitionStateCheck(ResultPartitionID partitionId) {
 		partitionProducerStateProvider.requestPartitionProducerState(
 			consumedResultId,
-			partitionId)
-			.thenAccept(responseHandle -> {
+			partitionId,
+			((PartitionProducerStateProvider.ResponseHandle responseHandle) -> {
 				boolean isProducingState = new RemoteChannelStateChecker(partitionId, owningTaskName)
 					.isProducerReadyOrAbortConsumption(responseHandle);
 				if (isProducingState) {
@@ -612,7 +612,7 @@ public class SingleInputGate extends InputGate {
 						responseHandle.failConsumption(t);
 					}
 				}
-			});
+			}));
 	}
 
 	private void queueChannel(InputChannel channel) {

@@ -35,11 +35,31 @@ under the License.
 	<repositories>
 		<repository>
 			<id>mapr-releases</id>
-			<url>http://repository.mapr.com/maven/</url>
+			<url>https://repository.mapr.com/maven/</url>
 			<snapshots><enabled>false</enabled></snapshots>
 			<releases><enabled>true</enabled></releases>
 		</repository>
 	</repositories>
+
+	<profiles>
+		<profile>
+			<id>unsafe-mapr-repo</id>
+			<activation>
+				<property>
+					<name>unsafe-mapr-repo</name>
+				</property>
+			</activation>
+			<repositories>
+				<!-- MapR -->
+				<repository>
+					<id>mapr-releases</id>
+					<url>http://repository.mapr.com/maven/</url>
+					<snapshots><enabled>false</enabled></snapshots>
+					<releases><enabled>true</enabled></releases>
+				</repository>
+			</repositories>
+		</profile>
+	</profiles>
 
 	<dependencies>
 
