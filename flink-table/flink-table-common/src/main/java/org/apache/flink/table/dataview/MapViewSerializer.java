@@ -16,10 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.typeutils;
+package org.apache.flink.table.dataview;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
+import org.apache.flink.api.common.typeutils.LegacySerializerSnapshotTransformer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.base.MapSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.base.MapSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.table.api.dataview.MapView;
@@ -38,8 +43,12 @@ import java.util.Map;
  * @param <K> The type of the keys in the map.
  * @param <V> The type of the values in the map.
  */
-public class MapViewSerializer<K, V> extends TypeSerializer<MapView<K, V>> {
-	private static final long serialVersionUID = 202624224378185203L;
+@Internal
+public class MapViewSerializer<K, V>
+		extends TypeSerializer<MapView<K, V>>
+		implements LegacySerializerSnapshotTransformer<MapView<K, V>> {
+
+	private static final long serialVersionUID = -9007142882049098705L;
 
 	private final TypeSerializer<Map<K, V>> mapSerializer;
 
@@ -54,7 +63,7 @@ public class MapViewSerializer<K, V> extends TypeSerializer<MapView<K, V>> {
 
 	@Override
 	public TypeSerializer<MapView<K, V>> duplicate() {
-		return new MapViewSerializer<>(mapSerializer);
+		return new MapViewSerializer<>(mapSerializer.duplicate());
 	}
 
 	@Override
@@ -114,6 +123,50 @@ public class MapViewSerializer<K, V> extends TypeSerializer<MapView<K, V>> {
 
 	@Override
 	public TypeSerializerSnapshot<MapView<K, V>> snapshotConfiguration() {
-		throw new UnsupportedOperationException();
+		return new MapViewSerializerSnapshot<>(this);
 	}
+
+	/**
+	 * We need to override this as a {@link LegacySerializerSnapshotTransformer}
+	 * because in Flink 1.6.x and below, this serializer was incorrectly returning
+	 * directly the snapshot of the nested map serializer as its own snapshot.
+	 *
+	 * <p>This method transforms the incorrect map serializer snapshot
+	 * to be a proper {@link MapViewSerializerSnapshot}.
+	 */
+	@Override
+	public <U> TypeSerializerSnapshot<MapView<K, V>> transformLegacySerializerSnapshot(
+			TypeSerializerSnapshot<U> legacySnapshot) {
+		if (legacySnapshot instanceof MapViewSerializerSnapshot) {
+			return (TypeSerializerSnapshot<MapView<K, V>>) legacySnapshot;
+		} else if (legacySnapshot instanceof MapSerializerConfigSnapshot) {
+			// first, transform the incorrect map serializer's snapshot
+			// into a proper ListSerializerSnapshot
+			MapSerializerSnapshot<K, V> transformedNestedMapSerializerSnapshot = new MapSerializerSnapshot<>();
+			MapSerializerConfigSnapshot<K, V> snapshot = (MapSerializerConfigSnapshot<K, V>) legacySnapshot;
+			CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
+					transformedNestedMapSerializerSnapshot,
+					snapshot.getNestedSerializersAndConfigs().get(0).f1,
+					snapshot.getNestedSerializersAndConfigs().get(1).f1
+			);
+
+			// then, wrap the transformed MapSerializerSnapshot
+			// as a nested snapshot in the final resulting MapViewSerializerSnapshot
+			MapViewSerializerSnapshot<K, V> transformedMapViewSerializerSnapshot = new MapViewSerializerSnapshot<>();
+			CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
+					transformedMapViewSerializerSnapshot,
+					transformedNestedMapSerializerSnapshot
+			);
+
+			return transformedMapViewSerializerSnapshot;
+		} else {
+			throw new UnsupportedOperationException(
+					legacySnapshot.getClass().getCanonicalName() + " is not supported.");
+		}
+	}
+
+	public TypeSerializer<Map<K, V>> getMapSerializer() {
+		return mapSerializer;
+	}
+
 }

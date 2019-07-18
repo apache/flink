@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.typeutils;
+package org.apache.flink.table.dataview;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
@@ -31,6 +32,7 @@ import java.util.Map;
  * The {@link NullAwareMapSerializer} is similar to MapSerializer, the only difference is that
  * the {@link NullAwareMapSerializer} can handle null keys.
  */
+@Internal
 public class NullAwareMapSerializer<K, V> extends TypeSerializer<Map<K, V>> {
 	private static final long serialVersionUID = 5363147328373166590L;
 

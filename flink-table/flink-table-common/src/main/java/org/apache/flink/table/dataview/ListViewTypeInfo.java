@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.typeutils;
+package org.apache.flink.table.dataview;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -29,6 +30,7 @@ import org.apache.flink.table.api.dataview.ListView;
  *
  * @param <T> element type
  */
+@Internal
 public class ListViewTypeInfo<T> extends TypeInformation<ListView<T>> {
 
 	private static final long serialVersionUID = 6468505781419989441L;

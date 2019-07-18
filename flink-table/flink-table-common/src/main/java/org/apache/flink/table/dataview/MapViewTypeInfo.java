@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.typeutils;
+package org.apache.flink.table.dataview;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -32,6 +33,7 @@ import java.util.Objects;
  * @param <K> key type
  * @param <V> value type
  */
+@Internal
 public class MapViewTypeInfo<K, V> extends TypeInformation<MapView<K, V>> {
 
 	private static final long serialVersionUID = -2883944144965318259L;

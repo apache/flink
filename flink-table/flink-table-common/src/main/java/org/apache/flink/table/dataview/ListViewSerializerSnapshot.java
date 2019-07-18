@@ -18,35 +18,36 @@
 
 package org.apache.flink.table.dataview;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
-import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ListView;
 
-import java.util.Map;
+import java.util.List;
 
 /**
- * A {@link TypeSerializerSnapshot} for the {@link MapViewSerializer}.
+ * A {@link TypeSerializerSnapshot} for the {@link ListViewSerializer}.
  *
- * @param <K> the key type of the map entries.
- * @param <V> the value type of the map entries.
+ * @param <T> the type of the list elements.
  */
-public class MapViewSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot<MapView<K, V>, MapViewSerializer<K, V>> {
+@Internal
+public final class ListViewSerializerSnapshot<T> extends CompositeTypeSerializerSnapshot<ListView<T>, ListViewSerializer<T>> {
 
 	private static final int CURRENT_VERSION = 1;
 
 	/**
 	 * Constructor for read instantiation.
 	 */
-	public MapViewSerializerSnapshot() {
-		super(MapViewSerializer.class);
+	public ListViewSerializerSnapshot() {
+		super(ListViewSerializer.class);
 	}
 
 	/**
 	 * Constructor to create the snapshot for writing.
 	 */
-	public MapViewSerializerSnapshot(MapViewSerializer<K, V> mapViewSerializer) {
-		super(mapViewSerializer);
+	public ListViewSerializerSnapshot(ListViewSerializer<T> listViewSerializer) {
+		super(listViewSerializer);
 	}
 
 	@Override
@@ -55,14 +56,14 @@ public class MapViewSerializerSnapshot<K, V> extends CompositeTypeSerializerSnap
 	}
 
 	@Override
-	protected MapViewSerializer<K, V> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
+	protected ListViewSerializer<T> createOuterSerializerWithNestedSerializers(TypeSerializer<?>[] nestedSerializers) {
 		@SuppressWarnings("unchecked")
-		TypeSerializer<Map<K, V>> mapSerializer = (TypeSerializer<Map<K, V>>) nestedSerializers[0];
-		return new MapViewSerializer<>(mapSerializer);
+		TypeSerializer<List<T>> listSerializer = (TypeSerializer<List<T>>) nestedSerializers[0];
+		return new ListViewSerializer<>(listSerializer);
 	}
 
 	@Override
-	protected TypeSerializer<?>[] getNestedSerializers(MapViewSerializer<K, V> outerSerializer) {
-		return new TypeSerializer<?>[] { outerSerializer.getMapSerializer() };
+	protected TypeSerializer<?>[] getNestedSerializers(ListViewSerializer<T> outerSerializer) {
+		return new TypeSerializer<?>[] { outerSerializer.getListSerializer() };
 	}
 }

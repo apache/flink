@@ -19,8 +19,6 @@
 package org.apache.flink.table.dataview;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.table.typeutils.ListViewTypeInfo;
-import org.apache.flink.table.typeutils.MapViewTypeInfo;
 
 /**
  * This interface contains methods for registering {@link StateDataView} with a managed store.

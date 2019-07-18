@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.api.dataview;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.typeutils.MapViewTypeInfoFactory;
+import org.apache.flink.table.dataview.MapViewTypeInfoFactory;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -76,6 +77,7 @@ import java.util.Map;
  *
  */
 @TypeInfo(MapViewTypeInfoFactory.class)
+@PublicEvolving
 public class MapView<K, V> implements DataView {
 
 	private static final long serialVersionUID = -6185595470714822744L;
@@ -108,7 +110,7 @@ public class MapView<K, V> implements DataView {
 	}
 
 	/**
-	 * Return the value for the specified key or { @code null } if the key is not in the map view.
+	 * Return the value for the specified key or {@code null} if the key is not in the map view.
 	 *
 	 * @param key The look up key.
 	 * @return The value for the specified key.
@@ -223,8 +225,4 @@ public class MapView<K, V> implements DataView {
 		return map.hashCode();
 	}
 
-	@Override
-	public String toString() {
-		return "MapView" + map.toString();
-	}
 }
