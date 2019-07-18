@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.sources.wmstrategies;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.table.descriptors.Rowtime;
 
@@ -30,7 +31,10 @@ import java.util.Map;
  * <p>Emits a watermark of the maximum observed timestamp so far minus 1.
  * Rows that have a timestamp equal to the max timestamp are not late.
  */
+@PublicEvolving
 public final class AscendingTimestamps extends PeriodicWatermarkAssigner {
+
+	private static final long serialVersionUID = 1L;
 
 	private long maxTimestamp = Long.MIN_VALUE + 1;
 

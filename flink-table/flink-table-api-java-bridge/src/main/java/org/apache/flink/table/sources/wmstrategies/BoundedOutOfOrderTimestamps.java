@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.sources.wmstrategies;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.table.descriptors.Rowtime;
 
@@ -29,11 +30,17 @@ import java.util.Map;
  *
  * <p>Emits watermarks which are the maximum observed timestamp minus the specified delay.
  */
-public class BoundedOutOfOrderTimestamps extends PeriodicWatermarkAssigner {
+@PublicEvolving
+public final class BoundedOutOfOrderTimestamps extends PeriodicWatermarkAssigner {
+
+	private static final long serialVersionUID = 1L;
 
 	private final long delay;
 	private long maxTimestamp = Long.MIN_VALUE + 1;
 
+	/**
+	 * @param delay The delay by which watermarks are behind the maximum observed timestamp.
+	 */
 	public BoundedOutOfOrderTimestamps(long delay) {
 		this.delay = delay;
 	}
@@ -43,6 +50,11 @@ public class BoundedOutOfOrderTimestamps extends PeriodicWatermarkAssigner {
 		if (timestamp > maxTimestamp) {
 			maxTimestamp = timestamp;
 		}
+	}
+
+	@Override
+	public Watermark getWatermark() {
+		return new Watermark(maxTimestamp - delay);
 	}
 
 	@Override
@@ -72,10 +84,5 @@ public class BoundedOutOfOrderTimestamps extends PeriodicWatermarkAssigner {
 	@Override
 	public int hashCode() {
 		return Long.hashCode(delay);
-	}
-
-	@Override
-	public Watermark getWatermark() {
-		return new Watermark(maxTimestamp - delay);
 	}
 }
