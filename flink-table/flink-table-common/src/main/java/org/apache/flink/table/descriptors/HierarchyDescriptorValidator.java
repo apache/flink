@@ -16,26 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors
+package org.apache.flink.table.descriptors;
+
+import org.apache.flink.annotation.Internal;
 
 /**
-  * Validator for a [[HierarchyDescriptor]].
-  *
-  * @param keyPrefix prefix to be added to every property before validation
-  */
-abstract class HierarchyDescriptorValidator(keyPrefix: String) extends DescriptorValidator{
+ * Validator for a {@link HierarchyDescriptor}.
+ */
+@Internal
+public abstract class HierarchyDescriptorValidator implements DescriptorValidator {
 
-  final def validate(properties: DescriptorProperties): Unit = {
-    validateWithPrefix(keyPrefix, properties)
-  }
+	public static final String EMPTY_PREFIX = "";
 
-  /**
-    * Performs validation with a prefix for the keys.
-    */
-  protected def validateWithPrefix(keyPrefix: String, properties: DescriptorProperties): Unit
+	private String keyPrefix;
 
-}
+	/**
+	 * @param keyPrefix prefix to be added to every property before validation
+	 */
+	public HierarchyDescriptorValidator(String keyPrefix) {
+		this.keyPrefix = keyPrefix;
+	}
 
-object HierarchyDescriptorValidator {
-  val EMPTY_PREFIX = ""
+	@Override
+	public void validate(DescriptorProperties properties) {
+		validateWithPrefix(keyPrefix, properties);
+	}
+
+	/**
+	 * Performs validation with a prefix for the keys.
+	 */
+	protected abstract void validateWithPrefix(String keyPrefix, DescriptorProperties properties);
 }
