@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.typeutils;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
@@ -216,9 +217,14 @@ public class BaseArraySerializer extends TypeSerializer<BaseArray> {
 		return eleType.hashCode();
 	}
 
+	@VisibleForTesting
+	public TypeSerializer getEleSer() {
+		return eleSer;
+	}
+
 	@Override
 	public TypeSerializerSnapshot<BaseArray> snapshotConfiguration() {
-		return new BaseArraySerializerSnapshot(eleType);
+		return new BaseArraySerializerSnapshot(eleType, eleSer);
 	}
 
 	/**
@@ -228,14 +234,16 @@ public class BaseArraySerializer extends TypeSerializer<BaseArray> {
 		private static final int CURRENT_VERSION = 3;
 
 		private LogicalType previousType;
+		private TypeSerializer previousEleSer;
 
 		@SuppressWarnings("unused")
 		public BaseArraySerializerSnapshot() {
 			// this constructor is used when restoring from a checkpoint/savepoint.
 		}
 
-		BaseArraySerializerSnapshot(LogicalType eleType) {
+		BaseArraySerializerSnapshot(LogicalType eleType, TypeSerializer eleSer) {
 			this.previousType = eleType;
+			this.previousEleSer = eleSer;
 		}
 
 		@Override
@@ -245,14 +253,17 @@ public class BaseArraySerializer extends TypeSerializer<BaseArray> {
 
 		@Override
 		public void writeSnapshot(DataOutputView out) throws IOException {
-			InstantiationUtil.serializeObject(new DataOutputViewStream(out), previousType);
+			DataOutputViewStream outStream = new DataOutputViewStream(out);
+			InstantiationUtil.serializeObject(outStream, previousType);
+			InstantiationUtil.serializeObject(outStream, previousEleSer);
 		}
 
 		@Override
 		public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
 			try {
-				this.previousType = InstantiationUtil.deserializeObject(
-						new DataInputViewStream(in), userCodeClassLoader);
+				DataInputViewStream inStream = new DataInputViewStream(in);
+				this.previousType = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+				this.previousEleSer = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
 			} catch (ClassNotFoundException e) {
 				throw new IOException(e);
 			}
@@ -260,7 +271,7 @@ public class BaseArraySerializer extends TypeSerializer<BaseArray> {
 
 		@Override
 		public TypeSerializer<BaseArray> restoreSerializer() {
-			return new BaseArraySerializer(previousType, new ExecutionConfig());
+			return new BaseArraySerializer(previousType, previousEleSer);
 		}
 
 		@Override
@@ -270,7 +281,8 @@ public class BaseArraySerializer extends TypeSerializer<BaseArray> {
 			}
 
 			BaseArraySerializer newBaseArraySerializer = (BaseArraySerializer) newSerializer;
-			if (!previousType.equals(newBaseArraySerializer.eleType)) {
+			if (!previousType.equals(newBaseArraySerializer.eleType) ||
+				!previousEleSer.equals(newBaseArraySerializer.eleSer)) {
 				return TypeSerializerSchemaCompatibility.incompatible();
 			} else {
 				return TypeSerializerSchemaCompatibility.compatibleAsIs();
