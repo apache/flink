@@ -190,9 +190,9 @@ Note that we only cover most commonly used data types for now.
 
 The following limitations in Hive's data types impact the mapping between Flink and Hive:
 
-\* maximum length is 255
+\* minimum length is 255
 
-\** maximum length is 65535
+\* maximum length is 65535
 
 ## Hive Compatibility
 
