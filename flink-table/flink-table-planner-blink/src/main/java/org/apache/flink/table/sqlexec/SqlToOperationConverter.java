@@ -146,6 +146,7 @@ public class SqlToOperationConverter {
 		return new DropTableOperation(sqlDropTable.fullTableName(), sqlDropTable.getIfExists());
 	}
 
+	/** Convert insert into statement. */
 	private Operation convertSqlInsert(RichSqlInsert insert) {
 		// get name of sink table
 		List<String> targetTablePath = ((SqlIdentifier) insert.getTargetTable()).names;

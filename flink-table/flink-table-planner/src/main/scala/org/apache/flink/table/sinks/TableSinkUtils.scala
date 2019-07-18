@@ -21,20 +21,25 @@ package org.apache.flink.table.sinks
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.operations.QueryOperation
 
-import java.util.{List => JList}
+import java.util.{List => JList, Map => JMap}
+
+import collection.JavaConversions._
 
 object TableSinkUtils {
 
   /**
     * Checks if the given [[QueryOperation]] can be written to the given [[TableSink]].
-    * It checks if the names & the field types match.
+    * It checks if the names & the field types match. If this sink is a [[PartitionableTableSink]],
+    * it will also validate the partitions.
     *
-    * @param query    The query that is supposed to be written.
-    * @param sinkPath Tha path of the sink. It is needed just for logging. It does not
-    *                 participate in the validation.
-    * @param sink     The sink that we want to write to.
+    * @param staticPartitions Static partitions of the sink if there exists any.
+    * @param query            The query that is supposed to be written.
+    * @param sinkPath         Tha path of the sink. It is needed just for logging. It does not
+    *                         participate in the validation.
+    * @param sink             The sink that we want to write to.
     */
   def validateSink(
+      staticPartitions: JMap[String, String],
       query: QueryOperation,
       sinkPath: JList[String],
       sink: TableSink[_])
@@ -63,12 +68,17 @@ object TableSinkUtils {
           s"Query result schema: $srcSchema\n" +
           s"TableSink schema:    $sinkSchema")
     }
-
+    // check partitions are valid
     sink match {
-      case partitionableSink: PartitionableTableSink
-        if partitionableSink.getPartitionFieldNames.size() > 0 =>
-        throw new TableException("Partitionable sink is not supported in Flink planner yet," +
-          " please use Blink planner.")
+      case partitionableTableSink: PartitionableTableSink =>
+        val partitionFields = partitionableTableSink.getPartitionFieldNames
+        staticPartitions.map(_._1) zip partitionFields.slice(0, staticPartitions.size()) foreach {
+          case (p1, p2) =>
+            if (p1 != p2) {
+              throw new TableException(s"Static partition column $p1 " +
+                s"should appear before dynamic partition $p2.")
+            }
+        }
       case _ =>
     }
   }
