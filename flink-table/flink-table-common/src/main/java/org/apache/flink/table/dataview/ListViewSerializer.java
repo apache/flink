@@ -16,10 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.typeutils;
+package org.apache.flink.table.dataview;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
+import org.apache.flink.api.common.typeutils.LegacySerializerSnapshotTransformer;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.base.CollectionSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.base.ListSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.table.api.dataview.ListView;
@@ -36,9 +41,12 @@ import java.util.List;
  *
  * @param <T> The type of element in the list.
  */
-public class ListViewSerializer<T> extends TypeSerializer<ListView<T>> {
+@Internal
+public class ListViewSerializer<T>
+		extends TypeSerializer<ListView<T>>
+		implements LegacySerializerSnapshotTransformer<ListView<T>> {
 
-	private static final long serialVersionUID = 3272986300876096397L;
+	private static final long serialVersionUID = -2030398712359267867L;
 
 	private final TypeSerializer<List<T>> listSerializer;
 
@@ -63,7 +71,7 @@ public class ListViewSerializer<T> extends TypeSerializer<ListView<T>> {
 
 	@Override
 	public ListView<T> copy(ListView<T> from) {
-		return new ListView<>(null, from.list);
+		return new ListView<>(null, listSerializer.copy(from.list));
 	}
 
 	@Override
@@ -113,6 +121,48 @@ public class ListViewSerializer<T> extends TypeSerializer<ListView<T>> {
 
 	@Override
 	public TypeSerializerSnapshot<ListView<T>> snapshotConfiguration() {
-		throw new UnsupportedOperationException();
+		return new ListViewSerializerSnapshot<>(this);
 	}
+
+	/**
+	 * We need to override this as a {@link LegacySerializerSnapshotTransformer}
+	 * because in Flink 1.6.x and below, this serializer was incorrectly returning
+	 * directly the snapshot of the nested list serializer as its own snapshot.
+	 *
+	 * <p>This method transforms the incorrect list serializer snapshot
+	 * to be a proper {@link ListViewSerializerSnapshot}.
+	 */
+	@Override
+	public <U> TypeSerializerSnapshot<ListView<T>> transformLegacySerializerSnapshot(
+			TypeSerializerSnapshot<U> legacySnapshot) {
+		if (legacySnapshot instanceof ListViewSerializerSnapshot) {
+			return (TypeSerializerSnapshot<ListView<T>>) legacySnapshot;
+		} else if (legacySnapshot instanceof CollectionSerializerConfigSnapshot) {
+			// first, transform the incorrect list serializer's snapshot
+			// into a proper ListSerializerSnapshot
+			ListSerializerSnapshot<T> transformedNestedListSerializerSnapshot = new ListSerializerSnapshot<>();
+			CollectionSerializerConfigSnapshot<List<T>, T> snapshot =
+					(CollectionSerializerConfigSnapshot<List<T>, T>) legacySnapshot;
+			CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
+					transformedNestedListSerializerSnapshot,
+					(TypeSerializerSnapshot<?>) (snapshot.getSingleNestedSerializerAndConfig().f1));
+
+			// then, wrap the transformed ListSerializerSnapshot
+			// as a nested snapshot in the final resulting ListViewSerializerSnapshot
+			ListViewSerializerSnapshot<T> transformedListViewSerializerSnapshot = new ListViewSerializerSnapshot<>();
+			CompositeTypeSerializerUtil.setNestedSerializersSnapshots(
+					transformedListViewSerializerSnapshot,
+					transformedNestedListSerializerSnapshot);
+
+			return transformedListViewSerializerSnapshot;
+		} else {
+			throw new UnsupportedOperationException(
+					legacySnapshot.getClass().getCanonicalName() + " is not supported.");
+		}
+	}
+
+	public TypeSerializer<List<T>> getListSerializer() {
+		return listSerializer;
+	}
+
 }

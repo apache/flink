@@ -30,8 +30,6 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalListState;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.runtime.state.internal.InternalValueState;
-import org.apache.flink.table.typeutils.ListViewTypeInfo;
-import org.apache.flink.table.typeutils.MapViewTypeInfo;
 
 /**
  * An implementation of StateDataViewStore for window aggregates which forward the state

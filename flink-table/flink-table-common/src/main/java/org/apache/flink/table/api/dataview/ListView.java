@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.api.dataview;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.table.typeutils.ListViewTypeInfoFactory;
+import org.apache.flink.table.dataview.ListViewTypeInfoFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -75,6 +76,7 @@ import java.util.Objects;
  * }</pre>
  */
 @TypeInfo(ListViewTypeInfoFactory.class)
+@PublicEvolving
 public class ListView<T> implements DataView {
 	private static final long serialVersionUID = 5502298766901215388L;
 
@@ -106,7 +108,7 @@ public class ListView<T> implements DataView {
 	 * Returns an iterable of the list view.
 	 *
 	 * @throws Exception Thrown if the system cannot get data.
-	 * @return The iterable of the list or { @code null} if the list is empty.
+	 * @return The iterable of the list.
 	 */
 	public Iterable<T> get() throws Exception {
 		return list;
@@ -167,8 +169,4 @@ public class ListView<T> implements DataView {
 		return Objects.hash(elementType, list);
 	}
 
-	@Override
-	public String toString() {
-		return "ListView" + list.toString();
-	}
 }

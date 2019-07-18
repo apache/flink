@@ -36,6 +36,8 @@ import org.apache.flink.table.dataformat.BinaryGeneric;
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.GenericRow;
+import org.apache.flink.table.dataview.MapViewSerializer;
+import org.apache.flink.table.dataview.MapViewTypeInfo;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -45,8 +47,6 @@ import org.apache.flink.table.typeutils.BinaryStringSerializer;
 import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.table.typeutils.DecimalSerializer;
 import org.apache.flink.table.typeutils.DecimalTypeInfo;
-import org.apache.flink.table.typeutils.MapViewSerializer;
-import org.apache.flink.table.typeutils.MapViewTypeInfo;
 
 import java.util.ArrayList;
 import java.util.Iterator;

@@ -19,7 +19,6 @@
 package org.apache.flink.table.dataview
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.typeutils.{ListViewTypeInfo, MapViewTypeInfo}
 
 /**
   * Data view specification.

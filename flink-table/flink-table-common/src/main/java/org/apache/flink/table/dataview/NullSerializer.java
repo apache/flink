@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.typeutils;
+package org.apache.flink.table.dataview;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
@@ -28,6 +29,7 @@ import java.io.IOException;
 /**
  * A serializer for null.
  */
+@Internal
 public class NullSerializer extends TypeSerializerSingleton<Object> {
 	private static final long serialVersionUID = -5381596724707742625L;
 

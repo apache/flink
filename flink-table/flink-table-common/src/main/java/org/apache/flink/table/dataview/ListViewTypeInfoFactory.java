@@ -16,37 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.typeutils;
+package org.apache.flink.table.dataview;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInfoFactory;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
-import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.api.dataview.ListView;
 
 import java.lang.reflect.Type;
 import java.util.Map;
 
 /**
- * TypeInformation factory for {@link MapView}.
+ * TypeInformation factory for {@link ListView}.
  */
-public class MapViewTypeInfoFactory<K, V> extends TypeInfoFactory<MapView<K, V>> {
+@Internal
+public class ListViewTypeInfoFactory<T> extends TypeInfoFactory<ListView<T>> {
 
 	@Override
-	public TypeInformation<MapView<K, V>> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParameters) {
-		TypeInformation<?> keyType = genericParameters.get("K");
-		TypeInformation<?> valueType = genericParameters.get("V");
+	public TypeInformation<ListView<T>> createTypeInfo(Type t, Map<String, TypeInformation<?>> genericParameters) {
+		TypeInformation<?> elementType = genericParameters.get("T");
 
-		if (keyType == null) {
-			// we might can get the keyType later from the MapView constructor
-			keyType = new GenericTypeInfo<>(Object.class);
-		}
-
-		if (valueType == null) {
-			// we might can get the keyType later from the MapView constructor
-			valueType = new GenericTypeInfo<>(Object.class);
+		if (elementType == null) {
+			// we might can get the elementType later from the ListView constructor
+			elementType = new GenericTypeInfo<>(Object.class);
 		}
 
 		//noinspection unchecked
-		return new MapViewTypeInfo<>((TypeInformation<K>) keyType, (TypeInformation<V>) valueType);
+		return new ListViewTypeInfo<>((TypeInformation<T>) elementType);
 	}
 }

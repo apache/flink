@@ -25,8 +25,6 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.table.typeutils.ListViewTypeInfo;
-import org.apache.flink.table.typeutils.MapViewTypeInfo;
 
 /**
  * Default implementation of StateDataViewStore that currently forwards state registration
