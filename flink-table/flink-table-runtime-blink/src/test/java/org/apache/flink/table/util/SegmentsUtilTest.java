@@ -19,10 +19,19 @@ package org.apache.flink.table.util;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.BinaryRowTest;
+import org.apache.flink.table.dataformat.DataFormatTestUtil;
+import org.apache.flink.table.dataformat.util.BinaryRowUtil;
 
 import org.junit.Assert;
 import org.junit.Test;
+
+import static org.apache.flink.table.dataformat.util.BinaryRowUtil.BYTE_ARRAY_BASE_OFFSET;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test for {@link SegmentsUtil}, most is covered by {@link BinaryRowTest},
@@ -53,10 +62,142 @@ public class SegmentsUtilTest {
 		segments2[0] = MemorySegmentFactory.wrap(new byte[]{6, 0, 2, 5});
 		segments2[1] = MemorySegmentFactory.wrap(new byte[]{6, 12, 15, 18});
 
-		Assert.assertTrue(SegmentsUtil.equalsMultiSegments(segments1, 0, segments2, 0, 0));
-		Assert.assertTrue(SegmentsUtil.equals(segments1, 0, segments2, 1, 3));
-		Assert.assertTrue(SegmentsUtil.equals(segments1, 0, segments2, 1, 6));
-		Assert.assertFalse(SegmentsUtil.equals(segments1, 0, segments2, 1, 7));
+		assertTrue(SegmentsUtil.equalsMultiSegments(segments1, 0, segments2, 0, 0));
+		assertTrue(SegmentsUtil.equals(segments1, 0, segments2, 1, 3));
+		assertTrue(SegmentsUtil.equals(segments1, 0, segments2, 1, 6));
+		assertFalse(SegmentsUtil.equals(segments1, 0, segments2, 1, 7));
+	}
+
+	@Test
+	public void testBoundaryByteArrayEquals() {
+		byte[] bytes1 = new byte[5];
+		bytes1[3] = 81;
+		byte[] bytes2 = new byte[100];
+		bytes2[3] = 81;
+		bytes2[4] = 81;
+
+		assertTrue(BinaryRowUtil.byteArrayEquals(bytes1, bytes2, 4));
+		assertFalse(BinaryRowUtil.byteArrayEquals(bytes1, bytes2, 5));
+		assertTrue(BinaryRowUtil.byteArrayEquals(bytes1, bytes2, 0));
+	}
+
+	@Test
+	public void testBoundaryEquals() {
+		BinaryRow row24 = DataFormatTestUtil.get24BytesBinaryRow();
+		BinaryRow row160 = DataFormatTestUtil.get160BytesBinaryRow();
+		BinaryRow varRow160 = DataFormatTestUtil.getMultiSeg160BytesBinaryRow(row160);
+		BinaryRow varRow160InOne = DataFormatTestUtil.getMultiSeg160BytesInOneSegRow(row160);
+
+		assertEquals(row160, varRow160InOne);
+		assertEquals(varRow160, varRow160InOne);
+		assertEquals(row160, varRow160);
+		assertEquals(varRow160InOne, varRow160);
+
+		assertNotEquals(row24, row160);
+		assertNotEquals(row24, varRow160);
+		assertNotEquals(row24, varRow160InOne);
+
+		assertTrue(SegmentsUtil.equals(row24.getSegments(), 0, row160.getSegments(), 0, 0));
+		assertTrue(SegmentsUtil.equals(row24.getSegments(), 0, varRow160.getSegments(), 0, 0));
+
+		// test var segs
+		MemorySegment[] segments1 = new MemorySegment[2];
+		segments1[0] = MemorySegmentFactory.wrap(new byte[32]);
+		segments1[1] = MemorySegmentFactory.wrap(new byte[32]);
+		MemorySegment[] segments2 = new MemorySegment[3];
+		segments2[0] = MemorySegmentFactory.wrap(new byte[16]);
+		segments2[1] = MemorySegmentFactory.wrap(new byte[16]);
+		segments2[2] = MemorySegmentFactory.wrap(new byte[16]);
+
+		segments1[0].put(9, (byte) 1);
+		assertFalse(SegmentsUtil.equals(segments1, 0, segments2, 14, 14));
+		segments2[1].put(7, (byte) 1);
+		assertTrue(SegmentsUtil.equals(segments1, 0, segments2, 14, 14));
+		assertTrue(SegmentsUtil.equals(segments1, 2, segments2, 16, 14));
+		assertTrue(SegmentsUtil.equals(segments1, 2, segments2, 16, 16));
+
+		segments2[2].put(7, (byte) 1);
+		assertTrue(SegmentsUtil.equals(segments1, 2, segments2, 32, 14));
+	}
+
+	@Test
+	public void testBoundaryCopy() {
+		MemorySegment[] segments1 = new MemorySegment[2];
+		segments1[0] = MemorySegmentFactory.wrap(new byte[32]);
+		segments1[1] = MemorySegmentFactory.wrap(new byte[32]);
+		segments1[0].put(15, (byte) 5);
+		segments1[1].put(15, (byte) 6);
+
+		{
+			byte[] bytes = new byte[64];
+			MemorySegment[] segments2 = new MemorySegment[]{MemorySegmentFactory.wrap(bytes)};
+
+			SegmentsUtil.copyToBytes(segments1, 0, bytes, 0, 64);
+			assertTrue(SegmentsUtil.equals(segments1, 0, segments2, 0, 64));
+		}
+
+		{
+			byte[] bytes = new byte[64];
+			MemorySegment[] segments2 = new MemorySegment[]{MemorySegmentFactory.wrap(bytes)};
+
+			SegmentsUtil.copyToBytes(segments1, 32, bytes, 0, 14);
+			assertTrue(SegmentsUtil.equals(segments1, 32, segments2, 0, 14));
+		}
+
+		{
+			byte[] bytes = new byte[64];
+			MemorySegment[] segments2 = new MemorySegment[]{MemorySegmentFactory.wrap(bytes)};
+
+			SegmentsUtil.copyToBytes(segments1, 34, bytes, 0, 14);
+			assertTrue(SegmentsUtil.equals(segments1, 34, segments2, 0, 14));
+		}
+	}
+
+	@Test
+	public void testCopyToUnsafe() {
+		MemorySegment[] segments1 = new MemorySegment[2];
+		segments1[0] = MemorySegmentFactory.wrap(new byte[32]);
+		segments1[1] = MemorySegmentFactory.wrap(new byte[32]);
+		segments1[0].put(15, (byte) 5);
+		segments1[1].put(15, (byte) 6);
+
+		{
+			byte[] bytes = new byte[64];
+			MemorySegment[] segments2 = new MemorySegment[]{MemorySegmentFactory.wrap(bytes)};
+
+			SegmentsUtil.copyToUnsafe(segments1, 0, bytes, BYTE_ARRAY_BASE_OFFSET, 64);
+			assertTrue(SegmentsUtil.equals(segments1, 0, segments2, 0, 64));
+		}
+
+		{
+			byte[] bytes = new byte[64];
+			MemorySegment[] segments2 = new MemorySegment[]{MemorySegmentFactory.wrap(bytes)};
+
+			SegmentsUtil.copyToUnsafe(segments1, 32, bytes, BYTE_ARRAY_BASE_OFFSET, 14);
+			assertTrue(SegmentsUtil.equals(segments1, 32, segments2, 0, 14));
+		}
+
+		{
+			byte[] bytes = new byte[64];
+			MemorySegment[] segments2 = new MemorySegment[]{MemorySegmentFactory.wrap(bytes)};
+
+			SegmentsUtil.copyToUnsafe(segments1, 34, bytes, BYTE_ARRAY_BASE_OFFSET, 14);
+			assertTrue(SegmentsUtil.equals(segments1, 34, segments2, 0, 14));
+		}
+	}
+
+	@Test
+	public void testFind() {
+		MemorySegment[] segments1 = new MemorySegment[2];
+		segments1[0] = MemorySegmentFactory.wrap(new byte[32]);
+		segments1[1] = MemorySegmentFactory.wrap(new byte[32]);
+		MemorySegment[] segments2 = new MemorySegment[3];
+		segments2[0] = MemorySegmentFactory.wrap(new byte[16]);
+		segments2[1] = MemorySegmentFactory.wrap(new byte[16]);
+		segments2[2] = MemorySegmentFactory.wrap(new byte[16]);
+
+		assertEquals(34, SegmentsUtil.find(segments1, 34, 0, segments2, 0, 0));
+		assertEquals(-1, SegmentsUtil.find(segments1, 34, 0, segments2, 0, 15));
 	}
 
 }
