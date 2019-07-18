@@ -17,6 +17,7 @@
 
 package org.apache.flink.table.typeutils;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
@@ -62,12 +63,21 @@ public class BaseMapSerializer extends TypeSerializer<BaseMap> {
 	private transient BinaryArrayWriter reuseKeyWriter;
 	private transient BinaryArrayWriter reuseValueWriter;
 
-	public BaseMapSerializer(LogicalType keyType, LogicalType valueType) {
+	public BaseMapSerializer(LogicalType keyType, LogicalType valueType, ExecutionConfig conf) {
 		this.keyType = keyType;
 		this.valueType = valueType;
 
-		this.keySerializer = InternalSerializers.create(keyType, new ExecutionConfig());
-		this.valueSerializer = InternalSerializers.create(valueType, new ExecutionConfig());
+		this.keySerializer = InternalSerializers.create(keyType, conf);
+		this.valueSerializer = InternalSerializers.create(valueType, conf);
+	}
+
+	private BaseMapSerializer(
+			LogicalType keyType, LogicalType valueType, TypeSerializer keySerializer, TypeSerializer valueSerializer) {
+		this.keyType = keyType;
+		this.valueType = valueType;
+
+		this.keySerializer = keySerializer;
+		this.valueSerializer = valueSerializer;
 	}
 
 	@Override
@@ -77,7 +87,7 @@ public class BaseMapSerializer extends TypeSerializer<BaseMap> {
 
 	@Override
 	public TypeSerializer<BaseMap> duplicate() {
-		return new BaseMapSerializer(keyType, valueType);
+		return new BaseMapSerializer(keyType, valueType, keySerializer.duplicate(), valueSerializer.duplicate());
 	}
 
 	@Override
@@ -217,9 +227,19 @@ public class BaseMapSerializer extends TypeSerializer<BaseMap> {
 		return result;
 	}
 
+	@VisibleForTesting
+	public TypeSerializer getKeySerializer() {
+		return keySerializer;
+	}
+
+	@VisibleForTesting
+	public TypeSerializer getValueSerializer() {
+		return valueSerializer;
+	}
+
 	@Override
 	public TypeSerializerSnapshot<BaseMap> snapshotConfiguration() {
-		return new BaseMapSerializerSnapshot(keyType, valueType);
+		return new BaseMapSerializerSnapshot(keyType, valueType, keySerializer, valueSerializer);
 	}
 
 	/**
@@ -231,14 +251,20 @@ public class BaseMapSerializer extends TypeSerializer<BaseMap> {
 		private LogicalType previousKeyType;
 		private LogicalType previousValueType;
 
+		private TypeSerializer previousKeySerializer;
+		private TypeSerializer previousValueSerializer;
+
 		@SuppressWarnings("unused")
 		public BaseMapSerializerSnapshot() {
 			// this constructor is used when restoring from a checkpoint/savepoint.
 		}
 
-		BaseMapSerializerSnapshot(LogicalType keyT, LogicalType valueT) {
+		BaseMapSerializerSnapshot(LogicalType keyT, LogicalType valueT, TypeSerializer keySer, TypeSerializer valueSer) {
 			this.previousKeyType = keyT;
 			this.previousValueType = valueT;
+
+			this.previousKeySerializer = keySer;
+			this.previousValueSerializer = valueSer;
 		}
 
 		@Override
@@ -248,15 +274,21 @@ public class BaseMapSerializer extends TypeSerializer<BaseMap> {
 
 		@Override
 		public void writeSnapshot(DataOutputView out) throws IOException {
-			InstantiationUtil.serializeObject(new DataOutputViewStream(out), previousKeyType);
-			InstantiationUtil.serializeObject(new DataOutputViewStream(out), previousValueType);
+			DataOutputViewStream outStream = new DataOutputViewStream(out);
+			InstantiationUtil.serializeObject(outStream, previousKeyType);
+			InstantiationUtil.serializeObject(outStream, previousValueType);
+			InstantiationUtil.serializeObject(outStream, previousKeySerializer);
+			InstantiationUtil.serializeObject(outStream, previousValueSerializer);
 		}
 
 		@Override
 		public void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException {
 			try {
-				this.previousKeyType = InstantiationUtil.deserializeObject(new DataInputViewStream(in), userCodeClassLoader);
-				this.previousValueType = InstantiationUtil.deserializeObject(new DataInputViewStream(in), userCodeClassLoader);
+				DataInputViewStream inStream = new DataInputViewStream(in);
+				this.previousKeyType = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+				this.previousValueType = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+				this.previousKeySerializer = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
+				this.previousValueSerializer = InstantiationUtil.deserializeObject(inStream, userCodeClassLoader);
 			} catch (ClassNotFoundException e) {
 				throw new IOException(e);
 			}
@@ -264,7 +296,8 @@ public class BaseMapSerializer extends TypeSerializer<BaseMap> {
 
 		@Override
 		public TypeSerializer<BaseMap> restoreSerializer() {
-			return new BaseMapSerializer(previousKeyType, previousValueType);
+			return new BaseMapSerializer(
+				previousKeyType, previousValueType, previousKeySerializer, previousValueSerializer);
 		}
 
 		@Override
@@ -275,7 +308,9 @@ public class BaseMapSerializer extends TypeSerializer<BaseMap> {
 
 			BaseMapSerializer newBaseMapSerializer = (BaseMapSerializer) newSerializer;
 			if (!previousKeyType.equals(newBaseMapSerializer.keyType) ||
-					!previousValueType.equals(newBaseMapSerializer.valueType)) {
+				!previousValueType.equals(newBaseMapSerializer.valueType) ||
+				!previousKeySerializer.equals(newBaseMapSerializer.keySerializer) ||
+				!previousValueSerializer.equals(newBaseMapSerializer.valueSerializer)) {
 				return TypeSerializerSchemaCompatibility.incompatible();
 			} else {
 				return TypeSerializerSchemaCompatibility.compatibleAsIs();
