@@ -87,6 +87,9 @@ public class HiveShimV1 implements HiveShim {
 			if (e.getCause() instanceof NoSuchObjectException) {
 				throw (NoSuchObjectException) e.getCause();
 			}
+			if (e.getMessage().startsWith(NoSuchObjectException.class.getSimpleName())) {
+				throw new NoSuchObjectException(e.getMessage());
+			}
 			throw e;
 		}
 	}

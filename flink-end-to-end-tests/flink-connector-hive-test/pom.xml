@@ -34,12 +34,23 @@ under the License.
 	<name>flink-connector-hive-test</name>
 	<packaging>jar</packaging>
 
+	<properties>
+		<hiverunner.version>4.0.0</hiverunner.version>
+	</properties>
+
 	<dependencies>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-hive_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-hadoop-2-uber</artifactId>
+			<version>${hivemetastore.hadoop.version}-${flink.shaded.version}</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -63,6 +74,16 @@ under the License.
 			<artifactId>hive-contrib</artifactId>
 			<version>${hive.version}</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.hive</groupId>
+					<artifactId>hive-serde</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-yarn-server-resourcemanager</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -83,6 +104,38 @@ under the License.
 					<groupId>com.google.guava</groupId>
 					<artifactId>guava</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-yarn-registry</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-client</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-archives</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-mapreduce-client-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-auth</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -95,11 +148,39 @@ under the License.
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.hive</groupId>
+					<artifactId>hive-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hive</groupId>
+					<artifactId>hive-metastore</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hive</groupId>
 					<artifactId>hive-exec</artifactId>
 				</exclusion>
 				<exclusion>
 					<groupId>com.google.guava</groupId>
 					<artifactId>guava</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-annotations</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-archives</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-mapreduce-client-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-hdfs</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -109,6 +190,16 @@ under the License.
 			<artifactId>hive-webhcat-java-client</artifactId>
 			<version>${hive.version}</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-mapreduce-client-core</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!--  We have 0.9.10 in dependency management but hiverunner requires 0.9.8, so need to explicitly specify it here -->
@@ -128,7 +219,7 @@ under the License.
 		<dependency>
 			<groupId>com.klarna</groupId>
 			<artifactId>hiverunner</artifactId>
-			<version>4.0.0</version>
+			<version>${hiverunner.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -190,17 +281,12 @@ under the License.
 
 	</dependencies>
 
-	<!-- ONLY run the tests when explicitly told to do so  -->
-	<properties>
-		<skipTests>true</skipTests>
-	</properties>
 	<build>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<skipTests>${skipTests}</skipTests>
 					<systemPropertyVariables>
 						<derby.stream.error.file>${project.build.directory}/derby.log</derby.stream.error.file>
 					</systemPropertyVariables>
@@ -230,5 +316,16 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>hive-1.2.1</id>
+			<properties>
+				<hive.version>1.2.1</hive.version>
+				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
+				<hiverunner.version>3.2.1</hiverunner.version>
+			</properties>
+		</profile>
+	</profiles>
 
 </project>
