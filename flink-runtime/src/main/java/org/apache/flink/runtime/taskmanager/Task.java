@@ -99,6 +99,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -1080,18 +1081,21 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	// ------------------------------------------------------------------------
 
 	@Override
-	public CompletableFuture<PartitionProducerStateResponseHandle> requestPartitionProducerState(
+	public void requestPartitionProducerState(
 			final IntermediateDataSetID intermediateDataSetId,
-			final ResultPartitionID resultPartitionId) {
+			final ResultPartitionID resultPartitionId,
+			Consumer<? super ResponseHandle> responseConsumer) {
+
 		final CompletableFuture<ExecutionState> futurePartitionState =
 			partitionProducerStateChecker.requestPartitionProducerState(
 				jobId,
 				intermediateDataSetId,
 				resultPartitionId);
-		final CompletableFuture<PartitionProducerStateResponseHandle> result =
-			futurePartitionState.handleAsync(PartitionProducerStateResponseHandle::new, executor);
-		FutureUtils.assertNoException(result);
-		return result;
+
+		FutureUtils.assertNoException(
+			futurePartitionState
+				.handle(PartitionProducerStateResponseHandle::new)
+				.thenAcceptAsync(responseConsumer, executor));
 	}
 
 	// ------------------------------------------------------------------------
