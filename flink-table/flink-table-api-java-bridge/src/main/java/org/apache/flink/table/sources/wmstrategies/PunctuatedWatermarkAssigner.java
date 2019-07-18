@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.sources.wmstrategies;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.types.Row;
 
 /**
  * A punctuated watermark assigner.
  */
+@PublicEvolving
 public abstract class PunctuatedWatermarkAssigner extends WatermarkStrategy {
 
 	/**
