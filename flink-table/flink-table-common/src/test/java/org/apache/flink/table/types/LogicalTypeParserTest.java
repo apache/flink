@@ -60,6 +60,8 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -76,309 +78,440 @@ import static org.junit.Assert.assertThat;
 public class LogicalTypeParserTest {
 
 	@Parameters(name = "{index}: [From: {0}, To: {1}]")
-	public static List<Object[]> testData() {
+	public static List<TestSpec> testData() {
 		return Arrays.asList(
-			new Object[][]{
 
-				{"CHAR", new CharType(), null},
+			TestSpec
+				.forString("CHAR")
+				.expectType(new CharType()),
 
-				{"CHAR NOT NULL", new CharType().copy(false), null},
+			TestSpec
+				.forString("CHAR NOT NULL")
+				.expectType(new  CharType().copy(false)),
 
-				{"CHAR   NOT \t\nNULL", new CharType().copy(false), null},
+			TestSpec
+				.forString("CHAR   NOT \t\nNULL")
+				.expectType(new  CharType().copy(false)),
 
-				{"char not null", new CharType().copy(false), null},
+			TestSpec
+				.forString("char not null")
+				.expectType(new CharType().copy(false)),
 
-				{"CHAR NULL", new CharType(), null},
+			TestSpec
+				.forString("CHAR NULL")
+				.expectType(new CharType()),
 
-				{"CHAR(33)", new CharType(33), null},
+			TestSpec
+				.forString("CHAR(33)")
+				.expectType(new CharType(33)),
 
-				{"VARCHAR", new VarCharType(), null},
+			TestSpec
+				.forString("VARCHAR")
+				.expectType(new VarCharType()),
 
-				{"VARCHAR(33)", new VarCharType(33), null},
+			TestSpec
+				.forString("VARCHAR(33)")
+				.expectType(new VarCharType(33)),
 
-				{"STRING", new VarCharType(VarCharType.MAX_LENGTH), null},
+			TestSpec
+				.forString("STRING")
+				.expectType(new VarCharType(VarCharType.MAX_LENGTH)),
 
-				{"BOOLEAN", new BooleanType(), null},
+			TestSpec
+				.forString("BOOLEAN")
+				.expectType(new BooleanType()),
 
-				{"BINARY", new BinaryType(), null},
+			TestSpec
+				.forString("BINARY")
+				.expectType(new BinaryType()),
 
-				{"BINARY(33)", new BinaryType(33), null},
+			TestSpec
+				.forString("BINARY(33)")
+				.expectType(new BinaryType(33)),
 
-				{"VARBINARY", new VarBinaryType(), null},
+			TestSpec
+				.forString("VARBINARY")
+				.expectType(new VarBinaryType()),
 
-				{"VARBINARY(33)", new VarBinaryType(33), null},
+			TestSpec
+				.forString("VARBINARY(33)")
+				.expectType(new VarBinaryType(33)),
 
-				{"BYTES", new VarBinaryType(VarBinaryType.MAX_LENGTH), null},
+			TestSpec
+				.forString("BYTES")
+				.expectType(new VarBinaryType(VarBinaryType.MAX_LENGTH)),
 
-				{"DECIMAL", new DecimalType(), null},
+			TestSpec
+				.forString("DECIMAL")
+				.expectType(new DecimalType()),
 
-				{"DEC", new DecimalType(), null},
+			TestSpec
+				.forString("DEC")
+				.expectType(new DecimalType()),
 
-				{"NUMERIC", new DecimalType(), null},
+			TestSpec
+				.forString("NUMERIC")
+				.expectType(new DecimalType()),
 
-				{"DECIMAL(10)", new DecimalType(10), null},
+			TestSpec
+				.forString("DECIMAL(10)")
+				.expectType(new DecimalType(10)),
 
-				{"DEC(10)", new DecimalType(10), null},
+			TestSpec
+				.forString("DEC(10)")
+				.expectType(new DecimalType(10)),
 
-				{"NUMERIC(10)", new DecimalType(10), null},
+			TestSpec
+				.forString("NUMERIC(10)")
+				.expectType(new DecimalType(10)),
 
-				{"DECIMAL(10, 3)", new DecimalType(10, 3), null},
+			TestSpec
+				.forString("DECIMAL(10, 3)")
+				.expectType(new DecimalType(10, 3)),
 
-				{"DEC(10, 3)", new DecimalType(10, 3), null},
+			TestSpec
+				.forString("DEC(10, 3)")
+				.expectType(new DecimalType(10, 3)),
 
-				{"NUMERIC(10, 3)", new DecimalType(10, 3), null},
+			TestSpec
+				.forString("NUMERIC(10, 3)")
+				.expectType(new DecimalType(10, 3)),
 
-				{"TINYINT", new TinyIntType(), null},
+			TestSpec
+				.forString("TINYINT")
+				.expectType(new TinyIntType()),
 
-				{"SMALLINT", new SmallIntType(), null},
+			TestSpec
+				.forString("SMALLINT")
+				.expectType(new SmallIntType()),
 
-				{"INTEGER", new IntType(), null},
+			TestSpec
+				.forString("INTEGER")
+				.expectType(new IntType()),
 
-				{"INT", new IntType(), null},
+			TestSpec
+				.forString("INT")
+				.expectType(new IntType()),
 
-				{"BIGINT", new BigIntType(), null},
+			TestSpec
+				.forString("BIGINT")
+				.expectType(new BigIntType()),
 
-				{"FLOAT", new FloatType(), null},
+			TestSpec
+				.forString("FLOAT")
+				.expectType(new FloatType()),
 
-				{"DOUBLE", new DoubleType(), null},
+			TestSpec
+				.forString("DOUBLE")
+				.expectType(new DoubleType()),
 
-				{"DOUBLE PRECISION", new DoubleType(), null},
+			TestSpec
+				.forString("DOUBLE PRECISION")
+				.expectType(new DoubleType()),
 
-				{"DATE", new DateType(), null},
+			TestSpec
+				.forString("DATE")
+				.expectType(new DateType()),
 
-				{"TIME", new TimeType(), null},
+			TestSpec
+				.forString("TIME")
+				.expectType(new TimeType()),
 
-				{"TIME(3)", new TimeType(3), null},
+			TestSpec
+				.forString("TIME(3)")
+				.expectType(new TimeType(3)),
 
-				{"TIME WITHOUT TIME ZONE", new TimeType(), null},
+			TestSpec
+				.forString("TIME WITHOUT TIME ZONE")
+				.expectType(new TimeType()),
 
-				{"TIME(3) WITHOUT TIME ZONE", new TimeType(3), null},
+			TestSpec
+				.forString("TIME(3) WITHOUT TIME ZONE")
+				.expectType(new TimeType(3)),
 
-				{"TIMESTAMP", new TimestampType(), null},
+			TestSpec
+				.forString("TIMESTAMP")
+				.expectType(new TimestampType()),
 
-				{"TIMESTAMP(3)", new TimestampType(3), null},
+			TestSpec
+				.forString("TIMESTAMP(3)")
+				.expectType(new TimestampType(3)),
 
-				{"TIMESTAMP WITHOUT TIME ZONE", new TimestampType(), null},
+			TestSpec
+				.forString("TIMESTAMP WITHOUT TIME ZONE")
+				.expectType(new TimestampType()),
 
-				{"TIMESTAMP(3) WITHOUT TIME ZONE", new TimestampType(3), null},
+			TestSpec
+				.forString("TIMESTAMP(3) WITHOUT TIME ZONE")
+				.expectType(new TimestampType(3)),
 
-				{"TIMESTAMP WITH TIME ZONE", new ZonedTimestampType(), null},
+			TestSpec
+				.forString("TIMESTAMP WITH TIME ZONE")
+				.expectType(new ZonedTimestampType()),
 
-				{"TIMESTAMP(3) WITH TIME ZONE", new ZonedTimestampType(3), null},
+			TestSpec
+				.forString("TIMESTAMP(3) WITH TIME ZONE")
+				.expectType(new ZonedTimestampType(3)),
 
-				{"TIMESTAMP WITH LOCAL TIME ZONE", new LocalZonedTimestampType(), null},
+			TestSpec
+				.forString("TIMESTAMP WITH LOCAL TIME ZONE")
+				.expectType(new LocalZonedTimestampType()),
 
-				{"TIMESTAMP(3) WITH LOCAL TIME ZONE", new LocalZonedTimestampType(3), null},
+			TestSpec
+				.forString("TIMESTAMP(3) WITH LOCAL TIME ZONE")
+				.expectType(new LocalZonedTimestampType(3)),
 
-				{
-					"INTERVAL YEAR",
-					new YearMonthIntervalType(YearMonthResolution.YEAR),
-					null
-				},
+			TestSpec
+				.forString("INTERVAL YEAR")
+				.expectType(new YearMonthIntervalType(YearMonthResolution.YEAR)),
 
-				{
-					"INTERVAL YEAR(4)",
-					new YearMonthIntervalType(YearMonthResolution.YEAR, 4),
-					null
-				},
+			TestSpec
+				.forString("INTERVAL YEAR(4)")
+				.expectType(new YearMonthIntervalType(YearMonthResolution.YEAR, 4)),
 
-				{
-					"INTERVAL MONTH",
-					new YearMonthIntervalType(YearMonthResolution.MONTH),
-					null
-				},
+			TestSpec
+				.forString("INTERVAL MONTH")
+				.expectType(new YearMonthIntervalType(YearMonthResolution.MONTH)),
 
-				{
-					"INTERVAL YEAR TO MONTH",
-					new YearMonthIntervalType(YearMonthResolution.YEAR_TO_MONTH),
-					null
-				},
+			TestSpec
+				.forString("INTERVAL YEAR TO MONTH")
+				.expectType(new YearMonthIntervalType(YearMonthResolution.YEAR_TO_MONTH)),
 
-				{
-					"INTERVAL YEAR(4) TO MONTH",
-					new YearMonthIntervalType(YearMonthResolution.YEAR_TO_MONTH, 4),
-					null
-				},
+			TestSpec
+				.forString("INTERVAL YEAR(4) TO MONTH")
+				.expectType(new YearMonthIntervalType(YearMonthResolution.YEAR_TO_MONTH, 4)),
 
-				{
-					"INTERVAL DAY(2) TO SECOND(3)",
-					new DayTimeIntervalType(DayTimeResolution.DAY_TO_SECOND, 2, 3),
-					null
-				},
+			TestSpec
+				.forString("INTERVAL DAY(2) TO SECOND(3)")
+				.expectType(new DayTimeIntervalType(DayTimeResolution.DAY_TO_SECOND, 2, 3)),
 
-				{
-					"INTERVAL HOUR TO SECOND(3)",
+			TestSpec
+				.forString("INTERVAL HOUR TO SECOND(3)")
+				.expectType(
 					new DayTimeIntervalType(
 						DayTimeResolution.HOUR_TO_SECOND,
 						DayTimeIntervalType.DEFAULT_DAY_PRECISION,
-						3),
-					null
-				},
+						3)
+				),
 
-				{
-					"INTERVAL MINUTE",
-					new DayTimeIntervalType(DayTimeResolution.MINUTE),
-					null
-				},
+			TestSpec
+				.forString("INTERVAL MINUTE")
+				.expectType(new DayTimeIntervalType(DayTimeResolution.MINUTE)),
 
-				{"ARRAY<TIMESTAMP(3) WITH LOCAL TIME ZONE>", new ArrayType(new LocalZonedTimestampType(3)), null},
+			TestSpec
+				.forString("ARRAY<TIMESTAMP(3) WITH LOCAL TIME ZONE>")
+				.expectType(new ArrayType(new LocalZonedTimestampType(3))),
 
-				{"ARRAY<INT NOT NULL>", new ArrayType(new IntType(false)), null},
+			TestSpec
+				.forString("ARRAY<INT NOT NULL>")
+				.expectType(new ArrayType(new IntType(false))),
 
-				{"INT ARRAY", new ArrayType(new IntType()), null},
+			TestSpec
+				.forString("INT ARRAY")
+				.expectType(new ArrayType(new IntType())),
 
-				{"INT NOT NULL ARRAY", new ArrayType(new IntType(false)), null},
+			TestSpec
+				.forString("INT NOT NULL ARRAY")
+				.expectType(new ArrayType(new IntType(false))),
 
-				{"INT ARRAY NOT NULL", new ArrayType(false, new IntType()), null},
+			TestSpec
+				.forString("INT ARRAY NOT NULL")
+				.expectType(new ArrayType(false, new IntType())),
 
-				{"MULTISET<INT NOT NULL>", new MultisetType(new IntType(false)), null},
+			TestSpec
+				.forString("MULTISET<INT NOT NULL>")
+				.expectType(new MultisetType(new IntType(false))),
 
-				{"INT MULTISET", new MultisetType(new IntType()), null},
+			TestSpec
+				.forString("INT MULTISET")
+				.expectType(new MultisetType(new IntType())),
 
-				{"INT NOT NULL MULTISET", new MultisetType(new IntType(false)), null},
+			TestSpec
+				.forString("INT NOT NULL MULTISET")
+				.expectType(new MultisetType(new IntType(false))),
 
-				{"INT MULTISET NOT NULL", new MultisetType(false, new IntType()), null},
+			TestSpec
+				.forString("INT MULTISET NOT NULL")
+				.expectType(new MultisetType(false, new IntType())),
 
-				{"MAP<BIGINT, BOOLEAN>", new MapType(new BigIntType(), new BooleanType()), null},
+			TestSpec
+				.forString("MAP<BIGINT, BOOLEAN>")
+				.expectType(new MapType(new BigIntType(), new BooleanType())),
 
-				{
-					"ROW<f0 INT NOT NULL, f1 BOOLEAN>",
+			TestSpec
+				.forString("ROW<f0 INT NOT NULL, f1 BOOLEAN>")
+				.expectType(
 					new RowType(
 						Arrays.asList(
 							new RowType.RowField("f0", new IntType(false)),
-							new RowType.RowField("f1", new BooleanType()))),
-					null
-				},
+							new RowType.RowField("f1", new BooleanType())))
+				),
 
-				{
-					"ROW(f0 INT NOT NULL, f1 BOOLEAN)",
+			TestSpec
+				.forString("ROW(f0 INT NOT NULL, f1 BOOLEAN)")
+				.expectType(
 					new RowType(
 						Arrays.asList(
 							new RowType.RowField("f0", new IntType(false)),
-							new RowType.RowField("f1", new BooleanType()))),
-					null
-				},
+							new RowType.RowField("f1", new BooleanType())))
+				),
 
-				{
-					"ROW<`f0` INT>",
+			TestSpec
+				.forString("ROW<`f0` INT>")
+				.expectType(
 					new RowType(
-						Collections.singletonList(new RowType.RowField("f0", new IntType()))),
-					null
-				},
+						Collections.singletonList(new RowType.RowField("f0", new IntType())))
+				),
 
-				{
-					"ROW(`f0` INT)",
+			TestSpec
+				.forString("ROW(`f0` INT)")
+				.expectType(
 					new RowType(
-						Collections.singletonList(new RowType.RowField("f0", new IntType()))),
-					null
-				},
+						Collections.singletonList(new RowType.RowField("f0", new IntType())))
+				),
 
-				{
-					"ROW<>",
-					new RowType(Collections.emptyList()),
-					null
-				},
+			TestSpec
+				.forString("ROW<>")
+				.expectType(new RowType(Collections.emptyList())),
 
-				{
-					"ROW()",
-					new RowType(Collections.emptyList()),
-					null
-				},
+			TestSpec
+				.forString("ROW()")
+				.expectType(new RowType(Collections.emptyList())),
 
-				{
-					"ROW<f0 INT NOT NULL 'This is a comment.', f1 BOOLEAN 'This as well.'>",
+			TestSpec
+				.forString("ROW<f0 INT NOT NULL 'This is a comment.', f1 BOOLEAN 'This as well.'>")
+				.expectType(
 					new RowType(
 						Arrays.asList(
 							new RowType.RowField("f0", new IntType(false), "This is a comment."),
-							new RowType.RowField("f1", new BooleanType(), "This as well."))),
-					null
-				},
+							new RowType.RowField("f1", new BooleanType(), "This as well.")))
+				),
 
-				{"NULL", new NullType(), null},
+			TestSpec
+				.forString("NULL")
+				.expectType(new NullType()),
 
-				{
-					createAnyType(LogicalTypeParserTest.class).asSerializableString(),
-					createAnyType(LogicalTypeParserTest.class),
-					null
-				},
+			TestSpec
+				.forString(createAnyType(LogicalTypeParserTest.class).asSerializableString())
+				.expectType(createAnyType(LogicalTypeParserTest.class)),
 
-				{"cat.db.MyType", new UnresolvedUserDefinedType("cat", "db", "MyType"), null},
+			TestSpec
+				.forString("cat.db.MyType")
+				.expectType(new UnresolvedUserDefinedType("cat", "db", "MyType")),
 
-				{"`db`.`MyType`", new UnresolvedUserDefinedType(null, "db", "MyType"), null},
+			TestSpec
+				.forString("`db`.`MyType`")
+				.expectType(new UnresolvedUserDefinedType(null, "db", "MyType")),
 
-				{"MyType", new UnresolvedUserDefinedType(null, null, "MyType"), null},
+			TestSpec
+				.forString("MyType")
+				.expectType(new UnresolvedUserDefinedType(null, null, "MyType")),
 
-				{"ARRAY<MyType>", new ArrayType(new UnresolvedUserDefinedType(null, null, "MyType")), null},
+			TestSpec
+				.forString("ARRAY<MyType>")
+				.expectType(new ArrayType(new UnresolvedUserDefinedType(null, null, "MyType"))),
 
-				{
-					"ROW<f0 MyType, f1 `c`.`d`.`t`>",
+			TestSpec
+				.forString("ROW<f0 MyType, f1 `c`.`d`.`t`>")
+				.expectType(
 					RowType.of(
 						new UnresolvedUserDefinedType(null, null, "MyType"),
-						new UnresolvedUserDefinedType("c", "d", "t")),
-					null
-				},
+						new UnresolvedUserDefinedType("c", "d", "t"))
+				),
 
-				// error message testing
+			// error message testing
 
-				{"ROW<`f0", null, "Unexpected end"},
+			TestSpec
+				.forString("ROW<`f0")
+				.expectErrorMessage("Unexpected end"),
 
-				{"ROW<`f0`", null, "Unexpected end"},
+			TestSpec
+				.forString("ROW<`f0`")
+				.expectErrorMessage("Unexpected end"),
 
-				{"VARCHAR(test)", null, "<LITERAL_INT> expected"},
+			TestSpec
+				.forString("VARCHAR(test)")
+				.expectErrorMessage("<LITERAL_INT> expected"),
 
-				{"VARCHAR(33333333333)", null, "Invalid integer value"},
+			TestSpec
+				.forString("VARCHAR(33333333333)")
+				.expectErrorMessage("Invalid integer value"),
 
-				{"ROW<field INT, field2>", null, "<KEYWORD> expected"},
+			TestSpec
+				.forString("ROW<field INT, field2>")
+				.expectErrorMessage("<KEYWORD> expected"),
 
-				{"ANY('unknown.class', '')", null, "Unable to restore the ANY type"}
-			}
+			TestSpec
+				.forString("ANY('unknown.class', '')")
+				.expectErrorMessage("Unable to restore the ANY type")
 		);
 	}
 
 	@Parameter
-	public String typeString;
-
-	@Parameter(1)
-	public LogicalType type;
-
-	@Parameter(2)
-	public String errorMessage;
+	public TestSpec testSpec;
 
 	@Rule
 	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
 	public void testParsing() {
-		if (errorMessage == null) {
+		if (testSpec.expectedType != null) {
 			assertThat(
-				LogicalTypeParser.parse(typeString),
-				equalTo(type));
+				LogicalTypeParser.parse(testSpec.typeString),
+				equalTo(testSpec.expectedType));
 		}
 	}
 
 	@Test
 	public void testSerializableParsing() {
-		if (errorMessage == null) {
-			if (!hasRoot(type, UNRESOLVED) &&
-					type.getChildren().stream().noneMatch(t -> hasRoot(t, UNRESOLVED))) {
+		if (testSpec.expectedType != null) {
+			if (!hasRoot(testSpec.expectedType, UNRESOLVED) &&
+					testSpec.expectedType.getChildren().stream().noneMatch(t -> hasRoot(t, UNRESOLVED))) {
 				assertThat(
-					LogicalTypeParser.parse(type.asSerializableString()),
-					equalTo(type));
+					LogicalTypeParser.parse(testSpec.expectedType.asSerializableString()),
+					equalTo(testSpec.expectedType));
 			}
 		}
 	}
 
 	@Test
 	public void testErrorMessage() {
-		if (errorMessage != null) {
+		if (testSpec.expectedErrorMessage != null) {
 			thrown.expect(ValidationException.class);
-			thrown.expectMessage(errorMessage);
+			thrown.expectMessage(testSpec.expectedErrorMessage);
 
-			LogicalTypeParser.parse(typeString);
+			LogicalTypeParser.parse(testSpec.typeString);
 		}
 	}
 
 	// --------------------------------------------------------------------------------------------
+
+	private static class TestSpec {
+
+		private final String typeString;
+
+		private @Nullable LogicalType expectedType;
+
+		private @Nullable String expectedErrorMessage;
+
+		private TestSpec(String typeString) {
+			this.typeString = typeString;
+		}
+
+		static TestSpec forString(String typeString) {
+			return new TestSpec(typeString);
+		}
+
+		TestSpec expectType(LogicalType expectedType) {
+			this.expectedType = expectedType;
+			return this;
+		}
+
+		TestSpec expectErrorMessage(String expectedErrorMessage) {
+			this.expectedErrorMessage = expectedErrorMessage;
+			return this;
+		}
+	}
 
 	private static <T> AnyType<T> createAnyType(Class<T> clazz) {
 		return new AnyType<>(clazz, new KryoSerializer<>(clazz, new ExecutionConfig()));

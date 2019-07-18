@@ -90,10 +90,9 @@ public final class LogicalTypeParser {
 	/**
 	 * Parses a type string. All types will be fully resolved except for {@link UnresolvedUserDefinedType}s.
 	 *
-	 * <p>Throws {@link ValidationException} in case of parsing errors.
-	 *
 	 * @param typeString a string like "ROW(field1 INT, field2 BOOLEAN)"
 	 * @param classLoader class loader for loading classes of the ANY type
+	 * @throws ValidationException in case of parsing errors.
 	 */
 	public static LogicalType parse(String typeString, ClassLoader classLoader) {
 		final List<Token> tokens = tokenize(typeString);
@@ -104,9 +103,8 @@ public final class LogicalTypeParser {
 	/**
 	 * Parses a type string. All types will be fully resolved except for {@link UnresolvedUserDefinedType}s.
 	 *
-	 * <p>Throws {@link ValidationException} in case of parsing errors.
-	 *
 	 * @param typeString a string like "ROW(field1 INT, field2 BOOLEAN)"
+	 * @throws ValidationException in case of parsing errors.
 	 */
 	public static LogicalType parse(String typeString) {
 		return parse(typeString, Thread.currentThread().getContextClassLoader());
@@ -139,13 +137,11 @@ public final class LogicalTypeParser {
 		return c >= '0' && c <= '9';
 	}
 
-	private static List<Token> tokenize(String typeString) {
-		final char[] chars = typeString.toCharArray();
-
+	private static List<Token> tokenize(String chars) {
 		final List<Token> tokens = new ArrayList<>();
 		final StringBuilder builder = new StringBuilder();
-		for (int cursor = 0; cursor < chars.length; cursor++) {
-			char curChar = chars[cursor];
+		for (int cursor = 0; cursor < chars.length(); cursor++) {
+			char curChar = chars.charAt(cursor);
 			switch (curChar) {
 				case CHAR_BEGIN_SUBTYPE:
 					tokens.add(new Token(TokenType.BEGIN_SUBTYPE, cursor, Character.toString(CHAR_BEGIN_SUBTYPE)));
@@ -163,7 +159,7 @@ public final class LogicalTypeParser {
 					tokens.add(new Token(TokenType.LIST_SEPARATOR, cursor, Character.toString(CHAR_LIST_SEPARATOR)));
 					break;
 				case CHAR_DOT:
-					tokens.add(new Token(TokenType.DOT, cursor, Character.toString(CHAR_DOT)));
+					tokens.add(new Token(TokenType.IDENTIFIER_SEPARATOR, cursor, Character.toString(CHAR_DOT)));
 					break;
 				case CHAR_STRING:
 					builder.setLength(0);
@@ -200,12 +196,12 @@ public final class LogicalTypeParser {
 		return tokens;
 	}
 
-	private static int consumeEscaped(StringBuilder builder, char[] chars, int cursor, char delimiter) {
+	private static int consumeEscaped(StringBuilder builder, String chars, int cursor, char delimiter) {
 		// skip delimiter
 		cursor++;
-		for (; chars.length > cursor; cursor++) {
-			final char curChar = chars[cursor];
-			if (curChar == delimiter && cursor + 1 < chars.length && chars[cursor + 1] == delimiter) {
+		for (; chars.length() > cursor; cursor++) {
+			final char curChar = chars.charAt(cursor);
+			if (curChar == delimiter && cursor + 1 < chars.length() && chars.charAt(cursor + 1) == delimiter) {
 				// escaping of the escaping char e.g. "'Hello '' World'"
 				cursor++;
 				builder.append(curChar);
@@ -218,16 +214,16 @@ public final class LogicalTypeParser {
 		return cursor;
 	}
 
-	private static int consumeInt(StringBuilder builder, char[] chars, int cursor) {
-		for (; chars.length > cursor && isDigit(chars[cursor]); cursor++) {
-			builder.append(chars[cursor]);
+	private static int consumeInt(StringBuilder builder, String chars, int cursor) {
+		for (; chars.length() > cursor && isDigit(chars.charAt(cursor)); cursor++) {
+			builder.append(chars.charAt(cursor));
 		}
 		return cursor - 1;
 	}
 
-	private static int consumeIdentifier(StringBuilder builder, char[] chars, int cursor) {
-		for (; cursor < chars.length && !isDelimiter(chars[cursor]); cursor++) {
-			builder.append(chars[cursor]);
+	private static int consumeIdentifier(StringBuilder builder, String chars, int cursor) {
+		for (; cursor < chars.length() && !isDelimiter(chars.charAt(cursor)); cursor++) {
+			builder.append(chars.charAt(cursor));
 		}
 		return cursor - 1;
 	}
@@ -261,7 +257,7 @@ public final class LogicalTypeParser {
 		IDENTIFIER,
 
 		// e.g. "myCatalog.myDatabase."
-		DOT
+		IDENTIFIER_SEPARATOR
 	}
 
 	private enum Keyword {
@@ -551,13 +547,13 @@ public final class LogicalTypeParser {
 			nextToken(TokenType.IDENTIFIER);
 			List<String> parts = new ArrayList<>();
 			parts.add(tokenAsString());
-			if (hasNextToken(TokenType.DOT)) {
-				nextToken(TokenType.DOT);
+			if (hasNextToken(TokenType.IDENTIFIER_SEPARATOR)) {
+				nextToken(TokenType.IDENTIFIER_SEPARATOR);
 				nextToken(TokenType.IDENTIFIER);
 				parts.add(tokenAsString());
 			}
-			if (hasNextToken(TokenType.DOT)) {
-				nextToken(TokenType.DOT);
+			if (hasNextToken(TokenType.IDENTIFIER_SEPARATOR)) {
+				nextToken(TokenType.IDENTIFIER_SEPARATOR);
 				nextToken(TokenType.IDENTIFIER);
 				parts.add(tokenAsString());
 			}
@@ -649,13 +645,7 @@ public final class LogicalTypeParser {
 		}
 
 		private LogicalType parseTimeType() {
-			int precision = TimeType.DEFAULT_PRECISION;
-			if (hasNextToken(TokenType.BEGIN_PARAMETER)) {
-				nextToken(TokenType.BEGIN_PARAMETER);
-				nextToken(TokenType.LITERAL_INT);
-				precision = tokenAsInt();
-				nextToken(TokenType.END_PARAMETER);
-			}
+			int precision = parseOptionalPrecision(TimeType.DEFAULT_PRECISION);
 			if (hasNextToken(Keyword.WITHOUT)) {
 				nextToken(Keyword.WITHOUT);
 				nextToken(Keyword.TIME);
@@ -665,13 +655,7 @@ public final class LogicalTypeParser {
 		}
 
 		private LogicalType parseTimestampType() {
-			int precision = TimestampType.DEFAULT_PRECISION;
-			if (hasNextToken(TokenType.BEGIN_PARAMETER)) {
-				nextToken(TokenType.BEGIN_PARAMETER);
-				nextToken(TokenType.LITERAL_INT);
-				precision = tokenAsInt();
-				nextToken(TokenType.END_PARAMETER);
-			}
+			int precision = parseOptionalPrecision(TimestampType.DEFAULT_PRECISION);
 			if (hasNextToken(Keyword.WITHOUT)) {
 				nextToken(Keyword.WITHOUT);
 				nextToken(Keyword.TIME);
