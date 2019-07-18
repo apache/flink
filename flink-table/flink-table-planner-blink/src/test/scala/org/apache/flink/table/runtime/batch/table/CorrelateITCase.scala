@@ -24,11 +24,10 @@ import org.apache.flink.table.api.{DataTypes, Table, ValidationException}
 import org.apache.flink.table.expressions.utils.{Func1, Func18, FuncWithOpen, RichFunc2}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable, UserDefinedFunctionTestUtils}
-import org.apache.flink.table.util.DateTimeTestUtil._
 import org.apache.flink.table.util._
 import org.apache.flink.test.util.TestBaseUtils
 
-import org.junit.{Assert, Ignore, Test}
+import org.junit.{Assert, Test}
 
 import java.sql.{Date, Timestamp}
 
@@ -289,8 +288,6 @@ class CorrelateITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
-  // TODO
-  @Ignore("Add a rule to translate a Correlate without correlateSets to Join!")
   @Test
   def testTableFunctionWithVariableArguments(): Unit = {
     val varArgsFunc0 = new VarArgsFunc0

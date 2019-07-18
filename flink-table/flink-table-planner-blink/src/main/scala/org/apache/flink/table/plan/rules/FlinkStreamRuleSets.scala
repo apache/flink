@@ -378,6 +378,7 @@ object FlinkStreamRuleSets {
     // CEP
     StreamExecMatchRule.INSTANCE,
     // correlate
+    StreamExecConstantTableFunctionScanRule.INSTANCE,
     StreamExecCorrelateRule.INSTANCE,
     // sink
     StreamExecSinkRule.INSTANCE

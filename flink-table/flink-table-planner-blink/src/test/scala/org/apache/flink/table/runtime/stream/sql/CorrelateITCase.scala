@@ -85,6 +85,30 @@ class CorrelateITCase extends StreamingTestBase {
   }
 
   @Test
+  def testConstantTableFunc(): Unit = {
+    tEnv.registerFunction("str_split", new StringSplit())
+    val query = "SELECT * FROM LATERAL TABLE(str_split()) as T0(d)"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("a", "b", "c")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testConstantTableFunc2(): Unit = {
+    tEnv.registerFunction("str_split", new StringSplit())
+    val query = "SELECT * FROM LATERAL TABLE(str_split('Jack,John', ',')) as T0(d)"
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(query).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = List("Jack", "John")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
   def testUdfIsOpenedAfterUdtf(): Unit = {
     val data = List(
       (1, 2, "abc-bcd"),
