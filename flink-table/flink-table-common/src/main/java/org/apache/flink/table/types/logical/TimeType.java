@@ -30,7 +30,7 @@ import java.util.Set;
  * Logical type of a time WITHOUT time zone consisting of {@code hour:minute:second[.fractional]} with
  * up to nanosecond precision and values ranging from {@code 00:00:00.000000000} to
  * {@code 23:59:59.999999999}. Compared to the SQL standard, leap seconds (23:59:60 and 23:59:61) are
- * not supported as the semantics are closer to {@link java.time.LocalTime}. A time WITH time zone is
+ * not supported as the semantics are closer to {@link java.time.LocalTime}. A time WITH time zone
  * is not provided.
  *
  * <p>The serialized string representation is {@code TIME(p)} where {@code p} is the number of digits

@@ -110,6 +110,7 @@ Where to go next?
 -----------------
 
 * [Concepts & Common API]({{ site.baseurl }}/dev/table/common.html): Shared concepts and APIs of the Table API and SQL.
+* [Data Types]({{ site.baseurl }}/dev/table/types.html): Lists pre-defined data types and their properties.
 * [Streaming Concepts]({{ site.baseurl }}/dev/table/streaming): Streaming-specific documentation for the Table API or SQL such as configuration of time attributes and handling of updating results.
 * [Connect to External Systems]({{ site.baseurl }}/dev/table/functions.html): Available connectors and formats for reading and writing data to external systems.
 * [Table API]({{ site.baseurl }}/dev/table/tableApi.html): Supported operations and API for the Table API.
