@@ -37,6 +37,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -1091,11 +1092,10 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 				intermediateDataSetId,
 				resultPartitionId);
 
-		futurePartitionState.whenCompleteAsync(
-			(ExecutionState executionState, Throwable throwable) -> {
-				responseConsumer.accept(new PartitionProducerStateResponseHandle(executionState, throwable));
-			},
-			executor);
+		FutureUtils.assertNoException(
+			futurePartitionState
+				.handle(PartitionProducerStateResponseHandle::new)
+				.thenAcceptAsync(responseConsumer, executor));
 	}
 
 	// ------------------------------------------------------------------------
