@@ -34,6 +34,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,11 +47,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -66,18 +67,16 @@ public final class FlinkDistribution implements ExternalResource {
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-	private static final Path FLINK_CONF_YAML = Paths.get("flink-conf.yaml");
-	private static final Path FLINK_CONF_YAML_BACKUP = Paths.get("flink-conf.yaml.bak");
-
-	private final List<AutoClosablePath> filesToDelete = new ArrayList<>(4);
-
 	private final Optional<Path> logBackupDir;
 
-	private final Path opt;
-	private final Path lib;
-	private final Path conf;
-	private final Path log;
-	private final Path bin;
+	private final TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+	private final Path originalFlinkDir;
+	private Path opt;
+	private Path lib;
+	private Path conf;
+	private Path log;
+	private Path bin;
 
 	private Configuration defaultConfig;
 
@@ -90,21 +89,25 @@ public final class FlinkDistribution implements ExternalResource {
 		logBackupDir = backupDirProperty == null
 			? Optional.empty()
 			: Optional.of(Paths.get(backupDirProperty));
-		final Path flinkDir = Paths.get(distDirProperty);
+		originalFlinkDir = Paths.get(distDirProperty);
+	}
+
+	@Override
+	public void before() throws IOException {
+		temporaryFolder.create();
+
+		final Path flinkDir = temporaryFolder.newFolder().toPath();
+
+		LOG.info("Copying distribution to {}.", flinkDir);
+		TestUtils.copyDirectory(originalFlinkDir, flinkDir);
+
 		bin = flinkDir.resolve("bin");
 		opt = flinkDir.resolve("opt");
 		lib = flinkDir.resolve("lib");
 		conf = flinkDir.resolve("conf");
 		log = flinkDir.resolve("log");
-	}
 
-	@Override
-	public void before() throws IOException {
 		defaultConfig = new UnmodifiableConfiguration(GlobalConfiguration.loadConfiguration(conf.toAbsolutePath().toString()));
-		final Path originalConfig = conf.resolve(FLINK_CONF_YAML);
-		final Path backupConfig = conf.resolve(FLINK_CONF_YAML_BACKUP);
-		Files.copy(originalConfig, backupConfig);
-		filesToDelete.add(new AutoClosablePath(backupConfig));
 	}
 
 	@Override
@@ -115,31 +118,17 @@ public final class FlinkDistribution implements ExternalResource {
 			LOG.error("Failure while shutting down Flink cluster.", e);
 		}
 
-		final Path originalConfig = conf.resolve(FLINK_CONF_YAML);
-		final Path backupConfig = conf.resolve(FLINK_CONF_YAML_BACKUP);
-
-		try {
-			Files.move(backupConfig, originalConfig, StandardCopyOption.REPLACE_EXISTING);
-		} catch (IOException e) {
-			LOG.error("Failed to restore flink-conf.yaml", e);
-		}
-
-		for (AutoCloseable fileToDelete : filesToDelete) {
-			try {
-				fileToDelete.close();
-			} catch (Exception e) {
-				LOG.error("Failure while cleaning up file.", e);
-			}
-		}
+		temporaryFolder.delete();
 	}
 
 	@Override
 	public void afterTestFailure() {
 		logBackupDir.ifPresent(backupLocation -> {
-			LOG.info("Backing up logs to {}.", backupLocation);
+			final UUID id = UUID.randomUUID();
+			LOG.info("Backing up logs to {}/{}.", backupLocation, id);
 			try {
 				Files.createDirectories(backupLocation);
-				FileUtils.copyDirectory(log.toFile(), backupLocation.toFile());
+				FileUtils.copyDirectory(log.toFile(), backupLocation.resolve(id.toString()).toFile());
 			} catch (IOException e) {
 				LOG.warn("An error occurred while backing up logs.", e);
 			}
@@ -261,7 +250,6 @@ public final class FlinkDistribution implements ExternalResource {
 			final Path optReporterJar = reporterJarOptional.get();
 			final Path libReporterJar = lib.resolve(optReporterJar.getFileName());
 			Files.copy(optReporterJar, libReporterJar);
-			filesToDelete.add(new AutoClosablePath(libReporterJar));
 		} else {
 			throw new FileNotFoundException("No jar could be found matching the pattern " + jarNamePrefix + ".");
 		}
