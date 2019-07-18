@@ -194,10 +194,6 @@ The following limitations in Hive's data types impact the mapping between Flink 
 
 \** maximum length is 65535
 
-## Hive Compatibility
-
-For Hive compatibility and versions, see [Hive Compatibility]({{ site.baseurl }}/dev/batch/hive_compatibility.html)
-
 
 Catalog Registration
 --------------------
