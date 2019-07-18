@@ -295,11 +295,11 @@ object BatchTableEnvironment {
           classOf[ExecutionEnvironment],
           classOf[TableConfig],
           classOf[CatalogManager])
-      val defaultCatalog = "default_catalog"
+      val builtinCatalog = "default_catalog"
       val catalogManager = new CatalogManager(
         "default_catalog",
         new GenericInMemoryCatalog(
-          defaultCatalog,
+          builtinCatalog,
           "default_database")
       )
       const.newInstance(executionEnvironment, tableConfig, catalogManager)

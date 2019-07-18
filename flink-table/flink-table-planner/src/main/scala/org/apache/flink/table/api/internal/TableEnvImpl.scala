@@ -60,8 +60,9 @@ abstract class TableEnvImpl(
   extends TableEnvironment {
 
   // The current catalog and database are definitely builtin.
-  protected val builtinCatalogName: String = catalogManager.getCurrentCatalog
-  protected val builtinDatabaseName: String = catalogManager.getCurrentDatabase
+  protected val builtinCatalogName: String = catalogManager.getBuiltinCatalogName
+  protected val builtinDatabaseName: String = catalogManager.getCatalog(builtinCatalogName).get()
+    .getDefaultDatabase
 
   // Table API/SQL function catalog
   private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog(catalogManager)
@@ -358,7 +359,7 @@ abstract class TableEnvImpl(
           path,
           table,
           false)
-      case None => throw new TableException("The default catalog does not exist.")
+      case None => throw new TableException("The builtin catalog does not exist.")
     }
   }
 
@@ -371,7 +372,7 @@ abstract class TableEnvImpl(
           path,
           table,
           false)
-      case None => throw new TableException("The default catalog does not exist.")
+      case None => throw new TableException("The builtin catalog does not exist.")
     }
   }
 

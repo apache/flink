@@ -64,8 +64,8 @@ public class CatalogManager {
 
 	private String currentDatabaseName;
 
-	// The name of the default catalog
-	private final String defaultCatalogName;
+	// The name of the builtin catalog
+	private final String builtinCatalogName;
 
 	/**
 	 * Temporary solution to handle both {@link CatalogBaseTable} and
@@ -128,7 +128,9 @@ public class CatalogManager {
 		catalogs.put(defaultCatalogName, defaultCatalog);
 		this.currentCatalogName = defaultCatalogName;
 		this.currentDatabaseName = defaultCatalog.getDefaultDatabase();
-		this.defaultCatalogName = defaultCatalogName;
+
+		// right now the default catalog is always the builtin one
+		this.builtinCatalogName = defaultCatalogName;
 	}
 
 	/**
@@ -298,12 +300,13 @@ public class CatalogManager {
 	}
 
 	/**
-	 * Gets the default catalog name.
+	 * Gets the builtin catalog name. The built-in catalog is used for storing all non-serializable transient
+	 * meta-objects.
 	 *
-	 * @return the default catalog
+	 * @return the builtin catalog
 	 */
-	public String getDefaultCatalogName() {
-		return defaultCatalogName;
+	public String getBuiltinCatalogName() {
+		return builtinCatalogName;
 	}
 
 	/**

@@ -106,10 +106,11 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		this.execEnv = executor;
 
 		this.tableConfig = tableConfig;
+
 		// The current catalog and database are definitely builtin,
 		// see #create(EnvironmentSettings)
-		this.builtinCatalogName = catalogManager.getCurrentCatalog();
-		this.builtinDatabaseName = catalogManager.getCurrentDatabase();
+		this.builtinCatalogName = catalogManager.getBuiltinCatalogName();
+		this.builtinDatabaseName = catalogManager.getCatalog(builtinCatalogName).get().getDefaultDatabase();
 
 		this.functionCatalog = functionCatalog;
 		this.planner = planner;
