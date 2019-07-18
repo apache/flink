@@ -85,8 +85,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	private static final boolean IS_STREAM_TABLE = true;
 	private final CatalogManager catalogManager;
 
-	private final String builtinCatalogName;
-	private final String builtinDatabaseName;
+	private final String builtInCatalogName;
+	private final String builtInDatabaseName;
 	private final OperationTreeBuilder operationTreeBuilder;
 	private final List<ModifyOperation> bufferedModifyOperations = new ArrayList<>();
 
@@ -106,10 +106,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		this.execEnv = executor;
 
 		this.tableConfig = tableConfig;
-		// The current catalog and database are definitely builtin,
-		// see #create(EnvironmentSettings)
-		this.builtinCatalogName = catalogManager.getCurrentCatalog();
-		this.builtinDatabaseName = catalogManager.getCurrentDatabase();
+
+		this.builtInCatalogName = catalogManager.getBuiltInCatalogName();
+		this.builtInDatabaseName = catalogManager.getBuiltInDatabaseName();
 
 		this.functionCatalog = functionCatalog;
 		this.planner = planner;
@@ -485,8 +484,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	protected void registerTableInternal(String name, CatalogBaseTable table) {
 		try {
 			checkValidTableName(name);
-			ObjectPath path = new ObjectPath(builtinDatabaseName, name);
-			Optional<Catalog> catalog = catalogManager.getCatalog(builtinCatalogName);
+			ObjectPath path = new ObjectPath(builtInDatabaseName, name);
+			Optional<Catalog> catalog = catalogManager.getCatalog(builtInCatalogName);
 			if (catalog.isPresent()) {
 				catalog.get().createTable(
 					path,
@@ -500,8 +499,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	private void replaceTableInternal(String name, CatalogBaseTable table) {
 		try {
-			ObjectPath path = new ObjectPath(builtinDatabaseName, name);
-			Optional<Catalog> catalog = catalogManager.getCatalog(builtinCatalogName);
+			ObjectPath path = new ObjectPath(builtInDatabaseName, name);
+			Optional<Catalog> catalog = catalogManager.getCatalog(builtInCatalogName);
 			if (catalog.isPresent()) {
 				catalog.get().alterTable(
 					path,
@@ -521,7 +520,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	private void registerTableSourceInternal(String name, TableSource<?> tableSource) {
 		validateTableSource(tableSource);
-		Optional<CatalogBaseTable> table = getCatalogTable(builtinCatalogName, builtinDatabaseName, name);
+		Optional<CatalogBaseTable> table = getCatalogTable(builtInCatalogName, builtInDatabaseName, name);
 
 		if (table.isPresent()) {
 			if (table.get() instanceof ConnectorCatalogTable<?, ?>) {
@@ -546,7 +545,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	private void registerTableSinkInternal(String name, TableSink<?> tableSink) {
-		Optional<CatalogBaseTable> table = getCatalogTable(builtinCatalogName, builtinDatabaseName, name);
+		Optional<CatalogBaseTable> table = getCatalogTable(builtInCatalogName, builtInDatabaseName, name);
 
 		if (table.isPresent()) {
 			if (table.get() instanceof ConnectorCatalogTable<?, ?>) {
