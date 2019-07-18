@@ -830,7 +830,7 @@ public interface Table {
 
 	/**
 	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name
-	 * in the initial default catalog.
+	 * in the built-in catalog.
 	 *
 	 * <p>A batch {@link Table} can only be written to a
 	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
