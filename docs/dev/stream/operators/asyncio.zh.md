@@ -29,7 +29,7 @@ under the License.
 本文讲解 Flink 用于访问外部数据存储的异步 I/O API。
 对于不熟悉异步或者事件驱动编程的用户，建议先储备一些关于 Future 和事件驱动编程的知识。
 
-提示：这篇文档 [FLIP-12: 异步 I/O  的设计和实现](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65870673) 介绍了关于设计和实现异步 I/O 功能的细节。
+提示：这篇文档 [FLIP-12: 异步 I/O 的设计和实现](https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65870673) 介绍了关于设计和实现异步 I/O 功能的细节。
 
 ## 对于异步 I/O 操作的需求
 
@@ -74,7 +74,7 @@ Flink 的异步 I/O API 允许用户在流处理中使用异步请求客户端�
  */
 class AsyncDatabaseRequest extends RichAsyncFunction<String, Tuple2<String, String>> {
 
-    /** 使用回调函数来并发发送请求的数据库客户端 */
+    /** 能够利用回调函数并发发送请求的数据库客户端 */
     private transient DatabaseClient client;
 
     @Override
@@ -128,7 +128,7 @@ DataStream<Tuple2<String, String>> resultStream =
  */
 class AsyncDatabaseRequest extends AsyncFunction[String, (String, String)] {
 
-    /** 使用回调函数来并发发送请求的数据库客户端 */
+    /** 能够利用回调函数并发发送请求的数据库客户端 */
     lazy val client: DatabaseClient = new DatabaseClient(host, post, credentials)
 
     /** 用于 future 回调的上下文环境 */
@@ -167,13 +167,13 @@ val resultStream: DataStream[(String, String)] =
   - **Timeout**： 超时参数定义了异步请求发出多久后未得到响应即被认定为失败。 它可以防止一直等待得不到响应的请求。
 
   - **Capacity**： 容量参数定义了可以同时进行的异步请求数。
-    即使异步 I/O 通常带来更高的吞吐量， 执行异步 I/O  操作的算子仍然可能成为流处理的瓶颈。 限制并发请求的数量可以确保算子不会持续累积待处理的请求进而造成积压，而是在容量耗尽时触发反压。
+    即使异步 I/O 通常带来更高的吞吐量，执行异步 I/O 操作的算子仍然可能成为流处理的瓶颈。 限制并发请求的数量可以确保算子不会持续累积待处理的请求进而造成积压，而是在容量耗尽时触发反压。
 
 
 ### 超时处理
 
 当异步 I/O 请求超时的时候，默认会抛出异常并重启作业。
-如果你想处理超时，可以覆写 `AsyncFunction#timeout` 方法。
+如果你想处理超时，可以重写 `AsyncFunction#timeout` 方法。
 
 ### 结果的顺序
 
@@ -212,7 +212,7 @@ Flink 提供两种模式控制结果记录以何种顺序发出。
 
 ### 实现提示
 
-在实现使用 *Executor*（或者 Scala 中的 *ExecutionContext*）和回调的 *Futures* 时，建议使用  `DirectExecutor`，因为通常回调的工作量很小，`DirectExecutor`  避免了额外的线程切换开销。回调通常只是把结果发送给  `ResultFuture`，也就是把它添加进输出缓冲。从这里开始，包括发射记录和与 chenkpoint 交互在内的繁重逻辑都将在专有的线程池中进行处理。
+在实现使用 *Executor*（或者 Scala 中的 *ExecutionContext*）和回调的 *Futures* 时，建议使用 `DirectExecutor`，因为通常回调的工作量很小，`DirectExecutor` 避免了额外的线程切换开销。回调通常只是把结果发送给 `ResultFuture`，也就是把它添加进输出缓冲。从这里开始，包括发送记录和与 chenkpoint 交互在内的繁重逻辑都将在专有的线程池中进行处理。
 
 `DirectExecutor` 可以通过 `org.apache.flink.runtime.concurrent.Executors.directExecutor()` 或
 `com.google.common.util.concurrent.MoreExecutors.directExecutor()` 获得。
@@ -223,7 +223,7 @@ Flink 提供两种模式控制结果记录以何种顺序发出。
 **AsyncFunction 不调用多线程**
 
 我们想在这里明确指出一个经常混淆的地方：`AsyncFunction` 不是以多线程方式调用的。
-只有一个 `AsyncFunction` 实例，它被流中相应分区内的每个记录顺序地调用。除非 `asyncInvoke(...)`  方法快速返回并且依赖于（客户端的）回调, 否则无法得到正确的异步 I/O。
+只有一个 `AsyncFunction` 实例，它被流中相应分区内的每个记录顺序地调用。除非 `asyncInvoke(...)` 方法快速返回并且依赖于（客户端的）回调, 否则无法实现正确的异步 I/O。
 
 例如，以下情况导致阻塞的 `asyncInvoke(...)` 函数，从而使异步行为无效：
 
