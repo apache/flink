@@ -20,10 +20,76 @@ package org.apache.flink.table.dataformat;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 
+import org.apache.commons.lang3.RandomStringUtils;
+
+import static org.junit.Assert.assertEquals;
+
 /**
  * Utils for testing data formats.
  */
-class DataFormatTestUtil {
+public class DataFormatTestUtil {
+
+	/**
+	 * Get a binary row of 24 bytes long.
+	 */
+	public static BinaryRow get24BytesBinaryRow() {
+		// header (8 bytes) + 2 * string in fixed-length part (8 bytes each)
+		BinaryRow row = new BinaryRow(2);
+		BinaryRowWriter writer = new BinaryRowWriter(row);
+		writer.writeString(0, BinaryString.fromString(RandomStringUtils.randomNumeric(2)));
+		writer.writeString(1, BinaryString.fromString(RandomStringUtils.randomNumeric(2)));
+		writer.complete();
+		return row;
+	}
+
+	/**
+	 * Get a binary row of 160 bytes long.
+	 */
+	public static BinaryRow get160BytesBinaryRow() {
+		// header (8 bytes) +
+		// 72 byte length string (8 bytes in fixed-length, 72 bytes in variable-length) +
+		// 64 byte length string (8 bytes in fixed-length, 64 bytes in variable-length)
+		BinaryRow row = new BinaryRow(2);
+		BinaryRowWriter writer = new BinaryRowWriter(row);
+		writer.writeString(0, BinaryString.fromString(RandomStringUtils.randomNumeric(72)));
+		writer.writeString(1, BinaryString.fromString(RandomStringUtils.randomNumeric(64)));
+		writer.complete();
+		return row;
+	}
+
+	/**
+	 * Get a binary row consisting of 6 segments.
+	 * The bytes of the returned row is the same with the given input binary row.
+	 */
+	public static BinaryRow getMultiSeg160BytesBinaryRow(BinaryRow row160) {
+		BinaryRow multiSegRow160 = new BinaryRow(2);
+		MemorySegment[] segments = new MemorySegment[6];
+		int baseOffset = 8;
+		int posInSeg = baseOffset;
+		int remainSize = 160;
+		for (int i = 0; i < segments.length; i++) {
+			segments[i] = MemorySegmentFactory.wrap(new byte[32]);
+			int copy = Math.min(32 - posInSeg, remainSize);
+			row160.getSegments()[0].copyTo(160 - remainSize, segments[i], posInSeg, copy);
+			remainSize -= copy;
+			posInSeg = 0;
+		}
+		multiSegRow160.pointTo(segments, baseOffset, 160);
+		assertEquals(row160, multiSegRow160);
+		return multiSegRow160;
+	}
+
+	/**
+	 * Get a binary row consisting of 2 segments.
+	 * Its first segment is the same with the given input binary row, while its second segment is empty.
+	 */
+	public static BinaryRow getMultiSeg160BytesInOneSegRow(BinaryRow row160) {
+		MemorySegment[] segments = new MemorySegment[2];
+		segments[0] = row160.getSegments()[0];
+		segments[1] = MemorySegmentFactory.wrap(new byte[row160.getSegments()[0].size()]);
+		row160.pointTo(segments, 0, row160.getSizeInBytes());
+		return row160;
+	}
 
 	/**
 	 * Split the given byte array into two memory segments.
