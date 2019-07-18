@@ -325,7 +325,7 @@ public class BinaryArrayTest {
 			BinaryArrayWriter writer = new BinaryArrayWriter(array, 2, 8);
 			writer.setNullAt(0);
 			writer.writeMap(1, BinaryMap.valueOf(subArray, subArray),
-					new BaseMapSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType()));
+					new BaseMapSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType(), null));
 			writer.complete();
 
 			assertTrue(array.isNullAt(0));
@@ -358,7 +358,7 @@ public class BinaryArrayTest {
 		BinaryRow row = new BinaryRow(1);
 		BinaryRowWriter rowWriter = new BinaryRowWriter(row);
 		rowWriter.writeMap(0, binaryMap,
-				new BaseMapSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType()));
+				new BaseMapSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType(), null));
 		rowWriter.complete();
 
 		BinaryMap map = (BinaryMap) row.getMap(0);
