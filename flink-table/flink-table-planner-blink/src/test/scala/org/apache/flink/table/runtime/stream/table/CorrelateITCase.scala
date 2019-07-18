@@ -231,6 +231,37 @@ class CorrelateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       "nosharp,2",
       "nosharp,nosharp")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+
+    val result1 = testData(env)
+      .toTable(tEnv, 'a, 'b, 'c)
+      .select('c)
+      .joinLateral(varArgsFunc0("1", "2"))
+
+    val sink1 = new TestingAppendSink
+    result1.toAppendStream[Row].addSink(sink1)
+    env.execute()
+
+    val expected1 = mutable.MutableList(
+      "Anna#44,1",
+      "Anna#44,2",
+      "Jack#22,1",
+      "Jack#22,2",
+      "John#19,1",
+      "John#19,2",
+      "nosharp,1",
+      "nosharp,2")
+    assertEquals(expected1.sorted, sink1.getAppendResults.sorted)
+
+    // Test for empty cases
+    val result2 = testData(env)
+      .toTable(tEnv, 'a, 'b, 'c)
+      .select('c)
+      .joinLateral(varArgsFunc0())
+
+    val sink2 = new TestingAppendSink
+    result2.toAppendStream[Row].addSink(sink2)
+    env.execute()
+    assertTrue(sink2.getAppendResults.isEmpty)
   }
 
   @Test
