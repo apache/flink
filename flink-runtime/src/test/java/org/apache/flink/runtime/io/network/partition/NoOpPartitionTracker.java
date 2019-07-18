@@ -50,4 +50,9 @@ public enum NoOpPartitionTracker implements PartitionTracker {
 	public boolean isTrackingPartitionsFor(ResourceID producingTaskExecutorId) {
 		return false;
 	}
+
+	@Override
+	public boolean isPartitionTracked(final ResultPartitionID resultPartitionID) {
+		return false;
+	}
 }

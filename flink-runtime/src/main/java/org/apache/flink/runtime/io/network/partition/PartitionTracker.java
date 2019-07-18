@@ -54,4 +54,9 @@ public interface PartitionTracker {
 	 * Returns whether any partition is being tracked for the given task executor ID.
 	 */
 	boolean isTrackingPartitionsFor(ResourceID producingTaskExecutorId);
+
+	/**
+	 * Returns whether the given partition is being tracked.
+	 */
+	boolean isPartitionTracked(ResultPartitionID resultPartitionID);
 }

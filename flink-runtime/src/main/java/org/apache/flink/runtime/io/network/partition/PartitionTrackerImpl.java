@@ -122,6 +122,13 @@ public class PartitionTrackerImpl implements PartitionTracker {
 		return partitionTable.hasTrackedPartitions(producingTaskExecutorId);
 	}
 
+	@Override
+	public boolean isPartitionTracked(final ResultPartitionID resultPartitionID) {
+		Preconditions.checkNotNull(resultPartitionID);
+
+		return partitionInfos.containsKey(resultPartitionID);
+	}
+
 	private Optional<PartitionInfo> internalStopTrackingPartition(ResultPartitionID resultPartitionId) {
 		final PartitionInfo partitionInfo = partitionInfos.remove(resultPartitionId);
 		if (partitionInfo == null) {

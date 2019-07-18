@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -29,12 +29,14 @@ import org.apache.flink.runtime.executiongraph.AdaptedRestartPipelinedRegionStra
 import org.apache.flink.runtime.executiongraph.failover.AdaptedRestartPipelinedRegionStrategyNG;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
+import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.PartitionTrackerImpl;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
 
@@ -42,6 +44,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
@@ -250,37 +253,38 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 	 */
 	private ExecutionGraph createExecutionGraph() throws Exception {
 
-		final JobInformation jobInformation = new DummyJobInformation(TEST_JOB_ID, "test job");
-		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(TEST_JOB_ID, DEFAULT_PARALLELISM);
-
-		final Time timeout = Time.seconds(10L);
-		final ExecutionGraph graph = new ExecutionGraph(
-			jobInformation,
-			TestingUtils.defaultExecutor(),
-			TestingUtils.defaultExecutor(),
-			timeout,
-			manuallyTriggeredRestartStrategy,
-			TestAdaptedRestartPipelinedRegionStrategyNG::new,
-			slotProvider,
-			getClass().getClassLoader(),
-			VoidBlobWriter.getInstance(),
-			timeout);
-
-		JobVertex v1 = new JobVertex("vertex1");
+		final JobVertex v1 = new JobVertex("vertex1");
 		v1.setInvokableClass(NoOpInvokable.class);
 		v1.setParallelism(DEFAULT_PARALLELISM);
 
-		JobVertex v2 = new JobVertex("vertex2");
+		final JobVertex v2 = new JobVertex("vertex2");
 		v2.setInvokableClass(NoOpInvokable.class);
 		v2.setParallelism(DEFAULT_PARALLELISM);
 
 		v2.connectNewDataSetAsInput(v1, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
 
-		JobGraph jg = new JobGraph(TEST_JOB_ID, "testjob", v1, v2);
-		graph.attachJobGraph(jg.getVerticesSortedTopologicallyFromSources());
+		final JobGraph jg = new JobGraph(TEST_JOB_ID, "testjob", v1, v2);
 
-		graph.start(componentMainThreadExecutor);
+		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(TEST_JOB_ID, DEFAULT_PARALLELISM);
 
-		return graph;
+		final Configuration jmConfig = new Configuration();
+		jmConfig.setBoolean(JobManagerOptions.FORCE_PARTITION_RELEASE_ON_CONSUMPTION, false);
+
+		final PartitionTracker partitionTracker = new PartitionTrackerImpl(
+			jg.getJobID(),
+			NettyShuffleMaster.INSTANCE,
+			ignored -> Optional.empty());
+
+		final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jg)
+			.setRestartStrategy(manuallyTriggeredRestartStrategy)
+			.setFailoverStrategyFactory(TestAdaptedRestartPipelinedRegionStrategyNG::new)
+			.setSlotProvider(slotProvider)
+			.setJobMasterConfig(jmConfig)
+			.setPartitionTracker(partitionTracker)
+			.build();
+
+		eg.start(componentMainThreadExecutor);
+
+		return eg;
 	}
 }
