@@ -16,26 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors
+package org.apache.flink.table.descriptors;
 
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE
-import org.apache.flink.table.descriptors.FileSystemValidator.{CONNECTOR_PATH, CONNECTOR_TYPE_VALUE}
+import org.apache.flink.annotation.PublicEvolving;
 
 /**
-  * Validator for [[FileSystem]].
-  */
-class FileSystemValidator extends ConnectorDescriptorValidator {
+ * Validator for {@link FileSystem}.
+ */
+@PublicEvolving
+public class FileSystemValidator extends ConnectorDescriptorValidator {
 
-  override def validate(properties: DescriptorProperties): Unit = {
-    super.validate(properties)
-    properties.validateValue(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE, false)
-    properties.validateString(CONNECTOR_PATH, false, 1)
-  }
-}
+	public static final String CONNECTOR_TYPE_VALUE = "filesystem";
+	public static final String CONNECTOR_PATH = "connector.path";
 
-object FileSystemValidator {
-
-  val CONNECTOR_TYPE_VALUE = "filesystem"
-  val CONNECTOR_PATH = "connector.path"
-
+	@Override
+	public void validate(DescriptorProperties properties) {
+		super.validate(properties);
+		properties.validateValue(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE, false);
+		properties.validateString(CONNECTOR_PATH, false, 1);
+	}
 }
