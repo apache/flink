@@ -47,11 +47,11 @@ import javax.annotation.concurrent.GuardedBy;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -61,7 +61,6 @@ import java.util.stream.LongStream;
 import static org.apache.flink.configuration.JobManagerOptions.FORCE_PARTITION_RELEASE_ON_CONSUMPTION;
 import static org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -93,7 +92,7 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 	private static final Logger LOG = LoggerFactory.getLogger(BatchFineGrainedRecoveryITCase.class);
 
 	private static final int EMITTED_RECORD_NUMBER = 1000;
-	private static final int MAP_NUMBER = 2;
+	private static final int MAP_NUMBER = 3;
 
 	/**
 	 * Number of job failures for all mappers due to backtracking when the produced partitions get lost.
@@ -113,13 +112,11 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 	/**
 	 * Expected restart number for each mapper.
 	 *
-	 * <p>Initial start plus exception failure plus 2 restarts from this and each subsequent mapper's TM failure.
-	 * 2 restarts from TM failure are one because of {@link PartitionNotFoundException} and one for the actual
-	 * successful computation afterwards.
+	 * <p>Initial start plus exception failure plus restarts from this and each subsequent mapper's TM failure.
 	 */
 	private static final int[] EXPECTED_MAP_RESTARTS = IntStream
 		.range(0, MAP_NUMBER)
-		.map(i -> 2 * (MAP_NUMBER - i + 1))
+		.map(i -> 1 + 1 + MAP_NUMBER - i)
 		.toArray();
 
 	private static final String TASK_NAME_PREFIX = "Test partition mapper ";
@@ -132,6 +129,8 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 	private static AtomicInteger lastTaskManagerIndexInMiniCluster;
 
 	private static final Random rnd = new Random();
+
+	private static GlobalMapFailureTracker failureTracker;
 
 	@Before
 	public void setup() throws Exception {
@@ -147,12 +146,11 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 				.setRpcServiceSharing(RpcServiceSharing.DEDICATED)
 				.build(),
 			null);
-
 		miniCluster.start();
 
 		lastTaskManagerIndexInMiniCluster = new AtomicInteger(0);
 
-		StaticMapFailureTracker.reset();
+		failureTracker = new GlobalMapFailureTracker(MAP_NUMBER);
 	}
 
 	@After
@@ -166,20 +164,18 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 	public void testProgram() throws Exception {
 		ExecutionEnvironment env = createExecutionEnvironment();
 
-		FailureStrategy failureStrategy = createFailureStrategy();
-
 		DataSet<Long> input = env.generateSequence(0, EMITTED_RECORD_NUMBER - 1);
 		for (int trackingIndex = 0; trackingIndex < MAP_NUMBER; trackingIndex++) {
 			input = input
-				.mapPartition(new TestPartitionMapper(StaticMapFailureTracker.addNewMap(), failureStrategy))
+				.mapPartition(new TestPartitionMapper(trackingIndex,  createFailureStrategy(trackingIndex)))
 				.name(TASK_NAME_PREFIX + trackingIndex);
 		}
 
 		assertThat(input.collect(), is(EXPECTED_JOB_OUTPUT));
-		StaticMapFailureTracker.verify();
+		failureTracker.verify();
 	}
 
-	private static FailureStrategy createFailureStrategy() {
+	private static FailureStrategy createFailureStrategy(int trackingIndex) {
 		int failWithExceptionAfterNumberOfProcessedRecords = rnd.nextInt(EMITTED_RECORD_NUMBER) + 1;
 		int failTaskExecutorAfterNumberOfProcessedRecords = rnd.nextInt(EMITTED_RECORD_NUMBER) + 1;
 		// it has to fail only once during one mapper run so that different failure strategies do not mess up each other stats
@@ -189,7 +185,7 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 					new ExceptionFailureStrategy(failWithExceptionAfterNumberOfProcessedRecords)),
 				new GloballyTrackingFailureStrategy(
 					new TaskExecutorFailureStrategy(failTaskExecutorAfterNumberOfProcessedRecords))));
-		LOG.info("FailureStrategy: {}", failureStrategy);
+		LOG.info("FailureStrategy for the mapper {}: {}", trackingIndex, failureStrategy);
 		return failureStrategy;
 	}
 
@@ -292,7 +288,7 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 
 		@Override
 		public boolean failOrNot(int trackingIndex) throws Exception {
-			return StaticMapFailureTracker.failOrNot(
+			return failureTracker.failOrNot(
 				trackingIndex,
 				wrappedFailureStrategy);
 		}
@@ -332,7 +328,7 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 				// ignore the exception, task should have been failed while stopping TM
 				Thread.currentThread().interrupt();
 			} catch (Throwable t) {
-				StaticMapFailureTracker.unrelatedFailure(t);
+				failureTracker.unrelatedFailure(t);
 				throw t;
 			}
 		}
@@ -385,30 +381,28 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 	}
 
 	@SuppressWarnings("SynchronizationOnStaticField")
-	private enum StaticMapFailureTracker {
-		;
+	private static class GlobalMapFailureTracker {
+		private final List<AtomicInteger> mapRestarts;
+		private final List<Set<FailureStrategy>> mapFailures;
 
-		private static final List<AtomicInteger> mapRestarts = new ArrayList<>(MAP_NUMBER);
-		private static final List<Map<FailureStrategy, Boolean>> mapFailures = new ArrayList<>(MAP_NUMBER);
-
-		private static final Object classLock = new Object();
+		private final Object classLock = new Object();
 		@GuardedBy("classLock")
-		private static Throwable unrelatedFailure;
+		private Throwable unexpectedFailure;
 
-		private static void reset() {
-			mapRestarts.clear();
-			mapFailures.clear();
+		private GlobalMapFailureTracker(int numberOfMappers) {
+			mapRestarts = new ArrayList<>(numberOfMappers);
+			mapFailures = new ArrayList<>(numberOfMappers);
+			IntStream.range(0, numberOfMappers).forEach(i -> addNewMapper());
 		}
 
-		private static int addNewMap() {
+		private int addNewMapper() {
 			mapRestarts.add(new AtomicInteger(0));
-			mapFailures.add(new HashMap<>(2));
+			mapFailures.add(new HashSet<>(2));
 			return mapRestarts.size() - 1;
 		}
 
-		private static boolean failOrNot(int index, FailureStrategy failureStrategy) throws Exception {
-			Boolean prevFailed = mapFailures.get(index).get(failureStrategy);
-			boolean alreadyFailed = prevFailed != null && prevFailed;
+		private boolean failOrNot(int index, FailureStrategy failureStrategy) throws Exception {
+			boolean alreadyFailed = mapFailures.get(index).contains(failureStrategy);
 			boolean failedNow = false;
 			try {
 				failedNow = !alreadyFailed && failureStrategy.failOrNot(index);
@@ -416,24 +410,28 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 				failedNow = true;
 				throw e;
 			} finally {
-				mapFailures.get(index).put(failureStrategy, alreadyFailed || failedNow);
+				if (failedNow) {
+					mapFailures.get(index).add(failureStrategy);
+				}
 			}
 			return failedNow;
 		}
 
-		private static void mapRestart(int index) {
+		private void mapRestart(int index) {
 			mapRestarts.get(index).incrementAndGet();
 		}
 
-		private static void unrelatedFailure(Throwable failure) {
+		private void unrelatedFailure(Throwable failure) {
 			synchronized (classLock) {
-				unrelatedFailure = ExceptionUtils.firstOrSuppressed(failure, unrelatedFailure);
+				unexpectedFailure = ExceptionUtils.firstOrSuppressed(failure, unexpectedFailure);
 			}
 		}
 
-		private static void verify() {
+		private void verify() {
 			synchronized (classLock) {
-				assertThat(unrelatedFailure, is(nullValue()));
+				if (unexpectedFailure != null) {
+					throw new AssertionError("Test failed due to unexpected exception.", unexpectedFailure);
+				}
 			}
 			assertThat(mapRestarts.stream().mapToInt(AtomicInteger::get).toArray(), is(EXPECTED_MAP_RESTARTS));
 		}
@@ -455,9 +453,9 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 			//noinspection OverlyBroadCatchBlock
 			try {
 				super.open(parameters);
-				StaticMapFailureTracker.mapRestart(trackingIndex);
+				failureTracker.mapRestart(trackingIndex);
 			} catch (Throwable t) {
-				StaticMapFailureTracker.unrelatedFailure(t);
+				failureTracker.unrelatedFailure(t);
 				throw t;
 			}
 		}
