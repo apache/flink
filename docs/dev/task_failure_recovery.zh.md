@@ -283,20 +283,27 @@ Flink 支持多种不同的故障恢复策略，该策略需要通过 Flink 配�
         <td>full</td>
     </tr>
     <tr>
-        <td>基于Region的局部重启</td>
+        <td>基于 Region 的局部重启</td>
         <td>region</td>
     </tr>
   </tbody>
 </table>
 
-### 全图重启策略
+### 全图重启故障恢复策略
 
-在全图重启策略下，Task 发生故障时会重启作业中的所有 Task 进行故障恢复。
+在全图重启故障恢复策略下，Task 发生故障时会重启作业中的所有 Task 进行故障恢复。
 
-### 基于 Region 的局部重启
+### 基于 Region 的局部重启故障恢复策略
 
 本策略会以 Region 为粒度来决定需要重启的 Task。
-此处 Region 指通过 Pipelined 边连通的 Task 集合。
+
+此处 Region 指以 Pipelined 形式进行数据交换的 Task 集合。
+- DataStream 和 流式 Table 作业的所有数据交换都是 Pipelined 形式的。
+- 批处理式 Table 作业的所有数据交换都是 Batch 形式的。
+- DataSet 作业中的数据交换形式会根据 [ExecutionConfig]({{ site.baseurl }}/dev/execution_configuration.html) 
+  中配置的 [ExecutionMode]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/ExecutionMode.html)
+  决定。
+
 需要重启的 Region 的判断逻辑如下：
 1. 出错 Task 所在 Region 需要重启。
 2. 如果要重启的 Region 需要消费的结果数据 Partition 无法访问（丢失或损坏），产出该数据 Partition 的 Region 也需要重启。

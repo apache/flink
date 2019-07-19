@@ -292,14 +292,21 @@ Flink supports different failover strategies which can be configured via the con
   </tbody>
 </table>
 
-### Restart All Strategy
+### Restart All Failover Strategy
 
 With this strategy, all tasks in the job will be restarted to recover from a task failure.
 
-### Restart Pipelined Region Strategy
+### Restart Pipelined Region Failover Strategy
 
 With this strategy, tasks to restart depend on the regions to restart.
-A region is defined by this strategy as tasks that communicate via pipelined data exchange.
+
+A region is defined by this strategy as tasks that communicate via pipelined data exchanges.
+- All data exchanges in a DataStream job or Streaming Table job are pipelined.
+- All data exchanges in a Batch Table job are batched.
+- Types of data exchanges in a DataSet job is decided with the 
+  [ExecutionMode]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/ExecutionMode.html) set in 
+  [ExecutionConfig]({{ site.baseurl }}/dev/execution_configuration.html).
+
 Regions to restart are decided as below:
 1. The region containing the failed task should be restarted.
 2. If a result partition is not available while it is required by a region that will be restarted,
