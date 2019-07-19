@@ -49,7 +49,7 @@ public final class PreviewPlanEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public String getExecutionPlan() throws Exception {
-		Plan plan = createProgramPlan("unused");
+		this.plan = createProgramPlan("unused");
 		this.previewPlan = Optimizer.createPreOptimizedPlan(plan);
 
 		// do not go on with anything now!
