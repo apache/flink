@@ -18,18 +18,14 @@
 
 package org.apache.flink.batch.connectors.hive;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.DataSet;
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.planner.runtime.utils.TableUtil;
 import org.apache.flink.types.Row;
 
 import com.klarna.hiverunner.HiveShell;
@@ -45,6 +41,8 @@ import org.junit.runner.RunWith;
 
 import java.io.IOException;
 import java.util.List;
+
+import scala.collection.JavaConverters;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -93,24 +91,13 @@ public class HiveTableSourceTest {
 				.addRow(4, 4, "d", 4000L, 4.44)
 				.commit();
 
-		TableSchema tableSchema = new TableSchema(
-				new String[]{"a", "b", "c", "d", "e"},
-				new TypeInformation[]{
-						BasicTypeInfo.INT_TYPE_INFO,
-						BasicTypeInfo.INT_TYPE_INFO,
-						BasicTypeInfo.STRING_TYPE_INFO,
-						BasicTypeInfo.LONG_TYPE_INFO,
-						BasicTypeInfo.DOUBLE_TYPE_INFO}
-		);
-		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
-		BatchTableEnvironment tEnv = BatchTableEnvironment.create(execEnv);
+		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(tablePath);
 		HiveTableSource hiveTableSource = new HiveTableSource(new JobConf(hiveConf), tablePath, catalogTable);
 		Table src = tEnv.fromTableSource(hiveTableSource);
-		DataSet<Row> rowDataSet = tEnv.toDataSet(src, new RowTypeInfo(tableSchema.getFieldTypes(),
-																	tableSchema.getFieldNames()));
-		List<Row> rows = rowDataSet.collect();
+		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) src)).asJava();
+
 		Assert.assertEquals(4, rows.size());
 		Assert.assertEquals(1, rows.get(0).getField(0));
 		Assert.assertEquals(2, rows.get(1).getField(0));
@@ -135,21 +122,12 @@ public class HiveTableSourceTest {
 				.addRow("2015", 2, 1)
 				.addRow("2015", 5, 1)
 				.commit();
-		TableSchema tableSchema = new TableSchema(
-				new String[]{"year", "value", "int"},
-				new TypeInformation[]{
-						BasicTypeInfo.STRING_TYPE_INFO,
-						BasicTypeInfo.INT_TYPE_INFO,
-						BasicTypeInfo.INT_TYPE_INFO}
-		);
-		ExecutionEnvironment execEnv = ExecutionEnvironment.createLocalEnvironment(1);
-		BatchTableEnvironment tEnv = BatchTableEnvironment.create(execEnv);
+		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(tablePath);
 		HiveTableSource hiveTableSource = new HiveTableSource(new JobConf(hiveConf), tablePath, catalogTable);
 		Table src = tEnv.fromTableSource(hiveTableSource);
-		DataSet<Row> rowDataSet = tEnv.toDataSet(src, new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames()));
-		List<Row> rows = rowDataSet.collect();
+		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) src)).asJava();
 		assertEquals(4, rows.size());
 		Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
 		assertArrayEquals(new String[]{"2014,3,0", "2014,4,0", "2015,2,1", "2015,5,1"}, rowStrings);
