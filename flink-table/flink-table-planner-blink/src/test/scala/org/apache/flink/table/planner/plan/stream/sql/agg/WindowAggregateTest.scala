@@ -295,4 +295,25 @@ class WindowAggregateTest extends TableTestBase {
     util.verifyPlan(sql)
   }
 
+  @Test
+  def testReturnTypeInferenceForWindowAgg() = {
+
+    val sql =
+      """
+        |SELECT
+        |  SUM(correct) AS s,
+        |  AVG(correct) AS a,
+        |  TUMBLE_START(rowtime, INTERVAL '15' MINUTE) AS wStart
+        |FROM (
+        |  SELECT CASE a
+        |      WHEN 1 THEN 1
+        |      ELSE 99
+        |    END AS correct, rowtime
+        |  FROM MyTable
+        |)
+        |GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)
+      """.stripMargin
+
+    util.verifyPlan(sql)
+  }
 }
