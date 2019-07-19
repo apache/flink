@@ -383,9 +383,6 @@ class CorrelateITCase extends StreamingTestBase {
 //      (1, 2, "2018-06-01"),
 //      (1, 2, "2018-06-02"))
 //
-//    val env = StreamExecutionEnvironment.getExecutionEnvironment
-//    val tEnv = TableEnvironment.getTableEnvironment(env)
-//
 //    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
 //    tEnv.registerTable("T1", t1)
 //
@@ -404,9 +401,6 @@ class CorrelateITCase extends StreamingTestBase {
 //    val data = List(
 //      (1, 2, ""),
 //      (1, 3, ""))
-//
-//    val env = StreamExecutionEnvironment.getExecutionEnvironment
-//    val tEnv = TableEnvironment.getTableEnvironment(env)
 //
 //    val t1 = env.fromCollection(data).toTable(tEnv, 'a, 'b, 'c)
 //    tEnv.registerTable("T1", t1)

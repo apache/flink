@@ -29,7 +29,7 @@ import org.junit.{Before, Ignore, Test}
 
 import scala.collection.Seq
 
-class CorrelateITCase2 extends BatchTestBase {
+class Correlate2ITCase extends BatchTestBase {
 
   @Before
   override def before(): Unit = {

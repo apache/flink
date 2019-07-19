@@ -35,7 +35,8 @@ import org.apache.flink.table.api.scala.{StreamTableEnvironment => ScalaStreamTa
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
+import org.apache.flink.table.delegation.{Executor, PlannerFactory}
+import org.apache.flink.table.executor.{BatchExecutor, StreamExecutor}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.ComponentFactoryService
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserFunctionsTypeHelper}
@@ -983,7 +984,8 @@ object TestingTableEnvironment {
 
   def create(
       settings: EnvironmentSettings,
-      catalogManager: Option[CatalogManager] = None): TestingTableEnvironment = {
+      catalogManager: Option[CatalogManager] = None,
+      env: Option[StreamExecutionEnvironment] = None): TestingTableEnvironment = {
     val catalogMgr = catalogManager match {
       case Some(c) => c
       case _ =>
@@ -994,8 +996,11 @@ object TestingTableEnvironment {
     val functionCatalog = new FunctionCatalog(catalogMgr)
     val plannerProperties = settings.toPlannerProperties
     val executorProperties = settings.toExecutorProperties
-    val executor = ComponentFactoryService.find(classOf[ExecutorFactory],
-      executorProperties).create(executorProperties)
+    val isStreaming = executorProperties
+        .getOrDefault(EnvironmentSettings.STREAMING_MODE, "true").toBoolean
+    val streamEnv = env.getOrElse(StreamExecutionEnvironment.getExecutionEnvironment)
+    val executor = if (isStreaming) new StreamExecutor(streamEnv) else new BatchExecutor(streamEnv)
+
     val tableConfig = new TableConfig
     val planner = ComponentFactoryService.find(classOf[PlannerFactory], plannerProperties)
       .create(plannerProperties, executor, tableConfig, functionCatalog, catalogMgr)

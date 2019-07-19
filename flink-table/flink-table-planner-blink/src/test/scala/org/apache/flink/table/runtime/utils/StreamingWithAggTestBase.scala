@@ -30,7 +30,7 @@ import org.junit.runners.Parameterized
 
 import scala.collection.JavaConversions._
 
-class StreamingWithAggTestBase(
+abstract class StreamingWithAggTestBase(
   aggMode: AggMode,
   miniBatch: MiniBatchMode,
   backend: StateBackendMode) extends StreamingWithMiniBatchTestBase(miniBatch, backend) {

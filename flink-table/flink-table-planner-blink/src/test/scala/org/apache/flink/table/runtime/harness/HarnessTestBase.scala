@@ -25,22 +25,47 @@ import org.apache.flink.configuration.{CheckpointingOptions, Configuration}
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
 import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.runtime.state.memory.MemoryStateBackend
+import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.streaming.api.scala.DataStream
+import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
 import org.apache.flink.table.JLong
+import org.apache.flink.table.api.EnvironmentSettings
+import org.apache.flink.table.api.scala.StreamTableEnvironment
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.runtime.utils.StreamingTestBase
+import org.apache.flink.table.runtime.utils.{StreamTestSink, StreamingTestBase}
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
+import org.apache.flink.test.util.AbstractTestBase
+
+import org.junit.{Before, Rule}
+import org.junit.rules.TemporaryFolder
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConversions._
 
-class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
+class HarnessTestBase(mode: StateBackendMode) extends AbstractTestBase {
 
   private val classLoader = Thread.currentThread.getContextClassLoader
+
+  val _tempFolder = new TemporaryFolder
+  var env: StreamExecutionEnvironment = _
+  var tEnv: StreamTableEnvironment = _
+
+  @Rule
+  def tempFolder: TemporaryFolder = _tempFolder
+
+  @Before
+  def before(): Unit = {
+    StreamTestSink.clear()
+    this.env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(4)
+    this.env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
+    this.env.getConfig.enableObjectReuse()
+    val setting = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    this.tEnv = StreamTableEnvironment.create(env, setting)
+  }
 
   protected def getStateBackend: StateBackend = {
     mode match {

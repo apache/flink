@@ -30,7 +30,7 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.planner.PlannerBase
-import org.apache.flink.table.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
+import CachedMiniClusterResource.DEFAULT_PARALLELISM
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.util.{BaseRowTestUtil, TableTestUtil, TestingTableEnvironment}
@@ -51,15 +51,14 @@ import scala.collection.Seq
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Sorting
 
-class BatchTestBase extends BatchAbstractTestBase {
+abstract class BatchTestBase extends ITCaseBase {
 
-  private val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
-  private val testingTableEnv: TestingTableEnvironment = TestingTableEnvironment.create(settings)
-  val tEnv: TableEnvironment = testingTableEnv
-  private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
-  val env: StreamExecutionEnvironment = planner.getExecEnv
-  env.getConfig.enableObjectReuse()
-  val conf: TableConfig = tEnv.getConfig
+  private var settings: EnvironmentSettings = _
+  private var testingTableEnv: TestingTableEnvironment = _
+  var tEnv: TableEnvironment = _
+  private var planner: PlannerBase = _
+  var env: StreamExecutionEnvironment = _
+  var conf: TableConfig = _
 
   val LINE_COL_PATTERN: Pattern = Pattern.compile("At line ([0-9]+), column ([0-9]+)")
   val LINE_COL_TWICE_PATTERN: Pattern = Pattern.compile("(?s)From line ([0-9]+),"
@@ -67,6 +66,15 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   @Before
   def before(): Unit = {
+    settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+    testingTableEnv = TestingTableEnvironment.create(
+      settings, env = Some(ITCaseBase.getExecutionEnvironment))
+    tEnv = testingTableEnv
+    planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+    env = planner.getExecEnv
+    env.getConfig.enableObjectReuse()
+    conf = tEnv.getConfig
+
     conf.getConfiguration.setInteger(
       ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
     conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)

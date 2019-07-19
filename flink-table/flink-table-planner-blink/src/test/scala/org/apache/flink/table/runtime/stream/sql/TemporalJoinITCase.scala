@@ -48,8 +48,6 @@ class TemporalJoinITCase(state: StateBackendMode)
     */
   @Test
   def testProcessTimeInnerJoin(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env)
     env.setParallelism(1)
     env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
@@ -97,8 +95,6 @@ class TemporalJoinITCase(state: StateBackendMode)
 
   @Test
   def testEventTimeInnerJoin(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env)
     env.setParallelism(1)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 

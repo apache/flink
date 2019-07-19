@@ -25,12 +25,11 @@ import org.apache.flink.table.api.{EnvironmentSettings, Table, TableException}
 import org.apache.flink.table.operations.PlannerQueryOperation
 import org.apache.flink.table.plan.nodes.calcite.LogicalWatermarkAssigner
 import org.apache.flink.table.util.TableTestUtil
-import org.apache.flink.test.util.AbstractTestBase
 
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.{Before, Rule}
 
-class StreamingTestBase extends AbstractTestBase {
+abstract class StreamingTestBase extends ITCaseBase {
 
   var env: StreamExecutionEnvironment = _
   var tEnv: StreamTableEnvironment = _
@@ -48,7 +47,7 @@ class StreamingTestBase extends AbstractTestBase {
   @Before
   def before(): Unit = {
     StreamTestSink.clear()
-    this.env = StreamExecutionEnvironment.getExecutionEnvironment
+    this.env = new StreamExecutionEnvironment(ITCaseBase.getExecutionEnvironment)
     env.setParallelism(4)
     this.env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
     if (enableObjectReuse) {

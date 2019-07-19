@@ -18,37 +18,33 @@
 
 package org.apache.flink.table.runtime.utils;
 
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.util.TestStreamEnvironment;
 
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
-
 /**
- * Batch test base to use {@link ClassRule}.
+ * Table test base to use {@link ClassRule}.
  */
-public class BatchAbstractTestBase {
+public abstract class ITCaseBase {
 
-	public static final int DEFAULT_PARALLELISM = 3;
+	public ITCaseBase() {
+		String name = getClass().getSimpleName();
+		if (!name.endsWith("ITCase")) {
+			throw new RuntimeException("ITCaseBase should only used in ITCase, now is: " + name);
+		}
+	}
 
 	@ClassRule
-	public static MiniClusterWithClientResource miniClusterResource = new MiniClusterWithClientResource(
-			new MiniClusterResourceConfiguration.Builder()
-					.setConfiguration(getConfiguration())
-					.setNumberTaskManagers(1)
-					.setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
-					.build());
+	public static CachedMiniClusterResource miniClusterResource = new CachedMiniClusterResource();
+
+	public static StreamExecutionEnvironment getExecutionEnvironment() {
+		return new TestStreamEnvironment(
+				miniClusterResource.getCluster().getMiniCluster(),
+				CachedMiniClusterResource.DEFAULT_PARALLELISM);
+	}
 
 	@ClassRule
 	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
-
-	private static Configuration getConfiguration() {
-		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "100m");
-		return config;
-	}
-
 }
