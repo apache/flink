@@ -18,21 +18,16 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /**
- * An interface for descriptors that allow to define a format and schema.
- *
- * @deprecated use {@link ConnectorFormatDescriptor}.
+ * An interface for descriptors that allow to define a format.
  */
-@Deprecated
-public interface SchematicDescriptor<D extends SchematicDescriptor<D>> extends Descriptor {
+@PublicEvolving
+public interface ConnectorFormatDescriptor<D extends ConnectorFormatDescriptor<D>> extends Descriptor {
 
 	/**
 	 * Specifies the format that defines how to read data from a connector.
 	 */
 	D withFormat(FormatDescriptor format);
-
-	/**
-	 * Specifies the resulting table schema.
-	 */
-	D withSchema(Schema schema);
 }
