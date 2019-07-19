@@ -43,8 +43,6 @@ import java.util.List;
 @Internal
 public class BatchExecutor extends ExecutorBase {
 
-	private BatchExecEnvConfig batchExecEnvConfig = new BatchExecEnvConfig();
-
 	@VisibleForTesting
 	public BatchExecutor(StreamExecutionEnvironment executionEnvironment) {
 		super(executionEnvironment);
@@ -58,10 +56,9 @@ public class BatchExecutor extends ExecutorBase {
 	}
 
 	/**
-	 * Backup previous streamEnv config and set batch configs.
+	 * Sets batch configs.
 	 */
-	private void backupAndUpdateStreamEnv(StreamExecutionEnvironment execEnv) {
-		batchExecEnvConfig.backup(execEnv);
+	private void setBatchProperties(StreamExecutionEnvironment execEnv) {
 		ExecutionConfig executionConfig = execEnv.getConfig();
 		executionConfig.enableObjectReuse();
 		executionConfig.setLatencyTrackingInterval(-1);
@@ -77,7 +74,7 @@ public class BatchExecutor extends ExecutorBase {
 	 */
 	public StreamGraph generateStreamGraph(List<Transformation<?>> transformations, String jobName) {
 		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
-		backupAndUpdateStreamEnv(execEnv);
+		setBatchProperties(execEnv);
 		transformations.forEach(execEnv::addOperator);
 		StreamGraph streamGraph;
 		streamGraph = execEnv.getStreamGraph(getNonEmptyJobName(jobName));
@@ -91,11 +88,12 @@ public class BatchExecutor extends ExecutorBase {
 		streamGraph.setChaining(true);
 		streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
 		streamGraph.setStateBackend(null);
-		streamGraph.getCheckpointConfig().setCheckpointInterval(Long.MAX_VALUE);
+		if (streamGraph.getCheckpointConfig().isCheckpointingEnabled()) {
+			throw new IllegalArgumentException("Checkpoint is not supported for batch jobs.");
+		}
 		if (isShuffleModeAllBatch()) {
 			streamGraph.setBlockingConnectionsBetweenChains(true);
 		}
-		batchExecEnvConfig.restore(execEnv);
 		return streamGraph;
 	}
 
@@ -108,46 +106,5 @@ public class BatchExecutor extends ExecutorBase {
 					" can only be set to " + ShuffleMode.BATCH.toString() + " or " + ShuffleMode.PIPELINED.toString());
 		}
 		return false;
-	}
-
-	/**
-	 * Batch configs that are set in {@link StreamExecutionEnvironment}. We should backup and change
-	 * these configs and restore finally.
-	 */
-	private static class BatchExecEnvConfig {
-
-		private boolean enableObjectReuse;
-		private long latencyTrackingInterval;
-		private long bufferTimeout;
-		private TimeCharacteristic timeCharacteristic;
-		private InputDependencyConstraint inputDependencyConstraint;
-
-		/**
-		 * Backup previous streamEnv config.
-		 */
-		public void backup(StreamExecutionEnvironment execEnv) {
-			ExecutionConfig executionConfig = execEnv.getConfig();
-			enableObjectReuse = executionConfig.isObjectReuseEnabled();
-			latencyTrackingInterval = executionConfig.getLatencyTrackingInterval();
-			timeCharacteristic = execEnv.getStreamTimeCharacteristic();
-			bufferTimeout = execEnv.getBufferTimeout();
-			inputDependencyConstraint = executionConfig.getDefaultInputDependencyConstraint();
-		}
-
-		/**
-		 * Restore previous streamEnv after execute batch jobs.
-		 */
-		public void restore(StreamExecutionEnvironment execEnv) {
-			ExecutionConfig executionConfig = execEnv.getConfig();
-			if (enableObjectReuse) {
-				executionConfig.enableObjectReuse();
-			} else {
-				executionConfig.disableObjectReuse();
-			}
-			executionConfig.setLatencyTrackingInterval(latencyTrackingInterval);
-			execEnv.setStreamTimeCharacteristic(timeCharacteristic);
-			execEnv.setBufferTimeout(bufferTimeout);
-			executionConfig.setDefaultInputDependencyConstraint(inputDependencyConstraint);
-		}
 	}
 }
