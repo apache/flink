@@ -335,7 +335,7 @@ class StreamPlanner(
         streamQueryConfig,
         withChangeFlag = false)
     // Give the DataStream to the TableSink to emit it.
-    sink.consumeDataStream(mayKeyByPartitionFields(sink, result))
+    sink.consumeDataStream(shuffleByPartitionFieldsIfNeeded(sink, result))
   }
 
   private def writeToUpsertSink[T](
@@ -380,7 +380,7 @@ class StreamPlanner(
     * @tparam R         the data stream record type
     * @return a data stream that maybe keyed by.
     */
-  private def mayKeyByPartitionFields[R](
+  private def shuffleByPartitionFieldsIfNeeded[R](
       sink: TableSink[_],
       dataStream: DataStream[R]): DataStream[R] = {
     sink match {

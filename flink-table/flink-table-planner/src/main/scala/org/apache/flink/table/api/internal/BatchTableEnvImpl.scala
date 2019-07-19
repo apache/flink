@@ -116,13 +116,13 @@ abstract class BatchTableEnvImpl(
         // translate the Table into a DataSet and provide the type that the TableSink expects.
         val result: DataSet[T] = translate(table)(outputType)
         // Give the DataSet to the TableSink to emit it.
-        batchSink.emitDataSet(mayKeyByPartitionFields(batchSink, result))
+        batchSink.emitDataSet(shuffleByPartitionFieldsIfNeeded(batchSink, result))
       case boundedSink: OutputFormatTableSink[T] =>
         val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
           .asInstanceOf[TypeInformation[T]]
         // translate the Table into a DataSet and provide the type that the TableSink expects.
         val translated: DataSet[T] = translate(table)(outputType)
-        val result = mayKeyByPartitionFields(boundedSink, translated)
+        val result = shuffleByPartitionFieldsIfNeeded(boundedSink, translated)
         // use the OutputFormat to consume the DataSet.
         val dataSink = result.output(boundedSink.getOutputFormat)
         dataSink.name(
@@ -142,7 +142,7 @@ abstract class BatchTableEnvImpl(
     * @tparam R      the data set record type
     * @return a data set that maybe keyed by.
     */
-  private def mayKeyByPartitionFields[R](
+  private def shuffleByPartitionFieldsIfNeeded[R](
       sink: TableSink[_],
       dataSet: DataSet[R]): DataSet[R] = {
     sink match {

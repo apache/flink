@@ -510,7 +510,7 @@ abstract class TableEnvImpl(
     table: Table,
     path: String,
     pathContinued: String*): Unit = {
-    insertInto(table, InsertOptions.apply(new JHashMap[String, String]()),
+    insertInto(table, InsertOptions(new JHashMap[String, String]()),
       path +: pathContinued: _*)
   }
 
