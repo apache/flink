@@ -28,10 +28,13 @@ import org.apache.commons.math3.complex.Complex;
  * 2. Chirp-Z algorithm, can perform FFT with any length.
  */
 public class FFT {
+
+	private static final double INVERSE_LOG_2 = 1.0 / Math.log(2);
+
 	/**
 	 * Helper for root of unity. Returns the group for power "length".
 	 */
-	public static Complex[] getOmega(int length) throws Exception {
+	public static Complex[] getOmega(int length) {
 		Complex[] omega = new Complex[length];
 		Complex unit = new Complex(Math.cos(2 * Math.PI / length),
 			Math.sin(2 * Math.PI / length));
@@ -51,11 +54,11 @@ public class FFT {
 	 * for a rough reference.
 	 * Detail of radix-2 in-place Cooley-Tukey algorithm can be found in many places, e.g. CLRS textbook.
 	 */
-	public static Complex[] fftRadix2CooleyTukey(Complex[] input, Boolean inverse, Complex[] omega) throws Exception {
+	public static Complex[] fftRadix2CooleyTukey(Complex[] input, boolean inverse, Complex[] omega) {
 
 		//1. length
 		int length = input.length;
-		int logl = (int) (Math.log(length + 0.01) / Math.log(2));
+		int logl = (int) (Math.log(length + 0.01) * INVERSE_LOG_2);
 
 		//notice: only support power of 2
 		//fftChirpZ support other lengths
@@ -135,12 +138,11 @@ public class FFT {
 	 * "The chirp z-transform algorithm", L Rabiner, RW Schafer, C Rader, 1969
 	 * for details.
 	 **/
-	public static Complex[] fftChirpZ(Complex[] input, Boolean inverse, Complex[] omega, Complex[] omega2)
-		throws Exception {
+	public static Complex[] fftChirpZ(Complex[] input, boolean inverse, Complex[] omega, Complex[] omega2) {
 
 		//1. length
 		int length = input.length;
-		int logl = (int) (Math.log(length + 0.01) / Math.log(2));
+		int logl = (int) (Math.log(length + 0.01) * INVERSE_LOG_2);
 		if ((1 << logl) == length) {
 			throw new RuntimeException(
 				"Chirp-Z is not efficient for lengths of power-of-2. Use Radix-2 Cooley-Tukey instead.");
