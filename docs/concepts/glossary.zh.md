@@ -1,7 +1,7 @@
 ---
 title: 术语表
 nav-pos: 3
-nav-title: Glossary
+nav-title: 术语表
 nav-parent_id: concepts
 ---
 <!--
