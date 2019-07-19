@@ -19,8 +19,8 @@
 package org.apache.flink.table.codegen
 
 import org.apache.flink.table.codegen.CodeGenUtils.{boxedTypeTermForType, newName}
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.types.logical.LogicalType
-import org.apache.flink.table.typeutils.TypeCheckUtils
 
 /**
   * Describes a generated expression.

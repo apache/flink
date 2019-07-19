@@ -27,10 +27,10 @@ import org.apache.flink.table.codegen.calls.CurrentTimePointCallGen
 import org.apache.flink.table.dataformat._
 import org.apache.flink.table.plan.util.SortUtil
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
-import org.apache.flink.table.types.PlannerTypeUtils
+import org.apache.flink.table.runtime.types.PlannerTypeUtils
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 
 import org.apache.calcite.avatica.util.ByteString
 import org.apache.commons.lang3.StringEscapeUtils
@@ -661,7 +661,8 @@ object GenerateUtils {
     case _ if PlannerTypeUtils.isPrimitive(t) =>
       s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"
     case VARBINARY | BINARY =>
-      val sortUtil = classOf[org.apache.flink.table.runtime.sort.SortUtil].getCanonicalName
+      val sortUtil = classOf[org.apache.flink.table.runtime.operators.sort.SortUtil]
+        .getCanonicalName
       s"$sortUtil.compareBinary($leftTerm, $rightTerm)"
     case ARRAY =>
       val at = t.asInstanceOf[ArrayType]

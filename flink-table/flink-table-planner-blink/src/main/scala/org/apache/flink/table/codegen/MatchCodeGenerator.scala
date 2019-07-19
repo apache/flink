@@ -36,12 +36,12 @@ import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.MatchCodeGenerator._
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
-import org.apache.flink.table.dataview.PerKeyStateDataViewStore
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable._
-import org.apache.flink.table.generated.GeneratedFunction
+import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.plan.util.AggregateUtil
 import org.apache.flink.table.plan.util.MatchUtil.AggregationPatternVariableFinder
-import org.apache.flink.table.runtime.`match`.{IterativeConditionRunner, PatternProcessFunctionRunner}
+import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore
+import org.apache.flink.table.runtime.operators.`match`.{IterativeConditionRunner, PatternProcessFunctionRunner}
 import org.apache.flink.table.types.logical.{RowType, TimestampKind, TimestampType}
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.util.Collector

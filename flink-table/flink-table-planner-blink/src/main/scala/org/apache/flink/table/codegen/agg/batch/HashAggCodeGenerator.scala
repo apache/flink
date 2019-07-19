@@ -23,10 +23,10 @@ import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, Proje
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, JoinedRow}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
-import org.apache.flink.table.generated.GeneratedOperator
 import org.apache.flink.table.plan.util.AggregateInfoList
-import org.apache.flink.table.runtime.TableStreamOperator
-import org.apache.flink.table.runtime.aggregate.{BytesHashMap, BytesHashMapSpillMemorySegmentPool}
+import org.apache.flink.table.runtime.generated.GeneratedOperator
+import org.apache.flink.table.runtime.operators.TableStreamOperator
+import org.apache.flink.table.runtime.operators.aggregate.{BytesHashMap, BytesHashMapSpillMemorySegmentPool}
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.tools.RelBuilder

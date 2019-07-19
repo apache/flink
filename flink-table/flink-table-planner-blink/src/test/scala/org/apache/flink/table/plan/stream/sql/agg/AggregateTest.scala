@@ -23,7 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, Types, ValidationException}
-import org.apache.flink.table.typeutils.DecimalTypeInfo
+import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 
 import org.junit.Test

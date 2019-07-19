@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.util;
 
-import org.apache.flink.table.runtime.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 
 import org.apache.calcite.rel.core.JoinRelType;
 

@@ -33,10 +33,10 @@ import org.apache.flink.table.functions.aggfunctions.SumWithRetractAggFunction._
 import org.apache.flink.table.functions.aggfunctions._
 import org.apache.flink.table.functions.sql.{SqlConcatAggFunction, SqlFirstLastValueAggFunction, SqlIncrSumAggFunction}
 import org.apache.flink.table.functions.utils.AggSqlFunction
-import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
+import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.typeutils.DecimalTypeInfo
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall

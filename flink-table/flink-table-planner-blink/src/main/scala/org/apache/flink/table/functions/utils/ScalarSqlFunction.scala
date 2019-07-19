@@ -23,9 +23,9 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.functions.utils.ScalarSqlFunction._
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getOperandType, _}
-import org.apache.flink.table.types.ClassLogicalTypeConverter.getDefaultExternalClassForType
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getDefaultExternalClassForType
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._

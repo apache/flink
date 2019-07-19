@@ -20,8 +20,8 @@ package org.apache.flink.table.codegen.agg
 
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.dataformat.GenericRow
-import org.apache.flink.table.dataview.PerKeyStateDataViewStore
-import org.apache.flink.table.generated.AggsHandleFunction
+import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore
+import org.apache.flink.table.runtime.generated.AggsHandleFunction
 import org.apache.flink.table.types.utils.TypeConversions
 
 import org.junit.{Assert, Test}

@@ -26,7 +26,7 @@ import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.stats._
 import org.apache.flink.table.plan.util.{AggregateUtil, ColumnIntervalUtil, FlinkRelOptUtil, RankUtil}
-import org.apache.flink.table.runtime.rank.{ConstantRankRange, VariableRankRange}
+import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, VariableRankRange}
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.volcano.RelSubset

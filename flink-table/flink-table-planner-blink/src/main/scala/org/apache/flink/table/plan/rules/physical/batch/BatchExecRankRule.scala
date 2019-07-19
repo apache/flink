@@ -24,7 +24,7 @@ import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalRank
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecRank
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
-import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankType}
+import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.convert.ConverterRule

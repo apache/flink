@@ -33,9 +33,9 @@ import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil, JoinUtil, SortUtil}
 import org.apache.flink.table.planner.BatchPlanner
-import org.apache.flink.table.runtime.join.{FlinkJoinType, SortMergeJoinOperator}
+import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, SortMergeJoinOperator}
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.RowType
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._

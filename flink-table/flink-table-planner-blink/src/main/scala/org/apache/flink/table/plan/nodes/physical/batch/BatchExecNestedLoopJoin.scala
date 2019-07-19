@@ -30,7 +30,7 @@ import org.apache.flink.table.plan.nodes.ExpressionFormat
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.planner.BatchPlanner
-import org.apache.flink.table.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
+import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._

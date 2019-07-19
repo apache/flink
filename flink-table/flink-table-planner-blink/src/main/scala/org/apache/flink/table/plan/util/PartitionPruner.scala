@@ -25,9 +25,9 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.codegen.CodeGenUtils.DEFAULT_COLLECTOR_TERM
 import org.apache.flink.table.codegen.{ConstantCodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.dataformat.{BinaryString, Decimal, GenericRow}
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{BooleanType, DecimalType, LogicalType}
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.rex.RexNode
 

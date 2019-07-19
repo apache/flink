@@ -34,7 +34,7 @@ import org.apache.flink.table.plan.nodes.physical.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.ScanUtil
 import org.apache.flink.table.planner.StreamPlanner
-import org.apache.flink.table.runtime.AbstractProcessStreamOperator
+import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
 import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PreserveWatermarks, PunctuatedWatermarkAssigner}
 import org.apache.flink.table.sources.{RowtimeAttributeDescriptor, StreamTableSource, TableSourceUtil}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType

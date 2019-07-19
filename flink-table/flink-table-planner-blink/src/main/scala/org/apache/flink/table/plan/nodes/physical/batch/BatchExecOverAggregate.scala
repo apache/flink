@@ -31,7 +31,6 @@ import org.apache.flink.table.codegen.over.{MultiFieldRangeBoundComparatorCodeGe
 import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow}
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.generated.GeneratedRecordComparator
 import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
@@ -42,11 +41,12 @@ import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateI
 import org.apache.flink.table.plan.util.OverAggregateUtil.getLongBoundary
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, OverAggregateUtil, RelExplainUtil}
 import org.apache.flink.table.planner.BatchPlanner
-import org.apache.flink.table.runtime.over.frame.OffsetOverFrame.CalcOffsetFunc
-import org.apache.flink.table.runtime.over.frame.{InsensitiveOverFrame, OffsetOverFrame, OverWindowFrame, RangeSlidingOverFrame, RangeUnboundedFollowingOverFrame, RangeUnboundedPrecedingOverFrame, RowSlidingOverFrame, RowUnboundedFollowingOverFrame, RowUnboundedPrecedingOverFrame, UnboundedOverWindowFrame}
-import org.apache.flink.table.runtime.over.{BufferDataOverWindowOperator, NonBufferOverWindowOperator}
+import org.apache.flink.table.runtime.generated.GeneratedRecordComparator
+import org.apache.flink.table.runtime.operators.over.frame.OffsetOverFrame.CalcOffsetFunc
+import org.apache.flink.table.runtime.operators.over.frame.{InsensitiveOverFrame, OffsetOverFrame, OverWindowFrame, RangeSlidingOverFrame, RangeUnboundedFollowingOverFrame, RangeUnboundedPrecedingOverFrame, RowSlidingOverFrame, RowUnboundedFollowingOverFrame, RowUnboundedPrecedingOverFrame, UnboundedOverWindowFrame}
+import org.apache.flink.table.runtime.operators.over.{BufferDataOverWindowOperator, NonBufferOverWindowOperator}
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{BIGINT, INTEGER, SMALLINT}
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelDistribution.Type._

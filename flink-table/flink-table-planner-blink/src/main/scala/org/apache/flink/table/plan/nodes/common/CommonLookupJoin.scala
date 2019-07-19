@@ -36,15 +36,15 @@ import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction, User
 import org.apache.flink.table.plan.nodes.FlinkRelNode
 import org.apache.flink.table.plan.util.LookupJoinUtil._
 import org.apache.flink.table.plan.util.{JoinTypeUtil, RelExplainUtil}
-import org.apache.flink.table.runtime.join.lookup.{AsyncLookupJoinRunner, AsyncLookupJoinWithCalcRunner, LookupJoinRunner, LookupJoinWithCalcRunner}
+import org.apache.flink.table.runtime.operators.join.lookup.{AsyncLookupJoinRunner, AsyncLookupJoinWithCalcRunner, LookupJoinRunner, LookupJoinWithCalcRunner}
+import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
+import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getInternalClassForType
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sources.{LookupableTableSource, TableSource}
-import org.apache.flink.table.types.ClassLogicalTypeConverter
-import org.apache.flink.table.types.ClassLogicalTypeConverter.getInternalClassForType
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.types.logical.{LogicalType, RowType, TypeInformationAnyType}
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.util.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.types.Row
 

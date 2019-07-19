@@ -26,7 +26,7 @@ import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, RankUtil}
-import org.apache.flink.table.runtime.rank.RankType
+import org.apache.flink.table.runtime.operators.rank.RankType
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.{JArrayList, JBoolean, JHashMap, JHashSet, JList, JSet}
 

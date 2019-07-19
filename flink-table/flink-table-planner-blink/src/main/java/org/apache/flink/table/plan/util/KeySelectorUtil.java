@@ -21,13 +21,13 @@ package org.apache.flink.table.plan.util;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.codegen.CodeGeneratorContext;
 import org.apache.flink.table.codegen.ProjectionCodeGenerator;
-import org.apache.flink.table.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
 import org.apache.flink.table.runtime.keyselector.BinaryRowKeySelector;
 import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector;
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.typeutils.BaseRowTypeInfo;
 
 /**
  * Utility for KeySelector.

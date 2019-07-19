@@ -20,10 +20,10 @@ package org.apache.flink.table.plan.nodes.physical.batch
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.generated.GeneratedJoinCondition
 import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
 import org.apache.flink.table.plan.nodes.exec.BatchExecNode
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}

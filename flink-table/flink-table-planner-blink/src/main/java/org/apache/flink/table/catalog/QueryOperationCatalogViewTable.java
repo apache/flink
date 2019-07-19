@@ -24,7 +24,7 @@ import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.plan.schema.FlinkTable;
 import org.apache.flink.table.plan.stats.FlinkStatistic;
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter;
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.util.JavaScalaConversionUtil;
 

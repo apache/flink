@@ -24,9 +24,9 @@ import org.apache.flink.table.api.TableSchema
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.plan.stats.{ColumnStats, FlinkStatistic, TableStats}
-import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType, TimestampKind, TimestampType, VarCharType}
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.schema.SchemaPlus

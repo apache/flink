@@ -22,8 +22,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.internal.TableImpl
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.sinks.{CollectRowTableSink, CollectTableSink}
-import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.types.logical.TimestampType
 import org.apache.flink.table.util.TableTestUtil
 import org.apache.flink.types.Row

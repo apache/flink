@@ -41,9 +41,9 @@ import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRul
 import org.apache.flink.table.plan.util.RelExplainUtil._
 import org.apache.flink.table.plan.util.{KeySelectorUtil, RexDefaultVisitor, SortUtil}
 import org.apache.flink.table.planner.StreamPlanner
-import org.apache.flink.table.runtime.`match`.{BaseRowEventComparator, RowtimeProcessFunction}
+import org.apache.flink.table.runtime.operators.`match`.{BaseRowEventComparator, RowtimeProcessFunction}
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.RowType
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.util.MathUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}

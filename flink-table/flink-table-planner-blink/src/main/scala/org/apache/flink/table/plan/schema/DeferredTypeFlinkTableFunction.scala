@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.schema
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}

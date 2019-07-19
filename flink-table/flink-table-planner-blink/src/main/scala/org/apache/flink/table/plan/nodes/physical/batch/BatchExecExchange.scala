@@ -31,9 +31,9 @@ import org.apache.flink.table.plan.nodes.common.CommonPhysicalExchange
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.planner.BatchPlanner
-import org.apache.flink.table.runtime.BinaryHashPartitioner
+import org.apache.flink.table.runtime.partitioner.BinaryHashPartitioner
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.RowType
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelDistribution, RelNode, RelWriter}

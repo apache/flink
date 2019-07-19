@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.keyselector;
 
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.util.BinaryRowUtil;
-import org.apache.flink.table.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
 
 /**
  * A utility class which key is always empty no matter what the input row is.

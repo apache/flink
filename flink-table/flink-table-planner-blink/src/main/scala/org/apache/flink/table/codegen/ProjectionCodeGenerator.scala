@@ -22,7 +22,7 @@ import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GenerateUtils.generateRecordStatement
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.dataformat._
-import org.apache.flink.table.generated.{GeneratedProjection, Projection}
+import org.apache.flink.table.runtime.generated.{GeneratedProjection, Projection}
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
 import scala.collection.mutable

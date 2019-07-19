@@ -31,9 +31,9 @@ import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, Tabl
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 import org.apache.flink.table.planner.PlannerBase
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.util.{BaseRowTestUtil, TableTestUtil, TestingTableEnvironment}
 import org.apache.flink.types.Row
 

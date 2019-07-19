@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.rules.logical
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.util.{FlinkRexUtil, RankUtil}
-import org.apache.flink.table.runtime.rank.VariableRankRange
+import org.apache.flink.table.runtime.operators.rank.VariableRankRange
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelOptUtil}

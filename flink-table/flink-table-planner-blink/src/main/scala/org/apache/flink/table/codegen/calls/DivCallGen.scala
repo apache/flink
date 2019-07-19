@@ -22,7 +22,7 @@ import org.apache.flink.table.codegen.CodeGenUtils.DECIMAL_TERM
 import org.apache.flink.table.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.{DecimalType, LogicalType}
-import org.apache.flink.table.typeutils.TypeCheckUtils.isNumeric
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isNumeric
 
 // DIV(T1, T2) - return integral part of the division; fractional truncated.
 //   T1, T2 are exact numeric types.
