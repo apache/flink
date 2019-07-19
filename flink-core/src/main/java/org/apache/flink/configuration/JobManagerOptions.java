@@ -23,6 +23,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
@@ -105,11 +106,14 @@ public class JobManagerOptions {
 
 	/**
 	 * This option specifies the failover strategy, i.e. how the job computation recovers from task failures.
-	 * The option "individual" and "region-legacy" are intentionally not included
-	 * as they have some known limitations or issues.
-	 * "individual" strategy only works when all tasks are not connected, in which case the "region"
+	 *
+	 * <p>The options "individual" and "region-legacy" are intentionally not included
+	 * as they have some known limitations or issues:
+	 * <ul>
+	 *     <li>"individual" strategy only works when all tasks are not connected, in which case the "region"
 	 * failover strategy would also restart failed tasks individually.
-	 * "region-legacy" strategy is not able to backtrack missing input result partitions.
+	 *     <li>"region-legacy" strategy is not able to backtrack missing input result partitions.
+	 * </ul>
 	 * The new "region" strategy supersedes "individual" and "region-legacy" strategies and should always work.
 	 */
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
@@ -121,11 +125,10 @@ public class JobManagerOptions {
 				.list(
 					text("'full': Restarts all tasks to recover the job."),
 					text("'region': Restarts all tasks that could be affected by the task failure. " +
-						"The affected vertices consist of vertices in affected regions " +
-						"(pipelined connected sub-graphs), including " +
-						"the region of the failed task, " +
-						"downstream regions of affected regions, and" +
-						"producer regions of required but unavailable result partitions for this recovery.")
+						"More details can be found %s.",
+						link(
+							"https://ci.apache.org/projects/flink/flink-docs-master/dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy",
+							"here"))
 				).build());
 
 	/**

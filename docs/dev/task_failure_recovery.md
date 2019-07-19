@@ -33,7 +33,6 @@ Failover strategies decide which tasks should be restarted to recover the job.
 
 ## Restart Strategies
 
-Flink supports different restart strategies.
 The cluster can be started with a default restart strategy which is always used when no job specific restart strategy has been defined.
 In case that the job is submitted with a restart strategy, this strategy overrides the cluster's default setting.
 
@@ -294,25 +293,28 @@ Flink supports different failover strategies which can be configured via the con
 
 ### Restart All Failover Strategy
 
-With this strategy, all tasks in the job will be restarted to recover from a task failure.
+This strategy restarts all tasks in the job to recover from a task failure.
 
 ### Restart Pipelined Region Failover Strategy
 
-With this strategy, tasks to restart depend on the regions to restart.
+This strategy groups tasks into disjoint regions. When a task failure is detected, 
+this strategy computes the smallest set of regions that must be restarted to recover from the failure. 
+For some jobs this can result in fewer tasks that will be restarted compared to the Restart All Failover Strategy.
 
-A region is defined by this strategy as tasks that communicate via pipelined data exchanges.
-- All data exchanges in a DataStream job or Streaming Table job are pipelined.
-- All data exchanges in a Batch Table job are batched.
-- Types of data exchanges in a DataSet job is decided with the 
-  [ExecutionMode]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/ExecutionMode.html) set in 
-  [ExecutionConfig]({{ site.baseurl }}/dev/execution_configuration.html).
+A region is a set of tasks that communicate via pipelined data exchanges. 
+That is, batch data exchanges denote the boundaries of a region.
+- All data exchanges in a DataStream job or Streaming Table/SQL job are pipelined.
+- All data exchanges in a Batch Table/SQL job are batched by default.
+- The data exchange types in a DataSet job are determined by the 
+  [ExecutionMode]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/ExecutionMode.html) 
+  which can be set through [ExecutionConfig]({{ site.baseurl }}/dev/execution_configuration.html).
 
-Regions to restart are decided as below:
+The regions to restart are decided as below:
 1. The region containing the failed task should be restarted.
 2. If a result partition is not available while it is required by a region that will be restarted,
    the region producing the result partition should be restarted as well.
 3. If a region is to be restarted, all of its consumer regions should also be restarted. This is to guarantee
-   data consistency. Because nondeterministic processing or partitioning can result in that a partition
+   data consistency because nondeterministic processing or partitioning can result in that a partition
    is different each time it is produced.
 
 {% top %}

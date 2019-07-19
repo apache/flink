@@ -31,7 +31,7 @@ Flink 通过重启策略和故障恢复策略来控制 Task 重启：重启策�
 
 ## 重启策略
 
-Flink 在作业发生故障时支持不同的重启策略。如果没有为作业定义重启策略，集群启动时就会遵循默认的重启策略。
+Flink 作业如果没有定义重启策略，则会遵循集群启动时加载的默认重启策略。
 如果提交作业时设置了重启策略，该策略将覆盖掉集群的默认策略。
 
 通过 Flink 的配置文件 `flink-conf.yaml` 来设置默认的重启策略。配置参数 *restart-strategy* 定义了采取何种策略。
@@ -295,11 +295,12 @@ Flink 支持多种不同的故障恢复策略，该策略需要通过 Flink 配�
 
 ### 基于 Region 的局部重启故障恢复策略
 
-本策略会以 Region 为粒度来决定需要重启的 Task。
+该策略会将作业中的所有 Task 划分为数个 Region。当有 Task 发生故障时，它会尝试找出进行故障恢复需要重启的最小 Region 集合。
+相比于全局重启故障恢复策略，这种策略在一些场景下的故障恢复需要重启的 Task 会更少。
 
-此处 Region 指以 Pipelined 形式进行数据交换的 Task 集合。
-- DataStream 和 流式 Table 作业的所有数据交换都是 Pipelined 形式的。
-- 批处理式 Table 作业的所有数据交换都是 Batch 形式的。
+此处 Region 指以 Pipelined 形式进行数据交换的 Task 集合。也就是说，Batch 形式的数据交换会构成 Region 的边界。
+- DataStream 和 流式 Table/SQL 作业的所有数据交换都是 Pipelined 形式的。
+- 批处理式 Table/SQL 作业的所有数据交换默认都是 Batch 形式的。
 - DataSet 作业中的数据交换形式会根据 [ExecutionConfig]({{ site.baseurl }}/zh/dev/execution_configuration.html) 
   中配置的 [ExecutionMode]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/ExecutionMode.html)
   决定。
