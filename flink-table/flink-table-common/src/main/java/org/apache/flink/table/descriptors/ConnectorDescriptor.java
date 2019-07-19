@@ -19,7 +19,6 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.catalog.config.CatalogConfig;
 
 import java.util.Map;
 
@@ -39,11 +38,6 @@ public abstract class ConnectorDescriptor extends DescriptorBase implements Desc
 	private boolean formatNeeded;
 
 	/**
-	 * See {@link CatalogConfig#IS_GENERIC}.
-	 */
-	private boolean isGeneric = true;
-
-	/**
 	 * Constructs a {@link ConnectorDescriptor}.
 	 *
 	 * @param type string that identifies this connector
@@ -56,28 +50,12 @@ public abstract class ConnectorDescriptor extends DescriptorBase implements Desc
 		this.formatNeeded = formatNeeded;
 	}
 
-	/**
-	 * Constructs a {@link ConnectorDescriptor}.
-	 *
-	 * @param type string that identifies this connector
-	 * @param version property version for backwards compatibility
-	 * @param formatNeeded flag for basic validation of a needed format descriptor
-	 * @param isGeneric flag to distinguish whether this is a generic table,
-	 */
-	public ConnectorDescriptor(String type, int version, boolean formatNeeded, boolean isGeneric) {
-		this.type = type;
-		this.version = version;
-		this.formatNeeded = formatNeeded;
-		this.isGeneric = isGeneric;
-	}
-
 	@Override
 	public final Map<String, String> toProperties() {
 		final DescriptorProperties properties = new DescriptorProperties();
 		properties.putString(CONNECTOR_TYPE, type);
 		properties.putLong(CONNECTOR_PROPERTY_VERSION, version);
 		properties.putProperties(toConnectorProperties());
-		properties.putString(CatalogConfig.IS_GENERIC, String.valueOf(isGeneric));
 		return properties.asMap();
 	}
 

@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.ConnectorFormatDescriptor;
 import org.apache.flink.table.descriptors.Descriptor;
@@ -30,6 +31,7 @@ import org.apache.flink.table.descriptors.Statistics;
 import org.apache.flink.table.descriptors.StreamableDescriptor;
 import org.apache.flink.table.descriptors.TableDescriptor;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
@@ -73,6 +75,7 @@ public class CatalogTableBuilder
 
 	private final ConnectorDescriptor connectorDescriptor;
 	private final TableSchema tableSchema;
+	private final boolean isGeneric;
 
 	private String comment;
 
@@ -80,10 +83,19 @@ public class CatalogTableBuilder
 	private Optional<Statistics> statisticsDescriptor = Optional.empty();
 	private Optional<Metadata> metadataDescriptor = Optional.empty();
 	private Optional<String> updateMode = Optional.empty();
+	private Map<String, String> properties = Collections.emptyMap();
 
+	/**
+	 *
+	 * @param connectorDescriptor descriptor of the connector
+	 * @param tableSchema schema of the table
+	 */
 	public CatalogTableBuilder(ConnectorDescriptor connectorDescriptor, TableSchema tableSchema) {
 		this.connectorDescriptor = checkNotNull(connectorDescriptor);
 		this.tableSchema = checkNotNull(tableSchema);
+
+		// We don't support non generic table currently
+		this.isGeneric = true;
 	}
 
 	@Override
@@ -115,6 +127,11 @@ public class CatalogTableBuilder
 		return this;
 	}
 
+	public CatalogTableBuilder withProperties(Map<String, String> properties) {
+		this.properties = checkNotNull(properties);
+		return this;
+	}
+
 	/**
 	 * Build a {@link CatalogTable}.
 	 *
@@ -129,25 +146,28 @@ public class CatalogTableBuilder
 
 	@Override
 	public Map<String, String> toProperties() {
-		DescriptorProperties properties = new DescriptorProperties();
-		properties.putProperties(connectorDescriptor.toProperties());
+		DescriptorProperties descriptorProperties = new DescriptorProperties();
+		descriptorProperties.putProperties(connectorDescriptor.toProperties());
 
 		if (formatDescriptor.isPresent()) {
-			properties.putProperties(formatDescriptor.get().toProperties());
+			descriptorProperties.putProperties(formatDescriptor.get().toProperties());
 		}
 
 		if (statisticsDescriptor.isPresent()) {
-			properties.putProperties(statisticsDescriptor.get().toProperties());
+			descriptorProperties.putProperties(statisticsDescriptor.get().toProperties());
 		}
 
 		if (metadataDescriptor.isPresent()) {
-			properties.putProperties(metadataDescriptor.get().toProperties());
+			descriptorProperties.putProperties(metadataDescriptor.get().toProperties());
 		}
 
 		if (updateMode.isPresent()) {
-			properties.putString(UPDATE_MODE, updateMode.get());
+			descriptorProperties.putString(UPDATE_MODE, updateMode.get());
 		}
 
-		return properties.asMap();
+		descriptorProperties.putProperties(this.properties);
+		descriptorProperties.putString(CatalogConfig.IS_GENERIC, String.valueOf(isGeneric));
+
+		return descriptorProperties.asMap();
 	}
 }
