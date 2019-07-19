@@ -20,11 +20,11 @@ package org.apache.flink.table.plan.util
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.api.window.TimeWindow
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.plan.logical.{LogicalWindow, SessionGroupWindow}
 import org.apache.flink.table.plan.util.AggregateUtil.isRowtimeAttribute
-import org.apache.flink.table.runtime.window.triggers._
+import org.apache.flink.table.runtime.operators.window.TimeWindow
+import org.apache.flink.table.runtime.operators.window.triggers._
 import org.apache.flink.table.util.TableConfigUtils.getMillisecondFromConfigDuration
 
 import java.lang.{Boolean, Long}

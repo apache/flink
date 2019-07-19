@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.nodes.calcite
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.util._
-import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankRange, RankType, VariableRankRange}
+import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange, RankType, VariableRankRange}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}

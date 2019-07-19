@@ -26,14 +26,12 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.runtime.harness.HarnessTestBase.TestingBaseRowKeySelector
-import org.apache.flink.table.runtime.join.temporal.BaseTwoInputStreamOperatorWithStateRetention
+import org.apache.flink.table.runtime.operators.join.temporal.BaseTwoInputStreamOperatorWithStateRetention
 import org.apache.flink.table.runtime.util.StreamRecordUtils.record
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.HEAP_BACKEND
-import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.{Description, TypeSafeMatcher}
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 import org.junit.{After, Before, Test}
 
 import java.lang.{Long => JLong}
@@ -42,8 +40,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  * Tests for the
-  * [[org.apache.flink.table.runtime.join.temporal.BaseTwoInputStreamOperatorWithStateRetention]].
+  * Tests for the [[BaseTwoInputStreamOperatorWithStateRetention]].
   */
 class AbstractTwoInputStreamOperatorWithTTLTest
   extends HarnessTestBase(HEAP_BACKEND) {

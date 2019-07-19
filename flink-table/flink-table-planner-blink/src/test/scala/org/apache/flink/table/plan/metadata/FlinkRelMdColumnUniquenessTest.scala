@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.plan.nodes.calcite.{LogicalExpand, LogicalRank}
 import org.apache.flink.table.plan.util.ExpandUtil
-import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankType}
+import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.rel.`type`.RelDataTypeFieldImpl

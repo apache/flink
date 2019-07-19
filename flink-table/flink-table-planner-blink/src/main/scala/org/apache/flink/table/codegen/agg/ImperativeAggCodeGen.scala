@@ -27,10 +27,11 @@ import org.apache.flink.table.expressions.{Expression, ResolvedAggInputReference
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAggFunctionUDIMethod, getAggUserDefinedInputTypes, getUserDefinedMethod, internalTypesToClasses, signatureToString}
 import org.apache.flink.table.plan.util.AggregateInfo
-import org.apache.flink.table.types.ClassLogicalTypeConverter.getInternalClassForType
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getInternalClassForType
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.types.{ClassDataTypeConverter, PlannerTypeUtils}
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
-import org.apache.flink.table.types.{ClassDataTypeConverter, DataType, PlannerTypeUtils}
 import org.apache.flink.table.util.SingleElementIterator
 
 import org.apache.calcite.tools.RelBuilder

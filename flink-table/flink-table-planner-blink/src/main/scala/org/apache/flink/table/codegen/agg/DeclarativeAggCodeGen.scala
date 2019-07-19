@@ -23,7 +23,7 @@ import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, 
 import org.apache.flink.table.expressions.{ResolvedDistinctKeyReference, _}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.plan.util.AggregateInfo
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils

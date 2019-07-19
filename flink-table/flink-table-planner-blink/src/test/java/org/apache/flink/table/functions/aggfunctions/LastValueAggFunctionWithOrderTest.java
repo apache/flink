@@ -31,7 +31,7 @@ import org.apache.flink.table.functions.aggfunctions.LastValueAggFunction.IntLas
 import org.apache.flink.table.functions.aggfunctions.LastValueAggFunction.LongLastValueAggFunction;
 import org.apache.flink.table.functions.aggfunctions.LastValueAggFunction.ShortLastValueAggFunction;
 import org.apache.flink.table.functions.aggfunctions.LastValueAggFunction.StringLastValueAggFunction;
-import org.apache.flink.table.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 
 import java.util.Arrays;
 import java.util.List;

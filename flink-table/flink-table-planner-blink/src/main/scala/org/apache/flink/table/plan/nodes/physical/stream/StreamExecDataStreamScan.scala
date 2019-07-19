@@ -29,11 +29,11 @@ import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.plan.util.ScanUtil
 import org.apache.flink.table.planner.StreamPlanner
-import org.apache.flink.table.runtime.AbstractProcessStreamOperator
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.types.logical.{RowType, TimestampKind, TimestampType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.ROWTIME_STREAM_MARKER
-import org.apache.flink.table.typeutils.TypeCheckUtils
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType

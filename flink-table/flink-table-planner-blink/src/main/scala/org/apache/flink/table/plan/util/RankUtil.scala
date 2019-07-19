@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.util
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.ExpressionReducer
 import org.apache.flink.table.plan.nodes.calcite.Rank
-import org.apache.flink.table.runtime.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankRange, VariableRankRange}
+import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankRange, VariableRankRange}
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, RexNode, RexUtil}

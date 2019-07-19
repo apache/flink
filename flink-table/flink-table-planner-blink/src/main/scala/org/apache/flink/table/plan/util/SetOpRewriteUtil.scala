@@ -24,7 +24,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory.toLogicalRowType
 import org.apache.flink.table.functions.tablefunctions.ReplicateRows
 import org.apache.flink.table.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
 import org.apache.flink.table.plan.schema.TypedFlinkTableFunction
-import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import org.apache.calcite.plan.RelOptUtil

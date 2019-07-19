@@ -28,8 +28,8 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.runtime.compression.BlockCompressionFactory;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
+import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
 import org.apache.flink.util.MathUtils;
 
 import java.io.EOFException;

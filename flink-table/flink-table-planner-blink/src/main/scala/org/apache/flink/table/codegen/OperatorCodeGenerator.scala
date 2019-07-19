@@ -24,7 +24,7 @@ import org.apache.flink.streaming.runtime.tasks.StreamTask
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.generated.GeneratedOperator
+import org.apache.flink.table.runtime.generated.GeneratedOperator
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.util.Logging
 

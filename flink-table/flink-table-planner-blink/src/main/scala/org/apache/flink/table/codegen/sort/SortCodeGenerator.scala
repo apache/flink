@@ -22,9 +22,9 @@ import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, SEGMENT, newName}
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.dataformat.{BinaryRow, Decimal}
-import org.apache.flink.table.generated.{GeneratedNormalizedKeyComputer, GeneratedRecordComparator, NormalizedKeyComputer, RecordComparator}
-import org.apache.flink.table.runtime.sort.SortUtil
-import org.apache.flink.table.types.PlannerTypeUtils
+import org.apache.flink.table.runtime.generated.{GeneratedNormalizedKeyComputer, GeneratedRecordComparator, NormalizedKeyComputer, RecordComparator}
+import org.apache.flink.table.runtime.operators.sort.SortUtil
+import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.logical.{DecimalType, LogicalType}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 

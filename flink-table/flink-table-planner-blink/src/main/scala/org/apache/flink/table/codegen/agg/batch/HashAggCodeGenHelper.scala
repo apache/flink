@@ -31,13 +31,13 @@ import org.apache.flink.table.expressions.utils.ApiExpressionUtils
 import org.apache.flink.table.expressions.{Expression, ExpressionVisitor, FieldReferenceExpression, ResolvedAggInputReference, RexNodeConverter, TypeLiteralExpression, UnresolvedCallExpression, UnresolvedReferenceExpression, ValueLiteralExpression, _}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
-import org.apache.flink.table.generated.{NormalizedKeyComputer, RecordComparator}
+import org.apache.flink.table.runtime.generated.{NormalizedKeyComputer, RecordComparator}
 import org.apache.flink.table.plan.util.SortUtil
-import org.apache.flink.table.runtime.aggregate.{BytesHashMap, BytesHashMapSpillMemorySegmentPool}
-import org.apache.flink.table.runtime.sort.BufferedKVExternalSorter
+import org.apache.flink.table.runtime.operators.aggregate.{BytesHashMap, BytesHashMapSpillMemorySegmentPool}
+import org.apache.flink.table.runtime.operators.sort.BufferedKVExternalSorter
+import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
-import org.apache.flink.table.typeutils.BinaryRowSerializer
 
 import scala.collection.JavaConversions._
 

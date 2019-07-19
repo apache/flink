@@ -28,8 +28,8 @@ import org.apache.flink.table.plan.`trait`.{MiniBatchIntervalTraitDef, MiniBatch
 import org.apache.flink.table.plan.nodes.calcite.WatermarkAssigner
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.StreamPlanner
-import org.apache.flink.table.runtime.watermarkassigner.{MiniBatchAssignerOperator, MiniBatchedWatermarkAssignerOperator, WatermarkAssignerOperator}
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.operators.wmassigners.{MiniBatchAssignerOperator, MiniBatchedWatermarkAssignerOperator, WatermarkAssignerOperator}
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.util.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.util.Preconditions
 

@@ -27,15 +27,16 @@ import org.apache.flink.table.calcite.{FlinkTypeFactory, RexAggLocalVariable, Re
 import org.apache.flink.table.codegen.CodeGenUtils.{requireTemporal, requireTimeInterval, _}
 import org.apache.flink.table.codegen.GenerateUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
-import org.apache.flink.table.codegen.calls.{StringCallGen, FunctionGenerator, ScalarFunctionCallGen, TableFunctionCallGen}
+import org.apache.flink.table.codegen.calls.{FunctionGenerator, ScalarFunctionCallGen, StringCallGen, TableFunctionCallGen}
 import org.apache.flink.table.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.dataformat._
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
-import org.apache.flink.table.types.PlannerTypeUtils.isInteroperable
+import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.typeutils.TypeCheckUtils.{isNumeric, isTemporal, isTimeInterval}
-import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TypeCheckUtils}
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isNumeric, isTemporal, isTimeInterval}
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import scala.collection.JavaConversions._
 

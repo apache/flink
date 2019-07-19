@@ -19,7 +19,7 @@
 package org.apache.flink.table.codegen.calls
 
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable._
-import org.apache.flink.table.types.PlannerTypeUtils.isPrimitive
+import org.apache.flink.table.runtime.types.PlannerTypeUtils.isPrimitive
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
 

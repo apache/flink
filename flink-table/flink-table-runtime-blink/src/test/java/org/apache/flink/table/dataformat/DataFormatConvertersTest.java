@@ -33,12 +33,12 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.dataformat.DataFormatConverters.DataFormatConverter;
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo;
+import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.utils.TypeConversions;
-import org.apache.flink.table.typeutils.BaseRowTypeInfo;
-import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
-import org.apache.flink.table.typeutils.DecimalTypeInfo;
 import org.apache.flink.types.Row;
 
 import org.junit.Assert;

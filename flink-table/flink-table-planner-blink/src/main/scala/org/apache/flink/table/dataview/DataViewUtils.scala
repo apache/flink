@@ -25,7 +25,8 @@ import org.apache.flink.table.api.dataview._
 import org.apache.flink.table.dataformat.{BinaryGeneric, GenericRow}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.LegacyTypeInformationType
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils._

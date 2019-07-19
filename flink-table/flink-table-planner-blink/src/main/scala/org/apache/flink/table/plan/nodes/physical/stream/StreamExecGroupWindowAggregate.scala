@@ -20,24 +20,23 @@ package org.apache.flink.table.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.window.{CountWindow, TimeWindow}
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.generated.{GeneratedNamespaceAggsHandleFunction, GeneratedRecordEqualiser}
 import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util.AggregateUtil.{hasRowIntervalType, hasTimeIntervalType, isProctimeAttribute, isRowtimeAttribute, toDuration, toLong, transformToStreamAggregateInfoList}
 import org.apache.flink.table.plan.util.{AggregateInfoList, KeySelectorUtil, RelExplainUtil, WindowEmitStrategy}
 import org.apache.flink.table.planner.StreamPlanner
-import org.apache.flink.table.runtime.window.{WindowOperator, WindowOperatorBuilder}
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.generated.{GeneratedNamespaceAggsHandleFunction, GeneratedRecordEqualiser}
+import org.apache.flink.table.runtime.operators.window.{CountWindow, TimeWindow, WindowOperator, WindowOperatorBuilder}
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.LogicalType
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType

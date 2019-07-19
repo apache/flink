@@ -27,7 +27,7 @@ import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.RelExplainUtil.fetchToString
 import org.apache.flink.table.plan.util.SortUtil
 import org.apache.flink.table.planner.BatchPlanner
-import org.apache.flink.table.runtime.sort.LimitOperator
+import org.apache.flink.table.runtime.operators.sort.LimitOperator
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel._

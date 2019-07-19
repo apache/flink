@@ -23,11 +23,11 @@ import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, BINARY_ROW, DEFAUL
 import org.apache.flink.table.codegen.OperatorCodeGenerator.{INPUT_SELECTION, generateCollect}
 import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
 import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
-import org.apache.flink.table.runtime.CodeGenOperatorFactory
-import org.apache.flink.table.runtime.join.FlinkJoinType
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType
+import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
+import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer
 import org.apache.flink.table.runtime.util.ResettableExternalBuffer
 import org.apache.flink.table.types.logical.RowType
-import org.apache.flink.table.typeutils.AbstractRowSerializer
 
 import org.apache.calcite.rex.RexNode
 

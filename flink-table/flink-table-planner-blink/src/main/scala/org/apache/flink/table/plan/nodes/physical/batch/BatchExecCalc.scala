@@ -29,7 +29,7 @@ import org.apache.flink.table.plan.nodes.common.CommonCalc
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.util.RelExplainUtil
 import org.apache.flink.table.planner.BatchPlanner
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._

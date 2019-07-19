@@ -20,11 +20,11 @@ package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.dataformat.BinaryString.fromString
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.{binaryRow, row}
 import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.junit._
 

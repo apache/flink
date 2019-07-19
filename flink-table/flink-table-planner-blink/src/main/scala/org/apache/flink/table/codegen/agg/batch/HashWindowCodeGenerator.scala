@@ -23,7 +23,6 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo
 import org.apache.flink.runtime.operators.sort.QuickSort
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.window.TimeWindow
 import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.codegen.CodeGenUtils.{BINARY_ROW, newName}
 import org.apache.flink.table.codegen.OperatorCodeGenerator.generateCollect
@@ -31,15 +30,16 @@ import org.apache.flink.table.codegen.agg.batch.AggCodeGenHelper.genGroupKeyChan
 import org.apache.flink.table.codegen.agg.batch.HashAggCodeGenHelper.{genHashAggOutputExpr, genRetryAppendToMap, prepareHashAggKVTypes, prepareHashAggMap}
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils, GeneratedExpression, ProjectionCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow}
-import org.apache.flink.table.generated.GeneratedOperator
 import org.apache.flink.table.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.util.AggregateInfoList
-import org.apache.flink.table.runtime.TableStreamOperator
-import org.apache.flink.table.runtime.aggregate.{BytesHashMap, BytesHashMapSpillMemorySegmentPool}
-import org.apache.flink.table.runtime.sort.BinaryKVInMemorySortBuffer
-import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.runtime.generated.GeneratedOperator
+import org.apache.flink.table.runtime.operators.TableStreamOperator
+import org.apache.flink.table.runtime.operators.aggregate.{BytesHashMap, BytesHashMapSpillMemorySegmentPool}
+import org.apache.flink.table.runtime.operators.sort.BinaryKVInMemorySortBuffer
+import org.apache.flink.table.runtime.operators.window.TimeWindow
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
-import org.apache.flink.table.typeutils.BinaryRowSerializer
 import org.apache.flink.util.MutableObjectIterator
 
 import org.apache.calcite.rel.`type`.RelDataType

@@ -31,7 +31,7 @@ import org.apache.flink.table.functions.aggfunctions.LastValueWithRetractAggFunc
 import org.apache.flink.table.functions.aggfunctions.LastValueWithRetractAggFunction.LongLastValueWithRetractAggFunction;
 import org.apache.flink.table.functions.aggfunctions.LastValueWithRetractAggFunction.ShortLastValueWithRetractAggFunction;
 import org.apache.flink.table.functions.aggfunctions.LastValueWithRetractAggFunction.StringLastValueWithRetractAggFunction;
-import org.apache.flink.table.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
