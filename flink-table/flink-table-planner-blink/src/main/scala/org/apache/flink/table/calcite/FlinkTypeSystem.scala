@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.calcite
 
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
 import org.apache.flink.table.types.logical.{DecimalType, DoubleType, LogicalType}
-import org.apache.flink.table.typeutils.TypeCheckUtils
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeSystemImpl}
 import org.apache.calcite.sql.`type`.SqlTypeName

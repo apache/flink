@@ -33,9 +33,9 @@ import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.plan.nodes.{ExpressionFormat, FlinkConventions}
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, JoinUtil}
 import org.apache.flink.table.planner.BatchPlanner
-import org.apache.flink.table.runtime.join.{HashJoinOperator, HashJoinType}
+import org.apache.flink.table.runtime.operators.join.{HashJoinOperator, HashJoinType}
+import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
 import org.apache.flink.table.types.logical.RowType
-import org.apache.flink.table.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._

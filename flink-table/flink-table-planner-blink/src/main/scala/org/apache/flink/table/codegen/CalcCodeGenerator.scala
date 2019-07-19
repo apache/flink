@@ -17,16 +17,17 @@
  */
 package org.apache.flink.table.codegen
 
-import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.dataformat.{BaseRow, BoxedWrapperRow}
-import org.apache.flink.table.runtime.CodeGenOperatorFactory
-import org.apache.flink.table.types.logical.RowType
-import org.apache.calcite.plan.RelOptCluster
-import org.apache.calcite.rex._
 import org.apache.flink.api.common.functions.{FlatMapFunction, Function}
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.generated.GeneratedFunction
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.dataformat.{BaseRow, BoxedWrapperRow}
+import org.apache.flink.table.runtime.generated.GeneratedFunction
+import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.types.logical.RowType
+
+import org.apache.calcite.plan.RelOptCluster
+import org.apache.calcite.rex._
 
 import scala.collection.JavaConversions._
 

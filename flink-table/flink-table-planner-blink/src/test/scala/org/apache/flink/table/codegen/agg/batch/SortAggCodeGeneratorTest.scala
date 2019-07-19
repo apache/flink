@@ -19,8 +19,8 @@
 package org.apache.flink.table.codegen.agg.batch
 
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.runtime.CodeGenOperatorFactory
-import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
 
 import org.junit.Test

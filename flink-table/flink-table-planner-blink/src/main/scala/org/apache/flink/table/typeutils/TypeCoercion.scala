@@ -20,7 +20,7 @@ package org.apache.flink.table.typeutils
 
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, FloatType, IntType, LogicalType, SmallIntType, TinyIntType}
-import org.apache.flink.table.typeutils.TypeCheckUtils._
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils._
 
 /**
   * Utilities for type conversions.

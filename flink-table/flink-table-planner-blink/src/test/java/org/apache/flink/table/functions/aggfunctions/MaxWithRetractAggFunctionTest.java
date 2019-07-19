@@ -34,7 +34,7 @@ import org.apache.flink.table.functions.aggfunctions.MaxWithRetractAggFunction.S
 import org.apache.flink.table.functions.aggfunctions.MaxWithRetractAggFunction.StringMaxWithRetractAggFunction;
 import org.apache.flink.table.functions.aggfunctions.MaxWithRetractAggFunction.TimeMaxWithRetractAggFunction;
 import org.apache.flink.table.functions.aggfunctions.MaxWithRetractAggFunction.TimestampMaxWithRetractAggFunction;
-import org.apache.flink.table.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 
 import java.lang.reflect.Method;
 import java.sql.Date;

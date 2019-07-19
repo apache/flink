@@ -32,9 +32,9 @@ import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
 import org.apache.flink.table.planner.BatchPlanner
-import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankRange, RankType}
-import org.apache.flink.table.runtime.sort.RankOperator
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange, RankType}
+import org.apache.flink.table.runtime.operators.sort.RankOperator
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelDistribution.Type

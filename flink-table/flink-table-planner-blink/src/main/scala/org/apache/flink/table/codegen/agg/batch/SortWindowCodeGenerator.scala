@@ -19,17 +19,17 @@
 package org.apache.flink.table.codegen.agg.batch
 
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
-import org.apache.flink.table.api.window.TimeWindow
 import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.codegen.CodeGenUtils.BINARY_ROW
 import org.apache.flink.table.codegen.agg.batch.AggCodeGenHelper.genGroupKeyChangedCheckCode
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ProjectionCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.generated.GeneratedOperator
+import org.apache.flink.table.runtime.generated.GeneratedOperator
 import org.apache.flink.table.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.util.AggregateInfoList
-import org.apache.flink.table.runtime.TableStreamOperator
+import org.apache.flink.table.runtime.operators.TableStreamOperator
+import org.apache.flink.table.runtime.operators.window.TimeWindow
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.rel.`type`.RelDataType

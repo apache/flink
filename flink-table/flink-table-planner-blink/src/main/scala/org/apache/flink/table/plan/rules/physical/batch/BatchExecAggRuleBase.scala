@@ -25,7 +25,7 @@ import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunctio
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.util.{AggregateUtil, FlinkRelOptUtil}
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.util.AggregatePhaseStrategy
 import org.apache.flink.table.util.TableConfigUtils.getAggPhaseStrategy

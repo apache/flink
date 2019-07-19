@@ -24,9 +24,9 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BinaryRow
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecGroupAggregateBase, BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecWindowAggregateBase}
-import org.apache.flink.table.runtime.rank.{ConstantRankRange, RankRange}
-import org.apache.flink.table.runtime.sort.BinaryIndexedSortable
-import org.apache.flink.table.typeutils.BinaryRowSerializer
+import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange}
+import org.apache.flink.table.runtime.operators.sort.BinaryIndexedSortable
+import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.avatica.util.TimeUnitRange._

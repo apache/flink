@@ -21,7 +21,7 @@ package org.apache.flink.table.codegen.calls
 import org.apache.flink.table.codegen.CodeGenUtils.{newNames, primitiveTypeTermForType}
 import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.LogicalType
-import org.apache.flink.table.typeutils.TypeCheckUtils.isBinaryString
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isBinaryString
 
 /**
   * Generates PRINT function call.

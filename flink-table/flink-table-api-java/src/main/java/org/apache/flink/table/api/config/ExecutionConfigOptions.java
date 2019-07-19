@@ -126,7 +126,7 @@ public class ExecutionConfigOptions {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * See {@code org.apache.flink.table.runtime.window.grouping.HeapWindowsGrouping}.
+	 * See {@code org.apache.flink.table.runtime.operators.window.grouping.HeapWindowsGrouping}.
 	 */
 	public static final ConfigOption<Integer> SQL_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT =
 			key("sql.exec.window-agg.buffer-size-limit")

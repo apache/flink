@@ -18,9 +18,6 @@
 
 package org.apache.flink.table.codegen.agg.batch
 
-import org.apache.calcite.rel.core.AggregateCall
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.runtime.util.SingleElementIterator
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
@@ -33,12 +30,17 @@ import org.apache.flink.table.expressions.{Expression, ExpressionVisitor, FieldR
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getAggUserDefinedInputTypes}
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
-import org.apache.flink.table.generated.{GeneratedAggsHandleFunction, GeneratedOperator}
 import org.apache.flink.table.runtime.context.ExecutionContextImpl
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.generated.{GeneratedAggsHandleFunction, GeneratedOperator}
+import org.apache.flink.table.runtime.types.InternalSerializers
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
-import org.apache.flink.table.types.{DataType, InternalSerializers}
+
+import org.apache.calcite.rel.core.AggregateCall
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.tools.RelBuilder
 
 import scala.collection.JavaConverters._
 

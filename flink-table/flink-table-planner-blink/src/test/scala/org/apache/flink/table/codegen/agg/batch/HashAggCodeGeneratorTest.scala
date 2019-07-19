@@ -22,7 +22,7 @@ import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.aggfunctions.AvgAggFunction.IntegralAvgAggFunction
 import org.apache.flink.table.plan.util.{AggregateInfo, AggregateInfoList}
-import org.apache.flink.table.runtime.CodeGenOperatorFactory
+import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
 
 import org.apache.calcite.rel.core.AggregateCall

@@ -24,9 +24,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.runtime.tasks.{OneInputStreamTask, OneInputStreamTaskTestHarness}
 import org.apache.flink.table.codegen.agg.AggTestBase
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString, GenericRow}
-import org.apache.flink.table.runtime.CodeGenOperatorFactory
+import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.{DoubleType, LogicalType, RowType, VarCharType}
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.util.BaseRowTestUtil
 
 import org.junit.Assert

@@ -21,7 +21,7 @@ import org.apache.flink.api.common.io.GenericInputFormat
 import org.apache.flink.table.codegen.CodeGenUtils.newName
 import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.dataformat.GenericRow
-import org.apache.flink.table.generated.GeneratedInput
+import org.apache.flink.table.runtime.generated.GeneratedInput
 import org.apache.flink.table.types.logical.LogicalType
 
 /**

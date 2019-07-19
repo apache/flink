@@ -18,11 +18,11 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
+import org.apache.flink.table.runtime.typeutils.BaseMapSerializer;
+import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.typeutils.BaseArraySerializer;
-import org.apache.flink.table.typeutils.BaseMapSerializer;
-import org.apache.flink.table.typeutils.BaseRowSerializer;
 
 /**
  * Writer to write a composite data format, like row, array.
