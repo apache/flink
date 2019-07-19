@@ -96,9 +96,11 @@ Get Flink SQL CLI running by execute command
 $ ./bin/sql-client.sh embedded
 {% endhighlight %}
 
-## Example 1
+## Flink SQL Client Examples
 
-### Prepare Hive
+### Example 1
+
+#### Prepare Hive
 
 Assuming that Hive has been successfully set up and running, let's prepare some data in Hive.
 
@@ -163,7 +165,7 @@ Mary	77.7
 Time taken: 0.097 seconds, Fetched: 10 row(s)
 {% endhighlight %}
 
-### Access Hive metadata and data in Flink SQL CLI
+#### Access Hive metadata and data in Flink SQL CLI
 
 In Flink SQL CLI, we can start query Hive metadata.
 
@@ -212,10 +214,12 @@ __________ __________
       Bill	     4.33
       Mary	     77.7
 
+Flink SQL> select * from mytable;
+
 {% endhighlight %}
 
 
-## Example 2
+### Example 2
 
 Following all the common steps above, we have prepared another two tables in Hive, order_details and products, which can be described in Hive SQL CLI:
 
@@ -266,3 +270,8 @@ from
 
 {% endhighlight %}
 
+
+Flink Table API Example
+-----------------------
+
+To be added.

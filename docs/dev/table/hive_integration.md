@@ -1,5 +1,5 @@
 ---
-title: "Hive Compatibility"
+title: "Hive Integration"
 is_beta: true
 nav-parent_id: tableapi
 nav-pos: 9
@@ -47,8 +47,7 @@ There are two aspects of Hive metadata integration:
 
 2. Persist Flink’s meta-objects (tables, views, and UDFs) using Hive Metastore as an persistent storage. This is achieved through `HiveCatalog`, which is under active development.
 
-For how to use `HiveCatalog` in Flink, see [Catalogs]({{ site.baseurl }}/dev/table/catalog.html)
-
+For how to use and configure `HiveCatalog` in Flink, see [Catalogs]({{ site.baseurl }}/dev/table/catalog.html)
 
 Hive Data Integration
 ---------------------
@@ -59,8 +58,11 @@ Please refer to [Connecting to other systems]({{ site.baseurl }}/dev/batch/conne
 Examples
 --------
 
-For a more detailed examples, please refer to [Hive Compatibility Example] ({{ site.baseurl }}/dev/table/hive_compatibility.html)
+For more detailed examples using Table API or SQL, please refer to [Hive Integration Example] ({{ site.baseurl }}/dev/table/hive_integration_example.html)
 
+
+Trouble Shoot
+-------------
 
 Limitations & Future
 --------------------
