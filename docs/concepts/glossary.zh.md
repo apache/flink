@@ -114,11 +114,3 @@ TaskManagers 是 [Flink Cluster](#flink-cluster) 的工作进程。[Tasks](#task
 #### Transformation
 
 Transformation 应用于一个或多个数据流或数据集，并产生一个或多个输出数据流或数据集。Transformation 可能会在每个记录的基础上更改数据流或数据集，但也可以只更改其分区或执行聚合。虽然 [Operator](#operator) 和 [Functions](#function) 是 Flink API 的“物理”部分，但 Transformation 只是一个API概念。具体来说，大多数 - 但不是全部 - 转换是由某些 [Operator](#operator) 实现的。
-
-#### Task Solt
-
-为了控制一个 [TaskManager](#flink-taskmanager) 能接受多少个 [task](#task)， Apache Flink 提出了 *Task Slot* 的概念。Flink 中的计算资源通过 Task Slot 来定义。每个 task slot 代表了 [TaskManager](#flink-taskmanager) 的一个固定大小的资源子集。
-
-#### Parallelism
-
-一个 Flink 程序由多个 [task](#task) 组成（ [transformations](#transformation)/[operators](#operator) 、数据源和数据接收器）。一个 [task](#task) 包括多个并行执行的 [instance](#instance)，且每一个 instance 都处理 task 输入数据的一个子集。一个 task 的并行 instance 数被称为该 task 的并行度。

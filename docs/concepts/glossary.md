@@ -164,15 +164,3 @@ per-record basis, but might also only change its partitioning or perform an aggr
 [Operators](#operator) and [Functions](#function)) are the "physical" parts of Flink's API,
 Transformations are only an API concept. Specifically, most - but not all - transformations are
 implemented by certain [Operators](#operator).
-
-### Task Solt
-
-In order to control how many [task](#task) a [TaskManager](#flink-taskmanager) can accept, Apache Flink 
-proposes the concept of *Task Slot*. The computing resources in Flink are defined by the Task Slot. 
-Each task slot represents a fixed-size subset of resources for [TaskManager](#flink-taskmanager).
-
-### Parallelism
-
-A Flink program consists of multiple tasks (transformations/operators,data sources, and sinks). 
-A task is split into several parallel instances for execution and each parallel instance processes a 
-subset  of the task’s input data. The number of parallel instances of a task is called its parallelism.
