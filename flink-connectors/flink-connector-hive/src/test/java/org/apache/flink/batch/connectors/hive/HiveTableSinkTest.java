@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
@@ -58,7 +57,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.apache.flink.table.api.ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -94,7 +92,7 @@ public class HiveTableSinkTest {
 		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 0);
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 
-		TableEnvironment tableEnv = createTableEnv();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
 		List<Row> toWrite = generateRecords(5);
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
 		tableEnv.registerTable("src", src);
@@ -115,7 +113,7 @@ public class HiveTableSinkTest {
 		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 1);
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 
-		TableEnvironment tableEnv = createTableEnv();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
 
 		List<Row> toWrite = generateRecords(5);
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
@@ -162,7 +160,7 @@ public class HiveTableSinkTest {
 		row.setField(2, struct);
 		toWrite.add(row);
 
-		TableEnvironment tableEnv = createTableEnv();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
 		tableEnv.registerTable("complexSrc", src);
 
@@ -201,7 +199,7 @@ public class HiveTableSinkTest {
 		List<Row> toWrite = new ArrayList<>();
 		toWrite.add(row);
 
-		TableEnvironment tableEnv = createTableEnv();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
 
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
 		tableEnv.registerTable("nestedSrc", src);
@@ -222,7 +220,7 @@ public class HiveTableSinkTest {
 		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 1);
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 
-		TableEnvironment tableEnv = createTableEnv();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
 		List<Row> toWrite = generateRecords(1);
 		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
 		tableEnv.registerTable("src", src);
@@ -252,7 +250,7 @@ public class HiveTableSinkTest {
 		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 0);
 		ObjectPath tablePath = new ObjectPath(dbName, tblName);
 
-		TableEnvironment tableEnv = createTableEnv();
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
 
 		// write some data and verify
 		List<Row> toWrite = generateRecords(5);
@@ -329,13 +327,6 @@ public class HiveTableSinkTest {
 			res.add(row);
 		}
 		return res;
-	}
-
-	private static TableEnvironment createTableEnv() {
-		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
-		TableEnvironment tableEnv = TableEnvironment.create(settings);
-		tableEnv.getConfig().getConfiguration().setInteger(SQL_RESOURCE_DEFAULT_PARALLELISM.key(), 1);
-		return tableEnv;
 	}
 
 	private static class CollectionTableSource extends InputFormatTableSource<Row> {
