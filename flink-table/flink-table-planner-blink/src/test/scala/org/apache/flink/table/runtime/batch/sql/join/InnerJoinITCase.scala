@@ -153,6 +153,10 @@ class InnerJoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
 
   @Test
   def testBigForSpill(): Unit = {
+    // ignore nested loop join because it is too slow.
+    if (expectedJoinType == NestedLoopJoin) {
+      return
+    }
 
     conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
     conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM, 2)

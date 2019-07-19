@@ -63,9 +63,11 @@ object StreamingWithAggTestBase {
 
   @Parameterized.Parameters(name = "LocalGlobal={0}, {1}, StateBackend={2}")
   def parameters(): util.Collection[Array[java.lang.Object]] = {
+    // To avoid too long testing time, we not test all HEAP_BACKEND.
+    // If HEAP_BACKEND has changed, please open it manually for testing.
     Seq[Array[AnyRef]](
-      Array(LocalGlobalOff, MiniBatchOff, HEAP_BACKEND),
-      Array(LocalGlobalOff, MiniBatchOn, HEAP_BACKEND),
+//      Array(LocalGlobalOff, MiniBatchOff, HEAP_BACKEND),
+//      Array(LocalGlobalOff, MiniBatchOn, HEAP_BACKEND),
       Array(LocalGlobalOn, MiniBatchOn, HEAP_BACKEND),
       Array(LocalGlobalOff, MiniBatchOff, ROCKSDB_BACKEND),
       Array(LocalGlobalOff, MiniBatchOn, ROCKSDB_BACKEND),

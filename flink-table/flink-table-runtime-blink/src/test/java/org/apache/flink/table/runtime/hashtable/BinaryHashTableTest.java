@@ -49,7 +49,7 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,7 +77,10 @@ public class BinaryHashTableTest {
 
 	@Parameterized.Parameters(name = "useCompress-{0}")
 	public static List<Boolean> getVarSeg() {
-		return Arrays.asList(true, false);
+		// To avoid too long testing time, we only tested the default configuration.
+		// If BinaryHashTable has changed, please open it manually for testing.
+//		return Arrays.asList(true, false);
+		return Collections.singletonList(true);
 	}
 
 	@Before

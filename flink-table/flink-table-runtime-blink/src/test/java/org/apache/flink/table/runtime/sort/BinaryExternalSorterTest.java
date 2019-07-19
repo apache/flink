@@ -42,7 +42,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -76,11 +75,14 @@ public class BinaryExternalSorterTest {
 
 	@Parameterized.Parameters(name = "spillCompress-{0} asyncMerge-{1}")
 	public static Collection<Boolean[]> parameters() {
-		return Arrays.asList(
-				new Boolean[]{false, false},
-				new Boolean[]{false, true},
-				new Boolean[]{true, false},
-				new Boolean[]{true, true});
+		// To avoid too long testing time, we only tested the default configuration.
+		// If BinaryExternalSorter has changed, please open it manually for testing.
+//		return Arrays.asList(
+//				new Boolean[]{false, false},
+//				new Boolean[]{false, true},
+//				new Boolean[]{true, false},
+//				new Boolean[]{true, true});
+		return Collections.singletonList(new Boolean[]{true, true});
 	}
 
 	private static String getString(int count) {
