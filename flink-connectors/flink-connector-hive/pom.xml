@@ -479,35 +479,6 @@ under the License.
 				</executions>
 			</plugin>
 
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>shade-flink</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadeTestJar>false</shadeTestJar>
-							<artifactSet>
-								<includes>
-									<include>*:*</include>
-								</includes>
-							</artifactSet>
-							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-							<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
-							<filters>
-								<filter>
-									<artifact>*:*</artifact>
-								</filter>
-							</filters>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
 			<!-- Configure derby.log of embedded Hive metastore for unit tests -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
