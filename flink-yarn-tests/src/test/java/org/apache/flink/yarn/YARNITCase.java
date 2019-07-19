@@ -117,10 +117,6 @@ public class YARNITCase extends YarnTestBase {
 					if (clusterClient != null) {
 						clusterClient.shutdown();
 					}
-
-					if (applicationId != null) {
-						yarnClusterDescriptor.killCluster(applicationId);
-					}
 				}
 			}
 		});
