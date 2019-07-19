@@ -301,4 +301,47 @@ class GroupWindowTest extends TableTestBase {
       )
     streamUtil.verifySql(sql, expected)
   }
+
+  @Test
+  def testReturnTypeInferenceForWindowAgg() = {
+
+    val innerQuery =
+      """
+        |SELECT
+        | CASE a WHEN 1 THEN 1 ELSE 99 END AS correct,
+        | rowtime
+        |FROM MyTable
+      """.stripMargin
+
+    val sql =
+      "SELECT " +
+        "  sum(correct) as s, " +
+        "  avg(correct) as a, " +
+        "  TUMBLE_START(rowtime, INTERVAL '15' MINUTE) as wStart " +
+        s"FROM ($innerQuery) " +
+        "GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)"
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamGroupWindowAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(table),
+            term("select", "CASE(=(a, 1), 1, 99) AS correct", "rowtime")
+          ),
+          term("window", "TumblingGroupWindow('w$, 'rowtime, 900000.millis)"),
+          term("select",
+            "SUM(correct) AS s",
+            "AVG(correct) AS a",
+            "start('w$) AS w$start",
+            "end('w$) AS w$end",
+            "rowtime('w$) AS w$rowtime",
+            "proctime('w$) AS w$proctime")
+        ),
+        term("select", "CAST(s) AS s", "CAST(a) AS a", "w$start AS wStart")
+      )
+    streamUtil.verifySql(sql, expected)
+  }
 }

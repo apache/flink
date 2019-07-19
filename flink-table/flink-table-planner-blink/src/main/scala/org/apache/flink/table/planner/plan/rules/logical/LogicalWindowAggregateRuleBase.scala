@@ -33,8 +33,10 @@ import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Aggregate.Group
+import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.`type`.SqlTypeUtil
 import org.apache.calcite.util.ImmutableBitSet
 
 import _root_.java.math.BigDecimal
@@ -84,13 +86,20 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       .project(project.getChildExps.updated(windowExprIdx, inAggGroupExpression))
       .build()
 
+    // Currently, this rule removes the window group by field which may lead to the changes of
+    // AggCall's type which brings fails on type checks.
+    // To solve the problem, we can change the types to the inferred types in the Aggregate and then
+    // cast back in the project after Aggregate.
+    val indexAndTypes = getIndexAndInferredTypesForInvalidAggCalls(agg)
+    val finalCalls = replaceAggCalls(indexAndTypes, agg)
+
     // we don't use the builder here because it uses RelMetadataQuery which affects the plan
     val newAgg = LogicalAggregate.create(
       newProject,
       agg.indicator,
       newGroupSet,
       ImmutableList.of(newGroupSet),
-      agg.getAggCallList)
+      finalCalls)
 
     // create an additional project to conform with types
     val outAggGroupExpression0 = getOutAggregateGroupExpression(rexBuilder, windowExpr)
@@ -111,10 +120,73 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
     // The transformation adds an additional LogicalProject at the top to ensure
     // that the types are equivalent.
     transformed.push(windowAgg)
-      .project(transformed.fields().patch(windowExprIdx, Seq(outAggGroupExpression), 0))
+      .project(transformed
+        .fields()
+        .patch(windowExprIdx, Seq(outAggGroupExpression), 0)
+        .zipWithIndex.map { rexNodeAndIndex =>
+        val aggCallIndex = rexNodeAndIndex._2 - agg.getGroupCount
+        if (indexAndTypes.containsKey(aggCallIndex)) {
+          rexBuilder.makeCast(agg.getAggCallList.get(aggCallIndex).`type`, rexNodeAndIndex._1, true)
+        } else {
+          rexNodeAndIndex._1
+        }
+      })
 
     val result = transformed.build()
     call.transformTo(result)
+  }
+
+  /**
+    * Change the types of [[AggregateCall]] to the corresponding inferred types.
+    */
+  private def replaceAggCalls(
+    indexAndTypes: Map[Int, RelDataType], agg: LogicalAggregate): Seq[AggregateCall] = {
+
+    agg.getAggCallList.zipWithIndex.map { aggCallAndIndex =>
+      if (indexAndTypes.containsKey(aggCallAndIndex._2)) {
+        val aggCall = aggCallAndIndex._1
+        AggregateCall.create(
+          aggCall.getAggregation,
+          aggCall.isDistinct,
+          aggCall.isApproximate,
+          aggCall.ignoreNulls(),
+          aggCall.getArgList,
+          aggCall.filterArg,
+          aggCall.collation,
+          agg.getGroupCount,
+          agg.getInput,
+          indexAndTypes(aggCallAndIndex._2),
+          aggCall.name)
+      } else {
+        aggCallAndIndex._1
+      }
+    }
+  }
+
+  /**
+    * Check if there are any types of [[AggregateCall]] that need to be changed. Return the
+    * [[AggregateCall]] indexes and the corresponding inferred types.
+    */
+  private def getIndexAndInferredTypesForInvalidAggCalls(
+    agg: LogicalAggregate): Map[Int, RelDataType] = {
+
+    agg.getAggCallList.zipWithIndex.map { aggCallAndIndex =>
+      val aggCall = aggCallAndIndex._1
+      val origType = aggCall.`type`
+      val aggCallBinding = new Aggregate.AggCallBinding(
+        agg.getCluster.getTypeFactory,
+        aggCall.getAggregation,
+        SqlTypeUtil.projectTypes(agg.getInput.getRowType, aggCall.getArgList),
+        0,
+        aggCall.hasFilter)
+      val inferredType = aggCall.getAggregation.inferReturnType(aggCallBinding)
+
+      if (origType != inferredType && agg.getGroupCount == 1) {
+        (aggCallAndIndex._2, inferredType)
+      } else {
+        (-1, null)
+      }
+    }.filter(_._1 != -1).toMap
   }
 
   private[table] def getWindowExpressions(agg: LogicalAggregate): Seq[(RexCall, Int)] = {
