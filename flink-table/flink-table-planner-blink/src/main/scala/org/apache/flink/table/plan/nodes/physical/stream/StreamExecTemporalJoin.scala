@@ -27,16 +27,16 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.calcite.FlinkTypeFactory.{isProctimeIndicatorType, isRowtimeIndicatorType}
 import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.generated.GeneratedJoinCondition
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
 import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.TemporalJoinUtil.TEMPORAL_JOIN_CONDITION
 import org.apache.flink.table.plan.util.{InputRefVisitor, KeySelectorUtil, RelExplainUtil, TemporalJoinUtil}
 import org.apache.flink.table.planner.StreamPlanner
-import org.apache.flink.table.runtime.join.temporal.{TemporalProcessTimeJoinOperator, TemporalRowTimeJoinOperator}
+import org.apache.flink.table.runtime.operators.join.temporal.{TemporalProcessTimeJoinOperator, TemporalRowTimeJoinOperator}
 import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.RowType
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 import org.apache.flink.util.Preconditions.checkState
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}

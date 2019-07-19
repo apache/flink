@@ -21,9 +21,9 @@ package org.apache.flink.table.runtime.stream.sql
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.runtime.utils.{StreamingTestBase, TestingAppendBaseRowSink}
 import org.apache.flink.table.types.logical.IntType
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
 
 import org.junit.Assert._
 import org.junit.Test

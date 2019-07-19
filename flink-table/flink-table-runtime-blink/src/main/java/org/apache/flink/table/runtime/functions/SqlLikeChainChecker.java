@@ -19,7 +19,7 @@ package org.apache.flink.table.runtime.functions;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.table.dataformat.BinaryString;
-import org.apache.flink.table.util.SegmentsUtil;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
 
 import org.apache.commons.lang3.ArrayUtils;
 

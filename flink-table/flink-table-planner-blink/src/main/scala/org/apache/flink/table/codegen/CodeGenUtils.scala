@@ -22,18 +22,19 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.core.memory.MemorySegment
 import org.apache.flink.table.dataformat.DataFormatConverters.IdentityConverter
 import org.apache.flink.table.dataformat.util.BinaryRowUtil.BYTE_ARRAY_BASE_OFFSET
-import org.apache.flink.table.dataformat.{Decimal, BinaryStringUtil, _}
-import org.apache.flink.table.dataview.StateDataViewStore
+import org.apache.flink.table.dataformat.{BinaryStringUtil, Decimal, _}
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.generated.{AggsHandleFunction, HashFunction, NamespaceAggsHandleFunction}
-import org.apache.flink.table.types.ClassLogicalTypeConverter.getInternalClassForType
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.types.PlannerTypeUtils.isInteroperable
+import org.apache.flink.table.runtime.dataview.StateDataViewStore
+import org.apache.flink.table.runtime.generated.{AggsHandleFunction, HashFunction, NamespaceAggsHandleFunction}
+import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
+import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getInternalClassForType
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
+import org.apache.flink.table.runtime.util.MurmurHashUtil
+import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.types.{ClassLogicalTypeConverter, DataType}
-import org.apache.flink.table.typeutils.TypeCheckUtils
-import org.apache.flink.table.util.MurmurHashUtil
 import org.apache.flink.types.Row
 
 import java.lang.reflect.Method

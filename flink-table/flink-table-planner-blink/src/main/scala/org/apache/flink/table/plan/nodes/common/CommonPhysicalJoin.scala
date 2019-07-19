@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.nodes.common
 
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.plan.util.{JoinTypeUtil, JoinUtil, RelExplainUtil}
-import org.apache.flink.table.runtime.join.FlinkJoinType
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}

@@ -26,10 +26,10 @@ import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.{JoinUtil, KeySelectorUtil, RelExplainUtil}
 import org.apache.flink.table.planner.StreamPlanner
-import org.apache.flink.table.runtime.join.FlinkJoinType
-import org.apache.flink.table.runtime.join.stream.state.JoinInputSideSpec
-import org.apache.flink.table.runtime.join.stream.{StreamingJoinOperator, StreamingSemiAntiJoinOperator}
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.runtime.operators.join.FlinkJoinType
+import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec
+import org.apache.flink.table.runtime.operators.join.stream.{StreamingJoinOperator, StreamingSemiAntiJoinOperator}
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.HepRelVertex

@@ -29,17 +29,18 @@ import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow, JoinedRow}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getEvalMethodSignature
 import org.apache.flink.table.functions.utils.{TableSqlFunction, UserDefinedFunctionUtils}
-import org.apache.flink.table.generated.GeneratedCollector
+import org.apache.flink.table.runtime.generated.GeneratedCollector
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.plan.schema.FlinkTableFunction
 import org.apache.flink.table.plan.util.RelExplainUtil
-import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.collector.TableFunctionCollector
+import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.util.StreamRecordCollector
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.types.PlannerTypeUtils
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
-import org.apache.flink.table.types.{DataType, PlannerTypeUtils}
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.types.DataType
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.JoinRelType

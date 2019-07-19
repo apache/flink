@@ -21,7 +21,7 @@ package org.apache.flink.table.expressions.utils
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.dataformat.Decimal
-import org.apache.flink.table.typeutils.DecimalTypeInfo
+import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
 import org.apache.flink.table.util.DateTimeTestUtil._
 import org.apache.flink.types.Row
 

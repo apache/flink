@@ -24,11 +24,11 @@ import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.GenerateUtils.generateRecordStatement
-import org.apache.flink.table.dataformat.{DataFormatConverters, GenericRow}
+import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
-import org.apache.flink.table.runtime.TableStreamOperator
+import org.apache.flink.table.runtime.operators.TableStreamOperator
+import org.apache.flink.table.runtime.types.InternalSerializers
 import org.apache.flink.table.runtime.util.collections._
-import org.apache.flink.table.types.InternalSerializers
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 import org.apache.flink.util.InstantiationUtil

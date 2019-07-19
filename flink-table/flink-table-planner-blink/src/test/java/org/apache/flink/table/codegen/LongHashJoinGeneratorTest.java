@@ -21,10 +21,10 @@ package org.apache.flink.table.codegen;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.generated.GeneratedJoinCondition;
-import org.apache.flink.table.generated.JoinCondition;
-import org.apache.flink.table.runtime.join.HashJoinType;
-import org.apache.flink.table.runtime.join.Int2HashJoinOperatorTest;
+import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
+import org.apache.flink.table.runtime.generated.JoinCondition;
+import org.apache.flink.table.runtime.operators.join.HashJoinType;
+import org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTest;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 

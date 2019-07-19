@@ -20,8 +20,8 @@ package org.apache.flink.table.codegen
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.generated.{GeneratedRecordEqualiser, RecordEqualiser}
-import org.apache.flink.table.types.PlannerTypeUtils
+import org.apache.flink.table.runtime.generated.{GeneratedRecordEqualiser, RecordEqualiser}
+import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 

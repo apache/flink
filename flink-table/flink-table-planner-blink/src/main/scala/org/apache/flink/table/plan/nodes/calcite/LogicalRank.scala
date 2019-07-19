@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.calcite
 
-import org.apache.flink.table.runtime.rank.{RankRange, RankType}
+import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataTypeField

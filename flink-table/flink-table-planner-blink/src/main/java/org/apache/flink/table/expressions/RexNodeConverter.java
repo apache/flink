@@ -93,11 +93,11 @@ import java.util.stream.Collectors;
 
 import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
 import static org.apache.flink.table.calcite.FlinkTypeFactory.toLogicalType;
-import static org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
+import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
+import static org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isCharacterString;
+import static org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isTemporal;
+import static org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isTimeInterval;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
-import static org.apache.flink.table.typeutils.TypeCheckUtils.isCharacterString;
-import static org.apache.flink.table.typeutils.TypeCheckUtils.isTemporal;
-import static org.apache.flink.table.typeutils.TypeCheckUtils.isTimeInterval;
 
 /**
  * Visit expression to generator {@link RexNode}.

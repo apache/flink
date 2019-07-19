@@ -20,8 +20,8 @@ package org.apache.flink.table.codegen
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.codegen.Indenter.toISC
-import org.apache.flink.table.generated.GeneratedCollector
 import org.apache.flink.table.runtime.collector.TableFunctionCollector
+import org.apache.flink.table.runtime.generated.GeneratedCollector
 import org.apache.flink.table.types.logical.LogicalType
 
 /**

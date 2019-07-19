@@ -23,13 +23,14 @@ import org.apache.flink.table.codegen.GenerateUtils._
 import org.apache.flink.table.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.dataformat._
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
-import org.apache.flink.table.types.PlannerTypeUtils
-import org.apache.flink.table.types.PlannerTypeUtils.{isInteroperable, isPrimitive}
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
+import org.apache.flink.table.runtime.types.PlannerTypeUtils
+import org.apache.flink.table.runtime.types.PlannerTypeUtils.{isInteroperable, isPrimitive}
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-import org.apache.flink.table.typeutils.TypeCheckUtils._
-import org.apache.flink.table.typeutils.{TypeCheckUtils, TypeCoercion}
+import org.apache.flink.table.typeutils.TypeCoercion
 import org.apache.flink.util.Preconditions.checkArgument
 
 import org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY

@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode, RexProgram, RexProgramBuilder}

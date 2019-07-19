@@ -34,7 +34,7 @@ import org.apache.flink.table.functions.aggfunctions.MinWithRetractAggFunction.S
 import org.apache.flink.table.functions.aggfunctions.MinWithRetractAggFunction.StringMinWithRetractAggFunction;
 import org.apache.flink.table.functions.aggfunctions.MinWithRetractAggFunction.TimeMinWithRetractAggFunction;
 import org.apache.flink.table.functions.aggfunctions.MinWithRetractAggFunction.TimestampMinWithRetractAggFunction;
-import org.apache.flink.table.typeutils.DecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 
 import java.lang.reflect.Method;
 import java.sql.Date;

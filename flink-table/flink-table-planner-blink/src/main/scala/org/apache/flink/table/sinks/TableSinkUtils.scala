@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.sinks
 
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.operations.CatalogSinkModifyOperation
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.types.PlannerTypeUtils
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.types.PlannerTypeUtils
 
 import java.util.{List => JList}
 
-import collection.JavaConversions._
+import scala.collection.JavaConversions._
 
 object TableSinkUtils {
 

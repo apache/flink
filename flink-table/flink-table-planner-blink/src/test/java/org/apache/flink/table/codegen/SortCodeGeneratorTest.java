@@ -40,14 +40,16 @@ import org.apache.flink.table.dataformat.DataFormatConverters;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
-import org.apache.flink.table.generated.GeneratedNormalizedKeyComputer;
-import org.apache.flink.table.generated.GeneratedRecordComparator;
-import org.apache.flink.table.generated.NormalizedKeyComputer;
-import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.plan.util.SortUtil;
-import org.apache.flink.table.runtime.sort.BinaryInMemorySortBuffer;
+import org.apache.flink.table.runtime.generated.GeneratedNormalizedKeyComputer;
+import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
+import org.apache.flink.table.runtime.generated.NormalizedKeyComputer;
+import org.apache.flink.table.runtime.generated.RecordComparator;
+import org.apache.flink.table.runtime.operators.sort.BinaryInMemorySortBuffer;
+import org.apache.flink.table.runtime.types.InternalSerializers;
+import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer;
+import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.InternalSerializers;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
@@ -63,8 +65,6 @@ import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.TypeInformationAnyType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.table.typeutils.AbstractRowSerializer;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -508,7 +508,7 @@ public class SortCodeGeneratorTest {
 							return order ? 1 : -1;
 						}
 					} else if (t.getTypeRoot() == LogicalTypeRoot.VARBINARY) {
-						int comp = org.apache.flink.table.runtime.sort.SortUtil.compareBinary(
+						int comp = org.apache.flink.table.runtime.operators.sort.SortUtil.compareBinary(
 								(byte[]) first, (byte[]) second);
 						if (comp != 0) {
 							return order ? comp : -comp;
