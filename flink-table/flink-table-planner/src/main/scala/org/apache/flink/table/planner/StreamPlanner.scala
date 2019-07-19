@@ -156,7 +156,9 @@ class StreamPlanner(
             TableSinkUtils.validateSink(catalogSink.getStaticPartitions,
               catalogSink.getChild, catalogSink.getTablePath, sink)
             sink match {
-              case partitionableSink: PartitionableTableSink =>
+              case partitionableSink: PartitionableTableSink
+                if partitionableSink.getPartitionFieldNames != null
+                  && partitionableSink.getPartitionFieldNames.nonEmpty =>
                 partitionableSink.setStaticPartition(catalogSink.getStaticPartitions)
               case _ =>
             }

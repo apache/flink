@@ -167,7 +167,9 @@ abstract class PlannerBase(
         getTableSink(catalogSink.getTablePath).map(sink => {
           TableSinkUtils.validateSink(catalogSink, catalogSink.getTablePath, sink)
           sink match {
-            case partitionableSink: PartitionableTableSink =>
+            case partitionableSink: PartitionableTableSink
+              if partitionableSink.getPartitionFieldNames != null
+                && partitionableSink.getPartitionFieldNames.nonEmpty =>
               partitionableSink.setStaticPartition(catalogSink.getStaticPartitions)
             case _ =>
           }

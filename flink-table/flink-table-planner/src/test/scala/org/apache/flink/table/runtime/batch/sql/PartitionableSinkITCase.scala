@@ -55,6 +55,7 @@ class PartitionableSinkITCase {
   private val batchExec: ExecutionEnvironment = ExecutionEnvironment.getExecutionEnvironment
   private var tEnv: BatchTableEnvironment = _
   private val type3 = new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO)
+  private val type4 = new RowTypeInfo(INT_TYPE_INFO, INT_TYPE_INFO, INT_TYPE_INFO)
 
   private val _expectedException = ExpectedException.none
 
@@ -118,7 +119,7 @@ class PartitionableSinkITCase {
 
   @Test
   def testInsertWithPartitionGrouping(): Unit = {
-    registerTableSink(grouping = true)
+    registerTableSink()
     tEnv.sqlUpdate("insert into sinkTable select a, b, c from sortTable")
     tEnv.execute("testJob")
     assertEquals(List("1,1,Hello world",
@@ -139,7 +140,7 @@ class PartitionableSinkITCase {
 
   @Test
   def testInsertWithStaticPartitions(): Unit = {
-    val testSink = registerTableSink(grouping = true)
+    val testSink = registerTableSink()
     tEnv.sqlUpdate("insert into sinkTable partition(a=1) select b, c from sortTable")
     tEnv.execute("testJob")
     // this sink should have been set up with static partitions
@@ -162,7 +163,7 @@ class PartitionableSinkITCase {
 
   @Test
   def testInsertWithStaticAndDynamicPartitions(): Unit = {
-    val testSink = registerTableSink(grouping = true, partitionColumns = Array("a", "b"))
+    val testSink = registerTableSink(partitionColumns = Array("a", "b"))
     tEnv.sqlUpdate("insert into sinkTable partition(a=1) select b, c from sortTable")
     tEnv.execute("testJob")
     // this sink should have been set up with static partitions
@@ -188,19 +189,37 @@ class PartitionableSinkITCase {
     expectedEx.expect(classOf[TableException])
     expectedEx.expectMessage("Static partition column b "
       + "should appear before dynamic partition a")
-    registerTableSink(grouping = true, partitionColumns = Array("a", "b"))
+    registerTableSink(partitionColumns = Array("a", "b"))
     tEnv.sqlUpdate("insert into sinkTable partition(b=1) select a, c from sortTable")
     tEnv.execute("testJob")
   }
 
-  private def registerTableSink(grouping: Boolean,
-    partitionColumns: Array[String] = Array[String]("a")): TestSink = {
-    val testSink = new TestSink(grouping, partitionColumns)
-    tEnv.registerTableSink("sinkTable", testSink)
+  @Test
+  def testStaticPartitionNotInDynamicPartitions(): Unit = {
+    expectedEx.expect(classOf[TableException])
+    expectedEx.expectMessage("Static partition column c " +
+      "should be in the partition fields list [a, b].")
+    registerTableSink(tableName = "sinkTable2", rowType = type4,
+      partitionColumns = Array("a", "b"))
+    tEnv.sqlUpdate("insert into sinkTable2 partition(c=1) select a, b from sinkTable2")
+    tEnv.execute("testJob")
+    val aaa = List()
+    List(1, 2, 4) zip aaa foreach(_ => println("ja"))
+  }
+
+  private def registerTableSink(
+      tableName: String = "sinkTable",
+      rowType: RowTypeInfo = type3,
+      grouping: Boolean = true,
+      partitionColumns: Array[String] = Array[String]("a")): TestSink = {
+    val testSink = new TestSink(rowType, grouping, partitionColumns)
+    tEnv.registerTableSink(tableName, testSink)
     testSink
   }
 
-  private class TestSink(supportsGrouping: Boolean, partitionColumns: Array[String])
+  private class TestSink(rowType: RowTypeInfo,
+      supportsGrouping: Boolean,
+      partitionColumns: Array[String])
     extends BatchTableSink[Row]
       with PartitionableTableSink {
     private var staticPartitions: JMap[String, String] = _
@@ -218,10 +237,10 @@ class PartitionableSinkITCase {
     }
 
     override def getTableSchema: TableSchema = {
-      new TableSchema(Array("a", "b", "c"), type3.getFieldTypes)
+      new TableSchema(Array("a", "b", "c"), rowType.getFieldTypes)
     }
 
-    override def getOutputType: RowTypeInfo = type3
+    override def getOutputType: RowTypeInfo = rowType
 
     def getStaticPartitions: JMap[String, String] = {
       staticPartitions

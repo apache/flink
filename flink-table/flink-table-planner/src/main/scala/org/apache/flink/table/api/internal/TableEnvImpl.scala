@@ -545,7 +545,9 @@ abstract class TableEnvImpl(
         TableSinkUtils.validateSink(insertOptions.staticPartitions, table.getQueryOperation,
           sinkTablePath.asJava, tableSink)
         tableSink match {
-          case partitionableSink: PartitionableTableSink =>
+          case partitionableSink: PartitionableTableSink
+            if partitionableSink.getPartitionFieldNames != null
+              && partitionableSink.getPartitionFieldNames.nonEmpty =>
             partitionableSink.setStaticPartition(insertOptions.staticPartitions)
           case _ =>
         }

@@ -73,14 +73,21 @@ object TableSinkUtils {
     }
     // check partitions are valid
     sink match {
-      case partitionableTableSink: PartitionableTableSink =>
+      case partitionableTableSink: PartitionableTableSink
+        if partitionableTableSink.getPartitionFieldNames != null
+          && partitionableTableSink.getPartitionFieldNames.nonEmpty =>
         val partitionFields = partitionableTableSink.getPartitionFieldNames
         val staticPartitions = sinkOperation.getStaticPartitions
         staticPartitions.map(_._1) zip partitionFields.slice(0, staticPartitions.size()) foreach {
           case (p1, p2) =>
             if (p1 != p2) {
-              throw new TableException(s"Static partition column $p1 " +
-                s"should appear before dynamic partition $p2.")
+              if (!partitionFields.contains(p1)) {
+                throw new TableException(s"Static partition column $p1 " +
+                  s"should be in the partition fields list $partitionFields.")
+              } else {
+                throw new TableException(s"Static partition column $p1 " +
+                  s"should appear before dynamic partition $p2.")
+              }
             }
         }
       case _ =>
