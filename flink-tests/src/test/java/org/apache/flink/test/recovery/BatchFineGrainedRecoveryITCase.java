@@ -380,7 +380,6 @@ public class BatchFineGrainedRecoveryITCase extends TestLogger {
 		}
 	}
 
-	@SuppressWarnings("SynchronizationOnStaticField")
 	private static class GlobalMapFailureTracker {
 		private final List<AtomicInteger> mapRestarts;
 		private final List<Set<FailureStrategy>> mapFailures;
