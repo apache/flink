@@ -61,7 +61,7 @@ public class HiveTableFactoryTest {
 	}
 
 	@Test
-	public void testCsvTable() throws Exception {
+	public void testGenericTable() throws Exception {
 		TableSchema schema = TableSchema.builder()
 			.field("name", DataTypes.STRING())
 			.field("age", DataTypes.INT())
@@ -69,17 +69,7 @@ public class HiveTableFactoryTest {
 
 		Map<String, String> properties = new HashMap<>();
 		properties.put(CatalogConfig.IS_GENERIC, String.valueOf(true));
-		properties.put("connector.type", "filesystem");
-		properties.put("connector.path", "/tmp");
-		properties.put("connector.property-version", "1");
-		properties.put("update-mode", "append");
-
-		properties.put("format.type", "csv");
-		properties.put("format.property-version", "1");
-		properties.put("format.fields.0.name", "name");
-		properties.put("format.fields.0.type", "STRING");
-		properties.put("format.fields.1.name", "age");
-		properties.put("format.fields.1.type", "INT");
+		properties.put("connector", "COLLECTION");
 
 		catalog.createDatabase("mydb", new CatalogDatabaseImpl(new HashMap<>(), ""), true);
 		ObjectPath path = new ObjectPath("mydb", "mytable");
