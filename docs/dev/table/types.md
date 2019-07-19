@@ -22,20 +22,21 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Due to historical reasons, the data types of Flink's Table & SQL API were closely coupled to Flink's
-`TypeInformation` before Flink 1.9. `TypeInformation` is used in DataSet and DataStream API and is
-sufficient to describe all information needed to serialize and deserialize JVM-based objects in a
-distributed setting.
+Due to historical reasons, before Flink 1.9, Flink's Table & SQL API data types were
+tightly coupled to Flink's `TypeInformation`. `TypeInformation` is used in the DataStream
+and DataSet API and is sufficient to describe all information needed to serialize and
+deserialize JVM-based objects in a distributed setting.
 
-However, `TypeInformation` was not designed to properly represent logical types independent of an
-actual JVM class. In the past, it was difficult to properly map SQL standard types to this abstraction.
-Furthermore, some types were not SQL-compliant and were introduced without a bigger picture in mind.
+However, `TypeInformation` was not designed to represent logical types independent of
+an actual JVM class. In the past, it was difficult to map SQL standard types to this
+abstraction. Furthermore, some types were not SQL-compliant and introduced without a
+bigger picture in mind.
 
 Starting with Flink 1.9, the Table & SQL API will receive a new type system that serves as a long-term
-solution for API stablility and standard compliance.
+solution for API stability and standard compliance.
 
-Reworking the type system is a major effort that touches almost all user-facing interfaces. Therefore, its introduction
-spans multiple releases and the community aims to finish this effort by Flink 1.10.
+Reworking the type system is a major effort that touches almost all user-facing interfaces. Therefore, its
+introduction spans multiple releases, and the community aims to finish this effort by Flink 1.10.
 
 Due to the simultaneous addition of a new planner for table programs (see [FLINK-11439](https://issues.apache.org/jira/browse/FLINK-11439)),
 not every combination of planner and data type is supported. Furthermore, planners might not support every
@@ -50,7 +51,7 @@ section before using a data type.
 Data Type
 ---------
 
-A *data type* describes the data type of a value in the table ecosystem. It can be used to declare input and/or
+A *data type* describes the logical type of a value in the table ecosystem. It can be used to declare input and/or
 output types of operations.
 
 Flink's data types are similar to the SQL standard's *data type* terminology but also contain information
@@ -62,11 +63,11 @@ Examples of data types are:
 - `INTERVAL DAY TO SECOND(3)`
 - `ROW<myField ARRAY<BOOLEAN>, myOtherField TIMESTAMP(3)>`
 
-A list of all pre-defined data types can be found in [below](#list-of-data-types).
+A list of all pre-defined data types can be found [below](#list-of-data-types).
 
 ### Data Types in the Table API
 
-Users of the JVM-based API are dealing with instances of `org.apache.flink.table.types.DataType` within the Table API or when
+Users of the JVM-based API work with instances of `org.apache.flink.table.types.DataType` within the Table API or when
 defining connectors, catalogs, or user-defined functions.
 
 A `DataType` instance has two responsibilities:
@@ -100,7 +101,8 @@ val t: DataType = INTERVAL(DAY(), SECOND(3));
 
 #### Physical Hints
 
-Physical hints are required at the edges of the table ecosystem. Hints indicate the data format that an implementation
+Physical hints are required at the edges of the table ecosystem where the SQL-based type system ends and
+programming-specific data types are required. Hints indicate the data format that an implementation
 expects.
 
 For example, a data source could express that it produces values for logical `TIMESTAMP`s using a `java.sql.Timestamp` class
@@ -144,16 +146,16 @@ a table program (e.g. `field.cast(TIMESTAMP(3).bridgedTo(Timestamp.class))`) are
 Planner Compatibility
 ---------------------
 
-As mentioned in the introduction, reworking the type system will span multiple releases and the support of each data
-types depends on the used planner. This section aims to summarize the biggest differences.
+As mentioned in the introduction, reworking the type system will span multiple releases, and the support of each data
+type depends on the used planner. This section aims to summarize the most significant differences.
 
 ### Old Planner
 
-Flink's old planner that was introduced before Flink 1.9 primarily supports type information. It has only limited
-support of data types. It is possible to declare data types that can be translated into type information such that the
+Flink's old planner, introduced before Flink 1.9, primarily supports type information. It has only limited
+support for data types. It is possible to declare data types that can be translated into type information such that the
 old planner understands them.
 
-The following table summarizes the difference between data type and type information. Most simple types as well as the
+The following table summarizes the difference between data type and type information. Most simple types, as well as the
 row type remain the same. Time types, array types, and the decimal type need special attention. Other hints as the ones
 mentioned are not allowed.
 
