@@ -70,10 +70,19 @@ object TableSinkUtils {
     }
     // check partitions are valid
     sink match {
-      case partitionableTableSink: PartitionableTableSink
-        if partitionableTableSink.getPartitionFieldNames != null
-          && partitionableTableSink.getPartitionFieldNames.nonEmpty =>
-        val partitionFields = partitionableTableSink.getPartitionFieldNames
+      case partitionableTableSink: PartitionableTableSink =>
+        val partitionFieldList = partitionableTableSink.getPartitionFieldNames
+        val partitionFields: JList[String] = if (partitionFieldList == null) {
+          List()
+        } else {
+          partitionFieldList
+        }
+        staticPartitions.map(_._1) foreach { p =>
+          if (!partitionFields.contains(p)) {
+            throw new TableException(s"Static partition column $p " +
+              s"should be in the partition fields list $partitionFields.")
+          }
+        }
         staticPartitions.map(_._1) zip partitionFields.slice(0, staticPartitions.size()) foreach {
           case (p1, p2) =>
             if (p1 != p2) {
