@@ -553,9 +553,9 @@ function kill_all {
 }
 
 function kill_random_taskmanager {
-  KILL_TM=$(jps | grep "TaskManager" | sort -R | head -n 1 | awk '{print $1}')
-  kill -9 "$KILL_TM"
-  echo "TaskManager $KILL_TM killed."
+  local pid=`jps | grep -E "TaskManagerRunner|TaskManager" | sort -R | head -n 1 | cut -d " " -f 1 || true`
+  kill -9 "$pid"
+  echo "TaskManager $pid killed."
 }
 
 function setup_flink_slf4j_metric_reporter() {
