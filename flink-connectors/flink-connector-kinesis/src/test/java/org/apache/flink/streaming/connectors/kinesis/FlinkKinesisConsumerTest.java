@@ -926,7 +926,6 @@ public class FlinkKinesisConsumerTest {
 			testHarness.getCheckpointLock(), results) {
 			@Override
 			public void markAsTemporarilyIdle() {
-				System.out.println("Marked idle");
 			}
 
 			@Override
@@ -998,7 +997,6 @@ public class FlinkKinesisConsumerTest {
 		//awaitRecordCount(results, expectedResults.size());
 		assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
 
-		System.out.println("closing consumer");
 		sourceFunc.cancel();
 		testHarness.close();
 	}

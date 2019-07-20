@@ -269,9 +269,9 @@ public class KinesisDataFetcher<T> {
 
 		@Override
 		public void emit(RecordWrapper<T> record, RecordQueue<RecordWrapper<T>> queue) {
-			emitRecordAndUpdateState(record);
 			ShardWatermarkState<T> sws = shardWatermarks.get(queue.getQueueId());
 			sws.lastEmittedRecordWatermark = record.watermark;
+			emitRecordAndUpdateState(record);
 		}
 	}
 
@@ -743,6 +743,7 @@ public class KinesisDataFetcher<T> {
 				sws.periodicWatermarkAssigner.extractTimestamp(record, sws.lastRecordTimestamp);
 			// track watermark per record since extractTimestamp has side effect
 			watermark = sws.periodicWatermarkAssigner.getCurrentWatermark();
+			System.out.println("record=" + record + " watermark=" + watermark);
 		}
 		sws.lastRecordTimestamp = recordTimestamp;
 		sws.lastUpdated = getCurrentTimeMillis();
