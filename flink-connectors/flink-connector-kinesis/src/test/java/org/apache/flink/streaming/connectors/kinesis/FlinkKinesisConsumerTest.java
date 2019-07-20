@@ -72,6 +72,8 @@ import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -834,6 +836,8 @@ public class FlinkKinesisConsumerTest {
 		}
 	}
 
+	private static final Logger LOG = LoggerFactory.getLogger(FlinkKinesisConsumerTest.class);
+
 	//@Test
 	public void testSourceSynchronization() throws Exception {
 
@@ -926,6 +930,7 @@ public class FlinkKinesisConsumerTest {
 
 			@Override
 			public void emitWatermark(Watermark mark) {
+				LOG.info("Emitting watermark {}", mark);
 				results.add(mark);
 			}
 		};
@@ -988,7 +993,7 @@ public class FlinkKinesisConsumerTest {
 		// Trigger watermark update and emit
 		testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
 		expectedResults.add(new Watermark(3000));
-		awaitRecordCount(results, expectedResults.size());
+		//awaitRecordCount(results, expectedResults.size());
 		assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
 
 		sourceFunc.cancel();
