@@ -77,6 +77,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -860,10 +861,9 @@ public class FlinkKinesisConsumerTest {
 		props.setProperty(ConsumerConfigConstants.WATERMARK_LOOKAHEAD_MILLIS, Long.toString(5));
 
 		BlockingQueue<String> shard1 = new LinkedBlockingQueue();
-		BlockingQueue<String> shard2 = new LinkedBlockingQueue();
 
 		Map<String, List<BlockingQueue<String>>> streamToQueueMap = new HashMap<>();
-		streamToQueueMap.put(streamName, Lists.newArrayList(shard1, shard2));
+		streamToQueueMap.put(streamName, Collections.singletonList(shard1));
 
 		// override createFetcher to mock Kinesis
 		FlinkKinesisConsumer<String> sourceFunc =
