@@ -51,10 +51,7 @@ class InMemoryTableFactory(terminationCount: Int)
     params.putProperties(properties)
 
     // validate
-    new SchemaValidator(
-      isStreamEnvironment = true,
-      supportsSourceTimestamps = true,
-      supportsSourceWatermarks = true).validate(params)
+    new SchemaValidator(true, true, true).validate(params)
 
     val tableSchema = SchemaValidator.deriveTableSinkSchema(params)
 
@@ -71,10 +68,7 @@ class InMemoryTableFactory(terminationCount: Int)
     params.putProperties(properties)
 
     // validate
-    new SchemaValidator(
-      isStreamEnvironment = true,
-      supportsSourceTimestamps = true,
-      supportsSourceWatermarks = true).validate(params)
+    new SchemaValidator(true, true, true).validate(params)
 
     val tableSchema = params.getTableSchema(SCHEMA)
 

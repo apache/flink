@@ -22,6 +22,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointSerializers;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -49,6 +50,8 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -67,10 +70,13 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 	private static final int NUM_SLOTS_PER_TM = 4;
 	private static final Duration TEST_TIMEOUT = Duration.ofSeconds(10000L);
 	private static final Pattern PATTERN_CANCEL_WITH_SAVEPOINT_TOLERATED_EXCEPTIONS = Pattern
-		.compile(
-			"(was not running)" +
-				"|(Not all required tasks are currently running)" +
-				"|(Checkpoint was declined \\(tasks not ready\\))"
+		.compile(Stream
+			.of("was not running",
+				CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING.message(),
+				CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY.message(),
+				CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER.message())
+			.map(AbstractOperatorRestoreTestBase::escapeRegexCharacters)
+			.collect(Collectors.joining(")|(", "(", ")"))
 		);
 
 	@Rule
@@ -225,4 +231,10 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
 	 * @return savepoint directory to use
 	 */
 	protected abstract String getMigrationSavepointName();
+
+	private static String escapeRegexCharacters(String string) {
+		return string
+			.replaceAll("\\(", "\\\\(")
+			.replaceAll("\\)", "\\\\)");
+	}
 }

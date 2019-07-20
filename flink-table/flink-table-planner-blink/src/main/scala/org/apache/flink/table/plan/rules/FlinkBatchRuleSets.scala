@@ -396,6 +396,7 @@ object FlinkBatchRuleSets {
     BatchExecLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
     BatchExecLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
     // correlate
+    BatchExecConstantTableFunctionScanRule.INSTANCE,
     BatchExecCorrelateRule.INSTANCE,
     // sink
     BatchExecSinkRule.INSTANCE

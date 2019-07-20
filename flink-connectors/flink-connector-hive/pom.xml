@@ -389,10 +389,6 @@ under the License.
                     <artifactId>hive-jdbc</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>org.apache.hive.hcatalog</groupId>
-                    <artifactId>hive-webhcat-java-client</artifactId>
-                </exclusion>
-                <exclusion>
                     <groupId>org.apache.hive</groupId>
                     <artifactId>hive-service</artifactId>
                 </exclusion>
@@ -400,10 +396,6 @@ under the License.
                     <groupId>org.apache.hive</groupId>
                     <artifactId>hive-contrib</artifactId>
                 </exclusion>
-				<exclusion>
-					<groupId>org.apache.tez</groupId>
-					<artifactId>tez-dag</artifactId>
-				</exclusion>
 				<exclusion>
 					<groupId>org.apache.tez</groupId>
 					<artifactId>tez-common</artifactId>
@@ -479,35 +471,6 @@ under the License.
 				</executions>
 			</plugin>
 
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>shade-flink</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadeTestJar>false</shadeTestJar>
-							<artifactSet>
-								<includes>
-									<include>*:*</include>
-								</includes>
-							</artifactSet>
-							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-							<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
-							<filters>
-								<filter>
-									<artifact>*:*</artifact>
-								</filter>
-							</filters>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
 			<!-- Configure derby.log of embedded Hive metastore for unit tests -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -552,6 +515,19 @@ under the License.
 			<activation>
 				<jdk>9</jdk>
 			</activation>
+
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<!-- hive does not support Java 9 -->
+							<skip>true</skip>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
 
 			<dependencyManagement>
 				<dependencies>
