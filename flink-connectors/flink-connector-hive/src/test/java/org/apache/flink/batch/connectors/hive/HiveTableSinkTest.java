@@ -99,7 +99,7 @@ public class HiveTableSinkTest {
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
 		tableEnv.sqlQuery("select * from src").insertInto("hive", "default", "dest");
-		tableEnv.execute(null);
+		tableEnv.execute("mytest");
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
 
@@ -121,7 +121,7 @@ public class HiveTableSinkTest {
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
 		tableEnv.sqlQuery("select * from src").insertInto("hive", "default", "dest");
-		tableEnv.execute(null);
+		tableEnv.execute("mytest");
 
 		List<CatalogPartitionSpec> partitionSpecs = hiveCatalog.listPartitions(tablePath);
 		assertEquals(toWrite.size(), partitionSpecs.size());
@@ -166,7 +166,7 @@ public class HiveTableSinkTest {
 
 		tableEnv.registerCatalog("hive", hiveCatalog);
 		tableEnv.sqlQuery("select * from complexSrc").insertInto("hive", "default", "dest");
-		tableEnv.execute(null);
+		tableEnv.execute("mytest");
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
 		assertEquals(1, result.size());
@@ -205,7 +205,7 @@ public class HiveTableSinkTest {
 		tableEnv.registerTable("nestedSrc", src);
 		tableEnv.registerCatalog("hive", hiveCatalog);
 		tableEnv.sqlQuery("select * from nestedSrc").insertInto("hive", "default", "dest");
-		tableEnv.execute(null);
+		tableEnv.execute("mytest");
 
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
 		assertEquals(1, result.size());
@@ -233,7 +233,7 @@ public class HiveTableSinkTest {
 		hiveTableSink.setStaticPartition(partSpec);
 		tableEnv.registerTableSink("destSink", hiveTableSink);
 		tableEnv.sqlQuery("select * from src").insertInto("destSink");
-		tableEnv.execute(null);
+		tableEnv.execute("mytest");
 
 		// make sure new partition is created
 		assertEquals(toWrite.size(), hiveCatalog.listPartitions(tablePath).size());
@@ -260,7 +260,7 @@ public class HiveTableSinkTest {
 		CatalogTable table = (CatalogTable) hiveCatalog.getTable(tablePath);
 		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), tablePath, table));
 		tableEnv.sqlQuery("select * from src").insertInto("destSink");
-		tableEnv.execute(null);
+		tableEnv.execute("mytest");
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
 
@@ -273,7 +273,7 @@ public class HiveTableSinkTest {
 		sink.setOverwrite(true);
 		tableEnv.registerTableSink("destSink1", sink);
 		tableEnv.sqlQuery("select * from src1").insertInto("destSink1");
-		tableEnv.execute(null);
+		tableEnv.execute("mytest");
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
 
