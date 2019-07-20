@@ -30,7 +30,7 @@ Flink的Table & SQL API可以处理SQL语言编写的查询，但这些查询需
 
 <a href="{{ site.baseurl }}/fig/sql_client_demo.gif"><img class="offset" src="{{ site.baseurl }}/fig/sql_client_demo.gif" alt="在集群上运行表程序的Flink SQL Client CLI的动画演示" width="80%" /></a>
 
-<span class="label label-danger">注意</span> SQL客户端处于早期开发阶段。 即使应用程序还没有生产就绪，它也可以是一个非常有用的工具，用于原型设计和使用Flink SQL。 在未来，社区计划通过提供基于REST的功能来扩展其功能 [SQL Client Gateway](sqlClient.html#limitations--future).
+<span class="label label-danger">注意</span> SQL客户端处于早期开发阶段。 尽管它还没有生产就绪，它也可以是一个非常有用的工具，用于开发原型和测试Flink SQL。 在未来，社区计划通过提供基于REST的功能来扩展其功能 [SQL Client Gateway](sqlClient.html#limitations--future).
 
 
 * This will be replaced by the TOC
@@ -50,7 +50,7 @@ SQL客户端捆绑在常规Flink分发中，因此可以开箱即用。 它只�
 
 ### 启动SQL客户端CLI
 
-SQL客户端脚本也位于Flink的二进制目录中。 [将来](sqlClient.html#limitations--future)，用户可以通过启动嵌入式独立进程或连接到远程SQL客户端网关来启动SQL Client CLI。 目前只支持`embedded`模式。 您可以通过调用以下命令启动CLI：
+SQL客户端脚本也位于Flink的二进制目录中。 [将来](sqlClient_zh.html#局限与未来)，用户可以通过启动嵌入式独立进程或连接到远程SQL客户端网关来启动SQL Client CLI。 目前只支持`embedded`模式。 您可以通过调用以下命令启动CLI：
 
 {% highlight bash %}
 ./bin/sql-client.sh embedded
