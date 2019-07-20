@@ -892,12 +892,14 @@ public class KinesisDataFetcher<T> {
 				RecordWrapper<T> nextRecord = q.peek();
 				Watermark nextWatermark = (nextRecord != null) ? nextRecord.watermark : w;
 				potentialNextWatermark = Math.min(potentialNextWatermark, nextWatermark.getTimestamp());
+			} else {
+				System.out.println("Watermark " + w + " lastUpdated=" + e.getValue().lastUpdated + " idleTime=" + idleTime + " lastWatermark=" + lastWatermark);
 			}
 		}
 
 		// advance watermark if possible (watermarks can only be ascending)
 		if (potentialWatermark == Long.MAX_VALUE) {
-			System.out.println("Watermark is max value");
+			System.out.println("Watermark is max value " + shardWatermarks.size());
 			if (shardWatermarks.isEmpty() || shardIdleIntervalMillis > 0) {
 				LOG.info("No active shard for subtask {}, marking the source idle.",
 					indexOfThisConsumerSubtask);
