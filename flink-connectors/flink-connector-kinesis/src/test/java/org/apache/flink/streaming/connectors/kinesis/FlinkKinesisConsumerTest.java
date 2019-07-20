@@ -926,6 +926,7 @@ public class FlinkKinesisConsumerTest {
 			testHarness.getCheckpointLock(), results) {
 			@Override
 			public void markAsTemporarilyIdle() {
+				System.out.println("Marked idle");
 			}
 
 			@Override

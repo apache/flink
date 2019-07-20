@@ -897,6 +897,7 @@ public class KinesisDataFetcher<T> {
 
 		// advance watermark if possible (watermarks can only be ascending)
 		if (potentialWatermark == Long.MAX_VALUE) {
+			System.out.println("Watermark is max value");
 			if (shardWatermarks.isEmpty() || shardIdleIntervalMillis > 0) {
 				LOG.info("No active shard for subtask {}, marking the source idle.",
 					indexOfThisConsumerSubtask);
