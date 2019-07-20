@@ -930,6 +930,7 @@ public class FlinkKinesisConsumerTest {
 
 			@Override
 			public void emitWatermark(Watermark mark) {
+				System.out.println("Emitting " + mark);
 				LOG.info("Emitting watermark {}", mark);
 				results.add(mark);
 			}
