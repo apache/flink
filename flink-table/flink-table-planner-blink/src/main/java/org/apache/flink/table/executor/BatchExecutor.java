@@ -88,8 +88,7 @@ public class BatchExecutor extends ExecutorBase {
 		streamGraph.setChaining(true);
 		streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
 		streamGraph.setStateBackend(null);
-		if (streamGraph.getCheckpointConfig().isCheckpointingEnabled())
-		{
+		if (streamGraph.getCheckpointConfig().isCheckpointingEnabled()) {
 			throw new IllegalArgumentException("Checkpoint is not supported for batch jobs.");
 		}
 		if (isShuffleModeAllBatch()) {
