@@ -536,8 +536,8 @@ public class FlinkKinesisConsumerTest {
 	}
 
 	/**
-	 * FLINK-8484: ensure that a state change in the StreamShardMetadata other than {@link StreamShardMetadata#shardId} or
-	 * {@link StreamShardMetadata#streamName} does not result in the shard not being able to be restored.
+	 * FLINK-8484: ensure that a state change in the StreamShardMetadata other than {@link StreamShardMetadata#getShardId()} or
+	 * {@link StreamShardMetadata#getStreamName()} does not result in the shard not being able to be restored.
 	 * This handles the corner case where the stored shard metadata is open (no ending sequence number), but after the
 	 * job restore, the shard has been closed (ending number set) due to re-sharding, and we can no longer rely on
 	 * {@link StreamShardMetadata#equals(Object)} to find back the sequence number in the collection of restored shard metadata.
@@ -892,7 +892,16 @@ public class FlinkKinesisConsumerTest {
 							subscribedStreamsToLastDiscoveredShardIds,
 							(props) -> FakeKinesisBehavioursFactory.blockingQueueGetRecords(
 								streamToQueueMap)
-						) {};
+						) {
+							@Override
+							protected void emitWatermark() {
+								// necessary in this test to ensure that watermark state is updated
+								// before the watermark timer callback is triggered
+								synchronized (sourceContext.getCheckpointLock()) {
+									super.emitWatermark();
+								}
+							}
+						};
 					return fetcher;
 				}
 			};
@@ -969,7 +978,7 @@ public class FlinkKinesisConsumerTest {
 
 		// trigger sync
 		testHarness.setProcessingTime(testHarness.getProcessingTime() + 1);
-		TestWatermarkTracker.assertSingleWatermark(-4);
+		TestWatermarkTracker.assertGlobalWatermark(-4);
 
 		final long record2 = record1 + (watermarkSyncInterval * 3) + 1;
 		shard1.put(Long.toString(record2));
@@ -982,19 +991,18 @@ public class FlinkKinesisConsumerTest {
 		testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
 		assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
 		assertEquals(3000L, (long) org.powermock.reflect.Whitebox.getInternalState(fetcher, "nextWatermark"));
-		TestWatermarkTracker.assertSingleWatermark(-4);
+		TestWatermarkTracker.assertGlobalWatermark(-4);
 
 		// Trigger global watermark sync
 		testHarness.setProcessingTime(testHarness.getProcessingTime() + 1);
 		expectedResults.add(Long.toString(record2));
 		awaitRecordCount(results, expectedResults.size());
 		assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
-		TestWatermarkTracker.assertSingleWatermark(3000);
+		TestWatermarkTracker.assertGlobalWatermark(3000);
 
 		// Trigger watermark update and emit
 		testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
 		expectedResults.add(new Watermark(3000));
-		//awaitRecordCount(results, expectedResults.size());
 		assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
 
 		sourceFunc.cancel();
@@ -1036,7 +1044,7 @@ public class FlinkKinesisConsumerTest {
 			return localWatermark;
 		}
 
-		static void assertSingleWatermark(long expected) {
+		static void assertGlobalWatermark(long expected) {
 			Assert.assertEquals(expected, WATERMARK.get());
 		}
 	}
