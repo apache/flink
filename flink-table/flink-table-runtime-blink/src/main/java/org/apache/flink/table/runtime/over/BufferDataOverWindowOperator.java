@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.over;
 
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -37,7 +38,7 @@ import org.apache.flink.table.typeutils.AbstractRowSerializer;
  * the operator for OVER window need cache data by ResettableExternalBuffer for {@link OverWindowFrame}.
  */
 public class BufferDataOverWindowOperator extends TableStreamOperator<BaseRow>
-		implements OneInputStreamOperator<BaseRow, BaseRow> {
+		implements OneInputStreamOperator<BaseRow, BaseRow>, BoundedOneInput {
 
 	private final long memorySize;
 	private final OverWindowFrame[] overWindowFrames;
@@ -101,6 +102,7 @@ public class BufferDataOverWindowOperator extends TableStreamOperator<BaseRow>
 		currentData.add(lastInput);
 	}
 
+	@Override
 	public void endInput() throws Exception {
 		if (currentData.size() > 0) {
 			processCurrentData();
@@ -132,7 +134,6 @@ public class BufferDataOverWindowOperator extends TableStreamOperator<BaseRow>
 
 	@Override
 	public void close() throws Exception {
-		endInput(); // TODO remove it.
 		super.close();
 		this.currentData.close();
 	}

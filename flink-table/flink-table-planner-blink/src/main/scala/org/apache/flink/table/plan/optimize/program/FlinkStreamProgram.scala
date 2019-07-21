@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.plan.optimize.program
 
-import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.api.OptimizerConfigOptions
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.rules.{FlinkBatchRuleSets, FlinkStreamRuleSets}
+
+import org.apache.calcite.plan.hep.HepMatchOrder
 
 /**
   * Defines a sequence of programs to optimize for stream table plan.
@@ -34,6 +36,7 @@ object FlinkStreamProgram {
   val TIME_INDICATOR = "time_indicator"
   val DEFAULT_REWRITE = "default_rewrite"
   val PREDICATE_PUSHDOWN = "predicate_pushdown"
+  val JOIN_REORDER = "join_reorder"
   val LOGICAL = "logical"
   val LOGICAL_REWRITE = "logical_rewrite"
   val PHYSICAL = "physical"
@@ -71,7 +74,6 @@ object FlinkStreamProgram {
         .build())
 
     // rewrite special temporal join plan
-    // TODO remove this program after upgraded to CALCITE-1.20.0 (CALCITE-2004 is fixed)
     chainedProgram.addLast(
       TEMPORAL_JOIN_REWRITE,
       FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
@@ -130,6 +132,24 @@ object FlinkStreamProgram {
             .build(), "prune empty after predicate push down")
         .build())
 
+    // join reorder
+    if (config.getBoolean(OptimizerConfigOptions.SQL_OPTIMIZER_JOIN_REORDER_ENABLED)) {
+      chainedProgram.addLast(
+        JOIN_REORDER,
+        FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]
+          .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkStreamRuleSets.JOIN_REORDER_PERPARE_RULES)
+            .build(), "merge join into MultiJoin")
+          .addProgram(FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkStreamRuleSets.JOIN_REORDER_RULES)
+            .build(), "do join reorder")
+          .build())
+    }
+
     // optimize the logical plan
     chainedProgram.addLast(
       LOGICAL,
@@ -167,6 +187,14 @@ object FlinkStreamProgram {
             .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
             .add(FlinkStreamRuleSets.RETRACTION_RULES)
             .build(), "retraction rules")
+        .addProgram(new FlinkMiniBatchIntervalTraitInitProgram,
+          "Initialization for mini-batch interval inference")
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
+            .setHepMatchOrder(HepMatchOrder.TOP_DOWN)
+            .add(FlinkStreamRuleSets.MINI_BATCH_RULES)
+            .build(), "mini-batch interval rules")
         .addProgram(
           FlinkHepRuleSetProgramBuilder.newBuilder
             .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)

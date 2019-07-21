@@ -19,13 +19,12 @@
 package org.apache.flink.table.plan.nodes.resource.parallelism;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.TableConfigOptions;
+import org.apache.flink.table.api.ExecutionConfigOptions;
 import org.apache.flink.table.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecCalc;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecTableSourceScan;
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecCalc;
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecTableSourceScan;
-import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -52,10 +51,7 @@ public class ShuffleStageParallelismCalculatorTest {
 	@Before
 	public void setUp() {
 		tableConf = new Configuration();
-		tableConf.setString(TableConfigOptions.SQL_RESOURCE_INFER_MODE, NodeResourceConfig.InferMode.ONLY_SOURCE.toString());
-		tableConf.setLong(TableConfigOptions.SQL_RESOURCE_INFER_ROWS_PER_PARTITION, 100);
-		tableConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 50);
-		when(batchTableSourceScan.getEstimatedRowCount()).thenReturn(3000d);
+		tableConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 50);
 	}
 
 	@Test
@@ -64,7 +60,7 @@ public class ShuffleStageParallelismCalculatorTest {
 		when(shuffleStage0.getMaxParallelism()).thenReturn(40);
 		when(shuffleStage0.getExecNodeSet()).thenReturn(getNodeSet(Arrays.asList(batchTableSourceScan)));
 		ShuffleStageParallelismCalculator.calculate(tableConf, envParallelism, Arrays.asList(shuffleStage0));
-		verify(shuffleStage0).setParallelism(30, false);
+		verify(shuffleStage0).setParallelism(40, false);
 	}
 
 	@Test
@@ -88,7 +84,7 @@ public class ShuffleStageParallelismCalculatorTest {
 
 	@Test
 	public void testStreamSourceAndCalc() {
-		tableConf.setInteger(TableConfigOptions.SQL_RESOURCE_SOURCE_PARALLELISM, 60);
+		tableConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_SOURCE_PARALLELISM, 60);
 		ShuffleStage shuffleStage0 = mock(ShuffleStage.class);
 		when(shuffleStage0.getMaxParallelism()).thenReturn(60);
 		StreamExecCalc calc = mock(StreamExecCalc.class);
@@ -109,8 +105,7 @@ public class ShuffleStageParallelismCalculatorTest {
 
 	@Test
 	public void testEnvParallelism() {
-		tableConf.setString(TableConfigOptions.SQL_RESOURCE_INFER_MODE, NodeResourceConfig.InferMode.NONE.toString());
-		tableConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, -1);
+		tableConf.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, -1);
 		ShuffleStage shuffleStage0 = mock(ShuffleStage.class);
 		when(shuffleStage0.getMaxParallelism()).thenReturn(4);
 		BatchExecCalc calc = mock(BatchExecCalc.class);

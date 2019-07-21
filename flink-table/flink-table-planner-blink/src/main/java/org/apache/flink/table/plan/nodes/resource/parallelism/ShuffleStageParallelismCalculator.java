@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecTableSourceScan;
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecTableSourceScan;
-import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig;
+import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,14 +67,8 @@ public class ShuffleStageParallelismCalculator {
 		int sourceParallelism = -1;
 		int maxParallelism = shuffleStage.getMaxParallelism();
 		for (ExecNode<?, ?> node : nodeSet) {
-			// only infer batch source according to rowCount.
-			if (node instanceof BatchExecTableSourceScan) {
-				int result = calculateSource((BatchExecTableSourceScan) node);
-				if (result > sourceParallelism) {
-					sourceParallelism = result;
-				}
-			} else if (node instanceof StreamExecTableSourceScan) {
-				int result = NodeResourceConfig.getSourceParallelism(tableConf, envParallelism);
+			if (node instanceof BatchExecTableSourceScan || node instanceof StreamExecTableSourceScan) {
+				int result = NodeResourceUtil.getSourceParallelism(tableConf, envParallelism);
 				if (result > sourceParallelism) {
 					sourceParallelism = result;
 				}
@@ -84,29 +78,12 @@ public class ShuffleStageParallelismCalculator {
 		if (sourceParallelism > 0) {
 			shuffleStageParallelism = sourceParallelism;
 		} else {
-			shuffleStageParallelism = NodeResourceConfig.getOperatorDefaultParallelism(getTableConf(), envParallelism);
+			shuffleStageParallelism = NodeResourceUtil.getOperatorDefaultParallelism(getTableConf(), envParallelism);
 		}
 		if (shuffleStageParallelism > maxParallelism) {
 			shuffleStageParallelism = maxParallelism;
 		}
 		shuffleStage.setParallelism(shuffleStageParallelism, false);
-	}
-
-	private int calculateSource(BatchExecTableSourceScan tableSourceScan) {
-		boolean infer = !NodeResourceConfig.getInferMode(tableConf).equals(NodeResourceConfig.InferMode.NONE);
-		LOG.info("infer source partitions num: " + infer);
-		if (infer) {
-			double rowCount = tableSourceScan.getEstimatedRowCount();
-			LOG.info("source row count is : " + rowCount);
-			long rowsPerPartition = NodeResourceConfig.getInferRowCountPerPartition(tableConf);
-			int maxNum = NodeResourceConfig.getSourceMaxParallelism(tableConf);
-			return Math.min(maxNum,
-					Math.max(
-							(int) (rowCount / rowsPerPartition),
-							1));
-		} else {
-			return NodeResourceConfig.getSourceParallelism(tableConf, envParallelism);
-		}
 	}
 
 	private Configuration getTableConf() {

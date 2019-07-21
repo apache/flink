@@ -56,7 +56,10 @@ public class ExecutionVertexSchedulingTest extends TestLogger {
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
-			vertex.scheduleForExecution(new TestingSlotProvider((i) -> future), false, LocationPreferenceConstraint.ALL, Collections.emptySet());
+			vertex.scheduleForExecution(
+				TestingSlotProviderStrategy.from(new TestingSlotProvider((i) -> future), false),
+				LocationPreferenceConstraint.ALL,
+				Collections.emptySet());
 
 			// will have failed
 			assertEquals(ExecutionState.FAILED, vertex.getExecutionState());
@@ -85,8 +88,7 @@ public class ExecutionVertexSchedulingTest extends TestLogger {
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			// try to deploy to the slot
 			vertex.scheduleForExecution(
-				new TestingSlotProvider(ignore -> future),
-				true,
+				TestingSlotProviderStrategy.from(new TestingSlotProvider(ignore -> future), true),
 				LocationPreferenceConstraint.ALL,
 				Collections.emptySet());
 
@@ -119,8 +121,7 @@ public class ExecutionVertexSchedulingTest extends TestLogger {
 
 			// try to deploy to the slot
 			vertex.scheduleForExecution(
-				new TestingSlotProvider(ignore -> future),
-				false,
+				TestingSlotProviderStrategy.from(new TestingSlotProvider(ignore -> future), false),
 				LocationPreferenceConstraint.ALL,
 				Collections.emptySet());
 			assertEquals(ExecutionState.DEPLOYING, vertex.getExecutionState());

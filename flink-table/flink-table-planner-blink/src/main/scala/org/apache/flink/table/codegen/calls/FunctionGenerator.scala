@@ -364,35 +364,40 @@ object FunctionGenerator {
   // Temporal functions
   // ----------------------------------------------------------------------------------------------
 
-  addSqlFunctionMethod(
+  addSqlFunction(
     EXTRACT,
     Seq(ANY, BIGINT),
-    BuiltInMethod.UNIX_DATE_EXTRACT.method)
+    new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
-  addSqlFunctionMethod(
+  addSqlFunction(
     EXTRACT,
     Seq(ANY, DATE),
-    BuiltInMethod.UNIX_DATE_EXTRACT.method)
+    new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
-  addSqlFunctionMethod(
+  addSqlFunction(
     EXTRACT,
     Seq(ANY, TIME_WITHOUT_TIME_ZONE),
-    BuiltInMethods.UNIX_TIME_EXTRACT)
+    new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
-  addSqlFunctionMethod(
+  addSqlFunction(
     EXTRACT,
     Seq(ANY, TIMESTAMP_WITHOUT_TIME_ZONE),
-    BuiltInMethods.EXTRACT_FROM_TIMESTAMP)
+    new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
-  addSqlFunctionMethod(
+  addSqlFunction(
+    EXTRACT,
+    Seq(ANY, TIMESTAMP_WITH_LOCAL_TIME_ZONE),
+    new MethodCallGen(BuiltInMethods.EXTRACT_FROM_TIMESTAMP_TIME_ZONE))
+
+  addSqlFunction(
     EXTRACT,
     Seq(ANY, INTERVAL_DAY_TIME),
-    BuiltInMethods.EXTRACT_FROM_DATE)
+    new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
-  addSqlFunctionMethod(
+  addSqlFunction(
     EXTRACT,
     Seq(ANY, INTERVAL_YEAR_MONTH),
-    BuiltInMethods.EXTRACT_YEAR_MONTH)
+    new ExtractCallGen(BuiltInMethod.UNIX_DATE_EXTRACT.method))
 
   addSqlFunction(
     TIMESTAMP_DIFF,
@@ -436,7 +441,14 @@ object FunctionGenerator {
     Seq(TIMESTAMP_WITHOUT_TIME_ZONE, ANY),
     new FloorCeilCallGen(
       BuiltInMethod.FLOOR.method,
-      Some(BuiltInMethods.TIMESTAMP_FLOOR)))
+      Some(BuiltInMethod.UNIX_TIMESTAMP_FLOOR.method)))
+
+  addSqlFunction(
+    FLOOR,
+    Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE, ANY),
+    new FloorCeilCallGen(
+      BuiltInMethod.FLOOR.method,
+      Some(BuiltInMethods.TIMESTAMP_FLOOR_TIME_ZONE)))
 
   addSqlFunction(
     CEIL,
@@ -457,7 +469,14 @@ object FunctionGenerator {
     Seq(TIMESTAMP_WITHOUT_TIME_ZONE, ANY),
     new FloorCeilCallGen(
       BuiltInMethod.CEIL.method,
-      Some(BuiltInMethods.TIMESTAMP_CEIL)))
+      Some(BuiltInMethod.UNIX_TIMESTAMP_CEIL.method)))
+
+  addSqlFunction(
+    CEIL,
+    Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE, ANY),
+    new FloorCeilCallGen(
+      BuiltInMethod.CEIL.method,
+      Some(BuiltInMethods.TIMESTAMP_CEIL_TIME_ZONE)))
 
   addSqlFunction(
     CURRENT_DATE,
@@ -622,6 +641,11 @@ object FunctionGenerator {
   addSqlFunctionMethod(
     UNIX_TIMESTAMP,
     Seq(TIMESTAMP_WITHOUT_TIME_ZONE),
+    BuiltInMethods.UNIX_TIMESTAMP_TS)
+
+  addSqlFunctionMethod(
+    UNIX_TIMESTAMP,
+    Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE),
     BuiltInMethods.UNIX_TIMESTAMP_TS)
 
   addSqlFunctionMethod(

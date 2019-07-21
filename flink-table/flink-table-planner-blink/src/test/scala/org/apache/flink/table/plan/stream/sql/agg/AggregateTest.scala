@@ -20,7 +20,8 @@ package org.apache.flink.table.plan.stream.sql.agg
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableConfigOptions, TableException, Types, ValidationException}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{ExecutionConfigOptions, TableException, Types, ValidationException}
 import org.apache.flink.table.typeutils.DecimalTypeInfo
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 
@@ -29,14 +30,15 @@ import org.junit.Test
 class AggregateTest extends TableTestBase {
 
   private val util: StreamTableTestUtil = streamTestUtil()
-  util.addTableSource[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'proctime, 'rowtime)
+  util.addTableSource[(Int, String, Long)](
+    "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
   util.addTableSource[(Int, Long, String, Boolean)]("T", 'a, 'b, 'c, 'd)
   util.addTableSource[(Long, Int, String)]("T1", 'a, 'b, 'c)
   util.addTableSource[(Long, Int, String)]("T2", 'a, 'b, 'c)
   util.addTableSource("MyTable1",
     Array[TypeInformation[_]](
       Types.BYTE, Types.SHORT, Types.INT, Types.LONG, Types.FLOAT, Types.DOUBLE, Types.BOOLEAN,
-      Types.STRING, Types.SQL_DATE, Types.SQL_TIME, Types.SQL_TIMESTAMP,
+      Types.STRING, Types.LOCAL_DATE, Types.LOCAL_TIME, Types.LOCAL_DATE_TIME,
       DecimalTypeInfo.of(30, 20), DecimalTypeInfo.of(10, 5)),
     Array("byte", "short", "int", "long", "float", "double", "boolean",
       "string", "date", "time", "timestamp", "decimal3020", "decimal105"))
@@ -60,17 +62,19 @@ class AggregateTest extends TableTestBase {
 
   @Test
   def testAggWithMiniBatch(): Unit = {
-    util.tableEnv.getConfig.getConf.setLong(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 1000L)
-    // TODO supports MiniBatch
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
     util.verifyPlan("SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c)  FROM MyTable GROUP BY b")
   }
 
   @Test
   def testAggAfterUnionWithMiniBatch(): Unit = {
-    util.tableEnv.getConfig.getConf.setLong(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 1000L)
-    // TODO supports MiniBatch
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
     val query =
       """
         |SELECT a, sum(b), count(distinct c)
@@ -91,8 +95,10 @@ class AggregateTest extends TableTestBase {
   @Test
   def testLocalGlobalAggAfterUnion(): Unit = {
     // enable local global optimize
-    util.tableEnv.getConfig.getConf.setLong(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 1000L)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
 
     val sql =
       """
@@ -122,8 +128,10 @@ class AggregateTest extends TableTestBase {
 
   @Test
   def testAggWithFilterClauseWithLocalGlobal(): Unit = {
-    util.tableEnv.getConfig.getConf.setLong(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 1000L)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
 
     val sql =
       """

@@ -91,13 +91,13 @@ val stream: DataStream[Row] = result.toAppendStream[Row](qConfig)
 </div>
 <div data-lang="python" markdown="1">
 {% highlight python %}
-env = StreamExecutionEnvironment.get_execution_environment()
-table_env = StreamTableEnvironment.create(env)
-
-# obtain query configuration from TableEnvironment
-q_config = StreamQueryConfig()
+# use TableConfig instead of QueryConfig in python API
+t_config = TableConfig()
 # set query parameters
-q_config.with_idle_state_retention_time(timedelta(hours=12), timedelta(hours=24))
+t_config.set_idle_state_retention_time(timedelta(hours=12), timedelta(hours=24))
+
+env = StreamExecutionEnvironment.get_execution_environment()
+table_env = StreamTableEnvironment.create(env, t_config)
 
 # define query
 result = ...
@@ -110,7 +110,7 @@ table_env.register_table_sink("outputTable",  # table name
                               sink)  # table sink
 
 # emit result Table via a TableSink
-result.insert_into("outputTable", q_config)
+result.insert_into("outputTable")
 
 {% endhighlight %}
 </div>

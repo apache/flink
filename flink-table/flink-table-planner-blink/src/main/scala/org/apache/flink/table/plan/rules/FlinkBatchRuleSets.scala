@@ -54,7 +54,8 @@ object FlinkBatchRuleSets {
     * can create new plan nodes.
     */
   val EXPAND_PLAN_RULES: RuleSet = RuleSets.ofList(
-    LogicalCorrelateToJoinFromTemporalTableRule.INSTANCE,
+    LogicalCorrelateToJoinFromTemporalTableRule.WITH_FILTER,
+    LogicalCorrelateToJoinFromTemporalTableRule.WITHOUT_FILTER,
     TableScanRule.INSTANCE)
 
   val POST_EXPAND_CLEAN_UP_RULES: RuleSet = RuleSets.ofList(
@@ -158,11 +159,13 @@ object FlinkBatchRuleSets {
   )
 
   /**
-    * RuleSet to do push predicate into table scan
+    * RuleSet to do push predicate/partition into table scan
     */
   val FILTER_TABLESCAN_PUSHDOWN_RULES: RuleSet = RuleSets.ofList(
     // push a filter down into the table scan
-    PushFilterIntoTableSourceScanRule.INSTANCE
+    PushFilterIntoTableSourceScanRule.INSTANCE,
+    // push partition into the table scan
+    PushPartitionIntoTableSourceScanRule.INSTANCE
   )
 
   /**
@@ -217,6 +220,22 @@ object FlinkBatchRuleSets {
       PREDICATE_SIMPLIFY_EXPRESSION_RULES.asScala ++
       FILTER_RULES.asScala
     ).asJava)
+
+  val JOIN_REORDER_PERPARE_RULES: RuleSet = RuleSets.ofList(
+    // merge join to MultiJoin
+    JoinToMultiJoinRule.INSTANCE,
+    // merge project to MultiJoin
+    ProjectMultiJoinMergeRule.INSTANCE,
+    // merge filter to MultiJoin
+    FilterMultiJoinMergeRule.INSTANCE
+  )
+
+  val JOIN_REORDER_RULES: RuleSet = RuleSets.ofList(
+    // equi-join predicates transfer
+    RewriteMultiJoinConditionRule.INSTANCE,
+    // join reorder
+    LoptOptimizeJoinRule.INSTANCE
+  )
 
   /**
     * RuleSet to do logical optimize.
@@ -287,7 +306,9 @@ object FlinkBatchRuleSets {
 
     // set operators
     ReplaceIntersectWithSemiJoinRule.INSTANCE,
-    ReplaceMinusWithAntiJoinRule.INSTANCE
+    RewriteIntersectAllRule.INSTANCE,
+    ReplaceMinusWithAntiJoinRule.INSTANCE,
+    RewriteMinusAllRule.INSTANCE
   )
 
   /**
@@ -375,6 +396,7 @@ object FlinkBatchRuleSets {
     BatchExecLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
     BatchExecLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
     // correlate
+    BatchExecConstantTableFunctionScanRule.INSTANCE,
     BatchExecCorrelateRule.INSTANCE,
     // sink
     BatchExecSinkRule.INSTANCE

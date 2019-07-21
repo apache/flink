@@ -35,7 +35,8 @@ import java.util.Set;
  *
  * <p>The serialized string representation is {@code TIME(p)} where {@code p} is the number of digits
  * of fractional seconds (=precision). {@code p} must have a value between 0 and 9 (both inclusive).
- * If no precision is specified, {@code p} is equal to 0.
+ * If no precision is specified, {@code p} is equal to 0. {@code TIME(p) WITHOUT TIME ZONE} is a synonym
+ * for this type.
  *
  * <p>A conversion from and to {@code int} describes the number of milliseconds of the day. A
  * conversion from and to {@code long} describes the number of nanoseconds of the day.

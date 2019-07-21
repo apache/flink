@@ -33,15 +33,15 @@ import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
  * <p>While {@link ObjectPath} is used within the same catalog, instances of this class can be used
  * across catalogs.
  *
- * <p>Two objects are considered equal if they share the same type identifier in a stable session context.
+ * <p>Two objects are considered equal if they share the same object identifier in a stable session context.
  */
 public final class ObjectIdentifier implements Serializable {
 
-	private String catalogName;
+	private final String catalogName;
 
-	private String databaseName;
+	private final String databaseName;
 
-	private String objectName;
+	private final String objectName;
 
 	public static ObjectIdentifier of(String catalogName, String databaseName, String objectName) {
 		return new ObjectIdentifier(catalogName, databaseName, objectName);

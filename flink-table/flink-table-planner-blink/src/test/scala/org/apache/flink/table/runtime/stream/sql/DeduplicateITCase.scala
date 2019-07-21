@@ -37,7 +37,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   @Test
   def testFirstRowOnProctime(): Unit = {
     val t = failingDataSource(TestData.tupleData3)
-      .toTable(tEnv, 'a, 'b, 'c, 'proctime)
+      .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     tEnv.registerTable("T", t)
 
     val sql =
@@ -63,7 +63,7 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   @Test
   def testLastRowOnProctime(): Unit = {
     val t = failingDataSource(TestData.tupleData3)
-      .toTable(tEnv, 'a, 'b, 'c, 'proctime)
+      .toTable(tEnv, 'a, 'b, 'c, 'proctime.proctime)
     tEnv.registerTable("T", t)
 
     val sql =

@@ -116,7 +116,7 @@ sql_result  = table_env.sql_query("SELECT ... FROM table2 ...")
 tapi_result.insert_into("outputTable")
 
 # execute
-env.execute()
+table_env.execute("python_job")
 
 {% endhighlight %}
 </div>
@@ -1372,38 +1372,128 @@ print(explanation)
 </div>
 </div>
 
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
 {% highlight text %}
 == Abstract Syntax Tree ==
 LogicalUnion(all=[true])
-  LogicalFilter(condition=[LIKE($1, 'F%')])
-    LogicalTableScan(table=[[_DataStreamTable_0]])
-  LogicalTableScan(table=[[_DataStreamTable_1]])
+  LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
+    FlinkLogicalDataStreamScan(id=[1], fields=[count, word])
+  FlinkLogicalDataStreamScan(id=[2], fields=[count, word])
 
 == Optimized Logical Plan ==
-DataStreamUnion(union=[count, word])
-  DataStreamCalc(select=[count, word], where=[LIKE(word, 'F%')])
-    DataStreamScan(table=[[_DataStreamTable_0]])
-  DataStreamScan(table=[[_DataStreamTable_1]])
+DataStreamUnion(all=[true], union all=[count, word])
+  DataStreamCalc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+    DataStreamScan(id=[1], fields=[count, word])
+  DataStreamScan(id=[2], fields=[count, word])
 
 == Physical Execution Plan ==
 Stage 1 : Data Source
-  content : collect elements with CollectionInputFormat
+	content : collect elements with CollectionInputFormat
 
 Stage 2 : Data Source
-  content : collect elements with CollectionInputFormat
+	content : collect elements with CollectionInputFormat
 
-  Stage 3 : Operator
-    content : from: (count, word)
-    ship_strategy : REBALANCE
+	Stage 3 : Operator
+		content : from: (count, word)
+		ship_strategy : REBALANCE
 
-    Stage 4 : Operator
-      content : where: (LIKE(word, 'F%')), select: (count, word)
-      ship_strategy : FORWARD
+		Stage 4 : Operator
+			content : where: (LIKE(word, _UTF-16LE'F%')), select: (count, word)
+			ship_strategy : FORWARD
 
-      Stage 5 : Operator
-        content : from: (count, word)
-        ship_strategy : REBALANCE
+			Stage 5 : Operator
+				content : from: (count, word)
+				ship_strategy : REBALANCE
 {% endhighlight %}
+</div>
+
+<div data-lang="scala" markdown="1">
+{% highlight text %}
+== Abstract Syntax Tree ==
+LogicalUnion(all=[true])
+  LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
+    FlinkLogicalDataStreamScan(id=[1], fields=[count, word])
+  FlinkLogicalDataStreamScan(id=[2], fields=[count, word])
+
+== Optimized Logical Plan ==
+DataStreamUnion(all=[true], union all=[count, word])
+  DataStreamCalc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+    DataStreamScan(id=[1], fields=[count, word])
+  DataStreamScan(id=[2], fields=[count, word])
+
+== Physical Execution Plan ==
+Stage 1 : Data Source
+	content : collect elements with CollectionInputFormat
+
+Stage 2 : Data Source
+	content : collect elements with CollectionInputFormat
+
+	Stage 3 : Operator
+		content : from: (count, word)
+		ship_strategy : REBALANCE
+
+		Stage 4 : Operator
+			content : where: (LIKE(word, _UTF-16LE'F%')), select: (count, word)
+			ship_strategy : FORWARD
+
+			Stage 5 : Operator
+				content : from: (count, word)
+				ship_strategy : REBALANCE
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight text %}
+== Abstract Syntax Tree ==
+LogicalUnion(all=[true])
+  LogicalFilter(condition=[LIKE($1, _UTF-16LE'F%')])
+    FlinkLogicalDataStreamScan(id=[3], fields=[count, word])
+  FlinkLogicalDataStreamScan(id=[6], fields=[count, word])
+
+== Optimized Logical Plan ==
+DataStreamUnion(all=[true], union all=[count, word])
+  DataStreamCalc(select=[count, word], where=[LIKE(word, _UTF-16LE'F%')])
+    DataStreamScan(id=[3], fields=[count, word])
+  DataStreamScan(id=[6], fields=[count, word])
+
+== Physical Execution Plan ==
+Stage 1 : Data Source
+	content : collect elements with CollectionInputFormat
+
+	Stage 2 : Operator
+		content : Flat Map
+		ship_strategy : FORWARD
+
+		Stage 3 : Operator
+			content : Map
+			ship_strategy : FORWARD
+
+Stage 4 : Data Source
+	content : collect elements with CollectionInputFormat
+
+	Stage 5 : Operator
+		content : Flat Map
+		ship_strategy : FORWARD
+
+		Stage 6 : Operator
+			content : Map
+			ship_strategy : FORWARD
+
+			Stage 7 : Operator
+				content : Map
+				ship_strategy : FORWARD
+
+				Stage 8 : Operator
+					content : where: (LIKE(word, _UTF-16LE'F%')), select: (count, word)
+					ship_strategy : FORWARD
+
+					Stage 9 : Operator
+						content : Map
+						ship_strategy : FORWARD
+{% endhighlight %}
+</div>
+</div>
 
 {% top %}
 

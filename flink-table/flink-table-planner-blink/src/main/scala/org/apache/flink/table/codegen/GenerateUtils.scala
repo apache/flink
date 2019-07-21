@@ -26,6 +26,7 @@ import org.apache.flink.table.codegen.GeneratedExpression.{ALWAYS_NULL, NEVER_NU
 import org.apache.flink.table.codegen.calls.CurrentTimePointCallGen
 import org.apache.flink.table.dataformat._
 import org.apache.flink.table.plan.util.SortUtil
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.table.types.PlannerTypeUtils
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
@@ -369,14 +370,14 @@ object GenerateUtils {
         generateNonNullLiteral(literalType, literalValue.toString, literalValue)
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        // Hack
-        // Currently, in RexLiteral/SqlLiteral(Calcite), TimestampString has no time zone.
-        // TimeString, DateString TimestampString are treated as UTC time/(unix time)
-        // when they are converted/formatted/validated
-        // Here, we adjust millis before Calcite solve TimeZone perfectly
         val millis = literalValue.asInstanceOf[Long]
-        val adjustedValue = millis - ctx.tableConfig.getTimeZone.getOffset(millis)
-        generateNonNullLiteral(literalType, adjustedValue.toString + "L", adjustedValue)
+        generateNonNullLiteral(literalType, millis + "L", millis)
+
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val millis = unixTimestampToLocalDateTime(literalValue.asInstanceOf[Long])
+            .atZone(ctx.tableConfig.getLocalTimeZone)
+            .toInstant.toEpochMilli
+        generateNonNullLiteral(literalType, millis + "L", literalValue)
 
       case INTERVAL_YEAR_MONTH =>
         val decimal = BigDecimal(literalValue.asInstanceOf[JBigDecimal])
@@ -654,7 +655,8 @@ object GenerateUtils {
       leftTerm: String,
       rightTerm: String): String = t.getTypeRoot match {
     case BOOLEAN => s"($leftTerm == $rightTerm ? 0 : ($leftTerm ? 1 : -1))"
-    case DATE | TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE =>
+    case DATE | TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE |
+         TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
       s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"
     case _ if PlannerTypeUtils.isPrimitive(t) =>
       s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"
@@ -669,7 +671,7 @@ object GenerateUtils {
         SortUtil.getNullDefaultOrder(true), at, "a", "b")
       val funcCode: String =
         s"""
-          public int $compareFunc($BINARY_ARRAY a, $BINARY_ARRAY b) {
+          public int $compareFunc($BASE_ARRAY a, $BASE_ARRAY b) {
             $compareCode
             return 0;
           }

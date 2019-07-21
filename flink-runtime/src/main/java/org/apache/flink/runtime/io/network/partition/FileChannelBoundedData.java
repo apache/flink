@@ -75,11 +75,11 @@ final class FileChannelBoundedData implements BoundedData {
 	}
 
 	@Override
-	public Reader createReader() throws IOException {
+	public Reader createReader(ResultSubpartitionView subpartitionView) throws IOException {
 		checkState(!fileChannel.isOpen());
 
 		final FileChannel fc = FileChannel.open(filePath, StandardOpenOption.READ);
-		return new FileBufferReader(fc, memorySegmentSize);
+		return new FileBufferReader(fc, memorySegmentSize, subpartitionView);
 	}
 
 	@Override
@@ -117,7 +117,12 @@ final class FileChannelBoundedData implements BoundedData {
 
 		private final ArrayDeque<MemorySegment> buffers;
 
-		FileBufferReader(FileChannel fileChannel, int bufferSize) {
+		private final ResultSubpartitionView subpartitionView;
+
+		/** The tag indicates whether we have read the end of this file. */
+		private boolean isFinished;
+
+		FileBufferReader(FileChannel fileChannel, int bufferSize, ResultSubpartitionView subpartitionView) {
 			this.fileChannel = checkNotNull(fileChannel);
 			this.headerBuffer = BufferReaderWriterUtil.allocatedHeaderBuffer();
 			this.buffers = new ArrayDeque<>(NUM_BUFFERS);
@@ -125,26 +130,25 @@ final class FileChannelBoundedData implements BoundedData {
 			for (int i = 0; i < NUM_BUFFERS; i++) {
 				buffers.addLast(MemorySegmentFactory.allocateUnpooledOffHeapMemory(bufferSize, null));
 			}
+
+			this.subpartitionView = checkNotNull(subpartitionView);
 		}
 
 		@Nullable
 		@Override
 		public Buffer nextBuffer() throws IOException {
 			final MemorySegment memory = buffers.pollFirst();
-
-			if (memory != null) {
-				final Buffer next = BufferReaderWriterUtil.readFromByteChannel(fileChannel, headerBuffer, memory, this);
-				if (next != null) {
-					return next;
-				}
-				else {
-					recycle(memory);
-					return null;
-				}
+			if (memory == null) {
+				return null;
 			}
 
-			throw new IOException("Bug in BoundedBlockingSubpartition with FILE data: " +
-					"Requesting new buffer before previous buffer returned.");
+			final Buffer next = BufferReaderWriterUtil.readFromByteChannel(fileChannel, headerBuffer, memory, this);
+			if (next == null) {
+				isFinished = true;
+				recycle(memory);
+			}
+
+			return next;
 		}
 
 		@Override
@@ -155,6 +159,10 @@ final class FileChannelBoundedData implements BoundedData {
 		@Override
 		public void recycle(MemorySegment memorySegment) {
 			buffers.addLast(memorySegment);
+
+			if (!isFinished) {
+				subpartitionView.notifyDataAvailable();
+			}
 		}
 	}
 }

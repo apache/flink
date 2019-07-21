@@ -17,13 +17,15 @@
  */
 package org.apache.flink.table.plan.batch.sql.join
 
-import java.sql.Timestamp
-
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.util.{BatchTableTestUtil, TableTestBase}
+
 import org.hamcrest.Matchers.containsString
 import org.junit.Test
+
+import java.sql.Timestamp
 
 class TemporalJoinTest extends TableTestBase {
 

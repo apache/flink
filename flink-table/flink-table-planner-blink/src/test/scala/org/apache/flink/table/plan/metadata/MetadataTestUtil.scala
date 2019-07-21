@@ -179,6 +179,7 @@ object MetadataTestUtil {
       new IntType(),
       new TimestampType(true, TimestampKind.PROCTIME, 3),
       new TimestampType(true, TimestampKind.ROWTIME, 3))
+    val fieldNulls = fieldNames.map(_ => true)
 
     val colStatsMap = Map[String, ColumnStats](
       "a" -> new ColumnStats(30L, 0L, 4D, 4, 45, 5),
@@ -187,7 +188,7 @@ object MetadataTestUtil {
     )
 
     val tableStats = new TableStats(50L, colStatsMap)
-    getDataStreamTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats),
+    getDataStreamTable(fieldNames, fieldTypes, fieldNulls, new FlinkStatistic(tableStats),
       producesUpdates = false, isAccRetract = false)
   }
 
@@ -199,6 +200,7 @@ object MetadataTestUtil {
       new IntType(),
       new TimestampType(true, TimestampKind.PROCTIME, 3),
       new TimestampType(true, TimestampKind.ROWTIME, 3))
+    val fieldNulls = fieldNames.map(_ => true)
 
     val colStatsMap = Map[String, ColumnStats](
       "a" -> new ColumnStats(50L, 0L, 8D, 8, 55, 5),
@@ -208,8 +210,8 @@ object MetadataTestUtil {
 
     val tableStats = new TableStats(50L, colStatsMap)
     val uniqueKeys = Set(Set("a").asJava).asJava
-    getDataStreamTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats, uniqueKeys),
-      producesUpdates = false, isAccRetract = false)
+    getDataStreamTable(fieldNames, fieldTypes, fieldNulls,
+      new FlinkStatistic(tableStats, uniqueKeys), producesUpdates = false, isAccRetract = false)
   }
 
   private def createTemporalTable3(): DataStreamTable[BaseRow] = {
@@ -220,6 +222,7 @@ object MetadataTestUtil {
       new VarCharType(VarCharType.MAX_LENGTH),
       new TimestampType(true, TimestampKind.PROCTIME, 3),
       new TimestampType(true, TimestampKind.ROWTIME, 3))
+    val fieldNulls = fieldNames.map(_ => true)
 
     val colStatsMap = Map[String, ColumnStats](
       "a" -> new ColumnStats(3740000000L, 0L, 4D, 4, null, null),
@@ -228,7 +231,7 @@ object MetadataTestUtil {
     )
 
     val tableStats = new TableStats(4000000000L, colStatsMap)
-    getDataStreamTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats),
+    getDataStreamTable(fieldNames, fieldTypes, fieldNulls, new FlinkStatistic(tableStats),
       producesUpdates = false, isAccRetract = false)
   }
 
@@ -237,13 +240,16 @@ object MetadataTestUtil {
       statistic: FlinkStatistic,
       producesUpdates: Boolean = false,
       isAccRetract: Boolean = false): DataStreamTable[BaseRow] = {
+    val names = tableSchema.getFieldNames
     val types = tableSchema.getFieldTypes.map(fromTypeInfoToLogicalType)
-    getDataStreamTable(tableSchema.getFieldNames, types, statistic, producesUpdates, isAccRetract)
+    val nulls = Array.fill(tableSchema.getFieldCount)(true)
+    getDataStreamTable(names, types, nulls, statistic, producesUpdates, isAccRetract)
   }
 
   private def getDataStreamTable(
       fieldNames: Array[String],
       fieldTypes: Array[LogicalType],
+      fieldNullables: Array[Boolean],
       statistic: FlinkStatistic,
       producesUpdates: Boolean,
       isAccRetract: Boolean): DataStreamTable[BaseRow] = {
@@ -256,7 +262,8 @@ object MetadataTestUtil {
       isAccRetract,
       fieldTypes.indices.toArray,
       fieldNames,
-      statistic)
+      statistic,
+      Some(fieldNullables))
   }
 
 }

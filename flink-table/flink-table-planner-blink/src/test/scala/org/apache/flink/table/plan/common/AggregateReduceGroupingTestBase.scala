@@ -19,7 +19,6 @@ package org.apache.flink.table.plan.common
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.plan.rules.logical.FlinkAggregateRemoveRule
 import org.apache.flink.table.plan.stats.{FlinkStatistic, TableStats}
@@ -58,7 +57,7 @@ abstract class AggregateReduceGroupingTestBase extends TableTestBase {
         .build()
     )
     util.addTableSource("T4",
-      Array[TypeInformation[_]](Types.INT, Types.INT, Types.STRING, Types.SQL_TIMESTAMP),
+      Array[TypeInformation[_]](Types.INT, Types.INT, Types.STRING, Types.LOCAL_DATE_TIME),
       Array("a4", "b4", "c4", "d4"),
       FlinkStatistic.builder()
         .tableStats(new TableStats(100000000))
@@ -69,14 +68,11 @@ abstract class AggregateReduceGroupingTestBase extends TableTestBase {
 
   @Test
   def testAggWithoutAggCall(): Unit = {
-    val programs = util.tableEnv.getConfig.getCalciteConfig.getBatchProgram
-      .getOrElse(FlinkBatchProgram.buildProgram(util.getTableEnv.getConfig.getConf))
+    val programs = util.getBatchProgram()
     programs.getFlinkRuleSetProgram(FlinkBatchProgram.LOGICAL)
-      .get.remove(RuleSets.ofList(FlinkAggregateRemoveRule.INSTANCE)) // to prevent the agg from
-    // removing
-    val calciteConfig = CalciteConfig.createBuilder(util.tableEnv.getConfig.getCalciteConfig)
-      .replaceBatchProgram(programs).build()
-    util.tableEnv.getConfig.setCalciteConfig(calciteConfig)
+      .get.remove(RuleSets.ofList(FlinkAggregateRemoveRule.INSTANCE))
+    // to prevent the agg from removing
+    util.replaceBatchProgram(programs)
     util.verifyPlan("SELECT a1, b1, c1 FROM T1 GROUP BY a1, b1, c1")
   }
 

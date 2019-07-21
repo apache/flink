@@ -20,6 +20,7 @@ package org.apache.flink.table.api.internal
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
+import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.DiscardingOutputFormat
@@ -30,7 +31,8 @@ import org.apache.flink.table.calcite.{CalciteConfig, FlinkTypeFactory}
 import org.apache.flink.table.catalog.CatalogManager
 import org.apache.flink.table.descriptors.{BatchTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.explain.PlanJsonParser
-import org.apache.flink.table.expressions.{ApiExpressionDefaultVisitor, Expression, UnresolvedCallExpression}
+import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor
+import org.apache.flink.table.expressions.{Expression, UnresolvedCallExpression}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.TIME_ATTRIBUTES
 import org.apache.flink.table.operations.DataSetQueryOperation
 import org.apache.flink.table.plan.BatchOptimizer
@@ -63,8 +65,6 @@ abstract class BatchTableEnvImpl(
     () => config.getPlannerConfig.unwrap(classOf[CalciteConfig]).orElse(CalciteConfig.DEFAULT),
     planningConfigurationBuilder
   )
-
-  override def queryConfig: BatchQueryConfig = new BatchQueryConfig
 
   /**
     * Registers an internal [[BatchTableSource]] in this [[TableEnvImpl]]'s catalog without
@@ -102,34 +102,25 @@ abstract class BatchTableEnvImpl(
     *
     * @param table The [[Table]] to write.
     * @param sink The [[TableSink]] to write the [[Table]] to.
-    * @param queryConfig The configuration for the query to generate.
     * @tparam T The expected type of the [[DataSet]] which represents the [[Table]].
     */
   override private[flink] def writeToSink[T](
       table: Table,
-      sink: TableSink[T],
-      queryConfig: QueryConfig): Unit = {
-
-    // Check the query configuration to be a batch one.
-    val batchQueryConfig = queryConfig match {
-      case batchConfig: BatchQueryConfig => batchConfig
-      case _ =>
-        throw new TableException("BatchQueryConfig required to configure batch query.")
-    }
+      sink: TableSink[T]): Unit = {
 
     sink match {
       case batchSink: BatchTableSink[T] =>
         val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
           .asInstanceOf[TypeInformation[T]]
         // translate the Table into a DataSet and provide the type that the TableSink expects.
-        val result: DataSet[T] = translate(table, batchQueryConfig)(outputType)
+        val result: DataSet[T] = translate(table)(outputType)
         // Give the DataSet to the TableSink to emit it.
         batchSink.emitDataSet(result)
       case boundedSink: OutputFormatTableSink[T] =>
         val outputType = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
           .asInstanceOf[TypeInformation[T]]
         // translate the Table into a DataSet and provide the type that the TableSink expects.
-        val result: DataSet[T] = translate(table, batchQueryConfig)(outputType)
+        val result: DataSet[T] = translate(table)(outputType)
         // use the OutputFormat to consume the DataSet.
         val dataSink = result.output(boundedSink.getOutputFormat)
         dataSink.name(
@@ -187,8 +178,7 @@ abstract class BatchTableEnvImpl(
     val optimizedPlan = optimizer.optimize(ast)
     val dataSet = translate[Row](
       optimizedPlan,
-      getTableSchema(table.getQueryOperation.getTableSchema.getFieldNames, optimizedPlan),
-      queryConfig)(
+      getTableSchema(table.getQueryOperation.getTableSchema.getFieldNames, optimizedPlan))(
       new GenericTypeInfo(classOf[Row]))
     dataSet.output(new DiscardingOutputFormat[Row])
     val env = dataSet.getExecutionEnvironment
@@ -208,7 +198,13 @@ abstract class BatchTableEnvImpl(
         s"$sqlPlan"
   }
 
-  def explain(table: Table): String = explain(table: Table, extended = false)
+  override def explain(table: Table): String = explain(table: Table, extended = false)
+
+  override def execute(jobName: String): JobExecutionResult = execEnv.execute(jobName)
+
+  override def explain(extended: Boolean): String = {
+    throw new TableException("This method is unsupported in old planner.")
+  }
 
   protected def asQueryOperation[T](dataSet: DataSet[T], fields: Option[Array[Expression]])
     : DataSetQueryOperation[T] = {
@@ -252,21 +248,17 @@ abstract class BatchTableEnvImpl(
     * Table API calls and / or SQL queries and generating corresponding [[DataSet]] operators.
     *
     * @param table The root node of the relational expression tree.
-    * @param queryConfig The configuration for the query to generate.
     * @param tpe   The [[TypeInformation]] of the resulting [[DataSet]].
     * @tparam A The type of the resulting [[DataSet]].
     * @return The [[DataSet]] that corresponds to the translated [[Table]].
     */
-  protected def translate[A](
-      table: Table,
-      queryConfig: BatchQueryConfig)(implicit tpe: TypeInformation[A]): DataSet[A] = {
+  protected def translate[A](table: Table)(implicit tpe: TypeInformation[A]): DataSet[A] = {
     val queryOperation = table.getQueryOperation
     val relNode = getRelBuilder.tableOperation(queryOperation).build()
     val dataSetPlan = optimizer.optimize(relNode)
     translate(
       dataSetPlan,
-      getTableSchema(queryOperation.getTableSchema.getFieldNames, dataSetPlan),
-      queryConfig)
+      getTableSchema(queryOperation.getTableSchema.getFieldNames, dataSetPlan))
   }
 
   /**
@@ -275,20 +267,18 @@ abstract class BatchTableEnvImpl(
     * @param logicalPlan The root node of the relational expression tree.
     * @param logicalType The row type of the result. Since the logicalPlan can lose the
     *                    field naming during optimization we pass the row type separately.
-    * @param queryConfig The configuration for the query to generate.
     * @param tpe         The [[TypeInformation]] of the resulting [[DataSet]].
     * @tparam A The type of the resulting [[DataSet]].
     * @return The [[DataSet]] that corresponds to the translated [[Table]].
     */
   protected def translate[A](
       logicalPlan: RelNode,
-      logicalType: TableSchema,
-      queryConfig: BatchQueryConfig)(implicit tpe: TypeInformation[A]): DataSet[A] = {
+      logicalType: TableSchema)(implicit tpe: TypeInformation[A]): DataSet[A] = {
     validateInputTypeInfo(tpe)
 
     logicalPlan match {
       case node: DataSetRel =>
-        val plan = node.translateToPlan(this, queryConfig)
+        val plan = node.translateToPlan(this, new BatchQueryConfig)
         val conversion =
           getConversionMapper(
             plan.getType,

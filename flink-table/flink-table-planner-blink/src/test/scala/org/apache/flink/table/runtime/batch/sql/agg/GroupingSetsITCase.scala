@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.batch.sql.agg
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{TableConfigOptions, TableException, Types}
+import org.apache.flink.table.api.{ExecutionConfigOptions, TableException, Types}
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
@@ -36,17 +36,17 @@ class GroupingSetsITCase extends BatchTestBase {
 
   private val TABLE_NAME_EMPS = "emps"
   private val empsTypes = new RowTypeInfo(Types.LONG, Types.STRING, Types.INT, Types.STRING,
-    Types.STRING, Types.LONG, Types.INT, Types.BOOLEAN, Types.BOOLEAN, Types.SQL_DATE)
+    Types.STRING, Types.LONG, Types.INT, Types.BOOLEAN, Types.BOOLEAN, Types.LOCAL_DATE)
   private val empsNames =
     "empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat"
   private val nullableOfEmps: Array[Boolean] =
     Array(false, false, false, true, true, false, true, true, false, false)
   private lazy val empsData = Seq(
-    row(100L, "Fred", 10, null, null, 40L, 25, true, false, UTCDate("1996-08-03")),
-    row(110L, "Eric", 20, "M", "San Francisco", 3L, 80, null, false, UTCDate("2001-01-01")),
-    row(110L, "John", 40, "M", "Vancouver", 2L, null, false, true, UTCDate("2002-05-03")),
-    row(120L, "Wilma", 20, "F", null, 1L, 5, null, true, UTCDate("2005-09-07")),
-    row(130L, "Alice", 40, "F", "Vancouver", 2L, null, false, true, UTCDate("2007-01-01"))
+    row(100L, "Fred", 10, null, null, 40L, 25, true, false, localDate("1996-08-03")),
+    row(110L, "Eric", 20, "M", "San Francisco", 3L, 80, null, false, localDate("2001-01-01")),
+    row(110L, "John", 40, "M", "Vancouver", 2L, null, false, true, localDate("2002-05-03")),
+    row(120L, "Wilma", 20, "F", null, 1L, 5, null, true, localDate("2005-09-07")),
+    row(130L, "Alice", 40, "F", "Vancouver", 2L, null, false, true, localDate("2007-01-01"))
   )
 
   private val TABLE_NAME_EMP = "emp"
@@ -78,29 +78,29 @@ class GroupingSetsITCase extends BatchTestBase {
 
   private val TABLE_NAME_SCOTT_EMP = "scott_emp"
   private val scottEmpTypes = new RowTypeInfo(Types.INT, Types.STRING, Types.STRING, Types.INT,
-    Types.SQL_DATE, Types.DOUBLE, Types.DOUBLE, Types.INT)
+    Types.LOCAL_DATE, Types.DOUBLE, Types.DOUBLE, Types.INT)
   private val scottEmpNames = "empno, ename, job, mgr, hiredate, sal, comm, deptno"
   private val nullableOfScottEmp = Array(false, false, false, true, false, false, true, false)
   private lazy val scottEmpData = Seq(
-    row(7369, "SMITH", "CLERK", 7902, UTCDate("1980-12-17"), 800.00, null, 20),
-    row(7499, "ALLEN", "SALESMAN", 7698, UTCDate("1981-02-20"), 1600.00, 300.00, 30),
-    row(7521, "WARD", "SALESMAN", 7698, UTCDate("1981-02-22"), 1250.00, 500.00, 30),
-    row(7566, "JONES", "MANAGER", 7839, UTCDate("1981-02-04"), 2975.00, null, 20),
-    row(7654, "MARTIN", "SALESMAN", 7698, UTCDate("1981-09-28"), 1250.00, 1400.00, 30),
-    row(7698, "BLAKE", "MANAGER", 7839, UTCDate("1981-01-05"), 2850.00, null, 30),
-    row(7782, "CLARK", "MANAGER", 7839, UTCDate("1981-06-09"), 2450.00, null, 10),
-    row(7788, "SCOTT", "ANALYST", 7566, UTCDate("1987-04-19"), 3000.00, null, 20),
-    row(7839, "KING", "PRESIDENT", null, UTCDate("1981-11-17"), 5000.00, null, 10),
-    row(7844, "TURNER", "SALESMAN", 7698, UTCDate("1981-09-08"), 1500.00, 0.00, 30),
-    row(7876, "ADAMS", "CLERK", 7788, UTCDate("1987-05-23"), 1100.00, null, 20),
-    row(7900, "JAMES", "CLERK", 7698, UTCDate("1981-12-03"), 950.00, null, 30),
-    row(7902, "FORD", "ANALYST", 7566, UTCDate("1981-12-03"), 3000.00, null, 20),
-    row(7934, "MILLER", "CLERK", 7782, UTCDate("1982-01-23"), 1300.00, null, 10)
+    row(7369, "SMITH", "CLERK", 7902, localDate("1980-12-17"), 800.00, null, 20),
+    row(7499, "ALLEN", "SALESMAN", 7698, localDate("1981-02-20"), 1600.00, 300.00, 30),
+    row(7521, "WARD", "SALESMAN", 7698, localDate("1981-02-22"), 1250.00, 500.00, 30),
+    row(7566, "JONES", "MANAGER", 7839, localDate("1981-02-04"), 2975.00, null, 20),
+    row(7654, "MARTIN", "SALESMAN", 7698, localDate("1981-09-28"), 1250.00, 1400.00, 30),
+    row(7698, "BLAKE", "MANAGER", 7839, localDate("1981-01-05"), 2850.00, null, 30),
+    row(7782, "CLARK", "MANAGER", 7839, localDate("1981-06-09"), 2450.00, null, 10),
+    row(7788, "SCOTT", "ANALYST", 7566, localDate("1987-04-19"), 3000.00, null, 20),
+    row(7839, "KING", "PRESIDENT", null, localDate("1981-11-17"), 5000.00, null, 10),
+    row(7844, "TURNER", "SALESMAN", 7698, localDate("1981-09-08"), 1500.00, 0.00, 30),
+    row(7876, "ADAMS", "CLERK", 7788, localDate("1987-05-23"), 1100.00, null, 20),
+    row(7900, "JAMES", "CLERK", 7698, localDate("1981-12-03"), 950.00, null, 30),
+    row(7902, "FORD", "ANALYST", 7566, localDate("1981-12-03"), 3000.00, null, 20),
+    row(7934, "MILLER", "CLERK", 7782, localDate("1982-01-23"), 1300.00, null, 10)
   )
 
   @Before
-  def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+  override def before(): Unit = {
+    super.before()
     registerCollection(TABLE_NAME, data3, type3, "f0, f1, f2", nullablesOfData3)
     val nullableData3 = data3.map { r =>
       val newField2 = if (r.getField(2).asInstanceOf[String].contains("world")) {
@@ -235,8 +235,7 @@ class GroupingSetsITCase extends BatchTestBase {
     )
   }
 
-  // TODO remove expected exception after BatchExecHashJoin extends ExecNode
-  @Test(expected = classOf[TableException])
+  @Test
   def testCubeAndJoin(): Unit = {
     checkResult(
       "select e.deptno, e.gender, min(e.ename) as min_name " +

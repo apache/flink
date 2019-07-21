@@ -18,7 +18,18 @@
 
 package org.apache.flink.table.sources
 
-import java.sql.Timestamp
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.table.api.{DataTypes, ValidationException}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{typeLiteral, unresolvedCall, valueLiteral}
+import org.apache.flink.table.expressions.{ResolvedFieldReference, RexNodeConverter}
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter
+import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.types.logical.{LogicalType, TimestampKind, TimestampType, TinyIntType}
+import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptCluster
@@ -27,18 +38,8 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.LogicalValues
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.table.api.{DataTypes, ValidationException}
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.expressions.ApiExpressionUtils.{unresolvedCall, typeLiteral}
-import org.apache.flink.table.expressions.{PlannerResolvedFieldReference, ResolvedFieldReference, RexNodeConverter}
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter
-import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.types.logical.{LogicalType, TimestampKind, TimestampType, TinyIntType}
-import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
-import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+
+import java.sql.Timestamp
 
 import scala.collection.JavaConversions._
 
@@ -272,17 +273,20 @@ object TableSourceUtil {
           // push an empty values node with the physical schema on the relbuilder
           relBuilder.push(createSchemaRelNode(resolvedFields))
           // get extraction expression
-          resolvedFields.map(f => PlannerResolvedFieldReference(f._1, f._3, f._2))
+          resolvedFields.map(f => new ResolvedFieldReference(f._1, f._3, f._2))
         } else {
           new Array[ResolvedFieldReference](0)
         }
 
       val expression = tsExtractor.getExpression(fieldAccesses)
       // add cast to requested type and convert expression to RexNode
+      // blink runner treats numeric types as seconds in the cast of timestamp and numerical types.
+      // So we use REINTERPRET_CAST to keep the mills of numeric types.
       val castExpression = unresolvedCall(
-        BuiltInFunctionDefinitions.CAST,
+        BuiltInFunctionDefinitions.REINTERPRET_CAST,
         expression,
-        typeLiteral(DataTypes.TIMESTAMP(3).bridgedTo(classOf[Timestamp])))
+        typeLiteral(DataTypes.TIMESTAMP(3).bridgedTo(classOf[Timestamp])),
+        valueLiteral(false))
       val rexExpression = castExpression.accept(new RexNodeConverter(relBuilder))
       relBuilder.clear()
       rexExpression

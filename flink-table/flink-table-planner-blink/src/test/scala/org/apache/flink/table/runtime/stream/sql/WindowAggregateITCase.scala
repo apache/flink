@@ -22,13 +22,15 @@ package org.apache.flink.table.runtime.stream.sql
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.{ConcatDistinctAggFunction, WeightedAvg}
+import org.apache.flink.table.plan.util.WindowEmitStrategy.{SQL_EXEC_EMIT_LATE_FIRE_DELAY, SQL_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.runtime.utils._
 import org.apache.flink.types.Row
+import org.apache.flink.table.util.TableConfigUtils.getMillisecondFromConfigDuration
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -61,7 +63,8 @@ class WindowAggregateITCase(mode: StateBackendMode)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset
           [(Long, Int, Double, Float, BigDecimal, String, String)](10L))
-    val table = stream.toTable(tEnv, 'rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
+    val table = stream.toTable(tEnv,
+      'rowtime.rowtime, 'int, 'double, 'float, 'bigdec, 'string, 'name)
     tEnv.registerTable("T1", table)
 
     val sql =
@@ -84,16 +87,16 @@ class WindowAggregateITCase(mode: StateBackendMode)
     env.execute()
 
     val expected = Seq(
-      "Hallo,1970-01-01 00:00:00.000,1970-01-01 00:00:00.004,1,1,1,1,a",
-      "Hello world,1970-01-01 00:00:00.004,1970-01-01 00:00:00.008,1,1,1,1,a",
-      "Hello world,1970-01-01 00:00:00.008,1970-01-01 00:00:00.012,1,1,1,1,a",
-      "Hello world,1970-01-01 00:00:00.012,1970-01-01 00:00:00.016,1,1,1,1,b",
-      "Hello world,1970-01-01 00:00:00.016,1970-01-01 00:00:00.020,1,1,1,1,b",
-      "Hello,1970-01-01 00:00:00.000,1970-01-01 00:00:00.004,2,2,2,2,a",
-      "Hello,1970-01-01 00:00:00.004,1970-01-01 00:00:00.008,3,3,3,2,a|b",
-      "Hi,1970-01-01 00:00:00.000,1970-01-01 00:00:00.004,1,1,1,1,a",
-      "null,1970-01-01 00:00:00.028,1970-01-01 00:00:00.032,1,1,1,1,null",
-      "null,1970-01-01 00:00:00.032,1970-01-01 00:00:00.036,1,1,1,1,null")
+      "Hallo,1970-01-01T00:00,1970-01-01T00:00:00.004,1,1,1,1,a",
+      "Hello world,1970-01-01T00:00:00.004,1970-01-01T00:00:00.008,1,1,1,1,a",
+      "Hello world,1970-01-01T00:00:00.008,1970-01-01T00:00:00.012,1,1,1,1,a",
+      "Hello world,1970-01-01T00:00:00.012,1970-01-01T00:00:00.016,1,1,1,1,b",
+      "Hello world,1970-01-01T00:00:00.016,1970-01-01T00:00:00.020,1,1,1,1,b",
+      "Hello,1970-01-01T00:00,1970-01-01T00:00:00.004,2,2,2,2,a",
+      "Hello,1970-01-01T00:00:00.004,1970-01-01T00:00:00.008,3,3,3,2,a|b",
+      "Hi,1970-01-01T00:00,1970-01-01T00:00:00.004,1,1,1,1,a",
+      "null,1970-01-01T00:00:00.028,1970-01-01T00:00:00.032,1,1,1,1,null",
+      "null,1970-01-01T00:00:00.032,1970-01-01T00:00:00.036,1,1,1,1,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -113,7 +116,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
     val stream = failingDataSource(sessionData)
       .assignTimestampsAndWatermarks(
         new TimestampAndWatermarkWithOffset[(Long, Int, String, String)](10L))
-    val table = stream.toTable(tEnv, 'rowtime, 'int, 'string, 'name)
+    val table = stream.toTable(tEnv, 'rowtime.rowtime, 'int, 'string, 'name)
     tEnv.registerTable("T1", table)
 
     val sql =
@@ -136,18 +139,19 @@ class WindowAggregateITCase(mode: StateBackendMode)
     env.execute()
 
     val expected = Seq(
-      "Hello World,1970-01-01 00:00:00.009,1970-01-01 00:00:00.013,1,1,1,9,1",
-      "Hello,1970-01-01 00:00:00.016,1970-01-01 00:00:00.020,1,1,1,16,1",
-      "Hello,1970-01-01 00:00:00.001,1970-01-01 00:00:00.012,4,4,4,15,3")
+      "Hello World,1970-01-01T00:00:00.009,1970-01-01T00:00:00.013,1,1,1,9,1",
+      "Hello,1970-01-01T00:00:00.016,1970-01-01T00:00:00.020,1,1,1,16,1",
+      "Hello,1970-01-01T00:00:00.001,1970-01-01T00:00:00.012,4,4,4,15,3")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
   @Test
   def testEventTimeTumblingWindowWithAllowLateness(): Unit = {
     // wait 10 millisecond for late elements
-    tEnv.getConfig.withIdleStateRetentionTime(Time.milliseconds(10), Time.milliseconds(10L))
+    tEnv.getConfig.setIdleStateRetentionTime(
+      Time.milliseconds(10), Time.minutes(6))
     // emit result without delay after watermark
-    tEnv.getConfig.withLateFireInterval(Time.of(0, TimeUnit.NANOSECONDS))
+    withLateFireDelay(tEnv.getConfig, Time.of(0, TimeUnit.NANOSECONDS))
     val data = List(
       (1L, 1, "Hi"),
       (2L, 2, "Hello"),
@@ -160,7 +164,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
 
     val stream = failingDataSource(data)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](0L))
-    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime)
+    val table = stream.toTable(tEnv, 'long, 'int, 'string, 'rowtime.rowtime)
     tEnv.registerTable("T1", table)
     tEnv.registerFunction("weightAvgFun", new WeightedAvg)
 
@@ -185,8 +189,8 @@ class WindowAggregateITCase(mode: StateBackendMode)
 
     val fieldTypes: Array[TypeInformation[_]] = Array(
       Types.STRING,
-      Types.SQL_TIMESTAMP,
-      Types.SQL_TIMESTAMP,
+      Types.LOCAL_DATE_TIME,
+      Types.LOCAL_DATE_TIME,
       Types.LONG,
       Types.LONG,
       Types.INT,
@@ -197,14 +201,15 @@ class WindowAggregateITCase(mode: StateBackendMode)
     val fieldNames = fieldTypes.indices.map("f" + _).toArray
 
     val sink = new TestingUpsertTableSink(Array(0, 1)).configure(fieldNames, fieldTypes)
-    tEnv.writeToSink(result, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(result, "MySink")
+    tEnv.execute("test")
 
     val expected = Seq(
-      "Hi,1970-01-01 00:00:00.000,1970-01-01 00:00:00.005,1,1,1,1,1,1,1",
-      "Hello,1970-01-01 00:00:00.000,1970-01-01 00:00:00.005,2,3,2,3,2,3,7",
-      "Hello world,1970-01-01 00:00:00.015,1970-01-01 00:00:00.020,1,1,3,16,3,3,3",
-      "Hello world,1970-01-01 00:00:00.005,1970-01-01 00:00:00.010,2,2,3,8,3,4,7")
+      "Hi,1970-01-01T00:00,1970-01-01T00:00:00.005,1,1,1,1,1,1,1",
+      "Hello,1970-01-01T00:00,1970-01-01T00:00:00.005,2,3,2,3,2,3,7",
+      "Hello world,1970-01-01T00:00:00.015,1970-01-01T00:00:00.020,1,1,3,16,3,3,3",
+      "Hello world,1970-01-01T00:00:00.005,1970-01-01T00:00:00.010,2,2,3,8,3,4,7")
     assertEquals(expected.sorted.mkString("\n"), sink.getUpsertResults.sorted.mkString("\n"))
   }
 
@@ -222,7 +227,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
 
     val stream = failingDataSource(sessionWindowTestData)
       .assignTimestampsAndWatermarks(new TimestampAndWatermarkWithOffset[(Long, Int, String)](10L))
-    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'rowtime)
+    val table = stream.toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime)
     tEnv.registerTable("MyTable", table)
 
     val sqlQuery =
@@ -238,11 +243,24 @@ class WindowAggregateITCase(mode: StateBackendMode)
     env.execute()
 
     val expected = Seq(
-      "Hello World,1,1970-01-01 00:00:00.014", // window starts at [9L] till {14L}
-      "Hello,1,1970-01-01 00:00:00.021",       // window starts at [16L] till {21L}, not merged
-      "Hello,3,1970-01-01 00:00:00.015"        // window starts at [1L,2L],
+      "Hello World,1,1970-01-01T00:00:00.014", // window starts at [9L] till {14L}
+      "Hello,1,1970-01-01T00:00:00.021",       // window starts at [16L] till {21L}, not merged
+      "Hello,3,1970-01-01T00:00:00.015"        // window starts at [1L,2L],
       //   merged with [8L,10L], by [4L], till {15L}
     )
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
+    val intervalInMillis = interval.toMilliseconds
+    val preLateFireInterval = getMillisecondFromConfigDuration(tableConfig,
+      SQL_EXEC_EMIT_LATE_FIRE_DELAY)
+    if (preLateFireInterval != null && (preLateFireInterval != intervalInMillis)) {
+      // lateFireInterval of the two query config is not equal and not the default
+      throw new RuntimeException(
+        "Currently not support different lateFireInterval configs in one job")
+    }
+    tableConfig.getConfiguration.setBoolean(SQL_EXEC_EMIT_LATE_FIRE_ENABLED, true)
+    tableConfig.getConfiguration.setString(SQL_EXEC_EMIT_LATE_FIRE_DELAY, intervalInMillis + " ms")
   }
 }

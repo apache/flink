@@ -28,6 +28,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -61,7 +62,6 @@ public class NetworkBufferPoolTest extends TestLogger {
 			final int numBuffers = 10;
 
 			NetworkBufferPool globalPool = new NetworkBufferPool(numBuffers, bufferSize, 1);
-			assertEquals(bufferSize, globalPool.getMemorySegmentSize());
 			assertEquals(numBuffers, globalPool.getTotalNumberOfMemorySegments());
 			assertEquals(numBuffers, globalPool.getNumberOfAvailableMemorySegments());
 			assertEquals(0, globalPool.getNumberOfRegisteredBufferPools());
@@ -473,6 +473,48 @@ public class NetworkBufferPoolTest extends TestLogger {
 			// test indirectly for NetworkBufferPool#numTotalRequiredBuffers being correct:
 			// -> creating a new buffer pool should not fail
 			globalPool.createBufferPool(10, 10);
+		} finally {
+			globalPool.destroy();
+		}
+	}
+
+	/**
+	 * Tests {@link NetworkBufferPool#requestMemorySegments()} and verifies it will end exceptionally
+	 * when failing to acquire all the segments in the specific timeout.
+	 */
+	@Test
+	public void testRequestMemorySegmentsTimeout() throws Exception {
+		final int numBuffers = 10;
+		final int numberOfSegmentsToRequest = 2;
+		final Duration requestSegmentsTimeout = Duration.ofMillis(50L);
+
+		NetworkBufferPool globalPool = new NetworkBufferPool(
+				numBuffers,
+				128,
+				numberOfSegmentsToRequest,
+				requestSegmentsTimeout);
+
+		BufferPool localBufferPool = globalPool.createBufferPool(0, numBuffers);
+		for (int i = 0; i < numBuffers; ++i) {
+			localBufferPool.requestBuffer();
+		}
+
+		assertEquals(0, globalPool.getNumberOfAvailableMemorySegments());
+
+		CheckedThread asyncRequest = new CheckedThread() {
+			@Override
+			public void go() throws Exception {
+				globalPool.requestMemorySegments();
+			}
+		};
+
+		asyncRequest.start();
+
+		expectedException.expect(IOException.class);
+		expectedException.expectMessage("Timeout");
+
+		try {
+			asyncRequest.sync();
 		} finally {
 			globalPool.destroy();
 		}

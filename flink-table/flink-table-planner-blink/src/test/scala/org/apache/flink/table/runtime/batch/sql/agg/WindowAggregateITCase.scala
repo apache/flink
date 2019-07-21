@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.batch.sql.agg
 
 import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
-import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.TIMESTAMP
+import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.LOCAL_DATE_TIME
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -33,16 +33,17 @@ import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.sources.InputFormatTableSource
-import org.apache.flink.table.util.DateTimeTestUtil.UTCTimestamp
+import org.apache.flink.table.util.DateTimeTestUtil.localDateTime
 import org.apache.flink.table.util.{CountAggFunction, IntAvgAggFunction, IntSumAggFunction}
 import org.apache.flink.types.Row
+
 import org.junit.{Before, Ignore, Test}
 
 class WindowAggregateITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+  override def before(): Unit = {
+    super.before()
     // common case
     registerCollection("Table3WithTimestamp", data3WithTimestamp, type3WithTimestamp,
       "a, b, c, ts", nullablesOfData3WithTimestamp)
@@ -62,27 +63,27 @@ class WindowAggregateITCase extends BatchTestBase {
           "FROM Table3WithTimestamp " +
           "GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND)",
       Seq(
-        row(1, 1, "1970-01-01 00:00:00.0"),
-        row(2, 1, "1970-01-01 00:00:00.0"),
-        row(3, 1, "1970-01-01 00:00:03.0"),
-        row(4, 1, "1970-01-01 00:00:03.0"),
-        row(5, 1, "1970-01-01 00:00:03.0"),
-        row(6, 1, "1970-01-01 00:00:06.0"),
-        row(7, 1, "1970-01-01 00:00:06.0"),
-        row(8, 1, "1970-01-01 00:00:06.0"),
-        row(9, 1, "1970-01-01 00:00:09.0"),
-        row(10, 1, "1970-01-01 00:00:09.0"),
-        row(11, 1, "1970-01-01 00:00:09.0"),
-        row(12, 1, "1970-01-01 00:00:12.0"),
-        row(13, 1, "1970-01-01 00:00:12.0"),
-        row(14, 1, "1970-01-01 00:00:12.0"),
-        row(15, 1, "1970-01-01 00:00:15.0"),
-        row(16, 1, "1970-01-01 00:00:15.0"),
-        row(17, 1, "1970-01-01 00:00:15.0"),
-        row(18, 1, "1970-01-01 00:00:18.0"),
-        row(19, 1, "1970-01-01 00:00:18.0"),
-        row(20, 1, "1970-01-01 00:00:18.0"),
-        row(21, 1, "1970-01-01 00:00:21.0")
+        row(1, 1, localDateTime("1970-01-01 00:00:00.0")),
+        row(2, 1, localDateTime("1970-01-01 00:00:00.0")),
+        row(3, 1, localDateTime("1970-01-01 00:00:03.0")),
+        row(4, 1, localDateTime("1970-01-01 00:00:03.0")),
+        row(5, 1, localDateTime("1970-01-01 00:00:03.0")),
+        row(6, 1, localDateTime("1970-01-01 00:00:06.0")),
+        row(7, 1, localDateTime("1970-01-01 00:00:06.0")),
+        row(8, 1, localDateTime("1970-01-01 00:00:06.0")),
+        row(9, 1, localDateTime("1970-01-01 00:00:09.0")),
+        row(10, 1, localDateTime("1970-01-01 00:00:09.0")),
+        row(11, 1, localDateTime("1970-01-01 00:00:09.0")),
+        row(12, 1, localDateTime("1970-01-01 00:00:12.0")),
+        row(13, 1, localDateTime("1970-01-01 00:00:12.0")),
+        row(14, 1, localDateTime("1970-01-01 00:00:12.0")),
+        row(15, 1, localDateTime("1970-01-01 00:00:15.0")),
+        row(16, 1, localDateTime("1970-01-01 00:00:15.0")),
+        row(17, 1, localDateTime("1970-01-01 00:00:15.0")),
+        row(18, 1, localDateTime("1970-01-01 00:00:18.0")),
+        row(19, 1, localDateTime("1970-01-01 00:00:18.0")),
+        row(20, 1, localDateTime("1970-01-01 00:00:18.0")),
+        row(21, 1, localDateTime("1970-01-01 00:00:21.0"))
       )
     )
 
@@ -92,27 +93,27 @@ class WindowAggregateITCase extends BatchTestBase {
           "FROM Table3WithTimestamp " +
           "GROUP BY a, TUMBLE(ts, INTERVAL '3' SECOND), b",
       Seq(
-        row(1, 1, "1970-01-01 00:00:00.0", 1),
-        row(2, 1, "1970-01-01 00:00:00.0", 2),
-        row(3, 1, "1970-01-01 00:00:03.0", 2),
-        row(4, 1, "1970-01-01 00:00:03.0", 3),
-        row(5, 1, "1970-01-01 00:00:03.0", 3),
-        row(6, 1, "1970-01-01 00:00:06.0", 3),
-        row(7, 1, "1970-01-01 00:00:06.0", 4),
-        row(8, 1, "1970-01-01 00:00:06.0", 4),
-        row(9, 1, "1970-01-01 00:00:09.0", 4),
-        row(10, 1, "1970-01-01 00:00:09.0", 4),
-        row(11, 1, "1970-01-01 00:00:09.0", 5),
-        row(12, 1, "1970-01-01 00:00:12.0", 5),
-        row(13, 1, "1970-01-01 00:00:12.0", 5),
-        row(14, 1, "1970-01-01 00:00:12.0", 5),
-        row(15, 1, "1970-01-01 00:00:15.0", 5),
-        row(16, 1, "1970-01-01 00:00:15.0", 6),
-        row(17, 1, "1970-01-01 00:00:15.0", 6),
-        row(18, 1, "1970-01-01 00:00:18.0", 6),
-        row(19, 1, "1970-01-01 00:00:18.0", 6),
-        row(20, 1, "1970-01-01 00:00:18.0", 6),
-        row(21, 1, "1970-01-01 00:00:21.0", 6)
+        row(1, 1, localDateTime("1970-01-01 00:00:00.0"), 1),
+        row(2, 1, localDateTime("1970-01-01 00:00:00.0"), 2),
+        row(3, 1, localDateTime("1970-01-01 00:00:03.0"), 2),
+        row(4, 1, localDateTime("1970-01-01 00:00:03.0"), 3),
+        row(5, 1, localDateTime("1970-01-01 00:00:03.0"), 3),
+        row(6, 1, localDateTime("1970-01-01 00:00:06.0"), 3),
+        row(7, 1, localDateTime("1970-01-01 00:00:06.0"), 4),
+        row(8, 1, localDateTime("1970-01-01 00:00:06.0"), 4),
+        row(9, 1, localDateTime("1970-01-01 00:00:09.0"), 4),
+        row(10, 1, localDateTime("1970-01-01 00:00:09.0"), 4),
+        row(11, 1, localDateTime("1970-01-01 00:00:09.0"), 5),
+        row(12, 1, localDateTime("1970-01-01 00:00:12.0"), 5),
+        row(13, 1, localDateTime("1970-01-01 00:00:12.0"), 5),
+        row(14, 1, localDateTime("1970-01-01 00:00:12.0"), 5),
+        row(15, 1, localDateTime("1970-01-01 00:00:15.0"), 5),
+        row(16, 1, localDateTime("1970-01-01 00:00:15.0"), 6),
+        row(17, 1, localDateTime("1970-01-01 00:00:15.0"), 6),
+        row(18, 1, localDateTime("1970-01-01 00:00:18.0"), 6),
+        row(19, 1, localDateTime("1970-01-01 00:00:18.0"), 6),
+        row(20, 1, localDateTime("1970-01-01 00:00:18.0"), 6),
+        row(21, 1, localDateTime("1970-01-01 00:00:21.0"), 6)
       )
     )
 
@@ -122,19 +123,19 @@ class WindowAggregateITCase extends BatchTestBase {
           "FROM Table6 " +
           "GROUP BY a, TUMBLE(f, INTERVAL '10' SECOND)",
       Seq(
-        row(1, 1.1, 1.1, "2015-05-20 10:00:00.0"),
-        row(2, -2.4, -2.4, "2016-09-01 23:07:00.0"),
-        row(2, 2.5, 2.5, "2019-09-19 08:03:00.0"),
-        row(3, -4.885, -9.77, "1999-12-12 10:00:00.0"),
-        row(3, 0.08, 0.08, "1999-12-12 10:03:00.0"),
-        row(4, 3.14, 3.14, "2017-11-20 09:00:00.0"),
-        row(4, 3.145, 3.14, "2015-11-19 10:00:00.0"),
-        row(4, 3.16, 3.16, "2015-11-20 08:59:50.0"),
-        row(5, -5.9, -5.9, "1989-06-04 10:00:00.0"),
-        row(5, -2.8, -2.8, "1937-07-07 08:08:00.0"),
-        row(5, 0.7, 0.7, "2010-06-01 10:00:00.0"),
-        row(5, 2.71, 2.71, "1997-07-01 09:00:00.0"),
-        row(5, 3.9, 3.9, "2000-01-01 00:00:00.0")
+        row(1, 1.1, 1.1, localDateTime("2015-05-20 10:00:00.0")),
+        row(2, -2.4, -2.4, localDateTime("2016-09-01 23:07:00.0")),
+        row(2, 2.5, 2.5, localDateTime("2019-09-19 08:03:00.0")),
+        row(3, -4.885, -9.77, localDateTime("1999-12-12 10:00:00.0")),
+        row(3, 0.08, 0.08, localDateTime("1999-12-12 10:03:00.0")),
+        row(4, 3.14, 3.14, localDateTime("2017-11-20 09:00:00.0")),
+        row(4, 3.145, 3.14, localDateTime("2015-11-19 10:00:00.0")),
+        row(4, 3.16, 3.16, localDateTime("2015-11-20 08:59:50.0")),
+        row(5, -5.9, -5.9, localDateTime("1989-06-04 10:00:00.0")),
+        row(5, -2.8, -2.8, localDateTime("1937-07-07 08:08:00.0")),
+        row(5, 0.7, 0.7, localDateTime("2010-06-01 10:00:00.0")),
+        row(5, 2.71, 2.71, localDateTime("1997-07-01 09:00:00.0")),
+        row(5, 3.9, 3.9, localDateTime("2000-01-01 00:00:00.0"))
       )
     )
   }
@@ -147,21 +148,21 @@ class WindowAggregateITCase extends BatchTestBase {
           "FROM Table3WithTimestamp " +
           "GROUP BY b, HOP(ts, INTERVAL '5' SECOND, INTERVAL '9' SECOND)",
       Seq(
-        row(1, 1, "1969-12-31 23:59:55.0"),
-        row(1, 1, "1970-01-01 00:00:00.0"),
-        row(2, 5, "1969-12-31 23:59:55.0"),
-        row(2, 5, "1970-01-01 00:00:00.0"),
-        row(3, 11, "1970-01-01 00:00:05.0"),
-        row(3, 15, "1970-01-01 00:00:00.0"),
-        row(4, 10, "1970-01-01 00:00:10.0"),
-        row(4, 15, "1970-01-01 00:00:00.0"),
-        row(4, 34, "1970-01-01 00:00:05.0"),
-        row(5, 15, "1970-01-01 00:00:15.0"),
-        row(5, 36, "1970-01-01 00:00:05.0"),
-        row(5, 65, "1970-01-01 00:00:10.0"),
-        row(6, 111, "1970-01-01 00:00:15.0"),
-        row(6, 41, "1970-01-01 00:00:20.0"),
-        row(6, 51, "1970-01-01 00:00:10.0")
+        row(1, 1, localDateTime("1969-12-31 23:59:55.0")),
+        row(1, 1, localDateTime("1970-01-01 00:00:00.0")),
+        row(2, 5, localDateTime("1969-12-31 23:59:55.0")),
+        row(2, 5, localDateTime("1970-01-01 00:00:00.0")),
+        row(3, 11, localDateTime("1970-01-01 00:00:05.0")),
+        row(3, 15, localDateTime("1970-01-01 00:00:00.0")),
+        row(4, 10, localDateTime("1970-01-01 00:00:10.0")),
+        row(4, 15, localDateTime("1970-01-01 00:00:00.0")),
+        row(4, 34, localDateTime("1970-01-01 00:00:05.0")),
+        row(5, 15, localDateTime("1970-01-01 00:00:15.0")),
+        row(5, 36, localDateTime("1970-01-01 00:00:05.0")),
+        row(5, 65, localDateTime("1970-01-01 00:00:10.0")),
+        row(6, 111, localDateTime("1970-01-01 00:00:15.0")),
+        row(6, 41, localDateTime("1970-01-01 00:00:20.0")),
+        row(6, 51, localDateTime("1970-01-01 00:00:10.0"))
       )
     )
 
@@ -170,21 +171,21 @@ class WindowAggregateITCase extends BatchTestBase {
           "FROM Table3WithTimestamp " +
           "GROUP BY b, HOP(ts, INTERVAL '5' SECOND, INTERVAL '9' SECOND)",
       Seq(
-        row(1, 1, "1969-12-31 23:59:55.0"),
-        row(1, 1, "1970-01-01 00:00:00.0"),
-        row(2, 5, "1969-12-31 23:59:55.0"),
-        row(2, 5, "1970-01-01 00:00:00.0"),
-        row(3, 11, "1970-01-01 00:00:05.0"),
-        row(3, 15, "1970-01-01 00:00:00.0"),
-        row(4, 10, "1970-01-01 00:00:10.0"),
-        row(4, 15, "1970-01-01 00:00:00.0"),
-        row(4, 34, "1970-01-01 00:00:05.0"),
-        row(5, 15, "1970-01-01 00:00:15.0"),
-        row(5, 36, "1970-01-01 00:00:05.0"),
-        row(5, 65, "1970-01-01 00:00:10.0"),
-        row(6, 111, "1970-01-01 00:00:15.0"),
-        row(6, 41, "1970-01-01 00:00:20.0"),
-        row(6, 51, "1970-01-01 00:00:10.0")
+        row(1, 1, localDateTime("1969-12-31 23:59:55.0")),
+        row(1, 1, localDateTime("1970-01-01 00:00:00.0")),
+        row(2, 5, localDateTime("1969-12-31 23:59:55.0")),
+        row(2, 5, localDateTime("1970-01-01 00:00:00.0")),
+        row(3, 11, localDateTime("1970-01-01 00:00:05.0")),
+        row(3, 15, localDateTime("1970-01-01 00:00:00.0")),
+        row(4, 10, localDateTime("1970-01-01 00:00:10.0")),
+        row(4, 15, localDateTime("1970-01-01 00:00:00.0")),
+        row(4, 34, localDateTime("1970-01-01 00:00:05.0")),
+        row(5, 15, localDateTime("1970-01-01 00:00:15.0")),
+        row(5, 36, localDateTime("1970-01-01 00:00:05.0")),
+        row(5, 65, localDateTime("1970-01-01 00:00:10.0")),
+        row(6, 111, localDateTime("1970-01-01 00:00:15.0")),
+        row(6, 41, localDateTime("1970-01-01 00:00:20.0")),
+        row(6, 51, localDateTime("1970-01-01 00:00:10.0"))
       )
     )
 
@@ -235,19 +236,19 @@ class WindowAggregateITCase extends BatchTestBase {
           "FROM Table3WithTimestamp " +
           "GROUP BY b, HOP(ts, INTERVAL '5.111' SECOND(1,3), INTERVAL '9' SECOND)",
       Seq(
-        row(1, 1, "1969-12-31 23:59:54.889"),
-        row(1, 1, "1970-01-01 00:00:00.0"),
-        row(2, 5, "1969-12-31 23:59:54.889"),
-        row(2, 5, "1970-01-01 00:00:00.0"),
-        row(3, 6, "1970-01-01 00:00:05.111"),
-        row(3, 15, "1970-01-01 00:00:00.0"),
-        row(4, 15, "1970-01-01 00:00:00.0"),
-        row(4, 34, "1970-01-01 00:00:05.111"),
-        row(5, 50, "1970-01-01 00:00:05.111"),
-        row(5, 65, "1970-01-01 00:00:10.222"),
-        row(6, 111, "1970-01-01 00:00:15.333"),
-        row(6, 21, "1970-01-01 00:00:20.444"),
-        row(6, 70, "1970-01-01 00:00:10.222")
+        row(1, 1, localDateTime("1969-12-31 23:59:54.889")),
+        row(1, 1, localDateTime("1970-01-01 00:00:00.0")),
+        row(2, 5, localDateTime("1969-12-31 23:59:54.889")),
+        row(2, 5, localDateTime("1970-01-01 00:00:00.0")),
+        row(3, 6, localDateTime("1970-01-01 00:00:05.111")),
+        row(3, 15, localDateTime("1970-01-01 00:00:00.0")),
+        row(4, 15, localDateTime("1970-01-01 00:00:00.0")),
+        row(4, 34, localDateTime("1970-01-01 00:00:05.111")),
+        row(5, 50, localDateTime("1970-01-01 00:00:05.111")),
+        row(5, 65, localDateTime("1970-01-01 00:00:10.222")),
+        row(6, 111, localDateTime("1970-01-01 00:00:15.333")),
+        row(6, 21, localDateTime("1970-01-01 00:00:20.444")),
+        row(6, 70, localDateTime("1970-01-01 00:00:10.222"))
       )
     )
 
@@ -256,19 +257,19 @@ class WindowAggregateITCase extends BatchTestBase {
           "FROM Table3WithTimestamp " +
           "GROUP BY b, HOP(ts, INTERVAL '5.111' SECOND(1,3), INTERVAL '9' SECOND)",
       Seq(
-        row(1, 1, "1969-12-31 23:59:54.889"),
-        row(1, 1, "1970-01-01 00:00:00.0"),
-        row(2, 5, "1969-12-31 23:59:54.889"),
-        row(2, 5, "1970-01-01 00:00:00.0"),
-        row(3, 6, "1970-01-01 00:00:05.111"),
-        row(3, 15, "1970-01-01 00:00:00.0"),
-        row(4, 15, "1970-01-01 00:00:00.0"),
-        row(4, 34, "1970-01-01 00:00:05.111"),
-        row(5, 50, "1970-01-01 00:00:05.111"),
-        row(5, 65, "1970-01-01 00:00:10.222"),
-        row(6, 111, "1970-01-01 00:00:15.333"),
-        row(6, 21, "1970-01-01 00:00:20.444"),
-        row(6, 70, "1970-01-01 00:00:10.222")
+        row(1, 1, localDateTime("1969-12-31 23:59:54.889")),
+        row(1, 1, localDateTime("1970-01-01 00:00:00.0")),
+        row(2, 5, localDateTime("1969-12-31 23:59:54.889")),
+        row(2, 5, localDateTime("1970-01-01 00:00:00.0")),
+        row(3, 6, localDateTime("1970-01-01 00:00:05.111")),
+        row(3, 15, localDateTime("1970-01-01 00:00:00.0")),
+        row(4, 15, localDateTime("1970-01-01 00:00:00.0")),
+        row(4, 34, localDateTime("1970-01-01 00:00:05.111")),
+        row(5, 50, localDateTime("1970-01-01 00:00:05.111")),
+        row(5, 65, localDateTime("1970-01-01 00:00:10.222")),
+        row(6, 111, localDateTime("1970-01-01 00:00:15.333")),
+        row(6, 21, localDateTime("1970-01-01 00:00:20.444")),
+        row(6, 70, localDateTime("1970-01-01 00:00:10.222"))
       )
     )
 
@@ -280,14 +281,14 @@ class WindowAggregateITCase extends BatchTestBase {
           "FROM Table3WithTimestamp " +
           "GROUP BY HOP(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND)",
       Seq(
-        row(12, "1970-01-01 00:00:03.0", "1970-01-01 00:00:06.0"),
-        row(21, "1970-01-01 00:00:06.0", "1970-01-01 00:00:09.0"),
-        row(21, "1970-01-01 00:00:21.0", "1970-01-01 00:00:24.0"),
-        row(3, "1970-01-01 00:00:00.0", "1970-01-01 00:00:03.0"),
-        row(30, "1970-01-01 00:00:09.0", "1970-01-01 00:00:12.0"),
-        row(39, "1970-01-01 00:00:12.0", "1970-01-01 00:00:15.0"),
-        row(48, "1970-01-01 00:00:15.0", "1970-01-01 00:00:18.0"),
-        row(57, "1970-01-01 00:00:18.0", "1970-01-01 00:00:21.0")
+        row(12, localDateTime("1970-01-01 00:00:03.0"), localDateTime("1970-01-01 00:00:06.0")),
+        row(21, localDateTime("1970-01-01 00:00:06.0"), localDateTime("1970-01-01 00:00:09.0")),
+        row(21, localDateTime("1970-01-01 00:00:21.0"), localDateTime("1970-01-01 00:00:24.0")),
+        row(3, localDateTime("1970-01-01 00:00:00.0"), localDateTime("1970-01-01 00:00:03.0")),
+        row(30, localDateTime("1970-01-01 00:00:09.0"), localDateTime("1970-01-01 00:00:12.0")),
+        row(39, localDateTime("1970-01-01 00:00:12.0"), localDateTime("1970-01-01 00:00:15.0")),
+        row(48, localDateTime("1970-01-01 00:00:15.0"), localDateTime("1970-01-01 00:00:18.0")),
+        row(57, localDateTime("1970-01-01 00:00:18.0"), localDateTime("1970-01-01 00:00:21.0"))
       )
     )
 
@@ -298,14 +299,14 @@ class WindowAggregateITCase extends BatchTestBase {
           "FROM Table3WithTimestamp " +
           "GROUP BY HOP(ts, INTERVAL '3' SECOND, INTERVAL '3' SECOND)",
       Seq(
-        row(12, "1970-01-01 00:00:03.0", "1970-01-01 00:00:06.0"),
-        row(21, "1970-01-01 00:00:06.0", "1970-01-01 00:00:09.0"),
-        row(21, "1970-01-01 00:00:21.0", "1970-01-01 00:00:24.0"),
-        row(3, "1970-01-01 00:00:00.0", "1970-01-01 00:00:03.0"),
-        row(30, "1970-01-01 00:00:09.0", "1970-01-01 00:00:12.0"),
-        row(39, "1970-01-01 00:00:12.0", "1970-01-01 00:00:15.0"),
-        row(48, "1970-01-01 00:00:15.0", "1970-01-01 00:00:18.0"),
-        row(57, "1970-01-01 00:00:18.0", "1970-01-01 00:00:21.0")
+        row(12, localDateTime("1970-01-01 00:00:03.0"), localDateTime("1970-01-01 00:00:06.0")),
+        row(21, localDateTime("1970-01-01 00:00:06.0"), localDateTime("1970-01-01 00:00:09.0")),
+        row(21, localDateTime("1970-01-01 00:00:21.0"), localDateTime("1970-01-01 00:00:24.0")),
+        row(3, localDateTime("1970-01-01 00:00:00.0"), localDateTime("1970-01-01 00:00:03.0")),
+        row(30, localDateTime("1970-01-01 00:00:09.0"), localDateTime("1970-01-01 00:00:12.0")),
+        row(39, localDateTime("1970-01-01 00:00:12.0"), localDateTime("1970-01-01 00:00:15.0")),
+        row(48, localDateTime("1970-01-01 00:00:15.0"), localDateTime("1970-01-01 00:00:18.0")),
+        row(57, localDateTime("1970-01-01 00:00:18.0"), localDateTime("1970-01-01 00:00:21.0"))
       )
     )
 
@@ -315,17 +316,17 @@ class WindowAggregateITCase extends BatchTestBase {
           "FROM Table3WithTimestamp " +
           "GROUP BY HOP(ts, INTERVAL '2' SECOND, INTERVAL '3' SECOND)",
       Seq(
-        row(1.5, 3, "1970-01-01 00:00:00.0"),
-        row(11.0, 33, "1970-01-01 00:00:10.0"),
-        row(13.0, 39, "1970-01-01 00:00:12.0"),
-        row(15.0, 45, "1970-01-01 00:00:14.0"),
-        row(17.0, 51, "1970-01-01 00:00:16.0"),
-        row(19.0, 57, "1970-01-01 00:00:18.0"),
-        row(20.5, 41, "1970-01-01 00:00:20.0"),
-        row(3.0, 9, "1970-01-01 00:00:02.0"),
-        row(5.0, 15, "1970-01-01 00:00:04.0"),
-        row(7.0, 21, "1970-01-01 00:00:06.0"),
-        row(9.0, 27, "1970-01-01 00:00:08.0")
+        row(1.5, 3, localDateTime("1970-01-01 00:00:00.0")),
+        row(11.0, 33, localDateTime("1970-01-01 00:00:10.0")),
+        row(13.0, 39, localDateTime("1970-01-01 00:00:12.0")),
+        row(15.0, 45, localDateTime("1970-01-01 00:00:14.0")),
+        row(17.0, 51, localDateTime("1970-01-01 00:00:16.0")),
+        row(19.0, 57, localDateTime("1970-01-01 00:00:18.0")),
+        row(20.5, 41, localDateTime("1970-01-01 00:00:20.0")),
+        row(3.0, 9, localDateTime("1970-01-01 00:00:02.0")),
+        row(5.0, 15, localDateTime("1970-01-01 00:00:04.0")),
+        row(7.0, 21, localDateTime("1970-01-01 00:00:06.0")),
+        row(9.0, 27, localDateTime("1970-01-01 00:00:08.0"))
       )
     )
 
@@ -334,28 +335,28 @@ class WindowAggregateITCase extends BatchTestBase {
           "FROM Table3WithTimestamp " +
           "GROUP BY HOP(ts, INTERVAL '2' SECOND, INTERVAL '3' SECOND)",
       Seq(
-        row(1.5, 3, "1970-01-01 00:00:00.0"),
-        row(11.0, 33, "1970-01-01 00:00:10.0"),
-        row(13.0, 39, "1970-01-01 00:00:12.0"),
-        row(15.0, 45, "1970-01-01 00:00:14.0"),
-        row(17.0, 51, "1970-01-01 00:00:16.0"),
-        row(19.0, 57, "1970-01-01 00:00:18.0"),
-        row(20.5, 41, "1970-01-01 00:00:20.0"),
-        row(3.0, 9, "1970-01-01 00:00:02.0"),
-        row(5.0, 15, "1970-01-01 00:00:04.0"),
-        row(7.0, 21, "1970-01-01 00:00:06.0"),
-        row(9.0, 27, "1970-01-01 00:00:08.0")
+        row(1.5, 3, localDateTime("1970-01-01 00:00:00.0")),
+        row(11.0, 33, localDateTime("1970-01-01 00:00:10.0")),
+        row(13.0, 39, localDateTime("1970-01-01 00:00:12.0")),
+        row(15.0, 45, localDateTime("1970-01-01 00:00:14.0")),
+        row(17.0, 51, localDateTime("1970-01-01 00:00:16.0")),
+        row(19.0, 57, localDateTime("1970-01-01 00:00:18.0")),
+        row(20.5, 41, localDateTime("1970-01-01 00:00:20.0")),
+        row(3.0, 9, localDateTime("1970-01-01 00:00:02.0")),
+        row(5.0, 15, localDateTime("1970-01-01 00:00:04.0")),
+        row(7.0, 21, localDateTime("1970-01-01 00:00:06.0")),
+        row(9.0, 27, localDateTime("1970-01-01 00:00:08.0"))
       )
     )
 
     // millisecond precision sliding windows
     val data = Seq(
-      row(UTCTimestamp("2016-03-27 09:00:00.41"), 3),
-      row(UTCTimestamp("2016-03-27 09:00:00.62"), 6),
-      row(UTCTimestamp("2016-03-27 09:00:00.715"), 8)
+      row(localDateTime("2016-03-27 09:00:00.41"), 3),
+      row(localDateTime("2016-03-27 09:00:00.62"), 6),
+      row(localDateTime("2016-03-27 09:00:00.715"), 8)
     )
     registerCollection(
-      "T2", data, new RowTypeInfo(TIMESTAMP, INT_TYPE_INFO),
+      "T2", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO),
       "ts, v")
     checkResult(
       """
@@ -366,18 +367,18 @@ class WindowAggregateITCase extends BatchTestBase {
         |FROM T2
         |GROUP BY HOP(ts, INTERVAL '0.04' SECOND(1,2), INTERVAL '0.2' SECOND(1,1))
       """.stripMargin,
-      Seq(row("2016-03-27 09:00:00.24", "2016-03-27 09:00:00.44", 1),
-        row("2016-03-27 09:00:00.28", "2016-03-27 09:00:00.48", 1),
-        row("2016-03-27 09:00:00.32", "2016-03-27 09:00:00.52", 1),
-        row("2016-03-27 09:00:00.36", "2016-03-27 09:00:00.56", 1),
-        row("2016-03-27 09:00:00.4", "2016-03-27 09:00:00.6", 1),
-        row("2016-03-27 09:00:00.44", "2016-03-27 09:00:00.64", 1),
-        row("2016-03-27 09:00:00.48", "2016-03-27 09:00:00.68", 1),
-        row("2016-03-27 09:00:00.52", "2016-03-27 09:00:00.72", 2),
-        row("2016-03-27 09:00:00.56", "2016-03-27 09:00:00.76", 2),
-        row("2016-03-27 09:00:00.6", "2016-03-27 09:00:00.8", 2),
-        row("2016-03-27 09:00:00.64", "2016-03-27 09:00:00.84", 1),
-        row("2016-03-27 09:00:00.68", "2016-03-27 09:00:00.88", 1))
+      Seq(row(localDateTime("2016-03-27 09:00:00.24"), localDateTime("2016-03-27 09:00:00.44"), 1),
+        row(localDateTime("2016-03-27 09:00:00.28"), localDateTime("2016-03-27 09:00:00.48"), 1),
+        row(localDateTime("2016-03-27 09:00:00.32"), localDateTime("2016-03-27 09:00:00.52"), 1),
+        row(localDateTime("2016-03-27 09:00:00.36"), localDateTime("2016-03-27 09:00:00.56"), 1),
+        row(localDateTime("2016-03-27 09:00:00.4"), localDateTime("2016-03-27 09:00:00.6"), 1),
+        row(localDateTime("2016-03-27 09:00:00.44"), localDateTime("2016-03-27 09:00:00.64"), 1),
+        row(localDateTime("2016-03-27 09:00:00.48"), localDateTime("2016-03-27 09:00:00.68"), 1),
+        row(localDateTime("2016-03-27 09:00:00.52"), localDateTime("2016-03-27 09:00:00.72"), 2),
+        row(localDateTime("2016-03-27 09:00:00.56"), localDateTime("2016-03-27 09:00:00.76"), 2),
+        row(localDateTime("2016-03-27 09:00:00.6"), localDateTime("2016-03-27 09:00:00.8"), 2),
+        row(localDateTime("2016-03-27 09:00:00.64"), localDateTime("2016-03-27 09:00:00.84"), 1),
+        row(localDateTime("2016-03-27 09:00:00.68"), localDateTime("2016-03-27 09:00:00.88"), 1))
     )
   }
 
@@ -391,7 +392,7 @@ class WindowAggregateITCase extends BatchTestBase {
         Types.INT,
         Types.LONG,
         Types.STRING,
-        Types.SQL_TIMESTAMP))
+        Types.LOCAL_DATE_TIME))
     //    val colStats = Map[String, ColumnStats](
     //      "ts" -> new ColumnStats(9000000L, 1L, 8D, 8, null, null),
     //      "a" -> new ColumnStats(10000000L, 1L, 8D, 8, 5, -5),
@@ -505,7 +506,7 @@ class WindowAggregateITCase extends BatchTestBase {
       row(null, 4)
     )
     registerCollection(
-      "T1", data, new RowTypeInfo(TIMESTAMP, INT_TYPE_INFO),
+      "T1", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO),
       "ts, v")
     checkResult(
       """
@@ -519,13 +520,13 @@ class WindowAggregateITCase extends BatchTestBase {
 
     // Tumbling window
     data = Seq(
-      row(UTCTimestamp("2016-03-27 09:00:05"), 1),
+      row(localDateTime("2016-03-27 09:00:05"), 1),
       row(null, 2),
-      row(UTCTimestamp("2016-03-27 09:00:32"), 3),
+      row(localDateTime("2016-03-27 09:00:32"), 3),
       row(null, 4)
     )
     registerCollection(
-      "T2", data, new RowTypeInfo(TIMESTAMP, INT_TYPE_INFO),
+      "T2", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO),
       "ts, v")
     checkResult(
       """
@@ -535,8 +536,8 @@ class WindowAggregateITCase extends BatchTestBase {
       """.stripMargin,
       // null columns are dropped
       Seq(
-        row("2016-03-27 09:00:00.0", "2016-03-27 09:00:10.0", 1),
-        row("2016-03-27 09:00:30.0", "2016-03-27 09:00:40.0", 3))
+        row(localDateTime("2016-03-27 09:00:00.0"), localDateTime("2016-03-27 09:00:10.0"), 1),
+        row(localDateTime("2016-03-27 09:00:30.0"), localDateTime("2016-03-27 09:00:40.0"), 3))
     )
     data = Seq(
       row(null, 1),
@@ -545,7 +546,7 @@ class WindowAggregateITCase extends BatchTestBase {
       row(null, 4)
     )
     registerCollection(
-      "T3", data, new RowTypeInfo(TIMESTAMP, INT_TYPE_INFO),
+      "T3", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO),
       "ts, v")
     checkResult(
       """
@@ -561,9 +562,9 @@ class WindowAggregateITCase extends BatchTestBase {
   @Test
   def testNegativeInputTimestamp(): Unit = {
     // simple tumbling window with record at window start
-    var data = Seq(row(UTCTimestamp("2016-03-27 19:39:30"), 1, "a"))
+    var data = Seq(row(localDateTime("2016-03-27 19:39:30"), 1, "a"))
     registerCollection(
-      "T1", data, new RowTypeInfo(TIMESTAMP, INT_TYPE_INFO, STRING_TYPE_INFO),
+      "T1", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO, STRING_TYPE_INFO),
       "ts, value, id")
     checkResult(
       """
@@ -572,13 +573,13 @@ class WindowAggregateITCase extends BatchTestBase {
         |FROM T1
         |GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)
       """.stripMargin,
-      Seq(row("2016-03-27 19:39:30.0", "2016-03-27 19:39:40.0", 1))
+      Seq(row(localDateTime("2016-03-27 19:39:30.0"), localDateTime("2016-03-27 19:39:40.0"), 1))
     )
 
     // simple tumbling window with record at negative timestamp
-    data = Seq(row(UTCTimestamp("1916-03-27 19:39:31"), 1, "a"))
+    data = Seq(row(localDateTime("1916-03-27 19:39:31"), 1, "a"))
     registerCollection(
-      "T2", data, new RowTypeInfo(TIMESTAMP, INT_TYPE_INFO, STRING_TYPE_INFO),
+      "T2", data, new RowTypeInfo(LOCAL_DATE_TIME, INT_TYPE_INFO, STRING_TYPE_INFO),
       "ts, value, id")
     checkResult(
       """
@@ -587,7 +588,7 @@ class WindowAggregateITCase extends BatchTestBase {
         |FROM T2
         |GROUP BY TUMBLE(ts, INTERVAL '10' SECOND)
       """.stripMargin,
-      Seq(row("1916-03-27 19:39:30.0", "1916-03-27 19:39:40.0", 1))
+      Seq(row(localDateTime("1916-03-27 19:39:30.0"), localDateTime("1916-03-27 19:39:40.0"), 1))
     )
 
     // simple sliding window with record at negative timestamp
@@ -600,7 +601,7 @@ class WindowAggregateITCase extends BatchTestBase {
         |FROM T2
         |GROUP BY HOP(ts, INTERVAL '10' SECOND, INTERVAL '11' SECOND)
       """.stripMargin,
-      Seq(row("1916-03-27 19:39:30.0", "1916-03-27 19:39:41.0", 1))
+      Seq(row(localDateTime("1916-03-27 19:39:30.0"), localDateTime("1916-03-27 19:39:41.0"), 1))
     )
 
     checkResult(
@@ -612,8 +613,9 @@ class WindowAggregateITCase extends BatchTestBase {
         |FROM T2
         |GROUP BY HOP(ts, INTERVAL '0.001' SECOND(1,3), INTERVAL '0.002' SECOND(1,3))
       """.stripMargin,
-      Seq(row("1916-03-27 19:39:30.999", "1916-03-27 19:39:31.001", 1),
-        row("1916-03-27 19:39:31.0", "1916-03-27 19:39:31.002", 1))
+      Seq(
+        row(localDateTime("1916-03-27 19:39:30.999"), localDateTime("1916-03-27 19:39:31.001"), 1),
+        row(localDateTime("1916-03-27 19:39:31.0"), localDateTime("1916-03-27 19:39:31.002"), 1))
     )
 
     checkResult(
@@ -625,8 +627,9 @@ class WindowAggregateITCase extends BatchTestBase {
         |FROM T2
         |GROUP BY HOP(ts, INTERVAL '0.001' SECOND(1,3), INTERVAL '0.002' SECOND(1,3))
       """.stripMargin,
-      Seq(row("1916-03-27 19:39:30.999", "1916-03-27 19:39:31.001", 1),
-        row("1916-03-27 19:39:31.0", "1916-03-27 19:39:31.002", 1))
+      Seq(
+        row(localDateTime("1916-03-27 19:39:30.999"), localDateTime("1916-03-27 19:39:31.001"), 1),
+        row(localDateTime("1916-03-27 19:39:31.0"), localDateTime("1916-03-27 19:39:31.002"), 1))
     )
   }
 
@@ -635,7 +638,7 @@ class WindowAggregateITCase extends BatchTestBase {
     registerCollection(
       "T",
       data3WithTimestamp,
-      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO, TIMESTAMP),
+      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO, LOCAL_DATE_TIME),
       "a, b, c, ts")
 
     val sqlQuery =
@@ -647,16 +650,26 @@ class WindowAggregateITCase extends BatchTestBase {
         "GROUP BY b, TUMBLE(ts, INTERVAL '5' SECOND)"
 
     checkResult(sqlQuery, Seq(
-      row(1, 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:05.0", "1970-01-01 00:00:04.999"),
-      row(2, 2, "1970-01-01 00:00:00.0", "1970-01-01 00:00:05.0", "1970-01-01 00:00:04.999"),
-      row(3, 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:05.0", "1970-01-01 00:00:04.999"),
-      row(3, 2, "1970-01-01 00:00:05.0", "1970-01-01 00:00:10.0", "1970-01-01 00:00:09.999"),
-      row(4, 1, "1970-01-01 00:00:10.0", "1970-01-01 00:00:15.0", "1970-01-01 00:00:14.999"),
-      row(4, 3, "1970-01-01 00:00:05.0", "1970-01-01 00:00:10.0", "1970-01-01 00:00:09.999"),
-      row(5, 1, "1970-01-01 00:00:15.0", "1970-01-01 00:00:20.0", "1970-01-01 00:00:19.999"),
-      row(5, 4, "1970-01-01 00:00:10.0", "1970-01-01 00:00:15.0", "1970-01-01 00:00:14.999"),
-      row(6, 2, "1970-01-01 00:00:20.0", "1970-01-01 00:00:25.0", "1970-01-01 00:00:24.999"),
-      row(6, 4, "1970-01-01 00:00:15.0", "1970-01-01 00:00:20.0", "1970-01-01 00:00:19.999")))
+      row(1, 1, localDateTime("1970-01-01 00:00:00.0"),
+        localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:04.999")),
+      row(2, 2, localDateTime("1970-01-01 00:00:00.0"),
+        localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:04.999")),
+      row(3, 1, localDateTime("1970-01-01 00:00:00.0"),
+        localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:04.999")),
+      row(3, 2, localDateTime("1970-01-01 00:00:05.0"),
+        localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:09.999")),
+      row(4, 1, localDateTime("1970-01-01 00:00:10.0"),
+        localDateTime("1970-01-01 00:00:15.0"), localDateTime("1970-01-01 00:00:14.999")),
+      row(4, 3, localDateTime("1970-01-01 00:00:05.0"),
+        localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:09.999")),
+      row(5, 1, localDateTime("1970-01-01 00:00:15.0"),
+        localDateTime("1970-01-01 00:00:20.0"), localDateTime("1970-01-01 00:00:19.999")),
+      row(5, 4, localDateTime("1970-01-01 00:00:10.0"),
+        localDateTime("1970-01-01 00:00:15.0"), localDateTime("1970-01-01 00:00:14.999")),
+      row(6, 2, localDateTime("1970-01-01 00:00:20.0"),
+        localDateTime("1970-01-01 00:00:25.0"), localDateTime("1970-01-01 00:00:24.999")),
+      row(6, 4, localDateTime("1970-01-01 00:00:15.0"),
+        localDateTime("1970-01-01 00:00:20.0"), localDateTime("1970-01-01 00:00:19.999"))))
   }
 
   @Test
@@ -664,7 +677,7 @@ class WindowAggregateITCase extends BatchTestBase {
     registerCollection(
       "T",
       data3WithTimestamp,
-      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO, TIMESTAMP),
+      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO, LOCAL_DATE_TIME),
       "a, b, c, ts")
 
     val sqlQuery =
@@ -676,22 +689,38 @@ class WindowAggregateITCase extends BatchTestBase {
         "GROUP BY b, HOP(ts, INTERVAL '5' SECOND, INTERVAL '10' SECOND)"
 
     checkResult(sqlQuery, Seq(
-      row(1, 1, "1969-12-31 23:59:55.0", "1970-01-01 00:00:05.0", "1970-01-01 00:00:04.999"),
-      row(1, 1, "1970-01-01 00:00:00.0", "1970-01-01 00:00:10.0", "1970-01-01 00:00:09.999"),
-      row(2, 2, "1969-12-31 23:59:55.0", "1970-01-01 00:00:05.0", "1970-01-01 00:00:04.999"),
-      row(2, 2, "1970-01-01 00:00:00.0", "1970-01-01 00:00:10.0", "1970-01-01 00:00:09.999"),
-      row(3, 1, "1969-12-31 23:59:55.0", "1970-01-01 00:00:05.0", "1970-01-01 00:00:04.999"),
-      row(3, 2, "1970-01-01 00:00:05.0", "1970-01-01 00:00:15.0", "1970-01-01 00:00:14.999"),
-      row(3, 3, "1970-01-01 00:00:00.0", "1970-01-01 00:00:10.0", "1970-01-01 00:00:09.999"),
-      row(4, 1, "1970-01-01 00:00:10.0", "1970-01-01 00:00:20.0", "1970-01-01 00:00:19.999"),
-      row(4, 3, "1970-01-01 00:00:00.0", "1970-01-01 00:00:10.0", "1970-01-01 00:00:09.999"),
-      row(4, 4, "1970-01-01 00:00:05.0", "1970-01-01 00:00:15.0", "1970-01-01 00:00:14.999"),
-      row(5, 1, "1970-01-01 00:00:15.0", "1970-01-01 00:00:25.0", "1970-01-01 00:00:24.999"),
-      row(5, 4, "1970-01-01 00:00:05.0", "1970-01-01 00:00:15.0", "1970-01-01 00:00:14.999"),
-      row(5, 5, "1970-01-01 00:00:10.0", "1970-01-01 00:00:20.0", "1970-01-01 00:00:19.999"),
-      row(6, 2, "1970-01-01 00:00:20.0", "1970-01-01 00:00:30.0", "1970-01-01 00:00:29.999"),
-      row(6, 4, "1970-01-01 00:00:10.0", "1970-01-01 00:00:20.0", "1970-01-01 00:00:19.999"),
-      row(6, 6, "1970-01-01 00:00:15.0", "1970-01-01 00:00:25.0", "1970-01-01 00:00:24.999")))
+      row(1, 1, localDateTime("1969-12-31 23:59:55.0"), localDateTime("1970-01-01 00:00:05.0"),
+        localDateTime("1970-01-01 00:00:04.999")),
+      row(1, 1, localDateTime("1970-01-01 00:00:00.0"), localDateTime("1970-01-01 00:00:10.0"),
+        localDateTime("1970-01-01 00:00:09.999")),
+      row(2, 2, localDateTime("1969-12-31 23:59:55.0"), localDateTime("1970-01-01 00:00:05.0"),
+        localDateTime("1970-01-01 00:00:04.999")),
+      row(2, 2, localDateTime("1970-01-01 00:00:00.0"), localDateTime("1970-01-01 00:00:10.0"),
+        localDateTime("1970-01-01 00:00:09.999")),
+      row(3, 1, localDateTime("1969-12-31 23:59:55.0"), localDateTime("1970-01-01 00:00:05.0"),
+        localDateTime("1970-01-01 00:00:04.999")),
+      row(3, 2, localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:15.0"),
+        localDateTime("1970-01-01 00:00:14.999")),
+      row(3, 3, localDateTime("1970-01-01 00:00:00.0"), localDateTime("1970-01-01 00:00:10.0"),
+        localDateTime("1970-01-01 00:00:09.999")),
+      row(4, 1, localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:20.0"),
+        localDateTime("1970-01-01 00:00:19.999")),
+      row(4, 3, localDateTime("1970-01-01 00:00:00.0"), localDateTime("1970-01-01 00:00:10.0"),
+        localDateTime("1970-01-01 00:00:09.999")),
+      row(4, 4, localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:15.0"),
+        localDateTime("1970-01-01 00:00:14.999")),
+      row(5, 1, localDateTime("1970-01-01 00:00:15.0"), localDateTime("1970-01-01 00:00:25.0"),
+        localDateTime("1970-01-01 00:00:24.999")),
+      row(5, 4, localDateTime("1970-01-01 00:00:05.0"), localDateTime("1970-01-01 00:00:15.0"),
+        localDateTime("1970-01-01 00:00:14.999")),
+      row(5, 5, localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:20.0"),
+        localDateTime("1970-01-01 00:00:19.999")),
+      row(6, 2, localDateTime("1970-01-01 00:00:20.0"), localDateTime("1970-01-01 00:00:30.0"),
+        localDateTime("1970-01-01 00:00:29.999")),
+      row(6, 4, localDateTime("1970-01-01 00:00:10.0"), localDateTime("1970-01-01 00:00:20.0"),
+        localDateTime("1970-01-01 00:00:19.999")),
+      row(6, 6, localDateTime("1970-01-01 00:00:15.0"), localDateTime("1970-01-01 00:00:25.0"),
+        localDateTime("1970-01-01 00:00:24.999"))))
   }
 
   @Test(expected = classOf[RuntimeException])
@@ -699,7 +728,7 @@ class WindowAggregateITCase extends BatchTestBase {
     registerCollection(
       "T",
       data3WithTimestamp,
-      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO, TIMESTAMP),
+      new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO, LOCAL_DATE_TIME),
       "a, b, c, ts")
 
     val sqlQuery =

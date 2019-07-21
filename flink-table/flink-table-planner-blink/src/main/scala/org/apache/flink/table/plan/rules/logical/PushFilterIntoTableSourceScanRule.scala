@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.rules.logical
 
-import org.apache.flink.table.api.PlannerConfigOptions
+import org.apache.flink.table.api.OptimizerConfigOptions
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.expressions.{Expression, RexNodeConverter}
 import org.apache.flink.table.plan.schema.{FlinkRelOptTable, TableSourceTable}
@@ -33,6 +33,7 @@ import org.apache.calcite.rel.core.Filter
 import org.apache.calcite.rel.logical.LogicalTableScan
 
 import java.util
+import java.util.TimeZone
 
 import scala.collection.JavaConversions._
 
@@ -46,7 +47,8 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val config = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-    if (!config.getConf.getBoolean(PlannerConfigOptions.SQL_OPTIMIZER_PREDICATE_PUSHDOWN_ENABLED)) {
+    if (!config.getConfiguration.getBoolean(
+      OptimizerConfigOptions.SQL_OPTIMIZER_PREDICATE_PUSHDOWN_ENABLED)) {
       return false
     }
 
@@ -88,7 +90,9 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
         maxCnfNodeCount,
         filter.getInput.getRowType.getFieldNames,
         relBuilder.getRexBuilder,
-        functionCatalog)
+        functionCatalog,
+        TimeZone.getTimeZone(scan.getCluster.getPlanner.getContext
+            .asInstanceOf[FlinkContext].getTableConfig.getLocalTimeZone))
 
     if (predicates.isEmpty) {
       // no condition can be translated to expression
@@ -135,7 +139,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
       FlinkStatistic.builder().statistic(statistic).tableStats(null).build()
     }
     val newTableSourceTable = new TableSourceTable(
-      newTableSource, tableSourceTable.isStreaming, newStatistic)
+      newTableSource, tableSourceTable.isStreamingMode, newStatistic)
     relOptTable.copy(newTableSourceTable, tableSourceTable.getRowType(typeFactory))
   }
 

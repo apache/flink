@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
 import org.apache.flink.api.java.typeutils.{RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableConfigOptions, Types}
+import org.apache.flink.table.api.{ExecutionConfigOptions, Types}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
@@ -40,8 +40,8 @@ import scala.util.Random
 class OverWindowITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+  override def before(): Unit = {
+    super.before()
     registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)
     registerCollection("ShuflledTable5",
       Random.shuffle(data5), type5, "sd, se, sf, sg, sh", nullablesOfData5)
@@ -1046,40 +1046,40 @@ class OverWindowITCase extends BatchTestBase {
           "FOLLOWING) FROM Table6",
       Seq(
         //  a  b      c       d            e             f
-        row(1, 1.1, "a", UTCDate("2017-04-08"), UTCTime("12:00:59"),
-          UTCTimestamp("2015-05-20 10:00:00"), 1, 1, 1, 1.1),
+        row(1, 1.1, "a", localDate("2017-04-08"), localTime("12:00:59"),
+          localDateTime("2015-05-20 10:00:00"), 1, 1, 1, 1.1),
 
-        row(2, 2.5, "abc", UTCDate("2017-04-09"), UTCTime("12:00:59"),
-          UTCTimestamp("2019-09-19 08:03:09"), 2, 1, 2, 2.5),
-        row(2, -2.4, "abcd", UTCDate("2017-04-08"), UTCTime("00:00:00"),
-          UTCTimestamp("2016-09-01 23:07:06"), 1, 2, 1, 2.5),
+        row(2, 2.5, "abc", localDate("2017-04-09"), localTime("12:00:59"),
+          localDateTime("2019-09-19 08:03:09"), 2, 1, 2, 2.5),
+        row(2, -2.4, "abcd", localDate("2017-04-08"), localTime("00:00:00"),
+          localDateTime("2016-09-01 23:07:06"), 1, 2, 1, 2.5),
 
-        row(3, -9.77, "ABC", UTCDate("2016-08-08"), UTCTime("04:15:00"),
-          UTCTimestamp("1999-12-12 10:00:02"), 1, 2, 2, -9.77),
-        row(3, 0.08, "BCD", UTCDate("2017-04-10"), UTCTime("02:30:00"),
-          UTCTimestamp("1999-12-12 10:03:00"), 2, 3, 3, 0.08),
-        row(3, 0.0, "abc?", UTCDate("2017-10-11"), UTCTime("23:59:59"),
-          UTCTimestamp("1999-12-12 10:00:00"), 3, 1, 1, 0.08),
+        row(3, -9.77, "ABC", localDate("2016-08-08"), localTime("04:15:00"),
+          localDateTime("1999-12-12 10:00:02"), 1, 2, 2, -9.77),
+        row(3, 0.08, "BCD", localDate("2017-04-10"), localTime("02:30:00"),
+          localDateTime("1999-12-12 10:03:00"), 2, 3, 3, 0.08),
+        row(3, 0.0, "abc?", localDate("2017-10-11"), localTime("23:59:59"),
+          localDateTime("1999-12-12 10:00:00"), 3, 1, 1, 0.08),
 
-        row(4, 3.14, "CDE", UTCDate("2017-11-11"), UTCTime("02:30:00"),
-          UTCTimestamp("2017-11-20 09:00:00"), 4, 4, 4, 3.14),
-        row(4, 3.15, "DEF", UTCDate("2017-02-06"), UTCTime("06:00:00"),
-          UTCTimestamp("2015-11-19 10:00:00"), 1, 3, 1, 3.15),
-        row(4, 3.14, "EFG", UTCDate("2017-05-20"), UTCTime("09:46:18"),
-          UTCTimestamp("2015-11-19 10:00:01"), 3, 2, 2, 3.15),
-        row(4, 3.16, "FGH", UTCDate("2017-05-19"), UTCTime("11:11:11"),
-          UTCTimestamp("2015-11-20 08:59:59"), 2, 1, 3, 3.16),
+        row(4, 3.14, "CDE", localDate("2017-11-11"), localTime("02:30:00"),
+          localDateTime("2017-11-20 09:00:00"), 4, 4, 4, 3.14),
+        row(4, 3.15, "DEF", localDate("2017-02-06"), localTime("06:00:00"),
+          localDateTime("2015-11-19 10:00:00"), 1, 3, 1, 3.15),
+        row(4, 3.14, "EFG", localDate("2017-05-20"), localTime("09:46:18"),
+          localDateTime("2015-11-19 10:00:01"), 3, 2, 2, 3.15),
+        row(4, 3.16, "FGH", localDate("2017-05-19"), localTime("11:11:11"),
+          localDateTime("2015-11-20 08:59:59"), 2, 1, 3, 3.16),
 
-        row(5, -5.9, "GHI", UTCDate("2017-07-20"), UTCTime("22:22:22"),
-          UTCTimestamp("1989-06-04 10:00:00.78"), 3, 1, 2, -5.9),
-        row(5, 2.71, "HIJ", UTCDate("2017-09-08"), UTCTime("20:09:09"),
-          UTCTimestamp("1997-07-01 09:00:00.99"), 4, 2, 3, 2.71),
-        row(5, 3.9, "IJK", UTCDate("2017-02-02"), UTCTime("03:03:03"),
-          UTCTimestamp("2000-01-01 00:00:00.09"), 1, 5, 4, 3.9),
-        row(5, 0.7, "JKL", UTCDate("2017-10-01"), UTCTime("19:00:00"),
-          UTCTimestamp("2010-06-01 10:00:00.999"), 5, 3, 5, 3.9),
-        row(5, -2.8, "KLM", UTCDate("2017-07-01"), UTCTime("12:00:59"),
-          UTCTimestamp("1937-07-07 08:08:08.888"), 2, 4, 1, 3.9)
+        row(5, -5.9, "GHI", localDate("2017-07-20"), localTime("22:22:22"),
+          localDateTime("1989-06-04 10:00:00.78"), 3, 1, 2, -5.9),
+        row(5, 2.71, "HIJ", localDate("2017-09-08"), localTime("20:09:09"),
+          localDateTime("1997-07-01 09:00:00.99"), 4, 2, 3, 2.71),
+        row(5, 3.9, "IJK", localDate("2017-02-02"), localTime("03:03:03"),
+          localDateTime("2000-01-01 00:00:00.09"), 1, 5, 4, 3.9),
+        row(5, 0.7, "JKL", localDate("2017-10-01"), localTime("19:00:00"),
+          localDateTime("2010-06-01 10:00:00.999"), 5, 3, 5, 3.9),
+        row(5, -2.8, "KLM", localDate("2017-07-01"), localTime("12:00:59"),
+          localDateTime("1937-07-07 08:08:08.888"), 2, 4, 1, 3.9)
       )
     )
   }
@@ -2030,21 +2030,21 @@ class OverWindowITCase extends BatchTestBase {
       "SELECT a,d, count(*) over (partition by a order by d RANGE between INTERVAL '0' DAY " +
           "FOLLOWING and INTERVAL '2' DAY FOLLOWING) FROM Table6",
       Seq(
-        row(1, UTCDate("2017-04-08"), 1),
-        row(2, UTCDate("2017-04-08"), 2),
-        row(2, UTCDate("2017-04-09"), 1),
-        row(3, UTCDate("2016-08-08"), 1),
-        row(3, UTCDate("2017-04-10"), 1),
-        row(3, UTCDate("2017-10-11"), 1),
-        row(4, UTCDate("2017-02-06"), 1),
-        row(4, UTCDate("2017-05-19"), 2),
-        row(4, UTCDate("2017-05-20"), 1),
-        row(4, UTCDate("2017-11-11"), 1),
-        row(5, UTCDate("2017-02-02"), 1),
-        row(5, UTCDate("2017-07-01"), 1),
-        row(5, UTCDate("2017-07-20"), 1),
-        row(5, UTCDate("2017-09-08"), 1),
-        row(5, UTCDate("2017-10-01"), 1)
+        row(1, localDate("2017-04-08"), 1),
+        row(2, localDate("2017-04-08"), 2),
+        row(2, localDate("2017-04-09"), 1),
+        row(3, localDate("2016-08-08"), 1),
+        row(3, localDate("2017-04-10"), 1),
+        row(3, localDate("2017-10-11"), 1),
+        row(4, localDate("2017-02-06"), 1),
+        row(4, localDate("2017-05-19"), 2),
+        row(4, localDate("2017-05-20"), 1),
+        row(4, localDate("2017-11-11"), 1),
+        row(5, localDate("2017-02-02"), 1),
+        row(5, localDate("2017-07-01"), 1),
+        row(5, localDate("2017-07-20"), 1),
+        row(5, localDate("2017-09-08"), 1),
+        row(5, localDate("2017-10-01"), 1)
       )
     )
   }

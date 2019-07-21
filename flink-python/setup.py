@@ -140,7 +140,7 @@ run sdist.
     scripts.append("pyflink/find_flink_home.py")
 
     setup(
-        name='pyflink',
+        name='apache-flink',
         version=VERSION,
         packages=['pyflink',
                   'pyflink.table',
@@ -170,7 +170,7 @@ run sdist.
         package_data={
             'pyflink': ['LICENSE', 'NOTICE', 'README.txt'],
             'pyflink.lib': ['*.jar'],
-            'pyflink.opt': ['*', '*/*'],
+            'pyflink.opt': ['*.*', '*/*'],
             'pyflink.conf': ['*'],
             'pyflink.log': ['*'],
             'pyflink.examples': ['*.py', '*/*.py'],

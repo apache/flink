@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.rules.physical.batch
 
 import org.apache.flink.table.JArrayList
-import org.apache.flink.table.api.{AggPhaseEnforcer, PlannerConfigOptions, TableConfig, TableException}
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BinaryRow
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
@@ -27,6 +27,8 @@ import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.util.{AggregateUtil, FlinkRelOptUtil}
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.table.util.AggregatePhaseStrategy
+import org.apache.flink.table.util.TableConfigUtils.getAggPhaseStrategy
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Aggregate
@@ -102,8 +104,8 @@ trait BatchExecAggRuleBase {
   protected def isTwoPhaseAggWorkable(
       aggFunctions: Array[UserDefinedFunction],
       tableConfig: TableConfig): Boolean = {
-    getAggEnforceStrategy(tableConfig) match {
-      case AggPhaseEnforcer.ONE_PHASE => false
+    getAggPhaseStrategy(tableConfig) match {
+      case AggregatePhaseStrategy.ONE_PHASE => false
       case _ => doAllSupportMerge(aggFunctions)
     }
   }
@@ -112,10 +114,10 @@ trait BatchExecAggRuleBase {
       agg: Aggregate,
       aggFunctions: Array[UserDefinedFunction],
       tableConfig: TableConfig): Boolean = {
-    getAggEnforceStrategy(tableConfig) match {
-      case AggPhaseEnforcer.ONE_PHASE => true
-      case AggPhaseEnforcer.TWO_PHASE => !doAllSupportMerge(aggFunctions)
-      case AggPhaseEnforcer.NONE =>
+    getAggPhaseStrategy(tableConfig) match {
+      case AggregatePhaseStrategy.ONE_PHASE => true
+      case AggregatePhaseStrategy.TWO_PHASE => !doAllSupportMerge(aggFunctions)
+      case AggregatePhaseStrategy.AUTO =>
         if (!doAllSupportMerge(aggFunctions)) {
           true
         } else {
@@ -138,19 +140,11 @@ trait BatchExecAggRuleBase {
   }
 
   protected def isEnforceOnePhaseAgg(tableConfig: TableConfig): Boolean = {
-    getAggEnforceStrategy(tableConfig) == AggPhaseEnforcer.ONE_PHASE
+    getAggPhaseStrategy(tableConfig) == AggregatePhaseStrategy.ONE_PHASE
   }
 
   protected def isEnforceTwoPhaseAgg(tableConfig: TableConfig): Boolean = {
-    getAggEnforceStrategy(tableConfig) == AggPhaseEnforcer.TWO_PHASE
-  }
-
-  protected def getAggEnforceStrategy(tableConfig: TableConfig): AggPhaseEnforcer.Value = {
-    val aggPrefConfig = tableConfig.getConf.getString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER)
-    AggPhaseEnforcer.values.find(_.toString.equalsIgnoreCase(aggPrefConfig))
-      .getOrElse(throw new IllegalArgumentException(
-        "Agg phase enforcer can only set to be: NONE, ONE_PHASE, TWO_PHASE!"))
+    getAggPhaseStrategy(tableConfig) == AggregatePhaseStrategy.TWO_PHASE
   }
 
   protected def isAggBufferFixedLength(agg: Aggregate): Boolean = {

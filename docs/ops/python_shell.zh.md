@@ -54,8 +54,7 @@ bin/pyflink-shell.sh local
 ...         os.remove(sink_path)
 ...     else:
 ...         shutil.rmtree(sink_path)
->>> st_config = TableConfig.Builder().set_parallelism(1).as_streaming_execution().build()
->>> st_env = TableEnvironment.create(st_config)
+>>> s_env.set_parallelism(1)
 >>> t = st_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
 >>> st_env.connect(FileSystem().path(sink_path))\
 ...     .with_format(OldCsv()
@@ -70,7 +69,7 @@ bin/pyflink-shell.sh local
 ...     .register_table_sink("stream_sink")
 >>> t.select("a + 1, b, c")\
 ...     .insert_into("stream_sink")
->>> st_env.execute()
+>>> st_env.execute("stream_job")
 >>> # 如果作业运行在local模式, 你可以执行以下代码查看结果:
 >>> with open(sink_path, 'r') as f:
 ...     print(f.read())
@@ -87,8 +86,7 @@ bin/pyflink-shell.sh local
 ...         os.remove(sink_path)
 ...     else:
 ...         shutil.rmtree(sink_path)
->>> bt_config = TableConfig.Builder().set_parallelism(1).as_batch_execution().build()
->>> bt_env = TableEnvironment.create(bt_config)
+>>> b_env.set_parallelism(1)
 >>> t = bt_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
 >>> bt_env.connect(FileSystem().path(sink_path))\
 ...     .with_format(OldCsv()
@@ -103,7 +101,7 @@ bin/pyflink-shell.sh local
 ...     .register_table_sink("batch_sink")
 >>> t.select("a + 1, b, c")\
 ...     .insert_into("batch_sink")
->>> bt_env.execute()
+>>> bt_env.execute("batch_job")
 >>> # 如果作业运行在local模式, 你可以执行以下代码查看结果:
 >>> with open(sink_path, 'r') as f:
 ...     print(f.read())

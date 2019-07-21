@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.api.{PlannerConfigOptions, TableException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
@@ -204,8 +204,8 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
     } else {
       val rexBuilder = rel.getCluster.getRexBuilder
       val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(rel)
-      val maxCnfNodeCount = tableConfig.getConf.getInteger(
-        PlannerConfigOptions.SQL_OPTIMIZER_CNF_NODES_LIMIT)
+      val maxCnfNodeCount = tableConfig.getConfiguration.getInteger(
+        FlinkRexUtil.SQL_OPTIMIZER_CNF_NODES_LIMIT)
       val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, predicate)
       val conjunctions = RelOptUtil.conjunctions(cnf)
       val conjunctionsWithoutExpandId = conjunctions.filterNot { c =>

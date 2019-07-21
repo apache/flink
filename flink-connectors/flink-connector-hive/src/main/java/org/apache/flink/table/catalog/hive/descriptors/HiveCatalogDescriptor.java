@@ -26,7 +26,7 @@ import org.apache.flink.util.StringUtils;
 
 import java.util.Map;
 
-import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HIVE_SITE_PATH;
+import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HIVE_CONF_DIR;
 import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HIVE_VERSION;
 import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_TYPE_VALUE_HIVE;
 
@@ -61,7 +61,7 @@ public class HiveCatalogDescriptor extends CatalogDescriptor {
 		final DescriptorProperties properties = new DescriptorProperties();
 
 		if (hiveSitePath != null) {
-			properties.putString(CATALOG_HIVE_SITE_PATH, hiveSitePath);
+			properties.putString(CATALOG_HIVE_CONF_DIR, hiveSitePath);
 		}
 
 		if (hiveVersion != null) {

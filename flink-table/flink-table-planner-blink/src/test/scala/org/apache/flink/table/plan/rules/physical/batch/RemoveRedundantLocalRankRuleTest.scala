@@ -18,6 +18,7 @@
 package org.apache.flink.table.plan.rules.physical.batch
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.{Before, Test}

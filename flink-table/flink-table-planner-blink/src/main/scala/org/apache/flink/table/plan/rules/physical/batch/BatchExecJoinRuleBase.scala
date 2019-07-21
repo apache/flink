@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.plan.rules.physical.batch
 
-import org.apache.flink.table.JDouble
-import org.apache.flink.table.api.PlannerConfigOptions
+import org.apache.flink.annotation.Experimental
+import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecLocalHashAggregate
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil}
@@ -28,6 +28,10 @@ import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableBitSet
+import org.apache.flink.configuration.ConfigOptions.key
+
+import java.lang.{Double => JDouble}
+import java.lang.{Boolean => JBoolean}
 
 trait BatchExecJoinRuleBase {
 
@@ -56,8 +60,8 @@ trait BatchExecJoinRuleBase {
       distinctKeys: Seq[Int]): Boolean = {
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(buildRel)
     val mq = buildRel.getCluster.getMetadataQuery
-    val ratioConf = tableConfig.getConf.getDouble(
-      PlannerConfigOptions.SQL_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO)
+    val ratioConf = tableConfig.getConfiguration.getDouble(
+      BatchExecJoinRuleBase.SQL_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO)
     val inputRows = mq.getRowCount(buildRel)
     val ndvOfGroupKey = mq.getDistinctRowCount(
       buildRel, ImmutableBitSet.of(distinctKeys: _*), null)
@@ -77,4 +81,28 @@ trait BatchExecJoinRuleBase {
       rowCount * FlinkRelMdUtil.binaryRowAverageSize(relNode)
     }
   }
+}
+object BatchExecJoinRuleBase {
+
+  // It is a experimental config, will may be removed later.
+  @Experimental
+  val SQL_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO: ConfigOption[JDouble] =
+    key("sql.optimizer.semi-anti-join.build-distinct.ndv-ratio")
+      .defaultValue(JDouble.valueOf(0.8))
+      .withDescription("In order to reduce the amount of data on semi/anti join's" +
+          " build side, we will add distinct node before semi/anti join when" +
+          "  the semi-side or semi/anti join can distinct a lot of data in advance." +
+          " We add this configuration to help the optimizer to decide whether to" +
+          " add the distinct.")
+
+  // It is a experimental config, will may be removed later.
+  @Experimental
+  val SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED: ConfigOption[JBoolean] =
+    key("sql.optimizer.shuffle.partial-key.enabled")
+        .defaultValue(JBoolean.valueOf(false))
+        .withDescription("Enables shuffling by partial partition keys. " +
+            "For example, A join with join condition: L.c1 = R.c1 and L.c2 = R.c2. " +
+            "If this flag is enabled, there are 3 shuffle strategy:\n " +
+            "1. L and R shuffle by c1 \n 2. L and R shuffle by c2\n " +
+            "3. L and R shuffle by c1 and c2\n It can reduce some shuffle cost someTimes.")
 }

@@ -42,6 +42,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
@@ -56,6 +58,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -231,6 +234,30 @@ public class SourceStreamTaskTest {
 			testHarness.getOutput());
 	}
 
+	/**
+	 * If finishing a task doesn't swallow exceptions this test would fail with an exception.
+	 */
+	@Test
+	public void finishingIgnoresExceptions() throws Exception {
+		final StreamTaskTestHarness<String> testHarness = new StreamTaskTestHarness<>(
+				SourceStreamTask::new,
+				BasicTypeInfo.STRING_TYPE_INFO);
+
+		final CompletableFuture<Void> operatorRunningWaitingFuture = new CompletableFuture<>();
+		ExceptionThrowingSource.setIsInRunLoopFuture(operatorRunningWaitingFuture);
+
+		testHarness.setupOutputForSingletonOperatorChain();
+		StreamConfig streamConfig = testHarness.getStreamConfig();
+		streamConfig.setStreamOperator(new StreamSource<>(new ExceptionThrowingSource()));
+		streamConfig.setOperatorID(new OperatorID());
+
+		testHarness.invoke();
+		operatorRunningWaitingFuture.get();
+		testHarness.getTask().finishTask();
+
+		testHarness.waitForTaskCompletion();
+	}
+
 	private static class MockSource implements SourceFunction<Tuple2<Long, Integer>>, ListCheckpointed<Serializable> {
 		private static final long serialVersionUID = 1;
 
@@ -404,6 +431,46 @@ public class SourceStreamTaskTest {
 
 		public static CompletableFuture<Void> getDataProcessing() {
 			return dataProcessing;
+		}
+	}
+
+	/**
+	 * A {@link SourceFunction} that throws an exception from {@link #run(SourceContext)} when it is
+	 * cancelled via {@link #cancel()}.
+	 */
+	private static class ExceptionThrowingSource implements SourceFunction<String> {
+
+		private static volatile CompletableFuture<Void> isInRunLoop;
+
+		private volatile boolean running = true;
+
+		public static class TestException extends RuntimeException {
+			public TestException(String message) {
+				super(message);
+			}
+		}
+
+		public static void setIsInRunLoopFuture(@Nonnull final CompletableFuture<Void> waitingLatch) {
+			ExceptionThrowingSource.isInRunLoop = waitingLatch;
+		}
+
+		@Override
+		public void run(SourceContext<String> ctx) throws TestException {
+			checkState(isInRunLoop != null && !isInRunLoop.isDone());
+
+			while (running) {
+				if (!isInRunLoop.isDone()) {
+					isInRunLoop.complete(null);
+				}
+				ctx.collect("hello");
+			}
+
+			throw new TestException("Oh no, we're failing.");
+		}
+
+		@Override
+		public void cancel() {
+			running = false;
 		}
 	}
 }

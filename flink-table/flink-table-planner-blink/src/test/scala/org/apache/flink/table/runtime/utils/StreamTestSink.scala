@@ -48,8 +48,6 @@ import _root_.scala.collection.mutable.ArrayBuffer
 
 object StreamTestSink {
 
-  TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
-
   private[utils] val idCounter: AtomicInteger = new AtomicInteger(0)
 
   private[utils] val globalResults =

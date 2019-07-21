@@ -1557,7 +1557,7 @@
       }
     }
   }, {
-    "url" : "/jobs/:jobid/stop-with-savepoint",
+    "url" : "/jobs/:jobid/stop",
     "method" : "POST",
     "status-code" : "202 Accepted",
     "file-upload" : false,
@@ -1576,7 +1576,7 @@
         "targetDirectory" : {
           "type" : "string"
         },
-        "endOfEventTime" : {
+        "drain" : {
           "type" : "boolean"
         }
       }

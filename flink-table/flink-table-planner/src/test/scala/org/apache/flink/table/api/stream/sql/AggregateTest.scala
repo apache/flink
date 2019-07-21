@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.api.{TableConfig, Types}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
 import org.apache.flink.table.delegation.{Executor, Planner}
 import org.apache.flink.table.functions.{AggregateFunction, AggregateFunctionDefinition}
 import org.apache.flink.table.utils.TableTestUtil.{streamTableNode, term, unaryNode}
@@ -66,14 +66,19 @@ class AggregateTest extends TableTestBase {
 
   @Test
   def testUserDefinedAggregateFunctionWithScalaAccumulator(): Unit = {
-    val functionCatalog = new FunctionCatalog("cat", "db")
+    val defaultCatalog = "default_catalog"
+    val catalogManager = new CatalogManager(
+      defaultCatalog, new GenericInMemoryCatalog(defaultCatalog, "default_database"))
+
+    val functionCatalog = new FunctionCatalog(catalogManager)
     val tablEnv = new StreamTableEnvironmentImpl(
-      Mockito.mock(classOf[CatalogManager]),
+      catalogManager,
       functionCatalog,
       new TableConfig,
       Mockito.mock(classOf[StreamExecutionEnvironment]),
       Mockito.mock(classOf[Planner]),
-      Mockito.mock(classOf[Executor])
+      Mockito.mock(classOf[Executor]),
+      true
     )
 
     tablEnv.registerFunction("udag", new MyAgg)

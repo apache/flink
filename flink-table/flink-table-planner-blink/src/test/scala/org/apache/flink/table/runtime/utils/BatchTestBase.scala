@@ -20,32 +20,30 @@ package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.Tuple
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaExecEnv}
-import org.apache.flink.table.api.java.{BatchTableEnvironment => JavaBatchTableEnv}
-import org.apache.flink.table.api.scala.{BatchTableEnvironment => ScalaBatchTableEnv}
-import org.apache.flink.table.api.{SqlParserException, Table, TableConfig, TableConfigOptions, TableEnvironment, TableImpl}
-import org.apache.flink.table.dataformat.{BinaryRow, BinaryRowWriter}
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.streaming.api.transformations.ShuffleMode
+import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableImpl}
+import org.apache.flink.table.api.{EnvironmentSettings, ExecutionConfigOptions, SqlParserException, Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
+import org.apache.flink.table.planner.PlannerBase
 import org.apache.flink.table.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
-import org.apache.flink.table.types.logical.LogicalType
-import org.apache.flink.table.util.{BaseRowTestUtil, DiffRepository, TableTestUtil}
+import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.util.{BaseRowTestUtil, TableTestUtil, TestingTableEnvironment}
 import org.apache.flink.types.Row
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.parser.SqlParseException
-import org.apache.commons.lang3.SystemUtils
 import org.junit.Assert._
-import org.junit.rules.TestName
-import org.junit.{Assert, Rule}
+import org.junit.{Assert, Before}
 
 import java.lang.{Iterable => JIterable}
-import java.util.TimeZone
 import java.util.regex.Pattern
 
 import scala.collection.JavaConverters._
@@ -55,26 +53,33 @@ import scala.util.Sorting
 
 class BatchTestBase extends BatchAbstractTestBase {
 
-  TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
-  val conf: TableConfig = BatchTestBase.initConfigForTest(new TableConfig)
-  val jobConfig = new Configuration()
-  val env: ScalaExecEnv = generatorScalaTestEnv
-  val javaEnv: StreamExecutionEnvironment = generatorTestEnv
+  private val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
+  private val testingTableEnv: TestingTableEnvironment = TestingTableEnvironment.create(settings)
+  val tEnv: TableEnvironment = testingTableEnv
+  private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+  val env: StreamExecutionEnvironment = planner.getExecEnv
   env.getConfig.enableObjectReuse()
-  val tEnv: ScalaBatchTableEnv = TableEnvironment.getBatchTableEnvironment(env, conf)
-  val javaTableEnv: JavaBatchTableEnv = TableEnvironment.getBatchTableEnvironment(javaEnv, conf)
+  val conf: TableConfig = tEnv.getConfig
+
   val LINE_COL_PATTERN: Pattern = Pattern.compile("At line ([0-9]+), column ([0-9]+)")
   val LINE_COL_TWICE_PATTERN: Pattern = Pattern.compile("(?s)From line ([0-9]+),"
-      + " column ([0-9]+) to line ([0-9]+), column ([0-9]+): (.*)")
+    + " column ([0-9]+) to line ([0-9]+), column ([0-9]+): (.*)")
 
-  private lazy val diffRepository = DiffRepository.lookup(this.getClass)
-  val testName: TestName = new TestName
-
-  @Rule
-  def name: TestName = testName
+  @Before
+  def before(): Unit = {
+    conf.getConfiguration.setInteger(
+      ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
+    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
+    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM, 2)
+    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
+    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM, 1)
+    conf.getConfiguration.setString(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE,
+      ShuffleMode.PIPELINED.toString)
+  }
 
   /**
     * Explain ast tree nodes of table and the logical plan after optimization.
+    *
     * @param table table to explain for
     * @return string presentation of of explaining
     */
@@ -83,24 +88,20 @@ class BatchTestBase extends BatchAbstractTestBase {
     val logicalPlan = getPlan(ast)
 
     s"== Abstract Syntax Tree ==" +
-        System.lineSeparator +
-        s"${FlinkRelOptUtil.toString(ast)}" +
-        System.lineSeparator +
-        s"== Optimized Logical Plan ==" +
-        System.lineSeparator +
-        s"$logicalPlan"
-  }
-
-  protected def generatorTestEnv: StreamExecutionEnvironment = {
-    StreamExecutionEnvironment.getExecutionEnvironment
-  }
-
-  protected def generatorScalaTestEnv: ScalaExecEnv = {
-    ScalaExecEnv.getExecutionEnvironment
+      System.lineSeparator +
+      s"${FlinkRelOptUtil.toString(ast)}" +
+      System.lineSeparator +
+      s"== Optimized Logical Plan ==" +
+      System.lineSeparator +
+      s"$logicalPlan"
   }
 
   def checkResult(sqlQuery: String, expectedResult: Seq[Row], isSorted: Boolean = false): Unit = {
     check(sqlQuery, (result: Seq[Row]) => checkSame(expectedResult, result, isSorted))
+  }
+
+  def checkTableResult(table: Table, expectedResult: Seq[Row], isSorted: Boolean = false): Unit = {
+    checkTable(table, (result: Seq[Row]) => checkSame(expectedResult, result, isSorted))
   }
 
   def checkSize(sqlQuery: String, expectedSize: Int): Unit = {
@@ -112,9 +113,9 @@ class BatchTestBase extends BatchAbstractTestBase {
              |${
             sideBySide(
               s"== Correct Result - $expectedSize ==" +:
-                  prepareResult(Seq(), isSorted = false),
+                prepareResult(Seq(), isSorted = false),
               s"== Actual Result - ${result.size} ==" +:
-                  prepareResult(result, isSorted = false)).mkString("\n")
+                prepareResult(result, isSorted = false)).mkString("\n")
           }
         """.stripMargin
         Some(errorMessage)
@@ -122,40 +123,9 @@ class BatchTestBase extends BatchAbstractTestBase {
     })
   }
 
-  def verifyPlanAndCheckResult(
-      sqlQuery: String,
-      expectedResult: Seq[Row],
-      isSorted: Boolean = false): Unit = {
-    verifyPlan(sqlQuery)
-    checkResult(sqlQuery, expectedResult, isSorted)
-  }
-
-  def verifyPlan(sqlQuery: String): Unit = verifyPlan(parseQuery(sqlQuery))
-
-  def verifyPlan(table: Table): Unit = {
-    val relNode = TableTestUtil.toRelNode(table)
-    val actual = SystemUtils.LINE_SEPARATOR + getPlan(relNode)
-    assertEqualsOrExpand("planAfter", actual.toString, expand = false)
-  }
-
-  private def assertEqualsOrExpand(tag: String, actual: String, expand: Boolean = true): Unit = {
-    val expected = s"$${$tag}"
-    if (!expand) {
-      diffRepository.assertEquals(this.name.getMethodName, tag, expected, actual)
-      return
-    }
-    val expanded = diffRepository.expand(this.name.getMethodName, tag, expected)
-    if (expanded != null && !expanded.equals(expected)) {
-      // expected does exist, check result
-      diffRepository.assertEquals(this.name.getMethodName, tag, expected, actual)
-    } else {
-      // expected does not exist, update
-      diffRepository.expand(this.name.getMethodName, tag, actual)
-    }
-  }
-
   private def getPlan(relNode: RelNode): String = {
-    val optimized = tEnv.optimize(relNode)
+    val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
+    val optimized = planner.optimize(relNode)
     FlinkRelOptUtil.toString(optimized, SqlExplainLevel.EXPPLAN_ATTRIBUTES)
   }
 
@@ -176,15 +146,30 @@ class BatchTestBase extends BatchAbstractTestBase {
     }
   }
 
+  def checkTable(table: Table, checkFunc: (Seq[Row]) => Option[String]): Unit = {
+    val result = executeQuery(table)
+
+    checkFunc(result).foreach { results =>
+      val plan = explainLogical(table)
+      Assert.fail(
+        s"""
+           |Results do not match:
+           |$results
+           |Plan:
+           |  $plan
+       """.stripMargin)
+    }
+  }
+
   def checkFailed(sqlQuery: String, expectedMsgPattern: String): Unit = {
-    try{
+    try {
       val table = parseQuery(sqlQuery)
       val _ = executeQuery(table)
       // If got here, no exception is thrown.
       if (expectedMsgPattern != null) {
         throw new AssertionError(s"Expected query to throw exception, but it did not;"
-            + s" query [$sqlQuery ];"
-            + s" expected [$expectedMsgPattern]")
+          + s" query [$sqlQuery ];"
+          + s" expected [$expectedMsgPattern]")
       }
     } catch {
       case spe: SqlParserException =>
@@ -193,7 +178,7 @@ class BatchTestBase extends BatchAbstractTestBase {
           throw new RuntimeException(s"Error while parsing query: $sqlQuery", spe)
         } else if (null == errMsg || !errMsg.matches(expectedMsgPattern)) {
           throw new RuntimeException(s"Error did not match expected [$expectedMsgPattern] while "
-              + s"parsing query [$sqlQuery]", spe)
+            + s"parsing query [$sqlQuery]", spe)
         }
       case thrown: Throwable =>
         var actualExp = thrown
@@ -273,19 +258,19 @@ class BatchTestBase extends BatchAbstractTestBase {
         if (null == expectedMsgPattern) {
           actualExp.printStackTrace()
           fail(s"Validator threw unexpected exception; query [$sqlQuery];" +
-              s" exception [$actualMsg]; class [$actualExp.getClass];" +
-              s" pos [line $actualLine col $actualColumn thru line $actualLine col $actualColumn]")
+            s" exception [$actualMsg]; class [$actualExp.getClass];" +
+            s" pos [line $actualLine col $actualColumn thru line $actualLine col $actualColumn]")
         }
         if (actualMsg == null || !actualMsg.matches(expectedMsgPattern)) {
           actualExp.printStackTrace()
           fail(s"Validator threw different "
-              + s"exception than expected; query [$sqlQuery];\n"
-              + s" expected pattern [$expectedMsgPattern];\n"
-              + s" actual [$actualMsg];\n"
-              + s" pos [$actualLine"
-              + s" col $actualColumn"
-              + s" thru line $actualEndLine"
-              + s" col $actualEndColumn].")
+            + s"exception than expected; query [$sqlQuery];\n"
+            + s" expected pattern [$expectedMsgPattern];\n"
+            + s" actual [$actualMsg];\n"
+            + s" pos [$actualLine"
+            + s" col $actualColumn"
+            + s" thru line $actualEndLine"
+            + s" col $actualEndColumn].")
         }
     }
   }
@@ -312,12 +297,6 @@ class BatchTestBase extends BatchAbstractTestBase {
     executeQuery(table)
   }
 
-  def explainQuery(sqlQuery: String): Unit = {
-    val table = parseQuery(sqlQuery)
-    executeQuery(table)
-    tEnv.explain(table)
-  }
-
   private def prepareResult(seq: Seq[Row], isSorted: Boolean) = {
     if (!isSorted) seq.map(_.toString).sortBy(s => s) else seq.map(_.toString)
   }
@@ -327,16 +306,16 @@ class BatchTestBase extends BatchAbstractTestBase {
       result: Seq[Row],
       isSorted: Boolean = false): Option[String] = {
     if (expectedResult.size != result.size
-        || !prepareResult(expectedResult, isSorted).equals(prepareResult(result, isSorted))) {
+      || !prepareResult(expectedResult, isSorted).equals(prepareResult(result, isSorted))) {
       val errorMessage =
         s"""
            |Results
            |${
           sideBySide(
             s"== Correct Result - ${expectedResult.size} ==" +:
-                prepareResult(expectedResult, isSorted),
+              prepareResult(expectedResult, isSorted),
             s"== Actual Result - ${result.size} ==" +:
-                prepareResult(result, isSorted)).mkString("\n")
+              prepareResult(result, isSorted)).mkString("\n")
         }
         """.stripMargin
       Some(errorMessage)
@@ -356,7 +335,7 @@ class BatchTestBase extends BatchAbstractTestBase {
     leftPadded.zip(rightPadded).map {
       case (l, r) =>
         (if (l == r || l.startsWith("== Correct")) " " else "!") +
-            l + (" " * ((maxLeftSize - l.length) + 3)) + r
+          l + (" " * ((maxLeftSize - l.length) + 3)) + r
     }
   }
 
@@ -367,14 +346,6 @@ class BatchTestBase extends BatchAbstractTestBase {
       fields: String): Unit = {
 
     BatchTableEnvUtil.registerCollection(tEnv, tableName, data, typeInfo, fields)
-  }
-
-  implicit def registerCollectionOfJavaTableEnv(
-      tableName: String,
-      data: Iterable[Row],
-      typeInfo: TypeInformation[Row],
-      fields: String): Unit = {
-    BatchTableEnvUtil.registerCollection(javaTableEnv, tableName, data, typeInfo, fields)
   }
 
   def registerJavaCollection[T](
@@ -406,10 +377,34 @@ class BatchTestBase extends BatchAbstractTestBase {
       tEnv, tableName, data, typeInfo, fields, fieldNullables, Some(statistic))
   }
 
+  def registerFunction(name: String, function: ScalarFunction): Unit = {
+    testingTableEnv.registerFunction(name, function)
+  }
+
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       f: AggregateFunction[T, ACC]): Unit = {
-    tEnv.registerFunction(name, f)
+    testingTableEnv.registerFunction(name, f)
+  }
+
+  def registerFunction[T: TypeInformation](name: String, tf: TableFunction[T]): Unit = {
+    testingTableEnv.registerFunction(name, tf)
+  }
+
+  def registerRange(name: String, end: Long): Unit = {
+    registerRange(name, 0, end)
+  }
+
+  def registerRange(name: String, start: Long, end: Long): Unit = {
+    BatchTableEnvUtil.registerBoundedStreamInternal(
+      tEnv, name, newRangeSource(start, end), Some[Array[String]](Array[String]("id")), None, None)
+  }
+
+  def newRangeSource(start: Long, end: Long): DataStream[BaseRow] = {
+    val typeInfo: TypeInformation[BaseRow] = new BaseRowTypeInfo(new BigIntType)
+    val boundedStream = env.createInput(new RangeInputFormat(start, end), typeInfo)
+    boundedStream.setParallelism(1)
+    boundedStream
   }
 }
 
@@ -442,16 +437,6 @@ object BatchTestBase {
     row
   }
 
-  def initConfigForTest(conf: TableConfig): TableConfig = {
-    // TODO prepare for some resource config
-    conf.getConf.setInteger(
-      TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM, 1)
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
-    conf
-  }
-
   def compareResult[T](expectedStrings: Array[String],
       result: Array[T],
       sort: Boolean,
@@ -463,7 +448,8 @@ object BatchTestBase {
           val first: Any = t0.getField(0)
           val bld: StringBuilder = new StringBuilder(if (first == null) "null" else first.toString)
           (1 until t0.getArity).foreach {
-            idx => val next = t0.getField(idx)
+            idx =>
+              val next = t0.getField(idx)
               bld.append(',').append(if (next == null) "null" else next.toString)
               resultStringsBuffer += bld.toString()
           }
@@ -482,11 +468,11 @@ object BatchTestBase {
       Sorting.quickSort(resultStrings)
     }
     val msg = s"Different elements in arrays: expected ${expectedStrings.length} elements " +
-        s"and received ${resultStrings.length}\n " +
-        s"expected: ${expectedStrings.mkString}\n " +
-        s"received: ${resultStrings.mkString}"
+      s"and received ${resultStrings.length}\n " +
+      s"expected: ${expectedStrings.mkString}\n " +
+      s"received: ${resultStrings.mkString}"
     assertEquals(msg, expectedStrings.length, resultStrings.length)
-    expectedStrings.zip(resultStrings).foreach{
+    expectedStrings.zip(resultStrings).foreach {
       case (e, r) =>
         assertEquals(msg, e, r)
     }

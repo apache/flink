@@ -20,7 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.BufferPoolFactory;
@@ -46,33 +46,39 @@ public class ResultPartitionFactory {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ResultPartitionFactory.class);
 
-	private static final BoundedBlockingSubpartitionType BOUNDED_BLOCKING_TYPE = getBoundedBlockingType();
-
 	@Nonnull
 	private final ResultPartitionManager partitionManager;
 
 	@Nonnull
-	private final IOManager ioManager;
+	private final FileChannelManager channelManager;
 
 	@Nonnull
 	private final BufferPoolFactory bufferPoolFactory;
+
+	private final BoundedBlockingSubpartitionType blockingSubpartitionType;
 
 	private final int networkBuffersPerChannel;
 
 	private final int floatingNetworkBuffersPerGate;
 
+	private final int networkBufferSize;
+
 	public ResultPartitionFactory(
 		@Nonnull ResultPartitionManager partitionManager,
-		@Nonnull IOManager ioManager,
+		@Nonnull FileChannelManager channelManager,
 		@Nonnull BufferPoolFactory bufferPoolFactory,
+		BoundedBlockingSubpartitionType blockingSubpartitionType,
 		int networkBuffersPerChannel,
-		int floatingNetworkBuffersPerGate) {
+		int floatingNetworkBuffersPerGate,
+		int networkBufferSize) {
 
 		this.partitionManager = partitionManager;
-		this.ioManager = ioManager;
+		this.channelManager = channelManager;
 		this.networkBuffersPerChannel = networkBuffersPerChannel;
 		this.floatingNetworkBuffersPerGate = floatingNetworkBuffersPerGate;
 		this.bufferPoolFactory = bufferPoolFactory;
+		this.blockingSubpartitionType = blockingSubpartitionType;
+		this.networkBufferSize = networkBufferSize;
 	}
 
 	public ResultPartition create(
@@ -119,7 +125,7 @@ public class ResultPartitionFactory {
 				partitionManager,
 				bufferPoolFactory);
 
-		createSubpartitions(partition, type, subpartitions, this.bufferPoolFactory.getBufferSize());
+		createSubpartitions(partition, type, blockingSubpartitionType, subpartitions);
 
 		LOG.debug("{}: Initialized {}", taskNameWithSubtaskAndId, this);
 
@@ -129,13 +135,13 @@ public class ResultPartitionFactory {
 	private void createSubpartitions(
 			ResultPartition partition,
 			ResultPartitionType type,
-			ResultSubpartition[] subpartitions,
-			int networkBufferSize) {
+			BoundedBlockingSubpartitionType blockingSubpartitionType,
+			ResultSubpartition[] subpartitions) {
 
 		// Create the subpartitions.
 		switch (type) {
 			case BLOCKING:
-				initializeBoundedBlockingPartitions(subpartitions, partition, ioManager, networkBufferSize);
+				initializeBoundedBlockingPartitions(subpartitions, partition, blockingSubpartitionType, networkBufferSize, channelManager);
 				break;
 
 			case PIPELINED:
@@ -154,14 +160,15 @@ public class ResultPartitionFactory {
 	private static void initializeBoundedBlockingPartitions(
 		ResultSubpartition[] subpartitions,
 		ResultPartition parent,
-		IOManager ioManager,
-		int networkBufferSize) {
+		BoundedBlockingSubpartitionType blockingSubpartitionType,
+		int networkBufferSize,
+		FileChannelManager channelManager) {
 
 		int i = 0;
 		try {
 			for (; i < subpartitions.length; i++) {
-				final File spillFile = ioManager.createChannel().getPathFile();
-				subpartitions[i] = BOUNDED_BLOCKING_TYPE.create(i, parent, spillFile, networkBufferSize);
+				final File spillFile = channelManager.createChannel().getPathFile();
+				subpartitions[i] = blockingSubpartitionType.create(i, parent, spillFile, networkBufferSize);
 			}
 		}
 		catch (IOException e) {
@@ -198,7 +205,7 @@ public class ResultPartitionFactory {
 		};
 	}
 
-	private static BoundedBlockingSubpartitionType getBoundedBlockingType() {
+	static BoundedBlockingSubpartitionType getBoundedBlockingType() {
 		switch (MemoryArchitecture.get()) {
 			case _64_BIT:
 				return BoundedBlockingSubpartitionType.FILE_MMAP;

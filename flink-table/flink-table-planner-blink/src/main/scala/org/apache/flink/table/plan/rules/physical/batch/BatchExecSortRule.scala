@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.plan.rules.physical.batch
 
-import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.annotation.Experimental
+import org.apache.flink.configuration.ConfigOption
+import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -28,6 +30,8 @@ import org.apache.flink.table.plan.nodes.physical.batch.BatchExecSort
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
+
+import java.lang.{Boolean => JBoolean}
 
 /**
   * Rule that matches [[FlinkLogicalSort]] which sort fields is non-empty and both `fetch` and
@@ -49,7 +53,8 @@ class BatchExecSortRule extends ConverterRule(
     val sort: FlinkLogicalSort = rel.asInstanceOf[FlinkLogicalSort]
     val input = sort.getInput
     val config = sort.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-    val enableRangeSort = config.getConf.getBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED)
+    val enableRangeSort = config.getConfiguration.getBoolean(
+      BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED)
     val distribution = if (enableRangeSort) {
       FlinkRelDistribution.range(sort.getCollation.getFieldCollations)
     } else {
@@ -73,4 +78,13 @@ class BatchExecSortRule extends ConverterRule(
 
 object BatchExecSortRule {
   val INSTANCE: RelOptRule = new BatchExecSortRule
+
+  // It is a experimental config, will may be removed later.
+  @Experimental
+  val SQL_EXEC_SORT_RANGE_ENABLED: ConfigOption[JBoolean] =
+  key("sql.exec.sort.range.enabled")
+      .defaultValue(JBoolean.valueOf(false))
+      .withDescription("Sets whether to enable range sort, use range sort to sort all data in" +
+          " several partitions. When it is false, sorting in only one partition")
+
 }

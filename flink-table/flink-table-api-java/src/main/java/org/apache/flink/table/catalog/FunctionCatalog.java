@@ -21,6 +21,10 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
+import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
+import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -33,27 +37,41 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedAggregateFunction;
 import org.apache.flink.table.functions.UserFunctionsTypeHelper;
+import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Simple function catalog to store {@link FunctionDefinition}s in memory.
+ * Simple function catalog to store {@link FunctionDefinition}s in catalogs.
  */
 @Internal
 public class FunctionCatalog implements FunctionLookup {
 
-	private final String defaultCatalogName;
+	private final CatalogManager catalogManager;
 
-	private final String defaultDatabaseName;
-
+	// For simplicity, currently hold registered Flink functions in memory here
+	// TODO: should move to catalog
 	private final Map<String, FunctionDefinition> userFunctions = new LinkedHashMap<>();
 
-	public FunctionCatalog(String defaultCatalogName, String defaultDatabaseName) {
-		this.defaultCatalogName = defaultCatalogName;
-		this.defaultDatabaseName = defaultDatabaseName;
+	/**
+	 * Temporary utility until the new type inference is fully functional. It needs to be set by the planner.
+	 */
+	private PlannerTypeInferenceUtil plannerTypeInferenceUtil;
+
+	public FunctionCatalog(CatalogManager catalogManager) {
+		this.catalogManager = checkNotNull(catalogManager);
+	}
+
+	public void setPlannerTypeInferenceUtil(PlannerTypeInferenceUtil plannerTypeInferenceUtil) {
+		this.plannerTypeInferenceUtil = plannerTypeInferenceUtil;
 	}
 
 	public void registerScalarFunction(String name, ScalarFunction function) {
@@ -116,14 +134,61 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	public String[] getUserDefinedFunctions() {
-		return userFunctions.values().stream()
-			.map(FunctionDefinition::toString)
-			.toArray(String[]::new);
+		List<String> result = new ArrayList<>();
+
+		// Get functions in catalog
+		Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
+		try {
+			result.addAll(catalog.listFunctions(catalogManager.getCurrentDatabase()));
+		} catch (DatabaseNotExistException e) {
+			// Ignore since there will always be a current database of the current catalog
+		}
+
+		// Get functions registered in memory
+		result.addAll(
+			userFunctions.values().stream()
+				.map(FunctionDefinition::toString)
+				.collect(Collectors.toList()));
+
+		return result.stream()
+			.collect(Collectors.toList())
+			.toArray(new String[0]);
 	}
 
 	@Override
 	public Optional<FunctionLookup.Result> lookupFunction(String name) {
-		final FunctionDefinition userCandidate = userFunctions.get(normalizeName(name));
+		String functionName = normalizeName(name);
+
+		FunctionDefinition userCandidate;
+
+		Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
+
+		try {
+			CatalogFunction catalogFunction = catalog.getFunction(
+				new ObjectPath(catalogManager.getCurrentDatabase(), functionName));
+
+			if (catalog.getTableFactory().isPresent() &&
+				catalog.getTableFactory().get() instanceof FunctionDefinitionFactory) {
+
+				FunctionDefinitionFactory factory = (FunctionDefinitionFactory) catalog.getTableFactory().get();
+
+				userCandidate = factory.createFunctionDefinition(functionName, catalogFunction);
+
+				return Optional.of(
+					new FunctionLookup.Result(
+						ObjectIdentifier.of(catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase(), name),
+						userCandidate)
+				);
+			} else {
+				// TODO: should go thru function definition discover service
+			}
+		} catch (FunctionNotExistException e) {
+			// Ignore
+		}
+
+		// If no corresponding function is found in catalog, check in-memory functions
+		userCandidate = userFunctions.get(functionName);
+
 		final Optional<FunctionDefinition> foundDefinition;
 		if (userCandidate != null) {
 			foundDefinition = Optional.of(userCandidate);
@@ -136,18 +201,29 @@ public class FunctionCatalog implements FunctionLookup {
 
 			foundDefinition = BuiltInFunctionDefinitions.getDefinitions()
 				.stream()
-				.filter(f -> normalizeName(name).equals(normalizeName(f.getName())))
+				.filter(f -> functionName.equals(normalizeName(f.getName())))
 				.findFirst()
 				.map(Function.identity());
 		}
 
+		String defaultCatalogName = catalogManager.getDefaultCatalogName();
+
 		return foundDefinition.map(definition -> new FunctionLookup.Result(
-			ObjectIdentifier.of(defaultCatalogName, defaultDatabaseName, name),
+			ObjectIdentifier.of(defaultCatalogName, catalogManager.getCatalog(defaultCatalogName).get().getDefaultDatabase(), name),
 			definition)
 		);
 	}
 
+	@Override
+	public PlannerTypeInferenceUtil getPlannerTypeInferenceUtil() {
+		Preconditions.checkNotNull(
+			plannerTypeInferenceUtil,
+			"A planner should have set the type inference utility.");
+		return plannerTypeInferenceUtil;
+	}
+
 	private void registerFunction(String name, FunctionDefinition functionDefinition) {
+		// TODO: should register to catalog
 		userFunctions.put(normalizeName(name), functionDefinition);
 	}
 

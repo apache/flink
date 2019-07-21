@@ -19,7 +19,8 @@
 package org.apache.flink.table.runtime.batch.sql.agg
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{TableConfigOptions, TableException, Types}
+import org.apache.flink.table.api.ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS
+import org.apache.flink.table.api.{TableException, Types}
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram, FlinkGroupProgramBuilder, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.plan.rules.logical.{AggregateReduceGroupingRule, FlinkAggregateJoinTransposeRule}
@@ -27,6 +28,7 @@ import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
+import org.apache.flink.table.util.TableConfigUtils
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules._
@@ -39,8 +41,9 @@ import scala.collection.Seq
 class AggregateJoinTransposeITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
-    val programs = FlinkBatchProgram.buildProgram(tEnv.getConfig.getConf)
+  override def before(): Unit = {
+    super.before()
+    val programs = FlinkBatchProgram.buildProgram(tEnv.getConfig.getConfiguration)
     // remove FlinkAggregateJoinTransposeRule from logical program (volcano planner)
     programs.getFlinkRuleSetProgram(FlinkBatchProgram.LOGICAL)
       .getOrElse(throw new TableException(s"${FlinkBatchProgram.LOGICAL} does not exist"))
@@ -70,13 +73,13 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
             )).build(), "aggregate join transpose")
         .build()
     )
-    val calciteConfig = CalciteConfig.createBuilder(tEnv.getConfig.getCalciteConfig)
+    var calciteConfig = TableConfigUtils.getCalciteConfig(tEnv.getConfig)
+    calciteConfig = CalciteConfig.createBuilder(calciteConfig)
       .replaceBatchProgram(programs).build()
-    tEnv.getConfig.setCalciteConfig(calciteConfig)
+    tEnv.getConfig.setPlannerConfig(calciteConfig)
 
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
     // HashJoin is disabled due to translateToPlanInternal method is not implemented yet
-    tEnv.getConfig.getConf.setString(TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin")
+    tEnv.getConfig.getConfiguration.setString(SQL_EXEC_DISABLED_OPERATORS, "HashJoin")
     registerCollection("T3", data3, type3, "a, b, c", nullablesOfData3)
 
     registerCollection("MyTable",

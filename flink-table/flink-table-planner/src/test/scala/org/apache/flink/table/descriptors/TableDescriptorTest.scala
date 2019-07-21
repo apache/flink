@@ -56,7 +56,7 @@ class TableDescriptorTest extends TableTestBase {
     //  schema.field("proctime", Types.SQL_TIMESTAMP).proctime()
     //}
 
-    val connector = FileSystem()
+    val connector = new FileSystem()
       .path("/path/to/csv")
 
     val format = OldCsv()

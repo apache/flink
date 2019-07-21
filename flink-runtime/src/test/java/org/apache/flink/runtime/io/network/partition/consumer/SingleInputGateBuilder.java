@@ -21,23 +21,19 @@ package org.apache.flink.runtime.io.network.partition.consumer;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
-import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider.ResponseHandle;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.util.function.SupplierWithException;
 
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Utility class to encapsulate the logic of building a {@link SingleInputGate} instance.
  */
 public class SingleInputGateBuilder {
 
-	private static final CompletableFuture<ResponseHandle> NO_OP_PRODUCER_CHECKER_RESULT = new CompletableFuture<>();
-
-	public static final PartitionProducerStateProvider NO_OP_PRODUCER_CHECKER = (dsid, id) -> NO_OP_PRODUCER_CHECKER_RESULT;
+	public static final PartitionProducerStateProvider NO_OP_PRODUCER_CHECKER = (dsid, id, consumer) -> {};
 
 	private final IntermediateDataSetID intermediateDataSetID = new IntermediateDataSetID();
 
@@ -84,6 +80,11 @@ public class SingleInputGateBuilder {
 			config.floatingNetworkBuffersPerGate(),
 			numberOfChannels,
 			partitionType);
+		return this;
+	}
+
+	public SingleInputGateBuilder setBufferPoolFactory(BufferPool bufferPool) {
+		this.bufferPoolFactory = () -> bufferPool;
 		return this;
 	}
 

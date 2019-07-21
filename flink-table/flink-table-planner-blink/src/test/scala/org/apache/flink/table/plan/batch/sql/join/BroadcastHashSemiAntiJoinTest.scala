@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.batch.sql.join
 
-import org.apache.flink.table.api.{PlannerConfigOptions, TableConfigOptions, TableException}
+import org.apache.flink.table.api.{OptimizerConfigOptions, ExecutionConfigOptions, TableException}
 
 import org.junit.{Before, Test}
 
@@ -26,10 +26,10 @@ class BroadcastHashSemiAntiJoinTest extends SemiAntiJoinTestBase {
 
   @Before
   def before(): Unit = {
-    util.tableEnv.getConfig.getConf.setLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_HASH_JOIN_BROADCAST_THRESHOLD, Long.MaxValue)
-    util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS,
+    util.tableEnv.getConfig.getConfiguration.setLong(
+      OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, Long.MaxValue)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS,
       "SortMergeJoin, NestedLoopJoin, ShuffleHashJoin")
     // the result plan may contains NestedLoopJoin (singleRowJoin)
     // which is converted by BatchExecSingleRowJoinRule

@@ -26,7 +26,10 @@ import org.apache.flink.api.java.hadoop.mapred.wrapper.HadoopDummyReporter;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
+import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configurable;
@@ -75,11 +78,10 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 	protected transient boolean fetched = false;
 	protected transient boolean hasNext;
 
-	private boolean isPartitioned;
 	private RowTypeInfo rowTypeInfo;
 
 	//Necessary info to init deserializer
-	private String[] partitionColNames;
+	private List<String> partitionColNames;
 	//For non-partition hive table, partitions only contains one partition which partitionValues is empty.
 	private List<HiveTablePartition> partitions;
 	private transient Deserializer deserializer;
@@ -92,16 +94,16 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 
 	public HiveTableInputFormat(
 			JobConf jobConf,
-			boolean isPartitioned,
-			String[] partitionColNames,
-			List<HiveTablePartition> partitions,
-			RowTypeInfo rowTypeInfo) {
+			CatalogTable catalogTable,
+			List<HiveTablePartition> partitions) {
 		super(jobConf.getCredentials());
-		this.rowTypeInfo = checkNotNull(rowTypeInfo, "rowTypeInfo can not be null.");
-		this.jobConf = new JobConf(jobConf);
-		this.isPartitioned = isPartitioned;
-		this.partitionColNames = partitionColNames;
+		checkNotNull(catalogTable, "catalogTable can not be null.");
 		this.partitions = checkNotNull(partitions, "partitions can not be null.");
+
+		this.jobConf = new JobConf(jobConf);
+		this.partitionColNames = catalogTable.getPartitionKeys();
+		TableSchema tableSchema = catalogTable.getSchema();
+		this.rowTypeInfo = new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
 	}
 
 	@Override
@@ -217,14 +219,12 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 			int index = 0;
 			for (; index < structFields.size(); index++) {
 				StructField structField = structFields.get(index);
-				Object object = HiveRecordSerDe.obtainFlinkRowField(
-						structObjectInspector.getStructFieldData(hiveRowStruct, structField), structField.getFieldObjectInspector());
+				Object object = HiveInspectors.toFlinkObject(structField.getFieldObjectInspector(),
+						structObjectInspector.getStructFieldData(hiveRowStruct, structField));
 				row.setField(index, object);
 			}
-			if (isPartitioned) {
-				for (String partition : partitionColNames){
-					row.setField(index++, hiveTablePartition.getPartitionSpec().get(partition));
-				}
+			for (String partition : partitionColNames){
+				row.setField(index++, hiveTablePartition.getPartitionSpec().get(partition));
 			}
 		} catch (Exception e){
 			logger.error("Error happens when converting hive data type to flink data type.");
@@ -246,7 +246,6 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		super.write(out);
 		jobConf.write(out);
-		out.writeObject(isPartitioned);
 		out.writeObject(rowTypeInfo);
 		out.writeObject(partitionColNames);
 		out.writeObject(partitions);
@@ -264,9 +263,8 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 		if (currentUserCreds != null) {
 			jobConf.getCredentials().addAll(currentUserCreds);
 		}
-		isPartitioned = (boolean) in.readObject();
 		rowTypeInfo = (RowTypeInfo) in.readObject();
-		partitionColNames = (String[]) in.readObject();
+		partitionColNames = (List<String>) in.readObject();
 		partitions = (List<HiveTablePartition>) in.readObject();
 	}
 }

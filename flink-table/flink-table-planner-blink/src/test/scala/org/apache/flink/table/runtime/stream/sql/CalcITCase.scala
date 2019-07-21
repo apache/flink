@@ -204,7 +204,6 @@ class CalcITCase extends StreamingTestBase {
 
   @Test
   def testSelectStarFromNestedTable(): Unit = {
-
     val sqlQuery = "SELECT * FROM MyTable"
 
     val table = tEnv.fromDataStream(env.fromCollection(Seq(
@@ -216,14 +215,14 @@ class CalcITCase extends StreamingTestBase {
 
     val result = tEnv.sqlQuery(sqlQuery)
     val sink = TestSinkUtil.configureSink(result, new TestingAppendTableSink())
-    tEnv.writeToSink(result, sink)
-    tEnv.execute()
+    tEnv.registerTableSink("MySink", sink)
+    tEnv.insertInto(result, "MySink")
+    tEnv.execute("test")
 
     val expected = List("0,0,0", "1,1,1", "2,2,2")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
-  @Ignore // TODO In not support
   @Test
   def testIn(): Unit = {
     val sqlQuery = "SELECT * FROM MyTable WHERE b in (1,3,4,5,6)"
@@ -245,7 +244,6 @@ class CalcITCase extends StreamingTestBase {
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
-  @Ignore // TODO In not support
   @Test
   def testNotIn(): Unit = {
     val sqlQuery = "SELECT * FROM MyTable WHERE b not in (1,3,4,5,6)"

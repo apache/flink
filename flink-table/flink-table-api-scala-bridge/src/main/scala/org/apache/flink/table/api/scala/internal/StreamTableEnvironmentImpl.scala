@@ -17,10 +17,8 @@
  */
 package org.apache.flink.table.api.scala.internal
 
-import java.util
-import java.util.{Collections, List => JList}
-
 import org.apache.flink.annotation.Internal
+import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.scala._
@@ -29,17 +27,21 @@ import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.environment.{StreamExecutionEnvironment => JStreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.internal.{PlannerFactory, TableEnvironmentImpl}
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.scala.StreamTableEnvironment
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
-import org.apache.flink.table.delegation.{Executor, Planner}
+import org.apache.flink.table.delegation.{Executor, ExecutorFactory, Planner, PlannerFactory}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, StreamTableDescriptor}
 import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.factories.ComponentFactoryService
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserFunctionsTypeHelper}
 import org.apache.flink.table.operations.{OutputConversionModifyOperation, ScalaDataStreamQueryOperation}
 import org.apache.flink.table.sources.{TableSource, TableSourceValidation}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils
+
+import java.util
+import java.util.{Collections, List => JList, Map => JMap}
 
 import _root_.scala.collection.JavaConverters._
 
@@ -54,14 +56,21 @@ class StreamTableEnvironmentImpl (
     config: TableConfig,
     scalaExecutionEnvironment: StreamExecutionEnvironment,
     planner: Planner,
-    executor: Executor)
+    executor: Executor,
+    isStreaming: Boolean)
   extends TableEnvironmentImpl(
     catalogManager,
     config,
     executor,
     functionCatalog,
-    planner)
+    planner,
+    isStreaming)
   with org.apache.flink.table.api.scala.StreamTableEnvironment {
+
+  if (!isStreaming) {
+    throw new TableException(
+      "StreamTableEnvironment is not supported on batch mode now, please use TableEnvironment.")
+  }
 
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
     val queryOperation = asQueryOperation(dataStream, None)
@@ -99,7 +108,9 @@ class StreamTableEnvironmentImpl (
       table.getQueryOperation,
       TypeConversions.fromLegacyInfoToDataType(returnType),
       OutputConversionModifyOperation.UpdateMode.APPEND)
-    queryConfigProvider.setConfig(queryConfig)
+    tableConfig.setIdleStateRetentionTime(
+      Time.milliseconds(queryConfig.getMinIdleStateRetentionTime),
+      Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
     toDataStream(table, modifyOperation)
   }
 
@@ -118,7 +129,9 @@ class StreamTableEnvironmentImpl (
       TypeConversions.fromLegacyInfoToDataType(returnType),
       OutputConversionModifyOperation.UpdateMode.RETRACT)
 
-    queryConfigProvider.setConfig(queryConfig)
+    tableConfig.setIdleStateRetentionTime(
+        Time.milliseconds(queryConfig.getMinIdleStateRetentionTime),
+        Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
     toDataStream(table, modifyOperation)
   }
 
@@ -179,6 +192,8 @@ class StreamTableEnvironmentImpl (
     }
   }
 
+  override protected def isEagerOperationTranslation(): Boolean = true
+
   private def toDataStream[T](
       table: Table,
       modifyOperation: OutputConversionModifyOperation)
@@ -230,65 +245,83 @@ class StreamTableEnvironmentImpl (
       typeInfoSchema.getIndices,
       typeInfoSchema.toTableSchema)
   }
+
+  override def sqlUpdate(stmt: String, config: StreamQueryConfig): Unit = {
+    tableConfig
+      .setIdleStateRetentionTime(
+        Time.milliseconds(config.getMinIdleStateRetentionTime),
+        Time.milliseconds(config.getMaxIdleStateRetentionTime))
+    sqlUpdate(stmt)
+  }
+
+  override def insertInto(
+      table: Table,
+      queryConfig: StreamQueryConfig,
+      sinkPath: String,
+      sinkPathContinued: String*): Unit = {
+    tableConfig
+      .setIdleStateRetentionTime(
+        Time.milliseconds(queryConfig.getMinIdleStateRetentionTime),
+        Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime))
+    insertInto(table, sinkPath, sinkPathContinued: _*)
+  }
 }
 
 object StreamTableEnvironmentImpl {
 
-  /**
-    * Creates an instance of a [[StreamTableEnvironment]]. It uses the
-    * [[StreamExecutionEnvironment]] for executing queries. This is also the
-    * [[StreamExecutionEnvironment]] that will be used when converting
-    * from/to [[DataStream]].
-    *
-    * @param tableConfig The configuration of the TableEnvironment.
-    * @param executionEnvironment The [[StreamExecutionEnvironment]] of the TableEnvironment.
-    */
   def create(
-      tableConfig: TableConfig,
-      executionEnvironment: StreamExecutionEnvironment)
+      executionEnvironment: StreamExecutionEnvironment,
+      settings: EnvironmentSettings,
+      tableConfig: TableConfig)
     : StreamTableEnvironmentImpl = {
-    val catalogManager = new CatalogManager(
-      tableConfig.getBuiltInCatalogName,
-      new GenericInMemoryCatalog(
-        tableConfig.getBuiltInCatalogName,
-        tableConfig.getBuiltInDatabaseName)
-    )
-    create(catalogManager, tableConfig, executionEnvironment)
-  }
 
-  /**
-    * Creates an instance of a [[StreamTableEnvironment]]. It uses the
-    * [[StreamExecutionEnvironment]] for executing queries. This is also the
-    * [[StreamExecutionEnvironment]] that will be used when converting
-    * from/to [[DataStream]].
-    *
-    * @param catalogManager The [[CatalogManager]] to use for storing and looking up [[Table]]s.
-    * @param tableConfig The configuration of the TableEnvironment.
-    * @param executionEnvironment The [[StreamExecutionEnvironment]] of the TableEnvironment.
-    */
-  def create(
-      catalogManager: CatalogManager,
-      tableConfig: TableConfig,
-      executionEnvironment: StreamExecutionEnvironment)
-    : StreamTableEnvironmentImpl = {
-    val executor = lookupExecutor(executionEnvironment)
-    val functionCatalog = new FunctionCatalog(
-      catalogManager.getCurrentCatalog,
-      catalogManager.getCurrentDatabase)
+    val catalogManager = new CatalogManager(
+      settings.getBuiltInCatalogName,
+      new GenericInMemoryCatalog(settings.getBuiltInCatalogName, settings.getBuiltInDatabaseName))
+
+    val functionCatalog = new FunctionCatalog(catalogManager)
+
+    val executorProperties = settings.toExecutorProperties
+    val executor = lookupExecutor(executorProperties, executionEnvironment)
+
+    val plannerProperties = settings.toPlannerProperties
+    val planner = ComponentFactoryService.find(classOf[PlannerFactory], plannerProperties)
+      .create(
+        plannerProperties,
+        executor,
+        tableConfig,
+        functionCatalog,
+        catalogManager)
+
     new StreamTableEnvironmentImpl(
       catalogManager,
       functionCatalog,
       tableConfig,
       executionEnvironment,
-      PlannerFactory.lookupPlanner(executor, tableConfig, functionCatalog, catalogManager),
-      executor)
+      planner,
+      executor,
+      settings.isStreamingMode
+    )
   }
 
-  private def lookupExecutor(executionEnvironment: StreamExecutionEnvironment) =
+  private def lookupExecutor(
+      executorProperties: JMap[String, String],
+      executionEnvironment: StreamExecutionEnvironment)
+    :Executor =
     try {
-      val clazz = Class.forName("org.apache.flink.table.executor.ExecutorFactory")
-      val createMethod = clazz.getMethod("create", classOf[JStreamExecutionEnvironment])
-      createMethod.invoke(null, executionEnvironment.getWrappedStreamExecutionEnvironment)
+      val executorFactory = ComponentFactoryService
+        .find(classOf[ExecutorFactory], executorProperties)
+      val createMethod = executorFactory.getClass
+        .getMethod(
+          "create",
+          classOf[util.Map[String, String]],
+          classOf[JStreamExecutionEnvironment])
+
+      createMethod
+        .invoke(
+          executorFactory,
+          executorProperties,
+          executionEnvironment.getWrappedStreamExecutionEnvironment)
         .asInstanceOf[Executor]
     } catch {
       case e: Exception =>

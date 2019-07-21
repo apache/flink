@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.reuse
 
-import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig, TableException}
+import org.apache.flink.table.api.{OptimizerConfigOptions, TableConfig, TableException}
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableSourceScan
 import org.apache.flink.table.plan.nodes.physical.PhysicalTableSourceScan
@@ -55,12 +55,12 @@ object SubplanReuser {
     * Finds duplicated sub-plans and return the reused plan.
     */
   def reuseDuplicatedSubplan(rels: Seq[RelNode], tableConfig: TableConfig): Seq[RelNode] = {
-    if (!tableConfig.getConf.getBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED)) {
+    if (!tableConfig.getConfiguration.getBoolean(
+      OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED)) {
       return rels
     }
-    val tableSourceReuseEnabled = tableConfig.getConf.getBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED)
+    val tableSourceReuseEnabled = tableConfig.getConfiguration.getBoolean(
+      OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED)
     val context = new SubplanReuseContext(tableSourceReuseEnabled, rels: _*)
     val reuseShuttle = new SubplanReuseShuttle(context)
     rels.map(_.accept(reuseShuttle))

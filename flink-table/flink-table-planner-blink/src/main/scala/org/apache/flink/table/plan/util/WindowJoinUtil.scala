@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.api.common.functions.FlatJoinFunction
-import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig}
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.{FlinkTypeFactory, RelTimeIndicatorConverter}
 import org.apache.flink.table.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, ExpressionReducer, FunctionCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
@@ -169,7 +169,7 @@ object WindowJoinUtil {
 
     // Converts the condition to conjunctive normal form (CNF)
     val cnfCondition = FlinkRexUtil.toCnf(rexBuilder,
-      config.getConf.getInteger(PlannerConfigOptions.SQL_OPTIMIZER_CNF_NODES_LIMIT),
+      config.getConfiguration.getInteger(FlinkRexUtil.SQL_OPTIMIZER_CNF_NODES_LIMIT),
       predicate)
 
     // split the condition into time predicates and other predicates

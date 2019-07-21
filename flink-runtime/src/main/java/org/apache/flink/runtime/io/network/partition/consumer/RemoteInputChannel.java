@@ -434,6 +434,14 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		return Math.max(0, receivedBuffers.size());
 	}
 
+	public int unsynchronizedGetExclusiveBuffersUsed() {
+		return Math.max(0, initialCredit - bufferQueue.exclusiveBuffers.size());
+	}
+
+	public int unsynchronizedGetFloatingBuffersAvailable() {
+		return Math.max(0, bufferQueue.floatingBuffers.size());
+	}
+
 	public InputChannelID getInputChannelId() {
 		return id;
 	}

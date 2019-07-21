@@ -18,26 +18,27 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import org.apache.flink.api.dag.Transformation
+import org.apache.flink.streaming.api.transformations.TwoInputTransformation
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
+import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
+import org.apache.flink.table.plan.util.{JoinUtil, KeySelectorUtil, RelExplainUtil}
+import org.apache.flink.table.planner.StreamPlanner
+import org.apache.flink.table.runtime.join.FlinkJoinType
+import org.apache.flink.table.runtime.join.stream.state.JoinInputSideSpec
+import org.apache.flink.table.runtime.join.stream.{StreamingJoinOperator, StreamingSemiAntiJoinOperator}
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
 import org.apache.calcite.plan._
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-import org.apache.flink.streaming.api.transformations.TwoInputTransformation
-import org.apache.flink.table.api.StreamTableEnvironment
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
-import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.plan.util.{JoinUtil, KeySelectorUtil, RelExplainUtil}
-import org.apache.flink.table.runtime.join.FlinkJoinType
-import org.apache.flink.table.runtime.join.stream.{StreamingJoinOperator, StreamingSemiAntiJoinOperator}
-import org.apache.flink.table.runtime.join.stream.state.JoinInputSideSpec
-import org.apache.flink.table.typeutils.BaseRowTypeInfo
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -123,25 +124,25 @@ class StreamExecJoin(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
   }
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[BaseRow] = {
 
-    val tableConfig = tableEnv.getConfig
+    val tableConfig = planner.getTableConfig
     val returnType = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
 
-    val leftTransform = getInputNodes.get(0).translateToPlan(tableEnv)
+    val leftTransform = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
-    val rightTransform = getInputNodes.get(1).translateToPlan(tableEnv)
+    val rightTransform = getInputNodes.get(1).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
 
     val leftType = leftTransform.getOutputType.asInstanceOf[BaseRowTypeInfo]

@@ -20,9 +20,10 @@ package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.JBoolean
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.plan.nodes.FlinkRelNode
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
+import org.apache.flink.table.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.nodes.physical.stream._
@@ -39,7 +40,6 @@ import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
 import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode}
-import org.apache.calcite.sql.SemiJoinType._
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.{Bug, BuiltInMethod, ImmutableBitSet, Util}
@@ -401,7 +401,7 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
 
   private def areColumnsUniqueOnWindowAggregate(
       grouping: Array[Int],
-      namedProperties: Seq[NamedWindowProperty],
+      namedProperties: Seq[PlannerNamedWindowProperty],
       outputFieldCount: Int,
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
@@ -498,6 +498,21 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
     )
   }
 
+  def areColumnsUnique(
+      join: CommonLookupJoin,
+      mq: RelMetadataQuery,
+      columns: ImmutableBitSet,
+      ignoreNulls: Boolean): JBoolean = {
+    val left = join.getInput
+    areColumnsUniqueOfJoin(
+      join.joinInfo, join.joinType, left.getRowType,
+      (leftSet: ImmutableBitSet) => mq.areColumnsUnique(left, leftSet, ignoreNulls),
+      // TODO get uniqueKeys from TableSchema of TableSource
+      (_: ImmutableBitSet) => null,
+      mq, columns
+    )
+  }
+
   def areColumnsUniqueOfJoin(
       joinInfo: JoinInfo,
       joinRelType: JoinRelType,
@@ -567,8 +582,9 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = {
     rel.getJoinType match {
-      case ANTI | SEMI => mq.areColumnsUnique(rel.getLeft, columns, ignoreNulls)
-      case LEFT | INNER =>
+      case JoinRelType.ANTI | JoinRelType.SEMI =>
+        mq.areColumnsUnique(rel.getLeft, columns, ignoreNulls)
+      case JoinRelType.LEFT | JoinRelType.INNER =>
         val left = rel.getLeft
         val right = rel.getRight
         val leftFieldCount = left.getRowType.getFieldCount
@@ -597,8 +613,6 @@ class FlinkRelMdColumnUniqueness private extends MetadataHandler[BuiltInMetadata
       mq: RelMetadataQuery,
       columns: ImmutableBitSet,
       ignoreNulls: Boolean): JBoolean = null
-
-  // TODO supports temporal table join
 
   def areColumnsUnique(
       rel: SetOp,

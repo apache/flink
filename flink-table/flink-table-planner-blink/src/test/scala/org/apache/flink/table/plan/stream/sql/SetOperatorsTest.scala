@@ -21,6 +21,7 @@ package org.apache.flink.table.plan.stream.sql
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.plan.util.NonPojo
 import org.apache.flink.table.util.TableTestBase
@@ -50,7 +51,7 @@ class SetOperatorsTest extends TableTestBase {
     util.verifyPlan("SELECT a, b, c FROM T1 UNION ALL SELECT d, c, e FROM T3")
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testIntersectAll(): Unit = {
     util.verifyPlan("SELECT c FROM T1 INTERSECT ALL SELECT f FROM T2")
   }
@@ -61,7 +62,7 @@ class SetOperatorsTest extends TableTestBase {
     util.verifyPlan("SELECT a, b, c FROM T1 INTERSECT SELECT d, c, e FROM T3")
   }
 
-  @Test(expected = classOf[TableException])
+  @Test
   def testMinusAll(): Unit = {
     util.verifyPlan("SELECT c FROM T1 EXCEPT ALL SELECT f FROM T2")
   }

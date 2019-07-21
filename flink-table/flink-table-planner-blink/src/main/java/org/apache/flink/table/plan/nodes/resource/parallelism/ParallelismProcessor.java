@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.plan.nodes.resource.parallelism;
 
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.plan.nodes.calcite.Sink;
 import org.apache.flink.table.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecSink;
 import org.apache.flink.table.plan.nodes.physical.stream.StreamExecSink;
 import org.apache.flink.table.plan.nodes.process.DAGProcessContext;
 import org.apache.flink.table.plan.nodes.process.DAGProcessor;
+import org.apache.flink.table.planner.PlannerBase;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,14 +37,17 @@ public class ParallelismProcessor implements DAGProcessor {
 
 	@Override
 	public List<ExecNode<?, ?>> process(List<ExecNode<?, ?>> sinkNodes, DAGProcessContext context) {
-		TableEnvironment tEnv = context.getTableEnvironment();
+		PlannerBase planner = context.getPlanner();
 		List<ExecNode<?, ?>> rootNodes = filterSinkNodes(sinkNodes);
 		// find exec nodes whose parallelism cannot be changed.
-		Map<ExecNode<?, ?>, Integer> nodeToFinalParallelismMap = FinalParallelismSetter.calculate(tEnv.streamEnv(), rootNodes);
+		Map<ExecNode<?, ?>, Integer> nodeToFinalParallelismMap =
+			FinalParallelismSetter.calculate(planner.getExecEnv(), rootNodes);
 		// generate shuffleStages that bind adjacent exec nodes together whose parallelism can be the same.
-		Map<ExecNode<?, ?>, ShuffleStage> nodeShuffleStageMap = ShuffleStageGenerator.generate(rootNodes, nodeToFinalParallelismMap);
+		Map<ExecNode<?, ?>, ShuffleStage> nodeShuffleStageMap =
+			ShuffleStageGenerator.generate(rootNodes, nodeToFinalParallelismMap);
 		// calculate parallelism of shuffleStages.
-		ShuffleStageParallelismCalculator.calculate(tEnv.getConfig().getConf(), tEnv.streamEnv().getParallelism(), nodeShuffleStageMap.values());
+		ShuffleStageParallelismCalculator.calculate(
+			planner.getTableConfig().getConfiguration(), planner.getExecEnv().getParallelism(), nodeShuffleStageMap.values());
 		for (ExecNode<?, ?> node : nodeShuffleStageMap.keySet()) {
 			node.getResource().setParallelism(nodeShuffleStageMap.get(node).getParallelism());
 		}

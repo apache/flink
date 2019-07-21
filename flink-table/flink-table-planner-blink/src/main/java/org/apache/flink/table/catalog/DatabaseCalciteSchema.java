@@ -22,11 +22,17 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.factories.TableFactoryUtil;
+import org.apache.flink.table.factories.TableSourceFactory;
 import org.apache.flink.table.operations.DataStreamQueryOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.RichTableSourceQueryOperation;
 import org.apache.flink.table.plan.schema.TableSourceTable;
 import org.apache.flink.table.plan.stats.FlinkStatistic;
+import org.apache.flink.table.sources.LookupableTableSource;
+import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.table.sources.TableSource;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.schema.Schema;
@@ -37,6 +43,7 @@ import org.apache.calcite.schema.Table;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static java.lang.String.format;
@@ -49,11 +56,14 @@ class DatabaseCalciteSchema extends FlinkSchema {
 	private final String databaseName;
 	private final String catalogName;
 	private final Catalog catalog;
+	// Flag that tells if the current planner should work in a batch or streaming mode.
+	private final boolean isStreamingMode;
 
-	public DatabaseCalciteSchema(String databaseName, String catalogName, Catalog catalog) {
+	public DatabaseCalciteSchema(String databaseName, String catalogName, Catalog catalog, boolean isStreamingMode) {
 		this.databaseName = databaseName;
 		this.catalogName = catalogName;
 		this.catalog = catalog;
+		this.isStreamingMode = isStreamingMode;
 	}
 
 	@Override
@@ -80,13 +90,9 @@ class DatabaseCalciteSchema extends FlinkSchema {
 				}
 				return QueryOperationCatalogViewTable.createCalciteTable(view);
 			} else if (table instanceof ConnectorCatalogTable) {
-				ConnectorCatalogTable<?, ?> connectorTable = (ConnectorCatalogTable<?, ?>) table;
-				return connectorTable.getTableSource()
-					.map(tableSource -> new TableSourceTable<>(
-						tableSource,
-						!connectorTable.isBatch(),
-						FlinkStatistic.UNKNOWN())
-					).orElseThrow(() -> new TableException("Cannot query a sink only table."));
+				return convertConnectorTable((ConnectorCatalogTable<?, ?>) table);
+			} else if (table instanceof CatalogTable) {
+				return convertCatalogTable(tablePath, (CatalogTable) table);
 			} else {
 				throw new TableException("Unsupported table type: " + table);
 			}
@@ -94,11 +100,56 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			// TableNotExistException should never happen, because we are checking it exists
 			// via catalog.tableExists
 			throw new TableException(format(
-				"A failure occurred when accessing table. Table path [%s, %s, %s]",
-				catalogName,
-				databaseName,
-				tableName), e);
+					"A failure occurred when accessing table. Table path [%s, %s, %s]",
+					catalogName,
+					databaseName,
+					tableName), e);
 		}
+	}
+
+	private Table convertConnectorTable(ConnectorCatalogTable<?, ?> table) {
+		return table.getTableSource()
+				.map(tableSource -> {
+					if (!(tableSource instanceof StreamTableSource ||
+							tableSource instanceof LookupableTableSource)) {
+						throw new TableException(
+								"Only StreamTableSource and LookupableTableSource can be used in Blink planner.");
+					}
+					if (!isStreamingMode && tableSource instanceof StreamTableSource &&
+							!((StreamTableSource<?>) tableSource).isBounded()) {
+						throw new TableException("Only bounded StreamTableSource can be used in batch mode.");
+					}
+					return new TableSourceTable<>(
+							tableSource,
+							isStreamingMode,
+							FlinkStatistic.UNKNOWN());
+				}).orElseThrow(() -> new TableException("Cannot query a sink only table."));
+	}
+
+	private Table convertCatalogTable(ObjectPath tablePath, CatalogTable table) {
+		TableSource<?> tableSource;
+		Optional<TableFactory> tableFactory = catalog.getTableFactory();
+		if (tableFactory.isPresent()) {
+			TableFactory tf = tableFactory.get();
+			if (tf instanceof TableSourceFactory) {
+				tableSource = ((TableSourceFactory) tf).createTableSource(tablePath, table);
+			} else {
+				throw new TableException(String.format("Cannot query a sink-only table. TableFactory provided by catalog %s must implement TableSourceFactory",
+					catalog.getClass()));
+			}
+		} else {
+			tableSource = TableFactoryUtil.findAndCreateTableSource(table);
+		}
+
+		if (!(tableSource instanceof StreamTableSource)) {
+			throw new TableException("Catalog tables support only StreamTableSource and InputFormatTableSource");
+		}
+
+		return new TableSourceTable<>(
+			tableSource,
+			!((StreamTableSource<?>) tableSource).isBounded(),
+			FlinkStatistic.UNKNOWN()
+		);
 	}
 
 	@Override

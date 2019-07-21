@@ -19,7 +19,7 @@ package org.apache.flink.table.plan.batch.sql.join
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.calcite.CalciteConfig
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.util.TableTestBase
@@ -84,7 +84,6 @@ class LookupJoinTest extends TableTestBase {
     )
   }
 
-
   @Test
   def testLogicalPlan(): Unit = {
     val sql1 =
@@ -108,21 +107,17 @@ class LookupJoinTest extends TableTestBase {
          |FROM ($sql2) AS T
          |GROUP BY b
       """.stripMargin
-    val programs = FlinkBatchProgram.buildProgram(testUtil.tableEnv.getConfig.getConf)
+    val programs = FlinkBatchProgram.buildProgram(testUtil.tableEnv.getConfig.getConfiguration)
     programs.remove(FlinkBatchProgram.PHYSICAL)
-    val calciteConfig = CalciteConfig.createBuilder(testUtil.tableEnv.getConfig.getCalciteConfig)
-      .replaceBatchProgram(programs).build()
-    testUtil.tableEnv.getConfig.setCalciteConfig(calciteConfig)
+    testUtil.replaceBatchProgram(programs)
     testUtil.verifyPlan(sql)
   }
 
   @Test
   def testLogicalPlanWithImplicitTypeCast(): Unit = {
-    val programs = FlinkBatchProgram.buildProgram(testUtil.tableEnv.getConfig.getConf)
+    val programs = FlinkBatchProgram.buildProgram(testUtil.tableEnv.getConfig.getConfiguration)
     programs.remove(FlinkBatchProgram.PHYSICAL)
-    val calciteConfig = CalciteConfig.createBuilder(testUtil.tableEnv.getConfig.getCalciteConfig)
-      .replaceBatchProgram(programs).build()
-    testUtil.tableEnv.getConfig.setCalciteConfig(calciteConfig)
+    testUtil.replaceBatchProgram(programs)
 
     thrown.expect(classOf[TableException])
     thrown.expectMessage("VARCHAR(2147483647) and INTEGER does not have common type now")
@@ -215,9 +210,21 @@ class LookupJoinTest extends TableTestBase {
   }
 
   @Test
+  def testJoinTemporalTableWithTrueCondition(): Unit = {
+    val sql =
+      """
+        |SELECT * FROM MyTable AS T
+        |JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON true
+        |WHERE T.c > 1000
+      """.stripMargin
+    testUtil.verifyPlan(sql)
+  }
+
+  @Test
   def testReusing(): Unit = {
-    testUtil.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
+    testUtil.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED, true)
     val sql1 =
       """
         |SELECT b, a, sum(c) c, sum(d) d, PROCTIME() as proctime

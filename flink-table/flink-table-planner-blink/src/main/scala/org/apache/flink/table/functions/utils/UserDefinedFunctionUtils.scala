@@ -22,7 +22,7 @@ package org.apache.flink.table.functions.utils
 import org.apache.flink.api.common.functions.InvalidTypesException
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils._
-import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
+import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal}
 import org.apache.flink.table.functions._
@@ -31,9 +31,11 @@ import org.apache.flink.table.types.ClassDataTypeConverter.fromClassToDataType
 import org.apache.flink.table.types.ClassLogicalTypeConverter.{getDefaultExternalClassForType, getInternalClassForType}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
+import org.apache.flink.table.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot, RowType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+import org.apache.flink.table.typeutils.FieldInfoUtils
 import org.apache.flink.table.typeutils.TypeCheckUtils.isAny
 import org.apache.flink.types.Row
 import org.apache.flink.util.InstantiationUtil
@@ -126,6 +128,14 @@ object UserDefinedFunctionUtils {
       throwValidationException(func.getClass.getCanonicalName, func, expectedTypes)
     )
     getParamClassesConsiderVarArgs(method.isVarArgs, method.getParameterTypes, expectedTypes.length)
+  }
+
+  def getEvalMethodSignatureOption(
+      func: ScalarFunction,
+      expectedTypes: Array[LogicalType]): Option[Array[Class[_]]] = {
+    getEvalUserDefinedMethod(func, expectedTypes).map( method =>
+      getParamClassesConsiderVarArgs(
+        method.isVarArgs, method.getParameterTypes, expectedTypes.length))
   }
 
   def getEvalMethodSignature(
@@ -601,8 +611,6 @@ object UserDefinedFunctionUtils {
       function: ScalarFunction,
       arguments: Array[AnyRef],
       argTypes: Array[LogicalType]): DataType = {
-//    val userDefinedTypeInfo = function.getResultType(
-//      arguments, getEvalMethodSignature(function, argTypes))
     val userDefinedTypeInfo = function.getResultType(getEvalMethodSignature(function, argTypes))
     if (userDefinedTypeInfo != null) {
       fromLegacyInfoToDataType(userDefinedTypeInfo)
@@ -649,10 +657,11 @@ object UserDefinedFunctionUtils {
     */
   def getFieldInfo(inputType: DataType)
     : (Array[String], Array[Int], Array[LogicalType]) = {
+    val inputTypeInfo = fromDataTypeToTypeInfo(inputType)
     (
-        TableEnvironment.getFieldNames(inputType),
-        TableEnvironment.getFieldIndices(inputType),
-        TableEnvironment.getFieldTypes(inputType))
+        FieldInfoUtils.getFieldNames(inputTypeInfo),
+        FieldInfoUtils.getFieldIndices(inputTypeInfo),
+        FieldInfoUtils.getFieldTypes(inputTypeInfo).map(fromTypeInfoToLogicalType))
   }
 
   /**

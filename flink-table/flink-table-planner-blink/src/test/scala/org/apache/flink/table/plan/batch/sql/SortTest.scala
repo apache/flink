@@ -19,7 +19,9 @@
 package org.apache.flink.table.plan.batch.sql
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.api.ExecutionConfigOptions
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.plan.rules.physical.batch.BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.Test
@@ -31,39 +33,43 @@ class SortTest extends TableTestBase {
 
   @Test
   def testNonRangeSortOnSingleFieldWithoutForceLimit(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(
-      TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, false)
-    util.tableEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, -1)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(SQL_EXEC_SORT_RANGE_ENABLED, false)
+    util.tableEnv.getConfig.getConfiguration.setInteger(
+      ExecutionConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, -1)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC")
   }
 
   @Test
   def testNonRangeSortOnMultiFieldsWithoutForceLimit(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(
-      TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, false)
-    util.tableEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, -1)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      SQL_EXEC_SORT_RANGE_ENABLED, false)
+    util.tableEnv.getConfig.getConfiguration.setInteger(
+      ExecutionConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, -1)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC, b")
   }
 
   @Test
   def testNonRangeSortWithForceLimit(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(
-      TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, false)
-    util.tableEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, 200)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      SQL_EXEC_SORT_RANGE_ENABLED, false)
+    util.tableEnv.getConfig.getConfiguration.setInteger(
+      ExecutionConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, 200)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC")
   }
 
   @Test
   def testRangeSortWithoutForceLimit(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, true)
-    util.tableEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, -1)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(SQL_EXEC_SORT_RANGE_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setInteger(
+      ExecutionConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, -1)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC")
   }
 
   @Test
   def testRangeSortWithForceLimit(): Unit = {
-    util.tableEnv.getConfig.getConf.setBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, true)
-    util.tableEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, 200)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(SQL_EXEC_SORT_RANGE_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration.setInteger(
+      ExecutionConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, 200)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC")
   }
 }

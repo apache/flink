@@ -27,7 +27,8 @@ import java.util.Set;
 /**
  * Logical type of an 8-byte double precision floating point number.
  *
- * <p>The serialized string representation is {@code DOUBLE}.
+ * <p>The serialized string representation is {@code DOUBLE}. {@code DOUBLE PRECISION} is a synonym
+ * for this type.
  */
 @PublicEvolving
 public final class DoubleType extends LogicalType {

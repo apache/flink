@@ -19,24 +19,33 @@
 package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO, STRING_TYPE_INFO}
+import org.apache.flink.api.common.typeinfo.LocalTimeTypeInfo.{LOCAL_DATE, LOCAL_DATE_TIME, LOCAL_TIME}
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo.{DATE, TIME, TIMESTAMP}
+import org.apache.flink.api.common.typeinfo.Types
+import org.apache.flink.api.common.typeinfo.Types.INSTANT
 import org.apache.flink.api.java.typeutils._
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{TableConfigOptions, ValidationException}
-import org.apache.flink.table.dataformat.DataFormatConverters.{DateConverter, TimestampConverter}
+import org.apache.flink.table.api.{ExecutionConfigOptions, ValidationException}
+import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter, LocalDateTimeConverter}
 import org.apache.flink.table.dataformat.Decimal
 import org.apache.flink.table.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
+import org.apache.flink.table.plan.rules.physical.batch.BatchExecSortRule
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
+import org.apache.flink.table.runtime.utils.BatchTableEnvUtil.parseFieldNames
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.runtime.utils.UserDefinedFunctionTestUtils._
-import org.apache.flink.table.runtime.utils.{BatchScalaTableEnvUtil, BatchTestBase, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, BatchTestBase, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.util.DateTimeTestUtil
 import org.apache.flink.table.util.DateTimeTestUtil._
 import org.apache.flink.types.Row
+
 import org.junit.Assert.assertEquals
 import org.junit._
 
-import java.sql.{Date, Timestamp}
+import java.sql.{Date, Time, Timestamp}
+import java.time.{LocalDate, LocalDateTime}
 import java.util
 
 import scala.collection.Seq
@@ -44,7 +53,8 @@ import scala.collection.Seq
 class CalcITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
+    super.before()
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
     registerCollection("NullTable3", nullData3, type3, "a, b, c", nullablesOfData3)
     registerCollection("SmallTable3", smallData3, type3, "a, b, c", nullablesOfData3)
@@ -71,7 +81,7 @@ class CalcITCase extends BatchTestBase {
       (true, 1, 2, 3, 4, 5, 6, 7),
       (false, 1, 2, 3, 4, 5, 6, 7)
     )
-    BatchScalaTableEnvUtil.registerCollection(tEnv, "MyT", data, "a, b, c, d, e, f, g, h")
+    BatchTableEnvUtil.registerCollection(tEnv, "MyT", data, "a, b, c, d, e, f, g, h")
     checkResult(
       """
         |SELECT
@@ -238,23 +248,23 @@ class CalcITCase extends BatchTestBase {
   def testAdvancedDataTypes(): Unit = {
     val data = Seq(
       row(
-        UTCDate("1984-07-12"),
-        UTCTime("14:34:24"),
-        UTCTimestamp("1984-07-12 14:34:24")))
+        localDate("1984-07-12"),
+        localTime("14:34:24"),
+        localDateTime("1984-07-12 14:34:24")))
     registerCollection(
-      "MyTable", data, new RowTypeInfo(DATE, TIME, TIMESTAMP), "a, b, c")
+      "MyTable", data, new RowTypeInfo(LOCAL_DATE, LOCAL_TIME, LOCAL_DATE_TIME), "a, b, c")
 
     checkResult(
       "SELECT a, b, c, DATE '1984-07-12', TIME '14:34:24', " +
           "TIMESTAMP '1984-07-12 14:34:24' FROM MyTable",
       Seq(
         row(
-          UTCDate("1984-07-12"),
-          UTCTime("14:34:24"),
-          UTCTimestamp("1984-07-12 14:34:24"),
-          UTCDate("1984-07-12"),
-          UTCTime("14:34:24"),
-          UTCTimestamp("1984-07-12 14:34:24"))))
+          localDate("1984-07-12"),
+          localTime("14:34:24"),
+          localDateTime("1984-07-12 14:34:24"),
+          localDate("1984-07-12"),
+          localTime("14:34:24"),
+          localDateTime("1984-07-12 14:34:24"))))
 
     checkResult(
       "SELECT a, b, c, DATE '1984-07-12', TIME '14:34:24', " +
@@ -262,12 +272,12 @@ class CalcITCase extends BatchTestBase {
           "WHERE a = '1984-07-12' and b = '14:34:24' and c = '1984-07-12 14:34:24'",
       Seq(
         row(
-          UTCDate("1984-07-12"),
-          UTCTime("14:34:24"),
-          UTCTimestamp("1984-07-12 14:34:24"),
-          UTCDate("1984-07-12"),
-          UTCTime("14:34:24"),
-          UTCTimestamp("1984-07-12 14:34:24"))))
+          localDate("1984-07-12"),
+          localTime("14:34:24"),
+          localDateTime("1984-07-12 14:34:24"),
+          localDate("1984-07-12"),
+          localTime("14:34:24"),
+          localDateTime("1984-07-12 14:34:24"))))
 
     checkResult(
       "SELECT a, b, c, DATE '1984-07-12', TIME '14:34:24', " +
@@ -275,29 +285,29 @@ class CalcITCase extends BatchTestBase {
           "WHERE '1984-07-12' = a and '14:34:24' = b and '1984-07-12 14:34:24' = c",
       Seq(
         row(
-          UTCDate("1984-07-12"),
-          UTCTime("14:34:24"),
-          UTCTimestamp("1984-07-12 14:34:24"),
-          UTCDate("1984-07-12"),
-          UTCTime("14:34:24"),
-          UTCTimestamp("1984-07-12 14:34:24"))))
+          localDate("1984-07-12"),
+          localTime("14:34:24"),
+          localDateTime("1984-07-12 14:34:24"),
+          localDate("1984-07-12"),
+          localTime("14:34:24"),
+          localDateTime("1984-07-12 14:34:24"))))
   }
 
   @Test
   def testUserDefinedScalarFunction(): Unit = {
-    tEnv.registerFunction("hashCode", MyHashCode)
+    registerFunction("hashCode", MyHashCode)
     val data = Seq(row("a"), row("b"), row("c"))
     registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
 
     checkResult(
-      "SELECT hashCode(text) FROM MyTable",
-      Seq(row(97), row(98), row(99)
+      "SELECT hashCode(text), hashCode('22') FROM MyTable",
+      Seq(row(97,1600), row(98,1600), row(99,1600)
       ))
   }
 
   @Test
   def testUDFWithInternalClass(): Unit = {
-    tEnv.registerFunction("func", BinaryStringFunction)
+    registerFunction("func", BinaryStringFunction)
     val data = Seq(row("a"), row("b"), row("c"))
     registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
 
@@ -309,10 +319,43 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testTimeUDF(): Unit = {
-    tEnv.registerFunction("func", DateFunction)
-    val data = Seq(row(UTCDate("1984-07-12")))
-    registerCollection("MyTable", data, new RowTypeInfo(DATE), "a")
-    checkResult("SELECT func(a) FROM MyTable", Seq(row(UTCDate("1984-07-12"))))
+    val data = Seq(row(
+      localDate("1984-07-12"),
+      Date.valueOf("1984-07-12"),
+      DateTimeTestUtil.localTime("08:03:09"),
+      Time.valueOf("08:03:09"),
+      localDateTime("2019-09-19 08:03:09"),
+      Timestamp.valueOf("2019-09-19 08:03:09"),
+      Timestamp.valueOf("2019-09-19 08:03:09").toInstant))
+    registerCollection("MyTable", data,
+      new RowTypeInfo(LOCAL_DATE, DATE, LOCAL_TIME, TIME, LOCAL_DATE_TIME, TIMESTAMP, INSTANT),
+      "a, b, c, d, e, f, g")
+
+    tEnv.registerFunction("dateFunc", DateFunction)
+    tEnv.registerFunction("localDateFunc", LocalDateFunction)
+    tEnv.registerFunction("timeFunc", TimeFunction)
+    tEnv.registerFunction("localTimeFunc", LocalTimeFunction)
+    tEnv.registerFunction("timestampFunc", TimestampFunction)
+    tEnv.registerFunction("datetimeFunc", DateTimeFunction)
+    tEnv.registerFunction("instantFunc", InstantFunction)
+
+    val v1 = "1984-07-12"
+    val v2 = "08:03:09"
+    val v3 = "2019-09-19 08:03:09.0"
+    val v4 = "2019-09-19T08:03:09"
+    checkResult(
+      "SELECT" +
+          " dateFunc(a), localDateFunc(a), dateFunc(b), localDateFunc(b)," +
+          " timeFunc(c), localTimeFunc(c), timeFunc(d), localTimeFunc(d)," +
+          " timestampFunc(e), datetimeFunc(e), timestampFunc(f), datetimeFunc(f)," +
+          " CAST(instantFunc(g) AS TIMESTAMP), instantFunc(g)" +
+          " FROM MyTable",
+      Seq(row(
+        v1, v1, v1, v1,
+        v2, v2, v2, v2,
+        v3, v4, v3, v4,
+        localDateTime("2019-09-19 08:03:09"),
+        Timestamp.valueOf("2019-09-19 08:03:09").toInstant)))
   }
 
   @Test
@@ -331,7 +374,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testUserDefinedScalarFunctionWithParameter(): Unit = {
-    tEnv.registerFunction("RichFunc2", new RichFunc2)
+    registerFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "ABC"))
 
     checkResult(
@@ -345,7 +388,7 @@ class CalcITCase extends BatchTestBase {
     val words = "Hello\nWord"
     val filePath = UserDefinedFunctionTestUtils.writeCacheFile("test_words", words)
     env.registerCachedFile(filePath, "words")
-    tEnv.registerFunction("RichFunc3", new RichFunc3)
+    registerFunction("RichFunc3", new RichFunc3)
 
     checkResult(
       "SELECT c FROM SmallTable3 where RichFunc3(c)=true",
@@ -355,8 +398,8 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testMultipleUserDefinedScalarFunctions(): Unit = {
-    tEnv.registerFunction("RichFunc1", new RichFunc1)
-    tEnv.registerFunction("RichFunc2", new RichFunc2)
+    registerFunction("RichFunc1", new RichFunc1)
+    registerFunction("RichFunc2", new RichFunc2)
     UserDefinedFunctionTestUtils.setJobParameters(env, Map("string.value" -> "Abc"))
 
     checkResult(
@@ -367,10 +410,10 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testExternalTypeFunc1(): Unit = {
-    tEnv.registerFunction("func1", RowFunc)
-    tEnv.registerFunction("rowToStr", RowToStrFunc)
-    tEnv.registerFunction("func2", ListFunc)
-    tEnv.registerFunction("func3", StringFunc)
+    registerFunction("func1", RowFunc)
+    registerFunction("rowToStr", RowToStrFunc)
+    registerFunction("func2", ListFunc)
+    registerFunction("func3", StringFunc)
     val data = Seq(row("a"), row("b"), row("c"))
     registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
 
@@ -386,10 +429,10 @@ class CalcITCase extends BatchTestBase {
   @Ignore // TODO support agg
   @Test
   def testExternalTypeFunc2(): Unit = {
-    tEnv.registerFunction("func1", RowFunc)
-    tEnv.registerFunction("rowToStr", RowToStrFunc)
-    tEnv.registerFunction("func2", ListFunc)
-    tEnv.registerFunction("func3", StringFunc)
+    registerFunction("func1", RowFunc)
+    registerFunction("rowToStr", RowToStrFunc)
+    registerFunction("func2", ListFunc)
+    registerFunction("func3", StringFunc)
     val data = Seq(row("a"), row("b"), row("c"))
     registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
 
@@ -438,8 +481,8 @@ class CalcITCase extends BatchTestBase {
       "a")
 
     //1. external type for udf parameter
-    tEnv.registerFunction("pojoFunc", MyPojoFunc)
-    tEnv.registerFunction("toPojoFunc", MyToPojoFunc)
+    registerFunction("pojoFunc", MyPojoFunc)
+    registerFunction("toPojoFunc", MyToPojoFunc)
     checkResult(
       "SELECT pojoFunc(a) FROM MyTable",
       Seq(row(105), row(11), row(12)))
@@ -456,8 +499,8 @@ class CalcITCase extends BatchTestBase {
   // TODO
 //  @Test
 //  def testUDFWithGetResultTypeFromLiteral(): Unit = {
-//    tEnv.registerFunction("hashCode0", LiteralHashCode)
-//    tEnv.registerFunction("hashCode1", LiteralHashCode)
+//    registerFunction("hashCode0", LiteralHashCode)
+//    registerFunction("hashCode1", LiteralHashCode)
 //    val data = Seq(row("a"), row("b"), row("c"))
 //    tEnv.registerCollection("MyTable", data, new RowTypeInfo(STRING_TYPE_INFO), "text")
 //    checkResult(
@@ -657,9 +700,11 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testValueConstructor(): Unit = {
-    val data = Seq(row("foo", 12, UTCTimestamp("1984-07-12 14:34:24")))
-    val tpe = new RowTypeInfo(STRING_TYPE_INFO, INT_TYPE_INFO, TIMESTAMP)
-    registerCollection("MyTable", data, tpe, "a, b, c" , Array(false, false, false))
+    val data = Seq(row("foo", 12, localDateTime("1984-07-12 14:34:24")))
+    BatchTableEnvUtil.registerCollection(
+      tEnv, "MyTable", data,
+      new RowTypeInfo(Types.STRING, Types.INT, Types.LOCAL_DATE_TIME),
+      Some(parseFieldNames("a, b, c")), None, None)
 
     val table = parseQuery("SELECT ROW(a, b, c), ARRAY[12, b], MAP[a, c] FROM MyTable " +
         "WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24')")
@@ -682,7 +727,7 @@ class CalcITCase extends BatchTestBase {
   @Test
   def testSelectStarFromNestedTable(): Unit = {
 
-    val table = BatchScalaTableEnvUtil.fromCollection(tEnv, Seq(
+    val table = BatchTableEnvUtil.fromCollection(tEnv, Seq(
       ((0, 0), "0"),
       ((1, 1), "1"),
       ((2, 2), "2")
@@ -701,7 +746,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testSelectStarFromNestedValues(): Unit = {
-    val table = BatchScalaTableEnvUtil.fromCollection(tEnv, Seq(
+    val table = BatchTableEnvUtil.fromCollection(tEnv, Seq(
       (0L, "0"),
       (1L, "1"),
       (2L, "2")
@@ -730,7 +775,7 @@ class CalcITCase extends BatchTestBase {
   @Ignore //TODO support cast string to bigint.
   @Test
   def testSelectStarFromNestedValues2(): Unit = {
-    val table = BatchScalaTableEnvUtil.fromCollection(tEnv, Seq(
+    val table = BatchTableEnvUtil.fromCollection(tEnv, Seq(
       (0L, "0"),
       (1L, "1"),
       (2L, "2")
@@ -757,10 +802,10 @@ class CalcITCase extends BatchTestBase {
     val splitUDF0 = new SplitUDF(deterministic = true)
     val splitUDF1 = new SplitUDF(deterministic = false)
 
-    tEnv.registerFunction("splitUDF0", splitUDF0)
-    tEnv.registerFunction("splitUDF1", splitUDF1)
+    registerFunction("splitUDF0", splitUDF0)
+    registerFunction("splitUDF1", splitUDF1)
 
-    val t1 = BatchScalaTableEnvUtil.fromCollection(tEnv, data, "a, b, c")
+    val t1 = BatchTableEnvUtil.fromCollection(tEnv, data, "a, b, c")
     tEnv.registerTable("T1", t1)
     // uses SQL escaping (be aware that even Scala multi-line strings parse backslash!)
     checkResult(
@@ -825,7 +870,7 @@ class CalcITCase extends BatchTestBase {
       (5, "a%_ha")
     )
 
-    BatchScalaTableEnvUtil.registerCollection(tEnv, "MyT", rows, "a, b")
+    BatchTableEnvUtil.registerCollection(tEnv, "MyT", rows, "a, b")
 
     checkResult(
       "SELECT a FROM MyT WHERE b LIKE '%ha?_ha%' ESCAPE '?'",
@@ -916,7 +961,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testStringUdf(): Unit = {
-    tEnv.registerFunction("myFunc", MyStringFunc)
+    registerFunction("myFunc", MyStringFunc)
     checkResult(
       "SELECT myFunc(c) FROM Table3 WHERE a = 1",
       Seq(row("Hihaha")))
@@ -924,7 +969,7 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testNestUdf(): Unit = {
-    tEnv.registerFunction("func", MyStringFunc)
+    registerFunction("func", MyStringFunc)
     checkResult(
       "SELECT func(func(func(c))) FROM SmallTable3",
       Seq(row("Hello worldhahahahahaha"), row("Hellohahahahahaha"), row("Hihahahahahaha")))
@@ -937,12 +982,13 @@ class CalcITCase extends BatchTestBase {
     checkResult("SELECT CURRENT_DATE = CURRENT_DATE FROM testTable WHERE a = TRUE",
       Seq(row(true)))
 
-    val d0 = DateConverter.INSTANCE.toInternal(new Date(System.currentTimeMillis()))
+    val d0 = LocalDateConverter.INSTANCE.toInternal(
+      unixTimestampToLocalDateTime(System.currentTimeMillis()).toLocalDate)
 
     val table = parseQuery("SELECT CURRENT_DATE FROM testTable WHERE a = TRUE")
     val result = executeQuery(table)
-    val d1 = DateConverter.INSTANCE.toInternal(
-      result.toList.head.getField(0).asInstanceOf[java.sql.Date])
+    val d1 = LocalDateConverter.INSTANCE.toInternal(
+      result.toList.head.getField(0).asInstanceOf[LocalDate])
 
     Assert.assertTrue(d0 <= d1 && d1 - d0 <= 1)
   }
@@ -958,8 +1004,8 @@ class CalcITCase extends BatchTestBase {
 
     val table = parseQuery("SELECT CURRENT_TIMESTAMP FROM testTable WHERE a = TRUE")
     val result = executeQuery(table)
-    val ts1 = TimestampConverter.INSTANCE.toInternal(
-      result.toList.head.getField(0).asInstanceOf[java.sql.Timestamp])
+    val ts1 = LocalDateTimeConverter.INSTANCE.toInternal(
+      result.toList.head.getField(0).asInstanceOf[LocalDateTime])
 
     val ts2 = System.currentTimeMillis()
 
@@ -1006,15 +1052,15 @@ class CalcITCase extends BatchTestBase {
   def testTimestampCompareWithDateString(): Unit = {
     //j 2015-05-20 10:00:00.887
     checkResult("SELECT j FROM testTable WHERE j < '2017-11-11'",
-      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"))))
+      Seq(row(localDateTime("2015-05-20 10:00:00.887"))))
   }
 
   @Test
   def testDateCompareWithDateString(): Unit = {
     checkResult("SELECT h FROM testTable WHERE h <= '2017-12-12'",
       Seq(
-        row(UTCDate("2017-12-12")),
-        row(UTCDate("2017-12-12"))
+        row(localDate("2017-12-12")),
+        row(localDate("2017-12-12"))
       ))
   }
 
@@ -1022,8 +1068,8 @@ class CalcITCase extends BatchTestBase {
   def testDateEqualsWithDateString(): Unit = {
     checkResult("SELECT h FROM testTable WHERE h = '2017-12-12'",
       Seq(
-        row(UTCDate("2017-12-12")),
-        row(UTCDate("2017-12-12"))
+        row(localDate("2017-12-12")),
+        row(localDate("2017-12-12"))
       ))
   }
 
@@ -1036,7 +1082,7 @@ class CalcITCase extends BatchTestBase {
         " DATE_FORMAT('2015-05-20 10:00:00.887', 'yyyy-MM-dd HH:mm:ss', 'yyyy/MM/dd HH:mm:ss')" +
         " FROM testTable WHERE a = TRUE",
       Seq(
-        row(UTCTimestamp("2015-05-20 10:00:00.887"),
+        row(localDateTime("2015-05-20 10:00:00.887"),
           "2015/05/20 10:00:00",
           "2015/05/20 10:00:00",
           "2015/05/20 10:00:00")
@@ -1046,61 +1092,61 @@ class CalcITCase extends BatchTestBase {
   @Test
   def testYear(): Unit = {
     checkResult("SELECT j, YEAR(j) FROM testTable WHERE a = TRUE",
-      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "2015")))
+      Seq(row(localDateTime("2015-05-20 10:00:00.887"), "2015")))
   }
 
   @Test
   def testQuarter(): Unit = {
     checkResult("SELECT j, QUARTER(j) FROM testTable WHERE a = TRUE",
-      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "2")))
+      Seq(row(localDateTime("2015-05-20 10:00:00.887"), "2")))
   }
 
   @Test
   def testMonth(): Unit = {
     checkResult("SELECT j, MONTH(j) FROM testTable WHERE a = TRUE",
-      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "5")))
+      Seq(row(localDateTime("2015-05-20 10:00:00.887"), "5")))
   }
 
   @Test
   def testWeek(): Unit = {
     checkResult("SELECT j, WEEK(j) FROM testTable WHERE a = TRUE",
-      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "21")))
+      Seq(row(localDateTime("2015-05-20 10:00:00.887"), "21")))
   }
 
   @Test
   def testDayOfYear(): Unit = {
     checkResult("SELECT j, DAYOFYEAR(j) FROM testTable WHERE a = TRUE",
-      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "140")))
+      Seq(row(localDateTime("2015-05-20 10:00:00.887"), "140")))
   }
 
   @Test
   def testDayOfMonth(): Unit = {
     checkResult("SELECT j, DAYOFMONTH(j) FROM testTable WHERE a = TRUE",
-      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "20")))
+      Seq(row(localDateTime("2015-05-20 10:00:00.887"), "20")))
   }
 
   @Test
   def testDayOfWeek(): Unit = {
     checkResult("SELECT j, DAYOFWEEK(j) FROM testTable WHERE a = TRUE",
-      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "4")))
+      Seq(row(localDateTime("2015-05-20 10:00:00.887"), "4")))
   }
 
   @Test
   def testHour(): Unit = {
     checkResult("SELECT j, HOUR(j) FROM testTable WHERE a = TRUE",
-      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "10")))
+      Seq(row(localDateTime("2015-05-20 10:00:00.887"), "10")))
   }
 
   @Test
   def testMinute(): Unit = {
     checkResult("SELECT j, MINUTE(j) FROM testTable WHERE a = TRUE",
-      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "0")))
+      Seq(row(localDateTime("2015-05-20 10:00:00.887"), "0")))
   }
 
   @Test
   def testSecond(): Unit = {
     checkResult("SELECT j, SECOND(j) FROM testTable WHERE a = TRUE",
-      Seq(row(UTCTimestamp("2015-05-20 10:00:00.887"), "0")))
+      Seq(row(localDateTime("2015-05-20 10:00:00.887"), "0")))
   }
 
   @Test
@@ -1155,7 +1201,7 @@ class CalcITCase extends BatchTestBase {
         " TO_DATE(CAST(null AS VARCHAR))," +
         " TO_DATE('2016-12-31')," +
         " TO_DATE('2016-12-31', 'yyyy-MM-dd')",
-      Seq(row(null, UTCDate("2016-12-31"), UTCDate("2016-12-31"))))
+      Seq(row(null, localDate("2016-12-31"), localDate("2016-12-31"))))
   }
 
   @Test
@@ -1164,7 +1210,7 @@ class CalcITCase extends BatchTestBase {
         " TO_TIMESTAMP(CAST(null AS VARCHAR))," +
         " TO_TIMESTAMP('2016-12-31 00:12:00')," +
         " TO_TIMESTAMP('2016-12-31', 'yyyy-MM-dd')",
-      Seq(row(null, UTCTimestamp("2016-12-31 00:12:00"), UTCTimestamp("2016-12-31 00:00:00"))))
+      Seq(row(null, localDateTime("2016-12-31 00:12:00"), localDateTime("2016-12-31 00:00:00"))))
   }
 
   @Test
@@ -1189,8 +1235,8 @@ class CalcITCase extends BatchTestBase {
       new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO),
       "a, b, c",
       nullablesOfNullData3)
-    conf.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
-    conf.getConf.setBoolean(TableConfigOptions.SQL_EXEC_SORT_RANGE_ENABLED, true)
+    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+    conf.getConfiguration.setBoolean(BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED, true)
     checkResult(
       "select * from BinaryT order by c",
       nullData3.sortBy((x : Row) =>

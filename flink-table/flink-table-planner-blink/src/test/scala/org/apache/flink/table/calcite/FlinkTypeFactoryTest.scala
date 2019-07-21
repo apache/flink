@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.flink.table.types.logical.{ArrayType, BigIntType, BooleanType, DateType, DecimalType, DoubleType, FloatType, IntType, LogicalType, MapType, RowType, SmallIntType, TimeType, TimestampType, TinyIntType, VarBinaryType, VarCharType}
+import org.apache.flink.table.types.logical.{ArrayType, BigIntType, BooleanType, DateType, DecimalType, DoubleType, FloatType, IntType, LocalZonedTimestampType, LogicalType, MapType, RowType, SmallIntType, TimeType, TimestampType, TinyIntType, VarBinaryType, VarCharType}
 
 import org.junit.{Assert, Test}
 
@@ -67,6 +67,7 @@ class FlinkTypeFactoryTest {
     test(new DateType())
     test(new TimeType())
     test(new TimestampType(3))
+    test(new LocalZonedTimestampType(3))
 
     test(new ArrayType(new DoubleType()))
     test(new MapType(new DoubleType(), new VarCharType(VarCharType.MAX_LENGTH)))

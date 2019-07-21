@@ -27,7 +27,7 @@ import org.apache.flink.table.expressions._
   * @param timeAttribute time field indicating event-time or processing-time
   */
 abstract class LogicalWindow(
-    val aliasAttribute: WindowReference,
+    val aliasAttribute: PlannerWindowReference,
     val timeAttribute: FieldReferenceExpression) {
 
   override def toString: String = getClass.getSimpleName
@@ -38,7 +38,7 @@ abstract class LogicalWindow(
 // ------------------------------------------------------------------------------------------------
 
 case class TumblingGroupWindow(
-    alias: WindowReference,
+    alias: PlannerWindowReference,
     timeField: FieldReferenceExpression,
     size: ValueLiteralExpression)
   extends LogicalWindow(
@@ -51,7 +51,7 @@ case class TumblingGroupWindow(
 // ------------------------------------------------------------------------------------------------
 
 case class SlidingGroupWindow(
-    alias: WindowReference,
+    alias: PlannerWindowReference,
     timeField: FieldReferenceExpression,
     size: ValueLiteralExpression,
     slide: ValueLiteralExpression)
@@ -67,7 +67,7 @@ case class SlidingGroupWindow(
 // ------------------------------------------------------------------------------------------------
 
 case class SessionGroupWindow(
-    alias: WindowReference,
+    alias: PlannerWindowReference,
     timeField: FieldReferenceExpression,
     gap: ValueLiteralExpression)
   extends LogicalWindow(

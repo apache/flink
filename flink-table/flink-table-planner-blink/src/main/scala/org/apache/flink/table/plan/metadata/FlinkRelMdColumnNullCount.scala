@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.api.PlannerConfigOptions
 import org.apache.flink.table.plan.metadata.FlinkMetadata.ColumnNullCount
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, FlinkRexUtil}
@@ -66,6 +65,16 @@ class FlinkRelMdColumnNullCount private extends MetadataHandler[ColumnNullCount]
       null
     }
   }
+
+  /**
+    * Gets the null count of the given column on Snapshot.
+    *
+    * @param snapshot    Snapshot RelNode
+    * @param mq    RelMetadataQuery instance
+    * @param index the index of the given column
+    * @return the null count of the given column on Snapshot.
+    */
+  def getColumnNullCount(snapshot: Snapshot, mq: RelMetadataQuery, index: Int): JDouble = null
 
   /**
     * Gets the null count of the given column in Project.
@@ -149,8 +158,8 @@ class FlinkRelMdColumnNullCount private extends MetadataHandler[ColumnNullCount]
         // If predicate has $index is not null, null count of index is must be 0 after predicate.
         val rexBuilder = rel.getCluster.getRexBuilder
         val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(rel)
-        val maxCnfNodeCount = tableConfig.getConf.getInteger(
-          PlannerConfigOptions.SQL_OPTIMIZER_CNF_NODES_LIMIT)
+        val maxCnfNodeCount = tableConfig.getConfiguration.getInteger(
+          FlinkRexUtil.SQL_OPTIMIZER_CNF_NODES_LIMIT)
         val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, predicate)
         val conjunctions = RelOptUtil.conjunctions(cnf)
         val notNullPredicatesAtIndexField = conjunctions.exists {

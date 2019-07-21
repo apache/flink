@@ -226,6 +226,29 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalFullJoinOnRHSUniqueKeys).toSet)
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalFullJoinWithoutEquiCond).toSet)
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalFullJoinWithEquiAndNonEquiCond).toSet)
+
+    assertEquals(uniqueKeys(Array(1)),
+      mq.getUniqueKeys(logicalSemiJoinOnUniqueKeys).toSet)
+    assertEquals(uniqueKeys(Array(1)), mq.getUniqueKeys(logicalSemiJoinNotOnUniqueKeys).toSet)
+    assertNull(mq.getUniqueKeys(logicalSemiJoinOnRHSUniqueKeys))
+    assertEquals(uniqueKeys(Array(1)), mq.getUniqueKeys(logicalSemiJoinWithoutEquiCond).toSet)
+    assertEquals(uniqueKeys(Array(1)),
+      mq.getUniqueKeys(logicalSemiJoinWithEquiAndNonEquiCond).toSet)
+
+    assertEquals(uniqueKeys(Array(1)),
+      mq.getUniqueKeys(logicalAntiJoinOnUniqueKeys).toSet)
+    assertEquals(uniqueKeys(Array(1)), mq.getUniqueKeys(logicalAntiJoinNotOnUniqueKeys).toSet)
+    assertNull(mq.getUniqueKeys(logicalAntiJoinOnRHSUniqueKeys))
+    assertEquals(uniqueKeys(Array(1)), mq.getUniqueKeys(logicalAntiJoinWithoutEquiCond).toSet)
+    assertEquals(uniqueKeys(Array(1)),
+      mq.getUniqueKeys(logicalAntiJoinWithEquiAndNonEquiCond).toSet)
+  }
+
+  @Test
+  def testGetUniqueKeysOnLookupJoin(): Unit = {
+    Array(batchLookupJoin, streamLookupJoin).foreach { join =>
+      assertEquals(uniqueKeys(), mq.getUniqueKeys(join).toSet)
+    }
   }
 
   @Test

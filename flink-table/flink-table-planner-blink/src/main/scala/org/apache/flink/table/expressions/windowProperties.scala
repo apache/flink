@@ -18,65 +18,44 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.table.api.TableException
-import org.apache.flink.table.types.logical.{BigIntType, LogicalType, TimestampKind, TimestampType}
+import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.validate.{ValidationFailure, ValidationSuccess}
 
 trait WindowProperty {
-  def resultType: LogicalType
+
+  def toNamedWindowProperty(name: String): NamedWindowProperty
+
+  def resultType: TypeInformation[_]
+
 }
 
-abstract class AbstractWindowProperty(reference: WindowReference) extends WindowProperty {
-  override def toString = s"WindowProperty($reference)"
-}
+abstract class AbstractWindowProperty(child: PlannerExpression)
+  extends UnaryExpression
+  with WindowProperty {
 
-/**
-  * Indicate timeField type.
-  */
-case class WindowReference(name: String, tpe: Option[LogicalType] = None) {
-  override def toString: String = s"'$name"
-}
+  override def toString = s"WindowProperty($child)"
 
-case class WindowStart(reference: WindowReference) extends AbstractWindowProperty(reference) {
-
-  override def resultType: TimestampType = new TimestampType(3)
-
-  override def toString: String = s"start($reference)"
-}
-
-case class WindowEnd(reference: WindowReference) extends AbstractWindowProperty(reference) {
-
-  override def resultType: TimestampType = new TimestampType(3)
-
-  override def toString: String = s"end($reference)"
-}
-
-case class RowtimeAttribute(reference: WindowReference) extends AbstractWindowProperty(reference) {
-
-  override def resultType: LogicalType = {
-    reference match {
-      case WindowReference(_, Some(tpe))
-        if tpe.isInstanceOf[TimestampType] &&
-            tpe.asInstanceOf[TimestampType].getKind == TimestampKind.ROWTIME =>
-        // rowtime window
-        new TimestampType(true, TimestampKind.ROWTIME, 3)
-      case WindowReference(_, Some(tpe))
-        if tpe.isInstanceOf[BigIntType] || tpe.isInstanceOf[TimestampType] =>
-        // batch time window
-        new TimestampType(3)
-      case _ =>
-        throw new TableException("WindowReference of RowtimeAttribute has invalid type. " +
-            "Please report this bug.")
+  override private[flink] def validateInput() =
+    if (child.isInstanceOf[WindowReference]) {
+      ValidationSuccess
+    } else {
+      ValidationFailure("Child must be a window reference.")
     }
-  }
 
-  override def toString: String = s"rowtime($reference)"
+  def toNamedWindowProperty(name: String): NamedWindowProperty = NamedWindowProperty(name, this)
 }
 
-case class ProctimeAttribute(reference: WindowReference)
-  extends AbstractWindowProperty(reference) {
+case class WindowStart(child: PlannerExpression) extends AbstractWindowProperty(child) {
 
-  override def resultType: LogicalType =
-    new TimestampType(true, TimestampKind.PROCTIME, 3)
+  override def resultType = SqlTimeTypeInfo.TIMESTAMP
 
-  override def toString: String = s"proctime($reference)"
+  override def toString: String = s"start($child)"
+}
+
+case class WindowEnd(child: PlannerExpression) extends AbstractWindowProperty(child) {
+
+  override def resultType = SqlTimeTypeInfo.TIMESTAMP
+
+  override def toString: String = s"end($child)"
 }

@@ -112,6 +112,8 @@ public class HiveTableFactoryTest {
 		HiveTableFactory tableFactory = (HiveTableFactory) opt.get();
 		TableSink tableSink = tableFactory.createTableSink(path, table);
 		assertTrue(tableSink instanceof HiveTableSink);
+		TableSource tableSource = tableFactory.createTableSource(path, table);
+		assertTrue(tableSource instanceof HiveTableSource);
 	}
 
 }

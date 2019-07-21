@@ -86,11 +86,11 @@ t_env.scan('mySource') \
 {% endhighlight %}
 
 最后，需要做的就是启动Flink Python Table API作业。上面所有的操作，比如创建源表
-进行变换以及写入结果表的操作都只是构建作业逻辑图，只有当`exec_env.execute()`被调用的时候，
+进行变换以及写入结果表的操作都只是构建作业逻辑图，只有当`t_env.execute(job_name)`被调用的时候，
 作业才会被真正提交到集群或者本地进行执行。
 
 {% highlight python %}
-exec_env.execute()
+t_env.execute("python_job")
 {% endhighlight %}
 
 该教程的完整代码如下:
@@ -128,7 +128,7 @@ t_env.scan('mySource') \
     .select('word, count(1)') \
     .insert_into('mySink')
 
-exec_env.execute()
+t_env.execute("python_job")
 {% endhighlight %}
 
 ## 执行一个Flink Python Table API程序

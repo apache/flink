@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobCache;
@@ -36,6 +37,8 @@ import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.TestingUncaughtExceptionHandler;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -57,6 +60,7 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -66,15 +70,18 @@ import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.DoneFuture;
+import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupStatePartitionStreamProvider;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendFactory;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TaskLocalStateStoreImpl;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
@@ -88,13 +95,13 @@ import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
+import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
-import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
@@ -103,7 +110,10 @@ import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
 import org.apache.flink.util.CloseableIterable;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
@@ -112,27 +122,27 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
-import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.streaming.util.StreamTaskUtil.waitTaskIsRunning;
 import static org.hamcrest.Matchers.everyItem;
@@ -156,14 +166,10 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 /**
  * Tests for {@link StreamTask}.
  */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(StreamTask.class)
-@PowerMockIgnore("org.apache.log4j.*")
 @SuppressWarnings("deprecation")
 public class StreamTaskTest extends TestLogger {
 
@@ -317,7 +323,7 @@ public class StreamTaskTest extends TestLogger {
 
 		final Exception testException = new Exception("Test exception");
 
-		RunningTask<MockStreamTask> task = runTask(() -> new MockStreamTask(
+		RunningTask<MockStreamTask> task = runTask(() -> createMockStreamTask(
 			declineDummyEnvironment,
 			operatorChain(
 				streamOperatorWithSnapshot(operatorSnapshotResult1),
@@ -342,6 +348,44 @@ public class StreamTaskTest extends TestLogger {
 	}
 
 	/**
+	 * Tests that uncaught exceptions in the async part of a checkpoint operation are forwarded
+	 * to the uncaught exception handler. See <a href="https://issues.apache.org/jira/browse/FLINK-12889">FLINK-12889</a>.
+	 */
+	@Test
+	public void testUncaughtExceptionInAsynchronousCheckpointingOperation() throws Exception {
+		final RuntimeException failingCause = new RuntimeException("Test exception");
+		FailingDummyEnvironment failingDummyEnvironment = new FailingDummyEnvironment(failingCause);
+
+		// mock the returned snapshots
+		OperatorSnapshotFutures operatorSnapshotResult = new OperatorSnapshotFutures(
+			ExceptionallyDoneFuture.of(failingCause),
+			DoneFuture.of(SnapshotResult.empty()),
+			DoneFuture.of(SnapshotResult.empty()),
+			DoneFuture.of(SnapshotResult.empty()));
+
+		final TestingUncaughtExceptionHandler uncaughtExceptionHandler = new TestingUncaughtExceptionHandler();
+
+		RunningTask<MockStreamTask> task = runTask(() -> new MockStreamTask(
+			failingDummyEnvironment,
+			operatorChain(streamOperatorWithSnapshot(operatorSnapshotResult)),
+			uncaughtExceptionHandler));
+		MockStreamTask streamTask = task.streamTask;
+
+		waitTaskIsRunning(streamTask, task.invocationFuture);
+
+		streamTask.triggerCheckpoint(
+			new CheckpointMetaData(42L, 1L),
+			CheckpointOptions.forCheckpointWithDefaultLocation(),
+			false);
+
+		final Throwable uncaughtException = uncaughtExceptionHandler.waitForUncaughtException();
+		assertThat(uncaughtException, is(failingCause));
+
+		streamTask.finishInput();
+		task.waitForTaskCompletion(false);
+	}
+
+	/**
 	 * Tests that in case of a failing AsyncCheckpointRunnable all operator snapshot results are
 	 * cancelled and all non partitioned state handles are discarded.
 	 */
@@ -359,7 +403,7 @@ public class StreamTaskTest extends TestLogger {
 		when(operatorSnapshotResult3.getOperatorStateRawFuture()).thenReturn(failingFuture);
 
 		try (MockEnvironment mockEnvironment = new MockEnvironmentBuilder().build()) {
-			RunningTask<MockStreamTask> task = runTask(() -> new MockStreamTask(
+			RunningTask<MockStreamTask> task = runTask(() -> createMockStreamTask(
 				mockEnvironment,
 				operatorChain(
 					streamOperatorWithSnapshot(operatorSnapshotResult1),
@@ -450,7 +494,7 @@ public class StreamTaskTest extends TestLogger {
 			.setTaskStateManager(taskStateManager)
 			.build()) {
 
-			RunningTask<MockStreamTask> task = runTask(() -> new MockStreamTask(
+			RunningTask<MockStreamTask> task = runTask(() -> createMockStreamTask(
 				mockEnvironment,
 				operatorChain(streamOperatorWithSnapshot(operatorSnapshotResult))));
 
@@ -516,71 +560,56 @@ public class StreamTaskTest extends TestLogger {
 	@Test
 	public void testAsyncCheckpointingConcurrentCloseBeforeAcknowledge() throws Exception {
 
-		final OneShotLatch createSubtask = new OneShotLatch();
-		final OneShotLatch completeSubtask = new OneShotLatch();
+		final TestingKeyedStateHandle managedKeyedStateHandle = new TestingKeyedStateHandle();
+		final TestingKeyedStateHandle rawKeyedStateHandle = new TestingKeyedStateHandle();
+		final TestingOperatorStateHandle managedOperatorStateHandle = new TestingOperatorStateHandle();
+		final TestingOperatorStateHandle rawOperatorStateHandle = new TestingOperatorStateHandle();
 
-		whenNew(OperatorSnapshotFinalizer.class).
-			withAnyArguments().
-			thenAnswer((Answer<OperatorSnapshotFinalizer>) invocation -> {
-					createSubtask.trigger();
-					completeSubtask.await();
-					Object[] arguments = invocation.getArguments();
-					return new OperatorSnapshotFinalizer((OperatorSnapshotFutures) arguments[0]);
-				}
-			);
-
-		KeyedStateHandle managedKeyedStateHandle = mock(KeyedStateHandle.class);
-		KeyedStateHandle rawKeyedStateHandle = mock(KeyedStateHandle.class);
-		OperatorStateHandle managedOperatorStateHandle = mock(OperatorStreamStateHandle.class);
-		OperatorStateHandle rawOperatorStateHandle = mock(OperatorStreamStateHandle.class);
-
+		final BlockingRunnableFuture<SnapshotResult<KeyedStateHandle>> rawKeyedStateHandleFuture = new BlockingRunnableFuture<>(2, SnapshotResult.of(rawKeyedStateHandle));
 		OperatorSnapshotFutures operatorSnapshotResult = new OperatorSnapshotFutures(
 			DoneFuture.of(SnapshotResult.of(managedKeyedStateHandle)),
-			DoneFuture.of(SnapshotResult.of(rawKeyedStateHandle)),
+			rawKeyedStateHandleFuture,
 			DoneFuture.of(SnapshotResult.of(managedOperatorStateHandle)),
 			DoneFuture.of(SnapshotResult.of(rawOperatorStateHandle)));
 
 		final StreamOperator<?> streamOperator = streamOperatorWithSnapshot(operatorSnapshotResult);
 
-		try (MockEnvironment mockEnvironment = spy(new MockEnvironmentBuilder().build())) {
+		final AcknowledgeDummyEnvironment mockEnvironment = new AcknowledgeDummyEnvironment();
 
-			RunningTask<MockStreamTask> task = runTask(() -> new MockStreamTask(
-				mockEnvironment,
-				operatorChain(streamOperator)));
+		RunningTask<MockStreamTask> task = runTask(() -> createMockStreamTask(
+			mockEnvironment,
+			operatorChain(streamOperator)));
 
-			waitTaskIsRunning(task.streamTask, task.invocationFuture);
+		waitTaskIsRunning(task.streamTask, task.invocationFuture);
 
-			final long checkpointId = 42L;
-			task.streamTask.triggerCheckpoint(
-				new CheckpointMetaData(checkpointId, 1L),
-				CheckpointOptions.forCheckpointWithDefaultLocation(),
-				false);
+		final long checkpointId = 42L;
+		task.streamTask.triggerCheckpoint(
+			new CheckpointMetaData(checkpointId, 1L),
+			CheckpointOptions.forCheckpointWithDefaultLocation(),
+			false);
 
-			createSubtask.await();
+		rawKeyedStateHandleFuture.awaitRun();
 
-			task.streamTask.cancel();
+		task.streamTask.cancel();
 
-			completeSubtask.trigger();
+		final FutureUtils.ConjunctFuture<Void> discardFuture = FutureUtils.waitForAll(
+			Arrays.asList(
+				managedKeyedStateHandle.getDiscardFuture(),
+				rawKeyedStateHandle.getDiscardFuture(),
+				managedOperatorStateHandle.getDiscardFuture(),
+				rawOperatorStateHandle.getDiscardFuture()));
 
-			// wait for the completion of the async task
-			ExecutorService executor = task.streamTask.getAsyncOperationsThreadPool();
-			executor.shutdown();
-			if (!executor.awaitTermination(10000L, TimeUnit.MILLISECONDS)) {
-				fail("Executor did not shut down within the given timeout. This indicates that the " +
-					"checkpointing did not resume.");
-			}
+		// make sure that all state handles have been discarded
+		discardFuture.get();
 
-			// check that the checkpoint has not been acknowledged
-			verify(mockEnvironment, never()).acknowledgeCheckpoint(eq(checkpointId), any(CheckpointMetrics.class), any(TaskStateSnapshot.class));
-
-			// check that the state handles have been discarded
-			verify(managedKeyedStateHandle).discardState();
-			verify(rawKeyedStateHandle).discardState();
-			verify(managedOperatorStateHandle).discardState();
-			verify(rawOperatorStateHandle).discardState();
-
-			task.waitForTaskCompletion(true);
+		try {
+			mockEnvironment.getAcknowledgeCheckpointFuture().get(10L, TimeUnit.MILLISECONDS);
+			fail("The checkpoint should not get acknowledged.");
+		} catch (TimeoutException expected) {
+			// future should not be completed
 		}
+
+		task.waitForTaskCompletion(true);
 	}
 
 	/**
@@ -626,7 +655,7 @@ public class StreamTaskTest extends TestLogger {
 			.setTaskStateManager(taskStateManager)
 			.build()) {
 
-			RunningTask<MockStreamTask> task = runTask(() -> new MockStreamTask(
+			RunningTask<MockStreamTask> task = runTask(() -> createMockStreamTask(
 				mockEnvironment,
 				operatorChain(statelessOperator)));
 
@@ -655,6 +684,7 @@ public class StreamTaskTest extends TestLogger {
 	 */
 	@Test
 	public void testOperatorClosingBeforeStopRunning() throws Throwable {
+		BlockingCloseStreamOperator.resetLatches();
 		Configuration taskConfiguration = new Configuration();
 		StreamConfig streamConfig = new StreamConfig(taskConfiguration);
 		streamConfig.setStreamOperator(new BlockingCloseStreamOperator());
@@ -671,13 +701,13 @@ public class StreamTaskTest extends TestLogger {
 
 			RunningTask<StreamTask<Void, BlockingCloseStreamOperator>> task = runTask(() -> new NoOpStreamTask<>(mockEnvironment));
 
-			BlockingCloseStreamOperator.IN_CLOSE.await();
+			BlockingCloseStreamOperator.inClose.await();
 
 			// check that the StreamTask is not yet in isRunning == false
 			assertTrue(task.streamTask.isRunning());
 
 			// let the operator finish its close operation
-			BlockingCloseStreamOperator.FINISH_CLOSE.trigger();
+			BlockingCloseStreamOperator.finishClose.trigger();
 
 			task.waitForTaskCompletion(false);
 
@@ -799,28 +829,36 @@ public class StreamTaskTest extends TestLogger {
 		protected void init() throws Exception {}
 
 		@Override
-		protected void performDefaultAction(ActionContext context) throws Exception {
+		protected void performDefaultAction(DefaultActionContext context) throws Exception {
 			context.allActionsCompleted();
 		}
 
 		@Override
 		protected void cleanup() throws Exception {}
-
-		@Override
-		protected void cancelTask() throws Exception {}
 	}
 
 	private static class BlockingCloseStreamOperator extends AbstractStreamOperator<Void> {
 		private static final long serialVersionUID = -9042150529568008847L;
 
-		public static final OneShotLatch IN_CLOSE = new OneShotLatch();
-		public static final OneShotLatch FINISH_CLOSE = new OneShotLatch();
+		private static volatile OneShotLatch inClose;
+		private static volatile OneShotLatch finishClose;
 
 		@Override
 		public void close() throws Exception {
-			IN_CLOSE.trigger();
-			FINISH_CLOSE.await();
+			checkLatches();
+			inClose.trigger();
+			finishClose.await();
 			super.close();
+		}
+
+		private void checkLatches() {
+			Preconditions.checkNotNull(inClose);
+			Preconditions.checkNotNull(finishClose);
+		}
+
+		private static void resetLatches() {
+			inClose = new OneShotLatch();
+			finishClose = new OneShotLatch();
 		}
 	}
 
@@ -983,8 +1021,8 @@ public class StreamTaskTest extends TestLogger {
 		private final OperatorChain<String, AbstractStreamOperator<String>> overrideOperatorChain;
 		private volatile boolean inputFinished;
 
-		MockStreamTask(Environment env, OperatorChain<String, AbstractStreamOperator<String>> operatorChain) {
-			super(env, null);
+		MockStreamTask(Environment env, OperatorChain<String, AbstractStreamOperator<String>> operatorChain, Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
+			super(env, null, uncaughtExceptionHandler);
 			this.overrideOperatorChain = operatorChain;
 		}
 
@@ -998,7 +1036,7 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		protected void performDefaultAction(ActionContext context) {
+		protected void performDefaultAction(DefaultActionContext context) {
 			if (isCanceled() || inputFinished) {
 				context.allActionsCompleted();
 			}
@@ -1007,12 +1045,13 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		protected void cleanup() throws Exception {}
 
-		@Override
-		protected void cancelTask() throws Exception {}
-
 		void finishInput() {
 			this.inputFinished = true;
 		}
+	}
+
+	private static MockStreamTask createMockStreamTask(Environment env, OperatorChain<String, AbstractStreamOperator<String>> operatorChain) {
+		return new MockStreamTask(env, operatorChain, FatalExitExceptionHandler.INSTANCE);
 	}
 
 	/**
@@ -1034,7 +1073,7 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		protected void performDefaultAction(ActionContext context) throws Exception {
+		protected void performDefaultAction(DefaultActionContext context) throws Exception {
 			if (fail) {
 				throw new RuntimeException();
 			}
@@ -1043,9 +1082,6 @@ public class StreamTaskTest extends TestLogger {
 
 		@Override
 		protected void cleanup() throws Exception {}
-
-		@Override
-		protected void cancelTask() throws Exception {}
 
 		@Override
 		public StreamTaskStateInitializer createStreamTaskStateInitializer() {
@@ -1125,7 +1161,7 @@ public class StreamTaskTest extends TestLogger {
 		protected void init() {}
 
 		@Override
-		protected void performDefaultAction(ActionContext context) throws Exception {
+		protected void performDefaultAction(DefaultActionContext context) throws Exception {
 			holder = new LockHolder(getCheckpointLock(), latch);
 			holder.start();
 			latch.await();
@@ -1170,7 +1206,7 @@ public class StreamTaskTest extends TestLogger {
 		protected void init() {}
 
 		@Override
-		protected void performDefaultAction(ActionContext context) throws Exception {
+		protected void performDefaultAction(DefaultActionContext context) throws Exception {
 			final OneShotLatch latch = new OneShotLatch();
 			final Object lock = new Object();
 
@@ -1212,12 +1248,12 @@ public class StreamTaskTest extends TestLogger {
 	/**
 	 * A task that register a processing time service callback.
 	 */
-	public static class TimeServiceTask extends StreamTask<String, AbstractStreamOperator<String>> {
+	public static class TimeServiceTask extends NoOpStreamTask<String, AbstractStreamOperator<String>> {
 
 		private final List<ClassLoader> classLoaders = Collections.synchronizedList(new ArrayList<>());
 
 		public TimeServiceTask(Environment env) {
-			super(env, null);
+			super(env);
 		}
 
 		public List<ClassLoader> getClassLoaders() {
@@ -1236,19 +1272,9 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		protected void performDefaultAction(ActionContext context) throws Exception {
+		protected void performDefaultAction(DefaultActionContext context) throws Exception {
 			syncLatch.await();
-			context.allActionsCompleted();
-		}
-
-		@Override
-		protected void cleanup() throws Exception {
-
-		}
-
-		@Override
-		protected void cancelTask() throws Exception {
-
+			super.performDefaultAction(context);
 		}
 	}
 
@@ -1325,6 +1351,178 @@ public class StreamTaskTest extends TestLogger {
 			rawKeyedStateInputs =
 				(CloseableIterable<KeyGroupStatePartitionStreamProvider>) context.getRawKeyedStateInputs();
 			super.initializeState(context);
+		}
+	}
+
+	private static class TestingKeyedStateHandle implements KeyedStateHandle {
+
+		private static final long serialVersionUID = -2473861305282291582L;
+
+		private final transient CompletableFuture<Void> discardFuture = new CompletableFuture<>();
+
+		public CompletableFuture<Void> getDiscardFuture() {
+			return discardFuture;
+		}
+
+		@Override
+		public KeyGroupRange getKeyGroupRange() {
+			return KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
+		}
+
+		@Override
+		public TestingKeyedStateHandle getIntersection(KeyGroupRange keyGroupRange) {
+			return this;
+		}
+
+		@Override
+		public void registerSharedStates(SharedStateRegistry stateRegistry) {
+
+		}
+
+		@Override
+		public void discardState() {
+			discardFuture.complete(null);
+		}
+
+		@Override
+		public long getStateSize() {
+			return 0L;
+		}
+	}
+
+	private static class TestingOperatorStateHandle implements OperatorStateHandle {
+
+		private static final long serialVersionUID = 923794934187614088L;
+
+		private final transient CompletableFuture<Void> discardFuture = new CompletableFuture<>();
+
+		public CompletableFuture<Void> getDiscardFuture() {
+			return discardFuture;
+		}
+
+		@Override
+		public Map<String, StateMetaInfo> getStateNameToPartitionOffsets() {
+			return Collections.emptyMap();
+		}
+
+		@Override
+		public FSDataInputStream openInputStream() throws IOException {
+			throw new IOException("Cannot open input streams in testing implementation.");
+		}
+
+		@Override
+		public StreamStateHandle getDelegateStateHandle() {
+			throw new UnsupportedOperationException("Not implemented.");
+		}
+
+		@Override
+		public void discardState() throws Exception {
+			discardFuture.complete(null);
+		}
+
+		@Override
+		public long getStateSize() {
+			return 0L;
+		}
+	}
+
+	private static class AcknowledgeDummyEnvironment extends DummyEnvironment {
+
+		private final CompletableFuture<Long> acknowledgeCheckpointFuture = new CompletableFuture<>();
+
+		public CompletableFuture<Long> getAcknowledgeCheckpointFuture() {
+			return acknowledgeCheckpointFuture;
+		}
+
+		@Override
+		public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics) {
+			acknowledgeCheckpointFuture.complete(checkpointId);
+		}
+
+		@Override
+		public void acknowledgeCheckpoint(long checkpointId, CheckpointMetrics checkpointMetrics, TaskStateSnapshot subtaskState) {
+			acknowledgeCheckpointFuture.complete(checkpointId);
+		}
+	}
+
+	private static final class BlockingRunnableFuture<V> implements RunnableFuture<V> {
+
+		private final CompletableFuture<V> future = new CompletableFuture<>();
+
+		private final OneShotLatch signalRunLatch = new OneShotLatch();
+
+		private final CountDownLatch continueRunLatch;
+
+		private final V value;
+
+		private BlockingRunnableFuture(int parties, V value) {
+			this.continueRunLatch = new CountDownLatch(parties);
+			this.value = value;
+		}
+
+		@Override
+		public void run() {
+			signalRunLatch.trigger();
+			continueRunLatch.countDown();
+
+			try {
+				// poor man's barrier because it can happen that the async operations thread gets
+				// interrupted by the mail box thread. The CyclicBarrier would in this case fail
+				// all participants of the barrier, leaving the future uncompleted
+				continueRunLatch.await();
+			} catch (InterruptedException e) {
+				ExceptionUtils.rethrow(e);
+			}
+
+			future.complete(value);
+		}
+
+		@Override
+		public boolean cancel(boolean mayInterruptIfRunning) {
+			return false;
+		}
+
+		@Override
+		public boolean isCancelled() {
+			return future.isCancelled();
+		}
+
+		@Override
+		public boolean isDone() {
+			return future.isDone();
+		}
+
+		@Override
+		public V get() throws InterruptedException, ExecutionException {
+			return future.get();
+		}
+
+		@Override
+		public V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+			return future.get(timeout, unit);
+		}
+
+		void awaitRun() throws InterruptedException {
+			signalRunLatch.await();
+		}
+	}
+
+	private static class FailingDummyEnvironment extends DummyEnvironment {
+
+		final RuntimeException failingCause;
+
+		private FailingDummyEnvironment(RuntimeException failingCause) {
+			this.failingCause = failingCause;
+		}
+
+		@Override
+		public void declineCheckpoint(long checkpointId, Throwable cause) {
+			throw failingCause;
+		}
+
+		@Override
+		public void failExternally(Throwable cause) {
+			throw failingCause;
 		}
 	}
 }

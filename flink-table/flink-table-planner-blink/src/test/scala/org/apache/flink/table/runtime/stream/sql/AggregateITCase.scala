@@ -30,10 +30,11 @@ import org.apache.flink.table.runtime.batch.sql.agg.{MyPojoAggFunction, VarArgsA
 import org.apache.flink.table.runtime.utils.StreamingWithAggTestBase.AggMode
 import org.apache.flink.table.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
+import org.apache.flink.table.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.runtime.utils.UserDefinedFunctionTestUtils._
-import org.apache.flink.table.runtime.utils.{StreamingWithAggTestBase, TestData, TestingRetractSink}
+import org.apache.flink.table.runtime.utils.{BatchTestBase, StreamingWithAggTestBase, TestData, TestingRetractSink}
 import org.apache.flink.table.typeutils.BigDecimalTypeInfo
-import org.apache.flink.table.util.DateTimeTestUtil._
+import org.apache.flink.table.util.DateTimeTestUtil.{localDate, localDateTime, localTime => mLocalTime}
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
@@ -554,6 +555,40 @@ class AggregateITCase(
     env.execute()
 
     val expected = List("1,1", "2,2", "3,3", "4,4", "5,5", "6,6")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testWindowWithUnboundedAgg(): Unit = {
+    val t = failingDataSource(TestData.tupleData5.map {
+      case (a, b, c, d, e) => (b, a, c, d, e)
+    }).assignTimestampsAndWatermarks(
+      new TimestampAndWatermarkWithOffset[(Long, Int, Int, String, Long)](0L))
+        .toTable(tEnv, 'rowtime, 'a, 'c, 'd, 'e)
+    tEnv.registerTable("MyTable", t)
+    val sourceTable = tEnv.scan("MyTable")
+    addTableWithWatermark("MyTable1", sourceTable, "rowtime", 0)
+
+    val innerSql =
+      """
+        |SELECT a,
+        |   SUM(DISTINCT e) b,
+        |   MIN(DISTINCT e) c,
+        |   COUNT(DISTINCT e) d
+        |FROM MyTable1
+        |GROUP BY a, TUMBLE(rowtime, INTERVAL '0.005' SECOND)
+      """.stripMargin
+
+    val sqlQuery = "SELECT c, MAX(a), COUNT(DISTINCT d) FROM (" + innerSql + ") GROUP BY c"
+
+    val results = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val sink = new TestingRetractSink
+    results.addSink(sink)
+    env.execute()
+
+    val expected = List(
+      "1,5,3",
+      "2,5,2")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
@@ -1117,21 +1152,22 @@ class AggregateITCase(
 
   @Test
   def testTimestampDistinct(): Unit = {
-    val data = new mutable.MutableList[(java.sql.Timestamp, Long, String)]
-    data.+=((UTCTimestamp("1970-01-01 00:00:01"), 1L, "A"))
-    data.+=((UTCTimestamp("1970-01-01 00:00:02"), 2L, "B"))
-    data.+=((UTCTimestamp("1970-01-01 00:00:03"), 2L, "B"))
-    data.+=((UTCTimestamp("1970-01-01 00:00:04"), 3L, "C"))
-    data.+=((UTCTimestamp("1970-01-01 00:00:05"), 3L, "C"))
-    data.+=((UTCTimestamp("1970-01-01 00:00:06"), 3L, "C"))
-    data.+=((UTCTimestamp("1970-01-01 00:00:07"), 4L, "B"))
-    data.+=((UTCTimestamp("1970-01-01 00:00:08"), 4L, "A"))
-    data.+=((UTCTimestamp("1970-01-01 00:00:09"), 4L, "D"))
-    data.+=((UTCTimestamp("1970-01-01 00:00:10"), 4L, "E"))
-    data.+=((UTCTimestamp("1970-01-01 00:00:11"), 5L, "A"))
-    data.+=((UTCTimestamp("1970-01-01 00:00:12"), 5L, "B"))
+    val data = new mutable.MutableList[Row]
+    data.+=(Row.of(localDateTime("1970-01-01 00:00:01"), Long.box(1L), "A"))
+    data.+=(Row.of(localDateTime("1970-01-01 00:00:02"), Long.box(2L), "B"))
+    data.+=(Row.of(localDateTime("1970-01-01 00:00:03"), Long.box(2L), "B"))
+    data.+=(Row.of(localDateTime("1970-01-01 00:00:04"), Long.box(3L), "C"))
+    data.+=(Row.of(localDateTime("1970-01-01 00:00:05"), Long.box(3L), "C"))
+    data.+=(Row.of(localDateTime("1970-01-01 00:00:06"), Long.box(3L), "C"))
+    data.+=(Row.of(localDateTime("1970-01-01 00:00:07"), Long.box(4L), "B"))
+    data.+=(Row.of(localDateTime("1970-01-01 00:00:08"), Long.box(4L), "A"))
+    data.+=(Row.of(localDateTime("1970-01-01 00:00:09"), Long.box(4L), "D"))
+    data.+=(Row.of(localDateTime("1970-01-01 00:00:10"), Long.box(4L), "E"))
+    data.+=(Row.of(localDateTime("1970-01-01 00:00:11"), Long.box(5L), "A"))
+    data.+=(Row.of(localDateTime("1970-01-01 00:00:12"), Long.box(5L), "B"))
 
-    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = failingDataSource(data)(new RowTypeInfo(
+      Types.LOCAL_DATE_TIME, Types.LONG, Types.STRING)).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T", t)
     val t1 = tEnv.sqlQuery("SELECT b, count(distinct c), count(distinct a) FROM T GROUP BY b")
 
@@ -1145,21 +1181,22 @@ class AggregateITCase(
 
   @Test
   def testDateDistinct(): Unit = {
-    val data = new mutable.MutableList[(java.sql.Date, Long, String)]
-    data.+=((UTCDate("1970-01-01"), 1L, "A"))
-    data.+=((UTCDate("1970-01-02"), 2L, "B"))
-    data.+=((UTCDate("1970-01-03"), 2L, "B"))
-    data.+=((UTCDate("1970-01-04"), 3L, "C"))
-    data.+=((UTCDate("1970-01-05"), 3L, "C"))
-    data.+=((UTCDate("1970-01-06"), 3L, "C"))
-    data.+=((UTCDate("1970-01-07"), 4L, "B"))
-    data.+=((UTCDate("1970-01-08"), 4L, "A"))
-    data.+=((UTCDate("1970-01-09"), 4L, "D"))
-    data.+=((UTCDate("1970-01-10"), 4L, "E"))
-    data.+=((UTCDate("1970-01-11"), 5L, "A"))
-    data.+=((UTCDate("1970-01-12"), 5L, "B"))
+    val data = new mutable.MutableList[Row]
+    data.+=(Row.of(localDate("1970-01-01"), Long.box(1L), "A"))
+    data.+=(Row.of(localDate("1970-01-02"), Long.box(2L), "B"))
+    data.+=(Row.of(localDate("1970-01-03"), Long.box(2L), "B"))
+    data.+=(Row.of(localDate("1970-01-04"), Long.box(3L), "C"))
+    data.+=(Row.of(localDate("1970-01-05"), Long.box(3L), "C"))
+    data.+=(Row.of(localDate("1970-01-06"), Long.box(3L), "C"))
+    data.+=(Row.of(localDate("1970-01-07"), Long.box(4L), "B"))
+    data.+=(Row.of(localDate("1970-01-08"), Long.box(4L), "A"))
+    data.+=(Row.of(localDate("1970-01-09"), Long.box(4L), "D"))
+    data.+=(Row.of(localDate("1970-01-10"), Long.box(4L), "E"))
+    data.+=(Row.of(localDate("1970-01-11"), Long.box(5L), "A"))
+    data.+=(Row.of(localDate("1970-01-12"), Long.box(5L), "B"))
 
-    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = failingDataSource(data)(new RowTypeInfo(
+      Types.LOCAL_DATE, Types.LONG, Types.STRING)).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T", t)
     val t1 = tEnv.sqlQuery("SELECT b, count(distinct c), count(distinct a) FROM T GROUP BY b")
 
@@ -1173,21 +1210,22 @@ class AggregateITCase(
 
   @Test
   def testTimeDistinct(): Unit = {
-    val data = new mutable.MutableList[(java.sql.Time, Long, String)]
-    data.+=((UTCTime("00:00:01"), 1L, "A"))
-    data.+=((UTCTime("00:00:02"), 2L, "B"))
-    data.+=((UTCTime("00:00:03"), 2L, "B"))
-    data.+=((UTCTime("00:00:04"), 3L, "C"))
-    data.+=((UTCTime("00:00:05"), 3L, "C"))
-    data.+=((UTCTime("00:00:06"), 3L, "C"))
-    data.+=((UTCTime("00:00:07"), 4L, "B"))
-    data.+=((UTCTime("00:00:08"), 4L, "A"))
-    data.+=((UTCTime("00:00:09"), 4L, "D"))
-    data.+=((UTCTime("00:00:10"), 4L, "E"))
-    data.+=((UTCTime("00:00:11"), 5L, "A"))
-    data.+=((UTCTime("00:00:12"), 5L, "B"))
+    val data = new mutable.MutableList[Row]
+    data.+=(Row.of(mLocalTime("00:00:01"), Long.box(1L), "A"))
+    data.+=(Row.of(mLocalTime("00:00:02"), Long.box(2L), "B"))
+    data.+=(Row.of(mLocalTime("00:00:03"), Long.box(2L), "B"))
+    data.+=(Row.of(mLocalTime("00:00:04"), Long.box(3L), "C"))
+    data.+=(Row.of(mLocalTime("00:00:05"), Long.box(3L), "C"))
+    data.+=(Row.of(mLocalTime("00:00:06"), Long.box(3L), "C"))
+    data.+=(Row.of(mLocalTime("00:00:07"), Long.box(4L), "B"))
+    data.+=(Row.of(mLocalTime("00:00:08"), Long.box(4L), "A"))
+    data.+=(Row.of(mLocalTime("00:00:09"), Long.box(4L), "D"))
+    data.+=(Row.of(mLocalTime("00:00:10"), Long.box(4L), "E"))
+    data.+=(Row.of(mLocalTime("00:00:11"), Long.box(5L), "A"))
+    data.+=(Row.of(mLocalTime("00:00:12"), Long.box(5L), "B"))
 
-    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
+    val t = failingDataSource(data)(new RowTypeInfo(
+      Types.LOCAL_TIME, Types.LONG, Types.STRING)).toTable(tEnv, 'a, 'b, 'c)
     tEnv.registerTable("T", t)
     val t1 = tEnv.sqlQuery("SELECT b, count(distinct c), count(distinct a) FROM T GROUP BY b")
 
@@ -1231,7 +1269,7 @@ class AggregateITCase(
     val t1 = tEnv.sqlQuery(sql)
     val sink = new TestingRetractSink
     t1.toRetractStream[Row].addSink(sink)
-    env.execute()
+    env.execute("test")
 
     val expected = List("1,1,50", "1,ALL,50")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)

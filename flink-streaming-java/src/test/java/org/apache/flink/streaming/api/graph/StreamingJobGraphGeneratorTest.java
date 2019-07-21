@@ -52,6 +52,7 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -380,31 +381,96 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 	}
 
 	/**
-	 * Test manually setting shuffle mode.
+	 * Test setting shuffle mode to {@link ShuffleMode#PIPELINED}.
 	 */
 	@Test
-	public void testShuffleMode() {
+	public void testShuffleModePipelined() {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		// fromElements -> Map -> Print, will not chain since the batch data exchange mode
-		DataStream<Integer> mapDataStream = env.fromElements(1, 2, 3)
-			.map((MapFunction<Integer, Integer>) value -> value).setParallelism(2);
+		// fromElements -> Map -> Print
+		DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
 
-		DataStream<Integer> partitionDataStream = new DataStream<>(env, new PartitionTransformation<>(
-				mapDataStream.getTransformation(), new ForwardPartitioner<>(), ShuffleMode.BATCH));
-		partitionDataStream.print().setParallelism(2);
+		DataStream<Integer> partitionAfterSourceDataStream = new DataStream<>(env, new PartitionTransformation<>(
+				sourceDataStream.getTransformation(), new ForwardPartitioner<>(), ShuffleMode.PIPELINED));
+		DataStream<Integer> mapDataStream = partitionAfterSourceDataStream.map(value -> value).setParallelism(1);
+
+		DataStream<Integer> partitionAfterMapDataStream = new DataStream<>(env, new PartitionTransformation<>(
+				mapDataStream.getTransformation(), new RescalePartitioner<>(), ShuffleMode.PIPELINED));
+		partitionAfterMapDataStream.print().setParallelism(2);
+
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+
+		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+		assertEquals(2, verticesSorted.size());
+
+		// it can be chained with PIPELINED shuffle mode
+		JobVertex sourceAndMapVertex = verticesSorted.get(0);
+
+		// PIPELINED shuffle mode is translated into PIPELINED_BOUNDED result partition
+		assertEquals(ResultPartitionType.PIPELINED_BOUNDED,
+				sourceAndMapVertex.getProducedDataSets().get(0).getResultType());
+	}
+
+	/**
+	 * Test setting shuffle mode to {@link ShuffleMode#BATCH}.
+	 */
+	@Test
+	public void testShuffleModeBatch() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		// fromElements -> Map -> Print
+		DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+
+		DataStream<Integer> partitionAfterSourceDataStream = new DataStream<>(env, new PartitionTransformation<>(
+				sourceDataStream.getTransformation(), new ForwardPartitioner<>(), ShuffleMode.BATCH));
+		DataStream<Integer> mapDataStream = partitionAfterSourceDataStream.map(value -> value).setParallelism(1);
+
+		DataStream<Integer> partitionAfterMapDataStream = new DataStream<>(env, new PartitionTransformation<>(
+				mapDataStream.getTransformation(), new RescalePartitioner<>(), ShuffleMode.BATCH));
+		partitionAfterMapDataStream.print().setParallelism(2);
 
 		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
 
 		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
 		assertEquals(3, verticesSorted.size());
 
+		// it can not be chained with BATCH shuffle mode
 		JobVertex sourceVertex = verticesSorted.get(0);
 		JobVertex mapVertex = verticesSorted.get(1);
-		JobVertex printVertex = verticesSorted.get(2);
 
-		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, sourceVertex.getProducedDataSets().get(0).getResultType());
-		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, mapVertex.getInputs().get(0).getSource().getResultType());
-		assertEquals(ResultPartitionType.BLOCKING, printVertex.getInputs().get(0).getSource().getResultType());
+		// BATCH shuffle mode is translated into BLOCKING result partition
+		assertEquals(ResultPartitionType.BLOCKING,
+			sourceVertex.getProducedDataSets().get(0).getResultType());
+		assertEquals(ResultPartitionType.BLOCKING,
+			mapVertex.getProducedDataSets().get(0).getResultType());
+	}
+
+	/**
+	 * Test setting shuffle mode to {@link ShuffleMode#UNDEFINED}.
+	 */
+	@Test
+	public void testShuffleModeUndefined() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		// fromElements -> Map -> Print
+		DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+
+		DataStream<Integer> partitionAfterSourceDataStream = new DataStream<>(env, new PartitionTransformation<>(
+				sourceDataStream.getTransformation(), new ForwardPartitioner<>(), ShuffleMode.UNDEFINED));
+		DataStream<Integer> mapDataStream = partitionAfterSourceDataStream.map(value -> value).setParallelism(1);
+
+		DataStream<Integer> partitionAfterMapDataStream = new DataStream<>(env, new PartitionTransformation<>(
+				mapDataStream.getTransformation(), new RescalePartitioner<>(), ShuffleMode.UNDEFINED));
+		partitionAfterMapDataStream.print().setParallelism(2);
+
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+
+		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+		assertEquals(2, verticesSorted.size());
+
+		// it can be chained with UNDEFINED shuffle mode
+		JobVertex sourceAndMapVertex = verticesSorted.get(0);
+
+		// UNDEFINED shuffle mode is translated into PIPELINED_BOUNDED result partition by default
+		assertEquals(ResultPartitionType.PIPELINED_BOUNDED,
+			sourceAndMapVertex.getProducedDataSets().get(0).getResultType());
 	}
 
 	/**
@@ -533,5 +599,78 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 			.generate();
 		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 		assertEquals(ScheduleMode.LAZY_FROM_SOURCES, jobGraph.getScheduleMode());
+	}
+
+	/**
+	 * Verify that "blockingConnectionsBetweenChains" is off by default.
+	 */
+	@Test
+	public void testBlockingAfterChainingOffDisabled() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		// fromElements -> Filter -> Print
+		DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+
+		// partition transformation with an undefined shuffle mode between source and filter
+		DataStream<Integer> partitionAfterSourceDataStream = new DataStream<>(env, new PartitionTransformation<>(
+			sourceDataStream.getTransformation(), new RescalePartitioner<>(), ShuffleMode.UNDEFINED));
+		DataStream<Integer> filterDataStream = partitionAfterSourceDataStream.filter(value -> true).setParallelism(2);
+
+		DataStream<Integer> partitionAfterFilterDataStream = new DataStream<>(env, new PartitionTransformation<>(
+			filterDataStream.getTransformation(), new ForwardPartitioner<>(), ShuffleMode.UNDEFINED));
+
+		partitionAfterFilterDataStream.print().setParallelism(2);
+
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
+
+		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+		assertEquals(2, verticesSorted.size());
+
+		JobVertex sourceVertex = verticesSorted.get(0);
+		JobVertex filterAndPrintVertex = verticesSorted.get(1);
+
+		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, sourceVertex.getProducedDataSets().get(0).getResultType());
+		assertEquals(ResultPartitionType.PIPELINED_BOUNDED,
+				filterAndPrintVertex.getInputs().get(0).getSource().getResultType());
+	}
+
+	/**
+	 * Test enabling the property "blockingConnectionsBetweenChains".
+	 */
+	@Test
+	public void testBlockingConnectionsBetweenChainsEnabled() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		// fromElements -> Filter -> Map -> Print
+		DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
+
+		// partition transformation with an undefined shuffle mode between source and filter
+		DataStream<Integer> partitionAfterSourceDataStream = new DataStream<>(env, new PartitionTransformation<>(
+			sourceDataStream.getTransformation(), new RescalePartitioner<>(), ShuffleMode.UNDEFINED));
+		DataStream<Integer> filterDataStream = partitionAfterSourceDataStream.filter(value -> true).setParallelism(2);
+
+		DataStream<Integer> partitionAfterFilterDataStream = new DataStream<>(env, new PartitionTransformation<>(
+			filterDataStream.getTransformation(), new ForwardPartitioner<>(), ShuffleMode.UNDEFINED));
+		partitionAfterFilterDataStream.map(value -> value).setParallelism(2);
+
+		DataStream<Integer> partitionAfterMapDataStream = new DataStream<>(env, new PartitionTransformation<>(
+			filterDataStream.getTransformation(), new RescalePartitioner<>(), ShuffleMode.PIPELINED));
+		partitionAfterMapDataStream.print().setParallelism(1);
+
+		StreamGraph streamGraph = env.getStreamGraph();
+		streamGraph.setBlockingConnectionsBetweenChains(true);
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
+
+		List<JobVertex> verticesSorted = jobGraph.getVerticesSortedTopologicallyFromSources();
+		assertEquals(3, verticesSorted.size());
+
+		JobVertex sourceVertex = verticesSorted.get(0);
+		// still can be chained
+		JobVertex filterAndMapVertex = verticesSorted.get(1);
+		JobVertex printVertex = verticesSorted.get(2);
+
+		// the edge with undefined shuffle mode is translated into BLOCKING
+		assertEquals(ResultPartitionType.BLOCKING, sourceVertex.getProducedDataSets().get(0).getResultType());
+		// the edge with PIPELINED shuffle mode is translated into PIPELINED_BOUNDED
+		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, filterAndMapVertex.getProducedDataSets().get(0).getResultType());
+		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, printVertex.getInputs().get(0).getSource().getResultType());
 	}
 }

@@ -18,31 +18,27 @@
 
 package org.apache.flink.table.plan.nodes.physical.batch
 
-import java.{lang, util}
-
-import org.apache.calcite.plan._
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.metadata.RelMetadataQuery
-import org.apache.calcite.rex.RexNode
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
-import org.apache.flink.table.api.{BatchTableEnvironment, TableException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.physical.PhysicalTableSourceScan
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.ScanUtil
+import org.apache.flink.table.planner.BatchPlanner
 import org.apache.flink.table.sources.{StreamTableSource, TableSourceUtil}
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rex.RexNode
-import java.util
 
-import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+import java.{lang, util}
 
 import scala.collection.JavaConversions._
 
@@ -80,11 +76,11 @@ class BatchExecTableSourceScan(
 
   override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
 
-  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] = List()
+  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] = List()
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
@@ -97,10 +93,10 @@ class BatchExecTableSourceScan(
     sourceTransform
   }
 
-  override def translateToPlanInternal(
-      tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
-    val config = tableEnv.getConfig
-    val inputTransform = getSourceTransformation(tableEnv.execEnv)
+  override protected def translateToPlanInternal(
+      planner: BatchPlanner): Transformation[BaseRow] = {
+    val config = planner.getTableConfig
+    val inputTransform = getSourceTransformation(planner.getExecEnv)
     inputTransform.setParallelism(getResource.getParallelism)
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
@@ -124,7 +120,7 @@ class BatchExecTableSourceScan(
       tableSource,
       None,
       cluster,
-      tableEnv.getRelBuilder
+      planner.getRelBuilder
     )
     if (needInternalConversion) {
       val conversionTransform = ScanUtil.convertToInternalRow(

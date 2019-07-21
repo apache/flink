@@ -20,9 +20,10 @@ package org.apache.flink.table.plan.stream.sql.agg
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.AggPhaseEnforcer.AggPhaseEnforcer
-import org.apache.flink.table.api.{AggPhaseEnforcer, PlannerConfigOptions}
-import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.api.OptimizerConfigOptions
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.plan.rules.physical.stream.IncrementalAggregateRule
+import org.apache.flink.table.util.{AggregatePhaseStrategy, StreamTableTestUtil, TableTestBase}
 
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -33,7 +34,7 @@ import java.util
 @RunWith(classOf[Parameterized])
 class DistinctAggregateTest(
     splitDistinctAggEnabled: Boolean,
-    aggPhaseEnforcer: AggPhaseEnforcer)
+    aggPhaseEnforcer: AggregatePhaseStrategy)
   extends TableTestBase {
 
   protected val util: StreamTableTestUtil = streamTestUtil()
@@ -41,15 +42,15 @@ class DistinctAggregateTest(
 
   @Before
   def before(): Unit = {
-    util.tableEnv.getConfig.withIdleStateRetentionTime(Time.hours(1), Time.hours(2))
+    util.tableEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
     util.enableMiniBatch()
-    util.tableEnv.getConfig.getConf.setString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, aggPhaseEnforcer.toString)
-    util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_DATA_SKEW_DISTINCT_AGG_ENABLED, splitDistinctAggEnabled)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhaseEnforcer.toString)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      OptimizerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, splitDistinctAggEnabled)
     // disable incremental agg
-    util.tableEnv.getConfig.getConf.setBoolean(
-      PlannerConfigOptions.SQL_OPTIMIZER_INCREMENTAL_AGG_ENABLED, false)
+    util.tableEnv.getConfig.getConfiguration.setBoolean(
+      IncrementalAggregateRule.SQL_OPTIMIZER_INCREMENTAL_AGG_ENABLED, false)
   }
 
   @Test
@@ -214,10 +215,10 @@ object DistinctAggregateTest {
   @Parameterized.Parameters(name = "splitDistinctAggEnabled={0}, aggPhaseEnforcer={1}")
   def parameters(): util.Collection[Array[Any]] = {
     util.Arrays.asList(
-      Array(true, AggPhaseEnforcer.ONE_PHASE),
-      Array(true, AggPhaseEnforcer.TWO_PHASE),
-      Array(false, AggPhaseEnforcer.ONE_PHASE),
-      Array(false, AggPhaseEnforcer.TWO_PHASE)
+      Array(true, AggregatePhaseStrategy.ONE_PHASE),
+      Array(true, AggregatePhaseStrategy.TWO_PHASE),
+      Array(false, AggregatePhaseStrategy.ONE_PHASE),
+      Array(false, AggregatePhaseStrategy.TWO_PHASE)
     )
   }
 }

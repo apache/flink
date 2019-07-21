@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.utils
 
-import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rel.RelNode
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.{LocalEnvironment, DataSet => JDataSet}
 import org.apache.flink.api.scala.{DataSet, ExecutionEnvironment}
@@ -32,12 +30,16 @@ import org.apache.flink.table.api.java.internal.{BatchTableEnvironmentImpl => Ja
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.scala.internal.{BatchTableEnvironmentImpl => ScalaBatchTableEnvironmentImpl, StreamTableEnvironmentImpl => ScalaStreamTableEnvironmentImpl}
 import org.apache.flink.table.api.{Table, TableConfig, TableSchema}
-import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
+import org.apache.flink.table.executor.StreamExecutor
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
 import org.apache.flink.table.operations.{DataSetQueryOperation, JavaDataStreamQueryOperation, ScalaDataStreamQueryOperation}
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.utils.TableTestUtil.createCatalogManager
+
+import org.apache.calcite.plan.RelOptUtil
+import org.apache.calcite.rel.RelNode
 import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.{ComparisonFailure, Rule}
@@ -109,6 +111,7 @@ abstract class TableTestUtil(verifyCatalogPath: Boolean = false) {
     // we remove the charset for testing because it
     // depends on the native machine (Little/Big Endian)
     val actualNoCharset = actual.replace("_UTF-16LE'", "'").replace("_UTF-16BE'", "'")
+      .replace(" CHARACTER SET \"UTF-16LE\"", "").replace(" CHARACTER SET \"UTF-16BE\"", "")
 
     val expectedLines = expected.split("\n").map(_.trim)
     val actualLines = actualNoCharset.split("\n").map(_.trim)
@@ -137,25 +140,11 @@ object TableTestUtil {
 
   val ANY_SUBTREE = "%ANY_SUBTREE%"
 
-  /**
-    * Creates a [[CatalogManager]] with a builtin default catalog & database set to values
-    * specified in the [[TableConfig]].
-    */
-  def createCatalogManager(config: TableConfig): CatalogManager = {
+  def createCatalogManager(): CatalogManager = {
+    val defaultCatalog = "default_catalog"
     new CatalogManager(
-      config.getBuiltInCatalogName,
-      new GenericInMemoryCatalog(config.getBuiltInCatalogName, config.getBuiltInDatabaseName))
-  }
-
-  /**
-    * Sets the configuration of the builtin catalog & databases in [[TableConfig]]
-    * to the current catalog & database of the given [[CatalogManager]]. This should be used
-    * to ensure sanity of a [[org.apache.flink.table.api.TableEnvironment]].
-    */
-  def extractBuiltinPath(config: TableConfig, catalogManager: CatalogManager): TableConfig = {
-    config.setBuiltInCatalogName(catalogManager.getCurrentCatalog)
-    config.setBuiltInDatabaseName(catalogManager.getCurrentDatabase)
-    config
+      defaultCatalog,
+      new GenericInMemoryCatalog(defaultCatalog, "default_database"))
   }
 
   private[utils] def toRelNode(expected: Table) = {
@@ -239,22 +228,15 @@ case class BatchTableTestUtil(
   extends TableTestUtil {
   val javaEnv = new LocalEnvironment()
 
-  private def tableConfig = catalogManager match {
-    case Some(c) =>
-      TableTestUtil.extractBuiltinPath(new TableConfig, c)
-    case None =>
-      new TableConfig
-  }
-
   val javaTableEnv = new JavaBatchTableEnvironmentImpl(
     javaEnv,
-    tableConfig,
-    catalogManager.getOrElse(createCatalogManager(new TableConfig)))
+    new TableConfig,
+    catalogManager.getOrElse(createCatalogManager()))
   val env = new ExecutionEnvironment(javaEnv)
   val tableEnv = new ScalaBatchTableEnvironmentImpl(
     env,
-    tableConfig,
-    catalogManager.getOrElse(createCatalogManager(new TableConfig)))
+    new TableConfig,
+    catalogManager.getOrElse(createCatalogManager()))
 
   def addTable[T: TypeInformation](
       name: String,
@@ -344,22 +326,30 @@ case class StreamTableTestUtil(
   val javaEnv = new LocalStreamEnvironment()
   javaEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
-  private def tableConfig = catalogManager match {
-    case Some(c) =>
-      TableTestUtil.extractBuiltinPath(new TableConfig, c)
-    case None =>
-      new TableConfig
-  }
+  private val tableConfig = new TableConfig
+  private val manager: CatalogManager = catalogManager.getOrElse(createCatalogManager())
+  private val executor: StreamExecutor = new StreamExecutor(javaEnv)
+  private val functionCatalog = new FunctionCatalog(manager)
+  private val streamPlanner = new StreamPlanner(executor, tableConfig, functionCatalog, manager)
 
-  val javaTableEnv = JavaStreamTableEnvironmentImpl.create(
-    catalogManager.getOrElse(createCatalogManager(new TableConfig)),
+  val javaTableEnv = new JavaStreamTableEnvironmentImpl(
+    manager,
+    functionCatalog,
     tableConfig,
-    javaEnv)
+    javaEnv,
+    streamPlanner,
+    executor,
+    true)
+
   val env = new StreamExecutionEnvironment(javaEnv)
-  val tableEnv = ScalaStreamTableEnvironmentImpl.create(
-    catalogManager.getOrElse(createCatalogManager(new TableConfig)),
+  val tableEnv = new ScalaStreamTableEnvironmentImpl(
+    manager,
+    functionCatalog,
     tableConfig,
-    env)
+    env,
+    streamPlanner,
+    executor,
+    true)
 
   def addTable[T: TypeInformation](
       name: String,

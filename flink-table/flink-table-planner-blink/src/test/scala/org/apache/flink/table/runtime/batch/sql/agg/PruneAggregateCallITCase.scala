@@ -30,7 +30,8 @@ import scala.collection.Seq
 class PruneAggregateCallITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
+    super.before()
     registerCollection("MyTable", smallData3, type3, "a, b, c", nullablesOfSmallData3)
     registerCollection("MyTable2", smallData5, type5, "a, b, c, d, e", nullablesOfSmallData5,
       FlinkStatistic.builder().uniqueKeys(Set(Set("b").asJava).asJava).build())
@@ -45,7 +46,7 @@ class PruneAggregateCallITCase extends BatchTestBase {
     checkResult(
       """
         |SELECT c, a FROM
-        | (SELECT a, c, COUNT(b) as c, SUM(b) as s FROM MyTable GROUP BY a, c) t
+        | (SELECT a, c, COUNT(b) as cnt, SUM(b) as s FROM MyTable GROUP BY a, c) t
         |WHERE s > 1
       """.stripMargin,
       Seq(row("Hello world", 3), row("Hello", 2))
@@ -66,19 +67,15 @@ class PruneAggregateCallITCase extends BatchTestBase {
       Seq(row(1))
     )
 
-    // TODO enable this case after translateToPlanInternal method is implemented
-    //  in BatchExecNestedLoopJoin
-    // checkResult(
-    //   "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*) FROM MyTable2)",
-    //   Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
-    // )
+    checkResult(
+      "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*) FROM MyTable2)",
+      Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
+    )
 
-    // TODO enable this case after translateToPlanInternal method is implemented
-    //  in BatchExecNestedLoopJoin
-    // checkResult(
-    //   "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*) FROM MyTable2 WHERE 1=2)",
-    //   Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
-    // )
+    checkResult(
+      "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*) FROM MyTable2 WHERE 1=2)",
+      Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
+    )
 
     checkResult(
       "SELECT 1 FROM (SELECT SUM(a), COUNT(*) FROM MyTable) t",
@@ -100,33 +97,25 @@ class PruneAggregateCallITCase extends BatchTestBase {
       Seq(row(1))
     )
 
-    // TODO enable this case after translateToPlanInternal method is implemented
-    //  in BatchExecNestedLoopJoin
-    // checkResult(
-    //   "SELECT * FROM MyTable WHERE EXISTS (SELECT SUM(a), COUNT(*) FROM MyTable2)",
-    //   Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
-    // )
+    checkResult(
+      "SELECT * FROM MyTable WHERE EXISTS (SELECT SUM(a), COUNT(*) FROM MyTable2)",
+      Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
+    )
 
-    // TODO enable this case after translateToPlanInternal method is implemented
-    //  in BatchExecNestedLoopJoin
-    // checkResult(
-    //   "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*), SUM(a) FROM MyTable2)",
-    //   Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
-    // )
+    checkResult(
+      "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*), SUM(a) FROM MyTable2)",
+      Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
+    )
 
-    // TODO enable this case after translateToPlanInternal method is implemented
-    //  in BatchExecNestedLoopJoin
-    // checkResult(
-    //   "SELECT * FROM MyTable WHERE EXISTS (SELECT SUM(a), COUNT(*) FROM MyTable2 WHERE 1=2)",
-    //   Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
-    // )
+    checkResult(
+      "SELECT * FROM MyTable WHERE EXISTS (SELECT SUM(a), COUNT(*) FROM MyTable2 WHERE 1=2)",
+      Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
+    )
 
-    // TODO enable this case after translateToPlanInternal method is implemented
-    //  in BatchExecNestedLoopJoin
-    // checkResult(
-    //   "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*), SUM(a) FROM MyTable2 WHERE 1=2)",
-    //   Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
-    // )
+    checkResult(
+      "SELECT * FROM MyTable WHERE EXISTS (SELECT COUNT(*), SUM(a) FROM MyTable2 WHERE 1=2)",
+      Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
+    )
   }
 
 }

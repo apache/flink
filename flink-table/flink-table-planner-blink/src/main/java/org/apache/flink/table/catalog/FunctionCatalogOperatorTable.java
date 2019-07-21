@@ -33,6 +33,7 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlSyntax;
+import org.apache.calcite.sql.validate.SqlNameMatcher;
 
 import java.util.List;
 import java.util.Optional;
@@ -58,7 +59,8 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			SqlIdentifier opName,
 			SqlFunctionCategory category,
 			SqlSyntax syntax,
-			List<SqlOperator> operatorList) {
+			List<SqlOperator> operatorList,
+			SqlNameMatcher nameMatcher) {
 		if (!opName.isSimple()) {
 			return;
 		}

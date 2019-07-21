@@ -30,7 +30,8 @@ class SubQueryTestBase extends TableTestBase {
   protected val util: BatchTableTestUtil = batchTestUtil()
 
   util.buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE)
-  val builder = CalciteConfig.createBuilder(util.tableEnv.getConfig.getCalciteConfig)
+  var calciteConfig = TableConfigUtils.getCalciteConfig(util.tableEnv.getConfig)
+  val builder = CalciteConfig.createBuilder(calciteConfig)
   builder.replaceSqlToRelConverterConfig(
     SqlToRelConverter.configBuilder()
       .withTrimUnusedFields(false)
@@ -39,5 +40,5 @@ class SubQueryTestBase extends TableTestBase {
       .withInSubQueryThreshold(3)
       .build())
 
-  util.tableEnv.config.setCalciteConfig(builder.build())
+  util.tableEnv.getConfig.setPlannerConfig(builder.build())
 }

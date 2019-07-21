@@ -17,14 +17,15 @@
  */
 package org.apache.flink.table.plan.rules.physical.batch
 
-import org.apache.flink.table.api.{OperatorType, PlannerConfigOptions}
+import org.apache.flink.table.api.OptimizerConfigOptions
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecLocalSortAggregate, BatchExecSortAggregate}
-import org.apache.flink.table.plan.util.AggregateUtil
+import org.apache.flink.table.plan.util.{AggregateUtil, OperatorType}
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.util.TableConfigUtils.isOperatorDisabled
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -43,7 +44,7 @@ import scala.collection.JavaConversions._
   *              +- input of agg
   * }}}
   * when all aggregate functions are mergeable
-  * and [[PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER]] is TWO_PHASE, or
+  * and [[OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
   * {{{
   *   BatchExecSortAggregate
   *   +- Sort (exists if group keys are not empty)
@@ -51,9 +52,9 @@ import scala.collection.JavaConversions._
   *         +- input of agg
   * }}}
   * when some aggregate functions are not mergeable
-  * or [[PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER]] is ONE_PHASE.
+  * or [[OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY]] is ONE_PHASE.
   *
-  * Notes: if [[PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER]] is NONE,
+  * Notes: if [[OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE,
   * this rule will try to create two possibilities above, and chooses the best one based on cost.
   */
 class BatchExecSortAggRule
@@ -65,7 +66,7 @@ class BatchExecSortAggRule
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-    tableConfig.isOperatorEnabled(OperatorType.SortAgg)
+    !isOperatorDisabled(tableConfig, OperatorType.SortAgg)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {

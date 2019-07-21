@@ -286,27 +286,28 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 	 */
 	@Test
 	public void testTddProducedPartitionsLazyScheduling() throws Exception {
-		ExecutionJobVertex jobVertex = getExecutionVertex(new JobVertexID(), new DirectScheduledExecutorService());
+		for (ScheduleMode scheduleMode: ScheduleMode.values()) {
+			ExecutionJobVertex jobVertex = getExecutionVertex(
+				new JobVertexID(),
+				new DirectScheduledExecutorService(),
+				scheduleMode);
 
-		IntermediateResult result =
+			IntermediateResult result =
 				new IntermediateResult(new IntermediateDataSetID(), jobVertex, 1, ResultPartitionType.PIPELINED);
 
-		ExecutionAttemptID attemptID = new ExecutionAttemptID();
-		ExecutionVertex vertex =
+			ExecutionAttemptID attemptID = new ExecutionAttemptID();
+			ExecutionVertex vertex =
 				new ExecutionVertex(jobVertex, 0, new IntermediateResult[]{result}, Time.minutes(1));
-		TaskDeploymentDescriptorFactory tddFactory =
-			TaskDeploymentDescriptorFactory.fromExecutionVertex(vertex, 1);
+			TaskDeploymentDescriptorFactory tddFactory =
+				TaskDeploymentDescriptorFactory.fromExecutionVertex(vertex, 1);
 
-		ExecutionEdge mockEdge = createMockExecutionEdge(1);
+			ExecutionEdge mockEdge = createMockExecutionEdge(1);
 
-		result.getPartitions()[0].addConsumerGroup();
-		result.getPartitions()[0].addConsumer(mockEdge, 0);
+			result.getPartitions()[0].addConsumerGroup();
+			result.getPartitions()[0].addConsumer(mockEdge, 0);
 
-		TaskManagerLocation location =
-			new TaskManagerLocation(ResourceID.generate(), InetAddress.getLoopbackAddress(), 1);
-
-		for (ScheduleMode mode : ScheduleMode.values()) {
-			vertex.getExecutionGraph().setScheduleMode(mode);
+			TaskManagerLocation location =
+				new TaskManagerLocation(ResourceID.generate(), InetAddress.getLoopbackAddress(), 1);
 
 			TaskDeploymentDescriptor tdd = tddFactory.createDeploymentDescriptor(
 				new AllocationID(),
@@ -318,7 +319,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 
 			assertEquals(1, producedPartitions.size());
 			ResultPartitionDeploymentDescriptor desc = producedPartitions.iterator().next();
-			assertEquals(mode.allowLazyDeployment(), desc.sendScheduleOrUpdateConsumersMessage());
+			assertEquals(scheduleMode.allowLazyDeployment(), desc.sendScheduleOrUpdateConsumersMessage());
 		}
 	}
 

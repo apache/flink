@@ -29,7 +29,6 @@ import org.apache.flink.table.plan.schema.TableSourceTable;
 import org.apache.flink.table.plan.stats.FlinkStatistic;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.types.Row;
 
 import org.apache.calcite.linq4j.tree.Expression;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -52,11 +51,17 @@ import static java.lang.String.format;
  * Tables are registered as tables in the schema.
  */
 class DatabaseCalciteSchema implements Schema {
+	private final boolean isStreamingMode;
 	private final String databaseName;
 	private final String catalogName;
 	private final Catalog catalog;
 
-	public DatabaseCalciteSchema(String databaseName, String catalogName, Catalog catalog) {
+	public DatabaseCalciteSchema(
+			boolean isStreamingMode,
+			String databaseName,
+			String catalogName,
+			Catalog catalog) {
+		this.isStreamingMode = isStreamingMode;
 		this.databaseName = databaseName;
 		this.catalogName = catalogName;
 		this.catalog = catalog;
@@ -104,9 +109,19 @@ class DatabaseCalciteSchema implements Schema {
 	}
 
 	private Table convertCatalogTable(ObjectPath tablePath, CatalogTable table) {
+		TableSource<?> tableSource;
 		Optional<TableFactory> tableFactory = catalog.getTableFactory();
-		TableSource<Row> tableSource = tableFactory.map(tf -> ((TableSourceFactory) tf).createTableSource(tablePath, table))
-			.orElse(TableFactoryUtil.findAndCreateTableSource(table));
+		if (tableFactory.isPresent()) {
+			TableFactory tf = tableFactory.get();
+			if (tf instanceof TableSourceFactory) {
+				tableSource = ((TableSourceFactory) tf).createTableSource(tablePath, table);
+			} else {
+				throw new TableException(String.format("Cannot query a sink-only table. TableFactory provided by catalog %s must implement TableSourceFactory",
+					catalog.getClass()));
+			}
+		} else {
+			tableSource = TableFactoryUtil.findAndCreateTableSource(table);
+		}
 
 		if (!(tableSource instanceof StreamTableSource)) {
 			throw new TableException("Catalog tables support only StreamTableSource and InputFormatTableSource");
@@ -117,7 +132,7 @@ class DatabaseCalciteSchema implements Schema {
 			// this means the TableSource extends from StreamTableSource, this is needed for the
 			// legacy Planner. Blink Planner should use the information that comes from the TableSource
 			// itself to determine if it is a streaming or batch source.
-			true,
+			isStreamingMode,
 			FlinkStatistic.UNKNOWN()
 		);
 	}

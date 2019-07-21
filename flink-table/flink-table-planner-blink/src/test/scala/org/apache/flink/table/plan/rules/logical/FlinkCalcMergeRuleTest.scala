@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.calcite.CalciteConfig
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.plan.optimize.program._
@@ -59,9 +59,7 @@ class FlinkCalcMergeRuleTest extends TableTestBase {
         ))
         .setRequiredOutputTraits(Array(FlinkConventions.LOGICAL))
         .build())
-    val calciteConfig = CalciteConfig.createBuilder(util.tableEnv.getConfig.getCalciteConfig)
-      .replaceBatchProgram(programs).build()
-    util.tableEnv.getConfig.setCalciteConfig(calciteConfig)
+    util.replaceBatchProgram(programs)
 
     util.addTableSource[(Int, Int, String)]("MyTable", 'a, 'b, 'c)
   }

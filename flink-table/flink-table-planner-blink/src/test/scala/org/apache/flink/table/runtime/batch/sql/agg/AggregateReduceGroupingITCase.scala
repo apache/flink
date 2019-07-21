@@ -18,15 +18,18 @@
 package org.apache.flink.table.runtime.batch.sql.agg
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{PlannerConfigOptions, TableConfigOptions, Types}
+import org.apache.flink.table.api.{OptimizerConfigOptions, Types}
+import org.apache.flink.table.api.ExecutionConfigOptions.{SQL_EXEC_DISABLED_OPERATORS, SQL_RESOURCE_DEFAULT_PARALLELISM, SQL_RESOURCE_HASH_AGG_TABLE_MEM}
 import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.util.DateTimeTestUtil.UTCTimestamp
+import org.apache.flink.table.util.DateTimeTestUtil.localDateTime
 
 import org.junit.{Before, Test}
 
 import java.sql.Date
+import java.time.LocalDateTime
 
 import scala.collection.JavaConverters._
 import scala.collection.Seq
@@ -34,7 +37,8 @@ import scala.collection.Seq
 class AggregateReduceGroupingITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
+    super.before()
     registerCollection("T1",
       Seq(row(2, 1, "A", null),
         row(3, 2, "A", "Hi"),
@@ -72,11 +76,11 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
     )
 
     registerCollection("T4",
-      Seq(row(1, 1, "A", UTCTimestamp("2018-06-01 10:05:30"), "Hi"),
-        row(2, 1, "B", UTCTimestamp("2018-06-01 10:10:10"), "Hello"),
-        row(3, 2, "B", UTCTimestamp("2018-06-01 10:15:25"), "Hello world"),
-        row(4, 3, "C", UTCTimestamp("2018-06-01 10:36:49"), "I am fine.")),
-      new RowTypeInfo(Types.INT, Types.INT, Types.STRING, Types.SQL_TIMESTAMP, Types.STRING),
+      Seq(row(1, 1, "A", localDateTime("2018-06-01 10:05:30"), "Hi"),
+        row(2, 1, "B", localDateTime("2018-06-01 10:10:10"), "Hello"),
+        row(3, 2, "B", localDateTime("2018-06-01 10:15:25"), "Hello world"),
+        row(4, 3, "C", localDateTime("2018-06-01 10:36:49"), "I am fine.")),
+      new RowTypeInfo(Types.INT, Types.INT, Types.STRING, Types.LOCAL_DATE_TIME, Types.STRING),
       "a4, b4, c4, d4, e4",
       Array(true, true, true, true, true),
       FlinkStatistic.builder().uniqueKeys(Set(Set("a4").asJava).asJava).build()
@@ -100,19 +104,20 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
     registerCollection("T6",
       (0 until 50000).map(
         i => row(i, 1L, if (i % 500 == 0) null else s"Hello$i", "Hello world", 10,
-          new Date(i + 1531820000000L))),
-      new RowTypeInfo(Types.INT, Types.LONG, Types.STRING, Types.STRING, Types.INT, Types.SQL_DATE),
+          unixTimestampToLocalDateTime(i + 1531820000000L).toLocalDate)),
+      new RowTypeInfo(Types.INT, Types.LONG, Types.STRING,
+        Types.STRING, Types.INT, Types.LOCAL_DATE),
       "a6, b6, c6, d6, e6, f6",
       Array(true, true, true, true, true, true),
       FlinkStatistic.builder().uniqueKeys(Set(Set("a6").asJava).asJava).build()
     )
     // HashJoin is disabled due to translateToPlanInternal method is not implemented yet
-    tEnv.getConfig.getConf.setString(TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin")
+    tEnv.getConfig.getConfiguration.setString(SQL_EXEC_DISABLED_OPERATORS, "HashJoin")
   }
 
   @Test
   def testSingleAggOnTable_SortAgg(): Unit = {
-    tEnv.getConfig.getConf.setString(TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashAgg")
+    tEnv.getConfig.getConfiguration.setString(SQL_EXEC_DISABLED_OPERATORS, "HashAgg")
     testSingleAggOnTable()
     checkResult("SELECT a6, b6, max(c6), count(d6), sum(e6) FROM T6 GROUP BY a6, b6",
       (0 until 50000).map(i => row(i, 1L, if (i % 500 == 0) null else s"Hello$i", 1L, 10))
@@ -121,21 +126,21 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
 
   @Test
   def testSingleAggOnTable_HashAgg_WithLocalAgg(): Unit = {
-    tEnv.getConfig.getConf.setString(TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
-    tEnv.getConfig.getConf.setString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, "TWO_PHASE")
+    tEnv.getConfig.getConfiguration.setString(SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
+    tEnv.getConfig.getConfiguration.setString(
+      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
     // set smaller parallelism to avoid MemoryAllocationException
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 2)
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2) // 2M
+    tEnv.getConfig.getConfiguration.setInteger(SQL_RESOURCE_DEFAULT_PARALLELISM, 2)
+    tEnv.getConfig.getConfiguration.setInteger(SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
     testSingleAggOnTable()
   }
 
   @Test
   def testSingleAggOnTable_HashAgg_WithoutLocalAgg(): Unit = {
-    tEnv.getConfig.getConf.setString(TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
-    tEnv.getConfig.getConf.setString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, "ONE_PHASE")
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2) // 2M
+    tEnv.getConfig.getConfiguration.setString(SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
+    tEnv.getConfig.getConfiguration.setString(
+      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE")
+    tEnv.getConfig.getConfiguration.setInteger(SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
     testSingleAggOnTable()
   }
 
@@ -284,30 +289,30 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
       "TUMBLE_START(d4, INTERVAL '15' MINUTE) AS s, " +
       "TUMBLE_END(d4, INTERVAL '15' MINUTE) AS e FROM T4 " +
       "GROUP BY a4, e4, TUMBLE(d4, INTERVAL '15' MINUTE)) t GROUP BY a4, e4, s",
-      Seq(row(1, "Hi", UTCTimestamp("2018-06-01 10:00:00.0"), 1D, 1),
-        row(2, "Hello", UTCTimestamp("2018-06-01 10:00:00.0"), 1D, 1),
-        row(3, "Hello world", UTCTimestamp("2018-06-01 10:15:00.0"), 2D, 1),
-        row(4, "I am fine.", UTCTimestamp("2018-06-01 10:30:00.0"), 3D, 1)))
+      Seq(row(1, "Hi", LocalDateTime.of(2018, 6, 1, 10, 0, 0), 1D, 1),
+        row(2, "Hello", LocalDateTime.of(2018, 6, 1, 10, 0, 0), 1D, 1),
+        row(3, "Hello world", LocalDateTime.of(2018, 6, 1, 10, 15, 0), 2D, 1),
+        row(4, "I am fine.", LocalDateTime.of(2018, 6, 1, 10, 30, 0), 3D, 1)))
 
     checkResult("SELECT a4, c4, s, COUNT(b4) FROM " +
       "(SELECT a4, c4, avg(b4) AS b4, " +
       "TUMBLE_START(d4, INTERVAL '15' MINUTE) AS s, " +
       "TUMBLE_END(d4, INTERVAL '15' MINUTE) AS e FROM T4 " +
       "GROUP BY a4, c4, TUMBLE(d4, INTERVAL '15' MINUTE)) t GROUP BY a4, c4, s",
-      Seq(row(1, "A", UTCTimestamp("2018-06-01 10:00:00.0"), 1),
-        row(2, "B", UTCTimestamp("2018-06-01 10:00:00.0"), 1),
-        row(3, "B", UTCTimestamp("2018-06-01 10:15:00.0"), 1),
-        row(4, "C", UTCTimestamp("2018-06-01 10:30:00.0"), 1)))
+      Seq(row(1, "A", LocalDateTime.of(2018, 6, 1, 10, 0, 0), 1),
+        row(2, "B", LocalDateTime.of(2018, 6, 1, 10, 0, 0), 1),
+        row(3, "B", LocalDateTime.of(2018, 6, 1, 10, 15, 0), 1),
+        row(4, "C", LocalDateTime.of(2018, 6, 1, 10, 30, 0), 1)))
 
     checkResult("SELECT a4, c4, e, COUNT(b4) FROM " +
       "(SELECT a4, c4, VAR_POP(b4) AS b4, " +
       "TUMBLE_START(d4, INTERVAL '15' MINUTE) AS s, " +
       "TUMBLE_END(d4, INTERVAL '15' MINUTE) AS e FROM T4 " +
       "GROUP BY a4, c4, TUMBLE(d4, INTERVAL '15' MINUTE)) t GROUP BY a4, c4, e",
-      Seq(row(1, "A", UTCTimestamp("2018-06-01 10:15:00.0"), 1),
-        row(2, "B", UTCTimestamp("2018-06-01 10:15:00.0"), 1),
-        row(3, "B", UTCTimestamp("2018-06-01 10:30:00.0"), 1),
-        row(4, "C", UTCTimestamp("2018-06-01 10:45:00.0"), 1)))
+      Seq(row(1, "A", LocalDateTime.of(2018, 6, 1, 10, 15, 0), 1),
+        row(2, "B", LocalDateTime.of(2018, 6, 1, 10, 15, 0), 1),
+        row(3, "B", LocalDateTime.of(2018, 6, 1, 10, 30, 0), 1),
+        row(4, "C", LocalDateTime.of(2018, 6, 1, 10, 45, 0), 1)))
 
     checkResult("SELECT a4, b4, c4, COUNT(*) FROM " +
       "(SELECT a4, c4, SUM(b4) AS b4, " +

@@ -79,7 +79,7 @@ class TableScanITCase extends StreamingTestBase {
 
     val data = Seq("Mary", "Peter", "Bob", "Liz")
 
-    val schema = new TableSchema(Array("name", "ptime"), Array(Types.STRING, Types.SQL_TIMESTAMP))
+    val schema = new TableSchema(Array("name", "ptime"), Array(Types.STRING, Types.LOCAL_DATE_TIME))
     val returnType = Types.STRING
 
     val tableSource = new TestTableSourceWithTime(false, schema, returnType, data, null, "ptime")
@@ -112,7 +112,7 @@ class TableScanITCase extends StreamingTestBase {
     )
 
     val fieldNames = Array("id", "rtime", "name")
-    val schema = new TableSchema(fieldNames, Array(Types.INT, Types.SQL_TIMESTAMP, Types.STRING))
+    val schema = new TableSchema(fieldNames, Array(Types.INT, Types.LOCAL_DATE_TIME, Types.STRING))
     val rowType = new RowTypeInfo(
       Array(Types.INT, Types.LONG, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
       fieldNames)

@@ -135,6 +135,8 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 		// when both of them are expired.
 		if (!hasMax) {
 			acc.mapSize = 0L;
+			// we should also override max value, because it may have an old value.
+			acc.max = null;
 		}
 	}
 
@@ -142,7 +144,7 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 		boolean needUpdateMax = false;
 		for (MaxWithRetractAccumulator<T> a : its) {
 			// set max element
-			if (acc.mapSize == 0 || (a.max != null && acc.max.compareTo(a.max) < 0)) {
+			if (acc.mapSize == 0 || (a.mapSize > 0 && a.max != null && acc.max.compareTo(a.max) < 0)) {
 				acc.max = a.max;
 			}
 			// merge the count for each key
@@ -195,7 +197,7 @@ public abstract class MaxWithRetractAggFunction<T extends Comparable>
 
 	@Override
 	public T getValue(MaxWithRetractAccumulator<T> acc) {
-		if (acc.mapSize != 0) {
+		if (acc.mapSize > 0) {
 			return acc.max;
 		} else {
 			return null;

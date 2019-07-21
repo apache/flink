@@ -20,11 +20,11 @@ package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.CatalogNotExistException;
-import org.apache.flink.table.api.QueryConfig;
-import org.apache.flink.table.api.StreamQueryConfig;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -36,36 +36,42 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ExternalCatalog;
 import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.catalog.FunctionLookup;
+import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Executor;
+import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.descriptors.TableDescriptor;
 import org.apache.flink.table.expressions.TableReferenceExpression;
-import org.apache.flink.table.expressions.lookups.TableReferenceLookup;
+import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.CatalogQueryOperation;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.OperationTreeBuilder;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
+import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.DropTableOperation;
+import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.util.StringUtils;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Implementation of {@link TableEnvironment} that works exclusively with Table API interfaces.
@@ -74,17 +80,19 @@ import java.util.Optional;
  */
 @Internal
 public class TableEnvironmentImpl implements TableEnvironment {
-
+	// Flag that tells if the TableSource/TableSink used in this environment is stream table source/sink,
+	// and this should always be true. This avoids too many hard code.
+	private static final boolean IS_STREAM_TABLE = true;
 	private final CatalogManager catalogManager;
 
-	private final String defaultCatalogName;
-	private final String defaultDatabaseName;
-	private final TableConfig tableConfig;
+	private final String builtinCatalogName;
+	private final String builtinDatabaseName;
 	private final OperationTreeBuilder operationTreeBuilder;
+	private final List<ModifyOperation> bufferedModifyOperations = new ArrayList<>();
 
+	protected final TableConfig tableConfig;
 	protected final Executor execEnv;
 	protected final FunctionCatalog functionCatalog;
-	protected final QueryConfigProvider queryConfigProvider = new QueryConfigProvider();
 	protected final Planner planner;
 
 	protected TableEnvironmentImpl(
@@ -92,41 +100,54 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			TableConfig tableConfig,
 			Executor executor,
 			FunctionCatalog functionCatalog,
-			Planner planner) {
+			Planner planner,
+			boolean isStreamingMode) {
 		this.catalogManager = catalogManager;
 		this.execEnv = executor;
 
 		this.tableConfig = tableConfig;
-		this.tableConfig.addPlannerConfig(queryConfigProvider);
-		this.defaultCatalogName = tableConfig.getBuiltInCatalogName();
-		this.defaultDatabaseName = tableConfig.getBuiltInDatabaseName();
+		// The current catalog and database are definitely builtin,
+		// see #create(EnvironmentSettings)
+		this.builtinCatalogName = catalogManager.getCurrentCatalog();
+		this.builtinDatabaseName = catalogManager.getCurrentDatabase();
 
 		this.functionCatalog = functionCatalog;
 		this.planner = planner;
-		this.operationTreeBuilder = lookupTreeBuilder(
+		this.operationTreeBuilder = OperationTreeBuilder.create(
+			functionCatalog,
 			path -> {
 				Optional<CatalogQueryOperation> catalogTableOperation = scanInternal(path);
 				return catalogTableOperation.map(tableOperation -> new TableReferenceExpression(path, tableOperation));
 			},
-			functionCatalog
+			isStreamingMode
 		);
 	}
 
-	private static OperationTreeBuilder lookupTreeBuilder(
-		TableReferenceLookup tableReferenceLookup,
-		FunctionLookup functionDefinitionCatalog) {
-		try {
-			Class<?> clazz = Class.forName("org.apache.flink.table.operations.OperationTreeBuilderFactory");
-			Method createMethod = clazz.getMethod(
-				"create",
-				TableReferenceLookup.class,
-				FunctionLookup.class);
+	public static TableEnvironmentImpl create(EnvironmentSettings settings) {
 
-			return (OperationTreeBuilder) createMethod.invoke(null, tableReferenceLookup, functionDefinitionCatalog);
-		} catch (Exception e) {
-			throw new TableException(
-				"Could not instantiate the operation builder. Make sure the planner module is on the classpath");
-		}
+		CatalogManager catalogManager = new CatalogManager(
+			settings.getBuiltInCatalogName(),
+			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
+
+		FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager);
+
+		Map<String, String> executorProperties = settings.toExecutorProperties();
+		Executor executor = ComponentFactoryService.find(ExecutorFactory.class, executorProperties)
+			.create(executorProperties);
+
+		TableConfig tableConfig = new TableConfig();
+		Map<String, String> plannerProperties = settings.toPlannerProperties();
+		Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
+			.create(plannerProperties, executor, tableConfig, functionCatalog, catalogManager);
+
+		return new TableEnvironmentImpl(
+			catalogManager,
+			tableConfig,
+			executor,
+			functionCatalog,
+			planner,
+			settings.isStreamingMode()
+		);
 	}
 
 	@VisibleForTesting
@@ -136,7 +157,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public Table fromTableSource(TableSource<?> source) {
-		return createTable(new TableSourceQueryOperation<>(source, false));
+		// only accept StreamTableSource and LookupableTableSource here
+		// TODO should add a validation, while StreamTableSource is in flink-table-api-java-bridge module now
+		return createTable(new TableSourceQueryOperation<>(source, !IS_STREAM_TABLE));
 	}
 
 	@Override
@@ -179,6 +202,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public void registerTableSource(String name, TableSource<?> tableSource) {
+		// only accept StreamTableSource and LookupableTableSource here
+		// TODO should add a validation, while StreamTableSource is in flink-table-api-java-bridge module now
 		registerTableSourceInternal(name, tableSource);
 	}
 
@@ -255,7 +280,19 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public String explain(Table table) {
-		return planner.explain(Collections.singletonList(table.getQueryOperation()), false);
+		return explain(table, false);
+	}
+
+	@Override
+	public String explain(Table table, boolean extended) {
+		return planner.explain(Collections.singletonList(table.getQueryOperation()), extended);
+	}
+
+	@Override
+	public String explain(boolean extended) {
+		List<Operation> operations = bufferedModifyOperations.stream()
+			.map(o -> (Operation) o).collect(Collectors.toList());
+		return planner.explain(operations, extended);
 	}
 
 	@Override
@@ -284,49 +321,67 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
-	public void sqlUpdate(String stmt) {
-		sqlUpdate(stmt, new StreamQueryConfig());
-	}
-
-	@Override
-	public void insertInto(Table table, QueryConfig queryConfig, String path, String... pathContinued) {
+	public void insertInto(Table table, String path, String... pathContinued) {
 		List<String> fullPath = new ArrayList<>(Arrays.asList(pathContinued));
 		fullPath.add(0, path);
 
-		queryConfigProvider.setConfig((StreamQueryConfig) queryConfig);
-		List<Transformation<?>> translate = planner.translate(Collections.singletonList(
+		List<ModifyOperation> modifyOperations = Collections.singletonList(
 			new CatalogSinkModifyOperation(
 				fullPath,
-				table.getQueryOperation())));
+				table.getQueryOperation()));
 
-		execEnv.apply(translate);
+		if (isEagerOperationTranslation()) {
+			translate(modifyOperations);
+		} else {
+			buffer(modifyOperations);
+		}
 	}
 
 	@Override
-	public void insertInto(Table table, String path, String... pathContinued) {
-		insertInto(table, new StreamQueryConfig(), path, pathContinued);
-	}
-
-	@Override
-	public void sqlUpdate(String stmt, QueryConfig config) {
+	public void sqlUpdate(String stmt) {
 		List<Operation> operations = planner.parse(stmt);
 
 		if (operations.size() != 1) {
 			throw new TableException(
-				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type INSERT.");
+				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
+					"INSERT, CREATE TABLE, DROP TABLE");
 		}
 
 		Operation operation = operations.get(0);
 
 		if (operation instanceof ModifyOperation) {
-			queryConfigProvider.setConfig((StreamQueryConfig) config);
-			List<Transformation<?>> transformations =
-				planner.translate(Collections.singletonList((ModifyOperation) operation));
-
-			execEnv.apply(transformations);
+			List<ModifyOperation> modifyOperations = Collections.singletonList((ModifyOperation) operation);
+			if (isEagerOperationTranslation()) {
+				translate(modifyOperations);
+			} else {
+				buffer(modifyOperations);
+			}
+		} else if (operation instanceof CreateTableOperation) {
+			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
+			registerCatalogTableInternal(
+				createTableOperation.getTablePath(),
+				createTableOperation.getCatalogTable(),
+				createTableOperation.isIgnoreIfExists());
+		} else if (operation instanceof DropTableOperation) {
+			String[] name = ((DropTableOperation) operation).getTableName();
+			boolean isIfExists = ((DropTableOperation) operation).isIfExists();
+			String[] paths = catalogManager.getFullTablePath(Arrays.asList(name));
+			Optional<Catalog> catalog = getCatalog(paths[0]);
+			if (!catalog.isPresent()) {
+				if (!isIfExists) {
+					throw new TableException("Catalog " + paths[0] + " does not exist.");
+				}
+			} else {
+				try {
+					catalog.get().dropTable(new ObjectPath(paths[1], paths[2]), isIfExists);
+				} catch (TableNotExistException e) {
+					throw new TableException(e.getMessage());
+				}
+			}
 		} else {
 			throw new TableException(
-				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of type INSERT.");
+				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
+					"type INSERT, CREATE TABLE, DROP TABLE");
 		}
 	}
 
@@ -355,11 +410,83 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		return tableConfig;
 	}
 
+	@Override
+	public JobExecutionResult execute(String jobName) throws Exception {
+		translate(bufferedModifyOperations);
+		bufferedModifyOperations.clear();
+		return execEnv.execute(jobName);
+	}
+
+	/**
+	 * Defines the behavior of this {@link TableEnvironment}. If true the queries will
+	 * be translated immediately. If false the {@link ModifyOperation}s will be buffered
+	 * and translated only when {@link #execute(String)} is called.
+	 *
+	 * <p>If the {@link TableEnvironment} works in a lazy manner it is undefined what
+	 * configurations values will be used. It depends on the characteristic of the particular
+	 * parameter. Some might used values current to the time of query construction (e.g. the currentCatalog)
+	 * and some use values from the time when {@link #execute(String)} is called (e.g. timeZone).
+	 *
+	 * @return true if the queries should be translated immediately.
+	 */
+	protected boolean isEagerOperationTranslation() {
+		return false;
+	}
+
+	/**
+	 * Subclasses can override this method to add additional checks.
+	 *
+	 * @param tableSource tableSource to validate
+	 */
+	protected void validateTableSource(TableSource<?> tableSource) {
+		TableSourceValidation.validateTableSource(tableSource);
+	}
+
+	private void translate(List<ModifyOperation> modifyOperations) {
+		List<Transformation<?>> transformations = planner.translate(modifyOperations);
+
+		execEnv.apply(transformations);
+	}
+
+	private void buffer(List<ModifyOperation> modifyOperations) {
+		bufferedModifyOperations.addAll(modifyOperations);
+	}
+
+	/**
+	 * Registers a {@link CatalogBaseTable} under a given object path. The {@code path} could be
+	 * 3 formats:
+	 * <ol>
+	 *   <li>`catalog.db.table`: A full table path including the catalog name,
+	 *   the database name and table name.</li>
+	 *   <li>`db.table`: database name following table name, with the current catalog name.</li>
+	 *   <li>`table`: Only the table name, with the current catalog name and database  name.</li>
+	 * </ol>
+	 * The registered tables then can be referenced in Sql queries.
+	 *
+	 * @param path           The path under which the table will be registered
+	 * @param catalogTable   The table to register
+	 * @param ignoreIfExists If true, do nothing if there is already same table name under
+	 *                       the {@code path}. If false, a TableAlreadyExistException throws.
+	 */
+	private void registerCatalogTableInternal(String[] path,
+			CatalogBaseTable catalogTable,
+			boolean ignoreIfExists) {
+		String[] fullName = catalogManager.getFullTablePath(Arrays.asList(path));
+		Catalog catalog = getCatalog(fullName[0]).orElseThrow(() ->
+			new TableException("Catalog " + fullName[0] + " does not exist"));
+		ObjectPath objectPath = new ObjectPath(fullName[1], fullName[2]);
+		try {
+			catalog.createTable(objectPath, catalogTable, ignoreIfExists);
+		} catch (Exception e) {
+			throw new TableException("Could not register table", e);
+		}
+	}
+
 	protected void registerTableInternal(String name, CatalogBaseTable table) {
 		try {
 			checkValidTableName(name);
-			ObjectPath path = new ObjectPath(defaultDatabaseName, name);
-			Optional<Catalog> catalog = catalogManager.getCatalog(defaultCatalogName);
+			ObjectPath path = new ObjectPath(builtinDatabaseName, name);
+			Optional<Catalog> catalog = catalogManager.getCatalog(builtinCatalogName);
 			if (catalog.isPresent()) {
 				catalog.get().createTable(
 					path,
@@ -373,8 +500,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	private void replaceTableInternal(String name, CatalogBaseTable table) {
 		try {
-			ObjectPath path = new ObjectPath(defaultDatabaseName, name);
-			Optional<Catalog> catalog = catalogManager.getCatalog(defaultCatalogName);
+			ObjectPath path = new ObjectPath(builtinDatabaseName, name);
+			Optional<Catalog> catalog = catalogManager.getCatalog(builtinCatalogName);
 			if (catalog.isPresent()) {
 				catalog.get().alterTable(
 					path,
@@ -392,18 +519,9 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		}
 	}
 
-	/**
-	 * Subclasses can override this method to add additional checks.
-	 *
-	 * @param tableSource tableSource to validate
-	 */
-	protected void validateTableSource(TableSource<?> tableSource) {
-		TableSourceValidation.validateTableSource(tableSource);
-	}
-
 	private void registerTableSourceInternal(String name, TableSource<?> tableSource) {
 		validateTableSource(tableSource);
-		Optional<CatalogBaseTable> table = getCatalogTable(defaultCatalogName, defaultDatabaseName, name);
+		Optional<CatalogBaseTable> table = getCatalogTable(builtinCatalogName, builtinDatabaseName, name);
 
 		if (table.isPresent()) {
 			if (table.get() instanceof ConnectorCatalogTable<?, ?>) {
@@ -416,19 +534,19 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					replaceTableInternal(
 						name,
 						ConnectorCatalogTable
-							.sourceAndSink(tableSource, sourceSinkTable.getTableSink().get(), false));
+							.sourceAndSink(tableSource, sourceSinkTable.getTableSink().get(), !IS_STREAM_TABLE));
 				}
 			} else {
 				throw new ValidationException(String.format(
 					"Table '%s' already exists. Please choose a different name.", name));
 			}
 		} else {
-			registerTableInternal(name, ConnectorCatalogTable.source(tableSource, false));
+			registerTableInternal(name, ConnectorCatalogTable.source(tableSource, !IS_STREAM_TABLE));
 		}
 	}
 
 	private void registerTableSinkInternal(String name, TableSink<?> tableSink) {
-		Optional<CatalogBaseTable> table = getCatalogTable(defaultCatalogName, defaultDatabaseName, name);
+		Optional<CatalogBaseTable> table = getCatalogTable(builtinCatalogName, builtinDatabaseName, name);
 
 		if (table.isPresent()) {
 			if (table.get() instanceof ConnectorCatalogTable<?, ?>) {
@@ -441,14 +559,14 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					replaceTableInternal(
 						name,
 						ConnectorCatalogTable
-							.sourceAndSink(sourceSinkTable.getTableSource().get(), tableSink, false));
+							.sourceAndSink(sourceSinkTable.getTableSource().get(), tableSink, !IS_STREAM_TABLE));
 				}
 			} else {
 				throw new ValidationException(String.format(
 					"Table '%s' already exists. Please choose a different name.", name));
 			}
 		} else {
-			registerTableInternal(name, ConnectorCatalogTable.sink(tableSink, false));
+			registerTableInternal(name, ConnectorCatalogTable.sink(tableSink, !IS_STREAM_TABLE));
 		}
 	}
 

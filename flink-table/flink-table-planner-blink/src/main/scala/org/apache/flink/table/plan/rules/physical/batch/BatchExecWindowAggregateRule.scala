@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.rules.physical.batch
 
-import org.apache.flink.table.api.{PlannerConfigOptions, TableConfig, TableException}
+import org.apache.flink.table.api.{OptimizerConfigOptions, TableConfig, TableException}
 import org.apache.flink.table.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
@@ -52,16 +52,16 @@ import scala.collection.JavaConversions._
   *         +- input of window agg
   * }}}
   * when all aggregate functions are mergeable
-  * and [[PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER]] is TWO_PHASE, or
+  * and [[OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY]] is TWO_PHASE, or
   * {{{
   *   BatchExecHash(or Sort)WindowAggregate
   *   +- BatchExecExchange (hash by group keys if group keys is not empty, else singleton)
   *      +- input of window agg
   * }}}
   * when some aggregate functions are not mergeable
-  * or [[PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER]] is ONE_PHASE.
+  * or [[OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY]] is ONE_PHASE.
   *
-  * Notes: if [[PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER]] is NONE,
+  * Notes: if [[OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY]] is NONE,
   * this rule will try to create two possibilities above, and chooses the best one based on cost.
   * if all aggregate function buffer are fix length, the rule will choose hash window agg.
   */

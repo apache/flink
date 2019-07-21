@@ -123,7 +123,7 @@ final class FileChannelMemoryMappedBoundedData implements BoundedData {
 	}
 
 	@Override
-	public BoundedData.Reader createReader() {
+	public BoundedData.Reader createReader(ResultSubpartitionView ignored) {
 		checkState(!fileChannel.isOpen());
 
 		final List<ByteBuffer> buffers = memoryMappedRegions.stream()

@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.flink.api.common.typeinfo.NothingTypeInfo
+import org.apache.flink.api.common.typeinfo.{NothingTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.api.{DataTypes, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.plan.schema.{GenericRelDataType, _}
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.types.Nothing
 import org.apache.flink.util.Preconditions.checkArgument
 
@@ -74,6 +75,8 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem) extends JavaTypeFactoryImp
       // temporal types
       case LogicalTypeRoot.DATE => createSqlType(DATE)
       case LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE => createSqlType(TIME)
+      case LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        createSqlType(TIMESTAMP_WITH_LOCAL_TIME_ZONE)
 
       // interval types
       case LogicalTypeRoot.INTERVAL_YEAR_MONTH =>
@@ -369,6 +372,24 @@ object FlinkTypeFactory {
     case _ => false
   }
 
+  @Deprecated
+  def isProctimeIndicatorType(typeInfo: TypeInformation[_]): Boolean = typeInfo match {
+    case ti: TimeIndicatorTypeInfo if !ti.isEventTime => true
+    case _ => false
+  }
+
+  @Deprecated
+  def isRowtimeIndicatorType(typeInfo: TypeInformation[_]): Boolean = typeInfo match {
+    case ti: TimeIndicatorTypeInfo if ti.isEventTime => true
+    case _ => false
+  }
+
+  @Deprecated
+  def isTimeIndicatorType(typeInfo: TypeInformation[_]): Boolean = typeInfo match {
+    case ti: TimeIndicatorTypeInfo => true
+    case _ => false
+  }
+
   def toLogicalType(relDataType: RelDataType): LogicalType = {
     val logicalType = relDataType.getSqlTypeName match {
       case BOOLEAN => new BooleanType()
@@ -415,11 +436,33 @@ object FlinkTypeFactory {
 
       // temporal types
       case DATE => new DateType()
-      case TIME => new TimeType()
-      case TIMESTAMP => new TimestampType(3)
+      case TIME =>
+        if (relDataType.getPrecision > 3) {
+          throw new TableException(
+            s"TIME precision is not supported: ${relDataType.getPrecision}")
+        }
+        // blink runner support precision 3, but for consistent with flink runner, we set to 0.
+        new TimeType()
+      case TIMESTAMP =>
+        if (relDataType.getPrecision > 3) {
+          throw new TableException(
+            s"TIMESTAMP precision is not supported: ${relDataType.getPrecision}")
+        }
+        new TimestampType(3)
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        if (relDataType.getPrecision > 3) {
+          throw new TableException(
+            s"TIMESTAMP_WITH_LOCAL_TIME_ZONE precision is not supported:" +
+                s" ${relDataType.getPrecision}")
+        }
+        new LocalZonedTimestampType(3)
       case typeName if YEAR_INTERVAL_TYPES.contains(typeName) =>
         DataTypes.INTERVAL(DataTypes.MONTH).getLogicalType
       case typeName if DAY_INTERVAL_TYPES.contains(typeName) =>
+        if (relDataType.getPrecision > 3) {
+          throw new TableException(
+            s"DAY_INTERVAL_TYPES precision is not supported: ${relDataType.getPrecision}")
+        }
         DataTypes.INTERVAL(DataTypes.SECOND(3)).getLogicalType
 
       case NULL =>

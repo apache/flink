@@ -109,7 +109,7 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     *
     * t.select("a + 1, b, c").insert_into("batch_sink")
     *
-    * b_env.execute()
+    * bt_env.execute("batch_job")
 
   Streaming - Use 's_env' and 'st_env' variables
 
@@ -139,7 +139,7 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     * 
     * t.select("a + 1, b, c").insert_into("stream_sink")
     *
-    * s_env.execute()
+    * st_env.execute("stream_job")
 '''
 utf8_out.write(welcome_msg)
 

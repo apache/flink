@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.rules.logical.subquery
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 
 import org.junit.Test
@@ -207,9 +208,8 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     util.addTableSource[(Int)]("t1", 'i)
     util.addTableSource[(Int)]("t2", 'j)
 
-    thrown.expect(classOf[TableException])
-    // correlate variable id is unstable, ignore here
-    thrown.expectMessage("unexpected correlate variable $cor")
+    // TODO some bugs in SubQueryRemoveRule
+    thrown.expect(classOf[RuntimeException])
 
     // TODO Calcite does not support project with correlated expressions.
     val sqlQuery = "SELECT b FROM l WHERE" +
@@ -1658,9 +1658,10 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
   def testInExists3(): Unit = {
     util.addTableSource[(Int, Long, String)]("t2", 'l, 'm, 'n)
 
-    thrown.expect(classOf[TableException])
-    // correlate variable id is unstable, ignore here
-    thrown.expectMessage("unexpected correlate variable $cor")
+    // TODO some bugs in SubQueryRemoveRule
+    //  the result RelNode (LogicalJoin(condition=[=($1, $8)], joinType=[left]))
+    //  after SubQueryRemoveRule is unexpected
+    thrown.expect(classOf[RuntimeException])
 
     // TODO Calcite does not support project with correlated expressions.
     val sqlQuery = "SELECT c FROM l WHERE (" +

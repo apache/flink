@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 
@@ -48,6 +49,11 @@ public interface FunctionLookup {
 				)
 			);
 	}
+
+	/**
+	 * Temporary utility until the new type inference is fully functional.
+	 */
+	PlannerTypeInferenceUtil getPlannerTypeInferenceUtil();
 
 	/**
 	 * Result of a function lookup.

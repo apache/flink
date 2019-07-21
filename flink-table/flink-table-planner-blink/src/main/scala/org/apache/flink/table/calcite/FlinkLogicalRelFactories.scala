@@ -25,15 +25,15 @@ import org.apache.flink.table.runtime.rank.{RankRange, RankType}
 import org.apache.flink.table.sinks.TableSink
 
 import com.google.common.collect.ImmutableList
-import org.apache.calcite.plan.{Contexts, RelOptCluster, RelOptTable, RelTraitSet}
+import org.apache.calcite.plan.{Contexts, RelOptCluster, RelOptTable}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
 import org.apache.calcite.rel.core.RelFactories._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.SqlKind.{EXCEPT, INTERSECT, UNION}
-import org.apache.calcite.sql.{SemiJoinType, SqlKind}
 import org.apache.calcite.tools.{RelBuilder, RelBuilderFactory}
 import org.apache.calcite.util.ImmutableBitSet
 
@@ -106,13 +106,6 @@ object FlinkLogicalRelFactories {
         fetch: RexNode): RelNode = {
       FlinkLogicalSort.create(input, collation, offset, fetch)
     }
-
-    @deprecated // to be removed before 2.0
-    def createSort(
-        traits: RelTraitSet, input: RelNode,
-        collation: RelCollation, offset: RexNode, fetch: RexNode): RelNode = {
-      createSort(input, collation, offset, fetch)
-    }
   }
 
   /**
@@ -139,14 +132,12 @@ object FlinkLogicalRelFactories {
     * Implementation of [[AggregateFactory]] that returns a [[FlinkLogicalAggregate]].
     */
   class AggregateFactoryImpl extends AggregateFactory {
-    @SuppressWarnings(Array("deprecation"))
     def createAggregate(
         input: RelNode,
-        indicator: Boolean,
         groupSet: ImmutableBitSet,
         groupSets: ImmutableList[ImmutableBitSet],
         aggCalls: util.List[AggregateCall]): RelNode = {
-      FlinkLogicalAggregate.create(input, indicator, groupSet, groupSets, aggCalls)
+      FlinkLogicalAggregate.create(input, groupSet, groupSets, aggCalls)
     }
   }
 
@@ -179,22 +170,6 @@ object FlinkLogicalRelFactories {
         semiJoinDone: Boolean): RelNode = {
       FlinkLogicalJoin.create(left, right, condition, joinType)
     }
-
-    def createJoin(
-        left: RelNode,
-        right: RelNode,
-        condition: RexNode,
-        joinType: JoinRelType,
-        variablesStopped: util.Set[String],
-        semiJoinDone: Boolean): RelNode = {
-      createJoin(
-        left,
-        right,
-        condition,
-        CorrelationId.setOf(variablesStopped),
-        joinType,
-        semiJoinDone)
-    }
   }
 
   /**
@@ -206,7 +181,7 @@ object FlinkLogicalRelFactories {
         right: RelNode,
         correlationId: CorrelationId,
         requiredColumns: ImmutableBitSet,
-        joinType: SemiJoinType): RelNode = {
+        joinType: JoinRelType): RelNode = {
       FlinkLogicalCorrelate.create(left, right, correlationId, requiredColumns, joinType)
     }
   }

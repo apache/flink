@@ -306,7 +306,6 @@ public class TaskExecutorTest extends TestLogger {
 
 		assertThat(memoryManager.isShutdown(), is(true));
 		assertThat(nettyShuffleEnvironment.isClosed(), is(true));
-		assertThat(ioManager.isProperlyShutDown(), is(true));
 		assertThat(kvStateService.isShutdown(), is(true));
 	}
 

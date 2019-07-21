@@ -24,6 +24,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputSelectableProcessor;
 
+import java.io.IOException;
 import java.util.Collection;
 
 /**
@@ -32,8 +33,6 @@ import java.util.Collection;
  */
 @Internal
 public class TwoInputSelectableStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTask<IN1, IN2, OUT> {
-
-	private StreamTwoInputSelectableProcessor<IN1, IN2> inputProcessor;
 
 	public TwoInputSelectableStreamTask(Environment env) {
 		super(env);
@@ -44,36 +43,21 @@ public class TwoInputSelectableStreamTask<IN1, IN2, OUT> extends AbstractTwoInpu
 		Collection<InputGate> inputGates1,
 		Collection<InputGate> inputGates2,
 		TypeSerializer<IN1> inputDeserializer1,
-		TypeSerializer<IN2> inputDeserializer2) {
+		TypeSerializer<IN2> inputDeserializer2) throws IOException {
 
 		this.inputProcessor = new StreamTwoInputSelectableProcessor<>(
 			inputGates1, inputGates2,
 			inputDeserializer1, inputDeserializer2,
 			this,
+			getConfiguration().getCheckpointMode(),
+			getCheckpointLock(),
 			getEnvironment().getIOManager(),
+			getEnvironment().getTaskManagerInfo().getConfiguration(),
 			getStreamStatusMaintainer(),
 			this.headOperator,
 			input1WatermarkGauge,
 			input2WatermarkGauge,
+			getTaskNameWithSubtaskAndId(),
 			operatorChain);
-	}
-
-	@Override
-	protected void performDefaultAction(ActionContext context) throws Exception {
-		if (!inputProcessor.processInput()) {
-			context.allActionsCompleted();
-		}
-	}
-
-	@Override
-	protected void cleanup() throws Exception {
-		if (inputProcessor != null) {
-			inputProcessor.cleanup();
-		}
-	}
-
-	@Override
-	protected void cancelTask() {
-
 	}
 }

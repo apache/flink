@@ -21,6 +21,7 @@ package org.apache.flink.table.functions.aggfunctions;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.dataformat.BinaryString;
+import org.apache.flink.table.dataformat.BinaryStringUtil;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -123,7 +124,7 @@ public final class ConcatWithRetractAggFunction
 				// return null when the list is empty
 				return null;
 			} else {
-				return BinaryString.concatWs(lineDelimiter, accList);
+				return BinaryStringUtil.concatWs(lineDelimiter, accList);
 			}
 		} catch (Exception e) {
 			throw new FlinkRuntimeException(e);

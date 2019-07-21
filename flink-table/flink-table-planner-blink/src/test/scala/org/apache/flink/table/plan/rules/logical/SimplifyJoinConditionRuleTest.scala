@@ -18,8 +18,9 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.table.util.{TableConfigUtils, TableTestBase}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
@@ -35,7 +36,8 @@ class SimplifyJoinConditionRuleTest extends TableTestBase {
   @Before
   def setup(): Unit = {
     util.buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE)
-    util.tableEnv.getConfig.getCalciteConfig.getBatchProgram.get.addLast(
+    val calciteConfig = TableConfigUtils.getCalciteConfig(util.tableEnv.getConfig)
+    calciteConfig.getBatchProgram.get.addLast(
       "SimplifyJoinConditionRule",
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)

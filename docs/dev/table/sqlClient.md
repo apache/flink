@@ -157,7 +157,7 @@ Mode "embedded" submits Flink jobs from the local machine.
 
 ### Environment Files
 
-A SQL query needs a configuration environment in which it is executed. The so-called *environment files* define available table sources and sinks, external catalogs, user-defined functions, and other properties required for execution and deployment.
+A SQL query needs a configuration environment in which it is executed. The so-called *environment files* define available catalogs, table sources and sinks, user-defined functions, and other properties required for execution and deployment.
 
 Every environment file is a regular [YAML file](http://yaml.org/). An example of such a file is presented below.
 
@@ -214,11 +214,27 @@ execution:
   max-idle-state-retention: 0       # optional: table program's maximum idle state time
   restart-strategy:                 # optional: restart strategy
     type: fallback                  #   "fallback" to global restart strategy by default
+  current-catalog: catalog_1        # optional: name of the current catalog of the session ("default_catalog" by default)
+  current-database: mydb1           # optional: name of the current database of the current catalog (default value is the default database name of the current catalog)
 
 # Deployment properties allow for describing the cluster to which table programs are submitted to.
 
 deployment:
   response-timeout: 5000
+
+# Catalogs
+
+catalogs:
+   - name: catalog_1
+     type: hive
+     property-version: 1
+     hive-conf-dir: ...
+   - name: catalog_2
+     type: hive
+     property-version: 1
+     default-database: mydb2        # optional: name of default database of this catalog
+     hive-conf-dir: ...             # optional: path of Hive conf directory. (Default value is created by HiveConf)
+     hive-version: 1.2.1            # optional: version of Hive (2.3.4 by default)
 {% endhighlight %}
 
 This configuration:
@@ -229,6 +245,8 @@ This configuration:
 - specifies a parallelism of 1 for queries executed in this streaming environment,
 - specifies an event-time characteristic, and
 - runs queries in the `table` result mode.
+- creates two `HiveCatalog` (type: hive) named with their own default databases and specified Hive conf directory. Hive version of the first `HiveCatalog` is `2.3.4` by default and that of the second one is specified as `1.2.1`.
+- use `catalog_1` as the current catalog of the environment upon start, and `mydb1` as the current database of the catalog.
 
 Depending on the use case, a configuration can be split into multiple files. Therefore, environment files can be created for general purposes (*defaults environment file* using `--defaults`) as well as on a per-session basis (*session environment file* using `--environment`). Every CLI session is initialized with the default properties followed by the session properties. For example, the defaults environment file could specify all table sources that should be available for querying in every session whereas the session environment file only declares a specific state retention time and parallelism. Both default and session environment files can be passed when starting the CLI application. If no default environment file has been specified, the SQL Client searches for `./conf/sql-client-defaults.yaml` in Flink's configuration directory.
 
@@ -409,6 +427,36 @@ This process can be recursively performed until all the constructor parameters a
 {% endhighlight %}
 
 {% top %}
+
+Catalogs
+--------
+
+Catalogs can be defined as a set of yaml properties and are automatically registered to the environment upon starting SQL Client.
+
+Users can specify in section `execution` that which catalog they want to use as the current catalog in SQL CLI, and which database of the catalog they want to use as the current database. 
+
+{% highlight yaml %}
+execution:
+   ...
+   current-catalog: catalog_1
+   current-database: mydb1
+
+catalogs:
+   - name: catalog_1
+     type: hive
+     property-version: 1
+     default-database: mydb2
+     hive-version: 1.2.1
+     hive-conf-dir: <path of Hive conf directory>
+   - name: catalog_2
+     type: hive
+     property-version: 1
+     hive-conf-dir: <path of Hive conf directory>
+{% endhighlight %}
+
+Currently Flink supports two types of catalog - `FlinkInMemoryCatalog` and `HiveCatalog`.
+
+For more information about catalog, see [Catalogs]({{ site.baseurl }}/dev/table/catalog.html).
 
 Detached SQL Queries
 --------------------

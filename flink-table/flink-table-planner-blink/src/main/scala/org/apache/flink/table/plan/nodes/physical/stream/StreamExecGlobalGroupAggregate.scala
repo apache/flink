@@ -17,8 +17,9 @@
  */
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, TableConfigOptions, TableException}
+import org.apache.flink.table.api.{ExecutionConfigOptions, TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
@@ -28,18 +29,19 @@ import org.apache.flink.table.plan.PartialFinalType
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util._
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.aggregate.MiniBatchGlobalGroupAggFunction
 import org.apache.flink.table.runtime.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.tools.RelBuilder
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -101,19 +103,19 @@ class StreamExecGlobalGroupAggregate(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
   }
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
-    val tableConfig = tableEnv.getConfig
+      planner: StreamPlanner): Transformation[BaseRow] = {
+    val tableConfig = planner.getTableConfig
 
     if (grouping.length > 0 && tableConfig.getMinIdleStateRetentionTime < 0) {
       LOG.warn("No state retention interval configured for a query which accumulates state. " +
@@ -121,7 +123,7 @@ class StreamExecGlobalGroupAggregate(
         "state size. You may specify a retention time of 0 to not clean up the state.")
     }
 
-    val inputTransformation = getInputNodes.get(0).translateToPlan(tableEnv)
+    val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
 
     val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
@@ -135,7 +137,7 @@ class StreamExecGlobalGroupAggregate(
       mergedAccOnHeap = true,
       localAggInfoList.getAccTypes,
       tableConfig,
-      tableEnv.getRelBuilder,
+      planner.getRelBuilder,
       // the local aggregate result will be buffered, so need copy
       inputFieldCopy = true)
 
@@ -146,7 +148,7 @@ class StreamExecGlobalGroupAggregate(
       mergedAccOnHeap = true,
       localAggInfoList.getAccTypes,
       tableConfig,
-      tableEnv.getRelBuilder,
+      planner.getRelBuilder,
       // if global aggregate result will be put into state, then not need copy
       // but this global aggregate result will be put into a buffered map first,
       // then multiput to state, so it need copy
@@ -160,8 +162,8 @@ class StreamExecGlobalGroupAggregate(
     val recordEqualiser = new EqualiserCodeGenerator(globalAggValueTypes)
       .generateRecordEqualiser("GroupAggValueEqualiser")
 
-    val operator = if (tableConfig.getConf.contains(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)) {
+    val operator = if (tableConfig.getConfiguration.getBoolean(
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)) {
       val aggFunction = new MiniBatchGlobalGroupAggFunction(
         localAggsHandler,
         globalAggsHandler,

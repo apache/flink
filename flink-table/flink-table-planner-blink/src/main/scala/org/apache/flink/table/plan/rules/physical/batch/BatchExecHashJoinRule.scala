@@ -19,12 +19,14 @@
 package org.apache.flink.table.plan.rules.physical.batch
 
 import org.apache.flink.table.JDouble
-import org.apache.flink.table.api.{OperatorType, PlannerConfigOptions, TableConfig}
+import org.apache.flink.table.api.{OptimizerConfigOptions, TableConfig}
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecHashJoin
+import org.apache.flink.table.plan.util.OperatorType
+import org.apache.flink.table.util.TableConfigUtils.isOperatorDisabled
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -57,8 +59,9 @@ class BatchExecHashJoinRule
     }
 
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
-    val isShuffleHashJoinEnabled = tableConfig.isOperatorEnabled(OperatorType.ShuffleHashJoin)
-    val isBroadcastHashJoinEnabled = tableConfig.isOperatorEnabled(OperatorType.BroadcastHashJoin)
+    val isShuffleHashJoinEnabled = !isOperatorDisabled(tableConfig, OperatorType.ShuffleHashJoin)
+    val isBroadcastHashJoinEnabled = !isOperatorDisabled(
+      tableConfig, OperatorType.BroadcastHashJoin)
 
     val leftSize = binaryRowRelNodeSize(join.getLeft)
     val rightSize = binaryRowRelNodeSize(join.getRight)
@@ -141,8 +144,8 @@ class BatchExecHashJoinRule
         toHashTraitByColumns(joinInfo.rightKeys))
 
       // add more possibility to only shuffle by partial joinKeys, now only single one
-      val isShuffleByPartialKeyEnabled = tableConfig.getConf.getBoolean(
-        PlannerConfigOptions.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)
+      val isShuffleByPartialKeyEnabled = tableConfig.getConfiguration.getBoolean(
+        BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)
       if (isShuffleByPartialKeyEnabled && joinInfo.pairs().length > 1) {
         joinInfo.pairs().foreach { pair =>
           transformToEquiv(
@@ -173,8 +176,8 @@ class BatchExecHashJoinRule
     if (leftSize == null || rightSize == null) {
       return (false, false)
     }
-    val threshold = tableConfig.getConf.getLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_HASH_JOIN_BROADCAST_THRESHOLD)
+    val threshold = tableConfig.getConfiguration.getLong(
+      OptimizerConfigOptions.SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD)
     joinType match {
       case JoinRelType.LEFT => (rightSize <= threshold, false)
       case JoinRelType.RIGHT => (leftSize <= threshold, true)

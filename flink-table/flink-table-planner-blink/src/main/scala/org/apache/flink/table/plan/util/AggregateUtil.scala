@@ -19,8 +19,8 @@ package org.apache.flink.table.plan.util
 
 import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.JLong
-import org.apache.flink.table.api.{DataTypes, TableConfig, TableConfigOptions, TableException}
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.api.{DataTypes, TableConfig, ExecutionConfigOptions, TableException}
+import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.dataview.DataViewUtils.useNullSerializerForStateViewFieldsFromAccType
@@ -671,8 +671,12 @@ object AggregateUtil extends Enumeration {
     * Creates a MiniBatch trigger depends on the config.
     */
   def createMiniBatchTrigger(tableConfig: TableConfig): CountBundleTrigger[BaseRow] = {
-    new CountBundleTrigger[BaseRow](
-      tableConfig.getConf.getLong(TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE))
+    val size = tableConfig.getConfiguration.getLong(ExecutionConfigOptions.SQL_EXEC_MINIBATCH_SIZE)
+    if (size <= 0 ) {
+      throw new IllegalArgumentException(
+        ExecutionConfigOptions.SQL_EXEC_MINIBATCH_SIZE + " must be > 0.")
+    }
+    new CountBundleTrigger[BaseRow](size)
   }
 
   /**
@@ -688,27 +692,27 @@ object AggregateUtil extends Enumeration {
     * Computes the positions of (window start, window end, row time).
     */
   private[flink] def computeWindowPropertyPos(
-      properties: Seq[NamedWindowProperty]): (Option[Int], Option[Int], Option[Int]) = {
+      properties: Seq[PlannerNamedWindowProperty]): (Option[Int], Option[Int], Option[Int]) = {
     val propPos = properties.foldRight(
       (None: Option[Int], None: Option[Int], None: Option[Int], 0)) {
       case (p, (s, e, rt, i)) => p match {
-        case NamedWindowProperty(_, prop) =>
+        case PlannerNamedWindowProperty(_, prop) =>
           prop match {
-            case WindowStart(_) if s.isDefined =>
+            case PlannerWindowStart(_) if s.isDefined =>
               throw new TableException(
                 "Duplicate window start property encountered. This is a bug.")
-            case WindowStart(_) =>
+            case PlannerWindowStart(_) =>
               (Some(i), e, rt, i - 1)
-            case WindowEnd(_) if e.isDefined =>
+            case PlannerWindowEnd(_) if e.isDefined =>
               throw new TableException("Duplicate window end property encountered. This is a bug.")
-            case WindowEnd(_) =>
+            case PlannerWindowEnd(_) =>
               (s, Some(i), rt, i - 1)
-            case RowtimeAttribute(_) if rt.isDefined =>
+            case PlannerRowtimeAttribute(_) if rt.isDefined =>
               throw new TableException(
                 "Duplicate window rowtime property encountered. This is a bug.")
-            case RowtimeAttribute(_) =>
+            case PlannerRowtimeAttribute(_) =>
               (s, e, Some(i), i - 1)
-            case ProctimeAttribute(_) =>
+            case PlannerProctimeAttribute(_) =>
               // ignore this property, it will be null at the position later
               (s, e, rt, i - 1)
           }

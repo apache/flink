@@ -17,8 +17,9 @@
  */
 package org.apache.flink.table.plan.batch.sql.agg
 
-import org.apache.flink.table.api.AggPhaseEnforcer.AggPhaseEnforcer
-import org.apache.flink.table.api.{AggPhaseEnforcer, OperatorType, PlannerConfigOptions, TableConfigOptions, TableException, ValidationException}
+import org.apache.flink.table.api.{ExecutionConfigOptions, OptimizerConfigOptions, TableException}
+import org.apache.flink.table.plan.util.OperatorType
+import org.apache.flink.table.util.AggregatePhaseStrategy
 
 import org.junit.Before
 import org.junit.runner.RunWith
@@ -29,15 +30,15 @@ import java.util
 import scala.collection.JavaConversions._
 
 @RunWith(classOf[Parameterized])
-class HashAggregateTest(aggStrategy: AggPhaseEnforcer) extends AggregateTestBase {
+class HashAggregateTest(aggStrategy: AggregatePhaseStrategy) extends AggregateTestBase {
 
   @Before
   def before(): Unit = {
     // disable sort agg
-    util.tableEnv.getConfig.getConf.setString(
-      TableConfigOptions.SQL_EXEC_DISABLED_OPERATORS, OperatorType.SortAgg.toString)
-    util.tableEnv.getConfig.getConf.setString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, aggStrategy.toString)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, OperatorType.SortAgg.toString)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
   }
 
   override def testMinWithVariableLengthType(): Unit = {
@@ -62,11 +63,11 @@ class HashAggregateTest(aggStrategy: AggPhaseEnforcer) extends AggregateTestBase
 object HashAggregateTest {
 
   @Parameterized.Parameters(name = "aggStrategy={0}")
-  def parameters(): util.Collection[AggPhaseEnforcer] = {
-    Seq[AggPhaseEnforcer](
-      AggPhaseEnforcer.NONE,
-      AggPhaseEnforcer.ONE_PHASE,
-      AggPhaseEnforcer.TWO_PHASE
+  def parameters(): util.Collection[AggregatePhaseStrategy] = {
+    Seq[AggregatePhaseStrategy](
+      AggregatePhaseStrategy.AUTO,
+      AggregatePhaseStrategy.ONE_PHASE,
+      AggregatePhaseStrategy.TWO_PHASE
     )
   }
 }

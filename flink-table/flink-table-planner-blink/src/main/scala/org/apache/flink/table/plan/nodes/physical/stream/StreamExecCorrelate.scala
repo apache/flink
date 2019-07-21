@@ -17,22 +17,23 @@
  */
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.table.api.StreamTableEnvironment
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.codegen.{CodeGeneratorContext, CorrelateCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.plan.util.RelExplainUtil
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.AbstractProcessStreamOperator
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.{RexCall, RexNode, RexProgram}
-import org.apache.calcite.sql.SemiJoinType
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -47,12 +48,12 @@ class StreamExecCorrelate(
     scan: FlinkLogicalTableFunctionScan,
     condition: Option[RexNode],
     outputRowType: RelDataType,
-    joinType: SemiJoinType)
+    joinType: JoinRelType)
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel
   with StreamExecNode[BaseRow] {
 
-  require(joinType == SemiJoinType.INNER || joinType == SemiJoinType.LEFT)
+  require(joinType == JoinRelType.INNER || joinType == JoinRelType.LEFT)
 
   override def producesUpdates: Boolean = false
 
@@ -104,24 +105,24 @@ class StreamExecCorrelate(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] =
+    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
-  override def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
-
-    val inputTransformation = getInputNodes.get(0).translateToPlan(tableEnv)
+  override protected def translateToPlanInternal(
+      planner: StreamPlanner): Transformation[BaseRow] = {
+    val tableConfig = planner.getTableConfig
+    val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
-    val operatorCtx = CodeGeneratorContext(tableEnv.getConfig)
+    val operatorCtx = CodeGeneratorContext(tableConfig)
       .setOperatorBaseClass(classOf[AbstractProcessStreamOperator[_]])
     val transform = CorrelateCodeGenerator.generateCorrelateTransformation(
-      tableEnv,
+      tableConfig,
       operatorCtx,
       inputTransformation,
       inputRel.getRowType,

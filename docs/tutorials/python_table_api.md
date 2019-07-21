@@ -94,11 +94,11 @@ t_env.scan('mySource') \
 
 The last thing is to start the actual Flink Python Table API job. All operations, such as
 creating sources, transformations and sinks only build up a graph of internal operations.
-Only when `exec_env.execute()` is called, this graph of operations will be thrown on a cluster or
+Only when `t_env.execute(job_name)` is called, this graph of operations will be thrown on a cluster or
 executed on your local machine.
 
 {% highlight python %}
-exec_env.execute()
+t_env.execute("tutorial_job")
 {% endhighlight %}
 
 The complete code so far is as follows:
@@ -136,7 +136,7 @@ t_env.scan('mySource') \
     .select('word, count(1)') \
     .insert_into('mySink')
 
-exec_env.execute()
+t_env.execute("tutorial_job")
 {% endhighlight %}
 
 ## Executing a Flink Python Table API Program

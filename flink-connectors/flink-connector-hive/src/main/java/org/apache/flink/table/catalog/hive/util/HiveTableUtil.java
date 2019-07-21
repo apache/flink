@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import static org.apache.flink.table.catalog.hive.HiveTableConfig.DEFAULT_LIST_COLUMN_TYPES_SEPARATOR;
+import static org.apache.flink.table.catalog.hive.HiveCatalogConfig.DEFAULT_LIST_COLUMN_TYPES_SEPARATOR;
 
 /**
  * Utils to for Hive-backed table.

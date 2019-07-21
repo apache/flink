@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.api.stream
 
-import java.lang.{Integer => JInt, Long => JLong}
-
 import org.apache.flink.api.java.tuple.{Tuple5 => JTuple5}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.api.scala._
@@ -31,13 +29,18 @@ import org.apache.flink.table.api.java.internal.{StreamTableEnvironmentImpl => J
 import org.apache.flink.table.api.java.{StreamTableEnvironment => JStreamTableEnv}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableConfig, Types, ValidationException}
-import org.apache.flink.table.catalog.{CatalogManager, GenericInMemoryCatalog}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
+import org.apache.flink.table.executor.StreamExecutor
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.utils.StreamTestData
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil.{binaryNode, streamTableNode, term, unaryNode}
 import org.apache.flink.types.Row
+
 import org.junit.Test
 import org.mockito.Mockito.{mock, when}
+
+import java.lang.{Integer => JInt, Long => JLong}
 
 class StreamTableEnvironmentTest extends TableTestBase {
 
@@ -200,12 +203,20 @@ class StreamTableEnvironmentTest extends TableTestBase {
     val jStreamExecEnv = mock(classOf[JStreamExecEnv])
     when(jStreamExecEnv.getStreamTimeCharacteristic).thenReturn(TimeCharacteristic.EventTime)
     val config = new TableConfig
-    val jTEnv = JStreamTableEnvironmentImpl.create(
-      new CatalogManager(
-        config.getBuiltInCatalogName,
-        new GenericInMemoryCatalog(config.getBuiltInCatalogName, config.getBuiltInDatabaseName)),
+    val manager: CatalogManager = new CatalogManager(
+      "default_catalog",
+      new GenericInMemoryCatalog("default_catalog", "default_database"))
+    val executor: StreamExecutor = new StreamExecutor(jStreamExecEnv)
+    val functionCatalog = new FunctionCatalog(manager)
+    val streamPlanner = new StreamPlanner(executor, config, functionCatalog, manager)
+    val jTEnv = new JStreamTableEnvironmentImpl(
+      manager,
+      functionCatalog,
       config,
-      jStreamExecEnv)
+      jStreamExecEnv,
+      streamPlanner,
+      executor,
+      true)
 
     val sType = new TupleTypeInfo(Types.LONG, Types.INT, Types.STRING, Types.INT, Types.LONG)
       .asInstanceOf[TupleTypeInfo[JTuple5[JLong, JInt, String, JInt, JLong]]]

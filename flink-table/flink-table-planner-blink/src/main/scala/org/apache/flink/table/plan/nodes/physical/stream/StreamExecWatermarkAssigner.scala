@@ -18,18 +18,24 @@
 
 package org.apache.flink.table.plan.nodes.physical.stream
 
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfigOptions, TableException}
+import org.apache.flink.api.dag.Transformation
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
+import org.apache.flink.table.api.{ExecutionConfigOptions, TableException}
+import org.apache.flink.table.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.`trait`.{MiniBatchIntervalTraitDef, MiniBatchMode}
 import org.apache.flink.table.plan.nodes.calcite.WatermarkAssigner
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.plan.optimize.program.FlinkOptimizeContext
+import org.apache.flink.table.planner.StreamPlanner
+import org.apache.flink.table.runtime.watermarkassigner.{MiniBatchAssignerOperator, MiniBatchedWatermarkAssignerOperator, WatermarkAssignerOperator}
+import org.apache.flink.table.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.util.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.util.Preconditions
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelNode, RelWriter}
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -68,41 +74,87 @@ class StreamExecWatermarkAssigner(
   override def explainTerms(pw: RelWriter): RelWriter = {
     val miniBatchInterval = traits.getTrait(MiniBatchIntervalTraitDef.INSTANCE).getMiniBatchInterval
 
-    val value = miniBatchInterval.mode match {
-      case MiniBatchMode.None =>
-        // 1. operator requiring watermark, but minibatch is not enabled
-        // 2. redundant watermark definition in DDL
-        // 3. existing window, and window minibatch is disabled.
-        "None"
-      case MiniBatchMode.ProcTime =>
-        val config = cluster.getPlanner.getContext.asInstanceOf[FlinkOptimizeContext].getTableConfig
-        val miniBatchLatency = config.getConf.getLong(
-          TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
-        Preconditions.checkArgument(miniBatchLatency > 0,
-          "MiniBatch latency must be greater that 0.", null)
-        s"Proctime, ${miniBatchLatency}ms"
-      case MiniBatchMode.RowTime =>
-        s"Rowtime, ${miniBatchInterval.interval}ms"
-      case o => throw new TableException(s"Unsupported mode: $o")
+    val value = if (miniBatchInterval.mode == MiniBatchMode.None ||
+      miniBatchInterval.interval == 0) {
+      // 1. redundant watermark definition in DDL
+      // 2. existing window aggregate
+      // 3. operator requiring watermark, but minibatch is not enabled
+      "None"
+    } else if (miniBatchInterval.mode == MiniBatchMode.ProcTime) {
+      val tableConfig = cluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+      val miniBatchLatency = getMillisecondFromConfigDuration(tableConfig,
+        ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
+      Preconditions.checkArgument(miniBatchLatency > 0,
+        "MiniBatch latency must be greater that 0 ms.", null)
+      s"Proctime, ${miniBatchLatency}ms"
+    } else if (miniBatchInterval.mode == MiniBatchMode.RowTime) {
+      s"Rowtime, ${miniBatchInterval.interval}ms"
+    } else {
+      throw new TableException(s"Unsupported mode: $miniBatchInterval")
     }
     super.explainTerms(pw).item("miniBatchInterval", value)
   }
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
-    getInputs.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]])
+  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
+    getInputs.map(_.asInstanceOf[ExecNode[StreamPlanner, _]])
   }
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
-    throw new TableException("Implements this")
+      planner: StreamPlanner): Transformation[BaseRow] = {
+    val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
+      .asInstanceOf[Transformation[BaseRow]]
+
+    val config = planner.getTableConfig
+    val inferredInterval = getTraitSet.getTrait(
+      MiniBatchIntervalTraitDef.INSTANCE).getMiniBatchInterval
+    val idleTimeout = getMillisecondFromConfigDuration(config,
+      ExecutionConfigOptions.SQL_EXEC_SOURCE_IDLE_TIMEOUT)
+
+    val (operator, opName) = if (inferredInterval.mode == MiniBatchMode.None ||
+      inferredInterval.interval == 0) {
+      require(rowtimeFieldIndex.isDefined, "rowtimeFieldIndex should not be None")
+      require(watermarkDelay.isDefined, "watermarkDelay should not be None")
+      // 1. redundant watermark definition in DDL
+      // 2. existing window aggregate
+      // 3. operator requiring watermark, but minibatch is not enabled
+      val op = new WatermarkAssignerOperator(rowtimeFieldIndex.get, watermarkDelay.get, idleTimeout)
+      val opName =
+        s"WatermarkAssigner(rowtime: ${rowtimeFieldIndex.get}, offset: ${watermarkDelay.get})"
+      (op, opName)
+    } else if (inferredInterval.mode == MiniBatchMode.ProcTime) {
+      val op = new MiniBatchAssignerOperator(inferredInterval.interval)
+      val opName = s"MiniBatchAssigner(intervalMs: ${inferredInterval.interval})"
+      (op, opName)
+    } else {
+      require(rowtimeFieldIndex.isDefined, "rowtimeFieldIndex should not be None")
+      require(watermarkDelay.isDefined, "watermarkDelay should not be None")
+      val op = new MiniBatchedWatermarkAssignerOperator(
+        rowtimeFieldIndex.get,
+        watermarkDelay.get,
+        0,
+        idleTimeout,
+        inferredInterval.interval)
+      val opName = s"MiniBatchedWatermarkAssigner(rowtime: ${rowtimeFieldIndex.get}," +
+        s" offset: ${watermarkDelay.get}, intervalMs: ${inferredInterval.interval})"
+      (op, opName)
+    }
+
+    val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
+    val transformation = new OneInputTransformation[BaseRow, BaseRow](
+      inputTransformation,
+      opName,
+      operator,
+      outputRowTypeInfo,
+      inputTransformation.getParallelism)
+    transformation
   }
 
 }

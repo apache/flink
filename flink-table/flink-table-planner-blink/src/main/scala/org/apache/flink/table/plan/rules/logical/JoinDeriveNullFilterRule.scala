@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.plan.rules.logical
 
-import org.apache.flink.table.api.PlannerConfigOptions
+import org.apache.flink.annotation.Experimental
+import org.apache.flink.configuration.ConfigOption
+import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 
@@ -31,12 +33,14 @@ import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.util.ImmutableIntList
 
+import java.lang.{Long => JLong}
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 /**
   * Planner rule that filters null values before join if the count null value from join input
-  * is greater than [[PlannerConfigOptions.SQL_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD]].
+  * is greater than null filter threshold.
   *
   * Since the key of the Null value is impossible to match in the inner join, and there is a single
   * point skew due to too many Null values. We should push down a not-null filter into the child
@@ -58,8 +62,8 @@ class JoinDeriveNullFilterRule
     val rexBuilder = join.getCluster.getRexBuilder
     val mq = FlinkRelMetadataQuery.reuseOrCreate(join.getCluster.getMetadataQuery)
     val conf = FlinkRelOptUtil.getTableConfigFromContext(join)
-    val minNullCount = conf.getConf.getLong(
-      PlannerConfigOptions.SQL_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD)
+    val minNullCount = conf.getConfiguration.getLong(
+      JoinDeriveNullFilterRule.SQL_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD)
 
     def createIsNotNullFilter(input: RelNode, keys: ImmutableIntList): RelNode = {
       val relBuilder = call.builder()
@@ -91,4 +95,13 @@ class JoinDeriveNullFilterRule
 
 object JoinDeriveNullFilterRule {
   val INSTANCE = new JoinDeriveNullFilterRule
+
+  // It is a experimental config, will may be removed later.
+  @Experimental
+  val SQL_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD: ConfigOption[JLong] =
+    key("sql.optimizer.join.null-filter.threshold")
+        .defaultValue(JLong.valueOf(2000000L))
+        .withDescription("To avoid the impact of null values on the single join node, " +
+            "We will add a null filter (possibly be pushed down) before the join to filter" +
+            " null values when the source of InnerJoin has nullCount more than this value.")
 }

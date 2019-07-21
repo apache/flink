@@ -21,7 +21,10 @@ package org.apache.flink.streaming.api.operators.async;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.java.Utils;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -40,12 +43,14 @@ import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEntry;
@@ -179,6 +184,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 	/**
 	 * A special {@link AsyncFunction} without issuing
+	 * {@link ResultFuture#complete} until the latch counts to zero.
 	 * {@link ResultFuture#complete} until the latch counts to zero.
 	 * This function is used in the testStateSnapshotAndRestore, ensuring
 	 * that {@link StreamElementQueueEntry} can stay
@@ -384,6 +390,32 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	}
 
 	/**
+	 * Test for the temporary fix to FLINK-13063.
+	 */
+	@Test
+	public void testAsyncOperatorIsNeverChained() {
+		StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> input = chainEnv.fromElements(1);
+		input = AsyncDataStream.orderedWait(
+			input,
+			new LazyAsyncFunction(),
+			TIMEOUT,
+			TimeUnit.MILLISECONDS,
+			6).map((x) -> x);
+		AsyncDataStream.unorderedWait(
+			input,
+			new MyAsyncFunction(),
+			TIMEOUT,
+			TimeUnit.MILLISECONDS,
+			3).map((x) -> x).addSink(new DiscardingSink<>());
+
+		final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
+
+		Assert.assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
+	}
+
+	/**
 	 *	Tests that the AsyncWaitOperator works together with chaining.
 	 */
 	@Test
@@ -443,20 +475,20 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		DataStream<Integer> input = chainEnv.fromElements(1, 2, 3);
 
 		if (withLazyFunction) {
-			input = AsyncDataStream.orderedWait(
+			input = addAsyncOperatorLegacyChained(
 				input,
 				new LazyAsyncFunction(),
 				TIMEOUT,
-				TimeUnit.MILLISECONDS,
-				6);
+				6,
+				AsyncDataStream.OutputMode.ORDERED);
 		}
 		else {
-			input = AsyncDataStream.orderedWait(
+			input = addAsyncOperatorLegacyChained(
 				input,
 				new MyAsyncFunction(),
 				TIMEOUT,
-				TimeUnit.MILLISECONDS,
-				6);
+				6,
+				AsyncDataStream.OutputMode.ORDERED);
 		}
 
 		// the map function is designed to chain after async function. we place an Integer object in it and
@@ -480,12 +512,12 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			}
 		});
 
-		input = AsyncDataStream.unorderedWait(
+		input = addAsyncOperatorLegacyChained(
 			input,
 			new MyAsyncFunction(),
 			TIMEOUT,
-			TimeUnit.MILLISECONDS,
-			3);
+			3,
+			AsyncDataStream.OutputMode.UNORDERED);
 
 		input.map(new MapFunction<Integer, Integer>() {
 			private static final long serialVersionUID = 5162085254238405527L;
@@ -499,7 +531,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		// be build our own OperatorChain
 		final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
 
-		Assert.assertTrue(jobGraph.getVerticesSortedTopologicallyFromSources().size() == 3);
+		Assert.assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
 
 		return jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 	}
@@ -1109,5 +1141,39 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		public void asyncInvoke(IN input, ResultFuture<OUT> resultFuture) throws Exception {
 			// no op
 		}
+	}
+
+	/**
+	 * This helper function is needed to check that the temporary fix for FLINK-13063 can be backwards compatible with
+	 * the old chaining behavior by setting the ChainingStrategy manually. TODO: remove after a proper fix for
+	 * FLINK-13063 is in place that allows chaining.
+	 */
+	private <IN, OUT> SingleOutputStreamOperator<OUT> addAsyncOperatorLegacyChained(
+		DataStream<IN> in,
+		AsyncFunction<IN, OUT> func,
+		long timeout,
+		int bufSize,
+		AsyncDataStream.OutputMode mode) {
+
+		TypeInformation<OUT> outTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
+			func,
+			AsyncFunction.class,
+			0,
+			1,
+			new int[]{1, 0},
+			in.getType(),
+			Utils.getCallLocationName(),
+			true);
+
+		// create transform
+		AsyncWaitOperator<IN, OUT> operator = new AsyncWaitOperator<>(
+			in.getExecutionEnvironment().clean(func),
+			timeout,
+			bufSize,
+			mode);
+
+		operator.setChainingStrategy(ChainingStrategy.ALWAYS);
+
+		return in.transform("async wait operator", outTypeInfo, operator);
 	}
 }

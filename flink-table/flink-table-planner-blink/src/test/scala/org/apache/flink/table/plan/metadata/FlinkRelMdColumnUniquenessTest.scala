@@ -496,6 +496,43 @@ class FlinkRelMdColumnUniquenessTest extends FlinkRelMdHandlerTestBase {
     assertFalse(mq.areColumnsUnique(logicalFullJoinOnUniqueKeys, ImmutableBitSet.of(1, 6)))
     assertFalse(mq.areColumnsUnique(logicalFullJoinOnUniqueKeys, ImmutableBitSet.of(5, 6)))
     assertTrue(mq.areColumnsUnique(logicalFullJoinOnUniqueKeys, ImmutableBitSet.of(0, 1, 5, 6)))
+
+    // semi/anti join
+    Array(logicalSemiJoinOnUniqueKeys, logicalSemiJoinNotOnUniqueKeys,
+      logicalSemiJoinOnDisjointKeys, logicalAntiJoinOnUniqueKeys, logicalAntiJoinNotOnUniqueKeys,
+      logicalAntiJoinOnDisjointKeys).foreach { join =>
+      assertFalse(mq.areColumnsUnique(join, ImmutableBitSet.of(0)))
+      assertTrue(mq.areColumnsUnique(join, ImmutableBitSet.of(1)))
+      assertFalse(mq.areColumnsUnique(join, ImmutableBitSet.of(2)))
+      assertFalse(mq.areColumnsUnique(join, ImmutableBitSet.of(3)))
+      assertFalse(mq.areColumnsUnique(join, ImmutableBitSet.of(4)))
+      assertTrue(mq.areColumnsUnique(join, ImmutableBitSet.of(0, 1)))
+      assertFalse(mq.areColumnsUnique(join, ImmutableBitSet.of(0, 2)))
+    }
+  }
+
+  @Test
+  def testAreColumnsUniqueOnLookupJoin(): Unit = {
+    Array(batchLookupJoin, streamLookupJoin).foreach { join =>
+      assertFalse(mq.areColumnsUnique(join, ImmutableBitSet.of()))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(0)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(1)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(2)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(3)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(4)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(5)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(6)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(7)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(8)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(9)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(0, 1)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(1, 2)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(0, 7)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(1, 7)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(0, 8)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(7, 8)))
+      assertNull(mq.areColumnsUnique(join, ImmutableBitSet.of(8, 9)))
+    }
   }
 
   @Test

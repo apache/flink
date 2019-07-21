@@ -18,30 +18,121 @@
 
 package org.apache.flink.table.util
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableSchema, Types}
-import org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall
 import org.apache.flink.table.expressions.{Expression, FieldReferenceExpression, UnresolvedCallExpression, ValueLiteralExpression}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND
+import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, PreserveWatermarks}
 import org.apache.flink.types.Row
 
+import java.io.{File, FileOutputStream, OutputStreamWriter}
 import java.util
-import java.util.{Collections, List => JList}
+import java.util.{Collections, List => JList, Map => JMap}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+object TestTableSources {
+
+  def getPersonCsvTableSource: CsvTableSource = {
+    val csvRecords = Seq(
+      "First#Id#Score#Last",
+      "Mike#1#12.3#Smith",
+      "Bob#2#45.6#Taylor",
+      "Sam#3#7.89#Miller",
+      "Peter#4#0.12#Smith",
+      "% Just a comment",
+      "Liz#5#34.5#Williams",
+      "Sally#6#6.78#Miller",
+      "Alice#7#90.1#Smith",
+      "Kelly#8#2.34#Williams"
+    )
+
+    val tempFilePath = writeToTempFile(
+      csvRecords.mkString("$"),
+      "csv-test",
+      "tmp")
+    CsvTableSource.builder()
+      .path(tempFilePath)
+      .field("first", Types.STRING)
+      .field("id", Types.INT)
+      .field("score",Types.DOUBLE)
+      .field("last",Types.STRING)
+      .fieldDelimiter("#")
+      .lineDelimiter("$")
+      .ignoreFirstLine()
+      .commentPrefix("%")
+      .build()
+  }
+
+  def getOrdersCsvTableSource: CsvTableSource = {
+    val csvRecords = Seq(
+      "2,Euro,2",
+      "1,US Dollar,3",
+      "50,Yen,4",
+      "3,Euro,5",
+      "5,US Dollar,6"
+    )
+    val tempFilePath = writeToTempFile(
+      csvRecords.mkString("$"),
+      "csv-order-test",
+      "tmp")
+    CsvTableSource.builder()
+      .path(tempFilePath)
+      .field("amount", Types.LONG)
+      .field("currency", Types.STRING)
+      .field("ts",Types.LONG)
+      .fieldDelimiter(",")
+      .lineDelimiter("$")
+      .build()
+  }
+
+  def getRatesCsvTableSource: CsvTableSource = {
+    val csvRecords = Seq(
+      "US Dollar,102",
+      "Yen,1",
+      "Euro,119",
+      "RMB,702"
+    )
+    val tempFilePath = writeToTempFile(
+      csvRecords.mkString("$"),
+      "csv-rate-test",
+      "tmp")
+    CsvTableSource.builder()
+      .path(tempFilePath)
+      .field("currency", Types.STRING)
+      .field("rate", Types.LONG)
+      .fieldDelimiter(",")
+      .lineDelimiter("$")
+      .build()
+  }
+
+  private def writeToTempFile(
+      contents: String,
+      filePrefix: String,
+      fileSuffix: String,
+      charset: String = "UTF-8"): String = {
+    val tempFile = File.createTempFile(filePrefix, fileSuffix)
+    tempFile.deleteOnExit()
+    val tmpWriter = new OutputStreamWriter(new FileOutputStream(tempFile), charset)
+    tmpWriter.write(contents)
+    tmpWriter.close()
+    tempFile.getAbsolutePath
+  }
+}
+
 class TestTableSourceWithTime[T](
-    isBatch: Boolean,
+    override val isBounded: Boolean,
     tableSchema: TableSchema,
     returnType: TypeInformation[T],
     values: Seq[T],
@@ -53,15 +144,13 @@ class TestTableSourceWithTime[T](
   with DefinedProctimeAttribute
   with DefinedFieldMapping {
 
-  override def isBounded: Boolean = isBatch
-
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[T] = {
     val dataStream = execEnv.fromCollection(values, returnType)
     dataStream.getTransformation.setMaxParallelism(1)
     dataStream
   }
 
-  override def getRowtimeAttributeDescriptors: util.List[RowtimeAttributeDescriptor] = {
+  override def getRowtimeAttributeDescriptors: JList[RowtimeAttributeDescriptor] = {
     // return a RowtimeAttributeDescriptor if rowtime attribute is defined
     if (rowtime != null) {
       Collections.singletonList(new RowtimeAttributeDescriptor(
@@ -69,7 +158,7 @@ class TestTableSourceWithTime[T](
         new ExistingField(rowtime),
         new AscendingTimestamps))
     } else {
-      Collections.EMPTY_LIST.asInstanceOf[util.List[RowtimeAttributeDescriptor]]
+      Collections.EMPTY_LIST.asInstanceOf[JList[RowtimeAttributeDescriptor]]
     }
   }
 
@@ -81,7 +170,7 @@ class TestTableSourceWithTime[T](
 
   override def explainSource(): String = ""
 
-  override def getFieldMapping: util.Map[String, String] = {
+  override def getFieldMapping: JMap[String, String] = {
     if (mapping != null) mapping else null
   }
 }
@@ -115,7 +204,7 @@ class TestPreserveWMTableSource[T](
 }
 
 class TestProjectableTableSource(
-    isBatch: Boolean,
+    isBounded: Boolean,
     tableSchema: TableSchema,
     returnType: TypeInformation[Row],
     values: Seq[Row],
@@ -123,7 +212,7 @@ class TestProjectableTableSource(
     proctime: String = null,
     fieldMapping: Map[String, String] = null)
   extends TestTableSourceWithTime[Row](
-    isBatch,
+    isBounded,
     tableSchema,
     returnType,
     values,
@@ -165,7 +254,7 @@ class TestProjectableTableSource(
     }
 
     new TestProjectableTableSource(
-      isBatch,
+      isBounded,
       newTableSchema,
       projectedReturnType,
       projectedValues,
@@ -181,14 +270,14 @@ class TestProjectableTableSource(
 }
 
 class TestNestedProjectableTableSource(
-    isBatch: Boolean,
+    isBounded: Boolean,
     tableSchema: TableSchema,
     returnType: TypeInformation[Row],
     values: Seq[Row],
     rowtime: String = null,
     proctime: String = null)
   extends TestTableSourceWithTime[Row](
-    isBatch,
+    isBounded,
     tableSchema,
     returnType,
     values,
@@ -225,7 +314,7 @@ class TestNestedProjectableTableSource(
     }
 
     val copy = new TestNestedProjectableTableSource(
-      isBatch,
+      isBounded,
       newTableSchema,
       projectedReturnType,
       projectedValues,
@@ -245,7 +334,7 @@ class TestNestedProjectableTableSource(
   * A data source that implements some very basic filtering in-memory in order to test
   * expression push-down logic.
   *
-  * @param isBatch whether this is a bounded source
+  * @param isBounded whether this is a bounded source
   * @param rowTypeInfo The type info for the rows.
   * @param data The data that filtering is applied to in order to get the final dataset.
   * @param filterableFields The fields that are allowed to be filtered.
@@ -253,20 +342,18 @@ class TestNestedProjectableTableSource(
   * @param filterPushedDown Whether predicates have been pushed down yet.
   */
 class TestFilterableTableSource(
-    isBatch: Boolean,
+    override val isBounded: Boolean,
     rowTypeInfo: RowTypeInfo,
     data: Seq[Row],
     filterableFields: Set[String] = Set(),
     filterPredicates: Seq[Expression] = Seq(),
     val filterPushedDown: Boolean = false)
   extends StreamTableSource[Row]
-    with FilterableTableSource[Row] {
+  with FilterableTableSource[Row] {
 
   val fieldNames: Array[String] = rowTypeInfo.getFieldNames
 
   val fieldTypes: Array[TypeInformation[_]] = rowTypeInfo.getFieldTypes
-
-  override def isBounded: Boolean = isBatch
 
   override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
     execEnv.fromCollection[Row](applyPredicatesToRows(data).asJava, getReturnType)
@@ -295,7 +382,7 @@ class TestFilterableTableSource(
     }
 
     new TestFilterableTableSource(
-      isBatch,
+      isBounded,
       rowTypeInfo,
       data,
       filterableFields,
@@ -405,14 +492,14 @@ object TestFilterableTableSource {
   /**
     * @return The default filterable table source.
     */
-  def apply(isBatch: Boolean): TestFilterableTableSource = {
-    apply(isBatch, defaultTypeInfo, defaultRows, defaultFilterableFields)
+  def apply(isBounded: Boolean): TestFilterableTableSource = {
+    apply(isBounded, defaultTypeInfo, defaultRows, defaultFilterableFields)
   }
 
   /**
     * A filterable data source with custom data.
     *
-    * @param isBatch whether this is a bounded source
+    * @param isBounded whether this is a bounded source
     * @param rowTypeInfo The type of the data. Its expected that both types and field
     *                    names are provided.
     * @param rows The data as a sequence of rows.
@@ -420,11 +507,11 @@ object TestFilterableTableSource {
     * @return The table source.
     */
   def apply(
-      isBatch: Boolean,
+      isBounded: Boolean,
       rowTypeInfo: RowTypeInfo,
       rows: Seq[Row],
       filterableFields: Set[String]): TestFilterableTableSource = {
-    new TestFilterableTableSource(isBatch, rowTypeInfo, rows, filterableFields)
+    new TestFilterableTableSource(isBounded, rowTypeInfo, rows, filterableFields)
   }
 
   private lazy val defaultFilterableFields = Set("amount")
@@ -447,4 +534,72 @@ object TestFilterableTableSource {
         cnt.toDouble.asInstanceOf[AnyRef])
     }
   }
+}
+
+/**
+  * A data source that implements some very basic partitionable table source in-memory.
+  *
+  * @param isBounded whether this is a bounded source
+  * @param remainingPartitions remaining partitions after partition pruning
+  */
+class TestPartitionableTableSource(
+    override val isBounded: Boolean,
+    remainingPartitions: JList[JMap[String, String]] = null)
+  extends StreamTableSource[Row]
+  with PartitionableTableSource {
+
+  private val fieldTypes: Array[TypeInformation[_]] = Array(
+    BasicTypeInfo.INT_TYPE_INFO,
+    BasicTypeInfo.STRING_TYPE_INFO,
+    BasicTypeInfo.STRING_TYPE_INFO,
+    BasicTypeInfo.INT_TYPE_INFO)
+  // 'part1' and 'part2' are partition fields
+  private val fieldNames = Array("id", "name", "part1", "part2")
+  private val returnType = new RowTypeInfo(fieldTypes, fieldNames)
+
+  private val data = mutable.Map[String, Seq[Row]](
+    "part1=A,part2=1" -> Seq(row(1, "Anna", "A", 1), row(2, "Jack", "A", 1)),
+    "part1=A,part2=2" -> Seq(row(3, "John", "A", 2), row(4, "nosharp", "A", 2)),
+    "part1=B,part2=3" -> Seq(row(5, "Peter", "B", 3), row(6, "Lucy", "B", 3)),
+    "part1=C,part2=1" -> Seq(row(7, "He", "C", 1), row(8, "Le", "C", 1))
+  )
+
+  override def getPartitions: JList[JMap[String, String]] = List(
+    Map("part1"->"A", "part2"->"1").asJava,
+    Map("part1"->"A", "part2"->"2").asJava,
+    Map("part1"->"B", "part2"->"3").asJava,
+    Map("part1"->"C", "part2"->"1").asJava
+  ).asJava
+
+  override def getPartitionFieldNames: JList[String] = List("part1", "part2").asJava
+
+  override def applyPartitionPruning(
+      remainingPartitions: JList[JMap[String, String]]): TableSource[_] = {
+    new TestPartitionableTableSource(isBounded, remainingPartitions)
+  }
+
+  override def getDataStream(execEnv: StreamExecutionEnvironment): DataStream[Row] = {
+    val remainingData = if (remainingPartitions != null) {
+      val remainingPartitionList = remainingPartitions.map {
+        m => s"part1=${m.get("part1")},part2=${m.get("part2")}"
+      }
+      data.filterKeys(remainingPartitionList.contains).values.flatten
+    } else {
+      data.values.flatten
+    }
+
+    execEnv.fromCollection[Row](remainingData, getReturnType).setParallelism(1).setMaxParallelism(1)
+  }
+
+  override def explainSource(): String = {
+    if (remainingPartitions != null) {
+      s"partitions=${remainingPartitions.mkString(", ")}"
+    } else {
+      ""
+    }
+  }
+
+  override def getReturnType: TypeInformation[Row] = returnType
+
+  override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
 }

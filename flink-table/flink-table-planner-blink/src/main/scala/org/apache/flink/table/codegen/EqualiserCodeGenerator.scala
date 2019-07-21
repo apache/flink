@@ -135,12 +135,8 @@ class EqualiserCodeGenerator(fieldTypes: Seq[LogicalType]) {
   private def isInternalPrimitive(t: LogicalType): Boolean = t.getTypeRoot match {
     case _ if PlannerTypeUtils.isPrimitive(t) => true
 
-    case DATE => true
-    case TIME_WITHOUT_TIME_ZONE => true
-    case TIMESTAMP_WITHOUT_TIME_ZONE => true
-    case INTERVAL_YEAR_MONTH => true
-    case INTERVAL_DAY_TIME => true
-
+    case DATE | TIME_WITHOUT_TIME_ZONE | TIMESTAMP_WITHOUT_TIME_ZONE |
+         TIMESTAMP_WITH_LOCAL_TIME_ZONE | INTERVAL_YEAR_MONTH |INTERVAL_DAY_TIME => true
     case _ => false
   }
 

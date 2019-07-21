@@ -21,6 +21,7 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.factories.TableFactoryUtil;
@@ -58,10 +59,13 @@ public class CatalogManager {
 	// TO BE REMOVED along with ExternalCatalog API
 	private Map<String, ExternalCatalog>  externalCatalogs;
 
-	// The name of the default catalog and schema
+	// The name of the current catalog and database
 	private String currentCatalogName;
 
 	private String currentDatabaseName;
+
+	// The name of the default catalog
+	private final String defaultCatalogName;
 
 	/**
 	 * Temporary solution to handle both {@link CatalogBaseTable} and
@@ -124,6 +128,7 @@ public class CatalogManager {
 		catalogs.put(defaultCatalogName, defaultCatalog);
 		this.currentCatalogName = defaultCatalogName;
 		this.currentDatabaseName = defaultCatalog.getDefaultDatabase();
+		this.defaultCatalogName = defaultCatalogName;
 	}
 
 	/**
@@ -214,9 +219,9 @@ public class CatalogManager {
 	}
 
 	/**
-	 * Gets the current default catalog that will be used when resolving table path.
+	 * Gets the current catalog that will be used when resolving table path.
 	 *
-	 * @return the current default catalog
+	 * @return the current catalog
 	 * @see CatalogManager#resolveTable(String...)
 	 */
 	public String getCurrentCatalog() {
@@ -224,9 +229,9 @@ public class CatalogManager {
 	}
 
 	/**
-	 * Sets the current default catalog name that will be used when resolving table path.
+	 * Sets the current catalog name that will be used when resolving table path.
 	 *
-	 * @param catalogName catalog name to set as current default catalog
+	 * @param catalogName catalog name to set as current catalog
 	 * @throws CatalogNotExistException thrown if the catalog doesn't exist
 	 * @see CatalogManager#resolveTable(String...)
 	 */
@@ -254,9 +259,9 @@ public class CatalogManager {
 	}
 
 	/**
-	 * Gets the current default database name that will be used when resolving table path.
+	 * Gets the current database name that will be used when resolving table path.
 	 *
-	 * @return the current default database
+	 * @return the current database
 	 * @see CatalogManager#resolveTable(String...)
 	 */
 	public String getCurrentDatabase() {
@@ -264,10 +269,10 @@ public class CatalogManager {
 	}
 
 	/**
-	 * Sets the current default database name that will be used when resolving a table path.
+	 * Sets the current database name that will be used when resolving a table path.
 	 * The database has to exist in the current catalog.
 	 *
-	 * @param databaseName database name to set as current default database name
+	 * @param databaseName database name to set as current database name
 	 * @throws CatalogException thrown if the database doesn't exist in the current catalog
 	 * @see CatalogManager#resolveTable(String...)
 	 * @see CatalogManager#setCurrentCatalog(String)
@@ -290,6 +295,15 @@ public class CatalogManager {
 				currentCatalogName,
 				currentDatabaseName);
 		}
+	}
+
+	/**
+	 * Gets the default catalog name.
+	 *
+	 * @return the default catalog
+	 */
+	public String getDefaultCatalogName() {
+		return defaultCatalogName;
 	}
 
 	/**
@@ -386,5 +400,46 @@ public class CatalogManager {
 			TableSink<?> tableSink = TableFactoryUtil.findAndCreateTableSink(externalTable);
 			return tableSink.getTableSchema();
 		}
+	}
+
+	/**
+	 * Returns the full name of the given table path, this name may be padded
+	 * with current catalog/database name based on the {@code paths} length.
+	 *
+	 * @param paths Table paths whose format can be "catalog.db.table", "db.table" or "table"
+	 * @return An array of complete table path
+	 */
+	public String[] getFullTablePath(List<String> paths) {
+		if (paths == null) {
+			throw new ValidationException("Table paths can not be null!");
+		}
+		if (paths.size() < 1 || paths.size() > 3) {
+			throw new ValidationException("Table paths length must be " +
+				"between 1(inclusive) and 3(inclusive)");
+		}
+		if (paths.stream().anyMatch(StringUtils::isNullOrWhitespaceOnly)) {
+			throw new ValidationException("Table paths contain null or " +
+				"while-space-only string");
+		}
+
+		if (paths.size() == 3) {
+			return new String[] {paths.get(0), paths.get(1), paths.get(2)};
+		}
+
+		String catalogName;
+		String dbName;
+		String tableName;
+
+		if (paths.size() == 1) {
+			catalogName = getCurrentCatalog();
+			dbName = getCurrentDatabase();
+			tableName = paths.get(0);
+		} else {
+			catalogName = getCurrentCatalog();
+			dbName = paths.get(0);
+			tableName = paths.get(1);
+		}
+
+		return new String[]{ catalogName, dbName, tableName };
 	}
 }

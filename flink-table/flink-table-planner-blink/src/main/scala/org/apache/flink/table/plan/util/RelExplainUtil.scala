@@ -17,22 +17,25 @@
  */
 package org.apache.flink.table.plan.util
 
+import com.google.common.collect.ImmutableMap
 import org.apache.flink.table.CalcitePair
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.nodes.ExpressionFormat
 import org.apache.flink.table.plan.nodes.ExpressionFormat.ExpressionFormat
-
 import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rex.{RexCall, RexInputRef, RexLiteral, RexNode, RexProgram, RexWindowBound}
+import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.sql.SqlMatchRecognize.AfterOption
 
 import java.util
+import java.util.{List => JList, SortedSet => JSortedSet}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -781,7 +784,7 @@ object RelExplainUtil {
       grouping: Array[Int],
       rowType: RelDataType,
       aggs: Seq[AggregateCall],
-      namedProperties: Seq[NamedWindowProperty],
+      namedProperties: Seq[PlannerNamedWindowProperty],
       withOutputFieldNames: Boolean = true): String = {
     val inFields = inputType.getFieldNames
     val outFields = rowType.getFieldNames
@@ -814,4 +817,56 @@ object RelExplainUtil {
       }
     }.mkString(", ")
   }
+
+  // ------------------------------------------------------------------------------------
+  // MATCH RECOGNIZE
+  // ------------------------------------------------------------------------------------
+
+  /**
+    * Converts measures of MatchRecognize to String.
+    */
+  def measuresDefineToString(
+    measures: ImmutableMap[String, RexNode],
+    fieldNames: List[String],
+    expression: (RexNode, List[String], Option[List[RexNode]]) => String): String =
+    measures.map {
+      case (k, v) => s"${expression(v, fieldNames, None)} AS $k"
+    }.mkString(", ")
+
+  /**
+    * Converts all rows or not of MatchRecognize to ROWS PER MATCH String
+    */
+  def rowsPerMatchToString(isAll: Boolean): String =
+    if (isAll) "ALL ROWS PER MATCH" else "ONE ROW PER MATCH"
+
+  /**
+    * Converts AFTER clause of MatchRecognize to String
+    */
+  def afterMatchToString(
+      after: RexNode,
+      fieldNames: Seq[String]): String =
+    after.getKind match {
+      case SqlKind.SKIP_TO_FIRST => s"SKIP TO FIRST ${
+        after.asInstanceOf[RexCall].operands.get(0).toString
+      }"
+      case SqlKind.SKIP_TO_LAST => s"SKIP TO LAST ${
+        after.asInstanceOf[RexCall].operands.get(0).toString
+      }"
+      case SqlKind.LITERAL => after.asInstanceOf[RexLiteral]
+        .getValueAs(classOf[AfterOption]) match {
+        case AfterOption.SKIP_PAST_LAST_ROW => "SKIP PAST LAST ROW"
+        case AfterOption.SKIP_TO_NEXT_ROW => "SKIP TO NEXT ROW"
+      }
+      case _ => throw new IllegalStateException(s"Corrupted query tree. Unexpected $after for " +
+        s"after match strategy.")
+    }
+
+  /**
+    * Converts subset clause of MatchRecognize to String
+    */
+  def subsetToString(subset: ImmutableMap[String, JSortedSet[String]]): String =
+    subset.map {
+      case (k, v) => s"$k = (${v.mkString(", ")})"
+    }.mkString(", ")
+
 }

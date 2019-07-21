@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testAggNotSupportMerge[aggStrategy=NONE]">
+  <TestCase name="testAggNotSupportMerge[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT b, var_sum(a) FROM MyTable1 GROUP BY b]]>
     </Resource>
@@ -79,7 +79,7 @@ SortAggregate(isMerge=[false], groupBy=[b], select=[b, var_sum(a) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAggregateWithFilter[aggStrategy=NONE]">
+  <TestCase name="testAggregateWithFilter[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT AVG(a), SUM(b), COUNT(c) FROM MyTable1 WHERE a = 1]]>
     </Resource>
@@ -141,7 +141,7 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAggregateWithFilterOnNestedFields[aggStrategy=NONE]">
+  <TestCase name="testAggregateWithFilterOnNestedFields[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT AVG(a), SUM(b), COUNT(c), SUM(c._1) FROM MyTable2 WHERE a = 1]]>
     </Resource>
@@ -206,7 +206,7 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAggregateWithoutFunction[aggStrategy=NONE]">
+  <TestCase name="testAggregateWithoutFunction[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT a, b FROM MyTable1 GROUP BY a, b]]>
     </Resource>
@@ -273,7 +273,7 @@ SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAggregateWithoutGroupBy[aggStrategy=NONE]">
+  <TestCase name="testAggregateWithoutGroupBy[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT AVG(a), SUM(b), COUNT(c) FROM MyTable1]]>
     </Resource>
@@ -329,7 +329,7 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAvg[aggStrategy=NONE]">
+  <TestCase name="testAvg[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[
 SELECT AVG(`byte`),
@@ -421,7 +421,7 @@ SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCount[aggStrategy=NONE]">
+  <TestCase name="testCount[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[
 SELECT COUNT(`byte`),
@@ -525,7 +525,7 @@ SortAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0, Final_COUN
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testGroupAggregate[aggStrategy=NONE]">
+  <TestCase name="testGroupAggregate[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT a, SUM(b), COUNT(c) FROM MyTable1 GROUP BY a]]>
     </Resource>
@@ -546,7 +546,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCountStart[aggStrategy=NONE]">
+  <TestCase name="testCountStart[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*) FROM MyTable]]>
     </Resource>
@@ -648,7 +648,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testGroupAggregateWithFilter[aggStrategy=NONE]">
+  <TestCase name="testGroupAggregateWithFilter[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT a, SUM(b), count(c) FROM MyTable1 WHERE a = 1 GROUP BY a]]>
     </Resource>
@@ -715,7 +715,7 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS EXPR$1
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMaxWithFixLengthType[aggStrategy=NONE]">
+  <TestCase name="testMaxWithFixLengthType[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[
 SELECT MAX(`byte`),
@@ -819,7 +819,7 @@ SortAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0, Final_MAX(max$
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMaxWithVariableLengthType[aggStrategy=NONE]">
+  <TestCase name="testMaxWithVariableLengthType[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT MAX(`string`) FROM MyTable]]>
     </Resource>
@@ -881,7 +881,7 @@ SortAggregate(isMerge=[true], select=[Final_MAX(max$0) AS EXPR$0]), rowType=[Rec
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMinWithFixLengthType[aggStrategy=NONE]">
+  <TestCase name="testMinWithFixLengthType[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[
 SELECT MIN(`byte`),
@@ -985,7 +985,7 @@ SortAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0, Final_MIN(min$
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMinWithVariableLengthType[aggStrategy=NONE]">
+  <TestCase name="testMinWithVariableLengthType[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT MIN(`string`) FROM MyTable]]>
     </Resource>
@@ -1047,7 +1047,7 @@ SortAggregate(isMerge=[true], select=[Final_MIN(min$0) AS EXPR$0]), rowType=[Rec
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSum[aggStrategy=NONE]">
+  <TestCase name="testSum[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[
 SELECT SUM(`byte`),
@@ -1078,7 +1078,7 @@ SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS EXPR$0, Final_SUM(sum$
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testPojoAccumulator[aggStrategy=NONE]">
+  <TestCase name="testPojoAccumulator[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[SELECT b, var_sum(a) FROM MyTable1 GROUP BY b]]>
     </Resource>

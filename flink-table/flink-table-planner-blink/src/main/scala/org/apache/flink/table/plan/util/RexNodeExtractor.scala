@@ -21,24 +21,24 @@ package org.apache.flink.table.plan.util
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.catalog.{FunctionCatalog, FunctionLookup}
-import org.apache.flink.table.expressions.ApiExpressionUtils._
+import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter, LocalDateTimeConverter, LocalTimeConverter}
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR}
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter
+import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
+import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.util.Logging
 import org.apache.flink.util.Preconditions
 
-import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
 import org.apache.calcite.sql.{SqlFunction, SqlPostfixOperator}
-import org.apache.calcite.util.{DateString, TimeString, TimestampString}
+import org.apache.calcite.util.Util
 
-import java.sql.{Date, Time, Timestamp}
-import java.util.{List => JList}
+import java.util.{TimeZone, List => JList}
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -82,15 +82,16 @@ object RexNodeExtractor extends Logging {
     * @param expr            The RexNode to analyze
     * @param inputFieldNames The input names of the RexNode
     * @param rexBuilder      The factory to build CNF expressions
-    * @param catalog         The function catalog
-    * @return
+    * @param functionCatalog The function catalog
+    * @return converted expressions and unconverted rex nodes
     */
   def extractConjunctiveConditions(
       expr: RexNode,
       maxCnfNodeCount: Int,
       inputFieldNames: JList[String],
       rexBuilder: RexBuilder,
-      catalog: FunctionCatalog): (Array[Expression], Array[RexNode]) = {
+      functionCatalog: FunctionCatalog,
+      timeZone: TimeZone): (Array[Expression], Array[RexNode]) = {
     // converts the expanded expression to conjunctive normal form,
     // like "(a AND b) OR c" will be converted to "(a OR c) AND (b OR c)"
     val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, expr)
@@ -100,7 +101,7 @@ object RexNodeExtractor extends Logging {
     val convertedExpressions = new mutable.ArrayBuffer[Expression]
     val unconvertedRexNodes = new mutable.ArrayBuffer[RexNode]
     val inputNames = inputFieldNames.asScala.toArray
-    val converter = new RexNodeToExpressionConverter(inputNames, catalog)
+    val converter = new RexNodeToExpressionConverter(inputNames, functionCatalog, timeZone)
 
     conjunctions.asScala.foreach(rex => {
       rex.accept(converter) match {
@@ -109,6 +110,99 @@ object RexNodeExtractor extends Logging {
       }
     })
     (convertedExpressions.toArray, unconvertedRexNodes.toArray)
+  }
+
+  /**
+    * Extract partition predicate from filter condition.
+    *
+    * @param expr            The RexNode to analyze
+    * @param inputFieldNames The input names of the RexNode
+    * @param rexBuilder      The factory to build CNF expressions
+    * @param partitionFieldNames Partition field names.
+    * @return Partition predicates and non-partition predicates.
+    */
+  def extractPartitionPredicates(
+      expr: RexNode,
+      maxCnfNodeCount: Int,
+      inputFieldNames: Array[String],
+      rexBuilder: RexBuilder,
+      partitionFieldNames: Array[String]): (RexNode, RexNode) = {
+    // converts the expanded expression to conjunctive normal form,
+    // like "(a AND b) OR c" will be converted to "(a OR c) AND (b OR c)"
+    val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, expr)
+    // converts the cnf condition to a list of AND conditions
+    val conjunctions = RelOptUtil.conjunctions(cnf)
+
+    val (partitionPredicates, nonPartitionPredicates) =
+      conjunctions.partition(isSupportedPartitionPredicate(_, partitionFieldNames, inputFieldNames))
+    val partitionPredicate = RexUtil.composeConjunction(rexBuilder, partitionPredicates)
+    val nonPartitionPredicate = RexUtil.composeConjunction(rexBuilder, nonPartitionPredicates)
+    (partitionPredicate, nonPartitionPredicate)
+  }
+
+  /**
+    * returns true if the given predicate only contains [[RexInputRef]], [[RexLiteral]] and
+    * [[RexCall]], and all [[RexInputRef]]s reference partition fields. otherwise false.
+    */
+  private def isSupportedPartitionPredicate(
+      predicate: RexNode,
+      partitionFieldNames: Array[String],
+      inputFieldNames: Array[String]): Boolean = {
+    val visitor = new RexVisitorImpl[Boolean](true) {
+      override def visitInputRef(inputRef: RexInputRef): Boolean = {
+        val fieldName = inputFieldNames.apply(inputRef.getIndex)
+        val typeRoot = FlinkTypeFactory.toLogicalType(inputRef.getType).getTypeRoot
+        if (!partitionFieldNames.contains(fieldName) ||
+          !PartitionPruner.supportedPartitionFieldTypes.contains(typeRoot)) {
+          throw new Util.FoundOne(false)
+        } else {
+          super.visitInputRef(inputRef)
+        }
+      }
+
+      override def visitLocalRef(localRef: RexLocalRef): Boolean = {
+        throw new Util.FoundOne(false)
+      }
+
+      override def visitOver(over: RexOver): Boolean = {
+        throw new Util.FoundOne(false)
+      }
+
+      override def visitCorrelVariable(correlVariable: RexCorrelVariable): Boolean = {
+        throw new Util.FoundOne(false)
+      }
+
+      override def visitDynamicParam(dynamicParam: RexDynamicParam): Boolean = {
+        throw new Util.FoundOne(false)
+      }
+
+      override def visitRangeRef(rangeRef: RexRangeRef): Boolean = {
+        throw new Util.FoundOne(false)
+      }
+
+      override def visitFieldAccess(fieldAccess: RexFieldAccess): Boolean = {
+        throw new Util.FoundOne(false)
+      }
+
+      override def visitSubQuery(subQuery: RexSubQuery): Boolean = {
+        throw new Util.FoundOne(false)
+      }
+
+      override def visitTableInputRef(ref: RexTableInputRef): Boolean = {
+        throw new Util.FoundOne(false)
+      }
+
+      override def visitPatternFieldRef(fieldRef: RexPatternFieldRef): Boolean = {
+        throw new Util.FoundOne(false)
+      }
+    }
+
+    try {
+      predicate.accept(visitor)
+      true
+    } catch {
+      case _: Util.FoundOne => false
+    }
   }
 }
 
@@ -199,14 +293,15 @@ class RefFieldAccessorVisitor(usedFields: Array[Int]) extends RexVisitorImpl[Uni
   */
 class RexNodeToExpressionConverter(
     inputNames: Array[String],
-    functionCatalog: FunctionCatalog)
+    functionCatalog: FunctionCatalog,
+    timeZone: TimeZone)
   extends RexVisitor[Option[Expression]] {
 
   override def visitInputRef(inputRef: RexInputRef): Option[Expression] = {
     Preconditions.checkArgument(inputRef.getIndex < inputNames.length)
     Some(new FieldReferenceExpression(
       inputNames(inputRef.getIndex),
-      TypeConversions.fromLogicalToDataType(FlinkTypeFactory.toLogicalType(inputRef.getType)),
+      fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(inputRef.getType)),
       0,
       inputRef.getIndex
     ))
@@ -231,16 +326,20 @@ class RexNodeToExpressionConverter(
     val literalValue = literalType.getTypeRoot match {
 
       case DATE =>
-        val v = literal.getValueAs(classOf[DateString])
-        new Date(DateTimeUtils.dateStringToUnixDate(v.toString) * DateTimeUtils.MILLIS_PER_DAY)
+        val v = literal.getValueAs(classOf[Integer])
+        LocalDateConverter.INSTANCE.toExternal(v)
 
       case TIME_WITHOUT_TIME_ZONE =>
-        val v = literal.getValueAs(classOf[TimeString])
-        new Time(DateTimeUtils.timeStringToUnixDate(v.toString(0)).longValue())
+        val v = literal.getValueAs(classOf[Integer])
+        LocalTimeConverter.INSTANCE.toExternal(v)
 
       case TIMESTAMP_WITHOUT_TIME_ZONE =>
-        val v = literal.getValueAs(classOf[TimestampString])
-        new Timestamp(DateTimeUtils.timestampStringToUnixDate(v.toString(3)))
+        val v = literal.getValueAs(classOf[java.lang.Long])
+        LocalDateTimeConverter.INSTANCE.toExternal(v)
+
+      case TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+        val v = literal.getValueAs(classOf[java.lang.Long])
+        unixTimestampToLocalDateTime(v).atZone(timeZone.toZoneId).toInstant
 
       case TINYINT =>
         // convert from BigDecimal to Byte
@@ -283,7 +382,7 @@ class RexNodeToExpressionConverter(
     }
 
     Some(valueLiteral(literalValue,
-      LogicalTypeDataTypeConverter.fromLogicalTypeToDataType(literalType)))
+      fromLogicalTypeToDataType(literalType)))
   }
 
   override def visitCall(rexCall: RexCall): Option[Expression] = {
@@ -302,7 +401,7 @@ class RexNodeToExpressionConverter(
           Option(operands.reduceLeft { (l, r) => unresolvedCall(AND, l, r) })
         case SqlStdOperatorTable.CAST =>
           Option(unresolvedCall(CAST, operands.head,
-            typeLiteral(LogicalTypeDataTypeConverter.fromLogicalTypeToDataType(
+            typeLiteral(fromLogicalTypeToDataType(
               FlinkTypeFactory.toLogicalType(rexCall.getType)))))
         case function: SqlFunction =>
           lookupFunction(replace(function.getName), operands)

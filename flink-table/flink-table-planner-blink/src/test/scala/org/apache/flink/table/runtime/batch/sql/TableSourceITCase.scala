@@ -20,14 +20,14 @@ package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.api.{DataTypes, TableConfigOptions, TableSchema, Types}
+import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.{BatchTestBase, TestData}
 import org.apache.flink.table.types.TypeInfoDataTypeConverter
-import org.apache.flink.table.util.{TestFilterableTableSource, TestNestedProjectableTableSource, TestProjectableTableSource}
+import org.apache.flink.table.util.{TestFilterableTableSource, TestNestedProjectableTableSource, TestPartitionableTableSource, TestProjectableTableSource, TestTableSources}
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Test}
+import org.junit.{Before, Ignore, Test}
 
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 
@@ -35,8 +35,8 @@ import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
 class TableSourceITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
-    tEnv.getConfig.getConf.setInteger(TableConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+  override def before(): Unit = {
+    super.before()
     env.setParallelism(1) // set sink parallelism to 1
     val tableSchema = TableSchema.builder().fields(
       Array("a", "b", "c"),
@@ -148,6 +148,63 @@ class TableSourceITCase extends BatchTestBase {
         row(6, "Record_6"),
         row(7, "Record_7"),
         row(8, "Record_8"))
+    )
+  }
+
+  @Test
+  def testTableSourceWithPartitionable(): Unit = {
+    tEnv.registerTableSource("PartitionableTable", new TestPartitionableTableSource(true))
+    checkResult(
+      "SELECT * FROM PartitionableTable WHERE part2 > 1 and id > 2 AND part1 = 'A'",
+      Seq(row(3, "John", "A", 2), row(4, "nosharp", "A", 2))
+    )
+  }
+
+  @Test
+  def testCsvTableSource(): Unit = {
+    val csvTable = TestTableSources.getPersonCsvTableSource
+    tEnv.registerTableSource("csvTable", csvTable)
+    checkResult(
+      "SELECT id, `first`, `last`, score FROM csvTable",
+      Seq(
+        row(1, "Mike", "Smith", 12.3),
+        row(2, "Bob", "Taylor", 45.6),
+        row(3, "Sam", "Miller", 7.89),
+        row(4, "Peter", "Smith", 0.12),
+        row(5, "Liz", "Williams", 34.5),
+        row(6, "Sally", "Miller", 6.78),
+        row(7, "Alice", "Smith", 90.1),
+        row(8, "Kelly", "Williams", 2.34)
+      )
+    )
+  }
+
+  @Ignore("[FLINK-13075] Project pushdown rule shouldn't require" +
+    " the TableSource return a modified schema in blink planner")
+  @Test
+  def testLookupJoinCsvTemporalTable(): Unit = {
+    val orders = TestTableSources.getOrdersCsvTableSource
+    val rates = TestTableSources.getRatesCsvTableSource
+    tEnv.registerTableSource("orders", orders)
+    tEnv.registerTableSource("rates", rates)
+
+    val sql =
+      """
+        |SELECT o.amount, o.currency, r.rate
+        |FROM (SELECT *, PROCTIME() as proc FROM orders) AS o
+        |JOIN rates FOR SYSTEM_TIME AS OF o.proc AS r
+        |ON o.currency = r.currency
+      """.stripMargin
+
+    checkResult(
+      sql,
+      Seq(
+        row(2, "Euro", 119),
+        row(1, "US Dollar", 102),
+        row(50, "Yen", 1),
+        row(3, "Euro", 119),
+        row(5, "US Dollar", 102)
+      )
     )
   }
 }

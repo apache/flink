@@ -26,6 +26,7 @@ import org.apache.flink.runtime.io.disk.RandomAccessOutputView;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.typeutils.BaseRowSerializer;
 import org.apache.flink.table.typeutils.BinaryRowSerializer;
 
 import org.junit.Assert;
@@ -289,16 +290,13 @@ public class BinaryRowTest {
 			assertTrue(row.anyNull());
 		}
 
-		{
-			BinaryRow row = new BinaryRow(80);
+		int numFields = 80;
+		for (int i = 0; i < numFields; i++) {
+			BinaryRow row = new BinaryRow(numFields);
 			BinaryRowWriter writer = new BinaryRowWriter(row);
+			row.setHeader((byte) 17);
 			assertFalse(row.anyNull());
-
-			writer.setNullAt(3);
-			assertTrue(row.anyNull());
-
-			writer = new BinaryRowWriter(row);
-			writer.setNullAt(65);
+			writer.setNullAt(i);
 			assertTrue(row.anyNull());
 		}
 	}
@@ -434,7 +432,8 @@ public class BinaryRowTest {
 	public void testNested() {
 		BinaryRow row = new BinaryRow(2);
 		BinaryRowWriter writer = new BinaryRowWriter(row);
-		writer.writeRow(0, GenericRow.of(fromString("1"), 1), RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType()));
+		writer.writeRow(0, GenericRow.of(fromString("1"), 1),
+				new BaseRowSerializer(null, RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType())));
 		writer.setNullAt(1);
 		writer.complete();
 

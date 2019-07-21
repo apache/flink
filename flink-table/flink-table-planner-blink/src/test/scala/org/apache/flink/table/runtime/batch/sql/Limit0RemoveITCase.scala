@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.batch.sql
 
-import org.apache.flink.table.api.TableException
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData.numericType
@@ -29,11 +28,11 @@ import java.math.{BigDecimal => JBigDecimal}
 
 import scala.collection.Seq
 
-
 class Limit0RemoveITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
+    super.before()
     lazy val numericData = Seq(
       row(null, 1L, 1.0f, 1.0d, JBigDecimal.valueOf(1)),
       row(2, null, 2.0f, 2.0d, JBigDecimal.valueOf(2)),
@@ -75,17 +74,15 @@ class Limit0RemoveITCase extends BatchTestBase {
     checkResult(sqlQuery, Seq(row(2), row(3), row(3), row(null)))
   }
 
-  @Test(expected = classOf[TableException])
-  // TODO remove exception after translateToPlanInternal is implemented in BatchExecNestedLoopJoin
+  @Test
   def testLimitRemoveWithExists(): Unit = {
     val sqlQuery = "SELECT * FROM t1 WHERE EXISTS (SELECT a FROM t2 LIMIT 0)"
     checkResult(sqlQuery, Seq())
   }
 
-  @Test(expected = classOf[TableException])
-  // TODO remove exception after translateToPlanInternal is implemented in BatchExecNestedLoopJoin
+  @Test
   def testLimitRemoveWithNotExists(): Unit = {
-    val sqlQuery = "SELECT * FROM t1 WHERE NOT EXISTS (SELECT a FROM t2 LIMIT 0)"
+    val sqlQuery = "SELECT a FROM t1 WHERE NOT EXISTS (SELECT a FROM t2 LIMIT 0)"
     checkResult(sqlQuery, Seq(row(2), row(3), row(3), row(null)))
   }
 

@@ -30,7 +30,6 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.clusterframework.types.TaskManagerSlot;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -71,7 +70,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -666,92 +664,6 @@ public class SlotManagerTest extends TestLogger {
 
 			// slotId2 should have been allocated for allocationId
 			assertEquals(allocationId, slotManager.getSlot(slotId2).getAllocationId());
-		}
-	}
-
-	/**
-	 * Tests that idle task managers time out after the configured timeout. A timed out task manager
-	 * will be removed from the slot manager and the resource manager will be notified about the
-	 * timeout, if it can be released.
-	 */
-	@Test
-	public void testTaskManagerTimeout() throws Exception {
-		final long tmTimeout = 10L;
-
-		final CompletableFuture<InstanceID> releaseFuture = new CompletableFuture<>();
-		final ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
-			.setReleaseResourceConsumer((instanceID, e) -> releaseFuture.complete(instanceID))
-			.build();
-		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
-		final ResourceID resourceID = ResourceID.generate();
-
-		final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
-		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(resourceID, taskExecutorGateway);
-
-		final SlotID slotId = new SlotID(resourceID, 0);
-		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
-		final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile);
-		final SlotReport slotReport = new SlotReport(slotStatus);
-
-		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
-
-		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
-			.setTaskManagerTimeout(Time.milliseconds(tmTimeout))
-			.build()) {
-
-			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
-
-			mainThreadExecutor.execute(() -> slotManager.registerTaskManager(taskManagerConnection, slotReport));
-
-			assertThat(releaseFuture.get(), is(equalTo(taskManagerConnection.getInstanceID())));
-		}
-	}
-
-	/**
-	 * Tests that idle but not releasable task managers will not be released even if timed out before it can be.
-	 */
-	@Test
-	public void testTaskManagerNotReleasedBeforeItCanBe() throws Exception {
-		final CompletableFuture<InstanceID> releaseFuture = new CompletableFuture<>();
-		final ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
-			.setReleaseResourceConsumer((instanceID, e) -> releaseFuture.complete(instanceID))
-			.build();
-		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
-		final ResourceID resourceID = ResourceID.generate();
-
-		final AtomicBoolean canBeReleased = new AtomicBoolean(false);
-		final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder()
-			.setCanBeReleasedSupplier(canBeReleased::get)
-			.createTestingTaskExecutorGateway();
-		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(resourceID, taskExecutorGateway);
-
-		final SlotID slotId = new SlotID(resourceID, 0);
-		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
-		final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile);
-		final SlotReport slotReport = new SlotReport(slotStatus);
-
-		final ManuallyTriggeredScheduledExecutor mainThreadExecutor = new ManuallyTriggeredScheduledExecutor();
-
-		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
-			.setScheduledExecutor(mainThreadExecutor)
-			.setTaskManagerTimeout(Time.milliseconds(0L))
-			.build()) {
-
-			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
-
-			mainThreadExecutor.execute(() -> slotManager.registerTaskManager(taskManagerConnection, slotReport));
-
-			// now it can not be released yet
-			canBeReleased.set(false);
-			mainThreadExecutor.execute(slotManager::checkTaskManagerTimeouts);
-			mainThreadExecutor.triggerAll();
-			assertFalse(releaseFuture.isDone());
-
-			// now it can and should be released
-			canBeReleased.set(true);
-			mainThreadExecutor.execute(slotManager::checkTaskManagerTimeouts);
-			mainThreadExecutor.triggerAll();
-			assertThat(releaseFuture.get(), is(equalTo(taskManagerConnection.getInstanceID())));
 		}
 	}
 

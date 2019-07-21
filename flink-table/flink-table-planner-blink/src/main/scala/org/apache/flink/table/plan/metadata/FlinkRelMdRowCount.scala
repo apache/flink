@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.plan.metadata
 
+import org.apache.flink.annotation.Experimental
+
 import org.apache.calcite.adapter.enumerable.EnumerableLimit
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.core._
@@ -25,8 +27,8 @@ import org.apache.calcite.rel.metadata._
 import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.util._
-import org.apache.flink.table.JDouble
-import org.apache.flink.table.api.PlannerConfigOptions
+import org.apache.flink.configuration.ConfigOption
+import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
@@ -34,6 +36,9 @@ import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.stats.ValueInterval
 import org.apache.flink.table.plan.util.AggregateUtil.{hasTimeIntervalType, toLong}
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, SortUtil}
+
+import java.lang.{Double => JDouble}
+import java.lang.{Long => JLong}
 
 import scala.collection.JavaConversions._
 
@@ -172,7 +177,8 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
       val inputRowCnt = mq.getRowCount(input)
       val config = rel.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
       val parallelism = (inputRowCnt /
-          config.getConf.getLong(PlannerConfigOptions.SQL_OPTIMIZER_ROWS_PER_LOCALAGG) + 1).toInt
+          config.getConfiguration.getLong(
+            FlinkRelMdRowCount.SQL_OPTIMIZER_ROWS_PER_LOCALAGG) + 1).toInt
       if (parallelism == 1) {
         ndvOfGroupKeysOnGlobalAgg
       } else if (grouping.isEmpty) {
@@ -439,5 +445,13 @@ object FlinkRelMdRowCount {
 
   val SOURCE: RelMetadataProvider = ReflectiveRelMetadataProvider.reflectiveSource(
     BuiltInMethod.ROW_COUNT.method, INSTANCE)
+
+  // It is a experimental config, will may be removed later.
+  @Experimental
+  val SQL_OPTIMIZER_ROWS_PER_LOCALAGG: ConfigOption[JLong] =
+    key("sql.optimizer.rows-per-local-agg")
+        .defaultValue(JLong.valueOf(1000000L))
+        .withDescription("Sets estimated number of records that one local-agg processes. " +
+            "Optimizer will infer whether to use local/global aggregate according to it.")
 
 }

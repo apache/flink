@@ -54,7 +54,8 @@ object FlinkStreamRuleSets {
     * can create new plan nodes.
     */
   val EXPAND_PLAN_RULES: RuleSet = RuleSets.ofList(
-    LogicalCorrelateToJoinFromTemporalTableRule.INSTANCE,
+    LogicalCorrelateToJoinFromTemporalTableRule.WITH_FILTER,
+    LogicalCorrelateToJoinFromTemporalTableRule.WITHOUT_FILTER,
     LogicalCorrelateToJoinFromTemporalTableFunctionRule.INSTANCE,
     TableScanRule.INSTANCE)
 
@@ -157,11 +158,13 @@ object FlinkStreamRuleSets {
     ).asJava)
 
   /**
-    * RuleSet to do push predicate into table scan
+    * RuleSet to do push predicate/partition into table scan
     */
   val FILTER_TABLESCAN_PUSHDOWN_RULES: RuleSet = RuleSets.ofList(
     // push a filter down into the table scan
-    PushFilterIntoTableSourceScanRule.INSTANCE
+    PushFilterIntoTableSourceScanRule.INSTANCE,
+    // push partition into the table scan
+    PushPartitionIntoTableSourceScanRule.INSTANCE
   )
 
   /**
@@ -201,6 +204,22 @@ object FlinkStreamRuleSets {
     ProjectSetOpTransposeRule.INSTANCE
   )
 
+  val JOIN_REORDER_PERPARE_RULES: RuleSet = RuleSets.ofList(
+    // merge project to MultiJoin
+    ProjectMultiJoinMergeRule.INSTANCE,
+    // merge filter to MultiJoin
+    FilterMultiJoinMergeRule.INSTANCE,
+    // merge join to MultiJoin
+    JoinToMultiJoinRule.INSTANCE
+  )
+
+  val JOIN_REORDER_RULES: RuleSet = RuleSets.ofList(
+    // equi-join predicates transfer
+    RewriteMultiJoinConditionRule.INSTANCE,
+    // join reorder
+    LoptOptimizeJoinRule.INSTANCE
+  )
+
   /**
     * RuleSet to do logical optimize.
     * This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]].
@@ -230,7 +249,7 @@ object FlinkStreamRuleSets {
     // remove aggregation if it does not aggregate and input is already distinct
     FlinkAggregateRemoveRule.INSTANCE,
     // push aggregate through join
-    FlinkAggregateJoinTransposeRule.LEFT_RIGHT_OUTER_JOIN_EXTENDED,
+    FlinkAggregateJoinTransposeRule.EXTENDED,
     // using variants of aggregate union rule
     AggregateUnionAggregateRule.AGG_ON_FIRST_INPUT,
     AggregateUnionAggregateRule.AGG_ON_SECOND_INPUT,
@@ -260,7 +279,9 @@ object FlinkStreamRuleSets {
 
     // set operators
     ReplaceIntersectWithSemiJoinRule.INSTANCE,
-    ReplaceMinusWithAntiJoinRule.INSTANCE
+    RewriteIntersectAllRule.INSTANCE,
+    ReplaceMinusWithAntiJoinRule.INSTANCE,
+    RewriteMinusAllRule.INSTANCE
   )
 
   /**
@@ -284,6 +305,7 @@ object FlinkStreamRuleSets {
     FlinkLogicalWatermarkAssigner.CONVERTER,
     FlinkLogicalWindowAggregate.CONVERTER,
     FlinkLogicalSnapshot.CONVERTER,
+    FlinkLogicalMatch.CONVERTER,
     FlinkLogicalSink.CONVERTER
   )
 
@@ -325,6 +347,7 @@ object FlinkStreamRuleSets {
     StreamExecDataStreamScanRule.INSTANCE,
     StreamExecTableSourceScanRule.INSTANCE,
     StreamExecIntermediateTableScanRule.INSTANCE,
+    StreamExecWatermarkAssignerRule.INSTANCE,
     StreamExecValuesRule.INSTANCE,
     // calc
     StreamExecCalcRule.INSTANCE,
@@ -352,7 +375,10 @@ object FlinkStreamRuleSets {
     StreamExecTemporalJoinRule.INSTANCE,
     StreamExecLookupJoinRule.SNAPSHOT_ON_TABLESCAN,
     StreamExecLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
+    // CEP
+    StreamExecMatchRule.INSTANCE,
     // correlate
+    StreamExecConstantTableFunctionScanRule.INSTANCE,
     StreamExecCorrelateRule.INSTANCE,
     // sink
     StreamExecSinkRule.INSTANCE
@@ -366,6 +392,14 @@ object FlinkStreamRuleSets {
     StreamExecRetractionRules.DEFAULT_RETRACTION_INSTANCE,
     StreamExecRetractionRules.UPDATES_AS_RETRACTION_INSTANCE,
     StreamExecRetractionRules.ACCMODE_INSTANCE
+  )
+
+  /**
+    * RuleSet related to watermark assignment.
+    */
+  val MINI_BATCH_RULES: RuleSet = RuleSets.ofList(
+    // watermark interval infer rule
+    MiniBatchIntervalInferRule.INSTANCE
   )
 
   /**

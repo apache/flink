@@ -171,6 +171,11 @@ class FlinkRelMdSizeTest extends FlinkRelMdHandlerTestBase {
       assertEquals(Seq(4.0, 8.0, 12.0, 88.8, 4.0, 4.0, 8.0, 12.0, 10.52, 4.0),
         mq.getAverageColumnSizes(join).toList)
     }
+
+    Array(logicalSemiJoinOnUniqueKeys, logicalAntiJoinNotOnUniqueKeys).foreach { join =>
+      assertEquals(Seq(4.0, 8.0, 12.0, 88.8, 4.0),
+        mq.getAverageColumnSizes(join).toList)
+    }
   }
 
   @Test

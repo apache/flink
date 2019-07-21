@@ -18,11 +18,10 @@
 package org.apache.flink.table.plan.nodes.physical.batch
 
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.plan.util.RelExplainUtil
+
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelDistribution.Type
 import org.apache.calcite.rel.`type`.RelDataType
@@ -30,12 +29,10 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableIntList
+
 import java.util
 
-import org.apache.flink.api.dag.Transformation
-
 import scala.collection.JavaConversions._
-import scala.collection.mutable
 
 /**
   * Batch physical RelNode for local hash-based aggregate operator.

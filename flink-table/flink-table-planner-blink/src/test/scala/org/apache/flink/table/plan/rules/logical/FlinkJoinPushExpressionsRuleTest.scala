@@ -19,12 +19,12 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.calcite.CalciteConfig
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.plan.rules.FlinkBatchRuleSets
 import org.apache.flink.table.util.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder
+import org.apache.calcite.tools.RuleSets
 import org.junit.{Before, Test}
 
 /**
@@ -38,16 +38,19 @@ class FlinkJoinPushExpressionsRuleTest extends TableTestBase {
   def setup(): Unit = {
     val programs = new FlinkChainedProgram[BatchOptimizeContext]()
     programs.addLast(
-      "FilterSimplifyExpressions",
+      "rules",
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-        .add(FlinkBatchRuleSets.SEMI_JOIN_RULES)
+        .add(RuleSets.ofList(
+          SimplifyFilterConditionRule.EXTENDED,
+          FlinkRewriteSubQueryRule.FILTER,
+          FlinkSubQueryRemoveRule.FILTER,
+          JoinConditionTypeCoerceRule.INSTANCE,
+          FlinkJoinPushExpressionsRule.INSTANCE))
         .build()
     )
-    val calciteConfig = CalciteConfig.createBuilder(util.tableEnv.getConfig.getCalciteConfig)
-      .replaceBatchProgram(programs).build()
-    util.tableEnv.getConfig.setCalciteConfig(calciteConfig)
+    util.replaceBatchProgram(programs)
 
     util.addTableSource[(Int, Long, String)]("l", 'a, 'b, 'c)
     util.addTableSource[(Int, Long, String)]("r", 'd, 'e, 'f)

@@ -110,6 +110,7 @@ public abstract class AbstractHeapVector extends AbstractColumnVector {
 				return new HeapIntVector(maxRows);
 			case BIGINT:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 				return new HeapLongVector(maxRows);
 			case DECIMAL:
 				DecimalType decimalType = (DecimalType) fieldType;

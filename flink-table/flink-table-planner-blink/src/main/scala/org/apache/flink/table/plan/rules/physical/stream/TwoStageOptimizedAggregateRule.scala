@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.rules.physical.stream
 
-import org.apache.flink.table.api.{AggPhaseEnforcer, PlannerConfigOptions, TableConfigOptions}
+import org.apache.flink.table.api.ExecutionConfigOptions
 import org.apache.flink.table.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.plan.`trait`.{AccMode, AccModeTrait, FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
@@ -26,6 +26,8 @@ import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.rules.physical.FlinkExpandConversionRule._
 import org.apache.flink.table.plan.util.{AggregateInfoList, AggregateUtil}
+import org.apache.flink.table.util.AggregatePhaseStrategy
+import org.apache.flink.table.util.TableConfigUtils.getAggPhaseStrategy
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -73,11 +75,9 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
       needRetraction,
       isStateBackendDataViews = true)
 
-    val isMiniBatchEnabled = tableConfig.getConf.getLong(
-      TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY) > 0
-    val isTwoPhaseEnabled = !tableConfig.getConf
-      .getString(PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER)
-      .equalsIgnoreCase(AggPhaseEnforcer.ONE_PHASE.toString)
+    val isMiniBatchEnabled = tableConfig.getConfiguration.getBoolean(
+      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
+    val isTwoPhaseEnabled = getAggPhaseStrategy(tableConfig) != AggregatePhaseStrategy.ONE_PHASE
 
     isMiniBatchEnabled && isTwoPhaseEnabled &&
       AggregateUtil.doAllSupportPartialMerge(aggInfoList.aggInfos) &&

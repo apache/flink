@@ -23,7 +23,7 @@ import java.util
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rex.RexProgram
-import org.apache.flink.table.catalog.FunctionCatalog
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
 import org.apache.flink.table.expressions.{Expression, PlannerExpression}
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.plan.util.RexProgramExtractor
@@ -36,6 +36,10 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
   operand(classOf[FlinkLogicalCalc],
     operand(classOf[FlinkLogicalTableSourceScan], none)),
   "PushFilterIntoTableSourceScanRule") {
+
+  private val defaultCatalog = "default_catalog"
+  private val catalogManager = new CatalogManager(
+    defaultCatalog, new GenericInMemoryCatalog(defaultCatalog, "default_database"))
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
@@ -68,7 +72,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
       RexProgramExtractor.extractConjunctiveConditions(
         program,
         call.builder().getRexBuilder,
-        new FunctionCatalog("default_catalog", "default_database"))
+        new FunctionCatalog(catalogManager))
     if (predicates.isEmpty) {
       // no condition can be translated to expression
       return

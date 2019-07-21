@@ -26,6 +26,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
@@ -50,7 +51,7 @@ import java.util.Map;
  * Operator for stream sort.
  */
 public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
-		OneInputStreamOperator<BaseRow, BaseRow> {
+		OneInputStreamOperator<BaseRow, BaseRow>, BoundedOneInput {
 
 	private static final long serialVersionUID = 9042068324817807379L;
 
@@ -95,7 +96,7 @@ public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
 	@Override
 	public void processElement(StreamRecord<BaseRow> element) throws Exception {
 		BaseRow originalInput = element.getValue();
-		BinaryRow input = baseRowSerializer.baseRowToBinary(originalInput).copy();
+		BinaryRow input = baseRowSerializer.toBinaryRow(originalInput).copy();
 		BaseRowUtil.setAccumulate(input);
 		long count = inputBuffer.getOrDefault(input, 0L);
 		if (BaseRowUtil.isAccumulateMsg(originalInput)) {
@@ -111,6 +112,7 @@ public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
 		}
 	}
 
+	@Override
 	public void endInput() throws Exception {
 		if (!inputBuffer.isEmpty()) {
 			List<BaseRow> rowsSet = new ArrayList<>();
@@ -152,8 +154,6 @@ public class StreamSortOperator extends TableStreamOperator<BaseRow> implements
 
 	@Override
 	public void close() throws Exception {
-		// TODO after introduce endInput
-		endInput();
 		LOG.info("Closing StreamSortOperator");
 		super.close();
 	}

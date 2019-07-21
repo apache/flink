@@ -42,11 +42,10 @@ class FlinkLogicalWindowAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     child: RelNode,
-    indicator: Boolean,
     groupSet: ImmutableBitSet,
     groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall])
-  extends Aggregate(cluster, traitSet, child, indicator, groupSet, groupSets, aggCalls)
+  extends Aggregate(cluster, traitSet, child, groupSet, groupSets, aggCalls)
   with FlinkLogicalRel {
 
   def getWindow: LogicalWindow = window
@@ -56,7 +55,6 @@ class FlinkLogicalWindowAggregate(
   override def copy(
       traitSet: RelTraitSet,
       input: RelNode,
-      indicator: Boolean,
       groupSet: ImmutableBitSet,
       groupSets: util.List[ImmutableBitSet],
       aggCalls: util.List[AggregateCall])
@@ -68,7 +66,6 @@ class FlinkLogicalWindowAggregate(
       cluster,
       traitSet,
       input,
-      indicator,
       groupSet,
       groupSets,
       aggCalls)
@@ -131,7 +128,6 @@ class FlinkLogicalWindowAggregateConverter
       rel.getCluster,
       traitSet,
       newInput,
-      agg.indicator,
       agg.getGroupSet,
       agg.getGroupSets,
       agg.getAggCallList)

@@ -524,7 +524,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 	//  utilities
 	// ------------------------------------------------------------------------
 
-	private static void assertSameRegion(FailoverRegion ...regions) {
+	public static void assertSameRegion(FailoverRegion ...regions) {
 		checkNotNull(regions);
 		for (int i = 0; i < regions.length; i++) {
 			for (int j = i + 1; i < regions.length; i++) {
@@ -533,7 +533,7 @@ public class RestartPipelinedRegionStrategyBuildingTest extends TestLogger {
 		}
 	}
 
-	private static void assertDistinctRegions(FailoverRegion ...regions) {
+	public static void assertDistinctRegions(FailoverRegion ...regions) {
 		checkNotNull(regions);
 		for (int i = 0; i < regions.length; i++) {
 			for (int j = i + 1; j < regions.length; j++) {

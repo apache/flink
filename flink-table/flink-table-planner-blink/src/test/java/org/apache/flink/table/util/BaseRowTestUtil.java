@@ -18,10 +18,12 @@
 
 package org.apache.flink.table.util;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryWriter;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.TypeGetterSetters;
+import org.apache.flink.table.types.InternalSerializers;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.typeutils.BaseRowTypeInfo;
@@ -99,7 +101,8 @@ public class BaseRowTestUtil {
 	}
 
 	public static void write(BinaryWriter writer, int pos, Object o, LogicalType type) {
-		BinaryWriter.write(writer, pos, o, type);
+		BinaryWriter.write(writer, pos, o, type,
+				InternalSerializers.create(type, new ExecutionConfig()));
 	}
 
 }

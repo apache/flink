@@ -17,14 +17,13 @@
  */
 package org.apache.flink.table.runtime.utils
 
-import org.apache.flink.table.api.TableConfigOptions
+import org.apache.flink.table.api.ExecutionConfigOptions.{SQL_EXEC_MINIBATCH_ALLOW_LATENCY, SQL_EXEC_MINIBATCH_SIZE, SQL_EXEC_MINIBATCH_ENABLED}
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
 
 import java.util
 
 import scala.collection.JavaConversions._
-
 import org.junit.runners.Parameterized
 
 abstract class StreamingWithMiniBatchTestBase(
@@ -38,10 +37,11 @@ abstract class StreamingWithMiniBatchTestBase(
     val tableConfig = tEnv.getConfig
     miniBatch match {
       case MiniBatchOn =>
-        tableConfig.getConf.setLong(TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY, 1000L)
-        tableConfig.getConf.setLong(TableConfigOptions.SQL_EXEC_MINIBATCH_SIZE, 3L)
+        tableConfig.getConfiguration.setBoolean(SQL_EXEC_MINIBATCH_ENABLED, true)
+        tableConfig.getConfiguration.setString(SQL_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
+        tableConfig.getConfiguration.setLong(SQL_EXEC_MINIBATCH_SIZE, 3L)
       case MiniBatchOff =>
-        tableConfig.getConf.removeConfig(TableConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
+        tableConfig.getConfiguration.removeConfig(SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
     }
   }
 }

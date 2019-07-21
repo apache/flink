@@ -18,10 +18,10 @@
 package org.apache.flink.table.plan.batch.sql.agg
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.AggPhaseEnforcer.AggPhaseEnforcer
-import org.apache.flink.table.api.{AggPhaseEnforcer, PlannerConfigOptions, TableException, ValidationException}
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{OptimizerConfigOptions, TableException, ValidationException}
 import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
-import org.apache.flink.table.util.{CountAggFunction, TableTestBase}
+import org.apache.flink.table.util.{AggregatePhaseStrategy, CountAggFunction, TableTestBase}
 
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -33,14 +33,14 @@ import java.util
 import scala.collection.JavaConversions._
 
 @RunWith(classOf[Parameterized])
-class WindowAggregateTest(aggStrategy: AggPhaseEnforcer) extends TableTestBase {
+class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTestBase {
 
   private val util = batchTestUtil()
 
   @Before
   def before(): Unit = {
-    util.tableEnv.getConfig.getConf.setString(
-      PlannerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_ENFORCER, aggStrategy.toString)
+    util.tableEnv.getConfig.getConfiguration.setString(
+      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
     util.addFunction("countFun", new CountAggFunction)
     util.addTableSource[(Int, Timestamp, Int, Long)]("MyTable", 'a, 'b, 'c, 'd)
     util.addTableSource[(Timestamp, Long, Int, String)]("MyTable1", 'ts, 'a, 'b, 'c)
@@ -71,7 +71,7 @@ class WindowAggregateTest(aggStrategy: AggPhaseEnforcer) extends TableTestBase {
   @Test(expected = classOf[ValidationException])
   def testTumbleWindowWithInvalidUdAggArgs(): Unit = {
     val weightedAvg = new WeightedAvgWithMerge
-    util.tableEnv.registerFunction("weightedAvg", weightedAvg)
+    util.addFunction("weightedAvg", weightedAvg)
 
     val sql = "SELECT weightedAvg(c, a) AS wAvg FROM MyTable2 " +
       "GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE)"
@@ -304,11 +304,11 @@ class WindowAggregateTest(aggStrategy: AggPhaseEnforcer) extends TableTestBase {
 object WindowAggregateTest {
 
   @Parameterized.Parameters(name = "aggStrategy={0}")
-  def parameters(): util.Collection[AggPhaseEnforcer] = {
-    Seq[AggPhaseEnforcer](
-      AggPhaseEnforcer.NONE,
-      AggPhaseEnforcer.ONE_PHASE,
-      AggPhaseEnforcer.TWO_PHASE
+  def parameters(): util.Collection[AggregatePhaseStrategy] = {
+    Seq[AggregatePhaseStrategy](
+      AggregatePhaseStrategy.AUTO,
+      AggregatePhaseStrategy.ONE_PHASE,
+      AggregatePhaseStrategy.TWO_PHASE
     )
   }
 }

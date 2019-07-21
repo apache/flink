@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
+import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.calcite.CalciteConfig;
 import org.apache.flink.table.calcite.CalciteConfig$;
@@ -35,6 +37,7 @@ import org.apache.flink.table.codegen.ExpressionReducer;
 import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.plan.cost.FlinkCostFactory;
 import org.apache.flink.table.util.JavaScalaConversionUtil;
+import org.apache.flink.table.util.TableConfigUtils;
 
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -172,7 +175,7 @@ public class PlannerContext {
 	}
 
 	private CalciteConfig getCalciteConfig(TableConfig tableConfig) {
-		return tableConfig.getCalciteConfig();
+		return TableConfigUtils.getCalciteConfig(tableConfig);
 	}
 
 	/**
@@ -184,6 +187,8 @@ public class PlannerContext {
 				// and cases are preserved
 				() -> SqlParser
 						.configBuilder()
+						.setParserFactory(FlinkSqlParserImpl.FACTORY)
+						.setConformance(FlinkSqlConformance.DEFAULT)
 						.setLex(Lex.JAVA)
 						.setIdentifierMaxLength(256)
 						.build());

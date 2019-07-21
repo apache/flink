@@ -78,7 +78,6 @@ import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -303,14 +302,18 @@ public class ExecutionContext<T> {
 			// register catalogs
 			catalogs.forEach(tableEnv::registerCatalog);
 
-			Optional<String> potentialCurrentCatalog = mergedEnv.getExecution().getCurrentCatalog();
-			if (potentialCurrentCatalog.isPresent()) {
-				tableEnv.useCatalog(potentialCurrentCatalog.get());
+			// set current catalog
+			if (sessionContext.getCurrentCatalog().isPresent()) {
+				tableEnv.useCatalog(sessionContext.getCurrentCatalog().get());
+			} else if (mergedEnv.getExecution().getCurrentCatalog().isPresent()) {
+				tableEnv.useCatalog(mergedEnv.getExecution().getCurrentCatalog().get());
 			}
 
-			Optional<String> potentialCurrentDatabase = mergedEnv.getExecution().getCurrentDatabase();
-			if (potentialCurrentDatabase.isPresent()) {
-				tableEnv.useDatabase(potentialCurrentDatabase.get());
+			// set current database
+			if (sessionContext.getCurrentDatabase().isPresent()) {
+				tableEnv.useDatabase(sessionContext.getCurrentDatabase().get());
+			} else if (mergedEnv.getExecution().getCurrentDatabase().isPresent()) {
+				tableEnv.useDatabase(mergedEnv.getExecution().getCurrentDatabase().get());
 			}
 
 			// create query config

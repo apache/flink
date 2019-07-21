@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
+import org.apache.flink.table.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.nodes.physical.stream._
@@ -48,7 +49,6 @@ import scala.collection.JavaConversions._
 class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.UniqueKeys] {
 
   def getDef: MetadataDef[BuiltInMetadata.UniqueKeys] = BuiltInMetadata.UniqueKeys.DEF
-
 
   def getUniqueKeys(
       rel: TableScan,
@@ -342,7 +342,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
 
   private def getUniqueKeysOnWindowAgg(
       fieldCount: Int,
-      namedProperties: Seq[NamedWindowProperty],
+      namedProperties: Seq[PlannerNamedWindowProperty],
       grouping: Array[Int],
       mq: RelMetadataQuery,
       ignoreNulls: Boolean): util.Set[ImmutableBitSet] = {
@@ -408,6 +408,21 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       ignoreNulls: Boolean): JSet[ImmutableBitSet] = {
     val joinInfo = JoinInfo.of(rel.getLeft, rel.getRight, rel.joinCondition)
     getJoinUniqueKeys(joinInfo, rel.joinType, rel.getLeft, rel.getRight, mq, ignoreNulls)
+  }
+
+  def getUniqueKeys(
+      join: CommonLookupJoin,
+      mq: RelMetadataQuery,
+      ignoreNulls: Boolean): util.Set[ImmutableBitSet] = {
+    val left = join.getInput
+    val leftUniqueKeys = mq.getUniqueKeys(left, ignoreNulls)
+    val leftType = left.getRowType
+    getJoinUniqueKeys(
+      join.joinInfo, join.joinType, leftType, leftUniqueKeys, null,
+      mq.areColumnsUnique(left, join.joinInfo.leftSet, ignoreNulls),
+      // TODO get uniqueKeys from TableSchema of TableSource
+      null,
+      mq)
   }
 
   private def getJoinUniqueKeys(
@@ -487,8 +502,6 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     }
     retSet
   }
-
-  // TODO supports temporal table join
 
   def getUniqueKeys(
       rel: Correlate,

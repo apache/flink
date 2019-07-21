@@ -18,11 +18,13 @@
 
 package org.apache.flink.table.plan.optimize
 
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfig}
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecSink
 import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram}
 import org.apache.flink.table.plan.schema.IntermediateRelTable
+import org.apache.flink.table.planner.BatchPlanner
+import org.apache.flink.table.util.TableConfigUtils
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode
@@ -30,12 +32,12 @@ import org.apache.calcite.rel.RelNode
 /**
   * A [[CommonSubGraphBasedOptimizer]] for Batch.
   */
-class BatchCommonSubGraphBasedOptimizer(tEnv: BatchTableEnvironment)
+class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
   extends CommonSubGraphBasedOptimizer {
 
   override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
     // build RelNodeBlock plan
-    val rootBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, tEnv.getConfig)
+    val rootBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, planner.getTableConfig)
     // optimize recursively RelNodeBlock
     rootBlocks.foreach(optimizeBlock)
     rootBlocks
@@ -70,15 +72,15 @@ class BatchCommonSubGraphBasedOptimizer(tEnv: BatchTableEnvironment)
     * @return The optimized [[RelNode]] tree
     */
   private def optimizeTree(relNode: RelNode): RelNode = {
-    val config = tEnv.getConfig
-    val programs = config.getCalciteConfig.getBatchProgram
-      .getOrElse(FlinkBatchProgram.buildProgram(config.getConf))
+    val config = planner.getTableConfig
+    val programs = TableConfigUtils.getCalciteConfig(config).getBatchProgram
+      .getOrElse(FlinkBatchProgram.buildProgram(config.getConfiguration))
     Preconditions.checkNotNull(programs)
 
     programs.optimize(relNode, new BatchOptimizeContext {
       override def getTableConfig: TableConfig = config
 
-      override def getFunctionCatalog: FunctionCatalog = tEnv.functionCatalog
+      override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
     })
   }
 

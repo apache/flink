@@ -44,7 +44,7 @@ abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
     testData.setField(12, null)
     testData.setField(13, Row.of("foo", null))
     testData.setField(14, null)
-    testData.setField(15, UTCDate("1996-11-10"))
+    testData.setField(15, localDate("1996-11-10"))
     testData.setField(16, Decimal.castFrom("0.00000000", 19, 8))
     testData.setField(17, Decimal.castFrom("10.0", 19, 1))
     testData
@@ -67,7 +67,7 @@ abstract class ScalarOperatorsTestBase extends ExpressionTestBase {
       /* 12 */ Types.BOOLEAN,
       /* 13 */ Types.ROW(Types.STRING, Types.STRING),
       /* 14 */ Types.STRING,
-      /* 15 */ Types.SQL_DATE,
+      /* 15 */ Types.LOCAL_DATE,
       /* 16 */ DecimalTypeInfo.of(19, 8),
       /* 17 */ DecimalTypeInfo.of(19, 1)
     )

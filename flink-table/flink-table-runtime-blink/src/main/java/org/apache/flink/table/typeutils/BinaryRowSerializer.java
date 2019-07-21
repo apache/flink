@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.core.memory.MemorySegmentWritable;
 import org.apache.flink.runtime.memory.AbstractPagedInputView;
 import org.apache.flink.runtime.memory.AbstractPagedOutputView;
 import org.apache.flink.table.dataformat.BinaryRow;
@@ -83,12 +84,13 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 	@Override
 	public void serialize(BinaryRow record, DataOutputView target) throws IOException {
 		target.writeInt(record.getSizeInBytes());
-		SegmentsUtil.copyToView(
-				record.getSegments(),
-				record.getOffset(),
-				record.getSizeInBytes(),
-				target
-		);
+		if (target instanceof MemorySegmentWritable) {
+			serializeWithoutLength(record, (MemorySegmentWritable) target);
+		} else {
+			SegmentsUtil.copyToView(
+					record.getSegments(), record.getOffset(),
+					record.getSizeInBytes(), target);
+		}
 	}
 
 	@Override
@@ -122,7 +124,7 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 	}
 
 	@Override
-	public BinaryRow baseRowToBinary(BinaryRow baseRow) throws IOException {
+	public BinaryRow toBinaryRow(BinaryRow baseRow) throws IOException {
 		return baseRow;
 	}
 
@@ -133,25 +135,23 @@ public class BinaryRowSerializer extends AbstractRowSerializer<BinaryRow> {
 			BinaryRow record,
 			AbstractPagedOutputView headerLessView) throws IOException {
 		checkArgument(headerLessView.getHeaderLength() == 0);
-		int sizeInBytes = record.getSizeInBytes();
 		int skip = checkSkipWriteForFixLengthPart(headerLessView);
-		if (record.getSegments().length == 1) {
-			headerLessView.writeInt(sizeInBytes);
-			headerLessView.write(record.getSegments()[0], record.getOffset(), sizeInBytes);
-		} else {
-			headerLessView.writeInt(record.getSizeInBytes());
-			serializeToPagesWithoutLength(record, headerLessView);
-		}
+		headerLessView.writeInt(record.getSizeInBytes());
+		serializeWithoutLength(record, headerLessView);
 		return skip;
 	}
 
-	/**
-	 * Serialize row to pages without row length. The caller should make sure that the fixed-length
-	 * parit can fit in output's current segment, no skip check will be done here.
-	 */
-	public void serializeToPagesWithoutLength(
-			BinaryRow record,
-			AbstractPagedOutputView out) throws IOException {
+	private static void serializeWithoutLength(
+			BinaryRow record, MemorySegmentWritable writable) throws IOException {
+		if (record.getSegments().length == 1) {
+			writable.write(record.getSegments()[0], record.getOffset(), record.getSizeInBytes());
+		} else {
+			serializeWithoutLengthSlow(record, writable);
+		}
+	}
+
+	public static void serializeWithoutLengthSlow(
+			BinaryRow record, MemorySegmentWritable out) throws IOException {
 		int remainSize = record.getSizeInBytes();
 		int posInSegOfRecord = record.getOffset();
 		int segmentSize = record.getSegments()[0].size();

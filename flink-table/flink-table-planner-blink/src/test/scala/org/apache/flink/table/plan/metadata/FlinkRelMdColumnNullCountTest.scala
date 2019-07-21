@@ -52,6 +52,13 @@ class FlinkRelMdColumnNullCountTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
+  def testGetColumnIntervalOnSnapshot(): Unit = {
+    (0 until flinkLogicalSnapshot.getRowType.getFieldCount).foreach { idx =>
+      assertNull(mq.getColumnNullCount(flinkLogicalSnapshot, idx))
+    }
+  }
+
+  @Test
   def testGetColumnNullCountOnProject(): Unit = {
     assertEquals(0.0, mq.getColumnNullCount(logicalProject, 0))
     assertEquals(0.0, mq.getColumnNullCount(logicalProject, 1))
@@ -261,6 +268,13 @@ class FlinkRelMdColumnNullCountTest extends FlinkRelMdHandlerTestBase {
       relBuilder.call(EQUALS, relBuilder.field(2, 0, 0), relBuilder.field(2, 1, 0))).build
     (0 until fullJoin.getRowType.getFieldCount).foreach { idx =>
       assertNull(mq.getColumnNullCount(fullJoin, idx))
+    }
+
+    // semi/anti join
+    Array(logicalSemiJoinWithEquiAndNonEquiCond, logicalAntiJoinWithoutEquiCond).foreach { join =>
+      (0 until join.getRowType.getFieldCount).foreach { idx =>
+        assertNull(mq.getColumnNullCount(fullJoin, idx))
+      }
     }
   }
 

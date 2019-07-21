@@ -20,6 +20,7 @@ package org.apache.flink.table.plan.rules.logical.subquery
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.scala._
 
 import org.junit.Test
 
@@ -34,7 +35,7 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
   util.addTableSource[(String, Short, Int, Long, Float, Double, BigDecimal, Timestamp, Date)](
     "t3", 't3a, 't3b, 't3c, 't3d, 't3e, 't3f, 't3g, 't3h, 't3i)
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testWithProjectProjectCorrelate(): Unit = {
     val sqlQuery =
       """
@@ -45,7 +46,7 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
     util.verifyPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test
   def testWithProjectFilterCorrelate(): Unit = {
     val sqlQuery =
       """
@@ -110,7 +111,8 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
     util.verifyPlan(sqlQuery)
   }
 
-  @Test(expected = classOf[RuntimeException])
+  @Test(expected = classOf[AssertionError])
+  // TODO some bugs in RelDecorrelator.AdjustProjectForCountAggregateRule
   def testWithProjectCaseWhenCorrelate(): Unit = {
     val sqlQuery =
       """

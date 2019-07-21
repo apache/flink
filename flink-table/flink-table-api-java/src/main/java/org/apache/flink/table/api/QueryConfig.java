@@ -24,8 +24,11 @@ import java.io.Serializable;
 
 /**
  * The {@link QueryConfig} holds parameters to configure the behavior of queries.
+ *
+ * @deprecated Set the configuration on {@link TableConfig}.
  */
 @PublicEvolving
+@Deprecated
 public interface QueryConfig extends Serializable {
 
 }

@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.calcite.CalciteConfig
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.plan.optimize.program._
 import org.apache.flink.table.util.TableTestBase
 
@@ -42,9 +42,7 @@ class ConvertToNotInOrInRuleTest extends TableTestBase {
         .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
         .add(RuleSets.ofList(ConvertToNotInOrInRule.INSTANCE))
         .build())
-    val calciteConfig = CalciteConfig.createBuilder(util.tableEnv.getConfig.getCalciteConfig)
-      .replaceBatchProgram(programs).build()
-    util.tableEnv.getConfig.setCalciteConfig(calciteConfig)
+    util.replaceBatchProgram(programs)
 
     util.addTableSource[(Int, Long, Float, Double, String)]("MyTable", 'a, 'b, 'c, 'd, 'e)
   }

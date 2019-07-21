@@ -32,7 +32,8 @@ import scala.collection.Seq
 class AggregateRemoveITCase extends BatchTestBase {
 
   @Before
-  def before(): Unit = {
+  override def before(): Unit = {
+    super.before()
     registerCollection("T1",
       Seq(row(2, 1, "A", null),
         row(3, 2, "A", "Hi"),
@@ -79,12 +80,10 @@ class AggregateRemoveITCase extends BatchTestBase {
       Seq(row(1, 2, 3))
     )
 
-    // TODO enable this case after translateToPlanInternal method is implemented
-    //  in BatchExecNestedLoopJoin
-    // checkResult(
-    //   "SELECT * FROM T2 WHERE EXISTS (SELECT SUM(a) FROM T3 WHERE 1=2)",
-    //   Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
-    // )
+    checkResult(
+      "SELECT * FROM T2 WHERE EXISTS (SELECT SUM(a) FROM T3 WHERE 1=2)",
+      Seq(row(1, 1, "Hi"), row(2, 2, "Hello"), row(3, 2, "Hello world"))
+    )
 
     checkResult(
       """

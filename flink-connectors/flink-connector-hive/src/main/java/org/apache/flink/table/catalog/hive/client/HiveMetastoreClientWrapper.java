@@ -137,11 +137,6 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		client.createTable(table);
 	}
 
-	public void alter_table(String databaseName, String tableName, Table table)
-			throws InvalidOperationException, MetaException, TException {
-		client.alter_table(databaseName, tableName, table);
-	}
-
 	public void createDatabase(Database database)
 			throws InvalidObjectException, AlreadyExistsException, MetaException, TException {
 		client.createDatabase(database);
@@ -233,5 +228,11 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 	public Function getFunction(String databaseName, String functionName) throws MetaException, TException {
 		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		return hiveShim.getFunction(client, databaseName, functionName);
+	}
+
+	public void alter_table(String databaseName, String tableName, Table table)
+			throws InvalidOperationException, MetaException, TException {
+		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
+		hiveShim.alterTable(client, databaseName, tableName, table);
 	}
 }

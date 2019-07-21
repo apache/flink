@@ -20,18 +20,24 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
+import org.apache.flink.runtime.util.EnvironmentInformation;
+
+import java.time.Duration;
 
 /**
  * Builder for the {@link NettyShuffleEnvironment}.
  */
 public class NettyShuffleEnvironmentBuilder {
 
-	private int numNetworkBuffers = 1024;
+	public static final int DEFAULT_NUM_NETWORK_BUFFERS = 1024;
+
+	private static final String[] DEFAULT_TEMP_DIRS = new String[] {EnvironmentInformation.getTemporaryFileDirectory()};
+
+	private int numNetworkBuffers = DEFAULT_NUM_NETWORK_BUFFERS;
 
 	private int networkBufferSize = 32 * 1024;
 
@@ -42,6 +48,8 @@ public class NettyShuffleEnvironmentBuilder {
 	private int networkBuffersPerChannel = 2;
 
 	private int floatingNetworkBuffersPerGate = 8;
+
+	private Duration requestSegmentsTimeout = Duration.ofMillis(30000L);
 
 	private boolean isCreditBased = true;
 
@@ -55,7 +63,7 @@ public class NettyShuffleEnvironmentBuilder {
 
 	private MetricGroup metricGroup = UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
 
-	private IOManager ioManager = new IOManagerAsync();
+	private String[] tempDirs = DEFAULT_TEMP_DIRS;
 
 	public NettyShuffleEnvironmentBuilder setTaskManagerLocation(ResourceID taskManagerLocation) {
 		this.taskManagerLocation = taskManagerLocation;
@@ -92,6 +100,10 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
+	public void setRequestSegmentsTimeout(Duration requestSegmentsTimeout) {
+		this.requestSegmentsTimeout = requestSegmentsTimeout;
+	}
+
 	public NettyShuffleEnvironmentBuilder setIsCreditBased(boolean isCreditBased) {
 		this.isCreditBased = isCreditBased;
 		return this;
@@ -112,8 +124,8 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setIOManager(IOManager ioManager) {
-		this.ioManager = ioManager;
+	public NettyShuffleEnvironmentBuilder setTempDirs(String[] tempDirs) {
+		this.tempDirs = tempDirs;
 		return this;
 	}
 
@@ -126,12 +138,14 @@ public class NettyShuffleEnvironmentBuilder {
 				partitionRequestMaxBackoff,
 				networkBuffersPerChannel,
 				floatingNetworkBuffersPerGate,
+				requestSegmentsTimeout,
 				isCreditBased,
 				isNetworkDetailedMetrics,
-				nettyConfig),
+				nettyConfig,
+				tempDirs,
+				BoundedBlockingSubpartitionType.AUTO),
 			taskManagerLocation,
 			taskEventDispatcher,
-			metricGroup,
-			ioManager);
+			metricGroup);
 	}
 }

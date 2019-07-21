@@ -54,7 +54,7 @@ class TableSinkITCase(
 
     tEnv.registerTableSink(
       "testSink",
-      new CsvTableSink(path, fieldDelim = "|").configure(
+      new CsvTableSink(path, "|").configure(
         Array[String]("c", "b"), Array[TypeInformation[_]](Types.STRING, Types.LONG)))
 
     val input = CollectionDataSets.get3TupleDataSet(env)

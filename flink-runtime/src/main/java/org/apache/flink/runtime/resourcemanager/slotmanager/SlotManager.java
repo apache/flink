@@ -123,6 +123,14 @@ public class SlotManager implements AutoCloseable {
 	/** Release task executor only when each produced result partition is either consumed or failed. */
 	private final boolean waitResultConsumedBeforeRelease;
 
+	/**
+	 * If true, fail unfulfillable slot requests immediately. Otherwise, allow unfulfillable request to pend.
+	 *
+	 * A slot request is considered unfulfillable if it cannot be fulfilled by neither a slot that is already registered
+	 * (including allocated ones) nor a pending slot that the {@link ResourceActions} can allocate.
+	 * */
+	private boolean failUnfulfillableRequest = false;
+
 	public SlotManager(
 			ScheduledExecutor scheduledExecutor,
 			Time taskManagerRequestTimeout,
@@ -182,6 +190,14 @@ public class SlotManager implements AutoCloseable {
 
 	public int getNumberPendingTaskManagerSlots() {
 		return pendingSlots.size();
+	}
+
+	public int getNumberPendingSlotRequests() {
+		return pendingSlotRequests.size();
+	}
+
+	public boolean isFailingUnfulfillableRequest() {
+		return failUnfulfillableRequest;
 	}
 
 	@VisibleForTesting
@@ -462,6 +478,29 @@ public class SlotManager implements AutoCloseable {
 		}
 	}
 
+	public void setFailUnfulfillableRequest(boolean failUnfulfillableRequest) {
+		if (!this.failUnfulfillableRequest && failUnfulfillableRequest) {
+			// fail unfulfillable pending requests
+			Iterator<Map.Entry<AllocationID, PendingSlotRequest>> slotRequestIterator = pendingSlotRequests.entrySet().iterator();
+			while (slotRequestIterator.hasNext()) {
+				PendingSlotRequest pendingSlotRequest = slotRequestIterator.next().getValue();
+				if (pendingSlotRequest.getAssignedPendingTaskManagerSlot() != null) {
+					continue;
+				}
+				if (!isFulfillableByRegisteredSlots(pendingSlotRequest.getResourceProfile())) {
+					slotRequestIterator.remove();
+					resourceActions.notifyAllocationFailure(
+						pendingSlotRequest.getJobId(),
+						pendingSlotRequest.getAllocationId(),
+						new ResourceManagerException("Could not fulfill slot request " + pendingSlotRequest.getAllocationId() + ". "
+							+ "Requested resource profile (" + pendingSlotRequest.getResourceProfile() + ") is unfulfillable.")
+					);
+				}
+			}
+		}
+		this.failUnfulfillableRequest = failUnfulfillableRequest;
+	}
+
 	// ---------------------------------------------------------------------------------------------
 	// Behaviour methods
 	// ---------------------------------------------------------------------------------------------
@@ -719,7 +758,17 @@ public class SlotManager implements AutoCloseable {
 				pendingTaskManagerSlotOptional = allocateResource(resourceProfile);
 			}
 
-			pendingTaskManagerSlotOptional.ifPresent(pendingTaskManagerSlot -> assignPendingTaskManagerSlot(pendingSlotRequest, pendingTaskManagerSlot));
+			if (pendingTaskManagerSlotOptional.isPresent()) {
+				assignPendingTaskManagerSlot(pendingSlotRequest, pendingTaskManagerSlotOptional.get());
+			}
+			else {
+				// request can not be fulfilled by any free slot or pending slot that can be allocated,
+				// check whether it can be fulfilled by allocated slots
+				if (failUnfulfillableRequest && !isFulfillableByRegisteredSlots(pendingSlotRequest.getResourceProfile())) {
+					throw new ResourceManagerException("Requested resource profile (" +
+						pendingSlotRequest.getResourceProfile() + ") is unfulfillable.");
+				}
+			}
 		}
 	}
 
@@ -731,6 +780,15 @@ public class SlotManager implements AutoCloseable {
 		}
 
 		return Optional.empty();
+	}
+
+	private boolean isFulfillableByRegisteredSlots(ResourceProfile resourceProfile) {
+		for (TaskManagerSlot slot : slots.values()) {
+			if (slot.getResourceProfile().isMatching(resourceProfile)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private Optional<PendingTaskManagerSlot> allocateResource(ResourceProfile resourceProfile) throws ResourceManagerException {
@@ -1023,20 +1081,30 @@ public class SlotManager implements AutoCloseable {
 
 			// second we trigger the release resource callback which can decide upon the resource release
 			for (TaskManagerRegistration taskManagerRegistration : timedOutTaskManagers) {
-				InstanceID timedOutTaskManagerId = taskManagerRegistration.getInstanceId();
 				if (waitResultConsumedBeforeRelease) {
-					// checking whether TaskManagers can be safely removed
-					taskManagerRegistration.getTaskManagerConnection().getTaskExecutorGateway().canBeReleased()
-						.thenAcceptAsync(canBeReleased -> {
-							if (canBeReleased) {
-								releaseTaskExecutor(timedOutTaskManagerId);
-							}},
-							mainThreadExecutor);
+					releaseTaskExecutorIfPossible(taskManagerRegistration);
 				} else {
-					releaseTaskExecutor(timedOutTaskManagerId);
+					releaseTaskExecutor(taskManagerRegistration.getInstanceId());
 				}
 			}
 		}
+	}
+
+	private void releaseTaskExecutorIfPossible(TaskManagerRegistration taskManagerRegistration) {
+		long idleSince = taskManagerRegistration.getIdleSince();
+		taskManagerRegistration
+			.getTaskManagerConnection()
+			.getTaskExecutorGateway()
+			.canBeReleased()
+			.thenAcceptAsync(
+				canBeReleased -> {
+					InstanceID timedOutTaskManagerId = taskManagerRegistration.getInstanceId();
+					boolean stillIdle = idleSince == taskManagerRegistration.getIdleSince();
+					if (stillIdle && canBeReleased) {
+						releaseTaskExecutor(timedOutTaskManagerId);
+					}
+				},
+				mainThreadExecutor);
 	}
 
 	private void releaseTaskExecutor(InstanceID timedOutTaskManagerId) {

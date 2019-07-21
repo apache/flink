@@ -23,7 +23,6 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
@@ -110,7 +109,7 @@ public class ExecutionContextTest {
 		assertEquals(
 			new HashSet<>(
 				Arrays.asList(
-					TableConfig.getDefault().getBuiltInCatalogName(),
+					"default_catalog",
 					inmemoryCatalog,
 					hiveCatalog,
 					hiveDefaultVersionCatalog,

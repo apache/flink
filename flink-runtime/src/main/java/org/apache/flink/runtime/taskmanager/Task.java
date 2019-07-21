@@ -93,10 +93,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -257,8 +260,8 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	/** The observed exception, in case the task execution failed. */
 	private volatile Throwable failureCause;
 
-	/** Executor for asynchronous calls (checkpoints, etc), lazily initialized. */
-	private volatile BlockingCallMonitoringThreadPool asyncCallDispatcher;
+	/** Serial executor for asynchronous calls (checkpoints, etc), lazily initialized. */
+	private volatile ExecutorService asyncCallDispatcher;
 
 	/** Initialized from the Flink configuration. May also be set at the ExecutionConfig */
 	private long taskCancellationInterval;
@@ -789,7 +792,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 				// stop the async dispatcher.
 				// copy dispatcher reference to stack, against concurrent release
-				final BlockingCallMonitoringThreadPool dispatcher = this.asyncCallDispatcher;
+				ExecutorService dispatcher = this.asyncCallDispatcher;
 				if (dispatcher != null && !dispatcher.isShutdown()) {
 					dispatcher.shutdownNow();
 				}
@@ -834,12 +837,14 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 	@VisibleForTesting
 	public static void setupPartitionsAndGates(
-		ResultPartitionWriter[] producedPartitions, InputGate[] inputGates) throws IOException {
+		ResultPartitionWriter[] producedPartitions, InputGate[] inputGates) throws IOException, InterruptedException {
 
 		for (ResultPartitionWriter partition : producedPartitions) {
 			partition.setup();
 		}
 
+		// InputGates must be initialized after the partitions, since during InputGate#setup
+		// we are requesting partitions
 		for (InputGate gate : inputGates) {
 			gate.setup();
 		}
@@ -1076,18 +1081,21 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 	// ------------------------------------------------------------------------
 
 	@Override
-	public CompletableFuture<PartitionProducerStateResponseHandle> requestPartitionProducerState(
+	public void requestPartitionProducerState(
 			final IntermediateDataSetID intermediateDataSetId,
-			final ResultPartitionID resultPartitionId) {
+			final ResultPartitionID resultPartitionId,
+			Consumer<? super ResponseHandle> responseConsumer) {
+
 		final CompletableFuture<ExecutionState> futurePartitionState =
 			partitionProducerStateChecker.requestPartitionProducerState(
 				jobId,
 				intermediateDataSetId,
 				resultPartitionId);
-		final CompletableFuture<PartitionProducerStateResponseHandle> result =
-			futurePartitionState.handleAsync(PartitionProducerStateResponseHandle::new, executor);
-		FutureUtils.assertNoException(result);
-		return result;
+
+		FutureUtils.assertNoException(
+			futurePartitionState
+				.handle(PartitionProducerStateResponseHandle::new)
+				.thenAcceptAsync(responseConsumer, executor));
 	}
 
 	// ------------------------------------------------------------------------
@@ -1151,8 +1159,7 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 			};
 			executeAsyncCallRunnable(
 					runnable,
-					String.format("Checkpoint Trigger for %s (%s).", taskNameWithSubtask, executionId),
-					checkpointOptions.getCheckpointType().isSynchronous());
+					String.format("Checkpoint Trigger for %s (%s).", taskNameWithSubtask, executionId));
 		}
 		else {
 			LOG.debug("Declining checkpoint request for non-running task {} ({}).", taskNameWithSubtask, executionId);
@@ -1187,8 +1194,8 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 			};
 			executeAsyncCallRunnable(
 					runnable,
-					"Checkpoint Confirmation for " + taskNameWithSubtask,
-					false);
+					"Checkpoint Confirmation for " + taskNameWithSubtask
+			);
 		}
 		else {
 			LOG.debug("Ignoring checkpoint commit notification for non-running task {}.", taskNameWithSubtask);
@@ -1199,11 +1206,10 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 	/**
 	 * Utility method to dispatch an asynchronous call on the invokable.
-	 *
-	 * @param runnable The async call runnable.
+	 *  @param runnable The async call runnable.
 	 * @param callName The name of the call, for logging purposes.
 	 */
-	private void executeAsyncCallRunnable(Runnable runnable, String callName, boolean blocking) {
+	private void executeAsyncCallRunnable(Runnable runnable, String callName) {
 		// make sure the executor is initialized. lock against concurrent calls to this function
 		synchronized (this) {
 			if (executionState != ExecutionState.RUNNING) {
@@ -1211,20 +1217,12 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 			}
 
 			// get ourselves a reference on the stack that cannot be concurrently modified
-			BlockingCallMonitoringThreadPool executor = this.asyncCallDispatcher;
+			ExecutorService executor = this.asyncCallDispatcher;
 			if (executor == null) {
 				// first time use, initialize
 				checkState(userCodeClassLoader != null, "userCodeClassLoader must not be null");
 
-				// Under normal execution, we expect that one thread will suffice, this is why we
-				// keep the core threads to 1. In the case of a synchronous savepoint, we will block
-				// the checkpointing thread, so we need an additional thread to execute the
-				// notifyCheckpointComplete() callback. Finally, we aggressively purge (potentially)
-				// idle thread so that we do not risk to have many idle thread on machines with multiple
-				// tasks on them. Either way, only one of them can execute at a time due to the
-				// checkpoint lock.
-
-				executor = new BlockingCallMonitoringThreadPool(
+				executor = Executors.newSingleThreadExecutor(
 						new DispatcherThreadFactory(
 							TASK_THREADS_GROUP,
 							"Async calls on " + taskNameWithSubtask,
@@ -1243,13 +1241,13 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 			LOG.debug("Invoking async call {} on task {}", callName, taskNameWithSubtask);
 
 			try {
-				executor.submit(runnable, blocking);
+				executor.submit(runnable);
 			}
 			catch (RejectedExecutionException e) {
 				// may be that we are concurrently finished or canceled.
 				// if not, report that something is fishy
 				if (executionState == ExecutionState.RUNNING) {
-					throw new RuntimeException("Async call with a " + (blocking ? "" : "non-") + "blocking call was rejected, even though the task is running.", e);
+					throw new RuntimeException("Async call was rejected, even though the task is running.", e);
 				}
 			}
 		}

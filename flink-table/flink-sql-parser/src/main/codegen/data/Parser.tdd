@@ -53,10 +53,7 @@
     "FROM_SOURCE",
     "BOUNDED",
     "DELAY",
-    "OVERWRITE",
-    "JSON_PRETTY",
-    "JSON_TYPE",
-    "JSON_DEPTH"
+    "OVERWRITE"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -155,6 +152,7 @@
     "GOTO"
     "GRANTED"
     "HIERARCHY"
+    "IGNORE"
     "IMMEDIATE"
     "IMMEDIATELY"
     "IMPLEMENTATION"
@@ -170,9 +168,6 @@
     "ISOLATION"
     "JAVA"
     "JSON"
-    "JSON_TYPE"
-    "JSON_DEPTH"
-    "JSON_PRETTY"
     "K"
     "KEY"
     "KEY_MEMBER"
@@ -184,7 +179,6 @@
     "LIBRARY"
     "LOCATOR"
     "M"
-    "MAP"
     "MATCHED"
     "MAXVALUE"
     "MICROSECOND"
@@ -239,6 +233,7 @@
     "RELATIVE"
     "REPEATABLE"
     "REPLACE"
+    "RESPECT"
     "RESTART"
     "RESTRICT"
     "RETURNED_CARDINALITY"
@@ -365,9 +360,6 @@
     "WRITE"
     "XML"
     "ZONE",
-    "JSON_PRETTY",
-    "JSON_TYPE",
-    "JSON_DEPTH",
 
     # not in core, added in Flink
     "PARTITIONED",

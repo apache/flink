@@ -39,7 +39,7 @@ public abstract class AbstractRowSerializer<T extends BaseRow> extends TypeSeria
 	/**
 	 * Convert a {@link BaseRow} to a {@link BinaryRow}.
 	 */
-	public abstract BinaryRow baseRowToBinary(T baseRow) throws IOException;
+	public abstract BinaryRow toBinaryRow(T baseRow) throws IOException;
 
 	/**
 	 * Serializes the given record to the given target paged output view. Some implementations may

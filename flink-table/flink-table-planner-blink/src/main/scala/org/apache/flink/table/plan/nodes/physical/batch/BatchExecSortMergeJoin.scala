@@ -17,9 +17,10 @@
  */
 package org.apache.flink.table.plan.nodes.physical.batch
 
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation
-import org.apache.flink.table.api.{BatchTableEnvironment, TableConfigOptions}
+import org.apache.flink.table.api.ExecutionConfigOptions
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.codegen.ProjectionCodeGenerator.generateProjection
@@ -29,19 +30,20 @@ import org.apache.flink.table.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.ExpressionFormat
 import org.apache.flink.table.plan.nodes.exec.ExecNode
-import org.apache.flink.table.plan.nodes.resource.NodeResourceConfig
+import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, FlinkRelOptUtil, JoinUtil, SortUtil}
+import org.apache.flink.table.planner.BatchPlanner
 import org.apache.flink.table.runtime.join.{FlinkJoinType, SortMergeJoinOperator}
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollationTraitDef, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 import scala.collection.JavaConversions._
 
@@ -69,20 +71,6 @@ class BatchExecSortMergeJoin(
       joinRelType == FlinkJoinType.LEFT ||
       joinRelType == FlinkJoinType.RIGHT ||
       joinRelType == FlinkJoinType.FULL
-  }
-
-  protected lazy val smjType: SortMergeJoinType.Value = {
-    (leftSorted, rightSorted) match {
-      case (true, true) if isMergeJoinSupportedType(flinkJoinType) =>
-        SortMergeJoinType.MergeJoin
-      case (false, true) //TODO support more
-        if flinkJoinType == FlinkJoinType.INNER || flinkJoinType == FlinkJoinType.RIGHT =>
-        SortMergeJoinType.SortLeftJoin
-      case (true, false) //TODO support more
-        if flinkJoinType == FlinkJoinType.INNER || flinkJoinType == FlinkJoinType.LEFT =>
-        SortMergeJoinType.SortRightJoin
-      case _ => SortMergeJoinType.SortMergeJoin
-    }
   }
 
   override def copy(
@@ -202,23 +190,21 @@ class BatchExecSortMergeJoin(
     */
   override def getDamBehavior: DamBehavior = DamBehavior.FULL_DAM
 
-  override def getInputNodes: util.List[ExecNode[BatchTableEnvironment, _]] =
-    getInputs.map(_.asInstanceOf[ExecNode[BatchTableEnvironment, _]])
+  override def getInputNodes: util.List[ExecNode[BatchPlanner, _]] =
+    getInputs.map(_.asInstanceOf[ExecNode[BatchPlanner, _]])
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[BatchTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[BatchPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
-  override def translateToPlanInternal(
-      tableEnv: BatchTableEnvironment): Transformation[BaseRow] = {
-
-    val config = tableEnv.getConfig
-
-    val leftInput = getInputNodes.get(0).translateToPlan(tableEnv)
+  override protected def translateToPlanInternal(
+      planner: BatchPlanner): Transformation[BaseRow] = {
+    val config = planner.getTableConfig
+    val leftInput = getInputNodes.get(0).translateToPlan(planner)
         .asInstanceOf[Transformation[BaseRow]]
-    val rightInput = getInputNodes.get(1).translateToPlan(tableEnv)
+    val rightInput = getInputNodes.get(1).translateToPlan(planner)
         .asInstanceOf[Transformation[BaseRow]]
 
     val leftType = leftInput.getOutputType.asInstanceOf[BaseRowTypeInfo].toRowType
@@ -233,11 +219,13 @@ class BatchExecSortMergeJoin(
       leftType,
       rightType)
 
-    val externalBufferMemory = config.getConf.getInteger(
-      TableConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM) * NodeResourceConfig.SIZE_IN_MB
+    val externalBufferMemoryInMB = config.getConfiguration.getInteger(
+      ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM)
+    val externalBufferMemory = externalBufferMemoryInMB * NodeResourceUtil.SIZE_IN_MB
 
-    val sortMemory = config.getConf.getInteger(
-      TableConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM) * NodeResourceConfig.SIZE_IN_MB
+    val sortMemoryInMB = config.getConfiguration.getInteger(
+      ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM)
+    val sortMemory = sortMemoryInMB * NodeResourceUtil.SIZE_IN_MB
 
     def newSortGen(originalKeys: Array[Int], t: RowType): SortCodeGenerator = {
       val originalOrders = originalKeys.map(_ => true)
@@ -270,13 +258,18 @@ class BatchExecSortMergeJoin(
       newSortGen(leftAllKey.indices.toArray, keyType).generateRecordComparator("KeyComparator"),
       filterNulls)
 
-    new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
+    val externalBufferNum = if (flinkJoinType == FlinkJoinType.FULL) 2 else 1
+    val managedMemoryInMB = externalBufferMemoryInMB * externalBufferNum + sortMemoryInMB * 2
+    val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       leftInput,
       rightInput,
       getOperatorName,
       operator,
       BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
       getResource.getParallelism)
+    val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
+    ret.setResources(resource, resource)
+    ret
   }
 
   private def estimateOutputSize(relNode: RelNode): Double = {
@@ -291,17 +284,4 @@ class BatchExecSortMergeJoin(
   } else {
     "SortMergeJoin"
   }
-}
-
-
-object SortMergeJoinType extends Enumeration {
-  type SortMergeJoinType = Value
-  // both LHS and RHS have been sorted
-  val MergeJoin,
-  // RHS has been sorted, only LHS needs sort
-  SortLeftJoin,
-  // LHS has been sorted, only RHS needs sort
-  SortRightJoin,
-  // both LHS and RHS need sort
-  SortMergeJoin = Value
 }

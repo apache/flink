@@ -17,11 +17,12 @@
  */
 package org.apache.flink.table.plan.nodes.physical.stream
 
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.CalcitePair
-import org.apache.flink.table.api.{StreamTableEnvironment, TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
@@ -30,9 +31,11 @@ import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util.AggregateUtil.transformToStreamAggregateInfoList
 import org.apache.flink.table.plan.util.{KeySelectorUtil, OverAggregateUtil, RelExplainUtil}
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.over._
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING
 import org.apache.calcite.rel.`type`.RelDataType
@@ -42,9 +45,8 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
-import java.util
 
-import org.apache.flink.api.dag.Transformation
+import java.util
 
 import scala.collection.JavaConverters._
 
@@ -133,19 +135,19 @@ class StreamExecOverAggregate(
 
   //~ ExecNode methods -----------------------------------------------------------
 
-  override def getInputNodes: util.List[ExecNode[StreamTableEnvironment, _]] = {
-    getInputs.asScala.map(_.asInstanceOf[ExecNode[StreamTableEnvironment, _]]).asJava
+  override def getInputNodes: util.List[ExecNode[StreamPlanner, _]] = {
+    getInputs.asScala.map(_.asInstanceOf[ExecNode[StreamPlanner, _]]).asJava
   }
 
   override def replaceInputNode(
       ordinalInParent: Int,
-      newInputNode: ExecNode[StreamTableEnvironment, _]): Unit = {
+      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
-      tableEnv: StreamTableEnvironment): Transformation[BaseRow] = {
-    val tableConfig = tableEnv.getConfig
+      planner: StreamPlanner): Transformation[BaseRow] = {
+    val tableConfig = planner.getTableConfig
 
     if (logicWindow.groups.size > 1) {
       throw new TableException(
@@ -167,7 +169,7 @@ class StreamExecOverAggregate(
           "The window can only be ordered in ASCENDING mode.")
     }
 
-    val inputDS = getInputNodes.get(0).translateToPlan(tableEnv)
+    val inputDS = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
 
     val inputIsAccRetract = StreamExecRetractionRules.isAccRetract(input)
@@ -217,7 +219,7 @@ class StreamExecOverAggregate(
     val inRowType = FlinkTypeFactory.toLogicalRowType(inputRel.getRowType)
     val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
 
-    val aggInputType = tableEnv.getTypeFactory.buildRelNodeRowType(
+    val aggInputType = planner.getTypeFactory.buildRelNodeRowType(
       fieldNames ++ constants.indices.map(i => "TMP" + i),
       fieldTypes ++ constantTypes)
 
@@ -234,7 +236,7 @@ class StreamExecOverAggregate(
         rowTimeIdx,
         isRowsClause,
         tableConfig,
-        tableEnv.getRelBuilder,
+        planner.getRelBuilder,
         tableConfig.getNullCheck)
 
     } else if (overWindow.lowerBound.isPreceding
@@ -259,7 +261,7 @@ class StreamExecOverAggregate(
         isRowsClause,
         precedingOffset,
         tableConfig,
-        tableEnv.getRelBuilder,
+        planner.getRelBuilder,
         tableConfig.getNullCheck)
 
     } else {

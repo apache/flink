@@ -20,14 +20,19 @@ package org.apache.flink.streaming.runtime.tasks.mailbox;
 
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.LinkedList;
+import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.CountDownLatch;
+import java.util.function.Consumer;
 
 /**
  * Unit tests for {@link MailboxImpl}.
@@ -35,33 +40,41 @@ import java.util.Queue;
 public class MailboxImplTest {
 
 	private static final Runnable POISON_LETTER = () -> {};
-	private static final int CAPACITY_POW_2 = 1;
-	private static final int CAPACITY = 1 << CAPACITY_POW_2;
-
 	/**
 	 * Object under test.
 	 */
 	private Mailbox mailbox;
 
 	@Before
-	public void setUp() throws Exception {
-		mailbox = new MailboxImpl(CAPACITY_POW_2);
+	public void setUp() {
+		mailbox = new MailboxImpl();
+		mailbox.open();
 	}
 
-	/**
-	 * Test for #clearAndPut should remove other pending events and enqueue directly to the head of the mailbox queue.
-	 */
+	@After
+	public void tearDown() {
+		mailbox.close();
+	}
+
 	@Test
-	public void testClearAndPut() {
-		for (int i = 0; i < CAPACITY; ++i) {
-			Assert.assertTrue(mailbox.tryPutMail(() -> {}));
-		}
+	public void testPutAsHead() throws Exception {
 
-		mailbox.clearAndPut(POISON_LETTER);
+		Runnable instanceA = () -> {};
+		Runnable instanceB = () -> {};
+		Runnable instanceC = () -> {};
+		Runnable instanceD = () -> {};
 
-		Assert.assertTrue(mailbox.hasMail());
-		Assert.assertEquals(POISON_LETTER, mailbox.tryTakeMail().get());
-		Assert.assertFalse(mailbox.hasMail());
+		mailbox.putMail(instanceC);
+		mailbox.putFirst(instanceB);
+		mailbox.putMail(instanceD);
+		mailbox.putFirst(instanceA);
+
+		Assert.assertSame(instanceA, mailbox.takeMail());
+		Assert.assertSame(instanceB, mailbox.takeMail());
+		Assert.assertSame(instanceC, mailbox.takeMail());
+		Assert.assertSame(instanceD, mailbox.takeMail());
+
+		Assert.assertFalse(mailbox.tryTakeMail().isPresent());
 	}
 
 	@Test
@@ -69,36 +82,17 @@ public class MailboxImplTest {
 		final Queue<Runnable> testObjects = new LinkedList<>();
 		Assert.assertFalse(mailbox.hasMail());
 
-		for (int i = 0; i < CAPACITY; ++i) {
+		for (int i = 0; i < 10; ++i) {
 			Runnable letter = () -> {};
 			testObjects.add(letter);
-			Assert.assertTrue(mailbox.tryPutMail(letter));
+			mailbox.putMail(letter);
 			Assert.assertTrue(mailbox.hasMail());
 		}
-
-		Assert.assertFalse(mailbox.tryPutMail(() -> {}));
 
 		while (!testObjects.isEmpty()) {
 			Assert.assertEquals(testObjects.remove(), mailbox.tryTakeMail().get());
 			Assert.assertEquals(!testObjects.isEmpty(), mailbox.hasMail());
-			mailbox.waitUntilHasCapacity(); // should not block here because the mailbox is not full
 		}
-
-		Thread waitingReader = new Thread(ThrowingRunnable.unchecked(() -> mailbox.waitUntilHasMail()));
-		waitingReader.start();
-		Thread.sleep(1);
-		Assert.assertTrue(waitingReader.isAlive());
-		mailbox.tryPutMail(() -> {});
-		waitingReader.join(); // should complete here
-
-		while (mailbox.tryPutMail(() -> {})) {}
-
-		Thread waitingWriter = new Thread(ThrowingRunnable.unchecked(() -> mailbox.waitUntilHasCapacity()));
-		waitingWriter.start();
-		Thread.sleep(1);
-		Assert.assertTrue(waitingWriter.isAlive());
-		mailbox.takeMail();
-		waitingWriter.join();
 	}
 
 	/**
@@ -115,14 +109,116 @@ public class MailboxImplTest {
 	@Test
 	public void testConcurrentPutTakeNonBlockingAndWait() throws Exception {
 		testPutTake((mailbox -> {
-				mailbox.waitUntilHasMail();
-				return mailbox.tryTakeMail().get();
-			}),
-			((mailbox, runnable) -> {
-				while (!mailbox.tryPutMail(runnable)) {
-					mailbox.waitUntilHasCapacity();
+				Optional<Runnable> optionalLetter = mailbox.tryTakeMail();
+				while (!optionalLetter.isPresent()) {
+					optionalLetter = mailbox.tryTakeMail();
 				}
-			}));
+				return optionalLetter.get();
+			}),
+			MailboxSender::putMail);
+	}
+
+	/**
+	 * Test that closing the mailbox unblocks pending accesses with correct exceptions.
+	 */
+	@Test
+	public void testCloseUnblocks() throws InterruptedException {
+		testAllPuttingUnblocksInternal(Mailbox::close);
+		setUp();
+		testUnblocksInternal(() -> mailbox.takeMail(), Mailbox::close);
+	}
+
+	/**
+	 * Test that silencing the mailbox unblocks pending accesses with correct exceptions.
+	 */
+	@Test
+	public void testQuiesceUnblocks() throws Exception {
+		testAllPuttingUnblocksInternal(Mailbox::quiesce);
+	}
+
+	@Test
+	public void testLifeCycleQuiesce() throws Exception {
+		mailbox.putMail(() -> {});
+		mailbox.putMail(() -> {});
+		mailbox.quiesce();
+		testLifecyclePuttingInternal();
+		mailbox.takeMail();
+		Assert.assertTrue(mailbox.tryTakeMail().isPresent());
+		Assert.assertFalse(mailbox.tryTakeMail().isPresent());
+	}
+
+	@Test
+	public void testLifeCycleClose() throws Exception {
+		mailbox.close();
+		testLifecyclePuttingInternal();
+
+		try {
+			mailbox.takeMail();
+			Assert.fail();
+		} catch (MailboxStateException ignore) {
+		}
+
+		try {
+			mailbox.tryTakeMail();
+			Assert.fail();
+		} catch (MailboxStateException ignore) {
+		}
+	}
+
+	private void testLifecyclePuttingInternal() throws Exception {
+		try {
+			mailbox.putMail(() -> {});
+			Assert.fail();
+		} catch (MailboxStateException ignore) {
+		}
+		try {
+			mailbox.putFirst(() -> {});
+			Assert.fail();
+		} catch (MailboxStateException ignore) {
+		}
+	}
+
+	private void testAllPuttingUnblocksInternal(Consumer<Mailbox> unblockMethod) throws InterruptedException {
+		testUnblocksInternal(() -> mailbox.putMail(() -> {}), unblockMethod);
+		setUp();
+		testUnblocksInternal(() -> mailbox.putFirst(() -> {}), unblockMethod);
+	}
+
+	private void testUnblocksInternal(
+		RunnableWithException testMethod,
+		Consumer<Mailbox> unblockMethod) throws InterruptedException {
+		final Thread[] blockedThreads = new Thread[8];
+		final Exception[] exceptions = new Exception[blockedThreads.length];
+
+		CountDownLatch countDownLatch = new CountDownLatch(blockedThreads.length);
+
+		for (int i = 0; i < blockedThreads.length; ++i) {
+			final int id = i;
+			Thread blocked = new Thread(() -> {
+				try {
+					countDownLatch.countDown();
+					while (true) {
+						testMethod.run();
+					}
+				} catch (Exception ex) {
+					exceptions[id] = ex;
+				}
+			});
+			blockedThreads[i] = blocked;
+			blocked.start();
+		}
+
+		countDownLatch.await();
+		unblockMethod.accept(mailbox);
+
+		for (Thread blockedThread : blockedThreads) {
+			blockedThread.join();
+		}
+
+		for (Exception exception : exceptions) {
+			Assert.assertEquals(MailboxStateException.class, exception.getClass());
+		}
+
 	}
 
 	/**

@@ -22,12 +22,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.functions.async.ResultFuture
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.types.logical.{IntType, TimestampType, VarCharType}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
-import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.util.TableTestBase
 import org.apache.flink.types.Row
 
 import org.junit.Assert.{assertTrue, fail}
@@ -35,14 +36,16 @@ import org.junit.Test
 
 import _root_.java.lang.{Long => JLong}
 import _root_.java.sql.Timestamp
+import _root_.java.time.LocalDateTime
 import _root_.java.util.concurrent.CompletableFuture
 import _root_.java.util.{Collection => JCollection}
 
 import _root_.scala.annotation.varargs
 
 class LookupJoinTest extends TableTestBase with Serializable {
-  private val streamUtil: StreamTableTestUtil = streamTestUtil()
-  streamUtil.addDataStream[(Int, String, Long)]("MyTable", 'a, 'b, 'c, 'proctime, 'rowtime)
+  private val streamUtil = scalaStreamTestUtil()
+  streamUtil.addDataStream[(Int, String, Long)](
+    "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
   streamUtil.addDataStream[(Int, String, Long, Double)]("T1", 'a, 'b, 'c, 'd)
   streamUtil.addDataStream[(Int, String, Int)]("nonTemporal", 'id, 'name, 'age)
   streamUtil.tableEnv.registerTableSource("temporalTest", new TestTemporalTable)
@@ -74,8 +77,8 @@ class LookupJoinTest extends TableTestBase with Serializable {
     expectExceptionThrown(
       "SELECT * FROM MyTable AS T RIGHT JOIN temporalTest " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id",
-      "Unsupported join type for semi-join RIGHT",
-      classOf[IllegalArgumentException]
+      "Correlate has invalid join type RIGHT",
+      classOf[AssertionError]
     )
 
     // only support join on raw key of right table
@@ -99,7 +102,8 @@ class LookupJoinTest extends TableTestBase with Serializable {
 
   @Test
   def testInvalidLookupTableFunction(): Unit = {
-    streamUtil.addDataStream[(Int, String, Long, Timestamp)]("T", 'a, 'b, 'c, 'ts, 'proctime)
+    streamUtil.addDataStream[(Int, String, Long, Timestamp)](
+      "T", 'a, 'b, 'c, 'ts, 'proctime.proctime)
 
     val temporalTable = new TestInvalidTemporalTable(new InvalidTableFunctionResultType)
     streamUtil.tableEnv.registerTableSource("temporalTable", temporalTable)
@@ -107,7 +111,7 @@ class LookupJoinTest extends TableTestBase with Serializable {
       "SELECT * FROM T AS T JOIN temporalTable " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
       "The TableSource [TestInvalidTemporalTable(id, name, age, ts)] " +
-        "return type BaseRow(id: Integer, name: String, age: Integer, ts: Timestamp) " +
+        "return type BaseRow(id: INT, name: STRING, age: INT, ts: TIMESTAMP(3)) " +
         "does not match its lookup function extracted return type String",
       classOf[TableException]
     )
@@ -119,7 +123,7 @@ class LookupJoinTest extends TableTestBase with Serializable {
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
       "Expected: eval(java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, " +
         "java.lang.Long) \n" +
-        "Actual: eval(java.lang.Integer, java.lang.String, java.sql.Timestamp)",
+        "Actual: eval(java.lang.Integer, java.lang.String, java.time.LocalDateTime)",
       classOf[TableException]
     )
 
@@ -154,7 +158,7 @@ class LookupJoinTest extends TableTestBase with Serializable {
       "Expected: eval(java.util.concurrent.CompletableFuture, " +
         "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, java.lang.Long) \n" +
         "Actual: eval(java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, " +
-        "java.sql.Timestamp)",
+        "java.time.LocalDateTime)",
       classOf[TableException]
     )
 
@@ -166,7 +170,7 @@ class LookupJoinTest extends TableTestBase with Serializable {
         "Expected: eval(java.util.concurrent.CompletableFuture, " +
         "java.lang.Integer, org.apache.flink.table.dataformat.BinaryString, java.lang.Long) \n" +
         "Actual: eval(java.util.concurrent.CompletableFuture, " +
-        "java.lang.Integer, java.lang.String, java.sql.Timestamp)",
+        "java.lang.Integer, java.lang.String, java.time.LocalDateTime)",
       classOf[TableException]
     )
 
@@ -313,6 +317,19 @@ class LookupJoinTest extends TableTestBase with Serializable {
     streamUtil.verifyPlan(sql)
   }
 
+  @Test
+  def testJoinTemporalTableWithTrueCondition(): Unit = {
+    val sql =
+      """
+        |SELECT * FROM MyTable AS T
+        |JOIN temporalTest FOR SYSTEM_TIME AS OF T.proctime AS D
+        |ON true
+        |WHERE T.c > 1000
+      """.stripMargin
+
+    streamUtil.verifyPlan(sql)
+  }
+
   // ==========================================================================================
 
   private def expectExceptionThrown(
@@ -378,7 +395,7 @@ class TestInvalidTemporalTable private(
 
   val fieldNames: Array[String] = Array("id", "name", "age", "ts")
   val fieldTypes: Array[TypeInformation[_]] = Array(
-    Types.INT, Types.STRING, Types.INT, Types.SQL_TIMESTAMP)
+    Types.INT, Types.STRING, Types.INT, Types.LOCAL_DATE_TIME)
 
   def this(fetcher: TableFunction[_]) {
     this(false, fetcher, null)
@@ -415,7 +432,7 @@ class InvalidTableFunctionResultType extends TableFunction[String] {
 }
 
 class InvalidTableFunctionEvalSignature1 extends TableFunction[BaseRow] {
-  def eval(a: Integer, b: String, c: Timestamp): Unit = {
+  def eval(a: Integer, b: String, c: LocalDateTime): Unit = {
   }
 }
 
@@ -426,7 +443,7 @@ class ValidTableFunction extends TableFunction[BaseRow] {
 }
 
 class ValidTableFunction2 extends TableFunction[Row] {
-  def eval(a: Integer, b: String, c: Timestamp): Unit = {
+  def eval(a: Integer, b: String, c: LocalDateTime): Unit = {
   }
 }
 
@@ -437,13 +454,13 @@ class InvalidAsyncTableFunctionResultType extends AsyncTableFunction[Row] {
 }
 
 class InvalidAsyncTableFunctionEvalSignature1 extends AsyncTableFunction[BaseRow] {
-  def eval(a: Integer, b: BinaryString, c: Timestamp): Unit = {
+  def eval(a: Integer, b: BinaryString, c: LocalDateTime): Unit = {
   }
 }
 
 class InvalidAsyncTableFunctionEvalSignature2 extends AsyncTableFunction[BaseRow] {
   def eval(resultFuture: CompletableFuture[JCollection[BaseRow]],
-    a: Integer, b: String,  c: Timestamp): Unit = {
+    a: Integer, b: String,  c: LocalDateTime): Unit = {
   }
 }
 

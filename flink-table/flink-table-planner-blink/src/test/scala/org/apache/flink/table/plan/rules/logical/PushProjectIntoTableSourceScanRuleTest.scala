@@ -23,7 +23,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.types.TypeInfoDataTypeConverter
-import org.apache.flink.table.util.{TableTestBase, TestNestedProjectableTableSource, TestProjectableTableSource}
+import org.apache.flink.table.util.{TableConfigUtils, TableTestBase, TestNestedProjectableTableSource, TestProjectableTableSource}
 import org.apache.flink.types.Row
 
 import org.apache.calcite.plan.hep.HepMatchOrder
@@ -40,7 +40,8 @@ class PushProjectIntoTableSourceScanRuleTest extends TableTestBase {
   @Before
   def setup(): Unit = {
     util.buildBatchProgram(FlinkBatchProgram.DEFAULT_REWRITE)
-    util.tableEnv.getConfig.getCalciteConfig.getBatchProgram.get.addLast(
+    val calciteConfig = TableConfigUtils.getCalciteConfig(util.tableEnv.getConfig)
+    calciteConfig.getBatchProgram.get.addLast(
       "rules",
       FlinkHepRuleSetProgramBuilder.newBuilder
         .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
@@ -51,7 +52,7 @@ class PushProjectIntoTableSourceScanRuleTest extends TableTestBase {
 
     val tableSchema = TableSchema.builder().fields(
       Array("a", "b", "c"),
-      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.VARCHAR(32))).build()
+      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
     util.tableEnv.registerTableSource("MyTable", new TestProjectableTableSource(
       true,
       tableSchema,

@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -34,6 +34,11 @@ under the License.
 	<name>flink-connector-hive</name>
 
 	<packaging>jar</packaging>
+
+	<properties>
+		<hiverunner.version>4.0.0</hiverunner.version>
+		<reflections.version>0.9.8</reflections.version>
+	</properties>
 
 	<dependencies>
 
@@ -63,66 +68,16 @@ under the License.
 		<!-- Hadoop dependency -->
 		<!-- Hadoop as provided dependencies, so we can depend on them without pulling in Hadoop -->
 
+		<!--
+			Hive 2.3.4 relies on Hadoop 2.7.2 and later versions.
+			For Hadoop 2.7, the minor Hadoop version supported for flink-shaded-hadoop-2-uber is 2.7.5,
+			thus override the default hadoop version from 2.4.1 to 2.7.5
+		-->
 		<dependency>
-			<groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-common</artifactId>
-			<version>${hivemetastore.hadoop.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-hadoop-2-uber</artifactId>
+			<version>${hivemetastore.hadoop.version}-${flink.shaded.version}</version>
 			<scope>provided</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.curator</groupId>
-					<artifactId>curator-client</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.curator</groupId>
-					<artifactId>curator-recipes</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.avro</groupId>
-					<artifactId>avro</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>commons-digester</groupId>
-					<artifactId>commons-digester</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.sun.jersey</groupId>
-					<artifactId>jersey-json</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.codehaus.jackson</groupId>
-					<artifactId>jackson-mapper-asl</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-mapreduce-client-core</artifactId>
-			<version>${hivemetastore.hadoop.version}</version>
-			<scope>provided</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.curator</groupId>
-					<artifactId>curator-test</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-yarn-common</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.avro</groupId>
-					<artifactId>avro</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.codehaus.jackson</groupId>
-					<artifactId>jackson-core-asl</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 
 		<!-- Hive dependencies -->
@@ -310,10 +265,6 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<groupId>org.apache.logging.log4j</groupId>
-					<artifactId>log4j-1.2-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.logging.log4j</groupId>
 					<artifactId>log4j-slf4j-impl</artifactId>
 				</exclusion>
 				<exclusion>
@@ -423,6 +374,87 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+            <groupId>com.klarna</groupId>
+            <artifactId>hiverunner</artifactId>
+            <version>${hiverunner.version}</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.hive</groupId>
+                    <artifactId>hive-serde</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.hive</groupId>
+                    <artifactId>hive-jdbc</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.hive</groupId>
+                    <artifactId>hive-service</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.hive</groupId>
+                    <artifactId>hive-contrib</artifactId>
+                </exclusion>
+				<exclusion>
+					<groupId>org.apache.tez</groupId>
+					<artifactId>tez-common</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.tez</groupId>
+					<artifactId>tez-mapreduce</artifactId>
+				</exclusion>
+            </exclusions>
+        </dependency>
+
+		<!--  We have 0.9.10 in dependency management but hiverunner requires 0.9.8, so need to explicitly specify it here -->
+		<dependency>
+			<groupId>org.reflections</groupId>
+			<artifactId>reflections</artifactId>
+			<version>${reflections.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-service</artifactId>
+            <version>${hive.version}</version>
+            <scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.hive</groupId>
+					<artifactId>hive-exec</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hive</groupId>
+					<artifactId>hive-metastore</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+        </dependency>
+
+		<dependency>
+            <groupId>org.apache.hive.hcatalog</groupId>
+            <artifactId>hive-hcatalog-core</artifactId>
+            <version>${hive.version}</version>
+            <scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+        </dependency>
+
 	</dependencies>
 
 	<build>
@@ -435,49 +467,6 @@ under the License.
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
-					</execution>
-				</executions>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>shade-flink</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadeTestJar>false</shadeTestJar>
-							<artifactSet>
-								<!-- Needs end-to-end tests to ensure the built flink-connector-hive jar contains all required dependencies and can run -->
-								<includes>
-									<include>commons-dbcp:commons-dbcp</include>
-									<include>commons-pool:commons-pool</include>
-									<include>commons-beanutils:commons-beanutils</include>
-									<include>com.fasterxml.jackson.core:*</include>
-									<include>com.jolbox:bonecp</include>
-									<include>org.apache.thrift:libthrift</include>
-									<include>org.datanucleus:*</include>
-									<include>org.antlr:antlr-runtime</include>
-								</includes>
-							</artifactSet>
-							<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-							<!-- DO NOT RELOCATE GUAVA IN THIS PACKAGE -->
-							<filters>
-								<filter>
-									<!-- some dependencies bring their own LICENSE.txt which we don't need -->
-									<artifact>*:*</artifact>
-									<excludes>
-										<exclude>META-INF/LICENSE.txt</exclude>
-										<exclude>META-INF/ASM_LICENSE.txt</exclude>
-										<exclude>META-INF/ASL2.0</exclude>
-									</excludes>
-								</filter>
-							</filters>
-						</configuration>
 					</execution>
 				</executions>
 			</plugin>
@@ -503,8 +492,59 @@ under the License.
 			<id>hive-1.2.1</id>
 			<properties>
 				<hive.version>1.2.1</hive.version>
-				<hivemetastore.hadoop.version>2.6.0</hivemetastore.hadoop.version>
+				<hivemetastore.hadoop.version>2.6.5</hivemetastore.hadoop.version>
+				<hiverunner.version>3.2.1</hiverunner.version>
 			</properties>
+		</profile>
+		<profile>
+			<id>skip-hive-tests</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<skipTests>true</skipTests>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>java9</id>
+			<activation>
+				<jdk>9</jdk>
+			</activation>
+
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<!-- hive does not support Java 9 -->
+							<skip>true</skip>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+
+			<dependencyManagement>
+				<dependencies>
+					<dependency>
+						<groupId>org.apache.hbase</groupId>
+						<artifactId>hbase-annotations</artifactId>
+						<scope>test</scope>
+						<exclusions>
+							<exclusion>
+								<!-- This dependency is not available with java 9.-->
+								<groupId>jdk.tools</groupId>
+								<artifactId>jdk.tools</artifactId>
+							</exclusion>
+						</exclusions>
+					</dependency>
+				</dependencies>
+			</dependencyManagement>
 		</profile>
 	</profiles>
 </project>

@@ -58,10 +58,4 @@ public interface BufferPoolFactory {
 	 * Destroy callback for updating factory book keeping.
 	 */
 	void destroyBufferPool(BufferPool bufferPool) throws IOException;
-
-	/**
-	 * Gets the size of the buffers in the buffer pools produced by this factory.
-	 */
-	int getBufferSize();
-
 }

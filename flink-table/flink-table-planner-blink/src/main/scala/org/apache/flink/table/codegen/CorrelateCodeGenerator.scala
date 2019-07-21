@@ -18,15 +18,12 @@
 
 package org.apache.flink.table.codegen
 
-import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rex._
-import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.functions.Function
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException}
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGenUtils._
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow, JoinedRow}
@@ -40,16 +37,20 @@ import org.apache.flink.table.runtime.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.collector.TableFunctionCollector
 import org.apache.flink.table.runtime.util.StreamRecordCollector
 import org.apache.flink.table.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
-import org.apache.flink.table.types.{DataType, PlannerTypeUtils}
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
+import org.apache.flink.table.types.{DataType, PlannerTypeUtils}
 import org.apache.flink.table.typeutils.BaseRowTypeInfo
+
+import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.core.JoinRelType
+import org.apache.calcite.rex._
 
 import scala.collection.JavaConversions._
 
 object CorrelateCodeGenerator {
 
   private[flink] def generateCorrelateTransformation(
-      tableEnv: TableEnvironment,
+      config: TableConfig,
       operatorCtx: CodeGeneratorContext,
       inputTransformation: Transformation[BaseRow],
       inputRelType: RelDataType,
@@ -57,12 +58,11 @@ object CorrelateCodeGenerator {
       scan: FlinkLogicalTableFunctionScan,
       condition: Option[RexNode],
       outDataType: RelDataType,
-      joinType: SemiJoinType,
+      joinType: JoinRelType,
       parallelism: Int,
       retainHeader: Boolean,
       expression: (RexNode, List[String], Option[List[RexNode]]) => String,
       ruleDescription: String): Transformation[BaseRow] = {
-    val config = tableEnv.getConfig
     val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
@@ -153,7 +153,7 @@ object CorrelateCodeGenerator {
       swallowInputOnly: Boolean = false,
       udtfType: LogicalType,
       returnType: RowType,
-      joinType: SemiJoinType,
+      joinType: JoinRelType,
       rexCall: RexCall,
       pojoFieldMapping: Option[Array[Int]],
       ruleDescription: String,
@@ -192,7 +192,7 @@ object CorrelateCodeGenerator {
          |""".stripMargin
 
     // 3. left join
-    if (joinType == SemiJoinType.LEFT) {
+    if (joinType == JoinRelType.LEFT) {
       if (swallowInputOnly) {
         // and the returned row table function is empty, collect a null
         val nullRowTerm = CodeGenUtils.newName("nullRow")
@@ -267,8 +267,8 @@ object CorrelateCodeGenerator {
              |""".stripMargin
 
         }
-    } else if (joinType != SemiJoinType.INNER) {
-      throw new TableException(s"Unsupported SemiJoinType: $joinType for correlate join.")
+    } else if (joinType != JoinRelType.INNER) {
+      throw new TableException(s"Unsupported JoinRelType: $joinType for correlate join.")
     }
 
     val genOperator = OperatorCodeGenerator.generateOneInputStreamOperator[BaseRow, BaseRow](

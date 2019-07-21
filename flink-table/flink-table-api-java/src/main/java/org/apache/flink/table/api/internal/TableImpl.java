@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.table.api.AggregatedTable;
 import org.apache.flink.table.api.FlatAggregateTable;
 import org.apache.flink.table.api.GroupWindow;
@@ -27,6 +28,7 @@ import org.apache.flink.table.api.GroupedTable;
 import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.OverWindowedTable;
 import org.apache.flink.table.api.QueryConfig;
+import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
@@ -36,14 +38,15 @@ import org.apache.flink.table.api.WindowGroupedTable;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionParser;
-import org.apache.flink.table.expressions.LookupCallResolver;
+import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.expressions.resolver.LookupCallResolver;
 import org.apache.flink.table.functions.TemporalTableFunction;
 import org.apache.flink.table.functions.TemporalTableFunctionImpl;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
-import org.apache.flink.table.operations.OperationExpressionsUtils;
-import org.apache.flink.table.operations.OperationExpressionsUtils.CategorizedExpressions;
-import org.apache.flink.table.operations.OperationTreeBuilder;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
+import org.apache.flink.table.operations.utils.OperationExpressionsUtils.CategorizedExpressions;
+import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -415,7 +418,14 @@ public class TableImpl implements Table {
 
 	@Override
 	public void insertInto(QueryConfig conf, String tablePath, String... tablePathContinued) {
-		tableEnvironment.insertInto(this, conf, tablePath, tablePathContinued);
+		if (conf instanceof StreamQueryConfig) {
+			StreamQueryConfig streamQueryConfig = (StreamQueryConfig) conf;
+			tableEnvironment.getConfig().setIdleStateRetentionTime(
+				Time.milliseconds(streamQueryConfig.getMinIdleStateRetentionTime()),
+				Time.milliseconds(streamQueryConfig.getMaxIdleStateRetentionTime())
+			);
+		}
+		tableEnvironment.insertInto(this, tablePath, tablePathContinued);
 	}
 
 	@Override
@@ -762,6 +772,16 @@ public class TableImpl implements Table {
 		}
 
 		@Override
+		public AggregatedTable aggregate(String aggregateFunction) {
+			return aggregate(ExpressionParser.parseExpression(aggregateFunction));
+		}
+
+		@Override
+		public AggregatedTable aggregate(Expression aggregateFunction) {
+			return new WindowAggregatedTableImpl(table, groupKeys, aggregateFunction, window);
+		}
+
+		@Override
 		public FlatAggregateTable flatAggregate(String tableAggregateFunction) {
 			return flatAggregate(ExpressionParser.parseExpression(tableAggregateFunction));
 		}
@@ -769,6 +789,62 @@ public class TableImpl implements Table {
 		@Override
 		public FlatAggregateTable flatAggregate(Expression tableAggregateFunction) {
 			return new WindowFlatAggregateTableImpl(table, groupKeys, tableAggregateFunction, window);
+		}
+	}
+
+	private static final class WindowAggregatedTableImpl implements AggregatedTable {
+		private final TableImpl table;
+		private final List<Expression> groupKeys;
+		private final Expression aggregateFunction;
+		private final GroupWindow window;
+
+		private WindowAggregatedTableImpl(
+			TableImpl table,
+			List<Expression> groupKeys,
+			Expression aggregateFunction,
+			GroupWindow window) {
+			this.table = table;
+			this.groupKeys = groupKeys;
+			this.aggregateFunction = aggregateFunction;
+			this.window = window;
+		}
+
+		@Override
+		public Table select(String fields) {
+			return select(ExpressionParser.parseExpressionList(fields).toArray(new Expression[0]));
+		}
+
+		@Override
+		public Table select(Expression... fields) {
+			List<Expression> expressionsWithResolvedCalls = Arrays.stream(fields)
+				.map(f -> f.accept(table.lookupResolver))
+				.collect(Collectors.toList());
+			CategorizedExpressions extracted = OperationExpressionsUtils.extractAggregationsAndProperties(
+				expressionsWithResolvedCalls
+			);
+
+			if (!extracted.getAggregations().isEmpty()) {
+				throw new ValidationException("Aggregate functions cannot be used in the select right " +
+					"after the aggregate.");
+			}
+
+			if (extracted.getProjections().stream()
+				.anyMatch(p -> (p instanceof UnresolvedReferenceExpression)
+					&& "*".equals(((UnresolvedReferenceExpression) p).getName()))) {
+				throw new ValidationException("Can not use * for window aggregate!");
+			}
+
+			return table.createTable(
+				table.operationTreeBuilder.project(
+					extracted.getProjections(),
+					table.operationTreeBuilder.windowAggregate(
+						groupKeys,
+						window,
+						extracted.getWindowProperties(),
+						aggregateFunction,
+						table.operationTree
+					)
+				));
 		}
 	}
 
@@ -804,24 +880,30 @@ public class TableImpl implements Table {
 				expressionsWithResolvedCalls
 			);
 
-		if (!extracted.getAggregations().isEmpty()) {
-			throw new ValidationException("Aggregate functions cannot be used in the select right " +
-				"after the flatAggregate.");
-		}
+			if (!extracted.getAggregations().isEmpty()) {
+				throw new ValidationException("Aggregate functions cannot be used in the select right " +
+					"after the flatAggregate.");
+			}
 
-		return table.createTable(
-			table.operationTreeBuilder.project(
-				extracted.getProjections(),
-				table.operationTreeBuilder.windowTableAggregate(
-					groupKeys,
-					window,
-					extracted.getWindowProperties(),
-					tableAggFunction,
-					table.operationTree
-				),
-				// required for proper resolution of the time attribute in multi-windows
-				true
-			));
+			if (extracted.getProjections().stream()
+				.anyMatch(p -> (p instanceof UnresolvedReferenceExpression)
+					&& "*".equals(((UnresolvedReferenceExpression) p).getName()))) {
+				throw new ValidationException("Can not use * for window aggregate!");
+			}
+
+			return table.createTable(
+				table.operationTreeBuilder.project(
+					extracted.getProjections(),
+					table.operationTreeBuilder.windowTableAggregate(
+						groupKeys,
+						window,
+						extracted.getWindowProperties(),
+						tableAggFunction,
+						table.operationTree
+					),
+					// required for proper resolution of the time attribute in multi-windows
+					true
+				));
 		}
 	}
 

@@ -27,11 +27,9 @@ import org.apache.flink.table.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.util.TableTestUtil
 import org.apache.flink.types.Row
 import org.apache.flink.util.StringUtils
-
 import org.apache.calcite.avatica.util.DateTimeUtils
-
 import java.sql.{Date, Time, Timestamp}
-import java.util.TimeZone
+import java.util.{Calendar, TimeZone}
 
 import scala.collection.JavaConverters._
 
@@ -57,7 +55,7 @@ object TestSinkUtil {
   def fieldToString(field: Any, tz: TimeZone): String = {
     field match {
       case _: Date | _: Time | _: Timestamp =>
-        DateTimeUtils.unixDateTimeToString(field, tz)
+        unixDateTimeToString(field, tz)
       case _ => StringUtils.arrayAwareToString(field)
     }
   }
@@ -89,4 +87,33 @@ object TestSinkUtil {
     return "Pojo1{" + "ts=" + fieldToString(pojo.ts, tz) + ", msg='" + pojo.msg + "\'}"
   }
 
+  def unixDateTimeToString(value: Any, tz: TimeZone): String = {
+    val offset =
+      if (tz.useDaylightTime()) {
+        tz.getOffset(value.asInstanceOf[java.util.Date].getTime)
+      } else {
+        tz.getOffset(Calendar.ZONE_OFFSET)
+      }
+    val time = value match {
+      case _: java.util.Date =>
+        val origin = value.asInstanceOf[java.util.Date].getTime
+        origin + DateTimeUtils.UTC_ZONE.getOffset(origin)
+    }
+
+    value match {
+      case _: Date =>
+        DateTimeUtils.unixDateToString(
+          (time / DateTimeUtils.MILLIS_PER_DAY).asInstanceOf[Int] + offset)
+      case _: Time =>
+        DateTimeUtils.unixTimeToString(
+          ((time % DateTimeUtils.MILLIS_PER_DAY).asInstanceOf[Int] + offset)
+            % DateTimeUtils.MILLIS_PER_DAY.asInstanceOf[Int]
+        )
+      case _: Timestamp =>
+        DateTimeUtils.unixTimestampToString(time + offset, 3)
+      case _ =>
+        value.toString
+    }
+
+  }
 }

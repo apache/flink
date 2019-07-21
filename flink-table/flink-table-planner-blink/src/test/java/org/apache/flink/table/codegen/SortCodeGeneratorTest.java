@@ -47,6 +47,7 @@ import org.apache.flink.table.generated.RecordComparator;
 import org.apache.flink.table.plan.util.SortUtil;
 import org.apache.flink.table.runtime.sort.BinaryInMemorySortBuffer;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.InternalSerializers;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
@@ -181,7 +182,8 @@ public class SortCodeGeneratorTest {
 			if (value == null) {
 				writer.setNullAt(j);
 			} else {
-				BinaryWriter.write(writer, j, value, types[fields[j]]);
+				BinaryWriter.write(writer, j, value, types[fields[j]],
+						InternalSerializers.create(types[fields[j]], new ExecutionConfig()));
 			}
 		}
 

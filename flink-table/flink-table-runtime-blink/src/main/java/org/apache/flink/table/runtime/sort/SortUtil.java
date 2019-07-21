@@ -76,7 +76,7 @@ public class SortUtil {
 		final int limit = offset + numBytes;
 		final int end = value.getSizeInBytes();
 		for (int i = 0; i < end && offset < limit; i++) {
-			target.put(offset++, value.getByte(i));
+			target.put(offset++, value.byteAt(i));
 		}
 
 		for (int i = offset; i < limit; i++) {

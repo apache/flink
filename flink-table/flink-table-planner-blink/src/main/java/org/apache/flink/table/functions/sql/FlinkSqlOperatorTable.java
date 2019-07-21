@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.functions.sql;
 
+import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.calcite.type.FlinkReturnTypes;
 import org.apache.flink.table.calcite.type.NumericExceptFirstOperandChecker;
 import org.apache.flink.table.calcite.type.RepeatFamilyOperandTypeChecker;
@@ -28,18 +29,23 @@ import org.apache.calcite.sql.SqlBinaryOperator;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlGroupedWindowFunction;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.InferTypes;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
+import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeTransforms;
 import org.apache.calcite.sql.util.ReflectiveSqlOperatorTable;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
+import org.apache.calcite.sql.validate.SqlNameMatcher;
+import org.apache.calcite.sql.validate.SqlNameMatchers;
 
 import java.util.Arrays;
 import java.util.List;
@@ -72,6 +78,30 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			instance.init();
 		}
 		return instance;
+	}
+
+	private static final SqlReturnTypeInference ROWTIME_TYPE_INFERENCE = createTimeIndicatorReturnType(true);
+	private static final SqlReturnTypeInference PROCTIME_TYPE_INFERENCE = createTimeIndicatorReturnType(false);
+
+	private static SqlReturnTypeInference createTimeIndicatorReturnType(boolean isRowTime) {
+		return ReturnTypes.explicit(factory -> {
+			if (isRowTime) {
+				return ((FlinkTypeFactory) factory).createRowtimeIndicatorType(false);
+			} else {
+				return ((FlinkTypeFactory) factory).createProctimeIndicatorType(false);
+			}
+		});
+	}
+
+	@Override
+	public void lookupOperatorOverloads(
+			SqlIdentifier opName,
+			SqlFunctionCategory category,
+			SqlSyntax syntax,
+			List<SqlOperator> operatorList,
+			SqlNameMatcher nameMatcher) {
+		// set caseSensitive=false to make sure the behavior is same with before.
+		super.lookupOperatorOverloads(opName, category, syntax, operatorList, SqlNameMatchers.withCaseSensitive(false));
 	}
 
 	// -----------------------------------------------------------------------------
@@ -121,7 +151,44 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	/**
 	 * Function used to access a processing time attribute.
 	 */
-	public static final SqlFunction PROCTIME = new ProctimeSqlFunction();
+	public static final SqlFunction PROCTIME =
+		new CalciteSqlFunction(
+			"PROCTIME",
+			SqlKind.OTHER_FUNCTION,
+			PROCTIME_TYPE_INFERENCE,
+			null,
+			OperandTypes.NILADIC,
+			SqlFunctionCategory.TIMEDATE,
+			false
+		);
+
+	/**
+	 * Function used to access a event time attribute from MATCH_RECOGNIZE.
+	 */
+	public static final SqlFunction MATCH_ROWTIME =
+		new CalciteSqlFunction(
+			"MATCH_ROWTIME",
+			SqlKind.OTHER_FUNCTION,
+			ROWTIME_TYPE_INFERENCE,
+			null,
+			OperandTypes.NILADIC,
+			SqlFunctionCategory.MATCH_RECOGNIZE,
+			true
+		);
+
+	/**
+	 * Function used to access a processing time attribute from MATCH_RECOGNIZE.
+	 */
+	public static final SqlFunction MATCH_PROCTIME =
+		new CalciteSqlFunction(
+			"MATCH_PROCTIME",
+			SqlKind.OTHER_FUNCTION,
+			PROCTIME_TYPE_INFERENCE,
+			null,
+			OperandTypes.NILADIC,
+			SqlFunctionCategory.MATCH_RECOGNIZE,
+			false
+		);
 
 	/**
 	 * Function used to materialize a processing time attribute.
@@ -1079,7 +1146,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction CURRENT_TIMESTAMP = SqlStdOperatorTable.CURRENT_TIMESTAMP;
 	public static final SqlFunction CURRENT_DATE = SqlStdOperatorTable.CURRENT_DATE;
 	public static final SqlFunction CAST = SqlStdOperatorTable.CAST;
-	public static final SqlFunction QUARTER = SqlStdOperatorTable.QUARTER;
 	public static final SqlOperator SCALAR_QUERY = SqlStdOperatorTable.SCALAR_QUERY;
 	public static final SqlOperator EXISTS = SqlStdOperatorTable.EXISTS;
 	public static final SqlFunction SIN = SqlStdOperatorTable.SIN;
@@ -1096,6 +1162,19 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction PI = SqlStdOperatorTable.PI;
 	public static final SqlFunction RAND = SqlStdOperatorTable.RAND;
 	public static final SqlFunction RAND_INTEGER = SqlStdOperatorTable.RAND_INTEGER;
+	public static final SqlFunction TRUNCATE = SqlStdOperatorTable.TRUNCATE;
+
+	// TIME FUNCTIONS
+	public static final SqlFunction YEAR = SqlStdOperatorTable.YEAR;
+	public static final SqlFunction QUARTER = SqlStdOperatorTable.QUARTER;
+	public static final SqlFunction MONTH = SqlStdOperatorTable.MONTH;
+	public static final SqlFunction WEEK = SqlStdOperatorTable.WEEK;
+	public static final SqlFunction HOUR = SqlStdOperatorTable.HOUR;
+	public static final SqlFunction MINUTE = SqlStdOperatorTable.MINUTE;
+	public static final SqlFunction SECOND = SqlStdOperatorTable.SECOND;
+	public static final SqlFunction DAYOFYEAR = SqlStdOperatorTable.DAYOFYEAR;
+	public static final SqlFunction DAYOFMONTH = SqlStdOperatorTable.DAYOFMONTH;
+	public static final SqlFunction DAYOFWEEK = SqlStdOperatorTable.DAYOFWEEK;
 	public static final SqlFunction TIMESTAMP_ADD = SqlStdOperatorTable.TIMESTAMP_ADD;
 	public static final SqlFunction TIMESTAMP_DIFF = SqlStdOperatorTable.TIMESTAMP_DIFF;
 

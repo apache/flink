@@ -31,7 +31,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -52,7 +51,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
@@ -412,11 +410,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	public CompletableFuture<Void> scheduleForExecution() {
 		final ExecutionGraph executionGraph = getVertex().getExecutionGraph();
-		final SlotProvider resourceProvider = executionGraph.getSlotProvider();
-		final boolean allowQueued = executionGraph.isQueuedSchedulingAllowed();
+		final SlotProviderStrategy resourceProvider = executionGraph.getSlotProviderStrategy();
 		return scheduleForExecution(
 			resourceProvider,
-			allowQueued,
 			LocationPreferenceConstraint.ANY,
 			Collections.emptySet());
 	}
@@ -426,34 +422,27 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 *       to be scheduled immediately and no resource is available. If the task is accepted by the schedule, any
 	 *       error sets the vertex state to failed and triggers the recovery logic.
 	 *
-	 * @param slotProvider The slot provider to use to allocate slot for this execution attempt.
-	 * @param queued Flag to indicate whether the scheduler may queue this task if it cannot
-	 *               immediately deploy it.
+	 * @param slotProviderStrategy The slot provider strategy to use to allocate slot for this execution attempt.
 	 * @param locationPreferenceConstraint constraint for the location preferences
 	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
 	 *                                                 Can be empty if the allocation ids are not required for scheduling.
 	 * @return Future which is completed once the Execution has been deployed
 	 */
 	public CompletableFuture<Void> scheduleForExecution(
-			SlotProvider slotProvider,
-			boolean queued,
+			SlotProviderStrategy slotProviderStrategy,
 			LocationPreferenceConstraint locationPreferenceConstraint,
 			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 
 		assertRunningInJobMasterMainThread();
-		final ExecutionGraph executionGraph = vertex.getExecutionGraph();
-		final Time allocationTimeout = executionGraph.getAllocationTimeout();
 		try {
 			final CompletableFuture<Execution> allocationFuture = allocateResourcesForExecution(
-				slotProvider,
-				queued,
+				slotProviderStrategy,
 				locationPreferenceConstraint,
-				allPreviousExecutionGraphAllocationIds,
-				allocationTimeout);
+				allPreviousExecutionGraphAllocationIds);
 
 			final CompletableFuture<Void> deploymentFuture;
 
-			if (allocationFuture.isDone() || queued) {
+			if (allocationFuture.isDone() || slotProviderStrategy.isQueuedSchedulingAllowed()) {
 				deploymentFuture = allocationFuture.thenRun(ThrowingRunnable.unchecked(this::deploy));
 			} else {
 				deploymentFuture = FutureUtils.completedExceptionally(
@@ -468,7 +457,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 						if (stripCompletionException instanceof TimeoutException) {
 							schedulingFailureCause = new NoResourceAvailableException(
-								"Could not allocate enough slots within timeout of " + allocationTimeout + " to run the job. " +
+								"Could not allocate enough slots to run the job. " +
 									"Please make sure that the cluster has enough resources.");
 						} else {
 							schedulingFailureCause = stripCompletionException;
@@ -492,50 +481,40 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 *  <li>registers produced partitions with the {@link org.apache.flink.runtime.shuffle.ShuffleMaster}</li>
 	 * </ol>
 	 *
-	 * @param slotProvider to obtain a new slot from
-	 * @param queued if the allocation can be queued
+	 * @param slotProviderStrategy to obtain a new slot from
 	 * @param locationPreferenceConstraint constraint for the location preferences
 	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
 	 *                                                 Can be empty if the allocation ids are not required for scheduling.
-	 * @param allocationTimeout rpcTimeout for allocating a new slot
 	 * @return Future which is completed with this execution once the slot has been assigned
 	 * 			or with an exception if an error occurred.
 	 */
 	CompletableFuture<Execution> allocateResourcesForExecution(
-			SlotProvider slotProvider,
-			boolean queued,
+			SlotProviderStrategy slotProviderStrategy,
 			LocationPreferenceConstraint locationPreferenceConstraint,
-			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds,
-			Time allocationTimeout) {
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 		return allocateAndAssignSlotForExecution(
-			slotProvider,
-			queued,
+			slotProviderStrategy,
 			locationPreferenceConstraint,
-			allPreviousExecutionGraphAllocationIds,
-			allocationTimeout)
+			allPreviousExecutionGraphAllocationIds)
 			.thenCompose(slot -> registerProducedPartitions(slot.getTaskManagerLocation()));
 	}
 
 	/**
 	 * Allocates and assigns a slot obtained from the slot provider to the execution.
 	 *
-	 * @param slotProvider to obtain a new slot from
-	 * @param queued if the allocation can be queued
+	 * @param slotProviderStrategy to obtain a new slot from
 	 * @param locationPreferenceConstraint constraint for the location preferences
 	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
 	 *                                                 Can be empty if the allocation ids are not required for scheduling.
-	 * @param allocationTimeout rpcTimeout for allocating a new slot
 	 * @return Future which is completed with the allocated slot once it has been assigned
 	 * 			or with an exception if an error occurred.
 	 */
 	private CompletableFuture<LogicalSlot> allocateAndAssignSlotForExecution(
-			SlotProvider slotProvider,
-			boolean queued,
+			SlotProviderStrategy slotProviderStrategy,
 			LocationPreferenceConstraint locationPreferenceConstraint,
-			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds,
-			Time allocationTimeout) {
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 
-		checkNotNull(slotProvider);
+		checkNotNull(slotProviderStrategy);
 
 		assertRunningInJobMasterMainThread();
 
@@ -573,22 +552,20 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final CompletableFuture<LogicalSlot> logicalSlotFuture =
 				preferredLocationsFuture.thenCompose(
 					(Collection<TaskManagerLocation> preferredLocations) ->
-						slotProvider.allocateSlot(
+						slotProviderStrategy.allocateSlot(
 							slotRequestId,
 							toSchedule,
 							new SlotProfile(
-								ResourceProfile.UNKNOWN,
+								vertex.getResourceProfile(),
 								preferredLocations,
 								previousAllocationIDs,
-								allPreviousExecutionGraphAllocationIds),
-							queued,
-							allocationTimeout));
+								allPreviousExecutionGraphAllocationIds)));
 
 			// register call back to cancel slot request in case that the execution gets canceled
 			releaseFuture.whenComplete(
 				(Object ignored, Throwable throwable) -> {
 					if (logicalSlotFuture.cancel(false)) {
-						slotProvider.cancelSlotRequest(
+						slotProviderStrategy.cancelSlotRequest(
 							slotRequestId,
 							slotSharingGroupId,
 							new FlinkException("Execution " + this + " was released."));
@@ -859,8 +836,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		try {
 			final ExecutionGraph executionGraph = consumerVertex.getExecutionGraph();
 			consumerVertex.scheduleForExecution(
-				executionGraph.getSlotProvider(),
-				executionGraph.isQueuedSchedulingAllowed(),
+				executionGraph.getSlotProviderStrategy(),
 				LocationPreferenceConstraint.ANY, // there must be at least one known location
 				Collections.emptySet());
 		} catch (Throwable t) {
@@ -1335,7 +1311,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 	}
 
-	private void stopTrackingAndReleasePartitions() {
+	void stopTrackingAndReleasePartitions() {
 		LOG.info("Discarding the results produced by task execution {}.", attemptId);
 		if (producedPartitions != null && producedPartitions.size() > 0) {
 			final PartitionTracker partitionTracker = getVertex().getExecutionGraph().getPartitionTracker();

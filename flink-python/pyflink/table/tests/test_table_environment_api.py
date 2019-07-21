@@ -22,12 +22,13 @@ from py4j.compat import unicode
 
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import StreamQueryConfig
-from pyflink.table.table_environment import BatchTableEnvironment, StreamTableEnvironment
+from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment
 from pyflink.table.table_config import TableConfig
-from pyflink.table.types import DataTypes, RowType
+from pyflink.table.table_environment import BatchTableEnvironment
+from pyflink.table.types import RowType
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase
+from pyflink.util.exceptions import TableException
 
 
 class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
@@ -54,7 +55,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
             source_sink_utils.TestAppendSink(field_names, field_types))
 
         t_env.from_elements([(1, "Hi", "Hello")], ["a", "b", "c"]).insert_into("Sinks")
-        self.env.execute()
+        self.t_env.execute("test")
         actual = source_sink_utils.results()
 
         expected = ['1,Hi,Hello']
@@ -104,6 +105,38 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
         assert isinstance(actual, str) or isinstance(actual, unicode)
 
+    def test_explain_with_extended(self):
+        schema = RowType() \
+            .add('a', DataTypes.INT()) \
+            .add('b', DataTypes.STRING()) \
+            .add('c', DataTypes.STRING())
+        t_env = self.t_env
+        t = t_env.from_elements([], schema)
+        result = t.select("1 + a, b, c")
+
+        actual = t_env.explain(result, True)
+
+        assert isinstance(actual, str) or isinstance(actual, unicode)
+
+    def test_explain_with_multi_sinks(self):
+        t_env = self.t_env
+        source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
+        t_env.register_table_sink(
+            "sink1",
+            source_sink_utils.TestAppendSink(field_names, field_types))
+        t_env.register_table_sink(
+            "sink2",
+            source_sink_utils.TestAppendSink(field_names, field_types))
+
+        t_env.sql_update("insert into sink1 select * from %s where a > 100" % source)
+        t_env.sql_update("insert into sink2 select * from %s where a < 100" % source)
+
+        actual = t_env.explain(extended=True)
+
+        assert isinstance(actual, str) or isinstance(actual, unicode)
+
     def test_sql_query(self):
         t_env = self.t_env
         source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
@@ -115,7 +148,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
         result = t_env.sql_query("select a + 1, b, c from %s" % source)
         result.insert_into("sinks")
-        self.env.execute()
+        self.t_env.execute("test")
         actual = source_sink_utils.results()
 
         expected = ['2,Hi,Hello', '3,Hello,Hello']
@@ -131,47 +164,43 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
             source_sink_utils.TestAppendSink(field_names, field_types))
 
         t_env.sql_update("insert into sinks select * from %s" % source)
-        self.env.execute("test_sql_job")
+        self.t_env.execute("test_sql_job")
 
         actual = source_sink_utils.results()
         expected = ['1,Hi,Hello', '2,Hello,Hello']
         self.assert_equals(actual, expected)
 
-    def test_sql_update_with_query_config(self):
-        t_env = self.t_env
-        source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
-        field_names = ["a", "b", "c"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "sinks",
-            source_sink_utils.TestAppendSink(field_names, field_types))
-        query_config = StreamQueryConfig()
-        query_config.with_idle_state_retention_time(
+    def test_table_config(self):
+
+        table_config = TableConfig.get_default()
+        table_config.set_idle_state_retention_time(
             datetime.timedelta(days=1), datetime.timedelta(days=2))
 
-        t_env.sql_update("insert into sinks select * from %s" % source, query_config)
-        self.env.execute("test_sql_job")
+        self.assertEqual(2 * 24 * 3600 * 1000, table_config.get_max_idle_state_retention_time())
+        self.assertEqual(24 * 3600 * 1000, table_config.get_min_idle_state_retention_time())
 
-        actual = source_sink_utils.results()
-        expected = ['1,Hi,Hello', '2,Hello,Hello']
-        self.assert_equals(actual, expected)
-
-    def test_query_config(self):
-        query_config = StreamQueryConfig()
-
-        query_config.with_idle_state_retention_time(
-            datetime.timedelta(days=1), datetime.timedelta(days=2))
-
-        self.assertEqual(2 * 24 * 3600 * 1000, query_config.get_max_idle_state_retention_time())
-        self.assertEqual(24 * 3600 * 1000, query_config.get_min_idle_state_retention_time())
+        table_config.set_decimal_context(20, "UNNECESSARY")
+        self.assertEqual((20, "UNNECESSARY"), table_config.get_decimal_context())
+        table_config.set_decimal_context(20, "HALF_EVEN")
+        self.assertEqual((20, "HALF_EVEN"), table_config.get_decimal_context())
+        table_config.set_decimal_context(20, "HALF_DOWN")
+        self.assertEqual((20, "HALF_DOWN"), table_config.get_decimal_context())
+        table_config.set_decimal_context(20, "HALF_UP")
+        self.assertEqual((20, "HALF_UP"), table_config.get_decimal_context())
+        table_config.set_decimal_context(20, "FLOOR")
+        self.assertEqual((20, "FLOOR"), table_config.get_decimal_context())
+        table_config.set_decimal_context(20, "CEILING")
+        self.assertEqual((20, "CEILING"), table_config.get_decimal_context())
+        table_config.set_decimal_context(20, "DOWN")
+        self.assertEqual((20, "DOWN"), table_config.get_decimal_context())
+        table_config.set_decimal_context(20, "UP")
+        self.assertEqual((20, "UP"), table_config.get_decimal_context())
 
     def test_create_table_environment(self):
         table_config = TableConfig()
         table_config.set_max_generated_code_length(32000)
         table_config.set_null_check(False)
-        table_config.set_timezone("Asia/Shanghai")
-        table_config.set_built_in_catalog_name("test_catalog")
-        table_config.set_built_in_database_name("test_database")
+        table_config.set_local_timezone("Asia/Shanghai")
 
         env = StreamExecutionEnvironment.get_execution_environment()
         t_env = StreamTableEnvironment.create(env, table_config)
@@ -180,9 +209,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
         self.assertFalse(readed_table_config.get_null_check())
         self.assertEqual(readed_table_config.get_max_generated_code_length(), 32000)
-        self.assertEqual(readed_table_config.get_timezone(), "Asia/Shanghai")
-        self.assertEqual(table_config.get_built_in_catalog_name(), "test_catalog")
-        self.assertEqual(table_config.get_built_in_database_name(), "test_database")
+        self.assertEqual(readed_table_config.get_local_timezone(), "Asia/Shanghai")
 
 
 class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
@@ -202,28 +229,53 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
 
         self.assertIsInstance(actual, (str, unicode))
 
+    def test_explain_with_extended(self):
+        schema = RowType() \
+            .add('a', DataTypes.INT()) \
+            .add('b', DataTypes.STRING()) \
+            .add('c', DataTypes.STRING())
+        t_env = self.t_env
+        t = t_env.from_elements([], schema)
+        result = t.select("1 + a, b, c")
+
+        actual = t_env.explain(result, True)
+
+        assert isinstance(actual, str) or isinstance(actual, unicode)
+
+    def test_explain_with_multi_sinks(self):
+        t_env = self.t_env
+        source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
+        t_env.register_table_sink(
+            "sink1",
+            CsvTableSink(field_names, field_types, "path1"))
+        t_env.register_table_sink(
+            "sink2",
+            CsvTableSink(field_names, field_types, "path2"))
+
+        t_env.sql_update("insert into sink1 select * from %s where a > 100" % source)
+        t_env.sql_update("insert into sink2 select * from %s where a < 100" % source)
+
+        with self.assertRaises(TableException):
+            t_env.explain(extended=True)
+
     def test_table_config(self):
 
         table_config = TableConfig()
-        table_config.set_timezone("Asia/Shanghai")
+        table_config.set_local_timezone("Asia/Shanghai")
         table_config.set_max_generated_code_length(64000)
         table_config.set_null_check(True)
-        table_config.set_built_in_catalog_name("test_catalog")
-        table_config.set_built_in_database_name("test_database")
 
         self.assertTrue(table_config.get_null_check())
         self.assertEqual(table_config.get_max_generated_code_length(), 64000)
-        self.assertEqual(table_config.get_timezone(), "Asia/Shanghai")
-        self.assertEqual(table_config.get_built_in_catalog_name(), "test_catalog")
-        self.assertEqual(table_config.get_built_in_database_name(), "test_database")
+        self.assertEqual(table_config.get_local_timezone(), "Asia/Shanghai")
 
     def test_create_table_environment(self):
         table_config = TableConfig()
         table_config.set_max_generated_code_length(32000)
         table_config.set_null_check(False)
-        table_config.set_timezone("Asia/Shanghai")
-        table_config.set_built_in_catalog_name("test_catalog")
-        table_config.set_built_in_database_name("test_database")
+        table_config.set_local_timezone("Asia/Shanghai")
 
         env = ExecutionEnvironment.get_execution_environment()
         t_env = BatchTableEnvironment.create(env, table_config)
@@ -232,6 +284,4 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
 
         self.assertFalse(readed_table_config.get_null_check())
         self.assertEqual(readed_table_config.get_max_generated_code_length(), 32000)
-        self.assertEqual(readed_table_config.get_timezone(), "Asia/Shanghai")
-        self.assertEqual(readed_table_config.get_built_in_catalog_name(), "test_catalog")
-        self.assertEqual(readed_table_config.get_built_in_database_name(), "test_database")
+        self.assertEqual(readed_table_config.get_local_timezone(), "Asia/Shanghai")

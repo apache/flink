@@ -27,7 +27,7 @@ import java.io.IOException;
 
 /**
  * This class represents a sequence of buffers and events which are blocked by
- * {@link CheckpointBarrierHandler}. The sequence of buffers and events can be
+ * {@link CheckpointedInputGate}. The sequence of buffers and events can be
  * read back using the method {@link #getNext()}.
  */
 @Internal
