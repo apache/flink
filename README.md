@@ -68,7 +68,7 @@ counts.writeAsCsv(outputPath)
 Prerequisites for building Flink:
 
 * Unix-like environment (we use Linux, Mac OS X, Cygwin)
-* git
+* Git
 * Maven (we recommend version 3.2.5 and require at least 3.1.1)
 * Java 8 (Java 9 and 10 are not yet supported)
 
