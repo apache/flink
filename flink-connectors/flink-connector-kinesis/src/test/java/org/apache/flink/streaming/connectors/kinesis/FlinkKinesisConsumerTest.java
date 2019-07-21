@@ -53,6 +53,7 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGen
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableFlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
+import org.apache.flink.streaming.connectors.kinesis.util.RecordEmitter;
 import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.CollectingSourceContext;
@@ -983,8 +984,14 @@ public class FlinkKinesisConsumerTest {
 		final long record2 = record1 + (watermarkSyncInterval * 3) + 1;
 		shard1.put(Long.toString(record2));
 
-		// TODO: check for record received instead
-		Thread.sleep(100);
+		// wait for the record to be buffered in the emitter
+		final RecordEmitter<?> emitter = org.powermock.reflect.Whitebox.getInternalState(fetcher, "recordEmitter");
+		RecordEmitter.RecordQueue emitterQueue = emitter.getQueue(0);
+		Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
+		while (deadline.hasTimeLeft() && emitterQueue.getSize() < 1) {
+			Thread.sleep(10);
+		}
+		assertEquals("first record received", 1, emitterQueue.getSize());
 
 		// Advance the watermark. Since the new record is past global watermark + threshold,
 		// it won't be emitted and the watermark does not advance

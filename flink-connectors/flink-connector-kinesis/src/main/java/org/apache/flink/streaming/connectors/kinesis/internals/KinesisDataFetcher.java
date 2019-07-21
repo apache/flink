@@ -288,11 +288,6 @@ public class KinesisDataFetcher<T> {
 					}
 
 					@Override
-					public int getQueueId() {
-						return producerIndex;
-					}
-
-					@Override
 					public int getSize() {
 						return 0;
 					}
