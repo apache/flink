@@ -27,13 +27,13 @@ under the License.
 {:toc}
 
 
-This connector provides sinks that writes data into a [Apache Cassandra](https://cassandra.apache.org/) database.
+此连接器提供将数据写入 [Apache Cassandra](https://cassandra.apache.org/) 数据库的 sinks（接收器）。
 
 <!--
-  TODO: Perhaps worth mentioning current DataStax Java Driver version to match Cassandra version on user side.
+  TODO：也许值得一提的是当前的DataStax Java 驱动程序版本与用户端的 Cassandra 版本相匹配。
 -->
 
-To use this connector, add the following dependency to your project:
+要使用此连接器，请将以下依赖项添加到项目中：
 
 {% highlight xml %}
 <dependency>
@@ -43,77 +43,67 @@ To use this connector, add the following dependency to your project:
 </dependency>
 {% endhighlight %}
 
-Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{ site.baseurl}}/dev/project-configuration.html).
+请注意，流连接器当前不是 Flink 二进制发布包的一部分。了解如何链接它们以进行集群执行[此处]({{site.baseurl}}/zh/dev/project-configuration.html)。
 
-## Installing Apache Cassandra
-There are multiple ways to bring up a Cassandra instance on local machine:
+## 安装 Apache Cassandra
+有多种方法可以在本地计算机上启动Cassandra实例：
 
-1. Follow the instructions from [Cassandra Getting Started page](http://cassandra.apache.org/doc/latest/getting_started/index.html).
-2. Launch a container running Cassandra from [Official Docker Repository](https://hub.docker.com/_/cassandra/)
+1. 按照[Cassandra入门页面](http://cassandra.apache.org/doc/latest/getting_started/index.html)中的说明进行操作。
+2. 从[Official Docker Repository](https://hub.docker.com/_/cassandra/)启动运行 Cassandra 的容器
 
 ## Cassandra Sinks
 
-### Configurations
+### 配置
 
-Flink's Cassandra sink are created by using the static CassandraSink.addSink(DataStream<IN> input) method.
-This method returns a CassandraSinkBuilder, which offers methods to further configure the sink, and finally `build()` the sink instance.
+Flink的 Cassandra 接收器是使用静态 `CassandraSink.addSink(DataStream<IN> input)` 方法创建的。这个方法返回一个 `CassandraSinkBuilder`，它提供了进一步配置接收器的方法，最后通过 `build（）` 创建接收器实例。
 
-The following configuration methods can be used:
+可以使用以下配置方法：
 
 1. _setQuery(String query)_
-    * Sets the upsert query that is executed for every record the sink receives.
-    * The query is internally treated as CQL statement.
-    * __DO__ set the upsert query for processing __Tuple__ data type.
-    * __DO NOT__ set the query for processing __POJO__ data types.
+    * 设置为接收器接收的每个记录执行的 upsert 查询。
+    * 查询在内部被视为 CQL 语句。
+    * __DO__ 设置 upsert 查询以处理 __Tuple__ 数据类型。
+    * __DO NOT__ 设置查询以处理 __POJO__ 数据类型。
 2. _setClusterBuilder()_
-    * Sets the cluster builder that is used to configure the connection to cassandra with more sophisticated settings such as consistency level, retry policy and etc.
+    * 将用于配置创建更复杂的 cassandra cluster builder，例如一致性级别，重试策略等。
 3. _setHost(String host[, int port])_
-    * Simple version of setClusterBuilder() with host/port information to connect to Cassandra instances
+    * 简单版本的 setClusterBuilder()，包含连接到 Cassandra 实例的主机/端口信息
 4. _setMapperOptions(MapperOptions options)_
-    * Sets the mapper options that are used to configure the DataStax ObjectMapper.
-    * Only applies when processing __POJO__ data types.
+    * 设置用于配置 DataStax ObjectMapper 的映射器选项。
+    * 仅在处理 __POJO__ 数据类型时适用。
 5. _setMaxConcurrentRequests(int maxConcurrentRequests, Duration timeout)_
-    * Sets the maximum allowed number of concurrent requests with a timeout for acquiring permits to execute.
-    * Only applies when __enableWriteAheadLog()__ is not configured.
+    * 设置允许执行许可的超时的最大并发请求数。
+    * 仅在未配置 __enableWriteAheadLog()__ 时适用。
 6. _enableWriteAheadLog([CheckpointCommitter committer])_
-    * An __optional__ setting
-    * Allows exactly-once processing for non-deterministic algorithms.
+    * __optional__ 设置
+    * 允许对非确定性算法进行精确一次处理。
 7. _setFailureHandler([CassandraFailureHandler failureHandler])_
-    * An __optional__ setting
-    * Sets the custom failure handler.
+    * __optional__ 设置。
+    * 设置自定义失败处理程序。
 8. _build()_
-    * Finalizes the configuration and constructs the CassandraSink instance.
+    * 完成配置并构造 CassandraSink 实例。
 
-### Write-ahead Log
+### 预写日志
 
-A checkpoint committer stores additional information about completed checkpoints
-in some resource. This information is used to prevent a full replay of the last
-completed checkpoint in case of a failure.
-You can use a `CassandraCommitter` to store these in a separate table in cassandra.
-Note that this table will NOT be cleaned up by Flink.
+一个 checkpoint 提交者存储有关已完成 checkpoint 的附加信息在某些资源中。此信息用于防止在发生故障时从最后一次完整保存的 checkpoint 中重播恢复数据  。
+您可以使用 `CassandraCommitter` 将它们存储在 cassandra 的单独表中。请注意，Flink 不会清理此表。
 
-Flink can provide exactly-once guarantees if the query is idempotent (meaning it can be applied multiple
-times without changing the result) and checkpointing is enabled. In case of a failure the failed
-checkpoint will be replayed completely.
+如果查询是幂等的，Flink 启用了 checkpoint 情况下可以提供精确一次保证（意味着它可以应用多个时间而不更改结果）。如果失败则会从已完整保存的 checkpoint 中重播恢复数据。
 
-Furthermore, for non-deterministic programs the write-ahead log has to be enabled. For such a program
-the replayed checkpoint may be completely different than the previous attempt, which may leave the
-database in an inconsistent state since part of the first attempt may already be written.
-The write-ahead log guarantees that the replayed checkpoint is identical to the first attempt.
-Note that that enabling this feature will have an adverse impact on latency.
+此外，对于非确定性程序，必须启用预写日志。对于这样的计划重播的 checkpoint 可能与之前的尝试完全不同，后者可能会离开数据库处于不一致状态，因为可能已经编写了第一次尝试的部分内容。预写日志保证重放的 checkpoint 与第一次尝试相同。请注意，启用此功能会对延迟产生负面影响。
 
-<p style="border-radius: 5px; padding: 5px" class="bg-danger"><b>Note</b>: The write-ahead log functionality is currently experimental. In many cases it is sufficient to use the connector without enabling it. Please report problems to the development mailing list.</p>
+<p style="border-radius: 5px; padding: 5px" class="bg-danger"><b>注意</b>：预写日志功能目前是实验性的。在许多情况下，使用连接器而不启用它就足够了。请将问题报告给开发邮件列表。</p>
 
-### Checkpointing and Fault Tolerance
-With checkpointing enabled, Cassandra Sink guarantees at-least-once delivery of action requests to C* instance.
+### Checkpointing and 容错
+启用 Checkpointing 后，Cassandra Sink 保证至少一次向 C* 实例传递操作请求。
 
-More details on [checkpoints docs]({{ site.baseurl }}/dev/stream/state/checkpointing.html) and [fault tolerance guarantee docs]({{ site.baseurl }}/dev/connectors/guarantees.html)
+更多有关[checkpoints docs]({{site.baseurl}}/zh/dev/stream/state/checkpointing.html)和[容错保证文档]({{site.baseurl}}/zh/dev/connectors/guarantees.html)的详细信息。
 
-## Examples
+## 例子
 
-The Cassandra sinks currently support both Tuple and POJO data types, and Flink automatically detects which type of input is used. For general use case of those streaming data type, please refer to [Supported Data Types]({% link dev/types_serialization.zh.md %}#supported-data-types). We show two implementations based on [SocketWindowWordCount](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java), for Pojo and Tuple data types respectively.
+Cassandra 接收器当前支持 Tuple 和 POJO 数据类型，Flink 自动检测使用哪种类型的输入。有关那些流数据类型的一般用例，请参阅[支持的数据类型]({{ site.baseurl }}/dev/api_concepts.html)。我们展示了两个基于 [SocketWindowWordCount](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java) 的实现，分别用于 Pojo 和 Tuple 数据类型。
 
-In all these examples, we assumed the associated Keyspace `example` and Table `wordcount` have been created.
+在所有这些例子中，我们都是假设已经创建了相关的 Keyspace `example`和 Table `wordcount`。
 
 <div class="codetabs" markdown="1">
 <div data-lang="CQL" markdown="1">
@@ -130,9 +120,9 @@ CREATE TABLE IF NOT EXISTS example.wordcount (
 </div>
 
 ### Cassandra Sink Example for Streaming Tuple Data Type
-While storing the result with Java/Scala Tuple data type to a Cassandra sink, it is required to set a CQL upsert statement (via setQuery('stmt')) to persist each record back to the database. With the upsert query cached as `PreparedStatement`, each Tuple element is converted to parameters of the statement.
+在将结果通过 Java/Scala Tuple 数据类型存储到 Cassandra 接收器时，需要设置CQL upsert 语句（通过 setQuery('stmt')）将每条记录保存回数据库。将 upsert 查询缓存为 `PreparedStatement` 时，每个 Tuple 元素都将转换为语句的参数。
 
-For details about `PreparedStatement` and `BoundStatement`, please visit [DataStax Java Driver manual](https://docs.datastax.com/en/developer/java-driver/2.1/manual/statements/prepared/)
+有关 `PreparedStatement` 和 `BoundStatement` 的详细信息，请访问[DataStax Java 驱动程序手册](https://docs.datastax.com/en/developer/java-driver/2.1/manual/statements/prepared/)。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -201,10 +191,10 @@ result.print().setParallelism(1)
 </div>
 
 
-### Cassandra Sink Example for Streaming POJO Data Type
-An example of streaming a POJO data type and store the same POJO entity back to Cassandra. In addition, this POJO implementation needs to follow [DataStax Java Driver Manual](http://docs.datastax.com/en/developer/java-driver/2.1/manual/object_mapper/creating/) to annotate the class as each field of this entity is mapped to an associated column of the designated table using the DataStax Java Driver `com.datastax.driver.mapping.Mapper` class.
+### 用于流式传输 POJO 数据类型的 Cassandra Sink 示例
+流式传输 POJO 数据类型并将相同的 POJO 实体存储回 Cassandra 的示例。此外，此 POJO 实现需要遵循[DataStax Java 驱动程序手册](http://docs.datastax.com/en/developer/java-driver/2.1/manual/object_mapper/creating/)来注释每个字段的类使用 DataStax Java 驱动程序 `com.datastax.driver.mapping.Mapper` 类将此实体映射到指定表的关联列。
 
-The mapping of each table column can be defined through annotations placed on a field declaration in the Pojo class.  For details of the mapping, please refer to CQL documentation on [Definition of Mapped Classes](http://docs.datastax.com/en/developer/java-driver/3.1/manual/object_mapper/creating/) and [CQL Data types](https://docs.datastax.com/en/cql/3.1/cql/cql_reference/cql_data_types_c.html)
+可以通过放置在 Pojo 类中的字段声明上的注释来定义每个表列的映射。有关映射的详细信息，请参阅[映射类的定义](http://docs.datastax.com/en/developer/java-driver/3.1/manual/object_mapper/creating/)和[CQL Data types](https://docs.datastax.com/en/cql/3.1/cql/cql_reference/cql_data_types_c.html)。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
