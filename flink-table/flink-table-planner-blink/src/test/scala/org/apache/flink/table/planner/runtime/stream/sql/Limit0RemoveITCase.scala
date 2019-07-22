@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil, TestingAppendTableSink, TestingUpsertTableSink}
+import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestSinkUtil, TestingAppendTableSink, TestingRetractTableSink}
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -134,7 +134,7 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val sql = "SELECT * FROM MyTable1 WHERE EXISTS (SELECT a FROM MyTable2 LIMIT 0)"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingUpsertTableSink(Array(0)))
+    val sink = TestSinkUtil.configureSink(result, new TestingRetractTableSink())
     tEnv.registerTableSink("MySink", sink)
     tEnv.insertInto(result, "MySink")
     tEnv.execute("test")
@@ -155,13 +155,13 @@ class Limit0RemoveITCase extends StreamingTestBase() {
     val sql = "SELECT * FROM MyTable1 WHERE NOT EXISTS (SELECT a FROM MyTable2 LIMIT 0)"
 
     val result = tEnv.sqlQuery(sql)
-    val sink = TestSinkUtil.configureSink(result, new TestingUpsertTableSink(Array(0)))
+    val sink = TestSinkUtil.configureSink(result, new TestingRetractTableSink())
     tEnv.registerTableSink("MySink", sink)
     tEnv.insertInto(result, "MySink")
     tEnv.execute("test")
 
     val expected = Seq("1", "2", "3", "4", "5", "6")
-    assertEquals(expected, sink.getUpsertResults.sorted)
+    assertEquals(expected, sink.getRetractResults.sorted)
   }
 
   @Test
