@@ -203,6 +203,7 @@ class JoinTest extends TableTestBase {
 
 object JoinTest {
 
+  @SerialVersionUID(1L)
   object Merger extends ScalarFunction {
     def eval(f0: Int, f1: Int): Int = {
       f0 + f1

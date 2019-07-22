@@ -425,57 +425,67 @@ class TestInvalidTemporalTable private(
   override def isAsyncEnabled: Boolean = async
 }
 
+@SerialVersionUID(1L)
 class InvalidTableFunctionResultType extends TableFunction[String] {
   @varargs
   def eval(obj: AnyRef*): Unit = {
   }
 }
 
+@SerialVersionUID(1L)
 class InvalidTableFunctionEvalSignature1 extends TableFunction[BaseRow] {
   def eval(a: Integer, b: String, c: LocalDateTime): Unit = {
   }
 }
 
+@SerialVersionUID(1L)
 class ValidTableFunction extends TableFunction[BaseRow] {
   @varargs
   def eval(obj: AnyRef*): Unit = {
   }
 }
 
+@SerialVersionUID(1L)
 class ValidTableFunction2 extends TableFunction[Row] {
   def eval(a: Integer, b: String, c: LocalDateTime): Unit = {
   }
 }
 
+@SerialVersionUID(1L)
 class InvalidAsyncTableFunctionResultType extends AsyncTableFunction[Row] {
   @varargs
   def eval(obj: AnyRef*): Unit = {
   }
 }
 
+@SerialVersionUID(1L)
 class InvalidAsyncTableFunctionEvalSignature1 extends AsyncTableFunction[BaseRow] {
   def eval(a: Integer, b: BinaryString, c: LocalDateTime): Unit = {
   }
 }
 
+@SerialVersionUID(1L)
 class InvalidAsyncTableFunctionEvalSignature2 extends AsyncTableFunction[BaseRow] {
   def eval(resultFuture: CompletableFuture[JCollection[BaseRow]],
     a: Integer, b: String,  c: LocalDateTime): Unit = {
   }
 }
 
+@SerialVersionUID(1L)
 class InvalidAsyncTableFunctionEvalSignature3 extends AsyncTableFunction[BaseRow] {
   def eval(resultFuture: ResultFuture[BaseRow],
     a: Integer, b: BinaryString,  c: JLong): Unit = {
   }
 }
 
+@SerialVersionUID(1L)
 class ValidAsyncTableFunction extends AsyncTableFunction[BaseRow] {
   @varargs
   def eval(resultFuture: CompletableFuture[JCollection[BaseRow]], objs: AnyRef*): Unit = {
   }
 }
 
+@SerialVersionUID(1L)
 class ValidAsyncTableFunction2 extends AsyncTableFunction[BaseRow] {
   def eval(resultFuture: CompletableFuture[JCollection[BaseRow]],
     a: Integer, b: BinaryString, c: JLong): Unit = {

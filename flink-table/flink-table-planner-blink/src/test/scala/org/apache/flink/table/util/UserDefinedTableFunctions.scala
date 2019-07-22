@@ -34,6 +34,7 @@ import scala.annotation.varargs
 
 case class SimpleUser(name: String, age: Int)
 
+@SerialVersionUID(1L)
 class TableFunc0 extends TableFunction[SimpleUser] {
   // make sure input element's format is "<string>#<int>"
   def eval(user: String): Unit = {
@@ -44,6 +45,7 @@ class TableFunc0 extends TableFunction[SimpleUser] {
   }
 }
 
+@SerialVersionUID(1L)
 class TableFunc1 extends TableFunction[String] {
   def eval(str: String): Unit = {
     if (str.contains("#")){
@@ -58,6 +60,7 @@ class TableFunc1 extends TableFunction[String] {
   }
 }
 
+@SerialVersionUID(1L)
 class TableFunc2 extends TableFunction[Row] {
   def eval(str: String): Unit = {
     if (str.contains("#")) {
@@ -74,6 +77,7 @@ class TableFunc2 extends TableFunction[Row] {
     new RowTypeInfo(Types.STRING, Types.INT)
 }
 
+@SerialVersionUID(1L)
 class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[SimpleUser] {
 
   def this(data: String) {
@@ -109,6 +113,7 @@ class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[
   }
 }
 
+@SerialVersionUID(1L)
 class TableFunc5 extends TableFunction[Tuple2[String, Int]] {
   def eval(bytes: Array[Byte]) {
     if (null != bytes) {
@@ -361,6 +366,7 @@ class TableFunc5 extends TableFunction[Tuple2[String, Int]] {
 //  }
 //}
 
+@SerialVersionUID(1L)
 class TableFunc4 extends TableFunction[Row] {
   def eval(b: Byte, s: Short, f: Float): Unit = {
     collect(Row.of("Byte=" + b, "Short=" + s, "Float=" + f))
@@ -371,6 +377,7 @@ class TableFunc4 extends TableFunction[Row] {
   }
 }
 
+@SerialVersionUID(1L)
 class TableFunc6 extends TableFunction[Row] {
   def eval(row: Row): Unit = {
     collect(row)
@@ -384,6 +391,7 @@ class TableFunc6 extends TableFunction[Row] {
   }
 }
 
+@SerialVersionUID(1L)
 class TableFunc7 extends TableFunction[Row] {
 
   def eval(row: Row): Unit = {
@@ -393,6 +401,7 @@ class TableFunc7 extends TableFunction[Row] {
   }
 }
 
+@SerialVersionUID(1L)
 class RF extends ScalarFunction {
 
   def eval(x: Int): java.util.List[Row] = {
@@ -400,6 +409,7 @@ class RF extends ScalarFunction {
   }
 }
 
+@SerialVersionUID(1L)
 class VarArgsFunc0 extends TableFunction[String] {
   @varargs
   def eval(str: String*): Unit = {
@@ -407,6 +417,7 @@ class VarArgsFunc0 extends TableFunction[String] {
   }
 }
 
+@SerialVersionUID(1L)
 class HierarchyTableFunction extends SplittableTableFunction[Boolean, Integer] {
   def eval(user: String) {
     if (user.contains("#")) {
@@ -419,6 +430,7 @@ class HierarchyTableFunction extends SplittableTableFunction[Boolean, Integer] {
 
 abstract class SplittableTableFunction[A, B] extends TableFunction[Tuple3[String, A, B]] {}
 
+@SerialVersionUID(1L)
 class PojoTableFunc extends TableFunction[PojoUser] {
   def eval(user: String) {
     if (user.contains("#")) {
@@ -445,6 +457,7 @@ class PojoUser() {
 
 
 // this is used to check whether scala object is forbidden
+@SerialVersionUID(1L)
 object ObjectTableFunction extends TableFunction[Integer] {
   def eval(a: Int, b: Int): Unit = {
     collect(a)
@@ -452,6 +465,7 @@ object ObjectTableFunction extends TableFunction[Integer] {
   }
 }
 
+@SerialVersionUID(1L)
 class RichTableFunc0 extends TableFunction[String] {
   var openCalled = false
   var closeCalled = false
@@ -486,6 +500,7 @@ class RichTableFunc0 extends TableFunction[String] {
   }
 }
 
+@SerialVersionUID(1L)
 class RichTableFunc1 extends TableFunction[String] {
   var separator: Option[String] = None
 

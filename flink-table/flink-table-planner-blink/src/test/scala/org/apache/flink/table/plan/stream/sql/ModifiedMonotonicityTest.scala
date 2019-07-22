@@ -264,6 +264,7 @@ class ModifiedMonotonicityTest extends TableTestBase {
   }
 }
 
+@SerialVersionUID(1L)
 class Func1 extends ScalarFunction {
   def eval(str: String): String = {
     s"$str"
