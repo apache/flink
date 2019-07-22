@@ -22,12 +22,8 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.intervalOfMillis
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.aggfunctions.SumAggFunction.DoubleSumAggFunction
-import org.apache.flink.table.functions.aggfunctions.{DenseRankAggFunction, RankAggFunction, RowNumberAggFunction}
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
-import org.apache.flink.table.plan.PartialFinalType
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.intervalOfMillis
 import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.plan.logical.{LogicalWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.nodes.FlinkConventions
@@ -39,11 +35,17 @@ import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.plan.util.AggregateUtil.transformToStreamAggregateInfoList
 import org.apache.flink.table.plan.util._
-import org.apache.flink.table.planner.PlannerContext
+import org.apache.flink.table.planner.plan.PartialFinalType
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.delegation.PlannerContext
+import org.apache.flink.table.planner.functions.aggfunctions.SumAggFunction.DoubleSumAggFunction
+import org.apache.flink.table.planner.functions.aggfunctions.{DenseRankAggFunction, RankAggFunction, RowNumberAggFunction}
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType, VariableRankRange}
 import org.apache.flink.table.types.AtomicDataType
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, LogicalType, TimestampKind, TimestampType, VarCharType}
 import org.apache.flink.table.util.CountAggFunction
+
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
@@ -63,6 +65,7 @@ import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util.{DateString, ImmutableBitSet, ImmutableIntList, TimeString, TimestampString}
 import org.junit.{Before, BeforeClass}
+
 import java.math.BigDecimal
 import java.util
 

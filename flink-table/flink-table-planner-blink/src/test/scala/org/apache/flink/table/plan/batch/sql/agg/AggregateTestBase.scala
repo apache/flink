@@ -21,7 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, Types}
-import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.{VarSum1AggFunction, VarSum2AggFunction}
+import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{VarSum1AggFunction, VarSum2AggFunction}
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
 import org.apache.flink.table.util.{BatchTableTestUtil, TableTestBase}
 

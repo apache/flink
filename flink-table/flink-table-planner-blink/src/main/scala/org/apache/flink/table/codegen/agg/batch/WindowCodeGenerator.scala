@@ -30,18 +30,19 @@ import org.apache.flink.table.codegen._
 import org.apache.flink.table.codegen.agg.batch.AggCodeGenHelper.{buildAggregateArgsMapping, genAggregateByFlatAggregateBuffer, genFlatAggBufferExprs, genInitFlatAggregateBuffer}
 import org.apache.flink.table.codegen.agg.batch.WindowCodeGenerator.{asLong, isTimeIntervalLiteral}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, JoinedRow}
-import org.apache.flink.table.expressions.ExpressionBuilder._
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
-import org.apache.flink.table.expressions.{Expression, RexNodeConverter, ValueLiteralExpression}
-import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.expressions.{Expression, ValueLiteralExpression}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.util.{AggregateInfoList, AggregateUtil}
+import org.apache.flink.table.planner.expressions.ExpressionBuilder._
+import org.apache.flink.table.planner.expressions.RexNodeConverter
+import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.runtime.operators.window.TimeWindow
-import org.apache.flink.table.runtime.util.RowIterator
 import org.apache.flink.table.runtime.operators.window.grouping.{HeapWindowsGrouping, WindowsGrouping}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.util.RowIterator
 import org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot

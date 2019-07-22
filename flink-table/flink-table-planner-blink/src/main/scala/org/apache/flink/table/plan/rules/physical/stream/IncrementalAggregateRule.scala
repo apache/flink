@@ -21,7 +21,7 @@ import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.calcite.{FlinkContext, FlinkTypeFactory}
-import org.apache.flink.table.plan.PartialFinalType
+import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.plan.nodes.physical.stream.{StreamExecExchange, StreamExecGlobalGroupAggregate, StreamExecIncrementalGroupAggregate, StreamExecLocalGroupAggregate}
 import org.apache.flink.table.plan.util.{AggregateInfoList, AggregateUtil, DistinctInfo}
 import org.apache.flink.util.Preconditions

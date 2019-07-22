@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.rules.logical
 import org.apache.flink.table.api.{TableException, Types, ValidationException}
 import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
 import org.apache.flink.table.plan.util.AggregateUtil

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.rules.logical
 
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable.{GREATER_THAN, GREATER_THAN_OR_EQUAL, IF}
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.{GREATER_THAN, GREATER_THAN_OR_EQUAL, IF}
 import org.apache.flink.table.plan.util.SetOpRewriteUtil.replicateRows
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}

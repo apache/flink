@@ -24,8 +24,8 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.functions.aggfunctions.{ConcatWithRetractAggFunction, ConcatWsWithRetractAggFunction}
-import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.VarSumAggFunction
+import org.apache.flink.table.planner.functions.aggfunctions.{ConcatWithRetractAggFunction, ConcatWsWithRetractAggFunction}
+import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.VarSumAggFunction
 import org.apache.flink.table.runtime.batch.sql.agg.{MyPojoAggFunction, VarArgsAggFunction}
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 import org.apache.flink.table.runtime.utils.StreamingWithAggTestBase.AggMode

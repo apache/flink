@@ -21,7 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Over, Table}
 import org.apache.flink.table.expressions.utils.Func1
-import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.WeightedAvgWithRetract
+import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithRetract
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
 
 import org.junit.Test

@@ -24,7 +24,7 @@ import org.apache.flink.table.calcite.FlinkRelBuilder
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.codegen.OperatorCodeGenerator.ELEMENT
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.functions.sql.StreamRecordTimestampSqlFunction
+import org.apache.flink.table.planner.functions.sql.StreamRecordTimestampSqlFunction
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.plan.util.ScanUtil

@@ -21,8 +21,8 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.CalcitePair
+import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
@@ -30,8 +30,9 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util.AggregateUtil.transformToStreamAggregateInfoList
-import org.apache.flink.table.plan.util.{KeySelectorUtil, OverAggregateUtil, RelExplainUtil}
+import org.apache.flink.table.plan.util.{OverAggregateUtil, RelExplainUtil}
 import org.apache.flink.table.planner.StreamPlanner
+import org.apache.flink.table.planner.plan.utils.KeySelectorUtil
 import org.apache.flink.table.runtime.operators.over._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo

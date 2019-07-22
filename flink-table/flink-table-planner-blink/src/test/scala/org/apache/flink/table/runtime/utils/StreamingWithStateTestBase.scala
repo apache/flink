@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.functions.source.FromElementsFunction
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.scala.StreamTableEnvironment
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter, BinaryString}
+import org.apache.flink.table.planner.runtime.utils.FailingCollectionSource
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}

@@ -30,7 +30,7 @@ import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.operators.wmassigners.{MiniBatchAssignerOperator, MiniBatchedWatermarkAssignerOperator, WatermarkAssignerOperator}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
-import org.apache.flink.table.util.TableConfigUtils.getMillisecondFromConfigDuration
+import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}

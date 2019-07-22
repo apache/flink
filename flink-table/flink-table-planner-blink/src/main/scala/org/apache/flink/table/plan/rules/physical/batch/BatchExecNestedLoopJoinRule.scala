@@ -20,8 +20,8 @@ package org.apache.flink.table.plan.rules.physical.batch
 import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecNestedLoopJoin
-import org.apache.flink.table.plan.util.OperatorType
-import org.apache.flink.table.util.TableConfigUtils.isOperatorDisabled
+import org.apache.flink.table.planner.plan.utils.OperatorType
+import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}

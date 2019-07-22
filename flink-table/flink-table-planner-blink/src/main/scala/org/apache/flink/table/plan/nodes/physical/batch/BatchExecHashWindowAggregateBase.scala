@@ -30,7 +30,7 @@ import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
+import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.plan.util.FlinkRelMdUtil
 import org.apache.flink.table.planner.BatchPlanner

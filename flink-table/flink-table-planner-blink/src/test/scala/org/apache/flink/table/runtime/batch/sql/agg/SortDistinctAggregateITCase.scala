@@ -20,8 +20,8 @@ package org.apache.flink.table.runtime.batch.sql.agg
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
-import org.apache.flink.table.plan.util.OperatorType
+import org.apache.flink.table.planner.plan.utils.OperatorType
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.util.{CountAggFunction, IntSumAggFunction}
 

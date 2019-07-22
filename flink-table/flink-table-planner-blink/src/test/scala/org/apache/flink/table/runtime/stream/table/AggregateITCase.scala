@@ -23,9 +23,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg, WeightedAvg}
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg, WeightedAvg}
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.table.runtime.utils.{JavaUserDefinedAggFunctions, StreamingWithStateTestBase, TestingRetractSink, TestingUpsertTableSink}
+import org.apache.flink.table.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink, TestingUpsertTableSink}
 import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.util.CountMinMax
 import org.apache.flink.types.Row

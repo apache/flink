@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Over, Slide}
 import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
+import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
 import org.apache.flink.table.util.{CountAggFunction, TableFunc0, TableTestBase}
 
 import org.junit.Test

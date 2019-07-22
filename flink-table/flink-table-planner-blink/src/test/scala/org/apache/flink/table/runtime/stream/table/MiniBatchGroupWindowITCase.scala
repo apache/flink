@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.stream.table
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{Slide, Tumble}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
 import org.apache.flink.table.runtime.utils.StreamingWithMiniBatchTestBase.MiniBatchMode
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset

@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.plan.stats.ValueInterval
 import org.apache.flink.table.types.logical._
 

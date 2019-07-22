@@ -30,8 +30,9 @@ import org.apache.flink.table.plan.logical._
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util.AggregateUtil.{hasRowIntervalType, hasTimeIntervalType, isProctimeAttribute, isRowtimeAttribute, toDuration, toLong, transformToStreamAggregateInfoList}
-import org.apache.flink.table.plan.util.{AggregateInfoList, KeySelectorUtil, RelExplainUtil, WindowEmitStrategy}
+import org.apache.flink.table.plan.util.{AggregateInfoList, RelExplainUtil, WindowEmitStrategy}
 import org.apache.flink.table.planner.StreamPlanner
+import org.apache.flink.table.planner.plan.utils.KeySelectorUtil
 import org.apache.flink.table.runtime.generated.{GeneratedNamespaceAggsHandleFunction, GeneratedRecordEqualiser}
 import org.apache.flink.table.runtime.operators.window.{CountWindow, TimeWindow, WindowOperator, WindowOperatorBuilder}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType

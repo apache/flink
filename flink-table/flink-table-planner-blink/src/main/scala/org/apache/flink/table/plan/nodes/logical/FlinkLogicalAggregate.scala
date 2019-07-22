@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.nodes.logical
 
-import org.apache.flink.table.plan.PartialFinalType
+import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.util.AggregateUtil
 

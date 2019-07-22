@@ -22,7 +22,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.codegen.CodeGenUtils.{BASE_ROW, BINARY_ROW, DEFAULT_INPUT1_TERM, DEFAULT_INPUT2_TERM, className, newName}
 import org.apache.flink.table.codegen.OperatorCodeGenerator.{INPUT_SELECTION, generateCollect}
 import org.apache.flink.table.dataformat.{BaseRow, JoinedRow}
-import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
+import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.typeutils.AbstractRowSerializer

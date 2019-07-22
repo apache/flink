@@ -30,7 +30,7 @@ import org.apache.flink.table.functions.{ScalarFunction, TableFunction}
 import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
-import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyPojoFunc}
 import org.apache.flink.table.util.DateTimeTestUtil._

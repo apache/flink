@@ -36,7 +36,7 @@ import org.apache.flink.table.codegen.Indenter.toISC
 import org.apache.flink.table.codegen.MatchCodeGenerator._
 import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable._
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.plan.util.AggregateUtil
 import org.apache.flink.table.plan.util.MatchUtil.AggregationPatternVariableFinder

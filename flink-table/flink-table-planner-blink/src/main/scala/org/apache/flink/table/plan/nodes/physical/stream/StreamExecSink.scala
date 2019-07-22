@@ -29,7 +29,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.`trait`.{AccMode, AccModeTraitDef}
 import org.apache.flink.table.plan.nodes.calcite.Sink
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
+import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.plan.util.UpdatingPlanChecker
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, TypeCheckUtils}

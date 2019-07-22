@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.plan.metadata.FlinkMetadata.ColumnNullCount
 import org.apache.flink.table.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, FlinkRexUtil}
+import org.apache.flink.table.planner.plan.metadata.{FlinkMetadata, FlinkRelMetadataQuery}
+import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ColumnNullCount
 import org.apache.flink.table.{JDouble, JList}
 import org.apache.flink.util.Preconditions
 

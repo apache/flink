@@ -29,7 +29,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.ExecNode
-import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
+import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.plan.nodes.{ExpressionFormat, FlinkConventions}
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, JoinUtil}
 import org.apache.flink.table.planner.BatchPlanner

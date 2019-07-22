@@ -31,8 +31,9 @@ import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
 import org.apache.flink.table.plan.nodes.common.CommonPhysicalJoin
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util.TemporalJoinUtil.TEMPORAL_JOIN_CONDITION
-import org.apache.flink.table.plan.util.{InputRefVisitor, KeySelectorUtil, RelExplainUtil, TemporalJoinUtil}
+import org.apache.flink.table.plan.util.{InputRefVisitor, RelExplainUtil, TemporalJoinUtil}
 import org.apache.flink.table.planner.StreamPlanner
+import org.apache.flink.table.planner.plan.utils.KeySelectorUtil
 import org.apache.flink.table.runtime.operators.join.temporal.{TemporalProcessTimeJoinOperator, TemporalRowTimeJoinOperator}
 import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo

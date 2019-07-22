@@ -22,7 +22,7 @@ import org.apache.flink.table.api.{Table, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
-import org.apache.flink.table.runtime.utils.JavaPojos.Pojo1
+import org.apache.flink.table.planner.runtime.utils.JavaPojos.Pojo1
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.util.TableTestUtil
 import org.apache.flink.types.Row

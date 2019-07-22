@@ -21,7 +21,8 @@ package org.apache.flink.table.plan.nodes.exec
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.delegation.Planner
 import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
-import org.apache.flink.table.plan.nodes.resource.NodeResource
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeVisitor
+import org.apache.flink.table.planner.plan.nodes.resource.NodeResource
 
 import java.util
 

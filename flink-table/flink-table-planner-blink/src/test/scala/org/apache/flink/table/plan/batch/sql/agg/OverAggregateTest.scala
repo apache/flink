@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.batch.sql.agg
 import org.apache.flink.table.api.scala._
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.OverAgg0
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.OverAgg0
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.Test

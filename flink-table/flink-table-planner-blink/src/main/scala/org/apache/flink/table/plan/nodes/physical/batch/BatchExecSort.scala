@@ -27,7 +27,7 @@ import org.apache.flink.table.codegen.sort.SortCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
+import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, RelExplainUtil, SortUtil}
 import org.apache.flink.table.planner.BatchPlanner
 import org.apache.flink.table.runtime.operators.sort.SortOperator

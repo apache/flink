@@ -23,16 +23,17 @@ import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.codegen.{CodeGenException, CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow, UpdatableRow}
 import org.apache.flink.table.dataview.DataViewSpec
-import org.apache.flink.table.expressions.{Expression, ResolvedAggInputReference, ResolvedDistinctKeyReference, RexNodeConverter}
+import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAggFunctionUDIMethod, getAggUserDefinedInputTypes, getUserDefinedMethod, internalTypesToClasses, signatureToString}
 import org.apache.flink.table.plan.util.AggregateInfo
+import org.apache.flink.table.planner.expressions.{ResolvedAggInputReference, ResolvedDistinctKeyReference, RexNodeConverter}
+import org.apache.flink.table.planner.utils.SingleElementIterator
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getInternalClassForType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.{ClassDataTypeConverter, PlannerTypeUtils}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
-import org.apache.flink.table.util.SingleElementIterator
 
 import org.apache.calcite.tools.RelBuilder
 

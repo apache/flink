@@ -35,7 +35,7 @@ import org.apache.flink.table.plan.`trait`.{FlinkRelDistribution, FlinkRelDistri
 import org.apache.flink.table.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.plan.nodes.physical.batch.OverWindowMode.OverWindowMode
-import org.apache.flink.table.plan.nodes.resource.NodeResourceUtil
+import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.plan.rules.physical.batch.BatchExecJoinRuleBase
 import org.apache.flink.table.plan.util.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.plan.util.OverAggregateUtil.getLongBoundary

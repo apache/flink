@@ -166,7 +166,7 @@ Correlate(invocation=[org$apache$flink$table$util$TableFunc0$9430e25565030ded9d7
   <TestCase name="testOver">
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$2], mycount=[AS(org$apache$flink$table$util$CountAggFunction$d107ba7513e384f4b916c9bf9a5c9efc($1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'mycount')], wAvg=[AS(org$apache$flink$table$plan$util$JavaUserDefinedAggFunctions$WeightedAvg$ac5eee6b97ac7834a1700f7ee70e778c($0, $1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'wAvg')], countDist=[AS(org$apache$flink$table$plan$util$JavaUserDefinedAggFunctions$CountDistinct$0349d7f067b45c9656fed2598ea38494($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'countDist')])
+LogicalProject(c=[$2], mycount=[AS(org$apache$flink$table$util$CountAggFunction$d107ba7513e384f4b916c9bf9a5c9efc($1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'mycount')], wAvg=[AS(org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$WeightedAvg$ad50b92aae273d3d6ca7ddf9ffd4ab85($0, $1) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'wAvg')], countDist=[AS(org$apache$flink$table$planner$plan$utils$JavaUserDefinedAggFunctions$CountDistinct$deee7f776638e01c7669cc58e8cfc3c2($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), _UTF-16LE'countDist')])
 +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>

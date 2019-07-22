@@ -27,9 +27,10 @@ import org.apache.flink.table.api.{DataTypes, EnvironmentSettings, TableEnvironm
 import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.dataview.DataViewSpec
-import org.apache.flink.table.functions.aggfunctions.AvgAggFunction.{DoubleAvgAggFunction, IntegralAvgAggFunction}
+import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction.{DoubleAvgAggFunction, IntegralAvgAggFunction}
 import org.apache.flink.table.plan.util.{AggregateInfo, AggregateInfoList}
 import org.apache.flink.table.planner.PlannerBase
+import org.apache.flink.table.planner.codegen.agg.TestLongAvgFunc
 import org.apache.flink.table.runtime.context.ExecutionContext
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType

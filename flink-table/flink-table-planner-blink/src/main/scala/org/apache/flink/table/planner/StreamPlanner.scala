@@ -22,14 +22,14 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.Executor
-import org.apache.flink.table.executor.StreamExecutor
 import org.apache.flink.table.operations.{ModifyOperation, Operation, QueryOperation}
 import org.apache.flink.table.plan.`trait`._
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.plan.nodes.process.DAGProcessContext
-import org.apache.flink.table.plan.nodes.resource.parallelism.ParallelismProcessor
 import org.apache.flink.table.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
+import org.apache.flink.table.planner.delegation.StreamExecutor
+import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext
+import org.apache.flink.table.planner.plan.nodes.resource.parallelism.ParallelismProcessor
 import org.apache.flink.table.util.PlanUtil
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}

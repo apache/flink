@@ -26,7 +26,7 @@ import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.common.CommonPhysicalExchange
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.plan.util.KeySelectorUtil
+import org.apache.flink.table.planner.plan.utils.KeySelectorUtil
 import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 

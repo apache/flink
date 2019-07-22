@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase._
-import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.runtime.utils.TestData._
 
 import org.junit.{Before, Ignore, Test}

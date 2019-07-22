@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.rules.physical.batch
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.calcite.{FlinkContext, FlinkTypeFactory}
-import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}

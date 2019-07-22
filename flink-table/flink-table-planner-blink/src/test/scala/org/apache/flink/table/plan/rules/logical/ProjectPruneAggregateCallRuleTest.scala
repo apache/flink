@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.util.TableConfigUtils
+import org.apache.flink.table.planner.utils.TableConfigUtils
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules.ProjectFilterTransposeRule

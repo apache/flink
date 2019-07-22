@@ -26,8 +26,9 @@ import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.dataview._
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.plan.util.AggregateInfoList
+import org.apache.flink.table.planner.expressions.ResolvedAggInputReference
 import org.apache.flink.table.runtime.dataview.{StateListView, StateMapView}
 import org.apache.flink.table.runtime.generated.{AggsHandleFunction, GeneratedAggsHandleFunction, GeneratedNamespaceAggsHandleFunction, NamespaceAggsHandleFunction}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType

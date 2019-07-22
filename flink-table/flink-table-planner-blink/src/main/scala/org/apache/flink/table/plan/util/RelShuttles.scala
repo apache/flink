@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.plan.util
 
-import org.apache.flink.table.catalog.QueryOperationCatalogViewTable
+import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable
 
 import com.google.common.collect.Sets
 import org.apache.calcite.plan.RelOptUtil

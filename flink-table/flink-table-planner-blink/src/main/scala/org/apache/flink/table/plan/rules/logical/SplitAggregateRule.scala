@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.plan.rules.logical
 
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.calcite.{FlinkContext, FlinkLogicalRelFactories, FlinkRelBuilder}
-import org.apache.flink.table.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction}
-import org.apache.flink.table.plan.PartialFinalType
 import org.apache.flink.table.plan.nodes.FlinkRelNode
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.plan.util.AggregateUtil.doAllAggSupportSplit
 import org.apache.flink.table.plan.util.ExpandUtil
+import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlFirstLastValueAggFunction}
+import org.apache.flink.table.planner.plan.PartialFinalType
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule.{any, operand}

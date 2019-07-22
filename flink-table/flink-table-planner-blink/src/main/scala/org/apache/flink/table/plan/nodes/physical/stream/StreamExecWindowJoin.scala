@@ -27,10 +27,11 @@ import org.apache.flink.streaming.api.transformations.{OneInputTransformation, T
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.plan.util.{JoinTypeUtil, KeySelectorUtil, RelExplainUtil, UpdatingPlanChecker, WindowJoinUtil}
+import org.apache.flink.table.plan.util.{RelExplainUtil, UpdatingPlanChecker, WindowJoinUtil}
 import org.apache.flink.table.planner.StreamPlanner
+import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, KeySelectorUtil}
+import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, KeyedCoProcessOperatorWithWatermarkDelay, OuterJoinPaddingUtil, ProcTimeBoundedStreamJoin, RowTimeBoundedStreamJoin}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.util.Collector

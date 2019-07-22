@@ -26,8 +26,9 @@ import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecSortMergeJoin
-import org.apache.flink.table.plan.util.{FlinkRelOptUtil, OperatorType}
-import org.apache.flink.table.util.TableConfigUtils.isOperatorDisabled
+import org.apache.flink.table.plan.util.FlinkRelOptUtil
+import org.apache.flink.table.planner.plan.utils.OperatorType
+import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}

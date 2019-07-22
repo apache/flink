@@ -20,18 +20,18 @@ package org.apache.flink.table.plan.util
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.functions.aggfunctions.FirstValueAggFunction._
-import org.apache.flink.table.functions.aggfunctions.FirstValueWithRetractAggFunction._
-import org.apache.flink.table.functions.aggfunctions.IncrSumAggFunction._
-import org.apache.flink.table.functions.aggfunctions.IncrSumWithRetractAggFunction._
-import org.apache.flink.table.functions.aggfunctions.LastValueAggFunction._
-import org.apache.flink.table.functions.aggfunctions.LastValueWithRetractAggFunction._
-import org.apache.flink.table.functions.aggfunctions.MaxWithRetractAggFunction._
-import org.apache.flink.table.functions.aggfunctions.MinWithRetractAggFunction._
-import org.apache.flink.table.functions.aggfunctions.SingleValueAggFunction._
-import org.apache.flink.table.functions.aggfunctions.SumWithRetractAggFunction._
-import org.apache.flink.table.functions.aggfunctions._
-import org.apache.flink.table.functions.sql.{SqlConcatAggFunction, SqlFirstLastValueAggFunction, SqlIncrSumAggFunction}
+import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction._
+import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction._
+import org.apache.flink.table.planner.functions.aggfunctions.IncrSumAggFunction._
+import org.apache.flink.table.planner.functions.aggfunctions.IncrSumWithRetractAggFunction._
+import org.apache.flink.table.planner.functions.aggfunctions.LastValueAggFunction._
+import org.apache.flink.table.planner.functions.aggfunctions.LastValueWithRetractAggFunction._
+import org.apache.flink.table.planner.functions.aggfunctions.MaxWithRetractAggFunction._
+import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFunction._
+import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunction._
+import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction._
+import org.apache.flink.table.planner.functions.aggfunctions._
+import org.apache.flink.table.planner.functions.sql.{SqlConcatAggFunction, SqlFirstLastValueAggFunction, SqlIncrSumAggFunction}
 import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo

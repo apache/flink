@@ -30,7 +30,7 @@ import org.apache.flink.table.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.codegen.calls.{FunctionGenerator, ScalarFunctionCallGen, StringCallGen, TableFunctionCallGen}
 import org.apache.flink.table.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.dataformat._
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable._
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils

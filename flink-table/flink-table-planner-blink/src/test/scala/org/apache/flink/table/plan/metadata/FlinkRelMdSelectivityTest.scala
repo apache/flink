@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.plan.nodes.calcite.LogicalExpand
 import org.apache.flink.table.plan.nodes.logical.{
   FlinkLogicalDataStreamTableScan,

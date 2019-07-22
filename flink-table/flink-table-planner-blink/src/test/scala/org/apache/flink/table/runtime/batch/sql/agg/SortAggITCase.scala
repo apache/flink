@@ -24,7 +24,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{SQL_EXEC_DISABLED_OPERATORS, SQL_RESOURCE_DEFAULT_PARALLELISM}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.AggregateFunction
-import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
+import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.UserDefinedFunctionTestUtils.{MyPojo, MyToPojoFunc}
 import org.apache.flink.table.util.{CountAccumulator, CountAggFunction, IntSumAggFunction}

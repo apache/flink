@@ -23,7 +23,7 @@ import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalTableSourceScan}
 import org.apache.flink.table.plan.optimize.program._
 import org.apache.flink.table.plan.rules.FlinkBatchRuleSets
-import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.util.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder

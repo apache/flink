@@ -28,6 +28,7 @@ import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.util._
 import org.apache.flink.table.planner.StreamPlanner
+import org.apache.flink.table.planner.plan.utils.KeySelectorUtil
 import org.apache.flink.table.runtime.operators.aggregate.MiniBatchIncrementalGroupAggFunction
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo

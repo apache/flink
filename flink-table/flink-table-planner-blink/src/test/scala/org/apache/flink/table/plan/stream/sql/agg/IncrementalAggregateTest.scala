@@ -19,7 +19,7 @@
 package org.apache.flink.table.plan.stream.sql.agg
 
 import org.apache.flink.table.plan.rules.physical.stream.IncrementalAggregateRule
-import org.apache.flink.table.util.AggregatePhaseStrategy
+import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 
 import org.junit.Before
 import org.junit.runner.RunWith

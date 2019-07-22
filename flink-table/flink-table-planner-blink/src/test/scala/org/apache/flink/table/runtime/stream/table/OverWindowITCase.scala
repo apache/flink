@@ -21,8 +21,8 @@ package org.apache.flink.table.runtime.stream.table
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{DataTypes, Over}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.{CountDistinct, CountDistinctWithRetractAndReset, WeightedAvg}
-import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0
+import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{CountDistinct, CountDistinctWithRetractAndReset, WeightedAvg}
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc0
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeProcessOperator
 import org.apache.flink.table.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}

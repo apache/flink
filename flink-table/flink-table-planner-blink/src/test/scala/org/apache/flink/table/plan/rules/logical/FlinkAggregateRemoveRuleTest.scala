@@ -26,6 +26,7 @@ import org.apache.flink.table.plan.nodes.logical.{FlinkLogicalAggregate, FlinkLo
 import org.apache.flink.table.plan.optimize.program._
 import org.apache.flink.table.plan.rules.FlinkBatchRuleSets
 import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.planner.plan.rules.logical.{FlinkAggregateExpandDistinctAggregatesRule, FlinkAggregateRemoveRule}
 import org.apache.flink.table.util.TableTestBase
 
 import com.google.common.collect.ImmutableSet

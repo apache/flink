@@ -23,8 +23,10 @@ import org.apache.flink.table.calcite.{FlinkContext, FlinkContextImpl, FlinkType
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.plan.schema._
 import org.apache.flink.table.plan.stats.{ColumnStats, FlinkStatistic, TableStats}
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.{JDouble, JLong}
 import org.apache.flink.util.Preconditions
+
 import org.apache.calcite.plan.{AbstractRelOptPlanner, RelOptCluster}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
@@ -41,6 +43,7 @@ import org.junit.{Before, BeforeClass, Test}
 import org.powermock.api.mockito.PowerMockito._
 import org.powermock.core.classloader.annotations.PrepareForTest
 import org.powermock.modules.junit4.PowerMockRunner
+
 import java.math.BigDecimal
 
 import scala.collection.JavaConverters._

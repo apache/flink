@@ -27,8 +27,9 @@ import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
-import org.apache.flink.table.plan.util.{AppendFastStrategy, KeySelectorUtil, RankProcessStrategy, RelExplainUtil, RetractStrategy, SortUtil, UpdateFastStrategy}
+import org.apache.flink.table.plan.util.{AppendFastStrategy, RankProcessStrategy, RelExplainUtil, RetractStrategy, SortUtil, UpdateFastStrategy}
 import org.apache.flink.table.planner.StreamPlanner
+import org.apache.flink.table.planner.plan.utils.KeySelectorUtil
 import org.apache.flink.table.runtime.keyselector.NullBinaryRowKeySelector
 import org.apache.flink.table.runtime.operators.rank.{AppendOnlyTopNFunction, ConstantRankRange, RankType, RetractableTopNFunction, UpdatableTopNFunction}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo

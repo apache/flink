@@ -40,17 +40,19 @@ import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFact
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.ComponentFactoryService
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserFunctionsTypeHelper}
-import org.apache.flink.table.operations.{CatalogSinkModifyOperation, DataStreamQueryOperation, ModifyOperation, PlannerQueryOperation, QueryOperation, RichTableSourceQueryOperation}
+import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, QueryOperation}
 import org.apache.flink.table.plan.nodes.calcite.LogicalWatermarkAssigner
 import org.apache.flink.table.plan.nodes.exec.ExecNode
 import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram, FlinkChainedProgram, FlinkStreamProgram, StreamOptimizeContext}
 import org.apache.flink.table.plan.stats.FlinkStatistic
 import org.apache.flink.table.plan.util.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.planner.PlannerBase
+import org.apache.flink.table.planner.operations.{DataStreamQueryOperation, PlannerQueryOperation, RichTableSourceQueryOperation}
+import org.apache.flink.table.planner.utils.{DiffRepository, TableConfigUtils}
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.sources.{StreamTableSource, TableSource}
-import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.table.typeutils.FieldInfoUtils

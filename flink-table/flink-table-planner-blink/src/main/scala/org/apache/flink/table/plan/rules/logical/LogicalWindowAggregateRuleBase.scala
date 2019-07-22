@@ -21,7 +21,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.intervalOfMillis
 import org.apache.flink.table.expressions.{FieldReferenceExpression, PlannerWindowReference}
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.plan.logical.{LogicalWindow, SessionGroupWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType

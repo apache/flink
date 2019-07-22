@@ -21,13 +21,13 @@ package org.apache.flink.table.plan.rules.physical.stream
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.plan.`trait`.{AccMode, AccModeTrait, FlinkRelDistribution, FlinkRelDistributionTraitDef}
-import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.rules.physical.FlinkExpandConversionRule._
 import org.apache.flink.table.plan.util.{AggregateInfoList, AggregateUtil}
-import org.apache.flink.table.util.AggregatePhaseStrategy
-import org.apache.flink.table.util.TableConfigUtils.getAggPhaseStrategy
+import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
+import org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}

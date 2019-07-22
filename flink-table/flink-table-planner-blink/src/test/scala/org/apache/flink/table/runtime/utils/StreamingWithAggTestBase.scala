@@ -23,7 +23,7 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.runtime.utils.StreamingWithAggTestBase._
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
-import org.apache.flink.table.util.AggregatePhaseStrategy
+import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 
 import org.junit.Before
 import org.junit.runners.Parameterized

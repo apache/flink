@@ -23,12 +23,13 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions.SQL_EXEC_DISABLE
 import org.apache.flink.table.api.{TableException, Types}
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram, FlinkGroupProgramBuilder, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.plan.rules.logical.{AggregateReduceGroupingRule, FlinkAggregateJoinTransposeRule}
+import org.apache.flink.table.plan.rules.logical.AggregateReduceGroupingRule
 import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.planner.plan.rules.logical.FlinkAggregateJoinTransposeRule
+import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
-import org.apache.flink.table.util.TableConfigUtils
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules._

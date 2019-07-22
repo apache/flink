@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptPlanner, RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode

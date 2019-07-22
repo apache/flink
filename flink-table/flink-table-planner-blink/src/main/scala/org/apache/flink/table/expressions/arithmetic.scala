@@ -18,7 +18,7 @@
 package org.apache.flink.table.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.{fromLogicalTypeToTypeInfo, fromTypeInfoToLogicalType}
 import org.apache.flink.table.typeutils.TypeCoercion
 import org.apache.flink.table.typeutils.TypeInfoCheckUtils._

@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.util
 
 import org.apache.flink.table.plan.`trait`.TraitUtil
-import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.metadata.RelMetadataQuery

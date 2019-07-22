@@ -25,7 +25,7 @@ import org.apache.flink.table.plan.logical.{LogicalWindow, SessionGroupWindow}
 import org.apache.flink.table.plan.util.AggregateUtil.isRowtimeAttribute
 import org.apache.flink.table.runtime.operators.window.TimeWindow
 import org.apache.flink.table.runtime.operators.window.triggers._
-import org.apache.flink.table.util.TableConfigUtils.getMillisecondFromConfigDuration
+import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
 
 import java.lang.{Boolean, Long}
 import java.time.Duration

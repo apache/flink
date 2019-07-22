@@ -22,7 +22,7 @@ import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{unresolvedCa
 import org.apache.flink.table.expressions.utils.Func1
 import org.apache.flink.table.functions.AggregateFunctionDefinition
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{EQUALS, GREATER_THAN, LESS_THAN, LESS_THAN_OR_EQUAL}
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.plan.util.InputTypeBuilder.inputOf
 import org.apache.flink.table.util.{DateTimeTestUtil, IntSumAggFunction}

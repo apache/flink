@@ -20,10 +20,12 @@ package org.apache.flink.table.calcite
 
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory._
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.plan.nodes.calcite._
 import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
+import org.apache.flink.table.plan.util.TemporalJoinUtil
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.types.logical.TimestampType
+
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.logical._
@@ -32,7 +34,6 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.FINAL
-import org.apache.flink.table.plan.util.TemporalJoinUtil
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._

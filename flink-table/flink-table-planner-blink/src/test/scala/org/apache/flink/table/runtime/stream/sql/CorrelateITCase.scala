@@ -20,8 +20,8 @@ package org.apache.flink.table.runtime.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.JavaUserDefinedScalarFunctions.UdfWithOpen
-import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.UdfWithOpen
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.runtime.utils.{StreamingTestBase, TestSinkUtil, TestingAppendSink, TestingAppendTableSink}
 import org.apache.flink.table.util.{RF, TableFunc7}
 import org.apache.flink.types.Row

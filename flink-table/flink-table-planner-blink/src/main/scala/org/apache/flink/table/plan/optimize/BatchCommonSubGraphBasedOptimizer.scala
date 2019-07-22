@@ -24,7 +24,7 @@ import org.apache.flink.table.plan.nodes.physical.batch.BatchExecSink
 import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram}
 import org.apache.flink.table.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.BatchPlanner
-import org.apache.flink.table.util.TableConfigUtils
+import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode

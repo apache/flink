@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkRelFactories}
+import org.apache.flink.table.planner.plan.rules.logical.SubQueryDecorrelator
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule._

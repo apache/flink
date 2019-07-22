@@ -19,10 +19,11 @@
 package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.plan.metadata.FlinkMetadata.UniqueGroups
+import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.UniqueGroups
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.util.{AggregateUtil, FlinkRelMdUtil, RankUtil}
+import org.apache.flink.table.planner.plan.metadata.{FlinkMetadata, FlinkRelMetadataQuery}
 
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.core._

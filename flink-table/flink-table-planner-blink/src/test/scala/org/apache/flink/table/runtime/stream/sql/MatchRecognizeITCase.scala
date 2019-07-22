@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
-import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.WeightedAvg
+import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, UserDefinedFunctionTestUtils}

@@ -25,10 +25,8 @@ import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException}
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.catalog.{CatalogManager, CatalogManagerCalciteSchema, CatalogTable, ConnectorCatalogTable, FunctionCatalog, ObjectPath}
+import org.apache.flink.table.catalog.{CatalogManager, CatalogTable, ConnectorCatalogTable, FunctionCatalog, ObjectPath}
 import org.apache.flink.table.delegation.{Executor, Planner}
-import org.apache.flink.table.executor.ExecutorBase
-import org.apache.flink.table.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, OutputConversionModifyOperation, UnregisteredSinkModifyOperation}
@@ -38,8 +36,11 @@ import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.plan.optimize.Optimizer
 import org.apache.flink.table.plan.reuse.SubplanReuser
 import org.apache.flink.table.plan.util.SameRelObjectShuttle
+import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
+import org.apache.flink.table.planner.delegation.{ExecutorBase, PlannerContext}
+import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
+import org.apache.flink.table.planner.operations.SqlToOperationConverter
 import org.apache.flink.table.sinks.{DataStreamTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
-import org.apache.flink.table.sqlexec.SqlToOperationConverter
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 import org.apache.flink.table.util.JavaScalaConversionUtil
 

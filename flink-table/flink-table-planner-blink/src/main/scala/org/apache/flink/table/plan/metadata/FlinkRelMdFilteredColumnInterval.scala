@@ -17,11 +17,12 @@
  */
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.plan.metadata.FlinkMetadata.FilteredColumnInterval
+import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.FilteredColumnInterval
 import org.apache.flink.table.plan.nodes.physical.batch.BatchExecGroupAggregateBase
 import org.apache.flink.table.plan.nodes.physical.stream.{StreamExecGlobalGroupAggregate, StreamExecGroupAggregate, StreamExecGroupWindowAggregate, StreamExecLocalGroupAggregate}
 import org.apache.flink.table.plan.stats.ValueInterval
 import org.apache.flink.table.plan.util.ColumnIntervalUtil
+import org.apache.flink.table.planner.plan.metadata.{FlinkMetadata, FlinkRelMetadataQuery}
 import org.apache.flink.util.Preconditions.checkArgument
 
 import org.apache.calcite.plan.volcano.RelSubset

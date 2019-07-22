@@ -24,7 +24,7 @@ import org.apache.flink.table.codegen.GenerateUtils.{generateCallIfArgsNotNull, 
 import org.apache.flink.table.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.dataformat.DataFormatConverters
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable._
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, MapType, VarBinaryType, VarCharType}
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp, isTimestampWithLocalZone}

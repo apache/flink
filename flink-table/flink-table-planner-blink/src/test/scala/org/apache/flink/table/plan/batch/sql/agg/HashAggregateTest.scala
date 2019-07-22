@@ -17,10 +17,10 @@
  */
 package org.apache.flink.table.plan.batch.sql.agg
 
-import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.util.OperatorType
-import org.apache.flink.table.util.AggregatePhaseStrategy
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
+import org.apache.flink.table.planner.plan.utils.OperatorType
+import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 
 import org.junit.Before
 import org.junit.runner.RunWith

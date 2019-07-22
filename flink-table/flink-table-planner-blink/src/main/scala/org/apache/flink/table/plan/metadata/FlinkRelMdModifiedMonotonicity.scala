@@ -19,16 +19,17 @@
 package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.sql.SqlIncrSumAggFunction
 import org.apache.flink.table.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
-import org.apache.flink.table.plan.metadata.FlinkMetadata.ModifiedMonotonicity
 import org.apache.flink.table.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecCorrelate, BatchExecGroupAggregateBase}
 import org.apache.flink.table.plan.nodes.physical.stream._
 import org.apache.flink.table.plan.schema.DataStreamTable
 import org.apache.flink.table.plan.stats.{WithLower, WithUpper}
+import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ModifiedMonotonicity
+import org.apache.flink.table.planner.plan.metadata.{FlinkMetadata, FlinkRelMetadataQuery}
+import org.apache.flink.table.planner.functions.sql.SqlIncrSumAggFunction
 import org.apache.flink.table.{JByte, JDouble, JFloat, JList, JLong, JShort}
 
 import org.apache.calcite.plan.hep.HepRelVertex

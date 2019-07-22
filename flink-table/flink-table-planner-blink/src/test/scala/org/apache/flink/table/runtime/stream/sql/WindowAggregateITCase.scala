@@ -24,13 +24,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.{ConcatDistinctAggFunction, WeightedAvg}
+import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{ConcatDistinctAggFunction, WeightedAvg}
 import org.apache.flink.table.plan.util.WindowEmitStrategy.{SQL_EXEC_EMIT_LATE_FIRE_DELAY, SQL_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.runtime.utils._
 import org.apache.flink.types.Row
-import org.apache.flink.table.util.TableConfigUtils.getMillisecondFromConfigDuration
+import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

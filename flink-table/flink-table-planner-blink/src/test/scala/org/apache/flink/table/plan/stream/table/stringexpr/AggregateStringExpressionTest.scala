@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.stream.table.stringexpr
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Tumble
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMergeAndReset}
+import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMergeAndReset}
 import org.apache.flink.table.util.{CountAggFunction, CountMinMax, TableTestBase}
 
 import org.junit.Test

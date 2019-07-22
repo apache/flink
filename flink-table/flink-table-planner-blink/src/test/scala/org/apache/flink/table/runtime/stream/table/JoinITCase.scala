@@ -25,7 +25,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Tumble, Types}
 import org.apache.flink.table.expressions.utils.FuncWithOpen
 import org.apache.flink.table.runtime.utils.TestData._
-import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, WeightedAvg}
 import org.apache.flink.table.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink, TestingRetractTableSink, TestingUpsertTableSink}
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.util.CountAggFunction

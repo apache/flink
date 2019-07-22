@@ -22,8 +22,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
+import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
-import org.apache.flink.table.util.{TableConfigUtils, TableTestBase, TestNestedProjectableTableSource, TestProjectableTableSource}
+import org.apache.flink.table.util.{TableTestBase, TestNestedProjectableTableSource, TestProjectableTableSource}
 import org.apache.flink.types.Row
 
 import org.apache.calcite.plan.hep.HepMatchOrder

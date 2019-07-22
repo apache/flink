@@ -36,6 +36,7 @@ import org.apache.flink.table.plan.nodes.physical.batch._
 import org.apache.flink.table.plan.stats.ValueInterval
 import org.apache.flink.table.plan.util.AggregateUtil.{hasTimeIntervalType, toLong}
 import org.apache.flink.table.plan.util.{FlinkRelMdUtil, SortUtil}
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 
 import java.lang.{Double => JDouble}
 import java.lang.{Long => JLong}

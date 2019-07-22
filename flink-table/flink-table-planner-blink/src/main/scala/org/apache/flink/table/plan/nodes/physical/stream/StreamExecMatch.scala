@@ -39,8 +39,9 @@ import org.apache.flink.table.plan.logical.MatchRecognize
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util.RelExplainUtil._
-import org.apache.flink.table.plan.util.{KeySelectorUtil, RexDefaultVisitor, SortUtil}
+import org.apache.flink.table.plan.util.{RexDefaultVisitor, SortUtil}
 import org.apache.flink.table.planner.StreamPlanner
+import org.apache.flink.table.planner.plan.utils.KeySelectorUtil
 import org.apache.flink.table.runtime.operators.`match`.{BaseRowEventComparator, RowtimeProcessFunction}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.RowType

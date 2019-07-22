@@ -23,8 +23,8 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
-import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.plan.util.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase, TableTestUtil}
 
 import org.apache.calcite.sql.validate.SqlMonotonicity.{CONSTANT, DECREASING, INCREASING, NOT_MONOTONIC}

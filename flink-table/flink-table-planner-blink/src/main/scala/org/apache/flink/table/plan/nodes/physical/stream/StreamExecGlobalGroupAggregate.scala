@@ -26,11 +26,12 @@ import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction
-import org.apache.flink.table.plan.PartialFinalType
+import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.plan.util._
 import org.apache.flink.table.planner.StreamPlanner
+import org.apache.flink.table.planner.plan.utils.KeySelectorUtil
 import org.apache.flink.table.runtime.operators.aggregate.MiniBatchGlobalGroupAggFunction
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.types.DataType

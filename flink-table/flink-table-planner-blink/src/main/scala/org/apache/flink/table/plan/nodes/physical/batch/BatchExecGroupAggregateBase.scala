@@ -21,8 +21,8 @@ package org.apache.flink.table.plan.nodes.physical.batch
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.plan.util.{FlinkRelOptUtil, RelExplainUtil}
-import org.apache.flink.table.util.AggregatePhaseStrategy
-import org.apache.flink.table.util.TableConfigUtils.getAggPhaseStrategy
+import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
+import org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType

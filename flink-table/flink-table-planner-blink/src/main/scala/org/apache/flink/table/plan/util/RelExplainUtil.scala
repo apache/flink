@@ -21,7 +21,7 @@ import com.google.common.collect.ImmutableMap
 import org.apache.flink.table.CalcitePair
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.nodes.ExpressionFormat

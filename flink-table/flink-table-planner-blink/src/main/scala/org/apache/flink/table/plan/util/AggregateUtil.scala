@@ -28,12 +28,13 @@ import org.apache.flink.table.dataview.DataViewUtils.useNullSerializerForStateVi
 import org.apache.flink.table.dataview.{DataViewSpec, MapViewSpec, MapViewTypeInfo}
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.aggfunctions.DeclarativeAggregateFunction
-import org.apache.flink.table.functions.sql.{FlinkSqlOperatorTable, SqlConcatAggFunction, SqlFirstLastValueAggFunction}
 import org.apache.flink.table.functions.utils.AggSqlFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
+import org.apache.flink.table.planner.expressions.RexNodeConverter
+import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlConcatAggFunction, SqlFirstLastValueAggFunction}
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo

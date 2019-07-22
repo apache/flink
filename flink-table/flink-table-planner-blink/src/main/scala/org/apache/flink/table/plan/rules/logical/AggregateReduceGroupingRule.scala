@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.plan.rules.logical
 
-import org.apache.flink.table.functions.sql.FlinkSqlOperatorTable
-import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule.{any, operand}

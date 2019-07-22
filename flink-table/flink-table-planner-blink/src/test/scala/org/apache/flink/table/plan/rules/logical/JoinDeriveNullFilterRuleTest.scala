@@ -22,7 +22,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.plan.stats.{ColumnStats, FlinkStatistic, TableStats}
-import org.apache.flink.table.util.{TableConfigUtils, TableTestBase}
+import org.apache.flink.table.planner.utils.TableConfigUtils
+import org.apache.flink.table.util.TableTestBase
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets

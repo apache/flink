@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, Table, ValidationException}
 import org.apache.flink.table.expressions.utils.{Func1, Func18, FuncWithOpen, RichFunc2}
-import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.JavaTableFunc0
 import org.apache.flink.table.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.util._
 import org.apache.flink.test.util.TestBaseUtils

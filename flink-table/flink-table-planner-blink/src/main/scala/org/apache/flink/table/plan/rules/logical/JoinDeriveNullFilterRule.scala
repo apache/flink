@@ -21,7 +21,7 @@ package org.apache.flink.table.plan.rules.logical
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.plan.util.FlinkRelOptUtil
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}

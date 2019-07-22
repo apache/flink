@@ -19,7 +19,7 @@ package org.apache.flink.table.plan.batch.sql.join
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
 import org.apache.flink.table.util.{BatchTableTestUtil, TableTestBase}
 
 import org.junit.Test
