@@ -516,7 +516,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		this.partitionTracker = checkNotNull(partitionTracker);
 
-		this.resultPartitionAvailabilityChecker = new ExecutionGraphResultPartitionAvailabilityChecker(this);
+		this.resultPartitionAvailabilityChecker = new ExecutionGraphResultPartitionAvailabilityChecker(
+			this::createResultPartitionId,
+			partitionTracker);
 
 		LOG.info("Job recovers via failover strategy: {}", failoverStrategy.getStrategyName());
 	}

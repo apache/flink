@@ -19,7 +19,10 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -29,19 +32,22 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ExecutionGraphResultPartitionAvailabilityChecker implements ResultPartitionAvailabilityChecker {
 
-	/** The execution graph that hosts the result partitions. */
-	private final ExecutionGraph executionGraph;
+	/** The function maps an IntermediateResultPartitionID to a ResultPartitionID. */
+	private final Function<IntermediateResultPartitionID, ResultPartitionID> partitionIDMapper;
 
 	/** The tracker that tracks all available result partitions. */
 	private final PartitionTracker partitionTracker;
 
-	ExecutionGraphResultPartitionAvailabilityChecker(final ExecutionGraph executionGraph) {
-		this.executionGraph = checkNotNull(executionGraph);
-		this.partitionTracker = executionGraph.getPartitionTracker();
+	ExecutionGraphResultPartitionAvailabilityChecker(
+			final Function<IntermediateResultPartitionID, ResultPartitionID> partitionIDMapper,
+			final PartitionTracker partitionTracker) {
+
+		this.partitionIDMapper = checkNotNull(partitionIDMapper);
+		this.partitionTracker = checkNotNull(partitionTracker);
 	}
 
 	@Override
 	public boolean isAvailable(final IntermediateResultPartitionID resultPartitionID) {
-		return partitionTracker.isPartitionTracked(executionGraph.createResultPartitionId(resultPartitionID));
+		return partitionTracker.isPartitionTracked(partitionIDMapper.apply(resultPartitionID));
 	}
 }

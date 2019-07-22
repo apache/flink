@@ -20,8 +20,6 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
@@ -385,9 +383,6 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 			final JobGraph jobGraph,
 			final RestartStrategy restartStrategy) throws Exception {
 
-		final Configuration jmConfig = new Configuration();
-		jmConfig.setBoolean(JobManagerOptions.FORCE_PARTITION_RELEASE_ON_CONSUMPTION, false);
-
 		final PartitionTracker partitionTracker = new PartitionTrackerImpl(
 			jobGraph.getJobID(),
 			NettyShuffleMaster.INSTANCE,
@@ -397,7 +392,6 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 			.setRestartStrategy(restartStrategy)
 			.setFailoverStrategyFactory(TestAdaptedRestartPipelinedRegionStrategyNG::new)
 			.setSlotProvider(slotProvider)
-			.setJobMasterConfig(jmConfig)
 			.setPartitionTracker(partitionTracker)
 			.build();
 

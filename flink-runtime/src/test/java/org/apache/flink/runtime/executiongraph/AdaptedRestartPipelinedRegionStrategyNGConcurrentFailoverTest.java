@@ -19,8 +19,6 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
@@ -267,24 +265,20 @@ public class AdaptedRestartPipelinedRegionStrategyNGConcurrentFailoverTest exten
 
 		final SimpleSlotProvider slotProvider = new SimpleSlotProvider(TEST_JOB_ID, DEFAULT_PARALLELISM);
 
-		final Configuration jmConfig = new Configuration();
-		jmConfig.setBoolean(JobManagerOptions.FORCE_PARTITION_RELEASE_ON_CONSUMPTION, false);
-
 		final PartitionTracker partitionTracker = new PartitionTrackerImpl(
 			jg.getJobID(),
 			NettyShuffleMaster.INSTANCE,
 			ignored -> Optional.empty());
 
-		final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jg)
+		final ExecutionGraph graph = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jg)
 			.setRestartStrategy(manuallyTriggeredRestartStrategy)
 			.setFailoverStrategyFactory(TestAdaptedRestartPipelinedRegionStrategyNG::new)
 			.setSlotProvider(slotProvider)
-			.setJobMasterConfig(jmConfig)
 			.setPartitionTracker(partitionTracker)
 			.build();
 
-		eg.start(componentMainThreadExecutor);
+		graph.start(componentMainThreadExecutor);
 
-		return eg;
+		return graph;
 	}
 }
