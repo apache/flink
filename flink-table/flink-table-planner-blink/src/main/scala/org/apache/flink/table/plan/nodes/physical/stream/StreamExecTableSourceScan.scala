@@ -114,7 +114,7 @@ class StreamExecTableSourceScan(
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
       isStreamTable = true,
-      None)
+      tableSourceTable.selectedFields)
 
     val inputDataType = fromLegacyInfoToDataType(inputTransform.getOutputType)
     val producedDataType = tableSource.getProducedDataType
@@ -130,7 +130,7 @@ class StreamExecTableSourceScan(
     // get expression to extract rowtime attribute
     val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeExtractionExpression(
       tableSource,
-      None,
+      tableSourceTable.selectedFields,
       cluster,
       planner.getRelBuilder
     )
@@ -166,7 +166,7 @@ class StreamExecTableSourceScan(
 
     // generate watermarks for rowtime indicator
     val rowtimeDesc: Option[RowtimeAttributeDescriptor] =
-      TableSourceUtil.getRowtimeAttributeDescriptor(tableSource, None)
+      TableSourceUtil.getRowtimeAttributeDescriptor(tableSource, tableSourceTable.selectedFields)
 
     val withWatermarks = if (rowtimeDesc.isDefined) {
       val rowtimeFieldIdx = getRowType.getFieldNames.indexOf(rowtimeDesc.get.getAttributeName)
@@ -195,7 +195,7 @@ class StreamExecTableSourceScan(
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
       isStreamTable = true,
-      None)
+      tableSourceTable.selectedFields)
     ScanUtil.hasTimeAttributeField(fieldIndexes) ||
       ScanUtil.needsConversion(
         tableSource.getProducedDataType,

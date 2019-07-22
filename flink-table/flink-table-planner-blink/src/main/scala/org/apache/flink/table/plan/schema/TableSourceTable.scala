@@ -34,8 +34,13 @@ import org.apache.flink.table.sources.{TableSource, TableSourceUtil}
 class TableSourceTable[T](
     val tableSource: TableSource[T],
     val isStreamingMode: Boolean,
-    val statistic: FlinkStatistic)
+    val statistic: FlinkStatistic,
+    val selectedFields: Option[Array[Int]])
   extends FlinkTable {
+
+  def this(tableSource: TableSource[T], isStreamingMode: Boolean, statistic: FlinkStatistic) {
+    this(tableSource, isStreamingMode, statistic, None)
+  }
 
   // TODO implements this
   // TableSourceUtil.validateTableSource(tableSource)
@@ -43,7 +48,7 @@ class TableSourceTable[T](
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = {
     TableSourceUtil.getRelDataType(
       tableSource,
-      None,
+      selectedFields,
       streaming = isStreamingMode,
       typeFactory.asInstanceOf[FlinkTypeFactory])
   }
