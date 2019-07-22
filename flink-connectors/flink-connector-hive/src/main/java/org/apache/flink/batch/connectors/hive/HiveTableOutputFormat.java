@@ -315,14 +315,12 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 				// only need to check the dynamic partitions
 				final int numStaticPart = hiveTablePartition.getPartitionSpec().size();
 				for (int i = dynamicPartitionOffset; i < record.getArity(); i++) {
-					// TODO: seems Hive also just calls toString(), need further investigation to confirm
-					// TODO: validate partition value
 					Object field = record.getField(i);
-					String partVal = field != null ? field.toString() : null;
-					if (partVal == null || partVal.isEmpty()) {
-						partVal = defaultPartitionName;
+					String partitionValue = field != null ? field.toString() : null;
+					if (partitionValue == null || partitionValue.isEmpty()) {
+						partitionValue = defaultPartitionName;
 					}
-					dynPartSpec.put(partitionColumns.get(i - dynamicPartitionOffset + numStaticPart), partVal);
+					dynPartSpec.put(partitionColumns.get(i - dynamicPartitionOffset + numStaticPart), partitionValue);
 				}
 				String partName = Warehouse.makePartPath(dynPartSpec);
 				partitionWriter = partitionToWriter.get(partName);

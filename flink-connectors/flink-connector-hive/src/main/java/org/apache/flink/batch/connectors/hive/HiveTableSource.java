@@ -173,7 +173,7 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 						Object partitionObject;
 						if (defaultPartitionName.equals(partitionValue)) {
 							LogicalTypeRoot typeRoot = type.getLogicalType().getTypeRoot();
-							// while this is inline with Hive, seems it should be null for string columns as well?
+							// while this is inline with Hive, seems it should be null for string columns as well
 							partitionObject = typeRoot == LogicalTypeRoot.CHAR || typeRoot == LogicalTypeRoot.VARCHAR ? defaultPartitionName : null;
 						} else {
 							partitionObject = restorePartitionValueFromFromType(partitionValue, type);
