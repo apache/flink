@@ -80,9 +80,9 @@ public class InternalSerializers {
 				return new BaseArraySerializer(((ArrayType) type).getElementType(), config);
 			case MAP:
 				MapType mapType = (MapType) type;
-				return new BaseMapSerializer(mapType.getKeyType(), mapType.getValueType());
+				return new BaseMapSerializer(mapType.getKeyType(), mapType.getValueType(), config);
 			case MULTISET:
-				return new BaseMapSerializer(((MultisetType) type).getElementType(), new IntType());
+				return new BaseMapSerializer(((MultisetType) type).getElementType(), new IntType(), config);
 			case ROW:
 				RowType rowType = (RowType) type;
 				return new BaseRowSerializer(config, rowType);

@@ -114,4 +114,12 @@ public class DecimalTest {
 		Assert.assertEquals(0, Decimal.zero(20, 2).toBigDecimal().intValue());
 		Assert.assertEquals(0, Decimal.zero(20, 2).toBigDecimal().intValue());
 	}
+
+	@Test
+	public void testToString() {
+		String val = "0.0000000000000000001";
+		Assert.assertEquals(val, Decimal.castFrom(val, 39, val.length() - 2).toString());
+		val = "123456789012345678901234567890123456789";
+		Assert.assertEquals(val, Decimal.castFrom(val, 39, 0).toString());
+	}
 }

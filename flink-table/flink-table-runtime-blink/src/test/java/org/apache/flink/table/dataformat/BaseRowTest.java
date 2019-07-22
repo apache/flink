@@ -102,7 +102,8 @@ public class BaseRowTest {
 		writer.writeDecimal(10, decimal1, 5);
 		writer.writeDecimal(11, decimal2, 20);
 		writer.writeArray(12, array, new BaseArraySerializer(DataTypes.INT().getLogicalType(), null));
-		writer.writeMap(13, map, new BaseMapSerializer(DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType()));
+		writer.writeMap(13, map, new BaseMapSerializer(
+			DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType(), null));
 		writer.writeRow(14, underRow, new BaseRowSerializer(null, RowType.of(new IntType(), new IntType())));
 		writer.writeBinary(15, bytes);
 		return row;

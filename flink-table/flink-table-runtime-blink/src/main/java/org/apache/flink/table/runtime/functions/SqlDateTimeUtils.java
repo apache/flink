@@ -362,7 +362,11 @@ public class SqlDateTimeUtils {
 	 * @param tzTo the target time zone
 	 */
 	public static String convertTz(String dateStr, String format, String tzFrom, String tzTo) {
-		return dateFormatTz(toTimestampTz(dateStr, format, tzFrom), tzTo);
+		Long ts = toTimestampTz(dateStr, format, tzFrom);
+		if (null != ts) { // avoid NPE
+			return dateFormatTz(ts, tzTo);
+		}
+		return null;
 	}
 
 	public static String convertTz(String dateStr, String tzFrom, String tzTo) {

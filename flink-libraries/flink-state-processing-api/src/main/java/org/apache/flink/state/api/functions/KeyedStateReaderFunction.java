@@ -23,6 +23,8 @@ import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
+import java.util.Set;
+
 /**
  * A function that processes keys from a restored operator
  *
@@ -79,6 +81,16 @@ public abstract class KeyedStateReaderFunction<K, OUT> extends AbstractRichFunct
 	 * afterwards!
 	 */
 	public interface Context {
+
+		/**
+		 * @return All registered event time timers for the current key.
+		 */
+		Set<Long> registeredEventTimeTimers() throws Exception;
+
+		/**
+		 * @return All registered processing time timers for the current key.
+		 */
+		Set<Long> registeredProcessingTimeTimers() throws Exception;
 	}
 }
 
