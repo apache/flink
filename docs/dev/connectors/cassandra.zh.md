@@ -52,7 +52,7 @@ under the License.
 1. 按照 [Cassandra 入门页面](http://cassandra.apache.org/doc/latest/getting_started/index.html)中的说明进行操作。
 2. 从 [Official Docker Repository](https://hub.docker.com/_/cassandra/)启动运行 Cassandra 的容器
 
-## Cassandra Sinks
+## Cassandra 连接器
 
 ### 配置
 
@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS example.wordcount (
 </div>
 
 ### Cassandra Sink Example for Streaming Tuple Data Type
-在将结果通过 Java/Scala Tuple 数据类型存储到 Cassandra 接收器时，需要设置CQL upsert 语句（通过 setQuery('stmt')）将每条记录保存回数据库。将 upsert 查询缓存为 `PreparedStatement` 时，每个 Tuple 元素都将转换为语句的参数。
+在将结果通过 Java/Scala Tuple 数据类型存储到 Cassandra 接收器时，需要设置 CQL upsert 语句（通过 setQuery('stmt')）将每条记录保存回数据库。将 upsert 查询缓存为 `PreparedStatement` 时，每个 Tuple 元素都将转换为语句的参数。
 有关 `PreparedStatement` 和 `BoundStatement` 的详细信息，请访问 [DataStax Java 驱动程序手册](https://docs.datastax.com/en/developer/java-driver/2.1/manual/statements/prepared/)。
 
 <div class="codetabs" markdown="1">
