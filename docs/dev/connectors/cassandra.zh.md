@@ -27,13 +27,13 @@ under the License.
 {:toc}
 
 
-此连接器提供将数据写入 [Apache Cassandra](https://cassandra.apache.org/) 数据库的 sinks（接收器）。
+此连接器可以向 [Apache Cassandra](https://cassandra.apache.org/) 数据库写入数据。
 
 <!--
-  TODO：也许值得一提的是当前的DataStax Java 驱动程序版本与用户端的 Cassandra 版本相匹配。
+  TODO: Perhaps worth mentioning current DataStax Java Driver version to match Cassandra version on user side.
 -->
 
-要使用此连接器，请将以下依赖项添加到项目中：
+使用前，请将以下依赖项添加到项目：
 
 {% highlight xml %}
 <dependency>
@@ -43,27 +43,28 @@ under the License.
 </dependency>
 {% endhighlight %}
 
-请注意，流连接器当前不是 Flink 二进制发布包的一部分。了解如何链接它们以进行集群执行[此处]({{site.baseurl}}/zh/dev/project-configuration.html)。
+请注意，流连接器当前不是 Flink 二进制发布包的一部分。添加依赖、打包配置以及集群运行信息请参考[此处]({{site.baseurl}}/zh/dev/project-configuration.html)。
+
 
 ## 安装 Apache Cassandra
-有多种方法可以在本地计算机上启动Cassandra实例：
+有多种方法可以在本地计算机上启动 Cassandra 实例：
 
-1. 按照[Cassandra入门页面](http://cassandra.apache.org/doc/latest/getting_started/index.html)中的说明进行操作。
-2. 从[Official Docker Repository](https://hub.docker.com/_/cassandra/)启动运行 Cassandra 的容器
+1. 按照 [Cassandra 入门页面](http://cassandra.apache.org/doc/latest/getting_started/index.html)中的说明进行操作。
+2. 从 [Official Docker Repository](https://hub.docker.com/_/cassandra/)启动运行 Cassandra 的容器
 
 ## Cassandra Sinks
 
 ### 配置
 
-Flink的 Cassandra 接收器是使用静态 `CassandraSink.addSink(DataStream<IN> input)` 方法创建的。这个方法返回一个 `CassandraSinkBuilder`，它提供了进一步配置接收器的方法，最后通过 `build（）` 创建接收器实例。
+Flink 的 Cassandra 接收器是使用静态方法 `CassandraSink.addSink(DataStream<IN> input)` 创建的。这个方法返回一个 `CassandraSinkBuilder`，它提供了进一步配置接收器的方法，最后通过 `build()` 创建接收器实例。
 
 可以使用以下配置方法：
 
 1. _setQuery(String query)_
-    * 设置为接收器接收的每个记录执行的 upsert 查询。
+    * 设置为接收器接收的每个记录执行的 upsert query。
     * 查询在内部被视为 CQL 语句。
-    * __DO__ 设置 upsert 查询以处理 __Tuple__ 数据类型。
-    * __DO NOT__ 设置查询以处理 __POJO__ 数据类型。
+    * __请__ 设置 upsert query以处理 __Tuple__ 数据类型。
+    * __请不要__ 设置查询以处理 __POJO__ 数据类型。
 2. _setClusterBuilder()_
     * 将用于配置创建更复杂的 cassandra cluster builder，例如一致性级别，重试策略等。
 3. _setHost(String host[, int port])_
@@ -72,38 +73,38 @@ Flink的 Cassandra 接收器是使用静态 `CassandraSink.addSink(DataStream<IN
     * 设置用于配置 DataStax ObjectMapper 的映射器选项。
     * 仅在处理 __POJO__ 数据类型时适用。
 5. _setMaxConcurrentRequests(int maxConcurrentRequests, Duration timeout)_
-    * 设置允许执行许可的超时的最大并发请求数。
+    * 设置允许请求的最大并发数。
     * 仅在未配置 __enableWriteAheadLog()__ 时适用。
 6. _enableWriteAheadLog([CheckpointCommitter committer])_
-    * __optional__ 设置
+    * __可选__ 设置
     * 允许对非确定性算法进行精确一次处理。
 7. _setFailureHandler([CassandraFailureHandler failureHandler])_
-    * __optional__ 设置。
+    * __可选__ 设置。
     * 设置自定义失败处理程序。
 8. _build()_
     * 完成配置并构造 CassandraSink 实例。
 
 ### 预写日志
 
-一个 checkpoint 提交者存储有关已完成 checkpoint 的附加信息在某些资源中。此信息用于防止在发生故障时从最后一次完整保存的 checkpoint 中重播恢复数据  。
+预写日志是 checkpoint 提交者存储已完成 checkpoint 的一些额外信息，避免在故障恢复过程中需要重放上一个已完成的 checkpoint。
 您可以使用 `CassandraCommitter` 将它们存储在 cassandra 的单独表中。请注意，Flink 不会清理此表。
 
-如果查询是幂等的，Flink 启用了 checkpoint 情况下可以提供精确一次保证（意味着它可以应用多个时间而不更改结果）。如果失败则会从已完整保存的 checkpoint 中重播恢复数据。
+如果查询是幂等的，Flink 启用了 checkpoint 情况下可以提供精确一次保证（处理一次的结果和处理多次的结果是一致的）。如果失败则会从已完整保存的 checkpoint 中重放恢复数据。
 
-此外，对于非确定性程序，必须启用预写日志。对于这样的计划重播的 checkpoint 可能与之前的尝试完全不同，后者可能会离开数据库处于不一致状态，因为可能已经编写了第一次尝试的部分内容。预写日志保证重放的 checkpoint 与第一次尝试相同。请注意，启用此功能会对延迟产生负面影响。
+此外，对于非幂等程序，必须启用预写日志。这是因为重放 checkpoint 会导致结果和预期的不一样。预写日志保证重放的 checkpoint 与第一次尝试相同。请注意，启用此功能会对延迟产生负面影响。
 
-<p style="border-radius: 5px; padding: 5px" class="bg-danger"><b>注意</b>：预写日志功能目前是实验性的。在许多情况下，使用连接器而不启用它就足够了。请将问题报告给开发邮件列表。</p>
+<p style="border-radius: 5px; padding: 5px" class="bg-danger"><b>注意</b>：预写日志功能目前是实验性的。在许多情况下，并不需要启用它。请将问题报告给开发邮件列表。</p>
 
 ### Checkpointing and 容错
-启用 Checkpointing 后，Cassandra Sink 保证至少一次向 C* 实例传递操作请求。
+启用 checkpointing 后，Cassandra Sink 保证向 C* 实例传递至少一次操作请求。
 
-更多有关[checkpoints docs]({{site.baseurl}}/zh/dev/stream/state/checkpointing.html)和[容错保证文档]({{site.baseurl}}/zh/dev/connectors/guarantees.html)的详细信息。
+更多信息请参考 [checkpoints docs]({{site.baseurl}}/zh/dev/stream/state/checkpointing.html) 和[容错保证文档]({{site.baseurl}}/zh/dev/connectors/guarantees.html)。
 
 ## 例子
 
-Cassandra 接收器当前支持 Tuple 和 POJO 数据类型，Flink 自动检测使用哪种类型的输入。有关那些流数据类型的一般用例，请参阅[支持的数据类型]({{ site.baseurl }}/dev/api_concepts.html)。我们展示了两个基于 [SocketWindowWordCount](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java) 的实现，分别用于 Pojo 和 Tuple 数据类型。
+Cassandra 接收器当前支持 Tuple 和 POJO 数据类型，Flink 自动检测使用哪种类型的输入。有关那些流数据类型的一般用例，请参阅[支持的数据类型]({{ site.baseurl }}/zh/dev/api_concepts.html)。我们展示了两个基于 [SocketWindowWordCount](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java) 的实现，分别用于 Pojo 和 Tuple 数据类型。
 
-在所有这些例子中，我们都是假设已经创建了相关的 Keyspace `example`和 Table `wordcount`。
+在所有这些例子中，我们都假设已经创建了相关的 Keyspace `example`和 Table `wordcount`。
 
 <div class="codetabs" markdown="1">
 <div data-lang="CQL" markdown="1">
@@ -121,8 +122,7 @@ CREATE TABLE IF NOT EXISTS example.wordcount (
 
 ### Cassandra Sink Example for Streaming Tuple Data Type
 在将结果通过 Java/Scala Tuple 数据类型存储到 Cassandra 接收器时，需要设置CQL upsert 语句（通过 setQuery('stmt')）将每条记录保存回数据库。将 upsert 查询缓存为 `PreparedStatement` 时，每个 Tuple 元素都将转换为语句的参数。
-
-有关 `PreparedStatement` 和 `BoundStatement` 的详细信息，请访问[DataStax Java 驱动程序手册](https://docs.datastax.com/en/developer/java-driver/2.1/manual/statements/prepared/)。
+有关 `PreparedStatement` 和 `BoundStatement` 的详细信息，请访问 [DataStax Java 驱动程序手册](https://docs.datastax.com/en/developer/java-driver/2.1/manual/statements/prepared/)。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -192,9 +192,9 @@ result.print().setParallelism(1)
 
 
 ### 用于流式传输 POJO 数据类型的 Cassandra Sink 示例
-流式传输 POJO 数据类型并将相同的 POJO 实体存储回 Cassandra 的示例。此外，此 POJO 实现需要遵循[DataStax Java 驱动程序手册](http://docs.datastax.com/en/developer/java-driver/2.1/manual/object_mapper/creating/)来注释每个字段的类使用 DataStax Java 驱动程序 `com.datastax.driver.mapping.Mapper` 类将此实体映射到指定表的关联列。
+流式传输 POJO 数据类型并将相同的 POJO 实体存储回 Cassandra 的示例。此外，此 POJO 实现需要遵循 [DataStax Java 驱动程序手册](http://docs.datastax.com/en/developer/java-driver/2.1/manual/object_mapper/creating/)来注释每个字段的类使用 DataStax Java 驱动程序 `com.datastax.driver.mapping.Mapper` 类将此实体映射到指定表的关联列。
 
-可以通过放置在 Pojo 类中的字段声明上的注释来定义每个表列的映射。有关映射的详细信息，请参阅[映射类的定义](http://docs.datastax.com/en/developer/java-driver/3.1/manual/object_mapper/creating/)和[CQL Data types](https://docs.datastax.com/en/cql/3.1/cql/cql_reference/cql_data_types_c.html)。
+可以通过放置在 Pojo 类中的字段声明上的注释来定义每个表列的映射。有关映射的详细信息，请参阅[映射类的定义](http://docs.datastax.com/en/developer/java-driver/3.1/manual/object_mapper/creating/)和 [CQL Data types](https://docs.datastax.com/en/cql/3.1/cql/cql_reference/cql_data_types_c.html)。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
