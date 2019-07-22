@@ -165,6 +165,11 @@ public class ClosureCleaner {
 			return true;
 		} catch (NoSuchMethodException ignored) {}
 
+		try {
+			cls.getDeclaredMethod("writeReplace");
+			return true;
+		} catch (NoSuchMethodException ignored) {}
+
 		return Externalizable.class.isAssignableFrom(cls);
 	}
 
