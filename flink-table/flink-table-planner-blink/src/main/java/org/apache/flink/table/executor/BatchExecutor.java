@@ -87,7 +87,7 @@ public class BatchExecutor extends ExecutorBase {
 			sn.setResources(sn.getMinResources().merge(managedResourceSpec), sn.getPreferredResources().merge(managedResourceSpec));
 		});
 		streamGraph.setChaining(true);
-		streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES);
+		streamGraph.setScheduleMode(ScheduleMode.LAZY_FROM_SOURCES_WITH_BATCH_SLOT_REQUEST);
 		streamGraph.setStateBackend(null);
 		streamGraph.getCheckpointConfig().setCheckpointInterval(Long.MAX_VALUE);
 		if (isShuffleModeAllBatch()) {
