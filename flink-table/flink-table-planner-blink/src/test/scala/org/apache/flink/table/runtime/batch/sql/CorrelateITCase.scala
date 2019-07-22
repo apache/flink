@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.batch.sql
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO
-import org.apache.flink.api.common.typeinfo.{LocalTimeTypeInfo, SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{LocalTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, RowTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.typeutils.Types
@@ -300,6 +300,7 @@ class CorrelateITCase extends BatchTestBase {
 //  }
 }
 
+@SerialVersionUID(1L)
 object StringUdFunc extends ScalarFunction {
   def eval(s: String): String = s
 }
@@ -320,6 +321,7 @@ object TableFunctionITCase {
   )
 }
 
+@SerialVersionUID(1L)
 class MyPojoTableFunc extends TableFunction[Int] {
   def eval(s: MyPojo): Unit = collect(s.f2)
 
@@ -331,6 +333,7 @@ class MyPojoTableFunc extends TableFunction[Int] {
   }
 }
 
+@SerialVersionUID(1L)
 class MyToPojoTableFunc extends TableFunction[MyPojo] {
   def eval(s: Int): Unit = collect(new MyPojo(s, s))
 
@@ -342,6 +345,7 @@ class MyToPojoTableFunc extends TableFunction[MyPojo] {
   }
 }
 
+@SerialVersionUID(1L)
 class GenericTableFunc[T](t: TypeInformation[T]) extends TableFunction[T] {
   def eval(s: Int): Unit = {
     if (t == Types.STRING) {
@@ -356,6 +360,7 @@ class GenericTableFunc[T](t: TypeInformation[T]) extends TableFunction[T] {
   override def getResultType: TypeInformation[T] = t
 }
 
+@SerialVersionUID(1L)
 class BinaryStringTableFunc extends TableFunction[Row] {
   def eval(s: BinaryString, cons: BinaryString): Unit = collect(Row.of(s, cons))
   override def getResultType: TypeInformation[Row] = {

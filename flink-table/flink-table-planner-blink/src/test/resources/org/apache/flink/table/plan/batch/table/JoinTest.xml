@@ -20,7 +20,7 @@ limitations under the License.
     <Resource name="planBefore">
       <![CDATA[
 LogicalFilter(condition=[>=($0, 0)])
-+- LogicalProject(c1=[org$apache$flink$table$plan$batch$table$JoinTest$Merger$$223b7380fec29c4077a893c60165d845($2, org$apache$flink$table$plan$batch$table$JoinTest$Merger$$223b7380fec29c4077a893c60165d845($2, $5))])
++- LogicalProject(c1=[org$apache$flink$table$plan$batch$table$JoinTest$Merger$$dd1e0003baf9c0bf59f98f20745ade7a($2, org$apache$flink$table$plan$batch$table$JoinTest$Merger$$dd1e0003baf9c0bf59f98f20745ade7a($2, $5))])
    +- LogicalJoin(condition=[=($1, $4)], joinType=[left])
       :- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(d, e, f)]]])
