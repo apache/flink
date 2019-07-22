@@ -253,17 +253,34 @@ final class TestingUpsertTableSink(val keys: Array[Int], val tz: TimeZone)
   var fNames: Array[String] = _
   var fTypes: Array[TypeInformation[_]] = _
   var sink = new TestingUpsertSink(keys, tz)
+  var expectedKeys: Option[Array[String]] = None
+  var expectedIsAppendOnly: Option[Boolean] = None
 
   def this(keys: Array[Int]) {
     this(keys, TimeZone.getTimeZone("UTC"))
   }
 
   override def setKeyFields(keys: Array[String]): Unit = {
-    // ignore
+    if (expectedKeys.isDefined && keys == null) {
+      throw new AssertionError("Provided key fields should not be null.")
+    } else if (expectedKeys.isEmpty) {
+      return
+    }
+    val expectedStr = expectedKeys.get.sorted.mkString(",")
+    val keysStr = keys.sorted.mkString(",")
+    if (!expectedStr.equals(keysStr)) {
+      throw new AssertionError(
+        s"Provided key fields($keysStr) do not match expected keys($expectedStr)")
+    }
   }
 
   override def setIsAppendOnly(isAppendOnly: JBoolean): Unit = {
-    // ignore
+    if (expectedIsAppendOnly.isEmpty) {
+      return
+    }
+    if (expectedIsAppendOnly.get != isAppendOnly) {
+      throw new AssertionError("Provided isAppendOnly does not match expected isAppendOnly")
+    }
   }
 
   override def getRecordType: TypeInformation[BaseRow] =
