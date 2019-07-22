@@ -31,7 +31,7 @@ import org.apache.flink.table.sources.StreamTableSource
 /**
   * Rule that converts [[FlinkLogicalTableSourceScan]] to [[BatchExecTableSourceScan]].
   */
-class BatchExecScanTableSourceRule
+class BatchExecTableSourceScanRule
   extends ConverterRule(
     classOf[FlinkLogicalTableSourceScan],
     FlinkConventions.LOGICAL,
@@ -63,6 +63,6 @@ class BatchExecScanTableSourceRule
   }
 }
 
-object BatchExecScanTableSourceRule {
-  val INSTANCE: RelOptRule = new BatchExecScanTableSourceRule
+object BatchExecTableSourceScanRule {
+  val INSTANCE: RelOptRule = new BatchExecTableSourceScanRule
 }

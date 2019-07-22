@@ -362,7 +362,7 @@ object FlinkBatchRuleSets {
     FlinkExpandConversionRule.BATCH_INSTANCE,
     // source
     BatchExecBoundedStreamScanRule.INSTANCE,
-    BatchExecScanTableSourceRule.INSTANCE,
+    BatchExecTableSourceScanRule.INSTANCE,
     BatchExecIntermediateTableScanRule.INSTANCE,
     BatchExecValuesRule.INSTANCE,
     // calc

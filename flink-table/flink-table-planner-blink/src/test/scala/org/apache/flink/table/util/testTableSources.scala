@@ -244,9 +244,6 @@ class TestProjectableTableSource(
       projectedTypes.asInstanceOf[Array[TypeInformation[_]]],
       projectedNames)
 
-    val projectedDataTypes = fields.map(tableSchema.getFieldDataTypes.apply(_))
-    val newTableSchema = TableSchema.builder().fields(projectedNames, projectedDataTypes).build()
-
     val projectedValues = values.map { fromRow =>
       val pRow = new Row(fields.length)
       fields.zipWithIndex.foreach{ case (from, to) => pRow.setField(to, fromRow.getField(from)) }
@@ -255,7 +252,7 @@ class TestProjectableTableSource(
 
     new TestProjectableTableSource(
       isBounded,
-      newTableSchema,
+      tableSchema,
       projectedReturnType,
       projectedValues,
       rowtime,
@@ -304,9 +301,6 @@ class TestNestedProjectableTableSource(
     val newReadNestedFields = projectedNames.zip(nestedFields)
       .flatMap(f => f._2.map(n => s"${f._1}.$n"))
 
-    val projectedDataTypes = fields.map(tableSchema.getFieldDataTypes.apply(_))
-    val newTableSchema = TableSchema.builder().fields(projectedNames, projectedDataTypes).build()
-
     val projectedValues = values.map { fromRow =>
       val pRow = new Row(fields.length)
       fields.zipWithIndex.foreach{ case (from, to) => pRow.setField(to, fromRow.getField(from)) }
@@ -315,7 +309,7 @@ class TestNestedProjectableTableSource(
 
     val copy = new TestNestedProjectableTableSource(
       isBounded,
-      newTableSchema,
+      tableSchema,
       projectedReturnType,
       projectedValues,
       rowtime,

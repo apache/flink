@@ -179,8 +179,6 @@ class TableSourceITCase extends BatchTestBase {
     )
   }
 
-  @Ignore("[FLINK-13075] Project pushdown rule shouldn't require" +
-    " the TableSource return a modified schema in blink planner")
   @Test
   def testLookupJoinCsvTemporalTable(): Unit = {
     val orders = TestTableSources.getOrdersCsvTableSource
