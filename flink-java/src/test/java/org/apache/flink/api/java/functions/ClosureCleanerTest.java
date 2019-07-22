@@ -135,7 +135,7 @@ public class ClosureCleanerTest {
 	}
 
 	@Test
-	public void testSelfReferencingClean() throws Exception {
+	public void testSelfReferencingClean() {
 		final NestedSelfReferencing selfReferencing = new NestedSelfReferencing();
 		ClosureCleaner.clean(selfReferencing, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 	}
@@ -428,12 +428,21 @@ class OuterMapCreator implements MapCreator {
 	}
 }
 
+@FunctionalInterface
+interface SerializableSupplier<T> extends Supplier<T>, Serializable {
+
+}
+
 class NestedSelfReferencing implements Serializable {
 
-	private final Supplier<NestedSelfReferencing> cycle;
+	private final SerializableSupplier<NestedSelfReferencing> cycle;
 
 	NestedSelfReferencing() {
 		this.cycle = () -> this;
+	}
+
+	public SerializableSupplier<NestedSelfReferencing> getCycle() {
+		return cycle;
 	}
 }
 
