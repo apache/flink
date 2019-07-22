@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.java.functions;
 
+import java.util.function.Supplier;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -131,6 +132,12 @@ public class ClosureCleanerTest {
 		int result = complexMap.map(3);
 
 		Assert.assertEquals(result, 4);
+	}
+
+	@Test
+	public void testSelfReferencingClean() throws Exception {
+		final NestedSelfReferencing selfReferencing = new NestedSelfReferencing();
+		ClosureCleaner.clean(selfReferencing, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 	}
 
 	class InnerCustomMap implements MapFunction<Integer, Integer> {
@@ -418,6 +425,15 @@ class OuterMapCreator implements MapCreator {
 	@Override
 	public MapFunction<Integer, Integer> getMap() {
 		return new OuterStaticClass().getMap();
+	}
+}
+
+class NestedSelfReferencing implements Serializable {
+
+	private final Supplier<NestedSelfReferencing> cycle;
+
+	NestedSelfReferencing() {
+		this.cycle = () -> this;
 	}
 }
 
