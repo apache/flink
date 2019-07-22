@@ -17,8 +17,6 @@
  */
 package org.apache.flink.table.expressions
 
-import _root_.java.math.{BigDecimal => JBigDecimal}
-import _root_.java.util.{List => JList}
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.api._
 import org.apache.flink.table.delegation.PlannerExpressionParser
@@ -26,12 +24,18 @@ import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
+import _root_.java.math.{BigDecimal => JBigDecimal}
+import _root_.java.util.{List => JList}
+
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.language.implicitConversions
 import _root_.scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
 
 /**
   * The implementation of a [[PlannerExpressionParser]] which parsers expressions inside a String.
+  *
+  * <p><strong>WARNING</strong>: please keep this class in sync with PlannerExpressionParserImpl
+  * variant in flink-table-planner module.
   */
 class PlannerExpressionParserImpl extends PlannerExpressionParser {
 

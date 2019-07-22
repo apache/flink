@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
-import org.apache.flink.table.util.TableTestUtil
+import org.apache.flink.table.planner.utils.TableTestUtil
 
 import org.apache.calcite.plan.RelOptUtil
 import org.junit.Assert.assertEquals
