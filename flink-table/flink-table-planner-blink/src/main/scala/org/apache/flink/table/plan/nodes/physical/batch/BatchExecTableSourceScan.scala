@@ -102,7 +102,7 @@ class BatchExecTableSourceScan(
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
       isStreamTable = false,
-      None)
+      tableSourceTable.selectedFields)
 
     val inputDataType = fromLegacyInfoToDataType(inputTransform.getOutputType)
     val producedDataType = tableSource.getProducedDataType
@@ -118,7 +118,7 @@ class BatchExecTableSourceScan(
     // get expression to extract rowtime attribute
     val rowtimeExpression: Option[RexNode] = TableSourceUtil.getRowtimeExtractionExpression(
       tableSource,
-      None,
+      tableSourceTable.selectedFields,
       cluster,
       planner.getRelBuilder
     )
@@ -144,7 +144,7 @@ class BatchExecTableSourceScan(
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
       isStreamTable = false,
-      None)
+      tableSourceTable.selectedFields)
     ScanUtil.hasTimeAttributeField(fieldIndexes) ||
       ScanUtil.needsConversion(
         tableSource.getProducedDataType,

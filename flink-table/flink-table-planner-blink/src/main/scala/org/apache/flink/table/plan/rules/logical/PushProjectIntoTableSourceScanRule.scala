@@ -22,11 +22,11 @@ import org.apache.flink.table.plan.schema.{FlinkRelOptTable, TableSourceTable}
 import org.apache.flink.table.plan.util._
 import org.apache.flink.table.sources._
 import org.apache.flink.util.CollectionUtil
-
 import org.apache.calcite.plan.RelOptRule.{none, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.logical.{LogicalProject, LogicalTableScan}
 import org.apache.calcite.rel.rules.ProjectRemoveRule
+import org.apache.flink.table.api.TableException
 
 /**
   * Planner rule that pushes a [[LogicalProject]] into a [[LogicalTableScan]]
@@ -66,7 +66,8 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
 
     val relOptTable = scan.getTable.asInstanceOf[FlinkRelOptTable]
     val tableSourceTable = relOptTable.unwrap(classOf[TableSourceTable[_]])
-    val newTableSource = tableSourceTable.tableSource match {
+    val oldTableSource = tableSourceTable.tableSource
+    val newTableSource = oldTableSource match {
       case nested: NestedFieldsProjectableTableSource[_] =>
         val nestedFields = RexNodeExtractor.extractRefNestedInputFields(
           project.getProjects, usedFields)
@@ -74,9 +75,20 @@ class PushProjectIntoTableSourceScanRule extends RelOptRule(
       case projecting: ProjectableTableSource[_] =>
         projecting.projectFields(usedFields)
     }
+
+    // check that table schema of the new table source is identical to original
+    if (oldTableSource.getTableSchema != newTableSource.getTableSchema) {
+      throw new TableException("TableSchema of ProjectableTableSource must not be modified " +
+        "by projectFields() call. This is a bug in the implementation of the TableSource " +
+        s"${oldTableSource.getClass.getCanonicalName}.")
+    }
+
     // project push down does not change the statistic, we can reuse origin statistic
     val newTableSourceTable = new TableSourceTable(
-      newTableSource, tableSourceTable.isStreamingMode, tableSourceTable.statistic)
+      newTableSource,
+      tableSourceTable.isStreamingMode,
+      tableSourceTable.statistic,
+      Option(usedFields))
     // row type is changed after project push down
     val newRowType = newTableSourceTable.getRowType(scan.getCluster.getTypeFactory)
     val newRelOptTable = relOptTable.copy(newTableSourceTable, newRowType)
