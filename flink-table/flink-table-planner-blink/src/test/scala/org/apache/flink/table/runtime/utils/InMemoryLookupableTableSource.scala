@@ -219,6 +219,7 @@ object InMemoryLookupableTableSource {
   /**
     * An async lookup function which find matched rows with the given fields.
     */
+  @SerialVersionUID(1L)
   private class InMemoryAsyncLookupFunction(
       data: Map[Row, List[Row]],
       resourceCounter: AtomicInteger,

@@ -183,6 +183,7 @@ object CalcTest {
 
   case class TestCaseClass(my: String, clazz: Int)
 
+  @SerialVersionUID(1L)
   object giveMeCaseClass extends ScalarFunction {
     def eval(): TestCaseClass = {
       TestCaseClass("hello", 42)
@@ -193,6 +194,7 @@ object CalcTest {
     }
   }
 
+  @SerialVersionUID(1L)
   object MyHashCode extends ScalarFunction {
     def eval(s: String): Int = s.hashCode()
   }

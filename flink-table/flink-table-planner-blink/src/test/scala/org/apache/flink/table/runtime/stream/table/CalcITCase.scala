@@ -19,20 +19,20 @@
 package org.apache.flink.table.runtime.stream.table
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{ExecutionConfigOptions, TableException}
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.{Func1, Func13, Func23, Func24, Func25, RichFunc1, RichFunc2}
 import org.apache.flink.table.functions.ScalarFunction
-import org.apache.flink.table.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink, UserDefinedFunctionTestUtils}
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils.TestData._
+import org.apache.flink.table.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink, UserDefinedFunctionTestUtils}
 import org.apache.flink.types.Row
 
-import scala.collection.{Seq, mutable}
 import org.junit.Assert._
 import org.junit._
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+
+import scala.collection.{Seq, mutable}
 
 @RunWith(classOf[Parameterized])
 class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
@@ -452,7 +452,7 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
   }
 }
 
-
+@SerialVersionUID(1L)
 object TestUDFLength extends ScalarFunction {
 
   // testing eval function with throws clause

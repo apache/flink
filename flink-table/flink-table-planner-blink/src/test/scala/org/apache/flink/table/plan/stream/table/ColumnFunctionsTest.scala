@@ -221,6 +221,7 @@ class ColumnFunctionsTest extends TableTestBase {
   }
 }
 
+@SerialVersionUID(1L)
 object TestFunc extends ScalarFunction {
   def eval(a: Double, b: Long): Double = {
     a

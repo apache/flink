@@ -38,12 +38,14 @@ import scala.io.Source
 
 case class SimplePojo(name: String, age: Int)
 
+@SerialVersionUID(1L)
 object Func0 extends ScalarFunction {
   def eval(index: Int): Int = {
     index
   }
 }
 
+@SerialVersionUID(1L)
 object Func1 extends ScalarFunction {
   def eval(index: Integer): Integer = {
     index + 1
@@ -56,42 +58,49 @@ object Func1 extends ScalarFunction {
   def eval(f: Float): Float = f + 1
 }
 
+@SerialVersionUID(1L)
 object Func2 extends ScalarFunction {
   def eval(index: Integer, str: String, pojo: SimplePojo): String = {
     s"$index and $str and $pojo"
   }
 }
 
+@SerialVersionUID(1L)
 object Func3 extends ScalarFunction {
   def eval(index: Integer, str: String): String = {
     s"$index and $str"
   }
 }
 
+@SerialVersionUID(1L)
 object Func4 extends ScalarFunction {
   def eval(): Integer = {
     null
   }
 }
 
+@SerialVersionUID(1L)
 object Func5 extends ScalarFunction {
   def eval(): Int = {
     -1
   }
 }
 
+@SerialVersionUID(1L)
 object Func6 extends ScalarFunction {
   def eval(date: Date, time: Time, timestamp: Timestamp): (Date, Time, Timestamp) = {
     (date, time, timestamp)
   }
 }
 
+@SerialVersionUID(1L)
 object Func7 extends ScalarFunction {
   def eval(a: Integer, b: Integer): Integer = {
     a + b
   }
 }
 
+@SerialVersionUID(1L)
 object Func8 extends ScalarFunction {
   def eval(a: Int): String = {
     "a"
@@ -106,12 +115,14 @@ object Func8 extends ScalarFunction {
   }
 }
 
+@SerialVersionUID(1L)
 object Func9 extends ScalarFunction {
   def eval(a: Int, b: Int, c: Long): String = {
     s"$a and $b and $c"
   }
 }
 
+@SerialVersionUID(1L)
 object Func10 extends ScalarFunction {
   def eval(c: Long): Long = {
     c
@@ -121,12 +132,14 @@ object Func10 extends ScalarFunction {
     SqlTimeTypeInfo.TIMESTAMP
 }
 
+@SerialVersionUID(1L)
 object Func11 extends ScalarFunction {
   def eval(a: Int, b: Long): String = {
     s"$a and $b"
   }
 }
 
+@SerialVersionUID(1L)
 object Func12 extends ScalarFunction {
   def eval(a: Long): Long = {
     a
@@ -137,12 +150,14 @@ object Func12 extends ScalarFunction {
   }
 }
 
+@SerialVersionUID(1L)
 object ShouldNotExecuteFunc extends ScalarFunction {
   def eval(s: String): Boolean = {
     throw new Exception("This func should never be executed")
   }
 }
 
+@SerialVersionUID(1L)
 class RichFunc0 extends ScalarFunction {
   var openCalled = false
   var closeCalled = false
@@ -183,6 +198,7 @@ class RichFunc0 extends ScalarFunction {
   }
 }
 
+@SerialVersionUID(1L)
 class RichFunc1 extends ScalarFunction {
   var added: Int = Int.MaxValue
 
@@ -199,6 +215,7 @@ class RichFunc1 extends ScalarFunction {
   }
 }
 
+@SerialVersionUID(1L)
 class RichFunc2 extends ScalarFunction {
   var prefix = "ERROR_VALUE"
 
@@ -215,6 +232,7 @@ class RichFunc2 extends ScalarFunction {
   }
 }
 
+@SerialVersionUID(1L)
 class RichFunc3 extends ScalarFunction {
   private val words = mutable.HashSet[String]()
 
@@ -234,12 +252,14 @@ class RichFunc3 extends ScalarFunction {
   }
 }
 
+@SerialVersionUID(1L)
 class Func13(prefix: String) extends ScalarFunction {
   def eval(a: String): String = {
     s"$prefix-$a"
   }
 }
 
+@SerialVersionUID(1L)
 object Func14 extends ScalarFunction {
 
   @varargs
@@ -248,6 +268,7 @@ object Func14 extends ScalarFunction {
   }
 }
 
+@SerialVersionUID(1L)
 object Func15 extends ScalarFunction {
 
   @varargs
@@ -260,6 +281,7 @@ object Func15 extends ScalarFunction {
   }
 }
 
+@SerialVersionUID(1L)
 object Func16 extends ScalarFunction {
 
   def eval(a: Seq[String]): String = {
@@ -267,6 +289,7 @@ object Func16 extends ScalarFunction {
   }
 }
 
+@SerialVersionUID(1L)
 object Func17 extends ScalarFunction {
 
   // Without @varargs, we will throw an exception
@@ -275,12 +298,14 @@ object Func17 extends ScalarFunction {
   }
 }
 
+@SerialVersionUID(1L)
 object Func18 extends ScalarFunction {
   def eval(str: String, prefix: String): Boolean = {
     str.startsWith(prefix)
   }
 }
 
+@SerialVersionUID(1L)
 object Func19 extends ScalarFunction {
   def eval(obj: Object): Int = {
     if (null != obj) {
@@ -299,6 +324,7 @@ object Func19 extends ScalarFunction {
   }
 }
 
+@SerialVersionUID(1L)
 object Func20 extends ScalarFunction {
   def eval(row: Row): Row = {
     row
@@ -315,6 +341,7 @@ object Func20 extends ScalarFunction {
   }
 }
 
+@SerialVersionUID(1L)
 object Func23 extends ScalarFunction {
   def eval(a: Integer, b: JLong, c: String): Row = {
     Row.of("star", a, b, c)
@@ -324,6 +351,7 @@ object Func23 extends ScalarFunction {
     Types.ROW(Types.STRING, Types.INT, Types.LONG, Types.STRING)
 }
 
+@SerialVersionUID(1L)
 object Func25 extends ScalarFunction {
   private val random = new Random()
 
@@ -338,6 +366,7 @@ object Func25 extends ScalarFunction {
     Types.ROW(Types.INT, Types.INT)
 }
 
+@SerialVersionUID(1L)
 object Func24 extends ScalarFunction {
   def eval(a: String, b: Integer, c: JLong, d: String): Row = {
     Row.of(a, Integer.valueOf(b + 1), c, d)
@@ -350,6 +379,7 @@ object Func24 extends ScalarFunction {
 /**
   * A scalar function that always returns TRUE if opened correctly.
   */
+@SerialVersionUID(1L)
 class FuncWithOpen extends ScalarFunction {
 
   private var permitted: Boolean = false
@@ -367,6 +397,7 @@ class FuncWithOpen extends ScalarFunction {
   }
 }
 
+@SerialVersionUID(1L)
 class SplitUDF(deterministic: Boolean) extends ScalarFunction {
   def eval(x: String, sep: String, index: Int): String = {
     val splits = StringUtils.splitByWholeSeparator(x, sep)

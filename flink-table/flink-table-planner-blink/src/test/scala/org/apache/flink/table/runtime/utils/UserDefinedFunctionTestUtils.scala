@@ -181,50 +181,62 @@ object UserDefinedFunctionTestUtils {
   // ScalarFunctions
   // ------------------------------------------------------------------------------------
 
+  @SerialVersionUID(1L)
   object MyHashCode extends ScalarFunction {
     def eval(s: String): Int = s.hashCode()
   }
 
+  @SerialVersionUID(1L)
   object OldHashCode extends ScalarFunction {
     def eval(s: String): Int = -1
   }
 
+  @SerialVersionUID(1L)
   object StringFunction extends ScalarFunction {
     def eval(s: String): String = s
   }
 
+  @SerialVersionUID(1L)
   object MyStringFunc extends ScalarFunction {
     def eval(s: String): String = s + "haha"
   }
 
+  @SerialVersionUID(1L)
   object BinaryStringFunction extends ScalarFunction {
     def eval(s: BinaryString): BinaryString = s
   }
 
+  @SerialVersionUID(1L)
   object DateFunction extends ScalarFunction {
     def eval(d: Date): String = d.toString
   }
 
+  @SerialVersionUID(1L)
   object LocalDateFunction extends ScalarFunction {
     def eval(d: LocalDate): String = d.toString
   }
 
+  @SerialVersionUID(1L)
   object TimestampFunction extends ScalarFunction {
     def eval(t: java.sql.Timestamp): String = t.toString
   }
 
+  @SerialVersionUID(1L)
   object DateTimeFunction extends ScalarFunction {
     def eval(t: LocalDateTime): String = t.toString
   }
 
+  @SerialVersionUID(1L)
   object TimeFunction extends ScalarFunction {
     def eval(t: java.sql.Time): String = t.toString
   }
 
+  @SerialVersionUID(1L)
   object LocalTimeFunction extends ScalarFunction {
     def eval(t: LocalTime): String = t.toString
   }
 
+  @SerialVersionUID(1L)
   object InstantFunction extends ScalarFunction {
     def eval(t: Instant): Instant = t
 
@@ -232,6 +244,7 @@ object UserDefinedFunctionTestUtils {
   }
 
   // Understand type: Row wrapped as TypeInfoWrappedDataType.
+  @SerialVersionUID(1L)
   object RowFunc extends ScalarFunction {
     def eval(s: String): Row = Row.of(s)
 
@@ -239,11 +252,13 @@ object UserDefinedFunctionTestUtils {
       new RowTypeInfo(Types.STRING)
   }
 
+  @SerialVersionUID(1L)
   object RowToStrFunc extends ScalarFunction {
     def eval(s: BaseRow): String = s.getString(0).toString
   }
 
   // generic.
+  @SerialVersionUID(1L)
   object ListFunc extends ScalarFunction {
     def eval(s: String): java.util.List[String] = util.Arrays.asList(s)
 
@@ -252,6 +267,7 @@ object UserDefinedFunctionTestUtils {
   }
 
   // internal but wrapped as TypeInfoWrappedDataType.
+  @SerialVersionUID(1L)
   object StringFunc extends ScalarFunction {
     def eval(s: String): String = s
 
@@ -259,6 +275,7 @@ object UserDefinedFunctionTestUtils {
       Types.STRING
   }
 
+  @SerialVersionUID(1L)
   object MyPojoFunc extends ScalarFunction {
     def eval(s: MyPojo): Int = s.f2
 
@@ -266,6 +283,7 @@ object UserDefinedFunctionTestUtils {
       Array(MyToPojoFunc.getResultType(signature))
   }
 
+  @SerialVersionUID(1L)
   object MyToPojoFunc extends ScalarFunction {
     def eval(s: Int): MyPojo = new MyPojo(s, s)
 
@@ -277,6 +295,7 @@ object UserDefinedFunctionTestUtils {
     }
   }
 
+  @SerialVersionUID(1L)
   object ToCompositeObj extends ScalarFunction {
     def eval(id: Int, name: String, age: Int): CompositeObj = {
       CompositeObj(id, name, age, "0.0")
@@ -287,6 +306,7 @@ object UserDefinedFunctionTestUtils {
     }
   }
 
+  @SerialVersionUID(1L)
   object TestWrapperUdf extends ScalarFunction {
     def eval(id: Int): Int = {
       id
@@ -297,6 +317,7 @@ object UserDefinedFunctionTestUtils {
     }
   }
 
+  @SerialVersionUID(1L)
   class TestAddWithOpen extends ScalarFunction {
 
     var isOpened: Boolean = false
@@ -328,18 +349,21 @@ object UserDefinedFunctionTestUtils {
     val aliveCounter = new AtomicInteger(0)
   }
 
+  @SerialVersionUID(1L)
   object TestMod extends ScalarFunction {
     def eval(src: Long, mod: Int): Long = {
       src % mod
     }
   }
 
+  @SerialVersionUID(1L)
   object TestExceptionThrown extends ScalarFunction {
     def eval(src: String): Int = {
       throw new NumberFormatException("Cannot parse this input.")
     }
   }
 
+  @SerialVersionUID(1L)
   class ToMillis extends ScalarFunction {
     def eval(t: Timestamp): Long = {
       t.toInstant.toEpochMilli + TimeZone.getDefault.getOffset(t.toInstant.toEpochMilli)

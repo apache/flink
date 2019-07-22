@@ -652,10 +652,12 @@ class CalcITCase extends BatchTestBase {
 
 }
 
+@SerialVersionUID(1L)
 object HashCode extends ScalarFunction {
   def eval(s: String): Int = s.hashCode
 }
 
+@SerialVersionUID(1L)
 object OldHashCode extends ScalarFunction {
   def eval(s: String): Int = -1
 }

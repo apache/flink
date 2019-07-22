@@ -737,12 +737,14 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   }
 }
 
+@SerialVersionUID(1L)
 class ToMillis extends ScalarFunction {
   def eval(t: Timestamp): Long = {
     t.toInstant.toEpochMilli + TimeZone.getDefault.getOffset(t.toInstant.toEpochMilli)
   }
 }
 
+@SerialVersionUID(1L)
 private class PrefixingScalarFunc extends ScalarFunction {
 
   private var prefix = "ERROR_VALUE"
