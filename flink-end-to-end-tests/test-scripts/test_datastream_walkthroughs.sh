@@ -19,7 +19,7 @@
 
 # End to end test for quick starts test.
 # Usage:
-# FLINK_DIR=<flink dir> flink-end-to-end-tests/test-scripts/test_table_walkthroughs.sh <Type (java or scala)>
+# FLINK_DIR=<flink dir> flink-end-to-end-tests/test-scripts/test_datastream_walkthroughs.sh <Type (java or scala)>
 
 source "$(dirname "$0")"/common.sh
 
@@ -28,12 +28,12 @@ TEST_TYPE=$1
 mkdir -p "${TEST_DATA_DIR}"
 cd "${TEST_DATA_DIR}"
 
-ARTIFACT_ID=flink-walkthrough-table-${TEST_TYPE}
+ARTIFACT_ID=flink-walkthrough-datastream-${TEST_TYPE}
 ARTIFACT_VERSION=0.1
 
 mvn archetype:generate                                          \
     -DarchetypeGroupId=org.apache.flink                         \
-    -DarchetypeArtifactId=flink-walkthrough-table-${TEST_TYPE}  \
+    -DarchetypeArtifactId=flink-walkthrough-datastream-${TEST_TYPE}  \
     -DarchetypeVersion=${FLINK_VERSION}                         \
     -DgroupId=org.apache.flink.walkthrough                      \
     -DartifactId=${ARTIFACT_ID}                                 \
@@ -46,7 +46,7 @@ cd "${ARTIFACT_ID}"
 mvn clean package -nsu > compile-output.txt
 
 if [[ `grep -c "BUILD FAILURE" compile-output.txt` -eq '1' ]]; then
-    echo "Failure: The walk-through did not successfully compile"
+    echo "Failure: The walkthrough did not successfully compile"
     cat compile-output.txt
     exit 1
 fi
@@ -68,8 +68,28 @@ fi
 
 TEST_PROGRAM_JAR=${TEST_DATA_DIR}/${ARTIFACT_ID}/target/${ARTIFACT_ID}-${ARTIFACT_VERSION}.jar
 
-add_optional_lib "table"
-
 start_cluster
 
-${FLINK_DIR}/bin/flink run "$TEST_PROGRAM_JAR"
+JOB_ID=""
+EXIT_CODE=0
+
+RETURN=`$FLINK_DIR/bin/flink run -d $TEST_PROGRAM_JAR`
+echo "$RETURN"
+JOB_ID=`extract_job_id_from_job_submission_return "$RETURN"`
+EXIT_CODE=$? # expect matching job id extraction
+
+if [ $EXIT_CODE == 0 ]; then
+    RETURN=`$FLINK_DIR/bin/flink list -r`
+    echo "$RETURN"
+    if [[ `grep -c "$JOB_ID" "$RETURN"` -eq '1'  ]]; then # expect match for running job
+        echo "[FAIL] Unable to submit walkthrough"
+        EXIT_CODE=1
+    fi
+fi
+
+if [ $EXIT_CODE == 0 ]; then
+    eval "$FLINK_DIR/bin/flink cancel ${JOB_ID}"
+    EXIT_CODE=$?
+fi
+
+exit $EXIT_CODE

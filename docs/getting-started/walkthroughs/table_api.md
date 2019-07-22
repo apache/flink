@@ -3,7 +3,7 @@ title: "Table API"
 nav-id: tableapiwalkthrough
 nav-title: 'Table API'
 nav-parent_id: walkthroughs
-nav-pos: 1
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
