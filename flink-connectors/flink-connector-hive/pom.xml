@@ -455,6 +455,14 @@ under the License.
 			</exclusions>
         </dependency>
 
+		<!-- TODO: move to flink-connector-hive-test end-to-end test module once it's setup -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-csv</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
 
 	<build>

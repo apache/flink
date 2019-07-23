@@ -456,6 +456,15 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 		}
 
 		@Override
+		public CompletableFuture<LogicalSlot> allocateBatchSlot(
+			final SlotRequestId slotRequestId,
+			final ScheduledUnit scheduledUnit,
+			final SlotProfile slotProfile,
+			final boolean allowQueuedScheduling) {
+			return allocateSlot(slotRequestId, scheduledUnit, slotProfile, allowQueuedScheduling, null);
+		}
+
+		@Override
 		public CompletableFuture<LogicalSlot> allocateSlot(
 				final SlotRequestId slotRequestId,
 				final ScheduledUnit scheduledUnit,

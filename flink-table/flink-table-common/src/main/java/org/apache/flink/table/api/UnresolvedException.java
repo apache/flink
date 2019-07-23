@@ -16,23 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.dataview;
+package org.apache.flink.table.api;
 
 /**
- * Enumeration representing order.
+ * Exception for unwanted method calling on unresolved expression.
  */
-public enum Order {
-	ASCENDING("ASC"),
-
-	DESCENDING("DESC");
-
-	public final String shortString;
-
-	Order(String shortString) {
-		this.shortString = shortString;
-	}
-
-	public String toString() {
-		return shortString;
+public class UnresolvedException extends RuntimeException {
+	public UnresolvedException(String msg) {
+		super(msg);
 	}
 }

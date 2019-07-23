@@ -59,7 +59,7 @@ case class UnresolvedFieldReference(name: String) extends Attribute {
     UnresolvedFieldReference(newName)
 
   override private[flink] def resultType: TypeInformation[_] =
-    throw UnresolvedException(s"Calling resultType on ${this.getClass}.")
+    throw new UnresolvedException(s"Calling resultType on ${this.getClass}.")
 
   override private[flink] def validateInput(): ValidationResult =
     ValidationFailure(s"Unresolved reference $name.")
@@ -112,13 +112,13 @@ case class Alias(child: PlannerExpression, name: String, extraNames: Seq[String]
 case class UnresolvedAlias(child: PlannerExpression) extends UnaryExpression with NamedExpression {
 
   override private[flink] def name: String =
-    throw UnresolvedException("Invalid call to name on UnresolvedAlias")
+    throw new UnresolvedException("Invalid call to name on UnresolvedAlias")
 
   override private[flink] def toAttribute: Attribute =
-    throw UnresolvedException("Invalid call to toAttribute on UnresolvedAlias")
+    throw new UnresolvedException("Invalid call to toAttribute on UnresolvedAlias")
 
   override private[flink] def resultType: TypeInformation[_] =
-    throw UnresolvedException("Invalid call to resultType on UnresolvedAlias")
+    throw new UnresolvedException("Invalid call to resultType on UnresolvedAlias")
 
   override private[flink] lazy val valid = false
 }
@@ -126,7 +126,7 @@ case class UnresolvedAlias(child: PlannerExpression) extends UnaryExpression wit
 case class WindowReference(name: String, tpe: Option[TypeInformation[_]] = None) extends Attribute {
 
   override private[flink] def resultType: TypeInformation[_] =
-    tpe.getOrElse(throw UnresolvedException("Could not resolve type of referenced window."))
+    tpe.getOrElse(throw new UnresolvedException("Could not resolve type of referenced window."))
 
   override private[flink] def withName(newName: String): Attribute = {
     if (newName == name) {
@@ -144,7 +144,7 @@ case class TableReference(name: String, tableOperation: QueryOperation)
   with NamedExpression {
 
   override private[flink] def resultType: TypeInformation[_] =
-    throw UnresolvedException(s"Table reference '$name' has no result type.")
+    throw new UnresolvedException(s"Table reference '$name' has no result type.")
 
   override private[flink] def toAttribute =
     throw new UnsupportedOperationException(s"A table reference '$name' can not be an attribute.")

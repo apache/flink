@@ -63,7 +63,9 @@ select * from mydb2.myTable2
 
 `CatalogManager` always has a built-in `GenericInMemoryCatalog` named `default_catalog`, which has a built-in default database named `default_database`. If no other catalog and database are explicitly set, they will be the current catalog and current database by default. All temp meta-objects, such as those defined by `TableEnvironment#registerTable`  are registered to this catalog. 
 
-Users can set current catalog and database via `TableEnvironment.useCatalog(...)` and `TableEnvironment.useDatabase(...)` in Table API, or `USE CATALOG ...` and `USE DATABASE ...` in Flink SQL.
+Users can set current catalog and database via `TableEnvironment.useCatalog(...)` and 
+`TableEnvironment.useDatabase(...)` in Table API, or `USE CATALOG ...` and `USE ...` in Flink SQL
+ Client.
 
 
 Catalog Types
@@ -333,7 +335,7 @@ default_catalog
 # ------ Set default catalog and database ------
 
 Flink SQL> use catalog myHive1;
-Flink SQL> use database myDb;
+Flink SQL> use myDb;
 
 # ------ Access Hive metadata ------
 

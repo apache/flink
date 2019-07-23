@@ -16,23 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors;
+package org.apache.flink.table.api;
 
 /**
- * An interface for descriptors that allow to define a format and schema.
- *
- * @deprecated use {@link ConnectorFormatDescriptor}.
+ * Exception for all errors occurring during expression parsing.
  */
-@Deprecated
-public interface SchematicDescriptor<D extends SchematicDescriptor<D>> extends Descriptor {
+public class ExpressionParserException extends RuntimeException {
 
-	/**
-	 * Specifies the format that defines how to read data from a connector.
-	 */
-	D withFormat(FormatDescriptor format);
-
-	/**
-	 * Specifies the resulting table schema.
-	 */
-	D withSchema(Schema schema);
+	public ExpressionParserException(String msg) {
+		super(msg);
+	}
 }
