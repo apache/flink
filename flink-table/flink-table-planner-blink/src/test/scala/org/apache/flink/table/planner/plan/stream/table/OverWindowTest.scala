@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.stream.table
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Over, Table}
-import org.apache.flink.table.expressions.utils.Func1
+import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithRetract
-import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.junit.Test
 

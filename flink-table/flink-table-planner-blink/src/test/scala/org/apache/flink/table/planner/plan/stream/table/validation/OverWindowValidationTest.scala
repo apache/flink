@@ -22,11 +22,11 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Over, Table, Tumble, ValidationException}
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.`trait`.UpdateAsRetractionTrait
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithRetract
-import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.OverAgg0
-import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase, TableTestUtil}
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
 
 import org.apache.calcite.rel.RelNode
 import org.junit.Test

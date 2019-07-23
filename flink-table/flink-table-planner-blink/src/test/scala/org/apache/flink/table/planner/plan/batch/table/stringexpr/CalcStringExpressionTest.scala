@@ -22,8 +22,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.Types._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.CollectionBatchExecTable.CustomType
-import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.table.planner.runtime.utils.CollectionBatchExecTable.CustomType
+import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit._
 

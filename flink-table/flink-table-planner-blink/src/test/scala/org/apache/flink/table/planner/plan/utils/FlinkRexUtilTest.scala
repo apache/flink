@@ -18,7 +18,6 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 
 import org.apache.calcite.rex.{RexBuilder, RexUtil}
 import org.apache.calcite.sql.`type`.SqlTypeName._

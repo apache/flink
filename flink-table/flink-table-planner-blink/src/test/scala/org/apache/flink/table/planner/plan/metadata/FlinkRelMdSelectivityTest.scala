@@ -20,10 +20,7 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalExpand
-import org.apache.flink.table.planner.plan.nodes.logical.{
-  FlinkLogicalDataStreamTableScan,
-  FlinkLogicalExpand, FlinkLogicalOverAggregate
-}
+import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalDataStreamTableScan, FlinkLogicalExpand, FlinkLogicalOverAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecCalc, BatchExecRank}
 import org.apache.flink.table.planner.plan.utils.ExpandUtil
 

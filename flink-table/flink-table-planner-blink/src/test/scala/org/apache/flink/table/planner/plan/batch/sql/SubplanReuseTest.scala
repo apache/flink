@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRul
 import org.apache.flink.table.planner.plan.utils.OperatorType
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{NonDeterministicTableFunc, StringSplit}
-import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.{Before, Test}
 

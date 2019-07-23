@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.{Before, Test}
 

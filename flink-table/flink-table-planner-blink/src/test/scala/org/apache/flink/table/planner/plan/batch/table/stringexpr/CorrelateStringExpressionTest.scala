@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.batch.table.stringexpr
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.util.{HierarchyTableFunction, PojoTableFunc, TableFunc1, TableFunc2, TableTestBase}
+import org.apache.flink.table.planner.utils.{HierarchyTableFunction, PojoTableFunc, TableFunc1, TableFunc2, TableTestBase}
 
 import org.junit.Test
 

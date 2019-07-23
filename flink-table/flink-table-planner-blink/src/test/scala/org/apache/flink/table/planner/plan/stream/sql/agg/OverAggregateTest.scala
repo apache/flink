@@ -23,7 +23,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.OverAgg0
-import org.apache.flink.table.util.{TableTestBase, TableTestUtil}
+import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

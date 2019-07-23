@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.batch.sql
 
-import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
 

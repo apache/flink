@@ -24,9 +24,9 @@ import org.apache.flink.table.api.{DataTypes, TableSchema}
 import org.apache.flink.table.catalog.{CatalogTableImpl, GenericInMemoryCatalog, ObjectPath}
 import org.apache.flink.table.factories.TableSinkFactory
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
+import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.logical.{BigIntType, IntType}
-import org.apache.flink.table.util.TableTestBase
 
 import org.junit.Test
 import org.mockito.{ArgumentMatchers, Mockito}

@@ -22,8 +22,7 @@ import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
-import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
-import org.apache.flink.table.util.{CountAggFunction, TableTestBase}
+import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, CountAggFunction, TableTestBase}
 
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized

@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.stream.table.validation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils._
+import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
-import org.apache.flink.table.util.{ObjectTableFunction, TableFunc1, TableFunc2, TableTestBase}
+import org.apache.flink.table.planner.utils.{ObjectTableFunction, TableFunc1, TableFunc2, TableTestBase}
 
 import org.junit.Assert.{assertTrue, fail}
 import org.junit.Test

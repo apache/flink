@@ -18,7 +18,6 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.planner.plan.rules.logical.{AggregateReduceGroupingRule, PruneAggregateCallRule}
 import org.apache.flink.table.planner.utils.TableConfigUtils
 
 import org.apache.calcite.plan.hep.HepMatchOrder

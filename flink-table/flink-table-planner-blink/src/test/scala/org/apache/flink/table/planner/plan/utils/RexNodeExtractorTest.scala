@@ -22,15 +22,15 @@ import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{unresolvedCall, unresolvedRef, valueLiteral}
-import org.apache.flink.table.expressions.utils.Func1
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
 import org.apache.flink.table.functions.AggregateFunctionDefinition
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{EQUALS, GREATER_THAN, LESS_THAN, LESS_THAN_OR_EQUAL}
+import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.expressions.{EqualTo, ExpressionBridge, GreaterThan, Literal, PlannerExpression, PlannerExpressionConverter, Sum, UnresolvedFieldReference}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.plan.utils.InputTypeBuilder.inputOf
-import org.apache.flink.table.util.{DateTimeTestUtil, IntSumAggFunction}
+import org.apache.flink.table.planner.utils.{DateTimeTestUtil, IntSumAggFunction}
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.{RexBuilder, RexNode}

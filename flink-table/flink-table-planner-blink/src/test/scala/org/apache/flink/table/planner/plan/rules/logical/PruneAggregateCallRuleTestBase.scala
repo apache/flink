@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.util.{BatchTableTestUtil, TableTestBase}
+import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
 
 import com.google.common.collect.ImmutableSet
 import org.junit.{Before, Test}

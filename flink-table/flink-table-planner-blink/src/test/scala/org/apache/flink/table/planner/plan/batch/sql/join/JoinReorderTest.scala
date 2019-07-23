@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.batch.sql.join
 
 import org.apache.flink.table.planner.plan.common.JoinReorderTestBase
-import org.apache.flink.table.util.TableTestUtil
+import org.apache.flink.table.planner.utils.TableTestUtil
 
 class JoinReorderTest extends JoinReorderTestBase {
   override protected def getTableTestUtil: TableTestUtil = batchTestUtil()

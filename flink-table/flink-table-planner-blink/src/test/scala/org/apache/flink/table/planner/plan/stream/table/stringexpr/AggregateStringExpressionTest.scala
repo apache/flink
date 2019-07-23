@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Tumble
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{WeightedAvg, WeightedAvgWithMergeAndReset}
-import org.apache.flink.table.util.{CountAggFunction, CountMinMax, TableTestBase}
+import org.apache.flink.table.planner.utils.{CountAggFunction, CountMinMax, TableTestBase}
 
 import org.junit.Test
 

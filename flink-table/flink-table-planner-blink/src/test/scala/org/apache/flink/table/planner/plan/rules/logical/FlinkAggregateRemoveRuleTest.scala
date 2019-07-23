@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalAggregate,
 import org.apache.flink.table.planner.plan.optimize.program._
 import org.apache.flink.table.planner.plan.rules.FlinkBatchRuleSets
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.table.planner.utils.TableTestBase
 
 import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.hep.HepMatchOrder

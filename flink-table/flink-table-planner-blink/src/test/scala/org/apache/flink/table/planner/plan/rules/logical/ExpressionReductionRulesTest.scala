@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.expressions.utils.{Func1, RichFunc1}
-import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.table.planner.expressions.utils.{Func1, RichFunc1}
+import org.apache.flink.table.planner.utils.TableTestBase
 
 import org.junit.Test
 

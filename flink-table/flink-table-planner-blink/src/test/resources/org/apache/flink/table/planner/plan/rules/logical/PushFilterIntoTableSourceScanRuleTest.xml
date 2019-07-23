@@ -164,7 +164,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
-+- LogicalFilter(condition=[<(org$apache$flink$table$expressions$utils$Func1$$832880661df998837536377b638c1c45($2), 32)])
++- LogicalFilter(condition=[<(org$apache$flink$table$planner$expressions$utils$Func1$$0805867feea6fb8ff09dd9c097c5960b($2), 32)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [filter=[greaterThan(amount, 2)]]]])
 ]]>
     </Resource>

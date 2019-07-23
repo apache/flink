@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.TestData
+import org.apache.flink.table.planner.runtime.utils.TestData
 import org.apache.flink.test.util.AbstractTestBase
 
 import org.junit.Test

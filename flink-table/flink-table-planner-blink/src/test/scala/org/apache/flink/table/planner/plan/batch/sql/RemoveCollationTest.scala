@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortMer
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.StringSplit
-import org.apache.flink.table.util.{TableFunc1, TableTestBase}
+import org.apache.flink.table.planner.utils.{TableFunc1, TableTestBase}
 
 import com.google.common.collect.ImmutableSet
 import org.junit.{Before, Test}

@@ -21,10 +21,10 @@ package org.apache.flink.table.planner.plan.stream.sql
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types, ValidationException}
-import org.apache.flink.table.expressions.utils.Func1
+import org.apache.flink.table.planner.expressions.utils.Func1
+import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TableTestBase, TestFilterableTableSource, TestNestedProjectableTableSource, TestPartitionableTableSource, TestProjectableTableSource, TestTableSource, TestTableSourceWithTime}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.util._
 import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}

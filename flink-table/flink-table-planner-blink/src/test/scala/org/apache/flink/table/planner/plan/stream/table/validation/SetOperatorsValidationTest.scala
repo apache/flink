@@ -22,8 +22,8 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.runtime.utils.{TestData, TestingAppendSink}
-import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.table.planner.runtime.utils.{TestData, TestingAppendSink}
+import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals

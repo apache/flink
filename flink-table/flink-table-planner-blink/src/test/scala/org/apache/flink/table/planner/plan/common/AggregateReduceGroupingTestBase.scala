@@ -23,7 +23,7 @@ import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.plan.rules.logical.FlinkAggregateRemoveRule
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.util.{BatchTableTestUtil, TableTestBase}
+import org.apache.flink.table.planner.utils.{BatchTableTestUtil, TableTestBase}
 
 import com.google.common.collect.ImmutableSet
 import org.apache.calcite.tools.RuleSets

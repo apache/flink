@@ -23,8 +23,8 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.runtime.utils.{TestData, TestingAppendSink, TestingUpsertTableSink}
-import org.apache.flink.table.util.TableTestBase
+import org.apache.flink.table.planner.runtime.utils.{TestData, TestingAppendSink, TestingUpsertTableSink}
+import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.types.Row
 
 import org.junit.Test

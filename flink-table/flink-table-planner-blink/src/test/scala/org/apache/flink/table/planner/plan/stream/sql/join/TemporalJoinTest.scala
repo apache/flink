@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql.join
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase}
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
 
 import org.hamcrest.Matchers.containsString
 import org.junit.Test

@@ -29,11 +29,11 @@ import org.apache.flink.table.api.{TableConfig, TableSchema, Types}
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
+import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil, TestingTableEnvironment}
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sinks.{AppendStreamTableSink, StreamTableSink, TableSink}
 import org.apache.flink.table.sources.StreamTableSource
-import org.apache.flink.table.util.{TableTestBase, TableTestUtil, TestingTableEnvironment}
 
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith

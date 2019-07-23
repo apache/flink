@@ -21,7 +21,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{Tumble, ValidationException}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
-import org.apache.flink.table.util.{TableFunc0, TableTestBase}
+import org.apache.flink.table.planner.utils.{TableFunc0, TableTestBase}
 
 import org.junit.Test
 

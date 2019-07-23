@@ -25,10 +25,10 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
+import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sources._
 import org.apache.flink.table.types.logical.{IntType, TimestampType, VarCharType}
-import org.apache.flink.table.util.TableTestBase
 import org.apache.flink.types.Row
 
 import org.junit.Assert.{assertTrue, fail}

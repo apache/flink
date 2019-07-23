@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.table.planner.plan.common.UnnestTestBase
-import org.apache.flink.table.util.TableTestUtil
+import org.apache.flink.table.planner.utils.TableTestUtil
 
 class UnnestTest extends UnnestTestBase {
 

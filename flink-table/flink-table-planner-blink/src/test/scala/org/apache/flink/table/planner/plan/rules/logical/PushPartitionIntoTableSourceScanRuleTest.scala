@@ -17,11 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.expressions.utils.Func1
+import org.apache.flink.table.planner.expressions.utils.Func1
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.planner.plan.rules.logical.PushPartitionIntoTableSourceScanRule
-import org.apache.flink.table.planner.utils.TableConfigUtils
-import org.apache.flink.table.util.{TableTestBase, TestPartitionableTableSource}
+import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase, TestPartitionableTableSource}
 
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets

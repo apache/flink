@@ -25,7 +25,7 @@ import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfi
 import org.apache.flink.table.plan.stats.TableStats
 import org.apache.flink.table.planner.plan.rules.physical.batch.{BatchExecJoinRuleBase, BatchExecSortMergeJoinRule}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.util.{TableFunc1, TableTestBase}
+import org.apache.flink.table.planner.utils.{TableFunc1, TableTestBase}
 
 import org.junit.{Before, Test}
 

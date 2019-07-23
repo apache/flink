@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.utils.WindowJoinUtil
-import org.apache.flink.table.util.{StreamTableTestUtil, TableTestBase, TableTestUtil}
+import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase, TableTestUtil}
 
 import org.apache.calcite.rel.logical.LogicalJoin
 import org.junit.Assert.assertEquals

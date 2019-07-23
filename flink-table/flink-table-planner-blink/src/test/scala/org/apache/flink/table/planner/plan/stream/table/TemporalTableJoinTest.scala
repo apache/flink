@@ -23,9 +23,9 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.expressions.{Expression, FieldReferenceExpression}
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
+import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.{PROCTIME_INDICATOR, ROWTIME_INDICATOR}
-import org.apache.flink.table.util.{TableTestBase, TableTestUtil}
 
 import org.hamcrest.Matchers.{equalTo, startsWith}
 import org.junit.Assert.{assertEquals, assertThat}
