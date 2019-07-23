@@ -15,6 +15,8 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+from copy import deepcopy
+
 from pyflink.common import Configuration
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
@@ -94,11 +96,11 @@ class ConfigurationTests(PyFlinkTestCase):
 
         self.assertEqual(value2, "v1")
 
-    def test_clone(self):
+    def test_deepcopy(self):
         conf = Configuration()
         conf.set_string("k1", "v1")
 
-        conf2 = conf.clone()
+        conf2 = deepcopy(conf)
 
         self.assertEqual(conf2, conf)
 

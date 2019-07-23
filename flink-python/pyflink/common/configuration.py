@@ -204,13 +204,6 @@ class Configuration:
         else:
             self._j_configuration.addAll(other._j_configuration, prefix)
 
-    def clone(self):
-        """
-        :return: A copy of this configuration.
-        :rtype: Configuration
-        """
-        return Configuration(j_configuration=self._j_configuration.clone())
-
     def contains_key(self, key):
         """
         Checks whether there is an entry with the specified key.
@@ -224,7 +217,7 @@ class Configuration:
 
     def to_dict(self):
         """
-        Convert the configuration into a dict representation of string key-pair.
+        Converts the configuration into a dict representation of string key-pair.
 
         :return: Dict representation of the configuration.
         :rtype: dict[str, str]
@@ -244,6 +237,9 @@ class Configuration:
         JConfigOptions = gateway.jvm.org.apache.flink.configuration.ConfigOptions
         config_option = JConfigOptions.key(key).noDefaultValue()
         return self._j_configuration.removeConfig(config_option)
+
+    def __deepcopy__(self, memodict=None):
+        return Configuration(j_configuration=self._j_configuration.clone())
 
     def __hash__(self):
         return self._j_configuration.hashCode()
