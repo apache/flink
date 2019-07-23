@@ -127,7 +127,7 @@ public class JobManagerOptions {
 					text("'region': Restarts all tasks that could be affected by the task failure. " +
 						"More details can be found %s.",
 						link(
-							"https://ci.apache.org/projects/flink/flink-docs-master/dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy",
+							"../dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy",
 							"here"))
 				).build());
 
