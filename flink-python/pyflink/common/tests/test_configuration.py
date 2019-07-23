@@ -31,45 +31,26 @@ class ConfigurationTests(PyFlinkTestCase):
 
         self.assertEqual(conf2.to_dict(), {"k1": "v1"})
 
-    def test_get_set_string(self):
+    def test_getters_and_setters(self):
         conf = Configuration()
 
-        conf.set_string("k1", "v1")
-        value = conf.get_string("k1", "")
+        conf.set_string("str", "v1")
+        conf.set_integer("int", 2)
+        conf.set_boolean("bool", True)
+        conf.set_float("float", 0.5)
+        conf.set_bytearray("bytearray", bytearray([1, 2, 3]))
 
-        self.assertEqual(value, "v1")
+        str_value = conf.get_string("str", "")
+        int_value = conf.get_integer("int", 0)
+        bool_value = conf.get_boolean("bool", False)
+        float_value = conf.get_float("float", 0)
+        bytearray_value = conf.get_bytearray("bytearray", bytearray())
 
-    def test_get_set_integer(self):
-        conf = Configuration()
-
-        conf.set_integer("k1", 2)
-        value = conf.get_integer("k1", 0)
-
-        self.assertEqual(value, 2)
-
-    def test_get_set_boolean(self):
-        conf = Configuration()
-
-        conf.set_boolean("k1", True)
-        value = conf.get_boolean("k1", False)
-
-        self.assertEqual(value, True)
-
-    def test_get_set_float(self):
-        conf = Configuration()
-
-        conf.set_float("k1", 0.5)
-        value = conf.get_float("k1", 0)
-
-        self.assertEqual(value, 0.5)
-
-    def test_get_set_bytearray(self):
-        conf = Configuration()
-
-        conf.set_bytearray("k1", bytearray([1, 2, 3]))
-        value = conf.get_bytearray("k1", bytearray())
-
-        self.assertEqual(value, bytearray([1, 2, 3]))
+        self.assertEqual(str_value, "v1")
+        self.assertEqual(int_value, 2)
+        self.assertEqual(bool_value, True)
+        self.assertEqual(float_value, 0.5)
+        self.assertEqual(bytearray_value, bytearray([1, 2, 3]))
 
     def test_key_set(self):
         conf = Configuration()
