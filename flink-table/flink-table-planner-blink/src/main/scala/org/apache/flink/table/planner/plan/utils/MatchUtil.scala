@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.calcite.rex.{RexCall, RexNode, RexPatternFieldRef}
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.codegen.MatchCodeGenerator.ALL_PATTERN_VARIABLE
+import org.apache.flink.table.planner.codegen.MatchCodeGenerator.ALL_PATTERN_VARIABLE
+
+import org.apache.calcite.rex.{RexCall, RexNode, RexPatternFieldRef}
 
 import _root_.scala.collection.JavaConverters._
 

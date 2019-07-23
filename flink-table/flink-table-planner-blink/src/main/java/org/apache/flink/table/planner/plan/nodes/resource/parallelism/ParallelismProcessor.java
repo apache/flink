@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.resource.parallelism;
 
-import org.apache.flink.table.planner.PlannerBase;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecSink;

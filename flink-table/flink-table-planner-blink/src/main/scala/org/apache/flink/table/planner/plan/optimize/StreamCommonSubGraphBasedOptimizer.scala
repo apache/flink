@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.optimize
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.FunctionCatalog
+import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{AccMode, AccModeTraitDef, MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
@@ -29,10 +30,10 @@ import org.apache.flink.table.planner.plan.optimize.program.{FlinkStreamProgram,
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-import org.apache.flink.table.planner.StreamPlanner
-import org.apache.flink.table.sinks.{DataStreamTableSink, RetractStreamTableSink}
+import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
+import org.apache.flink.table.sinks.RetractStreamTableSink
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode

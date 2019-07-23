@@ -29,7 +29,7 @@ import org.junit.Test
 import java.sql.Timestamp
 
 /**
-  * Tests for [[org.apache.flink.table.calcite.RelTimeIndicatorConverter]].
+  * Tests for [[org.apache.flink.table.planner.calcite.RelTimeIndicatorConverter]].
   */
 class RelTimeIndicatorConverterTest extends TableTestBase {
 

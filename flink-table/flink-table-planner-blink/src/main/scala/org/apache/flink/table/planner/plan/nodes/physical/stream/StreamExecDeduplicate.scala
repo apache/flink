@@ -24,11 +24,10 @@ import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
-import org.apache.flink.table.planner.plan.utils.AggregateUtil
-import org.apache.flink.table.planner.StreamPlanner
-import org.apache.flink.table.planner.plan.utils.KeySelectorUtil
+import org.apache.flink.table.planner.plan.utils.{AggregateUtil, KeySelectorUtil}
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator
 import org.apache.flink.table.runtime.operators.deduplicate.{DeduplicateKeepFirstRowFunction, DeduplicateKeepLastRowFunction, MiniBatchDeduplicateKeepFirstRowFunction, MiniBatchDeduplicateKeepLastRowFunction}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo

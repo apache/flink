@@ -17,10 +17,11 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.util.Preconditions.checkArgument
+
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes}
 import org.apache.calcite.sql.{SqlFunction, SqlFunctionCategory, SqlKind}
-import org.apache.flink.util.Preconditions.checkArgument
 
 /**
   * Utilities for temporal table join

@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.calcite.FlinkContext
+import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalOverAggregate, FlinkLogicalRank}
 import org.apache.flink.table.planner.plan.utils.RankUtil
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankType}

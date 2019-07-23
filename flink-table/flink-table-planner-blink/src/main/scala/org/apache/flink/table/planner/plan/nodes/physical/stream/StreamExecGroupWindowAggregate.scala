@@ -21,18 +21,17 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
-import org.apache.flink.table.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, EqualiserCodeGenerator}
+import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.logical._
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.{hasRowIntervalType, hasTimeIntervalType, isProctimeAttribute, isRowtimeAttribute, toDuration, toLong, transformToStreamAggregateInfoList}
-import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, RelExplainUtil, WindowEmitStrategy}
-import org.apache.flink.table.planner.StreamPlanner
-import org.apache.flink.table.planner.plan.utils.KeySelectorUtil
+import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, KeySelectorUtil, RelExplainUtil, WindowEmitStrategy}
 import org.apache.flink.table.runtime.generated.{GeneratedNamespaceAggsHandleFunction, GeneratedRecordEqualiser}
 import org.apache.flink.table.runtime.operators.window.{CountWindow, TimeWindow, WindowOperator, WindowOperatorBuilder}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType

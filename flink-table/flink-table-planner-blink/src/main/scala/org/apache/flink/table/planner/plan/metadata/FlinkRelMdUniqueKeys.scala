@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
@@ -26,9 +26,9 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
+import org.apache.flink.table.planner.{JArrayList, JBoolean, JHashMap, JHashSet, JList, JSet}
 import org.apache.flink.table.runtime.operators.rank.RankType
 import org.apache.flink.table.sources.TableSource
-import org.apache.flink.table.{JArrayList, JBoolean, JHashMap, JHashSet, JList, JSet}
 
 import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.RelOptTable

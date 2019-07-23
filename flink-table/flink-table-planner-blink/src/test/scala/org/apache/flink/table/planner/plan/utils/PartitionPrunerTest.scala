@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.{DataTypes, TableConfig}
 import org.apache.flink.table.expressions.utils.Func1
-import org.apache.flink.table.functions.utils.ScalarSqlFunction
+import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.junit.Assert.assertEquals

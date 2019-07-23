@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAg
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
-import org.apache.flink.table.{JArrayList, JDouble, JList}
+import org.apache.flink.table.planner.{JArrayList, JDouble, JList}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.avatica.util.ByteString

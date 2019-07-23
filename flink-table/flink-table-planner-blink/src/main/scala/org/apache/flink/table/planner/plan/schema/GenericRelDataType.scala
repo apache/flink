@@ -18,9 +18,10 @@
 
 package org.apache.flink.table.planner.plan.schema
 
+import org.apache.flink.table.types.logical.TypeInformationAnyType
+
 import org.apache.calcite.rel.`type`.RelDataTypeSystem
 import org.apache.calcite.sql.`type`.{ArraySqlType, BasicSqlType, MapSqlType, SqlTypeName}
-import org.apache.flink.table.types.logical.TypeInformationAnyType
 
 import java.lang
 

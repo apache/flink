@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.types.logical.LogicalTypeRoot
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}

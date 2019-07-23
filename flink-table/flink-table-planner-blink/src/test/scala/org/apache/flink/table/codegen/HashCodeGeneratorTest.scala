@@ -20,6 +20,7 @@ package org.apache.flink.table.codegen
 
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, HashCodeGenerator}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, RowType, VarBinaryType}
 
 import org.junit.{Assert, Test}

@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.JDouble
+import org.apache.flink.table.planner.JDouble
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecGroupAggregateBase, BatchExecLocalHashWindowAggregate, BatchExecLocalSortWindowAggregate, BatchExecWindowAggregateBase}
 import org.apache.flink.table.planner.plan.stats._
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 
 import org.apache.calcite.plan.RelOptPredicateList
 import org.apache.calcite.rel.RelNode

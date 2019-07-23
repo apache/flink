@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.planner.plan.schema
 
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.{TableSource, TableSourceUtil}
+
+import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 
 /**
   * Abstract class which define the interfaces required to convert a [[TableSource]] to

@@ -21,7 +21,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.calcite.FlinkTypeSystem
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 import org.apache.flink.table.types.logical.DecimalType

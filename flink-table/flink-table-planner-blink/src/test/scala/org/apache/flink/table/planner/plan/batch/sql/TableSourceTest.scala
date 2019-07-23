@@ -25,7 +25,7 @@ import org.apache.flink.table.expressions.utils.Func1
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.util.{TestPartitionableTableSource, _}
+import org.apache.flink.table.util._
 import org.apache.flink.types.Row
 
 import org.junit.{Before, Test}

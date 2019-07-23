@@ -30,7 +30,7 @@ import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness
-import org.apache.flink.table.JLong
+import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.runtime.utils.StreamingTestBase
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}

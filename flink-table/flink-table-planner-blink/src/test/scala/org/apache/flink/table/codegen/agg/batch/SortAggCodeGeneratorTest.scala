@@ -19,6 +19,7 @@
 package org.apache.flink.table.codegen.agg.batch
 
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.planner.codegen.agg.batch.SortAggCodeGenerator
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}

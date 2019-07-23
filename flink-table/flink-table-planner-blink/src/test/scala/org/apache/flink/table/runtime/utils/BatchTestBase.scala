@@ -28,13 +28,13 @@ import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableImpl}
 import org.apache.flink.table.api.{EnvironmentSettings, SqlParserException, Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-import org.apache.flink.table.planner.PlannerBase
+import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
 import org.apache.flink.table.planner.runtime.utils.{BatchAbstractTestBase, RangeInputFormat}
 import org.apache.flink.table.planner.utils.BaseRowTestUtil
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
-import org.apache.flink.table.planner.runtime.utils.BatchAbstractTestBase.DEFAULT_PARALLELISM
 import org.apache.flink.table.types.logical.{BigIntType, LogicalType}
 import org.apache.flink.table.util.{TableTestUtil, TestingTableEnvironment}
 import org.apache.flink.types.Row

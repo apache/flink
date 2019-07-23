@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
+import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalTableFunctionScan}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecCorrelate
+
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rex.RexNode
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalCorrelate, FlinkLogicalTableFunctionScan}
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecCorrelate
 
 class BatchExecCorrelateRule extends ConverterRule(
   classOf[FlinkLogicalCorrelate],

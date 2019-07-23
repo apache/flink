@@ -24,16 +24,15 @@ import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.EqualiserCodeGenerator
-import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator
+import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
+import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
-import org.apache.flink.table.planner.plan.utils._
-import org.apache.flink.table.planner.StreamPlanner
-import org.apache.flink.table.planner.plan.utils.KeySelectorUtil
+import org.apache.flink.table.planner.plan.utils.{KeySelectorUtil, _}
 import org.apache.flink.table.runtime.operators.rank._
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 

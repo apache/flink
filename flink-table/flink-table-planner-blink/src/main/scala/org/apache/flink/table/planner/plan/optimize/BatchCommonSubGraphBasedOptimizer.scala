@@ -20,10 +20,10 @@ package org.apache.flink.table.planner.plan.optimize
 
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.FunctionCatalog
+import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecSink
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
-import org.apache.flink.table.planner.BatchPlanner
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.util.Preconditions
 

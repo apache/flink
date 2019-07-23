@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.optimize.program
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-import org.apache.flink.table.util.Logging
+import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode

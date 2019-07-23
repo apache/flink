@@ -23,13 +23,13 @@ import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.codegen.CodeGeneratorContext
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext
+import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
-import org.apache.flink.table.planner.BatchPlanner
 import org.apache.flink.table.sources.{StreamTableSource, TableSourceUtil}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 

@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.utils
 
 import org.apache.flink.table.api.{Table, TableException}
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.planner.runtime.utils.JavaPojos.Pojo1

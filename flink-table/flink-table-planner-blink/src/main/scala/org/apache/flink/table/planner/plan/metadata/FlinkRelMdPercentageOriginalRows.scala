@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.JDouble
+import org.apache.flink.table.planner.JDouble
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank}
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecGroupAggregateBase
 

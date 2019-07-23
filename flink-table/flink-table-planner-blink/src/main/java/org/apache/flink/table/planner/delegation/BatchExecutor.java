@@ -38,7 +38,7 @@ import java.util.List;
 
 /**
  * An implementation of {@link Executor} that is backed by a {@link StreamExecutionEnvironment}.
- * This is the only executor that {@link org.apache.flink.table.planner.BatchPlanner} supports.
+ * This is the only executor that {@link org.apache.flink.table.planner.delegation.BatchPlanner} supports.
  */
 @Internal
 public class BatchExecutor extends ExecutorBase {

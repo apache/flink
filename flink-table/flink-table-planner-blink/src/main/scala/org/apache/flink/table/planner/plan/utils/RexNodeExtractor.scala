@@ -19,17 +19,16 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.catalog.{FunctionCatalog, FunctionLookup}
 import org.apache.flink.table.dataformat.DataFormatConverters.{LocalDateConverter, LocalDateTimeConverter, LocalTimeConverter}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils._
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.{AND, CAST, OR}
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.utils.Logging
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils.unixTimestampToLocalDateTime
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
-import org.apache.flink.table.types.utils.TypeConversions
-import org.apache.flink.table.util.Logging
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.RelOptUtil

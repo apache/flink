@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rel.core.Aggregate
+import org.apache.calcite.rel.{RelNode, SingleRel}
 
 /**
   * Base stream physical RelNode for unbounded group aggregate.

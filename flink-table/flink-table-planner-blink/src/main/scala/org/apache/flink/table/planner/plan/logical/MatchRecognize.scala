@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.planner.plan.logical
 
-import java.util
-
 import com.google.common.collect.ImmutableMap
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelCollation, RelNode}
 import org.apache.calcite.rex.RexNode
+
+import java.util
 
 /**
   * Describes MATCH RECOGNIZE clause.

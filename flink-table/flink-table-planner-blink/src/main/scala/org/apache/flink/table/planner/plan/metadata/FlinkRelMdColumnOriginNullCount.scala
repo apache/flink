@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
+import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ColumnOriginNullCount
 import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.planner.plan.utils.JoinUtil
-import org.apache.flink.table.planner.plan.metadata.{FlinkMetadata, FlinkRelMetadataQuery}
-import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ColumnOriginNullCount
-import org.apache.flink.table.{JArrayList, JBoolean, JDouble}
+import org.apache.flink.table.planner.{JArrayList, JBoolean, JDouble}
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode

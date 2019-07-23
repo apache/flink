@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
+import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalValues
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecValues
+
 import org.apache.calcite.plan.{RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecValues
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalValues
 
 /**
   * Rule that converts [[FlinkLogicalValues]] to [[BatchExecValues]].

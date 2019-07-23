@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.batch.sql.agg
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.config.ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS
 import org.apache.flink.table.api.{TableException, Types}
-import org.apache.flink.table.calcite.CalciteConfig
+import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram, FlinkGroupProgramBuilder, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.plan.rules.logical.AggregateReduceGroupingRule
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic

@@ -19,12 +19,12 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.calcite.FlinkContext
 import org.apache.flink.table.expressions.Expression
+import org.apache.flink.table.planner.calcite.FlinkContext
+import org.apache.flink.table.planner.expressions.RexNodeConverter
 import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RexNodeExtractor}
-import org.apache.flink.table.planner.expressions.RexNodeConverter
 import org.apache.flink.table.sources.FilterableTableSource
 
 import org.apache.calcite.plan.RelOptRule.{none, operand}

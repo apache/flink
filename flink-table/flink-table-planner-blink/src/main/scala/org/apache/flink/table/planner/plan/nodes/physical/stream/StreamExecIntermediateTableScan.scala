@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.common.CommonIntermediateTableScan
-import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
+import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.RelNode

@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.calcite.rex.RexLiteral
 import org.apache.flink.table.types.logical.LogicalType
+
+import org.apache.calcite.rex.RexLiteral
 
 /**
   * Utilities for temporal table join

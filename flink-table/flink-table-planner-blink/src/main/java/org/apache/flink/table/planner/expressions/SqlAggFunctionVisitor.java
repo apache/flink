@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.expressions;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
@@ -28,8 +27,9 @@ import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedAggregateFunction;
-import org.apache.flink.table.functions.utils.AggSqlFunction;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.planner.functions.utils.AggSqlFunction;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.sql.SqlAggFunction;

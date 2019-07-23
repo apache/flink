@@ -20,14 +20,14 @@ package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.calcite.FlinkRelBuilder;
-import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.schema.FlinkTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.util.JavaScalaConversionUtil;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;

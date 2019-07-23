@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.optimize.program
 
-import org.apache.flink.table.calcite.RelTimeIndicatorConverter
+import org.apache.flink.table.planner.calcite.RelTimeIndicatorConverter
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode

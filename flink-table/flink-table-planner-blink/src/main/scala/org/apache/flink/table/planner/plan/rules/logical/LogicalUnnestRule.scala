@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.api.java.typeutils.MapTypeInfo
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.calcite.FlinkTypeFactory.toLogicalType
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
+import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.planner.plan.utils.ExplodeFunctionUtil
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo

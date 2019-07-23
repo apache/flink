@@ -17,17 +17,18 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.common
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rex.{RexCorrelVariable, RexFieldAccess, RexProgram}
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
 import org.apache.flink.table.sources.{LookupableTableSource, TableSource}
+
+import org.apache.calcite.plan.RelOptRule.{any, operand}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.core.TableScan
+import org.apache.calcite.rex.{RexCorrelVariable, RexFieldAccess, RexProgram}
 
 /**
   * Base implementation for both

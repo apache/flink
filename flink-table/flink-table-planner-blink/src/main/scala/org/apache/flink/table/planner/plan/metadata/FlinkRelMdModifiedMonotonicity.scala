@@ -18,19 +18,18 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.utils.ScalarSqlFunction
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.functions.sql.SqlIncrSumAggFunction
+import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
+import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ModifiedMonotonicity
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecCorrelate, BatchExecGroupAggregateBase}
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.DataStreamTable
 import org.apache.flink.table.planner.plan.stats.{WithLower, WithUpper}
-import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ModifiedMonotonicity
-import org.apache.flink.table.planner.plan.metadata.{FlinkMetadata, FlinkRelMetadataQuery}
-import org.apache.flink.table.planner.functions.sql.SqlIncrSumAggFunction
-import org.apache.flink.table.{JByte, JDouble, JFloat, JList, JLong, JShort}
+import org.apache.flink.table.planner.{JByte, JDouble, JFloat, JList, JLong, JShort}
 
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset

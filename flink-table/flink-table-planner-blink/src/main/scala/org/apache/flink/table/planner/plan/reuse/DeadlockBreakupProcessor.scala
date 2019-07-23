@@ -23,9 +23,8 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.transformations.ShuffleMode
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
-import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode, ExecNodeVisitorImpl}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeVisitorImpl
 import org.apache.flink.table.planner.plan.nodes.process.{DAGProcessContext, DAGProcessor}
 
 import com.google.common.collect.{Maps, Sets}

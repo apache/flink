@@ -21,20 +21,20 @@ package org.apache.flink.table.runtime.stream.table
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.Types
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.{CountDistinct, DataViewTestAgg, WeightedAvg}
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
-import org.apache.flink.table.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink, TestingUpsertTableSink}
 import org.apache.flink.table.runtime.utils.TestData._
+import org.apache.flink.table.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink, TestingUpsertTableSink}
 import org.apache.flink.table.util.CountMinMax
 import org.apache.flink.types.Row
 
 import org.junit.Assert.assertEquals
-import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import org.junit.{Before, Test}
 
 import scala.collection.mutable
 

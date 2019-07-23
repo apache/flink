@@ -18,21 +18,22 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.api.{TableException, Types, ValidationException}
-import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.expressions._
+import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowReference, PlannerWindowStart}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
+import org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
+
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.logical.{LogicalFilter, LogicalProject}
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot
 
 import scala.collection.JavaConversions._
 

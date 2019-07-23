@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.planner.plan.metadata.SelectivityEstimator._
 import org.apache.flink.table.planner.plan.stats._
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil}
-import org.apache.flink.table.{JArrayList, JDouble, JHashMap, JHashSet}
+import org.apache.flink.table.planner.{JArrayList, JDouble, JHashMap, JHashSet}
 
 import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.plan.{RelOptPredicateList, RelOptUtil}

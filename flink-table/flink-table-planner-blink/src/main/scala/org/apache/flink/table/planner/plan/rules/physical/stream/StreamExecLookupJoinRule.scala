@@ -17,14 +17,14 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecLookupJoin
 import org.apache.flink.table.planner.plan.rules.physical.common.{BaseSnapshotOnCalcTableScanRule, BaseSnapshotOnTableScanRule}
-import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.sources.TableSource
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rex.RexProgram

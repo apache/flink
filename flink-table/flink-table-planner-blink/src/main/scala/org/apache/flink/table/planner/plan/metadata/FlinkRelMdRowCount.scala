@@ -19,6 +19,15 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.annotation.Experimental
+import org.apache.flink.configuration.ConfigOption
+import org.apache.flink.configuration.ConfigOptions.key
+import org.apache.flink.table.planner.calcite.FlinkContext
+import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
+import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch._
+import org.apache.flink.table.planner.plan.stats.ValueInterval
+import org.apache.flink.table.planner.plan.utils.AggregateUtil.{hasTimeIntervalType, toLong}
+import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, SortUtil}
 
 import org.apache.calcite.adapter.enumerable.EnumerableLimit
 import org.apache.calcite.plan.volcano.RelSubset
@@ -27,19 +36,8 @@ import org.apache.calcite.rel.metadata._
 import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rex.{RexLiteral, RexNode}
 import org.apache.calcite.util._
-import org.apache.flink.configuration.ConfigOption
-import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.calcite.FlinkContext
-import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
-import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
-import org.apache.flink.table.planner.plan.nodes.physical.batch._
-import org.apache.flink.table.planner.plan.stats.ValueInterval
-import org.apache.flink.table.planner.plan.utils.AggregateUtil.{hasTimeIntervalType, toLong}
-import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, SortUtil}
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 
-import java.lang.{Double => JDouble}
-import java.lang.{Long => JLong}
+import java.lang.{Double => JDouble, Long => JLong}
 
 import scala.collection.JavaConversions._
 

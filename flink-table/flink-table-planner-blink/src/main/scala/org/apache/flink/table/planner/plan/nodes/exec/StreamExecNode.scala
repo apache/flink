@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec
 
-import org.apache.flink.table.planner.StreamPlanner
-import org.apache.flink.table.util.Logging
+import org.apache.flink.table.planner.delegation.StreamPlanner
+import org.apache.flink.table.planner.utils.Logging
 
 /**
   * Base class for stream ExecNode.

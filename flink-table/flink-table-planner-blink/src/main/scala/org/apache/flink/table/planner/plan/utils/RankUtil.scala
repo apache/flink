@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.codegen.ExpressionReducer
+import org.apache.flink.table.planner.codegen.ExpressionReducer
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankRange, VariableRankRange}
 

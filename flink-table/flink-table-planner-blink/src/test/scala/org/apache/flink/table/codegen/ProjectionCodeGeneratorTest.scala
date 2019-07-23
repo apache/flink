@@ -20,6 +20,7 @@ package org.apache.flink.table.codegen
 
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ProjectionCodeGenerator}
 import org.apache.flink.table.runtime.generated.Projection
 import org.apache.flink.table.types.logical.{BigIntType, IntType, RowType}
 

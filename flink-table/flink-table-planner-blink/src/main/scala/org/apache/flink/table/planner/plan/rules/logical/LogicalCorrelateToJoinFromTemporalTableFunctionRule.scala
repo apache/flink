@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.calcite.FlinkRelBuilder
 import org.apache.flink.table.expressions.{FieldReferenceExpression, _}
-import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.{TemporalTableFunction, TemporalTableFunctionImpl}
 import org.apache.flink.table.operations.QueryOperation
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder
+import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecTemporalJoin
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.{makeProcTimeTemporalJoinConditionCall, makeRowTimeTemporalJoinConditionCall}
 import org.apache.flink.table.planner.plan.utils.{ExpandTableScanShuttle, RexDefaultVisitor}

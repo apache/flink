@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.table.JDouble
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.calcite.FlinkContext
+import org.apache.flink.table.planner.JDouble
+import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin

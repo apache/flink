@@ -23,7 +23,8 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSink
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecSink
-import org.apache.flink.table.sinks.{DataStreamTableSink, PartitionableTableSink}
+import org.apache.flink.table.planner.sinks.DataStreamTableSink
+import org.apache.flink.table.sinks.PartitionableTableSink
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode

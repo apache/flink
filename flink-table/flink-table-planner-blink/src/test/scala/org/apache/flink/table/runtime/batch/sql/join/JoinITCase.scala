@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.utils.BatchTestBase
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.runtime.utils.TestData._
-import org.apache.flink.table.sinks.CollectRowTableSink
+import org.apache.flink.table.planner.sinks.CollectRowTableSink
 
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized

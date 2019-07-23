@@ -21,16 +21,17 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
-import org.apache.flink.table.CalcitePair
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.CodeGeneratorContext
-import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
-import org.apache.flink.table.codegen.over.{MultiFieldRangeBoundComparatorCodeGenerator, RangeBoundComparatorCodeGenerator}
-import org.apache.flink.table.codegen.sort.ComparatorCodeGenerator
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow}
 import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.planner.CalcitePair
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext
+import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
+import org.apache.flink.table.planner.codegen.over.{MultiFieldRangeBoundComparatorCodeGenerator, RangeBoundComparatorCodeGenerator}
+import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator
+import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
@@ -40,7 +41,6 @@ import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecJoinRul
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchAggregateInfoList
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil.getLongBoundary
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, OverAggregateUtil, RelExplainUtil}
-import org.apache.flink.table.planner.BatchPlanner
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator
 import org.apache.flink.table.runtime.operators.over.frame.OffsetOverFrame.CalcOffsetFunc
 import org.apache.flink.table.runtime.operators.over.frame.{InsensitiveOverFrame, OffsetOverFrame, OverWindowFrame, RangeSlidingOverFrame, RangeUnboundedFollowingOverFrame, RangeUnboundedPrecedingOverFrame, RowSlidingOverFrame, RowUnboundedFollowingOverFrame, RowUnboundedPrecedingOverFrame, UnboundedOverWindowFrame}

@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.`trait`
 
-import org.apache.flink.table.JArrayList
+import org.apache.flink.table.planner.JArrayList
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 
 import com.google.common.collect.{ImmutableList, Ordering}

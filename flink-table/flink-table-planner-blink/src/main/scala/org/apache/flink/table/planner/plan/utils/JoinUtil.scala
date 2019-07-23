@@ -19,15 +19,16 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
+import org.apache.flink.table.types.logical.LogicalType
+
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Join, JoinInfo}
 import org.apache.calcite.rex.{RexBuilder, RexNode}
 import org.apache.calcite.util.ImmutableIntList
 import org.apache.calcite.util.mapping.IntPair
-import org.apache.flink.table.types.logical.LogicalType
 
 import java.util
 

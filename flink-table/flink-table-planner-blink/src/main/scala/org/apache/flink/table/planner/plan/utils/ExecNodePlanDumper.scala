@@ -19,9 +19,8 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.planner.plan.`trait`.{AccModeTraitDef, UpdateAsRetractionTraitDef}
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, ExecNodeVisitorImpl}
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeVisitorImpl
 
 import com.google.common.collect.{Maps, Sets}
 import org.apache.calcite.rel.RelNode

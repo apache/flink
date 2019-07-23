@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT
-import org.apache.flink.table.calcite.FlinkContext
+import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED
 import org.apache.flink.table.planner.plan.utils.SortUtil

@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkRelFactories}
+import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkRelFactories}
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ExpandUtil}
 
 import com.google.common.collect.ImmutableList

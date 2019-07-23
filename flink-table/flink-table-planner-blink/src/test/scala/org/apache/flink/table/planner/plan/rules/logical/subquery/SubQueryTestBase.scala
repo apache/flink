@@ -17,10 +17,10 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical.subquery
 
-import org.apache.flink.table.calcite.CalciteConfig
+import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.utils.TableConfigUtils
-import org.apache.flink.table.util._
+import org.apache.flink.table.util.{BatchTableTestUtil, TableTestBase}
 
 import org.apache.calcite.sql2rel.SqlToRelConverter
 

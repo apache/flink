@@ -18,15 +18,16 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rel.core.TableScan
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecTableSourceScan
 import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
 import org.apache.flink.table.sources.StreamTableSource
+
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.convert.ConverterRule
+import org.apache.calcite.rel.core.TableScan
 
 /**
   * Rule that converts [[FlinkLogicalTableSourceScan]] to [[BatchExecTableSourceScan]].

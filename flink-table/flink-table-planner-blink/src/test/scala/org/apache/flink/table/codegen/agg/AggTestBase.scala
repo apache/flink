@@ -23,14 +23,14 @@ import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.scala.StreamTableEnvironment
-import org.apache.flink.table.api.{DataTypes, EnvironmentSettings, TableEnvironment}
-import org.apache.flink.table.calcite.{FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.codegen.CodeGeneratorContext
-import org.apache.flink.table.dataview.DataViewSpec
+import org.apache.flink.table.api.{DataTypes, EnvironmentSettings}
+import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext
+import org.apache.flink.table.planner.codegen.agg.TestLongAvgFunc
+import org.apache.flink.table.planner.dataview.DataViewSpec
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction.{DoubleAvgAggFunction, IntegralAvgAggFunction}
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList}
-import org.apache.flink.table.planner.PlannerBase
-import org.apache.flink.table.planner.codegen.agg.TestLongAvgFunc
 import org.apache.flink.table.runtime.context.ExecutionContext
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType

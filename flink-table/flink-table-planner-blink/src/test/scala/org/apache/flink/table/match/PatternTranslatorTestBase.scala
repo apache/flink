@@ -26,11 +26,11 @@ import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironm
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
-import org.apache.flink.table.calcite.FlinkPlannerImpl
+import org.apache.flink.table.planner.calcite.FlinkPlannerImpl
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecDataStreamScan, StreamExecMatch}
-import org.apache.flink.table.planner.PlannerBase
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.types.logical.{IntType, RowType}
 import org.apache.flink.table.util.TableTestUtil
 import org.apache.flink.types.Row

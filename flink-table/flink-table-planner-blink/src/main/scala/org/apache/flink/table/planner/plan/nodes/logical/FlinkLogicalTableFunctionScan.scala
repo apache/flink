@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.functions.TemporalTableFunction
-import org.apache.flink.table.functions.utils.TableSqlFunction
+import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelOptRuleCall, RelTraitSet}

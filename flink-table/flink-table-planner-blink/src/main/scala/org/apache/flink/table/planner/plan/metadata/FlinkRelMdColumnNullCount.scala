@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ColumnNullCount
 import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil}
-import org.apache.flink.table.{JDouble, JList}
+import org.apache.flink.table.planner.{JDouble, JList}
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.RelOptUtil

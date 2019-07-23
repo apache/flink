@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.plan.type;
 
-import org.apache.flink.table.calcite.FlinkTypeFactory;
-import org.apache.flink.table.calcite.FlinkTypeSystem;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.VarCharType;

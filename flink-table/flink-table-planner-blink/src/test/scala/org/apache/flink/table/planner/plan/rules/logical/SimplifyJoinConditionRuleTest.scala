@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.planner.plan.rules.logical.SimplifyJoinConditionRule
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.util.TableTestBase
 

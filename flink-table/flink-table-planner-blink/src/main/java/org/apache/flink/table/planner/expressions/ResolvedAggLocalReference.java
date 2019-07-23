@@ -30,7 +30,7 @@ import java.util.List;
  * We are stored as class members, so the field can be referenced directly.
  * We should use an unique name to locate the field.
  *
- * <p>See {@link org.apache.flink.table.codegen.ExprCodeGenerator#visitLocalRef}.
+ * <p>See {@link org.apache.flink.table.planner.codegen.ExprCodeGenerator#visitLocalRef}.
  */
 public class ResolvedAggLocalReference implements Expression {
 

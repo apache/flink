@@ -22,17 +22,17 @@ import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.ProjectionCodeGenerator.generateProjection
-import org.apache.flink.table.codegen.{CodeGeneratorContext, LongHashJoinGenerator}
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator.generateProjection
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, LongHashJoinGenerator}
+import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.planner.plan.nodes.{ExpressionFormat, FlinkConventions}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, JoinUtil}
-import org.apache.flink.table.planner.BatchPlanner
 import org.apache.flink.table.runtime.operators.join.{HashJoinOperator, HashJoinType}
 import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
 import org.apache.flink.table.types.logical.RowType

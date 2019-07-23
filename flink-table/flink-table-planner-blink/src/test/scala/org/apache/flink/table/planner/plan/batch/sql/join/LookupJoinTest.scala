@@ -67,7 +67,7 @@ class LookupJoinTest extends TableTestBase {
     //    at SqlToRelConverter.convertSelect(SqlToRelConverter.java:627)
     //    at SqlToRelConverter.convertQueryRecursive(SqlToRelConverter.java:3100)
     //    at SqlToRelConverter.convertQuery(SqlToRelConverter.java:563)
-    //    at org.apache.flink.table.calcite.FlinkPlannerImpl.rel(FlinkPlannerImpl.scala:125)
+    //    at org.apache.flink.table.planner.calcite.FlinkPlannerImpl.rel(FlinkPlannerImpl.scala:125)
     expectExceptionThrown(
       "SELECT * FROM MyTable AS T RIGHT JOIN temporalTest " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id",

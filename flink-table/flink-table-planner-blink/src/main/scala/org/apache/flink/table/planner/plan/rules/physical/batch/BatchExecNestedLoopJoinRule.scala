@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.table.calcite.FlinkContext
+import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecNestedLoopJoin
 import org.apache.flink.table.planner.plan.utils.OperatorType

@@ -27,9 +27,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl
 import org.apache.flink.table.api.{EnvironmentSettings, TableConfig}
-import org.apache.flink.table.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, DataFormatConverters}
-import org.apache.flink.table.planner.PlannerBase
+import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.{RowType, VarCharType}

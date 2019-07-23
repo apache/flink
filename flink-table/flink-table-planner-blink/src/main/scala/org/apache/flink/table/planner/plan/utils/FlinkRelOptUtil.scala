@@ -18,9 +18,9 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
-import org.apache.flink.table.{JBoolean, JByte, JDouble, JFloat, JLong, JShort}
+import org.apache.flink.table.planner.{JBoolean, JByte, JDouble, JFloat, JLong, JShort}
 
 import com.google.common.collect.Lists
 import org.apache.calcite.config.NullCollation

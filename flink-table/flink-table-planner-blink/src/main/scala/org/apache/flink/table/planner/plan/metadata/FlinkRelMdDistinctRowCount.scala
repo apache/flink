@@ -23,8 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAg
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, FlinkRexUtil, RankUtil}
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.{JArrayList, JDouble}
+import org.apache.flink.table.planner.{JArrayList, JDouble}
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.plan.volcano.RelSubset

@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.codegen.CodeGeneratorContext;
-import org.apache.flink.table.codegen.ProjectionCodeGenerator;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.keyselector.BaseRowKeySelector;
 import org.apache.flink.table.runtime.keyselector.BinaryRowKeySelector;

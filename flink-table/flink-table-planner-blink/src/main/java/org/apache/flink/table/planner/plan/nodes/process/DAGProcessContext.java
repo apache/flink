@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.process;
 
-import org.apache.flink.table.planner.PlannerBase;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 
 /**
  * Context for processors to process dag.
@@ -32,8 +32,8 @@ public class DAGProcessContext {
 	}
 
 	/**
-	 * Gets {@link PlannerBase}, {@link org.apache.flink.table.planner.BatchPlanner} for batch job.
-	 * and {@link org.apache.flink.table.planner.StreamPlanner} for stream job.
+	 * Gets {@link PlannerBase}, {@link org.apache.flink.table.planner.delegation.BatchPlanner} for batch job.
+	 * and {@link org.apache.flink.table.planner.delegation.StreamPlanner} for stream job.
 	 */
 	public PlannerBase getPlanner() {
 		return planner;

@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils;
+import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Test;

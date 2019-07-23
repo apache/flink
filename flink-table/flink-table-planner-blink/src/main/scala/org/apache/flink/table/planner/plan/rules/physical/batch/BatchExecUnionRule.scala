@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
+import org.apache.flink.table.planner.plan.nodes.FlinkConventions
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalUnion
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecUnion
+
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecUnion
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalUnion
 
 import scala.collection.JavaConversions._
 

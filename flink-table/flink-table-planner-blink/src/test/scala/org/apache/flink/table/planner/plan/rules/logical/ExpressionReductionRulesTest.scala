@@ -26,7 +26,7 @@ import org.apache.flink.table.util.TableTestBase
 import org.junit.Test
 
 /**
-  * Test for [[org.apache.flink.table.codegen.ExpressionReducer]].
+  * Test for [[org.apache.flink.table.planner.codegen.ExpressionReducer]].
   */
 class ExpressionReductionRulesTest extends TableTestBase {
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.calcite.FlinkRelBuilder
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, LogicalExpand}
 
 import com.google.common.collect.ImmutableList

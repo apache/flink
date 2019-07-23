@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical
 
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
 import org.apache.flink.table.sources.TableSource
 

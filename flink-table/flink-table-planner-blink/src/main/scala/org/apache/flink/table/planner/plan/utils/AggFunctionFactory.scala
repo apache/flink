@@ -18,8 +18,8 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.functions.UserDefinedFunction
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.IncrSumAggFunction._
@@ -32,7 +32,7 @@ import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunct
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.functions.sql.{SqlConcatAggFunction, SqlFirstLastValueAggFunction, SqlIncrSumAggFunction}
-import org.apache.flink.table.functions.utils.AggSqlFunction
+import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot._

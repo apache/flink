@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecRank
 import org.apache.flink.table.planner.plan.stats._
 import org.apache.flink.table.planner.plan.utils.ColumnIntervalUtil
 import org.apache.flink.table.types.logical.IntType
-import org.apache.flink.table.{JBoolean, JDouble}
+import org.apache.flink.table.planner.{JBoolean, JDouble}
 
 import org.apache.calcite.rel.RelDistributions
 import org.apache.calcite.rel.core.JoinRelType

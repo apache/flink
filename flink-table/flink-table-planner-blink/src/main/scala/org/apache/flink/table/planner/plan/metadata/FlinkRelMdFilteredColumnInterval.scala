@@ -22,7 +22,6 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecGroupAg
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecGlobalGroupAggregate, StreamExecGroupAggregate, StreamExecGroupWindowAggregate, StreamExecLocalGroupAggregate}
 import org.apache.flink.table.planner.plan.stats.ValueInterval
 import org.apache.flink.table.planner.plan.utils.ColumnIntervalUtil
-import org.apache.flink.table.planner.plan.metadata.{FlinkMetadata, FlinkRelMetadataQuery}
 import org.apache.flink.util.Preconditions.checkArgument
 
 import org.apache.calcite.plan.volcano.RelSubset

@@ -17,12 +17,11 @@
  */
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.JHashMap
+import org.apache.flink.table.planner.JHashMap
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.FlinkDistribution
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchExecSortRule
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-import org.apache.flink.table.planner.plan.metadata.{FlinkMetadata, FlinkRelMetadataQuery}
 
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.{Calc, Sort, TableScan}

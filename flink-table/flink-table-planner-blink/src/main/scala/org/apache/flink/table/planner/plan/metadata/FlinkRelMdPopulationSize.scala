@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RankUtil}
-import org.apache.flink.table.{JArrayList, JDouble}
+import org.apache.flink.table.planner.{JArrayList, JDouble}
 
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.core._

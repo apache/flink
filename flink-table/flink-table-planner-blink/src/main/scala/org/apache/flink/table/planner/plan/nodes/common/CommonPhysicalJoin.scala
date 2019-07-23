@@ -19,8 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
-import org.apache.flink.table.planner.plan.utils.{JoinUtil, RelExplainUtil}
-import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
+import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, JoinUtil, RelExplainUtil}
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}

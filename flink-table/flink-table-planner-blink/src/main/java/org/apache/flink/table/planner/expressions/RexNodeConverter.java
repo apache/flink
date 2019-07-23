@@ -19,12 +19,6 @@
 package org.apache.flink.table.planner.expressions;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.calcite.FlinkContext;
-import org.apache.flink.table.calcite.FlinkPlannerImpl;
-import org.apache.flink.table.calcite.FlinkRelBuilder;
-import org.apache.flink.table.calcite.FlinkTypeFactory;
-import org.apache.flink.table.calcite.RexAggLocalVariable;
-import org.apache.flink.table.calcite.RexDistinctKeyVariable;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -48,9 +42,15 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.UserDefinedAggregateFunction;
-import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.planner.calcite.FlinkContext;
+import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.RexAggLocalVariable;
+import org.apache.flink.table.planner.calcite.RexDistinctKeyVariable;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -106,7 +106,7 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 import static org.apache.calcite.sql.type.SqlTypeName.VARCHAR;
-import static org.apache.flink.table.calcite.FlinkTypeFactory.toLogicalType;
+import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
 import static org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isCharacterString;
 import static org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isTemporal;

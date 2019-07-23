@@ -18,12 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.calcite
 
-import java.util
-
 import org.apache.flink.table.sinks.TableSink
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
+
+import java.util
 
 import scala.collection.JavaConversions._
 

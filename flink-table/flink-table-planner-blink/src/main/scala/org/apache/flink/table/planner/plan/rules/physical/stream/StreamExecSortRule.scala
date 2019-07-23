@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecSort
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.calcite.rex.RexLiteral
 
 /**
   * Rule that matches [[FlinkLogicalSort]] which `fetch` is null or `fetch` is 0,

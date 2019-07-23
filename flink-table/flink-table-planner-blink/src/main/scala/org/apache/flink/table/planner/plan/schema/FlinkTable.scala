@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.planner.plan.schema
 
-import org.apache.calcite.schema.TemporalTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
+
+import org.apache.calcite.schema.TemporalTable
 import org.apache.calcite.schema.impl.AbstractTable
 
 /**

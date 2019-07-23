@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 

@@ -18,7 +18,8 @@
 
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.JArrayList
+import org.apache.flink.table.planner.JArrayList
+
 import org.apache.calcite.rel.RelFieldCollation.{Direction, NullDirection}
 import org.apache.calcite.rel.core.Window
 import org.apache.calcite.rel.core.Window.Group

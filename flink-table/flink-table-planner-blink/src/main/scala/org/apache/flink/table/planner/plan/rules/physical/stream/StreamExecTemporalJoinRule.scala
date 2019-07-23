@@ -25,8 +25,8 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecTempo
 import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.containsTemporalJoinCondition
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, WindowJoinUtil}
 
-import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.plan.RelOptRule.{any, operand}
+import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.JoinRelType
 

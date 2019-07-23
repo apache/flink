@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.calcite.CalciteConfig;
-import org.apache.flink.table.calcite.CalciteConfig$;
+import org.apache.flink.table.planner.calcite.CalciteConfig;
+import org.apache.flink.table.planner.calcite.CalciteConfig$;
 import org.apache.flink.table.planner.plan.utils.OperatorType;
 
 import java.util.HashSet;

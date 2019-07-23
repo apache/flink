@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.calcite
 
+import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.types.logical.{ArrayType, BigIntType, BooleanType, DateType, DecimalType, DoubleType, FloatType, IntType, LocalZonedTimestampType, LogicalType, MapType, RowType, SmallIntType, TimeType, TimestampType, TinyIntType, VarBinaryType, VarCharType}
 
 import org.junit.{Assert, Test}

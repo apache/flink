@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.planner.plan.rules.logical
 
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.expressions.FieldReferenceExpression
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 

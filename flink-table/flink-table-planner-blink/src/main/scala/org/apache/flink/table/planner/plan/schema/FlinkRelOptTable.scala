@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.plan.schema
 
-import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable
 import org.apache.flink.table.operations.TableSourceQueryOperation
+import org.apache.flink.table.planner.catalog.QueryOperationCatalogViewTable
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.sources.TableSource

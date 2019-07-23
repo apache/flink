@@ -17,15 +17,16 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import com.google.common.collect.ImmutableMap
-import org.apache.flink.table.CalcitePair
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
-import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.planner.CalcitePair
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
+import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
 import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
+
+import com.google.common.collect.ImmutableMap
 import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
@@ -35,7 +36,7 @@ import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.sql.SqlMatchRecognize.AfterOption
 
 import java.util
-import java.util.{List => JList, SortedSet => JSortedSet}
+import java.util.{SortedSet => JSortedSet}
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable

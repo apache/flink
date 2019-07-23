@@ -18,8 +18,7 @@
 
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo,
-  PrimitiveArrayTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, MultisetTypeInfo, ObjectArrayTypeInfo}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.TableFunction

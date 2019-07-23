@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
+import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalIntermediateTableScan
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecIntermediateTableScan
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
-import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 
 /**
   * Rule that converts [[FlinkLogicalIntermediateTableScan]] to [[StreamExecIntermediateTableScan]].

@@ -19,14 +19,13 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ColumnInterval
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.planner.plan.stats._
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ColumnIntervalUtil, FlinkRelOptUtil, RankUtil}
-import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ColumnInterval
-import org.apache.flink.table.planner.plan.metadata.{FlinkMetadata, FlinkRelMetadataQuery}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, VariableRankRange}
 import org.apache.flink.util.Preconditions
 

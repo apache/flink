@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
+import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecLocalHashAggregate
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil}
@@ -28,10 +29,8 @@ import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.ImmutableBitSet
-import org.apache.flink.configuration.ConfigOptions.key
 
-import java.lang.{Double => JDouble}
-import java.lang.{Boolean => JBoolean}
+import java.lang.{Boolean => JBoolean, Double => JDouble}
 
 trait BatchExecJoinRuleBase {
 

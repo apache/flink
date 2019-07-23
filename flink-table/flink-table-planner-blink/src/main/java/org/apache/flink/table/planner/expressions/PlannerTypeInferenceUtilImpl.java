@@ -23,9 +23,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.InputTypeSpec;
-import org.apache.flink.table.expressions.PlannerExpression;
-import org.apache.flink.table.expressions.PlannerExpressionConverter;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.types.DataType;
@@ -39,9 +36,9 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toJava;
 import static org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
-import static org.apache.flink.table.util.JavaScalaConversionUtil.toJava;
 
 /**
  * Implementation of {@link PlannerTypeInferenceUtil}.

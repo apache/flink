@@ -17,10 +17,11 @@
  */
 package org.apache.flink.table.planner.plan.rules.logical
 
+import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalSnapshot}
+
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rex.RexOver
-import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalSnapshot}
 
 /**
   * Transpose [[FlinkLogicalCalc]] past into [[FlinkLogicalSnapshot]].

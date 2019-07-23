@@ -27,8 +27,6 @@ import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.planner.BatchPlanner;
-import org.apache.flink.table.planner.StreamPlanner;
 
 import java.util.Arrays;
 import java.util.HashMap;

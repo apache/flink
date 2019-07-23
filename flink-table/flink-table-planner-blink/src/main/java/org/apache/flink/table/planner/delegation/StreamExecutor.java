@@ -30,7 +30,7 @@ import java.util.List;
 
 /**
  * An implementation of {@link Executor} that is backed by a {@link StreamExecutionEnvironment}.
- * This is the only executor that {@link org.apache.flink.table.planner.StreamPlanner} supports.
+ * This is the only executor that {@link org.apache.flink.table.planner.delegation.StreamPlanner} supports.
  */
 @Internal
 public class StreamExecutor extends ExecutorBase {

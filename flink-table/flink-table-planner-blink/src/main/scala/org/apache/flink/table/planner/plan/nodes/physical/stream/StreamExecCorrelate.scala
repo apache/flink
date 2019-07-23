@@ -18,13 +18,13 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.table.codegen.{CodeGeneratorContext, CorrelateCodeGenerator}
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.functions.utils.TableSqlFunction
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CorrelateCodeGenerator}
+import org.apache.flink.table.planner.delegation.StreamPlanner
+import org.apache.flink.table.planner.functions.utils.TableSqlFunction
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
-import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}

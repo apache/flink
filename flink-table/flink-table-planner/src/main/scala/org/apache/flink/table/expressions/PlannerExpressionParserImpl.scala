@@ -33,6 +33,9 @@ import _root_.scala.util.parsing.combinator.{JavaTokenParsers, PackratParsers}
 
 /**
   * The implementation of a [[PlannerExpressionParser]] which parsers expressions inside a String.
+  *
+  * <p><strong>WARNING</strong>: please keep this class in sync with PlannerExpressionParserImpl
+  * variant in flink-table-planner-blink module.
   */
 class PlannerExpressionParserImpl extends PlannerExpressionParser {
 

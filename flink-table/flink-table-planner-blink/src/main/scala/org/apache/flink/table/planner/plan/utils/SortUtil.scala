@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.common.operators.Order
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.calcite.FlinkPlannerImpl
+import org.apache.flink.table.planner.calcite.FlinkPlannerImpl
 
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel.`type`._

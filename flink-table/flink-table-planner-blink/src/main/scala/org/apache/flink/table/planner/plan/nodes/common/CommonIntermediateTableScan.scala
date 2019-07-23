@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.RelWriter
-import org.apache.calcite.rel.core.{Exchange, TableScan}
+import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 
 import scala.collection.JavaConversions._
