@@ -76,7 +76,7 @@ public abstract class SingleValueAggFunction extends DeclarativeAggregateFunctio
 	@Override
 	public Expression[] accumulateExpressions() {
 		return new Expression[] {
-			/* value = count == 0 ? exception : operand(0) */
+			/* value = count > 0 ? exception : operand(0) */
 			ifThenElse(greaterThan(count, ZERO),
 				throwException(ERROR_MSG, getResultType()),
 				operand(0)),

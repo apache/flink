@@ -140,6 +140,6 @@ public class ExpressionBuilder {
 	}
 
 	public static Expression throwException(String msg, DataType type) {
-		return call(THROW_EXCEPTION, typeLiteral(type));
+		return call(THROW_EXCEPTION, literal(msg), typeLiteral(type));
 	}
 }
