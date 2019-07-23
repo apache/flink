@@ -56,14 +56,14 @@ under the License.
 
 ### 配置
 
-Flink 的 Cassandra 接收器是使用静态方法 `CassandraSink.addSink(DataStream<IN> input)` 创建的。这个方法返回一个 `CassandraSinkBuilder`，它提供了进一步配置接收器的方法，最后通过 `build()` 创建接收器实例。
+Flink 的 Cassandra 接收器使用静态方法 CassandraSink.addSink(DataStream input) 创建。这个方法返回一个 `CassandraSinkBuilder`，它提供了进一步配置接收器的方法，最后通过 `build()` 创建接收器实例。
 
 可以使用以下配置方法：
 
 1. _setQuery(String query)_
     * 设置为接收器接收的每个记录执行的 upsert query。
     * 查询在内部被视为 CQL 语句。
-    * __请__ 设置 upsert query以处理 __Tuple__ 数据类型。
+    * __请__ 设置 upsert query 以处理 __Tuple__ 数据类型。
     * __请不要__ 设置查询以处理 __POJO__ 数据类型。
 2. _setClusterBuilder()_
     * 将用于配置创建更复杂的 cassandra cluster builder，例如一致性级别，重试策略等。
@@ -91,7 +91,7 @@ Flink 的 Cassandra 接收器是使用静态方法 `CassandraSink.addSink(DataSt
 
 如果查询是幂等的，Flink 启用了 checkpoint 情况下可以提供精确一次保证（处理一次的结果和处理多次的结果是一致的）。如果失败则会从已完整保存的 checkpoint 中重放恢复数据。
 
-此外，对于非幂等程序，必须启用预写日志。这是因为重放 checkpoint 会导致结果和预期的不一样。预写日志保证重放的 checkpoint 与第一次尝试相同。请注意，启用此功能会对延迟产生负面影响。
+此外，对于非幂等程序，必须启用预写日志。这是因为重放 checkpoint 会导致结果和预期的不一样。预写日志保证重放之后结果和第一次尝试结果一样。请注意，启用此功能会对延迟产生负面影响。
 
 <p style="border-radius: 5px; padding: 5px" class="bg-danger"><b>注意</b>：预写日志功能目前是实验性的。在许多情况下，并不需要启用它。请将问题报告给开发邮件列表。</p>
 
@@ -104,7 +104,7 @@ Flink 的 Cassandra 接收器是使用静态方法 `CassandraSink.addSink(DataSt
 
 Cassandra 接收器当前支持 Tuple 和 POJO 数据类型，Flink 自动检测使用哪种类型的输入。有关那些流数据类型的一般用例，请参阅[支持的数据类型]({{ site.baseurl }}/zh/dev/api_concepts.html)。我们展示了两个基于 [SocketWindowWordCount](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java) 的实现，分别用于 Pojo 和 Tuple 数据类型。
 
-在所有这些例子中，我们都假设已经创建了相关的 Keyspace `example`和 Table `wordcount`。
+在所有这些例子中，我们都假设已经创建了相关的 Keyspace `example` 和 Table `wordcount`。
 
 <div class="codetabs" markdown="1">
 <div data-lang="CQL" markdown="1">
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS example.wordcount (
 </div>
 </div>
 
-### Cassandra Sink Example for Streaming Tuple Data Type
+### 流式元组数据类型的 Cassandra 接收器示例
 在将结果通过 Java/Scala Tuple 数据类型存储到 Cassandra 接收器时，需要设置 CQL upsert 语句（通过 setQuery('stmt')）将每条记录保存回数据库。将 upsert 查询缓存为 `PreparedStatement` 时，每个 Tuple 元素都将转换为语句的参数。
 有关 `PreparedStatement` 和 `BoundStatement` 的详细信息，请访问 [DataStax Java 驱动程序手册](https://docs.datastax.com/en/developer/java-driver/2.1/manual/statements/prepared/)。
 
@@ -191,7 +191,7 @@ result.print().setParallelism(1)
 </div>
 
 
-### 用于流式传输 POJO 数据类型的 Cassandra Sink 示例
+### 用于流式传输 POJO 数据类型的 Cassandra 接收器示例
 流式传输 POJO 数据类型并将相同的 POJO 实体存储回 Cassandra 的示例。此外，此 POJO 实现需要遵循 [DataStax Java 驱动程序手册](http://docs.datastax.com/en/developer/java-driver/2.1/manual/object_mapper/creating/)来注释每个字段的类使用 DataStax Java 驱动程序 `com.datastax.driver.mapping.Mapper` 类将此实体映射到指定表的关联列。
 
 可以通过放置在 Pojo 类中的字段声明上的注释来定义每个表列的映射。有关映射的详细信息，请参阅[映射类的定义](http://docs.datastax.com/en/developer/java-driver/3.1/manual/object_mapper/creating/)和 [CQL Data types](https://docs.datastax.com/en/cql/3.1/cql/cql_reference/cql_data_types_c.html)。
