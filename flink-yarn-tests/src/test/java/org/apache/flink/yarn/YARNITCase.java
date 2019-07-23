@@ -113,9 +113,15 @@ public class YARNITCase extends YarnTestBase {
 
 					assertThat(jobResult, is(notNullValue()));
 					assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
+
+					waitUntilApplicationFinished(applicationId, 10);
 				} finally {
 					if (clusterClient != null) {
 						clusterClient.shutdown();
+					}
+
+					if (applicationId != null) {
+						yarnClusterDescriptor.killCluster(applicationId);
 					}
 				}
 			}

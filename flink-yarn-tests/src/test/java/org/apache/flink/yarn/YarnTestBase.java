@@ -38,6 +38,7 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.service.Service;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -571,6 +572,20 @@ public abstract class YarnTestBase extends TestLogger {
 			count += containers.size();
 		}
 		return count;
+	}
+
+	public void waitUntilApplicationFinished(ApplicationId applicationId, int timeout) throws Exception {
+		Deadline deadline = Deadline.now().plus(Duration.ofSeconds(timeout));
+		while (deadline.hasTimeLeft()) {
+			YarnApplicationState state = yarnClient.getApplicationReport(applicationId).getYarnApplicationState();
+			if (state == YarnApplicationState.FINISHED ||
+					state == YarnApplicationState.FAILED ||
+					state == YarnApplicationState.KILLED) {
+				break;
+			} else {
+				sleep(500);
+			}
+		}
 	}
 
 	public static void startYARNSecureMode(YarnConfiguration conf, String principal, String keytab) {
