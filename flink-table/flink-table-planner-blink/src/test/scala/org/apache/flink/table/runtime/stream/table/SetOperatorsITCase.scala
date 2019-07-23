@@ -20,7 +20,7 @@ package org.apache.flink.table.runtime.stream.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.plan.util.NonPojo
+import org.apache.flink.table.planner.plan.utils.NonPojo
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils.TestData._
 import org.apache.flink.table.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink}
