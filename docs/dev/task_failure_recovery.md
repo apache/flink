@@ -310,10 +310,10 @@ That is, batch data exchanges denote the boundaries of a region.
   which can be set through [ExecutionConfig]({{ site.baseurl }}/dev/execution_configuration.html).
 
 The regions to restart are decided as below:
-1. The region containing the failed task should be restarted.
+1. The region containing the failed task will be restarted.
 2. If a result partition is not available while it is required by a region that will be restarted,
-   the region producing the result partition should be restarted as well.
-3. If a region is to be restarted, all of its consumer regions should also be restarted. This is to guarantee
+   the region producing the result partition will be restarted as well.
+3. If a region is to be restarted, all of its consumer regions will also be restarted. This is to guarantee
    data consistency because nondeterministic processing or partitioning can result in that a partition
    is different each time it is produced.
 
