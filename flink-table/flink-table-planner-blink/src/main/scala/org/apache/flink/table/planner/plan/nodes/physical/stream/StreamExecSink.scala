@@ -109,7 +109,8 @@ class StreamExecSink[T](
               case Some(keys) => upsertSink.setKeyFields(keys)
               case None if isAppendOnlyTable => upsertSink.setKeyFields(null)
               case None if !isAppendOnlyTable => throw new TableException(
-                "UpsertStreamTableSink requires that Table has a full primary keys if it is updated.")
+                "UpsertStreamTableSink requires that Table has" +
+                    " a full primary keys if it is updated.")
             }
 
             translateToTransformation(withChangeFlag = true, planner)
