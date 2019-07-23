@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.scala.StreamTableEnvironment
 import org.apache.flink.table.expressions.{Expression, ExpressionParser}
-import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.util.TableTestUtil
 
 object StreamTableEnvUtil {

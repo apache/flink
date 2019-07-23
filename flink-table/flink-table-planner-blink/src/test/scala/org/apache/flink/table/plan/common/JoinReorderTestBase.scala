@@ -21,7 +21,8 @@ package org.apache.flink.table.plan.common
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.plan.stats.{ColumnStats, FlinkStatistic, TableStats}
+import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.util.{TableTestBase, TableTestUtil}
 
 import org.junit.{Before, Test}

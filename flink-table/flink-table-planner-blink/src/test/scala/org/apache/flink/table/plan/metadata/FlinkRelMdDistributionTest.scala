@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.plan.`trait`.FlinkRelDistribution
-import org.apache.flink.table.plan.nodes.logical.FlinkLogicalDataStreamTableScan
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecBoundedStreamScan
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecDataStreamScan
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalDataStreamTableScan
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecBoundedStreamScan
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecDataStreamScan
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType}
 
 import com.google.common.collect.ImmutableList

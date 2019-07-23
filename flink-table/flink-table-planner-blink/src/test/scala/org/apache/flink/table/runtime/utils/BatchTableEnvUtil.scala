@@ -27,7 +27,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.{Table, TableEnvironment}
 import org.apache.flink.table.expressions.ExpressionParser
-import org.apache.flink.table.plan.stats.FlinkStatistic
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.PlannerBase
 import org.apache.flink.table.sinks.CollectTableSink
 import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo

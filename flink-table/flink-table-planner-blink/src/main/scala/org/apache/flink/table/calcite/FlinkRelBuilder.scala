@@ -24,8 +24,8 @@ import org.apache.flink.table.calcite.FlinkRelFactories.{ExpandFactory, RankFact
 import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.expressions.{PlannerWindowProperty, WindowProperty}
 import org.apache.flink.table.operations.QueryOperation
-import org.apache.flink.table.plan.logical.LogicalWindow
-import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
+import org.apache.flink.table.planner.plan.logical.LogicalWindow
+import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
 import org.apache.flink.table.planner.plan.QueryOperationConverter
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 import org.apache.flink.table.sinks.TableSink

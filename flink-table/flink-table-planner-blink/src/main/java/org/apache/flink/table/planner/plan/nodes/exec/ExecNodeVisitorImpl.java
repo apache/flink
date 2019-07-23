@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec;
 
-import org.apache.flink.table.plan.nodes.exec.ExecNode;
-
 /**
  * Implement of {@link ExecNodeVisitor}.
  */

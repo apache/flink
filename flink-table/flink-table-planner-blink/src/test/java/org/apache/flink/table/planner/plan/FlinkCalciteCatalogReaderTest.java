@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan;
 
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.calcite.FlinkTypeSystem;
-import org.apache.flink.table.plan.schema.FlinkRelOptTable;
-import org.apache.flink.table.plan.schema.FlinkTable;
+import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable;
+import org.apache.flink.table.planner.plan.schema.FlinkTable;
 
 import org.apache.calcite.config.CalciteConnectionConfigImpl;
 import org.apache.calcite.config.CalciteConnectionProperty;

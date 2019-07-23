@@ -23,7 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 
 /**
- * Deal with resource config for {@link org.apache.flink.table.plan.nodes.exec.ExecNode}.
+ * Deal with resource config for {@link org.apache.flink.table.planner.plan.nodes.exec.ExecNode}.
  */
 public class NodeResourceUtil {
 

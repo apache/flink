@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.planner.plan.metadata;
 
-import org.apache.flink.table.plan.stats.ValueInterval;
-import org.apache.flink.table.plan.trait.FlinkRelDistribution;
-import org.apache.flink.table.plan.trait.RelModifiedMonotonicity;
+import org.apache.flink.table.planner.plan.stats.ValueInterval;
+import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
+import org.apache.flink.table.planner.plan.trait.RelModifiedMonotonicity;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rel.RelNode;
@@ -113,7 +113,7 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
 	 * @param index the index of the given column
 	 * @return the interval of the given column of a specified relational expression.
 	 *         Returns null if interval cannot be estimated,
-	 *         Returns {@link org.apache.flink.table.plan.stats.EmptyValueInterval}
+	 *         Returns {@link org.apache.flink.table.planner.plan.stats.EmptyValueInterval}
 	 *         if column values does not contains any value except for null.
 	 */
 	public ValueInterval getColumnInterval(RelNode rel, int index) {
@@ -135,7 +135,7 @@ public class FlinkRelMetadataQuery extends RelMetadataQuery {
 	 * @param filterArg the index of the filter argument
 	 * @return the interval of the given column of a specified relational expression.
 	 *         Returns null if interval cannot be estimated,
-	 *         Returns {@link org.apache.flink.table.plan.stats.EmptyValueInterval}
+	 *         Returns {@link org.apache.flink.table.planner.plan.stats.EmptyValueInterval}
 	 *         if column values does not contains any value except for null.
 	 */
 	public ValueInterval getFilteredColumnInterval(RelNode rel, int columnIndex, int filterArg) {

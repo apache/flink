@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.plan.optimize.program
 
+
+import org.apache.flink.table.planner.plan.optimize.program._
+
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.RuleSets

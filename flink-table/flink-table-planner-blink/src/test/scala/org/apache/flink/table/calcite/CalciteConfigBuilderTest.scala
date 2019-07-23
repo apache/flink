@@ -19,7 +19,7 @@
 package org.apache.flink.table.calcite
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.plan.optimize.program.FlinkStreamProgram
+import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram
 
 import org.apache.calcite.config.Lex
 import org.apache.calcite.sql.fun.{OracleSqlOperatorTable, SqlStdOperatorTable}

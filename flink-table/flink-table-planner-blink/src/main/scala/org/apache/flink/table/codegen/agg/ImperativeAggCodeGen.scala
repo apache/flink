@@ -26,7 +26,7 @@ import org.apache.flink.table.dataview.DataViewSpec
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils.{getAggFunctionUDIMethod, getAggUserDefinedInputTypes, getUserDefinedMethod, internalTypesToClasses, signatureToString}
-import org.apache.flink.table.plan.util.AggregateInfo
+import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.planner.expressions.{ResolvedAggInputReference, ResolvedDistinctKeyReference, RexNodeConverter}
 import org.apache.flink.table.planner.utils.SingleElementIterator
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getInternalClassForType

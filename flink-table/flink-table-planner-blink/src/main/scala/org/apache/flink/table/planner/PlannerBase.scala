@@ -30,12 +30,12 @@ import org.apache.flink.table.delegation.{Executor, Planner}
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.operations.OutputConversionModifyOperation.UpdateMode
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, OutputConversionModifyOperation, UnregisteredSinkModifyOperation}
-import org.apache.flink.table.plan.nodes.calcite.LogicalSink
-import org.apache.flink.table.plan.nodes.exec.ExecNode
-import org.apache.flink.table.plan.nodes.physical.FlinkPhysicalRel
-import org.apache.flink.table.plan.optimize.Optimizer
-import org.apache.flink.table.plan.reuse.SubplanReuser
-import org.apache.flink.table.plan.util.SameRelObjectShuttle
+import org.apache.flink.table.planner.plan.nodes.calcite.LogicalSink
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
+import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
+import org.apache.flink.table.planner.plan.optimize.Optimizer
+import org.apache.flink.table.planner.plan.reuse.SubplanReuser
+import org.apache.flink.table.planner.plan.utils.SameRelObjectShuttle
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.delegation.{ExecutorBase, PlannerContext}
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl

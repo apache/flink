@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
+import org.apache.flink.table.planner.plan.optimize.program.{FlinkBatchProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
 import org.apache.flink.table.planner.plan.rules.logical.{FlinkSemiAntiJoinFilterTransposeRule, FlinkSemiAntiJoinProjectTransposeRule}
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.util.TableTestBase

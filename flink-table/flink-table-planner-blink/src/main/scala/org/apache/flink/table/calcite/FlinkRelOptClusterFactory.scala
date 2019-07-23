@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.calcite
 
-import org.apache.flink.table.plan.metadata.FlinkDefaultRelMetadataProvider
+import org.apache.flink.table.planner.plan.metadata.FlinkDefaultRelMetadataProvider
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptPlanner}
 import org.apache.calcite.rel.metadata.{DefaultRelMetadataProvider, JaninoRelMetadataProvider, RelMetadataQuery}

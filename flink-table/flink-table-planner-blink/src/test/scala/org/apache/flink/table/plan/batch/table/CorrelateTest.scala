@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.plan.optimize.program.FlinkBatchProgram
+import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.util.{TableFunc0, TableFunc1, TableTestBase}
 
 import org.apache.calcite.rel.rules.{CalcMergeRule, FilterCalcMergeRule, ProjectCalcMergeRule}

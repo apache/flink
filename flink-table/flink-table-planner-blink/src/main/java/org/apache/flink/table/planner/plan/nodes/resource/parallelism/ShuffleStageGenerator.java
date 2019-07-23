@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.plan.nodes.resource.parallelism;
 
-import org.apache.flink.table.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecExchange;
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecUnion;
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecUnion;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecExchange;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecUnion;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecUnion;
 
 import org.apache.calcite.rel.RelDistribution;
 import org.apache.calcite.rel.core.Exchange;

@@ -26,7 +26,7 @@ import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.dataformat.{BaseRow, BinaryString, Decimal}
 import org.apache.flink.table.functions._
-import org.apache.flink.table.plan.schema.DeferredTypeFlinkTableFunction
+import org.apache.flink.table.planner.plan.schema.DeferredTypeFlinkTableFunction
 import org.apache.flink.table.runtime.types.ClassDataTypeConverter.fromClassToDataType
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.{getDefaultExternalClassForType, getInternalClassForType}
 import org.apache.flink.table.types.DataType

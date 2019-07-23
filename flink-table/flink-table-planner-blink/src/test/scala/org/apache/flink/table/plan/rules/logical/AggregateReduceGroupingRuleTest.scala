@@ -18,7 +18,7 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.table.plan.common.AggregateReduceGroupingTestBase
-import org.apache.flink.table.plan.optimize.program.FlinkBatchProgram
+import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.plan.rules.logical.FlinkAggregateRemoveRule
 
 import org.apache.calcite.tools.RuleSets

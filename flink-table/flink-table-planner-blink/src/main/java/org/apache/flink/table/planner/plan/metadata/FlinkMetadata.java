@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.planner.plan.metadata;
 
-import org.apache.flink.table.plan.stats.ValueInterval;
-import org.apache.flink.table.plan.trait.FlinkRelDistribution;
-import org.apache.flink.table.plan.trait.RelModifiedMonotonicity;
+import org.apache.flink.table.planner.plan.stats.ValueInterval;
+import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
+import org.apache.flink.table.planner.plan.trait.RelModifiedMonotonicity;
 
 import org.apache.calcite.linq4j.tree.Types;
 import org.apache.calcite.rel.RelNode;

@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.plan.stats
 
-import org.apache.flink.table.plan.stats.ValueInterval._
-import org.apache.flink.table.plan.util.ColumnIntervalUtil.toBigDecimalInterval
+import org.apache.flink.table.planner.plan.stats.ValueInterval
+import org.apache.flink.table.planner.plan.stats.ValueInterval._
+import org.apache.flink.table.planner.plan.utils.ColumnIntervalUtil.toBigDecimalInterval
 
 import org.junit.Assert._
 import org.junit.Test

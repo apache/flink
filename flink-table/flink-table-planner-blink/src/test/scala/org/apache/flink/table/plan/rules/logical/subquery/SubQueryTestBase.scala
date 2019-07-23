@@ -18,14 +18,14 @@
 package org.apache.flink.table.plan.rules.logical.subquery
 
 import org.apache.flink.table.calcite.CalciteConfig
-import org.apache.flink.table.plan.optimize.program.FlinkBatchProgram
+import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.util._
 
 import org.apache.calcite.sql2rel.SqlToRelConverter
 
 /**
-  * Tests for [[org.apache.flink.table.plan.rules.logical.FlinkSubQueryRemoveRule]].
+  * Tests for [[org.apache.flink.table.planner.plan.rules.logical.FlinkSubQueryRemoveRule]].
   */
 class SubQueryTestBase extends TableTestBase {
   protected val util: BatchTableTestUtil = batchTestUtil()

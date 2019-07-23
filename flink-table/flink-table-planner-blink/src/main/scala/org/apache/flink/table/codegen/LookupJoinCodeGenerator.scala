@@ -31,7 +31,7 @@ import org.apache.flink.table.dataformat.DataFormatConverters.DataFormatConverte
 import org.apache.flink.table.dataformat.{BaseRow, DataFormatConverters, GenericRow, JoinedRow}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.runtime.generated.{GeneratedCollector, GeneratedFunction, GeneratedResultFuture}
-import org.apache.flink.table.plan.util.LookupJoinUtil.{ConstantLookupKey, FieldRefLookupKey, LookupKey}
+import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.{ConstantLookupKey, FieldRefLookupKey, LookupKey}
 import org.apache.flink.table.runtime.collector.{TableFunctionCollector, TableFunctionResultFuture}
 import org.apache.flink.table.runtime.operators.join.lookup.DelegatingResultFuture
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType

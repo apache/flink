@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.plan.optimize.program.FlinkBatchProgram
+import org.apache.flink.table.planner.plan.optimize.program.FlinkBatchProgram
 import org.apache.flink.table.util.TableTestBase
 
 import org.junit.Test

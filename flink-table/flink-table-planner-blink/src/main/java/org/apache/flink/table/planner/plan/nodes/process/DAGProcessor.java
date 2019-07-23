@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.process;
 
-import org.apache.flink.table.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 
 import java.util.List;
 

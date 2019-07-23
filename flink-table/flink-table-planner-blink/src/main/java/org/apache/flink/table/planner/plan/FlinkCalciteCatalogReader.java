@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.plan;
 
-import org.apache.flink.table.plan.schema.FlinkRelOptTable;
-import org.apache.flink.table.plan.schema.FlinkTable;
+import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable;
+import org.apache.flink.table.planner.plan.schema.FlinkTable;
 
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.jdbc.CalciteSchema;

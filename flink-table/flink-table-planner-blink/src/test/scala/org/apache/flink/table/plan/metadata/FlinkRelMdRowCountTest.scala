@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.plan.nodes.calcite.LogicalWindowAggregate
-import org.apache.flink.table.plan.util.FlinkRelMdUtil
+import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
+import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 
 import com.google.common.collect.Lists
 import org.apache.calcite.rel.core.{AggregateCall, Project}

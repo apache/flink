@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, INT
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment}
+import org.apache.flink.table.planner.plan.utils.{ExpandTableScanShuttle, RelDigestUtil}
 import org.apache.flink.table.runtime.utils.BatchTableEnvUtil
 import org.apache.flink.table.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.util.TableTestUtil

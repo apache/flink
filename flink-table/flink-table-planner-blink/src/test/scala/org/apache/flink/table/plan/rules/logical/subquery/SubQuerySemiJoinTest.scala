@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunction
 import org.junit.Test
 
 /**
-  * Tests for [[org.apache.flink.table.plan.rules.logical.FlinkSubQueryRemoveRule]],
+  * Tests for [[org.apache.flink.table.planner.plan.rules.logical.FlinkSubQueryRemoveRule]],
   * this class only tests IN and EXISTS queries.
   */
 class SubQuerySemiJoinTest extends SubQueryTestBase {

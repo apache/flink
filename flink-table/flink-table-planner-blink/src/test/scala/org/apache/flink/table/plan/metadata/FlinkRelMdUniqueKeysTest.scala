@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.plan.nodes.calcite.LogicalExpand
-import org.apache.flink.table.plan.util.ExpandUtil
+import org.apache.flink.table.planner.plan.nodes.calcite.LogicalExpand
+import org.apache.flink.table.planner.plan.utils.ExpandUtil
 
 import com.google.common.collect.{ImmutableList, ImmutableSet}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, LESS_THAN}

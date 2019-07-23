@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan;
 /**
  * Enumerations for partial final aggregate types.
  *
- * @see org.apache.flink.table.plan.rules.logical.SplitAggregateRule
+ * @see org.apache.flink.table.planner.plan.rules.logical.SplitAggregateRule
  */
 public enum PartialFinalType {
 	/**

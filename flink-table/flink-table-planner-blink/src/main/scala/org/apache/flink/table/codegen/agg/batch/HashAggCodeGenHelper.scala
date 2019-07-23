@@ -28,7 +28,7 @@ import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, Joined
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils
 import org.apache.flink.table.expressions.{Expression, ExpressionVisitor, FieldReferenceExpression, TypeLiteralExpression, UnresolvedCallExpression, UnresolvedReferenceExpression, ValueLiteralExpression, _}
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
-import org.apache.flink.table.plan.util.SortUtil
+import org.apache.flink.table.planner.plan.utils.SortUtil
 import org.apache.flink.table.planner.expressions.{ResolvedAggInputReference, RexNodeConverter}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.runtime.generated.{NormalizedKeyComputer, RecordComparator}

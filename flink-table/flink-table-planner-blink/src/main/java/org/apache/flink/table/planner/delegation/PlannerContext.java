@@ -32,10 +32,10 @@ import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.calcite.FlinkTypeSystem;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.codegen.ExpressionReducer;
-import org.apache.flink.table.plan.cost.FlinkCostFactory;
 import org.apache.flink.table.planner.catalog.FunctionCatalogOperatorTable;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
+import org.apache.flink.table.planner.plan.cost.FlinkCostFactory;
 import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.util.JavaScalaConversionUtil;
 

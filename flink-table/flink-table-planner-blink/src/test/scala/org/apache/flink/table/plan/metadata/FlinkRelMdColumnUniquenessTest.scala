@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.plan.nodes.calcite.{LogicalExpand, LogicalRank}
-import org.apache.flink.table.plan.util.ExpandUtil
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalExpand, LogicalRank}
+import org.apache.flink.table.planner.plan.utils.ExpandUtil
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 
 import com.google.common.collect.ImmutableList

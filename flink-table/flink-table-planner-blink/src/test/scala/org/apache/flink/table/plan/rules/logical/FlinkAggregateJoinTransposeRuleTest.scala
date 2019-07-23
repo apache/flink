@@ -22,9 +22,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkGroupProgramBuilder, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
-import org.apache.flink.table.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.plan.rules.logical.{FlinkAggregateJoinTransposeRule, FlinkFilterJoinRule}
+import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkGroupProgramBuilder, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic
+import org.apache.flink.table.planner.plan.rules.logical.{AggregateReduceGroupingRule, FlinkAggregateJoinTransposeRule, FlinkFilterJoinRule}
 import org.apache.flink.table.util.TableTestBase
 
 import com.google.common.collect.ImmutableSet

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.plan.cost
 
+import org.apache.flink.table.planner.plan.cost.FlinkCost
+
 import org.apache.calcite.plan.RelOptCostImpl
 import org.junit.Assert._
 import org.junit.Test

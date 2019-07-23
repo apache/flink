@@ -19,7 +19,8 @@
 package org.apache.flink.table.plan.rules.logical
 
 import org.apache.flink.table.plan.common.UnnestTestBase
-import org.apache.flink.table.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
+import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkChainedProgram, FlinkHepRuleSetProgramBuilder, HEP_RULES_EXECUTION_TYPE}
+import org.apache.flink.table.planner.plan.rules.logical.LogicalUnnestRule
 import org.apache.flink.table.util.{BatchTableTestUtil, TableTestUtil}
 
 import org.apache.calcite.plan.hep.HepMatchOrder

@@ -19,8 +19,8 @@
 package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
-import org.apache.flink.table.plan.`trait`.RelModifiedMonotonicity
-import org.apache.flink.table.plan.nodes.logical.FlinkLogicalRank
+import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 
 import org.apache.calcite.rel.RelCollations

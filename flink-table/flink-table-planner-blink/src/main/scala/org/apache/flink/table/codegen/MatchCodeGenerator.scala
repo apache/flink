@@ -38,8 +38,8 @@ import org.apache.flink.table.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.runtime.generated.GeneratedFunction
-import org.apache.flink.table.plan.util.AggregateUtil
-import org.apache.flink.table.plan.util.MatchUtil.AggregationPatternVariableFinder
+import org.apache.flink.table.planner.plan.utils.AggregateUtil
+import org.apache.flink.table.planner.plan.utils.MatchUtil.AggregationPatternVariableFinder
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore
 import org.apache.flink.table.runtime.operators.`match`.{IterativeConditionRunner, PatternProcessFunctionRunner}
 import org.apache.flink.table.types.logical.{RowType, TimestampKind, TimestampType}

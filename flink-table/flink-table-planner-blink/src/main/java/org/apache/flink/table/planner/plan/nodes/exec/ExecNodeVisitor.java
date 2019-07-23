@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec;
 
-import org.apache.flink.table.plan.nodes.exec.ExecNode;
-
 /**
  * Visitor pattern for traversing a dag of {@link ExecNode} objects.
  */

@@ -21,9 +21,10 @@ package org.apache.flink.table.plan.metadata
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.calcite.{FlinkContext, FlinkContextImpl, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
-import org.apache.flink.table.plan.schema._
-import org.apache.flink.table.plan.stats.{ColumnStats, FlinkStatistic, TableStats}
-import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
+import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
+import org.apache.flink.table.planner.plan.metadata.{FlinkDefaultRelMetadataProvider, FlinkRelMetadataQuery, SelectivityEstimator}
+import org.apache.flink.table.planner.plan.schema._
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.{JDouble, JLong}
 import org.apache.flink.util.Preconditions
 

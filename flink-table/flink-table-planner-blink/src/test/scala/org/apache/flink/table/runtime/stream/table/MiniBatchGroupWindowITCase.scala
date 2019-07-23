@@ -42,7 +42,7 @@ import java.math.BigDecimal
   * [[GroupWindowITCase]].
   *
   * For the requirements which windows support minibatch, please see
-  * [[org.apache.flink.table.plan.nodes.physical.stream.StreamExecGroupWindowAggregate]].
+  * [[org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecGroupWindowAggregate]].
   */
 @RunWith(classOf[Parameterized])
 class MiniBatchGroupWindowITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)

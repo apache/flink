@@ -25,7 +25,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.OperationUtils;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.QueryOperationVisitor;
-import org.apache.flink.table.plan.stats.FlinkStatistic;
+import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;

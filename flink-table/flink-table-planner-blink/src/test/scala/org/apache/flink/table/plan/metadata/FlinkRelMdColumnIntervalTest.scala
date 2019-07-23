@@ -19,9 +19,9 @@
 package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecRank
-import org.apache.flink.table.plan.stats._
-import org.apache.flink.table.plan.util.ColumnIntervalUtil
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecRank
+import org.apache.flink.table.planner.plan.stats._
+import org.apache.flink.table.planner.plan.utils.ColumnIntervalUtil
 import org.apache.flink.table.types.logical.IntType
 import org.apache.flink.table.{JBoolean, JDouble}
 

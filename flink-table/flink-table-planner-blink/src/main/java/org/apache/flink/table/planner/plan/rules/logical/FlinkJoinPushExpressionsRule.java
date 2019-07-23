@@ -17,7 +17,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.plan.util.FlinkRelOptUtil;
+import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -31,7 +31,7 @@ import org.apache.calcite.tools.RelBuilderFactory;
 /**
  * This rules is copied from Calcite's {@link org.apache.calcite.rel.rules.JoinPushExpressionsRule}.
  * Modification:
- * - Supports SEMI/ANTI join using {@link org.apache.flink.table.plan.util.FlinkRelOptUtil#pushDownJoinConditions}
+ * - Supports SEMI/ANTI join using {@link org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil#pushDownJoinConditions}
  * - Only push down calls on non-time-indicator field.
  */
 

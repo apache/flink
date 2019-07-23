@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.util
 
-import org.apache.flink.table.plan.stats._
-import org.apache.flink.table.plan.util.ColumnIntervalUtil._
+import org.apache.flink.table.planner.plan.stats._
+import org.apache.flink.table.planner.plan.utils.ColumnIntervalUtil._
 
 import java.lang
 import java.math.BigInteger

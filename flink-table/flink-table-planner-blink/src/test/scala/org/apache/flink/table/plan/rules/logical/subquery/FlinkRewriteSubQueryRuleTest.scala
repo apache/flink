@@ -24,7 +24,7 @@ import org.apache.flink.table.api.scala._
 import org.junit.{Before, Test}
 
 /**
-  * Test for [[org.apache.flink.table.plan.rules.logical.FlinkRewriteSubQueryRule]].
+  * Test for [[org.apache.flink.table.planner.plan.rules.logical.FlinkRewriteSubQueryRule]].
   */
 class FlinkRewriteSubQueryRuleTest extends SubQueryTestBase {
 

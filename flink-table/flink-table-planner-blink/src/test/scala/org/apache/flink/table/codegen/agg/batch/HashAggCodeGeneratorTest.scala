@@ -21,7 +21,7 @@ package org.apache.flink.table.codegen.agg.batch
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction.IntegralAvgAggFunction
-import org.apache.flink.table.plan.util.{AggregateInfo, AggregateInfoList}
+import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
 

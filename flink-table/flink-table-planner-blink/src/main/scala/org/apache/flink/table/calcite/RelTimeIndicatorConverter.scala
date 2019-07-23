@@ -20,9 +20,9 @@ package org.apache.flink.table.calcite
 
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.calcite.FlinkTypeFactory._
-import org.apache.flink.table.plan.nodes.calcite._
-import org.apache.flink.table.plan.schema.TimeIndicatorRelDataType
-import org.apache.flink.table.plan.util.TemporalJoinUtil
+import org.apache.flink.table.planner.plan.nodes.calcite._
+import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
+import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.types.logical.TimestampType
 

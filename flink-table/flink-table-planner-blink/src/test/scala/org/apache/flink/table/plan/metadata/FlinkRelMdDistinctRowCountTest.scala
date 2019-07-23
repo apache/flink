@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecRank
-import org.apache.flink.table.plan.util.FlinkRelMdUtil
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecRank
+import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 
 import org.apache.calcite.rel.metadata.RelMdUtil
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._

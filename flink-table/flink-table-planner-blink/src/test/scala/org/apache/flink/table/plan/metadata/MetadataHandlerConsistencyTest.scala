@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.plan.metadata
 
-import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecCorrelate, BatchExecGroupAggregateBase}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecCorrelate, BatchExecGroupAggregateBase}
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{Aggregate, Correlate}
@@ -108,7 +108,7 @@ class MetadataHandlerConsistencyTest(
     val reflections = new Reflections(
       new ConfigurationBuilder()
         .useParallelExecutor(Runtime.getRuntime.availableProcessors)
-        .addUrls(ClasspathHelper.forPackage("org.apache.flink.table.plan.cost")))
+        .addUrls(ClasspathHelper.forPackage("org.apache.flink.table.planner.plan.cost")))
     reflections.getSubTypesOf(classOf[MetadataHandler[_]]).filter(
       mdhClass => !mdhClass.isInterface && !Modifier.isAbstract(mdhClass.getModifiers)).toList
   }

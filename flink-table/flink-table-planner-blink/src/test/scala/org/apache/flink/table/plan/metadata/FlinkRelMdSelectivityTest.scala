@@ -19,13 +19,13 @@
 package org.apache.flink.table.plan.metadata
 
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
-import org.apache.flink.table.plan.nodes.calcite.LogicalExpand
-import org.apache.flink.table.plan.nodes.logical.{
+import org.apache.flink.table.planner.plan.nodes.calcite.LogicalExpand
+import org.apache.flink.table.planner.plan.nodes.logical.{
   FlinkLogicalDataStreamTableScan,
   FlinkLogicalExpand, FlinkLogicalOverAggregate
 }
-import org.apache.flink.table.plan.nodes.physical.batch.{BatchExecCalc, BatchExecRank}
-import org.apache.flink.table.plan.util.ExpandUtil
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecCalc, BatchExecRank}
+import org.apache.flink.table.planner.plan.utils.ExpandUtil
 
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.rel.core.{AggregateCall, CorrelationId, JoinRelType, Window}

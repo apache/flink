@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.resource.parallelism;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.resource.MockNodeTestBase;
 
 import org.apache.calcite.rel.RelDistribution;

@@ -19,19 +19,19 @@
 package org.apache.flink.table.planner.plan.nodes.resource;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.table.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecBoundedStreamScan;
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecCalc;
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecExchange;
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecTableSourceScan;
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecUnion;
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecValues;
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecCalc;
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecDataStreamScan;
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecExchange;
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecTableSourceScan;
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecUnion;
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecValues;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecBoundedStreamScan;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecCalc;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecExchange;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecTableSourceScan;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecUnion;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecValues;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecCalc;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecDataStreamScan;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecExchange;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecTableSourceScan;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecUnion;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecValues;
 
 import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelDistribution;

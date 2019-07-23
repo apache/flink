@@ -17,11 +17,13 @@
  */
 package org.apache.flink.table.plan.`trait`
 
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
+
 import org.apache.calcite.rel.RelFieldCollation
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.util.ImmutableIntList
 import org.apache.calcite.util.mapping.{MappingType, Mappings}
-import org.junit.Assert.{assertFalse, assertTrue, assertEquals}
+import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.Test
 
 class FlinkRelDistributionTest {

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.plan.optimize.program
 
+import org.apache.flink.table.planner.plan.optimize.program._
+
 import org.apache.calcite.plan.Convention
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.rules._

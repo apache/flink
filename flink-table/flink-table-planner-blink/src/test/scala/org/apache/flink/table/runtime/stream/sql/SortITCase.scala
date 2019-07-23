@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.stream.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecSort
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecSort
 import org.apache.flink.table.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.runtime.utils._
 import org.apache.flink.types.Row

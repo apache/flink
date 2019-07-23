@@ -20,7 +20,7 @@ package org.apache.flink.table.plan.stream.table
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.expressions.utils.Func13
-import org.apache.flink.table.plan.optimize.program.FlinkStreamProgram
+import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram
 import org.apache.flink.table.util.{HierarchyTableFunction, PojoTableFunc, TableFunc0, TableFunc1, TableFunc2, TableTestBase}
 
 import org.apache.calcite.rel.rules.{CalcMergeRule, FilterCalcMergeRule, ProjectCalcMergeRule}

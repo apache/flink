@@ -20,11 +20,11 @@ package org.apache.flink.table.planner.plan.nodes.resource.parallelism;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecCalc;
-import org.apache.flink.table.plan.nodes.physical.batch.BatchExecTableSourceScan;
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecCalc;
-import org.apache.flink.table.plan.nodes.physical.stream.StreamExecTableSourceScan;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecCalc;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecTableSourceScan;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecCalc;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecTableSourceScan;
 
 import org.junit.Before;
 import org.junit.Test;
