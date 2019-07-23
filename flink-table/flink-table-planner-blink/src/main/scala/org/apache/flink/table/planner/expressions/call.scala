@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation, Types}
 import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
@@ -220,4 +220,22 @@ case class PlannerTableFunctionCall(
 
   override def toString =
     s"${tableFunction.getClass.getCanonicalName}(${parameters.mkString(", ")})"
+}
+
+case class ThrowException(msg: PlannerExpression, tp: TypeInformation[_]) extends UnaryExpression {
+
+  override private[flink] def resultType = tp
+
+  override private[flink] def child = msg
+
+  override private[flink] def validateInput(): ValidationResult = {
+    if (child.resultType == Types.STRING) {
+      ValidationSuccess
+    } else {
+      ValidationFailure(s"ThrowException operator requires String input, " +
+          s"but $child is of type ${child.resultType}")
+    }
+  }
+
+  override def toString: String = s"ThrowException($msg)"
 }

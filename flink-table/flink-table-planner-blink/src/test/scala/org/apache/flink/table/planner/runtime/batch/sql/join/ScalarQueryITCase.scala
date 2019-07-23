@@ -20,6 +20,9 @@ package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
+import org.apache.flink.table.planner.runtime.utils.TestData._
+
+import org.junit.{Before, Test}
 
 import scala.collection.Seq
 
@@ -46,6 +49,18 @@ class ScalarQueryITCase extends BatchTestBase {
     row(6, null)
   )
 
-}
+  @Before
+  override def before(): Unit = {
+    super.before()
+    registerCollection("l", l, INT_DOUBLE, "a, b")
+    registerCollection("r", r, INT_DOUBLE, "c, d")
+  }
 
+  @Test
+  def testScalarQuery(): Unit = {
+    checkResult(
+      "SELECT * FROM l WHERE a = (SELECT c FROM r where c = 3)",
+      Seq(row(3, 3.0)))
+  }
+}
 
