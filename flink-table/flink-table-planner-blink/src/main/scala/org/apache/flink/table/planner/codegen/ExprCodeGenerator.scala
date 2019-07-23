@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, N
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
 import org.apache.flink.table.planner.codegen.calls.{FunctionGenerator, ScalarFunctionCallGen, StringCallGen, TableFunctionCallGen}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
+import org.apache.flink.table.planner.functions.sql.SqlThrowExceptionFunction
 import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
@@ -717,14 +718,16 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case STREAMRECORD_TIMESTAMP =>
         generateRowtimeAccess(ctx, contextTerm)
 
-      case THROW_EXCEPTION =>
+      case _: SqlThrowExceptionFunction =>
+        val nullValue = generateNullLiteral(resultType, nullCheck = true)
         val code =
           s"""
              |${operands.map(_.code).mkString("\n")}
+             |${nullValue.code}
              |org.apache.flink.util.ExceptionUtils.rethrow(
-             |  new RuntimeException(${operands(1).resultTerm}.toString()));
+             |  new RuntimeException(${operands.head.resultTerm}.toString()));
              |""".stripMargin
-        GeneratedExpression(operands.head.resultTerm, operands.head.nullTerm, code, resultType)
+        GeneratedExpression(nullValue.resultTerm, nullValue.nullTerm, code, resultType)
 
       case ssf: ScalarSqlFunction =>
         new ScalarFunctionCallGen(ssf.getScalarFunction).generate(ctx, operands, resultType)

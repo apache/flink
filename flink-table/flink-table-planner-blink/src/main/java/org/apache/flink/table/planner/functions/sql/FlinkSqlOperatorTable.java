@@ -955,11 +955,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	 */
 	public static final SqlIncrSumAggFunction INCR_SUM = new SqlIncrSumAggFunction();
 
-	/**
-	 * <code>THROW_EXCEPTION</code> scalar function. Only internal used.
-	 */
-	public static final SqlFunction THROW_EXCEPTION = new SqlThrowExceptionFunction();
-
 	// -----------------------------------------------------------------------------
 	// Window SQL functions
 	// -----------------------------------------------------------------------------

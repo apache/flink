@@ -18,24 +18,23 @@
 
 package org.apache.flink.table.planner.functions.sql;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.OperandTypes;
-import org.apache.calcite.sql.type.ReturnTypes;
-import org.apache.calcite.sql.type.SqlTypeFamily;
 
 /**
  * Function used to throw an exception, only used internally.
  */
 public class SqlThrowExceptionFunction extends SqlFunction {
-	public SqlThrowExceptionFunction() {
+	public SqlThrowExceptionFunction(RelDataType returnType) {
 		super(
 			"THROW_EXCEPTION",
 			SqlKind.OTHER_FUNCTION,
-			ReturnTypes.ARG0_NULLABLE,
+			opBinding -> returnType,
 			null,
-			OperandTypes.family(SqlTypeFamily.ANY, SqlTypeFamily.ANY),
+			OperandTypes.STRING,
 			SqlFunctionCategory.USER_DEFINED_FUNCTION);
 	}
 }
