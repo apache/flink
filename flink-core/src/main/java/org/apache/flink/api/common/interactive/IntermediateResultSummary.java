@@ -23,11 +23,12 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- *  This helps keep track of the shuffle descriptors of a job.
- *  IntermediateResultSummary will be created and be sent back to ExecutionEnvironment after job finishing.
+ *  This helps keep track of the result partition descriptors of a job.
+ *  The descriptor of a result partition contains locations and other meta data for consuming.
+ *  An instance of IntermediateResultSummary will be created and sent back to ExecutionEnvironment after job finishing.
  *  ExecutionEnvironment also have an instance of IntermediateResultSummary for combining all the returned IntermediateResultSummary,
- *  so the ExecutionEnvironment can keep all the IntermediateResultSummary which created by its submitted jobs.
- *  As for InteractiveProgramming, the Planner can check the existence of shuffle result and decide whether to reuse the shuffle result.
+ *  so the ExecutionEnvironment can keep track of all IntermediateResultSummaries which created by its submitted jobs.
+ *  As for InteractiveProgramming, the SQL Planner/Optimizer can make use of this summary and decide whether to reuse the IntermediateResult.
  *
  *  @param <IR> Type for identify an intermediate result.
  *  @param <DESC> Type for identify the descriptors of intermediate results, the descriptors may contains both partitions and locations of all intermediate results.
