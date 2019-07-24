@@ -48,6 +48,7 @@ import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.failover.adapter.DefaultFailoverTopology;
+import org.apache.flink.runtime.executiongraph.failover.flip1.ResultPartitionAvailabilityChecker;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.NotReleasingPartitionReleaseStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
 import org.apache.flink.runtime.executiongraph.restart.ExecutionGraphRestartCallback;
@@ -297,6 +298,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	private final PartitionTracker partitionTracker;
 
+	private final ResultPartitionAvailabilityChecker resultPartitionAvailabilityChecker;
+
 	/**
 	 * Future for an ongoing or completed scheduling action.
 	 */
@@ -512,6 +515,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 
 		this.partitionTracker = checkNotNull(partitionTracker);
+
+		this.resultPartitionAvailabilityChecker = new ExecutionGraphResultPartitionAvailabilityChecker(
+			this::createResultPartitionId,
+			partitionTracker);
 
 		LOG.info("Job recovers via failover strategy: {}", failoverStrategy.getStrategyName());
 	}
@@ -1567,7 +1574,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 	}
 
-	private ResultPartitionID createResultPartitionId(final IntermediateResultPartitionID resultPartitionId) {
+	ResultPartitionID createResultPartitionId(final IntermediateResultPartitionID resultPartitionId) {
 		final SchedulingResultPartition schedulingResultPartition = schedulingTopology.getResultPartitionOrThrow(resultPartitionId);
 		final SchedulingExecutionVertex producer = schedulingResultPartition.getProducer();
 		final ExecutionVertexID producerId = producer.getId();
@@ -1741,6 +1748,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 	public PartitionTracker getPartitionTracker() {
 		return partitionTracker;
+	}
+
+	public ResultPartitionAvailabilityChecker getResultPartitionAvailabilityChecker() {
+		return resultPartitionAvailabilityChecker;
 	}
 
 	PartitionReleaseStrategy getPartitionReleaseStrategy() {
