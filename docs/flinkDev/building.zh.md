@@ -1,5 +1,5 @@
 ---
-title: Building Flink from Source
+title: 从源码构建 Flink
 nav-parent_id: flinkdev
 nav-pos: 20
 ---
