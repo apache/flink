@@ -56,8 +56,6 @@ To speed up the build you can skip tests, QA plugins, and JavaDocs:
 mvn clean install -DskipTests -Dfast
 {% endhighlight %}
 
-The default build adds a Flink-specific JAR for Hadoop 2, to allow using Flink with HDFS and YARN.
-
 ## Build PyFlink
 
 If you want to build a PyFlink package that can be used for pip installation, you need to build Flink jars first, as described in [Build Flink](##Build Flink).
