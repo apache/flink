@@ -51,8 +51,8 @@ Java HotSpot(TM) 64-Bit Server VM (build 25.111-b14, mixed mode)
 
 <div data-lang="Download and Unpack" markdown="1">
 1. Download a binary from the [downloads page](http://flink.apache.org/downloads.html). You can pick
-   any Hadoop/Scala combination you like. If you plan to just use the local file system, any Hadoop
-   version will work fine.
+   any Scala variant you like. For certain features you may also have to download one of the pre-bundled Hadoop jars
+   and place them into the `/lib` directory.
 2. Go to the download directory.
 3. Unpack the downloaded archive.
 
