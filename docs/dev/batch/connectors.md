@@ -217,4 +217,9 @@ The example shows how to access an Azure table and turn data into Flink's `DataS
 
 This [GitHub repository documents how to use MongoDB with Apache Flink (starting from 0.7-incubating)](https://github.com/okkam-it/flink-mongodb-test).
 
+## Hive Connector
+
+Starting from 1.9.0, Apache Flink provides Hive connector to access Apache Hive tables. [HiveCatalog]({{ site.baseurl }}/dev/table/catalog.html#hivecatalog) is required in order to use the Hive connector.
+After HiveCatalog is setup, you can use Table API or Flink SQL Client to access tables in Apache Hive.
+
 {% top %}
