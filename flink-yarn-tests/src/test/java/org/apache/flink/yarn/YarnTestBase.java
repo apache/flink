@@ -135,6 +135,8 @@ public abstract class YarnTestBase extends TestLogger {
 		"lost the leadership."
 	};
 
+	private final int sleepIntervalInMS = 100;
+
 	// Temp directory which is deleted after the unit test.
 	@ClassRule
 	public static TemporaryFolder tmp = new TemporaryFolder();
@@ -574,16 +576,19 @@ public abstract class YarnTestBase extends TestLogger {
 		return count;
 	}
 
-	public void waitUntilApplicationFinished(ApplicationId applicationId, int timeout) throws Exception {
-		Deadline deadline = Deadline.now().plus(Duration.ofSeconds(timeout));
-		while (deadline.hasTimeLeft()) {
+	void waitUntilApplicationFinished(ApplicationId applicationId, Duration timeout) throws Exception {
+		Deadline deadline = Deadline.now().plus(timeout);
+		while (true) {
 			YarnApplicationState state = yarnClient.getApplicationReport(applicationId).getYarnApplicationState();
-			if (state == YarnApplicationState.FINISHED ||
-					state == YarnApplicationState.FAILED ||
-					state == YarnApplicationState.KILLED) {
+			if (state == YarnApplicationState.FINISHED) {
 				break;
+			} else if (state == YarnApplicationState.FAILED || state == YarnApplicationState.KILLED) {
+				Assert.fail("Application became FAILED or KILLED while expecting FINISHED");
 			} else {
-				sleep(500);
+				sleep(sleepIntervalInMS);
+			}
+			if (deadline.isOverdue()) {
+				Assert.fail("Application didn't finish before timeout");
 			}
 		}
 	}

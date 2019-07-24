@@ -37,6 +37,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
@@ -49,6 +50,8 @@ import static org.junit.Assert.assertThat;
  * Test cases for the deployment of Yarn Flink clusters.
  */
 public class YARNITCase extends YarnTestBase {
+
+	private final Duration yarnAppTerminateTimeout = Duration.ofSeconds(10);
 
 	@BeforeClass
 	public static void setup() {
@@ -114,7 +117,7 @@ public class YARNITCase extends YarnTestBase {
 					assertThat(jobResult, is(notNullValue()));
 					assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
 
-					waitUntilApplicationFinished(applicationId, 10);
+					waitUntilApplicationFinished(applicationId, yarnAppTerminateTimeout);
 				} finally {
 					if (clusterClient != null) {
 						clusterClient.shutdown();
