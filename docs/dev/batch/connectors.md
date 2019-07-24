@@ -221,5 +221,17 @@ This [GitHub repository documents how to use MongoDB with Apache Flink (starting
 
 Starting from 1.9.0, Apache Flink provides Hive connector to access Apache Hive tables. [HiveCatalog]({{ site.baseurl }}/dev/table/catalog.html#hivecatalog) is required in order to use the Hive connector.
 After HiveCatalog is setup, you can use Table API or Flink SQL Client to access tables in Apache Hive.
+Same as HiveCatalog, the officially supported Apache Hive versions are 2.3.4 and 1.2.1.
+
+### Limitations
+
+The following is a list of major limitations of the Hive connector.
+
+1. INSERT OVERWRITE is not supported.
+2. Inserting into partitioned tables is not supported.
+3. ACID tables are not supported.
+4. Bucketed tables are not supported.
+5. UNION type is not supported.
+6. Only a limited number of table storage formats have been tested, namely text, ORC, and Parquet.
 
 {% top %}
