@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.operations.QueryOperation
-import org.apache.flink.table.typeutils.TypeInfoCheckUtils._
-import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
+import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils._
+import org.apache.flink.table.planner.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 case class In(expression: PlannerExpression, elements: Seq[PlannerExpression])
   extends PlannerExpression  {

@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.calcite
+package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.planner.calcite.{CalciteConfig, CalciteConfigBuilder}
 import org.apache.flink.table.planner.plan.optimize.program.FlinkStreamProgram
 
 import org.apache.calcite.config.Lex

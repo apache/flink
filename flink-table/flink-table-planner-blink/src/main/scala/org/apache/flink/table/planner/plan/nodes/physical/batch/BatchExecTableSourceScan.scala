@@ -30,7 +30,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
-import org.apache.flink.table.sources.{StreamTableSource, TableSourceUtil}
+import org.apache.flink.table.planner.sources.TableSourceUtil
+import org.apache.flink.table.sources.StreamTableSource
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import org.apache.calcite.plan._

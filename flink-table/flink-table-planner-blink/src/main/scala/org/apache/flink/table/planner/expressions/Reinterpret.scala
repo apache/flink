@@ -19,9 +19,9 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.table.planner.typeutils.TypeCoercion
+import org.apache.flink.table.planner.validate._
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
-import org.apache.flink.table.typeutils.TypeCoercion
-import org.apache.flink.table.validate._
 
 case class Reinterpret(child: PlannerExpression, resultType: TypeInformation[_],
                        checkOverflow: Boolean) extends UnaryExpression {

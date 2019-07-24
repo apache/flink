@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan
 
-import org.apache.flink.table.typeutils.TypeInfoCheckUtils
+import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils
 
 /**
  * Generic base class for trees that can be transformed and traversed.

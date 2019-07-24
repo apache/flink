@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
-import org.apache.flink.table.typeutils.TypeInfoCheckUtils.{isArray, isMap}
-import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
+import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils.{isArray, isMap}
+import org.apache.flink.table.planner.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 case class RowConstructor(elements: Seq[PlannerExpression]) extends PlannerExpression {
 

@@ -20,7 +20,8 @@ package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.sources.{TableSource, TableSourceUtil}
+import org.apache.flink.table.planner.sources.TableSourceUtil
+import org.apache.flink.table.sources.TableSource
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
 

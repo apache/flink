@@ -23,9 +23,9 @@ import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory._
+import org.apache.flink.table.planner.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
 import org.apache.calcite.rex.RexNode
 
