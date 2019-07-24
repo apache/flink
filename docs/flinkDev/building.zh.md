@@ -97,7 +97,7 @@ mvn clean install
 
 ## Hadoop Versions
 
-Flink has optional dependencies to HDFS and YARN which are both dependencies from [Apache Hadoop](http://hadoop.apache.org). There exist many different versions of Hadoop (from both the upstream project and the different Hadoop distributions). If you are using a wrong combination of versions, exceptions can occur.
+Flink has optional dependencies to HDFS and YARN which are both dependencies from [Apache Hadoop](http://hadoop.apache.org). There exist many different versions of Hadoop (from both the upstream project and the different Hadoop distributions). If you are using an incompatible combination of versions, exceptions may occur.
 
 Flink can be built against any Hadoop version >= 2.4.0, but depending on the version it may be a 1 or 2 step process.
 
