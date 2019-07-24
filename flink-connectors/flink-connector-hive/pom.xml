@@ -404,6 +404,11 @@ under the License.
 					<groupId>org.apache.tez</groupId>
 					<artifactId>tez-mapreduce</artifactId>
 				</exclusion>
+				<exclusion>
+					<!-- This dependency is not available with java 9.-->
+					<groupId>jdk.tools</groupId>
+					<artifactId>jdk.tools</artifactId>
+				</exclusion>
             </exclusions>
         </dependency>
 
@@ -438,6 +443,11 @@ under the License.
 				<exclusion>
 					<groupId>com.google.guava</groupId>
 					<artifactId>guava</artifactId>
+				</exclusion>
+				<exclusion>
+					<!-- This dependency is not available with java 9.-->
+					<groupId>jdk.tools</groupId>
+					<artifactId>jdk.tools</artifactId>
 				</exclusion>
 			</exclusions>
         </dependency>
@@ -536,23 +546,6 @@ under the License.
 					</plugin>
 				</plugins>
 			</build>
-
-			<dependencyManagement>
-				<dependencies>
-					<dependency>
-						<groupId>org.apache.hbase</groupId>
-						<artifactId>hbase-annotations</artifactId>
-						<scope>test</scope>
-						<exclusions>
-							<exclusion>
-								<!-- This dependency is not available with java 9.-->
-								<groupId>jdk.tools</groupId>
-								<artifactId>jdk.tools</artifactId>
-							</exclusion>
-						</exclusions>
-					</dependency>
-				</dependencies>
-			</dependencyManagement>
 		</profile>
 	</profiles>
 </project>
