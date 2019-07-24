@@ -77,6 +77,12 @@ public class TableConfig {
 	private Configuration configuration = new Configuration();
 
 	/**
+	 * The SQL dialect defines how to parse a SQL query. A different SQL dialect may support different
+	 * SQL grammar.
+	 */
+	private SqlDialect sqlDialect = SqlDialect.DEFAULT;
+
+	/**
 	 * Returns all key/value configuration.
 	 */
 	public Configuration getConfiguration() {
@@ -91,6 +97,20 @@ public class TableConfig {
 	public void addConfiguration(Configuration configuration) {
 		Preconditions.checkNotNull(configuration);
 		this.configuration.addAll(configuration);
+	}
+
+	/**
+	 * Returns the current SQL dialect.
+	 */
+	public SqlDialect getSqlDialect() {
+		return this.sqlDialect;
+	}
+
+	/**
+	 * Sets the current SQL dialect to parse a SQL query. Flink's SQL behavior by default.
+	 */
+	public void setSqlDialect(SqlDialect sqlDialect) {
+		this.sqlDialect = sqlDialect;
 	}
 
 	/**

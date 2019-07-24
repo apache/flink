@@ -100,7 +100,7 @@ abstract class PlannerBase(
 
   /** Returns the Calcite [[FrameworkConfig]] of this TableEnvironment. */
   @VisibleForTesting
-  private[flink] def getFlinkPlanner: FlinkPlannerImpl = {
+  private[flink] def createFlinkPlanner: FlinkPlannerImpl = {
     val currentCatalogName = catalogManager.getCurrentCatalog
     val currentDatabase = catalogManager.getCurrentDatabase
     plannerContext.createFlinkPlanner(currentCatalogName, currentDatabase)
@@ -122,7 +122,7 @@ abstract class PlannerBase(
   }
 
   override def parse(stmt: String): util.List[Operation] = {
-    val planner = getFlinkPlanner
+    val planner = createFlinkPlanner
     // parse the sql query
     val parsed = planner.parse(stmt)
     parsed match {
@@ -159,7 +159,7 @@ abstract class PlannerBase(
   }
 
   override def getCompletionHints(statement: String, position: Int): Array[String] = {
-    val planner = getFlinkPlanner
+    val planner = createFlinkPlanner
     planner.getCompletionHints(statement, position)
   }
 
