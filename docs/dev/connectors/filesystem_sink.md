@@ -1,6 +1,6 @@
 ---
-title: "HDFS Connector"
-nav-title: Rolling File Sink
+title: "Hadoop FileSystem Connector"
+nav-title: Hadoop FileSystem
 nav-parent_id: connectors
 nav-pos: 5
 ---
