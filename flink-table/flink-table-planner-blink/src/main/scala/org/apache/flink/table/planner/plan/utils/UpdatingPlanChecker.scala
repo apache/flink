@@ -25,8 +25,6 @@ import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.{RelNode, RelVisitor}
 
-import java.util
-
 import scala.collection.JavaConversions._
 
 object UpdatingPlanChecker {
@@ -45,13 +43,8 @@ object UpdatingPlanChecker {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(planner.getRelBuilder.getCluster.getMetadataQuery)
     val uniqueKeys = fmq.getUniqueKeys(relNode)
     if (uniqueKeys != null) {
-      uniqueKeys.filter(_.nonEmpty).toList.map { uniqueKey =>
-        val keys = new util.HashSet[String]()
-        uniqueKey.asList().foreach { idx =>
-          keys.add(rowType.getFieldNames.get(idx))
-        }
-        keys.toList.toArray
-      }.toArray
+      uniqueKeys.filter(_.nonEmpty).toList
+          .map(_.asList().map(rowType.getFieldNames.get(_)).toArray).toArray
     } else {
       null
     }
