@@ -479,7 +479,8 @@ object FlinkTypeFactory {
         val genericRelDataType = relDataType.asInstanceOf[GenericRelDataType]
         genericRelDataType.genericType
 
-      case ROW => toLogicalRowType(relDataType)
+      case ROW if relDataType.isInstanceOf[RelRecordType] =>
+        toLogicalRowType(relDataType)
 
       case MULTISET => new MultisetType(toLogicalType(relDataType.getComponentType))
 
