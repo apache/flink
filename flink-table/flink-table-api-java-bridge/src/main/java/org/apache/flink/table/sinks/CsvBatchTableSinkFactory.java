@@ -16,23 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.sinks
+package org.apache.flink.table.sinks;
 
-import java.util
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.factories.BatchTableSinkFactory;
+import org.apache.flink.types.Row;
 
-import org.apache.flink.table.factories.BatchTableSinkFactory
-import org.apache.flink.types.Row
+import java.util.Map;
 
 /**
-  * Factory base for creating configured instances of [[CsvTableSink]] in a batch environment.
-  */
-class CsvBatchTableSinkFactory
-  extends CsvTableSinkFactoryBase
-  with BatchTableSinkFactory[Row] {
+ * Factory base for creating configured instances of {@link CsvTableSink} in a batch environment.
+ */
+@PublicEvolving
+public class CsvBatchTableSinkFactory extends CsvTableSinkFactoryBase implements BatchTableSinkFactory<Row> {
 
-  override def createBatchTableSink(
-      properties: util.Map[String, String])
-    : BatchTableSink[Row] = {
-    createTableSink(isStreaming = false, properties)
-  }
+	@Override
+	public BatchTableSink<Row> createBatchTableSink(Map<String, String> properties) {
+		return createTableSink(false, properties);
+	}
 }
