@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.typeutils
+package org.apache.flink.table.planner.typeutils
 
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils._
 import org.apache.flink.table.types.logical.LogicalTypeRoot._

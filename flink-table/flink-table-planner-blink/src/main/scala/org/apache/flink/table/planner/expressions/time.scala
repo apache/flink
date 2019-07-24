@@ -23,9 +23,10 @@ import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder
 import org.apache.flink.table.planner.expressions.PlannerTimeIntervalUnit.PlannerTimeIntervalUnit
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
-import org.apache.flink.table.typeutils.TypeInfoCheckUtils.isTimeInterval
-import org.apache.flink.table.typeutils.{TimeIntervalTypeInfo, TypeInfoCheckUtils}
-import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
+import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils
+import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils.isTimeInterval
+import org.apache.flink.table.planner.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 
 import org.apache.calcite.rex._
 
