@@ -29,9 +29,9 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, Tumble, Types}
-import org.apache.flink.table.runtime.utils.TestData.{smallTupleData3, tupleData3, tupleData5}
+import org.apache.flink.table.planner.runtime.utils.TestData.{smallTupleData3, tupleData3, tupleData5}
+import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil
 import org.apache.flink.table.sinks._
-import org.apache.flink.table.util.MemoryTableSourceSinkUtil
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.types.Row
 
