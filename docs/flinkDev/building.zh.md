@@ -107,7 +107,7 @@ To build against Hadoop 2.4.1, 2.6.5, 2.7.5 or 2.8.3, it is sufficient to run (e
 mvn clean install -DskipTests -Dhadoop.version=2.6.5
 {% endhighlight %}
 
-To package a shaded pre-packaged hadoop jar into the distributions `/lib` directory, activate the `include-hadoop` profile`:
+To package a shaded pre-packaged Hadoop jar into the distributions `/lib` directory, activate the `include-hadoop` profile`:
 
 {% highlight bash %}
 mvn clean install -DskipTests -Pinclude-hadoop
