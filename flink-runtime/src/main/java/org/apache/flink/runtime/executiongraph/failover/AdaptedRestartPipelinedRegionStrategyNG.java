@@ -290,7 +290,7 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 		// currently it's safe to add it here, as this method is invoked only once in production code.
 		checkState(restartPipelinedRegionStrategy == null, "notifyNewVertices() must be called only once");
 		this.restartPipelinedRegionStrategy = new RestartPipelinedRegionStrategy(
-			new DefaultFailoverTopology(executionGraph));
+			new DefaultFailoverTopology(executionGraph), executionGraph.getResultPartitionAvailabilityChecker());
 	}
 
 	@Override
