@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.validate._
+import org.apache.flink.table.planner.validate._
 
 abstract class Ordering extends UnaryExpression {
   override private[flink] def validateInput(): ValidationResult = {

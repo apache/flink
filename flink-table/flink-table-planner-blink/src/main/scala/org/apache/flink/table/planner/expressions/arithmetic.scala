@@ -19,10 +19,10 @@ package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.planner.typeutils.TypeCoercion
+import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils._
+import org.apache.flink.table.planner.validate._
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.{fromLogicalTypeToTypeInfo, fromTypeInfoToLogicalType}
-import org.apache.flink.table.typeutils.TypeCoercion
-import org.apache.flink.table.typeutils.TypeInfoCheckUtils._
-import org.apache.flink.table.validate._
 
 import org.apache.calcite.sql.SqlOperator
 

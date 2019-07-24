@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.planner.expressions.PlannerTrimMode.PlannerTrimMode
-import org.apache.flink.table.validate._
+import org.apache.flink.table.planner.validate._
 
 /**
   * Returns the length of this `str`.
