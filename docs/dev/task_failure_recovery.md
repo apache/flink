@@ -314,7 +314,6 @@ The regions to restart are decided as below:
 2. If a result partition is not available while it is required by a region that will be restarted,
    the region producing the result partition will be restarted as well.
 3. If a region is to be restarted, all of its consumer regions will also be restarted. This is to guarantee
-   data consistency because nondeterministic processing or partitioning can result in that a partition
-   is different each time it is produced.
+   data consistency because nondeterministic processing or partitioning can result in different partitions.
 
 {% top %}
