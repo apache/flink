@@ -68,7 +68,7 @@ object CommonTestData {
     val tempFilePath1 = writeToTempFile(csvRecord1.mkString("\n"), "csv-test1", "tmp")
 
     val connDesc1 = new FileSystem().path(tempFilePath1)
-    val formatDesc1 = OldCsv()
+    val formatDesc1 = new OldCsv()
       .field("a", Types.INT)
       .field("b", Types.LONG)
       .field("c", Types.STRING)
@@ -107,7 +107,7 @@ object CommonTestData {
     val tempFilePath2 = writeToTempFile(csvRecord2.mkString("\n"), "csv-test2", "tmp")
 
     val connDesc2 = new FileSystem().path(tempFilePath2)
-    val formatDesc2 = OldCsv()
+    val formatDesc2 = new OldCsv()
       .field("d", Types.INT)
       .field("e", Types.LONG)
       .field("f", Types.INT)
@@ -132,7 +132,7 @@ object CommonTestData {
 
     val tempFilePath3 = writeToTempFile("", "csv-test3", "tmp")
     val connDesc3 = new FileSystem().path(tempFilePath3)
-    val formatDesc3 = OldCsv()
+    val formatDesc3 = new OldCsv()
       .field("x", Types.INT)
       .field("y", Types.LONG)
       .field("z", Types.STRING)
