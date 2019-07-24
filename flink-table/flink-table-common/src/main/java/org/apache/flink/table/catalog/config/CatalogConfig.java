@@ -23,6 +23,9 @@ package org.apache.flink.table.catalog.config;
  */
 public class CatalogConfig {
 
+	/**
+	 * Flag to distinguish if a meta-object is generic Flink object or not.
+	 */
 	public static final String IS_GENERIC = "is_generic";
 
 	// Globally reserved prefix for catalog properties.

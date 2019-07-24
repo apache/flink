@@ -260,7 +260,9 @@ function start_cluster {
 }
 
 function start_taskmanagers {
-    tmnum=$1
+    local tmnum=$1
+    local c
+
     echo "Start ${tmnum} more task managers"
     for (( c=0; c<tmnum; c++ ))
     do
@@ -448,17 +450,23 @@ function wait_job_running {
 
 function wait_job_terminal_state {
   local job=$1
-  local terminal_state=$2
+  local expected_terminal_state=$2
 
-  echo "Waiting for job ($job) to reach terminal state $terminal_state ..."
+  echo "Waiting for job ($job) to reach terminal state $expected_terminal_state ..."
 
   while : ; do
-    N=$(grep -o "Job $job reached globally terminal state $terminal_state" $FLINK_DIR/log/*standalonesession*.log | tail -1 || true)
-
+    local N=$(grep -o "Job $job reached globally terminal state .*" $FLINK_DIR/log/*standalonesession*.log | tail -1 || true)
     if [[ -z $N ]]; then
       sleep 1
     else
-      break
+      local actual_terminal_state=$(echo $N | sed -n 's/.*state \([A-Z]*\).*/\1/p')
+      if [[ -z $expected_terminal_state ]] || [[ "$expected_terminal_state" == "$actual_terminal_state" ]]; then
+        echo "Job ($job) reached terminal state $actual_terminal_state"
+        break
+      else
+        echo "Job ($job) is in state $actual_terminal_state but expected $expected_terminal_state"
+        exit 1
+      fi
     fi
   done
 }

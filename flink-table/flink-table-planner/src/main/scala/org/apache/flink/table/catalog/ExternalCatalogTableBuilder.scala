@@ -52,7 +52,10 @@ import org.apache.flink.table.descriptors._
   * }}}
   *
   * @param connectorDescriptor Connector descriptor describing the external system
+  *
+  * @deprecated use [[CatalogTableBuilder]]
   */
+@Deprecated
 @deprecated
 class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDescriptor)
   extends TableDescriptor

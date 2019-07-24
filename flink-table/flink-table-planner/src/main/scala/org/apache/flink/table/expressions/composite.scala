@@ -34,7 +34,7 @@ case class Flattening(child: PlannerExpression) extends UnaryExpression {
   override def toString = s"$child.flatten()"
 
   override private[flink] def resultType: TypeInformation[_] =
-    throw UnresolvedException(s"Invalcall to on ${this.getClass}.")
+    throw new UnresolvedException(s"Invalcall to on ${this.getClass}.")
 
   override private[flink] def validateInput(): ValidationResult =
     ValidationFailure(s"Unresolved flattening of $child")

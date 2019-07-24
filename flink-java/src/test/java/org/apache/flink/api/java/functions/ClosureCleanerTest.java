@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.function.Supplier;
 
 /**
  * Tests for {@link ClosureCleaner}.
@@ -131,6 +132,12 @@ public class ClosureCleanerTest {
 		int result = complexMap.map(3);
 
 		Assert.assertEquals(result, 4);
+	}
+
+	@Test
+	public void testSelfReferencingClean() {
+		final NestedSelfReferencing selfReferencing = new NestedSelfReferencing();
+		ClosureCleaner.clean(selfReferencing, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 	}
 
 	class InnerCustomMap implements MapFunction<Integer, Integer> {
@@ -418,6 +425,24 @@ class OuterMapCreator implements MapCreator {
 	@Override
 	public MapFunction<Integer, Integer> getMap() {
 		return new OuterStaticClass().getMap();
+	}
+}
+
+@FunctionalInterface
+interface SerializableSupplier<T> extends Supplier<T>, Serializable {
+
+}
+
+class NestedSelfReferencing implements Serializable {
+
+	private final SerializableSupplier<NestedSelfReferencing> cycle;
+
+	NestedSelfReferencing() {
+		this.cycle = () -> this;
+	}
+
+	public SerializableSupplier<NestedSelfReferencing> getCycle() {
+		return cycle;
 	}
 }
 
