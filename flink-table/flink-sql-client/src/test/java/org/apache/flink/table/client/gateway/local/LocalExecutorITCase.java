@@ -34,6 +34,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.entries.CatalogEntry;
 import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
@@ -42,6 +43,8 @@ import org.apache.flink.table.client.gateway.SessionContext;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.utils.EnvironmentFileUtil;
+import org.apache.flink.table.client.gateway.utils.SimpleCatalogFactory;
+import org.apache.flink.table.descriptors.CatalogDescriptorValidator;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.types.Row;
@@ -63,6 +66,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
@@ -149,6 +153,44 @@ public class LocalExecutorITCase extends TestLogger {
 			"TestView1",
 			"TestView2");
 		assertEquals(expectedTables, actualTables);
+	}
+
+	@Test(timeout = 30_000L)
+	public void testDefaultCatalogDifferentFromBuiltin() throws Exception {
+		Environment defaultEnvironment = new Environment();
+		Map<String, Object> catalogs = new HashMap<>();
+		catalogs.put(CatalogEntry.CATALOG_NAME, "simple-catalog");
+		catalogs.put(CatalogDescriptorValidator.CATALOG_TYPE, "simple-catalog");
+		catalogs.put(CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE, "default_database");
+		catalogs.put(SimpleCatalogFactory.TEST_TABLE_KEY, "test_table");
+		defaultEnvironment.setCatalogs(Arrays.asList(catalogs));
+
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+		Executor executor = createModifiedExecutor(DEFAULTS_ENVIRONMENT_FILE, clusterClient, replaceVars);
+
+		final SessionContext session = new SessionContext("test-session", defaultEnvironment);
+		try {
+			// start job and retrieval
+			session.setCurrentCatalog("simple-catalog");
+			session.setCurrentDatabase("default_database");
+			final ResultDescriptor desc = executor.executeQuery(session, "SELECT * FROM test_table");
+
+			final List<String> actualResults = retrieveTableResult(executor, session, desc.getResultId());
+
+			TestBaseUtils.compareResultCollections(
+				SimpleCatalogFactory.TABLE_CONTENTS.stream().map(Row::toString).collect(Collectors.toList()),
+				actualResults,
+				Comparator.naturalOrder());
+		} finally {
+			executor.stop(session);
+		}
 	}
 
 	@Test
