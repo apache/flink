@@ -34,6 +34,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
@@ -473,7 +474,11 @@ public class LocalExecutor implements Executor {
 			// writing to a sink requires an optimization step that might reference UDFs during code compilation
 			context.wrapClassLoader(() -> {
 				envInst.getTableEnvironment().registerTableSink(jobName, result.getTableSink());
-				table.insertInto(jobName, envInst.getQueryConfig());
+				table.insertInto(
+					envInst.getQueryConfig(),
+					EnvironmentSettings.DEFAULT_BUILTIN_CATALOG,
+					EnvironmentSettings.DEFAULT_BUILTIN_DATABASE,
+					jobName);
 				return null;
 			});
 			jobGraph = envInst.createJobGraph(jobName);
