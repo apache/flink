@@ -64,7 +64,7 @@ abstract class ExpressionTestBase {
   private val tEnv = StreamTableEnvironmentImpl.create(env, setting, config)
   private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
   private val relBuilder = planner.getRelBuilder
-  private val calcitePlanner = planner.getFlinkPlanner
+  private val calcitePlanner = planner.createFlinkPlanner
 
   // setup test utils
   private val tableName = "testTable"
