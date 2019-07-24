@@ -19,7 +19,7 @@ import sys
 
 from py4j.compat import long
 
-from pyflink.common import Configuration
+from pyflink.common import Configuration, SqlDialect
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['TableConfig']
@@ -246,6 +246,23 @@ class TableConfig(object):
         :type configuration: Configuration
         """
         self._j_table_config.addConfiguration(configuration._j_configuration)
+
+    def get_sql_dialect(self):
+        """
+        Returns the current sql dialect.
+
+        :rtype: SqlDialect
+        """
+        return SqlDialect._from_j_sql_dialect(self._j_table_config.getSqlDialect())
+
+    def set_sql_dialect(self, sql_dialect):
+        """
+        Setup the current sql dialect to parse the sql query.
+
+        :param sql_dialect: The given sql dialect.
+        :type sql_dialect: SqlDialect
+        """
+        self._j_table_config.setSqlDialect(SqlDialect._to_j_sql_dialect(sql_dialect))
 
     @staticmethod
     def get_default():
