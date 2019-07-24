@@ -23,14 +23,13 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
-import org.apache.flink.table.planner.utils.{TestFilterableTableSource, TestNestedProjectableTableSource, TestPartitionableTableSource, TestProjectableTableSource, TestTableSources}
+import org.apache.flink.table.planner.utils.{TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableTableSource, TestProjectableTableSource, TestTableSources}
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.types.Row
 
-import org.junit.{Before, Ignore, Test}
+import org.junit.{Before, Test}
 
 import java.lang.{Boolean => JBool, Integer => JInt, Long => JLong}
-
 
 class TableSourceITCase extends BatchTestBase {
 
@@ -40,7 +39,7 @@ class TableSourceITCase extends BatchTestBase {
     env.setParallelism(1) // set sink parallelism to 1
     val tableSchema = TableSchema.builder().fields(
       Array("a", "b", "c"),
-      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.VARCHAR(Int.MaxValue))).build()
+      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
     tEnv.registerTableSource("MyTable", new TestProjectableTableSource(
       true,
       tableSchema,
@@ -203,6 +202,23 @@ class TableSourceITCase extends BatchTestBase {
         row(3, "Euro", 119),
         row(5, "US Dollar", 102)
       )
+    )
+  }
+
+  @Test
+  def testInputFormatSource(): Unit = {
+    val tableSchema = TableSchema.builder().fields(
+      Array("a", "b", "c"),
+      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
+    val tableSource = new TestInputFormatTableSource(
+      tableSchema, tableSchema.toRowType, TestData.smallData3)
+    tEnv.registerTableSource("MyInputFormatTable", tableSource)
+    checkResult(
+      "SELECT a, c FROM MyInputFormatTable",
+      Seq(
+        row(1, "Hi"),
+        row(2, "Hello"),
+        row(3, "Hello world"))
     )
   }
 }
