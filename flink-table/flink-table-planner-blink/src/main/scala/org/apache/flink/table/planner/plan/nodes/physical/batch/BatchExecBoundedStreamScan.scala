@@ -110,9 +110,7 @@ class BatchExecBoundedStreamScan(
 
   def needInternalConversion: Boolean = {
     ScanUtil.hasTimeAttributeField(boundedStreamTable.fieldIndexes) ||
-        ScanUtil.needsConversion(
-          boundedStreamTable.dataType,
-          boundedStreamTable.dataStream.getType.getTypeClass)
+        ScanUtil.needsConversion(boundedStreamTable.dataType)
   }
 
 }
