@@ -23,7 +23,7 @@ import org.apache.flink.util.AbstractID;
 import java.util.Set;
 
 /**
- * This is the default implementation of IntermediateResultDescriptor.
+ * This is the default implementation of IntermediateResultSummary.
  * See {@link IntermediateResultSummary} for more details.
  */
 public class DefaultIntermediateResultSummary
@@ -39,13 +39,6 @@ public class DefaultIntermediateResultSummary
 		this.intermediateResultDescriptors = intermediateResultDescriptor;
 	}
 
-	/**
-	 * Return the mapping from intermediate result to its (ResultPartitionID, ShuffleDescriptor) tuples.
-	 * We use AbstractID here due to package visibility, and the ShuffleDescriptor are serialized in form of
-	 * SerializedValue, the deserialization will only be triggered in JM before an Execution.
-	 *
-	 * @return Mapping from IntermediateDataSetID to its (ResultPartitionID, ShuffleDescriptor) tuples.
-	 */
 	@Override
 	public IntermediateResultDescriptors getIntermediateResultDescriptors() {
 		return intermediateResultDescriptors;
