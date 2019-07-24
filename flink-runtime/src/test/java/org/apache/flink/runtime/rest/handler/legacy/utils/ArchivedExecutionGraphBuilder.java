@@ -20,8 +20,8 @@ package org.apache.flink.runtime.rest.handler.legacy.utils;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.interactive.DefaultIntermediateResultDescriptor;
-import org.apache.flink.api.common.interactive.IntermediateResultDescriptor;
+import org.apache.flink.api.common.interactive.DefaultIntermediateResultSummary;
+import org.apache.flink.api.common.interactive.IntermediateResultSummary;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
@@ -57,7 +57,7 @@ public class ArchivedExecutionGraphBuilder {
 	private ArchivedExecutionConfig archivedExecutionConfig;
 	private boolean isStoppable;
 	private Map<String, SerializedValue<OptionalFailure<Object>>> serializedUserAccumulators;
-	private IntermediateResultDescriptor intermediateResultDescriptor;
+	private IntermediateResultSummary intermediateResultSummary;
 
 	public ArchivedExecutionGraphBuilder setJobID(JobID jobID) {
 		this.jobID = jobID;
@@ -120,8 +120,8 @@ public class ArchivedExecutionGraphBuilder {
 		return this;
 	}
 
-	public ArchivedExecutionGraphBuilder setIntermediateResultDescriptor(IntermediateResultDescriptor intermediateResultDescriptor) {
-		this.intermediateResultDescriptor = intermediateResultDescriptor;
+	public ArchivedExecutionGraphBuilder setIntermediateResultSummary(IntermediateResultSummary intermediateResultSummary) {
+		this.intermediateResultSummary = intermediateResultSummary;
 		return this;
 	}
 
@@ -144,7 +144,7 @@ public class ArchivedExecutionGraphBuilder {
 			jsonPlan != null ? jsonPlan : "{\"jobid\":\"" + jobID + "\", \"name\":\"" + jobName + "\", \"nodes\":[]}",
 			archivedUserAccumulators != null ? archivedUserAccumulators : new StringifiedAccumulatorResult[0],
 			serializedUserAccumulators != null ? serializedUserAccumulators : Collections.emptyMap(),
-			intermediateResultDescriptor != null ? intermediateResultDescriptor : new DefaultIntermediateResultDescriptor(),
+			intermediateResultSummary != null ? intermediateResultSummary : new DefaultIntermediateResultSummary(),
 			archivedExecutionConfig != null ? archivedExecutionConfig : new ArchivedExecutionConfigBuilder().build(),
 			isStoppable,
 			null,

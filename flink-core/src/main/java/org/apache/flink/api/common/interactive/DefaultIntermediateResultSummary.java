@@ -19,32 +19,24 @@
 package org.apache.flink.api.common.interactive;
 
 import org.apache.flink.util.AbstractID;
-import org.apache.flink.util.SerializedValue;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 /**
  * This is the default implementation of IntermediateResultDescriptor.
- * See {@link IntermediateResultDescriptor} for more details.
+ * See {@link IntermediateResultSummary} for more details.
  */
-public class DefaultIntermediateResultDescriptor
-	implements IntermediateResultDescriptor<AbstractID, Map<AbstractID, SerializedValue<Object>>> {
+public class DefaultIntermediateResultSummary
+	implements IntermediateResultSummary<AbstractID, IntermediateResultDescriptors> {
 
-	private final Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> intermediateResultDescriptors = new HashMap<>();
+	private final IntermediateResultDescriptors intermediateResultDescriptors;
 
-	private final Set<AbstractID> incompleteIntermediateDataSetIds = new HashSet<>();
+	public DefaultIntermediateResultSummary() {
+		this(new IntermediateResultDescriptors());
+	}
 
-	public DefaultIntermediateResultDescriptor() {}
-
-	public DefaultIntermediateResultDescriptor(
-		Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> intermediateResultDescriptors,
-		Set<AbstractID> incompleteIntermediateDataSetIds) {
-
-		this.intermediateResultDescriptors.putAll(intermediateResultDescriptors);
-		this.incompleteIntermediateDataSetIds.addAll(incompleteIntermediateDataSetIds);
+	public DefaultIntermediateResultSummary(IntermediateResultDescriptors intermediateResultDescriptor) {
+		this.intermediateResultDescriptors = intermediateResultDescriptor;
 	}
 
 	/**
@@ -55,12 +47,18 @@ public class DefaultIntermediateResultDescriptor
 	 * @return Mapping from IntermediateDataSetID to its (ResultPartitionID, ShuffleDescriptor) tuples.
 	 */
 	@Override
-	public Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> getIntermediateResultDescriptions() {
+	public IntermediateResultDescriptors getIntermediateResultDescriptors() {
 		return intermediateResultDescriptors;
 	}
 
 	@Override
-	public Set<AbstractID> getIncompleteIntermediateDataSets() {
-		return incompleteIntermediateDataSetIds;
+	public Set<AbstractID> getIncompleteIntermediateDataSetIds() {
+		return intermediateResultDescriptors.getIncompleteIntermediateDataSetIds();
+	}
+
+	@Override
+	public void merge(IntermediateResultSummary<AbstractID, IntermediateResultDescriptors> summary) {
+		intermediateResultDescriptors.getIntermediateResultDescriptors().putAll(summary.getIntermediateResultDescriptors().getIntermediateResultDescriptors());
+		intermediateResultDescriptors.getIncompleteIntermediateDataSetIds().addAll(summary.getIncompleteIntermediateDataSetIds());
 	}
 }

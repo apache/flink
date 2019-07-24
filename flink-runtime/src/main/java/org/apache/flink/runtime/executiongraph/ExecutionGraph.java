@@ -24,8 +24,9 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.accumulators.AccumulatorHelper;
-import org.apache.flink.api.common.interactive.DefaultIntermediateResultDescriptor;
-import org.apache.flink.api.common.interactive.IntermediateResultDescriptor;
+import org.apache.flink.api.common.interactive.DefaultIntermediateResultSummary;
+import org.apache.flink.api.common.interactive.IntermediateResultDescriptors;
+import org.apache.flink.api.common.interactive.IntermediateResultSummary;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -855,7 +856,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	}
 
 	@Override
-	public IntermediateResultDescriptor getIntermediateResultDescriptor() {
+	public IntermediateResultSummary getIntermediateResultSummary() {
 		Map<AbstractID, Map<AbstractID, SerializedValue<Object>>> resultPartitionDescriptors = new HashMap<>();
 
 		// keep record of all failed IntermediateDataSetID
@@ -878,7 +879,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			}
 		}
 
-		return new DefaultIntermediateResultDescriptor(resultPartitionDescriptors, failedIntermediateDataSetIds);
+		return new DefaultIntermediateResultSummary(new IntermediateResultDescriptors(resultPartitionDescriptors, failedIntermediateDataSetIds));
 	}
 
 	private static SerializedValue<OptionalFailure<Object>> serializeAccumulator(String name, OptionalFailure<Accumulator<?, ?>> accumulator) {

@@ -19,7 +19,8 @@
 package org.apache.flink.test.interactive;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.interactive.DefaultIntermediateResultDescriptor;
+import org.apache.flink.api.common.interactive.DefaultIntermediateResultSummary;
+import org.apache.flink.api.common.interactive.IntermediateResultDescriptors;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.BlockingShuffleOutputFormat;
@@ -41,7 +42,7 @@ import java.util.Map;
 public class PersistentShuffleResultITCase extends TestLogger {
 
 	@Test
-	public void testReportingPersistentIntermediateResultDescriptorToClient() throws Exception {
+	public void testReportingPersistentIntermediateResultSummaryToClient() throws Exception {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(1);
@@ -59,22 +60,23 @@ public class PersistentShuffleResultITCase extends TestLogger {
 
 		ds.collect();
 
-		DefaultIntermediateResultDescriptor meta = env.getIntermediateResultDescriptor();
+		DefaultIntermediateResultSummary summary = env.getIntermediateResultSummary();
+		IntermediateResultDescriptors descriptors = summary.getIntermediateResultDescriptors();
 
 		// only one cached IntermediateDataSet
-		Assert.assertEquals(1, meta.getIntermediateResultDescriptions().size());
+		Assert.assertEquals(1, descriptors.getIntermediateResultDescriptors().size());
 
-		AbstractID intermediateDataSetID = meta.getIntermediateResultDescriptions().keySet().iterator().next();
+		AbstractID intermediateDataSetID = descriptors.getIntermediateResultDescriptors().keySet().iterator().next();
 
 		// IntermediateDataSetID should be the same
 		Assert.assertEquals(intermediateDataSetID, intermediateDataSetID);
 
-		Map<AbstractID, SerializedValue<Object>> descriptors = meta.getIntermediateResultDescriptions().get(intermediateDataSetID);
+		Map<AbstractID, SerializedValue<Object>> serializedValueMap = descriptors.getIntermediateResultDescriptors().get(intermediateDataSetID);
 
 		// only one shuffle descriptor
-		Assert.assertEquals(1, descriptors.size());
+		Assert.assertEquals(1, serializedValueMap.size());
 
-		SerializedValue<Object> serializedDescriptor = descriptors.values().iterator().next();
+		SerializedValue<Object> serializedDescriptor = serializedValueMap.values().iterator().next();
 		Object serializedDescriptorObj = serializedDescriptor.deserializeValue(Thread.currentThread().getContextClassLoader());
 		Assert.assertThat(serializedDescriptorObj, Matchers.instanceOf(ShuffleDescriptor.class));
 	}

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.interactive.IntermediateResultDescriptor;
+import org.apache.flink.api.common.interactive.IntermediateResultSummary;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -160,11 +160,11 @@ public interface AccessExecutionGraph {
 	Map<String, SerializedValue<OptionalFailure<Object>>> getAccumulatorsSerialized();
 
 	/**
-	 * Returns an IntermediateResultDescriptor.
+	 * Returns an IntermediateResultSummary.
 	 *
-	 * @return IntermediateResultDescriptor containing some shuffle descriptions.
+	 * @return IntermediateResultSummary of a job.
 	 */
-	IntermediateResultDescriptor getIntermediateResultDescriptor();
+	IntermediateResultSummary getIntermediateResultSummary();
 
 	/**
 	 * Returns whether this execution graph was archived.

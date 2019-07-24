@@ -564,11 +564,11 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   }
 
   /**
-    * Get IntermediateResultDescriptor.
-    * @return IntermediateResultDescriptor collected form previous jobs.
+    * Get IntermediateResultSummary.
+    * @return IntermediateResultSummary collected form previous jobs.
     */
-  def getIntermediateResultDescriptor() = {
-    javaEnv.getIntermediateResultDescriptor
+  def getIntermediateResultSummary() = {
+    javaEnv.getIntermediateResultSummary
   }
 }
 

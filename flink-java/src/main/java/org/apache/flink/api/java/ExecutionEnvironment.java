@@ -27,7 +27,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
-import org.apache.flink.api.common.interactive.DefaultIntermediateResultDescriptor;
+import org.apache.flink.api.common.interactive.DefaultIntermediateResultSummary;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.operators.OperatorInformation;
@@ -119,8 +119,8 @@ public abstract class ExecutionEnvironment {
 
 	private final ExecutionConfig config = new ExecutionConfig();
 
-	private final DefaultIntermediateResultDescriptor intermediateResultDescriptor =
-		new DefaultIntermediateResultDescriptor();
+	private final DefaultIntermediateResultSummary intermediateResultSummary =
+		new DefaultIntermediateResultSummary();
 
 	/** Result from the latest execution, to make it retrievable when using eager execution methods. */
 	protected JobExecutionResult lastJobExecutionResult;
@@ -823,10 +823,7 @@ public abstract class ExecutionEnvironment {
 	 */
 	public JobExecutionResult execute() throws Exception {
 		JobExecutionResult result =  execute(getDefaultName());
-		intermediateResultDescriptor.getIntermediateResultDescriptions()
-			.putAll(result.getIntermediateResultDescriptor().getIntermediateResultDescriptions());
-		intermediateResultDescriptor.getIncompleteIntermediateDataSets()
-			.addAll(result.getIntermediateResultDescriptor().getIncompleteIntermediateDataSets());
+		intermediateResultSummary.merge(result.getIntermediateResultSummary());
 		return result;
 	}
 
@@ -1293,10 +1290,10 @@ public abstract class ExecutionEnvironment {
 	}
 
 	/**
-	 * Get IntermediateResultDescriptor.
-	 * @return IntermediateResultDescriptor collected form previous jobs.
+	 * Get IntermediateResultSummary.
+	 * @return IntermediateResultSummary collected form previous jobs.
 	 */
-	public DefaultIntermediateResultDescriptor getIntermediateResultDescriptor() {
-		return intermediateResultDescriptor;
+	public DefaultIntermediateResultSummary getIntermediateResultSummary() {
+		return intermediateResultSummary;
 	}
 }
