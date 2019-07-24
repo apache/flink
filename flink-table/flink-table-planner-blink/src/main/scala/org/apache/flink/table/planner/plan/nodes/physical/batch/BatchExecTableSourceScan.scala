@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.runtime.operators.DamBehavior
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableException
@@ -147,11 +146,7 @@ class BatchExecTableSourceScan(
       isStreamTable = false,
       tableSourceTable.selectedFields)
     ScanUtil.hasTimeAttributeField(fieldIndexes) ||
-      ScanUtil.needsConversion(
-        tableSource.getProducedDataType,
-        TypeExtractor.createTypeInfo(
-          tableSource, classOf[StreamTableSource[_]], tableSource.getClass, 0)
-          .getTypeClass.asInstanceOf[Class[_]])
+      ScanUtil.needsConversion(tableSource.getProducedDataType)
   }
 
   def getEstimatedRowCount: lang.Double = {

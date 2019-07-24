@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContex
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.RowType
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
@@ -50,9 +51,13 @@ object ScanUtil {
         indexes.contains(TimeIndicatorTypeInfo.PROCTIME_STREAM_MARKER)||
         indexes.contains(TimeIndicatorTypeInfo.PROCTIME_BATCH_MARKER)
 
-  private[flink] def needsConversion(dataType: DataType, clz: Class[_]): Boolean =
+  private[flink] def needsConversion(source: TableSource[_]): Boolean = {
+    needsConversion(source.getProducedDataType)
+  }
+
+  private[flink] def needsConversion(dataType: DataType): Boolean =
     fromDataTypeToLogicalType(dataType) match {
-      case _: RowType => !CodeGenUtils.isInternalClass(clz, dataType)
+      case _: RowType => !CodeGenUtils.isInternalClass(dataType)
       case _ => true
     }
 

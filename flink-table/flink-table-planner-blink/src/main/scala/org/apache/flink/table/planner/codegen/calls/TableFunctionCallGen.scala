@@ -18,15 +18,12 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.api.java.typeutils.GenericTypeInfo
 import org.apache.flink.table.functions.TableFunction
-import org.apache.flink.table.planner.codegen.CodeGenUtils.genToExternalIfNeeded
 import org.apache.flink.table.planner.codegen.GeneratedExpression.NEVER_NULL
+import org.apache.flink.table.planner.codegen.calls.ScalarFunctionCallGen.prepareFunctionArgs
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.getEvalMethodSignature
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.types.logical.LogicalType
-import org.apache.flink.table.types.utils.TypeConversions
 
 /**
   * Generates a call to user-defined [[TableFunction]].
@@ -62,32 +59,8 @@ class TableFunctionCallGen(tableFunction: TableFunction[_]) extends CallGenerato
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
       func: TableFunction[_]): Array[GeneratedExpression] = {
-
     // get the expanded parameter types
     var paramClasses = getEvalMethodSignature(func, operands.map(_.resultType).toArray)
-
-    val signatureTypes = func
-        .getParameterTypes(paramClasses)
-        .zipWithIndex
-        .map {
-          case (t, i) =>
-            // we don't trust GenericType.
-            if (t.isInstanceOf[GenericTypeInfo[_]]) {
-              fromLogicalTypeToDataType(operands(i).resultType)
-            } else {
-              TypeConversions.fromLegacyInfoToDataType(t)
-            }
-        }
-
-    paramClasses.zipWithIndex.zip(operands).map { case ((paramClass, i), operandExpr) =>
-      if (paramClass.isPrimitive) {
-        operandExpr
-      } else {
-        val externalResultTerm = genToExternalIfNeeded(
-          ctx, signatureTypes(i), paramClass, operandExpr.resultTerm)
-        val exprOrNull = s"${operandExpr.nullTerm} ? null : ($externalResultTerm)"
-        operandExpr.copy(resultTerm = exprOrNull)
-      }
-    }
+    prepareFunctionArgs(ctx, operands, paramClasses, func.getParameterTypes(paramClasses))
   }
 }

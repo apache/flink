@@ -22,9 +22,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableSchema, Types}
-import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestingAppendSink}
-import org.apache.flink.table.planner.utils.{TestFilterableTableSource, TestNestedProjectableTableSource, TestPartitionableTableSource, TestProjectableTableSource, TestTableSources}
+import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
+import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink}
+import org.apache.flink.table.planner.utils.{TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableTableSource, TestProjectableTableSource, TestTableSources}
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
@@ -381,4 +381,25 @@ class TableSourceITCase extends StreamingTestBase {
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
+  @Test
+  def testInputFormatSource(): Unit = {
+    val tableSchema = TableSchema.builder().fields(
+      Array("a", "b", "c"),
+      Array(DataTypes.INT(), DataTypes.BIGINT(), DataTypes.STRING())).build()
+    val tableSource = new TestInputFormatTableSource(
+      tableSchema, tableSchema.toRowType, TestData.smallData3)
+    tEnv.registerTableSource("MyInputFormatTable", tableSource)
+
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery("SELECT a, c FROM MyInputFormatTable").toAppendStream[Row].addSink(sink)
+
+    env.execute()
+
+    val expected = Seq(
+      "1,Hi",
+      "2,Hello",
+      "3,Hello world"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
 }

@@ -18,8 +18,12 @@
 
 package org.apache.flink.table.planner.utils
 
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableSchema, Types}
@@ -32,6 +36,8 @@ import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSource
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, PreserveWatermarks}
+import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.types.Row
 
 import java.io.{File, FileOutputStream, OutputStreamWriter}
@@ -596,4 +602,20 @@ class TestPartitionableTableSource(
   override def getReturnType: TypeInformation[Row] = returnType
 
   override def getTableSchema: TableSchema = new TableSchema(fieldNames, fieldTypes)
+}
+
+class TestInputFormatTableSource[T](
+    tableSchema: TableSchema,
+    returnType: TypeInformation[T],
+    values: Seq[T]) extends InputFormatTableSource[T] {
+
+  override def getInputFormat: InputFormat[T, _ <: InputSplit] = {
+    new CollectionInputFormat[T](values.asJava, returnType.createSerializer(new ExecutionConfig))
+  }
+
+  override def getReturnType: TypeInformation[T] = returnType
+
+  override def getProducedDataType: DataType = fromLegacyInfoToDataType(returnType)
+
+  override def getTableSchema: TableSchema = tableSchema
 }

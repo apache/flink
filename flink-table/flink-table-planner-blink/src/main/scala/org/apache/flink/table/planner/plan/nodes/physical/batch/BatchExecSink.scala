@@ -142,8 +142,7 @@ class BatchExecSink[T](
       // Sink's input must be BatchExecNode[BaseRow] now.
       case node: BatchExecNode[BaseRow] =>
         val plan = node.translateToPlan(planner)
-        val typeClass = extractTableSinkTypeClass(sink)
-        if (CodeGenUtils.isInternalClass(typeClass, resultDataType)) {
+        if (CodeGenUtils.isInternalClass(resultDataType)) {
           plan.asInstanceOf[Transformation[T]]
         } else {
           val (converterOperator, outputTypeInfo) = generateRowConverterOperator[T](
