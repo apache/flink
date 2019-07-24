@@ -119,7 +119,7 @@ mvn clean install -DskipTests -Dhadoop.version=2.6.5 -Pinclude-hadoop
 
 If you want to build against Hadoop version that is *NOT* 2.4.1, 2.6.5, 2.7.5 or 2.8.3,
 then it is first necessary to build [flink-shaded](https://github.com/apache/flink-shaded) against this version.
-You can find the source for this project in the `Additional Components` section of the [downloads page](http://flink.apache.org/downloads.html#additional-components).
+You can find the source for this project in the [Additional Components]({{ site.download_url }}#additional-components) section of the download page.
 
 Run the following command to build and install `flink-shaded` against your desired Hadoop version:
 
