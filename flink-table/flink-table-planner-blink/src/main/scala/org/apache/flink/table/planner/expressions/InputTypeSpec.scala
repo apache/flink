@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.validate._
+import org.apache.flink.table.planner.validate._
 
 import scala.collection.mutable
 

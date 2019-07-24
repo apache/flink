@@ -25,11 +25,11 @@ import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
+import org.apache.flink.table.planner.typeutils.TypeCoercion;
+import org.apache.flink.table.planner.validate.ValidationFailure;
+import org.apache.flink.table.planner.validate.ValidationResult;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInferenceUtil;
-import org.apache.flink.table.typeutils.TypeCoercion;
-import org.apache.flink.table.validate.ValidationFailure;
-import org.apache.flink.table.validate.ValidationResult;
 
 import java.util.List;
 import java.util.Optional;

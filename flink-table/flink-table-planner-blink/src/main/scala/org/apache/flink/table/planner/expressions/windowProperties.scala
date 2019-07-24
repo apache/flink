@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.NamedWindowProperty
-import org.apache.flink.table.validate.{ValidationFailure, ValidationSuccess}
+import org.apache.flink.table.planner.validate.{ValidationFailure, ValidationSuccess}
 
 trait WindowProperty {
 

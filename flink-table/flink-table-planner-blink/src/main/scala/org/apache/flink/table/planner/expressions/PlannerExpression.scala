@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.expressions.{Expression, ExpressionVisitor}
 import org.apache.flink.table.planner.plan.TreeNode
-import org.apache.flink.table.validate.{ValidationResult, ValidationSuccess}
+import org.apache.flink.table.planner.validate.{ValidationResult, ValidationSuccess}
 
 import java.util
 

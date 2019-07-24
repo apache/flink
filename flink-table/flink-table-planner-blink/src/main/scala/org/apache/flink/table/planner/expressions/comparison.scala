@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.expressions
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
-import org.apache.flink.table.typeutils.TypeInfoCheckUtils.{isArray, isComparable, isNumeric}
-import org.apache.flink.table.validate._
+import org.apache.flink.table.planner.typeutils.TypeInfoCheckUtils.{isArray, isComparable, isNumeric}
+import org.apache.flink.table.planner.validate._
 
 import org.apache.calcite.sql.SqlOperator
 
