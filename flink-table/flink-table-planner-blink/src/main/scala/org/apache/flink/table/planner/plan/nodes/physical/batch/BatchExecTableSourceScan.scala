@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.runtime.operators.DamBehavior
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
@@ -54,9 +53,6 @@ class BatchExecTableSourceScan(
   with BatchPhysicalRel
   with BatchExecNode[BaseRow]{
 
-  // cache table source transformation.
-  private var sourceTransform: Transformation[_] = _
-
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new BatchExecTableSourceScan(cluster, traitSet, relOptTable)
   }
@@ -82,15 +78,6 @@ class BatchExecTableSourceScan(
       ordinalInParent: Int,
       newInputNode: ExecNode[BatchPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
-  }
-
-  def getSourceTransformation(
-      streamEnv: StreamExecutionEnvironment): Transformation[_] = {
-    if (sourceTransform == null) {
-      sourceTransform = tableSource.asInstanceOf[StreamTableSource[_]].
-          getDataStream(streamEnv).getTransformation
-    }
-    sourceTransform
   }
 
   override protected def translateToPlanInternal(

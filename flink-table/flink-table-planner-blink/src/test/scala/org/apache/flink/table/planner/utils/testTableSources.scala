@@ -613,7 +613,8 @@ class TestInputFormatTableSource[T](
     new CollectionInputFormat[T](values.asJava, returnType.createSerializer(new ExecutionConfig))
   }
 
-  override def getReturnType: TypeInformation[T] = returnType
+  override def getReturnType: TypeInformation[T] =
+    throw new RuntimeException("Should not invoke this deprecated method.")
 
   override def getProducedDataType: DataType = fromLegacyInfoToDataType(returnType)
 
