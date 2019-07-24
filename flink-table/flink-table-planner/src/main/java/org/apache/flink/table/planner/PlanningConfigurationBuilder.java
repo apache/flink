@@ -21,6 +21,7 @@ package org.apache.flink.table.planner;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.calcite.CalciteConfig;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
@@ -155,9 +156,21 @@ public class PlanningConfigurationBuilder {
 			SqlParser
 				.configBuilder()
 				.setParserFactory(FlinkSqlParserImpl.FACTORY)
-				.setConformance(FlinkSqlConformance.DEFAULT)
+				.setConformance(getSqlConformance())
 				.setLex(Lex.JAVA)
 				.build());
+	}
+
+	private FlinkSqlConformance getSqlConformance() {
+		SqlDialect sqlDialect = tableConfig.getSqlDialect();
+		switch (sqlDialect) {
+		case HIVE:
+			return FlinkSqlConformance.HIVE;
+		case DEFAULT:
+			return FlinkSqlConformance.DEFAULT;
+		default:
+			return FlinkSqlConformance.DEFAULT;
+		}
 	}
 
 	private CatalogReader createCatalogReader(

@@ -18,27 +18,25 @@
 
 package org.apache.flink.table.sqlexec;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.sql.parser.ddl.SqlCreateTable;
-import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
-import org.apache.flink.table.api.internal.BatchTableEnvImpl;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
-import org.apache.flink.table.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.planner.operations.SqlConversionException;
 import org.apache.flink.table.types.DataType;
 
-import org.apache.calcite.sql.SqlNode;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertArrayEquals;
@@ -46,12 +44,12 @@ import static org.junit.Assert.assertEquals;
 
 /** Test cases for SqlExecutableStatement. **/
 public class SqlToOperationConverterTest {
-	private static final ExecutionEnvironment streamExec =
-		ExecutionEnvironment.getExecutionEnvironment();
-	private static final BatchTableEnvImpl batchEnv =
-		(BatchTableEnvImpl) BatchTableEnvironment.create(streamExec);
-
-	private static final FlinkPlannerImpl planner = batchEnv.getFlinkPlanner();
+	private static final EnvironmentSettings settings = EnvironmentSettings.newInstance()
+			.useBlinkPlanner()
+			.inBatchMode()
+			.build();
+	private static final TableEnvironmentImpl batchEnv = TableEnvironmentImpl.create(settings);
+	private static final Planner planner = batchEnv.getPlanner();
 
 	@Before
 	public void before() {
@@ -63,17 +61,7 @@ public class SqlToOperationConverterTest {
 			")\n" +
 			"  PARTITIONED BY (a, d)\n" +
 			"  with (\n" +
-			"    connector.type = 'filesystem', \n" +
-			"    connector.path = 'abc', \n" +
-			"    format.type = 'csv', \n" +
-			"    `format.fields.0.name` = 'a', \n" +
-			"    `format.fields.0.type` = 'BIGINT', \n" +
-			"    `format.fields.1.name` = 'b', \n" +
-			"    `format.fields.1.type` = 'VARCHAR', \n" +
-			"    `format.fields.2.name` = 'c', \n" +
-			"    `format.fields.2.type` = 'INT', \n" +
-			"    `format.fields.3.name` = 'd', \n" +
-			"    `format.fields.3.type` = 'VARCHAR'\n" +
+			"    connector = 'COLLECTION'\n" +
 			")\n";
 		final String ddl2 = "CREATE TABLE t2 (\n" +
 			"  a bigint,\n" +
@@ -83,17 +71,7 @@ public class SqlToOperationConverterTest {
 			")\n" +
 			"  PARTITIONED BY (a, d)\n" +
 			"  with (\n" +
-			"    connector.type = 'filesystem', \n" +
-			"    connector.path = 'abc', \n" +
-			"    format.type = 'csv', \n" +
-			"    `format.fields.0.name` = 'a', \n" +
-			"    `format.fields.0.type` = 'BIGINT', \n" +
-			"    `format.fields.1.name` = 'b', \n" +
-			"    `format.fields.1.type` = 'VARCHAR', \n" +
-			"    `format.fields.2.name` = 'c', \n" +
-			"    `format.fields.2.type` = 'INT', \n" +
-			"    `format.fields.3.name` = 'd', \n" +
-			"    `format.fields.3.type` = 'VARCHAR'\n" +
+			"    connector = 'COLLECTION'\n" +
 			")\n";
 		batchEnv.sqlUpdate(ddl1);
 		batchEnv.sqlUpdate(ddl2);
@@ -120,9 +98,7 @@ public class SqlToOperationConverterTest {
 			"    connector = 'kafka', \n" +
 			"    kafka.topic = 'log.test'\n" +
 			")\n";
-		SqlNode node = planner.parse(sql);
-		assert node instanceof SqlCreateTable;
-		Operation operation = SqlToOperationConverter.convert(planner, node);
+		Operation operation = parse(sql);
 		assert operation instanceof CreateTableOperation;
 		CreateTableOperation op = (CreateTableOperation) operation;
 		CatalogTable catalogTable = op.getCatalogTable();
@@ -152,18 +128,14 @@ public class SqlToOperationConverterTest {
 			"    connector = 'kafka', \n" +
 			"    kafka.topic = 'log.test'\n" +
 			")\n";
-		SqlNode node = planner.parse(sql);
-		assert node instanceof SqlCreateTable;
-		SqlToOperationConverter.convert(planner, node);
+		parse(sql);
 	}
 
 	@Test
 	public void testSqlInsertWithStaticPartition() {
 		final String sql = "insert into t1 partition(a=1) select b, c, d from t2";
-		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
-		SqlNode node = planner.parse(sql);
-		assert node instanceof RichSqlInsert;
-		Operation operation = SqlToOperationConverter.convert(planner, node);
+		setupSqlDialect(SqlDialect.HIVE);
+		Operation operation = parse(sql);
 		assert operation instanceof CatalogSinkModifyOperation;
 		CatalogSinkModifyOperation sinkModifyOperation = (CatalogSinkModifyOperation) operation;
 		final Map<String, String> expectedStaticPartitions = new HashMap<>();
@@ -171,8 +143,13 @@ public class SqlToOperationConverterTest {
 		assertEquals(expectedStaticPartitions, sinkModifyOperation.getStaticPartitions());
 	}
 
-	private FlinkPlannerImpl getPlannerBySqlDialect(SqlDialect sqlDialect) {
+	private Operation parse(String sql) {
+		List<Operation> operations = planner.parse(sql);
+		assert operations.size() == 1;
+		return operations.get(0);
+	}
+
+	private void setupSqlDialect(SqlDialect sqlDialect) {
 		batchEnv.getConfig().setSqlDialect(sqlDialect);
-		return batchEnv.getFlinkPlanner();
 	}
 }

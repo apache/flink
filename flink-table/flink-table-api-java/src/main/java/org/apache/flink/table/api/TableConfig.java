@@ -77,6 +77,12 @@ public class TableConfig {
 	private Configuration configuration = new Configuration();
 
 	/**
+	 * The sql dialect defines how to parse a sql query, different
+	 * sql dialect may support different sql grammar.
+	 */
+	private SqlDialect sqlDialect = SqlDialect.DEFAULT;
+
+	/**
 	 * Returns all key/value configuration.
 	 */
 	public Configuration getConfiguration() {
@@ -91,6 +97,20 @@ public class TableConfig {
 	public void addConfiguration(Configuration configuration) {
 		Preconditions.checkNotNull(configuration);
 		this.configuration.addAll(configuration);
+	}
+
+	/**
+	 * Returns the current sql dialect.
+	 */
+	public SqlDialect getSqlDialect() {
+		return this.sqlDialect;
+	}
+
+	/**
+	 * Setup the current sql dialect to parse the sql query.
+	 */
+	public void setSqlDialect(SqlDialect sqlDialect) {
+		this.sqlDialect = sqlDialect;
 	}
 
 	/**
