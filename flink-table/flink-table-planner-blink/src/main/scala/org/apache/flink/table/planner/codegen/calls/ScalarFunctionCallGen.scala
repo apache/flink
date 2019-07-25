@@ -127,7 +127,7 @@ object ScalarFunctionCallGen {
       case (t: GenericTypeInfo[_], i) =>
         // we don't trust GenericType, like Row and BaseRow and LocalTime
         val returnType = fromLogicalTypeToDataType(operands(i).resultType)
-        if (operands(i).resultType.supportsInputConversion(t.getTypeClass)) {
+        if (operands(i).resultType.supportsOutputConversion(t.getTypeClass)) {
           returnType.bridgedTo(t.getTypeClass)
         } else {
           returnType
