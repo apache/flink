@@ -342,22 +342,15 @@ public class SqlFunctionUtils {
 	}
 
 	/**
-	 * Returns a string resulting from replacing all substrings that match the regular
-	 * expression with replacement.
+	 * Returns a string resulting from replacing all substrings
+	 * that match the regular expression with replacement.
 	 */
 	public static String regexpReplace(String str, String regex, String replacement) {
-		if (regex.isEmpty()) {
-			return str;
+		if (str == null || regex == null || replacement == null) {
+			return null;
 		}
 		try {
-			// we should use StringBuffer here because Matcher only accept it
-			StringBuffer sb = new StringBuffer();
-			Matcher m = REGEXP_PATTERN_CACHE.get(regex).matcher(str);
-			while (m.find()) {
-				m.appendReplacement(sb, replacement);
-			}
-			m.appendTail(sb);
-			return sb.toString();
+			return str.replaceAll(regex, Matcher.quoteReplacement(replacement));
 		} catch (Exception e) {
 			LOG.error(
 				String.format("Exception in regexpReplace('%s', '%s', '%s')", str, regex, replacement),
@@ -368,27 +361,26 @@ public class SqlFunctionUtils {
 	}
 
 	/**
-	 * Returns a string extracted with a specified regular expression and a regex
-	 * match group index.
+	 * Returns a string extracted with a specified regular expression and a regex match group index.
 	 */
 	public static String regexpExtract(String str, String regex, int extractIndex) {
-		if (extractIndex < 0) {
+		if (str == null || regex == null) {
 			return null;
 		}
 
 		try {
-			Matcher m = REGEXP_PATTERN_CACHE.get(regex).matcher(str);
+			Matcher m = Pattern.compile(regex).matcher(str);
 			if (m.find()) {
 				MatchResult mr = m.toMatchResult();
 				return mr.group(extractIndex);
 			}
-			return null;
 		} catch (Exception e) {
 			LOG.error(
 				String.format("Exception in regexpExtract('%s', '%s', '%d')", str, regex, extractIndex),
 				e);
-			return null;
 		}
+
+		return null;
 	}
 
 	public static String regexpExtract(String str, String regex, long extractIndex) {
