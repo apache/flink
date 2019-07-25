@@ -66,9 +66,7 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("create table db1.part (x int) partitioned by (y int)");
 		hiveShell.insertInto("db1", "src").addRow(1, 1).addRow(2, null).commit();
 
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
-		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
-		tableEnv.useCatalog(hiveCatalog.getName());
+		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 
 		// test generating partitions with default name
 		tableEnv.sqlUpdate("insert into db1.part select * from db1.src");
@@ -84,5 +82,27 @@ public class TableEnvHiveConnectorTest {
 		assertEquals(Arrays.asList("1\t1", "2\tNULL"), hiveShell.executeQuery("select * from db1.part"));
 
 		hiveShell.execute("drop database db1 cascade");
+	}
+
+	@Test
+	public void testGetNonExistingFunction() throws Exception {
+		hiveShell.execute("create database db1");
+		hiveShell.execute("create table db1.src (d double, s string)");
+		hiveShell.execute("create table db1.dest (x bigint)");
+
+		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+
+		// just make sure the query runs through, no need to verify result
+		tableEnv.sqlUpdate("insert into db1.dest select count(d) from db1.src");
+		tableEnv.execute("test");
+
+		hiveShell.execute("drop database db1 cascade");
+	}
+
+	private TableEnvironment getTableEnvWithHiveCatalog() {
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
+		tableEnv.useCatalog(hiveCatalog.getName());
+		return tableEnv;
 	}
 }
