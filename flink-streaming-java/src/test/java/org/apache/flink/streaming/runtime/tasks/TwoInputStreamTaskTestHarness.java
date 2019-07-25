@@ -36,7 +36,7 @@ import java.util.function.Function;
 
 
 /**
- * Test harness for testing a {@link TwoInputStreamTask} or a {@link TwoInputSelectableStreamTask}.
+ * Test harness for testing a {@link TwoInputSelectableStreamTask}.
  *
  * <p>This mock Invokable provides the task with a basic runtime context and allows pushing elements
  * and watermarks into the task. {@link #getOutput()} can be used to get the emitted elements
