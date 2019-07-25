@@ -29,8 +29,6 @@ import org.apache.flink.streaming.runtime.io.TwoInputSelectionHandler;
 import java.io.IOException;
 import java.util.Collection;
 
-import static org.apache.flink.util.Preconditions.checkState;
-
 /**
  * A {@link StreamTask} for executing a {@link TwoInputStreamOperator} and supporting
  * the {@link TwoInputStreamOperator} to select input for reading.
@@ -49,8 +47,8 @@ public class TwoInputSelectableStreamTask<IN1, IN2, OUT> extends AbstractTwoInpu
 		TypeSerializer<IN1> inputDeserializer1,
 		TypeSerializer<IN2> inputDeserializer2) throws IOException {
 
-		checkState(headOperator instanceof InputSelectable);
-		TwoInputSelectionHandler twoInputSelectionHandler = new TwoInputSelectionHandler((InputSelectable) headOperator);
+		TwoInputSelectionHandler twoInputSelectionHandler = new TwoInputSelectionHandler(
+			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null);
 
 		this.inputProcessor = new StreamTwoInputSelectableProcessor<>(
 			inputGates1, inputGates2,

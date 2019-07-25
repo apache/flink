@@ -34,7 +34,7 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyM
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.ValueMode;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
+import org.apache.flink.streaming.runtime.tasks.TwoInputSelectableStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
@@ -242,7 +242,7 @@ public class RandomSortMergeInnerJoinTest {
 				new IntType(), new VarCharType(VarCharType.MAX_LENGTH), new IntType(), new VarCharType(VarCharType.MAX_LENGTH));
 		final TwoInputStreamTaskTestHarness<BinaryRow, BinaryRow, JoinedRow> testHarness =
 			new TwoInputStreamTaskTestHarness<>(
-				TwoInputStreamTask::new, 2, 1, new int[]{1, 2}, typeInfo, (TypeInformation) typeInfo,
+				TwoInputSelectableStreamTask::new, 2, 1, new int[]{1, 2}, typeInfo, (TypeInformation) typeInfo,
 				joinedInfo);
 
 		// Deep pit!!! Cause in TwoInputStreamTaskTestHarness, one record one buffer.

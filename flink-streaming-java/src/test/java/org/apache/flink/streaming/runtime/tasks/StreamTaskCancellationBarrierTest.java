@@ -135,7 +135,7 @@ public class StreamTaskCancellationBarrierTest {
 	public void testDeclineCallOnCancelBarrierTwoInputs() throws Exception {
 
 		TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
-				TwoInputStreamTask::new,
+				TwoInputSelectableStreamTask::new,
 				BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
