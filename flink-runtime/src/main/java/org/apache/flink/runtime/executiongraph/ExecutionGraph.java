@@ -80,7 +80,6 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
@@ -581,10 +580,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		checkpointStatsTracker = checkNotNull(statsTracker, "CheckpointStatsTracker");
 
-		CheckpointFailureManager failureManager = new CheckpointFailureManager(chkConfig.getTolerableCheckpointFailureNumber(), () ->
-			getJobMasterMainThreadExecutor().execute(() ->
-				failGlobal(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."))
-			));
+		CheckpointFailureManager failureManager = new CheckpointFailureManager(
+				chkConfig.getTolerableCheckpointFailureNumber(),
+				cause -> getJobMasterMainThreadExecutor().execute(() -> failGlobal(cause))
+		);
 
 		// create the coordinator that triggers and commits checkpoints and holds the state
 		checkpointCoordinator = new CheckpointCoordinator(

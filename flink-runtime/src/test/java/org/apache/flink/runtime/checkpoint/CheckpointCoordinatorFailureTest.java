@@ -66,7 +66,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 
 		final long triggerTimestamp = 1L;
 
-		CheckpointFailureManager failureManager = new CheckpointFailureManager(0, () -> {});
+		CheckpointFailureManager failureManager = new CheckpointFailureManager(0, throwable -> {});
 
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
