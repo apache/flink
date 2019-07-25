@@ -871,14 +871,14 @@ class JoinITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
       .where('leftPk === 'rightPk)
       .select('leftPk, 'leftA, 'rightPk, 'rightA)
     val schema = t.getSchema
-    val sink = new TestingUpsertTableSink(Array(0, 1, 2)).configure(
+    val sink = new TestingRetractTableSink().configure(
       schema.getFieldNames, schema.getFieldTypes)
     tEnv.registerTableSink("MySink", sink)
     tEnv.insertInto(t, "MySink")
     tEnv.execute("test")
 
     val expected = Seq("1,4,1,2", "1,5,1,2")
-    assertEquals(expected.sorted, sink.getUpsertResults.sorted)
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
 
