@@ -499,8 +499,8 @@ public interface Table {
 
 	/**
 	 * Joins this {@link Table} with an user-defined {@link TableFunction}. This join is similar to
-	 * a SQL inner join with ON TRUE predicate but works with a table function. Each row of the
-	 * table is joined with all rows produced by the table function.
+	 * a SQL inner join but works with a table function. Each row of the table is joined with all
+	 * rows produced by the table function.
 	 *
 	 * <p>Example:
 	 *
@@ -522,8 +522,8 @@ public interface Table {
 
 	/**
 	 * Joins this {@link Table} with an user-defined {@link TableFunction}. This join is similar to
-	 * a SQL inner join with ON TRUE predicate but works with a table function. Each row of the
-	 * table is joined with all rows produced by the table function.
+	 * a SQL inner join but works with a table function. Each row of the table is joined with all
+	 * rows produced by the table function.
 	 *
 	 * <p>Scala Example:
 	 *
