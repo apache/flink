@@ -76,7 +76,7 @@ public class CatalogStatisticsTest {
 		Table table = tEnv.sqlQuery("select * from T1, T2 where T1.s3 = T2.s3");
 		String result = tEnv.explain(table);
 		// T1 is broadcast side
-		String expected = TableTestUtil.readFromResource("/testGetStatsFromCatalog.out");
+		String expected = TableTestUtil.readFromResource("/explain/testGetStatsFromCatalog.out");
 		assertEquals(expected, TableTestUtil.replaceStageId(result));
 	}
 
