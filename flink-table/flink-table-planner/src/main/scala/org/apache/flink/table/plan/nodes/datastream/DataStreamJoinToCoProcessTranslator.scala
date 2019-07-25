@@ -24,7 +24,7 @@ import org.apache.flink.api.common.functions.FlatJoinFunction
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
 import org.apache.flink.streaming.api.operators.co.LegacyKeyedCoProcessOperator
-import org.apache.flink.table.api.{StreamQueryConfig, TableConfig}
+import org.apache.flink.table.api.{StreamQueryConfig, TableConfig, TableException}
 import org.apache.flink.table.codegen.{FunctionCodeGenerator, GeneratedFunction}
 import org.apache.flink.table.plan.schema.RowSchema
 import org.apache.flink.table.runtime.CRowKeySelector
@@ -145,6 +145,7 @@ class DataStreamJoinToCoProcessTranslator(
           genFunction.name,
           genFunction.code,
           queryConfig)
+      case _ => throw new TableException(s"$joinType is not supported.")
     }
     new LegacyKeyedCoProcessOperator(joinFunction)
   }
