@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
@@ -32,7 +33,9 @@ import org.apache.flink.yarn.util.YarnTestUtils;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -52,6 +55,8 @@ import static org.junit.Assert.assertThat;
 public class YARNITCase extends YarnTestBase {
 
 	private final Duration yarnAppTerminateTimeout = Duration.ofSeconds(10);
+
+	private final int sleepIntervalInMS = 100;
 
 	@BeforeClass
 	public static void setup() {
@@ -117,17 +122,35 @@ public class YARNITCase extends YarnTestBase {
 					assertThat(jobResult, is(notNullValue()));
 					assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
 
-					waitUntilApplicationFinished(applicationId, yarnAppTerminateTimeout);
+					waitApplicationFinishedElseKillIt(applicationId, yarnAppTerminateTimeout, yarnClusterDescriptor);
 				} finally {
 					if (clusterClient != null) {
 						clusterClient.shutdown();
-					}
-
-					if (applicationId != null) {
-						yarnClusterDescriptor.killCluster(applicationId);
 					}
 				}
 			}
 		});
 	}
+
+	private void waitApplicationFinishedElseKillIt(
+			ApplicationId applicationId,
+			Duration timeout,
+			YarnClusterDescriptor yarnClusterDescriptor) throws Exception {
+		Deadline deadline = Deadline.now().plus(timeout);
+		YarnApplicationState state = yarnClient.getApplicationReport(applicationId).getYarnApplicationState();
+
+		while (state != YarnApplicationState.FINISHED) {
+			if (state == YarnApplicationState.FAILED || state == YarnApplicationState.KILLED) {
+				Assert.fail("Application became FAILED or KILLED while expecting FINISHED");
+			} else {
+				sleep(sleepIntervalInMS);
+			}
+			if (deadline.isOverdue()) {
+				yarnClusterDescriptor.killCluster(applicationId);
+				Assert.fail("Application didn't finish before timeout");
+			}
+			state = yarnClient.getApplicationReport(applicationId).getYarnApplicationState();
+		}
+	}
+
 }

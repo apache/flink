@@ -38,7 +38,6 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.service.Service;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -135,8 +134,6 @@ public abstract class YarnTestBase extends TestLogger {
 		"lost the leadership."
 	};
 
-	private final int sleepIntervalInMS = 100;
-
 	// Temp directory which is deleted after the unit test.
 	@ClassRule
 	public static TemporaryFolder tmp = new TemporaryFolder();
@@ -163,7 +160,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 	protected static File yarnSiteXML = null;
 
-	private YarnClient yarnClient = null;
+	protected YarnClient yarnClient = null;
 
 	private static org.apache.flink.configuration.Configuration globalConfiguration;
 
@@ -574,23 +571,6 @@ public abstract class YarnTestBase extends TestLogger {
 			count += containers.size();
 		}
 		return count;
-	}
-
-	void waitUntilApplicationFinished(ApplicationId applicationId, Duration timeout) throws Exception {
-		Deadline deadline = Deadline.now().plus(timeout);
-		while (true) {
-			YarnApplicationState state = yarnClient.getApplicationReport(applicationId).getYarnApplicationState();
-			if (state == YarnApplicationState.FINISHED) {
-				break;
-			} else if (state == YarnApplicationState.FAILED || state == YarnApplicationState.KILLED) {
-				Assert.fail("Application became FAILED or KILLED while expecting FINISHED");
-			} else {
-				sleep(sleepIntervalInMS);
-			}
-			if (deadline.isOverdue()) {
-				Assert.fail("Application didn't finish before timeout");
-			}
-		}
 	}
 
 	public static void startYARNSecureMode(YarnConfiguration conf, String principal, String keytab) {
