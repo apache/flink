@@ -125,17 +125,22 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
 	@Override
 	protected void respondAsLeader(ChannelHandlerContext channelHandlerContext, RoutedRequest routedRequest, T gateway) throws Exception {
 		final HttpRequest request = routedRequest.getRequest();
+		String originalRequestPath = routedRequest.getPath();
 		final String requestPath;
 
+		if (originalRequestPath.startsWith("/old-version") && (originalRequestPath.endsWith("/log") || originalRequestPath.endsWith("/stdout"))) {
+			originalRequestPath = originalRequestPath.replace("/old-version", "");
+		}
+
 		// make sure we request the "index.html" in case there is a directory request
-		if (routedRequest.getPath().endsWith("/")) {
-			requestPath = routedRequest.getPath() + "index.html";
+		if (originalRequestPath.endsWith("/")) {
+			requestPath = originalRequestPath + "index.html";
 		}
 		// in case the files being accessed are logs or stdout files, find appropriate paths.
-		else if (routedRequest.getPath().equals("/jobmanager/log") || routedRequest.getPath().equals("/jobmanager/stdout")) {
+		else if (originalRequestPath.equals("/jobmanager/log") || originalRequestPath.equals("/jobmanager/stdout")) {
 			requestPath = "";
 		} else {
-			requestPath = routedRequest.getPath();
+			requestPath = originalRequestPath;
 		}
 
 		respondToRequest(channelHandlerContext, request, requestPath);

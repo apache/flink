@@ -72,6 +72,8 @@ import org.apache.flink.runtime.rest.handler.job.savepoints.SavepointDisposalHan
 import org.apache.flink.runtime.rest.handler.job.savepoints.SavepointHandlers;
 import org.apache.flink.runtime.rest.handler.legacy.ConstantTextHandler;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
+import org.apache.flink.runtime.rest.handler.legacy.files.LegacyLogFileHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.legacy.files.LegacyStdoutFileHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.files.LogFileHandlerSpecification;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
 import org.apache.flink.runtime.rest.handler.legacy.files.StdoutFileHandlerSpecification;
@@ -109,6 +111,8 @@ import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskCurrentAttemptDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.LegacyTaskManagerLogFileHeaders;
+import org.apache.flink.runtime.rest.messages.taskmanager.LegacyTaskManagerStdoutFileHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerLogFileHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerStdoutFileHeaders;
@@ -608,6 +612,10 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		handlers.add(Tuple2.of(LogFileHandlerSpecification.getInstance(), logFileHandler));
 		handlers.add(Tuple2.of(StdoutFileHandlerSpecification.getInstance(), stdoutFileHandler));
 
+		//for legacy web ui
+		handlers.add(Tuple2.of(LegacyLogFileHandlerSpecification.getInstance(), logFileHandler));
+		handlers.add(Tuple2.of(LegacyStdoutFileHandlerSpecification.getInstance(), stdoutFileHandler));
+
 		// TaskManager log and stdout file handler
 
 		final Time cacheEntryDuration = Time.milliseconds(restConfiguration.getRefreshInterval());
@@ -632,6 +640,28 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
 		handlers.add(Tuple2.of(TaskManagerLogFileHeaders.getInstance(), taskManagerLogFileHandler));
 		handlers.add(Tuple2.of(TaskManagerStdoutFileHeaders.getInstance(), taskManagerStdoutFileHandler));
+
+		final TaskManagerLogFileHandler legacyTaskManagerLogFileHandler = new TaskManagerLogFileHandler(
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			LegacyTaskManagerLogFileHeaders.getInstance(),
+			resourceManagerRetriever,
+			transientBlobService,
+			cacheEntryDuration);
+
+		final TaskManagerStdoutFileHandler legacyTaskManagerStdoutFileHandler = new TaskManagerStdoutFileHandler(
+			leaderRetriever,
+			timeout,
+			responseHeaders,
+			LegacyTaskManagerStdoutFileHeaders.getInstance(),
+			resourceManagerRetriever,
+			transientBlobService,
+			cacheEntryDuration);
+
+		//for legacy web ui
+		handlers.add(Tuple2.of(LegacyTaskManagerLogFileHeaders.getInstance(), legacyTaskManagerLogFileHandler));
+		handlers.add(Tuple2.of(LegacyTaskManagerStdoutFileHeaders.getInstance(), legacyTaskManagerStdoutFileHandler));
 
 		handlers.stream()
 			.map(tuple -> tuple.f1)
