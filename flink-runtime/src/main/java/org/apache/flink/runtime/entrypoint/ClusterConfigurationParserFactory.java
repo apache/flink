@@ -48,7 +48,6 @@ public class ClusterConfigurationParserFactory implements ParserResultFactory<Cl
 	@Override
 	public ClusterConfiguration createResult(@Nonnull CommandLine commandLine) {
 		final String configDir = commandLine.getOptionValue(CONFIG_DIR_OPTION.getOpt());
-
 		final Properties dynamicProperties = commandLine.getOptionProperties(DYNAMIC_PROPERTY_OPTION.getOpt());
 
 		return new ClusterConfiguration(configDir, dynamicProperties, commandLine.getArgs());
