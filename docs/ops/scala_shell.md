@@ -194,6 +194,28 @@ Scala-Flink> result.toDataSet[(String, Long)].print
 </div>
 </div>
 
+## Use Hive Connector in Scala Shell
+
+Starting from 1.9, Flink support to read hive data via hive connector. You can do this in scala shell as well.
+In order to use hive connector, you need to put the following jars under lib folder of flink dist.
+
+* flink-connector-hive_{scala_version}-{flink.version}.jar
+* flink-hadoop-compatibility_{scala_version}-{flink.version}.jar
+* flink-shaded-hadoop-2-uber-{hadoop.version}-{flink-shaded.version}.jar
+* flink-table_{scala.version}-{flink.version}.jar
+* hive-exec-2.x.jar (for Hive 1.x, you need to copy hive-exec-1.x.jar, hive-metastore-1.x.jar, libfb303-0.9.2.jar and libthrift-0.9.2.jar)
+
+Then you can use hive connector in scala shell like following:
+
+{% highlight scala %}
+Scala-Flink> import org.apache.flink.table.catalog.hive.HiveCatalog
+Scala-Flink> val hiveCatalog = new HiveCatalog("hive", "default", "<Replace it with HIVE_CONF_DIR>", "2.3.4");
+Scala-Flink> btenv.registerCatalog("hive", hiveCatalog)
+Scala-Flink> btenv.useCatalog("hive")
+Scala-Flink> btenv.listTables
+Scala-Flink> btenv.sqlQuery("<sql query>").toDataSet[Row].print()
+{% endhighlight %}
+
 ## Adding external dependencies
 
 It is possible to add external classpaths to the Scala-shell. These will be sent to the Jobmanager automatically alongside your shell program, when calling execute.
