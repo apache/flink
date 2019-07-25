@@ -104,7 +104,7 @@ public class CheckpointFailureManager {
 
 		if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
 			clearCount();
-			failureCallback.failJob();
+			failureCallback.failJob(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."));
 		}
 	}
 
@@ -128,7 +128,7 @@ public class CheckpointFailureManager {
 	 */
 	public interface FailJobCallback {
 
-		void failJob();
+		void failJob(final Throwable cause);
 
 	}
 

@@ -105,7 +105,7 @@ public class CheckpointFailureManagerTest extends TestLogger {
 		private int invokeCounter = 0;
 
 		@Override
-		public void failJob() {
+		public void failJob(final Throwable cause) {
 			invokeCounter++;
 		}
 
