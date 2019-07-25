@@ -32,8 +32,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class HiveShimLoader {
 
-	public static final String HIVE_V1_VERSION_NAME = "1.2.1";
-	public static final String HIVE_V2_VERSION_NAME = "2.3.4";
+	public static final String HIVE_V1_VERSION_NAME = "1.2.";
+	public static final String HIVE_V2_VERSION_NAME = "2.3.";
 
 	private static final Map<String, HiveShim> hiveShims = new ConcurrentHashMap<>(2);
 
