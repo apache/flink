@@ -101,7 +101,16 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       ImmutableList.of(newGroupSet),
       finalCalls)
 
-    // create an additional project to conform with types
+    val transformed = call.builder()
+    val windowAgg = LogicalWindowAggregate.create(
+      window,
+      Seq[PlannerNamedWindowProperty](),
+      newAgg)
+    transformed.push(windowAgg)
+
+    // The transformation adds an additional LogicalProject at the top to ensure
+    // that the types are equivalent.
+    // 1. ensure group key types, create an additional project to conform with types
     val outAggGroupExpression0 = getOutAggregateGroupExpression(rexBuilder, windowExpr)
     // fix up the nullability if it is changed.
     val outAggGroupExpression = if (windowExpr.getType.isNullable !=
@@ -112,25 +121,20 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
     } else {
       outAggGroupExpression0
     }
-    val transformed = call.builder()
-    val windowAgg = LogicalWindowAggregate.create(
-      window,
-      Seq[PlannerNamedWindowProperty](),
-      newAgg)
-    // The transformation adds an additional LogicalProject at the top to ensure
-    // that the types are equivalent.
-    transformed.push(windowAgg)
-      .project(transformed
-        .fields()
-        .patch(windowExprIdx, Seq(outAggGroupExpression), 0)
-        .zipWithIndex.map { rexNodeAndIndex =>
-        val aggCallIndex = rexNodeAndIndex._2 - agg.getGroupCount
-        if (indexAndTypes.containsKey(aggCallIndex)) {
-          rexBuilder.makeCast(agg.getAggCallList.get(aggCallIndex).`type`, rexNodeAndIndex._1, true)
-        } else {
-          rexNodeAndIndex._1
-        }
-      })
+    val projectsEnsureGroupKeyTypes =
+      transformed.fields.patch(windowExprIdx, Seq(outAggGroupExpression), 0)
+    // 2. ensure aggCall types
+    val projectsEnsureAggCallTypes =
+      projectsEnsureGroupKeyTypes.zipWithIndex.map {
+        case (aggCall, index) =>
+          val aggCallIndex = index - agg.getGroupCount
+          if (indexAndTypes.containsKey(aggCallIndex)) {
+            rexBuilder.makeCast(agg.getAggCallList.get(aggCallIndex).`type`, aggCall, true)
+          } else {
+            aggCall
+          }
+      }
+    transformed.project(projectsEnsureAggCallTypes)
 
     val result = transformed.build()
     call.transformTo(result)
@@ -142,24 +146,24 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
   private def replaceAggCalls(
     indexAndTypes: Map[Int, RelDataType], agg: LogicalAggregate): Seq[AggregateCall] = {
 
-    agg.getAggCallList.zipWithIndex.map { aggCallAndIndex =>
-      if (indexAndTypes.containsKey(aggCallAndIndex._2)) {
-        val aggCall = aggCallAndIndex._1
-        AggregateCall.create(
-          aggCall.getAggregation,
-          aggCall.isDistinct,
-          aggCall.isApproximate,
-          aggCall.ignoreNulls(),
-          aggCall.getArgList,
-          aggCall.filterArg,
-          aggCall.collation,
-          agg.getGroupCount,
-          agg.getInput,
-          indexAndTypes(aggCallAndIndex._2),
-          aggCall.name)
-      } else {
-        aggCallAndIndex._1
-      }
+    agg.getAggCallList.zipWithIndex.map {
+      case (aggCall, index) =>
+        if (indexAndTypes.containsKey(index)) {
+          AggregateCall.create(
+            aggCall.getAggregation,
+            aggCall.isDistinct,
+            aggCall.isApproximate,
+            aggCall.ignoreNulls(),
+            aggCall.getArgList,
+            aggCall.filterArg,
+            aggCall.collation,
+            agg.getGroupCount,
+            agg.getInput,
+            indexAndTypes(index),
+            aggCall.name)
+        } else {
+          aggCall
+        }
     }
   }
 
@@ -170,22 +174,22 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
   private def getIndexAndInferredTypesForInvalidAggCalls(
     agg: LogicalAggregate): Map[Int, RelDataType] = {
 
-    agg.getAggCallList.zipWithIndex.map { aggCallAndIndex =>
-      val aggCall = aggCallAndIndex._1
-      val origType = aggCall.`type`
-      val aggCallBinding = new Aggregate.AggCallBinding(
-        agg.getCluster.getTypeFactory,
-        aggCall.getAggregation,
-        SqlTypeUtil.projectTypes(agg.getInput.getRowType, aggCall.getArgList),
-        0,
-        aggCall.hasFilter)
-      val inferredType = aggCall.getAggregation.inferReturnType(aggCallBinding)
+    agg.getAggCallList.zipWithIndex.map {
+      case (aggCall, index) =>
+        val origType = aggCall.`type`
+        val aggCallBinding = new Aggregate.AggCallBinding(
+          agg.getCluster.getTypeFactory,
+          aggCall.getAggregation,
+          SqlTypeUtil.projectTypes(agg.getInput.getRowType, aggCall.getArgList),
+          0,
+          aggCall.hasFilter)
+        val inferredType = aggCall.getAggregation.inferReturnType(aggCallBinding)
 
-      if (origType != inferredType && agg.getGroupCount == 1) {
-        (aggCallAndIndex._2, inferredType)
-      } else {
-        (-1, null)
-      }
+        if (origType != inferredType && agg.getGroupCount == 1) {
+          (index, inferredType)
+        } else {
+          (-1, null)
+        }
     }.filter(_._1 != -1).toMap
   }
 
