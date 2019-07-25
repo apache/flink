@@ -101,8 +101,12 @@ class StreamExecSink[T](
             // extract unique key fields
             // Now we pick shortest one to sink
             // TODO UpsertStreamTableSink setKeyFields interface should be Array[Array[String]]
-            val tableKeys: Option[Array[String]] =
-              UpdatingPlanChecker.getUniqueKeys(getInput, planner).sortBy(_.length).headOption
+            val tableKeys = {
+              UpdatingPlanChecker.getUniqueKeyFields(getInput, planner) match {
+                case Some(keys) => keys.sortBy(_.length).headOption
+                case None => None
+              }
+            }
 
             // check that we have keys if the table has changes (is not append-only)
             tableKeys match {
