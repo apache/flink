@@ -34,6 +34,7 @@ import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -97,6 +98,7 @@ import org.apache.calcite.util.TimestampWithTimeZoneString;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashSet;
@@ -241,7 +243,9 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 		conversionsOfBuiltInFunc
 				.put(BuiltInFunctionDefinitions.POWER, exprs -> convert(FlinkSqlOperatorTable.POWER, exprs));
 		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.MOD, exprs -> convert(FlinkSqlOperatorTable.MOD, exprs));
-		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.SQRT, exprs -> convert(FlinkSqlOperatorTable.SQRT, exprs));
+		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.SQRT, exprs ->
+				relBuilder.call(FlinkSqlOperatorTable.POWER,
+						convertCallChildren(Arrays.asList(exprs.get(0), ApiExpressionUtils.valueLiteral(0.5)))));
 		conversionsOfBuiltInFunc
 				.put(BuiltInFunctionDefinitions.MINUS_PREFIX, exprs -> convert(FlinkSqlOperatorTable.UNARY_MINUS, exprs));
 		conversionsOfBuiltInFunc.put(BuiltInFunctionDefinitions.SIN, exprs -> convert(FlinkSqlOperatorTable.SIN, exprs));
