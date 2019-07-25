@@ -18,7 +18,6 @@
 
 package org.apache.flink.batch.connectors.hive;
 
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
@@ -35,6 +34,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.util.Arrays;
+
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -64,8 +66,7 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("create table db1.part (x int) partitioned by (y int)");
 		hiveShell.insertInto("db1", "src").addRow(1, 1).addRow(2, null).commit();
 
-		EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build();
-		TableEnvironment tableEnv = TableEnvironment.create(settings);
+		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 		tableEnv.useCatalog(hiveCatalog.getName());
 
@@ -79,7 +80,8 @@ public class TableEnvHiveConnectorTest {
 		FileSystem fs = defaultPartPath.getFileSystem(hiveConf);
 		assertTrue(fs.exists(defaultPartPath));
 
-		// TODO: test reading from partitions with default name
+		// TODO: test reading from flink when https://issues.apache.org/jira/browse/FLINK-13279 is fixed
+		assertEquals(Arrays.asList("1\t1", "2\tNULL"), hiveShell.executeQuery("select * from db1.part"));
 
 		hiveShell.execute("drop database db1 cascade");
 	}
