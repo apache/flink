@@ -140,6 +140,7 @@ For Hive 1.2.1, users need:
 
 - hive-metastore-1.2.1.jar
 - hive-exec-1.2.1.jar
+- libfb303-0.9.3.jar
 
 
 // Hadoop dependencies
