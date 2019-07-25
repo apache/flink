@@ -55,7 +55,7 @@ public class TransactionalIdsGenerator {
 		checkArgument(safeScaleDownFactor > 0);
 		checkArgument(subtaskIndex >= 0);
 
-		this.prefix = checkNotNull(prefix).replaceAll("%", "%%");
+		this.prefix = checkNotNull(prefix);
 		this.subtaskIndex = subtaskIndex;
 		this.totalNumberOfSubtasks = totalNumberOfSubtasks;
 		this.poolSize = poolSize;
@@ -91,6 +91,6 @@ public class TransactionalIdsGenerator {
 	}
 
 	private String generateTransactionalId(long transactionalId) {
-		return String.format(prefix + "-%d", transactionalId);
+		return String.format(prefix.replaceAll("%", "%%") + "-%d", transactionalId);
 	}
 }
