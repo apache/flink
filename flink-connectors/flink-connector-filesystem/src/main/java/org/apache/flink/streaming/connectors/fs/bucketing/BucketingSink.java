@@ -160,6 +160,7 @@ import java.util.UUID;
  *
  * @param <T> Type of the elements emitted by this sink
  */
+@Deprecated
 public class BucketingSink<T>
 		extends RichSinkFunction<T>
 		implements InputTypeConfigurable, CheckpointedFunction, CheckpointListener, ProcessingTimeCallback {

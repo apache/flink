@@ -23,6 +23,10 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<div class="alert alert-info">
+The BucketingSink has been deprecated since Flink 1.9 and will be removed in subsequent releases. Please use the StreamingFileSink instead.
+</div>
+
 This connector provides a Sink that writes partitioned files to any filesystem supported by
 [Hadoop FileSystem](http://hadoop.apache.org). To use this connector, add the
 following dependency to your project:
