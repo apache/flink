@@ -320,8 +320,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	/** Shuffle master to register partitions for task deployment. */
 	private final ShuffleMaster<?> shuffleMaster;
 
-	private boolean forcePartitionReleaseOnConsumption;
-
 	// --------------------------------------------------------------------------------------------
 	//   Constructors
 	// --------------------------------------------------------------------------------------------
@@ -425,7 +423,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			allocationTimeout,
 			new NotReleasingPartitionReleaseStrategy.Factory(),
 			NettyShuffleMaster.INSTANCE,
-			true,
 			new PartitionTrackerImpl(
 				jobInformation.getJobId(),
 				NettyShuffleMaster.INSTANCE,
@@ -448,7 +445,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			Time allocationTimeout,
 			PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory,
 			ShuffleMaster<?> shuffleMaster,
-			boolean forcePartitionReleaseOnConsumption,
 			PartitionTracker partitionTracker,
 			ScheduleMode scheduleMode,
 			boolean allowQueuedScheduling) throws IOException {
@@ -510,8 +506,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					"Call to ExecutionGraph.start(...) required.");
 
 		this.shuffleMaster = checkNotNull(shuffleMaster);
-
-		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 
 		this.partitionTracker = checkNotNull(partitionTracker);
 
@@ -735,10 +729,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	public long getNumberOfFullRestarts() {
 		// subtract one, because the version starts at one
 		return globalModVersion - 1;
-	}
-
-	boolean isForcePartitionReleaseOnConsumption() {
-		return forcePartitionReleaseOnConsumption;
 	}
 
 	@Override

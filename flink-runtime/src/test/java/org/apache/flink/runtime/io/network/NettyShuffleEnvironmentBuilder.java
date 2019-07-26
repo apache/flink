@@ -143,7 +143,8 @@ public class NettyShuffleEnvironmentBuilder {
 				isNetworkDetailedMetrics,
 				nettyConfig,
 				tempDirs,
-				BoundedBlockingSubpartitionType.AUTO),
+				BoundedBlockingSubpartitionType.AUTO,
+				false),
 			taskManagerLocation,
 			taskEventDispatcher,
 			metricGroup);

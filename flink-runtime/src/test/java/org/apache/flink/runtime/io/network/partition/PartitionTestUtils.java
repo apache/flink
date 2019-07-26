@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
@@ -30,8 +29,6 @@ import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.hamcrest.Matchers;
 
 import java.io.IOException;
-import java.util.EnumSet;
-import java.util.Optional;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.junit.Assert.assertThat;
@@ -97,8 +94,9 @@ public class PartitionTestUtils {
 		}
 	}
 
-	public static ResultPartitionDeploymentDescriptor createPartitionDeploymentDescriptor(ResultPartitionType partitionType) {
-		ShuffleDescriptor shuffleDescriptor = NettyShuffleDescriptorBuilder.newBuilder().setBlocking(partitionType.isBlocking()).buildLocal();
+	static ResultPartitionDeploymentDescriptor createPartitionDeploymentDescriptor(
+		ResultPartitionType partitionType) {
+		ShuffleDescriptor shuffleDescriptor = NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
 		PartitionDescriptor partitionDescriptor = new PartitionDescriptor(
 			new IntermediateDataSetID(),
 			shuffleDescriptor.getResultPartitionID().getPartitionId(),
@@ -112,52 +110,8 @@ public class PartitionTestUtils {
 			true);
 	}
 
-	public static ResultPartitionDeploymentDescriptor createPartitionDeploymentDescriptor(ShuffleDescriptor.ReleaseType releaseType) {
-		// set partition to blocking to support all release types
-		ShuffleDescriptor shuffleDescriptor = NettyShuffleDescriptorBuilder.newBuilder().setBlocking(true).buildLocal();
-		PartitionDescriptor partitionDescriptor = new PartitionDescriptor(
-			new IntermediateDataSetID(),
-			shuffleDescriptor.getResultPartitionID().getPartitionId(),
-			ResultPartitionType.BLOCKING,
-			1,
-			0);
-		return new ResultPartitionDeploymentDescriptor(
-			partitionDescriptor,
-			shuffleDescriptor,
-			1,
-			true,
-			releaseType);
-	}
-
-	public static ResultPartitionDeploymentDescriptor createResultPartitionDeploymentDescriptor(ResultPartitionID resultPartitionId, ShuffleDescriptor.ReleaseType releaseType, boolean hasLocalResources) {
-		return new ResultPartitionDeploymentDescriptor(
-			new PartitionDescriptor(
-				new IntermediateDataSetID(),
-				resultPartitionId.getPartitionId(),
-				ResultPartitionType.BLOCKING,
-				1,
-				0),
-			new ShuffleDescriptor() {
-				@Override
-				public ResultPartitionID getResultPartitionID() {
-					return resultPartitionId;
-				}
-
-				@Override
-				public Optional<ResourceID> storesLocalResourcesOn() {
-					return hasLocalResources
-						? Optional.of(ResourceID.generate())
-						: Optional.empty();
-				}
-
-				@Override
-				public EnumSet<ReleaseType> getSupportedReleaseTypes() {
-					return EnumSet.of(releaseType);
-				}
-			},
-			1,
-			true,
-			releaseType);
+	public static ResultPartitionDeploymentDescriptor createPartitionDeploymentDescriptor() {
+		return createPartitionDeploymentDescriptor(ResultPartitionType.BLOCKING);
 	}
 
 	public static void writeBuffers(ResultPartition partition, int numberOfBuffers, int bufferSize) throws IOException {
