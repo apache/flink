@@ -28,8 +28,6 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.BinaryType;
-import org.apache.flink.table.types.logical.VarBinaryType;
 
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
@@ -124,8 +122,8 @@ public class HiveCatalogDataTypeTest {
 	@Test
 	public void testNonExactlyMatchedDataTypes() throws Exception {
 		DataType[] types = new DataType[] {
-			DataTypes.BINARY(BinaryType.MAX_LENGTH),
-			DataTypes.VARBINARY(VarBinaryType.MAX_LENGTH)
+			DataTypes.BYTES(),
+			DataTypes.BYTES()
 		};
 
 		CatalogTable table = createCatalogTable(types);

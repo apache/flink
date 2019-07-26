@@ -161,8 +161,8 @@ Currently `HiveCatalog` supports most Flink data types with the following mappin
 | VARCHAR(p)    |  varchar(p)** |
 | STRING        |  string |
 | BOOLEAN       |  boolean |
-| BYTE          |  tinyint |
-| SHORT         |  smallint |
+| TINYINT       |  tinyint |
+| SMALLINT      |  smallint |
 | INT           |  int |
 | BIGINT        |  long |
 | FLOAT         |  float |
@@ -172,10 +172,11 @@ Currently `HiveCatalog` supports most Flink data types with the following mappin
 | TIMESTAMP_WITHOUT_TIME_ZONE |  Timestamp |
 | TIMESTAMP_WITH_TIME_ZONE |  N/A |
 | TIMESTAMP_WITH_LOCAL_TIME_ZONE |  N/A |
-| INTERVAL |  N/A |
-| BINARY        |  binary |
-| VARBINARY(p)  |  binary |
-| ARRAY\<E>     |  list\<E> |
+| INTERVAL      |   N/A*** |
+| BINARY        |   N/A |
+| VARBINARY(p)  |   N/A |
+| BYTES         |   BINARY |
+| ARRAY\<E>     |  ARRAY\<E> |
 | MAP<K, V>     |  map<K, V> |
 | ROW           |  struct |
 | MULTISET      |  N/A |
@@ -193,6 +194,7 @@ The following limitations in Hive's data types impact the mapping between Flink 
 
 Catalogs are pluggable. Users can develop custom catalogs by implementing the `Catalog` interface, which defines a set of APIs for reading and writing catalog meta-objects such as database, tables, partitions, views, and functions.
 
+\*** `INTERVAL` type can not be mapped to hive `INTERVAL` for now.
 
 Catalog Registration
 --------------------

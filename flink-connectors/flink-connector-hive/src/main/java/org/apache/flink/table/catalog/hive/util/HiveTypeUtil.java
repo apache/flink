@@ -103,9 +103,6 @@ public class HiveTypeUtil {
 				return TypeInfoFactory.dateTypeInfo;
 			} else if (type.equals(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
 				return TypeInfoFactory.timestampTypeInfo;
-			} else if (type.equals(LogicalTypeRoot.BINARY) || type.equals(LogicalTypeRoot.VARBINARY)) {
-				// Hive doesn't support variable-length binary string
-				return TypeInfoFactory.binaryTypeInfo;
 			} else if (type.equals(LogicalTypeRoot.CHAR)) {
 				CharType charType = (CharType) dataType.getLogicalType();
 
@@ -144,6 +141,11 @@ public class HiveTypeUtil {
 			}
 
 			// Flink's primitive types that Hive 2.3.4 doesn't support: Time, TIMESTAMP_WITH_LOCAL_TIME_ZONE
+		}
+
+		if (dataType.equals(DataTypes.BYTES())) {
+			// Hive doesn't support variable-length binary string
+			return TypeInfoFactory.binaryTypeInfo;
 		}
 
 		if (dataType instanceof CollectionDataType) {
