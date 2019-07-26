@@ -59,6 +59,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -395,7 +396,14 @@ public class CheckpointCoordinator {
 			@Nullable final String targetLocation) {
 
 		final CheckpointProperties properties = CheckpointProperties.forSyncSavepoint();
-		return triggerSavepointInternal(timestamp, properties, advanceToEndOfEventTime, targetLocation);
+		return triggerSavepointInternal(timestamp, properties, advanceToEndOfEventTime, targetLocation).handle(
+				(completedCheckpoint, throwable) -> {
+					if (throwable != null) {
+						failureManager.handleSynchronousSavepointFailure(throwable);
+						throw new CompletionException(throwable);
+					}
+					return completedCheckpoint;
+				});
 	}
 
 	private CompletableFuture<CompletedCheckpoint> triggerSavepointInternal(
