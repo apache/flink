@@ -54,7 +54,7 @@ public enum CheckpointFailureReason {
 
 	CHECKPOINT_DECLINED_INPUT_END_OF_STREAM(false, "Checkpoint was declined because one input stream is finished"),
 
-	CHECKPOINT_COORDINATOR_SHUTDOWN(true, "CheckpointCoordinator shutdown."),
+	CHECKPOINT_COORDINATOR_SHUTDOWN(false, "CheckpointCoordinator shutdown."),
 
 	CHECKPOINT_COORDINATOR_SUSPEND(false, "Checkpoint Coordinator is suspending."),
 
