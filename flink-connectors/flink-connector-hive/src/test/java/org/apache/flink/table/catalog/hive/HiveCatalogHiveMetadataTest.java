@@ -87,7 +87,7 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogTestBase {
 											.field("fourth", DataTypes.DATE())
 											.field("fifth", DataTypes.DOUBLE())
 											.field("sixth", DataTypes.BIGINT())
-											.field("seventh", DataTypes.VARBINARY(200))
+											.field("seventh", DataTypes.BYTES())
 											.build();
 		CatalogTable catalogTable = new CatalogTableImpl(tableSchema, getBatchTableProperties(), TEST_COMMENT);
 		catalog.createTable(path1, catalogTable, false);

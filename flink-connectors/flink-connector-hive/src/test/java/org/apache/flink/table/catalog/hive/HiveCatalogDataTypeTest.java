@@ -29,7 +29,6 @@ import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BinaryType;
-import org.apache.flink.table.types.logical.VarBinaryType;
 
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
@@ -40,7 +39,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import java.util.Arrays;
 import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
@@ -122,20 +120,31 @@ public class HiveCatalogDataTypeTest {
 	}
 
 	@Test
-	public void testNonExactlyMatchedDataTypes() throws Exception {
+	public void testNonSupportedBinaryDataTypes() throws Exception {
 		DataType[] types = new DataType[] {
-			DataTypes.BINARY(BinaryType.MAX_LENGTH),
-			DataTypes.VARBINARY(VarBinaryType.MAX_LENGTH)
+				DataTypes.BINARY(BinaryType.MAX_LENGTH)
 		};
 
 		CatalogTable table = createCatalogTable(types);
 
 		catalog.createDatabase(db1, createDb(), false);
-		catalog.createTable(path1, table, false);
 
-		Arrays.equals(
-			new DataType[] {DataTypes.BYTES(), DataTypes.BYTES()},
-			catalog.getTable(path1).getSchema().getFieldDataTypes());
+		exception.expect(UnsupportedOperationException.class);
+		catalog.createTable(path1, table, false);
+	}
+
+	@Test
+	public void testNonSupportedVarBinaryDataTypes() throws Exception {
+		DataType[] types = new DataType[] {
+				DataTypes.VARBINARY(20)
+		};
+
+		CatalogTable table = createCatalogTable(types);
+
+		catalog.createDatabase(db1, createDb(), false);
+
+		exception.expect(UnsupportedOperationException.class);
+		catalog.createTable(path1, table, false);
 	}
 
 	@Test
