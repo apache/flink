@@ -1229,7 +1229,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 	}
 
-	boolean switchToRunning() {
+	@VisibleForTesting
+	public boolean switchToRunning() {
 
 		if (transitionState(DEPLOYING, RUNNING)) {
 			sendPartitionInfos();
