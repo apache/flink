@@ -25,35 +25,25 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Parse column of Map type.
+ * Parse column of MULTISET type.
  */
-public class SqlMapType extends SqlIdentifier implements ExtendedSqlType {
+public class SqlMultiSetType extends SqlIdentifier implements ExtendedSqlType {
 
-	private final SqlDataTypeSpec keyType;
-	private final SqlDataTypeSpec valType;
+	private final SqlDataTypeSpec elementType;
 
-	public SqlMapType(SqlParserPos pos, SqlDataTypeSpec keyType, SqlDataTypeSpec valType) {
-		super(SqlTypeName.MAP.getName(), pos);
-		this.keyType = keyType;
-		this.valType = valType;
+	public SqlMultiSetType(SqlParserPos pos, SqlDataTypeSpec elementType) {
+		super(SqlTypeName.MULTISET.getName(), pos);
+		this.elementType = elementType;
 	}
 
-	public SqlDataTypeSpec getKeyType() {
-		return keyType;
-	}
-
-	public SqlDataTypeSpec getValType() {
-		return valType;
+	public SqlDataTypeSpec getElementType() {
+		return elementType;
 	}
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("MAP");
-		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "<", ">");
-		writer.sep(",");
-		ExtendedSqlType.unparseType(keyType, writer, leftPrec, rightPrec);
-		writer.sep(",");
-		ExtendedSqlType.unparseType(valType, writer, leftPrec, rightPrec);
-		writer.endList(frame);
+		writer.keyword("MULTISET<");
+		ExtendedSqlType.unparseType(this.elementType, writer, leftPrec, rightPrec);
+		writer.keyword(">");
 	}
 }
