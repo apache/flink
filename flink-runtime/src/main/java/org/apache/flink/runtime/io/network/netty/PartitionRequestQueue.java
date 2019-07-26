@@ -134,7 +134,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		}
 
 		for (NetworkSequenceViewReader reader : allReaders.values()) {
-			releaseViewReader(reader, true);
+			releaseViewReader(reader);
 		}
 		allReaders.clear();
 	}
@@ -178,7 +178,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 			// remove reader from queue of all readers and release its resource
 			final NetworkSequenceViewReader toRelease = allReaders.remove(toCancel);
 			if (toRelease != null) {
-				releaseViewReader(toRelease, true);
+				releaseViewReader(toRelease);
 			}
 		} else {
 			ctx.fireUserEventTriggered(msg);
@@ -293,20 +293,15 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 	private void releaseAllResources() throws IOException {
 		// note: this is only ever executed by one thread: the Netty IO thread!
 		for (NetworkSequenceViewReader reader : allReaders.values()) {
-			releaseViewReader(reader, false);
+			releaseViewReader(reader);
 		}
 
 		availableReaders.clear();
 		allReaders.clear();
 	}
 
-	private void releaseViewReader(
-			NetworkSequenceViewReader reader,
-			boolean shouldNotifyConsumed) throws IOException {
-		if (shouldNotifyConsumed) {
-			reader.notifySubpartitionConsumed();
-		}
-
+	private void releaseViewReader(NetworkSequenceViewReader reader) throws IOException {
+		reader.notifySubpartitionConsumed();
 		reader.setRegisteredAsAvailable(false);
 		reader.releaseAllResources();
 	}
