@@ -19,6 +19,7 @@
 package org.apache.flink.mesos.runtime.clusterframework;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.mesos.runtime.clusterframework.services.MesosServices;
 import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
@@ -98,5 +99,12 @@ public class MesosResourceManagerFactory implements ResourceManagerFactory<Regis
 			taskManagerContainerSpec,
 			webInterfaceUrl,
 			jobManagerMetricGroup);
+	}
+
+	@Override
+	public Configuration getResourceManagerConfiguration(Configuration flinkConfig) {
+		final Configuration config = new Configuration(flinkConfig);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, flinkConfig.getInteger(MesosTaskManagerParameters.MESOS_RM_TASKS_MEMORY_MB) + "m");
+		return ResourceManagerFactory.super.getResourceManagerConfiguration(config);
 	}
 }
