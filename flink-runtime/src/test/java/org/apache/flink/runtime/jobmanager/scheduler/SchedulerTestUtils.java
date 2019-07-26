@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.instance.Instance;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -31,7 +30,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -59,14 +57,6 @@ public class SchedulerTestUtils {
 		when(execution.getVertex()).thenReturn(vertex);
 		
 		return execution;
-	}
-
-	public static Execution getTestVertex(Instance... preferredInstances) {
-		List<TaskManagerLocation> locations = new ArrayList<>(preferredInstances.length);
-		for (Instance i : preferredInstances) {
-			locations.add(i.getTaskManagerLocation());
-		}
-		return getTestVertex(locations);
 	}
 
 	public static Execution getTestVertex(TaskManagerLocation... preferredLocations) {
