@@ -54,6 +54,7 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
 		final ResourceProfile fulfillableProfile = new ResourceProfile(1.0, 100);
 
 		final SlotManager slotManager = createSlotManagerNotStartingNewTMs();
+		slotManager.setFailUnfulfillableRequest(false);
 		registerFreeSlot(slotManager, availableProfile);
 
 		slotManager.registerSlotRequest(slotRequest(fulfillableProfile));
@@ -74,6 +75,7 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
 
 		final List<AllocationID> allocationFailures = new ArrayList<>();
 		final SlotManager slotManager = createSlotManagerNotStartingNewTMs(allocationFailures);
+		slotManager.setFailUnfulfillableRequest(false);
 		registerFreeSlot(slotManager, availableProfile);
 
 		// test
@@ -94,6 +96,7 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
 		final ResourceProfile newTmProfile = new ResourceProfile(2.0, 200);
 
 		final SlotManager slotManager = createSlotManagerStartingNewTMs();
+		slotManager.setFailUnfulfillableRequest(false);
 		registerFreeSlot(slotManager, availableProfile);
 
 		// test
@@ -111,7 +114,6 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
 
 		final SlotManager slotManager = createSlotManagerNotStartingNewTMs();
 		registerFreeSlot(slotManager, availableProfile);
-		slotManager.setFailUnfulfillableRequest(true);
 
 		// test
 		slotManager.registerSlotRequest(slotRequest(availableProfile));
@@ -130,7 +132,6 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
 		final List<AllocationID> notifiedAllocationFailures = new ArrayList<>();
 		final SlotManager slotManager = createSlotManagerNotStartingNewTMs(notifiedAllocationFailures);
 		registerFreeSlot(slotManager, availableProfile);
-		slotManager.setFailUnfulfillableRequest(true);
 
 		// test
 		try {
@@ -152,7 +153,6 @@ public class SlotManagerFailUnfulfillableTest extends TestLogger {
 
 		final SlotManager slotManager = createSlotManagerStartingNewTMs();
 		registerFreeSlot(slotManager, availableProfile);
-		slotManager.setFailUnfulfillableRequest(true);
 
 		// test
 		slotManager.registerSlotRequest(slotRequest(newTmProfile));
