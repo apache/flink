@@ -229,11 +229,6 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		return isReleased.get();
 	}
 
-	@Override
-	void notifySubpartitionConsumed() {
-		// Nothing to do
-	}
-
 	/**
 	 * Releases all exclusive and floating buffers, closes the partition request client.
 	 */
