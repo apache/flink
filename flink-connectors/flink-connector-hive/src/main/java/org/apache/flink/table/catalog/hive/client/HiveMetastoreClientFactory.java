@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.catalog.hive.client;
 
-import org.apache.flink.util.StringUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 
@@ -31,7 +31,7 @@ public class HiveMetastoreClientFactory {
 	}
 
 	public static HiveMetastoreClientWrapper create(HiveConf hiveConf, String hiveVersion) {
-		return new HiveMetastoreClientWrapper(hiveConf,
-				StringUtils.isNullOrWhitespaceOnly(hiveVersion) ? HiveShimLoader.getHiveVersion() : hiveVersion);
+		Preconditions.checkNotNull(hiveVersion, "Hive version cannot be null");
+		return new HiveMetastoreClientWrapper(hiveConf, hiveVersion);
 	}
 }
