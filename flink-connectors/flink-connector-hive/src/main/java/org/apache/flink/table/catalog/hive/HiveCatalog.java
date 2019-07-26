@@ -53,6 +53,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
+import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.catalog.hive.util.HiveStatsUtil;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
@@ -135,6 +136,8 @@ public class HiveCatalog extends AbstractCatalog {
 		this.hiveConf = hiveConf == null ? createHiveConf(null) : hiveConf;
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null or empty");
 		this.hiveVersion = hiveVersion;
+		// add this to hiveConf to make sure table factory and source/sink see the same Hive version as HiveCatalog
+		this.hiveConf.set(HiveCatalogValidator.CATALOG_HIVE_VERSION, hiveVersion);
 
 		LOG.info("Created HiveCatalog '{}'", catalogName);
 	}

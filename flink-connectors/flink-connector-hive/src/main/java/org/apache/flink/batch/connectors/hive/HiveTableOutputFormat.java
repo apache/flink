@@ -163,7 +163,8 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		this.overwrite = overwrite;
 		isPartitioned = partitionColumns != null && !partitionColumns.isEmpty();
 		isDynamicPartition = isPartitioned && partitionColumns.size() > hiveTablePartition.getPartitionSpec().size();
-		hiveVersion = jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION, HiveShimLoader.getHiveVersion());
+		hiveVersion = Preconditions.checkNotNull(jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
+				"Hive version is not defined");
 	}
 
 	//  Custom serialization methods

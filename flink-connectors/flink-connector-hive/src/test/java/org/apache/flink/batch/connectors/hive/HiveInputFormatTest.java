@@ -32,6 +32,7 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
@@ -92,7 +93,7 @@ public class HiveInputFormatTest {
 		);
 		//Now we used metaStore client to create hive table instead of using hiveCatalog for it doesn't support set
 		//serDe temporarily.
-		HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(hiveConf, null);
+		HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(hiveConf, HiveShimLoader.getHiveVersion());
 		org.apache.hadoop.hive.metastore.api.Table tbl = new org.apache.hadoop.hive.metastore.api.Table();
 		tbl.setDbName(dbName);
 		tbl.setTableName(tblName);
@@ -142,7 +143,7 @@ public class HiveInputFormatTest {
 
 		//Now we used metaStore client to create hive table instead of using hiveCatalog for it doesn't support set
 		//serDe temporarily.
-		HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(hiveConf, null);
+		HiveMetastoreClientWrapper client = HiveMetastoreClientFactory.create(hiveConf, HiveShimLoader.getHiveVersion());
 		org.apache.hadoop.hive.metastore.api.Table tbl = new org.apache.hadoop.hive.metastore.api.Table();
 		tbl.setDbName(dbName);
 		tbl.setTableName(tblName);
