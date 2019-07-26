@@ -30,6 +30,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.execution.librarycache.ContextClassLoaderLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.JobInformation;
@@ -49,6 +50,7 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
+import org.apache.flink.runtime.taskexecutor.NoOpPartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.taskexecutor.TestGlobalAggregateManager;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -61,47 +63,26 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.Executor;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Util that helps building {@link Task} objects for testing.
  */
 public final class TestTaskBuilder {
-	private Class<? extends AbstractInvokable> invokable;
-	private TaskManagerActions taskManagerActions;
-	private LibraryCacheManager libraryCacheManager;
-	private ResultPartitionConsumableNotifier consumableNotifier;
-	private PartitionProducerStateChecker partitionProducerStateChecker;
+
+	private Class<? extends AbstractInvokable> invokable = AbstractInvokable.class;
+	private TaskManagerActions taskManagerActions = new NoOpTaskManagerActions();
+	private LibraryCacheManager libraryCacheManager = ContextClassLoaderLibraryCacheManager.INSTANCE;
+	private ResultPartitionConsumableNotifier consumableNotifier = new NoOpResultPartitionConsumableNotifier();
+	private PartitionProducerStateChecker partitionProducerStateChecker = new NoOpPartitionProducerStateChecker();
 	private final ShuffleEnvironment<?, ?> shuffleEnvironment;
-	private KvStateService kvStateService;
-	private Executor executor;
-	private Configuration taskManagerConfig;
-	private ExecutionConfig executionConfig;
-	private Collection<PermanentBlobKey> requiredJarFileBlobKeys;
+	private KvStateService kvStateService = new KvStateService(new KvStateRegistry(), null, null);
+	private Executor executor = TestingUtils.defaultExecutor();
+	private Configuration taskManagerConfig = new Configuration();
+	private ExecutionConfig executionConfig = new ExecutionConfig();
+	private Collection<PermanentBlobKey> requiredJarFileBlobKeys = Collections.emptyList();
 	private Collection<ResultPartitionDeploymentDescriptor> resultPartitions = Collections.emptyList();
 	private Collection<InputGateDeploymentDescriptor> inputGates = Collections.emptyList();
-
-	{
-		invokable = AbstractInvokable.class;
-		taskManagerActions = mock(TaskManagerActions.class);
-
-		libraryCacheManager = mock(LibraryCacheManager.class);
-		when(libraryCacheManager.getClassLoader(any(JobID.class))).thenReturn(getClass().getClassLoader());
-
-		consumableNotifier = new NoOpResultPartitionConsumableNotifier();
-		partitionProducerStateChecker = mock(PartitionProducerStateChecker.class);
-
-		kvStateService = new KvStateService(new KvStateRegistry(), null, null);
-
-		executor = TestingUtils.defaultExecutor();
-
-		taskManagerConfig = new Configuration();
-		executionConfig = new ExecutionConfig();
-
-		requiredJarFileBlobKeys = Collections.emptyList();
-	}
 
 	public TestTaskBuilder(ShuffleEnvironment<?, ?> shuffleEnvironment) {
 		this.shuffleEnvironment = Preconditions.checkNotNull(shuffleEnvironment);
@@ -206,11 +187,11 @@ public final class TestTaskBuilder {
 			resultPartitions,
 			inputGates,
 			0,
-			mock(MemoryManager.class),
+			new MemoryManager(1024 * 1024, 1),
 			mock(IOManager.class),
 			shuffleEnvironment,
 			kvStateService,
-			mock(BroadcastVariableManager.class),
+			new BroadcastVariableManager(),
 			new TaskEventDispatcher(),
 			new TestTaskStateManager(),
 			taskManagerActions,
