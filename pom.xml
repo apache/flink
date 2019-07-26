@@ -1775,6 +1775,9 @@ under the License.
 						<args>
 							<arg>-nobootcp</arg>
 						</args>
+						<jvmArgs>
+							<arg>-Xss2m</arg>
+						</jvmArgs>
 					</configuration>
 				</plugin>
 
