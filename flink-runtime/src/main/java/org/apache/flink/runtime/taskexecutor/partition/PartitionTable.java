@@ -51,6 +51,10 @@ public class PartitionTable<K> {
 		Preconditions.checkNotNull(key);
 		Preconditions.checkNotNull(newPartitionIds);
 
+		if (newPartitionIds.isEmpty()) {
+			return;
+		}
+
 		trackedPartitionsPerJob.compute(key, (ignored, partitionIds) -> {
 			if (partitionIds == null) {
 				partitionIds = new HashSet<>(8);
