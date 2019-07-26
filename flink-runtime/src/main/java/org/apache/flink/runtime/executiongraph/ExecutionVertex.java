@@ -24,20 +24,14 @@ import org.apache.flink.api.common.InputDependencyConstraint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.runtime.JobException;
-import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.deployment.InputChannelDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.PartialInputChannelDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -45,21 +39,16 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
-import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
-import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.SerializedValue;
 
 import org.slf4j.Logger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -83,7 +72,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	private static final Logger LOG = ExecutionGraph.LOG;
 
-	private static final int MAX_DISTINCT_LOCATIONS_TO_CONSIDER = 8;
+	public static final int MAX_DISTINCT_LOCATIONS_TO_CONSIDER = 8;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -94,6 +83,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	private final ExecutionEdge[][] inputEdges;
 
 	private final int subTaskIndex;
+
+	private final ExecutionVertexID executionVertexId;
 
 	private final EvictingBoundedList<ArchivedExecution> priorExecutions;
 
@@ -106,6 +97,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 	/** The current or latest execution attempt of this vertex's task. */
 	private volatile Execution currentExecution;	// this field must never be null
+
+	private final ArrayList<InputSplit> inputSplits;
 
 	// --------------------------------------------------------------------------------------------
 
@@ -152,6 +145,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 		this.jobVertex = jobVertex;
 		this.subTaskIndex = subTaskIndex;
+		this.executionVertexId = new ExecutionVertexID(jobVertex.getJobVertexId(), subTaskIndex);
 		this.taskNameWithSubtask = String.format("%s (%d/%d)",
 				jobVertex.getJobVertex().getName(), subTaskIndex + 1, jobVertex.getParallelism());
 
@@ -188,6 +182,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		getExecutionGraph().registerExecution(currentExecution);
 
 		this.timeout = timeout;
+		this.inputSplits = new ArrayList<>();
 	}
 
 
@@ -232,9 +227,17 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return this.jobVertex.getMaxParallelism();
 	}
 
+	public ResourceProfile getResourceProfile() {
+		return this.jobVertex.getResourceProfile();
+	}
+
 	@Override
 	public int getParallelSubtaskIndex() {
 		return this.subTaskIndex;
+	}
+
+	public ExecutionVertexID getID() {
+		return executionVertexId;
 	}
 
 	public int getNumberOfInputs() {
@@ -242,14 +245,29 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	}
 
 	public ExecutionEdge[] getInputEdges(int input) {
-		if (input < 0 || input >= this.inputEdges.length) {
-			throw new IllegalArgumentException(String.format("Input %d is out of range [0..%d)", input, this.inputEdges.length));
+		if (input < 0 || input >= inputEdges.length) {
+			throw new IllegalArgumentException(String.format("Input %d is out of range [0..%d)", input, inputEdges.length));
 		}
 		return inputEdges[input];
 	}
 
+	public ExecutionEdge[][] getAllInputEdges() {
+		return inputEdges;
+	}
+
 	public CoLocationConstraint getLocationConstraint() {
 		return locationConstraint;
+	}
+
+	public InputSplit getNextInputSplit(String host) {
+		final int taskId = getParallelSubtaskIndex();
+		synchronized (inputSplits) {
+			final InputSplit nextInputSplit = jobVertex.getSplitAssigner().getNextInputSplit(host, taskId);
+			if (nextInputSplit != null) {
+				inputSplits.add(nextInputSplit);
+			}
+			return nextInputSplit;
+		}
 	}
 
 	@Override
@@ -289,6 +307,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return currentExecution.getAssignedResourceLocation();
 	}
 
+	@Nullable
 	@Override
 	public ArchivedExecution getPriorExecutionAttempt(int attemptNumber) {
 		synchronized (priorExecutions) {
@@ -371,7 +390,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 		}
 
-		this.inputEdges[inputNumber] = edges;
+		inputEdges[inputNumber] = edges;
 
 		// add the consumers to the source
 		// for now (until the receiver initiated handshake is in place), we need to register the
@@ -584,6 +603,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			final ExecutionState oldState = oldExecution.getState();
 
 			if (oldState.isTerminal()) {
+				if (oldState == FINISHED) {
+					oldExecution.stopTrackingAndReleasePartitions();
+					getExecutionGraph().getPartitionReleaseStrategy().vertexUnfinished(executionVertexId);
+				}
+
 				priorExecutions.add(oldExecution.archive());
 
 				final Execution newExecution = new Execution(
@@ -594,11 +618,19 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 					timestamp,
 					timeout);
 
-				this.currentExecution = newExecution;
+				currentExecution = newExecution;
+
+				synchronized (inputSplits) {
+					InputSplitAssigner assigner = jobVertex.getSplitAssigner();
+					if (assigner != null) {
+						assigner.returnInputSplit(inputSplits, getParallelSubtaskIndex());
+						inputSplits.clear();
+					}
+				}
 
 				CoLocationGroup grp = jobVertex.getCoLocationGroup();
 				if (grp != null) {
-					this.locationConstraint = grp.getLocationConstraint(subTaskIndex);
+					locationConstraint = grp.getLocationConstraint(subTaskIndex);
 				}
 
 				// register this execution at the execution graph, to receive call backs
@@ -608,6 +640,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 				// we take one step back on the road to reaching global FINISHED
 				if (oldState == FINISHED) {
 					getExecutionGraph().vertexUnFinished();
+				}
+
+				// reset the intermediate results
+				for (IntermediateResultPartition resultPartition : resultPartitions.values()) {
+					resultPartition.resetForNewExecution();
 				}
 
 				return newExecution;
@@ -621,8 +658,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	/**
 	 * Schedules the current execution of this ExecutionVertex.
 	 *
-	 * @param slotProvider to allocate the slots from
-	 * @param queued if the allocation can be queued
+	 * @param slotProviderStrategy to allocate the slots from
 	 * @param locationPreferenceConstraint constraint for the location preferences
 	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
 	 *                                                 Can be empty if the allocation ids are not required for scheduling.
@@ -630,21 +666,19 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * can also completed exceptionally.
 	 */
 	public CompletableFuture<Void> scheduleForExecution(
-			SlotProvider slotProvider,
-			boolean queued,
+			SlotProviderStrategy slotProviderStrategy,
 			LocationPreferenceConstraint locationPreferenceConstraint,
 			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 		return this.currentExecution.scheduleForExecution(
-			slotProvider,
-			queued,
+			slotProviderStrategy,
 			locationPreferenceConstraint,
 			allPreviousExecutionGraphAllocationIds);
 	}
 
 	@VisibleForTesting
 	public void deployToSlot(LogicalSlot slot) throws JobException {
-		if (this.currentExecution.tryAssignResource(slot)) {
-			this.currentExecution.deploy();
+		if (currentExecution.tryAssignResource(slot)) {
+			currentExecution.deploy();
 		} else {
 			throw new IllegalStateException("Could not assign resource " + slot + " to current execution " +
 				currentExecution + '.');
@@ -659,7 +693,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	public CompletableFuture<?> cancel() {
 		// to avoid any case of mixup in the presence of concurrent calls,
 		// we copy a reference to the stack to make sure both calls go to the same Execution
-		final Execution exec = this.currentExecution;
+		final Execution exec = currentExecution;
 		exec.cancel();
 		return exec.getReleaseFuture();
 	}
@@ -668,12 +702,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return currentExecution.suspend();
 	}
 
-	public void stop() {
-		this.currentExecution.stop();
-	}
-
 	public void fail(Throwable t) {
-		this.currentExecution.fail(t);
+		currentExecution.fail(t);
 	}
 
 	/**
@@ -706,12 +736,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		}
 	}
 
-	public void cachePartitionInfo(PartialInputChannelDeploymentDescriptor partitionInfo){
+	void cachePartitionInfo(PartitionInfo partitionInfo){
 		getCurrentExecutionAttempt().cachePartitionInfo(partitionInfo);
-	}
-
-	void sendPartitionInfos() {
-		currentExecution.sendPartitionInfos();
 	}
 
 	/**
@@ -774,14 +800,6 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		getExecutionGraph().vertexFinished();
 	}
 
-	void executionCanceled(Execution execution) {
-		// nothing to do
-	}
-
-	void executionFailed(Execution execution, Throwable cause) {
-		// nothing to do
-	}
-
 	// --------------------------------------------------------------------------------------------
 	//   Miscellaneous
 	// --------------------------------------------------------------------------------------------
@@ -795,107 +813,6 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		if (currentExecution == execution) {
 			getExecutionGraph().notifyExecutionChange(execution, newState, error);
 		}
-	}
-
-	/**
-	 * Creates a task deployment descriptor to deploy a subtask to the given target slot.
-	 * TODO: This should actually be in the EXECUTION
-	 */
-	TaskDeploymentDescriptor createDeploymentDescriptor(
-			ExecutionAttemptID executionId,
-			LogicalSlot targetSlot,
-			@Nullable JobManagerTaskRestore taskRestore,
-			int attemptNumber) throws ExecutionGraphException {
-
-		// Produced intermediate results
-		List<ResultPartitionDeploymentDescriptor> producedPartitions = new ArrayList<>(resultPartitions.size());
-
-		// Consumed intermediate results
-		List<InputGateDeploymentDescriptor> consumedPartitions = new ArrayList<>(inputEdges.length);
-
-		boolean lazyScheduling = getExecutionGraph().getScheduleMode().allowLazyDeployment();
-
-		for (IntermediateResultPartition partition : resultPartitions.values()) {
-
-			List<List<ExecutionEdge>> consumers = partition.getConsumers();
-
-			if (consumers.isEmpty()) {
-				//TODO this case only exists for test, currently there has to be exactly one consumer in real jobs!
-				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(
-						partition,
-						KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM,
-						lazyScheduling));
-			} else {
-				Preconditions.checkState(1 == consumers.size(),
-						"Only one consumer supported in the current implementation! Found: " + consumers.size());
-
-				List<ExecutionEdge> consumer = consumers.get(0);
-				ExecutionJobVertex vertex = consumer.get(0).getTarget().getJobVertex();
-				int maxParallelism = vertex.getMaxParallelism();
-				producedPartitions.add(ResultPartitionDeploymentDescriptor.from(partition, maxParallelism, lazyScheduling));
-			}
-		}
-
-		for (ExecutionEdge[] edges : inputEdges) {
-			InputChannelDeploymentDescriptor[] partitions = InputChannelDeploymentDescriptor.fromEdges(
-				edges,
-				targetSlot.getTaskManagerLocation().getResourceID(),
-				lazyScheduling);
-
-			// If the produced partition has multiple consumers registered, we
-			// need to request the one matching our sub task index.
-			// TODO Refactor after removing the consumers from the intermediate result partitions
-			int numConsumerEdges = edges[0].getSource().getConsumers().get(0).size();
-
-			int queueToRequest = subTaskIndex % numConsumerEdges;
-
-			IntermediateResult consumedIntermediateResult = edges[0].getSource().getIntermediateResult();
-			final IntermediateDataSetID resultId = consumedIntermediateResult.getId();
-			final ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
-
-			consumedPartitions.add(new InputGateDeploymentDescriptor(resultId, partitionType, queueToRequest, partitions));
-		}
-
-		final Either<SerializedValue<JobInformation>, PermanentBlobKey> jobInformationOrBlobKey = getExecutionGraph().getJobInformationOrBlobKey();
-
-		final TaskDeploymentDescriptor.MaybeOffloaded<JobInformation> serializedJobInformation;
-
-		if (jobInformationOrBlobKey.isLeft()) {
-			serializedJobInformation = new TaskDeploymentDescriptor.NonOffloaded<>(jobInformationOrBlobKey.left());
-		} else {
-			serializedJobInformation = new TaskDeploymentDescriptor.Offloaded<>(jobInformationOrBlobKey.right());
-		}
-
-		final Either<SerializedValue<TaskInformation>, PermanentBlobKey> taskInformationOrBlobKey;
-
-		try {
-			taskInformationOrBlobKey = jobVertex.getTaskInformationOrBlobKey();
-		} catch (IOException e) {
-			throw new ExecutionGraphException(
-				"Could not create a serialized JobVertexInformation for " +
-					jobVertex.getJobVertexId(), e);
-		}
-
-		final TaskDeploymentDescriptor.MaybeOffloaded<TaskInformation> serializedTaskInformation;
-
-		if (taskInformationOrBlobKey.isLeft()) {
-			serializedTaskInformation = new TaskDeploymentDescriptor.NonOffloaded<>(taskInformationOrBlobKey.left());
-		} else {
-			serializedTaskInformation = new TaskDeploymentDescriptor.Offloaded<>(taskInformationOrBlobKey.right());
-		}
-
-		return new TaskDeploymentDescriptor(
-			getJobId(),
-			serializedJobInformation,
-			serializedTaskInformation,
-			executionId,
-			targetSlot.getAllocationId(),
-			subTaskIndex,
-			attemptNumber,
-			targetSlot.getPhysicalSlotNumber(),
-			taskRestore,
-			producedPartitions,
-			consumedPartitions);
 	}
 
 	// --------------------------------------------------------------------------------------------

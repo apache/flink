@@ -24,11 +24,19 @@ import org.apache.flink.table.utils.EncodingUtils;
 import java.io.Serializable;
 
 /**
- * Base class for all user-defined functions such as scalar functions, table functions,
- * or aggregation functions.
+ * Base class for all user-defined functions.
+ *
+ * <p>User-defined functions combine the logical definition of a function for validation and planning
+ * and contain a corresponding runtime implementation.
+ *
+ * @see ScalarFunction
+ * @see TableFunction
+ * @see AsyncTableFunction
+ * @see AggregateFunction
+ * @see TableAggregateFunction
  */
 @PublicEvolving
-public abstract class UserDefinedFunction implements Serializable {
+public abstract class UserDefinedFunction implements FunctionDefinition, Serializable {
 
 	/**
 	 * Returns a unique, serialized representation for this function.
@@ -55,19 +63,7 @@ public abstract class UserDefinedFunction implements Serializable {
 	}
 
 	/**
-	 * Returns information about the determinism of the function's results.
-	 *
-	 * @return <code>true</code> if and only if a call to this function is guaranteed to
-	 *         always return the same result given the same parameters. <code>true</code> is
-	 *         assumed by default. If the function is not pure functional like
-	 *         <code>random(), date(), now(), ...</code> this method must return <code>false</code>.
-	 */
-	public boolean isDeterministic() {
-		return true;
-	}
-
-	/**
-	 * Returns the name of the UDF that is used for plan explain and logging.
+	 * Returns the name of the UDF that is used for plan explanation and logging.
 	 */
 	@Override
 	public String toString() {

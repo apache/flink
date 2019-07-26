@@ -29,8 +29,10 @@ import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.table.utils.TypeStringUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TimeUtils;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -100,6 +102,21 @@ public class DescriptorProperties {
 	public void putProperties(DescriptorProperties otherProperties) {
 		for (Map.Entry<String, String> otherProperty : otherProperties.properties.entrySet()) {
 			put(otherProperty.getKey(), otherProperty.getValue());
+		}
+	}
+
+	/**
+	 * Adds a properties map by appending the given prefix to element keys with a dot.
+	 *
+	 * <p>For example: for prefix "flink" and a map of a single property with key "k" and value "v".
+	 * The added property will be as key "flink.k" and value "v".
+	 */
+	public void putPropertiesWithPrefix(String prefix, Map<String, String> prop) {
+		checkNotNull(prefix);
+		checkNotNull(prop);
+
+		for (Map.Entry<String, String> e : prop.entrySet()) {
+			put(String.format("%s.%s", prefix, e.getKey()), e.getValue());
 		}
 	}
 
@@ -533,6 +550,26 @@ public class DescriptorProperties {
 	}
 
 	/**
+	 * Returns a Java {@link Duration} under the given key if it exists.
+	 */
+	public Optional<Duration> getOptionalDuration(String key) {
+		return optionalGet(key).map((value) -> {
+			try {
+				return TimeUtils.parseDuration(value);
+			} catch (Exception e) {
+				throw new ValidationException("Invalid duration value for key '" + key + "'.", e);
+			}
+		});
+	}
+
+	/**
+	 * Returns a java {@link Duration} under the given existing key.
+	 */
+	public Duration getDuration(String key) {
+		return getOptionalDuration(key).orElseThrow(exceptionSupplier(key));
+	}
+
+	/**
 	 * Returns the property keys of fixed indexed properties.
 	 *
 	 * <p>For example:
@@ -703,6 +740,21 @@ public class DescriptorProperties {
 	 */
 	public boolean isValue(String key, String value) {
 		return optionalGet(key).orElseThrow(exceptionSupplier(key)).equals(value);
+	}
+
+	/**
+	 * Returns a map of properties whose key starts with the given prefix,
+	 * and the prefix is removed upon return.
+	 *
+	 * <p>For example, for prefix "flink" and a map of a single property with key "flink.k" and value "v",
+	 * this method will return it as key "k" and value "v" by identifying and removing the prefix "flink".
+	 */
+	public Map<String, String> getPropertiesWithPrefix(String prefix) {
+		String prefixWithDot = prefix + '.';
+
+		return properties.entrySet().stream()
+			.filter(e -> e.getKey().startsWith(prefixWithDot))
+			.collect(Collectors.toMap(e -> e.getKey().substring(prefix.length() + 1), Map.Entry::getValue));
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -1008,6 +1060,49 @@ public class DescriptorProperties {
 						"Memory size for key '" + key + "' must be a multiple of " + precision + " bytes but was: " + value);
 				}
 				return bytes;
+			}
+		);
+	}
+
+	/**
+	 * Validates a Java {@link Duration}.
+	 *
+	 * <p>The precision defines the allowed minimum unit in milliseconds (e.g. 1000 would only allow seconds).
+	 */
+	public void validateDuration(String key, boolean isOptional, int precision) {
+		validateDuration(key, isOptional, precision, 0L, Long.MAX_VALUE);
+	}
+
+	/**
+	 * Validates a Java {@link Duration}. The boundaries are inclusive and in milliseconds.
+	 *
+	 * <p>The precision defines the allowed minimum unit in milliseconds (e.g. 1000 would only allow seconds).
+	 */
+	public void validateDuration(String key, boolean isOptional, int precision, long min) {
+		validateDuration(key, isOptional, precision, min, Long.MAX_VALUE);
+	}
+
+	/**
+	 * Validates a Java {@link Duration}. The boundaries are inclusive and in milliseconds.
+	 *
+	 * <p>The precision defines the allowed minimum unit in milliseconds (e.g. 1000 would only allow seconds).
+	 */
+	public void validateDuration(String key, boolean isOptional, int precision, long min, long max) {
+		Preconditions.checkArgument(precision > 0);
+
+		validateComparable(
+			key,
+			isOptional,
+			min,
+			max,
+			"time interval (in milliseconds)",
+			(value) -> {
+				final long ms = TimeUtils.parseDuration(value).toMillis();
+				if (ms % precision != 0) {
+					throw new ValidationException(
+						"Duration for key '" + key + "' must be a multiple of " + precision + " milliseconds but was: " + value);
+				}
+				return ms;
 			}
 		);
 	}

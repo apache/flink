@@ -25,6 +25,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -609,7 +610,10 @@ public class IterateITCase extends AbstractTestBase {
 				// Test force checkpointing
 
 				try {
-					env.enableCheckpointing(1, CheckpointingMode.EXACTLY_ONCE, false);
+					env.enableCheckpointing(
+						CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME,
+						CheckpointingMode.EXACTLY_ONCE,
+						false);
 					env.execute();
 
 					// this statement should never be reached
@@ -618,7 +622,10 @@ public class IterateITCase extends AbstractTestBase {
 					// expected behaviour
 				}
 
-				env.enableCheckpointing(1, CheckpointingMode.EXACTLY_ONCE, true);
+				env.enableCheckpointing(
+					CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME,
+					CheckpointingMode.EXACTLY_ONCE,
+					true);
 				env.getStreamGraph().getJobGraph();
 
 				break; // success

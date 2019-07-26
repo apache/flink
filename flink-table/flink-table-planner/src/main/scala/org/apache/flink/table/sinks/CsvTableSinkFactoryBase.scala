@@ -25,7 +25,7 @@ import org.apache.flink.table.descriptors.ConnectorDescriptorValidator._
 import org.apache.flink.table.descriptors.OldCsvValidator._
 import org.apache.flink.table.descriptors.FileSystemValidator._
 import org.apache.flink.table.descriptors.FormatDescriptorValidator._
-import org.apache.flink.table.descriptors.SchemaValidator._
+import org.apache.flink.table.descriptors.Schema._
 import org.apache.flink.table.descriptors._
 import org.apache.flink.table.factories.TableFactory
 import org.apache.flink.table.util.JavaScalaConversionUtil.toScala
@@ -70,10 +70,7 @@ abstract class CsvTableSinkFactoryBase extends TableFactory {
     // validate
     new FileSystemValidator().validate(params)
     new OldCsvValidator().validate(params)
-    new SchemaValidator(
-      isStreaming,
-      supportsSourceTimestamps = false,
-      supportsSourceWatermarks = false).validate(params)
+    new SchemaValidator(isStreaming, false, false).validate(params)
 
     // build
     val formatSchema = params.getTableSchema(FORMAT_FIELDS)

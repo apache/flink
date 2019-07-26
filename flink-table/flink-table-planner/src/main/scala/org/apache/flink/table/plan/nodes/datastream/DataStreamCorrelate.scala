@@ -17,20 +17,22 @@
  */
 package org.apache.flink.table.plan.nodes.datastream
 
-import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.rex.{RexCall, RexNode}
-import org.apache.calcite.sql.SemiJoinType
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment}
+import org.apache.flink.table.api.StreamQueryConfig
 import org.apache.flink.table.functions.utils.TableSqlFunction
 import org.apache.flink.table.plan.nodes.CommonCorrelate
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.CRowCorrelateProcessRunner
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
+
+import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.core.JoinRelType
+import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rex.{RexCall, RexNode}
 
 /**
   * Flink RelNode which matches along with join a user defined table function.
@@ -44,7 +46,7 @@ class DataStreamCorrelate(
     condition: Option[RexNode],
     schema: RowSchema,
     joinSchema: RowSchema,
-    joinType: SemiJoinType,
+    joinType: JoinRelType,
     ruleDescription: String)
   extends SingleRel(cluster, traitSet, input)
   with CommonCorrelate
@@ -88,13 +90,13 @@ class DataStreamCorrelate(
   }
 
   override def translateToPlan(
-      tableEnv: StreamTableEnvironment,
+      planner: StreamPlanner,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
-    val config = tableEnv.getConfig
+    val config = planner.getConfig
 
     // we do not need to specify input type
-    val inputDS = getInput.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
+    val inputDS = getInput.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
 
     val funcRel = scan.asInstanceOf[FlinkLogicalTableFunctionScan]
     val rexCall = funcRel.getCall.asInstanceOf[RexCall]

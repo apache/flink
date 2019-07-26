@@ -17,8 +17,11 @@
 
 package org.apache.flink.table.dataformat;
 
+import org.apache.flink.api.common.typeinfo.TypeInfo;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.table.util.SegmentsUtil;
+import org.apache.flink.table.runtime.typeutils.DecimalTypeInfoFactory;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
+import org.apache.flink.table.types.logical.DecimalType;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -36,6 +39,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * - If decimalVal is set, it represents the whole decimal value
  * - Otherwise, the decimal value is longVal / (10 ** scale).
  */
+@TypeInfo(DecimalTypeInfoFactory.class)
 public final class Decimal implements Comparable<Decimal> {
 
 	private static final MathContext MC_DIVIDE = new MathContext(38, RoundingMode.HALF_UP);
@@ -59,6 +63,8 @@ public final class Decimal implements Comparable<Decimal> {
 			POW10[i] = 10 * POW10[i - 1];
 		}
 	}
+
+	public static final DecimalType DECIMAL_SYSTEM_DEFAULT = new DecimalType(DecimalType.MAX_PRECISION, 18);
 
 	// for now, we follow closely to what Spark does.
 	// see if we can improve upon it later.

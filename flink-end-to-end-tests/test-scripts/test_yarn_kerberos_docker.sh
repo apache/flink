@@ -34,18 +34,32 @@ echo "End-to-end directory $END_TO_END_DIR"
 docker --version
 docker-compose --version
 
+# Configure Flink dir before making tarball.
+INPUT_TYPE=${1:-default-input}
+EXPECTED_RESULT_LOG_CONTAINS=()
+case $INPUT_TYPE in
+    (default-input)
+        INPUT_ARGS=""
+        EXPECTED_RESULT_LOG_CONTAINS=("consummation,1" "of,14" "calamity,1")
+    ;;
+    (dummy-fs)
+        source "$(dirname "$0")"/common_dummy_fs.sh
+        dummy_fs_setup
+        INPUT_ARGS="--input dummy://localhost/words"
+        EXPECTED_RESULT_LOG_CONTAINS=("my,1" "dear,2" "world,2")
+    ;;
+    (*)
+        echo "Unknown input type $INPUT_TYPE"
+        exit 1
+    ;;
+esac
+
 # make sure we stop our cluster at the end
 function cluster_shutdown {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
   docker-compose -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml down
   rm $FLINK_TARBALL_DIR/$FLINK_TARBALL
 }
-trap cluster_shutdown INT
-trap cluster_shutdown EXIT
+on_exit cluster_shutdown
 
 function start_hadoop_cluster() {
     echo "Starting Hadoop cluster"
@@ -76,10 +90,6 @@ function start_hadoop_cluster() {
 
     return 0
 }
-
-mkdir -p $FLINK_TARBALL_DIR
-tar czf $FLINK_TARBALL_DIR/$FLINK_TARBALL -C $(dirname $FLINK_DIR) .
-
 echo "Building Hadoop Docker container"
 until docker build --build-arg HADOOP_VERSION=2.8.4 \
     -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/Dockerfile \
@@ -92,23 +102,13 @@ do
     sleep 2
 done
 
-CLUSTER_STARTED=1
-for (( i = 0; i < $CLUSTER_SETUP_RETRIES; i++ ))
-do
-    if start_hadoop_cluster; then
-       echo "Cluster started successfully."
-       CLUSTER_STARTED=0
-       break #continue test, cluster set up succeeded
-    fi
-
-    echo "ERROR: Could not start hadoop cluster. Retrying..."
-    docker-compose -f $END_TO_END_DIR/test-scripts/docker-hadoop-secure-cluster/docker-compose.yml down
-done
-
-if [[ ${CLUSTER_STARTED} -ne 0 ]]; then
+if ! retry_times $CLUSTER_SETUP_RETRIES 0 start_hadoop_cluster; then
     echo "ERROR: Could not start hadoop cluster. Aborting..."
     exit 1
 fi
+
+mkdir -p $FLINK_TARBALL_DIR
+tar czf $FLINK_TARBALL_DIR/$FLINK_TARBALL -C $(dirname $FLINK_DIR) .
 
 docker cp $FLINK_TARBALL_DIR/$FLINK_TARBALL master:/home/hadoop-user/
 
@@ -116,10 +116,14 @@ docker cp $FLINK_TARBALL_DIR/$FLINK_TARBALL master:/home/hadoop-user/
 docker exec -it master bash -c "tar xzf /home/hadoop-user/$FLINK_TARBALL --directory /home/hadoop-user/"
 
 # minimal Flink config, bebe
-docker exec -it master bash -c "echo \"security.kerberos.login.keytab: /home/hadoop-user/hadoop-user.keytab\" > /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
-docker exec -it master bash -c "echo \"security.kerberos.login.principal: hadoop-user\" >> /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
-docker exec -it master bash -c "echo \"slot.request.timeout: 60000\" >> /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
-docker exec -it master bash -c "echo \"containerized.heap-cutoff-min: 100\" >> /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
+FLINK_CONFIG=$(cat << END
+security.kerberos.login.keytab: /home/hadoop-user/hadoop-user.keytab
+security.kerberos.login.principal: hadoop-user
+slot.request.timeout: 60000
+containerized.heap-cutoff-min: 100
+END
+)
+docker exec -it master bash -c "echo \"$FLINK_CONFIG\" > /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
 
 echo "Flink config:"
 docker exec -it master bash -c "cat /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
@@ -128,12 +132,24 @@ docker exec -it master bash -c "cat /home/hadoop-user/$FLINK_DIRNAME/conf/flink-
 # had cached docker containers
 OUTPUT_PATH=hdfs:///user/hadoop-user/wc-out-$RANDOM
 
+function copy_and_show_logs {
+    mkdir -p $TEST_DATA_DIR/logs
+    echo "Hadoop logs:"
+    docker cp master:/var/log/hadoop/* $TEST_DATA_DIR/logs/
+    for f in $TEST_DATA_DIR/logs/*; do
+        echo "$f:"
+        cat $f
+    done
+    echo "Docker logs:"
+    docker logs master
+}
+
 start_time=$(date +%s)
 # it's important to run this with higher parallelism, otherwise we might risk that
 # JM and TM are on the same YARN node and that we therefore don't test the keytab shipping
 if docker exec -it master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
    /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -yn 3 -ys 1 -ytm 1000 -yjm 1000 \
-   -p 3 /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar --output $OUTPUT_PATH";
+   -p 3 /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar $INPUT_ARGS --output $OUTPUT_PATH";
 then
     docker exec -it master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
     docker exec -it master bash -c "hdfs dfs -ls $OUTPUT_PATH"
@@ -142,41 +158,17 @@ then
     echo "$OUTPUT"
 else
     echo "Running the job failed."
-    mkdir -p $TEST_DATA_DIR/logs
-    echo "Hadoop logs:"
-    docker cp master:/var/log/hadoop/* $TEST_DATA_DIR/logs/
-    for f in $TEST_DATA_DIR/logs/*; do
-        echo "$f:"
-        cat $f
-    done
-    echo "Docker logs:"
-    docker logs master
+    copy_and_show_logs
     exit 1
 fi
 
-if [[ ! "$OUTPUT" =~ "consummation,1" ]]; then
-    echo "Output does not contain (consummation, 1) as required"
-    mkdir -p $TEST_DATA_DIR/logs
-    echo "Hadoop logs:"
-    docker cp master:/var/log/hadoop/* $TEST_DATA_DIR/logs/
-    for f in $TEST_DATA_DIR/logs/*; do
-        echo "$f:"
-        cat $f
-    done
-    echo "Docker logs:"
-    docker logs master
-    exit 1
-fi
-
-if [[ ! "$OUTPUT" =~ "of,14" ]]; then
-    echo "Output does not contain (of, 14) as required"
-    exit 1
-fi
-
-if [[ ! "$OUTPUT" =~ "calamity,1" ]]; then
-    echo "Output does not contain (calamity, 1) as required"
-    exit 1
-fi
+for expected_result in ${EXPECTED_RESULT_LOG_CONTAINS[@]}; do
+    if [[ ! "$OUTPUT" =~ $expected_result ]]; then
+        echo "Output does not contain '$expected_result' as required"
+        copy_and_show_logs
+        exit 1
+    fi
+done
 
 echo "Running Job without configured keytab, the exception you see below is expected"
 docker exec -it master bash -c "echo \"\" > /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"

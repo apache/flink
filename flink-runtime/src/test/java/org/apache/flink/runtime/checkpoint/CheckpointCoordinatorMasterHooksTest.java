@@ -27,6 +27,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
@@ -202,11 +203,11 @@ public class CheckpointCoordinatorMasterHooksTest {
 		verify(statelessHook, times(1)).triggerCheckpoint(anyLong(), anyLong(), any(Executor.class));
 
 		final long checkpointId = cc.getPendingCheckpoints().values().iterator().next().getCheckpointId();
-		cc.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, execId, checkpointId));
+		cc.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, execId, checkpointId), "Unknown location");
 		assertEquals(0, cc.getNumberOfPendingCheckpoints());
 
 		assertEquals(1, cc.getNumberOfRetainedSuccessfulCheckpoints());
-		final CompletedCheckpoint chk = cc.getCheckpointStore().getLatestCheckpoint();
+		final CompletedCheckpoint chk = cc.getCheckpointStore().getLatestCheckpoint(false);
 
 		final Collection<MasterState> masterStates = chk.getMasterHookStates();
 		assertEquals(2, masterStates.size());
@@ -421,13 +422,18 @@ public class CheckpointCoordinatorMasterHooksTest {
 	// ------------------------------------------------------------------------
 
 	private static CheckpointCoordinator instantiateCheckpointCoordinator(JobID jid, ExecutionVertex... ackVertices) {
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
+			10000000L,
+			600000L,
+			0L,
+			1,
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
 		return new CheckpointCoordinator(
 				jid,
-				10000000L,
-				600000L,
-				0L,
-				1,
-				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				chkConfig,
 				new ExecutionVertex[0],
 				ackVertices,
 				new ExecutionVertex[0],
@@ -435,7 +441,8 @@ public class CheckpointCoordinatorMasterHooksTest {
 				new StandaloneCompletedCheckpointStore(10),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				SharedStateRegistry.DEFAULT_FACTORY);
+				SharedStateRegistry.DEFAULT_FACTORY,
+				new CheckpointFailureManager(0, () -> {}));
 	}
 
 	private static <T> T mockGeneric(Class<?> clazz) {

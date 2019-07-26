@@ -17,13 +17,9 @@
 
 package org.apache.flink.table.dataformat;
 
-import org.apache.flink.table.type.ArrayType;
-import org.apache.flink.table.type.DecimalType;
-import org.apache.flink.table.type.GenericType;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
-import org.apache.flink.table.type.MapType;
-import org.apache.flink.table.type.RowType;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 
 /**
  * Provide type specialized getters and setters to reduce if/else and eliminate box and unbox.
@@ -85,11 +81,6 @@ public interface TypeGetterSetters {
 	double getDouble(int ordinal);
 
 	/**
-	 * Get char value.
-	 */
-	char getChar(int ordinal);
-
-	/**
 	 * Get string value, internal format is BinaryString.
 	 */
 	BinaryString getString(int ordinal);
@@ -110,14 +101,14 @@ public interface TypeGetterSetters {
 	byte[] getBinary(int ordinal);
 
 	/**
-	 * Get array value, internal format is BinaryArray.
+	 * Get array value, internal format is BaseArray.
 	 */
-	BinaryArray getArray(int ordinal);
+	BaseArray getArray(int ordinal);
 
 	/**
-	 * Get map value, internal format is BinaryMap.
+	 * Get map value, internal format is BaseMap.
 	 */
-	BinaryMap getMap(int ordinal);
+	BaseMap getMap(int ordinal);
 
 	/**
 	 * Get row value, internal format is BaseRow.
@@ -160,11 +151,6 @@ public interface TypeGetterSetters {
 	void setDouble(int ordinal, double value);
 
 	/**
-	 * Set char value.
-	 */
-	void setChar(int ordinal, char value);
-
-	/**
 	 * Set the decimal column value.
 	 *
 	 * <p>Note:
@@ -174,46 +160,48 @@ public interface TypeGetterSetters {
 	 */
 	void setDecimal(int i, Decimal value, int precision);
 
-	static Object get(TypeGetterSetters row, int ordinal, InternalType type) {
-		if (type.equals(InternalTypes.BOOLEAN)) {
-			return row.getBoolean(ordinal);
-		} else if (type.equals(InternalTypes.BYTE)) {
-			return row.getByte(ordinal);
-		} else if (type.equals(InternalTypes.SHORT)) {
-			return row.getShort(ordinal);
-		} else if (type.equals(InternalTypes.INT)) {
-			return row.getInt(ordinal);
-		} else if (type.equals(InternalTypes.LONG)) {
-			return row.getLong(ordinal);
-		} else if (type.equals(InternalTypes.FLOAT)) {
-			return row.getFloat(ordinal);
-		} else if (type.equals(InternalTypes.DOUBLE)) {
-			return row.getDouble(ordinal);
-		} else if (type.equals(InternalTypes.STRING)) {
-			return row.getString(ordinal);
-		} else if (type.equals(InternalTypes.CHAR)) {
-			return row.getChar(ordinal);
-		} else if (type.equals(InternalTypes.DATE)) {
-			return row.getInt(ordinal);
-		} else if (type.equals(InternalTypes.TIME)) {
-			return row.getInt(ordinal);
-		} else if (type.equals(InternalTypes.TIMESTAMP)) {
-			return row.getLong(ordinal);
-		} else if (type instanceof DecimalType) {
-			DecimalType decimalType = (DecimalType) type;
-			return row.getDecimal(ordinal, decimalType.precision(), decimalType.scale());
-		} else if (type instanceof ArrayType) {
-			return row.getArray(ordinal);
-		} else if (type instanceof MapType) {
-			return row.getMap(ordinal);
-		} else if (type instanceof RowType) {
-			return row.getRow(ordinal, ((RowType) type).getArity());
-		} else if (type instanceof GenericType) {
-			return row.getGeneric(ordinal);
-		} else if (type.equals(InternalTypes.BINARY)) {
-			return row.getBinary(ordinal);
-		} else {
-			throw new RuntimeException("Not support type: " + type);
+	static Object get(TypeGetterSetters row, int ordinal, LogicalType type) {
+		switch (type.getTypeRoot()) {
+			case BOOLEAN:
+				return row.getBoolean(ordinal);
+			case TINYINT:
+				return row.getByte(ordinal);
+			case SMALLINT:
+				return row.getShort(ordinal);
+			case INTEGER:
+			case DATE:
+			case TIME_WITHOUT_TIME_ZONE:
+			case INTERVAL_YEAR_MONTH:
+				return row.getInt(ordinal);
+			case BIGINT:
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+			case INTERVAL_DAY_TIME:
+				return row.getLong(ordinal);
+			case FLOAT:
+				return row.getFloat(ordinal);
+			case DOUBLE:
+				return row.getDouble(ordinal);
+			case CHAR:
+			case VARCHAR:
+				return row.getString(ordinal);
+			case DECIMAL:
+				DecimalType decimalType = (DecimalType) type;
+				return row.getDecimal(ordinal, decimalType.getPrecision(), decimalType.getScale());
+			case ARRAY:
+				return row.getArray(ordinal);
+			case MAP:
+			case MULTISET:
+				return row.getMap(ordinal);
+			case ROW:
+				return row.getRow(ordinal, ((RowType) type).getFieldCount());
+			case BINARY:
+			case VARBINARY:
+				return row.getBinary(ordinal);
+			case ANY:
+				return row.getGeneric(ordinal);
+			default:
+				throw new RuntimeException("Not support type: " + type);
 		}
 	}
 }

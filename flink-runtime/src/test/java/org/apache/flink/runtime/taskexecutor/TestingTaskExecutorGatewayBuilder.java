@@ -25,22 +25,26 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobmaster.AllocatedSlotReport;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * Builder for a {@link TestingTaskExecutorGateway}.
  */
 public class TestingTaskExecutorGatewayBuilder {
 
-	private static final Consumer<ResourceID> NOOP_HEARTBEAT_JOBMANAGER_CONSUMER = ignored -> {};
+	private static final BiConsumer<ResourceID, AllocatedSlotReport> NOOP_HEARTBEAT_JOBMANAGER_CONSUMER = (ignoredA, ignoredB) -> {};
 	private static final BiConsumer<JobID, Throwable> NOOP_DISCONNECT_JOBMANAGER_CONSUMER = (ignoredA, ignoredB) -> {};
 	private static final BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>> NOOP_SUBMIT_TASK_CONSUMER = (ignoredA, ignoredB) -> CompletableFuture.completedFuture(Acknowledge.get());
 	private static final Function<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>, CompletableFuture<Acknowledge>> NOOP_REQUEST_SLOT_FUNCTION = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
@@ -48,10 +52,11 @@ public class TestingTaskExecutorGatewayBuilder {
 	private static final Consumer<ResourceID> NOOP_HEARTBEAT_RESOURCE_MANAGER_CONSUMER = ignored -> {};
 	private static final Consumer<Exception> NOOP_DISCONNECT_RESOURCE_MANAGER_CONSUMER = ignored -> {};
 	private static final Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> NOOP_CANCEL_TASK_FUNCTION = ignored -> CompletableFuture.completedFuture(Acknowledge.get());
+	private static final BiConsumer<JobID, Collection<ResultPartitionID>> NOOP_RELEASE_PARTITIONS_CONSUMER = (ignoredA, ignoredB) -> {};
 
 	private String address = "foobar:1234";
 	private String hostname = "foobar";
-	private Consumer<ResourceID> heartbeatJobManagerConsumer = NOOP_HEARTBEAT_JOBMANAGER_CONSUMER;
+	private BiConsumer<ResourceID, AllocatedSlotReport> heartbeatJobManagerConsumer = NOOP_HEARTBEAT_JOBMANAGER_CONSUMER;
 	private BiConsumer<JobID, Throwable> disconnectJobManagerConsumer = NOOP_DISCONNECT_JOBMANAGER_CONSUMER;
 	private BiFunction<TaskDeploymentDescriptor, JobMasterId, CompletableFuture<Acknowledge>> submitTaskConsumer = NOOP_SUBMIT_TASK_CONSUMER;
 	private Function<Tuple5<SlotID, JobID, AllocationID, String, ResourceManagerId>, CompletableFuture<Acknowledge>> requestSlotFunction = NOOP_REQUEST_SLOT_FUNCTION;
@@ -59,6 +64,8 @@ public class TestingTaskExecutorGatewayBuilder {
 	private Consumer<ResourceID> heartbeatResourceManagerConsumer = NOOP_HEARTBEAT_RESOURCE_MANAGER_CONSUMER;
 	private Consumer<Exception> disconnectResourceManagerConsumer = NOOP_DISCONNECT_RESOURCE_MANAGER_CONSUMER;
 	private Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction = NOOP_CANCEL_TASK_FUNCTION;
+	private Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier = () -> CompletableFuture.completedFuture(true);
+	private BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer = NOOP_RELEASE_PARTITIONS_CONSUMER;
 
 	public TestingTaskExecutorGatewayBuilder setAddress(String address) {
 		this.address = address;
@@ -70,7 +77,7 @@ public class TestingTaskExecutorGatewayBuilder {
 		return this;
 	}
 
-	public TestingTaskExecutorGatewayBuilder setHeartbeatJobManagerConsumer(Consumer<ResourceID> heartbeatJobManagerConsumer) {
+	public TestingTaskExecutorGatewayBuilder setHeartbeatJobManagerConsumer(BiConsumer<ResourceID, AllocatedSlotReport> heartbeatJobManagerConsumer) {
 		this.heartbeatJobManagerConsumer = heartbeatJobManagerConsumer;
 		return this;
 	}
@@ -110,6 +117,16 @@ public class TestingTaskExecutorGatewayBuilder {
 		return this;
 	}
 
+	public TestingTaskExecutorGatewayBuilder setCanBeReleasedSupplier(Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier) {
+		this.canBeReleasedSupplier = canBeReleasedSupplier;
+		return this;
+	}
+
+	public TestingTaskExecutorGatewayBuilder setReleasePartitionsConsumer(BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer) {
+		this.releasePartitionsConsumer = releasePartitionsConsumer;
+		return this;
+	}
+
 	public TestingTaskExecutorGateway createTestingTaskExecutorGateway() {
 		return new TestingTaskExecutorGateway(
 			address,
@@ -121,6 +138,8 @@ public class TestingTaskExecutorGatewayBuilder {
 			freeSlotFunction,
 			heartbeatResourceManagerConsumer,
 			disconnectResourceManagerConsumer,
-			cancelTaskFunction);
+			cancelTaskFunction,
+			canBeReleasedSupplier,
+			releasePartitionsConsumer);
 	}
 }

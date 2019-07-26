@@ -32,9 +32,9 @@ import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
@@ -77,8 +77,8 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 
 	private static String outPath;
 
-	@BeforeClass
-	public static void createHDFS() throws IOException {
+	@Before
+	public void createHDFS() throws IOException {
 		Configuration conf = new Configuration();
 
 		File dataDir = tempFolder.newFolder();
@@ -94,8 +94,8 @@ public class BucketingSinkFaultToleranceITCase extends StreamFaultToleranceTestB
 				+ "/string-non-rolling-out";
 	}
 
-	@AfterClass
-	public static void destroyHDFS() {
+	@After
+	public void destroyHDFS() {
 		if (hdfsCluster != null) {
 			hdfsCluster.shutdown();
 		}

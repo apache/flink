@@ -54,7 +54,7 @@ import java.util.Optional;
 public class KafkaITCase extends KafkaConsumerTestBase {
 
 	@BeforeClass
-	public static void prepare() throws ClassNotFoundException {
+	public static void prepare() throws Exception {
 		KafkaProducerTestBase.prepare();
 		((KafkaTestEnvironmentImpl) kafkaServer).setProducerSemantic(FlinkKafkaProducer.Semantic.AT_LEAST_ONCE);
 	}
@@ -122,8 +122,13 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 	}
 
 	@Test(timeout = 60000)
-	public void testMultipleTopics() throws Exception {
-		runProduceConsumeMultipleTopics();
+	public void testMultipleTopicsWithLegacySerializer() throws Exception {
+		runProduceConsumeMultipleTopics(true);
+	}
+
+	@Test(timeout = 60000)
+	public void testMultipleTopicsWithKafkaSerializer() throws Exception {
+		runProduceConsumeMultipleTopics(false);
 	}
 
 	@Test(timeout = 60000)

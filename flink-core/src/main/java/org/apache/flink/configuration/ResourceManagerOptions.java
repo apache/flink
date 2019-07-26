@@ -86,6 +86,23 @@ public class ResourceManagerOptions {
 		.withDescription("The timeout for a slot request to be discarded.");
 
 	/**
+	 * Time in milliseconds of the start-up period of a standalone cluster.
+	 * During this time, resource manager of the standalone cluster expects new task executors to be registered, and
+	 * will not fail slot requests that can not be satisfied by any current registered slots.
+	 * After this time, it will fail pending and new coming requests immediately that can not be satisfied by registered
+	 * slots.
+	 * If not set, {@link #SLOT_REQUEST_TIMEOUT} will be used by default.
+	 */
+	public static final ConfigOption<Long> STANDALONE_CLUSTER_STARTUP_PERIOD_TIME = ConfigOptions
+		.key("resourcemanager.standalone.start-up-time")
+		.defaultValue(-1L)
+		.withDescription("Time in milliseconds of the start-up period of a standalone cluster. During this time, "
+			+ "resource manager of the standalone cluster expects new task executors to be registered, and will not "
+			+ "fail slot requests that can not be satisfied by any current registered slots. After this time, it will "
+			+ "fail pending and new coming requests immediately that can not be satisfied by registered slots. If not "
+			+ "set, 'slotmanager.request-timeout' will be used by default.");
+
+	/**
 	 * The timeout for an idle task manager to be released, in milliseconds.
 	 * @deprecated Use {@link #TASK_MANAGER_TIMEOUT}.
 	 */
@@ -104,6 +121,28 @@ public class ResourceManagerOptions {
 		.withDeprecatedKeys(SLOT_MANAGER_TASK_MANAGER_TIMEOUT.key())
 		.withDescription(Description.builder()
 			.text("The timeout for an idle task manager to be released.")
+			.build());
+
+	/**
+	 * Release task executor only when each produced result partition is either consumed or failed.
+	 *
+	 * <p>Currently, produced result partition is released when it fails or consumer sends close request
+	 * to confirm successful end of consumption and to close the communication channel.
+	 *
+	 * @deprecated The default value should be reasonable enough in all cases, this option is to fallback to older behaviour
+	 * which will be removed or refactored in future.
+	 */
+	@Deprecated
+	public static final ConfigOption<Boolean> TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED = ConfigOptions
+		.key("resourcemanager.taskmanager-release.wait.result.consumed")
+		.defaultValue(true)
+		.withDescription(Description.builder()
+			.text("Release task executor only when each produced result partition is either consumed or failed. " +
+				"'True' is default. 'False' means that idle task executor release is not blocked " +
+				"by receiver confirming consumption of result partition " +
+				"and can happen right away after 'resourcemanager.taskmanager-timeout' has elapsed. " +
+				"Setting this option to 'false' can speed up task executor release but can lead to unexpected failures " +
+				"if end of consumption is slower than 'resourcemanager.taskmanager-timeout'.")
 			.build());
 
 	/**

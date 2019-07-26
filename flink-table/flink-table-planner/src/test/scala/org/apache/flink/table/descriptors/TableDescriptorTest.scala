@@ -44,7 +44,7 @@ class TableDescriptorTest extends TableTestBase {
 
   private def testTableSourceDescriptor(isStreaming: Boolean): Unit = {
 
-    val schema = Schema()
+    val schema = new Schema()
       .field("myfield", Types.STRING)
       .field("myfield2", Types.INT)
       .field("myfield3", Types.MAP(Types.STRING, Types.INT))
@@ -56,7 +56,7 @@ class TableDescriptorTest extends TableTestBase {
     //  schema.field("proctime", Types.SQL_TIMESTAMP).proctime()
     //}
 
-    val connector = FileSystem()
+    val connector = new FileSystem()
       .path("/path/to/csv")
 
     val format = OldCsv()

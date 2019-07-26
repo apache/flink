@@ -21,6 +21,7 @@ package org.apache.flink.table.api.stream.table
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.Tumble
+import org.apache.flink.table.expressions.utils.{Func1, Func23, Func24}
 import org.apache.flink.table.utils.TableTestBase
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
@@ -47,11 +48,11 @@ class CalcTest extends TableTestBase {
         "DataStreamGroupWindowAggregate",
         unaryNode(
           "DataStreamCalc",
-          streamTableNode(0),
-          term("select", "c", "a", "rowtime", "UPPER(c) AS $f3")
+          streamTableNode(sourceTable),
+          term("select", "a", "rowtime", "UPPER(c) AS $f5")
         ),
         term("window", "TumblingGroupWindow('w, 'rowtime, 5.millis)"),
-        term("select", "COUNT($f3) AS TMP_0", "SUM(a) AS TMP_1")
+        term("select", "COUNT($f5) AS EXPR$0", "SUM(a) AS EXPR$1")
       )
 
     util.verifyTable(resultTable, expected)
@@ -73,14 +74,14 @@ class CalcTest extends TableTestBase {
           "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
-            term("select", "c", "a", "b", "rowtime", "UPPER(c) AS $f4")
+            streamTableNode(sourceTable),
+            term("select", "a", "b", "rowtime", "UPPER(c) AS $f5")
           ),
           term("groupBy", "b"),
           term("window", "TumblingGroupWindow('w, 'rowtime, 5.millis)"),
-          term("select", "b", "COUNT($f4) AS TMP_0", "SUM(a) AS TMP_1")
+          term("select", "b", "COUNT($f5) AS EXPR$0", "SUM(a) AS EXPR$1")
         ),
-        term("select", "TMP_0", "TMP_1", "b")
+        term("select", "EXPR$0", "EXPR$1", "b")
     )
 
     util.verifyTable(resultTable, expected)
@@ -97,7 +98,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(sourceTable),
       term("select", "a", "b"),
       term("where", "AND(AND(>(a, 0), <(b, 2)), =(MOD(a, 2), 1))")
     )
@@ -114,7 +115,7 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(sourceTable),
       term("select", "a", "b", "c"),
       term("where", s"AND(IN(b, ${(1 to 30).mkString(", ")}), =(c, 'xx'))")
     )
@@ -131,9 +132,117 @@ class CalcTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataStreamCalc",
-      streamTableNode(0),
+      streamTableNode(sourceTable),
       term("select", "a", "b", "c"),
       term("where", s"OR(NOT IN(b, ${(1 to 30).mkString(", ")}), <>(c, 'xx'))")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testAddColumns(): Unit = {
+    val util = streamTestUtil()
+    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val resultTable = sourceTable
+      .addColumns("concat(c, 'sunny') as kid")
+      .addColumns('a + 2, 'b as 'b2)
+      .addOrReplaceColumns(concat('c, "_kid") as 'kid, concat('c, "kid") as 'kid)
+      .addOrReplaceColumns("concat(c, '_kid_last') as kid")
+      .addColumns("'literal_value'")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(sourceTable),
+      term(
+        "select", "a", "b", "c", "CONCAT(c, '_kid_last') AS kid", "+(a, 2) AS _c4, b AS b2",
+        "'literal_value' AS _c6")
+    )
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testRenameColumns(): Unit = {
+    val util = streamTestUtil()
+    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val resultTable = sourceTable.renameColumns('a as 'a2, 'b as 'b2).select('a2, 'b2)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(sourceTable),
+      term("select", "a AS a2", "b AS b2")
+    )
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testDropColumns(): Unit = {
+    val util = streamTestUtil()
+    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val resultTable = sourceTable.dropColumns('a, 'b)
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(sourceTable),
+      term("select", "c")
+    )
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testSimpleMap(): Unit = {
+    val util = streamTestUtil()
+
+    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val resultTable = sourceTable.map(Func23('a, 'b, 'c))
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(sourceTable),
+      term("select", "Func23$(a, b, c).f0 AS _c0, Func23$(a, b, c).f1 AS _c1, " +
+        "Func23$(a, b, c).f2 AS _c2, Func23$(a, b, c).f3 AS _c3")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testScalarResult(): Unit = {
+    val util = streamTestUtil()
+
+    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val resultTable = sourceTable.map(Func1('a))
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(sourceTable),
+      term("select", "Func1$(a) AS _c0")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testMultiMap(): Unit = {
+    val util = streamTestUtil()
+
+    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+    val resultTable = sourceTable
+      .map(Func23('a, 'b, 'c))
+      .map(Func24('_c0, '_c1, '_c2, '_c3))
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      streamTableNode(sourceTable),
+      term("select",
+           "Func24$(Func23$(a, b, c).f0, Func23$(a, b, c).f1, " +
+             "Func23$(a, b, c).f2, Func23$(a, b, c).f3).f0 AS _c0, " +
+             "Func24$(Func23$(a, b, c).f0, Func23$(a, b, c).f1, " +
+             "Func23$(a, b, c).f2, Func23$(a, b, c).f3).f1 AS _c1, " +
+             "Func24$(Func23$(a, b, c).f0, Func23$(a, b, c).f1, " +
+             "Func23$(a, b, c).f2, Func23$(a, b, c).f3).f2 AS _c2, " +
+             "Func24$(Func23$(a, b, c).f0, Func23$(a, b, c).f1, " +
+             "Func23$(a, b, c).f2, Func23$(a, b, c).f3).f3 AS _c3")
     )
 
     util.verifyTable(resultTable, expected)

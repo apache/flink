@@ -29,32 +29,12 @@ import org.apache.flink.util.Preconditions;
 public class CheckpointExceptionHandlerFactory {
 
 	/**
-	 * Returns a {@link CheckpointExceptionHandler} that either causes a task to fail completely or to just declines
-	 * checkpoint on exception, depending on the parameter flag.
+	 * Returns a {@link CheckpointExceptionHandler} that just declines checkpoint on exception.
 	 */
 	public CheckpointExceptionHandler createCheckpointExceptionHandler(
-		boolean failTaskOnCheckpointException,
 		Environment environment) {
 
-		if (failTaskOnCheckpointException) {
-			return new FailingCheckpointExceptionHandler();
-		} else {
-			return new DecliningCheckpointExceptionHandler(environment);
-		}
-	}
-
-	/**
-	 * This handler makes the task fail by rethrowing a reported exception.
-	 */
-	static final class FailingCheckpointExceptionHandler implements CheckpointExceptionHandler {
-
-		@Override
-		public void tryHandleCheckpointException(
-			CheckpointMetaData checkpointMetaData,
-			Exception exception) throws Exception {
-
-			throw exception;
-		}
+		return new DecliningCheckpointExceptionHandler(environment);
 	}
 
 	/**
@@ -71,7 +51,7 @@ public class CheckpointExceptionHandlerFactory {
 		@Override
 		public void tryHandleCheckpointException(
 			CheckpointMetaData checkpointMetaData,
-			Exception exception) throws Exception {
+			Exception exception) {
 
 			environment.declineCheckpoint(checkpointMetaData.getCheckpointId(), exception);
 		}

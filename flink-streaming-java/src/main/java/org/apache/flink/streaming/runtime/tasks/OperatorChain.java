@@ -38,9 +38,14 @@ import org.apache.flink.streaming.api.collector.selector.DirectedOutput;
 import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
+import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
@@ -78,6 +83,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 	private static final Logger LOG = LoggerFactory.getLogger(OperatorChain.class);
 
+	/**
+	 * Stores all operators on this chain in reverse order.
+	 */
 	private final StreamOperator<?>[] allOperators;
 
 	private final RecordWriterOutput<?>[] streamOutputs;
@@ -94,6 +102,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	 */
 	private StreamStatus streamStatus = StreamStatus.ACTIVE;
 
+	/** The flag that tracks finished inputs. */
+	private InputSelection finishedInputs = new InputSelection.Builder().build();
+
 	public OperatorChain(
 			StreamTask<OUT, OP> containingTask,
 			List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters) {
@@ -101,7 +112,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 		final ClassLoader userCodeClassloader = containingTask.getUserCodeClassLoader();
 		final StreamConfig configuration = containingTask.getConfiguration();
 
-		headOperator = configuration.getStreamOperator(userCodeClassloader);
+		StreamOperatorFactory<OUT> operatorFactory = configuration.getStreamOperatorFactory(userCodeClassloader);
 
 		// we read the chained configs, and the order of record writer registrations by output name
 		Map<Integer, StreamConfig> chainedConfigs = configuration.getTransitiveChainedTaskConfigsWithSelf(userCodeClassloader);
@@ -138,11 +149,14 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				streamOutputMap,
 				allOps);
 
-			if (headOperator != null) {
+			if (operatorFactory != null) {
 				WatermarkGaugeExposingOutput<StreamRecord<OUT>> output = getChainEntryPoint();
-				headOperator.setup(containingTask, configuration, output);
+
+				headOperator = operatorFactory.createStreamOperator(containingTask, configuration, output);
 
 				headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, output.getWatermarkGauge());
+			} else {
+				headOperator = null;
 			}
 
 			// add head operator to end of chain
@@ -217,6 +231,50 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			final StreamOperator<?> op = operators[i];
 			if (op != null) {
 				op.prepareSnapshotPreBarrier(checkpointId);
+			}
+		}
+	}
+
+	/**
+	 * Ends an input (specified by {@code inputId}) of the {@link StreamTask}. The {@code inputId}
+	 * is numbered starting from 1, and `1` indicates the first input.
+	 *
+	 * @param inputId The ID of the input.
+	 * @throws Exception if some exception happens in the endInput function of an operator.
+	 */
+	public void endInput(int inputId) throws Exception {
+		if (finishedInputs.areAllInputsSelected()) {
+			return;
+		}
+
+		if (headOperator instanceof TwoInputStreamOperator) {
+			if (finishedInputs.isInputSelected(inputId)) {
+				return;
+			}
+
+			if (headOperator instanceof BoundedMultiInput) {
+				((BoundedMultiInput) headOperator).endInput(inputId);
+			}
+
+			finishedInputs = InputSelection.Builder
+				.from(finishedInputs)
+				.select(finishedInputs.getInputMask() == 0 ? inputId : -1)
+				.build();
+		} else {
+			// here, the head operator is a stream source or an one-input stream operator,
+			// so all inputs are finished
+			finishedInputs = new InputSelection.Builder()
+				.select(-1)
+				.build();
+		}
+
+		if (finishedInputs.areAllInputsSelected()) {
+			// executing #endInput() happens from head to tail operator in the chain
+			for (int i = allOperators.length - 1; i >= 0; i--) {
+				StreamOperator<?> operator = allOperators[i];
+				if (operator instanceof BoundedOneInput) {
+					((BoundedOneInput) operator).endInput();
+				}
 			}
 		}
 	}
@@ -366,9 +424,9 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			allOperators);
 
 		// now create the operator and give it the output collector to write its output to
-		OneInputStreamOperator<IN, OUT> chainedOperator = operatorConfig.getStreamOperator(userCodeClassloader);
-
-		chainedOperator.setup(containingTask, operatorConfig, chainedOperatorOutput);
+		StreamOperatorFactory<OUT> chainedOperatorFactory = operatorConfig.getStreamOperatorFactory(userCodeClassloader);
+		OneInputStreamOperator<IN, OUT> chainedOperator = chainedOperatorFactory.createStreamOperator(
+				containingTask, operatorConfig, chainedOperatorOutput);
 
 		allOperators.add(chainedOperator);
 

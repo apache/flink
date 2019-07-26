@@ -20,21 +20,21 @@ package org.apache.flink.runtime.metrics.util;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
-import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.util.Preconditions;
 
-import akka.actor.ActorSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,29 +90,25 @@ public class MetricUtils {
 		return jobManagerMetricGroup;
 	}
 
-	public static TaskManagerMetricGroup instantiateTaskManagerMetricGroup(
+	public static Tuple2<TaskManagerMetricGroup, MetricGroup> instantiateTaskManagerMetricGroup(
 			MetricRegistry metricRegistry,
-			TaskManagerLocation taskManagerLocation,
-			NetworkEnvironment network,
+			String hostName,
+			ResourceID resourceID,
 			Optional<Time> systemResourceProbeInterval) {
 		final TaskManagerMetricGroup taskManagerMetricGroup = new TaskManagerMetricGroup(
 			metricRegistry,
-			taskManagerLocation.getHostname(),
-			taskManagerLocation.getResourceID().toString());
+			hostName,
+			resourceID.toString());
 
 		MetricGroup statusGroup = taskManagerMetricGroup.addGroup(METRIC_GROUP_STATUS_NAME);
 
 		// Initialize the TM metrics
 		instantiateStatusMetrics(statusGroup);
 
-		MetricGroup networkGroup = statusGroup
-			.addGroup("Network");
-		instantiateNetworkMetrics(networkGroup, network);
-
 		if (systemResourceProbeInterval.isPresent()) {
 			instantiateSystemMetrics(taskManagerMetricGroup, systemResourceProbeInterval.get());
 		}
-		return taskManagerMetricGroup;
+		return Tuple2.of(taskManagerMetricGroup, statusGroup);
 	}
 
 	public static void instantiateStatusMetrics(
@@ -126,25 +122,16 @@ public class MetricUtils {
 		instantiateCPUMetrics(jvm.addGroup("CPU"));
 	}
 
-	public static ActorSystem startMetricsActorSystem(Configuration configuration, String hostname, Logger logger) throws Exception {
+	public static RpcService startMetricsRpcService(Configuration configuration, String hostname) throws Exception {
 		final String portRange = configuration.getString(MetricOptions.QUERY_SERVICE_PORT);
 		final int threadPriority = configuration.getInteger(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY);
-		return BootstrapTools.startActorSystem(
-			configuration,
-			METRICS_ACTOR_SYSTEM_NAME,
+
+		return AkkaRpcServiceUtils.createRpcService(
 			hostname,
 			portRange,
-			logger,
+			configuration,
+			METRICS_ACTOR_SYSTEM_NAME,
 			new BootstrapTools.FixedThreadPoolExecutorConfiguration(1, 1, threadPriority));
-	}
-
-	private static void instantiateNetworkMetrics(
-		MetricGroup metrics,
-		final NetworkEnvironment network) {
-
-		final NetworkBufferPool networkBufferPool = network.getNetworkBufferPool();
-		metrics.<Integer, Gauge<Integer>>gauge("TotalMemorySegments", networkBufferPool::getTotalNumberOfMemorySegments);
-		metrics.<Integer, Gauge<Integer>>gauge("AvailableMemorySegments", networkBufferPool::getNumberOfAvailableMemorySegments);
 	}
 
 	private static void instantiateClassLoaderMetrics(MetricGroup metrics) {

@@ -22,14 +22,19 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.concurrent.duration.Duration;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
+import scala.concurrent.duration.Duration;
+
+/**
+ * Factory for {@link RestartStrategy}.
+ */
 public abstract class RestartStrategyFactory implements Serializable {
 	private static final long serialVersionUID = 7320252552640522191L;
 
@@ -37,7 +42,7 @@ public abstract class RestartStrategyFactory implements Serializable {
 	private static final String CREATE_METHOD = "createFactory";
 
 	/**
-	 * Factory method to create a restart strategy
+	 * Factory method to create a restart strategy.
 	 * @return The created restart strategy
 	 */
 	public abstract RestartStrategy createRestartStrategy();

@@ -22,14 +22,14 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
+import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
@@ -49,7 +49,7 @@ import org.apache.flink.table.factories.utils.TestTableFormat;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.sources.TableSourceUtil;
+import org.apache.flink.table.sources.TableSourceValidation;
 import org.apache.flink.table.sources.tsextractors.ExistingField;
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps;
 import org.apache.flink.types.Row;
@@ -143,7 +143,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 			StartupMode.SPECIFIC_OFFSETS,
 			specificOffsets);
 
-		TableSourceUtil.validateTableSource(expected);
+		TableSourceValidation.validateTableSource(expected);
 
 		// construct table source using descriptors and table source factory
 
@@ -238,7 +238,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		}
 
 		@Override
-		public JobExecutionResult execute(String jobName) {
+		public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 			throw new UnsupportedOperationException();
 		}
 	}
@@ -248,7 +248,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		public SinkFunction<?> sinkFunction;
 
 		public DataStreamMock(StreamExecutionEnvironment environment, TypeInformation<Row> outType) {
-			super(environment, new StreamTransformationMock("name", outType, 1));
+			super(environment, new TransformationMock("name", outType, 1));
 		}
 
 		@Override
@@ -258,19 +258,14 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		}
 	}
 
-	private static class StreamTransformationMock extends StreamTransformation<Row> {
+	private static class TransformationMock extends Transformation<Row> {
 
-		public StreamTransformationMock(String name, TypeInformation<Row> outputType, int parallelism) {
+		public TransformationMock(String name, TypeInformation<Row> outputType, int parallelism) {
 			super(name, outputType, parallelism);
 		}
 
 		@Override
-		public void setChainingStrategy(ChainingStrategy strategy) {
-			// do nothing
-		}
-
-		@Override
-		public Collection<StreamTransformation<?>> getTransitivePredecessors() {
+		public Collection<Transformation<?>> getTransitivePredecessors() {
 			return null;
 		}
 	}

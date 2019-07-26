@@ -32,14 +32,12 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
-import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
+import org.apache.flink.runtime.metrics.dump.TestingMetricQueryServiceGateway;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.runtime.webmonitor.TestingRestfulGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
-import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
-import org.apache.flink.runtime.webmonitor.retriever.TestingMetricQueryServiceGateway;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -65,23 +63,12 @@ public class MetricFetcherTest extends TestLogger {
 		final Time timeout = Time.seconds(10L);
 
 		// ========= setup TaskManager =================================================================================
+
 		JobID jobID = new JobID();
 		ResourceID tmRID = ResourceID.generate();
 
-		// ========= setup JobManager ==================================================================================
-
-		final String jmMetricQueryServicePath = "/jm/" + MetricQueryService.METRIC_QUERY_SERVICE_NAME;
-		final String tmMetricQueryServicePath = "/tm/" + MetricQueryService.METRIC_QUERY_SERVICE_NAME + "_" + tmRID.getResourceIdString();
-
-		final TestingRestfulGateway restfulGateway = new TestingRestfulGateway.Builder()
-			.setRequestMultipleJobDetailsSupplier(() -> CompletableFuture.completedFuture(new MultipleJobsDetails(Collections.emptyList())))
-			.setRequestMetricQueryServicePathsSupplier(() -> CompletableFuture.completedFuture(Collections.singleton(jmMetricQueryServicePath)))
-			.setRequestTaskManagerMetricQueryServicePathsSupplier(() -> CompletableFuture.completedFuture(Collections.singleton(Tuple2.of(tmRID, tmMetricQueryServicePath))))
-			.build();
-
-		final GatewayRetriever<RestfulGateway> retriever = () -> CompletableFuture.completedFuture(restfulGateway);
-
 		// ========= setup QueryServices ================================================================================
+
 		final MetricQueryServiceGateway jmQueryService = new TestingMetricQueryServiceGateway.Builder()
 			.setQueryMetricsSupplier(() -> CompletableFuture.completedFuture(new MetricDumpSerialization.MetricSerializationResult(new byte[0], new byte[0], new byte[0], new byte[0], 0, 0, 0, 0)))
 			.build();
@@ -91,20 +78,20 @@ public class MetricFetcherTest extends TestLogger {
 			.setQueryMetricsSupplier(() -> CompletableFuture.completedFuture(requestMetricsAnswer))
 			.build();
 
-		final MetricQueryServiceRetriever queryServiceRetriever = (path) -> {
-			if (path.equals(jmMetricQueryServicePath))  {
-				return CompletableFuture.completedFuture(jmQueryService);
-			} else if (path.equals(tmMetricQueryServicePath)) {
-				return CompletableFuture.completedFuture(tmQueryService);
-			} else {
-				throw new IllegalArgumentException("Unexpected argument.");
-			}
-		};
+		// ========= setup JobManager ==================================================================================
+
+		final TestingRestfulGateway restfulGateway = new TestingRestfulGateway.Builder()
+			.setRequestMultipleJobDetailsSupplier(() -> CompletableFuture.completedFuture(new MultipleJobsDetails(Collections.emptyList())))
+			.setRequestMetricQueryServiceGatewaysSupplier(() -> CompletableFuture.completedFuture(Collections.singleton(jmQueryService.getAddress())))
+			.setRequestTaskManagerMetricQueryServiceGatewaysSupplier(() -> CompletableFuture.completedFuture(Collections.singleton(Tuple2.of(tmRID, tmQueryService.getAddress()))))
+			.build();
+
+		final GatewayRetriever<RestfulGateway> retriever = () -> CompletableFuture.completedFuture(restfulGateway);
 
 		// ========= start MetricFetcher testing =======================================================================
 		MetricFetcher fetcher = new MetricFetcherImpl<>(
 			retriever,
-			queryServiceRetriever,
+			address -> CompletableFuture.completedFuture(tmQueryService),
 			Executors.directExecutor(),
 			timeout,
 			MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL.defaultValue());
@@ -183,22 +170,22 @@ public class MetricFetcherTest extends TestLogger {
 	@Test
 	public void testLongUpdateInterval() {
 		final long updateInterval = 1000L;
-		final AtomicInteger requestMetricQueryServicePathsCounter = new AtomicInteger(0);
-		final RestfulGateway restfulGateway = createRestfulGateway(requestMetricQueryServicePathsCounter);
+		final AtomicInteger requestMetricQueryServiceGatewaysCounter = new AtomicInteger(0);
+		final RestfulGateway restfulGateway = createRestfulGateway(requestMetricQueryServiceGatewaysCounter);
 
 		final MetricFetcher fetcher = createMetricFetcher(updateInterval, restfulGateway);
 
 		fetcher.update();
 		fetcher.update();
 
-		assertThat(requestMetricQueryServicePathsCounter.get(), is(1));
+		assertThat(requestMetricQueryServiceGatewaysCounter.get(), is(1));
 	}
 
 	@Test
 	public void testShortUpdateInterval() throws InterruptedException {
 		final long updateInterval = 1L;
-		final AtomicInteger requestMetricQueryServicePathsCounter = new AtomicInteger(0);
-		final RestfulGateway restfulGateway = createRestfulGateway(requestMetricQueryServicePathsCounter);
+		final AtomicInteger requestMetricQueryServiceGatewaysCounter = new AtomicInteger(0);
+		final RestfulGateway restfulGateway = createRestfulGateway(requestMetricQueryServiceGatewaysCounter);
 
 		final MetricFetcher fetcher = createMetricFetcher(updateInterval, restfulGateway);
 
@@ -214,23 +201,23 @@ public class MetricFetcherTest extends TestLogger {
 
 		fetcher.update();
 
-		assertThat(requestMetricQueryServicePathsCounter.get(), is(2));
+		assertThat(requestMetricQueryServiceGatewaysCounter.get(), is(2));
 	}
 
 	@Nonnull
 	private MetricFetcher createMetricFetcher(long updateInterval, RestfulGateway restfulGateway) {
 		return new MetricFetcherImpl<>(
 			() -> CompletableFuture.completedFuture(restfulGateway),
-			path -> new CompletableFuture<>(),
+			address -> null,
 			Executors.directExecutor(),
 			Time.seconds(10L),
 			updateInterval);
 	}
 
-	private RestfulGateway createRestfulGateway(AtomicInteger requestMetricQueryServicePathsCounter) {
+	private RestfulGateway createRestfulGateway(AtomicInteger requestMetricQueryServiceGatewaysCounter) {
 		return new TestingRestfulGateway.Builder()
-			.setRequestMetricQueryServicePathsSupplier(() -> {
-				requestMetricQueryServicePathsCounter.incrementAndGet();
+			.setRequestMetricQueryServiceGatewaysSupplier(() -> {
+				requestMetricQueryServiceGatewaysCounter.incrementAndGet();
 				return new CompletableFuture<>();
 			})
 			.build();

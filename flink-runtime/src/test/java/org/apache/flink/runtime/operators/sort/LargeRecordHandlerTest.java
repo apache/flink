@@ -46,12 +46,10 @@ public class LargeRecordHandlerTest {
 
 	@Test
 	public void testEmptyRecordHandler() {
-		
-		final IOManager ioMan = new IOManagerAsync();
 		final int PAGE_SIZE = 4 * 1024;
 		final int NUM_PAGES = 50;
 		
-		try {
+		try (final IOManager ioMan = new IOManagerAsync()) {
 			final MemoryManager memMan = new MemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
 			final AbstractInvokable owner = new DummyInvokable();
 			final List<MemorySegment> memory = memMan.allocatePages(owner, NUM_PAGES);
@@ -88,20 +86,15 @@ public class LargeRecordHandlerTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			ioMan.shutdown();
-		}
 	}
 	
 	@Test
 	public void testRecordHandlerSingleKey() {
-		
-		final IOManager ioMan = new IOManagerAsync();
 		final int PAGE_SIZE = 4 * 1024;
 		final int NUM_PAGES = 24;
 		final int NUM_RECORDS = 25000;
 		
-		try {
+		try (final IOManager ioMan = new IOManagerAsync()) {
 			final MemoryManager memMan = new MemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
 			final AbstractInvokable owner = new DummyInvokable();
 			
@@ -174,20 +167,15 @@ public class LargeRecordHandlerTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			ioMan.shutdown();
-		}
 	}
 	
 	@Test
 	public void testRecordHandlerCompositeKey() {
-		
-		final IOManager ioMan = new IOManagerAsync();
 		final int PAGE_SIZE = 4 * 1024;
 		final int NUM_PAGES = 24;
 		final int NUM_RECORDS = 25000;
 		
-		try {
+		try (final IOManager ioMan = new IOManagerAsync()) {
 			final MemoryManager memMan = new MemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
 			final AbstractInvokable owner = new DummyInvokable();
 			
@@ -261,9 +249,6 @@ public class LargeRecordHandlerTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-		finally {
-			ioMan.shutdown();
 		}
 	}
 }

@@ -19,6 +19,7 @@ package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
@@ -296,7 +297,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			throw new IllegalStateException("A periodic watermark emitter has already been set.");
 		}
 		try {
-			ClosureCleaner.clean(assigner, true);
+			ClosureCleaner.clean(assigner, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 			this.punctuatedWatermarkAssigner = new SerializedValue<>(assigner);
 			return this;
 		} catch (Exception e) {
@@ -331,7 +332,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			throw new IllegalStateException("A punctuated watermark emitter has already been set.");
 		}
 		try {
-			ClosureCleaner.clean(assigner, true);
+			ClosureCleaner.clean(assigner, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 			this.periodicWatermarkAssigner = new SerializedValue<>(assigner);
 			return this;
 		} catch (Exception e) {
@@ -662,6 +663,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		// initialize commit metrics and default offset callback method
 		this.successfulCommits = this.getRuntimeContext().getMetricGroup().counter(COMMITS_SUCCEEDED_METRICS_COUNTER);
 		this.failedCommits =  this.getRuntimeContext().getMetricGroup().counter(COMMITS_FAILED_METRICS_COUNTER);
+		final int subtaskIndex = this.getRuntimeContext().getIndexOfThisSubtask();
 
 		this.offsetCommitCallback = new KafkaCommitCallback() {
 			@Override
@@ -671,7 +673,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 
 			@Override
 			public void onException(Throwable cause) {
-				LOG.warn("Async Kafka commit failed.", cause);
+				LOG.warn(String.format("Consumer subtask %d failed async Kafka commit.", subtaskIndex), cause);
 				failedCommits.inc();
 			}
 		};
@@ -683,6 +685,8 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 			sourceContext.markAsTemporarilyIdle();
 		}
 
+		LOG.info("Consumer subtask {} creating fetcher with offsets {}.",
+			getRuntimeContext().getIndexOfThisSubtask(), subscribedPartitionsToStartOffsets);
 		// from this point forward:
 		//   - 'snapshotState' will draw offsets from the fetcher,
 		//     instead of being built from `subscribedPartitionsToStartOffsets`
@@ -877,9 +881,9 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				restoredState.put(kafkaOffset.f0, kafkaOffset.f1);
 			}
 
-			LOG.info("Setting restore state in the FlinkKafkaConsumer: {}", restoredState);
+			LOG.info("Consumer subtask {} restored state: {}.", getRuntimeContext().getIndexOfThisSubtask(), restoredState);
 		} else {
-			LOG.info("No restore state for FlinkKafkaConsumer.");
+			LOG.info("Consumer subtask {} has no restore state.", getRuntimeContext().getIndexOfThisSubtask());
 		}
 	}
 
@@ -943,13 +947,15 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 		if (offsetCommitMode == OffsetCommitMode.ON_CHECKPOINTS) {
 			// only one commit operation must be in progress
 			if (LOG.isDebugEnabled()) {
-				LOG.debug("Committing offsets to Kafka/ZooKeeper for checkpoint " + checkpointId);
+				LOG.debug("Consumer subtask {} committing offsets to Kafka/ZooKeeper for checkpoint {}.",
+					getRuntimeContext().getIndexOfThisSubtask(), checkpointId);
 			}
 
 			try {
 				final int posInMap = pendingOffsetsToCommit.indexOf(checkpointId);
 				if (posInMap == -1) {
-					LOG.warn("Received confirmation for unknown checkpoint id {}", checkpointId);
+					LOG.warn("Consumer subtask {} received confirmation for unknown checkpoint id {}",
+						getRuntimeContext().getIndexOfThisSubtask(), checkpointId);
 					return;
 				}
 
@@ -963,7 +969,7 @@ public abstract class FlinkKafkaConsumerBase<T> extends RichParallelSourceFuncti
 				}
 
 				if (offsets == null || offsets.size() == 0) {
-					LOG.debug("Checkpoint state was empty.");
+					LOG.debug("Consumer subtask {} has empty checkpoint state.", getRuntimeContext().getIndexOfThisSubtask());
 					return;
 				}
 

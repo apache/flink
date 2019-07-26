@@ -50,6 +50,13 @@ to files that are modified. Note that if you are making changes that affect
 the sidebar navigation, you'll have to build the entire site to see
 those changes reflected on every page.
 
+| Flag | Action | 
+| -----| -------| 
+| -p   | Run interactive preview | 
+| -i   | Incremental builds | 
+| -e   | Build only English docs |
+| -z   | Build only Chinese docs |
+
 ## Generate configuration tables
 
 Configuration descriptions are auto generated from code. To trigger the generation you need to run:
@@ -58,7 +65,7 @@ Configuration descriptions are auto generated from code. To trigger the generati
 mvn -Pgenerate-config-docs install
 ```
 
-The resulting html files will be written to `_include/generated`. Tables are regenerated each time the command is invoked.
+The resulting html files will be written to `_includes/generated`. Tables are regenerated each time the command is invoked.
 These tables can be directly included into the documentation:
 
 ```

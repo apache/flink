@@ -21,15 +21,19 @@ package org.apache.flink.runtime.concurrent;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.runtime.util.FatalExitExceptionHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.SupplierWithException;
 
 import akka.dispatch.OnComplete;
 
+import javax.annotation.Nonnull;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -563,9 +567,6 @@ public class FutureUtils {
 		/** The total number of futures in the conjunction. */
 		private final int numTotal;
 
-		/** The next free index in the results arrays. */
-		private final AtomicInteger nextIndex = new AtomicInteger(0);
-
 		/** The number of futures in the conjunction that are already complete. */
 		private final AtomicInteger numCompleted = new AtomicInteger(0);
 
@@ -575,12 +576,10 @@ public class FutureUtils {
 		/** The function that is attached to all futures in the conjunction. Once a future
 		 * is complete, this function tracks the completion or fails the conjunct.
 		 */
-		private void handleCompletedFuture(T value, Throwable throwable) {
+		private void handleCompletedFuture(int index, T value, Throwable throwable) {
 			if (throwable != null) {
 				completeExceptionally(throwable);
 			} else {
-				int index = nextIndex.getAndIncrement();
-
 				results[index] = value;
 
 				if (numCompleted.incrementAndGet() == numTotal) {
@@ -598,8 +597,11 @@ public class FutureUtils {
 				complete(Collections.emptyList());
 			}
 			else {
+				int counter = 0;
 				for (CompletableFuture<? extends T> future : resultFutures) {
-					future.whenComplete(this::handleCompletedFuture);
+					final int index = counter;
+					counter++;
+					future.whenComplete((value, throwable) -> handleCompletedFuture(index, value, throwable));
 				}
 			}
 		}
@@ -969,6 +971,54 @@ public class FutureUtils {
 			checkNotNull(timeUnit);
 
 			return DELAYER.schedule(runnable, delay, timeUnit);
+		}
+	}
+
+	/**
+	 * Asserts that the given {@link CompletableFuture} is not completed exceptionally. If the future
+	 * is completed exceptionally, then it will call the {@link FatalExitExceptionHandler}.
+	 *
+	 * @param completableFuture to assert for no exceptions
+	 */
+	public static void assertNoException(CompletableFuture<?> completableFuture) {
+		handleUncaughtException(completableFuture, FatalExitExceptionHandler.INSTANCE);
+	}
+
+	/**
+	 * Checks that the given {@link CompletableFuture} is not completed exceptionally. If the future
+	 * is completed exceptionally, then it will call the given uncaught exception handler.
+	 *
+	 * @param completableFuture to assert for no exceptions
+	 * @param uncaughtExceptionHandler to call if the future is completed exceptionally
+	 */
+	public static void handleUncaughtException(CompletableFuture<?> completableFuture, Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
+		checkNotNull(completableFuture).whenComplete((ignored, throwable) -> {
+			if (throwable != null) {
+				uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), throwable);
+			}
+		});
+	}
+
+	/**
+	 * Cancels all instances of {@link java.util.concurrent.Future} in the given list of runnables without interrupting.
+	 * This method will suppress unexpected exceptions until the whole list is processed and then rethrow.
+	 *
+	 * @param runnables list of {@link Runnable} candidates to cancel.
+	 */
+	public static void cancelRunnableFutures(@Nonnull List<Runnable> runnables) {
+		RuntimeException suppressedExceptions = null;
+		for (Runnable runnable : runnables) {
+			if (runnable instanceof java.util.concurrent.Future) {
+				try {
+					((java.util.concurrent.Future<?>) runnable).cancel(false);
+				} catch (RuntimeException ex) {
+					// safety net to ensure all candidates get cancelled before we let the exception bubble up.
+					suppressedExceptions = ExceptionUtils.firstOrSuppressed(ex, suppressedExceptions);
+				}
+			}
+		}
+		if (suppressedExceptions != null) {
+			throw suppressedExceptions;
 		}
 	}
 }

@@ -58,8 +58,8 @@ public class AsynchronousBufferFileWriterTest {
 	private AsynchronousBufferFileWriter writer;
 
 	@AfterClass
-	public static void shutdown() {
-		ioManager.shutdown();
+	public static void shutdown() throws Exception {
+		ioManager.close();
 	}
 
 	@Before

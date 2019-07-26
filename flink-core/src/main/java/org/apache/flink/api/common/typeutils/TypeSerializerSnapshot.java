@@ -89,6 +89,8 @@ public interface TypeSerializerSnapshot<T> {
 	 * @param out the {@link DataOutputView} to write the snapshot to.
 	 *
 	 * @throws IOException Thrown if the snapshot data could not be written.
+	 *
+	 * @see #writeVersionedSnapshot(DataOutputView, TypeSerializerSnapshot)
 	 */
 	void writeSnapshot(DataOutputView out) throws IOException;
 
@@ -102,7 +104,9 @@ public interface TypeSerializerSnapshot<T> {
 	 * @param in the {@link DataInputView} to read the snapshot from.
 	 * @param userCodeClassLoader the user code classloader
 	 *
-	 * * @throws IOException Thrown if the snapshot data could be read or parsed.
+	 * @throws IOException Thrown if the snapshot data could be read or parsed.
+	 *
+	 * @see #readVersionedSnapshot(DataInputView, ClassLoader)
 	 */
 	void readSnapshot(int readVersion, DataInputView in, ClassLoader userCodeClassLoader) throws IOException;
 

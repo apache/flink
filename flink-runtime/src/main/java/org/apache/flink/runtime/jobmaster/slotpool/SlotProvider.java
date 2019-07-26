@@ -60,6 +60,23 @@ public interface SlotProvider {
 		Time allocationTimeout);
 
 	/**
+	 * Allocating batch slot with specific requirement.
+	 *
+	 * @param slotRequestId identifying the slot request
+	 * @param scheduledUnit The task to allocate the slot for
+	 * @param slotProfile profile of the requested slot
+	 * @param allowQueuedScheduling Whether allow the task be queued if we do not have enough resource
+	 * @return The future of the allocation
+	 */
+	default CompletableFuture<LogicalSlot> allocateBatchSlot(
+		SlotRequestId slotRequestId,
+		ScheduledUnit scheduledUnit,
+		SlotProfile slotProfile,
+		boolean allowQueuedScheduling) {
+		throw new UnsupportedOperationException("Not properly implemented.");
+	}
+
+	/**
 	 * Allocating slot with specific requirement.
 	 *
 	 * @param scheduledUnit The task to allocate the slot for

@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.io.network.ConnectionID;
-import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -30,14 +27,11 @@ import org.apache.flink.runtime.io.network.netty.NettyMessage.BufferResponse;
 import org.apache.flink.runtime.io.network.netty.NettyMessage.ErrorResponse;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.taskmanager.TaskActions;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
@@ -48,6 +42,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -130,14 +125,15 @@ public class PartitionRequestClientHandlerTest {
 	 */
 	@Test
 	public void testReceiveBuffer() throws Exception {
-		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32);
-		final SingleInputGate inputGate = createSingleInputGate();
-		final RemoteInputChannel inputChannel = createRemoteInputChannel(inputGate);
+		final NetworkBufferPool networkBufferPool = new NetworkBufferPool(10, 32, 2);
+		final SingleInputGate inputGate = createSingleInputGate(1);
+		final RemoteInputChannel inputChannel = InputChannelBuilder.newBuilder()
+			.setMemorySegmentProvider(networkBufferPool)
+			.buildRemoteAndSetToGate(inputGate);
 		try {
 			final BufferPool bufferPool = networkBufferPool.createBufferPool(8, 8);
 			inputGate.setBufferPool(bufferPool);
-			final int numExclusiveBuffers = 2;
-			inputGate.assignExclusiveSegments(networkBufferPool, numExclusiveBuffers);
+			inputGate.assignExclusiveSegments();
 
 			final PartitionRequestClientHandler handler = new PartitionRequestClientHandler();
 			handler.addInputChannel(inputChannel);
@@ -150,7 +146,7 @@ public class PartitionRequestClientHandlerTest {
 			assertEquals(1, inputChannel.getNumberOfQueuedBuffers());
 		} finally {
 			// Release all the buffer resources
-			inputGate.releaseAllResources();
+			inputGate.close();
 
 			networkBufferPool.destroyAllBufferPools();
 			networkBufferPool.destroy();
@@ -206,78 +202,6 @@ public class PartitionRequestClientHandlerTest {
 	}
 
 	// ---------------------------------------------------------------------------------------------
-
-	/**
-	 * Creates and returns the single input gate for credit-based testing.
-	 *
-	 * @return The new created single input gate.
-	 */
-	static SingleInputGate createSingleInputGate() {
-		return new SingleInputGate(
-			"InputGate",
-			new JobID(),
-			new IntermediateDataSetID(),
-			ResultPartitionType.PIPELINED,
-			0,
-			1,
-			mock(TaskActions.class),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup(),
-			true);
-	}
-
-	/**
-	 * Creates and returns a remote input channel for the specific input gate.
-	 *
-	 * @param inputGate The input gate owns the created input channel.
-	 * @return The new created remote input channel.
-	 */
-	static RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate) throws Exception {
-		return createRemoteInputChannel(inputGate, mock(PartitionRequestClient.class));
-	}
-
-	/**
-	 * Creates and returns a remote input channel for the specific input gate with specific partition request client.
-	 *
-	 * @param inputGate The input gate owns the created input channel.
-	 * @param client The client is used to send partition request.
-	 * @return The new created remote input channel.
-	 */
-	static RemoteInputChannel createRemoteInputChannel(SingleInputGate inputGate, PartitionRequestClient client) throws Exception {
-		return createRemoteInputChannel(inputGate, client, 0, 0);
-	}
-
-	/**
-	 * Creates and returns a remote input channel for the specific input gate with specific partition request client.
-	 *
-	 * @param inputGate The input gate owns the created input channel.
-	 * @param client The client is used to send partition request.
-	 * @param initialBackoff initial back off (in ms) for retriggering subpartition requests (must be <tt>&gt; 0</tt> to activate)
-	 * @param maxBackoff after which delay (in ms) to stop retriggering subpartition requests
-	 * @return The new created remote input channel.
-	 */
-	static RemoteInputChannel createRemoteInputChannel(
-			SingleInputGate inputGate,
-			PartitionRequestClient client,
-			int initialBackoff,
-			int maxBackoff) throws Exception {
-		final ConnectionManager connectionManager = mock(ConnectionManager.class);
-		when(connectionManager.createPartitionRequestClient(any(ConnectionID.class)))
-			.thenReturn(client);
-
-		ResultPartitionID partitionId = new ResultPartitionID();
-		RemoteInputChannel inputChannel = new RemoteInputChannel(
-			inputGate,
-			0,
-			partitionId,
-			mock(ConnectionID.class),
-			connectionManager,
-			initialBackoff,
-			maxBackoff,
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
-
-		inputGate.setInputChannel(partitionId.getPartitionId(), inputChannel);
-		return inputChannel;
-	}
 
 	/**
 	 * Returns a deserialized buffer message as it would be received during runtime.

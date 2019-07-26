@@ -19,16 +19,12 @@ package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.table.type.DecimalType;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
-import org.apache.flink.table.util.SegmentsUtil;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
+import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import java.nio.ByteOrder;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -59,29 +55,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public final class BinaryRow extends BinaryFormat implements BaseRow {
 
 	public static final boolean LITTLE_ENDIAN = (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN);
-	private static final long FIRST_BYTE_ZERO = LITTLE_ENDIAN ? 0xFFF0 : 0x0FFF;
+	private static final long FIRST_BYTE_ZERO = LITTLE_ENDIAN ? ~0xFFL : ~(0xFFL << 56L);
 	public static final int HEADER_SIZE_IN_BITS = 8;
-
-	private static final Set<InternalType> MUTABLE_FIELD_TYPES;
-
-	static {
-		MUTABLE_FIELD_TYPES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
-				InternalTypes.BOOLEAN,
-				InternalTypes.BYTE,
-				InternalTypes.SHORT,
-				InternalTypes.INT,
-				InternalTypes.LONG,
-				InternalTypes.FLOAT,
-				InternalTypes.DOUBLE,
-				InternalTypes.CHAR,
-				InternalTypes.TIMESTAMP,
-				InternalTypes.DATE,
-				InternalTypes.TIME,
-				InternalTypes.INTERVAL_MONTHS,
-				InternalTypes.INTERVAL_MILLIS,
-				InternalTypes.ROWTIME_INDICATOR,
-				InternalTypes.PROCTIME_INDICATOR)));
-	}
 
 	public static int calculateBitSetWidthInBytes(int arity) {
 		return ((arity + 63 + HEADER_SIZE_IN_BITS) / 64) * 8;
@@ -95,16 +70,31 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 	 * If it is a fixed-length field, we can call this BinaryRow's setXX method for in-place updates.
 	 * If it is variable-length field, can't use this method, because the underlying data is stored continuously.
 	 */
-	public static boolean isInFixedLengthPart(InternalType type) {
-		if (type instanceof DecimalType) {
-			return ((DecimalType) type).precision() <= DecimalType.MAX_COMPACT_PRECISION;
-		} else {
-			return MUTABLE_FIELD_TYPES.contains(type);
+	public static boolean isInFixedLengthPart(LogicalType type) {
+		switch (type.getTypeRoot()) {
+			case BOOLEAN:
+			case TINYINT:
+			case SMALLINT:
+			case INTEGER:
+			case DATE:
+			case TIME_WITHOUT_TIME_ZONE:
+			case INTERVAL_YEAR_MONTH:
+			case BIGINT:
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+			case INTERVAL_DAY_TIME:
+			case FLOAT:
+			case DOUBLE:
+				return true;
+			case DECIMAL:
+				return ((DecimalType) type).getPrecision() <= Decimal.MAX_COMPACT_PRECISION;
+			default:
+				return false;
 		}
 	}
 
-	public static boolean isMutable(InternalType type) {
-		return MUTABLE_FIELD_TYPES.contains(type) || type instanceof DecimalType;
+	public static boolean isMutable(LogicalType type) {
+		return isInFixedLengthPart(type) || type.getTypeRoot() == LogicalTypeRoot.DECIMAL;
 	}
 
 	private final int arity;
@@ -192,13 +182,6 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 	}
 
 	@Override
-	public void setChar(int pos, char value) {
-		assertIndexIsValid(pos);
-		setNotNullAt(pos);
-		segments[0].putChar(getFieldOffset(pos), value);
-	}
-
-	@Override
 	public void setDecimal(int pos, Decimal value, int precision) {
 		assertIndexIsValid(pos);
 
@@ -220,7 +203,7 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 			} else {
 
 				byte[] bytes = value.toUnscaledBytes();
-				assert(bytes.length <= 16);
+				assert bytes.length <= 16;
 
 				// Write the bytes to the variable length portion.
 				SegmentsUtil.copyFromBytes(segments, offset + cursor, bytes, 0, bytes.length);
@@ -300,12 +283,6 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 	}
 
 	@Override
-	public char getChar(int pos) {
-		assertIndexIsValid(pos);
-		return segments[0].getChar(getFieldOffset(pos));
-	}
-
-	@Override
 	public BinaryString getString(int pos) {
 		assertIndexIsValid(pos);
 		int fieldOffset = getFieldOffset(pos);
@@ -342,13 +319,13 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 	}
 
 	@Override
-	public BinaryArray getArray(int pos) {
+	public BaseArray getArray(int pos) {
 		assertIndexIsValid(pos);
 		return BinaryArray.readBinaryArrayFieldFromSegments(segments, offset, getLong(pos));
 	}
 
 	@Override
-	public BinaryMap getMap(int pos) {
+	public BaseMap getMap(int pos) {
 		assertIndexIsValid(pos);
 		return BinaryMap.readBinaryMapFieldFromSegments(segments, offset, getLong(pos));
 	}
@@ -398,16 +375,22 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 		return reuse;
 	}
 
+	public void clear() {
+		segments = null;
+		offset = 0;
+		sizeInBytes = 0;
+	}
+
 	@Override
 	public int hashCode() {
 		return SegmentsUtil.hashByWords(segments, offset, sizeInBytes);
 	}
 
-	public String toOriginString(InternalType... types) {
+	public String toOriginString(LogicalType... types) {
 		return toOriginString(this, types);
 	}
 
-	public static String toOriginString(BaseRow row, InternalType[] types) {
+	public static String toOriginString(BaseRow row, LogicalType[] types) {
 		checkArgument(types.length == row.getArity());
 		StringBuilder build = new StringBuilder("[");
 		build.append(row.getHeader());
@@ -421,5 +404,21 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 		}
 		build.append(']');
 		return build.toString();
+	}
+
+	public boolean equalsWithoutHeader(BaseRow o) {
+		return equalsFrom(o, 1);
+	}
+
+	private boolean equalsFrom(Object o, int startIndex) {
+		if (o != null && o instanceof BinaryRow) {
+			BinaryRow other = (BinaryRow) o;
+			return sizeInBytes == other.sizeInBytes &&
+					SegmentsUtil.equals(
+							segments, offset + startIndex,
+							other.segments, other.offset + startIndex, sizeInBytes - startIndex);
+		} else {
+			return false;
+		}
 	}
 }

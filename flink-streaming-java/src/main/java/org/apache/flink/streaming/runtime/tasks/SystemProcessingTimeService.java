@@ -20,22 +20,18 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.NeverCompleteFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
-
 import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.Delayed;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -334,76 +330,6 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 				} catch (Throwable t) {
 					TimerException asyncException = new TimerException(t);
 					exceptionHandler.handleAsyncException("Caught exception while processing repeated timer task.", asyncException);
-				}
-			}
-		}
-	}
-
-	// ------------------------------------------------------------------------
-
-	private static final class NeverCompleteFuture implements ScheduledFuture<Object> {
-
-		private final Object lock = new Object();
-
-		private final long delayMillis;
-
-		private volatile boolean canceled;
-
-		private NeverCompleteFuture(long delayMillis) {
-			this.delayMillis = delayMillis;
-		}
-
-		@Override
-		public long getDelay(@Nonnull TimeUnit unit) {
-			return unit.convert(delayMillis, TimeUnit.MILLISECONDS);
-		}
-
-		@Override
-		public int compareTo(@Nonnull Delayed o) {
-			long otherMillis = o.getDelay(TimeUnit.MILLISECONDS);
-			return Long.compare(this.delayMillis, otherMillis);
-		}
-
-		@Override
-		public boolean cancel(boolean mayInterruptIfRunning) {
-			synchronized (lock) {
-				canceled = true;
-				lock.notifyAll();
-			}
-			return true;
-		}
-
-		@Override
-		public boolean isCancelled() {
-			return canceled;
-		}
-
-		@Override
-		public boolean isDone() {
-			return false;
-		}
-
-		@Override
-		public Object get() throws InterruptedException {
-			synchronized (lock) {
-				while (!canceled) {
-					lock.wait();
-				}
-			}
-			throw new CancellationException();
-		}
-
-		@Override
-		public Object get(long timeout, @Nonnull TimeUnit unit) throws InterruptedException, TimeoutException {
-			synchronized (lock) {
-				while (!canceled) {
-					unit.timedWait(lock, timeout);
-				}
-
-				if (canceled) {
-					throw new CancellationException();
-				} else {
-					throw new TimeoutException();
 				}
 			}
 		}

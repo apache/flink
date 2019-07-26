@@ -69,11 +69,6 @@ public final class GenericRow extends ObjectArrayRow {
 	}
 
 	@Override
-	public char getChar(int ordinal) {
-		return (char) this.fields[ordinal];
-	}
-
-	@Override
 	public void setBoolean(int ordinal, boolean value) {
 		this.fields[ordinal] = value;
 	}
@@ -108,13 +103,12 @@ public final class GenericRow extends ObjectArrayRow {
 		this.fields[ordinal] = value;
 	}
 
-	@Override
-	public void setChar(int ordinal, char value) {
+	public void setField(int ordinal, Object value) {
 		this.fields[ordinal] = value;
 	}
 
-	public void setField(int ordinal, Object value) {
-		this.fields[ordinal] = value;
+	public Object getField(int ordinal) {
+		return this.fields[ordinal];
 	}
 
 	public static GenericRow of(Object... values) {
@@ -125,6 +119,13 @@ public final class GenericRow extends ObjectArrayRow {
 		}
 
 		return row;
+	}
+
+	public static GenericRow copyReference(GenericRow row) {
+		final GenericRow newRow = new GenericRow(row.fields.length);
+		System.arraycopy(row.fields, 0, newRow.fields, 0, row.fields.length);
+		newRow.setHeader(row.getHeader());
+		return newRow;
 	}
 }
 

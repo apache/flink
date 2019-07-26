@@ -16,11 +16,9 @@
 # limitations under the License.
 ################################################################################
 
-FROM debian:jessie
+FROM debian:stretch
 
-RUN echo "deb http://http.debian.net/debian jessie-backports main" >> /etc/apt/sources.list && \
-    apt-get update && \
-    apt-get install -y -t jessie-backports openjdk-8-jdk && \
+RUN apt-get update && \
     apt-get install -qqy \
             less \
             libjna-java \

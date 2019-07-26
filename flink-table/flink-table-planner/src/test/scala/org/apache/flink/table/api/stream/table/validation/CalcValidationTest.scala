@@ -20,9 +20,10 @@ package org.apache.flink.table.api.stream.table.validation
 import java.math.BigDecimal
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{Tumble, ValidationException}
+import org.apache.flink.table.api.{TableException, Tumble, ValidationException}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvg
+import org.apache.flink.table.utils.{TableFunc0, TableTestBase}
 import org.junit.Test
 
 class CalcValidationTest extends TableTestBase {
@@ -45,5 +46,119 @@ class CalcValidationTest extends TableTestBase {
     .window(Tumble over 2.millis on 'rowtime as 'w)
     .groupBy('w)
     .select('w.end.rowtime, 'int.count as 'int) // no rowtime on non-window reference
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testAddColumnsWithAgg(): Unit = {
+    val util = streamTestUtil()
+    val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    tab.addColumns('a.sum)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testAddOrReplaceColumnsWithAgg(): Unit = {
+    val util = streamTestUtil()
+    val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    tab.addOrReplaceColumns('a.sum)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testRenameColumnsWithAgg(): Unit = {
+      val util = streamTestUtil()
+      val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+      tab.renameColumns('a.sum)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testRenameColumnsWithoutAlias(): Unit = {
+    val util = streamTestUtil()
+    val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    tab.renameColumns('a)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testRenameColumnsWithFunctallCall(): Unit = {
+    val util = streamTestUtil()
+    val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    tab.renameColumns('a + 1  as 'a2)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testRenameColumnsNotExist(): Unit = {
+    val util = streamTestUtil()
+    val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    tab.renameColumns('e as 'e2)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testDropColumnsWithAgg(): Unit = {
+    val util = streamTestUtil()
+    val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    tab.dropColumns('a.sum)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testDropColumnsNotExist(): Unit = {
+    val util = streamTestUtil()
+    val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    tab.dropColumns('e)
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testDropColumnsWithValueLiteral(): Unit = {
+    val util = streamTestUtil()
+    val tab = util.addTable[(Int, Long, String)]("Table3",'a, 'b, 'c)
+    tab.dropColumns("'a'")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidMapFunctionTypeAggregation(): Unit = {
+    val util = streamTestUtil()
+    util.addTable[(Int)](
+      "MyTable", 'int)
+      .map('int.sum) // do not support AggregateFunction as input
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidMapFunctionTypeUDAGG(): Unit = {
+    val util = streamTestUtil()
+
+    val weightedAvg = new WeightedAvg
+    util.addTable[(Int)](
+      "MyTable", 'int)
+      .map(weightedAvg('int, 'int)) // do not support AggregateFunction as input
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidMapFunctionTypeUDAGG2(): Unit = {
+    val util = streamTestUtil()
+
+    util.tableEnv.registerFunction("weightedAvg", new WeightedAvg)
+    util.addTable[(Int)](
+      "MyTable", 'int)
+      .map("weightedAvg(int, int)") // do not support AggregateFunction as input
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidMapFunctionTypeTableFunction(): Unit = {
+    val util = streamTestUtil()
+
+    util.tableEnv.registerFunction("func", new TableFunc0)
+    util.addTable[(String)](
+      "MyTable", 'string)
+      .map("func(string) as a") // do not support TableFunction as input
+  }
+
+  @Test
+  def testInvalidParameterTypes(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("log('long) fails on input type checking: " +
+      "[expecting Double on 0th input, get Long].\nOperand should be casted to proper type")
+
+    val util = streamTestUtil()
+
+    util.tableEnv.registerFunction("func", new TableFunc0)
+    util.addTable[(Int, Long, String)]("MyTable", 'int, 'long, 'string)
+      .select('int, 'long.log as 'long, 'string)
   }
 }

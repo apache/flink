@@ -32,7 +32,7 @@ import java.io.IOException;
  */
 public class BroadcastRecordWriter<T extends IOReadableWritable> extends RecordWriter<T> {
 
-	public BroadcastRecordWriter(
+	BroadcastRecordWriter(
 			ResultPartitionWriter writer,
 			ChannelSelector<T> channelSelector,
 			long timeout,

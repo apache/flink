@@ -34,7 +34,6 @@ import org.apache.flink.runtime.jobmaster.JobMaster;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.FlinkException;
@@ -52,7 +51,7 @@ public class HighAvailabilityServicesUtils {
 	public static HighAvailabilityServices createAvailableOrEmbeddedServices(
 		Configuration config,
 		Executor executor) throws Exception {
-		HighAvailabilityMode highAvailabilityMode = LeaderRetrievalUtils.getRecoveryMode(config);
+		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(config);
 
 		switch (highAvailabilityMode) {
 			case NONE:
@@ -80,7 +79,7 @@ public class HighAvailabilityServicesUtils {
 		Executor executor,
 		AddressResolution addressResolution) throws Exception {
 
-		HighAvailabilityMode highAvailabilityMode = LeaderRetrievalUtils.getRecoveryMode(configuration);
+		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(configuration);
 
 		switch (highAvailabilityMode) {
 			case NONE:
@@ -165,20 +164,10 @@ public class HighAvailabilityServicesUtils {
 		final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 		final String haServicesClassName = config.getString(HighAvailabilityOptions.HA_MODE);
 
-		final HighAvailabilityServicesFactory highAvailabilityServicesFactory;
-
-		try {
-			highAvailabilityServicesFactory = InstantiationUtil.instantiate(
-				haServicesClassName,
-				HighAvailabilityServicesFactory.class,
-				classLoader);
-		} catch (Exception e) {
-			throw new FlinkException(
-				String.format(
-					"Could not instantiate the HighAvailabilityServicesFactory '%s'. Please make sure that this class is on your class path.",
-					haServicesClassName),
-				e);
-		}
+		final HighAvailabilityServicesFactory highAvailabilityServicesFactory = InstantiationUtil.instantiate(
+			haServicesClassName,
+			HighAvailabilityServicesFactory.class,
+			classLoader);
 
 		try {
 			return highAvailabilityServicesFactory.createHAServices(config, executor);

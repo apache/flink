@@ -27,7 +27,7 @@ import org.junit.Test
 
 class GroupWindowTest extends TableTestBase {
   private val streamUtil: StreamTableTestUtil = streamTestUtil()
-  streamUtil.addTable[(Int, String, Long)](
+  private val table = streamUtil.addTable[(Int, String, Long)](
     "MyTable", 'a, 'b, 'c, 'proctime.proctime, 'rowtime.rowtime)
 
   @Test
@@ -48,7 +48,7 @@ class GroupWindowTest extends TableTestBase {
           "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "rowtime", "c", "a")
           ),
           term("window", "TumblingGroupWindow('w$, 'rowtime, 900000.millis)"),
@@ -82,7 +82,7 @@ class GroupWindowTest extends TableTestBase {
           "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "proctime", "c", "a")
           ),
           term("window", "SlidingGroupWindow('w$, 'proctime, 3600000.millis, 900000.millis)"),
@@ -117,7 +117,7 @@ class GroupWindowTest extends TableTestBase {
           "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "proctime", "c", "a")
           ),
           term("window", "SessionGroupWindow('w$, 'proctime, 900000.millis)"),
@@ -149,7 +149,7 @@ class GroupWindowTest extends TableTestBase {
           "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "rowtime")
           ),
           term("window", "TumblingGroupWindow('w$, 'rowtime, 900000.millis)"),
@@ -160,7 +160,7 @@ class GroupWindowTest extends TableTestBase {
             "rowtime('w$) AS w$rowtime",
             "proctime('w$) AS w$proctime")
         ),
-        term("select", "EXPR$0", "+(w$end, 60000) AS EXPR$1")
+        term("select", "EXPR$0", "+(w$end, 60000:INTERVAL MINUTE) AS EXPR$1")
       )
 
     streamUtil.verifySql(sql, expected)
@@ -185,7 +185,7 @@ class GroupWindowTest extends TableTestBase {
           "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "rowtime, a")
           ),
           term("window", "SlidingGroupWindow('w$, 'rowtime, 60000.millis, 900000.millis)"),
@@ -200,7 +200,7 @@ class GroupWindowTest extends TableTestBase {
         term("select", "EXPR$0", "w$start AS EXPR$1"),
         term("where",
           "AND(>($f1, 0), " +
-            "=(EXTRACT(FLAG(QUARTER), w$start), 1))")
+            "=(EXTRACT(FLAG(QUARTER), w$start), 1:BIGINT))")
       )
 
     streamUtil.verifySql(sql, expected)
@@ -233,7 +233,7 @@ class GroupWindowTest extends TableTestBase {
               "DataStreamGroupWindowAggregate",
               unaryNode(
                 "DataStreamCalc",
-                streamTableNode(0),
+                streamTableNode(table),
                 term("select", "rowtime, a")
               ),
               term("window", "TumblingGroupWindow('w$, 'rowtime, 2.millis)"),
@@ -244,7 +244,7 @@ class GroupWindowTest extends TableTestBase {
                 "rowtime('w$) AS w$rowtime",
                 "proctime('w$) AS w$proctime")
             ),
-            term("select", "a", "w$rowtime AS zzzzz")
+            term("select", "w$rowtime AS zzzzz")
           ),
           term("window", "TumblingGroupWindow('w$, 'zzzzz, 4.millis)"),
           term("select",
@@ -277,7 +277,7 @@ class GroupWindowTest extends TableTestBase {
           "DataStreamGroupWindowAggregate",
           unaryNode(
             "DataStreamCalc",
-            streamTableNode(0),
+            streamTableNode(table),
             term("select", "rowtime", "c", "*(c, c) AS $f2")
           ),
           term("window", "TumblingGroupWindow('w$, 'rowtime, 900000.millis)"),
@@ -292,10 +292,10 @@ class GroupWindowTest extends TableTestBase {
         ),
         term("select",
           "/(-($f0, /(*($f1, $f1), $f2)), $f2) AS EXPR$0",
-          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))) AS EXPR$1",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5)) AS EXPR$2",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))), 0.5)) " +
-            "AS EXPR$3",
+          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))) AS EXPR$1",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))), " +
+            "0.5:DECIMAL(2, 1))) AS EXPR$3",
           "w$start AS EXPR$4",
           "w$end AS EXPR$5")
       )

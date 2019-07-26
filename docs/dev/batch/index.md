@@ -49,7 +49,7 @@ Example Program
 
 The following program is a complete, working example of WordCount. You can copy &amp; paste the code
 to run it locally. You only have to include the correct Flink's library into your project
-(see Section [Linking with Flink]({{ site.baseurl }}/dev/linking_with_flink.html)) and specify the imports. Then you are ready
+(see Section [Linking with Flink]({{ site.baseurl }}/dev/projectsetup/dependencies.html)) and specify the imports. Then you are ready
 to go!
 
 <div class="codetabs" markdown="1">
@@ -829,7 +829,7 @@ File-based:
 
 Collection-based:
 
-- `fromCollection(Collection)` - Creates a data set from the Java Java.util.Collection. All elements
+- `fromCollection(Collection)` - Creates a data set from a Java.util.Collection. All elements
   in the collection must be of the same type.
 
 - `fromCollection(Iterator, Class)` - Creates a data set from an iterator. The class specifies the
@@ -970,8 +970,8 @@ File-based:
 
 Collection-based:
 
-- `fromCollection(Seq)` - Creates a data set from a Seq. All elements
-  in the collection must be of the same type.
+- `fromCollection(Iterable)` - Creates a data set from an Iterable. All elements
+  returned by the Iterable must be of the same type.
 
 - `fromCollection(Iterator)` - Creates a data set from an Iterator. The class specifies the
   data type of the elements returned by the iterator.

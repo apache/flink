@@ -19,64 +19,32 @@
 
 package org.apache.flink.table.functions.utils
 
-import java.lang.reflect.{Method, Modifier}
-import java.lang.{Integer => JInt, Long => JLong}
-import java.sql.{Date, Time, Timestamp}
-import java.util
+import org.apache.flink.api.common.functions.InvalidTypesException
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeutils.CompositeType
+import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
+import org.apache.flink.table.api.dataview._
+import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.dataview.{ListViewTypeInfo, MapViewTypeInfo}
+import org.apache.flink.table.functions._
+import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
+import org.apache.flink.table.typeutils.FieldInfoUtils
 
 import com.google.common.primitives.Primitives
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
 import org.apache.calcite.sql.`type`._
 import org.apache.calcite.sql.{SqlCallBinding, SqlFunction, SqlOperandCountRange, SqlOperator}
-import org.apache.flink.api.common.functions.InvalidTypesException
-import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.java.typeutils.{PojoField, PojoTypeInfo, TypeExtractor}
-import org.apache.flink.table.api.dataview._
-import org.apache.flink.table.api.{TableEnvironment, TableException, ValidationException}
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.dataview._
-import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedFunction}
-import org.apache.flink.table.plan.logical._
-import org.apache.flink.table.plan.schema.FlinkTableFunctionImpl
-import org.apache.flink.util.InstantiationUtil
+
+import java.lang.reflect.{Method, Modifier}
+import java.lang.{Integer => JInt, Long => JLong}
+import java.sql.{Date, Time, Timestamp}
+import java.util
 
 import scala.collection.mutable
 
 object UserDefinedFunctionUtils {
-
-  /**
-    * Checks if a user-defined function can be easily instantiated.
-    */
-  def checkForInstantiation(clazz: Class[_]): Unit = {
-    if (!InstantiationUtil.isPublic(clazz)) {
-      throw new ValidationException(s"Function class ${clazz.getCanonicalName} is not public.")
-    }
-    else if (!InstantiationUtil.isProperClass(clazz)) {
-      throw new ValidationException(
-        s"Function class ${clazz.getCanonicalName} is no proper class," +
-        " it is either abstract, an interface, or a primitive type.")
-    }
-    else if (InstantiationUtil.isNonStaticInnerClass(clazz)) {
-      throw new ValidationException(
-        s"The class ${clazz.getCanonicalName} is an inner class, but not statically accessible.")
-    }
-  }
-
-  /**
-    * Check whether this is a Scala object. It is forbidden to use [[TableFunction]] implemented
-    * by a Scala object, since concurrent risks.
-    */
-  def checkNotSingleton(clazz: Class[_]): Unit = {
-    // TODO it is not a good way to check singleton. Maybe improve it further.
-    if (clazz.getFields.map(_.getName) contains "MODULE$") {
-      throw new ValidationException(
-        s"TableFunction implemented by class ${clazz.getCanonicalName} " +
-          s"is a Scala object, it is forbidden since concurrent risks.")
-    }
-  }
 
   // ----------------------------------------------------------------------------------------------
   // Utilities for user-defined methods
@@ -99,11 +67,11 @@ object UserDefinedFunctionUtils {
     * of [[TypeInformation]]. Elements of the signature can be null (act as a wildcard).
     */
   def getAccumulateMethodSignature(
-      function: AggregateFunction[_, _],
+      function: UserDefinedAggregateFunction[_, _],
       signature: Seq[TypeInformation[_]])
   : Option[Array[Class[_]]] = {
     val accType = TypeExtractor.createTypeInfo(
-      function, classOf[AggregateFunction[_, _]], function.getClass, 1)
+      function, classOf[UserDefinedAggregateFunction[_, _]], function.getClass, 1)
     val input = (Array(accType) ++ signature).toSeq
     getUserDefinedMethod(
       function,
@@ -324,7 +292,7 @@ object UserDefinedFunctionUtils {
   def createAggregateSqlFunction(
       name: String,
       displayName: String,
-      aggFunction: AggregateFunction[_, _],
+      aggFunction: UserDefinedAggregateFunction[_, _],
       resultType: TypeInformation[_],
       accTypeInfo: TypeInformation[_],
       typeFactory: FlinkTypeFactory)
@@ -338,8 +306,7 @@ object UserDefinedFunctionUtils {
       aggFunction,
       resultType,
       accTypeInfo,
-      typeFactory,
-      aggFunction.requiresOver)
+      typeFactory)
   }
 
   /**
@@ -507,8 +474,8 @@ object UserDefinedFunctionUtils {
             case map: MapViewTypeInfo[_, _] =>
               val mapView = field.get(acc).asInstanceOf[MapView[_, _]]
               if (mapView != null) {
-                val keyTypeInfo = mapView.keyTypeInfo
-                val valueTypeInfo = mapView.valueTypeInfo
+                val keyTypeInfo = mapView.keyType
+                val valueTypeInfo = mapView.valueType
                 val newTypeInfo = if (keyTypeInfo != null && valueTypeInfo != null) {
                   new MapViewTypeInfo(keyTypeInfo, valueTypeInfo)
                 } else {
@@ -532,7 +499,7 @@ object UserDefinedFunctionUtils {
             case list: ListViewTypeInfo[_] =>
               val listView = field.get(acc).asInstanceOf[ListView[_]]
               if (listView != null) {
-                val elementTypeInfo = listView.elementTypeInfo
+                val elementTypeInfo = listView.elementType
                 val newTypeInfo = if (elementTypeInfo != null) {
                   new ListViewTypeInfo(elementTypeInfo)
                 } else {
@@ -562,90 +529,6 @@ object UserDefinedFunctionUtils {
           "MapView and ListView only supported in accumulators of POJO type.")
       case _ => (accType, None)
     }
-  }
-
-  /**
-    * Tries to infer the TypeInformation of an AggregateFunction's return type.
-    *
-    * @param aggregateFunction The AggregateFunction for which the return type is inferred.
-    * @param extractedType The implicitly inferred type of the result type.
-    *
-    * @return The inferred result type of the AggregateFunction.
-    */
-  def getResultTypeOfAggregateFunction(
-      aggregateFunction: AggregateFunction[_, _],
-      extractedType: TypeInformation[_] = null)
-    : TypeInformation[_] = {
-
-    val resultType = aggregateFunction.getResultType
-    if (resultType != null) {
-      resultType
-    } else if (extractedType != null) {
-      extractedType
-    } else {
-      try {
-        extractTypeFromAggregateFunction(aggregateFunction, 0)
-      } catch {
-        case ite: InvalidTypesException =>
-          throw new TableException(
-            "Cannot infer generic type of ${aggregateFunction.getClass}. " +
-              "You can override AggregateFunction.getResultType() to specify the type.",
-            ite
-          )
-      }
-    }
-  }
-
-  /**
-    * Tries to infer the TypeInformation of an AggregateFunction's accumulator type.
-    *
-    * @param aggregateFunction The AggregateFunction for which the accumulator type is inferred.
-    * @param extractedType The implicitly inferred type of the accumulator type.
-    *
-    * @return The inferred accumulator type of the AggregateFunction.
-    */
-  def getAccumulatorTypeOfAggregateFunction(
-    aggregateFunction: AggregateFunction[_, _],
-    extractedType: TypeInformation[_] = null)
-  : TypeInformation[_] = {
-
-    val accType = aggregateFunction.getAccumulatorType
-    if (accType != null) {
-      accType
-    } else if (extractedType != null) {
-      extractedType
-    } else {
-      try {
-        extractTypeFromAggregateFunction(aggregateFunction, 1)
-      } catch {
-        case ite: InvalidTypesException =>
-          throw new TableException(
-            "Cannot infer generic type of ${aggregateFunction.getClass}. " +
-              "You can override AggregateFunction.getAccumulatorType() to specify the type.",
-            ite
-          )
-      }
-    }
-  }
-
-  /**
-    * Internal method to extract a type from an AggregateFunction's type parameters.
-    *
-    * @param aggregateFunction The AggregateFunction for which the type is extracted.
-    * @param parameterTypePos The position of the type parameter for which the type is extracted.
-    *
-    * @return The extracted type.
-    */
-  @throws(classOf[InvalidTypesException])
-  private def extractTypeFromAggregateFunction(
-      aggregateFunction: AggregateFunction[_, _],
-      parameterTypePos: Int): TypeInformation[_] = {
-
-    TypeExtractor.createTypeInfo(
-      aggregateFunction,
-      classOf[AggregateFunction[_, _]],
-      aggregateFunction.getClass,
-      parameterTypePos).asInstanceOf[TypeInformation[_]]
   }
 
   /**
@@ -702,9 +585,9 @@ object UserDefinedFunctionUtils {
   def getFieldInfo(inputType: TypeInformation[_])
     : (Array[String], Array[Int], Array[TypeInformation[_]]) = {
 
-    (TableEnvironment.getFieldNames(inputType),
-    TableEnvironment.getFieldIndices(inputType),
-    TableEnvironment.getFieldTypes(inputType))
+    (FieldInfoUtils.getFieldNames(inputType),
+      FieldInfoUtils.getFieldIndices(inputType),
+      FieldInfoUtils.getFieldTypes(inputType))
   }
 
   /**
@@ -765,59 +648,6 @@ object UserDefinedFunctionUtils {
     // arrays
     (candidate.isArray && expected.isArray &&
       (candidate.getComponentType == expected.getComponentType))
-
-  /**
-    * Creates a [[LogicalTableFunctionCall]] by an expression.
-    *
-    * @param callExpr an expression of a TableFunctionCall, such as "split(c)"
-    * @param logicalNode child logical node
-    * @return A LogicalTableFunctionCall.
-    */
-  def createLogicalFunctionCall(
-      callExpr: PlannerExpression,
-      logicalNode: LogicalNode)
-    : LogicalTableFunctionCall = {
-
-    var alias: Option[Seq[String]] = None
-
-    // unwrap an Expression until we get a TableFunctionCall
-    def unwrap(expr: PlannerExpression): PlannerTableFunctionCall = expr match {
-      case Alias(child, name, extraNames) =>
-        alias = Some(Seq(name) ++ extraNames)
-        unwrap(child)
-      case c: PlannerTableFunctionCall => c
-      case _ =>
-        throw new TableException(
-          "A lateral join only accepts a string expression which defines a table function " +
-            "call that might be followed by some alias.")
-    }
-
-    val tableFunctionCall = unwrap(callExpr)
-
-    val originNames = getFieldInfo(tableFunctionCall.resultType)._1
-
-    // determine the final field names
-    val fieldNames = alias match {
-      case Some(aliasList) if aliasList.length != originNames.length =>
-        throw new ValidationException(
-          s"List of column aliases must have same degree as table; " +
-            s"the returned table of function '${tableFunctionCall.functionName}' has " +
-            s"${originNames.length} columns (${originNames.mkString(",")}), " +
-            s"whereas alias list has ${aliasList.length} columns")
-      case Some(aliasList) =>
-        aliasList.toArray
-      case _ =>
-        originNames
-    }
-
-    LogicalTableFunctionCall(
-      tableFunctionCall.functionName,
-      tableFunctionCall.tableFunction,
-      tableFunctionCall.parameters,
-      tableFunctionCall.resultType,
-      fieldNames,
-      logicalNode)
-  }
 
   def getOperandTypeInfo(callBinding: SqlCallBinding): Seq[TypeInformation[_]] = {
     val operandTypes = for (i <- 0 until callBinding.getOperandCount)

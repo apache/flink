@@ -22,8 +22,10 @@ import org.apache.calcite.tools.RelBuilder
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.calcite.FlinkTypeFactory._
 import org.apache.flink.table.functions.sql.StreamRecordTimestampSqlFunction
+import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.validate.{ValidationFailure, ValidationResult, ValidationSuccess}
 
@@ -38,6 +40,21 @@ abstract class Attribute extends LeafExpression with NamedExpression {
   private[flink] def withName(newName: String): Attribute
 }
 
+/**
+  * Dummy wrapper for expressions that were converted to RexNode in a different way.
+  */
+case class RexPlannerExpression(
+    private[flink] val rexNode: RexNode)
+  extends LeafExpression {
+
+  override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode = {
+    rexNode
+  }
+
+  override private[flink] def resultType: TypeInformation[_] =
+    FlinkTypeFactory.toTypeInfo(rexNode.getType)
+}
+
 case class UnresolvedFieldReference(name: String) extends Attribute {
 
   override def toString = s"'$name"
@@ -46,13 +63,13 @@ case class UnresolvedFieldReference(name: String) extends Attribute {
     UnresolvedFieldReference(newName)
 
   override private[flink] def resultType: TypeInformation[_] =
-    throw UnresolvedException(s"Calling resultType on ${this.getClass}.")
+    throw new UnresolvedException(s"Calling resultType on ${this.getClass}.")
 
   override private[flink] def validateInput(): ValidationResult =
     ValidationFailure(s"Unresolved reference $name.")
 }
 
-case class ResolvedFieldReference(
+case class PlannerResolvedFieldReference(
     name: String,
     resultType: TypeInformation[_]) extends Attribute {
 
@@ -66,7 +83,7 @@ case class ResolvedFieldReference(
     if (newName == name) {
       this
     } else {
-      ResolvedFieldReference(newName, resultType)
+      PlannerResolvedFieldReference(newName, resultType)
     }
   }
 }
@@ -89,7 +106,7 @@ case class Alias(child: PlannerExpression, name: String, extraNames: Seq[String]
 
   override private[flink] def toAttribute: Attribute = {
     if (valid) {
-      ResolvedFieldReference(name, child.resultType)
+      PlannerResolvedFieldReference(name, child.resultType)
     } else {
       UnresolvedFieldReference(name)
     }
@@ -98,8 +115,6 @@ case class Alias(child: PlannerExpression, name: String, extraNames: Seq[String]
   override private[flink] def validateInput(): ValidationResult = {
     if (name == "*") {
       ValidationFailure("Alias can not accept '*' as name.")
-    } else if (extraNames.nonEmpty) {
-      ValidationFailure("Invalid call to Alias with multiple names.")
     } else {
       ValidationSuccess
     }
@@ -109,13 +124,13 @@ case class Alias(child: PlannerExpression, name: String, extraNames: Seq[String]
 case class UnresolvedAlias(child: PlannerExpression) extends UnaryExpression with NamedExpression {
 
   override private[flink] def name: String =
-    throw UnresolvedException("Invalid call to name on UnresolvedAlias")
+    throw new UnresolvedException("Invalid call to name on UnresolvedAlias")
 
   override private[flink] def toAttribute: Attribute =
-    throw UnresolvedException("Invalid call to toAttribute on UnresolvedAlias")
+    throw new UnresolvedException("Invalid call to toAttribute on UnresolvedAlias")
 
   override private[flink] def resultType: TypeInformation[_] =
-    throw UnresolvedException("Invalid call to resultType on UnresolvedAlias")
+    throw new UnresolvedException("Invalid call to resultType on UnresolvedAlias")
 
   override private[flink] lazy val valid = false
 }
@@ -126,7 +141,7 @@ case class WindowReference(name: String, tpe: Option[TypeInformation[_]] = None)
     throw new UnsupportedOperationException("A window reference can not be used solely.")
 
   override private[flink] def resultType: TypeInformation[_] =
-    tpe.getOrElse(throw UnresolvedException("Could not resolve type of referenced window."))
+    tpe.getOrElse(throw new UnresolvedException("Could not resolve type of referenced window."))
 
   override private[flink] def withName(newName: String): Attribute = {
     if (newName == name) {
@@ -139,13 +154,15 @@ case class WindowReference(name: String, tpe: Option[TypeInformation[_]] = None)
   override def toString: String = s"'$name"
 }
 
-case class TableReference(name: String, table: Table) extends LeafExpression with NamedExpression {
+case class TableReference(name: String, tableOperation: QueryOperation)
+  extends LeafExpression
+  with NamedExpression {
 
   override private[flink] def toRexNode(implicit relBuilder: RelBuilder): RexNode =
     throw new UnsupportedOperationException(s"Table reference '$name' can not be used solely.")
 
   override private[flink] def resultType: TypeInformation[_] =
-    throw UnresolvedException(s"Table reference '$name' has no result type.")
+    throw new UnresolvedException(s"Table reference '$name' has no result type.")
 
   override private[flink] def toAttribute =
     throw new UnsupportedOperationException(s"A table reference '$name' can not be an attribute.")

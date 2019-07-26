@@ -33,6 +33,7 @@ import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.registration.RegistrationResponse;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerBuilder;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
@@ -54,9 +55,11 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 /**
@@ -197,7 +200,9 @@ public class ResourceManagerTest extends TestLogger {
 				assertThat(registrationFuture.get(), instanceOf(RegistrationResponse.Success.class));
 			},
 			resourceManagerResourceId -> {
-				assertThat(heartbeatRequestFuture.get(), is(equalTo(resourceManagerResourceId)));
+				// might have been completed or not depending whether the timeout was triggered first
+				final ResourceID optionalHeartbeatRequestOrigin = heartbeatRequestFuture.getNow(null);
+				assertThat(optionalHeartbeatRequestOrigin, anyOf(is(resourceManagerResourceId), is(nullValue())));
 				assertThat(disconnectFuture.get(), is(equalTo(resourceManagerId)));
 			});
 	}
@@ -218,7 +223,9 @@ public class ResourceManagerTest extends TestLogger {
 				registerTaskExecutor(resourceManagerGateway, taskExecutorId, taskExecutorGateway.getAddress());
 			},
 			resourceManagerResourceId -> {
-				assertThat(heartbeatRequestFuture.get(), is(equalTo(resourceManagerResourceId)));
+				// might have been completed or not depending whether the timeout was triggered first
+				final ResourceID optionalHeartbeatRequestOrigin = heartbeatRequestFuture.getNow(null);
+				assertThat(optionalHeartbeatRequestOrigin, anyOf(is(resourceManagerResourceId), is(nullValue())));
 				assertThat(disconnectFuture.get(), instanceOf(TimeoutException.class));
 			}
 		);
@@ -235,11 +242,9 @@ public class ResourceManagerTest extends TestLogger {
 	}
 
 	private TestingResourceManager createAndStartResourceManager(HeartbeatServices heartbeatServices) throws Exception {
-		final SlotManager slotManager = new SlotManager(
-			rpcService.getScheduledExecutor(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime());
+		final SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setScheduledExecutor(rpcService.getScheduledExecutor())
+			.build();
 		final JobLeaderIdService jobLeaderIdService = new JobLeaderIdService(
 			highAvailabilityServices,
 			rpcService.getScheduledExecutor(),

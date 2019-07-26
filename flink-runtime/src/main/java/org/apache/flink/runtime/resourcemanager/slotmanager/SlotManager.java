@@ -120,15 +120,29 @@ public class SlotManager implements AutoCloseable {
 	/** True iff the component has been started. */
 	private boolean started;
 
+	/** Release task executor only when each produced result partition is either consumed or failed. */
+	private final boolean waitResultConsumedBeforeRelease;
+
+	/**
+	 * If true, fail unfulfillable slot requests immediately. Otherwise, allow unfulfillable request to pend.
+	 *
+	 * A slot request is considered unfulfillable if it cannot be fulfilled by neither a slot that is already registered
+	 * (including allocated ones) nor a pending slot that the {@link ResourceActions} can allocate.
+	 * */
+	private boolean failUnfulfillableRequest = false;
+
 	public SlotManager(
 			ScheduledExecutor scheduledExecutor,
 			Time taskManagerRequestTimeout,
 			Time slotRequestTimeout,
-			Time taskManagerTimeout) {
+			Time taskManagerTimeout,
+			boolean waitResultConsumedBeforeRelease) {
+
 		this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor);
 		this.taskManagerRequestTimeout = Preconditions.checkNotNull(taskManagerRequestTimeout);
 		this.slotRequestTimeout = Preconditions.checkNotNull(slotRequestTimeout);
 		this.taskManagerTimeout = Preconditions.checkNotNull(taskManagerTimeout);
+		this.waitResultConsumedBeforeRelease = waitResultConsumedBeforeRelease;
 
 		slots = new HashMap<>(16);
 		freeSlots = new LinkedHashMap<>(16);
@@ -176,6 +190,14 @@ public class SlotManager implements AutoCloseable {
 
 	public int getNumberPendingTaskManagerSlots() {
 		return pendingSlots.size();
+	}
+
+	public int getNumberPendingSlotRequests() {
+		return pendingSlotRequests.size();
+	}
+
+	public boolean isFailingUnfulfillableRequest() {
+		return failUnfulfillableRequest;
 	}
 
 	@VisibleForTesting
@@ -456,6 +478,29 @@ public class SlotManager implements AutoCloseable {
 		}
 	}
 
+	public void setFailUnfulfillableRequest(boolean failUnfulfillableRequest) {
+		if (!this.failUnfulfillableRequest && failUnfulfillableRequest) {
+			// fail unfulfillable pending requests
+			Iterator<Map.Entry<AllocationID, PendingSlotRequest>> slotRequestIterator = pendingSlotRequests.entrySet().iterator();
+			while (slotRequestIterator.hasNext()) {
+				PendingSlotRequest pendingSlotRequest = slotRequestIterator.next().getValue();
+				if (pendingSlotRequest.getAssignedPendingTaskManagerSlot() != null) {
+					continue;
+				}
+				if (!isFulfillableByRegisteredSlots(pendingSlotRequest.getResourceProfile())) {
+					slotRequestIterator.remove();
+					resourceActions.notifyAllocationFailure(
+						pendingSlotRequest.getJobId(),
+						pendingSlotRequest.getAllocationId(),
+						new ResourceManagerException("Could not fulfill slot request " + pendingSlotRequest.getAllocationId() + ". "
+							+ "Requested resource profile (" + pendingSlotRequest.getResourceProfile() + ") is unfulfillable.")
+					);
+				}
+			}
+		}
+		this.failUnfulfillableRequest = failUnfulfillableRequest;
+	}
+
 	// ---------------------------------------------------------------------------------------------
 	// Behaviour methods
 	// ---------------------------------------------------------------------------------------------
@@ -713,7 +758,17 @@ public class SlotManager implements AutoCloseable {
 				pendingTaskManagerSlotOptional = allocateResource(resourceProfile);
 			}
 
-			pendingTaskManagerSlotOptional.ifPresent(pendingTaskManagerSlot -> assignPendingTaskManagerSlot(pendingSlotRequest, pendingTaskManagerSlot));
+			if (pendingTaskManagerSlotOptional.isPresent()) {
+				assignPendingTaskManagerSlot(pendingSlotRequest, pendingTaskManagerSlotOptional.get());
+			}
+			else {
+				// request can not be fulfilled by any free slot or pending slot that can be allocated,
+				// check whether it can be fulfilled by allocated slots
+				if (failUnfulfillableRequest && !isFulfillableByRegisteredSlots(pendingSlotRequest.getResourceProfile())) {
+					throw new ResourceManagerException("Requested resource profile (" +
+						pendingSlotRequest.getResourceProfile() + ") is unfulfillable.");
+				}
+			}
 		}
 	}
 
@@ -725,6 +780,15 @@ public class SlotManager implements AutoCloseable {
 		}
 
 		return Optional.empty();
+	}
+
+	private boolean isFulfillableByRegisteredSlots(ResourceProfile resourceProfile) {
+		for (TaskManagerSlot slot : slots.values()) {
+			if (slot.getResourceProfile().isMatching(resourceProfile)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private Optional<PendingTaskManagerSlot> allocateResource(ResourceProfile resourceProfile) throws ResourceManagerException {
@@ -999,28 +1063,54 @@ public class SlotManager implements AutoCloseable {
 	// Internal timeout methods
 	// ---------------------------------------------------------------------------------------------
 
-	private void checkTaskManagerTimeouts() {
+	@VisibleForTesting
+	void checkTaskManagerTimeouts() {
 		if (!taskManagerRegistrations.isEmpty()) {
 			long currentTime = System.currentTimeMillis();
 
-			ArrayList<InstanceID> timedOutTaskManagerIds = new ArrayList<>(taskManagerRegistrations.size());
+			ArrayList<TaskManagerRegistration> timedOutTaskManagers = new ArrayList<>(taskManagerRegistrations.size());
 
 			// first retrieve the timed out TaskManagers
 			for (TaskManagerRegistration taskManagerRegistration : taskManagerRegistrations.values()) {
 				if (currentTime - taskManagerRegistration.getIdleSince() >= taskManagerTimeout.toMilliseconds()) {
 					// we collect the instance ids first in order to avoid concurrent modifications by the
 					// ResourceActions.releaseResource call
-					timedOutTaskManagerIds.add(taskManagerRegistration.getInstanceId());
+					timedOutTaskManagers.add(taskManagerRegistration);
 				}
 			}
 
 			// second we trigger the release resource callback which can decide upon the resource release
-			final FlinkException cause = new FlinkException("TaskExecutor exceeded the idle timeout.");
-			for (InstanceID timedOutTaskManagerId : timedOutTaskManagerIds) {
-				LOG.debug("Release TaskExecutor {} because it exceeded the idle timeout.", timedOutTaskManagerId);
-				resourceActions.releaseResource(timedOutTaskManagerId, cause);
+			for (TaskManagerRegistration taskManagerRegistration : timedOutTaskManagers) {
+				if (waitResultConsumedBeforeRelease) {
+					releaseTaskExecutorIfPossible(taskManagerRegistration);
+				} else {
+					releaseTaskExecutor(taskManagerRegistration.getInstanceId());
+				}
 			}
 		}
+	}
+
+	private void releaseTaskExecutorIfPossible(TaskManagerRegistration taskManagerRegistration) {
+		long idleSince = taskManagerRegistration.getIdleSince();
+		taskManagerRegistration
+			.getTaskManagerConnection()
+			.getTaskExecutorGateway()
+			.canBeReleased()
+			.thenAcceptAsync(
+				canBeReleased -> {
+					InstanceID timedOutTaskManagerId = taskManagerRegistration.getInstanceId();
+					boolean stillIdle = idleSince == taskManagerRegistration.getIdleSince();
+					if (stillIdle && canBeReleased) {
+						releaseTaskExecutor(timedOutTaskManagerId);
+					}
+				},
+				mainThreadExecutor);
+	}
+
+	private void releaseTaskExecutor(InstanceID timedOutTaskManagerId) {
+		final FlinkException cause = new FlinkException("TaskExecutor exceeded the idle timeout.");
+		LOG.debug("Release TaskExecutor {} because it exceeded the idle timeout.", timedOutTaskManagerId);
+		resourceActions.releaseResource(timedOutTaskManagerId, cause);
 	}
 
 	private void checkSlotRequestTimeouts() {

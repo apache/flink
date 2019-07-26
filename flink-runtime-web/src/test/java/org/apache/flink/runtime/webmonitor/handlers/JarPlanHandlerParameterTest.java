@@ -45,7 +45,7 @@ public class JarPlanHandlerParameterTest extends JarHandlerParameterTest<JarPlan
 			gatewayRetriever,
 			timeout,
 			responseHeaders,
-			JarPlanHeaders.getInstance(),
+			JarPlanGetHeaders.getInstance(),
 			jarDir,
 			new Configuration(),
 			executor,

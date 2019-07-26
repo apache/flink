@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.io.network.NetworkSequenceViewReader;
+import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionProvider;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
@@ -368,44 +369,5 @@ public class PartitionRequestQueueTest {
 		assertFalse(channel.isWritable());
 
 		return channelBlockingBuffer;
-	}
-
-	private static class NoOpResultSubpartitionView implements ResultSubpartitionView {
-		@Nullable
-		public BufferAndBacklog getNextBuffer() {
-			return null;
-		}
-
-		@Override
-		public void notifyDataAvailable() {
-		}
-
-		@Override
-		public void releaseAllResources() {
-		}
-
-		@Override
-		public void notifySubpartitionConsumed() {
-		}
-
-		@Override
-		public boolean isReleased() {
-			return true;
-		}
-
-		@Override
-		public Throwable getFailureCause() {
-			return null;
-		}
-
-		@Override
-		public boolean nextBufferIsEvent() {
-			return false;
-		}
-
-		@Override
-		public boolean isAvailable() {
-			return false;
-		}
 	}
 }

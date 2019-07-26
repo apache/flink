@@ -668,46 +668,6 @@ public class SlotManagerTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that idle task managers time out after the configured timeout. A timed out task manager
-	 * will be removed from the slot manager and the resource manager will be notified about the
-	 * timeout.
-	 */
-	@Test
-	public void testTaskManagerTimeout() throws Exception {
-		final long tmTimeout = 10L;
-
-		final CompletableFuture<InstanceID> releaseFuture = new CompletableFuture<>();
-		final ResourceActions resourceManagerActions = new TestingResourceActionsBuilder()
-			.setReleaseResourceConsumer((instanceID, e) -> releaseFuture.complete(instanceID))
-			.build();
-		final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
-		final ResourceID resourceID = ResourceID.generate();
-
-		final TaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
-		final TaskExecutorConnection taskManagerConnection = new TaskExecutorConnection(resourceID, taskExecutorGateway);
-
-		final SlotID slotId = new SlotID(resourceID, 0);
-		final ResourceProfile resourceProfile = new ResourceProfile(1.0, 1);
-		final SlotStatus slotStatus = new SlotStatus(slotId, resourceProfile);
-		final SlotReport slotReport = new SlotReport(slotStatus);
-
-		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
-
-		try (SlotManager slotManager = new SlotManager(
-			TestingUtils.defaultScheduledExecutor(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			Time.milliseconds(tmTimeout))) {
-
-			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
-
-			mainThreadExecutor.execute(() -> slotManager.registerTaskManager(taskManagerConnection, slotReport));
-
-			assertThat(releaseFuture.get(), is(equalTo(taskManagerConnection.getInstanceID())));
-		}
-	}
-
-	/**
 	 * Tests that slot requests time out after the specified request timeout. If a slot request
 	 * times out, then the request is cancelled, removed from the slot manager and the resource
 	 * manager is notified about the failed allocation.
@@ -729,11 +689,9 @@ public class SlotManagerTest extends TestLogger {
 
 		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
-		try (SlotManager slotManager = new SlotManager(
-			TestingUtils.defaultScheduledExecutor(),
-			TestingUtils.infiniteTime(),
-			Time.milliseconds(allocationTimeout),
-			TestingUtils.infiniteTime())) {
+		try (SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setSlotRequestTimeout(Time.milliseconds(allocationTimeout))
+			.build()) {
 
 			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
 
@@ -869,11 +827,7 @@ public class SlotManagerTest extends TestLogger {
 
 		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
-		try (final SlotManager slotManager = new SlotManager(
-			TestingUtils.defaultScheduledExecutor(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime())) {
+		try (final SlotManager slotManager = SlotManagerBuilder.newBuilder().build()) {
 
 			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
 
@@ -989,11 +943,9 @@ public class SlotManagerTest extends TestLogger {
 
 		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
 
-		try (final SlotManager slotManager = new SlotManager(
-			scheduledExecutor,
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			Time.of(taskManagerTimeout, TimeUnit.MILLISECONDS))) {
+		try (final SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setTaskManagerTimeout(Time.of(taskManagerTimeout, TimeUnit.MILLISECONDS))
+			.build()) {
 
 			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
 
@@ -1052,17 +1004,17 @@ public class SlotManagerTest extends TestLogger {
 		final ResourceActions resourceActions = mock(ResourceActions.class);
 		final TaskExecutorGateway taskExecutorGateway = mock(TaskExecutorGateway.class);
 
+		when(taskExecutorGateway.canBeReleased()).thenReturn(CompletableFuture.completedFuture(true));
+
 		final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(resourceID, taskExecutorGateway);
 		final SlotStatus slotStatus = new SlotStatus(
 			new SlotID(resourceID, 0),
 			new ResourceProfile(1.0, 1));
 		final SlotReport initialSlotReport = new SlotReport(slotStatus);
 
-		try (final SlotManager slotManager = new SlotManager(
-			TestingUtils.defaultScheduledExecutor(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			taskManagerTimeout)) {
+		try (final SlotManager slotManager = SlotManagerBuilder.newBuilder()
+			.setTaskManagerTimeout(taskManagerTimeout)
+			.build()) {
 
 			slotManager.start(resourceManagerId, Executors.directExecutor(), resourceActions);
 
@@ -1094,11 +1046,7 @@ public class SlotManagerTest extends TestLogger {
 		final TestingTaskExecutorGateway taskExecutorGateway = new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
 		final TaskExecutorConnection taskExecutorConnection = new TaskExecutorConnection(taskManagerId, taskExecutorGateway);
 
-		try (final SlotManager slotManager = new SlotManager(
-			TestingUtils.defaultScheduledExecutor(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime())) {
+		try (final SlotManager slotManager = SlotManagerBuilder.newBuilder().build()) {
 
 			slotManager.start(ResourceManagerId.generate(), Executors.directExecutor(), resourceActions);
 
@@ -1379,14 +1327,8 @@ public class SlotManagerTest extends TestLogger {
 	}
 
 	private SlotManager createSlotManager(ResourceManagerId resourceManagerId, ResourceActions resourceManagerActions) {
-		SlotManager slotManager = new SlotManager(
-			TestingUtils.defaultScheduledExecutor(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime(),
-			TestingUtils.infiniteTime());
-
+		SlotManager slotManager = SlotManagerBuilder.newBuilder().build();
 		slotManager.start(resourceManagerId, Executors.directExecutor(), resourceManagerActions);
-
 		return slotManager;
 	}
 

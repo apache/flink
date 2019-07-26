@@ -26,9 +26,9 @@ import org.apache.calcite.rex._
 import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
+import org.apache.flink.table.catalog.BasicOperatorTable
 import org.apache.flink.table.plan.logical.LogicalWindow
 import org.apache.flink.table.plan.logical.rel.LogicalWindowAggregate
-import org.apache.flink.table.validate.BasicOperatorTable
 
 import _root_.scala.collection.JavaConversions._
 

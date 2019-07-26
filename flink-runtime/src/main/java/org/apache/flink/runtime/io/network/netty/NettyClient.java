@@ -179,6 +179,7 @@ class NettyClient {
 				// SSL handler should be added first in the pipeline
 				if (clientSSLFactory != null) {
 					SslHandler sslHandler = clientSSLFactory.createNettySSLHandler(
+							channel.alloc(),
 							serverSocketAddress.getAddress().getCanonicalHostName(),
 							serverSocketAddress.getPort());
 					channel.pipeline().addLast("ssl", sslHandler);

@@ -46,10 +46,10 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetWindowAggregate",
-      batchTableNode(0),
+      batchTableNode(table),
       term("groupBy", "string"),
-      term("window", "TumblingGroupWindow('w, 'long, 2.rows)"),
-      term("select", "string", "COUNT(int) AS TMP_0")
+      term("window", "TumblingGroupWindow('w, 'long, 2)"),
+      term("select", "string", "COUNT(int) AS EXPR$0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -69,10 +69,10 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetWindowAggregate",
-      batchTableNode(0),
+      batchTableNode(table),
       term("groupBy", "string"),
       term("window", "TumblingGroupWindow('w, 'long, 5.millis)"),
-      term("select", "string", "myWeightedAvg(long, int) AS TMP_0")
+      term("select", "string", "myWeightedAvg(long, int) AS EXPR$0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -90,10 +90,10 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetWindowAggregate",
-      batchTableNode(0),
+      batchTableNode(table),
       term("groupBy", "string"),
       term("window", "TumblingGroupWindow('w, 'long, 5.millis)"),
-      term("select", "string", "COUNT(int) AS TMP_0")
+      term("select", "string", "COUNT(int) AS EXPR$0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -113,11 +113,11 @@ class GroupWindowTest extends TableTestBase {
       "DataSetWindowAggregate",
       unaryNode(
         "DataSetCalc",
-        batchTableNode(0),
-        term("select", "int", "long")
+        batchTableNode(table),
+        term("select", "long", "int")
       ),
       term("window", "TumblingGroupWindow('w, 'long, 5.millis)"),
-      term("select", "COUNT(int) AS TMP_0")
+      term("select", "COUNT(int) AS EXPR$0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -137,11 +137,11 @@ class GroupWindowTest extends TableTestBase {
       "DataSetWindowAggregate",
       unaryNode(
         "DataSetCalc",
-        batchTableNode(0),
-        term("select", "int", "long")
+        batchTableNode(table),
+        term("select", "long", "int")
       ),
-      term("window", "TumblingGroupWindow('w, 'long, 2.rows)"),
-      term("select", "COUNT(int) AS TMP_0")
+      term("window", "TumblingGroupWindow('w, 'long, 2)"),
+      term("select", "COUNT(int) AS EXPR$0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -159,11 +159,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetWindowAggregate",
-      batchTableNode(0),
+      batchTableNode(table),
       term("groupBy", "string"),
       term("window", "TumblingGroupWindow('w, 'ts, 7200000.millis)"),
-      term("select", "string", "COUNT(int) AS TMP_0",
-        "start('w) AS TMP_1", "end('w) AS TMP_2", "rowtime('w) AS TMP_3")
+      term("select", "string", "COUNT(int) AS EXPR$0",
+        "start('w) AS EXPR$1", "end('w) AS EXPR$2", "rowtime('w) AS EXPR$3")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -181,11 +181,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetWindowAggregate",
-      batchTableNode(0),
+      batchTableNode(table),
       term("groupBy", "string"),
       term("window", "TumblingGroupWindow('w, 'ts, 7200000.millis)"),
-      term("select", "string", "COUNT(int) AS TMP_0",
-        "start('w) AS TMP_1", "end('w) AS TMP_2", "rowtime('w) AS TMP_3")
+      term("select", "string", "COUNT(int) AS EXPR$0",
+        "start('w) AS EXPR$1", "end('w) AS EXPR$2", "rowtime('w) AS EXPR$3")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -207,10 +207,10 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetWindowAggregate",
-      batchTableNode(0),
+      batchTableNode(table),
       term("groupBy", "string"),
       term("window", "SlidingGroupWindow('w, 'long, 8.millis, 10.millis)"),
-      term("select", "string", "COUNT(int) AS TMP_0")
+      term("select", "string", "COUNT(int) AS EXPR$0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -228,10 +228,10 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetWindowAggregate",
-      batchTableNode(0),
+      batchTableNode(table),
       term("groupBy", "string"),
-      term("window", "SlidingGroupWindow('w, 'long, 2.rows, 1.rows)"),
-      term("select", "string", "COUNT(int) AS TMP_0")
+      term("window", "SlidingGroupWindow('w, 'long, 2, 1)"),
+      term("select", "string", "COUNT(int) AS EXPR$0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -251,10 +251,10 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetWindowAggregate",
-      batchTableNode(0),
+      batchTableNode(table),
       term("groupBy", "string"),
       term("window", "SlidingGroupWindow('w, 'long, 8.millis, 10.millis)"),
-      term("select", "string", "myWeightedAvg(long, int) AS TMP_0")
+      term("select", "string", "myWeightedAvg(long, int) AS EXPR$0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -274,11 +274,11 @@ class GroupWindowTest extends TableTestBase {
       "DataSetWindowAggregate",
       unaryNode(
         "DataSetCalc",
-        batchTableNode(0),
-        term("select", "int", "long")
+        batchTableNode(table),
+        term("select", "long", "int")
       ),
       term("window", "SlidingGroupWindow('w, 'long, 8.millis, 10.millis)"),
-      term("select", "COUNT(int) AS TMP_0")
+      term("select", "COUNT(int) AS EXPR$0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -298,11 +298,11 @@ class GroupWindowTest extends TableTestBase {
       "DataSetWindowAggregate",
       unaryNode(
         "DataSetCalc",
-        batchTableNode(0),
-        term("select", "int", "long")
+        batchTableNode(table),
+        term("select", "long", "int")
       ),
-      term("window", "SlidingGroupWindow('w, 'long, 2.rows, 1.rows)"),
-      term("select", "COUNT(int) AS TMP_0")
+      term("window", "SlidingGroupWindow('w, 'long, 2, 1)"),
+      term("select", "COUNT(int) AS EXPR$0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -320,11 +320,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetWindowAggregate",
-      batchTableNode(0),
+      batchTableNode(table),
       term("groupBy", "string"),
       term("window", "SlidingGroupWindow('w, 'ts, 3600000.millis, 600000.millis)"),
-      term("select", "string", "COUNT(int) AS TMP_0",
-        "start('w) AS TMP_1", "end('w) AS TMP_2", "rowtime('w) AS TMP_3")
+      term("select", "string", "COUNT(int) AS EXPR$0",
+        "start('w) AS EXPR$1", "end('w) AS EXPR$2", "rowtime('w) AS EXPR$3")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -342,11 +342,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetWindowAggregate",
-      batchTableNode(0),
+      batchTableNode(table),
       term("groupBy", "string"),
       term("window", "SlidingGroupWindow('w, 'ts, 3600000.millis, 600000.millis)"),
-      term("select", "string", "COUNT(int) AS TMP_0",
-        "start('w) AS TMP_1", "end('w) AS TMP_2", "rowtime('w) AS TMP_3")
+      term("select", "string", "COUNT(int) AS EXPR$0",
+        "start('w) AS EXPR$1", "end('w) AS EXPR$2", "rowtime('w) AS EXPR$3")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -368,10 +368,10 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetWindowAggregate",
-      batchTableNode(0),
+      batchTableNode(table),
       term("groupBy", "string"),
       term("window", "SessionGroupWindow('w, 'long, 7.millis)"),
-      term("select", "string", "COUNT(int) AS TMP_0")
+      term("select", "string", "COUNT(int) AS EXPR$0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -391,10 +391,10 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetWindowAggregate",
-      batchTableNode(0),
+      batchTableNode(table),
       term("groupBy", "string"),
       term("window", "SessionGroupWindow('w, 'long, 7.millis)"),
-      term("select", "string", "myWeightedAvg(long, int) AS TMP_0")
+      term("select", "string", "myWeightedAvg(long, int) AS EXPR$0")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -412,11 +412,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetWindowAggregate",
-      batchTableNode(0),
+      batchTableNode(table),
       term("groupBy", "string"),
       term("window", "SessionGroupWindow('w, 'ts, 1800000.millis)"),
-      term("select", "string", "COUNT(int) AS TMP_0",
-        "start('w) AS TMP_1", "end('w) AS TMP_2", "rowtime('w) AS TMP_3")
+      term("select", "string", "COUNT(int) AS EXPR$0",
+        "start('w) AS EXPR$1", "end('w) AS EXPR$2", "rowtime('w) AS EXPR$3")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -434,11 +434,11 @@ class GroupWindowTest extends TableTestBase {
 
     val expected = unaryNode(
       "DataSetWindowAggregate",
-      batchTableNode(0),
+      batchTableNode(table),
       term("groupBy", "string"),
       term("window", "SessionGroupWindow('w, 'ts, 1800000.millis)"),
-      term("select", "string", "COUNT(int) AS TMP_0",
-        "start('w) AS TMP_1", "end('w) AS TMP_2", "rowtime('w) AS TMP_3")
+      term("select", "string", "COUNT(int) AS EXPR$0",
+        "start('w) AS EXPR$1", "end('w) AS EXPR$2", "rowtime('w) AS EXPR$3")
     )
 
     util.verifyTable(windowedTable, expected)
@@ -461,25 +461,25 @@ class GroupWindowTest extends TableTestBase {
           "DataSetWindowAggregate",
           unaryNode(
             "DataSetCalc",
-            batchTableNode(0),
-            term("select", "c", "rowtime", "*(c, c) AS $f2")
+            batchTableNode(table),
+            term("select", "rowtime", "c", "*(c, c) AS $f2")
           ),
           term("window", "TumblingGroupWindow('w, 'rowtime, 900000.millis)"),
           term("select",
             "SUM($f2) AS $f0",
             "SUM(c) AS $f1",
             "COUNT(c) AS $f2",
-            "start('w) AS TMP_4",
-            "end('w) AS TMP_5")
+            "start('w) AS EXPR$4",
+            "end('w) AS EXPR$5")
         ),
         term("select",
-          "/(-($f0, /(*($f1, $f1), $f2)), $f2) AS TMP_0",
-          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))) AS TMP_1",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5)) AS TMP_2",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))), 0.5)) " +
-            "AS TMP_3",
-          "TMP_4",
-          "TMP_5")
+          "/(-($f0, /(*($f1, $f1), $f2)), $f2) AS EXPR$0",
+          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))) AS EXPR$1",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))), " +
+            "0.5:DECIMAL(2, 1))) AS EXPR$3",
+          "EXPR$4",
+          "EXPR$5")
       )
 
     util.verifyTable(windowedTable, expected)

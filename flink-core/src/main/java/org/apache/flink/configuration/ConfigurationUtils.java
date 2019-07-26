@@ -52,7 +52,7 @@ public class ConfigurationUtils {
 			return MemorySize.parse(configuration.getInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB) + "m");
 		} else {
 			//use default value
-			return MemorySize.parse(configuration.getString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY));
+			return MemorySize.parse(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY.defaultValue());
 		}
 	}
 
@@ -71,7 +71,7 @@ public class ConfigurationUtils {
 			return MemorySize.parse(configuration.getInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB) + "m");
 		} else {
 			//use default value
-			return MemorySize.parse(configuration.getString(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY));
+			return MemorySize.parse(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY.defaultValue());
 		}
 	}
 
@@ -111,6 +111,17 @@ public class ConfigurationUtils {
 	public static String[] parseLocalStateDirectories(Configuration configuration) {
 		String configValue = configuration.getString(CheckpointingOptions.LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS, "");
 		return splitPaths(configValue);
+	}
+
+	public static Time getStandaloneClusterStartupPeriodTime(Configuration configuration) {
+		final Time timeout;
+		long standaloneClusterStartupPeriodTime = configuration.getLong(ResourceManagerOptions.STANDALONE_CLUSTER_STARTUP_PERIOD_TIME);
+		if (standaloneClusterStartupPeriodTime >= 0) {
+			timeout = Time.milliseconds(standaloneClusterStartupPeriodTime);
+		} else {
+			timeout = Time.milliseconds(configuration.getLong(JobManagerOptions.SLOT_REQUEST_TIMEOUT));
+		}
+		return timeout;
 	}
 
 	/**

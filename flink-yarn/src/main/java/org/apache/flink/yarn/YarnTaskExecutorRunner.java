@@ -25,6 +25,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.security.SecurityConfiguration;
@@ -92,7 +93,8 @@ public class YarnTaskExecutorRunner {
 			LOG.info("Current working Directory: {}", currDir);
 
 			final Configuration configuration = GlobalConfiguration.loadConfiguration(currDir);
-			FileSystem.initialize(configuration);
+
+			FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 
 			setupConfigurationAndInstallSecurityContext(configuration, currDir, ENV);
 

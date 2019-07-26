@@ -37,13 +37,13 @@ import org.apache.flink.runtime.rest.handler.cluster.ClusterOverviewHandler;
 import org.apache.flink.runtime.rest.handler.cluster.DashboardConfigHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ShutdownHandler;
 import org.apache.flink.runtime.rest.handler.job.JobAccumulatorsHandler;
+import org.apache.flink.runtime.rest.handler.job.JobCancellationHandler;
 import org.apache.flink.runtime.rest.handler.job.JobConfigHandler;
 import org.apache.flink.runtime.rest.handler.job.JobDetailsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobExceptionsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobExecutionResultHandler;
 import org.apache.flink.runtime.rest.handler.job.JobIdsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobPlanHandler;
-import org.apache.flink.runtime.rest.handler.job.JobTerminationHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexAccumulatorsHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexBackPressureHandler;
 import org.apache.flink.runtime.rest.handler.job.JobVertexDetailsHandler;
@@ -85,11 +85,11 @@ import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
 import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.DashboardConfigurationHeaders;
 import org.apache.flink.runtime.rest.messages.JobAccumulatorsHeaders;
+import org.apache.flink.runtime.rest.messages.JobCancellationHeaders;
 import org.apache.flink.runtime.rest.messages.JobConfigHeaders;
 import org.apache.flink.runtime.rest.messages.JobExceptionsHeaders;
 import org.apache.flink.runtime.rest.messages.JobIdsWithStatusesOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.JobPlanHeaders;
-import org.apache.flink.runtime.rest.messages.JobTerminationHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexAccumulatorsHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexBackPressureHeaders;
 import org.apache.flink.runtime.rest.messages.JobVertexDetailsHeaders;
@@ -421,6 +421,13 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		final String defaultSavepointDir = clusterConfiguration.getString(CheckpointingOptions.SAVEPOINT_DIRECTORY);
 
 		final SavepointHandlers savepointHandlers = new SavepointHandlers(defaultSavepointDir);
+
+		final SavepointHandlers.StopWithSavepointHandler stopWithSavepointHandler = savepointHandlers.new StopWithSavepointHandler(
+			leaderRetriever,
+			timeout,
+			responseHeaders
+		);
+
 		final SavepointHandlers.SavepointTriggerHandler savepointTriggerHandler = savepointHandlers.new SavepointTriggerHandler(
 			leaderRetriever,
 			timeout,
@@ -476,18 +483,19 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 			responseHeaders,
 			JobVertexBackPressureHeaders.getInstance());
 
-		final JobTerminationHandler jobCancelTerminationHandler = new JobTerminationHandler(
+		final JobCancellationHandler jobCancelTerminationHandler = new JobCancellationHandler(
 			leaderRetriever,
 			timeout,
 			responseHeaders,
-			JobTerminationHeaders.getInstance(),
+			JobCancellationHeaders.getInstance(),
 			TerminationModeQueryParameter.TerminationMode.CANCEL);
 
-		final JobTerminationHandler jobStopTerminationHandler = new JobTerminationHandler(
+		// this is kept just for legacy reasons. STOP has been replaced by STOP-WITH-SAVEPOINT.
+		final JobCancellationHandler jobStopTerminationHandler = new JobCancellationHandler(
 			leaderRetriever,
 			timeout,
 			responseHeaders,
-			JobTerminationHeaders.getInstance(),
+			JobCancellationHeaders.getInstance(),
 			TerminationModeQueryParameter.TerminationMode.STOP);
 
 		final JobVertexDetailsHandler jobVertexDetailsHandler = new JobVertexDetailsHandler(
@@ -560,6 +568,7 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 		handlers.add(Tuple2.of(aggregatingSubtasksMetricsHandler.getMessageHeaders(), aggregatingSubtasksMetricsHandler));
 		handlers.add(Tuple2.of(jobExecutionResultHandler.getMessageHeaders(), jobExecutionResultHandler));
 		handlers.add(Tuple2.of(savepointTriggerHandler.getMessageHeaders(), savepointTriggerHandler));
+		handlers.add(Tuple2.of(stopWithSavepointHandler.getMessageHeaders(), stopWithSavepointHandler));
 		handlers.add(Tuple2.of(savepointStatusHandler.getMessageHeaders(), savepointStatusHandler));
 		handlers.add(Tuple2.of(subtaskExecutionAttemptDetailsHandler.getMessageHeaders(), subtaskExecutionAttemptDetailsHandler));
 		handlers.add(Tuple2.of(subtaskExecutionAttemptAccumulatorsHandler.getMessageHeaders(), subtaskExecutionAttemptAccumulatorsHandler));

@@ -20,7 +20,6 @@ package org.apache.flink.client;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.common.Program;
@@ -246,11 +245,6 @@ public class LocalExecutor extends PlanExecutor {
 		OptimizedPlan op = pc.compile(plan);
 
 		return new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(op);
-	}
-
-	@Override
-	public void endSession(JobID jobID) throws Exception {
-		// no op
 	}
 
 	private Configuration createConfiguration() {

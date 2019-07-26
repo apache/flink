@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.reader.RecordReader;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -77,7 +78,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 
 		@Override
 		public void invoke() throws Exception {
-			RecordWriter<SpeedTestRecord> writer = new RecordWriter<>(getEnvironment().getWriter(0));
+			RecordWriter<SpeedTestRecord> writer = new RecordWriterBuilder().build(getEnvironment().getWriter(0));
 
 			try {
 				// Determine the amount of data to send per subtask
@@ -127,7 +128,7 @@ public class NetworkStackThroughputITCase extends TestLogger {
 					SpeedTestRecord.class,
 					getEnvironment().getTaskManagerInfo().getTmpDirectories());
 
-			RecordWriter<SpeedTestRecord> writer = new RecordWriter<>(getEnvironment().getWriter(0));
+			RecordWriter<SpeedTestRecord> writer = new RecordWriterBuilder().build(getEnvironment().getWriter(0));
 
 			try {
 				SpeedTestRecord record;

@@ -45,13 +45,13 @@ class SetOperatorsTest extends TableTestBase {
             "DataStreamUnion",
             unaryNode(
               "DataStreamCalc",
-              streamTableNode(0),
+              streamTableNode(left),
               term("select", "a", "b", "c"),
               term("where", ">(a, 0)")
             ),
             unaryNode(
               "DataStreamCalc",
-              streamTableNode(1),
+              streamTableNode(right),
               term("select", "a", "b", "c"),
               term("where", ">(a, 0)")
             ),
@@ -59,9 +59,9 @@ class SetOperatorsTest extends TableTestBase {
             term("union all", "a", "b", "c")
           ),
           term("groupBy", "b"),
-          term("select", "b", "SUM(a) AS TMP_0", "COUNT(c) AS TMP_1")
+          term("select", "b", "SUM(a) AS EXPR$0", "COUNT(c) AS EXPR$1")
         ),
-      term("select", "TMP_0 AS a", "b", "TMP_1 AS c")
+      term("select", "EXPR$0 AS a", "b", "EXPR$1 AS c")
     )
 
     util.verifyTable(result, expected)
@@ -81,12 +81,12 @@ class SetOperatorsTest extends TableTestBase {
       "DataStreamUnion",
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(0),
+        streamTableNode(left),
         term("select", "b", "c")
       ),
       unaryNode(
         "DataStreamCalc",
-        streamTableNode(1),
+        streamTableNode(right),
         term("select", "b", "c")
       ),
       term("all", "true"),
@@ -109,12 +109,12 @@ class SetOperatorsTest extends TableTestBase {
         "DataStreamCalc",
         binaryNode(
           "DataStreamJoin",
-          streamTableNode(0),
+          streamTableNode(tableA),
           unaryNode(
             "DataStreamGroupAggregate",
             unaryNode(
               "DataStreamCalc",
-              streamTableNode(1),
+              streamTableNode(tableB),
               term("select", "x")
             ),
             term("groupBy", "x"),
@@ -144,7 +144,7 @@ class SetOperatorsTest extends TableTestBase {
         "DataStreamCalc",
         binaryNode(
           "DataStreamJoin",
-          streamTableNode(0),
+          streamTableNode(tableA),
           unaryNode(
             "DataStreamGroupAggregate",
             unaryNode(
@@ -153,20 +153,20 @@ class SetOperatorsTest extends TableTestBase {
                 "DataStreamGroupAggregate",
                 unaryNode(
                   "DataStreamCalc",
-                  streamTableNode(1),
+                  streamTableNode(tableB),
                   term("select", "x", "y"),
                   term("where", "LIKE(y, '%Hanoi%')")
                 ),
                 term("groupBy", "y"),
-                term("select", "y, SUM(x) AS TMP_0")
+                term("select", "y, SUM(x) AS EXPR$0")
               ),
-              term("select", "TMP_0")
+              term("select", "EXPR$0")
             ),
-            term("groupBy", "TMP_0"),
-            term("select", "TMP_0")
+            term("groupBy", "EXPR$0"),
+            term("select", "EXPR$0")
           ),
-          term("where", "=(a, TMP_0)"),
-          term("join", "a", "b", "c", "TMP_0"),
+          term("where", "=(a, EXPR$0)"),
+          term("join", "a", "b", "c", "EXPR$0"),
           term("joinType", "InnerJoin")
         ),
         term("select", "a", "b", "c")
@@ -194,12 +194,12 @@ class SetOperatorsTest extends TableTestBase {
             "DataStreamCalc",
             binaryNode(
               "DataStreamJoin",
-              streamTableNode(0),
+              streamTableNode(tableA),
               unaryNode(
                 "DataStreamGroupAggregate",
                 unaryNode(
                   "DataStreamCalc",
-                  streamTableNode(1),
+                  streamTableNode(tableB),
                   term("select", "x")
                 ),
                 term("groupBy", "x"),
@@ -215,7 +215,7 @@ class SetOperatorsTest extends TableTestBase {
             "DataStreamGroupAggregate",
             unaryNode(
               "DataStreamCalc",
-              streamTableNode(2),
+              streamTableNode(tableC),
               term("select", "w")
             ),
             term("groupBy", "w"),

@@ -40,8 +40,7 @@ function cleanup {
 }
 
 function check_kubernetes_status {
-    local status=`minikube status`
-    echo ${status} | grep -q "minikube: Running cluster: Running kubectl: Correctly Configured"
+    minikube status
     return $?
 }
 
@@ -50,10 +49,11 @@ function start_kubernetes_if_not_running {
         minikube start
     fi
 
-    return $(check_kubernetes_status)
+    check_kubernetes_status
+    return $?
 }
 
-trap cleanup EXIT
+on_exit cleanup
 
 mkdir -p $OUTPUT_VOLUME
 
@@ -64,7 +64,7 @@ fi
 
 eval $(minikube docker-env)
 cd "$DOCKER_MODULE_DIR"
-./build.sh --from-local-dist --job-jar ${FLINK_DIR}/examples/batch/WordCount.jar --image-name ${FLINK_IMAGE_NAME}
+./build.sh --from-local-dist --job-artifacts ${FLINK_DIR}/examples/batch/WordCount.jar --image-name ${FLINK_IMAGE_NAME}
 cd "$END_TO_END_DIR"
 
 

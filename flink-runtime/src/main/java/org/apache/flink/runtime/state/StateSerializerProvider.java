@@ -188,7 +188,17 @@ public abstract class StateSerializerProvider<T> {
 
 		this.cachedRestoredSerializer = previousSerializerSnapshot.restoreSerializer();
 		return cachedRestoredSerializer;
-	};
+	}
+
+	/**
+	 * Gets the previous serializer snapshot.
+	 *
+	 * @return The previous serializer snapshot, or null if registered serializer was for a new state, not a restored one.
+	 */
+	@Nullable
+	public final TypeSerializerSnapshot<T> getPreviousSerializerSnapshot() {
+		return previousSerializerSnapshot;
+	}
 
 	/**
 	 * For restored state, register a new serializer that potentially has a new serialization schema.

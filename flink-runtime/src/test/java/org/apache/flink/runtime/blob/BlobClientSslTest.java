@@ -20,6 +20,7 @@ package org.apache.flink.runtime.blob;
 
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.net.SSLUtilsTest;
 
 import org.junit.AfterClass;
@@ -36,7 +37,7 @@ import java.io.IOException;
 public class BlobClientSslTest extends BlobClientTest {
 
 	/** The instance of the SSL BLOB server used during the tests. */
-	private static BlobServer blobSslServer;
+	private static TestBlobServer blobSslServer;
 
 	/** Instance of a non-SSL BLOB server with SSL-enabled security options. */
 	private static BlobServer blobNonSslServer;
@@ -55,10 +56,11 @@ public class BlobClientSslTest extends BlobClientTest {
 	 */
 	@BeforeClass
 	public static void startSSLServer() throws IOException {
-		Configuration config = SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores();
+		Configuration config = SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores(
+			SecurityOptions.SSL_PROVIDER.defaultValue());
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporarySslFolder.newFolder().getAbsolutePath());
 
-		blobSslServer = new BlobServer(config, new VoidBlobStore());
+		blobSslServer = new TestBlobServer(config, new VoidBlobStore());
 		blobSslServer.start();
 
 		sslClientConfig = config;
@@ -66,7 +68,8 @@ public class BlobClientSslTest extends BlobClientTest {
 
 	@BeforeClass
 	public static void startNonSSLServer() throws IOException {
-		Configuration config = SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores();
+		Configuration config = SSLUtilsTest.createInternalSslConfigWithKeyAndTrustStores(
+			SecurityOptions.SSL_PROVIDER.defaultValue());
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY, temporarySslFolder.newFolder().getAbsolutePath());
 		config.setBoolean(BlobServerOptions.SSL_ENABLED, false);
 
@@ -93,7 +96,7 @@ public class BlobClientSslTest extends BlobClientTest {
 		return sslClientConfig;
 	}
 
-	protected BlobServer getBlobServer() {
+	protected TestBlobServer getBlobServer() {
 		return blobSslServer;
 	}
 

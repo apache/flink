@@ -131,14 +131,12 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 			// file does not exist. Try to load it with the classloader
 			ClassLoader cl = HistoryServerStaticFileServerHandler.class.getClassLoader();
 
-			String pathToLoad = requestPath.replace("index.html", "index_hs.html");
-
-			try (InputStream resourceStream = cl.getResourceAsStream("web" + pathToLoad)) {
+			try (InputStream resourceStream = cl.getResourceAsStream("web" + requestPath)) {
 				boolean success = false;
 				try {
 					if (resourceStream != null) {
 						URL root = cl.getResource("web");
-						URL requested = cl.getResource("web" + pathToLoad);
+						URL requested = cl.getResource("web" + requestPath);
 
 						if (root != null && requested != null) {
 							URI rootURI = new URI(root.getPath()).normalize();
@@ -147,7 +145,7 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 							// Check that we don't load anything from outside of the
 							// expected scope.
 							if (!rootURI.relativize(requestedURI).equals(requestedURI)) {
-								LOG.debug("Loading missing file from classloader: {}", pathToLoad);
+								LOG.debug("Loading missing file from classloader: {}", requestPath);
 								// ensure that directory to file exists.
 								file.getParentFile().mkdirs();
 								Files.copy(resourceStream, file.toPath());
@@ -160,7 +158,7 @@ public class HistoryServerStaticFileServerHandler extends SimpleChannelInboundHa
 					LOG.error("error while responding", t);
 				} finally {
 					if (!success) {
-						LOG.debug("Unable to load requested file {} from classloader", pathToLoad);
+						LOG.debug("Unable to load requested file {} from classloader", requestPath);
 						HandlerUtils.sendErrorResponse(
 							ctx,
 							request,

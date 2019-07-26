@@ -27,7 +27,7 @@ import org.apache.flink.table.runtime.utils.{StreamITCase, StreamTestData, UserD
 import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.Row
 import org.junit.Assert._
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 import scala.collection.mutable
 
@@ -50,6 +50,23 @@ class CalcITCase extends AbstractTestBase {
         "2,2,Hello",
         "3,2,Hello world")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testSimpleSelectEmpty(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+    StreamITCase.testResults = mutable.MutableList()
+    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv)
+      .select()
+      .select("count(1)")
+
+    val results = ds.toRetractStream[Row]
+    results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
+    env.execute()
+
+    val expected = mutable.MutableList("3")
+    assertEquals(expected.sorted, StreamITCase.retractedResults.sorted)
   }
 
   @Test
@@ -157,7 +174,7 @@ class CalcITCase extends AbstractTestBase {
     StreamITCase.testResults = mutable.MutableList()
     val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
 
-    val filterDs = ds.filter( Literal(false) )
+    val filterDs = ds.filter(false)
     val results = filterDs.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
@@ -176,7 +193,7 @@ class CalcITCase extends AbstractTestBase {
     StreamITCase.testResults = mutable.MutableList()
     val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
 
-    val filterDs = ds.filter( Literal(true) )
+    val filterDs = ds.filter(true)
     val results = filterDs.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
@@ -348,5 +365,92 @@ class CalcITCase extends AbstractTestBase {
       "{8=Comment#2}",
       "{9=Comment#3}")
     assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testColumnOperation(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+
+    StreamITCase.clear
+
+    val testData = new mutable.MutableList[(Int, Long, String)]
+    testData.+=((1, 1L, "Kevin"))
+    testData.+=((2, 2L, "Sunny"))
+
+    val t = env.fromCollection(testData).toTable(tEnv).as('a, 'b, 'c)
+
+    val result = t
+      // Adds simple column
+      .addColumns("concat(c, 'sunny') as kid")
+      // Adds columns by flattening
+      .addColumns(row(1, "str").flatten())
+      // If the added fields have duplicate field name, then the last one is used.
+      .addOrReplaceColumns(concat('c, "_kid") as 'kid, concat('c, "kid") as 'kid)
+      // Existing fields will be replaced.
+      .addOrReplaceColumns("concat(c, ' is a kid') as kid")
+      // Adds value literal column
+      .addColumns("'last'")
+      // Adds column without alias
+      .addColumns('a + 2)
+      // Renames columns
+      .renameColumns('a as 'a2, 'b as 'b2)
+      .renameColumns("c as c2")
+      // Drops columns
+      .dropColumns('b2)
+      .dropColumns("c2")
+
+    result.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "1,Kevin is a kid,1,str,last,3",
+      "2,Sunny is a kid,1,str,last,4"
+    )
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Test
+  def testMap(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+      .map(Func23('a, 'b, 'c)).as("a, b, c, d")
+      .map(Func24('a, 'b, 'c, 'd)).as("a, b, c, d")
+      .map(Func1('b))
+
+    val results = ds.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    val expected = mutable.MutableList(
+      "3",
+      "4",
+      "5")
+    assertEquals(expected.sorted, StreamITCase.testResults.sorted)
+  }
+
+  @Ignore("Will be open when FLINK-10834 has been fixed.")
+  @Test
+  def testNonDeterministic(): Unit = {
+
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env)
+    StreamITCase.testResults = mutable.MutableList()
+
+    val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
+      .map(Func25('a))
+
+    val results = ds.toAppendStream[Row]
+    results.addSink(new StreamITCase.StringSink[Row])
+    env.execute()
+
+    StreamITCase.testResults.foreach { testResult =>
+      val result = testResult.split(",")
+      assertEquals(result(0), result(1))
+    }
   }
 }

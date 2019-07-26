@@ -24,18 +24,20 @@ import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 
 import org.junit.Test;
 
-import javax.annotation.Nullable;
+import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -89,12 +91,23 @@ public class AbstractMetricGroupTest {
 	public void testScopeCachingForMultipleReporters() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
+
+		MetricConfig metricConfig1 = new MetricConfig();
+		metricConfig1.setProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
+
+		MetricConfig metricConfig2 = new MetricConfig();
+		metricConfig2.setProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "!");
+
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter1.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, TestReporter2.class.getName());
 		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "!");
 
-		MetricRegistryImpl testRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+		MetricRegistryImpl testRegistry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.fromConfiguration(config),
+			Arrays.asList(
+				ReporterSetup.forReporter("test1", metricConfig1, new TestReporter1()),
+				ReporterSetup.forReporter("test2", metricConfig2, new TestReporter2())));
 		try {
 			MetricGroup tmGroup = new TaskManagerMetricGroup(testRegistry, "host", "id");
 			tmGroup.counter("1");
@@ -112,11 +125,11 @@ public class AbstractMetricGroupTest {
 
 	@Test
 	public void testLogicalScopeCachingForMultipleReporters() throws Exception {
-		Configuration config = new Configuration();
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test1." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, LogicalScopeReporter1.class.getName());
-		config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test2." + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, LogicalScopeReporter2.class.getName());
-
-		MetricRegistryImpl testRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+		MetricRegistryImpl testRegistry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+			Arrays.asList(
+				ReporterSetup.forReporter("test1", new LogicalScopeReporter1()),
+				ReporterSetup.forReporter("test2", new LogicalScopeReporter2())));
 		try {
 			MetricGroup tmGroup = new TaskManagerMetricGroup(testRegistry, "host", "id")
 				.addGroup("B")
@@ -240,7 +253,8 @@ public class AbstractMetricGroupTest {
 	public void testScopeGenerationWithoutReporters() throws Exception {
 		Configuration config = new Configuration();
 		config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B.C.D");
-		MetricRegistryImpl testRegistry = new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+		MetricRegistryImpl testRegistry = new MetricRegistryImpl(
+			MetricRegistryConfiguration.fromConfiguration(config));
 
 		try {
 			TaskManagerMetricGroup group = new TaskManagerMetricGroup(testRegistry, "host", "id");
@@ -333,12 +347,6 @@ public class AbstractMetricGroupTest {
 
 		@Override
 		public ScopeFormats getScopeFormats() {
-			return null;
-		}
-
-		@Nullable
-		@Override
-		public String getMetricQueryServicePath() {
 			return null;
 		}
 	}

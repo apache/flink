@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -154,11 +155,20 @@ public class IntermediateResult {
 		return connectionIndex;
 	}
 
+	@VisibleForTesting
 	void resetForNewExecution() {
-		this.numberOfRunningProducers.set(numParallelProducers);
 		for (IntermediateResultPartition partition : partitions) {
 			partition.resetForNewExecution();
 		}
+	}
+
+	@VisibleForTesting
+	int getNumberOfRunningProducers() {
+		return numberOfRunningProducers.get();
+	}
+
+	int incrementNumberOfRunningProducersAndGetRemaining() {
+		return numberOfRunningProducers.incrementAndGet();
 	}
 
 	int decrementNumberOfRunningProducersAndGetRemaining() {

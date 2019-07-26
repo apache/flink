@@ -21,12 +21,11 @@ package org.apache.flink.table.plan.rules
 import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
-import org.apache.flink.table.plan.nodes.logical
+import org.apache.flink.table.plan.nodes.logical._
 import org.apache.flink.table.plan.rules.common._
-import org.apache.flink.table.plan.rules.logical._
 import org.apache.flink.table.plan.rules.dataSet._
 import org.apache.flink.table.plan.rules.datastream._
-import org.apache.flink.table.plan.nodes.logical._
+import org.apache.flink.table.plan.rules.logical.{ExtendedAggregateExtractProjectRule, _}
 
 object FlinkRuleSets {
 
@@ -139,19 +138,15 @@ object FlinkRuleSets {
     FlinkLogicalValues.CONVERTER,
     FlinkLogicalTableSourceScan.CONVERTER,
     FlinkLogicalTableFunctionScan.CONVERTER,
-    FlinkLogicalNativeTableScan.CONVERTER,
-    FlinkLogicalMatch.CONVERTER
+    FlinkLogicalMatch.CONVERTER,
+    FlinkLogicalTableAggregate.CONVERTER,
+    FlinkLogicalWindowTableAggregate.CONVERTER
   )
 
   /**
     * RuleSet to normalize plans for batch / DataSet execution
     */
   val DATASET_NORM_RULES: RuleSet = RuleSets.ofList(
-    // simplify expressions rules
-    ReduceExpressionsRule.FILTER_INSTANCE,
-    ReduceExpressionsRule.PROJECT_INSTANCE,
-    ReduceExpressionsRule.CALC_INSTANCE,
-    ReduceExpressionsRule.JOIN_INSTANCE,
     ProjectToWindowRule.PROJECT,
 
     // Transform grouping sets
@@ -163,6 +158,13 @@ object FlinkRuleSets {
 
     // expand distinct aggregate to normal aggregate with groupby
     AggregateExpandDistinctAggregatesRule.JOIN,
+
+    ExtendedAggregateExtractProjectRule.INSTANCE,
+    // simplify expressions rules
+    ReduceExpressionsRule.FILTER_INSTANCE,
+    ReduceExpressionsRule.PROJECT_INSTANCE,
+    ReduceExpressionsRule.CALC_INSTANCE,
+    ReduceExpressionsRule.JOIN_INSTANCE,
 
     // merge a cascade of predicates to IN or NOT_IN
     ConvertToNotInOrInRule.IN_INSTANCE,
@@ -199,6 +201,7 @@ object FlinkRuleSets {
     WindowPropertiesRule.INSTANCE,
     WindowPropertiesHavingRule.INSTANCE,
 
+    ExtendedAggregateExtractProjectRule.INSTANCE,
     // simplify expressions rules
     ReduceExpressionsRule.FILTER_INSTANCE,
     ReduceExpressionsRule.PROJECT_INSTANCE,
@@ -228,7 +231,9 @@ object FlinkRuleSets {
     DataStreamJoinRule.INSTANCE,
     DataStreamTemporalTableJoinRule.INSTANCE,
     StreamTableSourceScanRule.INSTANCE,
-    DataStreamMatchRule.INSTANCE
+    DataStreamMatchRule.INSTANCE,
+    DataStreamTableAggregateRule.INSTANCE,
+    DataStreamGroupWindowTableAggregateRule.INSTANCE
   )
 
   /**

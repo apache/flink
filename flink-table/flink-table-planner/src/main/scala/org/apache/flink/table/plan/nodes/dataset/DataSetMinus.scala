@@ -23,7 +23,8 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvironment}
+import org.apache.flink.table.api.BatchQueryConfig
+import org.apache.flink.table.api.internal.BatchTableEnvImpl
 import org.apache.flink.table.runtime.MinusCoGroupFunction
 import org.apache.flink.types.Row
 
@@ -86,7 +87,7 @@ class DataSetMinus(
   }
 
   override def translateToPlan(
-      tableEnv: BatchTableEnvironment,
+      tableEnv: BatchTableEnvImpl,
       queryConfig: BatchQueryConfig): DataSet[Row] = {
 
     val leftDataSet = left.asInstanceOf[DataSetRel].translateToPlan(tableEnv, queryConfig)

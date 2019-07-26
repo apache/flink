@@ -1,0 +1,75 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+.input-file {
+  width: 0.1px;
+  height: 0.1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  z-index: -1;
+}
+
+.extra {
+  position: absolute;
+  right: 24px;
+  top: 18px;
+
+  nz-progress {
+    width: 150px;
+    display: block;
+  }
+
+  .upload {
+    vertical-align: middle;
+
+    span {
+      display: inline-block;
+      line-height: 22px;
+
+      i {
+        margin-right: 6px;
+      }
+    }
+  }
+}
+
+flink-dagre {
+  position: absolute;
+  top: 60px;
+  bottom: 0;
+  right: 0;
+  left: 0;
+}
+
+nz-form-item {
+  width: calc(50% - 16px);
+
+  nz-form-control {
+    width: 100%;
+
+    button {
+      margin-right: 12px;
+    }
+  }
+}
+
+.delete-jar {
+  word-break: keep-all;
+}

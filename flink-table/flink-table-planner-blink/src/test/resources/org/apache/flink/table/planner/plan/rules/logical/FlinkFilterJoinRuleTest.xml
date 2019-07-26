@@ -1,0 +1,435 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testFilterPushDownLeftAnti1">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (SELECT * FROM leftT WHERE a NOT IN
+    (SELECT c FROM rightT WHERE c < 3)) T WHERE T.b > 2
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($1, 2)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[<($0, 3)])
+    LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+}))])
+         +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[OR(=($0, $2), IS NULL($0), IS NULL($2))], joinType=[anti])
+      :- LogicalFilter(condition=[>($1, 2)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+      +- LogicalProject(c=[$0])
+         +- LogicalFilter(condition=[<($0, 3)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterPushDownLeftAnti2">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (SELECT * FROM leftT WHERE NOT EXISTS
+    (SELECT * FROM rightT where c > 10)) T WHERE T.b > 2
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($1, 2)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[>($0, 10)])
+  LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+}))])
+         +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[$2], joinType=[anti])
+      :- LogicalFilter(condition=[>($1, 2)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+      +- LogicalProject($f0=[IS NOT NULL($0)])
+         +- LogicalAggregate(group=[{}], m=[MIN($0)])
+            +- LogicalProject(i=[true])
+               +- LogicalFilter(condition=[>($0, 10)])
+                  +- LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterPushDownLeftAnti3">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (SELECT * FROM leftT WHERE a NOT IN
+(SELECT c FROM rightT WHERE b = d AND c < 3)) T WHERE T.b > 2
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($1, 2)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[AND(=($cor0.b, $1), <($0, 3))])
+    LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+}))], variablesSet=[[$cor0]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[AND(OR(=($0, $2), IS NULL($0), IS NULL($2)), =($1, $3))], joinType=[anti])
+      :- LogicalFilter(condition=[>($1, 2)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+      +- LogicalProject(c=[$0], d=[$1])
+         +- LogicalFilter(condition=[<($0, 3)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterPushDownLeftAnti4">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (SELECT * FROM leftT WHERE NOT EXISTS
+    (SELECT * FROM rightT WHERE a = c)) T WHERE T.b > 2
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($1, 2)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+}))], variablesSet=[[$cor0]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[anti])
+      :- LogicalFilter(condition=[>($1, 2)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+      +- LogicalProject(c=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterPushDownLeftSemi1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (SELECT * FROM leftT WHERE a IN (SELECT c FROM rightT)) T WHERE T.b > 2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($1, 2)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalFilter(condition=[IN($0, {
+LogicalProject(c=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+})])
+         +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[semi])
+      :- LogicalFilter(condition=[>($1, 2)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+      +- LogicalProject(c=[$0])
+         +- LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterPushDownLeftSemi2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT)) T WHERE T.b > 2]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($1, 2)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalFilter(condition=[EXISTS({
+LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+})])
+         +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[$2], joinType=[semi])
+      :- LogicalFilter(condition=[>($1, 2)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+      +- LogicalProject($f0=[IS NOT NULL($0)])
+         +- LogicalAggregate(group=[{}], m=[MIN($0)])
+            +- LogicalProject(i=[true])
+               +- LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterPushDownLeftSemi3">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (SELECT * FROM leftT WHERE EXISTS
+    (SELECT * FROM rightT WHERE a = c)) T WHERE T.b > 2
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>($1, 2)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[=($cor0.a, $0)])
+  LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+})], variablesSet=[[$cor0]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[=($0, $2)], joinType=[semi])
+      :- LogicalFilter(condition=[>($1, 2)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+      +- LogicalProject(c=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinConditionPushDownLeftAnti1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM leftT WHERE a NOT IN (SELECT c FROM rightT WHERE b > 2)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[>($cor0.b, 2)])
+    LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[AND(OR(=($0, $3), IS NULL($0), IS NULL($3)), $2)], joinType=[anti])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[>($1, 2)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+      +- LogicalProject(c=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinConditionPushDownLeftAnti2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightT WHERE b > 2)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[>($cor0.b, 2)])
+  LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[$2], joinType=[anti])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[>($1, 2)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+      +- LogicalProject
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinConditionPushDownLeftAnti3">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM leftT WHERE a NOT IN (SELECT c FROM rightT WHERE b = d AND b > 1)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[AND(=($cor0.b, $1), >($cor0.b, 1))])
+    LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[AND(OR(=($0, $3), IS NULL($0), IS NULL($3)), =($1, $4), $2)], joinType=[anti])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[>($1, 1)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+      +- LogicalProject(c=[$0], d=[$1])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinConditionPushDownLeftAnti4">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM leftT WHERE NOT EXISTS (SELECT * FROM rightT WHERE a = c AND b > 2)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), >($cor0.b, 2))])
+  LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+}))], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[AND(=($0, $3), $2)], joinType=[anti])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[>($1, 2)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+      +- LogicalProject(c=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinConditionPushDownLeftSemi1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM leftT WHERE a IN (SELECT c FROM rightT WHERE b > 2)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(c=[$0])
+  LogicalFilter(condition=[>($cor0.b, 2)])
+    LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[>($1, 2)])
+      :  +- LogicalFilter(condition=[>($1, 2)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+      +- LogicalProject(c=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinConditionPushDownLeftSemi2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT WHERE b > 2)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[>($cor0.b, 2)])
+  LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[true], joinType=[semi])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[>($1, 2)])
+      :  +- LogicalFilter(condition=[>($1, 2)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+      +- LogicalProject
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinConditionPushDownLeftSemi3">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM leftT WHERE EXISTS (SELECT * FROM rightT WHERE a = c AND b > 2)]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), >($cor0.b, 2))])
+  LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[semi])
+      :- LogicalProject(a=[$0], b=[$1], $f2=[>($1, 2)])
+      :  +- LogicalFilter(condition=[>($1, 2)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, leftT, source: [TestTableSource(a, b)]]])
+      +- LogicalProject(c=[$0])
+         +- LogicalFilter(condition=[true])
+            +- LogicalTableScan(table=[[default_catalog, default_database, rightT, source: [TestTableSource(c, d)]]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -28,6 +28,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.jar.JarFile;
 
 /**
  * A JobWithJars is a Flink dataflow plan, together with a bunch of JAR files that contain
@@ -114,15 +115,20 @@ public class JobWithJars {
 		try {
 			jarFile = new File(jar.toURI());
 		} catch (URISyntaxException e) {
-			throw new IOException("JAR file path is invalid '" + jar + "'");
+			throw new IOException("JAR file path is invalid '" + jar + '\'');
 		}
 		if (!jarFile.exists()) {
-			throw new IOException("JAR file does not exist '" + jarFile.getAbsolutePath() + "'");
+			throw new IOException("JAR file does not exist '" + jarFile.getAbsolutePath() + '\'');
 		}
 		if (!jarFile.canRead()) {
-			throw new IOException("JAR file can't be read '" + jarFile.getAbsolutePath() + "'");
+			throw new IOException("JAR file can't be read '" + jarFile.getAbsolutePath() + '\'');
 		}
-		// TODO: Check if proper JAR file
+
+		try (JarFile ignored = new JarFile(jarFile)) {
+			// verify that we can open the Jar file
+		} catch (IOException e) {
+			throw new IOException("Error while opening jar file '" + jarFile.getAbsolutePath() + '\'', e);
+		}
 	}
 
 	public static ClassLoader buildUserCodeClassLoader(List<URL> jars, List<URL> classpaths, ClassLoader parent) {

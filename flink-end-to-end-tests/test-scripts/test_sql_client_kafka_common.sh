@@ -17,16 +17,14 @@
 # limitations under the License.
 ################################################################################
 
-KAFKA_CONNECTOR_VERSION="$1"
-KAFKA_VERSION="$2"
-CONFLUENT_VERSION="$3"
-CONFLUENT_MAJOR_VERSION="$4"
-KAFKA_SQL_JAR="$5"
-KAFKA_SQL_VERSION="$6"
+KAFKA_VERSION="$1"
+CONFLUENT_VERSION="$2"
+CONFLUENT_MAJOR_VERSION="$3"
+KAFKA_SQL_JAR="$4"
+KAFKA_SQL_VERSION="$5"
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/kafka_sql_common.sh \
-  $KAFKA_CONNECTOR_VERSION \
   $KAFKA_VERSION \
   $CONFLUENT_VERSION \
   $CONFLUENT_MAJOR_VERSION \
@@ -37,15 +35,9 @@ source "$(dirname "$0")"/kafka_sql_common.sh \
 ################################################################################
 
 function sql_cleanup() {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
   stop_kafka_cluster
 }
-trap sql_cleanup INT
-trap sql_cleanup EXIT
+on_exit sql_cleanup
 
 # prepare Kafka
 echo "Preparing Kafka $KAFKA_VERSION..."

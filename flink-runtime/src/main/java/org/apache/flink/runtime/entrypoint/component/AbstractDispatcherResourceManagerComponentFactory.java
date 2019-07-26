@@ -189,7 +189,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				blobServer,
 				heartbeatServices,
 				jobManagerMetricGroup,
-				metricRegistry.getMetricQueryServicePath(),
+				metricRegistry.getMetricQueryServiceGatewayRpcAddress(),
 				archivedExecutionGraphStore,
 				fatalErrorHandler,
 				historyServerArchivist);

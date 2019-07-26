@@ -66,19 +66,19 @@ import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIF
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_STARTUP_MODE;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TOPIC;
 import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TYPE_VALUE_KAFKA;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_CLASS;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_FROM;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_SERIALIZED;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_TIMESTAMPS_TYPE;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_CLASS;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_DELAY;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_SERIALIZED;
-import static org.apache.flink.table.descriptors.RowtimeValidator.ROWTIME_WATERMARKS_TYPE;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_FROM;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_NAME;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_PROCTIME;
-import static org.apache.flink.table.descriptors.SchemaValidator.SCHEMA_TYPE;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_CLASS;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_FROM;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_SERIALIZED;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_TYPE;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_CLASS;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_DELAY;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_SERIALIZED;
+import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_WATERMARKS_TYPE;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_FROM;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_PROCTIME;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
 
@@ -115,20 +115,20 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		properties.add(CONNECTOR_SINK_PARTITIONER_CLASS);
 
 		// schema
-		properties.add(SCHEMA() + ".#." + SCHEMA_TYPE());
-		properties.add(SCHEMA() + ".#." + SCHEMA_NAME());
-		properties.add(SCHEMA() + ".#." + SCHEMA_FROM());
+		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
+		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
+		properties.add(SCHEMA + ".#." + SCHEMA_FROM);
 
 		// time attributes
-		properties.add(SCHEMA() + ".#." + SCHEMA_PROCTIME());
-		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_TYPE());
-		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_FROM());
-		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_CLASS());
-		properties.add(SCHEMA() + ".#." + ROWTIME_TIMESTAMPS_SERIALIZED());
-		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_TYPE());
-		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_CLASS());
-		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_SERIALIZED());
-		properties.add(SCHEMA() + ".#." + ROWTIME_WATERMARKS_DELAY());
+		properties.add(SCHEMA + ".#." + SCHEMA_PROCTIME);
+		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_TYPE);
+		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_FROM);
+		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_CLASS);
+		properties.add(SCHEMA + ".#." + ROWTIME_TIMESTAMPS_SERIALIZED);
+		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_TYPE);
+		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_CLASS);
+		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_SERIALIZED);
+		properties.add(SCHEMA + ".#." + ROWTIME_WATERMARKS_DELAY);
 
 		// format wildcard
 		properties.add(FORMAT + ".*");
@@ -145,7 +145,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		final StartupOptions startupOptions = getStartupOptions(descriptorProperties, topic);
 
 		return createKafkaTableSource(
-			descriptorProperties.getTableSchema(SCHEMA()),
+			descriptorProperties.getTableSchema(SCHEMA),
 			SchemaValidator.deriveProctimeAttribute(descriptorProperties),
 			SchemaValidator.deriveRowtimeAttributes(descriptorProperties),
 			SchemaValidator.deriveFieldMapping(
@@ -162,7 +162,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	public StreamTableSink<Row> createStreamTableSink(Map<String, String> properties) {
 		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 
-		final TableSchema schema = descriptorProperties.getTableSchema(SCHEMA());
+		final TableSchema schema = descriptorProperties.getTableSchema(SCHEMA);
 		final String topic = descriptorProperties.getString(CONNECTOR_TOPIC);
 		final Optional<String> proctime = SchemaValidator.deriveProctimeAttribute(descriptorProperties);
 		final List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors =

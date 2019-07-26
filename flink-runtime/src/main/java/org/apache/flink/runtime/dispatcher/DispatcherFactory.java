@@ -48,7 +48,7 @@ public interface DispatcherFactory<T extends Dispatcher> {
 		BlobServer blobServer,
 		HeartbeatServices heartbeatServices,
 		JobManagerMetricGroup jobManagerMetricGroup,
-		@Nullable String metricQueryServicePath,
+		@Nullable String metricQueryServiceAddress,
 		ArchivedExecutionGraphStore archivedExecutionGraphStore,
 		FatalErrorHandler fatalErrorHandler,
 		HistoryServerArchivist historyServerArchivist) throws Exception;

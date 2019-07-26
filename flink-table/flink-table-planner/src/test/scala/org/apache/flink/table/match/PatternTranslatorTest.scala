@@ -125,6 +125,17 @@ class PatternTranslatorTest extends PatternTranslatorTestBase {
         |     A as A.f0 = 1
         |)""".stripMargin,
       Pattern.begin("A", skipToNext()).times(2, 6).consecutive().greedy().next("B"))
+
+    verifyPattern(
+      """MATCH_RECOGNIZE (
+        |   ORDER BY proctime
+        |   MEASURES
+        |     A.f0 as aF0
+        |   PATTERN (A{2})
+        |   DEFINE
+        |     A as A.f0 = 1
+        |)""".stripMargin,
+      Pattern.begin("A", skipToNext()).times(2).consecutive())
   }
 
   @Test

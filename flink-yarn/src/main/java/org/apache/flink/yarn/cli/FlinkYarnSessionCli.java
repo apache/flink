@@ -31,7 +31,6 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.clusterframework.messages.GetClusterStatusResponse;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
@@ -144,6 +143,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	@Deprecated
 	private final Option streaming;
 	private final Option name;
+	private final Option applicationType;
 
 	private final Options allOptions;
 
@@ -202,6 +202,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 			.build();
 		streaming = new Option(shortPrefix + "st", longPrefix + "streaming", false, "Start Flink in streaming mode");
 		name = new Option(shortPrefix + "nm", longPrefix + "name", true, "Set a custom name for the application on YARN");
+		applicationType = new Option(shortPrefix + "at", longPrefix + "applicationType", true, "Set a custom application type for the application on YARN");
 		zookeeperNamespace = new Option(shortPrefix + "z", longPrefix + "zookeeperNamespace", true, "Namespace to create the Zookeeper sub-paths for high availability mode");
 		nodeLabel = new Option(shortPrefix + "nl", longPrefix + "nodeLabel", true, "Specify YARN node label for the YARN application");
 		help = new Option(shortPrefix + "h", longPrefix + "help", false, "Help for the Yarn session CLI.");
@@ -222,6 +223,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		allOptions.addOption(streaming);
 		allOptions.addOption(name);
 		allOptions.addOption(applicationId);
+		allOptions.addOption(applicationType);
 		allOptions.addOption(zookeeperNamespace);
 		allOptions.addOption(nodeLabel);
 		allOptions.addOption(help);
@@ -357,6 +359,10 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 		if (cmd.hasOption(name.getOpt())) {
 			yarnClusterDescriptor.setName(cmd.getOptionValue(name.getOpt()));
+		}
+
+		if (cmd.hasOption(applicationType.getOpt())) {
+			yarnClusterDescriptor.setApplicationType(cmd.getOptionValue(applicationType.getOpt()));
 		}
 
 		if (cmd.hasOption(zookeeperNamespace.getOpt())) {
@@ -884,37 +890,11 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 							isLastStatusUnknown = false;
 						}
 
-						// ------------------ check if there are updates by the cluster -----------
-						try {
-							final GetClusterStatusResponse status = clusterClient.getClusterStatus();
-
-							if (status != null && numTaskmanagers != status.numRegisteredTaskManagers()) {
-								System.err.println("Number of connected TaskManagers changed to " +
-									status.numRegisteredTaskManagers() + ". " +
-									"Slots available: " + status.totalNumberOfSlots());
-								numTaskmanagers = status.numRegisteredTaskManagers();
-							}
-						} catch (Exception e) {
-							LOG.warn("Could not retrieve the current cluster status. Skipping current retrieval attempt ...", e);
-						}
-
-						printClusterMessages(clusterClient);
-
 						continueRepl = repStep(in, readConsoleInput);
 				}
 			}
 		} catch (Exception e) {
 			LOG.warn("Exception while running the interactive command line interface.", e);
-		}
-	}
-
-	private static void printClusterMessages(ClusterClient clusterClient) {
-		final List<String> messages = clusterClient.getNewMessages();
-		if (!messages.isEmpty()) {
-			System.err.println("New messages from the YARN cluster: ");
-			for (String msg : messages) {
-				System.err.println(msg);
-			}
 		}
 	}
 

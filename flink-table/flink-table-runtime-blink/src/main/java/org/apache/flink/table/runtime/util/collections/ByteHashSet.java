@@ -17,135 +17,35 @@
 
 package org.apache.flink.table.runtime.util.collections;
 
-import org.apache.flink.table.util.MurmurHashUtil;
-
 /**
  * Byte hash set.
  */
-public class ByteHashSet extends OptimizableHashSet {
+public class ByteHashSet {
 
-	private byte[] key;
+	protected boolean containsNull;
 
-	private byte min = Byte.MAX_VALUE;
-	private byte max = Byte.MIN_VALUE;
-
-	public ByteHashSet(final int expected, final float f) {
-		super(expected, f);
-		this.key = new byte[this.n + 1];
-	}
-
-	public ByteHashSet(final int expected) {
-		this(expected, DEFAULT_LOAD_FACTOR);
-	}
+	protected boolean[] used;
 
 	public ByteHashSet() {
-		this(DEFAULT_INITIAL_SIZE, DEFAULT_LOAD_FACTOR);
+		used = new boolean[Byte.MAX_VALUE - Byte.MIN_VALUE + 1];
 	}
 
 	public boolean add(final byte k) {
-		if (k == 0) {
-			if (this.containsZero) {
-				return false;
-			}
+		return !used[k - Byte.MIN_VALUE] && (used[k - Byte.MIN_VALUE] = true);
+	}
 
-			this.containsZero = true;
-		} else {
-			byte[] key = this.key;
-			int pos;
-			byte curr;
-			if ((curr = key[pos = MurmurHashUtil.fmix(k) & this.mask]) != 0) {
-				if (curr == k) {
-					return false;
-				}
-
-				while ((curr = key[pos = pos + 1 & this.mask]) != 0) {
-					if (curr == k) {
-						return false;
-					}
-				}
-			}
-
-			key[pos] = k;
-		}
-
-		if (this.size++ >= this.maxFill) {
-			this.rehash(OptimizableHashSet.arraySize(this.size + 1, this.f));
-		}
-
-		if (k < min) {
-			min = k;
-		}
-		if (k > max) {
-			max = k;
-		}
-		return true;
+	public void addNull() {
+		this.containsNull = true;
 	}
 
 	public boolean contains(final byte k) {
-		if (isDense) {
-			return k >= min && k <= max && used[k - min];
-		} else {
-			if (k == 0) {
-				return this.containsZero;
-			} else {
-				byte[] key = this.key;
-				byte curr;
-				int pos;
-				if ((curr = key[pos = MurmurHashUtil.fmix(k) & this.mask]) == 0) {
-					return false;
-				} else if (k == curr) {
-					return true;
-				} else {
-					while ((curr = key[pos = pos + 1 & this.mask]) != 0) {
-						if (k == curr) {
-							return true;
-						}
-					}
-
-					return false;
-				}
-			}
-		}
+		return used[k - Byte.MIN_VALUE];
 	}
 
-	private void rehash(final int newN) {
-		byte[] key = this.key;
-		int mask = newN - 1;
-		byte[] newKey = new byte[newN + 1];
-		int i = this.n;
-
-		int pos;
-		for (int j = this.realSize(); j-- != 0; newKey[pos] = key[i]) {
-			do {
-				--i;
-			} while(key[i] == 0);
-
-			if (newKey[pos = MurmurHashUtil.fmix(key[i]) & mask] != 0) {
-				while (newKey[pos = pos + 1 & mask] != 0) {}
-			}
-		}
-
-		this.n = newN;
-		this.mask = mask;
-		this.maxFill = OptimizableHashSet.maxFill(this.n, this.f);
-		this.key = newKey;
+	public boolean containsNull() {
+		return containsNull;
 	}
 
-	@Override
 	public void optimize() {
-		int range = max - min;
-		if (range >= 0 && (range < key.length || range < OptimizableHashSet.DENSE_THRESHOLD)) {
-			this.used = new boolean[max - min + 1];
-			for (byte v : key) {
-				if (v != 0) {
-					used[v - min] = true;
-				}
-			}
-			if (containsZero) {
-				used[-min] = true;
-			}
-			isDense = true;
-			key = null;
-		}
 	}
 }

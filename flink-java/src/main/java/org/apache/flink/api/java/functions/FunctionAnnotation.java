@@ -384,10 +384,12 @@ public class FunctionAnnotation {
 	 * printed to the log as hints, automatically applied, or disabled (see
 	 * {@link org.apache.flink.api.common.ExecutionConfig}).
 	 *
+	 * @deprecated The code analysis code has been removed and this annotation has no effect.
 	 */
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	@PublicEvolving
+	@Deprecated
 	public @interface SkipCodeAnalysis {
 	}
 

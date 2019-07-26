@@ -22,6 +22,7 @@ import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -147,12 +148,8 @@ public class ScheduleOrUpdateConsumersTest extends TestLogger {
 
 			// The order of intermediate result creation in the job graph specifies which produced
 			// result partition is pipelined/blocking.
-			final RecordWriter<IntValue> pipelinedWriter =
-					new RecordWriter<>(getEnvironment().getWriter(0));
-
-			final RecordWriter<IntValue> blockingWriter =
-					new RecordWriter<>(getEnvironment().getWriter(1));
-
+			final RecordWriter<IntValue> pipelinedWriter = new RecordWriterBuilder().build(getEnvironment().getWriter(0));
+			final RecordWriter<IntValue> blockingWriter = new RecordWriterBuilder().build(getEnvironment().getWriter(1));
 			writers.add(pipelinedWriter);
 			writers.add(blockingWriter);
 

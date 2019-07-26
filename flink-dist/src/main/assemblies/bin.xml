@@ -85,7 +85,14 @@ under the License.
 			<outputDirectory>bin</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
-		
+
+		<!-- copy plugins directory -->
+		<fileSet>
+			<directory>src/main/flink-bin/plugins</directory>
+			<outputDirectory>plugins</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
 		<!-- flink scala shell-->
 		<fileSet>
 			<directory>../flink-scala-shell/start-script/</directory>
@@ -227,18 +234,11 @@ under the License.
 				<include>flink-gelly-examples_${scala.binary.version}-${project.version}.jar</include>
 			</includes>
 		</fileSet>
-		
-		<!-- copy python example to examples of dist -->
-		<fileSet>
-			<directory>../flink-libraries/flink-python/src/main/python/org/apache/flink/python/api/flink/example</directory>
-			<outputDirectory>examples/python/batch</outputDirectory>
-			<fileMode>0755</fileMode>
-		</fileSet>
 
-		<!-- copy python streaming example to examples of dist -->
+		<!-- copy python table example to examples of dist -->
 		<fileSet>
-			<directory>../flink-libraries/flink-streaming-python/src/test/python/org/apache/flink/streaming/python/api/examples</directory>
-			<outputDirectory>examples/python/streaming</outputDirectory>
+			<directory>../flink-python/pyflink/table/examples</directory>
+			<outputDirectory>examples/python/table</outputDirectory>
 			<fileMode>0755</fileMode>
 		</fileSet>
 

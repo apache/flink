@@ -352,7 +352,7 @@ public class DispatcherHATest extends TestLogger {
 				BlobServer blobServer,
 				HeartbeatServices heartbeatServices,
 				JobManagerMetricGroup jobManagerMetricGroup,
-				@Nullable String metricQueryServicePath,
+				@Nullable String metricQueryServiceAddress,
 				ArchivedExecutionGraphStore archivedExecutionGraphStore,
 				JobManagerRunnerFactory jobManagerRunnerFactory,
 				FatalErrorHandler fatalErrorHandler,
@@ -366,7 +366,7 @@ public class DispatcherHATest extends TestLogger {
 				blobServer,
 				heartbeatServices,
 				jobManagerMetricGroup,
-				metricQueryServicePath,
+				metricQueryServiceAddress,
 				archivedExecutionGraphStore,
 				jobManagerRunnerFactory,
 				fatalErrorHandler);

@@ -19,23 +19,18 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
-import org.apache.flink.runtime.executiongraph.DummyJobInformation;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.TestingComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.executiongraph.TestingSlotProvider;
-import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
-import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
@@ -139,26 +134,30 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 			CheckpointIDCounter counter,
 			CompletedCheckpointStore store) throws Exception {
 		final Time timeout = Time.days(1L);
-		ExecutionGraph executionGraph = new ExecutionGraph(
-			new DummyJobInformation(),
-			TestingUtils.defaultExecutor(),
-			TestingUtils.defaultExecutor(),
-			timeout,
-			new NoRestartStrategy(),
-			new RestartAllStrategy.Factory(),
-			new TestingSlotProvider(slotRequestId -> CompletableFuture.completedFuture(new TestingLogicalSlot())),
-			ClassLoader.getSystemClassLoader(),
-			VoidBlobWriter.getInstance(),
-			timeout);
 
-		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		JobVertex jobVertex = new JobVertex("MockVertex");
+		jobVertex.setInvokableClass(AbstractInvokable.class);
+
+		final ExecutionGraph executionGraph = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jobVertex)
+			.setRpcTimeout(timeout)
+			.setAllocationTimeout(timeout)
+			.allowQueuedScheduling()
+			.build();
+
+		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+
+		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
+			100,
+			100,
+			100,
+			1,
+			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+			true,
+			false,
+			0);
 
 		executionGraph.enableCheckpointing(
-				100,
-				100,
-				100,
-				1,
-				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
+				chkConfig,
 				Collections.emptyList(),
 				Collections.emptyList(),
 				Collections.emptyList(),
@@ -167,11 +166,6 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 				store,
 				new MemoryStateBackend(),
 				CheckpointStatsTrackerTest.createTestTracker());
-
-		JobVertex jobVertex = new JobVertex("MockVertex");
-		jobVertex.setInvokableClass(AbstractInvokable.class);
-		executionGraph.attachJobGraph(Collections.singletonList(jobVertex));
-		executionGraph.setQueuedSchedulingAllowed(true);
 
 		return executionGraph;
 	}
@@ -194,6 +188,11 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 
 		@Override
 		public long getAndIncrement() {
+			throw new UnsupportedOperationException("Not implemented.");
+		}
+
+		@Override
+		public long get() {
 			throw new UnsupportedOperationException("Not implemented.");
 		}
 
@@ -222,7 +221,7 @@ public class ExecutionGraphCheckpointCoordinatorTest extends TestLogger {
 		}
 
 		@Override
-		public CompletedCheckpoint getLatestCheckpoint() {
+		public CompletedCheckpoint getLatestCheckpoint(boolean isPreferCheckpointForRecovery) {
 			throw new UnsupportedOperationException("Not implemented.");
 		}
 

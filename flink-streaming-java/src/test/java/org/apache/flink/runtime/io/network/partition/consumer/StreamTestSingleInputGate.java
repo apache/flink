@@ -40,7 +40,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.buildSingleBuffer;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createBufferBuilder;
-import static org.mockito.Mockito.doReturn;
 
 /**
  * Test {@link InputGate} that allows setting multiple channels. Use
@@ -76,7 +75,6 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 		inputQueues = new ConcurrentLinkedQueue[numInputChannels];
 
 		setupInputChannels();
-		doReturn(bufferSize).when(inputGate).getPageSize();
 	}
 
 	@SuppressWarnings("unchecked")
@@ -115,6 +113,10 @@ public class StreamTestSingleInputGate<T> extends TestSingleInputGate {
 					return Optional.of(new BufferAndAvailability(buildSingleBuffer(bufferBuilder), moreAvailable, 0));
 				} else if (input != null && input.isEvent()) {
 					AbstractEvent event = input.getEvent();
+					if (event instanceof EndOfPartitionEvent) {
+						inputChannels[channelIndex].setReleased();
+					}
+
 					return Optional.of(new BufferAndAvailability(EventSerializer.toBuffer(event), moreAvailable, 0));
 				} else {
 					return Optional.empty();

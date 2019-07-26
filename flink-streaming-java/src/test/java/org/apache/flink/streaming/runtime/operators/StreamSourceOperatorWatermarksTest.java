@@ -19,17 +19,17 @@
 package org.apache.flink.streaming.runtime.operators;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.StoppableStreamSource;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -37,7 +37,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.streaming.util.MockStreamTask;
@@ -69,7 +71,12 @@ public class StreamSourceOperatorWatermarksTest {
 		final List<StreamElement> output = new ArrayList<>();
 
 		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0);
-		operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output));
+		OperatorChain<?, ?> operatorChain = createOperatorChain(operator);
+		try {
+			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output), operatorChain);
+		} finally {
+			operatorChain.releaseOutputs();
+		}
 
 		assertEquals(1, output.size());
 		assertEquals(Watermark.MAX_WATERMARK, output.get(0));
@@ -88,7 +95,12 @@ public class StreamSourceOperatorWatermarksTest {
 		operator.cancel();
 
 		// run and exit
-		operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output));
+		OperatorChain<?, ?> operatorChain = createOperatorChain(operator);
+		try {
+			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output), operatorChain);
+		} finally {
+			operatorChain.releaseOutputs();
+		}
 
 		assertTrue(output.isEmpty());
 	}
@@ -116,56 +128,14 @@ public class StreamSourceOperatorWatermarksTest {
 		}.start();
 
 		// run and wait to be canceled
+		OperatorChain<?, ?> operatorChain = createOperatorChain(operator);
 		try {
-			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output));
+			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output), operatorChain);
 		}
 		catch (InterruptedException ignored) {}
-
-		assertTrue(output.isEmpty());
-	}
-
-	@Test
-	public void testNoMaxWatermarkOnImmediateStop() throws Exception {
-
-		final List<StreamElement> output = new ArrayList<>();
-
-		// regular stream source operator
-		final StoppableStreamSource<String, InfiniteSource<String>> operator =
-				new StoppableStreamSource<>(new InfiniteSource<String>());
-
-		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0);
-		operator.stop();
-
-		// run and stop
-		operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output));
-
-		assertTrue(output.isEmpty());
-	}
-
-	@Test
-	public void testNoMaxWatermarkOnAsyncStop() throws Exception {
-
-		final List<StreamElement> output = new ArrayList<>();
-
-		// regular stream source operator
-		final StoppableStreamSource<String, InfiniteSource<String>> operator =
-				new StoppableStreamSource<>(new InfiniteSource<String>());
-
-		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0);
-
-		// trigger an async cancel in a bit
-		new Thread("canceler") {
-			@Override
-			public void run() {
-				try {
-					Thread.sleep(200);
-				} catch (InterruptedException ignored) {}
-				operator.stop();
-			}
-		}.start();
-
-		// run and wait to be stopped
-		operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output));
+		finally {
+			operatorChain.releaseOutputs();
+		}
 
 		assertTrue(output.isEmpty());
 	}
@@ -174,8 +144,8 @@ public class StreamSourceOperatorWatermarksTest {
 	public void testAutomaticWatermarkContext() throws Exception {
 
 		// regular stream source operator
-		final StoppableStreamSource<String, InfiniteSource<String>> operator =
-			new StoppableStreamSource<>(new InfiniteSource<String>());
+		final StreamSource<String, InfiniteSource<String>> operator =
+			new StreamSource<>(new InfiniteSource<>());
 
 		long watermarkInterval = 10;
 		TestProcessingTimeService processingTimeService = new TestProcessingTimeService();
@@ -250,21 +220,24 @@ public class StreamSourceOperatorWatermarksTest {
 		operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
 	}
 
+	private static OperatorChain<?, ?> createOperatorChain(AbstractStreamOperator<?> operator) {
+		return new OperatorChain<>(
+			operator.getContainingTask(),
+			StreamTask.createRecordWriters(operator.getOperatorConfig(), new MockEnvironmentBuilder().build()));
+	}
+
 	// ------------------------------------------------------------------------
 
-	private static final class FiniteSource<T> implements SourceFunction<T>, StoppableFunction {
+	private static final class FiniteSource<T> implements SourceFunction<T> {
 
 		@Override
 		public void run(SourceContext<T> ctx) {}
 
 		@Override
 		public void cancel() {}
-
-		@Override
-		public void stop() {}
 	}
 
-	private static final class InfiniteSource<T> implements SourceFunction<T>, StoppableFunction {
+	private static final class InfiniteSource<T> implements SourceFunction<T> {
 
 		private volatile boolean running = true;
 
@@ -277,11 +250,6 @@ public class StreamSourceOperatorWatermarksTest {
 
 		@Override
 		public void cancel() {
-			running = false;
-		}
-
-		@Override
-		public void stop() {
 			running = false;
 		}
 	}

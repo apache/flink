@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.InfiniteDelayRestartStrategy;
@@ -69,8 +70,8 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendedOutOfDeploying() throws Exception {
-		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway();
 		final int parallelism = 10;
+		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway(parallelism);
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
 		eg.scheduleForExecution();
@@ -91,8 +92,8 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendedOutOfRunning() throws Exception {
-		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway();
 		final int parallelism = 10;
+		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway(parallelism);
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
 		eg.scheduleForExecution();
@@ -115,8 +116,8 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendedOutOfFailing() throws Exception {
-		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway();
 		final int parallelism = 10;
+		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway(parallelism);
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
 		eg.scheduleForExecution();
@@ -167,8 +168,8 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	 */
 	@Test
 	public void testSuspendedOutOfCanceling() throws Exception {
-		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway();
 		final int parallelism = 10;
+		final InteractionsCountingTaskManagerGateway gateway = new InteractionsCountingTaskManagerGateway(parallelism);
 		final ExecutionGraph eg = createExecutionGraph(gateway, parallelism);
 
 		eg.scheduleForExecution();
@@ -221,7 +222,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	@Test
 	public void testSuspendWhileRestarting() throws Exception {
 		final ExecutionGraph eg = ExecutionGraphTestUtils.createSimpleTestGraph(new InfiniteDelayRestartStrategy(10));
-		eg.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		eg.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		eg.scheduleForExecution();
 
 		assertEquals(JobStatus.RUNNING, eg.getState());
@@ -247,6 +248,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 	// ------------------------------------------------------------------------
 
 	private static void ensureCannotLeaveSuspendedState(ExecutionGraph eg, InteractionsCountingTaskManagerGateway gateway) {
+		gateway.waitUntilAllTasksAreSubmitted();
 		assertEquals(JobStatus.SUSPENDED, eg.getState());
 		gateway.resetCounts();
 
@@ -295,7 +297,7 @@ public class ExecutionGraphSuspendTest extends TestLogger {
 			slotProvider,
 			new FixedDelayRestartStrategy(0, 0),
 			vertex);
-		simpleTestGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		simpleTestGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		return simpleTestGraph;
 	}
 

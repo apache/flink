@@ -19,10 +19,14 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamSink;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -36,11 +40,11 @@ import java.util.List;
  * @param <T> The type of the elements in the input {@code SinkTransformation}
  */
 @Internal
-public class SinkTransformation<T> extends StreamTransformation<Object> {
+public class SinkTransformation<T> extends PhysicalTransformation<Object> {
 
-	private final StreamTransformation<T> input;
+	private final Transformation<T> input;
 
-	private final StreamSink<T> operator;
+	private final StreamOperatorFactory<Object> operatorFactory;
 
 	// We need this because sinks can also have state that is partitioned by key
 	private KeySelector<T, ?> stateKeySelector;
@@ -48,35 +52,48 @@ public class SinkTransformation<T> extends StreamTransformation<Object> {
 	private TypeInformation<?> stateKeyType;
 
 	/**
-	 * Creates a new {@code SinkTransformation} from the given input {@code StreamTransformation}.
+	 * Creates a new {@code SinkTransformation} from the given input {@code Transformation}.
 	 *
-	 * @param input The input {@code StreamTransformation}
-	 * @param name The name of the {@code StreamTransformation}, this will be shown in Visualizations and the Log
+	 * @param input The input {@code Transformation}
+	 * @param name The name of the {@code Transformation}, this will be shown in Visualizations and the Log
 	 * @param operator The sink operator
 	 * @param parallelism The parallelism of this {@code SinkTransformation}
 	 */
 	public SinkTransformation(
-			StreamTransformation<T> input,
+			Transformation<T> input,
 			String name,
 			StreamSink<T> operator,
 			int parallelism) {
+		this(input, name, SimpleOperatorFactory.of(operator), parallelism);
+	}
+
+	public SinkTransformation(
+			Transformation<T> input,
+			String name,
+			StreamOperatorFactory<Object> operatorFactory,
+			int parallelism) {
 		super(name, TypeExtractor.getForClass(Object.class), parallelism);
 		this.input = input;
-		this.operator = operator;
+		this.operatorFactory = operatorFactory;
 	}
 
 	/**
-	 * Returns the input {@code StreamTransformation} of this {@code SinkTransformation}.
+	 * Returns the input {@code Transformation} of this {@code SinkTransformation}.
 	 */
-	public StreamTransformation<T> getInput() {
+	public Transformation<T> getInput() {
 		return input;
 	}
 
-	/**
-	 * Returns the {@link StreamSink} that is the operator of this {@code SinkTransformation}.
-	 */
+	@VisibleForTesting
 	public StreamSink<T> getOperator() {
-		return operator;
+		return (StreamSink<T>) ((SimpleOperatorFactory) operatorFactory).getOperator();
+	}
+
+	/**
+	 * Returns the {@link StreamOperatorFactory} of this {@code SinkTransformation}.
+	 */
+	public StreamOperatorFactory<Object> getOperatorFactory() {
+		return operatorFactory;
 	}
 
 	/**
@@ -107,8 +124,8 @@ public class SinkTransformation<T> extends StreamTransformation<Object> {
 	}
 
 	@Override
-	public Collection<StreamTransformation<?>> getTransitivePredecessors() {
-		List<StreamTransformation<?>> result = Lists.newArrayList();
+	public Collection<Transformation<?>> getTransitivePredecessors() {
+		List<Transformation<?>> result = Lists.newArrayList();
 		result.add(this);
 		result.addAll(input.getTransitivePredecessors());
 		return result;
@@ -116,6 +133,6 @@ public class SinkTransformation<T> extends StreamTransformation<Object> {
 
 	@Override
 	public final void setChainingStrategy(ChainingStrategy strategy) {
-		operator.setChainingStrategy(strategy);
+		operatorFactory.setChainingStrategy(strategy);
 	}
 }

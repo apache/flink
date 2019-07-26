@@ -19,15 +19,18 @@
 package org.apache.flink.table.descriptors
 
 import java.util
-
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.table.api.{Types, ValidationException}
+import org.apache.flink.table.api.{DataTypes, ValidationException}
 import org.apache.flink.table.descriptors.RowtimeTest.{CustomAssigner, CustomExtractor}
-import org.apache.flink.table.expressions.{Cast, Expression, PlannerExpression, ResolvedFieldReference}
+import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.sources.tsextractors.TimestampExtractor
 import org.apache.flink.table.sources.wmstrategies.PunctuatedWatermarkAssigner
+import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
+
 import org.junit.Test
 
 import scala.collection.JavaConverters._
@@ -52,15 +55,15 @@ class RowtimeTest extends DescriptorTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def descriptors(): util.List[Descriptor] = {
-    val desc1 = Rowtime()
+    val desc1 = new Rowtime()
       .timestampsFromField("otherField")
       .watermarksPeriodicBounded(1000L)
 
-    val desc2 = Rowtime()
+    val desc2 = new Rowtime()
       .timestampsFromSource()
       .watermarksFromStrategy(new CustomAssigner())
 
-    val desc3 = Rowtime()
+    val desc3 = new Rowtime()
       .timestampsFromExtractor(new CustomExtractor("tsField"))
       .watermarksPeriodicBounded(1000L)
 
@@ -68,7 +71,7 @@ class RowtimeTest extends DescriptorTestBase {
   }
 
   override def validator(): DescriptorValidator = {
-    new RowtimeValidator(supportsSourceTimestamps = true, supportsSourceWatermarks = false)
+    new RowtimeValidator(true, false)
   }
 
   override def properties(): util.List[util.Map[String, String]] = {
@@ -87,7 +90,7 @@ class RowtimeTest extends DescriptorTestBase {
         "B0b3JzLlJvd3RpbWVUZXN0JEN1c3RvbUFzc2lnbmVyeDcuDvfbu0kCAAB4cgBHb3JnLmFwYWNoZS5mbGluay" +
         "50YWJsZS5zb3VyY2VzLndtc3RyYXRlZ2llcy5QdW5jdHVhdGVkV2F0ZXJtYXJrQXNzaWduZXKBUc57oaWu9A" +
         "IAAHhyAD1vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnNvdXJjZXMud21zdHJhdGVnaWVzLldhdGVybWFya1N0cm" +
-        "F0ZWd5mB_uSxDZ8-MCAAB4cA")
+        "F0ZWd53nt-g2OWaT4CAAB4cA")
     )
 
     val props3 = Map(
@@ -97,7 +100,7 @@ class RowtimeTest extends DescriptorTestBase {
       "rowtime.timestamps.serialized" -> ("rO0ABXNyAD5vcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmRlc2NyaXB0b3" +
         "JzLlJvd3RpbWVUZXN0JEN1c3RvbUV4dHJhY3RvcoaChjMg55xwAgABTAAFZmllbGR0ABJMamF2YS9sYW5nL1N0cm" +
         "luZzt4cgA-b3JnLmFwYWNoZS5mbGluay50YWJsZS5zb3VyY2VzLnRzZXh0cmFjdG9ycy5UaW1lc3RhbXBFeHRyYW" +
-        "N0b3LU8E2thK4wMQIAAHhwdAAHdHNGaWVsZA"),
+        "N0b3Jf1Y6piFNsGAIAAHhwdAAHdHNGaWVsZA"),
       "rowtime.watermarks.type" -> "periodic-bounded",
       "rowtime.watermarks.delay" -> "1000"
     )
@@ -130,9 +133,17 @@ object RowtimeTest {
     }
 
     override def getExpression(fieldAccesses: Array[ResolvedFieldReference]): Expression = {
-      val fieldAccess: PlannerExpression = fieldAccesses(0)
+      val fieldAccess = fieldAccesses(0)
       require(fieldAccess.resultType == Types.SQL_TIMESTAMP)
-      Cast(fieldAccess, Types.LONG)
+      val fieldReferenceExpr = new FieldReferenceExpression(
+        fieldAccess.name,
+        TypeConversions.fromLegacyInfoToDataType(fieldAccess.resultType),
+        0,
+        fieldAccess.fieldIndex)
+      ApiExpressionUtils.unresolvedCall(
+        BuiltInFunctionDefinitions.CAST,
+        fieldReferenceExpr,
+        ApiExpressionUtils.typeLiteral(DataTypes.BIGINT()))
     }
 
     override def equals(other: Any): Boolean = other match {

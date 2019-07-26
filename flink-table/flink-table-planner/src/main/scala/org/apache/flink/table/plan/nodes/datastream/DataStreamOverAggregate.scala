@@ -27,15 +27,16 @@ import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.calcite.rex.RexLiteral
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvironment, TableConfig, TableException}
+import org.apache.flink.table.api.{StreamQueryConfig, TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.codegen.AggregationCodeGenerator
 import org.apache.flink.table.plan.nodes.OverAggregate
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.CRowKeySelector
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.runtime.aggregate._
@@ -100,7 +101,7 @@ class DataStreamOverAggregate(
   }
 
   override def translateToPlan(
-      tableEnv: StreamTableEnvironment,
+      planner: StreamPlanner,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     if (logicWindow.groups.size > 1) {
@@ -123,7 +124,7 @@ class DataStreamOverAggregate(
         "Unsupported use of OVER windows. The window can only be ordered in ASCENDING mode.")
     }
 
-    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
+    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
 
     val inputIsAccRetract = DataStreamRetractionRules.isAccRetract(input)
 
@@ -141,12 +142,6 @@ class DataStreamOverAggregate(
     }
 
     val constants: Seq[RexLiteral] = logicWindow.constants.asScala
-
-    val generator = new AggregationCodeGenerator(
-      tableEnv.getConfig,
-      false,
-      inputSchema.typeInfo,
-      Some(constants))
 
     val constantTypes = constants.map(_.getType)
     val fieldTypes = input.getRowType.getFieldList.asScala.map(_.getType)
@@ -175,8 +170,10 @@ class DataStreamOverAggregate(
       // unbounded OVER window
       createUnboundedAndCurrentRowOverWindow(
         queryConfig,
-        tableEnv.getConfig,
-        generator,
+        planner.getConfig,
+        false,
+        inputSchema.typeInfo,
+        Some(constants),
         inputDS,
         rowTimeIdx,
         aggregateInputType,
@@ -188,12 +185,15 @@ class DataStreamOverAggregate(
       // bounded OVER window
       createBoundedAndCurrentRowOverWindow(
         queryConfig,
-        generator,
+        planner.getConfig,
+        false,
+        inputSchema.typeInfo,
+        Some(constants),
         inputDS,
         rowTimeIdx,
         aggregateInputType,
         isRowsClause = overWindow.isRows,
-        tableEnv.getConfig)
+        planner.getConfig)
     } else {
       throw new TableException("OVER RANGE FOLLOWING windows are not supported yet.")
     }
@@ -202,7 +202,9 @@ class DataStreamOverAggregate(
   def createUnboundedAndCurrentRowOverWindow(
     queryConfig: StreamQueryConfig,
     tableConfig: TableConfig,
-    generator: AggregationCodeGenerator,
+    nullableInput: Boolean,
+    inputTypeInfo: TypeInformation[_ <: Any],
+    constants: Option[Seq[RexLiteral]],
     inputDS: DataStream[CRow],
     rowTimeIdx: Option[Int],
     aggregateInputType: RelDataType,
@@ -219,7 +221,10 @@ class DataStreamOverAggregate(
 
     def createKeyedProcessFunction[K]: KeyedProcessFunction[K, CRow, CRow] = {
       AggregateUtil.createUnboundedOverProcessFunction[K](
-        generator,
+        tableConfig,
+        nullableInput,
+        inputTypeInfo,
+        constants,
         namedAggregates,
         aggregateInputType,
         inputSchema.relDataType,
@@ -254,7 +259,10 @@ class DataStreamOverAggregate(
 
   def createBoundedAndCurrentRowOverWindow(
     queryConfig: StreamQueryConfig,
-    generator: AggregationCodeGenerator,
+    config: TableConfig,
+    nullableInput: Boolean,
+    inputTypeInfo: TypeInformation[_ <: Any],
+    constants: Option[Seq[RexLiteral]],
     inputDS: DataStream[CRow],
     rowTimeIdx: Option[Int],
     aggregateInputType: RelDataType,
@@ -275,7 +283,10 @@ class DataStreamOverAggregate(
 
     def createKeyedProcessFunction[K]: KeyedProcessFunction[K, CRow, CRow] = {
       AggregateUtil.createBoundedOverProcessFunction[K](
-        generator,
+        config,
+        nullableInput,
+        inputTypeInfo,
+        constants,
         namedAggregates,
         aggregateInputType,
         inputSchema.relDataType,
@@ -283,7 +294,6 @@ class DataStreamOverAggregate(
         inputSchema.fieldTypeInfos,
         precedingOffset,
         queryConfig,
-        tableConfig,
         isRowsClause,
         rowTimeIdx
       )

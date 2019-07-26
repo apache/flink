@@ -27,6 +27,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.getExecutionVertex;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -70,16 +71,60 @@ public class IntermediateResultPartitionTest extends TestLogger {
 		partition1.markFinished();
 		assertFalse(partition1.isConsumable());
 		assertFalse(partition2.isConsumable());
+		assertFalse(result.areAllPartitionsFinished());
 
 		// Consumable after all partitions are FINISHED
 		partition2.markFinished();
 		assertTrue(partition1.isConsumable());
 		assertTrue(partition2.isConsumable());
+		assertTrue(result.areAllPartitionsFinished());
 
 		// Not consumable if failover happens
 		result.resetForNewExecution();
 		assertFalse(partition1.isConsumable());
 		assertFalse(partition2.isConsumable());
+		assertFalse(result.areAllPartitionsFinished());
+	}
+
+	@Test
+	public void testBlockingPartitionResetting() throws Exception {
+		IntermediateResult result = createResult(ResultPartitionType.BLOCKING, 2);
+		IntermediateResultPartition partition1 = result.getPartitions()[0];
+		IntermediateResultPartition partition2 = result.getPartitions()[1];
+
+		// Not consumable on init
+		assertFalse(partition1.isConsumable());
+		assertFalse(partition2.isConsumable());
+
+		// Not consumable if partition1 is FINISHED
+		partition1.markFinished();
+		assertEquals(1,  result.getNumberOfRunningProducers());
+		assertFalse(partition1.isConsumable());
+		assertFalse(partition2.isConsumable());
+		assertFalse(result.areAllPartitionsFinished());
+
+		// Reset the result and mark partition2 FINISHED, the result should still not be consumable
+		result.resetForNewExecution();
+		assertEquals(2,  result.getNumberOfRunningProducers());
+		partition2.markFinished();
+		assertEquals(1,  result.getNumberOfRunningProducers());
+		assertFalse(partition1.isConsumable());
+		assertFalse(partition2.isConsumable());
+		assertFalse(result.areAllPartitionsFinished());
+
+		// Consumable after all partitions are FINISHED
+		partition1.markFinished();
+		assertEquals(0,  result.getNumberOfRunningProducers());
+		assertTrue(partition1.isConsumable());
+		assertTrue(partition2.isConsumable());
+		assertTrue(result.areAllPartitionsFinished());
+
+		// Not consumable again if failover happens
+		result.resetForNewExecution();
+		assertEquals(2,  result.getNumberOfRunningProducers());
+		assertFalse(partition1.isConsumable());
+		assertFalse(partition2.isConsumable());
+		assertFalse(result.areAllPartitionsFinished());
 	}
 
 	private static IntermediateResult createResult(

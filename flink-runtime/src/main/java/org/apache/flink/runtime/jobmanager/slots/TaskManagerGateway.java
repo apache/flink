@@ -25,10 +25,12 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.PartitionInfo;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.runtime.rpc.RpcTimeout;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -74,17 +76,6 @@ public interface TaskManagerGateway {
 		Time timeout);
 
 	/**
-	 * Stop the given task.
-	 *
-	 * @param executionAttemptID identifying the task
-	 * @param timeout of the submit operation
-	 * @return Future acknowledge if the task is successfully stopped
-	 */
-	CompletableFuture<Acknowledge> stopTask(
-		ExecutionAttemptID executionAttemptID,
-		Time timeout);
-
-	/**
 	 * Cancel the given task.
 	 *
 	 * @param executionAttemptID identifying the task
@@ -109,11 +100,12 @@ public interface TaskManagerGateway {
 		Time timeout);
 
 	/**
-	 * Fail all intermediate result partitions of the given task.
+	 * Batch release intermediate result partitions.
 	 *
-	 * @param executionAttemptID identifying the task
+	 * @param jobId id of the job that the partitions belong to
+	 * @param partitionIds partition ids to release
 	 */
-	void failPartition(ExecutionAttemptID executionAttemptID);
+	void releasePartitions(JobID jobId, Collection<ResultPartitionID> partitionIds);
 
 	/**
 	 * Notify the given task about a completed checkpoint.
@@ -137,13 +129,16 @@ public interface TaskManagerGateway {
 	 * @param checkpointId of the checkpoint to trigger
 	 * @param timestamp of the checkpoint to trigger
 	 * @param checkpointOptions of the checkpoint to trigger
+	 * @param advanceToEndOfEventTime Flag indicating if the source should inject a {@code MAX_WATERMARK} in the pipeline
+	 *                              to fire any registered event-time timers
 	 */
 	void triggerCheckpoint(
 		ExecutionAttemptID executionAttemptID,
 		JobID jobId,
 		long checkpointId,
 		long timestamp,
-		CheckpointOptions checkpointOptions);
+		CheckpointOptions checkpointOptions,
+		boolean advanceToEndOfEventTime);
 
 	/**
 	 * Frees the slot with the given allocation ID.

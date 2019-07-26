@@ -31,7 +31,10 @@ import scala.collection.JavaConverters._
   * @param name      The name of the catalog
   *
   * It could be used for testing or developing instead of used in production environment.
+  *
+  * @deprecated use [[GenericInMemoryCatalog]] instead.
   */
+@deprecated
 class InMemoryExternalCatalog(name: String) extends CrudExternalCatalog {
 
   private val databases = new mutable.HashMap[String, ExternalCatalog]

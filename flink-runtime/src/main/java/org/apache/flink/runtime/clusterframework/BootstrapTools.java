@@ -553,7 +553,7 @@ public class BootstrapTools {
 	/**
 	 * Configuration interface for {@link ActorSystem} underlying executor.
 	 */
-	interface ActorSystemExecutorConfiguration {
+	public interface ActorSystemExecutorConfiguration {
 
 		/**
 		 * Create the executor {@link Config} for the respective executor.

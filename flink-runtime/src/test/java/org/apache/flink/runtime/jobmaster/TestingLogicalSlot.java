@@ -49,7 +49,10 @@ public class TestingLogicalSlot implements LogicalSlot {
 
 	@Nullable
 	private final CompletableFuture<?> customReleaseFuture;
-	
+
+	@Nullable
+	private final SlotOwner slotOwner;
+
 	private final AllocationID allocationId;
 
 	private final SlotRequestId slotRequestId;
@@ -79,6 +82,27 @@ public class TestingLogicalSlot implements LogicalSlot {
 			SlotRequestId slotRequestId,
 			SlotSharingGroupId slotSharingGroupId,
 			@Nullable CompletableFuture<?> customReleaseFuture) {
+		this(
+			taskManagerLocation,
+			taskManagerGateway,
+			slotNumber,
+			allocationId,
+			slotRequestId,
+			slotSharingGroupId,
+			customReleaseFuture,
+			null);
+	}
+
+	public TestingLogicalSlot(
+			TaskManagerLocation taskManagerLocation,
+			TaskManagerGateway taskManagerGateway,
+			int slotNumber,
+			AllocationID allocationId,
+			SlotRequestId slotRequestId,
+			SlotSharingGroupId slotSharingGroupId,
+			@Nullable CompletableFuture<?> customReleaseFuture,
+			@Nullable SlotOwner slotOwner) {
+
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.taskManagerGateway = Preconditions.checkNotNull(taskManagerGateway);
 		this.payloadReference = new AtomicReference<>();
@@ -88,6 +112,7 @@ public class TestingLogicalSlot implements LogicalSlot {
 		this.slotSharingGroupId = Preconditions.checkNotNull(slotSharingGroupId);
 		this.releaseFuture = new CompletableFuture<>();
 		this.customReleaseFuture = customReleaseFuture;
+		this.slotOwner = slotOwner;
 	}
 
 	@Override
@@ -127,6 +152,10 @@ public class TestingLogicalSlot implements LogicalSlot {
 
 	@Override
 	public CompletableFuture<?> releaseSlot(@Nullable Throwable cause) {
+		if (slotOwner != null) {
+			slotOwner.returnLogicalSlot(this);
+		}
+
 		if (customReleaseFuture != null) {
 			return customReleaseFuture;
 		} else {

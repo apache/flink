@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TemporalTableFunction;
+import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.sinks.TableSink;
 
 /**
@@ -84,7 +85,12 @@ public interface Table {
 	void printSchema();
 
 	/**
-	 * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
+	 * Returns underlying logical representation of this table.
+	 */
+	QueryOperation getQueryOperation();
+
+	/**
+	 * Performs a selection operation. Similar to a SQL SELECT statement. The field expressions
 	 * can contain complex expressions and aggregations.
 	 *
 	 * <p>Example:
@@ -98,7 +104,7 @@ public interface Table {
 	Table select(String fields);
 
 	/**
-	 * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
+	 * Performs a selection operation. Similar to a SQL SELECT statement. The field expressions
 	 * can contain complex expressions and aggregations.
 	 *
 	 * <p>Scala Example:
@@ -279,7 +285,7 @@ public interface Table {
 	Table distinct();
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary. You can use
 	 * where and select clauses after a join to further specify the behaviour of the join.
 	 *
@@ -296,7 +302,7 @@ public interface Table {
 	Table join(Table right);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} .
@@ -312,7 +318,7 @@ public interface Table {
 	Table join(Table right, String joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} .
@@ -328,7 +334,7 @@ public interface Table {
 	Table join(Table right, Expression joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL left outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL left outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -345,7 +351,7 @@ public interface Table {
 	Table leftOuterJoin(Table right);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL left outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL left outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -362,7 +368,7 @@ public interface Table {
 	Table leftOuterJoin(Table right, String joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL left outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL left outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -379,7 +385,7 @@ public interface Table {
 	Table leftOuterJoin(Table right, Expression joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL right outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL right outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -396,7 +402,7 @@ public interface Table {
 	Table rightOuterJoin(Table right, String joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL right outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL right outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -413,7 +419,7 @@ public interface Table {
 	Table rightOuterJoin(Table right, Expression joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL full outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL full outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -430,7 +436,7 @@ public interface Table {
 	Table fullOuterJoin(Table right, String joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to an SQL full outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to a SQL full outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -493,8 +499,8 @@ public interface Table {
 
 	/**
 	 * Joins this {@link Table} with an user-defined {@link TableFunction}. This join is similar to
-	 * a SQL inner join with ON TRUE predicate but works with a table function. Each row of the
-	 * table is joined with all rows produced by the table function.
+	 * a SQL inner join but works with a table function. Each row of the table is joined with all
+	 * rows produced by the table function.
 	 *
 	 * <p>Example:
 	 *
@@ -516,8 +522,8 @@ public interface Table {
 
 	/**
 	 * Joins this {@link Table} with an user-defined {@link TableFunction}. This join is similar to
-	 * a SQL inner join with ON TRUE predicate but works with a table function. Each row of the
-	 * table is joined with all rows produced by the table function.
+	 * a SQL inner join but works with a table function. Each row of the table is joined with all
+	 * rows produced by the table function.
 	 *
 	 * <p>Scala Example:
 	 *
@@ -649,7 +655,7 @@ public interface Table {
 	Table minus(Table right);
 
 	/**
-	 * Minus of two {@link Table}s. Similar to an SQL EXCEPT ALL.
+	 * Minus of two {@link Table}s. Similar to a SQL EXCEPT ALL.
 	 * Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in
 	 * the right table. A record that is present n times in the left table and m times
 	 * in the right table is returned (n - m) times, i.e., as many duplicates as are present
@@ -669,7 +675,7 @@ public interface Table {
 
 	/**
 	 * Unions two {@link Table}s with duplicate records removed.
-	 * Similar to an SQL UNION. The fields of the two union operations must fully overlap.
+	 * Similar to a SQL UNION. The fields of the two union operations must fully overlap.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment}.
 	 *
@@ -684,7 +690,7 @@ public interface Table {
 	Table union(Table right);
 
 	/**
-	 * Unions two {@link Table}s. Similar to an SQL UNION ALL. The fields of the two union
+	 * Unions two {@link Table}s. Similar to a SQL UNION ALL. The fields of the two union
 	 * operations must fully overlap.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment}.
@@ -702,7 +708,7 @@ public interface Table {
 	/**
 	 * Intersects two {@link Table}s with duplicate records removed. Intersect returns records that
 	 * exist in both tables. If a record is present in one or both tables more than once, it is
-	 * returned just once, i.e., the resulting table has no duplicate records. Similar to an
+	 * returned just once, i.e., the resulting table has no duplicate records. Similar to a
 	 * SQL INTERSECT. The fields of the two intersect operations must fully overlap.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment}.
@@ -806,7 +812,8 @@ public interface Table {
 	Table fetch(int fetch);
 
 	/**
-	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
+	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path.
+	 * For the path resolution algorithm see {@link TableEnvironment#useDatabase(String)}.
 	 *
 	 * <p>A batch {@link Table} can only be written to a
 	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
@@ -814,13 +821,16 @@ public interface Table {
 	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
 	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
 	 *
-	 * @param tableName Name of the registered {@link TableSink} to which the {@link Table} is
-	 *                  written.
+	 * @param tablePath The first part of the path of the registered {@link TableSink} to which the {@link Table} is
+	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
+	 * @param tablePathContinued The remaining part of the path of the registered {@link TableSink} to which the
+	 *        {@link Table} is written.
 	 */
-	void insertInto(String tableName);
+	void insertInto(String tablePath, String... tablePathContinued);
 
 	/**
-	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
+	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name
+	 * in the initial default catalog.
 	 *
 	 * <p>A batch {@link Table} can only be written to a
 	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
@@ -828,10 +838,30 @@ public interface Table {
 	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
 	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
 	 *
-	 * @param tableName Name of the {@link TableSink} to which the {@link Table} is written.
+	 * @param tableName The name of the {@link TableSink} to which the {@link Table} is written.
 	 * @param conf The {@link QueryConfig} to use.
+	 * @deprecated use {@link #insertInto(QueryConfig, String, String...)}
 	 */
+	@Deprecated
 	void insertInto(String tableName, QueryConfig conf);
+
+	/**
+	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified path.
+	 * For the path resolution algorithm see {@link TableEnvironment#useDatabase(String)}.
+	 *
+	 * <p>A batch {@link Table} can only be written to a
+	 * {@code org.apache.flink.table.sinks.BatchTableSink}, a streaming {@link Table} requires a
+	 * {@code org.apache.flink.table.sinks.AppendStreamTableSink}, a
+	 * {@code org.apache.flink.table.sinks.RetractStreamTableSink}, or an
+	 * {@code org.apache.flink.table.sinks.UpsertStreamTableSink}.
+	 *
+	 * @param conf The {@link QueryConfig} to use.
+	 * @param tablePath The first part of the path of the registered {@link TableSink} to which the {@link Table} is
+	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
+	 * @param tablePathContinued The remaining part of the path of the registered {@link TableSink} to which the
+	 *        {@link Table} is written.
+	 */
+	void insertInto(QueryConfig conf, String tablePath, String... tablePathContinued);
 
 	/**
 	 * Groups the records of a table by assigning them to windows defined by a time or row interval.
@@ -879,4 +909,245 @@ public interface Table {
 	 * @return An OverWindowedTable to specify the aggregations.
 	 */
 	OverWindowedTable window(OverWindow... overWindows);
+
+	/**
+	 * Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+	 * can contain complex expressions, but can not contain aggregations. It will throw an exception
+	 * if the added fields already exist.
+	 *
+	 * <p>Example:
+	 * <pre>
+	 * {@code
+	 *   tab.addColumns("a + 1 as a1, concat(b, 'sunny') as b1")
+	 * }
+	 * </pre>
+	 */
+	Table addColumns(String fields);
+
+	/**
+	 * Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+	 * can contain complex expressions, but can not contain aggregations. It will throw an exception
+	 * if the added fields already exist.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.addColumns('a + 1 as 'a1, concat('b, "sunny") as 'b1)
+	 * }
+	 * </pre>
+	 */
+	Table addColumns(Expression... fields);
+
+	/**
+	 * Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+	 * can contain complex expressions, but can not contain aggregations. Existing fields will be
+     * replaced if add columns name is the same as the existing column name. Moreover, if the added
+     * fields have duplicate field name, then the last one is used.
+	 *
+	 * <p>Example:
+	 * <pre>
+	 * {@code
+	 *   tab.addOrReplaceColumns("a + 1 as a1, concat(b, 'sunny') as b1")
+	 * }
+	 * </pre>
+	 */
+	Table addOrReplaceColumns(String fields);
+
+	/**
+	 * Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+	 * can contain complex expressions, but can not contain aggregations. Existing fields will be
+	 * replaced. If the added fields have duplicate field name, then the last one is used.
+	 *
+	 * <p>Scala Example:
+	 * <pre>
+	 * {@code
+	 *   tab.addOrReplaceColumns('a + 1 as 'a1, concat('b, "sunny") as 'b1)
+	 * }
+	 * </pre>
+	 */
+	Table addOrReplaceColumns(Expression... fields);
+
+	/**
+	 * Renames existing columns. Similar to a field alias statement. The field expressions
+	 * should be alias expressions, and only the existing fields can be renamed.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.renameColumns("a as a1, b as b1")
+	 * }
+	 * </pre>
+	 */
+	Table renameColumns(String fields);
+
+	/**
+	 * Renames existing columns. Similar to a field alias statement. The field expressions
+	 * should be alias expressions, and only the existing fields can be renamed.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.renameColumns('a as 'a1, 'b as 'b1)
+	 * }
+	 * </pre>
+	 */
+	Table renameColumns(Expression... fields);
+
+	/**
+	 * Drops existing columns. The field expressions should be field reference expressions.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   tab.dropColumns("a, b")
+	 * }
+	 * </pre>
+	 */
+	Table dropColumns(String fields);
+
+	/**
+	 * Drops existing columns. The field expressions should be field reference expressions.
+	 *
+	 * <p>Scala Example:
+	 * <pre>
+	 * {@code
+	 *   tab.dropColumns('a, 'b)
+	 * }
+	 * </pre>
+	 */
+	Table dropColumns(Expression... fields);
+
+	/**
+	 * Performs a map operation with an user-defined scalar function or a built-in scalar function.
+	 * The output will be flattened if the output type is a composite type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   ScalarFunction func = new MyMapFunction();
+	 *   tableEnv.registerFunction("func", func);
+	 *   tab.map("func(c)");
+	 * }
+	 * </pre>
+	 */
+	Table map(String mapFunction);
+
+	/**
+	 * Performs a map operation with an user-defined scalar function or built-in scalar function.
+	 * The output will be flattened if the output type is a composite type.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   val func = new MyMapFunction()
+	 *   tab.map(func('c))
+	 * }
+	 * </pre>
+	 */
+	Table map(Expression mapFunction);
+
+	/**
+	 * Performs a flatMap operation with an user-defined table function or built-in table function.
+	 * The output will be flattened if the output type is a composite type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   TableFunction func = new MyFlatMapFunction();
+	 *   tableEnv.registerFunction("func", func);
+	 *   table.flatMap("func(c)");
+	 * }
+	 * </pre>
+	 */
+	Table flatMap(String tableFunction);
+
+	/**
+	 * Performs a flatMap operation with an user-defined table function or built-in table function.
+	 * The output will be flattened if the output type is a composite type.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   val func = new MyFlatMapFunction
+	 *   table.flatMap(func('c))
+	 * }
+	 * </pre>
+	 */
+	Table flatMap(Expression tableFunction);
+
+	/**
+	 * Performs a global aggregate operation with an aggregate function. You have to close the
+	 * {@link #aggregate(String)} with a select statement. The output will be flattened if the
+	 * output type is a composite type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   AggregateFunction aggFunc = new MyAggregateFunction()
+	 *   tableEnv.registerFunction("aggFunc", aggFunc);
+	 *   table.aggregate("aggFunc(a, b) as (f0, f1, f2)")
+	 *     .select("f0, f1")
+	 * }
+	 * </pre>
+	 */
+	AggregatedTable aggregate(String aggregateFunction);
+
+	/**
+	 * Performs a global aggregate operation with an aggregate function. You have to close the
+	 * {@link #aggregate(Expression)} with a select statement. The output will be flattened if the
+	 * output type is a composite type.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   val aggFunc = new MyAggregateFunction
+	 *   table.aggregate(aggFunc('a, 'b) as ('f0, 'f1, 'f2))
+	 *     .select('f0, 'f1)
+	 * }
+	 * </pre>
+	 */
+	AggregatedTable aggregate(Expression aggregateFunction);
+
+	/**
+	 * Perform a global flatAggregate without groupBy. FlatAggregate takes a TableAggregateFunction
+	 * which returns multiple rows. Use a selection after the flatAggregate.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   TableAggregateFunction tableAggFunc = new MyTableAggregateFunction();
+	 *   tableEnv.registerFunction("tableAggFunc", tableAggFunc);
+	 *   tab.flatAggregate("tableAggFunc(a, b) as (x, y, z)")
+	 *     .select("x, y, z")
+	 * }
+	 * </pre>
+	 */
+	FlatAggregateTable flatAggregate(String tableAggregateFunction);
+
+	/**
+	 * Perform a global flatAggregate without groupBy. FlatAggregate takes a TableAggregateFunction
+	 * which returns multiple rows. Use a selection after the flatAggregate.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   val tableAggFunc = new MyTableAggregateFunction
+	 *   tab.flatAggregate(tableAggFunc('a, 'b) as ('x, 'y, 'z))
+	 *     .select('x, 'y, 'z)
+	 * }
+	 * </pre>
+	 */
+	FlatAggregateTable flatAggregate(Expression tableAggregateFunction);
 }

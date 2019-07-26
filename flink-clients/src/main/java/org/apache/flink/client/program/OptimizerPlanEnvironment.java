@@ -104,8 +104,8 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 
 		throw new ProgramInvocationException(
 				"The program plan could not be fetched - the program aborted pre-maturely."
-						+ "\n\nSystem.err: " + (stdout.length() == 0 ? "(none)" : stdout)
-						+ "\n\nSystem.out: " + (stderr.length() == 0 ? "(none)" : stderr));
+						+ "\n\nSystem.err: " + (stderr.length() == 0 ? "(none)" : stderr)
+						+ "\n\nSystem.out: " + (stdout.length() == 0 ? "(none)" : stdout));
 	}
 	// ------------------------------------------------------------------------
 

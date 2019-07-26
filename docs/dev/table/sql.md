@@ -102,6 +102,30 @@ tableEnv.sqlUpdate(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
 </div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+env = StreamExecutionEnvironment.get_execution_environment()
+table_env = StreamTableEnvironment.create(env)
+
+# SQL query with an inlined (unregistered) table
+# elements data type: BIGINT, STRING, BIGINT
+table = table_env.from_elements(..., ['user', 'product', 'amount'])
+result = table_env \
+    .sql_query("SELECT SUM(amount) FROM %s WHERE product LIKE '%%Rubber%%'" % table)
+
+# SQL update with a registered table
+# create and register a TableSink
+table_env.register_table("Orders", table)
+field_names = ["product", "amount"]
+field_types = [DataTypes.STRING(), DataTypes.BIGINT()]
+csv_sink = CsvTableSink(field_names, field_types, "/path/to/file", ...)
+table_env.register_table_sink("RubberOrders", csv_sink)
+# run a SQL update query on the Table and emit the result to the TableSink
+table_env \
+    .sql_update("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
+{% endhighlight %}
+</div>
 </div>
 
 {% top %}
@@ -254,6 +278,57 @@ String literals must be enclosed in single quotes (e.g., `SELECT 'Hello World'`)
 
 Operations
 --------------------
+
+### Show and Use
+
+<div markdown="1">
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th class="text-left" style="width: 20%">Operation</th>
+      <th class="text-center">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <strong>Show</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Show all catalogs</p>
+{% highlight sql %}
+SHOW CATALOGS;
+{% endhighlight %}
+		<p>Show all databases in the current catalog</p>
+{% highlight sql %}
+SHOW DATABASES;
+{% endhighlight %}
+		<p>Show all tables in the current database in the current catalog</p>
+{% highlight sql %}
+SHOW TABLES;
+{% endhighlight %}
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <strong>Use</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+			<p>Set current catalog for the session </p>
+{% highlight sql %}
+USE CATALOG mycatalog;
+{% endhighlight %}
+            <p>Set current database of the current catalog for the session</p>
+{% highlight sql %}
+USE mydatabase;
+{% endhighlight %}
+      </td>
+    </tr>
+  </tbody>
+</table>
+</div>
 
 ### Scan, Projection, and Filter
 
@@ -993,29 +1068,7 @@ MATCH_RECOGNIZE (
 Data Types
 ----------
 
-The SQL runtime is built on top of Flink's DataSet and DataStream APIs. Internally, it also uses Flink's `TypeInformation` to define data types. Fully supported types are listed in `org.apache.flink.table.api.Types`. The following table summarizes the relation between SQL Types, Table API types, and the resulting Java class.
-
-| Table API              | SQL                         | Java type              |
-| :--------------------- | :-------------------------- | :--------------------- |
-| `Types.STRING`         | `VARCHAR`                   | `java.lang.String`     |
-| `Types.BOOLEAN`        | `BOOLEAN`                   | `java.lang.Boolean`    |
-| `Types.BYTE`           | `TINYINT`                   | `java.lang.Byte`       |
-| `Types.SHORT`          | `SMALLINT`                  | `java.lang.Short`      |
-| `Types.INT`            | `INTEGER, INT`              | `java.lang.Integer`    |
-| `Types.LONG`           | `BIGINT`                    | `java.lang.Long`       |
-| `Types.FLOAT`          | `REAL, FLOAT`               | `java.lang.Float`      |
-| `Types.DOUBLE`         | `DOUBLE`                    | `java.lang.Double`     |
-| `Types.DECIMAL`        | `DECIMAL`                   | `java.math.BigDecimal` |
-| `Types.SQL_DATE`       | `DATE`                      | `java.sql.Date`        |
-| `Types.SQL_TIME`       | `TIME`                      | `java.sql.Time`        |
-| `Types.SQL_TIMESTAMP`  | `TIMESTAMP(3)`              | `java.sql.Timestamp`   |
-| `Types.INTERVAL_MONTHS`| `INTERVAL YEAR TO MONTH`    | `java.lang.Integer`    |
-| `Types.INTERVAL_MILLIS`| `INTERVAL DAY TO SECOND(3)` | `java.lang.Long`       |
-| `Types.PRIMITIVE_ARRAY`| `ARRAY`                     | e.g. `int[]`           |
-| `Types.OBJECT_ARRAY`   | `ARRAY`                     | e.g. `java.lang.Byte[]`|
-| `Types.MAP`            | `MAP`                       | `java.util.HashMap`    |
-| `Types.MULTISET`       | `MULTISET`                  | e.g. `java.util.HashMap<String, Integer>` for a multiset of `String` |
-| `Types.ROW`            | `ROW`                       | `org.apache.flink.types.Row` |
+Please see the dedicated page about [data types](types.html).
 
 Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
 

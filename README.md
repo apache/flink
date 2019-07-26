@@ -69,7 +69,7 @@ Prerequisites for building Flink:
 
 * Unix-like environment (we use Linux, Mac OS X, Cygwin)
 * git
-* Maven (we recommend version 3.2.5)
+* Maven (we recommend version 3.2.5 and require at least 3.1.1)
 * Java 8 (Java 9 and 10 are not yet supported)
 
 ```
@@ -80,7 +80,7 @@ mvn clean package -DskipTests # this will take up to 10 minutes
 
 Flink is now installed in `build-target`
 
-*NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.0.3 creates the libraries properly.
+*NOTE: Maven 3.3.x can build Flink, but will not properly shade away certain dependencies. Maven 3.1.1 creates the libraries properly.
 To build unit tests with Java 8, use Java 8u51 or above to prevent failures in unit tests that use the PowerMock runner.*
 
 ## Developing Flink
@@ -129,7 +129,7 @@ or in the `docs/` directory of the source code.
 
 This is an active open-source project. We are always open to people who want to use the system or contribute to it.
 Contact us if you are looking for implementation tasks that fit your skills.
-This article describes [how to contribute to Apache Flink](http://flink.apache.org/how-to-contribute.html).
+This article describes [how to contribute to Apache Flink](http://flink.apache.org/contributing/how-to-contribute.html).
 
 
 ## About
