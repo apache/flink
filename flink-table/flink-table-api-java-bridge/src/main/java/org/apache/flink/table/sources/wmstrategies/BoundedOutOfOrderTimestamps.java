@@ -36,13 +36,14 @@ public final class BoundedOutOfOrderTimestamps extends PeriodicWatermarkAssigner
 	private static final long serialVersionUID = 1L;
 
 	private final long delay;
-	private long maxTimestamp = Long.MIN_VALUE + 1;
+	private long maxTimestamp;
 
 	/**
 	 * @param delay The delay by which watermarks are behind the maximum observed timestamp.
 	 */
 	public BoundedOutOfOrderTimestamps(long delay) {
 		this.delay = delay;
+		maxTimestamp = Long.MIN_VALUE + delay;
 	}
 
 	@Override
