@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -1202,6 +1203,14 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 	// ------------------------------------------------------------------------
 	//  Helper methods
 	// ------------------------------------------------------------------------
+
+	public static Collection<ResourceProfile> createWorkerSlotProfiles(Configuration config) {
+		final int numSlots = config.getInteger(TaskManagerOptions.NUM_TASK_SLOTS);
+		final long managedMemoryBytes = MemorySize.parse(config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE)).getBytes();
+
+		final ResourceProfile resourceProfile = TaskManagerServices.computeSlotResourceProfile(numSlots, managedMemoryBytes);
+		return Collections.nCopies(numSlots, resourceProfile);
+	}
 
 	@VisibleForTesting
 	public static Collection<ResourceProfile> updateTaskManagerConfigAndCreateWorkerSlotProfiles(
