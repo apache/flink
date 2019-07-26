@@ -19,12 +19,10 @@
 package org.apache.flink.runtime.shuffle;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.EnumSet;
 import java.util.Optional;
 
 /**
@@ -61,39 +59,11 @@ public interface ShuffleDescriptor extends Serializable {
 	 *
 	 * <p>Indicates that this partition occupies local resources in the producing task executor. Such partition requires
 	 * that the task executor is running and being connected to be able to consume the produced data. This is mostly
-	 * relevant for the batch jobs and blocking result partitions which should outlive the producer lifetime and
-	 * be released externally: {@link ResultPartitionDeploymentDescriptor#isReleasedOnConsumption()} is {@code false}.
+	 * relevant for the batch jobs and blocking result partitions which can outlive the producer lifetime and
+	 * be released externally.
 	 * {@link ShuffleEnvironment#releasePartitionsLocally(Collection)} can be used to release such kind of partitions locally.
 	 *
 	 * @return the resource id of the producing task executor if the partition occupies local resources there
 	 */
 	Optional<ResourceID> storesLocalResourcesOn();
-
-	/**
-	 * Return release types supported by Shuffle Service for this partition.
-	 */
-	EnumSet<ReleaseType> getSupportedReleaseTypes();
-
-	/**
-	 * Partition release type.
-	 */
-	enum ReleaseType {
-		/**
-		 * Auto-release the partition after having been fully consumed once.
-		 *
-		 * <p>No additional actions required, like {@link ShuffleMaster#releasePartitionExternally(ShuffleDescriptor)}
-		 * or {@link ShuffleEnvironment#releasePartitionsLocally(Collection)}
-		 */
-		AUTO,
-
-		/**
-		 * Manually release the partition, the partition has to support consumption multiple times.
-		 *
-		 * <p>The partition requires manual release once all consumption is done:
-		 * {@link ShuffleMaster#releasePartitionExternally(ShuffleDescriptor)} and
-		 * if the partition occupies producer local resources ({@link #storesLocalResourcesOn()}) then also
-		 * {@link ShuffleEnvironment#releasePartitionsLocally(Collection)}.
-		 */
-		MANUAL
-	}
 }

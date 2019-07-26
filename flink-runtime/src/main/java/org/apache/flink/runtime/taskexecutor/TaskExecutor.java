@@ -613,8 +613,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private void setupResultPartitionBookkeeping(TaskDeploymentDescriptor tdd, CompletableFuture<ExecutionState> terminationFuture) {
 		final List<ResultPartitionID> partitionsRequiringRelease = tdd.getProducedPartitions().stream()
-			// partitions that are released on consumption don't require any explicit release call
-			.filter(d -> !d.isReleasedOnConsumption())
+			// only blocking partitions require explicit release call
+			.filter(d -> d.getPartitionType().isBlocking())
 			.map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
 			// partitions without local resources don't store anything on the TaskExecutor
 			.filter(d -> d.storesLocalResourcesOn().isPresent())
