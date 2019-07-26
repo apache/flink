@@ -104,7 +104,8 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			config.getBlockingSubpartitionType(),
 			config.networkBuffersPerChannel(),
 			config.floatingNetworkBuffersPerGate(),
-			config.networkBufferSize());
+			config.networkBufferSize(),
+			config.isForcePartitionReleaseOnConsumption());
 
 		SingleInputGateFactory singleInputGateFactory = new SingleInputGateFactory(
 			taskExecutorResourceId,

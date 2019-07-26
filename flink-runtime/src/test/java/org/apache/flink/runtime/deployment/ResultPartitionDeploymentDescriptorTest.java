@@ -30,9 +30,7 @@ import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.NetworkPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
-import org.apache.flink.runtime.shuffle.ShuffleDescriptor.ReleaseType;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
-import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -90,8 +88,7 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 		ShuffleDescriptor shuffleDescriptor = new NettyShuffleDescriptor(
 			producerLocation,
 			new NetworkPartitionConnectionInfo(connectionID),
-			resultPartitionID,
-			false);
+			resultPartitionID);
 
 		ResultPartitionDeploymentDescriptor copy =
 			createCopyAndVerifyResultPartitionDeploymentDescriptor(shuffleDescriptor);
@@ -102,16 +99,6 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 		assertThat(shuffleDescriptorCopy.isUnknown(), is(false));
 		assertThat(shuffleDescriptorCopy.isLocalTo(producerLocation), is(true));
 		assertThat(shuffleDescriptorCopy.getConnectionId(), is(connectionID));
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void testIncompatibleReleaseTypeManual() {
-		new ResultPartitionDeploymentDescriptor(
-			partitionDescriptor,
-			NettyShuffleDescriptorBuilder.newBuilder().setBlocking(false).buildLocal(),
-			1,
-			true,
-			ReleaseType.MANUAL);
 	}
 
 	private static ResultPartitionDeploymentDescriptor createCopyAndVerifyResultPartitionDeploymentDescriptor(

@@ -63,6 +63,8 @@ public class ResultPartitionFactory {
 
 	private final int networkBufferSize;
 
+	private final boolean forcePartitionReleaseOnConsumption;
+
 	public ResultPartitionFactory(
 		@Nonnull ResultPartitionManager partitionManager,
 		@Nonnull FileChannelManager channelManager,
@@ -70,7 +72,8 @@ public class ResultPartitionFactory {
 		BoundedBlockingSubpartitionType blockingSubpartitionType,
 		int networkBuffersPerChannel,
 		int floatingNetworkBuffersPerGate,
-		int networkBufferSize) {
+		int networkBufferSize,
+		boolean forcePartitionReleaseOnConsumption) {
 
 		this.partitionManager = partitionManager;
 		this.channelManager = channelManager;
@@ -79,6 +82,7 @@ public class ResultPartitionFactory {
 		this.bufferPoolFactory = bufferPoolFactory;
 		this.blockingSubpartitionType = blockingSubpartitionType;
 		this.networkBufferSize = networkBufferSize;
+		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 	}
 
 	public ResultPartition create(
@@ -91,7 +95,6 @@ public class ResultPartitionFactory {
 			desc.getPartitionType(),
 			desc.getNumberOfSubpartitions(),
 			desc.getMaxParallelism(),
-			desc.isReleasedOnConsumption(),
 			createBufferPoolFactory(desc.getNumberOfSubpartitions(), desc.getPartitionType()));
 	}
 
@@ -102,12 +105,11 @@ public class ResultPartitionFactory {
 		@Nonnull ResultPartitionType type,
 		int numberOfSubpartitions,
 		int maxParallelism,
-		boolean releasePartitionOnConsumption,
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 
 		ResultSubpartition[] subpartitions = new ResultSubpartition[numberOfSubpartitions];
 
-		ResultPartition partition = releasePartitionOnConsumption
+		ResultPartition partition = forcePartitionReleaseOnConsumption || !type.isBlocking()
 			? new ReleaseOnConsumptionResultPartition(
 				taskNameWithSubtaskAndId,
 				id,

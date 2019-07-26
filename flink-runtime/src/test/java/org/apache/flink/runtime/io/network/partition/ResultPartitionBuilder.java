@@ -142,7 +142,8 @@ public class ResultPartitionBuilder {
 			blockingSubpartitionType,
 			networkBuffersPerChannel,
 			floatingNetworkBuffersPerGate,
-			networkBufferSize);
+			networkBufferSize,
+			releasedOnConsumption);
 
 		FunctionWithException<BufferPoolOwner, BufferPool, IOException> factory = bufferPoolFactory.orElseGet(() ->
 			resultPartitionFactory.createBufferPoolFactory(numberOfSubpartitions, partitionType));
@@ -153,7 +154,6 @@ public class ResultPartitionBuilder {
 			partitionType,
 			numberOfSubpartitions,
 			numTargetKeyGroups,
-			releasedOnConsumption,
 			factory);
 	}
 }
