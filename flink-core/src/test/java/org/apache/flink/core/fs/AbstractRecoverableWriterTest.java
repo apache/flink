@@ -111,7 +111,9 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
 		final Path path = new Path(testDir, "part-0");
 
-		try (final RecoverableFsDataOutputStream stream = writer.open(path)) {
+		RecoverableFsDataOutputStream stream = null;
+		try {
+			stream = writer.open(path);
 			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 			stream.closeForCommit().commit();
 
@@ -119,6 +121,8 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 				Assert.assertEquals("part-0", fileContents.getKey().getName());
 				Assert.assertEquals(testData1, fileContents.getValue());
 			}
+		} finally {
+			closeStreamSilently(stream);
 		}
 	}
 
@@ -130,7 +134,9 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
 		final Path path = new Path(testDir, "part-0");
 
-		try (final RecoverableFsDataOutputStream stream = writer.open(path)) {
+		RecoverableFsDataOutputStream stream = null;
+		try {
+			stream = writer.open(path);
 			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 			stream.persist();
 
@@ -141,6 +147,8 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 				Assert.assertEquals("part-0", fileContents.getKey().getName());
 				Assert.assertEquals(testData1 + testData2, fileContents.getValue());
 			}
+		} finally {
+			closeStreamSilently(stream);
 		}
 	}
 
@@ -194,7 +202,9 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 		final RecoverableWriter initWriter = getNewFileSystemWriter();
 
 		final Map<String, RecoverableWriter.ResumeRecoverable> recoverables = new HashMap<>(4);
-		try (final RecoverableFsDataOutputStream stream = initWriter.open(path)) {
+		RecoverableFsDataOutputStream stream = null;
+		try {
+			stream = initWriter.open(path);
 			recoverables.put(INIT_EMPTY_PERSIST, stream.persist());
 
 			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
@@ -206,6 +216,8 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 			stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 
 			recoverables.put(FINAL_WITH_EXTRA_STATE, stream.persist());
+		} finally {
+			closeStreamSilently(stream);
 		}
 
 		final SimpleVersionedSerializer<RecoverableWriter.ResumeRecoverable> serializer = initWriter.getResumeRecoverableSerializer();
@@ -217,7 +229,9 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 		final RecoverableWriter.ResumeRecoverable recoveredRecoverable =
 				deserializer.deserialize(serializer.getVersion(), serializedRecoverable);
 
-		try (final RecoverableFsDataOutputStream recoveredStream = newWriter.recover(recoveredRecoverable)) {
+		RecoverableFsDataOutputStream recoveredStream = null;
+		try {
+			recoveredStream = newWriter.recover(recoveredRecoverable);
 
 			// we expect the data to be truncated
 			Map<Path, String> files = getFileContentByPath(testDir);
@@ -238,6 +252,8 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 				Assert.assertEquals("part-0", fileContents.getKey().getName());
 				Assert.assertEquals(expectedFinalContents, fileContents.getValue());
 			}
+		} finally {
+			closeStreamSilently(recoveredStream);
 		}
 	}
 
@@ -249,7 +265,9 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 		final RecoverableWriter initWriter = getNewFileSystemWriter();
 
 		final RecoverableWriter.CommitRecoverable recoverable;
-		try (final RecoverableFsDataOutputStream stream = initWriter.open(path)) {
+		RecoverableFsDataOutputStream stream = null;
+		try {
+			stream = initWriter.open(path);
 			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
 			stream.persist();
@@ -259,6 +277,8 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 			stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 
 			recoverable = stream.closeForCommit().getRecoverable();
+		} finally {
+			closeStreamSilently(stream);
 		}
 
 		final byte[] serializedRecoverable = initWriter.getCommitRecoverableSerializer().serialize(recoverable);
@@ -289,12 +309,16 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 		final RecoverableWriter writer = getNewFileSystemWriter();
 		final Path path = new Path(testDir, "part-0");
 
-		try (final RecoverableFsDataOutputStream stream = writer.open(path)) {
+		RecoverableFsDataOutputStream stream = null;
+		try {
+			stream = writer.open(path);
 			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
 			stream.closeForCommit().getRecoverable();
 			stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 			fail();
+		} finally {
+			closeStreamSilently(stream);
 		}
 	}
 
@@ -306,13 +330,17 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 		final Path path = new Path(testDir, "part-0");
 
 		RecoverableWriter.ResumeRecoverable recoverable;
-		try (final RecoverableFsDataOutputStream stream = writer.open(path)) {
+		RecoverableFsDataOutputStream stream = null;
+		try{
+			stream = writer.open(path);
 			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
 			recoverable = stream.persist();
 			stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 
 			stream.closeForCommit().commit();
+		} finally {
+			closeStreamSilently(stream);
 		}
 
 		// this should throw an exception as the file is already committed
@@ -332,7 +360,9 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
 		final RecoverableWriter.ResumeRecoverable recoverable1;
 		final RecoverableWriter.ResumeRecoverable recoverable2;
-		try (final RecoverableFsDataOutputStream stream = writer.open(path)) {
+		RecoverableFsDataOutputStream stream = null;
+		try {
+			stream = writer.open(path);
 			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
 			recoverable1 = stream.persist();
@@ -340,6 +370,8 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
 			recoverable2 = stream.persist();
 			stream.write(testData3.getBytes(StandardCharsets.UTF_8));
+		} finally {
+			closeStreamSilently(stream);
 		}
 
 		try (RecoverableFsDataOutputStream ignored = writer.recover(recoverable1)) {
@@ -376,5 +408,17 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
 	private static String randomName() {
 		return StringUtils.getRandomString(RND, 16, 16, 'a', 'z');
+	}
+
+	private void closeStreamSilently(RecoverableFsDataOutputStream stream) {
+		if (stream == null) {
+			return;
+		}
+		try {
+			stream.close();
+		} catch (IOException e) {
+			// log and ignore the exception
+			log.debug("Exception observed and ignored while trying to close the stream", e);
+		}
 	}
 }
