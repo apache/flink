@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.batch.connectors.hive.HiveTableFactory;
 import org.apache.flink.table.api.TableSchema;
@@ -150,7 +151,14 @@ public class HiveCatalog extends AbstractCatalog {
 				String.format("Failed to get hive-site.xml from %s", hiveConfDir), e);
 		}
 
-		return new HiveConf();
+		// create HiveConf from hadoop configuration
+		return new HiveConf(HadoopUtils.getHadoopConfiguration(new org.apache.flink.configuration.Configuration()),
+			HiveConf.class);
+	}
+
+	@VisibleForTesting
+	public HiveConf getHiveConf() {
+		return hiveConf;
 	}
 
 	@VisibleForTesting
