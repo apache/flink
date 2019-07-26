@@ -43,13 +43,20 @@ public class SingleInputGateBuilder {
 
 	private int numberOfChannels = 1;
 
-	private final PartitionProducerStateProvider partitionProducerStateProvider = NO_OP_PRODUCER_CHECKER;
+	private PartitionProducerStateProvider partitionProducerStateProvider = NO_OP_PRODUCER_CHECKER;
 
 	private boolean isCreditBased = true;
 
 	private SupplierWithException<BufferPool, IOException> bufferPoolFactory = () -> {
 		throw new UnsupportedOperationException();
 	};
+
+	public SingleInputGateBuilder setPartitionProducerStateProvider(
+		PartitionProducerStateProvider partitionProducerStateProvider) {
+
+		this.partitionProducerStateProvider = partitionProducerStateProvider;
+		return this;
+	}
 
 	public SingleInputGateBuilder setResultPartitionType(ResultPartitionType partitionType) {
 		this.partitionType = partitionType;
