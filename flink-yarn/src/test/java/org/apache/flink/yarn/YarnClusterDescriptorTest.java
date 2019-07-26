@@ -459,11 +459,11 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		testEnvironmentDirectoryShipping(ConfigConstants.ENV_FLINK_PLUGINS_DIR);
 	}
 
-	public void testEnvironmentDirectoryShipping(String environmentVariable) throws Exception {
+	private void testEnvironmentDirectoryShipping(String environmentVariable) throws Exception {
 		try (YarnClusterDescriptor descriptor = createYarnClusterDescriptor()) {
 			File libFolder = temporaryFolder.newFolder().getAbsoluteFile();
 			File libFile = new File(libFolder, "libFile.jar");
-			libFile.createNewFile();
+			assertTrue(libFile.createNewFile());
 
 			Set<File> effectiveShipFiles = new HashSet<>();
 
@@ -487,7 +487,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	}
 
 	@Test
-	public void testEnvironmentEmptyPluginsShipping() throws Exception {
+	public void testEnvironmentEmptyPluginsShipping() {
 		try (YarnClusterDescriptor descriptor = createYarnClusterDescriptor()) {
 			File pluginsFolder = Paths.get(temporaryFolder.getRoot().getAbsolutePath(), "s0m3_p4th_th4t_sh0uld_n0t_3x1sts").toFile();
 			Set<File> effectiveShipFiles = new HashSet<>();
