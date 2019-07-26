@@ -30,7 +30,6 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAda
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
@@ -78,8 +77,8 @@ import java.util.concurrent.TimeoutException;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the scheduling of the execution graph. This tests that
@@ -141,8 +140,8 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final InteractionsCountingTaskManagerGateway gatewaySource = createTaskManager();
 		final InteractionsCountingTaskManagerGateway gatewayTarget = createTaskManager();
 
-		final SimpleSlot sourceSlot = createSlot(gatewaySource, jobId);
-		final SimpleSlot targetSlot = createSlot(gatewayTarget, jobId);
+		final LogicalSlot sourceSlot = new TestingLogicalSlot(gatewaySource);
+		final LogicalSlot targetSlot = new TestingLogicalSlot(gatewayTarget);
 
 		eg.scheduleForExecution();
 
@@ -205,15 +204,15 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final InteractionsCountingTaskManagerGateway[] sourceTaskManagers = new InteractionsCountingTaskManagerGateway[parallelism];
 		final InteractionsCountingTaskManagerGateway[] targetTaskManagers = new InteractionsCountingTaskManagerGateway[parallelism];
 
-		final SimpleSlot[] sourceSlots = new SimpleSlot[parallelism];
-		final SimpleSlot[] targetSlots = new SimpleSlot[parallelism];
+		final LogicalSlot[] sourceSlots = new LogicalSlot[parallelism];
+		final LogicalSlot[] targetSlots = new LogicalSlot[parallelism];
 
 		for (int i = 0; i < parallelism; i++) {
 			sourceTaskManagers[i] = createTaskManager();
 			targetTaskManagers[i] = createTaskManager();
 
-			sourceSlots[i] = createSlot(sourceTaskManagers[i], jobId);
-			targetSlots[i] = createSlot(targetTaskManagers[i], jobId);
+			sourceSlots[i] = new TestingLogicalSlot(sourceTaskManagers[i]);
+			targetSlots[i] = new TestingLogicalSlot(targetTaskManagers[i]);
 
 			sourceFutures[i] = new CompletableFuture<>();
 			targetFutures[i] = new CompletableFuture<>();
@@ -300,8 +299,8 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		slotOwner.setReturnAllocatedSlotConsumer(
 			(LogicalSlot logicalSlot) -> returnedSlots.offer(logicalSlot.getAllocationId()));
 
-		final SimpleSlot[] sourceSlots = new SimpleSlot[parallelism];
-		final SimpleSlot[] targetSlots = new SimpleSlot[parallelism];
+		final LogicalSlot[] sourceSlots = new LogicalSlot[parallelism];
+		final LogicalSlot[] targetSlots = new LogicalSlot[parallelism];
 
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		final CompletableFuture<LogicalSlot>[] sourceFutures = new CompletableFuture[parallelism];
@@ -309,8 +308,8 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		final CompletableFuture<LogicalSlot>[] targetFutures = new CompletableFuture[parallelism];
 
 		for (int i = 0; i < parallelism; i++) {
-			sourceSlots[i] = createSlot(taskManager, jobId, slotOwner);
-			targetSlots[i] = createSlot(taskManager, jobId, slotOwner);
+			sourceSlots[i] = createSingleLogicalSlot(slotOwner, taskManager, new SlotRequestId());
+			targetSlots[i] = createSingleLogicalSlot(slotOwner, taskManager, new SlotRequestId());
 
 			sourceFutures[i] = new CompletableFuture<>();
 			targetFutures[i] = new CompletableFuture<>();
@@ -350,8 +349,8 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		// all completed futures must have been returns
 		for (int i = 0; i < parallelism; i += 2) {
-			assertTrue(sourceSlots[i].isCanceled());
-			assertTrue(targetSlots[i].isCanceled());
+			assertFalse(sourceSlots[i].isAlive());
+			assertFalse(targetSlots[i].isAlive());
 		}
 	}
 
@@ -381,12 +380,12 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 			(LogicalSlot logicalSlot) -> returnedSlots.offer(logicalSlot.getAllocationId()));
 
 		final InteractionsCountingTaskManagerGateway taskManager = createTaskManager();
-		final SimpleSlot[] slots = new SimpleSlot[parallelism];
+		final LogicalSlot[] slots = new LogicalSlot[parallelism];
 		@SuppressWarnings({"unchecked", "rawtypes"})
 		final CompletableFuture<LogicalSlot>[] slotFutures = new CompletableFuture[parallelism];
 
 		for (int i = 0; i < parallelism; i++) {
-			slots[i] = createSlot(taskManager, jobId, slotOwner);
+			slots[i] = createSingleLogicalSlot(slotOwner, taskManager, new SlotRequestId());
 			slotFutures[i] = new CompletableFuture<>();
 		}
 
@@ -481,7 +480,7 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 
 		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(parallelism);
 
-		final SimpleSlot slot = createSlot(new SimpleAckingTaskManagerGateway(), jobGraph.getJobID(), new DummySlotOwner());
+		final LogicalSlot slot = createSingleLogicalSlot(new DummySlotOwner(), new SimpleAckingTaskManagerGateway(), new SlotRequestId());
 		slotProvider.addSlot(jobVertex.getID(), 0, CompletableFuture.completedFuture(slot));
 
 		final CompletableFuture<LogicalSlot> slotFuture = new CompletableFuture<>();
@@ -593,23 +592,6 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 			log,
 			NettyShuffleMaster.INSTANCE,
 			NoOpPartitionTracker.INSTANCE);
-	}
-
-	private SimpleSlot createSlot(TaskManagerGateway taskManager, JobID jobId) {
-		return createSlot(taskManager, jobId, new TestingSlotOwner());
-	}
-
-	private SimpleSlot createSlot(TaskManagerGateway taskManager, JobID jobId, SlotOwner slotOwner) {
-		TaskManagerLocation location = new TaskManagerLocation(
-				ResourceID.generate(), InetAddress.getLoopbackAddress(), 12345);
-
-		SimpleSlotContext slot = new SimpleSlotContext(
-			new AllocationID(),
-			location,
-			0,
-			taskManager);
-
-		return new SimpleSlot(slot, slotOwner, 0);
 	}
 
 	@Nonnull

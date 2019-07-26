@@ -21,11 +21,12 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
@@ -106,11 +107,15 @@ public class ExecutionTest extends TestLogger {
 
 		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
 
-		final SimpleSlot slot = new SimpleSlot(
-			slotOwner,
+		final LogicalSlot slot = new TestingLogicalSlot(
 			new LocalTaskManagerLocation(),
+			new SimpleAckingTaskManagerGateway(),
 			0,
-			new SimpleAckingTaskManagerGateway());
+			new AllocationID(),
+			new SlotRequestId(),
+			new SlotSharingGroupId(),
+			null,
+			slotOwner);
 
 		final LogicalSlot otherSlot = new TestingLogicalSlot();
 
@@ -143,11 +148,15 @@ public class ExecutionTest extends TestLogger {
 
 		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
 
-		final SimpleSlot slot = new SimpleSlot(
-			slotOwner,
+		final LogicalSlot slot = new TestingLogicalSlot(
 			new LocalTaskManagerLocation(),
+			new SimpleAckingTaskManagerGateway(),
 			0,
-			new SimpleAckingTaskManagerGateway());
+			new AllocationID(),
+			new SlotRequestId(),
+			new SlotSharingGroupId(),
+			null,
+			slotOwner);
 
 		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(1);
 		slotProvider.addSlot(jobVertexId, 0, CompletableFuture.completedFuture(slot));
@@ -193,11 +202,15 @@ public class ExecutionTest extends TestLogger {
 
 		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
 
-		final SimpleSlot slot = new SimpleSlot(
-			slotOwner,
+		final LogicalSlot slot = new TestingLogicalSlot(
 			new LocalTaskManagerLocation(),
+			new SimpleAckingTaskManagerGateway(),
 			0,
-			new SimpleAckingTaskManagerGateway());
+			new AllocationID(),
+			new SlotRequestId(),
+			new SlotSharingGroupId(),
+			null,
+			slotOwner);
 
 		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(1);
 		slotProvider.addSlot(jobVertexId, 0, CompletableFuture.completedFuture(slot));
@@ -563,13 +576,15 @@ public class ExecutionTest extends TestLogger {
 
 		for (JobVertexID jobVertexId : jobVertexIds) {
 			for (int i = 0; i < parallelism; i++) {
-				final SimpleSlot slot = new SimpleSlot(
-					slotOwner,
+				final LogicalSlot slot = new TestingLogicalSlot(
 					new LocalTaskManagerLocation(),
-					0,
 					new SimpleAckingTaskManagerGateway(),
+					0,
+					new AllocationID(),
+					new SlotRequestId(),
+					new SlotSharingGroupId(),
 					null,
-					null);
+					slotOwner);
 
 				slotProvider.addSlot(jobVertexId, 0, CompletableFuture.completedFuture(slot));
 			}

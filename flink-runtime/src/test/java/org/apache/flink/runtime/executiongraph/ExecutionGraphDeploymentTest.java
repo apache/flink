@@ -34,6 +34,7 @@ import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
@@ -42,7 +43,7 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -56,7 +57,6 @@ import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
@@ -105,7 +105,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests for {@link ExecutionGraph} deployment.
@@ -630,13 +629,11 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		final TaskManagerLocation localTaskManagerLocation = new LocalTaskManagerLocation();
 
-		final SimpleSlot sourceSlot1 = createSlot(localTaskManagerLocation, 0);
+		final LogicalSlot sourceSlot1 = createSlot(localTaskManagerLocation, 0);
+		final LogicalSlot sourceSlot2 = createSlot(localTaskManagerLocation, 1);
 
-		final SimpleSlot sourceSlot2 = createSlot(localTaskManagerLocation, 1);
-
-		final SimpleSlot sinkSlot1 = createSlot(localTaskManagerLocation, 0);
-
-		final SimpleSlot sinkSlot2 = createSlot(localTaskManagerLocation, 1);
+		final LogicalSlot sinkSlot1 = createSlot(localTaskManagerLocation, 0);
+		final LogicalSlot sinkSlot2 = createSlot(localTaskManagerLocation, 1);
 
 		slotFutures.get(sourceVertexId)[0].complete(sourceSlot1);
 		slotFutures.get(sourceVertexId)[1].complete(sourceSlot2);
@@ -751,12 +748,15 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		}
 	}
 
-	private SimpleSlot createSlot(TaskManagerLocation taskManagerLocation, int index) {
-		return new SimpleSlot(
-			mock(SlotOwner.class),
+	private LogicalSlot createSlot(TaskManagerLocation taskManagerLocation, int index) {
+		return new TestingLogicalSlot(
 			taskManagerLocation,
+			new SimpleAckingTaskManagerGateway(),
 			index,
-			new SimpleAckingTaskManagerGateway());
+			new AllocationID(),
+			new SlotRequestId(),
+			new SlotSharingGroupId(),
+			null);
 	}
 
 	private ExecutionGraph createExecutionGraph(Configuration configuration) throws Exception {
