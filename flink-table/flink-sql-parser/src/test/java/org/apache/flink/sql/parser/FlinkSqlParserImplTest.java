@@ -366,7 +366,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 		check("CREATE TABLE tbl1 (\n" +
 			"  a ARRAY<bigint>, \n" +
 			"  b MAP<int, varchar>,\n" +
-			"  c ROW<cc0:int, cc1: float, cc2: varchar>,\n" +
+			"  c ROW<cc0 int, cc1 float, cc2 varchar>,\n" +
+			"  d MULTISET<varchar>,\n" +
 			"  PRIMARY KEY (a, b) \n" +
 			") with (\n" +
 			"  x = 'y', \n" +
@@ -374,28 +375,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			")\n", "CREATE TABLE `TBL1` (\n" +
 			"  `A`  ARRAY< BIGINT >,\n" +
 			"  `B`  MAP< INTEGER, VARCHAR >,\n" +
-			"  `C`  ROW< `CC0` : INTEGER, `CC1` : FLOAT, `CC2` : VARCHAR >,\n" +
-			"  PRIMARY KEY (`A`, `B`)\n" +
-			") WITH (\n" +
-			"  `X` = 'y',\n" +
-			"  `ASD` = 'data'\n" +
-			")");
-	}
-
-	@Test
-	public void testCreateTableWithDecimalType() {
-		check("CREATE TABLE tbl1 (\n" +
-			"  a decimal, \n" +
-			"  b decimal(10, 0),\n" +
-			"  c decimal(38, 38),\n" +
-			"  PRIMARY KEY (a, b) \n" +
-			") with (\n" +
-			"  x = 'y', \n" +
-			"  asd = 'data'\n" +
-			")\n", "CREATE TABLE `TBL1` (\n" +
-			"  `A`  DECIMAL,\n" +
-			"  `B`  DECIMAL(10, 0),\n" +
-			"  `C`  DECIMAL(38, 38),\n" +
+			"  `C`  ROW< `CC0` INTEGER, `CC1` FLOAT, `CC2` VARCHAR >,\n" +
+			"  `D`  MULTISET< VARCHAR >,\n" +
 			"  PRIMARY KEY (`A`, `B`)\n" +
 			") WITH (\n" +
 			"  `X` = 'y',\n" +
@@ -408,7 +389,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 		check("CREATE TABLE tbl1 (\n" +
 			"  a ARRAY<ARRAY<bigint>>, \n" +
 			"  b MAP<MAP<int, varchar>, ARRAY<varchar>>,\n" +
-			"  c ROW<cc0:ARRAY<int>, cc1: float, cc2: varchar>,\n" +
+			"  c ROW<cc0 ARRAY<int>, cc1 float, cc2 varchar>,\n" +
+			"  d MULTISET<ARRAY<int>>,\n" +
 			"  PRIMARY KEY (a, b) \n" +
 			") with (\n" +
 			"  x = 'y', \n" +
@@ -416,7 +398,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			")\n", "CREATE TABLE `TBL1` (\n" +
 			"  `A`  ARRAY< ARRAY< BIGINT > >,\n" +
 			"  `B`  MAP< MAP< INTEGER, VARCHAR >, ARRAY< VARCHAR > >,\n" +
-			"  `C`  ROW< `CC0` : ARRAY< INTEGER >, `CC1` : FLOAT, `CC2` : VARCHAR >,\n" +
+			"  `C`  ROW< `CC0` ARRAY< INTEGER >, `CC1` FLOAT, `CC2` VARCHAR >,\n" +
+			"  `D`  MULTISET< ARRAY< INTEGER > >,\n" +
 			"  PRIMARY KEY (`A`, `B`)\n" +
 			") WITH (\n" +
 			"  `X` = 'y',\n" +
@@ -437,7 +420,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			")\n", "(?s).*Encountered \"\\(\" at line 4, column 14.\n" +
 			"Was expecting one of:\n" +
 			"    \"AS\" ...\n" +
-			"    \"CHARACTER\" ...\n" +
+			"    \"ARRAY\" ...\n" +
 			".*");
 	}
 
