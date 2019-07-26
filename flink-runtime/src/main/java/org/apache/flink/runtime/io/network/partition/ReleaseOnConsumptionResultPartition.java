@@ -22,7 +22,6 @@ import org.apache.flink.runtime.io.network.buffer.BufferPoolOwner;
 import org.apache.flink.util.function.FunctionWithException;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -31,11 +30,18 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class ReleaseOnConsumptionResultPartition extends ResultPartition {
 
+	private static final Object lock = new Object();
+
+	/**
+	 * A flag for each subpartition indicating whether it was already consumed or not.
+	 */
+	private final boolean[] consumedSubpartitions;
+
 	/**
 	 * The total number of references to subpartitions of this result. The result partition can be
 	 * safely released, iff the reference count is zero.
 	 */
-	private final AtomicInteger pendingReferences = new AtomicInteger();
+	private int numUnconsumedSubpartitions;
 
 	ReleaseOnConsumptionResultPartition(
 			String owningTaskName,
@@ -47,12 +53,13 @@ public class ReleaseOnConsumptionResultPartition extends ResultPartition {
 			FunctionWithException<BufferPoolOwner, BufferPool, IOException> bufferPoolFactory) {
 		super(owningTaskName, partitionId, partitionType, subpartitions, numTargetKeyGroups, partitionManager, bufferPoolFactory);
 
-		pendingReferences.set(subpartitions.length);
+		this.consumedSubpartitions = new boolean[subpartitions.length];
+		this.numUnconsumedSubpartitions = subpartitions.length;
 	}
 
 	@Override
 	public ResultSubpartitionView createSubpartitionView(int index, BufferAvailabilityListener availabilityListener) throws IOException {
-		checkState(pendingReferences.get() > 0, "Partition not pinned.");
+		checkState(numUnconsumedSubpartitions > 0, "Partition not pinned.");
 
 		return super.createSubpartitionView(index, availabilityListener);
 	}
@@ -63,22 +70,33 @@ public class ReleaseOnConsumptionResultPartition extends ResultPartition {
 			return;
 		}
 
-		int refCnt = pendingReferences.decrementAndGet();
+		final int remainingUnconsumed;
 
-		if (refCnt == 0) {
-			partitionManager.onConsumedPartition(this);
-		} else if (refCnt < 0) {
-			throw new IllegalStateException("All references released.");
+		// we synchronize only the bookkeeping section, to avoid holding the lock during any
+		// calls into other components
+		synchronized (lock) {
+			if (consumedSubpartitions[subpartitionIndex]) {
+				// repeated call - ignore
+				return;
+			}
+
+			consumedSubpartitions[subpartitionIndex] = true;
+			remainingUnconsumed = (--numUnconsumedSubpartitions);
 		}
 
-		LOG.debug("{}: Received release notification for subpartition {}.",
-			this, subpartitionIndex);
+		LOG.debug("{}: Received consumed notification for subpartition {}.", this, subpartitionIndex);
+
+		if (remainingUnconsumed == 0) {
+			partitionManager.onConsumedPartition(this);
+		} else if (remainingUnconsumed < 0) {
+			throw new IllegalStateException("Received consume notification even though all subpartitions are already consumed.");
+		}
 	}
 
 	@Override
 	public String toString() {
 		return "ReleaseOnConsumptionResultPartition " + partitionId.toString() + " [" + partitionType + ", "
 			+ subpartitions.length + " subpartitions, "
-			+ pendingReferences + " pending references]";
+			+ numUnconsumedSubpartitions + " pending consumptions]";
 	}
 }
