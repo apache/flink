@@ -54,8 +54,6 @@ public interface SlotManager extends AutoCloseable {
 
 	int getNumberPendingSlotRequests();
 
-	boolean isFailingUnfulfillableRequest();
-
 	/**
 	 * Starts the slot manager with the given leader id and resource manager actions.
 	 *

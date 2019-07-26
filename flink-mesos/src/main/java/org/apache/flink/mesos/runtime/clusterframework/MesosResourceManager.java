@@ -197,7 +197,6 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		this.workersBeingReturned = new HashMap<>(8);
 
 		this.slotsPerWorker = createWorkerSlotProfiles(flinkConfig);
-		setFailUnfulfillableRequest(true);
 	}
 
 	protected ActorRef createSelfActor() {

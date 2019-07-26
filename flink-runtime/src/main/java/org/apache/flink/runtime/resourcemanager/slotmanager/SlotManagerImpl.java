@@ -194,11 +194,6 @@ public class SlotManagerImpl implements SlotManager {
 		return pendingSlotRequests.size();
 	}
 
-	@Override
-	public boolean isFailingUnfulfillableRequest() {
-		return failUnfulfillableRequest;
-	}
-
 	@VisibleForTesting
 	public int getNumberAssignedPendingTaskManagerSlots() {
 		return (int) pendingSlots.values().stream().filter(slot -> slot.getAssignedPendingSlotRequest() != null).count();
