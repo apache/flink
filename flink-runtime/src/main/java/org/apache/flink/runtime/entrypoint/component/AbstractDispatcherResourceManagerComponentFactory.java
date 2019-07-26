@@ -167,8 +167,9 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				hostname,
 				ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
 
+			Configuration resourceManagerConfig = resourceManagerFactory.getResourceManagerConfiguration(configuration);
 			resourceManager = resourceManagerFactory.createResourceManager(
-				configuration,
+				resourceManagerConfig,
 				ResourceID.generate(),
 				rpcService,
 				highAvailabilityServices,
