@@ -41,10 +41,10 @@ scala_version_suffix: "_2.11"
 
 # Some commonly linked pages (this was more important to have as a variable
 # during incubator; by now it should also be fine to hardcode these.)
-website_url: "http://flink.apache.org"
+website_url: "https://flink.apache.org"
 jira_url: "https://issues.apache.org/jira/browse/FLINK"
 github_url: "https://github.com/apache/flink"
-download_url: "http://flink.apache.org/downloads.html"
+download_url: "https://flink.apache.org/downloads.html"
 
 # please use a protocol relative URL here
 baseurl: //ci.apache.org/projects/flink/flink-docs-master

@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-If you want to run Flink locally on a Windows machine you need to [download](http://flink.apache.org/downloads.html) and unpack the binary Flink distribution. After that you can either use the **Windows Batch** file (`.bat`), or use **Cygwin** to run the Flink Jobmanager.
+If you want to run Flink locally on a Windows machine you need to [download](https://flink.apache.org/downloads.html) and unpack the binary Flink distribution. After that you can either use the **Windows Batch** file (`.bat`), or use **Cygwin** to run the Flink Jobmanager.
 
 ## Starting with Windows Batch Files
 
