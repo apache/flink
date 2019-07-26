@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.Set;
@@ -121,6 +122,28 @@ public class CheckpointFailureManager {
 	private void clearCount() {
 		continuousFailureCounter.set(0);
 		countedCheckpointIds.clear();
+	}
+
+	/**
+	 * Fails the whole job graph in case an in-progress synchronous savepoint is discarded.
+	 *
+	 * <p>If the checkpoint failure was cancelled at the checkpoint coordinator, i.e. before
+	 * the synchronous savepoint barrier was sent to the tasks, then we do not cancel the job
+	 * as we do not risk having a deadlock.
+	 *
+	 * @param cause The reason why the job is cancelled.
+	 * */
+	void handleSynchronousSavepointFailure(final Throwable cause) {
+		if (!isPreFlightFailure(cause)) {
+			failureCallback.failJob(cause);
+		}
+	}
+
+	private static boolean isPreFlightFailure(final Throwable cause) {
+		return ExceptionUtils.findThrowable(cause, CheckpointException.class)
+				.map(CheckpointException::getCheckpointFailureReason)
+				.map(CheckpointFailureReason::isPreFlight)
+				.orElse(false);
 	}
 
 	/**
