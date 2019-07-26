@@ -180,17 +180,13 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 			}
 
 			// remove reader from queue of available readers
-			int size = availableReaders.size();
-			for (int i = 0; i < size; i++) {
-				NetworkSequenceViewReader reader = pollAvailableReader();
-				if (reader != null && !reader.getReceiverId().equals(toCancel)) {
-					registerAvailableReader(reader);
-				}
-			}
+			availableReaders.removeIf(reader -> reader.getReceiverId().equals(toCancel));
 
 			// remove reader from queue of all readers and release its resource
-			NetworkSequenceViewReader toRelease = allReaders.remove(toCancel);
-			releaseViewReader(toRelease, true);
+			final NetworkSequenceViewReader toRelease = allReaders.remove(toCancel);
+			if (toRelease != null) {
+				releaseViewReader(toRelease, true);
+			}
 		} else {
 			ctx.fireUserEventTriggered(msg);
 		}
@@ -312,11 +308,14 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		allReaders.clear();
 	}
 
-	private void releaseViewReader(NetworkSequenceViewReader reader, boolean shouldNotifyConsumed) throws IOException {
+	private void releaseViewReader(
+			NetworkSequenceViewReader reader,
+			boolean shouldNotifyConsumed) throws IOException {
 		if (shouldNotifyConsumed) {
 			reader.notifySubpartitionConsumed();
 		}
 
+		reader.setRegisteredAsAvailable(false);
 		reader.releaseAllResources();
 		markAsReleased(reader.getReceiverId());
 	}

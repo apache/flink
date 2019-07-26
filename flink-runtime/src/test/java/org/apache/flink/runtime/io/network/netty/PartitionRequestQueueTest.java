@@ -36,14 +36,15 @@ import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 
-import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nullable;
 
@@ -52,7 +53,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -66,15 +66,17 @@ import static org.junit.Assert.assertTrue;
  */
 public class PartitionRequestQueueTest {
 
-	private static final String TEMP_DIR = EnvironmentInformation.getTemporaryFileDirectory();
+	@ClassRule
+	public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
 
 	private static final int BUFFER_SIZE = 1024 * 1024;
 
 	private static FileChannelManager fileChannelManager;
 
 	@BeforeClass
-	public static void setUp() {
-		fileChannelManager = new FileChannelManagerImpl(new String[] {TEMP_DIR}, "testing");
+	public static void setUp() throws Exception {
+		fileChannelManager = new FileChannelManagerImpl(
+			new String[] {TEMPORARY_FOLDER.newFolder().getAbsolutePath()}, "testing");
 	}
 
 	@AfterClass
@@ -389,7 +391,7 @@ public class PartitionRequestQueueTest {
 	private void testCancelPartitionRequest(boolean isAvailableView) throws Exception {
 		// setup
 		final ResultPartitionManager partitionManager = new ResultPartitionManager();
-		final ResultPartition partition = createPartitionWithFilledData(partitionManager);
+		final ResultPartition partition = createFinishedPartitionWithFilledData(partitionManager);
 		final InputChannelID receiverId = new InputChannelID();
 		final PartitionRequestQueue queue = new PartitionRequestQueue();
 		final CreditBasedSequenceNumberingViewReader reader = new CreditBasedSequenceNumberingViewReader(receiverId, 0, queue);
@@ -405,26 +407,26 @@ public class PartitionRequestQueueTest {
 		// add credit to make this reader available for adding into availableReaders queue
 		if (isAvailableView) {
 			queue.addCredit(receiverId, 1);
-			assertThat(queue.getAvailableReaders().contains(reader), is(true));
+			assertTrue(queue.getAvailableReaders().contains(reader));
 		}
 
 		// cancel this subpartition view
 		queue.cancel(receiverId);
 		channel.runPendingTasks();
 
-		assertThat(queue.getAvailableReaders().contains(reader), is(false));
+		assertFalse(queue.getAvailableReaders().contains(reader));
 		// the partition and its reader view should all be released
-		assertThat(reader.isReleased(), is(true));
-		assertThat(partition.isReleased(), is(true));
+		assertTrue(reader.isReleased());
+		assertTrue(partition.isReleased());
 		for (ResultSubpartition subpartition : partition.getAllPartitions()) {
-			assertThat(subpartition.isReleased(), is(true));
+			assertTrue(subpartition.isReleased());
 		}
 
 		// cleanup
 		channel.close();
 	}
 
-	private static ResultPartition createPartitionWithFilledData(ResultPartitionManager partitionManager) throws Exception {
+	private static ResultPartition createFinishedPartitionWithFilledData(ResultPartitionManager partitionManager) throws Exception {
 		final ResultPartition partition = new ResultPartitionBuilder()
 			.setResultPartitionType(ResultPartitionType.BLOCKING)
 			.setFileChannelManager(fileChannelManager)
