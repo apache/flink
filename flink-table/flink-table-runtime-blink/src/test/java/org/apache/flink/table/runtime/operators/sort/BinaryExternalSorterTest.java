@@ -96,7 +96,7 @@ public class BinaryExternalSorterTest {
 	public void beforeTest() {
 		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1);
 		this.serializer = new BinaryRowSerializer(2);
-		this.conf.setInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_FILE_HANDLES_MAX_NUM, 128);
+		this.conf.setInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 128);
 	}
 
 	@After
@@ -310,7 +310,7 @@ public class BinaryExternalSorterTest {
 		LOG.debug("initializing sortmerger");
 
 		long minMemorySize = memoryManager.computeNumberOfPages(0.01) * MemoryManager.DEFAULT_PAGE_SIZE;
-		conf.setInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_FILE_HANDLES_MAX_NUM, 8);
+		conf.setInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 8);
 
 		BinaryExternalSorter sorter = new BinaryExternalSorter(
 				new Object(),

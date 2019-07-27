@@ -744,7 +744,8 @@ case class StreamTableTestUtil(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
     tableEnv.getConfig.getConfiguration.setString(
       ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, "1 s")
-    tableEnv.getConfig.getConfiguration.setLong(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 3L)
+    tableEnv.getConfig.getConfiguration.setLong(
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 3L)
   }
 
   def createAppendTableSink(

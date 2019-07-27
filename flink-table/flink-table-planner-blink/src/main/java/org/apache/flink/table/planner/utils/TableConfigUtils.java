@@ -46,6 +46,9 @@ public class TableConfigUtils {
 	 */
 	public static boolean isOperatorDisabled(TableConfig tableConfig, OperatorType operatorType) {
 		String value = tableConfig.getConfiguration().getString(TABLE_EXEC_DISABLED_OPERATORS);
+		if (value == null) {
+			return false;
+		}
 		String[] operators = value.split(",");
 		Set<OperatorType> operatorSets = new HashSet<>();
 		for (String operator : operators) {
