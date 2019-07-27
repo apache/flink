@@ -35,7 +35,7 @@ class SortTest extends TableTestBase {
   def testNonRangeSortOnSingleFieldWithoutForceLimit(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(SQL_EXEC_SORT_RANGE_ENABLED, false)
     util.tableEnv.getConfig.getConfiguration.setInteger(
-      ExecutionConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, -1)
+      ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, -1)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC")
   }
 
@@ -44,7 +44,7 @@ class SortTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       SQL_EXEC_SORT_RANGE_ENABLED, false)
     util.tableEnv.getConfig.getConfiguration.setInteger(
-      ExecutionConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, -1)
+      ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, -1)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC, b")
   }
 
@@ -53,7 +53,7 @@ class SortTest extends TableTestBase {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       SQL_EXEC_SORT_RANGE_ENABLED, false)
     util.tableEnv.getConfig.getConfiguration.setInteger(
-      ExecutionConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, 200)
+      ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, 200)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC")
   }
 
@@ -61,7 +61,7 @@ class SortTest extends TableTestBase {
   def testRangeSortWithoutForceLimit(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(SQL_EXEC_SORT_RANGE_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setInteger(
-      ExecutionConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, -1)
+      ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, -1)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC")
   }
 
@@ -69,7 +69,7 @@ class SortTest extends TableTestBase {
   def testRangeSortWithForceLimit(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(SQL_EXEC_SORT_RANGE_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setInteger(
-      ExecutionConfigOptions.SQL_EXEC_SORT_DEFAULT_LIMIT, 200)
+      ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT, 200)
     util.verifyPlan("SELECT * FROM MyTable ORDER BY a DESC")
   }
 }

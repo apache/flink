@@ -188,9 +188,9 @@ abstract class CommonLookupJoin(
 
     val operator = if (lookupableTableSource.isAsyncEnabled) {
       val asyncBufferCapacity= config.getConfiguration
-        .getInteger(ExecutionConfigOptions.SQL_EXEC_LOOKUP_ASYNC_BUFFER_CAPACITY)
+        .getInteger(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY)
       val asyncTimeout = getMillisecondFromConfigDuration(config,
-        ExecutionConfigOptions.SQL_EXEC_LOOKUP_ASYNC_TIMEOUT)
+        ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_TIMEOUT)
 
       val asyncLookupFunction = lookupableTableSource
         .getAsyncLookupFunction(lookupFieldNamesInOrder)

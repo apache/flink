@@ -180,12 +180,12 @@ public abstract class BaseHybridHashTable implements MemorySegmentPool {
 			boolean tryDistinctBuildRow) {
 
 		//TODO: read compression config from configuration
-		this.compressionEnable = conf.getBoolean(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_ENABLED);
+		this.compressionEnable = conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED);
 		this.compressionCodecFactory = this.compressionEnable
 				? BlockCompressionFactory.createBlockCompressionFactory(
-						conf.getString(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_CODEC))
+						conf.getString(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_CODEC))
 				: null;
-		this.compressionBlockSize = conf.getInteger(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_BLOCK_SIZE);
+		this.compressionBlockSize = conf.getInteger(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE);
 
 		this.owner = owner;
 		this.avgRecordLen = avgRecordLen;

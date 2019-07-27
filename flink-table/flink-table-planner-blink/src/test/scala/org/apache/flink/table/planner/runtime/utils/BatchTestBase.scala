@@ -78,12 +78,12 @@ class BatchTestBase extends BatchAbstractTestBase {
   @Before
   def before(): Unit = {
     conf.getConfiguration.setInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
-    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
-    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM, 2)
-    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
-    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM, 1)
-    conf.getConfiguration.setString(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE,
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
+    conf.getConfiguration.setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY, 2)
+    conf.getConfiguration.setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY, 2)
+    conf.getConfiguration.setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY, 1)
+    conf.getConfiguration.setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY, 1)
+    conf.getConfiguration.setString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE,
       ShuffleMode.PIPELINED.toString)
   }
 

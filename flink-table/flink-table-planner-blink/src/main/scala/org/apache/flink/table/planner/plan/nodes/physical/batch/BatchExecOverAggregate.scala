@@ -411,7 +411,7 @@ class BatchExecOverAggregate(
     } else {
       val windowFrames = createOverWindowFrames(config)
       managedMemoryInMB = config.getConfiguration.getInteger(
-        ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM)
+        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
       new BufferDataOverWindowOperator(
         managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB,
         windowFrames,

@@ -220,11 +220,11 @@ class BatchExecSortMergeJoin(
       rightType)
 
     val externalBufferMemoryInMB = config.getConfiguration.getInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM)
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
     val externalBufferMemory = externalBufferMemoryInMB * NodeResourceUtil.SIZE_IN_MB
 
     val sortMemoryInMB = config.getConfiguration.getInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM)
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
     val sortMemory = sortMemoryInMB * NodeResourceUtil.SIZE_IN_MB
 
     def newSortGen(originalKeys: Array[Int], t: RowType): SortCodeGenerator = {

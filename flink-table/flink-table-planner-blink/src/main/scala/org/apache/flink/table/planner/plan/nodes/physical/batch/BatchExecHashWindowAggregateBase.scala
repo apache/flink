@@ -131,12 +131,12 @@ abstract class BatchExecHashWindowAggregateBase(
       aggCallToAggFunction.map(_._1), aggInputRowType)
 
     val groupBufferLimitSize = config.getConfiguration.getInteger(
-      ExecutionConfigOptions.SQL_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT)
+      ExecutionConfigOptions.TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT)
 
     val (windowSize: Long, slideSize: Long) = WindowCodeGenerator.getWindowDef(window)
 
     val managedMemoryInMB = config.getConfiguration.getInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM)
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)
     val managedMemory = managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB
 
     val generatedOperator = new HashWindowCodeGenerator(

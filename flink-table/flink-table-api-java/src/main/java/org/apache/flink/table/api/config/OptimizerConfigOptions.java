@@ -32,7 +32,7 @@ public class OptimizerConfigOptions {
 	// ------------------------------------------------------------------------
 	//  Optimizer Options
 	// ------------------------------------------------------------------------
-	public static final ConfigOption<String> SQL_OPTIMIZER_AGG_PHASE_STRATEGY =
+	public static final ConfigOption<String> TABLE_OPTIMIZER_AGG_PHASE_STRATEGY =
 			key("sql.optimizer.agg-phase.strategy")
 					.defaultValue("AUTO")
 					.withDescription("Strategy for aggregate phase. Only AUTO, TWO_PHASE or ONE_PHASE can be set.\n" +
@@ -42,13 +42,13 @@ public class OptimizerConfigOptions {
 							"NOTE: If aggregate call does not support split into two phase, still use one stage aggregate.\n" +
 							"ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggregate.");
 
-	public static final ConfigOption<Long> SQL_OPTIMIZER_BROADCAST_JOIN_THRESHOLD =
+	public static final ConfigOption<Long> TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD =
 			key("sql.optimizer.join.broadcast.threshold")
 					.defaultValue(1024 * 1024L)
 					.withDescription("Configures the maximum size in bytes for a table that will be broadcast to all worker " +
 							"nodes when performing a join.  By setting this value to -1 broadcasting can be disabled. ");
 
-	public static final ConfigOption<Boolean> SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED =
+	public static final ConfigOption<Boolean> TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED =
 			key("sql.optimizer.distinct-agg.split.enabled")
 					.defaultValue(false)
 					.withDescription("Tells the optimizer whether to split distinct aggregation " +
@@ -58,32 +58,32 @@ public class OptimizerConfigOptions {
 							"when there is data skew in distinct aggregation and gives the ability to scale-up the job. " +
 							"Default is false.");
 
-	public static final ConfigOption<Integer> SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM =
+	public static final ConfigOption<Integer> TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM =
 			key("sql.optimizer.distinct-agg.split.bucket-num")
 					.defaultValue(1024)
 					.withDescription("Configure the number of buckets when splitting distinct aggregation. " +
 							"The number is used in the first level aggregation to calculate a bucket key " +
 							"'hash_code(distinct_key) % BUCKET_NUM' which is used as an additional group key after splitting.");
 
-	public static final ConfigOption<Boolean> SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED =
+	public static final ConfigOption<Boolean> TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED =
 			key("sql.optimizer.reuse.sub-plan.enabled")
 					.defaultValue(true)
 					.withDescription("When it is true, optimizer will try to find out duplicated " +
 							"sub-plan and reuse them.");
 
-	public static final ConfigOption<Boolean> SQL_OPTIMIZER_REUSE_TABLE_SOURCE_ENABLED =
+	public static final ConfigOption<Boolean> TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED =
 			key("sql.optimizer.reuse.table-source.enabled")
 					.defaultValue(true)
 					.withDescription("When it is true, optimizer will try to find out duplicated table-source and " +
-							"reuse them. This works only when " + SQL_OPTIMIZER_REUSE_SUB_PLAN_ENABLED.key() + " is true.");
+							"reuse them. This works only when " + TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED.key() + " is true.");
 
-	public static final ConfigOption<Boolean> SQL_OPTIMIZER_PREDICATE_PUSHDOWN_ENABLED =
+	public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED =
 			key("sql.optimizer.predicate-pushdown.enabled")
 					.defaultValue(true)
 					.withDescription("If it is true, enable predicate pushdown to the FilterableTableSource. " +
 			"Default value is true.");
 
-	public static final ConfigOption<Boolean> SQL_OPTIMIZER_JOIN_REORDER_ENABLED =
+	public static final ConfigOption<Boolean> TABLE_OPTIMIZER_JOIN_REORDER_ENABLED =
 			key("sql.optimizer.join-reorder.enabled")
 					.defaultValue(false)
 					.withDescription("Enables join reorder in optimizer cbo. Default is disabled.");

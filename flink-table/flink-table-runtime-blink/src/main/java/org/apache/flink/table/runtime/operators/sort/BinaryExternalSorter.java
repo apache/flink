@@ -211,14 +211,14 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 			NormalizedKeyComputer normalizedKeyComputer,
 			RecordComparator comparator, Configuration conf,
 			float startSpillingFraction) throws IOException {
-		int maxNumFileHandles = conf.getInteger(ExecutionConfigOptions.SQL_EXEC_SORT_FILE_HANDLES_MAX_NUM);
-		this.compressionEnable = conf.getBoolean(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_ENABLED);
+		int maxNumFileHandles = conf.getInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_FILE_HANDLES_MAX_NUM);
+		this.compressionEnable = conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED);
 		this.compressionCodecFactory = this.compressionEnable
 			? BlockCompressionFactory.createBlockCompressionFactory(
-					conf.getString(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_CODEC))
+					conf.getString(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_CODEC))
 			: null;
-		compressionBlockSize = conf.getInteger(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_BLOCK_SIZE);
-		asyncMergeEnable = conf.getBoolean(ExecutionConfigOptions.SQL_EXEC_SORT_ASYNC_MERGE_ENABLED);
+		compressionBlockSize = conf.getInteger(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE);
+		asyncMergeEnable = conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED);
 
 		checkArgument(maxNumFileHandles >= 2);
 		checkNotNull(ioManager);

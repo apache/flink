@@ -71,7 +71,7 @@ class NestedLoopJoinCodeGenerator(
     val isBinaryRow = newName("isBinaryRow")
 
     val externalBufferMemorySize = config.getConfiguration.getInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM) * NodeResourceUtil.SIZE_IN_MB
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY) * NodeResourceUtil.SIZE_IN_MB
 
     if (singleRowJoin) {
       ctx.addReusableMember(s"$BASE_ROW $buildRow = null;")
