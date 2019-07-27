@@ -25,7 +25,6 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
@@ -40,6 +39,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.yarn.entrypoint.YarnResourceManagerFactory;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
@@ -191,7 +191,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
 						(double) taskManagerInfo.getHardwareDescription().getSizeOfJvmHeap() / (double) expectedHeadSize,
 						is(closeTo(1.0, 0.15)));
 
-					final int expectedManagedMemoryMB = calculateManagedMemorySizeMB(configuration, slotsPerTaskManager);
+					final int expectedManagedMemoryMB = calculateManagedMemorySizeMB(configuration);
 
 					assertThat((int) (taskManagerInfo.getHardwareDescription().getSizeOfManagedMemory() >> 20), is(expectedManagedMemoryMB));
 				} finally {
@@ -216,11 +216,8 @@ public class YarnConfigurationITCase extends YarnTestBase {
 		}
 	}
 
-	private static int calculateManagedMemorySizeMB(Configuration originalConfiguration, int numSlotsPerTaskManager) {
-		Configuration configuration = new Configuration(originalConfiguration); // copy, because we alter the config
-
-		final int defaultTaskManagerMemoryMB = ConfigurationUtils.getTaskManagerHeapMemory(configuration).getMebiBytes();
-		YarnResourceManager.updateTaskManagerConfigAndCreateWorkerSlotProfiles(configuration, defaultTaskManagerMemoryMB, numSlotsPerTaskManager);
-		return MemorySize.parse(configuration.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE)).getMebiBytes();
+	private static int calculateManagedMemorySizeMB(Configuration configuration) {
+		Configuration resourceManagerConfig = YarnResourceManagerFactory.INSTANCE.getResourceManagerConfiguration(configuration);
+		return MemorySize.parse(resourceManagerConfig.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE)).getMebiBytes();
 	}
 }

@@ -27,7 +27,6 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.TransientBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
@@ -1210,24 +1209,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 
 		final ResourceProfile resourceProfile = TaskManagerServices.computeSlotResourceProfile(numSlots, managedMemoryBytes);
 		return Collections.nCopies(numSlots, resourceProfile);
-	}
-
-	@VisibleForTesting
-	public static Collection<ResourceProfile> updateTaskManagerConfigAndCreateWorkerSlotProfiles(
-			Configuration config, long totalMemoryMB, int numSlots) {
-
-		final long cutoffMB = ContaineredTaskManagerParameters.calculateCutoffMB(config, totalMemoryMB);
-		final long processMemoryBytes = (totalMemoryMB - cutoffMB) << 20; // megabytes to bytes
-		final long managedMemoryBytes = TaskManagerServices.getManagedMemoryFromProcessMemory(config, processMemoryBytes);
-
-		updateFlinkConfForManagedMemory(config, managedMemoryBytes);
-
-		final ResourceProfile resourceProfile = TaskManagerServices.computeSlotResourceProfile(numSlots, managedMemoryBytes);
-		return Collections.nCopies(numSlots, resourceProfile);
-	}
-
-	static void updateFlinkConfForManagedMemory(Configuration conf, long managedMemorySize) {
-		conf.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, managedMemorySize + "b");
 	}
 }
 
