@@ -30,6 +30,7 @@ export class NodeComponent {
   operator: string | null;
   operatorStrategy: string | null;
   parallelism: number | null;
+  lowWatermark: number | null | undefined;
   height = 0;
   id: string;
 
@@ -45,6 +46,7 @@ export class NodeComponent {
     this.operator = this.decodeHTML(value.operator);
     this.operatorStrategy = this.decodeHTML(value.operator_strategy);
     this.parallelism = value.parallelism;
+    this.lowWatermark = value.lowWatermark;
     this.height = value.height || 0;
     this.id = value.id;
     if (description && description.length > 300) {
