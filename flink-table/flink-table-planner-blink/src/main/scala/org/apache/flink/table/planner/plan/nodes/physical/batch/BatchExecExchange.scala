@@ -90,7 +90,7 @@ class BatchExecExchange(
     requiredShuffleMode match {
       case Some(mode) if mode eq ShuffleMode.BATCH => mode
       case _ =>
-        if (tableConf.getString(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE)
+        if (tableConf.getString(ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE)
             .equalsIgnoreCase(ShuffleMode.BATCH.toString)) {
           ShuffleMode.BATCH
         } else {

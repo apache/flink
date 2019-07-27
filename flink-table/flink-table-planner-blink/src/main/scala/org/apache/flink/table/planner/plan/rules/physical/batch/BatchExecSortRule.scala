@@ -54,7 +54,7 @@ class BatchExecSortRule extends ConverterRule(
     val input = sort.getInput
     val config = sort.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
     val enableRangeSort = config.getConfiguration.getBoolean(
-      BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED)
+      BatchExecSortRule.TABLE_EXEC_SORT_RANGE_ENABLED)
     val distribution = if (enableRangeSort) {
       FlinkRelDistribution.range(sort.getCollation.getFieldCollations)
     } else {
@@ -81,8 +81,8 @@ object BatchExecSortRule {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_EXEC_SORT_RANGE_ENABLED: ConfigOption[JBoolean] =
-  key("sql.exec.sort.range.enabled")
+  val TABLE_EXEC_SORT_RANGE_ENABLED: ConfigOption[JBoolean] =
+  key("table.exec.range-sort.enabled")
       .defaultValue(JBoolean.valueOf(false))
       .withDescription("Sets whether to enable range sort, use range sort to sort all data in" +
           " several partitions. When it is false, sorting in only one partition")

@@ -67,7 +67,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
   def before(): Unit = {
     tableEnv.getConfig
       .getConfiguration
-      .setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+      .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
     TestCollectionTableFactory.reset()
     TestCollectionTableFactory.isStreaming = isStreamingMode
   }

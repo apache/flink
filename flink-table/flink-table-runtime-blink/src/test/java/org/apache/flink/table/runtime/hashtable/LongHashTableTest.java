@@ -82,7 +82,7 @@ public class LongHashTableTest {
 		this.ioManager = new IOManagerAsync();
 
 		conf = new Configuration();
-		conf.setBoolean(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_ENABLED, useCompress);
+		conf.setBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED, useCompress);
 	}
 
 	private class MyHashTable extends LongHybridHashTable {

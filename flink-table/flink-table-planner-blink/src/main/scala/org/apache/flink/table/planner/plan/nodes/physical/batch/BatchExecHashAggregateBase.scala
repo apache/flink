@@ -34,7 +34,6 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToBatchA
 import org.apache.flink.table.planner.plan.utils.FlinkRelMdUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
@@ -42,6 +41,7 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.tools.RelBuilder
 import org.apache.calcite.util.Util
+import org.apache.flink.configuration.MemorySize
 
 import java.util
 
@@ -136,8 +136,9 @@ abstract class BatchExecHashAggregateBase(
       AggWithoutKeysCodeGenerator.genWithoutKeys(
         ctx, relBuilder, aggInfos, inputType, outputType, isMerge, isFinal, "NoGrouping")
     } else {
-      managedMemoryInMB = config.getConfiguration.getInteger(
-        ExecutionConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM)
+      val memText = config.getConfiguration.getString(
+        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)
+      managedMemoryInMB = MemorySize.parse(memText).getMebiBytes
       val managedMemory = managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB
       new HashAggCodeGenerator(
         ctx, relBuilder, aggInfos, inputType, outputType, grouping, auxGrouping, isMerge, isFinal

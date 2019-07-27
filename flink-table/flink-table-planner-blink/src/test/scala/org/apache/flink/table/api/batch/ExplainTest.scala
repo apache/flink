@@ -64,7 +64,7 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   def testExplainWithJoin(): Unit = {
     // TODO support other join operators when them are supported
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
     util.verifyExplain("SELECT a, b, c, e, f FROM MyTable1, MyTable2 WHERE a = d", extended)
   }
 

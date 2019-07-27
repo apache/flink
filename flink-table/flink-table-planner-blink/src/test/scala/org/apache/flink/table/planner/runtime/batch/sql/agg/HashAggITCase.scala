@@ -28,6 +28,6 @@ class HashAggITCase
 
   override def prepareAggOp(): Unit = {
     tEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS, "SortAgg")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
   }
 }

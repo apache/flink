@@ -36,7 +36,7 @@ class SortDistinctAggregateITCase extends DistinctAggregateITCaseBase {
 
   override def prepareAggOp(): Unit = {
     tEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.SQL_EXEC_DISABLED_OPERATORS,  OperatorType.HashAgg.toString)
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,  OperatorType.HashAgg.toString)
 
     registerFunction("countFun", new CountAggFunction())
     registerFunction("intSumFun", new IntSumAggFunction())

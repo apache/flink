@@ -169,7 +169,7 @@ object WindowJoinUtil {
 
     // Converts the condition to conjunctive normal form (CNF)
     val cnfCondition = FlinkRexUtil.toCnf(rexBuilder,
-      config.getConfiguration.getInteger(FlinkRexUtil.SQL_OPTIMIZER_CNF_NODES_LIMIT),
+      config.getConfiguration.getInteger(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT),
       predicate)
 
     // split the condition into time predicates and other predicates
