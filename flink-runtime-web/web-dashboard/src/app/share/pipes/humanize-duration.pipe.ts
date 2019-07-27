@@ -23,7 +23,7 @@ import { isNil } from 'utils';
   name: 'humanizeDuration'
 })
 export class HumanizeDurationPipe implements PipeTransform {
-  transform(value: number): any {
+  transform(value: number, short: boolean = false): any {
     if (isNil(value)) {
       return '-';
     } else if (value < 0) {
@@ -50,10 +50,18 @@ export class HumanizeDurationPipe implements PipeTransform {
             return `${minutes}m ${seconds}s`;
           }
         } else {
-          return `${hours}h ${minutes}m`;
+          if (short) {
+            return `${hours}h ${minutes}m`;
+          } else {
+            return `${hours}h ${minutes}m ${seconds}s`;
+          }
         }
       } else {
-        return `${days}d ${hours}h ${minutes}m`;
+        if (short) {
+          return `${days}d ${hours}h`;
+        } else {
+          return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+        }
       }
     }
   }
