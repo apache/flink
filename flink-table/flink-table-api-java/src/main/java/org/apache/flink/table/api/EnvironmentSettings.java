@@ -149,29 +149,35 @@ public class EnvironmentSettings {
 	 * A builder for {@link EnvironmentSettings}.
 	 */
 	public static class Builder {
-		private String plannerClass = null;
-		private String executorClass = null;
+		private static final String OLD_PLANNER_FACTORY = "org.apache.flink.table.planner.StreamPlannerFactory";
+		private static final String OLD_EXECUTOR_FACTORY = "org.apache.flink.table.executor.StreamExecutorFactory";
+		private static final String BLINK_PLANNER_FACTORY = "org.apache.flink.table.planner.delegation.BlinkPlannerFactory";
+		private static final String BLINK_EXECUTOR_FACTORY = "org.apache.flink.table.planner.delegation.BlinkExecutorFactory";
+
+		private String plannerClass = OLD_PLANNER_FACTORY;
+		private String executorClass = OLD_EXECUTOR_FACTORY;
 		private String builtInCatalogName = "default_catalog";
 		private String builtInDatabaseName = "default_database";
 		private boolean isStreamingMode = true;
 
 		/**
-		 * Sets the old Flink planner as the required module. By default, {@link #useAnyPlanner()} is
-		 * enabled.
+		 * Sets the old Flink planner as the required module.
+		 *
+		 * <p>This is the default behavior.
 		 */
 		public Builder useOldPlanner() {
-			this.plannerClass = "org.apache.flink.table.planner.StreamPlannerFactory";
-			this.executorClass = "org.apache.flink.table.executor.StreamExecutorFactory";
+			this.plannerClass = OLD_PLANNER_FACTORY;
+			this.executorClass = OLD_EXECUTOR_FACTORY;
 			return this;
 		}
 
 		/**
-		 * Sets the Blink planner as the required module. By default, {@link #useAnyPlanner()} is
+		 * Sets the Blink planner as the required module. By default, {@link #useOldPlanner()} is
 		 * enabled.
 		 */
 		public Builder useBlinkPlanner() {
-			this.plannerClass = "org.apache.flink.table.planner.delegation.BlinkPlannerFactory";
-			this.executorClass = "org.apache.flink.table.planner.delegation.BlinkExecutorFactory";
+			this.plannerClass = BLINK_PLANNER_FACTORY;
+			this.executorClass = BLINK_EXECUTOR_FACTORY;
 			return this;
 		}
 
@@ -180,7 +186,7 @@ public class EnvironmentSettings {
 		 *
 		 * <p>A planner will be discovered automatically, if there is only one planner available.
 		 *
-		 * <p>This is the default behavior.
+		 * <p>By default, {@link #useOldPlanner()} is enabled.
 		 */
 		public Builder useAnyPlanner() {
 			this.plannerClass = null;
