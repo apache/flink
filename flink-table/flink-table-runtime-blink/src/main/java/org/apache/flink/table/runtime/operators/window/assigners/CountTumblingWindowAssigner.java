@@ -61,7 +61,7 @@ public class CountTumblingWindowAssigner extends WindowAssigner<CountWindow> {
 		long currentCount = countValue == null ? 0L : countValue;
 		long id = currentCount / size;
 		count.update(currentCount + 1);
-		return Collections.singleton(new CountWindow(id));
+		return Collections.singleton(new CountWindow(id, size));
 	}
 
 	@Override

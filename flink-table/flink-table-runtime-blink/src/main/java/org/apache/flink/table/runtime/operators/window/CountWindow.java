@@ -30,14 +30,18 @@ import java.io.IOException;
 /**
  * A {@link Window} that represents a count window. For each count window, we will assign a unique
  * id. Thus this CountWindow can act as namespace part in state. We can attach data to each
- * different CountWindow.
+ * different CountWindow. Each CountWindow contains a triggerSize which indicates the max row count
+ * in the window.
  */
 public class CountWindow extends Window {
 
 	private final long id;
 
-	public CountWindow(long id) {
+	private final long triggerSize;
+
+	public CountWindow(long id, long triggerSize) {
 		this.id = id;
+		this.triggerSize = triggerSize;
 	}
 
 	/**
@@ -45,6 +49,10 @@ public class CountWindow extends Window {
 	 */
 	public long getId() {
 		return id;
+	}
+
+	public long getTriggerSize() {
+		return triggerSize;
 	}
 
 	@Override
@@ -63,6 +71,7 @@ public class CountWindow extends Window {
 
 		CountWindow window = (CountWindow) o;
 
+		// only compare id, we treat id as the key of a window.
 		return id == window.id;
 	}
 
@@ -73,8 +82,7 @@ public class CountWindow extends Window {
 
 	@Override
 	public String toString() {
-		return "CountWindow{" +
-			"id=" + id + '}';
+		return String.format("CountWindow{id=%s, triggerSize=%s}", id, triggerSize);
 	}
 
 	@Override
@@ -121,11 +129,12 @@ public class CountWindow extends Window {
 		@Override
 		public void serialize(CountWindow record, DataOutputView target) throws IOException {
 			target.writeLong(record.id);
+			target.writeLong(record.triggerSize);
 		}
 
 		@Override
 		public CountWindow deserialize(DataInputView source) throws IOException {
-			return new CountWindow(source.readLong());
+			return new CountWindow(source.readLong(), source.readLong());
 		}
 
 		@Override
@@ -135,6 +144,7 @@ public class CountWindow extends Window {
 
 		@Override
 		public void copy(DataInputView source, DataOutputView target) throws IOException {
+			target.writeLong(source.readLong());
 			target.writeLong(source.readLong());
 		}
 

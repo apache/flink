@@ -67,17 +67,19 @@ public class CountSlidingWindowAssigner extends WindowAssigner<CountWindow> {
 		Long countValue = count.value();
 		long currentCount = countValue == null ? 0L : countValue;
 		count.update(currentCount + 1);
-		long lastId = currentCount / windowSlide;
-		long lastStart = lastId * windowSlide;
-		long lastEnd = lastStart + windowSize - 1;
+		long windowId = currentCount / windowSlide;
+		long windowEnd = windowId * windowSlide + windowSlide - 1;
+		long windowStart = windowEnd - windowSize + 1;
 		List<CountWindow> windows = new ArrayList<>();
-		while (lastId >= 0 && lastStart <= currentCount && currentCount <= lastEnd) {
-			if (lastStart <= currentCount && currentCount <= lastEnd) {
-				windows.add(new CountWindow(lastId));
+		while ((windowStart <= currentCount) && (currentCount <= windowEnd)) {
+			if (0 > windowStart) {
+				windows.add(new CountWindow(windowId, windowSize + windowStart));
+			} else {
+				windows.add(new CountWindow(windowId, windowSize));
 			}
-			lastId--;
-			lastStart -= windowSlide;
-			lastEnd -= windowSlide;
+			windowId++;
+			windowStart += windowSlide;
+			windowEnd += windowSlide;
 		}
 		return windows;
 	}

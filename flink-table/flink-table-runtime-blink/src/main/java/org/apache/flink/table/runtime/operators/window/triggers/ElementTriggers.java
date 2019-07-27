@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
+import org.apache.flink.table.runtime.operators.window.CountWindow;
 import org.apache.flink.table.runtime.operators.window.Window;
 
 /**
@@ -45,8 +46,8 @@ public class ElementTriggers {
 	/**
 	 * Creates a trigger that fires when the pane contains at lease {@code countElems} elements.
 	 */
-	public static <W extends Window> CountElement<W> count(long countElems) {
-		return new CountElement<>(countElems);
+	public static CountElement count(long countElems) {
+		return new CountElement(countElems);
 	}
 
 	/**
@@ -103,7 +104,7 @@ public class ElementTriggers {
 	 * A {@link Trigger} that fires at some point after a specified number of
 	 * input elements have arrived.
 	 */
-	public static final class CountElement<W extends Window> extends Trigger<W> {
+	public static final class CountElement extends Trigger<CountWindow> {
 
 		private static final long serialVersionUID = -3823782971498746808L;
 
@@ -123,10 +124,10 @@ public class ElementTriggers {
 		}
 
 		@Override
-		public boolean onElement(Object element, long timestamp, W window) throws Exception {
+		public boolean onElement(Object element, long timestamp, CountWindow window) throws Exception {
 			ReducingState<Long> count = ctx.getPartitionedState(countStateDesc);
 			count.add(1L);
-			if (count.get() >= countElems) {
+			if (count.get() >= window.getTriggerSize()) {
 				count.clear();
 				return true;
 			} else {
@@ -135,17 +136,17 @@ public class ElementTriggers {
 		}
 
 		@Override
-		public boolean onProcessingTime(long time, W window) throws Exception {
+		public boolean onProcessingTime(long time, CountWindow window) throws Exception {
 			return false;
 		}
 
 		@Override
-		public boolean onEventTime(long time, W window) throws Exception {
+		public boolean onEventTime(long time, CountWindow window) throws Exception {
 			return false;
 		}
 
 		@Override
-		public void clear(W window) throws Exception {
+		public void clear(CountWindow window) throws Exception {
 			ctx.getPartitionedState(countStateDesc).clear();
 		}
 
@@ -155,7 +156,7 @@ public class ElementTriggers {
 		}
 
 		@Override
-		public void onMerge(W window, OnMergeContext mergeContext) throws Exception {
+		public void onMerge(CountWindow window, OnMergeContext mergeContext) throws Exception {
 			mergeContext.mergePartitionedState(countStateDesc);
 		}
 
