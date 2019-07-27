@@ -18,18 +18,30 @@
 
 package org.apache.flink.table.sqlexec;
 
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
-import org.apache.flink.table.api.internal.BatchTableEnvImpl;
-import org.apache.flink.table.api.java.BatchTableEnvironment;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.catalog.CatalogTable;
+import org.apache.flink.table.catalog.CatalogTableImpl;
+import org.apache.flink.table.catalog.FunctionCatalog;
+import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.TableNotExistException;
+import org.apache.flink.table.expressions.ExpressionBridge;
+import org.apache.flink.table.expressions.PlannerExpressionConverter;
 import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.planner.PlanningConfigurationBuilder;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.calcite.sql.SqlNode;
@@ -41,70 +53,48 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-/** Test cases for SqlExecutableStatement. **/
+/** Test cases for {@link SqlToOperationConverter}. **/
 public class SqlToOperationConverterTest {
-	private static final ExecutionEnvironment streamExec =
-		ExecutionEnvironment.getExecutionEnvironment();
-	private static final BatchTableEnvImpl batchEnv =
-		(BatchTableEnvImpl) BatchTableEnvironment.create(streamExec);
-
-	private static final FlinkPlannerImpl planner = batchEnv.getFlinkPlanner();
+	private final TableConfig tableConfig = new TableConfig();
+	private final Catalog catalog = new GenericInMemoryCatalog("MockCatalog",
+		"default");
+	private final CatalogManager catalogManager =
+		new CatalogManager("builtin", catalog);
+	private final FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager);
+	private final PlanningConfigurationBuilder planningConfigurationBuilder =
+		new PlanningConfigurationBuilder(tableConfig,
+			functionCatalog,
+			asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),
+			new ExpressionBridge<>(functionCatalog,
+				PlannerExpressionConverter.INSTANCE()));
 
 	@Before
-	public void before() {
-		final String ddl1 = "CREATE TABLE t1 (\n" +
-			"  a bigint,\n" +
-			"  b varchar, \n" +
-			"  c int, \n" +
-			"  d varchar\n" +
-			")\n" +
-			"  PARTITIONED BY (a, d)\n" +
-			"  with (\n" +
-			"    connector.type = 'filesystem', \n" +
-			"    connector.path = 'abc', \n" +
-			"    format.type = 'csv', \n" +
-			"    `format.fields.0.name` = 'a', \n" +
-			"    `format.fields.0.type` = 'BIGINT', \n" +
-			"    `format.fields.1.name` = 'b', \n" +
-			"    `format.fields.1.type` = 'VARCHAR', \n" +
-			"    `format.fields.2.name` = 'c', \n" +
-			"    `format.fields.2.type` = 'INT', \n" +
-			"    `format.fields.3.name` = 'd', \n" +
-			"    `format.fields.3.type` = 'VARCHAR'\n" +
-			")\n";
-		final String ddl2 = "CREATE TABLE t2 (\n" +
-			"  a bigint,\n" +
-			"  b varchar, \n" +
-			"  c int, \n" +
-			"  d varchar\n" +
-			")\n" +
-			"  PARTITIONED BY (a, d)\n" +
-			"  with (\n" +
-			"    connector.type = 'filesystem', \n" +
-			"    connector.path = 'abc', \n" +
-			"    format.type = 'csv', \n" +
-			"    `format.fields.0.name` = 'a', \n" +
-			"    `format.fields.0.type` = 'BIGINT', \n" +
-			"    `format.fields.1.name` = 'b', \n" +
-			"    `format.fields.1.type` = 'VARCHAR', \n" +
-			"    `format.fields.2.name` = 'c', \n" +
-			"    `format.fields.2.type` = 'INT', \n" +
-			"    `format.fields.3.name` = 'd', \n" +
-			"    `format.fields.3.type` = 'VARCHAR'\n" +
-			")\n";
-		batchEnv.sqlUpdate(ddl1);
-		batchEnv.sqlUpdate(ddl2);
+	public void before() throws TableAlreadyExistException, DatabaseNotExistException {
+		final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
+		final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
+		final TableSchema tableSchema = TableSchema.builder()
+			.field("a", DataTypes.BIGINT())
+			.field("b", DataTypes.VARCHAR(Integer.MAX_VALUE))
+			.field("c", DataTypes.INT())
+			.field("d", DataTypes.VARCHAR(Integer.MAX_VALUE))
+			.build();
+		Map<String, String> properties = new HashMap<>();
+		properties.put("connector", "COLLECTION");
+		final CatalogTable catalogTable =  new CatalogTableImpl(tableSchema, properties, "");
+		catalog.createTable(path1, catalogTable, true);
+		catalog.createTable(path2, catalogTable, true);
 	}
 
 	@After
-	public void after() {
-		final String ddl1 = "DROP TABLE IF EXISTS t1";
-		final String ddl2 = "DROP TABLE IF EXISTS t2";
-		batchEnv.sqlUpdate(ddl1);
-		batchEnv.sqlUpdate(ddl2);
+	public void after() throws TableNotExistException {
+		final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
+		final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
+		catalog.dropTable(path1, true);
+		catalog.dropTable(path2, true);
 	}
 
 	@Test
@@ -120,6 +110,7 @@ public class SqlToOperationConverterTest {
 			"    connector = 'kafka', \n" +
 			"    kafka.topic = 'log.test'\n" +
 			")\n";
+		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
 		SqlNode node = planner.parse(sql);
 		assert node instanceof SqlCreateTable;
 		Operation operation = SqlToOperationConverter.convert(planner, node);
@@ -152,6 +143,7 @@ public class SqlToOperationConverterTest {
 			"    connector = 'kafka', \n" +
 			"    kafka.topic = 'log.test'\n" +
 			")\n";
+		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
 		SqlNode node = planner.parse(sql);
 		assert node instanceof SqlCreateTable;
 		SqlToOperationConverter.convert(planner, node);
@@ -172,7 +164,8 @@ public class SqlToOperationConverterTest {
 	}
 
 	private FlinkPlannerImpl getPlannerBySqlDialect(SqlDialect sqlDialect) {
-		batchEnv.getConfig().setSqlDialect(sqlDialect);
-		return batchEnv.getFlinkPlanner();
+		tableConfig.setSqlDialect(sqlDialect);
+		return planningConfigurationBuilder.createFlinkPlanner(catalogManager.getCurrentCatalog(),
+			catalogManager.getCurrentDatabase());
 	}
 }

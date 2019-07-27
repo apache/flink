@@ -23,12 +23,11 @@ import org.apache.flink.annotation.PublicEvolving;
 /**
  * Enumeration of valid SQL compatibility modes.
  *
- * <p>For most of the cases, the built-in compatibility mode will suffice. For some features,
- * i.e. the "insert into t partition(...) ..." grammar is only supported in Hive dialect,
- * you may need
- * to switch to the Hive dialect if that is your purpose.
+ * <p>In most of the cases, the built-in compatibility mode will suffice. For some features,
+ * i.e. the "create partitionable table" grammar is only supported in Hive dialect, you may need
+ * to switch to the Hive dialect if required.
  *
- * <p>There may introduce other sql dialects in the future.
+ * <p>We may introduce other sql dialects in the future.
  */
 @PublicEvolving
 public enum SqlDialect {
@@ -37,7 +36,9 @@ public enum SqlDialect {
 	 */
 	DEFAULT,
 	/**
-	 * SQL dialect that allows some Apache HIVE specific grammar.
+	 * SQL dialect that allows some Apache Hive specific grammar.
+	 * Note: We might never support all of the Hive grammar.
+	 * See the documentation for supported features.
 	 */
 	HIVE
 }

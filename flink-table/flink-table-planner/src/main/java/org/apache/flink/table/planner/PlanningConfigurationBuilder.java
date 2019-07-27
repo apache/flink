@@ -23,6 +23,7 @@ import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.calcite.CalciteConfig;
 import org.apache.flink.table.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.calcite.FlinkRelBuilder;
@@ -169,7 +170,7 @@ public class PlanningConfigurationBuilder {
 		case DEFAULT:
 			return FlinkSqlConformance.DEFAULT;
 		default:
-			return FlinkSqlConformance.DEFAULT;
+			throw new TableException("Unsupported sql dialect " + sqlDialect + ".");
 		}
 	}
 

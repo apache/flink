@@ -24,11 +24,11 @@ class SqlDialect(object):
     """
     Enumeration of valid SQL compatibility modes.
 
-    For most of the cases, the built-in compatibility mode will suffice. For some features,
+    In most of the cases, the built-in compatibility mode will suffice. For some features,
     i.e. the "create partitionable table" grammar is only supported in Hive dialect, you may need
     to switch to the Hive dialect if that is your purpose.
 
-    There may introduce other sql dialects in the future.
+    We may introduce other sql dialects in the future.
 
     :data:`DEFAULT`:
 
@@ -36,7 +36,9 @@ class SqlDialect(object):
 
     :data:`HIVE`:
 
-    SQL dialect that allows some Apache HIVE specific grammar.
+    SQL dialect that allows some Apache Hive specific grammar.
+    Note: We might never support all of the Hive grammar.
+    See the documentation for supported features.
     """
 
     DEFAULT = 0

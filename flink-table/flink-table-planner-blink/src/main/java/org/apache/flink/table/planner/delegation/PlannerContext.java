@@ -23,6 +23,7 @@ import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
@@ -212,7 +213,7 @@ public class PlannerContext {
 		case DEFAULT:
 			return FlinkSqlConformance.DEFAULT;
 		default:
-			return FlinkSqlConformance.DEFAULT;
+			throw new TableException("Unsupported sql dialect " + sqlDialect + ".");
 		}
 	}
 
