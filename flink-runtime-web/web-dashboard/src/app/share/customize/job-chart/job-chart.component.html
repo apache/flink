@@ -21,13 +21,20 @@
     <div class="text">{{title}}</div>
     <div class="operate">
       <nz-button-group [nzSize]="'small'">
-        <button nz-button [nzType]="size==='big'?'primary':'default'" (click)="resize('big')">Big</button>
-        <button nz-button [nzType]="size==='small'?'primary':'default'" (click)="resize('small')">Small</button>
+        <button nz-button [nzType]="size === 'big' ? 'primary' : 'default'" (click)="resize('big')">Big</button>
+        <button nz-button [nzType]="size === 'small' ? 'primary' : 'default'" (click)="resize('small')">Small</button>
       </nz-button-group>
       <button nz-button class="close" [nzSize]="'small'" (click)="close()"><i nz-icon type="close" theme="outline"></i></button>
     </div>
   </div>
   <div class="content">
-    <div #chart></div>
+    <div [hidden]="displayMode === 'numeric'" #chart></div>
+    <div class="numeric" [hidden]="displayMode === 'chart'">{{latestValue | humanizeChartNumeric:title}}</div>
+    <div class="type-switch">
+      <nz-button-group [nzSize]="'small'">
+        <button nz-button [nzType]="displayMode === 'chart' ? 'primary' : 'default'" (click)="setMode('chart')">Chart</button>
+        <button nz-button [nzType]="displayMode === 'numeric' ? 'primary' : 'default'" (click)="setMode('numeric')">Numeric</button>
+      </nz-button-group>
+    </div>
   </div>
 </div>

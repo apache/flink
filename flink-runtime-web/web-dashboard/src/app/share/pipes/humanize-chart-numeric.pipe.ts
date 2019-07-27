@@ -16,23 +16,31 @@
  * limitations under the License.
  */
 
-import { NgModule } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { HumanizeBytesPipe } from 'share/pipes/humanize-bytes.pipe';
-import { HumanizeWatermarkPipe } from 'share/pipes/humanize-watermark.pipe';
+import { Pipe, PipeTransform } from '@angular/core';
+import { isNil } from 'utils';
+import { HumanizeBytesPipe } from './humanize-bytes.pipe';
 import { HumanizeDurationPipe } from './humanize-duration.pipe';
-import { HumanizeDatePipe } from './humanize-date.pipe';
-import { HumanizeChartNumericPipe } from './humanize-chart-numeric.pipe';
 
-@NgModule({
-  imports: [CommonModule],
-  declarations: [
-    HumanizeDurationPipe,
-    HumanizeDatePipe,
-    HumanizeBytesPipe,
-    HumanizeWatermarkPipe,
-    HumanizeChartNumericPipe
-  ],
-  exports: [HumanizeDurationPipe, HumanizeDatePipe, HumanizeBytesPipe, HumanizeWatermarkPipe, HumanizeChartNumericPipe]
+@Pipe({
+  name: 'humanizeChartNumeric'
 })
-export class PipeModule {}
+export class HumanizeChartNumericPipe implements PipeTransform {
+  transform(value: number, id: string): string {
+    if (isNil(value)) {
+      return '-';
+    }
+    let returnVal = '';
+    if (/bytes/i.test(id) && /persecond/i.test(id)) {
+      returnVal = new HumanizeBytesPipe().transform(value) + ' / s';
+    } else if (/bytes/i.test(id)) {
+      returnVal = new HumanizeBytesPipe().transform(value);
+    } else if (/persecond/i.test(id)) {
+      returnVal = value + ' / s';
+    } else if (/time/i.test(id) || /latency/i.test(id)) {
+      returnVal = new HumanizeDurationPipe().transform(value, true);
+    } else {
+      returnVal = `${value}`;
+    }
+    return returnVal;
+  }
+}
