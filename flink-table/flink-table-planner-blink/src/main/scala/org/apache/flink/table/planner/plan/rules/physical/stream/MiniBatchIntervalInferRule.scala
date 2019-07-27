@@ -37,7 +37,7 @@ import scala.collection.JavaConversions._
   * 1. supports operators which supports mini-batch and does not require watermark, e.g.
   * group aggregate. In this case, [[StreamExecWatermarkAssigner]] with Protime mode will be
   * created if not exist, and the interval value will be set as
-  * [[ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY]].
+  * [[ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY]].
   * 2. supports operators which requires watermark, e.g. window join, window aggregate.
   * In this case, [[StreamExecWatermarkAssigner]] already exists, and its MiniBatchIntervalTrait
   * will be updated as the merged intervals from its outputs.
@@ -65,7 +65,7 @@ class MiniBatchIntervalInferRule extends RelOptRule(
     val inputs = getInputs(rel)
     val config = FlinkRelOptUtil.getTableConfigFromContext(rel)
     val miniBatchEnabled = config.getConfiguration.getBoolean(
-      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
 
     val updatedTrait = rel match {
       case _: StreamExecGroupWindowAggregate =>

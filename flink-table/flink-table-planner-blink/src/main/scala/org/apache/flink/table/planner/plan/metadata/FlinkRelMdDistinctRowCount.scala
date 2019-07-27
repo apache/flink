@@ -205,7 +205,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       val rexBuilder = rel.getCluster.getRexBuilder
       val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(rel)
       val maxCnfNodeCount = tableConfig.getConfiguration.getInteger(
-        FlinkRexUtil.SQL_OPTIMIZER_CNF_NODES_LIMIT)
+        FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
       val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, predicate)
       val conjunctions = RelOptUtil.conjunctions(cnf)
       val conjunctionsWithoutExpandId = conjunctions.filterNot { c =>

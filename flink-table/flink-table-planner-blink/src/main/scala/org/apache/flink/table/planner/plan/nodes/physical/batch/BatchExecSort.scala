@@ -32,12 +32,12 @@ import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, RelExplainUtil, SortUtil}
 import org.apache.flink.table.runtime.operators.sort.SortOperator
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
-
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.configuration.MemorySize
 
 import java.util
 
@@ -116,8 +116,9 @@ class BatchExecSort(
     val keyTypes = keys.map(inputType.getTypeAt)
     val codeGen = new SortCodeGenerator(conf, keys, keyTypes, orders, nullsIsLast)
 
-    val managedMemoryInMB = conf.getConfiguration.getInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM)
+    val memText = conf.getConfiguration.getString(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
+    val managedMemoryInMB = MemorySize.parse(memText).getMebiBytes
     val managedMemory = managedMemoryInMB * NodeResourceUtil.SIZE_IN_MB
 
     val operator = new SortOperator(

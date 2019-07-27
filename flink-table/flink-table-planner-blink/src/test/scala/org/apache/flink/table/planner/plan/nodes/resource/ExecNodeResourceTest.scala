@@ -81,7 +81,7 @@ class ExecNodeResourceTest(isBatchMode: Boolean) extends TableTestBase {
   @Test
   def testConfigSourceParallelism(): Unit = {
     testUtil.tableEnv.getConfig.getConfiguration.setInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_SOURCE_PARALLELISM, 100)
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SOURCE_PARALLELISM, 100)
     val sqlQuery = "SELECT sum(a) as sum_a, c FROM table3 group by c order by c limit 2"
     testUtil.verifyResource(sqlQuery)
   }
@@ -116,7 +116,7 @@ class ExecNodeResourceTest(isBatchMode: Boolean) extends TableTestBase {
   @Test
   def testSinkConfigParallelism(): Unit = {
     testUtil.tableEnv.getConfig.getConfiguration.setInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_SINK_PARALLELISM,
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SINK_PARALLELISM,
       25
     )
     val sqlQuery = "SELECT * FROM table3"
@@ -132,7 +132,7 @@ class ExecNodeResourceTest(isBatchMode: Boolean) extends TableTestBase {
   @Test
   def testSinkConfigParallelismWhenMax1(): Unit = {
     testUtil.tableEnv.getConfig.getConfiguration.setInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_SINK_PARALLELISM,
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SINK_PARALLELISM,
       25
     )
     val sqlQuery = "SELECT * FROM table3"
@@ -148,7 +148,7 @@ class ExecNodeResourceTest(isBatchMode: Boolean) extends TableTestBase {
   @Test
   def testSinkConfigParallelismWhenMax2(): Unit = {
     testUtil.tableEnv.getConfig.getConfiguration.setInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_SINK_PARALLELISM,
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SINK_PARALLELISM,
       25
     )
     val sqlQuery = "SELECT * FROM table3"
@@ -174,7 +174,7 @@ object ExecNodeResourceTest {
 
   def setResourceConfig(tableConfig: TableConfig): Unit = {
     tableConfig.getConfiguration.setInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM,
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM,
       18)
   }
 }

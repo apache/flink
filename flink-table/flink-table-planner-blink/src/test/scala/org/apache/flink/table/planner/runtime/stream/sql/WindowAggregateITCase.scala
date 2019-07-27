@@ -25,7 +25,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableConfig, Types}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.{ConcatDistinctAggFunction, WeightedAvg}
-import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{SQL_EXEC_EMIT_LATE_FIRE_DELAY, SQL_EXEC_EMIT_LATE_FIRE_ENABLED}
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_LATE_FIRE_DELAY, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.TimestampAndWatermarkWithOffset
 import org.apache.flink.table.planner.runtime.utils._
@@ -254,13 +254,14 @@ class WindowAggregateITCase(mode: StateBackendMode)
   private def withLateFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
     val intervalInMillis = interval.toMilliseconds
     val preLateFireInterval = getMillisecondFromConfigDuration(tableConfig,
-      SQL_EXEC_EMIT_LATE_FIRE_DELAY)
+      TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
     if (preLateFireInterval != null && (preLateFireInterval != intervalInMillis)) {
       // lateFireInterval of the two query config is not equal and not the default
       throw new RuntimeException(
         "Currently not support different lateFireInterval configs in one job")
     }
-    tableConfig.getConfiguration.setBoolean(SQL_EXEC_EMIT_LATE_FIRE_ENABLED, true)
-    tableConfig.getConfiguration.setString(SQL_EXEC_EMIT_LATE_FIRE_DELAY, intervalInMillis + " ms")
+    tableConfig.getConfiguration.setBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED, true)
+    tableConfig.getConfiguration.setString(
+      TABLE_EXEC_EMIT_LATE_FIRE_DELAY, intervalInMillis + " ms")
   }
 }

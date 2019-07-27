@@ -110,7 +110,7 @@ class BatchExecSortMergeJoinRule
 
     val tableConfig = call.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
     val candidates = if (tableConfig.getConfiguration.getBoolean(
-      BatchExecSortMergeJoinRule.SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED)) {
+      BatchExecSortMergeJoinRule.TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED)) {
       // add more possibility to remove redundant sort, and longer optimization time
       Array((false, false), (true, false), (false, true), (true, true))
     } else {
@@ -128,7 +128,7 @@ class BatchExecSortMergeJoinRule
 
     // add more possibility to only shuffle by partial joinKeys, now only single one
     val isShuffleByPartialKeyEnabled = tableConfig.getConfiguration.getBoolean(
-      BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)
+      BatchExecJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
     if (isShuffleByPartialKeyEnabled && joinInfo.pairs().length > 1) {
       joinInfo.pairs().foreach { pair =>
         // sort require full key not partial key,
@@ -148,10 +148,10 @@ object BatchExecSortMergeJoinRule {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED: ConfigOption[JBoolean] =
-    key("sql.optimizer.sort-merge-join.remove-sort.enabled")
+  val TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED: ConfigOption[JBoolean] =
+    key("table.optimizer.smj.remove-sort-enabled")
         .defaultValue(JBoolean.FALSE)
         .withDescription("When true, the optimizer will try to remove redundant sort " +
-            "for SortMergeJoin. However that will increase optimization time. " +
+            "for sort merge join. However that will increase optimization time. " +
             "Default value is false.")
 }

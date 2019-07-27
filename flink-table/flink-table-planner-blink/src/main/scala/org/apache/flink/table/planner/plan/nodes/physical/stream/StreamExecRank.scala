@@ -154,7 +154,7 @@ class StreamExecRank(
     val sortKeyComparator = ComparatorCodeGenerator.gen(tableConfig, "StreamExecSortComparator",
       sortFields.indices.toArray, sortKeyType.getLogicalTypes, sortDirections, nullsIsLast)
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
-    val cacheSize = tableConfig.getConfiguration.getLong(StreamExecRank.SQL_EXEC_TOPN_CACHE_SIZE)
+    val cacheSize = tableConfig.getConfiguration.getLong(StreamExecRank.TABLE_EXEC_TOPN_CACHE_SIZE)
     val minIdleStateRetentionTime = tableConfig.getMinIdleStateRetentionTime
     val maxIdleStateRetentionTime = tableConfig.getMaxIdleStateRetentionTime
 
@@ -246,8 +246,8 @@ object StreamExecRank {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_EXEC_TOPN_CACHE_SIZE: ConfigOption[JLong] =
-  key("sql.exec.topn.cache.size")
+  val TABLE_EXEC_TOPN_CACHE_SIZE: ConfigOption[JLong] =
+  key("table.exec.topn.cache-size")
       .defaultValue(JLong.valueOf(10000L))
       .withDescription("TopN operator has a cache which caches partial state contents to reduce" +
           " state access. Cache size is the number of records in each TopN task.")
