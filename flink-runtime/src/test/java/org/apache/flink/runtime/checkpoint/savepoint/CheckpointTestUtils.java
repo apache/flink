@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint.savepoint;
 
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.MasterState;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -36,9 +37,16 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsSegmentStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.util.StringUtils;
 
+import org.junit.rules.TemporaryFolder;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -59,17 +67,11 @@ public class CheckpointTestUtils {
 	/**
 	 * Creates a random collection of OperatorState objects containing various types of state handles.
 	 */
-	public static Collection<OperatorState> createOperatorStates(int numTaskStates, int numSubtasksPerTask) {
-		return createOperatorStates(new Random(), numTaskStates, numSubtasksPerTask);
-	}
-
-	/**
-	 * Creates a random collection of OperatorState objects containing various types of state handles.
-	 */
 	public static Collection<OperatorState> createOperatorStates(
 			Random random,
 			int numTaskStates,
-			int numSubtasksPerTask) {
+			int numSubtasksPerTask,
+			TemporaryFolder temporaryFolder) throws IOException {
 
 		List<OperatorState> taskStates = new ArrayList<>(numTaskStates);
 
@@ -83,6 +85,7 @@ public class CheckpointTestUtils {
 			boolean hasKeyedBackend = random.nextInt(4) != 0;
 			boolean hasKeyedStream = random.nextInt(4) != 0;
 			boolean isIncremental = random.nextInt(3) == 0;
+			boolean isSegment = random.nextInt(3) == 0;
 
 			for (int subtaskIdx = 0; subtaskIdx < numSubtasksPerTask; subtaskIdx++) {
 
@@ -112,7 +115,11 @@ public class CheckpointTestUtils {
 
 				if (hasKeyedBackend) {
 					if (isIncremental) {
-						keyedStateBackend = createDummyIncrementalKeyedStateHandle(random);
+						if (isSegment) {
+							keyedStateBackend = createDummyIncrementalSegmentKeyedStateHanlde(random, temporaryFolder);
+						} else {
+							keyedStateBackend = createDummyIncrementalKeyedStateHandle(random);
+						}
 					} else {
 						keyedStateBackend = createDummyKeyGroupStateHandle(random);
 					}
@@ -254,6 +261,15 @@ public class CheckpointTestUtils {
 	/** utility class, not meant to be instantiated */
 	private CheckpointTestUtils() {}
 
+	public static IncrementalRemoteKeyedStateHandle createDummyIncrementalSegmentKeyedStateHanlde(Random rnd, TemporaryFolder temporaryFolder) throws IOException {
+		return new IncrementalRemoteKeyedStateHandle(
+			createRandomUUID(rnd),
+			new KeyGroupRange(1, 1),
+			42L,
+			createRandomStateHandleMap(rnd),
+			createRandomStateHandleMap(rnd),
+			createDummySegmentStreamStateHandle(rnd, temporaryFolder));
+	}
 
 	public static IncrementalRemoteKeyedStateHandle createDummyIncrementalKeyedStateHandle(Random rnd) {
 		return new IncrementalRemoteKeyedStateHandle(
@@ -287,6 +303,23 @@ public class CheckpointTestUtils {
 		return new ByteStreamStateHandle(
 			String.valueOf(createRandomUUID(rnd)),
 			String.valueOf(createRandomUUID(rnd)).getBytes(ConfigConstants.DEFAULT_CHARSET));
+	}
+
+	public static StreamStateHandle createDummySegmentStreamStateHandle(Random rnd, TemporaryFolder temporaryFolder) throws IOException {
+		File file = temporaryFolder.newFile();
+
+		byte[] data = new byte[rnd.nextInt(1024) + 16];
+		rnd.nextBytes(data);
+
+		try (OutputStream out = new FileOutputStream(file)) {
+			out.write(data);
+		}
+
+		long fileLength = file.length();
+		long mid = fileLength / 2;
+		long startPos = (rnd.nextLong() % mid + mid - 1) % mid;
+		long endPos = startPos + mid;
+		return new FsSegmentStateHandle(Path.fromLocalFile(file), startPos, endPos);
 	}
 
 	private static UUID createRandomUUID(Random rnd) {
