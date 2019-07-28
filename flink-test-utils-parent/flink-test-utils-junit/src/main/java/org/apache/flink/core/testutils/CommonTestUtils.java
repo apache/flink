@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.testutils;
 
+import javax.annotation.Nullable;
+
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -26,13 +28,19 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Field;
-import java.security.CodeSource;
-import java.security.Permissions;
-import java.security.ProtectionDomain;
-import java.security.cert.Certificate;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * This class contains reusable utility methods for unit tests.
@@ -150,32 +158,92 @@ public class CommonTestUtils {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Creates a new class that is not part of the classpath that the current JVM uses, and
-	 * instantiates it.
-	 *
-	 * <p>This method uses {@link #createClassNotInClassPath(ClassLoader)} to define the new class.
-	 *
-	 * @param targetClassLoader The class loader to attach the class to
-	 * @return The object instantiated from the newly defined class.
+	 * A new object and the corresponding ClassLoader for that object, as returned by
+	 * {@link #createObjectFromNewClassLoader(ClassLoader)}.
 	 */
-	public static Serializable createObjectForClassNotInClassPath(ClassLoader targetClassLoader) {
-		try {
-			Class<? extends Serializable> clazz = createClassNotInClassPath(targetClassLoader);
-			return clazz.newInstance();
+	public static final class ObjectAndClassLoader {
+
+		private final Serializable object;
+		private final ClassLoader classLoader;
+
+		private ObjectAndClassLoader(Serializable object, ClassLoader classLoader) {
+			this.object = object;
+			this.classLoader = classLoader;
 		}
-		catch (Exception e) {
-			throw new AssertionError("test setup broken", e);
+
+		public ClassLoader getClassLoader() {
+			return classLoader;
+		}
+
+		public Serializable getObject() {
+			return object;
 		}
 	}
 
 	/**
-	 * Creates a new class that is not part of the classpath that the current JVM uses.
-	 * The class is ad-hoc defined and attached to the given ClassLoader.
+	 * Creates a new ClassLoader and a new class inside that ClassLoader.
+	 * This is useful when unit testing the class loading behavior of code, and needing a class that
+	 * is outside the system class path.
 	 *
-	 * @param targetClassLoader The class loader to attach the class to
-	 * @return The newly defined class
+	 * <p>This method behaves like {@code createObjectFromNewClassLoader(ClassLoader.getSystemClassLoader())}.
 	 */
-	public static Class<? extends Serializable> createClassNotInClassPath(ClassLoader targetClassLoader) {
+	public static ObjectAndClassLoader createObjectFromNewClassLoader() {
+		return createObjectFromNewClassLoader(ClassLoader.getSystemClassLoader());
+	}
+
+	/**
+	 * Creates a new ClassLoader and a new class inside that ClassLoader.
+	 * This is useful when unit testing the class loading behavior of code, and needing a class that
+	 * is outside the system class path.
+	 *
+	 * <p>NOTE: Even though this method may throw IOExceptions, we do not declare those and rather
+	 * wrap them in Runtime Exceptions. While this is generally discouraged, we do this here because it
+	 * is merely a test utility and not production code, and it makes it easier to use this method
+	 * during the initialization of variables and especially static variables.
+	 *
+	 * @param parentClassLoader The parent class loader used for the newly created class loader.
+	 */
+	public static ObjectAndClassLoader createObjectFromNewClassLoader(@Nullable ClassLoader parentClassLoader) {
+		final String testClassName = "org.apache.flink.TestSerializable";
+		final String testClassFile = testClassName.replace('.', '/') + ".class";
+
+		final Path classDirPath = new File(System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString()).toPath();
+		final Path classFilePath = classDirPath.resolve(testClassFile);
+
+		URLClassLoader classLoader = null;
+		try {
+			Files.createDirectories(classFilePath.getParent());
+			writeClassFile(classFilePath);
+
+			final URL[] classPath = new URL[] {classDirPath.toUri().toURL()};
+			classLoader = parentClassLoader == null ?
+				new URLClassLoader(classPath) :
+				new URLClassLoader(classPath, parentClassLoader);
+
+			final Class<?> clazz = classLoader.loadClass(testClassName);
+			final Serializable object = clazz.asSubclass(Serializable.class).newInstance();
+
+			return new ObjectAndClassLoader(object, classLoader);
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Cannot create test class outside system class path", e);
+		}
+		finally {
+			// we clean up eagerly, because it is fine to delete the class file once the class is loaded
+			// and we have no later life cycle hook here to do the cleanup
+			tryClose(classLoader);
+			tryDeleteDirectoryRecursively(classDirPath);
+		}
+	}
+
+	private static void writeClassFile(Path path) throws IOException {
+		// this is the byte code of the following simple class:
+		// ----------------------------------------------------------------------
+		// package org.apache.flink;
+		//
+		// public class TestSerializable implements java.io.Serializable {}
+		// ----------------------------------------------------------------------
+
 		final byte[] classData = {-54, -2, -70, -66, 0, 0, 0, 51, 0, 65, 10, 0, 15, 0, 43, 7, 0, 44,
 				10, 0, 2, 0, 43, 10, 0, 2, 0, 45, 9, 0, 7, 0, 46, 10, 0, 15, 0, 47, 7, 0, 48, 7, 0,
 				49, 10, 0, 8, 0, 43, 8, 0, 50, 10, 0, 8, 0, 51, 10, 0, 8, 0, 52, 10, 0, 8, 0, 53, 10,
@@ -230,37 +298,8 @@ public class CommonTestUtils {
 				-80, 0, 0, 0, 2, 0, 26, 0, 0, 0, 6, 0, 1, 0, 0, 0, 51, 0, 27, 0, 0, 0, 12, 0, 1, 0, 0, 0, 28,
 				0, 28, 0, 29, 0, 0, 0, 1, 0, 41, 0, 0, 0, 2, 0, 42};
 
-		try {
-			// define a class into the classloader
-			Class<?> clazz = getUnsafe().defineClass(
-					"org.apache.flink.TestSerializable",
-					classData, 0, classData.length,
-					targetClassLoader,
-					new ProtectionDomain(new CodeSource(null, (Certificate[]) null), new Permissions()));
-
-			return clazz.asSubclass(Serializable.class);
-		}
-		catch (Exception e) {
-			throw new AssertionError("test setup broken", e);
-		}
-	}
-
-	@SuppressWarnings("restriction")
-	private static sun.misc.Unsafe getUnsafe() {
-		try {
-			Field unsafeField = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
-			unsafeField.setAccessible(true);
-			return (sun.misc.Unsafe) unsafeField.get(null);
-		} catch (SecurityException e) {
-			throw new RuntimeException("Could not access the sun.misc.Unsafe handle, permission denied by security manager.", e);
-		} catch (NoSuchFieldException e) {
-			throw new RuntimeException("The static handle field in sun.misc.Unsafe was not found.");
-		} catch (IllegalArgumentException e) {
-			throw new RuntimeException("Bug: Illegal argument reflection access for static field.", e);
-		} catch (IllegalAccessException e) {
-			throw new RuntimeException("Access to sun.misc.Unsafe is forbidden by the runtime.", e);
-		} catch (Throwable t) {
-			throw new RuntimeException("Unclassified error while trying to access the sun.misc.Unsafe handle.", t);
+		try (OutputStream out = Files.newOutputStream(path, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+			out.write(classData);
 		}
 	}
 
@@ -284,5 +323,39 @@ public class CommonTestUtils {
 		}
 
 		return false;
+	}
+
+	// ------------------------------------------------------------------------
+	//  miscellaneous utils
+	// ------------------------------------------------------------------------
+
+	private static void tryClose(@Nullable AutoCloseable closeable) {
+		if (closeable != null) {
+			try {
+				closeable.close();
+			}
+			catch (Exception ignored) {}
+		}
+	}
+
+	private static void tryDeleteDirectoryRecursively(Path directory) {
+		final SimpleFileVisitor<Path> deletingVisitor = new SimpleFileVisitor<Path>() {
+			@Override
+			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+				Files.delete(file);
+				return FileVisitResult.CONTINUE;
+			}
+
+			@Override
+			public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+				Files.delete(dir);
+				return FileVisitResult.CONTINUE;
+			}
+		};
+
+		try {
+			Files.walkFileTree(directory, deletingVisitor);
+		}
+		catch (Exception ignored) {}
 	}
 }
