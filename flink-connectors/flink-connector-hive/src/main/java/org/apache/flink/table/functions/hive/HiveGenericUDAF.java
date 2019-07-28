@@ -20,6 +20,7 @@ package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
@@ -211,17 +212,7 @@ public class HiveGenericUDAF
 	}
 
 	@Override
-	public TypeInformation getAccumulatorType() {
-		try {
-			if (!initialized) {
-				init();
-			}
-
-			return LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(
-				HiveTypeUtil.toFlinkType(partialResultObjectInspector));
-		} catch (Exception e) {
-			throw new FlinkHiveUDFException(
-				String.format("Failed to get Hive accumulator type from %s", hiveFunctionWrapper.getClassName()), e);
-		}
+	public TypeInformation<GenericUDAFEvaluator.AggregationBuffer> getAccumulatorType() {
+		return new GenericTypeInfo<>(GenericUDAFEvaluator.AggregationBuffer.class);
 	}
 }
