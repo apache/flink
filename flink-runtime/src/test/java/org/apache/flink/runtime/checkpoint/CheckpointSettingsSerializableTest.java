@@ -57,8 +57,6 @@ import org.junit.Test;
 import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.Collection;
 import java.util.Collections;
 
@@ -75,8 +73,9 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 
 	@Test
 	public void testDeserializationOfUserCodeWithUserClassLoader() throws Exception {
-		final ClassLoader classLoader = new URLClassLoader(new URL[0], getClass().getClassLoader());
-		final Serializable outOfClassPath = CommonTestUtils.createObjectForClassNotInClassPath(classLoader);
+		final CommonTestUtils.ObjectAndClassLoader outsideClassLoading = CommonTestUtils.createObjectFromNewClassLoader();
+		final ClassLoader classLoader = outsideClassLoading.getClassLoader();
+		final Serializable outOfClassPath = outsideClassLoading.getObject();
 
 		final MasterTriggerRestoreHook.Factory[] hooks = {
 				new TestFactory(outOfClassPath) };
