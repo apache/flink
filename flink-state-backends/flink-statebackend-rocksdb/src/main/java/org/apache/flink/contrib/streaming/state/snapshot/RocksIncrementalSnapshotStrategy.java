@@ -69,7 +69,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.SortedMap;
 import java.util.UUID;
 import java.util.concurrent.RunnableFuture;
@@ -98,7 +97,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 
 	/** Stores the materialized sstable files from all snapshots that build the incremental history. */
 	@Nonnull
-	private final SortedMap<Long, Set<StateHandleID>> materializedSstFiles;
+	private final SortedMap<Long, Map<StateHandleID, StreamStateHandle>> materializedSstFiles;
 
 	/** The identifier of the last completed checkpoint. */
 	private long lastCompletedCheckpointId;
@@ -120,7 +119,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		@Nonnull CloseableRegistry cancelStreamRegistry,
 		@Nonnull File instanceBasePath,
 		@Nonnull UUID backendUID,
-		@Nonnull SortedMap<Long, Set<StateHandleID>> materializedSstFiles,
+		@Nonnull SortedMap<Long, Map<StateHandleID, StreamStateHandle>> materializedSstFiles,
 		long lastCompletedCheckpointId,
 		int numberOfTransferingThreads) {
 
@@ -155,7 +154,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		LOG.trace("Local RocksDB checkpoint goes to backup path {}.", snapshotDirectory);
 
 		final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots = new ArrayList<>(kvStateInformation.size());
-		final Set<StateHandleID> baseSstFiles = snapshotMetaData(checkpointId, stateMetaInfoSnapshots);
+		final Map<StateHandleID, StreamStateHandle> baseSstFiles = snapshotMetaData(checkpointId, stateMetaInfoSnapshots);
 
 		takeDBNativeCheckpoint(snapshotDirectory);
 
@@ -219,12 +218,12 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		}
 	}
 
-	private Set<StateHandleID> snapshotMetaData(
+	private Map<StateHandleID, StreamStateHandle> snapshotMetaData(
 		long checkpointId,
 		@Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) {
 
 		final long lastCompletedCheckpoint;
-		final Set<StateHandleID> baseSstFiles;
+		final Map<StateHandleID, StreamStateHandle> baseSstFiles;
 
 		// use the last completed checkpoint as the comparison base.
 		synchronized (materializedSstFiles) {
@@ -280,13 +279,13 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 
 		/** All sst files that were part of the last previously completed checkpoint. */
 		@Nullable
-		private final Set<StateHandleID> baseSstFiles;
+		private final Map<StateHandleID, StreamStateHandle> baseSstFiles;
 
 		private RocksDBIncrementalSnapshotOperation(
 			long checkpointId,
 			@Nonnull CheckpointStreamFactory checkpointStreamFactory,
 			@Nonnull SnapshotDirectory localBackupDirectory,
-			@Nullable Set<StateHandleID> baseSstFiles,
+			@Nullable Map<StateHandleID, StreamStateHandle> baseSstFiles,
 			@Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) {
 
 			this.checkpointStreamFactory = checkpointStreamFactory;
@@ -320,7 +319,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 				uploadSstFiles(sstFiles, miscFiles);
 
 				synchronized (materializedSstFiles) {
-					materializedSstFiles.put(checkpointId, sstFiles.keySet());
+					materializedSstFiles.put(checkpointId, sstFiles);
 				}
 
 				final IncrementalRemoteKeyedStateHandle jmIncrementalKeyedStateHandle =
@@ -343,7 +342,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 							directoryStateHandle,
 							keyGroupRange,
 							metaStateHandle.getTaskLocalSnapshot(),
-							sstFiles.keySet());
+							sstFiles);
 
 					snapshotResult = SnapshotResult.withLocalState(jmIncrementalKeyedStateHandle, localDirKeyedStateHandle);
 				} else {
@@ -445,7 +444,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 				final StateHandleID stateHandleID = new StateHandleID(fileName);
 
 				if (fileName.endsWith(SST_FILE_SUFFIX)) {
-					final boolean existsAlready = baseSstFiles != null && baseSstFiles.contains(stateHandleID);
+					final boolean existsAlready = baseSstFiles != null && baseSstFiles.containsKey(stateHandleID);
 
 					if (existsAlready) {
 						// we introduce a placeholder state handle, that is replaced with the

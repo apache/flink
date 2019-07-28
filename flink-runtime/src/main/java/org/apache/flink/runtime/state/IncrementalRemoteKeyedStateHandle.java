@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -129,6 +128,7 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
 		return checkpointId;
 	}
 
+	@Override
 	public Map<StateHandleID, StreamStateHandle> getSharedState() {
 		return sharedState;
 	}
@@ -141,15 +141,10 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
 		return metaStateHandle;
 	}
 
+	@Override
 	@Nonnull
 	public UUID getBackendIdentifier() {
 		return backendIdentifier;
-	}
-
-	@Nonnull
-	@Override
-	public Set<StateHandleID> getSharedStateHandleIDs() {
-		return getSharedState().keySet();
 	}
 
 	public SharedStateRegistry getSharedStateRegistry() {
