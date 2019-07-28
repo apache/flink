@@ -44,6 +44,7 @@ import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.filesystem.FsSegmentStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.util.BlockerCheckpointStreamFactory;
@@ -111,13 +112,20 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	private ValueState<Integer> testState1;
 	private ValueState<String> testState2;
 
-	@Parameterized.Parameters(name = "Incremental checkpointing: {0}")
-	public static Collection<Boolean> parameters() {
-		return Arrays.asList(false, true);
+	@Parameterized.Parameters(name = "Incremental checkpointing: {0}, use segment statebackend: {1}")
+	public static Collection<Boolean[]> parameters() {
+		return Arrays.asList(new Boolean[][] {
+			{true, true},
+			{true, false},
+			{false, true},
+			{false, false}});
 	}
 
 	@Parameterized.Parameter
 	public boolean enableIncrementalCheckpointing;
+
+	@Parameterized.Parameter(1)
+	public boolean useSegmentStateBackend;
 
 	@Rule
 	public final TemporaryFolder tempFolder = new TemporaryFolder();
@@ -146,7 +154,8 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 	protected RocksDBStateBackend getStateBackend() throws IOException {
 		dbPath = tempFolder.newFolder().getAbsolutePath();
 		String checkpointPath = tempFolder.newFolder().toURI().toString();
-		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
+		RocksDBStateBackend backend = new RocksDBStateBackend(useSegmentStateBackend ?
+			new FsSegmentStateBackend(checkpointPath) : new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
 		Configuration configuration = new Configuration();
 		configuration.setString(
 			RocksDBOptions.TIMER_SERVICE_FACTORY,
