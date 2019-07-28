@@ -737,7 +737,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
             .generate(ctx, operands, resultType)
 
       case tsf: TableSqlFunction =>
-        new TableFunctionCallGen(tsf.getTableFunction).generate(ctx, operands, resultType)
+        new TableFunctionCallGen(
+          tsf.makeFunction(getOperandLiterals(operands), operands.map(_.resultType).toArray))
+            .generate(ctx, operands, resultType)
 
       // advanced scalar functions
       case sqlOperator: SqlOperator =>

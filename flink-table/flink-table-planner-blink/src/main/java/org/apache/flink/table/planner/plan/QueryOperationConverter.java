@@ -279,7 +279,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 					tableFunction,
 					resultType,
 					typeFactory,
-					function);
+					function,
+					scala.Option.empty());
 
 			List<RexNode> parameters = convertToRexNodes(calculatedTable.getParameters());
 
