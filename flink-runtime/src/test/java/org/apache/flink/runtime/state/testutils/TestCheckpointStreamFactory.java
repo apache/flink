@@ -38,7 +38,7 @@ public class TestCheckpointStreamFactory implements CheckpointStreamFactory {
 	}
 
 	@Override
-	public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) {
+	public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointId, CheckpointedStateScope scope) {
 		return supplier.get();
 	}
 }

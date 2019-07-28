@@ -128,12 +128,13 @@ public class FsCheckpointStreamFactory implements CheckpointStreamFactory {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException {
+	public FsCheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointId, CheckpointedStateScope scope) {
 		Path target = scope == CheckpointedStateScope.EXCLUSIVE ? checkpointDirectory : sharedStateDirectory;
 		int bufferSize = Math.max(writeBufferSize, fileStateThreshold);
 
 		return new FsCheckpointStateOutputStream(target, filesystem, bufferSize, fileStateThreshold);
 	}
+
 
 	// ------------------------------------------------------------------------
 	//  utilities

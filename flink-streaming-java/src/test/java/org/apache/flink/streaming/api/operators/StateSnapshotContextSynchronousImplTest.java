@@ -87,7 +87,7 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
 		CheckpointStreamFactory.CheckpointStateOutputStream outputStream2 = mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
 
 		CheckpointStreamFactory streamFactory = mock(CheckpointStreamFactory.class);
-		when(streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE)).thenReturn(outputStream1, outputStream2);
+		when(streamFactory.createCheckpointStateOutputStream(checkpointId, CheckpointedStateScope.EXCLUSIVE)).thenReturn(outputStream1, outputStream2);
 
 		InsightCloseableRegistry closableRegistry = new InsightCloseableRegistry();
 
@@ -104,7 +104,7 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
 		context.getRawKeyedOperatorStateOutput();
 		context.getRawOperatorStateOutput();
 
-		verify(streamFactory, times(2)).createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
+		verify(streamFactory, times(2)).createCheckpointStateOutputStream(checkpointId, CheckpointedStateScope.EXCLUSIVE);
 
 		assertEquals(2, closableRegistry.size());
 		assertTrue(closableRegistry.contains(outputStream1));
@@ -128,7 +128,7 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
 		CheckpointStreamFactory.CheckpointStateOutputStream outputStream2 = mock(CheckpointStreamFactory.CheckpointStateOutputStream.class);
 
 		CheckpointStreamFactory streamFactory = mock(CheckpointStreamFactory.class);
-		when(streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE)).thenReturn(outputStream1, outputStream2);
+		when(streamFactory.createCheckpointStateOutputStream(checkpointId, CheckpointedStateScope.EXCLUSIVE)).thenReturn(outputStream1, outputStream2);
 
 		InsightCloseableRegistry closableRegistry = new InsightCloseableRegistry();
 
@@ -145,7 +145,7 @@ public class StateSnapshotContextSynchronousImplTest extends TestLogger {
 		context.getRawKeyedOperatorStateOutput();
 		context.getRawOperatorStateOutput();
 
-		verify(streamFactory, times(2)).createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
+		verify(streamFactory, times(2)).createCheckpointStateOutputStream(checkpointId, CheckpointedStateScope.EXCLUSIVE);
 
 		assertEquals(2, closableRegistry.size());
 		assertTrue(closableRegistry.contains(outputStream1));

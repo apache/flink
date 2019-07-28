@@ -119,7 +119,7 @@ public class BackendForTestStream extends MemoryStateBackend {
 		}
 
 		@Override
-		public CheckpointStateOutputStream createCheckpointStateOutputStream(CheckpointedStateScope scope) throws IOException {
+		public CheckpointStateOutputStream createCheckpointStateOutputStream(long checkpointId, CheckpointedStateScope scope) throws IOException {
 			return streamFactory.get();
 		}
 	}

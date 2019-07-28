@@ -150,11 +150,12 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
 
 	@Nonnull
 	static CheckpointStreamWithResultProvider createSimpleStream(
+		@Nonnegative long checkpointId,
 		@Nonnull CheckpointedStateScope checkpointedStateScope,
 		@Nonnull CheckpointStreamFactory primaryStreamFactory) throws IOException {
 
 		CheckpointStreamFactory.CheckpointStateOutputStream primaryOut =
-			primaryStreamFactory.createCheckpointStateOutputStream(checkpointedStateScope);
+			primaryStreamFactory.createCheckpointStateOutputStream(checkpointId, checkpointedStateScope);
 
 		return new CheckpointStreamWithResultProvider.PrimaryStreamOnly(primaryOut);
 	}
@@ -167,7 +168,7 @@ public interface CheckpointStreamWithResultProvider extends Closeable {
 		@Nonnull LocalRecoveryDirectoryProvider secondaryStreamDirProvider) throws IOException {
 
 		CheckpointStreamFactory.CheckpointStateOutputStream primaryOut =
-			primaryStreamFactory.createCheckpointStateOutputStream(checkpointedStateScope);
+			primaryStreamFactory.createCheckpointStateOutputStream(checkpointId, checkpointedStateScope);
 
 		try {
 			File outFile = new File(

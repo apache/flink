@@ -97,7 +97,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 
 	private CheckpointStreamFactory.CheckpointStateOutputStream openAndRegisterNewStream() throws Exception {
 		CheckpointStreamFactory.CheckpointStateOutputStream cout =
-				streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
+				streamFactory.createCheckpointStateOutputStream(checkpointId, CheckpointedStateScope.EXCLUSIVE);
 
 		closableRegistry.registerCloseable(cout);
 		return cout;

@@ -149,6 +149,7 @@ class HeapSnapshotStrategy<K>
 					localRecoveryConfig.getLocalStateDirectoryProvider()) :
 
 				() -> CheckpointStreamWithResultProvider.createSimpleStream(
+					checkpointId,
 					CheckpointedStateScope.EXCLUSIVE,
 					primaryStreamFactory);
 

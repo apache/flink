@@ -60,6 +60,7 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
 	 * @throws Exception Thrown if can not upload all the files.
 	 */
 	public Map<StateHandleID, StreamStateHandle> uploadFilesToCheckpointFs(
+		long checkpointId,
 		@Nonnull Map<StateHandleID, Path> files,
 		CheckpointStreamFactory checkpointStreamFactory,
 		CloseableRegistry closeableRegistry) throws Exception {
@@ -67,7 +68,7 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
 		Map<StateHandleID, StreamStateHandle> handles = new HashMap<>();
 
 		Map<StateHandleID, CompletableFuture<StreamStateHandle>> futures =
-			createUploadFutures(files, checkpointStreamFactory, closeableRegistry);
+			createUploadFutures(checkpointId, files, checkpointStreamFactory, closeableRegistry);
 
 		try {
 			FutureUtils.waitForAll(futures.values()).get();
@@ -89,6 +90,7 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
 	}
 
 	private Map<StateHandleID, CompletableFuture<StreamStateHandle>> createUploadFutures(
+		long checkpointId,
 		Map<StateHandleID, Path> files,
 		CheckpointStreamFactory checkpointStreamFactory,
 		CloseableRegistry closeableRegistry) {
@@ -96,7 +98,7 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
 
 		for (Map.Entry<StateHandleID, Path> entry : files.entrySet()) {
 			final Supplier<StreamStateHandle> supplier =
-				CheckedSupplier.unchecked(() -> uploadLocalFileToCheckpointFs(entry.getValue(), checkpointStreamFactory, closeableRegistry));
+				CheckedSupplier.unchecked(() -> uploadLocalFileToCheckpointFs(checkpointId, entry.getValue(), checkpointStreamFactory, closeableRegistry));
 			futures.put(entry.getKey(), CompletableFuture.supplyAsync(supplier, executorService));
 		}
 
@@ -104,6 +106,7 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
 	}
 
 	private StreamStateHandle uploadLocalFileToCheckpointFs(
+		long checkpointId,
 		Path filePath,
 		CheckpointStreamFactory checkpointStreamFactory,
 		CloseableRegistry closeableRegistry) throws IOException {
@@ -118,7 +121,7 @@ public class RocksDBStateUploader extends RocksDBStateDataTransfer {
 			closeableRegistry.registerCloseable(inputStream);
 
 			outputStream = checkpointStreamFactory
-				.createCheckpointStateOutputStream(CheckpointedStateScope.SHARED);
+				.createCheckpointStateOutputStream(checkpointId, CheckpointedStateScope.SHARED);
 			closeableRegistry.registerCloseable(outputStream);
 
 			while (true) {

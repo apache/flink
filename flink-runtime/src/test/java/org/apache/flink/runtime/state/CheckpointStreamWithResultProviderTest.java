@@ -60,6 +60,7 @@ public class CheckpointStreamWithResultProviderTest extends TestLogger {
 		try (
 			CheckpointStreamWithResultProvider primaryOnly =
 				CheckpointStreamWithResultProvider.createSimpleStream(
+					1,
 					CheckpointedStateScope.EXCLUSIVE,
 					primaryFactory)) {
 
@@ -84,7 +85,7 @@ public class CheckpointStreamWithResultProviderTest extends TestLogger {
 		CheckpointStreamFactory primaryFactory = createCheckpointStreamFactory();
 
 		CheckpointStreamWithResultProvider resultProvider =
-			CheckpointStreamWithResultProvider.createSimpleStream(CheckpointedStateScope.EXCLUSIVE, primaryFactory);
+			CheckpointStreamWithResultProvider.createSimpleStream(1, CheckpointedStateScope.EXCLUSIVE, primaryFactory);
 
 		SnapshotResult<StreamStateHandle> result = writeCheckpointTestData(resultProvider);
 
@@ -130,16 +131,16 @@ public class CheckpointStreamWithResultProviderTest extends TestLogger {
 		CheckpointStreamFactory primaryFactory = createCheckpointStreamFactory();
 
 		testCloseBeforeComplete(new CheckpointStreamWithResultProvider.PrimaryStreamOnly(
-			primaryFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE)));
+			primaryFactory.createCheckpointStateOutputStream(1, CheckpointedStateScope.EXCLUSIVE)));
 		testCompleteBeforeClose(new CheckpointStreamWithResultProvider.PrimaryStreamOnly(
-			primaryFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE)));
+			primaryFactory.createCheckpointStateOutputStream(1, CheckpointedStateScope.EXCLUSIVE)));
 
 		testCloseBeforeComplete(new CheckpointStreamWithResultProvider.PrimaryAndSecondaryStream(
-				primaryFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE),
-				primaryFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE)));
+				primaryFactory.createCheckpointStateOutputStream(1, CheckpointedStateScope.EXCLUSIVE),
+				primaryFactory.createCheckpointStateOutputStream(1, CheckpointedStateScope.EXCLUSIVE)));
 		testCompleteBeforeClose(new CheckpointStreamWithResultProvider.PrimaryAndSecondaryStream(
-				primaryFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE),
-				primaryFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE)));
+				primaryFactory.createCheckpointStateOutputStream(1, CheckpointedStateScope.EXCLUSIVE),
+				primaryFactory.createCheckpointStateOutputStream(1, CheckpointedStateScope.EXCLUSIVE)));
 	}
 
 	@Test
@@ -151,7 +152,7 @@ public class CheckpointStreamWithResultProviderTest extends TestLogger {
 			CheckpointStreamWithResultProvider.PrimaryStreamOnly::new,
 			() -> {
 				try {
-					return streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
+					return streamFactory.createCheckpointStateOutputStream(1, CheckpointedStateScope.EXCLUSIVE);
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
@@ -163,8 +164,8 @@ public class CheckpointStreamWithResultProviderTest extends TestLogger {
 			() -> {
 				try {
 					return new DuplicatingCheckpointOutputStream(
-						streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE),
-						streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE));
+						streamFactory.createCheckpointStateOutputStream(1, CheckpointedStateScope.EXCLUSIVE),
+						streamFactory.createCheckpointStateOutputStream(1, CheckpointedStateScope.EXCLUSIVE));
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}

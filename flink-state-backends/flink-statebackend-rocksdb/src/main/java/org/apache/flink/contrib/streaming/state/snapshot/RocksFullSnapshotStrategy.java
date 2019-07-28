@@ -164,6 +164,7 @@ public class RocksFullSnapshotStrategy<K> extends RocksDBSnapshotStrategyBase<K>
 				localRecoveryConfig.getLocalStateDirectoryProvider()) :
 
 			() -> CheckpointStreamWithResultProvider.createSimpleStream(
+				checkpointId,
 				CheckpointedStateScope.EXCLUSIVE,
 				primaryStreamFactory);
 	}

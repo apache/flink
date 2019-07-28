@@ -111,7 +111,7 @@ class DefaultOperatorStateBackendSnapshotStrategy extends AbstractSnapshotStrate
 				protected SnapshotResult<OperatorStateHandle> callInternal() throws Exception {
 
 					CheckpointStreamFactory.CheckpointStateOutputStream localOut =
-						streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
+						streamFactory.createCheckpointStateOutputStream(checkpointId, CheckpointedStateScope.EXCLUSIVE);
 					snapshotCloseableRegistry.registerCloseable(localOut);
 
 					// get the registered operator state infos ...

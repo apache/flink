@@ -422,10 +422,12 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 				createUploadFilePaths(fileStatuses, sstFiles, sstFilePaths, miscFilePaths);
 
 				sstFiles.putAll(stateUploader.uploadFilesToCheckpointFs(
+					checkpointId,
 					sstFilePaths,
 					checkpointStreamFactory,
 					snapshotCloseableRegistry));
 				miscFiles.putAll(stateUploader.uploadFilesToCheckpointFs(
+					checkpointId,
 					miscFilePaths,
 					checkpointStreamFactory,
 					snapshotCloseableRegistry));
@@ -472,6 +474,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 						localRecoveryConfig.getLocalStateDirectoryProvider()) :
 
 					CheckpointStreamWithResultProvider.createSimpleStream(
+						checkpointId,
 						CheckpointedStateScope.EXCLUSIVE,
 						checkpointStreamFactory);
 

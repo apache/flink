@@ -80,7 +80,7 @@ public class FsStateBackendEntropyTest {
 
 		// check entropy in the exclusive/shared state
 		try (CheckpointStateOutputStream stream =
-				location.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE)) {
+				location.createCheckpointStateOutputStream(1, CheckpointedStateScope.EXCLUSIVE)) {
 
 			stream.flush();
 			FileStateHandle handle = (FileStateHandle) stream.closeAndGetHandle();

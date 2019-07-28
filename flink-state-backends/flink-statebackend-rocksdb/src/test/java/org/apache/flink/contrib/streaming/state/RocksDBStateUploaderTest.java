@@ -65,7 +65,7 @@ public class RocksDBStateUploaderTest extends TestLogger {
 		SpecifiedException expectedException = new SpecifiedException("throw exception while multi thread upload states.");
 
 		CheckpointStreamFactory.CheckpointStateOutputStream outputStream = createFailingCheckpointStateOutputStream(expectedException);
-		CheckpointStreamFactory checkpointStreamFactory = (CheckpointedStateScope scope) -> outputStream;
+		CheckpointStreamFactory checkpointStreamFactory = (long checkpointId, CheckpointedStateScope scope) -> outputStream;
 
 		File file = temporaryFolder.newFile(String.valueOf(UUID.randomUUID()));
 		generateRandomFileContent(file.getPath(), 20);
@@ -73,7 +73,7 @@ public class RocksDBStateUploaderTest extends TestLogger {
 		Map<StateHandleID, Path> filePaths = new HashMap<>(1);
 		filePaths.put(new StateHandleID("mockHandleID"), new Path(file.getPath()));
 		try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(5)) {
-			rocksDBStateUploader.uploadFilesToCheckpointFs(filePaths, checkpointStreamFactory, new CloseableRegistry());
+			rocksDBStateUploader.uploadFilesToCheckpointFs(1, filePaths, checkpointStreamFactory, new CloseableRegistry());
 			fail();
 		} catch (Exception e) {
 			assertEquals(expectedException, e);
@@ -106,7 +106,7 @@ public class RocksDBStateUploaderTest extends TestLogger {
 
 		try (RocksDBStateUploader rocksDBStateUploader = new RocksDBStateUploader(5)) {
 			Map<StateHandleID, StreamStateHandle> sstFiles =
-				rocksDBStateUploader.uploadFilesToCheckpointFs(sstFilePaths, checkpointStreamFactory, new CloseableRegistry());
+				rocksDBStateUploader.uploadFilesToCheckpointFs(1, sstFilePaths, checkpointStreamFactory, new CloseableRegistry());
 
 			for (Map.Entry<StateHandleID, Path> entry : sstFilePaths.entrySet()) {
 				assertStateContentEqual(entry.getValue(), sstFiles.get(entry.getKey()).openInputStream());
