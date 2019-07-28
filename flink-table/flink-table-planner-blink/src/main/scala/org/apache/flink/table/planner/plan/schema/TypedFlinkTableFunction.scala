@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.schema
 
+import org.apache.flink.table.functions
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
@@ -41,6 +42,7 @@ class TypedFlinkTableFunction(
   extends FlinkTableFunction(tableFunction) {
 
   override def getExternalResultType(
+      tableFunction: functions.TableFunction[_],
       arguments: Array[AnyRef],
       argTypes: Array[Class[_]]): DataType =
     externalResultType
