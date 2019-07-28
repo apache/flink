@@ -115,6 +115,7 @@ added using `add(T)` are folded into an aggregate using a specified `FoldFunctio
 retrieve an `Iterable` over all currently stored mappings. Mappings are added using `put(UK, UV)` or
 `putAll(Map<UK, UV>)`. The value associated with a user key can be retrieved using `get(UK)`. The iterable
 views for mappings, keys and values can be retrieved using `entries()`, `keys()` and `values()` respectively.
+You can also use `isEmpty()` to check whether this map contains any key-value mappings.
 
 All types of state also have a method `clear()` that clears the state for the currently
 active key, i.e. the key of the input element.
