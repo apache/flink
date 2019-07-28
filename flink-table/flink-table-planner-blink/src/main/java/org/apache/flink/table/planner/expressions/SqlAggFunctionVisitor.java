@@ -90,7 +90,8 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
 					fromLegacyInfoToDataType(aggDef.getResultTypeInfo()),
 					fromLegacyInfoToDataType(aggDef.getAccumulatorTypeInfo()),
 					typeFactory,
-					aggFunc.requiresOver());
+					aggFunc.requiresOver(),
+					scala.Option.empty());
 		} else {
 			throw new UnsupportedOperationException("TableAggregateFunction is not supported yet!");
 		}

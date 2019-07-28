@@ -43,6 +43,8 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
 
+import java.util
+
 import scala.collection.JavaConversions._
 
 /**
@@ -122,7 +124,14 @@ class AggFunctionFactory(
       case a: SqlAggFunction if a.getKind == SqlKind.COLLECT =>
         createCollectAggFunction(argTypes)
 
-      case udagg: AggSqlFunction => udagg.getFunction
+      case udagg: AggSqlFunction =>
+        // Can not touch the literals, Calcite make them in previous RelNode.
+        // In here, all inputs are input refs.
+        val constants = new util.ArrayList[AnyRef]()
+        argTypes.foreach(t => constants.add(null))
+        udagg.makeFunction(
+          constants.toArray,
+          argTypes)
 
       case unSupported: SqlAggFunction =>
         throw new TableException(s"Unsupported Function: '${unSupported.getName}'")
