@@ -306,7 +306,7 @@ public class Checkpoints {
 
 		StateBackend backend = null;
 		try {
-			backend = StateBackendLoader.loadStateBackendFromConfig(configuration, classLoader, null);
+			backend = StateBackendLoader.loadStateBackendFromConfig(configuration, classLoader, 1, null);
 
 			if (backend == null && logger != null) {
 				logger.info("No state backend configured, attempting to dispose savepoint " +

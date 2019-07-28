@@ -65,7 +65,7 @@ public class StateBackendLoader {
 	 * <p>The state backends can be specified either via their shortcut name, or via the class name
 	 * of a {@link StateBackendFactory}. If a StateBackendFactory class name is specified, the factory
 	 * is instantiated (via its zero-argument constructor) and its
-	 * {@link StateBackendFactory#createFromConfig(Configuration, ClassLoader)} method is called.
+	 * {@link StateBackendFactory#createFromConfig(Configuration, ClassLoader, int)} method is called.
 	 *
 	 * <p>Recognized shortcut names are '{@value StateBackendLoader#MEMORY_STATE_BACKEND_NAME}',
 	 * '{@value StateBackendLoader#FS_STATE_BACKEND_NAME}', and
@@ -73,6 +73,7 @@ public class StateBackendLoader {
 	 *
 	 * @param config The configuration to load the state backend from
 	 * @param classLoader The class loader that should be used to load the state backend
+	 * @param maxConcurrentCheckpoints Maximum number of checkpoint attempts in progress at the same time
 	 * @param logger Optionally, a logger to log actions to (may be null)
 	 *
 	 * @return The instantiated state backend.
@@ -89,6 +90,7 @@ public class StateBackendLoader {
 	public static StateBackend loadStateBackendFromConfig(
 			Configuration config,
 			ClassLoader classLoader,
+			int maxConcurrentCheckpoints,
 			@Nullable Logger logger) throws IllegalConfigurationException, DynamicCodeLoadingException, IOException {
 
 		checkNotNull(config, "config");
@@ -104,7 +106,7 @@ public class StateBackendLoader {
 
 		switch (backendName.toLowerCase()) {
 			case MEMORY_STATE_BACKEND_NAME:
-				MemoryStateBackend memBackend = new MemoryStateBackendFactory().createFromConfig(config, classLoader);
+				MemoryStateBackend memBackend = new MemoryStateBackendFactory().createFromConfig(config, classLoader, maxConcurrentCheckpoints);
 
 				if (logger != null) {
 					Path memExternalized = memBackend.getCheckpointPath();
@@ -115,7 +117,7 @@ public class StateBackendLoader {
 				return memBackend;
 
 			case FS_STATE_BACKEND_NAME:
-				FsStateBackend fsBackend = new FsStateBackendFactory().createFromConfig(config, classLoader);
+				FsStateBackend fsBackend = new FsStateBackendFactory().createFromConfig(config, classLoader, maxConcurrentCheckpoints);
 				if (logger != null) {
 					logger.info("State backend is set to heap memory (checkpoints to filesystem \"{}\")",
 							fsBackend.getCheckpointPath());
@@ -151,7 +153,7 @@ public class StateBackendLoader {
 							backendName + ')', e);
 				}
 
-				return factory.createFromConfig(config, classLoader);
+				return factory.createFromConfig(config, classLoader, maxConcurrentCheckpoints);
 		}
 	}
 
@@ -162,14 +164,15 @@ public class StateBackendLoader {
 	 * default state backend (the {@link MemoryStateBackend}). 
 	 *
 	 * <p>If an application-defined state backend is found, and the state backend is a
-	 * {@link ConfigurableStateBackend}, this methods calls {@link ConfigurableStateBackend#configure(Configuration, ClassLoader)}
+	 * {@link ConfigurableStateBackend}, this methods calls {@link ConfigurableStateBackend#configure(Configuration, ClassLoader, int)}
 	 * on the state backend.
 	 *
-	 * <p>Refer to {@link #loadStateBackendFromConfig(Configuration, ClassLoader, Logger)} for details on
+	 * <p>Refer to {@link #loadStateBackendFromConfig(Configuration, ClassLoader, int, Logger)} for details on
 	 * how the state backend is loaded from the configuration.
 	 *
 	 * @param config The configuration to load the state backend from
 	 * @param classLoader The class loader that should be used to load the state backend
+	 * @param maxConcurrentCheckpoints Maximum number of checkpoint attempts in progress at the same time
 	 * @param logger Optionally, a logger to log actions to (may be null)
 	 *
 	 * @return The instantiated state backend.
@@ -187,6 +190,7 @@ public class StateBackendLoader {
 			@Nullable StateBackend fromApplication,
 			Configuration config,
 			ClassLoader classLoader,
+			int maxConcurrentCheckpoints,
 			@Nullable Logger logger) throws IllegalConfigurationException, DynamicCodeLoadingException, IOException {
 
 		checkNotNull(config, "config");
@@ -207,7 +211,7 @@ public class StateBackendLoader {
 					logger.info("Configuring application-defined state backend with job/cluster config");
 				}
 
-				backend = ((ConfigurableStateBackend) fromApplication).configure(config, classLoader);
+				backend = ((ConfigurableStateBackend) fromApplication).configure(config, classLoader, maxConcurrentCheckpoints);
 			}
 			else {
 				// keep as is!
@@ -216,13 +220,13 @@ public class StateBackendLoader {
 		}
 		else {
 			// (2) check if the config defines a state backend
-			final StateBackend fromConfig = loadStateBackendFromConfig(config, classLoader, logger);
+			final StateBackend fromConfig = loadStateBackendFromConfig(config, classLoader, maxConcurrentCheckpoints, logger);
 			if (fromConfig != null) {
 				backend = fromConfig;
 			}
 			else {
 				// (3) use the default
-				backend = new MemoryStateBackendFactory().createFromConfig(config, classLoader);
+				backend = new MemoryStateBackendFactory().createFromConfig(config, classLoader, maxConcurrentCheckpoints);
 				if (logger != null) {
 					logger.info("No state backend has been configured, using default (Memory / JobManager) {}", backend);
 				}

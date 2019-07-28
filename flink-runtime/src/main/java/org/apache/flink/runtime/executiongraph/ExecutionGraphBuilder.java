@@ -298,10 +298,12 @@ public class ExecutionGraphBuilder {
 				}
 			}
 
+			final CheckpointCoordinatorConfiguration chkConfig = snapshotSettings.getCheckpointCoordinatorConfiguration();
+
 			final StateBackend rootBackend;
 			try {
 				rootBackend = StateBackendLoader.fromApplicationOrConfigOrDefault(
-						applicationConfiguredBackend, jobManagerConfig, classLoader, log);
+						applicationConfiguredBackend, jobManagerConfig, classLoader, chkConfig.getMaxConcurrentCheckpoints(), log);
 			}
 			catch (IllegalConfigurationException | IOException | DynamicCodeLoadingException e) {
 				throw new JobExecutionException(jobId, "Could not instantiate configured state backend", e);
@@ -338,8 +340,6 @@ public class ExecutionGraphBuilder {
 					thread.setContextClassLoader(originalClassLoader);
 				}
 			}
-
-			final CheckpointCoordinatorConfiguration chkConfig = snapshotSettings.getCheckpointCoordinatorConfiguration();
 
 			executionGraph.enableCheckpointing(
 				chkConfig,

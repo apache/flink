@@ -293,12 +293,17 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * @param original The state backend to re-configure.
 	 * @param config The configuration.
 	 * @param classLoader The class loader.
+	 * @param maxConcurrentCheckpoints Maximum number of checkpoint attempts in progress at the same time.
 	 */
-	private RocksDBStateBackend(RocksDBStateBackend original, Configuration config, ClassLoader classLoader) {
+	private RocksDBStateBackend(
+		RocksDBStateBackend original,
+		Configuration config,
+		ClassLoader classLoader,
+		int maxConcurrentCheckpoints) {
 		// reconfigure the state backend backing the streams
 		final StateBackend originalStreamBackend = original.checkpointStreamBackend;
 		this.checkpointStreamBackend = originalStreamBackend instanceof ConfigurableStateBackend ?
-				((ConfigurableStateBackend) originalStreamBackend).configure(config, classLoader) :
+				((ConfigurableStateBackend) originalStreamBackend).configure(config, classLoader, maxConcurrentCheckpoints) :
 				originalStreamBackend;
 
 		// configure incremental checkpoints
@@ -368,11 +373,12 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 *
 	 * @param config The configuration.
 	 * @param classLoader The class loader.
+	 * @param maxConcurrentCheckpoints Maximum number of checkpoint attempts in progress at the same time.
 	 * @return The re-configured variant of the state backend
 	 */
 	@Override
-	public RocksDBStateBackend configure(Configuration config, ClassLoader classLoader) {
-		return new RocksDBStateBackend(this, config, classLoader);
+	public RocksDBStateBackend configure(Configuration config, ClassLoader classLoader, int maxConcurrentCheckpoints) {
+		return new RocksDBStateBackend(this, config, classLoader, maxConcurrentCheckpoints);
 	}
 
 	// ------------------------------------------------------------------------

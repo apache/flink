@@ -314,7 +314,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		}
 
 		@Override
-		public SyncFailureInducingStateBackend configure(Configuration config, ClassLoader classLoader) {
+		public SyncFailureInducingStateBackend configure(Configuration config, ClassLoader classLoader, int maxConcurrentCheckpoints) {
 			// retain this instance, no re-configuration!
 			return this;
 		}
@@ -366,7 +366,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		}
 
 		@Override
-		public AsyncFailureInducingStateBackend configure(Configuration config, ClassLoader classLoader) {
+		public AsyncFailureInducingStateBackend configure(Configuration config, ClassLoader classLoader, int maxConcurrentCheckpoints) {
 			// retain this instance, no re-configuration!
 			return this;
 		}

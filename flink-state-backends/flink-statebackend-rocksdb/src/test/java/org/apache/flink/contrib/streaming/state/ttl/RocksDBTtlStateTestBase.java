@@ -71,7 +71,7 @@ public abstract class RocksDBTtlStateTestBase extends TtlStateTestBase {
 		RocksDBStateBackend backend = new RocksDBStateBackend(new FsStateBackend(checkpointPath), enableIncrementalCheckpointing);
 		Configuration config = new Configuration();
 		config.setBoolean(TTL_COMPACT_FILTER_ENABLED, true);
-		backend = backend.configure(config, Thread.currentThread().getContextClassLoader());
+		backend = backend.configure(config, Thread.currentThread().getContextClassLoader(), 1);
 		backend.setDbStoragePath(dbPath);
 		return backend;
 	}

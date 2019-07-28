@@ -56,7 +56,7 @@ public class BackendForTestStream extends MemoryStateBackend {
 
 	// make no reconfiguration!
 	@Override
-	public MemoryStateBackend configure(Configuration config, ClassLoader classLoader) {
+	public MemoryStateBackend configure(Configuration config, ClassLoader classLoader, int maxConcurrentCheckpoints) {
 		return this;
 	}
 

@@ -98,7 +98,7 @@ public class PojoSerializerUpgradeTest extends TestLogger {
 		Configuration config = new Configuration();
 		config.setString(CheckpointingOptions.STATE_BACKEND, backendType);
 		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, temporaryFolder.newFolder().toURI().toString());
-		stateBackend = StateBackendLoader.loadStateBackendFromConfig(config, Thread.currentThread().getContextClassLoader(), null);
+		stateBackend = StateBackendLoader.loadStateBackendFromConfig(config, Thread.currentThread().getContextClassLoader(), 1, null);
 	}
 
 	private static final String POJO_NAME = "Pojo";

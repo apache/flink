@@ -29,7 +29,7 @@ import org.apache.flink.runtime.state.StateBackendFactory;
 public class MemoryStateBackendFactory implements StateBackendFactory<MemoryStateBackend> {
 
 	@Override
-	public MemoryStateBackend createFromConfig(Configuration config, ClassLoader classLoader) {
-		return new MemoryStateBackend().configure(config, classLoader);
+	public MemoryStateBackend createFromConfig(Configuration config, ClassLoader classLoader, int maxConcurrentCheckpoints) {
+		return new MemoryStateBackend().configure(config, classLoader, maxConcurrentCheckpoints);
 	}
 }

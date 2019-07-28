@@ -470,6 +470,7 @@ public class StreamingJobGraphGenerator {
 
 		config.setStateBackend(streamGraph.getStateBackend());
 		config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
+		config.setMaxConcurrentCheckpoints(checkpointCfg.getMaxConcurrentCheckpoints());
 		if (checkpointCfg.isCheckpointingEnabled()) {
 			config.setCheckpointMode(checkpointCfg.getCheckpointingMode());
 		}

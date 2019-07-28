@@ -1004,7 +1004,7 @@ public class StreamTaskTest extends TestLogger {
 		private static final long serialVersionUID = 1L;
 
 		@Override
-		public AbstractStateBackend createFromConfig(Configuration config, ClassLoader classLoader) {
+		public AbstractStateBackend createFromConfig(Configuration config, ClassLoader classLoader, int maxConcurrentCheckpoints) {
 			return new TestSpyWrapperStateBackend(createInnerBackend(config));
 		}
 

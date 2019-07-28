@@ -41,6 +41,7 @@ public interface StateBackendFactory<T extends StateBackend> {
 	 * 
 	 * @param config The Flink configuration (loaded by the TaskManager).
 	 * @param classLoader The class loader that should be used to load the state backend.
+	 * @param maxConcurrentCheckpoints Maximum number of checkpoint attempts in progress at the same time.
 	 * @return The created state backend. 
 	 * 
 	 * @throws IllegalConfigurationException
@@ -48,5 +49,5 @@ public interface StateBackendFactory<T extends StateBackend> {
 	 * @throws IOException
 	 *             If the state backend initialization failed due to an I/O exception
 	 */
-	T createFromConfig(Configuration config, ClassLoader classLoader) throws IllegalConfigurationException, IOException;
+	T createFromConfig(Configuration config, ClassLoader classLoader, int maxConcurrentCheckpoints) throws IllegalConfigurationException, IOException;
 }

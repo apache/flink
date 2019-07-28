@@ -49,7 +49,7 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
       case HEAP_BACKEND =>
         val conf = new Configuration()
         conf.setBoolean(CheckpointingOptions.ASYNC_SNAPSHOTS, true)
-        new MemoryStateBackend().configure(conf, classLoader)
+        new MemoryStateBackend().configure(conf, classLoader, 1)
 
       case ROCKSDB_BACKEND =>
         new RocksDBStateBackend("file://" + tempFolder.newFolder().getAbsoluteFile)

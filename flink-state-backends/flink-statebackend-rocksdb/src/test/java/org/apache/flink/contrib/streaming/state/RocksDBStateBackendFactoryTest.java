@@ -92,8 +92,8 @@ public class RocksDBStateBackendFactoryTest {
 		config2.setString(RocksDBOptions.LOCAL_DIRECTORIES, localDirs);
 		config2.setBoolean(CheckpointingOptions.INCREMENTAL_CHECKPOINTS, incremental);
 
-		StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
-		StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
+		StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, 1, null);
+		StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, 1, null);
 
 		assertTrue(backend1 instanceof RocksDBStateBackend);
 		assertTrue(backend2 instanceof RocksDBStateBackend);
@@ -146,7 +146,7 @@ public class RocksDBStateBackendFactoryTest {
 		config.setString(RocksDBOptions.LOCAL_DIRECTORIES, localDir3 + ":" + localDir4);  // this should not be picked up
 
 		final StateBackend loadedBackend =
-				StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, null);
+				StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, 1, null);
 		assertTrue(loadedBackend instanceof RocksDBStateBackend);
 
 		final RocksDBStateBackend loadedRocks = (RocksDBStateBackend) loadedBackend;

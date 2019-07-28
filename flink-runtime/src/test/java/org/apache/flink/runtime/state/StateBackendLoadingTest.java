@@ -62,13 +62,13 @@ public class StateBackendLoadingTest {
 
 	@Test
 	public void testNoStateBackendDefined() throws Exception {
-		assertNull(StateBackendLoader.loadStateBackendFromConfig(new Configuration(), cl, null));
+		assertNull(StateBackendLoader.loadStateBackendFromConfig(new Configuration(), cl, 1, null));
 	}
 
 	@Test
 	public void testInstantiateMemoryBackendByDefault() throws Exception {
 		StateBackend backend =
-				StateBackendLoader.fromApplicationOrConfigOrDefault(null, new Configuration(), cl, null);
+				StateBackendLoader.fromApplicationOrConfigOrDefault(null, new Configuration(), cl, 1, null);
 
 		assertTrue(backend instanceof MemoryStateBackend);
 	}
@@ -80,7 +80,7 @@ public class StateBackendLoadingTest {
 		final Configuration config = new Configuration();
 		config.setString(backendKey, "jobmanager");
 
-		StateBackend backend = StateBackendLoader.fromApplicationOrConfigOrDefault(appBackend, config, cl, null);
+		StateBackend backend = StateBackendLoader.fromApplicationOrConfigOrDefault(appBackend, config, cl, 1, null);
 		assertEquals(appBackend, backend);
 	}
 
@@ -102,8 +102,8 @@ public class StateBackendLoadingTest {
 		final Configuration config2 = new Configuration();
 		config2.setString(backendKey, MemoryStateBackendFactory.class.getName());
 
-		StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
-		StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
+		StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, 1, null);
+		StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, 1, null);
 
 		assertTrue(backend1 instanceof MemoryStateBackend);
 		assertTrue(backend2 instanceof MemoryStateBackend);
@@ -137,9 +137,9 @@ public class StateBackendLoadingTest {
 		config2.setBoolean(CheckpointingOptions.ASYNC_SNAPSHOTS, async);
 
 		MemoryStateBackend backend1 = (MemoryStateBackend)
-				StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
+				StateBackendLoader.loadStateBackendFromConfig(config1, cl, 1, null);
 		MemoryStateBackend backend2 = (MemoryStateBackend)
-				StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
+				StateBackendLoader.loadStateBackendFromConfig(config2, cl, 1, null);
 
 		assertNotNull(backend1);
 		assertNotNull(backend2);
@@ -174,7 +174,7 @@ public class StateBackendLoadingTest {
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 		config.setBoolean(CheckpointingOptions.ASYNC_SNAPSHOTS, !async);
 
-		StateBackend loadedBackend = StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, null);
+		StateBackend loadedBackend = StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, 1, null);
 		assertTrue(loadedBackend instanceof MemoryStateBackend);
 
 		final MemoryStateBackend memBackend = (MemoryStateBackend) loadedBackend;
@@ -205,7 +205,7 @@ public class StateBackendLoadingTest {
 		config.setString(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir); // this parameter should not be picked up
 		config.setString(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir);
 
-		StateBackend loadedBackend = StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, null);
+		StateBackend loadedBackend = StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, 1, null);
 		assertTrue(loadedBackend instanceof MemoryStateBackend);
 
 		final MemoryStateBackend memBackend = (MemoryStateBackend) loadedBackend;
@@ -248,8 +248,8 @@ public class StateBackendLoadingTest {
 		config1.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, minWriteBufferSize);
 		config2.setBoolean(CheckpointingOptions.ASYNC_SNAPSHOTS, async);
 
-		StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, null);
-		StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, null);
+		StateBackend backend1 = StateBackendLoader.loadStateBackendFromConfig(config1, cl, 1, null);
+		StateBackend backend2 = StateBackendLoader.loadStateBackendFromConfig(config2, cl, 1, null);
 
 		assertTrue(backend1 instanceof FsStateBackend);
 		assertTrue(backend2 instanceof FsStateBackend);
@@ -296,7 +296,7 @@ public class StateBackendLoadingTest {
 		config.setInteger(CheckpointingOptions.FS_WRITE_BUFFER_SIZE, 3000000); // this should not be picked up
 
 		final StateBackend loadedBackend =
-				StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, null);
+				StateBackendLoader.fromApplicationOrConfigOrDefault(backend, config, cl, 1, null);
 		assertTrue(loadedBackend instanceof FsStateBackend);
 
 		final FsStateBackend fs = (FsStateBackend) loadedBackend;
@@ -320,7 +320,7 @@ public class StateBackendLoadingTest {
 		// try a value that is neither recognized as a name, nor corresponds to a class
 		config.setString(backendKey, "does.not.exist");
 		try {
-			StateBackendLoader.fromApplicationOrConfigOrDefault(null, config, cl, null);
+			StateBackendLoader.fromApplicationOrConfigOrDefault(null, config, cl, 1, null);
 			fail("should fail with an exception");
 		} catch (DynamicCodeLoadingException ignored) {
 			// expected
@@ -329,7 +329,7 @@ public class StateBackendLoadingTest {
 		// try a class that is not a factory
 		config.setString(backendKey, java.io.File.class.getName());
 		try {
-			StateBackendLoader.fromApplicationOrConfigOrDefault(null, config, cl, null);
+			StateBackendLoader.fromApplicationOrConfigOrDefault(null, config, cl, 1, null);
 			fail("should fail with an exception");
 		} catch (DynamicCodeLoadingException ignored) {
 			// expected
@@ -338,7 +338,7 @@ public class StateBackendLoadingTest {
 		// a factory that fails
 		config.setString(backendKey, FailingFactory.class.getName());
 		try {
-			StateBackendLoader.fromApplicationOrConfigOrDefault(null, config, cl, null);
+			StateBackendLoader.fromApplicationOrConfigOrDefault(null, config, cl, 1, null);
 			fail("should fail with an exception");
 		} catch (IOException ignored) {
 			// expected
@@ -391,9 +391,9 @@ public class StateBackendLoadingTest {
 
 		final MemoryStateBackend appBackend = new MemoryStateBackend();
 
-		final StateBackend loaded1 = StateBackendLoader.fromApplicationOrConfigOrDefault(appBackend, config1, cl, null);
-		final StateBackend loaded2 = StateBackendLoader.fromApplicationOrConfigOrDefault(null, config1, cl, null);
-		final StateBackend loaded3 = StateBackendLoader.fromApplicationOrConfigOrDefault(null, config2, cl, null);
+		final StateBackend loaded1 = StateBackendLoader.fromApplicationOrConfigOrDefault(appBackend, config1, cl, 1, null);
+		final StateBackend loaded2 = StateBackendLoader.fromApplicationOrConfigOrDefault(null, config1, cl, 1, null);
+		final StateBackend loaded3 = StateBackendLoader.fromApplicationOrConfigOrDefault(null, config2, cl, 1, null);
 
 		assertTrue(loaded1 instanceof MemoryStateBackend);
 		assertTrue(loaded2 instanceof MemoryStateBackend);
@@ -427,7 +427,7 @@ public class StateBackendLoadingTest {
 	static final class FailingFactory implements StateBackendFactory<StateBackend> {
 
 		@Override
-		public StateBackend createFromConfig(Configuration config, ClassLoader classLoader) throws IOException {
+		public StateBackend createFromConfig(Configuration config, ClassLoader classLoader, int maxConcurrentCheckpoints) throws IOException {
 			throw new IOException("fail!");
 		}
 	}

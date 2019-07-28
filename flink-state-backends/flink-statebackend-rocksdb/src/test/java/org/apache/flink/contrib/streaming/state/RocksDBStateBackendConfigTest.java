@@ -164,7 +164,7 @@ public class RocksDBStateBackendConfigTest {
 			RocksDBOptions.TIMER_SERVICE_FACTORY,
 			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
 
-		rocksDbBackend = rocksDbBackend.configure(conf, Thread.currentThread().getContextClassLoader());
+		rocksDbBackend = rocksDbBackend.configure(conf, Thread.currentThread().getContextClassLoader(), 1);
 		keyedBackend = createKeyedStateBackend(rocksDbBackend, env);
 		Assert.assertEquals(
 			RocksDBPriorityQueueSetFactory.class,
@@ -410,7 +410,7 @@ public class RocksDBStateBackendConfigTest {
 		Configuration configuration = new Configuration();
 		configuration.setString(RocksDBOptions.PREDEFINED_OPTIONS, PredefinedOptions.FLASH_SSD_OPTIMIZED.name());
 		rocksDbBackend = new RocksDBStateBackend(checkpointPath);
-		rocksDbBackend = rocksDbBackend.configure(configuration, getClass().getClassLoader());
+		rocksDbBackend = rocksDbBackend.configure(configuration, getClass().getClassLoader(), 1);
 		assertEquals(PredefinedOptions.FLASH_SSD_OPTIMIZED, rocksDbBackend.getPredefinedOptions());
 
 		// verify that predefined options could be set programmatically and override pre-configured one.
@@ -534,7 +534,7 @@ public class RocksDBStateBackendConfigTest {
 		config.setString(RocksDBOptions.OPTIONS_FACTORY.key(), TestOptionsFactory.class.getName());
 		config.setInteger(TestOptionsFactory.BACKGROUND_JOBS_OPTION, 4);
 
-		rocksDbBackend = rocksDbBackend.configure(config, getClass().getClassLoader());
+		rocksDbBackend = rocksDbBackend.configure(config, getClass().getClassLoader(), 1);
 
 		assertTrue(rocksDbBackend.getOptions() instanceof TestOptionsFactory);
 		try (DBOptions dbOptions = rocksDbBackend.getDbOptions()) {
@@ -619,7 +619,7 @@ public class RocksDBStateBackendConfigTest {
 				tempFolder.newFolder().getAbsolutePath(), tempFolder.newFolder().getAbsolutePath() };
 		original.setDbStoragePaths(localDirs);
 
-		RocksDBStateBackend copy = original.configure(new Configuration(), Thread.currentThread().getContextClassLoader());
+		RocksDBStateBackend copy = original.configure(new Configuration(), Thread.currentThread().getContextClassLoader(), 1);
 
 		assertEquals(original.isIncrementalCheckpointsEnabled(), copy.isIncrementalCheckpointsEnabled());
 		assertArrayEquals(original.getDbStoragePaths(), copy.getDbStoragePaths());

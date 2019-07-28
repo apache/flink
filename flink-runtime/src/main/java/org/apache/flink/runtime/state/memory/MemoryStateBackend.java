@@ -100,7 +100,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * parameters from the Flink configuration. For example, if the backend if configured in the application
  * without a default savepoint directory, it will pick up a default savepoint directory specified in the
  * Flink configuration of the running job/cluster. That behavior is implemented via the
- * {@link #configure(Configuration, ClassLoader)} method.
+ * {@link #configure(Configuration, ClassLoader, int)} method.
  */
 @PublicEvolving
 public class MemoryStateBackend extends AbstractFileStateBackend implements ConfigurableStateBackend {
@@ -233,8 +233,13 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 * @param original The state backend to re-configure
 	 * @param configuration The configuration
 	 * @param classLoader The class loader
+	 * @param maxConcurrentCheckpoints Maximum number of checkpoint attempts in progress at the same time
 	 */
-	private MemoryStateBackend(MemoryStateBackend original, Configuration configuration, ClassLoader classLoader) {
+	private MemoryStateBackend(
+		MemoryStateBackend original,
+		Configuration configuration,
+		ClassLoader classLoader,
+		int maxConcurrentCheckpoints) {
 		super(original.getCheckpointPath(), original.getSavepointPath(), configuration);
 
 		this.maxStateSize = original.maxStateSize;
@@ -279,11 +284,12 @@ public class MemoryStateBackend extends AbstractFileStateBackend implements Conf
 	 *
 	 * @param config The configuration
 	 * @param classLoader The class loader
+	 * @param maxConcurrentCheckpoints Maximum number of checkpoint attempts in progress at the same time
 	 * @return The re-configured variant of the state backend
 	 */
 	@Override
-	public MemoryStateBackend configure(Configuration config, ClassLoader classLoader) {
-		return new MemoryStateBackend(this, config, classLoader);
+	public MemoryStateBackend configure(Configuration config, ClassLoader classLoader, int maxConcurrentCheckpoints) {
+		return new MemoryStateBackend(this, config, classLoader, maxConcurrentCheckpoints);
 	}
 
 	// ------------------------------------------------------------------------
