@@ -2511,10 +2511,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// some modifications to the state
 		backend.setCurrentKey("1");
+		assertTrue(state.isEmpty());
 		assertNull(state.get(1));
 		assertNull(getSerializedMap(kvState, "1", keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
 		state.put(1, "1");
 		backend.setCurrentKey("2");
+		assertTrue(state.isEmpty());
 		assertNull(state.get(2));
 		assertNull(getSerializedMap(kvState, "2", keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
 		state.put(2, "2");
@@ -2524,6 +2526,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		state.put(11, "11");
 
 		backend.setCurrentKey("1");
+		assertFalse(state.isEmpty());
 		assertTrue(state.contains(1));
 		assertEquals("1", state.get(1));
 		assertEquals(new HashMap<Integer, String>() {{ put (1, "1"); }},
@@ -2561,6 +2564,7 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		assertEquals(new HashMap<Integer, String>() {{ put(2, "2"); put(102, "102"); }},
 				getSerializedMap(kvState, "2", keySerializer, VoidNamespace.INSTANCE, namespaceSerializer, userKeySerializer, userValueSerializer));
 		backend.setCurrentKey("3");
+		assertFalse(state.isEmpty());
 		assertTrue(state.contains(103));
 		assertEquals("103", state.get(103));
 		assertEquals(new HashMap<Integer, String>() {{ put(103, "103"); put(1031, "1031"); put(1032, "1032"); }},
@@ -2603,9 +2607,12 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 
 		// validate the state
 		backend.setCurrentKey("1");
+		assertTrue(state.isEmpty());
 		backend.setCurrentKey("2");
+		assertFalse(state.isEmpty());
 		assertFalse(state.contains(102));
 		backend.setCurrentKey("3");
+		assertFalse(state.isEmpty());
 		for (Map.Entry<Integer, String> entry : state.entries()) {
 			assertEquals(4 + updateSuffix.length(), entry.getValue().length());
 			assertTrue(entry.getValue().endsWith(updateSuffix));

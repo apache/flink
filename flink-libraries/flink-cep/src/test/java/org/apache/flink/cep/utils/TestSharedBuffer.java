@@ -220,6 +220,15 @@ public class TestSharedBuffer<V> extends SharedBuffer<V> {
 				}
 
 				@Override
+				public boolean isEmpty() throws Exception {
+					if (values == null) {
+						return false;
+					}
+
+					return values.isEmpty();
+				}
+
+				@Override
 				public void clear() {
 					stateWrites++;
 					this.values = null;

@@ -240,6 +240,18 @@ class RocksDBMapState<K, N, UK, UV>
 	}
 
 	@Override
+	public boolean isEmpty() {
+		final byte[] prefixBytes = serializeCurrentKeyWithGroupAndNamespace();
+
+		try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(backend.db, columnFamily)) {
+
+			iterator.seek(prefixBytes);
+
+			return !iterator.isValid() || !startWithKeyPrefix(prefixBytes, iterator.key());
+		}
+	}
+
+	@Override
 	public void clear() {
 		try {
 			try (RocksIteratorWrapper iterator = RocksDBOperationUtils.getRocksIterator(backend.db, columnFamily);

@@ -535,7 +535,7 @@ public class CepOperator<IN, KEY, OUT>
 	@VisibleForTesting
 	boolean hasNonEmptyPQ(KEY key) throws Exception {
 		setCurrentKey(key);
-		return elementQueueState.keys().iterator().hasNext();
+		return !elementQueueState.isEmpty();
 	}
 
 	@VisibleForTesting

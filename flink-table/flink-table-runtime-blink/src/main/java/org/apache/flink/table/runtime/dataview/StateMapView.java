@@ -108,6 +108,11 @@ public abstract class StateMapView<N, MK, MV> extends MapView<MK, MV> implements
 		}
 
 		@Override
+		public boolean isEmpty() throws Exception {
+			return getMapState().isEmpty();
+		}
+
+		@Override
 		public void clear() {
 			getMapState().clear();
 		}
@@ -189,6 +194,11 @@ public abstract class StateMapView<N, MK, MV> extends MapView<MK, MV> implements
 		@Override
 		public Iterator<Map.Entry<MK, MV>> iterator() throws Exception {
 			return new NullAwareMapIterator<>(getMapState().iterator(), new NullMapEntryImpl());
+		}
+
+		@Override
+		public boolean isEmpty() throws Exception {
+			return getMapState().isEmpty() && getNullState().value() == null;
 		}
 
 		@Override
