@@ -54,10 +54,12 @@ class AggSqlFunction(
     val externalResultType: DataType,
     val externalAccType: DataType,
     typeFactory: FlinkTypeFactory,
-    requiresOver: Boolean)
+    requiresOver: Boolean,
+    returnTypeInfer: Option[SqlReturnTypeInference] = None)
   extends SqlUserDefinedAggFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
-    createReturnTypeInference(fromDataTypeToLogicalType(externalResultType), typeFactory),
+    returnTypeInfer.getOrElse(createReturnTypeInference(
+      fromDataTypeToLogicalType(externalResultType), typeFactory)),
     createOperandTypeInference(name, aggregateFunction, typeFactory),
     createOperandTypeChecker(name, aggregateFunction),
     // Do not need to provide a calcite aggregateFunction here. Flink aggregateion function
@@ -69,7 +71,9 @@ class AggSqlFunction(
     typeFactory
   ) {
 
-  def getFunction: AggregateFunction[_, _] = aggregateFunction
+  def makeFunction(
+      constants: Array[AnyRef], argTypes: Array[LogicalType]): AggregateFunction[_, _] =
+    aggregateFunction
 
   override def isDeterministic: Boolean = aggregateFunction.isDeterministic
 
