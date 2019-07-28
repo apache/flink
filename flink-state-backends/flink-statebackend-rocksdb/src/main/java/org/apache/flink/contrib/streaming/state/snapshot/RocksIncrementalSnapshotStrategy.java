@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsSegmentCheckpointStreamFactory;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
@@ -108,6 +109,11 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 	/** The local directory name of the current snapshot strategy. */
 	private final String localDirectoryName;
 
+	/** The checkpoint stream factory used in current snapshot strategy,
+	 * will used to close file in {@link FsSegmentCheckpointStreamFactory}.
+	 */
+	private CheckpointStreamFactory checkpointStreamFactory;
+
 	public RocksIncrementalSnapshotStrategy(
 		@Nonnull RocksDB db,
 		@Nonnull ResourceGuard rocksDBResourceGuard,
@@ -140,6 +146,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		this.lastCompletedCheckpointId = lastCompletedCheckpointId;
 		this.stateUploader = new RocksDBStateUploader(numberOfTransferingThreads);
 		this.localDirectoryName = backendUID.toString().replaceAll("[\\-]", "");
+		this.checkpointStreamFactory = null;
 	}
 
 	@Nonnull
@@ -152,6 +159,10 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 
 		final SnapshotDirectory snapshotDirectory = prepareLocalSnapshotDirectory(checkpointId);
 		LOG.trace("Local RocksDB checkpoint goes to backup path {}.", snapshotDirectory);
+
+		if (this.checkpointStreamFactory == null) {
+			this.checkpointStreamFactory = checkpointStreamFactory;
+		}
 
 		final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots = new ArrayList<>(kvStateInformation.size());
 		final Map<StateHandleID, StreamStateHandle> baseSstFiles = snapshotMetaData(checkpointId, stateMetaInfoSnapshots);
@@ -175,6 +186,11 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			if (completedCheckpointId > lastCompletedCheckpointId) {
 				materializedSstFiles.keySet().removeIf(checkpointId -> checkpointId < completedCheckpointId);
 				lastCompletedCheckpointId = completedCheckpointId;
+			}
+
+			// We need to close the file for current completed checkpoint.
+			if (checkpointStreamFactory instanceof FsSegmentCheckpointStreamFactory) {
+				((FsSegmentCheckpointStreamFactory) checkpointStreamFactory).closeFileOutputStream(completedCheckpointId);
 			}
 		}
 	}
@@ -281,6 +297,9 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 		@Nullable
 		private final Map<StateHandleID, StreamStateHandle> baseSstFiles;
 
+		/** Whether do we use {@link org.apache.flink.runtime.state.filesystem.FsSegmentCheckpointStreamFactory}. */
+		private final boolean useSegmentStreamFactory;
+
 		private RocksDBIncrementalSnapshotOperation(
 			long checkpointId,
 			@Nonnull CheckpointStreamFactory checkpointStreamFactory,
@@ -293,6 +312,7 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 			this.checkpointId = checkpointId;
 			this.localBackupDirectory = localBackupDirectory;
 			this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
+			this.useSegmentStreamFactory = checkpointStreamFactory instanceof FsSegmentCheckpointStreamFactory;
 		}
 
 		@Override
@@ -447,9 +467,15 @@ public class RocksIncrementalSnapshotStrategy<K> extends RocksDBSnapshotStrategy
 					final boolean existsAlready = baseSstFiles != null && baseSstFiles.containsKey(stateHandleID);
 
 					if (existsAlready) {
-						// we introduce a placeholder state handle, that is replaced with the
-						// original from the shared state registry (created from a previous checkpoint)
-						sstFiles.put(stateHandleID, new PlaceholderStreamStateHandle());
+						if (useSegmentStreamFactory) {
+							// When using FsSegmentStateBackend, we do not use PlaceholderStreamStateHandle any more,
+							// because we'll always flush the data to the file.
+							sstFiles.put(stateHandleID, baseSstFiles.get(stateHandleID));
+						} else {
+							// we introduce a placeholder state handle, that is replaced with the
+							// original from the shared state registry (created from a previous checkpoint)
+							sstFiles.put(stateHandleID, new PlaceholderStreamStateHandle());
+						}
 					} else {
 						sstFilePaths.put(stateHandleID, filePath);
 					}

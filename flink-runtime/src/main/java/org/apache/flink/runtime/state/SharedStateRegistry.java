@@ -18,15 +18,21 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.state.filesystem.FsSegmentStateHandle;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -49,6 +55,17 @@ public class SharedStateRegistry implements AutoCloseable {
 	/** All registered state objects by an artificial key */
 	private final Map<SharedStateRegistryKey, SharedStateRegistry.SharedStateEntry> registeredStates;
 
+	/**
+	 * Used in {@link org.apache.flink.runtime.state.filesystem.FsSegmentStateBackend}.
+	 * will track the reference of the underlying file.
+	 */
+	private final Map<String, Integer> fileRefCounts;
+
+	/** A set used to tracking the underlying files which used by duplicated state hanldes,
+	 * we'll try to delete these files after all state handles of one checkpoint have been registered.
+	 * Please see comments of {@link #delUselessUnderlyingFile()} for more detail.*/
+	private Set<String> underlyingFileOfDuplicatedStatehandles;
+
 	/** This flag indicates whether or not the registry is open or if close() was called */
 	private boolean open;
 
@@ -62,6 +79,8 @@ public class SharedStateRegistry implements AutoCloseable {
 
 	public SharedStateRegistry(Executor asyncDisposalExecutor) {
 		this.registeredStates = new HashMap<>();
+		this.fileRefCounts = new HashMap<>();
+		this.underlyingFileOfDuplicatedStatehandles = new HashSet<>();
 		this.asyncDisposalExecutor = Preconditions.checkNotNull(asyncDisposalExecutor);
 		this.open = true;
 	}
@@ -107,6 +126,10 @@ public class SharedStateRegistry implements AutoCloseable {
 				// delete if this is a real duplicate
 				if (!Objects.equals(state, entry.stateHandle)) {
 					scheduledStateDeletion = state;
+					// increase file reference of scheduledStateDeletetion so that
+					// we can unify the operation in descFileRefCountForSegmentStateHandle
+					increaseFileRefCountForSegmentStateHandle(scheduledStateDeletion);
+					descFileRefCountForSegmentStateHandle(scheduledStateDeletion, false);
 					LOG.trace("Identified duplicate state registration under key {}. New state {} was determined to " +
 							"be an unnecessary copy of existing state {} and will be dropped.",
 						registrationKey,
@@ -115,6 +138,7 @@ public class SharedStateRegistry implements AutoCloseable {
 				}
 				entry.increaseReferenceCount();
 			}
+			increaseFileRefCountForSegmentStateHandle(entry.stateHandle);
 		}
 
 		scheduleAsyncDelete(scheduledStateDeletion);
@@ -157,6 +181,7 @@ public class SharedStateRegistry implements AutoCloseable {
 				scheduledStateDeletion = null;
 				result = new Result(entry);
 			}
+			descFileRefCountForSegmentStateHandle(entry.getStateHandle(), true);
 		}
 
 		LOG.trace("Unregistered shared state {} under key {}.", entry, registrationKey);
@@ -182,11 +207,80 @@ public class SharedStateRegistry implements AutoCloseable {
 		}
 	}
 
+	private void increaseFileRefCountForSegmentStateHandle(StreamStateHandle handle) {
+		if (handle instanceof FsSegmentStateHandle) {
+			String filePath = ((FsSegmentStateHandle) handle).getFilePath().toUri().toString();
+			fileRefCounts.put(filePath, fileRefCounts.computeIfAbsent(filePath, (nothing) -> 0) + 1);
+		}
+	}
+
+	/**
+	 * Decrease the reference count of underlying file used by handle,
+	 * if the ref count becomes zero
+	 * 	1) if canDeleteDirectly is true, will delete the underlying file directly.
+	 * 	2) else will add the underlying file to a set for deletion purpose in the future.
+	 */
+	private void descFileRefCountForSegmentStateHandle(StreamStateHandle handle, boolean canDeleteDirectly) {
+		if (handle instanceof FsSegmentStateHandle) {
+			String segmentFilePath = ((FsSegmentStateHandle) handle).getFilePath().toUri().toString();
+
+			Integer count = fileRefCounts.get(segmentFilePath);
+			Preconditions.checkState(count != null, "file ref count should never be null");
+			int newRefCount = fileRefCounts.get(segmentFilePath) - 1;
+			if (newRefCount <= 0) {
+				fileRefCounts.remove(segmentFilePath);
+				if (canDeleteDirectly) {
+					deleteQuietly(segmentFilePath);
+				} else {
+					underlyingFileOfDuplicatedStatehandles.add(segmentFilePath);
+				}
+			} else {
+				fileRefCounts.put(segmentFilePath, newRefCount);
+			}
+		}
+	}
+
+	// this function should be called after the state handles of one checkpoint have been all registered.
+	// this help function wants to solve the following problem:
+	// max concurrent checkpoint = 2
+	// checkpoint 1 includes 1.sst, 2.sst, 3.sst
+	// checkpoint 2 includes 2.sst, 3.sst, 4.sst
+	// checkpoint 3 includes 4.sst
+	// checkpoint 2 and checkpoint 3 are both based on checkpoint 1
+	// so we'll register 4.ss twice with different state handle(checkpoint 2 and checkpoint 3)
+	// when register 4.sst in checkpoint 3, wo can't directly delete the underlying file,
+	// because we don't know if there exist any more state handle in checkpoint 3 will use
+	// the same underlying file(maybe 5.sst).
+	public void delUselessUnderlyingFile() {
+		final Set<String> allInUsePaths = fileRefCounts.keySet();
+		for (String path : underlyingFileOfDuplicatedStatehandles) {
+			if (!allInUsePaths.contains(path)) {
+				deleteQuietly(path);
+			}
+		}
+		underlyingFileOfDuplicatedStatehandles.clear();
+	}
+
+	@VisibleForTesting
+	public Map<String, Integer> getFileRefCounts() {
+		return fileRefCounts;
+	}
+
+	private void deleteQuietly(String path) {
+		Path path2Del = new Path(path);
+		try {
+			path2Del.getFileSystem().delete(path2Del, false);
+		} catch (IOException e) {
+			LOG.error("Can not delete underlying checkpoint file {}.", path);
+		}
+	}
+
 	@Override
 	public String toString() {
 		synchronized (registeredStates) {
 			return "SharedStateRegistry{" +
 				"registeredStates=" + registeredStates +
+				"fileRefCounts=" + fileRefCounts +
 				'}';
 		}
 	}

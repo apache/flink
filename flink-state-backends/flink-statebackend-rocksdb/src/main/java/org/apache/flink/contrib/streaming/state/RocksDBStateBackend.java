@@ -42,6 +42,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
+import org.apache.flink.runtime.state.filesystem.FsSegmentStateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.AbstractID;
@@ -197,8 +198,26 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * @param enableIncrementalCheckpointing True if incremental checkpointing is enabled.
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
-	public RocksDBStateBackend(String checkpointDataUri, boolean enableIncrementalCheckpointing) throws IOException {
+	public RocksDBStateBackend(String checkpointDataUri, boolean enableIncrementalCheckpointing) {
 		this(new Path(checkpointDataUri).toUri(), enableIncrementalCheckpointing);
+	}
+
+	/**
+	 * Creates a new {@code RocksDBStateBackend} that stores its checkpoint data in the
+	 * file system and location defined by the given URI.
+	 *
+	 * <p>A state backend that stores checkpoints in HDFS or S3 must specify the file system
+	 * host and port in the URI, or have the Hadoop configuration that describes the file system
+	 * (host / high-availability group / possibly credentials) either referenced from the Flink
+	 * config, or included in the classpath.
+	 *
+	 * @param checkpointDataUri The URI describing the filesystem and path to the checkpoint data directory.
+	 * @param enableIncrementalCheckpointing True if incremental checkpointing is enabled.
+	 * @param useSegmentStreamFactory True if we use FsSegmentStateBackend, otherwise will use FsStateBackend.
+	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 */
+	public RocksDBStateBackend(String checkpointDataUri, boolean enableIncrementalCheckpointing, boolean useSegmentStreamFactory) {
+		this(new Path(checkpointDataUri).toUri(), enableIncrementalCheckpointing, useSegmentStreamFactory);
 	}
 
 	/**
@@ -214,7 +233,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	@SuppressWarnings("deprecation")
-	public RocksDBStateBackend(URI checkpointDataUri) throws IOException {
+	public RocksDBStateBackend(URI checkpointDataUri) {
 		this(new FsStateBackend(checkpointDataUri));
 	}
 
@@ -232,8 +251,28 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
 	 */
 	@SuppressWarnings("deprecation")
-	public RocksDBStateBackend(URI checkpointDataUri, boolean enableIncrementalCheckpointing) throws IOException {
+	public RocksDBStateBackend(URI checkpointDataUri, boolean enableIncrementalCheckpointing) {
 		this(new FsStateBackend(checkpointDataUri), enableIncrementalCheckpointing);
+	}
+
+	/**
+	 * Creates a new {@code RocksDBStateBackend} that stores its checkpoint data in the
+	 * file system and location defined by the given URI.
+	 *
+	 * <p>A state backend that stores checkpoints in HDFS or S3 must specify the file system
+	 * host and port in the URI, or have the Hadoop configuration that describes the file system
+	 * (host / high-availability group / possibly credentials) either referenced from the Flink
+	 * config, or included in the classpath.
+	 *
+	 * @param checkpointDataUri The URI describing the filesystem and path to the checkpoint data directory.
+	 * @param enableIncrementalCheckpointing True if incremental checkpointing is enabled.
+	 * @param useSegmentStreamFactory True if we use FsSegmentStateBackend, otherwise will use FsStateBackend.
+	 * @throws IOException Thrown, if no file system can be found for the scheme in the URI.
+	 */
+	@SuppressWarnings("deprecation")
+	public RocksDBStateBackend(URI checkpointDataUri, boolean enableIncrementalCheckpointing, boolean useSegmentStreamFactory) {
+		this(useSegmentStreamFactory ? new FsSegmentStateBackend(checkpointDataUri) : new FsStateBackend(checkpointDataUri),
+			enableIncrementalCheckpointing);
 	}
 
 	/**

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.filesystem.FsSegmentStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -131,13 +132,26 @@ public class RocksDBStateDownloader extends RocksDBStateDataTransfer {
 			closeableRegistry.registerCloseable(outputStream);
 
 			byte[] buffer = new byte[8 * 1024];
-			while (true) {
-				int numBytes = inputStream.read(buffer);
-				if (numBytes == -1) {
-					break;
+			if (remoteFileHandle instanceof FsSegmentStateHandle) {
+				FsSegmentStateHandle fileSegmentStateHandle = (FsSegmentStateHandle) remoteFileHandle;
+				int bytesRead;
+				long bytesLeft = fileSegmentStateHandle.getStateSize();
+				while (bytesLeft > 0) {
+					bytesRead = inputStream.read(buffer, 0, (int) Math.min(buffer.length, bytesLeft));
+					if (bytesRead == -1) {
+						throw new IOException("Unexcepted end of file.");
+					}
+					outputStream.write(buffer, 0, bytesRead);
+					bytesLeft -= bytesRead;
 				}
-
-				outputStream.write(buffer, 0, numBytes);
+			} else {
+				while (true) {
+					int numBytes = inputStream.read(buffer);
+					if (numBytes == -1) {
+						break;
+					}
+					outputStream.write(buffer, 0, numBytes);
+				}
 			}
 		} finally {
 			if (closeableRegistry.unregisterCloseable(inputStream)) {

@@ -35,6 +35,16 @@ import java.net.URI;
 public class FsSegmentStateBackend extends FsStateBackend {
 	private final int maxConcurrentCheckpoints;
 
+	public FsSegmentStateBackend(URI checkpointDataUri) {
+		super(checkpointDataUri);
+		this.maxConcurrentCheckpoints = 1;
+	}
+
+	public FsSegmentStateBackend(String checkpointDirURIStr) {
+		super(checkpointDirURIStr);
+		this.maxConcurrentCheckpoints = 1;
+	}
+
 	public FsSegmentStateBackend(
 		URI checkpointDirectory,
 		@Nullable URI defaultSavepointDirectory,

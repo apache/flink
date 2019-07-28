@@ -54,6 +54,9 @@ public class StateBackendLoader {
 	/** The shortcut configuration name for the RocksDB State Backend */
 	public static final String ROCKSDB_STATE_BACKEND_NAME = "rocksdb";
 
+	/** The shortcut configuration name for the RocksDB State Backend use FsSegmentStateBackend for checkpoint. */
+	public static final String ROCKSDB_SEGMENT_STATE_BACKEND_NAME = "rocksdb-segment";
+
 	// ------------------------------------------------------------------------
 	//  Loading the state backend from a configuration 
 	// ------------------------------------------------------------------------
@@ -126,35 +129,38 @@ public class StateBackendLoader {
 
 			case ROCKSDB_STATE_BACKEND_NAME:
 				factoryClassName = "org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory";
-				// fall through to the 'default' case that uses reflection to load the backend
-				// that way we can keep RocksDB in a separate module
-
+				break;
+			case ROCKSDB_SEGMENT_STATE_BACKEND_NAME:
+				factoryClassName = "org.apache.flink.contrib.streaming.state.RocksDBSegmentStateBackendFactory";
+				break;
 			default:
 				if (logger != null) {
-					logger.info("Loading state backend via factory {}", factoryClassName);
+					logger.info("Use default state backend.");
 				}
-
-				StateBackendFactory<?> factory;
-				try {
-					@SuppressWarnings("rawtypes")
-					Class<? extends StateBackendFactory> clazz =
-							Class.forName(factoryClassName, false, classLoader)
-									.asSubclass(StateBackendFactory.class);
-
-					factory = clazz.newInstance();
-				}
-				catch (ClassNotFoundException e) {
-					throw new DynamicCodeLoadingException(
-							"Cannot find configured state backend factory class: " + backendName, e);
-				}
-				catch (ClassCastException | InstantiationException | IllegalAccessException e) {
-					throw new DynamicCodeLoadingException("The class configured under '" +
-							CheckpointingOptions.STATE_BACKEND.key() + "' is not a valid state backend factory (" +
-							backendName + ')', e);
-				}
-
-				return factory.createFromConfig(config, classLoader, maxConcurrentCheckpoints);
 		}
+
+		if (logger != null) {
+			logger.info("Loading state backend via factory {}", factoryClassName);
+		}
+
+		StateBackendFactory<?> factory;
+		try {
+			@SuppressWarnings("rawtypes")
+			Class<? extends StateBackendFactory> clazz =
+				Class.forName(factoryClassName, false, classLoader)
+					.asSubclass(StateBackendFactory.class);
+
+			factory = clazz.newInstance();
+		} catch (ClassNotFoundException e) {
+			throw new DynamicCodeLoadingException(
+				"Cannot find configured state backend factory class: " + backendName, e);
+		} catch (ClassCastException | InstantiationException | IllegalAccessException e) {
+			throw new DynamicCodeLoadingException("The class configured under '" +
+				CheckpointingOptions.STATE_BACKEND.key() + "' is not a valid state backend factory (" +
+				backendName + ')', e);
+		}
+
+		return factory.createFromConfig(config, classLoader, maxConcurrentCheckpoints);
 	}
 
 	/**

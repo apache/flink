@@ -254,6 +254,18 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
 			// deduplication and returns the previous reference.
 			sharedStateHandle.setValue(result.getReference());
 		}
+
+		// This step we delete the useless underlying file, wants to solve the following problem:
+		// max concurrent checkpoint = 2
+		// checkpoint 1 includes 1.sst, 2.sst, 3.sst
+		// checkpoint 2 includes 2.sst, 3.sst, 4.sst
+		// checkpoint 3 includes 4.sst
+		// checkpoint 2 and checkpoint 3 are both based on checkpoint 1
+		// so we'll register 4.ss twice with different state handle(checkpoint 2 and checkpoint 3)
+		// when register 4.sst in checkpoint 3, wo can't directly delete the underlying file,
+		// because we don't know if there exist any more state handle in checkpoint 3 will use
+		// the same underlying file(maybe 5.sst).
+		sharedStateRegistry.delUselessUnderlyingFile();
 	}
 
 	/**
