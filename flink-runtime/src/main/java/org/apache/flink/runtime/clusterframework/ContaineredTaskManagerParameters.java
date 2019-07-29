@@ -107,12 +107,12 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 	 * if the config is invalid or return the cutoff value if valid.
 	 *
 	 * @param config The Flink configuration.
-	 * @param containerMemoryMB The size of the complete container, in megabytes.
+	 * @param usableContainerMemoryMB The size of the usable memory in the container, in megabytes.
 	 *
 	 * @return cutoff memory size used by container.
 	 */
-	public static long calculateCutoffMB(Configuration config, long containerMemoryMB) {
-		Preconditions.checkArgument(containerMemoryMB > 0);
+	public static long calculateCutoffMB(Configuration config, long usableContainerMemoryMB) {
+		Preconditions.checkArgument(usableContainerMemoryMB > 0);
 
 		// (1) check cutoff ratio
 		final float memoryCutoffRatio = config.getFloat(
@@ -128,18 +128,42 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 		final int minCutoff = config.getInteger(
 			ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN);
 
-		if (minCutoff >= containerMemoryMB) {
+		if (minCutoff >= usableContainerMemoryMB) {
 			throw new IllegalArgumentException("The configuration value '"
 				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key() + "'='" + minCutoff
-				+ "' is larger than the total container memory " + containerMemoryMB);
+				+ "' is larger than the total usable container memory " + usableContainerMemoryMB);
 		}
 
 		// (3) check between heap and off-heap
-		long cutoff = (long) (containerMemoryMB * memoryCutoffRatio);
+		long cutoff = (long) (usableContainerMemoryMB * memoryCutoffRatio);
 		if (cutoff < minCutoff) {
 			cutoff = minCutoff;
 		}
 		return cutoff;
+	}
+
+	/**
+	 * Compute the amount of usable memory in the container by allowing to keep a fraction of the container
+	 * as "overhead" memory.
+	 *
+	 * @param config The Flink configuration.
+	 * @param containerMemoryMB The size of the complete container, in megabytes.
+	 *
+	 * @return The amount of memory that Flink can use in the container (on-heap and off-heap).
+	 */
+	public static long calculateUsableContainerMemory(Configuration config, long containerMemoryMB) {
+		Preconditions.checkArgument(containerMemoryMB > 0);
+
+		final float memoryOverheadRatio = config.getFloat(
+			ResourceManagerOptions.CONTAINERIZED_MEMORY_OVERHEAD_RATIO);
+
+		if (memoryOverheadRatio >= 1 || memoryOverheadRatio < 0) {
+			throw new IllegalArgumentException("The configuration value '"
+				+ ResourceManagerOptions.CONTAINERIZED_MEMORY_OVERHEAD_RATIO.key() + "' must be between 0 and 1. Value given="
+				+ memoryOverheadRatio);
+		}
+
+		return (long) (containerMemoryMB * (1 - memoryOverheadRatio));
 	}
 
 	/**
@@ -153,15 +177,18 @@ public class ContaineredTaskManagerParameters implements java.io.Serializable {
 			Configuration config,
 			long containerMemoryMB,
 			int numSlots) {
-		// (1) try to compute how much memory used by container
-		final long cutoffMB = calculateCutoffMB(config, containerMemoryMB);
+		// (1) compute how much memory can be used by Flink inside the container.
+		final long usableContainerMemoryMB = calculateUsableContainerMemory(config, containerMemoryMB);
 
-		// (2) split the remaining Java memory between heap and off-heap
-		final long heapSizeMB = TaskManagerServices.calculateHeapSizeMB(containerMemoryMB - cutoffMB, config);
+		// (2) try to compute how much memory used by container
+		final long cutoffMB = calculateCutoffMB(config, usableContainerMemoryMB);
+
+		// (3) split the remaining Java memory between heap and off-heap
+		final long heapSizeMB = TaskManagerServices.calculateHeapSizeMB(usableContainerMemoryMB - cutoffMB, config);
 		// use the cut-off memory for off-heap (that was its intention)
-		final long offHeapSizeMB = containerMemoryMB - heapSizeMB;
+		final long offHeapSizeMB = usableContainerMemoryMB - heapSizeMB;
 
-		// (3) obtain the additional environment variables from the configuration
+		// (4) obtain the additional environment variables from the configuration
 		final HashMap<String, String> envVars = new HashMap<>();
 		final String prefix = ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX;
 

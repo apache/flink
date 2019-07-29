@@ -56,6 +56,16 @@ public class ResourceManagerOptions {
 			" Its not possible to use this configuration key to define port ranges.");
 
 	/**
+	 * Percentage of the container memory (YARN / Mesos) to keep unallocated (not used for JVM heap memory
+	 * or JVM off-heap direct memory).
+	 */
+	public static final ConfigOption<Float> CONTAINERIZED_MEMORY_OVERHEAD_RATIO = ConfigOptions
+		.key("containerized.memory-overhead-ratio")
+		.defaultValue(0f)
+		.withDescription("Percentage of the container memory (YARN / Mesos) to keep unallocated (not used for" +
+			" JVM heap memory or JVM off-heap direct memory).");
+
+	/**
 	 * Percentage of heap space to remove from containers (YARN / Mesos), to compensate
 	 * for other JVM memory usage.
 	 */

@@ -71,6 +71,22 @@ public class ContaineredTaskManagerParametersTest extends TestLogger {
 	}
 
 	/**
+	 * This tests that the memory allocate honors the required memory overhead.
+	 */
+	@Test
+	public void testUsableMemory() {
+		Configuration conf = new Configuration();
+		conf.setFloat(ResourceManagerOptions.CONTAINERIZED_MEMORY_OVERHEAD_RATIO, 0.1f);
+
+		ContaineredTaskManagerParameters params =
+			ContaineredTaskManagerParameters.create(conf, CONTAINER_MEMORY, 1);
+
+		assertEquals(params.taskManagerTotalMemoryMB(), CONTAINER_MEMORY);
+		assertEquals(params.taskManagerHeapSizeMB() + params.taskManagerDirectMemoryLimitMB(),
+			0.9f * params.taskManagerTotalMemoryMB(), 1f);
+	}
+
+	/**
 	 * This tests that when using off-heap memory the sum of on and off heap memory does not exceed the container
 	 * maximum.
 	 */
