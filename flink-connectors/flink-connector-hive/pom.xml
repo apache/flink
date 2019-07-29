@@ -420,7 +420,7 @@ under the License.
 					<artifactId>tez-mapreduce</artifactId>
 				</exclusion>
 				<exclusion>
-					<!-- This dependency is not available with java 9.-->
+					<!-- This dependency is no longer shipped with the JDK since Java 9.-->
 					<groupId>jdk.tools</groupId>
 					<artifactId>jdk.tools</artifactId>
 				</exclusion>
@@ -460,7 +460,7 @@ under the License.
 					<artifactId>guava</artifactId>
 				</exclusion>
 				<exclusion>
-					<!-- This dependency is not available with java 9.-->
+					<!-- This dependency is no longer shipped with the JDK since Java 9.-->
 					<groupId>jdk.tools</groupId>
 					<artifactId>jdk.tools</artifactId>
 				</exclusion>
