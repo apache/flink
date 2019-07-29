@@ -21,9 +21,6 @@ source "$(dirname "$0")"/common.sh
 
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-stream-sql-test/target/StreamSQLTestProgram.jar
 
-# copy flink-table jar into lib folder
-add_optional_lib "table"
-
 start_cluster
 $FLINK_DIR/bin/taskmanager.sh start
 $FLINK_DIR/bin/taskmanager.sh start
