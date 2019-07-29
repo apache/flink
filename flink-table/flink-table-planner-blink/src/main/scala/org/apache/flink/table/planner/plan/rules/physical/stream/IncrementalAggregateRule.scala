@@ -55,7 +55,7 @@ class IncrementalAggregateRule
 
     // whether incremental aggregate is enabled
     val incrementalAggEnabled = tableConfig.getConfiguration.getBoolean(
-      IncrementalAggregateRule.SQL_OPTIMIZER_INCREMENTAL_AGG_ENABLED)
+      IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED)
 
     partialGlobalAgg.partialFinalType == PartialFinalType.PARTIAL &&
       finalLocalAgg.partialFinalType == PartialFinalType.FINAL &&
@@ -185,9 +185,9 @@ object IncrementalAggregateRule {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_OPTIMIZER_INCREMENTAL_AGG_ENABLED: ConfigOption[JBoolean] =
-  key("sql.optimizer.incremental-agg.enabled")
-      .defaultValue(JBoolean.valueOf(false))
+  val TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED: ConfigOption[JBoolean] =
+  key("table.optimizer.incremental-agg-enabled")
+      .defaultValue(JBoolean.valueOf(true))
       .withDescription("When both local aggregation and distinct aggregation splitting " +
           "are enabled, a distinct aggregation will be optimized into four aggregations, " +
           "i.e., local-agg1, global-agg1, local-agg2 and global-Agg2. We can combine global-agg1" +

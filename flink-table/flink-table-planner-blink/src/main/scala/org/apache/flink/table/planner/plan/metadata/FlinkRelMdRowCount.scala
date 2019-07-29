@@ -177,7 +177,7 @@ class FlinkRelMdRowCount private extends MetadataHandler[BuiltInMetadata.RowCoun
       val config = rel.getCluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
       val parallelism = (inputRowCnt /
           config.getConfiguration.getLong(
-            FlinkRelMdRowCount.SQL_OPTIMIZER_ROWS_PER_LOCALAGG) + 1).toInt
+            FlinkRelMdRowCount.TABLE_OPTIMIZER_ROWS_PER_LOCALAGG) + 1).toInt
       if (parallelism == 1) {
         ndvOfGroupKeysOnGlobalAgg
       } else if (grouping.isEmpty) {
@@ -447,8 +447,8 @@ object FlinkRelMdRowCount {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_OPTIMIZER_ROWS_PER_LOCALAGG: ConfigOption[JLong] =
-    key("sql.optimizer.rows-per-local-agg")
+  val TABLE_OPTIMIZER_ROWS_PER_LOCALAGG: ConfigOption[JLong] =
+    key("table.optimizer.rows-per-local-agg")
         .defaultValue(JLong.valueOf(1000000L))
         .withDescription("Sets estimated number of records that one local-agg processes. " +
             "Optimizer will infer whether to use local/global aggregate according to it.")

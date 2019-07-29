@@ -146,7 +146,7 @@ class BatchExecHashJoinRule
 
       // add more possibility to only shuffle by partial joinKeys, now only single one
       val isShuffleByPartialKeyEnabled = tableConfig.getConfiguration.getBoolean(
-        BatchExecJoinRuleBase.SQL_OPTIMIZER_SHUFFLE_PARTIAL_KEY_ENABLED)
+        BatchExecJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
       if (isShuffleByPartialKeyEnabled && joinInfo.pairs().length > 1) {
         joinInfo.pairs().foreach { pair =>
           transformToEquiv(

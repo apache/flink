@@ -23,7 +23,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{SQL_EXEC_EMIT_EARLY_FIRE_DELAY, SQL_EXEC_EMIT_EARLY_FIRE_ENABLED}
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED}
 import org.apache.flink.table.planner.utils.{TableConfigUtils, TableTestBase}
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
@@ -340,13 +340,14 @@ class MiniBatchIntervalInferTest extends TableTestBase {
   private def withEarlyFireDelay(tableConfig: TableConfig, interval: Time): Unit = {
     val intervalInMillis = interval.toMilliseconds
     val preEarlyFireInterval = TableConfigUtils.getMillisecondFromConfigDuration(
-      tableConfig, SQL_EXEC_EMIT_EARLY_FIRE_DELAY)
+      tableConfig, TABLE_EXEC_EMIT_EARLY_FIRE_DELAY)
     if (preEarlyFireInterval != null && (preEarlyFireInterval != intervalInMillis)) { //
       // earlyFireInterval of the two query config is not equal and not the default
       throw new RuntimeException("Currently not support different earlyFireInterval configs in " +
         "one job")
     }
-    tableConfig.getConfiguration.setBoolean(SQL_EXEC_EMIT_EARLY_FIRE_ENABLED, true)
-    tableConfig.getConfiguration.setString(SQL_EXEC_EMIT_EARLY_FIRE_DELAY, intervalInMillis + " ms")
+    tableConfig.getConfiguration.setBoolean(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, true)
+    tableConfig.getConfiguration.setString(
+      TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, intervalInMillis + " ms")
   }
 }

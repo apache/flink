@@ -1239,7 +1239,7 @@ class CalcITCase extends BatchTestBase {
     conf.getConfiguration.setInteger(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
     conf.getConfiguration.setBoolean(
-      BatchExecSortRule.SQL_EXEC_SORT_RANGE_ENABLED, true)
+      BatchExecSortRule.TABLE_EXEC_SORT_RANGE_ENABLED, true)
     checkResult(
       "select * from BinaryT order by c",
       nullData3.sortBy((x : Row) =>
