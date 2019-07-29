@@ -177,7 +177,7 @@ Currently `HiveCatalog` supports most Flink data types with the following mappin
 | VARBINARY(p)  |   N/A |
 | BYTES         |   BINARY |
 | ARRAY\<E>     |  ARRAY\<E> |
-| MAP<K, V>     |  map<K, V> |
+| MAP<K, V>     |  map<K, V> ****|
 | ROW           |  struct |
 | MULTISET      |  N/A |
 
@@ -195,6 +195,8 @@ The following limitations in Hive's data types impact the mapping between Flink 
 Catalogs are pluggable. Users can develop custom catalogs by implementing the `Catalog` interface, which defines a set of APIs for reading and writing catalog meta-objects such as database, tables, partitions, views, and functions.
 
 \*** `INTERVAL` type can not be mapped to hive `INTERVAL` for now.
+
+\**** Hive map key type only allows primitive types, while Flink map key can be any data type.
 
 Catalog Registration
 --------------------

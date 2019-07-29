@@ -144,7 +144,6 @@ public class HiveTypeUtil {
 		}
 
 		if (dataType.equals(DataTypes.BYTES())) {
-			// Hive doesn't support variable-length binary string
 			return TypeInfoFactory.binaryTypeInfo;
 		}
 
