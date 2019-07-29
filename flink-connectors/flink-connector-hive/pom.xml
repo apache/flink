@@ -562,5 +562,24 @@ under the License.
 				</plugins>
 			</build>
 		</profile>
+		<profile>
+			<id>java11</id>
+			<activation>
+				<jdk>11</jdk>
+			</activation>
+
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<!-- hive does not support Java 11 -->
+							<skip>true</skip>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
 	</profiles>
 </project>
