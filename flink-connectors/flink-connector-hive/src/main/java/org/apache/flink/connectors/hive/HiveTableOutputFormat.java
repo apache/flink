@@ -58,9 +58,10 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.ql.io.HiveFileFormatUtils;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
-import org.apache.hadoop.hive.serde2.AbstractSerDe;
+import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
+import org.apache.hadoop.hive.serde2.Serializer;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
@@ -122,7 +123,8 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	// number of non-partitioning columns
 	private transient int numNonPartitionColumns;
 
-	private transient AbstractSerDe serializer;
+	// SerDe in Hive-1.2.1 and Hive-2.3.4 can be of different classes, make sure to use a common base class
+	private transient Serializer serializer;
 	//StructObjectInspector represents the hive row structure.
 	private transient StructObjectInspector rowObjectInspector;
 	private transient Class<? extends Writable> outputClass;
@@ -257,10 +259,12 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	public void open(int taskNumber, int numTasks) throws IOException {
 		try {
 			StorageDescriptor sd = hiveTablePartition.getStorageDescriptor();
-			serializer = (AbstractSerDe) Class.forName(sd.getSerdeInfo().getSerializationLib()).newInstance();
+			serializer = (Serializer) Class.forName(sd.getSerdeInfo().getSerializationLib()).newInstance();
+			Preconditions.checkArgument(serializer instanceof Deserializer,
+					"Expect to get a SerDe, but actually got " + serializer.getClass().getName());
 			ReflectionUtils.setConf(serializer, jobConf);
 			// TODO: support partition properties, for now assume they're same as table properties
-			SerDeUtils.initializeSerDe(serializer, jobConf, tableProperties, null);
+			SerDeUtils.initializeSerDe((Deserializer) serializer, jobConf, tableProperties, null);
 			outputClass = serializer.getSerializedClass();
 		} catch (IllegalAccessException | SerDeException | InstantiationException | ClassNotFoundException e) {
 			throw new FlinkRuntimeException("Error initializing Hive serializer", e);
