@@ -21,6 +21,7 @@ package org.apache.flink.runtime.io.network.partition;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
@@ -39,7 +40,8 @@ import static org.junit.Assert.fail;
  * While using Mockito internally (for now), the use of Mockito should not
  * leak out of this class.
  */
-public class PartitionTestUtils {
+public enum PartitionTestUtils {
+	;
 
 	public static ResultPartition createPartition() {
 		return createPartition(ResultPartitionType.PIPELINED_BOUNDED);
@@ -83,7 +85,7 @@ public class PartitionTestUtils {
 	}
 
 	static void verifyCreateSubpartitionViewThrowsException(
-			ResultPartitionManager partitionManager,
+			ResultPartitionProvider partitionManager,
 			ResultPartitionID partitionId) throws IOException {
 		try {
 			partitionManager.createSubpartitionView(partitionId, 0, new NoOpBufferAvailablityListener());
@@ -114,7 +116,10 @@ public class PartitionTestUtils {
 		return createPartitionDeploymentDescriptor(ResultPartitionType.BLOCKING);
 	}
 
-	public static void writeBuffers(ResultPartition partition, int numberOfBuffers, int bufferSize) throws IOException {
+	public static void writeBuffers(
+			ResultPartitionWriter partition,
+			int numberOfBuffers,
+			int bufferSize) throws IOException {
 		for (int i = 0; i < numberOfBuffers; i++) {
 			partition.addBufferConsumer(createFilledBufferConsumer(bufferSize, bufferSize), 0);
 		}
