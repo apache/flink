@@ -332,7 +332,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
 		RecoverableWriter.ResumeRecoverable recoverable;
 		RecoverableFsDataOutputStream stream = null;
-		try{
+		try {
 			stream = writer.open(path);
 			stream.write(testData1.getBytes(StandardCharsets.UTF_8));
 
