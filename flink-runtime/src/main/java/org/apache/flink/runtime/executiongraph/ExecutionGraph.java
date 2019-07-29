@@ -1215,6 +1215,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 			scheduleForExecution();
 		}
+		// TODO remove the catch block if we align the schematics to not fail global within the restarter.
 		catch (Throwable t) {
 			LOG.warn("Failed to restart the job.", t);
 			failGlobal(t);
@@ -1433,8 +1434,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					LOG.info("Restarting the job {} ({}).", getJobName(), getJobID());
 
 					RestartCallback restarter = new ExecutionGraphRestartCallback(this, globalModVersionForRestart);
-					restartStrategy.restart(restarter, getJobMasterMainThreadExecutor());
-
+					FutureUtils.assertNoException(
+						restartStrategy
+							.restart(restarter, getJobMasterMainThreadExecutor())
+							.exceptionally((throwable) -> {
+								failGlobal(throwable);
+								return null;
+							}));
 					return true;
 				}
 				else if (!isRestartable && transitionState(currentState, JobStatus.FAILED, failureCause)) {
