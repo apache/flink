@@ -23,10 +23,10 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.apache.flink.shaded.asm6.org.objectweb.asm.ClassReader;
-import org.apache.flink.shaded.asm6.org.objectweb.asm.ClassVisitor;
-import org.apache.flink.shaded.asm6.org.objectweb.asm.MethodVisitor;
-import org.apache.flink.shaded.asm6.org.objectweb.asm.Opcodes;
+import org.apache.flink.shaded.asm7.org.objectweb.asm.ClassReader;
+import org.apache.flink.shaded.asm7.org.objectweb.asm.ClassVisitor;
+import org.apache.flink.shaded.asm7.org.objectweb.asm.MethodVisitor;
+import org.apache.flink.shaded.asm7.org.objectweb.asm.Opcodes;
 
 import org.apache.commons.lang3.ClassUtils;
 import org.slf4j.Logger;
@@ -248,7 +248,7 @@ class This0AccessFinder extends ClassVisitor {
 	private boolean isThis0Accessed;
 
 	public This0AccessFinder(String this0Name) {
-		super(Opcodes.ASM6);
+		super(Opcodes.ASM7);
 		this.this0Name = this0Name;
 	}
 
@@ -258,7 +258,7 @@ class This0AccessFinder extends ClassVisitor {
 
 	@Override
 	public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] exceptions) {
-		return new MethodVisitor(Opcodes.ASM6) {
+		return new MethodVisitor(Opcodes.ASM7) {
 
 			@Override
 			public void visitFieldInsn(int op, String owner, String name, String desc) {

@@ -3284,12 +3284,13 @@ Copyright 2014-2019 The Apache Software Foundation
 Apache Flink-shaded
 Copyright 2006-2019 The Apache Software Foundation
 
-flink-shaded-asm6
+flink-shaded-asm7
 Copyright 2014-2018 The Apache Software Foundation
 
-- org.ow2.asm:asm:6.2.1
-- org.ow2.asm:asm-analysis:6.2.1
-- org.ow2.asm:asm-tree:6.2.1
+- org.ow2.asm:asm:7.1
+- org.ow2.asm:asm-analysis:7.1
+- org.ow2.asm:asm-commons:7.1
+- org.ow2.asm:asm-tree:7.1
 
 Apache Commons Lang
 Copyright 2001-2014 The Apache Software Foundation
