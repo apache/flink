@@ -161,8 +161,7 @@ public class EnvironmentSettings {
 		private boolean isStreamingMode = true;
 
 		/**
-		 * Sets the old Flink planner as the required module. By default, {@link #useAnyPlanner()} is
-		 * enabled.
+		 * Sets the old Flink planner as the required module.
 		 *
 		 * <p>This is the default behavior.
 		 */
@@ -173,7 +172,7 @@ public class EnvironmentSettings {
 		}
 
 		/**
-		 * Sets the Blink planner as the required module. By default, {@link #useAnyPlanner()} is
+		 * Sets the Blink planner as the required module. By default, {@link #useOldPlanner()} is
 		 * enabled.
 		 */
 		public Builder useBlinkPlanner() {
@@ -186,6 +185,8 @@ public class EnvironmentSettings {
 		 * Does not set a planner requirement explicitly.
 		 *
 		 * <p>A planner will be discovered automatically, if there is only one planner available.
+		 *
+		 * <p>By default, {@link #useOldPlanner()} is enabled.
 		 */
 		public Builder useAnyPlanner() {
 			this.plannerClass = null;
