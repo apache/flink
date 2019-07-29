@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.experimental.CollectSink;
 import org.apache.flink.table.sinks.RetractStreamTableSink;
 import org.apache.flink.types.Row;
@@ -73,8 +74,13 @@ public class CollectStreamTableSink implements RetractStreamTableSink<Row> {
 
 	@Override
 	public void emitDataStream(DataStream<Tuple2<Boolean, Row>> stream) {
+		consumeDataStream(stream);
+	}
+
+	@Override
+	public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> stream) {
 		// add sink
-		stream
+		return stream
 			.addSink(new CollectSink<>(targetAddress, targetPort, serializer))
 			.name("SQL Client Stream Collect Sink")
 			.setParallelism(1);

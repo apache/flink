@@ -40,7 +40,6 @@ import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.TableEnvImpl;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.client.SqlClientException;
@@ -302,7 +301,7 @@ public class LocalExecutor implements Executor {
 
 		try {
 			return context.wrapClassLoader(() ->
-				Arrays.asList(((TableEnvImpl) tableEnv).getCompletionHints(statement, position)));
+				Arrays.asList(tableEnv.getCompletionHints(statement, position)));
 		} catch (Throwable t) {
 			// catch everything such that the query does not crash the executor
 			if (LOG.isDebugEnabled()) {

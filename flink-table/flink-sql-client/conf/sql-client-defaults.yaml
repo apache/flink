@@ -50,6 +50,7 @@ tables: [] # empty list
 #   time-attribute: ...
 #   primary-key: ...
 
+
 #==============================================================================
 # User-defined functions
 #==============================================================================
@@ -63,6 +64,21 @@ functions: [] # empty list
 #   class: ...
 #   constructor: ...
 
+
+#==============================================================================
+# Catalogs
+#==============================================================================
+
+# Define catalogs here.
+
+catalogs: [] # empty list
+# A typical catalog definition looks like:
+#  - name: myhive
+#    type: hive
+#    hive-conf-dir: /opt/hive_conf/
+#    default-database: ...
+
+
 #==============================================================================
 # Execution properties
 #==============================================================================
@@ -70,6 +86,9 @@ functions: [] # empty list
 # Execution properties allow for changing the behavior of a table program.
 
 execution:
+  # select the implementation responsible for planning table programs
+  # possible values are 'old' (used by default) or 'blink'
+  planner: old
   # 'batch' or 'streaming' execution
   type: streaming
   # allow 'event-time' or only 'processing-time' in sources
@@ -88,15 +107,15 @@ execution:
   min-idle-state-retention: 0
   # maximum idle state retention in ms
   max-idle-state-retention: 0
+  # current catalog ('default_catalog' by default)
+  current-catalog: default_catalog
+  # current database of the current catalog (default database of the catalog by default)
+  current-database: default_database
   # controls how table programs are restarted in case of a failures
   restart-strategy:
     # strategy type
     # possible values are "fixed-delay", "failure-rate", "none", or "fallback" (default)
     type: fallback
-  # current catalog of SQL Client
-#  current-catalog: ...
-  # current database of the current catalog
-#  current-database: ...
 
 
 #==============================================================================
@@ -113,16 +132,3 @@ deployment:
   gateway-address: ""
   # (optional) port from cluster to gateway
   gateway-port: 0
-
-
-#==============================================================================
-# Catalogs
-#==============================================================================
-
-# Define catalogs here.
-
-catalogs: [] # empty list
-#  - name: myhive
-#    type: hive
-#    hive-conf-dir: /opt/hive_conf/
-#    default-database: ...
