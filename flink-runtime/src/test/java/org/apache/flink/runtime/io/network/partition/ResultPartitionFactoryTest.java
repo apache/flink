@@ -39,9 +39,11 @@ import static org.hamcrest.MatcherAssert.assertThat;
 /**
  * Tests for the {@link ResultPartitionFactory}.
  */
+@SuppressWarnings("StaticVariableUsedBeforeInitialization")
 public class ResultPartitionFactoryTest extends TestLogger {
 
 	private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
+	private static final int SEGMENT_SIZE = 64;
 
 	private static FileChannelManager fileChannelManager;
 
@@ -79,11 +81,11 @@ public class ResultPartitionFactoryTest extends TestLogger {
 		ResultPartitionFactory factory = new ResultPartitionFactory(
 			new ResultPartitionManager(),
 			fileChannelManager,
-			new NetworkBufferPool(1, 64, 1),
+			new NetworkBufferPool(1, SEGMENT_SIZE, 1),
 			BoundedBlockingSubpartitionType.AUTO,
 			1,
 			1,
-			64,
+			SEGMENT_SIZE,
 			releasePartitionOnConsumption);
 
 		final ResultPartitionDeploymentDescriptor descriptor = new ResultPartitionDeploymentDescriptor(
