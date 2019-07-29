@@ -39,9 +39,7 @@ class TableEnvironmentTest {
   def thrown: ExpectedException = expectedException
 
   val env = new StreamExecutionEnvironment(new LocalStreamEnvironment())
-  val tableEnv: StreamTableEnvironment = StreamTableEnvironment.create(
-    env,
-    EnvironmentSettings.newInstance().useBlinkPlanner().build())
+  val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
   @Test
   def testScanNonExistTable(): Unit = {

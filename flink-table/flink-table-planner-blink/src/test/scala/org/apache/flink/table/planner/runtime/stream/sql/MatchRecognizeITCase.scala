@@ -24,14 +24,14 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableConfig, Types}
+import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -48,7 +48,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testSimplePattern(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(Int, String)]
     data.+=((1, "a"))
@@ -94,7 +94,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testSimplePatternWithNulls(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(Int, String, String)]
     data.+=((1, "a", null))
@@ -141,11 +141,10 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testCodeSplitsAreProperlyGenerated(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tableConfig = new TableConfig
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     // TODO: this code is ported from flink-planner,
-    //  However code split is not supported in blink-planner.
-    tableConfig.setMaxGeneratedCodeLength(1)
-    val tEnv = StreamTableEnvironment.create(env, tableConfig)
+    //  However code split is not supported in blink-planner yet.
+    tEnv.getConfig.setMaxGeneratedCodeLength(1)
 
     val data = new mutable.MutableList[(Int, String, String, String)]
     data.+=((1, "a", "key1", "second_key3"))
@@ -198,7 +197,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   def testEventsAreProperlyOrdered(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = Seq(
       Left(2L, (12, 1, "a", 1)),
@@ -256,7 +255,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   def testMatchRecognizeAppliedToWindowedGrouping(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
     //first window
@@ -317,7 +316,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   def testWindowedGroupingAppliedToMatchRecognize(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
     //first window
@@ -371,7 +370,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testLogicalOffsets(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
     data.+=(("ACME", 1L, 19, 1))
@@ -420,7 +419,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testLogicalOffsetsWithStarVariable(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(Int, String, Long, Int)]
     data.+=((1, "ACME", 1L, 20))
@@ -480,7 +479,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testLogicalOffsetOutsideOfRangeInMeasures(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(String, Long, Int, Int)]
     data.+=(("ACME", 1L, 19, 1))
@@ -531,7 +530,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testAggregates(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     tEnv.getConfig.setMaxGeneratedCodeLength(1)
 
     val data = new mutable.MutableList[(Int, String, Long, Double, Int)]
@@ -592,7 +591,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testAggregatesWithNullInputs(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     tEnv.getConfig.setMaxGeneratedCodeLength(1)
 
     val data = new mutable.MutableList[Row]
@@ -647,7 +646,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testAccessingCurrentTime(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val data = new mutable.MutableList[(Int, String)]
     data.+=((1, "a"))
@@ -686,7 +685,7 @@ class MatchRecognizeITCase(backend: StateBackendMode) extends StreamingWithState
   @Test
   def testUserDefinedFunctions(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     tEnv.getConfig.setMaxGeneratedCodeLength(1)
 
     val data = new mutable.MutableList[(Int, String, Long)]

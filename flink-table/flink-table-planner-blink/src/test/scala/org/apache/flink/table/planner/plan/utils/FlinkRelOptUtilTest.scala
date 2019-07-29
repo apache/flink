@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
 import org.apache.flink.table.planner.utils.TableTestUtil
@@ -33,7 +32,7 @@ class FlinkRelOptUtilTest {
   @Test
   def testToString(): Unit = {
     val env  = StreamExecutionEnvironment.createLocalEnvironment()
-    val tableEnv = StreamTableEnvironment.create(env, new TableConfig())
+    val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val table = env.fromElements[(Int, Long, String)]().toTable(tableEnv, 'a, 'b, 'c)
     tableEnv.registerTable("MyTable", table)

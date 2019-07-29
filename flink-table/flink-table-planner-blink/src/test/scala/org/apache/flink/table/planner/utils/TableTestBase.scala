@@ -1005,6 +1005,11 @@ object TestingTableEnvironment {
 
 object TableTestUtil {
 
+  val STREAM_SETTING: EnvironmentSettings = EnvironmentSettings.newInstance()
+    .useBlinkPlanner().inStreamingMode().build()
+  val BATCH_SETTING: EnvironmentSettings = EnvironmentSettings.newInstance()
+    .useBlinkPlanner().inBatchMode().build()
+
   /**
     * Converts operation tree in the given table to a RelNode tree.
     */
