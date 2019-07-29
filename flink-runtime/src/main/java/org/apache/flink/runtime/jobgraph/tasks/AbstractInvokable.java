@@ -24,6 +24,9 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.taskmanager.Task;
+
+import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -121,6 +124,16 @@ public abstract class AbstractInvokable {
 	 */
 	public boolean shouldInterruptOnCancel() {
 		return shouldInterruptOnCancel;
+	}
+
+	/**
+	 * If the invokable implementation executes user code in a thread other than,
+	 * {@link Task#getExecutingThread()}, this method returns that executing thread.
+	 *
+	 * @see Task#getStackTraceOfExecutingThread()
+	 */
+	public Optional<Thread> getExecutingThread() {
+		return Optional.empty();
 	}
 
 	// ------------------------------------------------------------------------
