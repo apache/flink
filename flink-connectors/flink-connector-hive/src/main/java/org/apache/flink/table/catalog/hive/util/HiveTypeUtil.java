@@ -30,6 +30,7 @@ import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 
 import org.apache.hadoop.hive.common.type.HiveChar;
@@ -136,14 +137,17 @@ public class HiveTypeUtil {
 					// Flink already validates the type so we don't need to validate again here
 					return TypeInfoFactory.getDecimalTypeInfo(decimalType.getPrecision(), decimalType.getScale());
 				}
+				case VARBINARY: {
+					VarBinaryType varBinaryType = (VarBinaryType) dataType.getLogicalType();
+					if (varBinaryType.getLength() == VarBinaryType.MAX_LENGTH) {
+						return TypeInfoFactory.binaryTypeInfo;
+					}
+					break;
+				}
 				// Flink's primitive types that Hive 2.3.4 doesn't support: Time, TIMESTAMP_WITH_LOCAL_TIME_ZONE
 				default:
 					break;
 			}
-		}
-
-		if (dataType.equals(DataTypes.BYTES())) {
-			return TypeInfoFactory.binaryTypeInfo;
 		}
 
 		if (dataType instanceof CollectionDataType) {
