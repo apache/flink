@@ -170,6 +170,12 @@ under the License.
 									<include>org.lz4:lz4-java</include>
 								</includes>
 							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>net.jpountz</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.net.jpountz</shadedPattern>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>
