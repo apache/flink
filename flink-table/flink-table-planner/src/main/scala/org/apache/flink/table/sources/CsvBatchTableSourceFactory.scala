@@ -20,7 +20,7 @@ package org.apache.flink.table.sources
 
 import java.util
 
-import org.apache.flink.table.factories.BatchTableSourceFactory
+import org.apache.flink.table.factories.{BatchTableSourceFactory, StreamTableSourceFactory}
 import org.apache.flink.types.Row
 
 /**
@@ -28,11 +28,18 @@ import org.apache.flink.types.Row
   */
 class CsvBatchTableSourceFactory
   extends CsvTableSourceFactoryBase
-  with BatchTableSourceFactory[Row] {
+  with BatchTableSourceFactory[Row]
+  with StreamTableSourceFactory[Row]{
 
   override def createBatchTableSource(
       properties: util.Map[String, String])
     : BatchTableSource[Row] = {
+    createTableSource(isStreaming = false, properties)
+  }
+
+  override def createStreamTableSource(
+      properties: util.Map[String, String])
+    : StreamTableSource[Row] = {
     createTableSource(isStreaming = false, properties)
   }
 }

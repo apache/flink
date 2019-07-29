@@ -20,7 +20,7 @@ package org.apache.flink.table.sinks
 
 import java.util
 
-import org.apache.flink.table.factories.BatchTableSinkFactory
+import org.apache.flink.table.factories.{BatchTableSinkFactory, StreamTableSinkFactory}
 import org.apache.flink.types.Row
 
 /**
@@ -28,11 +28,18 @@ import org.apache.flink.types.Row
   */
 class CsvBatchTableSinkFactory
   extends CsvTableSinkFactoryBase
-  with BatchTableSinkFactory[Row] {
+  with BatchTableSinkFactory[Row]
+  with StreamTableSinkFactory[Row] {
 
   override def createBatchTableSink(
       properties: util.Map[String, String])
     : BatchTableSink[Row] = {
+    createTableSink(isStreaming = false, properties)
+  }
+
+  override def createStreamTableSink(
+      properties: util.Map[String, String])
+    : StreamTableSink[Row] = {
     createTableSink(isStreaming = false, properties)
   }
 }
