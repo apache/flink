@@ -23,6 +23,7 @@ import org.apache.flink.table.dataformat.BinaryStringUtil;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.runtime.util.JsonUtils;
 import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.table.utils.ThreadLocalCache;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
