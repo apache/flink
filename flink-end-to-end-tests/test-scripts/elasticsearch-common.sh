@@ -92,8 +92,8 @@ function verify_result_hash {
     echo "Result verification attempt $i..."
     curl "localhost:9200/${index}/_search?q=*&pretty" > $TEST_DATA_DIR/es_output || true
 
-    # remove meta information
-    sed '2,9d' $TEST_DATA_DIR/es_output > $TEST_DATA_DIR/es_content
+    # remove meta information and sort for determinism
+    sed '2,9d' $TEST_DATA_DIR/es_output | sort > $TEST_DATA_DIR/es_content
 
     check_result_hash_no_exit "$name" $TEST_DATA_DIR/es_content "$expectedHash" || error_code=$?
 

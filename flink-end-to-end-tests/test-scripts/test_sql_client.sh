@@ -19,6 +19,8 @@
 
 set -Eeuo pipefail
 
+PLANNER="${1:-old}"
+
 KAFKA_VERSION="2.2.0"
 CONFLUENT_VERSION="5.0.0"
 CONFLUENT_MAJOR_VERSION="5.0"
@@ -185,6 +187,9 @@ functions:
   - name: RegReplace
     from: class
     class: org.apache.flink.table.toolbox.StringRegexReplaceFunction
+
+execution:
+  planner: "$PLANNER"
 EOF
 
 # submit SQL statements
@@ -208,7 +213,7 @@ JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
 
 wait_job_terminal_state "$JOB_ID" "FINISHED"
 
-verify_result_hash "SQL Client Elasticsearch Upsert" "$ELASTICSEARCH_INDEX" 3 "982cb32908def9801e781381c1b8a8db"
+verify_result_hash "SQL Client Elasticsearch Upsert" "$ELASTICSEARCH_INDEX" 3 "f16e8da8e0f379b6af01dcdc00cff4e1"
 
 echo "Executing SQL: Values -> Elasticsearch (append, no key)"
 

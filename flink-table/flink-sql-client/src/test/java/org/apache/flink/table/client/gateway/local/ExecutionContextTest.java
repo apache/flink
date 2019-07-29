@@ -247,6 +247,7 @@ public class ExecutionContextTest {
 
 	private <T> ExecutionContext<T> createDefaultExecutionContext() throws Exception {
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", "old");
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_RESULT_MODE", "changelog");
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
@@ -256,6 +257,7 @@ public class ExecutionContextTest {
 
 	private <T> ExecutionContext<T> createCatalogExecutionContext() throws Exception {
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", "old");
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_RESULT_MODE", "changelog");
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
