@@ -82,6 +82,7 @@ import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.io.StorageFormatDescriptor;
 import org.apache.hadoop.hive.ql.io.StorageFormatFactory;
 import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
+import org.apache.hive.common.util.HiveStringUtils;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1070,7 +1071,8 @@ public class HiveCatalog extends AbstractCatalog {
 			function.getClassName();
 
 		return new Function(
-			functionPath.getObjectName(),
+			// due to https://issues.apache.org/jira/browse/HIVE-22053, we have to normalize function name ourselves
+			HiveStringUtils.normalizeIdentifier(functionPath.getObjectName()),
 			functionPath.getDatabaseName(),
 			functionClassName,
 			null,			// Owner name
