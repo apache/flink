@@ -19,6 +19,7 @@
 package org.apache.flink.core.fs;
 
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -122,7 +123,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 				Assert.assertEquals(testData1, fileContents.getValue());
 			}
 		} finally {
-			closeStreamSilently(stream);
+			IOUtils.closeQuietly(stream);
 		}
 	}
 
@@ -148,7 +149,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 				Assert.assertEquals(testData1 + testData2, fileContents.getValue());
 			}
 		} finally {
-			closeStreamSilently(stream);
+			IOUtils.closeQuietly(stream);
 		}
 	}
 
@@ -217,7 +218,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
 			recoverables.put(FINAL_WITH_EXTRA_STATE, stream.persist());
 		} finally {
-			closeStreamSilently(stream);
+			IOUtils.closeQuietly(stream);
 		}
 
 		final SimpleVersionedSerializer<RecoverableWriter.ResumeRecoverable> serializer = initWriter.getResumeRecoverableSerializer();
@@ -253,7 +254,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 				Assert.assertEquals(expectedFinalContents, fileContents.getValue());
 			}
 		} finally {
-			closeStreamSilently(recoveredStream);
+			IOUtils.closeQuietly(recoveredStream);
 		}
 	}
 
@@ -278,7 +279,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
 			recoverable = stream.closeForCommit().getRecoverable();
 		} finally {
-			closeStreamSilently(stream);
+			IOUtils.closeQuietly(stream);
 		}
 
 		final byte[] serializedRecoverable = initWriter.getCommitRecoverableSerializer().serialize(recoverable);
@@ -318,7 +319,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 			stream.write(testData2.getBytes(StandardCharsets.UTF_8));
 			fail();
 		} finally {
-			closeStreamSilently(stream);
+			IOUtils.closeQuietly(stream);
 		}
 	}
 
@@ -340,7 +341,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
 			stream.closeForCommit().commit();
 		} finally {
-			closeStreamSilently(stream);
+			IOUtils.closeQuietly(stream);
 		}
 
 		// this should throw an exception as the file is already committed
@@ -371,7 +372,7 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 			recoverable2 = stream.persist();
 			stream.write(testData3.getBytes(StandardCharsets.UTF_8));
 		} finally {
-			closeStreamSilently(stream);
+			IOUtils.closeQuietly(stream);
 		}
 
 		try (RecoverableFsDataOutputStream ignored = writer.recover(recoverable1)) {
@@ -408,17 +409,5 @@ public abstract class AbstractRecoverableWriterTest extends TestLogger {
 
 	private static String randomName() {
 		return StringUtils.getRandomString(RND, 16, 16, 'a', 'z');
-	}
-
-	private void closeStreamSilently(RecoverableFsDataOutputStream stream) {
-		if (stream == null) {
-			return;
-		}
-		try {
-			stream.close();
-		} catch (IOException e) {
-			// log and ignore the exception
-			log.debug("Exception observed and ignored while trying to close the stream", e);
-		}
 	}
 }
