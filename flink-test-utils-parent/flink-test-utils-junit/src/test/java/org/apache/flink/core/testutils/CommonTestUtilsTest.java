@@ -20,6 +20,8 @@ package org.apache.flink.core.testutils;
 
 import org.junit.Test;
 
+import java.io.Serializable;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.fail;
@@ -31,7 +33,7 @@ public class CommonTestUtilsTest {
 
 	@Test
 	public void testObjectFromNewClassLoaderObject() throws Exception {
-		final CommonTestUtils.ObjectAndClassLoader objectAndClassLoader = CommonTestUtils.createObjectFromNewClassLoader();
+		final CommonTestUtils.ObjectAndClassLoader<Serializable> objectAndClassLoader = CommonTestUtils.createSerializableObjectFromNewClassLoader();
 		final Object o = objectAndClassLoader.getObject();
 
 		assertNotEquals(ClassLoader.getSystemClassLoader(), o.getClass().getClassLoader());
@@ -45,7 +47,29 @@ public class CommonTestUtilsTest {
 
 	@Test
 	public void testObjectFromNewClassLoaderClassLoaders() throws Exception {
-		final CommonTestUtils.ObjectAndClassLoader objectAndClassLoader = CommonTestUtils.createObjectFromNewClassLoader();
+		final CommonTestUtils.ObjectAndClassLoader<Serializable> objectAndClassLoader = CommonTestUtils.createSerializableObjectFromNewClassLoader();
+
+		assertNotEquals(ClassLoader.getSystemClassLoader(), objectAndClassLoader.getClassLoader());
+		assertEquals(ClassLoader.getSystemClassLoader(), objectAndClassLoader.getClassLoader().getParent());
+	}
+
+	@Test
+	public void testExceptionObjectFromNewClassLoaderObject() throws Exception {
+		final CommonTestUtils.ObjectAndClassLoader<Exception> objectAndClassLoader = CommonTestUtils.createExceptionObjectFromNewClassLoader();
+		final Object o = objectAndClassLoader.getObject();
+
+		assertNotEquals(ClassLoader.getSystemClassLoader(), o.getClass().getClassLoader());
+
+		try {
+			Class.forName(o.getClass().getName());
+			fail("should not be able to load class from the system class loader");
+		}
+		catch (ClassNotFoundException ignored) {}
+	}
+
+	@Test
+	public void testExceptionObjectFromNewClassLoaderClassLoaders() throws Exception {
+		final CommonTestUtils.ObjectAndClassLoader<Exception> objectAndClassLoader = CommonTestUtils.createExceptionObjectFromNewClassLoader();
 
 		assertNotEquals(ClassLoader.getSystemClassLoader(), objectAndClassLoader.getClassLoader());
 		assertEquals(ClassLoader.getSystemClassLoader(), objectAndClassLoader.getClassLoader().getParent());

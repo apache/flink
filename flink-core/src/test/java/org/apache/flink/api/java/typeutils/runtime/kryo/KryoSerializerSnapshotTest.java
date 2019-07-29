@@ -36,6 +36,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.io.Serializable;
 
 import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isCompatibleAsIs;
 import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer;
@@ -127,7 +128,7 @@ public class KryoSerializerSnapshotTest {
 	private static byte[] unLoadableSnapshotBytes() throws IOException {
 		final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
 
-		final CommonTestUtils.ObjectAndClassLoader outsideClassLoading = CommonTestUtils.createObjectFromNewClassLoader();
+		final CommonTestUtils.ObjectAndClassLoader<Serializable> outsideClassLoading = CommonTestUtils.createSerializableObjectFromNewClassLoader();
 
 		try {
 			Thread.currentThread().setContextClassLoader(outsideClassLoading.getClassLoader());
