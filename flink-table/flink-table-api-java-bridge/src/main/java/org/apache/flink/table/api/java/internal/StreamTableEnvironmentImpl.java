@@ -19,7 +19,6 @@
 package org.apache.flink.table.api.java.internal;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
@@ -79,7 +78,6 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 	private final StreamExecutionEnvironment executionEnvironment;
 
-	@VisibleForTesting
 	public StreamTableEnvironmentImpl(
 			CatalogManager catalogManager,
 			FunctionCatalog functionCatalog,
@@ -90,17 +88,17 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 			boolean isStreamingMode) {
 		super(catalogManager, tableConfig, executor, functionCatalog, planner, isStreamingMode);
 		this.executionEnvironment = executionEnvironment;
-
-		if (!isStreamingMode) {
-			throw new TableException(
-				"StreamTableEnvironment is not supported in batch mode now, please use TableEnvironment.");
-		}
 	}
 
 	public static StreamTableEnvironment create(
 			StreamExecutionEnvironment executionEnvironment,
 			EnvironmentSettings settings,
 			TableConfig tableConfig) {
+
+		if (!settings.isStreamingMode()) {
+			throw new TableException(
+				"StreamTableEnvironment can not run in batch mode for now, please use TableEnvironment.");
+		}
 
 		CatalogManager catalogManager = new CatalogManager(
 			settings.getBuiltInCatalogName(),
