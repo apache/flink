@@ -60,7 +60,6 @@ import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.util.StringUtils;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.MetaStoreUtils;
@@ -134,10 +133,6 @@ public class HiveCatalog extends AbstractCatalog {
 		super(catalogName, defaultDatabase == null ? DEFAULT_DB : defaultDatabase);
 
 		this.hiveConf = hiveConf == null ? createHiveConf(null) : hiveConf;
-		// Load the HDFS configuration
-		Configuration hadoopConfiguration = HadoopUtils.getHadoopConfiguration(new org.apache.flink.configuration.Configuration());
-		this.hiveConf.addResource(hadoopConfiguration);
-		
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null or empty");
 		this.hiveVersion = hiveVersion;
 
@@ -156,7 +151,9 @@ public class HiveCatalog extends AbstractCatalog {
 				String.format("Failed to get hive-site.xml from %s", hiveConfDir), e);
 		}
 
-		return new HiveConf();
+		// create HiveConf from hadoop configuration
+		return new HiveConf(HadoopUtils.getHadoopConfiguration(new org.apache.flink.configuration.Configuration()),
+			HiveConf.class);
 	}
 
 	@VisibleForTesting
