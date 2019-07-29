@@ -39,7 +39,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
-import org.apache.flink.yarn.entrypoint.YarnResourceManagerFactory;
+import org.apache.flink.runtime.util.ResourceManagerUtil;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
@@ -217,7 +217,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
 	}
 
 	private static int calculateManagedMemorySizeMB(Configuration configuration) {
-		Configuration resourceManagerConfig = YarnResourceManagerFactory.INSTANCE.getResourceManagerConfiguration(configuration);
+		Configuration resourceManagerConfig = ResourceManagerUtil.getResourceManagerConfiguration(configuration);
 		return MemorySize.parse(resourceManagerConfig.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE)).getMebiBytes();
 	}
 }
