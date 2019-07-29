@@ -70,11 +70,11 @@ public enum CheckpointFailureReason {
 
 	// ------------------------------------------------------------------------
 
-	private final boolean isPreFlight;
+	private final boolean preFlight;
 	private final String message;
 
 	CheckpointFailureReason(boolean isPreFlight, String message) {
-		this.isPreFlight = isPreFlight;
+		this.preFlight = isPreFlight;
 		this.message = message;
 	}
 
@@ -86,6 +86,6 @@ public enum CheckpointFailureReason {
 	 * @return true if this value indicates a failure reason happening before a checkpoint is passed to a job's tasks.
 	 */
 	public boolean isPreFlight() {
-		return isPreFlight;
+		return preFlight;
 	}
 }
