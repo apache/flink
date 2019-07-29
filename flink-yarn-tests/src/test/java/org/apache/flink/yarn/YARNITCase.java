@@ -137,19 +137,20 @@ public class YARNITCase extends YarnTestBase {
 			Duration timeout,
 			YarnClusterDescriptor yarnClusterDescriptor) throws Exception {
 		Deadline deadline = Deadline.now().plus(timeout);
-		YarnApplicationState state = yarnClient.getApplicationReport(applicationId).getYarnApplicationState();
+		YarnApplicationState state = getYarnClient().getApplicationReport(applicationId).getYarnApplicationState();
 
 		while (state != YarnApplicationState.FINISHED) {
 			if (state == YarnApplicationState.FAILED || state == YarnApplicationState.KILLED) {
 				Assert.fail("Application became FAILED or KILLED while expecting FINISHED");
-			} else {
-				sleep(sleepIntervalInMS);
 			}
+
 			if (deadline.isOverdue()) {
 				yarnClusterDescriptor.killCluster(applicationId);
 				Assert.fail("Application didn't finish before timeout");
 			}
-			state = yarnClient.getApplicationReport(applicationId).getYarnApplicationState();
+
+			sleep(sleepIntervalInMS);
+			state = getYarnClient().getApplicationReport(applicationId).getYarnApplicationState();
 		}
 	}
 

@@ -160,7 +160,7 @@ public abstract class YarnTestBase extends TestLogger {
 
 	protected static File yarnSiteXML = null;
 
-	protected YarnClient yarnClient = null;
+	private YarnClient yarnClient = null;
 
 	private static org.apache.flink.configuration.Configuration globalConfiguration;
 
