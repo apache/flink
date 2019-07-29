@@ -65,6 +65,7 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.RecoverableCompletedCheckpointStore;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializableObject;
@@ -74,7 +75,6 @@ import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
-import org.hamcrest.TypeSafeMatcher;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -101,7 +101,7 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -111,7 +111,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -4030,34 +4029,17 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		assertEquals(JobStatus.FAILING, status);
 
-		final AtomicReference<Throwable> actualCause = new AtomicReference<>();
-		savepointFuture.handle((path, throwable) -> {
-			if (throwable != null) {
-				actualCause.set(throwable);
-			}
-			return path;
-		}).get();
-
-		assertThat(actualCause.get(), equals(expectedRootCause));
+		try {
+			savepointFuture.get();
+			fail("Expected Exception not found.");
+		} catch (ExecutionException e) {
+			final Throwable cause = ExceptionUtils.stripExecutionException(e);
+			assertTrue(cause instanceof CheckpointException);
+			assertEquals(expectedRootCause.getMessage(), cause.getCause().getMessage());
+		}
+		// todo change the test to just count the fail global
 	}
 
-	private static TypeSafeMatcher<Throwable> equals(final Throwable expectedRootCause) {
-		return new TypeSafeMatcher<Throwable>() {
-			@Override
-			protected boolean matchesSafely(Throwable foundCause) {
-				return foundCause instanceof CompletionException
-						&& foundCause.getCause() instanceof CheckpointException
-						&& foundCause.getCause().getCause().getMessage().equals(expectedRootCause.getMessage());
-			}
-
-			@Override
-			public void describeTo(Description description) {
-				description.appendText("a CompletionException wrapping a CheckpointException with cause='")
-						.appendValue(expectedRootCause.getMessage())
-						.appendText("'");
-			}
-		};
-	}
 	private PendingCheckpoint declineSynchronousSavepoint(
 			final JobID jobId,
 			final CheckpointCoordinator coordinator,
