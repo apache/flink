@@ -113,7 +113,7 @@ public class ResultPartitionBuilder {
 		return this;
 	}
 
-	public ResultPartitionBuilder setNetworkBufferSize(int networkBufferSize) {
+	ResultPartitionBuilder setNetworkBufferSize(int networkBufferSize) {
 		this.networkBufferSize = networkBufferSize;
 		return this;
 	}
@@ -129,7 +129,8 @@ public class ResultPartitionBuilder {
 		return this;
 	}
 
-	public ResultPartitionBuilder setBoundedBlockingSubpartitionType(BoundedBlockingSubpartitionType blockingSubpartitionType) {
+	ResultPartitionBuilder setBoundedBlockingSubpartitionType(
+			@SuppressWarnings("SameParameterValue") BoundedBlockingSubpartitionType blockingSubpartitionType) {
 		this.blockingSubpartitionType = blockingSubpartitionType;
 		return this;
 	}
