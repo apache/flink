@@ -44,21 +44,14 @@ The following dependencies are relevant for most projects:
 * `flink-table-api-java-bridge`: The Table & SQL API with DataStream/DataSet API support using the Java programming language.
 * `flink-table-api-scala-bridge`: The Table & SQL API with DataStream/DataSet API support using the Scala programming language.
 * `flink-table-planner`: The table program planner and runtime.
-* `flink-table-uber`: Packages the modules above into a distribution for most Table & SQL API use cases. The uber JAR file `flink-table*.jar` is located in the `/opt` directory of a Flink release and can be moved to `/lib` if desired.
+* `flink-table-planner-blink`: The table program blink planner.
+* `flink-table-runtime-blink`: The table program blink runtime.
+* `flink-table-uber`: Packages the common modules above plus the current planner into a distribution for most Table & SQL API use cases. The uber JAR file `flink-table*.jar` is by default located in the `/lib` directory of a Flink release.
+* `flink-table-uber-blink`: Packages the common modules above plus the blink specific modules into a distribution for most Table & SQL API use cases. The uber JAR file `flink-table-blink*.jar` is by default located in the `/lib` directory of a Flink release.
 
 ### Table Program Dependencies
 
-The following dependencies must be added to a project in order to use the Table API & SQL for defining pipelines:
-
-{% highlight xml %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-planner{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version}}</version>
-</dependency>
-{% endhighlight %}
-
-Additionally, depending on the target programming language, you need to add the Java or Scala API.
+Depending on the target programming language, you need to add the Java or Scala API to a project in order to use the Table API & SQL for defining pipelines:
 
 {% highlight xml %}
 <!-- Either... -->
@@ -71,6 +64,28 @@ Additionally, depending on the target programming language, you need to add the 
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-table-api-scala-bridge{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+{% endhighlight %}
+
+Additionally, if you want to run the Table API & SQL programs locally you must add one of the
+following set of modules, depending which planner you want to use:
+{% highlight xml %}
+<!-- Either... -->
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-table-planner{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+<!-- or... -->
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-table-planner-blink{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-table-runtime-blink{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
 </dependency>
 {% endhighlight %}
