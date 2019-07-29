@@ -34,6 +34,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.ViewEntry;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.ProgramTargetDescriptor;
@@ -52,6 +53,10 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
 import java.io.File;
 import java.io.IOException;
@@ -75,7 +80,15 @@ import static org.junit.Assert.fail;
 /**
  * Contains basic tests for the {@link LocalExecutor}.
  */
+@RunWith(Parameterized.class)
 public class LocalExecutorITCase extends TestLogger {
+
+	@Parameters(name = "Planner: {0}")
+	public static List<String> planner() {
+		return Arrays.asList(
+			ExecutionEntry.EXECUTION_PLANNER_VALUE_OLD,
+			ExecutionEntry.EXECUTION_PLANNER_VALUE_BLINK);
+	}
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
 	private static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
@@ -109,6 +122,9 @@ public class LocalExecutorITCase extends TestLogger {
 		config.setBoolean(WebOptions.SUBMIT_ENABLE, false);
 		return config;
 	}
+
+	@Parameter
+	public String planner;
 
 	@Test
 	public void testValidateSession() throws Exception {
@@ -174,7 +190,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 		final List<String> actualDatabases = executor.listDatabases(session);
 
-		final List<String> expectedDatabases = Arrays.asList("default_database");
+		final List<String> expectedDatabases = Collections.singletonList("default_database");
 		assertEquals(expectedDatabases, actualDatabases);
 	}
 
@@ -220,6 +236,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final Map<String, String> actualProperties = executor.getSessionProperties(session);
 
 		final Map<String, String> expectedProperties = new HashMap<>();
+		expectedProperties.put("execution.planner", planner);
 		expectedProperties.put("execution.type", "batch");
 		expectedProperties.put("execution.time-characteristic", "event-time");
 		expectedProperties.put("execution.periodic-watermarks-interval", "99");
@@ -275,6 +292,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
 		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_RESULT_MODE", "changelog");
@@ -315,6 +333,7 @@ public class LocalExecutorITCase extends TestLogger {
 		Objects.requireNonNull(url);
 
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
 		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_RESULT_MODE", "table");
@@ -340,6 +359,7 @@ public class LocalExecutorITCase extends TestLogger {
 		Objects.requireNonNull(url);
 
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
 		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_RESULT_MODE", "table");
@@ -359,6 +379,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
 		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
 		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
 		replaceVars.put("$VAR_RESULT_MODE", "table");
@@ -395,6 +416,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
 		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_SOURCE_SINK_PATH", csvOutputPath);
@@ -454,6 +476,7 @@ public class LocalExecutorITCase extends TestLogger {
 		final URL url = getClass().getClassLoader().getResource("test-data.csv");
 		Objects.requireNonNull(url);
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
 		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_SOURCE_SINK_PATH", csvOutputPath);
@@ -519,6 +542,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private <T> LocalExecutor createDefaultExecutor(ClusterClient<T> clusterClient) throws Exception {
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
 		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
 		replaceVars.put("$VAR_UPDATE_MODE", "");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
