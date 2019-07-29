@@ -36,6 +36,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -100,10 +102,50 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("drop database db1 cascade");
 	}
 
+	@Test
+	public void testDifferentFormats() throws Exception {
+		String[] formats = new String[]{"orc", "parquet", "sequencefile", "csv"};
+		for (String format : formats) {
+			readWriteFormat(format);
+		}
+	}
+
+	private void readWriteFormat(String format) throws Exception {
+		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+
+		hiveShell.execute("create database db1");
+
+		// create source and dest tables
+		String suffix;
+		if (format.equals("csv")) {
+			suffix = "row format serde 'org.apache.hadoop.hive.serde2.OpenCSVSerde'";
+		} else {
+			suffix = "stored as " + format;
+		}
+		hiveShell.execute("create table db1.src (i int,s string) " + suffix);
+		hiveShell.execute("create table db1.dest (i int,s string) " + suffix);
+
+		// prepare source data with Hive
+		hiveShell.execute("insert into db1.src values (1,'a'),(2,'b')");
+
+		// populate dest table with source table
+		tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
+		tableEnv.execute("test_" + format);
+
+		// verify data on hive side
+		verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta", "2\tb"));
+
+		hiveShell.execute("drop database db1 cascade");
+	}
+
 	private TableEnvironment getTableEnvWithHiveCatalog() {
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
 		tableEnv.useCatalog(hiveCatalog.getName());
 		return tableEnv;
+	}
+
+	private void verifyHiveQueryResult(String query, List<String> expected) {
+		assertEquals(new HashSet<>(expected), new HashSet<>(hiveShell.executeQuery(query)));
 	}
 }

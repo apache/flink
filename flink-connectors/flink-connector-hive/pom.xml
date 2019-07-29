@@ -416,10 +416,6 @@ under the License.
 					<artifactId>tez-common</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.apache.tez</groupId>
-					<artifactId>tez-mapreduce</artifactId>
-				</exclusion>
-				<exclusion>
 					<!-- This dependency is no longer shipped with the JDK since Java 9.-->
 					<groupId>jdk.tools</groupId>
 					<artifactId>jdk.tools</artifactId>
