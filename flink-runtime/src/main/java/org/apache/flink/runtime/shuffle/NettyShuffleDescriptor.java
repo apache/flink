@@ -70,6 +70,7 @@ public class NettyShuffleDescriptor implements ShuffleDescriptor {
 	/**
 	 * Information for connection to partition producer for shuffle exchange.
 	 */
+	@FunctionalInterface
 	public interface PartitionConnectionInfo extends Serializable {
 		ConnectionID getConnectionId();
 	}
