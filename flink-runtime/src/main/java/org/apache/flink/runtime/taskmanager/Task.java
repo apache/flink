@@ -470,6 +470,18 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 		return invokable;
 	}
 
+	public StackTraceElement[] getStackTraceOfExecutingThread() {
+		final AbstractInvokable invokable = this.invokable;
+
+		if (invokable == null) {
+			return new StackTraceElement[0];
+		}
+
+		return invokable.getExecutingThread()
+			.orElse(executingThread)
+			.getStackTrace();
+	}
+
 	// ------------------------------------------------------------------------
 	//  Task Execution
 	// ------------------------------------------------------------------------
@@ -685,6 +697,9 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 			// notify everyone that we switched to running
 			taskManagerActions.updateTaskExecutionState(new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING));
+
+			// make sure the user code classloader is accessible thread-locally
+			executingThread.setContextClassLoader(userCodeClassLoader);
 
 			// run the invokable
 			invokable.invoke();
