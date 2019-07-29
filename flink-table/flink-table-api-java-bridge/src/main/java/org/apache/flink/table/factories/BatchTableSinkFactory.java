@@ -19,7 +19,6 @@
 package org.apache.flink.table.factories;
 
 import org.apache.flink.table.sinks.BatchTableSink;
-import org.apache.flink.table.sinks.TableSink;
 
 import java.util.Map;
 
@@ -29,7 +28,7 @@ import java.util.Map;
  *
  * @param <T> type of records that the factory consumes
  */
-public interface BatchTableSinkFactory<T> extends TableSinkFactory<T> {
+public interface BatchTableSinkFactory<T> extends TableFactory {
 
 	/**
 	 * Creates and configures a {@link BatchTableSink} using the given properties.
@@ -38,12 +37,4 @@ public interface BatchTableSinkFactory<T> extends TableSinkFactory<T> {
 	 * @return the configured table sink.
 	 */
 	BatchTableSink<T> createBatchTableSink(Map<String, String> properties);
-
-	/**
-	 * Only create batch table sink.
-	 */
-	@Override
-	default TableSink<T> createTableSink(Map<String, String> properties) {
-		return createBatchTableSink(properties);
-	}
 }

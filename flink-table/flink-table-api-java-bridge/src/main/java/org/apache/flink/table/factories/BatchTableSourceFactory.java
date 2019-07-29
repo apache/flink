@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.sources.BatchTableSource;
-import org.apache.flink.table.sources.TableSource;
 
 import java.util.Map;
 
@@ -29,7 +29,8 @@ import java.util.Map;
  *
  * @param <T> type of records that the factory produces
  */
-public interface BatchTableSourceFactory<T> extends TableSourceFactory<T> {
+@PublicEvolving
+public interface BatchTableSourceFactory<T> extends TableFactory {
 
 	/**
 	 * Creates and configures a {@link BatchTableSource} using the given properties.
@@ -38,12 +39,4 @@ public interface BatchTableSourceFactory<T> extends TableSourceFactory<T> {
 	 * @return the configured batch table source.
 	 */
 	BatchTableSource<T> createBatchTableSource(Map<String, String> properties);
-
-	/**
-	 * Only create batch table source.
-	 */
-	@Override
-	default TableSource<T> createTableSource(Map<String, String> properties) {
-		return createBatchTableSource(properties);
-	}
 }
