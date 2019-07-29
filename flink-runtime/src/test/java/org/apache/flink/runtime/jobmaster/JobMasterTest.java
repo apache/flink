@@ -1779,7 +1779,7 @@ public class JobMasterTest extends TestLogger {
 	}
 
 	/**
-	 * Tests the updateGlobalAggregate functionality
+	 * Tests the updateGlobalAggregate functionality.
 	 */
 	@Test
 	public void testJobMasterAggregatesValuesCorrectly() throws Exception {
@@ -1837,9 +1837,7 @@ public class JobMasterTest extends TestLogger {
 
 			@Override
 			public Integer add(Integer value, Integer accumulator) {
-				Integer _acc = (Integer) accumulator;
-				Integer _value = (Integer) value;
-				return _acc + _value;
+				return accumulator + value;
 			}
 
 			@Override
