@@ -33,9 +33,9 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
-
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SupplierWithException;
+
 import org.junit.ClassRule;
 import org.junit.Test;
 
