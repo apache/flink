@@ -23,11 +23,11 @@ import java.util.function.Consumer;
 /**
  * Factory for {@link TestingSlotManager}.
  */
-public class TestingSlotManagerFactory {
+public class TestingSlotManagerBuilder {
 
-	private Consumer<Boolean> setFailUnfulfillableRequestConsumer;
+	private Consumer<Boolean> setFailUnfulfillableRequestConsumer = ignored -> {};
 
-	public TestingSlotManagerFactory setSetFailUnfulfillableRequestConsumer(Consumer<Boolean> setFailUnfulfillableRequestConsumer) {
+	public TestingSlotManagerBuilder setSetFailUnfulfillableRequestConsumer(Consumer<Boolean> setFailUnfulfillableRequestConsumer) {
 		this.setFailUnfulfillableRequestConsumer = setFailUnfulfillableRequestConsumer;
 		return this;
 	}
