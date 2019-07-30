@@ -155,44 +155,6 @@ public class LocalExecutorITCase extends TestLogger {
 		assertEquals(expectedTables, actualTables);
 	}
 
-	@Test(timeout = 30_000L)
-	public void testDefaultCatalogDifferentFromBuiltin() throws Exception {
-		Environment defaultEnvironment = new Environment();
-		Map<String, Object> catalogs = new HashMap<>();
-		catalogs.put(CatalogEntry.CATALOG_NAME, "simple-catalog");
-		catalogs.put(CatalogDescriptorValidator.CATALOG_TYPE, "simple-catalog");
-		catalogs.put(CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE, "default_database");
-		catalogs.put(SimpleCatalogFactory.TEST_TABLE_KEY, "test_table");
-		defaultEnvironment.setCatalogs(Arrays.asList(catalogs));
-
-		final URL url = getClass().getClassLoader().getResource("test-data.csv");
-		Objects.requireNonNull(url);
-		final Map<String, String> replaceVars = new HashMap<>();
-		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
-		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
-		replaceVars.put("$VAR_RESULT_MODE", "table");
-		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
-		replaceVars.put("$VAR_MAX_ROWS", "100");
-		Executor executor = createModifiedExecutor(DEFAULTS_ENVIRONMENT_FILE, clusterClient, replaceVars);
-
-		final SessionContext session = new SessionContext("test-session", defaultEnvironment);
-		try {
-			// start job and retrieval
-			session.setCurrentCatalog("simple-catalog");
-			session.setCurrentDatabase("default_database");
-			final ResultDescriptor desc = executor.executeQuery(session, "SELECT * FROM test_table");
-
-			final List<String> actualResults = retrieveTableResult(executor, session, desc.getResultId());
-
-			TestBaseUtils.compareResultCollections(
-				SimpleCatalogFactory.TABLE_CONTENTS.stream().map(Row::toString).collect(Collectors.toList()),
-				actualResults,
-				Comparator.naturalOrder());
-		} finally {
-			executor.stop(session);
-		}
-	}
-
 	@Test
 	public void testListCatalogs() throws Exception {
 		final Executor executor = createDefaultExecutor(clusterClient);
@@ -202,7 +164,8 @@ public class LocalExecutorITCase extends TestLogger {
 
 		final List<String> expectedCatalogs = Arrays.asList(
 			"default_catalog",
-			"catalog1");
+			"catalog1",
+			"simple-catalog");
 		assertEquals(expectedCatalogs, actualCatalogs);
 	}
 
@@ -466,6 +429,21 @@ public class LocalExecutorITCase extends TestLogger {
 						fail("Unexpected job status.");
 				}
 			}
+
+			// all queries are pipelined to an in-memory sink, check it is properly registered
+			session.setCurrentCatalog("simple-catalog");
+			session.setCurrentDatabase("default_database");
+			final ResultDescriptor otherCatalogDesc = executor.executeQuery(session, "SELECT * FROM `test-table`");
+
+			final List<String> otherCatalogResults = retrieveTableResult(
+				executor,
+				session,
+				otherCatalogDesc.getResultId());
+
+			TestBaseUtils.compareResultCollections(
+				SimpleCatalogFactory.TABLE_CONTENTS.stream().map(Row::toString).collect(Collectors.toList()),
+				otherCatalogResults,
+				Comparator.naturalOrder());
 		} finally {
 			executor.stop(session);
 		}

@@ -60,10 +60,6 @@ abstract class TableEnvImpl(
     private val catalogManager: CatalogManager)
   extends TableEnvironment {
 
-  protected val builtInCatalogName: String = catalogManager.getBuiltInCatalogName
-  // The default database of the built-in catalog is also the built-in database.
-  protected val builtInDatabaseName: String = catalogManager.getBuiltInDatabaseName
-
   // Table API/SQL function catalog
   private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog(catalogManager)
 
@@ -266,7 +262,9 @@ abstract class TableEnvImpl(
     tableSource: TableSource[_])
   : Unit = {
     // register
-    getCatalogTable(builtInCatalogName, builtInDatabaseName, name) match {
+    getCatalogTable(
+      catalogManager.getBuiltInCatalogName,
+      catalogManager.getBuiltInDatabaseName, name) match {
 
       // check if a table (source or sink) is registered
       case Some(table: ConnectorCatalogTable[_, _]) =>
@@ -293,7 +291,10 @@ abstract class TableEnvImpl(
     tableSink: TableSink[_])
   : Unit = {
     // check if a table (source or sink) is registered
-    getCatalogTable(builtInCatalogName, builtInDatabaseName, name) match {
+    getCatalogTable(
+      catalogManager.getBuiltInCatalogName,
+      catalogManager.getBuiltInDatabaseName,
+      name) match {
 
       // table source and/or sink is registered
       case Some(table: ConnectorCatalogTable[_, _]) =>
@@ -352,8 +353,9 @@ abstract class TableEnvImpl(
 
   protected def registerTableInternal(name: String, table: CatalogBaseTable): Unit = {
     checkValidTableName(name)
-    val path = new ObjectPath(builtInDatabaseName, name)
-    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(builtInCatalogName)) match {
+    val path = new ObjectPath(catalogManager.getBuiltInDatabaseName, name)
+    JavaScalaConversionUtil.toScala(
+      catalogManager.getCatalog(catalogManager.getBuiltInCatalogName)) match {
       case Some(catalog) =>
         catalog.createTable(
           path,
@@ -365,8 +367,9 @@ abstract class TableEnvImpl(
 
   protected def replaceTableInternal(name: String, table: CatalogBaseTable): Unit = {
     checkValidTableName(name)
-    val path = new ObjectPath(builtInDatabaseName, name)
-    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(builtInCatalogName)) match {
+    val path = new ObjectPath(catalogManager.getBuiltInDatabaseName, name)
+    JavaScalaConversionUtil.toScala(
+      catalogManager.getCatalog(catalogManager.getBuiltInCatalogName)) match {
       case Some(catalog) =>
         catalog.alterTable(
           path,

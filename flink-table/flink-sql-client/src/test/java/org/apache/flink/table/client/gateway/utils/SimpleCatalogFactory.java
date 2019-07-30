@@ -49,7 +49,7 @@ public class SimpleCatalogFactory implements CatalogFactory {
 
 	public static final String CATALOG_TYPE_VALUE = "simple-catalog";
 
-	public static final String TEST_TABLE_KEY = "test-table";
+	public static final String TEST_TABLE_NAME = "test-table";
 
 	public static final List<Row> TABLE_CONTENTS = Arrays.asList(
 		Row.of(1, "Hello"),
@@ -64,7 +64,7 @@ public class SimpleCatalogFactory implements CatalogFactory {
 			"default_database");
 		GenericInMemoryCatalog genericInMemoryCatalog = new GenericInMemoryCatalog(name, database);
 
-		String tableName = properties.getOrDefault(TEST_TABLE_KEY, TEST_TABLE_KEY);
+		String tableName = properties.getOrDefault(TEST_TABLE_NAME, TEST_TABLE_NAME);
 		StreamTableSource<Row> tableSource = new StreamTableSource<Row>() {
 			@Override
 			public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
@@ -113,6 +113,6 @@ public class SimpleCatalogFactory implements CatalogFactory {
 
 	@Override
 	public List<String> supportedProperties() {
-		return Arrays.asList(CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE, TEST_TABLE_KEY);
+		return Arrays.asList(CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE, TEST_TABLE_NAME);
 	}
 }
