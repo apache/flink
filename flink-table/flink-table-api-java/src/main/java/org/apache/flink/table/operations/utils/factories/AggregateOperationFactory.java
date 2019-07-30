@@ -518,11 +518,11 @@ public final class AggregateOperationFactory {
 	 * Extract a table aggregate Expression and it's aliases.
 	 */
 	public Tuple2<ResolvedExpression, List<String>> extractTableAggFunctionAndAliases(Expression callExpr) {
-		TableAggFunctionCallVisitor visitor = new TableAggFunctionCallVisitor();
+		TableAggFunctionCallResolver visitor = new TableAggFunctionCallResolver();
 		return Tuple2.of(callExpr.accept(visitor), visitor.getAlias());
 	}
 
-	private class TableAggFunctionCallVisitor extends ResolvedExpressionDefaultVisitor<ResolvedExpression> {
+	private class TableAggFunctionCallResolver extends ResolvedExpressionDefaultVisitor<ResolvedExpression> {
 
 		private List<String> alias = new LinkedList<>();
 
