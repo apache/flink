@@ -157,6 +157,11 @@ public class HiveCatalog extends AbstractCatalog {
 	}
 
 	@VisibleForTesting
+	public HiveConf getHiveConf() {
+		return hiveConf;
+	}
+
+	@VisibleForTesting
 	public String getHiveVersion() {
 		return hiveVersion;
 	}
