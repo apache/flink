@@ -31,8 +31,9 @@ under the License.
 	<name>flink-table-uber-blink</name>
 	<description>
 		This module contains the entire Table/SQL distribution for writing table programs
-		within the table ecosystem or between other Flink APIs. This module uses the blink planner.
-		Users can either use the Scala or Java programming language.
+		within the table ecosystem or between other Flink APIs. This module uses the Blink planner
+		for generating optimized runnable plan from relational query. Users can either use the
+		Scala or Java programming language.
 	</description>
 
 	<packaging>jar</packaging>
