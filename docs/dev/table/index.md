@@ -34,7 +34,11 @@ The Table API and the SQL interfaces are tightly integrated with each other as w
 Dependency Structure
 --------------------
 
-All Table API and SQL components are bundled in the `flink-table` Maven artifact.
+Starting from Flink 1.9 the Table API provides two different planners: Blink planner and the old one available before. Planners are responsible for
+translating the relational operators into an executable, optimized plan. Both of the planners come with different optimization rules and runtime classes.
+They may also differ in a set of supported features. For a production use cases we recommend the old before Flink 1.9 planner.
+
+All Table API and SQL components are bundled in the `flink-table` or `flink-table-blink` Maven artifacts.
 
 The following dependencies are relevant for most projects:
 
@@ -43,11 +47,11 @@ The following dependencies are relevant for most projects:
 * `flink-table-api-scala`: The Table & SQL API for pure table programs using the Scala programming language (in early development stage, not recommended!).
 * `flink-table-api-java-bridge`: The Table & SQL API with DataStream/DataSet API support using the Java programming language.
 * `flink-table-api-scala-bridge`: The Table & SQL API with DataStream/DataSet API support using the Scala programming language.
-* `flink-table-planner`: The table program planner and runtime.
-* `flink-table-planner-blink`: The table program blink planner.
-* `flink-table-runtime-blink`: The table program blink runtime.
-* `flink-table-uber`: Packages the common modules above plus the current planner into a distribution for most Table & SQL API use cases. The uber JAR file `flink-table*.jar` is by default located in the `/lib` directory of a Flink release.
-* `flink-table-uber-blink`: Packages the common modules above plus the blink specific modules into a distribution for most Table & SQL API use cases. The uber JAR file `flink-table-blink*.jar` is by default located in the `/lib` directory of a Flink release.
+* `flink-table-planner`: The table program planner and runtime. This is the only planner of Flink before 1.9. It is still the recommended one.
+* `flink-table-planner-blink`: The table program Blink planner.
+* `flink-table-runtime-blink`: The table program Blink runtime.
+* `flink-table-uber`: Packages the API modules above plus the old planner into a distribution for most Table & SQL API use cases. The uber JAR file `flink-table-{{site.version}}.jar` is by default located in the `/lib` directory of a Flink release.
+* `flink-table-uber-blink`: Packages the API modules above plus the Blink specific modules into a distribution for most Table & SQL API use cases. The uber JAR file `flink-table-blink-{{site.version}}.jar` is by default located in the `/lib` directory of a Flink release.
 
 ### Table Program Dependencies
 
@@ -71,21 +75,16 @@ Depending on the target programming language, you need to add the Java or Scala 
 Additionally, if you want to run the Table API & SQL programs locally you must add one of the
 following set of modules, depending which planner you want to use:
 {% highlight xml %}
-<!-- Either... -->
+<!-- Either for the old Flink planner before Flink 1.9 -->
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-table-planner{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
 </dependency>
-<!-- or... -->
+<!-- or for the new Blink planner... -->
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-table-planner-blink{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version}}</version>
-</dependency>
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-runtime-blink{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
 </dependency>
 {% endhighlight %}
