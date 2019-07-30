@@ -27,7 +27,7 @@ import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
-import org.apache.flink.runtime.resourcemanager.slotmanager.TestingSlotManagerFactory;
+import org.apache.flink.runtime.resourcemanager.slotmanager.TestingSlotManagerBuilder;
 import org.apache.flink.runtime.resourcemanager.utils.MockResourceManagerRuntimeServices;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -61,7 +61,7 @@ public class StandaloneResourceManagerTest extends TestLogger {
 	@Test
 	public void testStartupPeriod() throws Exception {
 		final LinkedBlockingQueue<Boolean> setFailUnfulfillableRequestInvokes = new LinkedBlockingQueue<>();
-		final SlotManager slotManager = new TestingSlotManagerFactory()
+		final SlotManager slotManager = new TestingSlotManagerBuilder()
 			.setSetFailUnfulfillableRequestConsumer(setFailUnfulfillableRequestInvokes::add)
 			.createSlotManager();
 		final TestingStandaloneResourceManager rm = createResourceManager(Time.milliseconds(1L), slotManager);
@@ -75,7 +75,7 @@ public class StandaloneResourceManagerTest extends TestLogger {
 	@Test
 	public void testNoStartupPeriod() throws Exception {
 		final LinkedBlockingQueue<Boolean> setFailUnfulfillableRequestInvokes = new LinkedBlockingQueue<>();
-		final SlotManager slotManager = new TestingSlotManagerFactory()
+		final SlotManager slotManager = new TestingSlotManagerBuilder()
 			.setSetFailUnfulfillableRequestConsumer(setFailUnfulfillableRequestInvokes::add)
 			.createSlotManager();
 		final TestingStandaloneResourceManager rm = createResourceManager(Time.milliseconds(-1L), slotManager);
@@ -89,7 +89,7 @@ public class StandaloneResourceManagerTest extends TestLogger {
 	@Test
 	public void testStartUpPeriodAfterLeadershipSwitch() throws Exception {
 		final LinkedBlockingQueue<Boolean> setFailUnfulfillableRequestInvokes = new LinkedBlockingQueue<>();
-		final SlotManager slotManager = new TestingSlotManagerFactory()
+		final SlotManager slotManager = new TestingSlotManagerBuilder()
 			.setSetFailUnfulfillableRequestConsumer(setFailUnfulfillableRequestInvokes::add)
 			.createSlotManager();
 		final TestingStandaloneResourceManager rm = createResourceManager(Time.milliseconds(1L), slotManager);
