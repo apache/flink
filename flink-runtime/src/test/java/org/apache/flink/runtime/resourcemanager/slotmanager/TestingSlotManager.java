@@ -26,8 +26,6 @@ import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
-import javax.annotation.Nullable;
-
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
@@ -38,7 +36,7 @@ public class TestingSlotManager implements SlotManager {
 
 	private final Consumer<Boolean> setFailUnfulfillableRequestConsumer;
 
-	public TestingSlotManager(@Nullable Consumer<Boolean> setFailUnfulfillableRequestConsumer) {
+	TestingSlotManager(Consumer<Boolean> setFailUnfulfillableRequestConsumer) {
 		this.setFailUnfulfillableRequestConsumer = setFailUnfulfillableRequestConsumer;
 	}
 
@@ -83,7 +81,7 @@ public class TestingSlotManager implements SlotManager {
 	}
 
 	@Override
-	public boolean registerSlotRequest(SlotRequest slotRequest) throws SlotManagerException {
+	public boolean registerSlotRequest(SlotRequest slotRequest) {
 		return false;
 	}
 
@@ -114,9 +112,7 @@ public class TestingSlotManager implements SlotManager {
 
 	@Override
 	public void setFailUnfulfillableRequest(boolean failUnfulfillableRequest) {
-		if (setFailUnfulfillableRequestConsumer != null) {
-			setFailUnfulfillableRequestConsumer.accept(failUnfulfillableRequest);
-		}
+		setFailUnfulfillableRequestConsumer.accept(failUnfulfillableRequest);
 	}
 
 	@Override
