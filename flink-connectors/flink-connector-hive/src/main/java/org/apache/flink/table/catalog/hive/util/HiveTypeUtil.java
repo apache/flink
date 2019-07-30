@@ -118,7 +118,7 @@ public class HiveTypeUtil {
 				case VARCHAR: {
 					VarCharType varCharType = (VarCharType) dataType.getLogicalType();
 					// Flink's StringType is defined as VARCHAR(Integer.MAX_VALUE)
-					// We don't have more information in LogicalTypeRoot to distringuish StringType and a VARCHAR(Integer.MAX_VALUE) instance
+					// We don't have more information in LogicalTypeRoot to distinguish StringType and a VARCHAR(Integer.MAX_VALUE) instance
 					// Thus always treat VARCHAR(Integer.MAX_VALUE) as StringType
 					if (varCharType.getLength() == Integer.MAX_VALUE) {
 						return TypeInfoFactory.stringTypeInfo;
@@ -138,6 +138,9 @@ public class HiveTypeUtil {
 					return TypeInfoFactory.getDecimalTypeInfo(decimalType.getPrecision(), decimalType.getScale());
 				}
 				case VARBINARY: {
+					// Flink's BytesType is defined as VARBINARY(Integer.MAX_VALUE)
+					// We don't have more information in LogicalTypeRoot to distinguish BytesType and a VARBINARY(Integer.MAX_VALUE) instance
+					// Thus always treat VARBINARY(Integer.MAX_VALUE) as BytesType
 					VarBinaryType varBinaryType = (VarBinaryType) dataType.getLogicalType();
 					if (varBinaryType.getLength() == VarBinaryType.MAX_LENGTH) {
 						return TypeInfoFactory.binaryTypeInfo;
