@@ -485,7 +485,7 @@ public class PackagedProgram {
 					@Override
 					public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 						FileVisitResult result = super.visitFile(file, attrs);
-						if (file.getFileName().toString().startsWith("flink-python-")) {
+						if (file.getFileName().toString().startsWith("flink-python")) {
 							pythonJarPath.add(file);
 						}
 						return result;
