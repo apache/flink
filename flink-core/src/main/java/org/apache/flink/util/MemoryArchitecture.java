@@ -60,7 +60,7 @@ public enum MemoryArchitecture {
 	private static MemoryArchitecture getInternal() {
 		// putting these into the method to avoid having objects on the heap that are not needed
 		// any more after initialization
-		final List<String> names64bit = Arrays.asList("amd64", "x86_64");
+		final List<String> names64bit = Arrays.asList("amd64", "x86_64", "aarch64");
 		final List<String> names32bit = Arrays.asList("x86", "i386", "i486", "i586", "i686");
 		final String arch = System.getProperty("os.arch");
 
