@@ -116,8 +116,14 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("create database db1");
 
 		// create source and dest tables
-		hiveShell.execute("create table db1.src (i int,s string) stored as " + format);
-		hiveShell.execute("create table db1.dest (i int,s string) stored as " + format);
+		String suffix;
+		if (format.equals("csv")) {
+			suffix = "row format serde 'org.apache.hadoop.hive.serde2.OpenCSVSerde'";
+		} else {
+			suffix = "stored as " + format;
+		}
+		hiveShell.execute("create table db1.src (i int,s string) " + suffix);
+		hiveShell.execute("create table db1.dest (i int,s string) " + suffix);
 
 		// prepare source data with Hive
 		hiveShell.execute("insert into db1.src values (1,'a'),(2,'b')");
