@@ -127,7 +127,7 @@ public class CheckpointFailureManager {
 	/**
 	 * Fails the whole job graph in case an in-progress synchronous savepoint is discarded.
 	 *
-	 * <p>If the checkpoint failure was cancelled at the checkpoint coordinator, i.e. before
+	 * <p>If the checkpoint was cancelled at the checkpoint coordinator, i.e. before
 	 * the synchronous savepoint barrier was sent to the tasks, then we do not cancel the job
 	 * as we do not risk having a deadlock.
 	 *

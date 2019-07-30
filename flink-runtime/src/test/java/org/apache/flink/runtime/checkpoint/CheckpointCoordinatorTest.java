@@ -122,21 +122,13 @@ public class CheckpointCoordinatorTest extends TestLogger {
 	private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
 
 	private CheckpointFailureManager failureManager;
-	private Throwable failureCause;
-	private int failureCallbackInvocationCounter = 0;
 
 	@Rule
 	public TemporaryFolder tmpFolder = new TemporaryFolder();
 
 	@Before
 	public void setUp() throws Exception {
-		failureCallbackInvocationCounter = 0;
-		failureCause = null;
-
-		failureManager = new CheckpointFailureManager(0, throwable -> {
-			failureCause = throwable;
-			failureCallbackInvocationCounter++;
-		});
+		failureManager = new CheckpointFailureManager(0, throwable -> {});
 	}
 
 	@Test
@@ -3906,6 +3898,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 	@Test
 	public void jobFailsIfInFlightSynchronousSavepointIsDiscarded() throws Exception {
+		final Tuple2<Integer, Throwable> invocationCounterAndException = Tuple2.of(0, null);
 		final Throwable expectedRootCause = new IOException("Custom-Exception");
 
 		final JobID jobId = new JobID();
@@ -3916,7 +3909,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		final ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
 		// set up the coordinator and validate the initial state
-		final CheckpointCoordinator coordinator = getCheckpointCoordinator(jobId, vertex1, vertex2, failureManager);
+		final CheckpointCoordinator coordinator = getCheckpointCoordinator(jobId, vertex1, vertex2,
+				new CheckpointFailureManager(0, throwable -> {
+					invocationCounterAndException.f0 += 1;
+					invocationCounterAndException.f1 = throwable;
+				}));
 
 		final CompletableFuture<CompletedCheckpoint> savepointFuture = coordinator
 				.triggerSynchronousSavepoint(10L, false, "test-dir");
@@ -3934,15 +3931,20 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			assertEquals(expectedRootCause.getMessage(), cause.getCause().getMessage());
 		}
 
-		assertEquals(1, failureCallbackInvocationCounter);
+		assertEquals(1L, invocationCounterAndException.f0.intValue());
 		assertTrue(
-				failureCause instanceof CheckpointException &&
-				failureCause.getCause().getMessage().equals(expectedRootCause.getMessage()));
+				invocationCounterAndException.f1 instanceof CheckpointException &&
+				invocationCounterAndException.f1.getCause().getMessage().equals(expectedRootCause.getMessage()));
 
 		coordinator.shutdown(JobStatus.FAILING);
 	}
 
-	private CheckpointCoordinator getCheckpointCoordinator(JobID jobId, ExecutionVertex vertex1, ExecutionVertex vertex2, CheckpointFailureManager failureManager) {
+	private CheckpointCoordinator getCheckpointCoordinator(
+			final JobID jobId,
+			final ExecutionVertex vertex1,
+			final ExecutionVertex vertex2,
+			final CheckpointFailureManager failureManager) {
+
 		final CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 				600000,
 				600000,
