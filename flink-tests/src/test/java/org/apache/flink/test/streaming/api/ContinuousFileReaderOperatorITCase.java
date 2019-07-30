@@ -21,7 +21,7 @@ package org.apache.flink.test.streaming.api;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
@@ -61,7 +61,7 @@ public class ContinuousFileReaderOperatorITCase extends AbstractTestBase {
 		TestBoundedOneInputStreamOperator checkingOperator = new TestBoundedOneInputStreamOperator(elementCount);
 		DataStream<String> endInputChecking = source.transform("EndInputChecking", STRING_TYPE_INFO, checkingOperator);
 
-		endInputChecking.addSink(new NoOpSink());
+		endInputChecking.addSink(new DiscardingSink<>());
 
 		env.execute("ContinuousFileReaderOperatorITCase.testEndInput");
 	}
@@ -95,6 +95,4 @@ public class ContinuousFileReaderOperatorITCase extends AbstractTestBase {
 			processedElementCount++;
 		}
 	}
-
-	private static class NoOpSink implements SinkFunction<String> {}
 }

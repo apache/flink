@@ -24,7 +24,7 @@ import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import java.util.Collections;
@@ -48,7 +48,7 @@ public class CheckpointedStreamingProgram {
 		env.disableOperatorChaining();
 
 		DataStream<String> text = env.addSource(new SimpleStringGenerator());
-		text.map(new StatefulMapper()).addSink(new NoOpSink());
+		text.map(new StatefulMapper()).addSink(new DiscardingSink<>());
 		env.setParallelism(1);
 		env.execute("Checkpointed Streaming Program");
 	}
@@ -132,11 +132,5 @@ public class CheckpointedStreamingProgram {
 	 */
 	private static class SuccessException extends Exception {
 
-	}
-
-	private static class NoOpSink implements SinkFunction<String>{
-		@Override
-		public void invoke(String value) throws Exception {
-		}
 	}
 }
