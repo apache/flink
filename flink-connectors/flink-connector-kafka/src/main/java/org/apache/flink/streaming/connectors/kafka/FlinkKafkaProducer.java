@@ -1090,14 +1090,21 @@ public class FlinkKafkaProducer<IN>
 
 	// ----------------------------------- Utilities --------------------------
 
-	private void abortTransactions(Set<String> transactionalIds) {
-		for (String transactionalId : transactionalIds) {
+	private void abortTransactions(final Set<String> transactionalIds) {
+		transactionalIds.parallelStream().forEach(transactionalId -> {
+			// don't mess with the original configuration or any other properties of the
+			// original object
+			// -> create an internal kafka producer on our own and do not rely on
+			//    initTransactionalProducer().
+			final Properties myConfig = new Properties();
+			myConfig.putAll(producerConfig);
+			initTransactionalProducerConfig(myConfig, transactionalId);
 			try (FlinkKafkaInternalProducer<byte[], byte[]> kafkaProducer =
-				initTransactionalProducer(transactionalId, false)) {
-				// it suffice to call initTransactions - this will abort any lingering transactions
+					new FlinkKafkaInternalProducer<>(myConfig)) {
+				// it suffices to call initTransactions - this will abort any lingering transactions
 				kafkaProducer.initTransactions();
 			}
-		}
+		});
 	}
 
 	int getTransactionCoordinatorId() {
@@ -1131,12 +1138,16 @@ public class FlinkKafkaProducer<IN>
 	}
 
 	private FlinkKafkaInternalProducer<byte[], byte[]> initTransactionalProducer(String transactionalId, boolean registerMetrics) {
-		producerConfig.put("transactional.id", transactionalId);
+		initTransactionalProducerConfig(producerConfig, transactionalId);
 		return initProducer(registerMetrics);
 	}
 
+	private static void initTransactionalProducerConfig(Properties producerConfig, String transactionalId) {
+		producerConfig.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, transactionalId);
+	}
+
 	private FlinkKafkaInternalProducer<byte[], byte[]> initNonTransactionalProducer(boolean registerMetrics) {
-		producerConfig.remove("transactional.id");
+		producerConfig.remove(ProducerConfig.TRANSACTIONAL_ID_CONFIG);
 		return initProducer(registerMetrics);
 	}
 
