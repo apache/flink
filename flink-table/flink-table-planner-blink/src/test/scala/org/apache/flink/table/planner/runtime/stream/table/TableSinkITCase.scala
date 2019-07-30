@@ -151,6 +151,36 @@ class TableSinkITCase extends AbstractTestBase {
     assertEquals(expected, result)
   }
 
+
+  @Test
+  def testAppendSinkWithNestedRow(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.getConfig.enableObjectReuse()
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+
+    val t = env.fromCollection(smallTupleData3)
+      .toTable(tEnv, 'id, 'num, 'text)
+    tEnv.registerTable("src", t)
+
+    val sink = new TestingAppendTableSink()
+    tEnv.registerTableSink(
+      "appendSink",
+      sink.configure(
+        Array[String]("t", "item"),
+        Array[TypeInformation[_]](Types.INT(), Types.ROW(Types.LONG, Types.STRING()))))
+
+    tEnv.sqlUpdate("INSERT INTO appendSink SELECT id, ROW(num, text) FROM src")
+
+    env.execute()
+
+    val result = sink.getAppendResults.sorted
+    val expected = List(
+      "1,1,Hi",
+      "2,2,Hello",
+      "3,2,Hello world").sorted
+    assertEquals(expected, result)
+  }
+
   @Test
   def testAppendSinkOnAppendTableForInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
