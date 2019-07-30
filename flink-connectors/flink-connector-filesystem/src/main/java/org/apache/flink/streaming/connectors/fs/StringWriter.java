@@ -33,6 +33,7 @@ import java.nio.charset.UnsupportedCharsetException;
  *
  * @param <T> The type of the elements that are being written by the sink.
  */
+@Deprecated
 public class StringWriter<T> extends StreamWriterBase<T> {
 	private static final long serialVersionUID = 1L;
 
