@@ -265,7 +265,7 @@ export class JobService {
         }
       });
       const listOfVerticesId = job.vertices.map(item => item.id);
-      nodes.sort((pre, next) => listOfVerticesId.indexOf(next.id) - listOfVerticesId.indexOf(pre.id));
+      nodes.sort((pre, next) => listOfVerticesId.indexOf(pre.id) - listOfVerticesId.indexOf(next.id));
     }
     return {
       ...job,
