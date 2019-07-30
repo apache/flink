@@ -180,7 +180,10 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 
 	@Override
 	public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
-		throw new UnsupportedOperationException("HBase table can not convert to DataStream currently.");
+		HBaseTableSchema projectedSchema = hbaseSchema.getProjectedHBaseTableSchema(projectFields);
+		return execEnv
+			.createInput(new HBaseRowInputFormat(conf, tableName, projectedSchema), getReturnType())
+			.name(explainSource());
 	}
 
 	@VisibleForTesting

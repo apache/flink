@@ -18,9 +18,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.addons.hbase;
+package org.apache.flink.addons.hbase.util;
 
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.test.util.AbstractTestBase;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -42,7 +42,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
@@ -74,9 +73,9 @@ import static org.junit.Assert.fail;
 //
 // https://github.com/apache/hbase/blob/master/hbase-server/src/test/java/org/apache/hadoop/hbase/filter/FilterTestingCluster.java
 //
-public class HBaseTestingClusterAutostarter extends TestLogger implements Serializable {
+public abstract class HBaseTestingClusterAutoStarter extends AbstractTestBase {
 
-	private static final Log LOG = LogFactory.getLog(HBaseTestingClusterAutostarter.class);
+	private static final Log LOG = LogFactory.getLog(HBaseTestingClusterAutoStarter.class);
 
 	private static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
 	private static HBaseAdmin admin = null;
@@ -160,7 +159,7 @@ public class HBaseTestingClusterAutostarter extends TestLogger implements Serial
 	/**
 	 * Returns zookeeper quorum value contains the right port number (varies per run).
 	 */
-	static String getZookeeperQuorum() {
+	protected static String getZookeeperQuorum() {
 		return "localhost:" + TEST_UTIL.getZkCluster().getClientPort();
 	}
 
