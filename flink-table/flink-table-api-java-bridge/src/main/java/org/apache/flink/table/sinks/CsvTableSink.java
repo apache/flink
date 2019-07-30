@@ -157,7 +157,7 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 	/**
 	 * Return a new builder that builds a CsvTableSink. For example:
 	 * <pre>
-	 * CsvTableSource source = new CsvTableSource.builder()
+	 * CsvTableSink sink = new CsvTableSink.builder()
 	 *     .path("/path/to/..")
 	 *     .field("myfield", Types.STRING)
 	 *     .field("myfield2", Types.INT)
