@@ -104,7 +104,7 @@ public class TableEnvHiveConnectorTest {
 
 	@Test
 	public void testDifferentFormats() throws Exception {
-		String[] formats = new String[]{"orc", "parquet", "sequencefile"};
+		String[] formats = new String[]{"orc", "parquet", "sequencefile", "csv"};
 		for (String format : formats) {
 			readWriteFormat(format);
 		}
