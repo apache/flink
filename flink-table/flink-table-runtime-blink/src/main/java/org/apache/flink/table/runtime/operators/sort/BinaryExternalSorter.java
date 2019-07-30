@@ -21,6 +21,7 @@ package org.apache.flink.table.runtime.operators.sort;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.runtime.io.disk.iomanager.AbstractChannelWriterOutputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
@@ -211,14 +212,15 @@ public class BinaryExternalSorter implements Sorter<BinaryRow> {
 			NormalizedKeyComputer normalizedKeyComputer,
 			RecordComparator comparator, Configuration conf,
 			float startSpillingFraction) throws IOException {
-		int maxNumFileHandles = conf.getInteger(ExecutionConfigOptions.SQL_EXEC_SORT_FILE_HANDLES_MAX_NUM);
-		this.compressionEnable = conf.getBoolean(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_ENABLED);
+		int maxNumFileHandles = conf.getInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES);
+		this.compressionEnable = conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED);
 		this.compressionCodecFactory = this.compressionEnable
 			? BlockCompressionFactory.createBlockCompressionFactory(
-					conf.getString(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_CODEC))
+					BlockCompressionFactory.CompressionFactoryName.LZ4.toString())
 			: null;
-		compressionBlockSize = conf.getInteger(ExecutionConfigOptions.SQL_EXEC_SPILL_COMPRESSION_BLOCK_SIZE);
-		asyncMergeEnable = conf.getBoolean(ExecutionConfigOptions.SQL_EXEC_SORT_ASYNC_MERGE_ENABLED);
+		this.compressionBlockSize = (int) MemorySize.parse(
+			conf.getString(ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE)).getBytes();
+		asyncMergeEnable = conf.getBoolean(ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED);
 
 		checkArgument(maxNumFileHandles >= 2);
 		checkNotNull(ioManager);

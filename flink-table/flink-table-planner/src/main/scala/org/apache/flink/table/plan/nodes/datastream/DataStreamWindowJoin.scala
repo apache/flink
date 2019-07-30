@@ -150,6 +150,7 @@ class DataStreamWindowJoin(
       case JoinRelType.FULL => JoinType.FULL_OUTER
       case JoinRelType.LEFT => JoinType.LEFT_OUTER
       case JoinRelType.RIGHT => JoinType.RIGHT_OUTER
+      case _ => throw new TableException(s"$joinType is not supported.")
     }
 
     if (relativeWindowSize < 0) {
@@ -232,6 +233,7 @@ class DataStreamWindowJoin(
       case JoinType.FULL_OUTER =>
         leftDataStream.map(leftPadder).name("Full Outer Join").setParallelism(leftP)
           .union(rightDataStream.map(rightPadder).name("Full Outer Join").setParallelism(rightP))
+      case _ => throw new TableException(s"$joinType is not supported.")
     }
   }
 

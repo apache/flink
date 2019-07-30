@@ -26,7 +26,6 @@ import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel.BufferAndAvailability;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
@@ -40,7 +39,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -61,8 +59,6 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 
 	/** All the readers created for the consumers' partition requests. */
 	private final ConcurrentMap<InputChannelID, NetworkSequenceViewReader> allReaders = new ConcurrentHashMap<>();
-
-	private final Set<InputChannelID> released = Sets.newHashSet();
 
 	private boolean fatalError;
 
@@ -138,9 +134,7 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		}
 
 		for (NetworkSequenceViewReader reader : allReaders.values()) {
-			reader.notifySubpartitionConsumed();
-			reader.releaseAllResources();
-			markAsReleased(reader.getReceiverId());
+			releaseViewReader(reader);
 		}
 		allReaders.clear();
 	}
@@ -177,23 +171,15 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 		} else if (msg.getClass() == InputChannelID.class) {
 			// Release partition view that get a cancel request.
 			InputChannelID toCancel = (InputChannelID) msg;
-			if (released.contains(toCancel)) {
-				return;
-			}
 
-			// Cancel the request for the input channel
-			int size = availableReaders.size();
-			for (int i = 0; i < size; i++) {
-				NetworkSequenceViewReader reader = pollAvailableReader();
-				if (reader.getReceiverId().equals(toCancel)) {
-					reader.releaseAllResources();
-					markAsReleased(reader.getReceiverId());
-				} else {
-					registerAvailableReader(reader);
-				}
-			}
+			// remove reader from queue of available readers
+			availableReaders.removeIf(reader -> reader.getReceiverId().equals(toCancel));
 
-			allReaders.remove(toCancel);
+			// remove reader from queue of all readers and release its resource
+			final NetworkSequenceViewReader toRelease = allReaders.remove(toCancel);
+			if (toRelease != null) {
+				releaseViewReader(toRelease);
+			}
 		} else {
 			ctx.fireUserEventTriggered(msg);
 		}
@@ -229,7 +215,6 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 					if (!reader.isReleased()) {
 						continue;
 					}
-					markAsReleased(reader.getReceiverId());
 
 					Throwable cause = reader.getFailureCause();
 					if (cause != null) {
@@ -308,19 +293,17 @@ class PartitionRequestQueue extends ChannelInboundHandlerAdapter {
 	private void releaseAllResources() throws IOException {
 		// note: this is only ever executed by one thread: the Netty IO thread!
 		for (NetworkSequenceViewReader reader : allReaders.values()) {
-			reader.releaseAllResources();
-			markAsReleased(reader.getReceiverId());
+			releaseViewReader(reader);
 		}
 
 		availableReaders.clear();
 		allReaders.clear();
 	}
 
-	/**
-	 * Marks a receiver as released.
-	 */
-	private void markAsReleased(InputChannelID receiverId) {
-		released.add(receiverId);
+	private void releaseViewReader(NetworkSequenceViewReader reader) throws IOException {
+		reader.notifySubpartitionConsumed();
+		reader.setRegisteredAsAvailable(false);
+		reader.releaseAllResources();
 	}
 
 	// This listener is called after an element of the current nonEmptyReader has been

@@ -106,7 +106,7 @@ public class SlotSharingGroupAssignment {
 
 	/**
 	 * Gets the number of slots that are currently governed by this assignment group.
-	 * This refers to the slots allocated from an {@link org.apache.flink.runtime.instance.Instance},
+	 * This refers to the slots allocated from an Instance,
 	 * and not the sub-slots given out as children of those shared slots.
 	 * 
 	 * @return The number of resource slots managed by this assignment group.

@@ -31,12 +31,12 @@ import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, BinaryRowSerializer}
-
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
+import org.apache.flink.configuration.MemorySize
 
 import java.util
 
@@ -155,8 +155,9 @@ class BatchExecNestedLoopJoin(
     val externalBufferMemoryInMb: Int = if (singleRowJoin) {
       0
     } else {
-      planner.getTableConfig.getConfiguration.getInteger(
-        ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM)
+      val mem = planner.getTableConfig.getConfiguration.getString(
+        ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
+      MemorySize.parse(mem).getMebiBytes
     }
     val resourceSpec = NodeResourceUtil.fromManagedMem(externalBufferMemoryInMb)
 

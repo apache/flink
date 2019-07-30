@@ -68,9 +68,9 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       }
       sinkBlock.setUpdateAsRetraction(retractionFromRoot)
       val miniBatchInterval: MiniBatchInterval = if (config.getConfiguration.getBoolean(
-        ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)) {
+        ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)) {
         val miniBatchLatency = getMillisecondFromConfigDuration(config,
-          ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
+          ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY)
         Preconditions.checkArgument(miniBatchLatency > 0,
           "MiniBatch Latency must be greater than 0 ms.", null)
         MiniBatchInterval(miniBatchLatency, MiniBatchMode.ProcTime)

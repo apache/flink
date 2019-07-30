@@ -756,7 +756,8 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
   @Ignore
   @Test
   def testJoinCollation(): Unit = {
-    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
+    conf.getConfiguration.setString(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY, "1mb")
+
     checkResult(
       """
         |WITH v1 AS (

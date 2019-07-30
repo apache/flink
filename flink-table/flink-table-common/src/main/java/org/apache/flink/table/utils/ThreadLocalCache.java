@@ -16,15 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.functions;
+package org.apache.flink.table.utils;
+
+import org.apache.flink.annotation.Internal;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Provides a ThreadLocal cache with a maximum cache size per thread.
- * Values must not be null.
+ * Provides a thread local cache with a maximum cache size per thread.
+ *
+ * <p>Note: Values must not be null.
  */
+@Internal
 public abstract class ThreadLocalCache<K, V> {
 
 	private static final int DEFAULT_CACHE_SIZE = 64;

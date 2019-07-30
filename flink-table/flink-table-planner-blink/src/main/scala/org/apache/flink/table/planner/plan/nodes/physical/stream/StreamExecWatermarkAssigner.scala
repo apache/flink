@@ -84,7 +84,7 @@ class StreamExecWatermarkAssigner(
     } else if (miniBatchInterval.mode == MiniBatchMode.ProcTime) {
       val tableConfig = cluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
       val miniBatchLatency = getMillisecondFromConfigDuration(tableConfig,
-        ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ALLOW_LATENCY)
+        ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY)
       Preconditions.checkArgument(miniBatchLatency > 0,
         "MiniBatch latency must be greater that 0 ms.", null)
       s"Proctime, ${miniBatchLatency}ms"
@@ -117,7 +117,7 @@ class StreamExecWatermarkAssigner(
     val inferredInterval = getTraitSet.getTrait(
       MiniBatchIntervalTraitDef.INSTANCE).getMiniBatchInterval
     val idleTimeout = getMillisecondFromConfigDuration(config,
-      ExecutionConfigOptions.SQL_EXEC_SOURCE_IDLE_TIMEOUT)
+      ExecutionConfigOptions.TABLE_EXEC_SOURCE_IDLE_TIMEOUT)
 
     val (operator, opName) = if (inferredInterval.mode == MiniBatchMode.None ||
       inferredInterval.interval == 0) {

@@ -32,13 +32,13 @@ under the License.
 
 	<name>flink</name>
 	<packaging>pom</packaging>
-	<url>http://flink.apache.org</url>
+	<url>https://flink.apache.org</url>
 	<inceptionYear>2014</inceptionYear>
 
 	<licenses>
 		<license>
 			<name>The Apache Software License, Version 2.0</name>
-			<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
 			<distribution>repo</distribution>
 		</license>
 	</licenses>
@@ -86,6 +86,7 @@ under the License.
 		<module>flink-docs</module>
 		<module>flink-python</module>
 		<module>flink-ml-parent</module>
+		<module>flink-walkthroughs</module>
 	</modules>
 
 	<properties>

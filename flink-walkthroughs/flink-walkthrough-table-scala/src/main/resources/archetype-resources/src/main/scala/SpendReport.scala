@@ -16,15 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager.scheduler;
+package ${package}
 
-import org.apache.flink.runtime.instance.Instance;
+import org.apache.flink.api.scala._
+import org.apache.flink.table.api.scala._
+import org.apache.flink.walkthrough.common.table._
 
-/**
- * A SlotAvailabilityListener can be notified when new
- * {@link org.apache.flink.runtime.instance.Slot}s become available on an {@link Instance}.
- */
-public interface SlotAvailabilityListener {
+object SpendReport {
+  def main(args: Array[String]): Unit = {
+    val env = ExecutionEnvironment.getExecutionEnvironment
+    val tEnv = BatchTableEnvironment.create(env)
 
-	void newSlotAvailable(Instance instance);
+    tEnv.registerTableSource("transactions", new BoundedTransactionTableSource)
+    tEnv.registerTableSink("spend_report", new SpendReportTableSink)
+
+    val truncateDateToHour = new TruncateDateToHour
+
+    tEnv
+      .scan("transactions")
+      .insertInto("spend_report")
+
+    env.execute("Spend Report")
+  }
 }

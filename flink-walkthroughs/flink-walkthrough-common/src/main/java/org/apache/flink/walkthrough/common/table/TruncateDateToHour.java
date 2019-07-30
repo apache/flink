@@ -16,22 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.instance;
+package org.apache.flink.walkthrough.common.table;
+
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.table.functions.ScalarFunction;
 
 /**
- * A special instance signaling that an attempted operation on an instance is not possible,
- * because the instance has died.
+ * A user defined function for rounding timestamps down to
+ * the nearest hour.
  */
-public class InstanceDiedException extends Exception {
-	private static final long serialVersionUID = -4917918318403135745L;
-	
-	private final Instance instance;
+@PublicEvolving
+@SuppressWarnings("unused")
+public class TruncateDateToHour extends ScalarFunction {
 
-	public InstanceDiedException(Instance instance) {
-		this.instance = instance;
+	private static final long serialVersionUID = 1L;
+
+	private static final long ONE_HOUR = 60 * 60 * 1000;
+
+	public long eval(long timestamp) {
+		return timestamp - (timestamp % ONE_HOUR);
 	}
-	
-	public Instance getInstance() {
-		return instance;
+
+	@Override
+	public TypeInformation<?> getResultType(Class<?>[] signature) {
+		return Types.SQL_TIMESTAMP;
 	}
 }
