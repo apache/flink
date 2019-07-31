@@ -41,28 +41,6 @@ public class CommonTestUtils {
 	private static final long RETRY_INTERVAL = 100L;
 
 	/**
-	 * Sleeps for a given set of milliseconds, uninterruptibly. If interrupt is called,
-	 * the sleep will continue nonetheless.
-	 *
-	 * @param msecs The number of milliseconds to sleep.
-	 */
-	public static void sleepUninterruptibly(long msecs) {
-		
-		long now = System.currentTimeMillis();
-		long sleepUntil = now + msecs;
-		long remaining;
-		
-		while ((remaining = sleepUntil - now) > 0) {
-			try {
-				Thread.sleep(remaining);
-			}
-			catch (InterruptedException ignored) {}
-			
-			now = System.currentTimeMillis();
-		}
-	}
-
-	/**
 	 * Gets the classpath with which the current JVM was started.
 	 *
 	 * @return The classpath with which the current JVM was started.
