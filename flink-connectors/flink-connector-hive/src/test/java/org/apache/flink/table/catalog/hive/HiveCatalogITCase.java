@@ -19,7 +19,7 @@
 package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.batch.connectors.hive.FlinkStandaloneHiveRunner;
+import org.apache.flink.connectors.hive.FlinkStandaloneHiveRunner;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;

@@ -16,18 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.batch.connectors.hive;
+package org.apache.flink.connectors.hive;
 
 import com.klarna.hiverunner.builder.HiveShellBuilder;
 import com.klarna.hiverunner.config.HiveRunnerConfig;
 
-/**
- * Shim layer for hive runner dependency.
- */
-public interface HiveRunnerShim {
+import java.lang.reflect.Method;
 
-	/**
-	 * Sets CommandShellEmulation for HiveShellBuilder.
-	 */
-	void setCommandShellEmulation(HiveShellBuilder builder, HiveRunnerConfig config) throws Exception;
+/**
+ * Shim for hive runner 4.x.
+ */
+public class HiveRunnerShimV4 implements HiveRunnerShim {
+
+	@Override
+	public void setCommandShellEmulation(HiveShellBuilder builder, HiveRunnerConfig config) throws Exception {
+		Method method = config.getClass().getDeclaredMethod("getCommandShellEmulator");
+		Object emulator = method.invoke(config);
+		Class emulatorClz = Class.forName("com.klarna.hiverunner.sql.cli.CommandShellEmulator");
+		method = builder.getClass().getDeclaredMethod("setCommandShellEmulation", emulatorClz);
+		method.invoke(builder, emulator);
+	}
 }

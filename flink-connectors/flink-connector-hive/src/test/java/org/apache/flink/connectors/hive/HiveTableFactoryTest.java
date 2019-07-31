@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.batch.connectors.hive;
+package org.apache.flink.connectors.hive;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
@@ -44,7 +44,7 @@ import java.util.Optional;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Test for {@link org.apache.flink.batch.connectors.hive.HiveTableFactory}.
+ * Test for {@link HiveTableFactory}.
  */
 public class HiveTableFactoryTest {
 	private static HiveCatalog catalog;
