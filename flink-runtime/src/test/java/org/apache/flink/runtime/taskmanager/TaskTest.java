@@ -1063,7 +1063,9 @@ public class TaskTest extends TestLogger {
 
 			// block forever
 			synchronized (this) {
-				wait();
+				while (true) {
+					wait();
+				}
 			}
 		}
 	}
