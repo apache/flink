@@ -89,6 +89,9 @@ trait ExecNode[E <: Planner, T] {
     visitor.visit(this)
   }
 
+  /**
+    *  Whether there is singleton exchange node as input.
+    */
   protected def inputsContainSingleton(): Boolean = {
     getInputNodes.foreach {
       case exchange: Exchange
