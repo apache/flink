@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.BlockerSync;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.VoidBlobStore;
@@ -255,10 +256,14 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			.build();
 
 		final CompletableFuture<Void> taskFinishedFuture = new CompletableFuture<>();
+		final OneShotLatch slotOfferedLatch = new OneShotLatch();
 
 		final TestingJobMasterGateway jobMasterGateway = new TestingJobMasterGatewayBuilder()
 			.setRegisterTaskManagerFunction((s, location) -> CompletableFuture.completedFuture(new JMTMRegistrationSuccess(ResourceID.generate())))
-			.setOfferSlotsFunction((resourceID, slotOffers) -> CompletableFuture.completedFuture(slotOffers))
+			.setOfferSlotsFunction((resourceID, slotOffers) -> {
+				slotOfferedLatch.trigger();
+				return CompletableFuture.completedFuture(slotOffers);
+			})
 			.setUpdateTaskExecutionStateFunction(taskExecutionState -> {
 				if (taskExecutionState.getExecutionState() == ExecutionState.FINISHED) {
 					taskFinishedFuture.complete(null);
@@ -326,6 +331,10 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			}
 
 			TestingInvokable.sync = new BlockerSync();
+
+			// Wait till the slot has been successfully offered before submitting the task.
+			// This ensures TM has been successfully registered to JM.
+			slotOfferedLatch.await();
 
 			taskExecutorGateway.submitTask(taskDeploymentDescriptor, jobMasterGateway.getFencingToken(), timeout)
 				.get();
