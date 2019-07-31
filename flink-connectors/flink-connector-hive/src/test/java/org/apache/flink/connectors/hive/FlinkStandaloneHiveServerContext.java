@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.batch.connectors.hive;
+package org.apache.flink.connectors.hive;
 
 import com.klarna.hiverunner.HiveServerContext;
 import com.klarna.hiverunner.config.HiveRunnerConfig;
