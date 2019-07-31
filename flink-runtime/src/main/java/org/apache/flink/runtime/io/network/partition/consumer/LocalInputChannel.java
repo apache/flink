@@ -265,7 +265,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		ResultSubpartitionView view = subpartitionView;
 
 		if (view != null) {
-			return subpartitionView.unsynchronizedGetNumberOfQueuedBuffers();
+			return view.unsynchronizedGetNumberOfQueuedBuffers();
 		}
 
 		return 0;

@@ -559,8 +559,5 @@ public class LocalInputChannelTest {
 			return null;
 		}
 
-		public SingleInputGate getInputGate() {
-			return inputGate;
-		}
 	}
 }
