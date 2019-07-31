@@ -140,6 +140,6 @@ abstract class BatchExecSortWindowAggregateBase(
       getOperatorName,
       operator,
       BaseRowTypeInfo.of(outputType),
-      getResource.getParallelism)
+      input.getParallelism)
   }
 }

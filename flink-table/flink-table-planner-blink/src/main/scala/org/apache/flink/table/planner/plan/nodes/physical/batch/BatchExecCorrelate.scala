@@ -198,7 +198,7 @@ class BatchExecCorrelate(
       condition,
       outputRowType,
       joinType,
-      getResource.getParallelism,
+      inputTransformation.getParallelism,
       retainHeader = false,
       getExpressionString,
       "BatchExecCorrelate")

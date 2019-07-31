@@ -83,18 +83,8 @@ public class ExecutionConfigOptions {
 	public static final ConfigOption<Integer> TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM =
 		key("table.exec.resource.default-parallelism")
 			.defaultValue(-1)
-			.withDescription("Default parallelism of job operators. If it is <= 0, use parallelism of StreamExecutionEnvironment(" +
-				"its default value is the num of cpu cores in the client host).");
-
-	public static final ConfigOption<Integer> TABLE_EXEC_RESOURCE_SOURCE_PARALLELISM =
-		key("table.exec.resource.source.parallelism")
-			.defaultValue(-1)
-			.withDescription("Sets source parallelism, if it is <= 0, use " + TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key() + " to set source parallelism.");
-
-	public static final ConfigOption<Integer> TABLE_EXEC_RESOURCE_SINK_PARALLELISM =
-		key("table.exec.resource.sink.parallelism")
-			.defaultValue(-1)
-			.withDescription("Sets sink parallelism, if it is <= 0, use " + TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM.key() + " to set sink parallelism.");
+			.withDescription("Default parallelism to override parallelism of " +
+					"StreamExecutionEnvironment. If it is <= 0, not to override.");
 
 	public static final ConfigOption<String> TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY =
 		key("table.exec.resource.external-buffer-memory")

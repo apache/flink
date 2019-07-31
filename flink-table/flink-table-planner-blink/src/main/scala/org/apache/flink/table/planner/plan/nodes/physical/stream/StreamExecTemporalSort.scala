@@ -150,7 +150,7 @@ class StreamExecTemporalSort(
         "ProcTimeSortOperator",
         sortOperator,
         outputRowTypeInfo,
-        getResource.getParallelism)
+        input.getParallelism)
 
       val selector = NullBinaryRowKeySelector.INSTANCE
       ret.setStateKeySelector(selector)
@@ -190,10 +190,11 @@ class StreamExecTemporalSort(
       "RowTimeSortOperator",
       sortOperator,
       outputRowTypeInfo,
-      getResource.getParallelism)
+      input.getParallelism)
 
-    if (getResource.getMaxParallelism > 0) {
-      ret.setMaxParallelism(getResource.getMaxParallelism)
+    if (inputsContainSingleton()) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
     }
 
     val selector = NullBinaryRowKeySelector.INSTANCE

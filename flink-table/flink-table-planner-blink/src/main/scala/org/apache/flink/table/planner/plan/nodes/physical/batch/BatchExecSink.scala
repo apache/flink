@@ -29,7 +29,6 @@ import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContex
 import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
@@ -98,23 +97,7 @@ class BatchExecSink[T](
             "implemented and return the sink transformation DataStreamSink. " +
             s"However, ${sink.getClass.getCanonicalName} doesn't implement this method.")
         }
-        val sinkTransformation = dsSink.getTransformation
-
-        val configSinkParallelism = NodeResourceUtil.getSinkParallelism(
-          planner.getTableConfig.getConfiguration)
-
-        val maxSinkParallelism = sinkTransformation.getMaxParallelism
-
-        // only set user's parallelism when user defines a sink parallelism
-        if (configSinkParallelism > 0) {
-          // set the parallelism when user's parallelism is not larger than max parallelism
-          // or max parallelism is not set
-          if (maxSinkParallelism < 0 || configSinkParallelism <= maxSinkParallelism) {
-            sinkTransformation.setParallelism(configSinkParallelism)
-          }
-        }
-
-        sinkTransformation
+        dsSink.getTransformation
 
       case dsTableSink: DataStreamTableSink[T] =>
         // In case of table to bounded stream through Batchplannerironment#toBoundedStream, we

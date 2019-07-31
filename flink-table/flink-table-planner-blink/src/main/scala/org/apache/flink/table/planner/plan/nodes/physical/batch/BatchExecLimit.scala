@@ -111,7 +111,7 @@ class BatchExecLimit(
       getOperatorName,
       operator,
       inputType,
-      getResource.getParallelism)
+      input.getParallelism)
   }
 
   private def getOperatorName = {

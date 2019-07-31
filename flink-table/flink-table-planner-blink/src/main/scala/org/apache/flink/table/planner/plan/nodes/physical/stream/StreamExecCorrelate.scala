@@ -131,12 +131,13 @@ class StreamExecCorrelate(
       condition,
       outputRowType,
       joinType,
-      getResource.getParallelism,
+      inputTransformation.getParallelism,
       retainHeader = true,
       getExpressionString,
       "StreamExecCorrelate")
-    if (getResource.getMaxParallelism > 0) {
-      transform.setMaxParallelism(getResource.getMaxParallelism)
+    if (inputsContainSingleton()) {
+      transform.setParallelism(1)
+      transform.setMaxParallelism(1)
     }
     transform
   }

@@ -161,13 +161,14 @@ class BatchExecNestedLoopJoin(
     }
     val resourceSpec = NodeResourceUtil.fromManagedMem(externalBufferMemoryInMb)
 
+    val parallelism = if (leftIsBuild) rInput.getParallelism else lInput.getParallelism
     val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       lInput,
       rInput,
       getOperatorName,
       op,
       BaseRowTypeInfo.of(outputType),
-      getResource.getParallelism)
+      parallelism)
     ret.setResources(resourceSpec, resourceSpec)
     ret
   }

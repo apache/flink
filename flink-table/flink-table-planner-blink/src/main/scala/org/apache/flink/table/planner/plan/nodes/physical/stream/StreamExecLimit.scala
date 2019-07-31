@@ -170,10 +170,11 @@ class StreamExecLimit(
       s"Limit(offset: $limitStart, fetch: ${fetchToString(fetch)})",
       operator,
       outputRowTypeInfo,
-      getResource.getParallelism)
+      inputTransform.getParallelism)
 
-    if (getResource.getMaxParallelism > 0) {
-      ret.setMaxParallelism(getResource.getMaxParallelism)
+    if (inputsContainSingleton()) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
     }
 
     val selector = NullBinaryRowKeySelector.INSTANCE
