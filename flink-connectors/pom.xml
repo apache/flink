@@ -57,6 +57,7 @@ under the License.
 		<module>flink-connector-filesystem</module>
 		<module>flink-connector-kafka</module>
 		<module>flink-connector-gcp-pubsub</module>
+		<module>flink-connector-kinesis</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up
@@ -112,23 +113,6 @@ under the License.
 			</activation>
 			<modules>
 				<module>flink-connector-kafka-0.8</module>
-			</modules>
-		</profile>
-		<!--
-			We include the kinesis module only optionally because it contains a dependency
-			licenced under the "Amazon Software License".
-			In accordance with the discussion in https://issues.apache.org/jira/browse/LEGAL-198
-			this is an optional module for Flink.
-		-->
-		<profile>
-			<id>include-kinesis</id>
-			<activation>
-				<property>
-					<name>include-kinesis</name>
-				</property>
-			</activation>
-			<modules>
-				<module>flink-connector-kinesis</module>
 			</modules>
 		</profile>
 	</profiles>
