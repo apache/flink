@@ -120,27 +120,6 @@ public class CommonTestUtils {
 		return null;
 	}
 
-	/**
-	 * Checks whether a process is still alive. Utility method for JVM versions before 1.8,
-	 * where no direct method to check that is available.
-	 *
-	 * @param process The process to check.
-	 * @return True, if the process is alive, false otherwise.
-	 */
-	public static boolean isProcessAlive(Process process) {
-		if (process == null) {
-			return false;
-
-		}
-		try {
-			process.exitValue();
-			return false;
-		}
-		catch(IllegalThreadStateException e) {
-			return true;
-		}
-	}
-
 	public static void printLog4jDebugConfig(File file) throws IOException {
 		try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
 			writer.println("log4j.rootLogger=DEBUG, console");
