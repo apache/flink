@@ -185,10 +185,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/**
 	 * Return the sub task's serialized job information.
 	 *
-	 * @return serialized job information (may be <tt>null</tt> before a call to {@link
-	 * #loadBigData(PermanentBlobService)}).
+	 * @return serialized job information (may throw {@link IllegalStateException} if {@link
+	 * #loadBigData(PermanentBlobService)} is not called beforehand).
+	 * @throws IllegalStateException If job information is offloaded to BLOB store.
 	 */
-	@Nullable
 	public SerializedValue<JobInformation> getSerializedJobInformation() {
 		if (serializedJobInformation instanceof NonOffloaded) {
 			NonOffloaded<JobInformation> jobInformation =
@@ -203,10 +203,10 @@ public final class TaskDeploymentDescriptor implements Serializable {
 	/**
 	 * Return the sub task's serialized task information.
 	 *
-	 * @return serialized task information (may be <tt>null</tt> before a call to {@link
-	 * #loadBigData(PermanentBlobService)}).
+	 * @return serialized task information (may throw {@link IllegalStateException} if {@link
+	 * #loadBigData(PermanentBlobService)} is not called beforehand)).
+	 * @throws IllegalStateException If job information is offloaded to BLOB store.
 	 */
-	@Nullable
 	public SerializedValue<TaskInformation> getSerializedTaskInformation() {
 		if (serializedTaskInformation instanceof NonOffloaded) {
 			NonOffloaded<TaskInformation> taskInformation =

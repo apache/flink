@@ -28,15 +28,16 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.SafetyNetCloseableRegistry;
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.accumulators.AccumulatorRegistry;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineTaskNotReadyException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.CancelTaskException;
@@ -48,27 +49,29 @@ import org.apache.flink.runtime.executiongraph.JobInformation;
 import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
-import org.apache.flink.runtime.io.network.netty.PartitionProducerStateChecker;
-import org.apache.flink.runtime.io.network.partition.ResultPartition;
+import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
+import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.InputSplitProvider;
-import org.apache.flink.runtime.jobmanager.PartitionProducerDisposedException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
+import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
+import org.apache.flink.runtime.shuffle.ShuffleIOOwnerContext;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.runtime.taskexecutor.KvStateService;
+import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.util.FatalExitExceptionHandler;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -90,11 +93,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -120,7 +125,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  *
  * <p>Each Task is run by one dedicated thread.
  */
-public class Task implements Runnable, TaskActions, CheckpointListener {
+public class Task implements Runnable, TaskActions, PartitionProducerStateProvider, CheckpointListener {
 
 	/** The class logger. */
 	private static final Logger LOG = LoggerFactory.getLogger(Task.class);
@@ -189,11 +194,9 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	/** Serialized version of the job specific execution configuration (see {@link ExecutionConfig}). */
 	private final SerializedValue<ExecutionConfig> serializedExecutionConfig;
 
-	private final ResultPartition[] producedPartitions;
+	private final ResultPartitionWriter[] consumableNotifyingPartitionWriters;
 
-	private final SingleInputGate[] inputGates;
-
-	private final Map<IntermediateDataSetID, SingleInputGate> inputGatesById;
+	private final InputGate[] inputGates;
 
 	/** Connection to the task manager. */
 	private final TaskManagerActions taskManagerActions;
@@ -216,9 +219,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	/** The cache for user-defined files that the invokable requires. */
 	private final FileCache fileCache;
 
-	/** The gateway to the network stack, which handles inputs and produced results. */
-	private final NetworkEnvironment network;
-
 	/** The service for kvState registration of this task. */
 	private final KvStateService kvStateService;
 
@@ -236,6 +236,9 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 	/** Executor to run future callbacks. */
 	private final Executor executor;
+
+	/** Future that is completed once {@link #run()} exits. */
+	private final CompletableFuture<ExecutionState> terminationFuture = new CompletableFuture<>();
 
 	// ------------------------------------------------------------------------
 	//  Fields that control the task execution. All these fields are volatile
@@ -257,8 +260,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	/** The observed exception, in case the task execution failed. */
 	private volatile Throwable failureCause;
 
-	/** Executor for asynchronous calls (checkpoints, etc), lazily initialized. */
-	private volatile BlockingCallMonitoringThreadPool asyncCallDispatcher;
+	/** Serial executor for asynchronous calls (checkpoints, etc), lazily initialized. */
+	private volatile ExecutorService asyncCallDispatcher;
 
 	/** Initialized from the Flink configuration. May also be set at the ExecutionConfig */
 	private long taskCancellationInterval;
@@ -288,7 +291,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		int targetSlotNumber,
 		MemoryManager memManager,
 		IOManager ioManager,
-		NetworkEnvironment networkEnvironment,
+		ShuffleEnvironment<?, ?> shuffleEnvironment,
 		KvStateService kvStateService,
 		BroadcastVariableManager bcVarManager,
 		TaskEventDispatcher taskEventDispatcher,
@@ -352,7 +355,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		this.blobService = Preconditions.checkNotNull(blobService);
 		this.libraryCache = Preconditions.checkNotNull(libraryCache);
 		this.fileCache = Preconditions.checkNotNull(fileCache);
-		this.network = Preconditions.checkNotNull(networkEnvironment);
 		this.kvStateService = Preconditions.checkNotNull(kvStateService);
 		this.taskManagerConfig = Preconditions.checkNotNull(taskManagerConfig);
 
@@ -365,39 +367,37 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 		final String taskNameWithSubtaskAndId = taskNameWithSubtask + " (" + executionId + ')';
 
-		// add metrics for buffers
-		final MetricGroup buffersGroup = metrics.getIOMetricGroup().addGroup("buffers");
-
-		// similar to MetricUtils.instantiateNetworkMetrics() but inside this IOMetricGroup
-		final MetricGroup networkGroup = metrics.getIOMetricGroup().addGroup("Network");
-		final MetricGroup outputGroup = networkGroup.addGroup("Output");
-		final MetricGroup inputGroup = networkGroup.addGroup("Input");
+		final ShuffleIOOwnerContext taskShuffleContext = shuffleEnvironment
+			.createShuffleIOOwnerContext(taskNameWithSubtaskAndId, executionId, metrics.getIOMetricGroup());
 
 		// produced intermediate result partitions
-		this.producedPartitions = networkEnvironment.createResultPartitionWriters(
-			taskNameWithSubtaskAndId,
-			jobId,
-			executionId,
-			this,
-			resultPartitionConsumableNotifier,
+		final ResultPartitionWriter[] resultPartitionWriters = shuffleEnvironment.createResultPartitionWriters(
+			taskShuffleContext,
+			resultPartitionDeploymentDescriptors).toArray(new ResultPartitionWriter[] {});
+
+		this.consumableNotifyingPartitionWriters = ConsumableNotifyingResultPartitionWriterDecorator.decorate(
 			resultPartitionDeploymentDescriptors,
-			outputGroup,
-			buffersGroup);
+			resultPartitionWriters,
+			this,
+			jobId,
+			resultPartitionConsumableNotifier);
 
 		// consumed intermediate result partitions
-		this.inputGates = networkEnvironment.createInputGates(
-			taskNameWithSubtaskAndId,
-			jobId,
+		final InputGate[] gates = shuffleEnvironment.createInputGates(
+			taskShuffleContext,
 			this,
-			inputGateDeploymentDescriptors,
-			metrics.getIOMetricGroup(),
-			inputGroup,
-			buffersGroup,
-			metrics.getIOMetricGroup().getNumBytesInCounter());
+			inputGateDeploymentDescriptors).toArray(new InputGate[] {});
 
-		this.inputGatesById = new HashMap<>();
-		for (SingleInputGate inputGate : inputGates) {
-			inputGatesById.put(inputGate.getConsumedResultId(), inputGate);
+		this.inputGates = new InputGate[gates.length];
+		int counter = 0;
+		for (InputGate gate : gates) {
+			inputGates[counter++] = new InputGateWithMetrics(gate, metrics.getIOMetricGroup().getNumBytesInCounter());
+		}
+
+		if (shuffleEnvironment instanceof NettyShuffleEnvironment) {
+			//noinspection deprecation
+			((NettyShuffleEnvironment) shuffleEnvironment)
+				.registerLegacyNetworkMetrics(metrics.getIOMetricGroup(), resultPartitionWriters, gates);
 		}
 
 		invokableHasBeenCanceled = new AtomicBoolean(false);
@@ -438,18 +438,6 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		return this.taskConfiguration;
 	}
 
-	public SingleInputGate[] getAllInputGates() {
-		return inputGates;
-	}
-
-	public ResultPartition[] getProducedPartitions() {
-		return producedPartitions;
-	}
-
-	public SingleInputGate getInputGateById(IntermediateDataSetID id) {
-		return inputGatesById.get(id);
-	}
-
 	public AccumulatorRegistry getAccumulatorRegistry() {
 		return accumulatorRegistry;
 	}
@@ -460,6 +448,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 	public Thread getExecutingThread() {
 		return executingThread;
+	}
+
+	public CompletableFuture<ExecutionState> getTerminationFuture() {
+		return terminationFuture;
 	}
 
 	@VisibleForTesting
@@ -522,7 +514,14 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	 */
 	@Override
 	public void run() {
+		try {
+			doRun();
+		} finally {
+			terminationFuture.complete(executionState);
+		}
+	}
 
+	private void doRun() {
 		// ----------------------------
 		//  Initial State transition
 		// ----------------------------
@@ -607,10 +606,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 			LOG.info("Registering task at network: {}.", this);
 
-			network.registerTask(this);
+			setupPartitionsAndGates(consumableNotifyingPartitionWriters, inputGates);
 
-			for (ResultPartition partition : producedPartitions) {
-				taskEventDispatcher.registerPartition(partition.getPartitionId());
+			for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+				taskEventDispatcher.registerPartition(partitionWriter.getPartitionId());
 			}
 
 			// next, kick off the background copying of files for the distributed cache
@@ -655,7 +654,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 				kvStateRegistry,
 				inputSplitProvider,
 				distributedCacheEntries,
-				producedPartitions,
+				consumableNotifyingPartitionWriters,
 				inputGates,
 				taskEventDispatcher,
 				checkpointResponder,
@@ -699,9 +698,9 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			// ----------------------------------------------------------------
 
 			// finish the produced partitions. if this fails, we consider the execution failed.
-			for (ResultPartition partition : producedPartitions) {
-				if (partition != null) {
-					partition.finish();
+			for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+				if (partitionWriter != null) {
+					partitionWriter.finish();
 				}
 			}
 
@@ -793,7 +792,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 
 				// stop the async dispatcher.
 				// copy dispatcher reference to stack, against concurrent release
-				final BlockingCallMonitoringThreadPool dispatcher = this.asyncCallDispatcher;
+				ExecutorService dispatcher = this.asyncCallDispatcher;
 				if (dispatcher != null && !dispatcher.isShutdown()) {
 					dispatcher.shutdownNow();
 				}
@@ -836,6 +835,21 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 		}
 	}
 
+	@VisibleForTesting
+	public static void setupPartitionsAndGates(
+		ResultPartitionWriter[] producedPartitions, InputGate[] inputGates) throws IOException, InterruptedException {
+
+		for (ResultPartitionWriter partition : producedPartitions) {
+			partition.setup();
+		}
+
+		// InputGates must be initialized after the partitions, since during InputGate#setup
+		// we are requesting partitions
+		for (InputGate gate : inputGates) {
+			gate.setup();
+		}
+	}
+
 	/**
 	 * Releases network resources before task exits. We should also fail the partition to release if the task
 	 * has failed, is canceled, or is being canceled at the moment.
@@ -843,10 +857,10 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	private void releaseNetworkResources() {
 		LOG.debug("Release task {} network resources (state: {}).", taskNameWithSubtask, getExecutionState());
 
-		for (ResultPartition partition : producedPartitions) {
-			taskEventDispatcher.unregisterPartition(partition.getPartitionId());
+		for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
+			taskEventDispatcher.unregisterPartition(partitionWriter.getPartitionId());
 			if (isCanceledOrFailed()) {
-				partition.fail(getFailureCause());
+				partitionWriter.fail(getFailureCause());
 			}
 		}
 
@@ -858,9 +872,9 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	 * release partitions and gates. Another is from task thread during task exiting.
 	 */
 	private void closeNetworkResources() {
-		for (ResultPartition partition : producedPartitions) {
+		for (ResultPartitionWriter partitionWriter : consumableNotifyingPartitionWriters) {
 			try {
-				partition.close();
+				partitionWriter.close();
 			} catch (Throwable t) {
 				ExceptionUtils.rethrowIfFatalError(t);
 				LOG.error("Failed to release result partition for task {}.", taskNameWithSubtask, t);
@@ -1067,44 +1081,21 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public void triggerPartitionProducerStateCheck(
-		JobID jobId,
-		final IntermediateDataSetID intermediateDataSetId,
-		final ResultPartitionID resultPartitionId) {
+	public void requestPartitionProducerState(
+			final IntermediateDataSetID intermediateDataSetId,
+			final ResultPartitionID resultPartitionId,
+			Consumer<? super ResponseHandle> responseConsumer) {
 
-		CompletableFuture<ExecutionState> futurePartitionState =
+		final CompletableFuture<ExecutionState> futurePartitionState =
 			partitionProducerStateChecker.requestPartitionProducerState(
 				jobId,
 				intermediateDataSetId,
 				resultPartitionId);
 
-		futurePartitionState.whenCompleteAsync(
-			(ExecutionState executionState, Throwable throwable) -> {
-				try {
-					if (executionState != null) {
-						onPartitionStateUpdate(
-							intermediateDataSetId,
-							resultPartitionId,
-							executionState);
-					} else if (throwable instanceof TimeoutException) {
-						// our request timed out, assume we're still running and try again
-						onPartitionStateUpdate(
-							intermediateDataSetId,
-							resultPartitionId,
-							ExecutionState.RUNNING);
-					} else if (throwable instanceof PartitionProducerDisposedException) {
-						String msg = String.format("Producer %s of partition %s disposed. Cancelling execution.",
-							resultPartitionId.getProducerId(), resultPartitionId.getPartitionId());
-						LOG.info(msg, throwable);
-						cancelExecution();
-					} else {
-						failExternally(throwable);
-					}
-				} catch (IOException | InterruptedException e) {
-					failExternally(e);
-				}
-			},
-			executor);
+		FutureUtils.assertNoException(
+			futurePartitionState
+				.handle(PartitionProducerStateResponseHandle::new)
+				.thenAcceptAsync(responseConsumer, executor));
 	}
 
 	// ------------------------------------------------------------------------
@@ -1148,7 +1139,7 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 						if (!success) {
 							checkpointResponder.declineCheckpoint(
 									getJobID(), getExecutionId(), checkpointID,
-									new CheckpointDeclineTaskNotReadyException(taskName));
+									new CheckpointException("Task Name" + taskName, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY));
 						}
 					}
 					catch (Throwable t) {
@@ -1168,15 +1159,14 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			};
 			executeAsyncCallRunnable(
 					runnable,
-					String.format("Checkpoint Trigger for %s (%s).", taskNameWithSubtask, executionId),
-					checkpointOptions.getCheckpointType().isSynchronous());
+					String.format("Checkpoint Trigger for %s (%s).", taskNameWithSubtask, executionId));
 		}
 		else {
 			LOG.debug("Declining checkpoint request for non-running task {} ({}).", taskNameWithSubtask, executionId);
 
 			// send back a message that we did not do the checkpoint
 			checkpointResponder.declineCheckpoint(jobId, executionId, checkpointID,
-					new CheckpointDeclineTaskNotReadyException(taskNameWithSubtask));
+					new CheckpointException("Task name with subtask : " + taskNameWithSubtask, CheckpointFailureReason.CHECKPOINT_DECLINED_TASK_NOT_READY));
 		}
 	}
 
@@ -1204,8 +1194,8 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			};
 			executeAsyncCallRunnable(
 					runnable,
-					"Checkpoint Confirmation for " + taskNameWithSubtask,
-					false);
+					"Checkpoint Confirmation for " + taskNameWithSubtask
+			);
 		}
 		else {
 			LOG.debug("Ignoring checkpoint commit notification for non-running task {}.", taskNameWithSubtask);
@@ -1215,70 +1205,11 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Answer to a partition state check issued after a failed partition request.
-	 */
-	@VisibleForTesting
-	void onPartitionStateUpdate(
-			IntermediateDataSetID intermediateDataSetId,
-			ResultPartitionID resultPartitionId,
-			ExecutionState producerState) throws IOException, InterruptedException {
-
-		if (executionState == ExecutionState.RUNNING) {
-			final SingleInputGate inputGate = inputGatesById.get(intermediateDataSetId);
-
-			if (inputGate != null) {
-				if (producerState == ExecutionState.SCHEDULED
-					|| producerState == ExecutionState.DEPLOYING
-					|| producerState == ExecutionState.RUNNING
-					|| producerState == ExecutionState.FINISHED) {
-
-					// Retrigger the partition request
-					inputGate.retriggerPartitionRequest(resultPartitionId.getPartitionId());
-
-				} else if (producerState == ExecutionState.CANCELING
-					|| producerState == ExecutionState.CANCELED
-					|| producerState == ExecutionState.FAILED) {
-
-					// The producing execution has been canceled or failed. We
-					// don't need to re-trigger the request since it cannot
-					// succeed.
-					if (LOG.isDebugEnabled()) {
-						LOG.debug("Cancelling task {} after the producer of partition {} with attempt ID {} has entered state {}.",
-							taskNameWithSubtask,
-							resultPartitionId.getPartitionId(),
-							resultPartitionId.getProducerId(),
-							producerState);
-					}
-
-					cancelExecution();
-				} else {
-					// Any other execution state is unexpected. Currently, only
-					// state CREATED is left out of the checked states. If we
-					// see a producer in this state, something went wrong with
-					// scheduling in topological order.
-					String msg = String.format("Producer with attempt ID %s of partition %s in unexpected state %s.",
-						resultPartitionId.getProducerId(),
-						resultPartitionId.getPartitionId(),
-						producerState);
-
-					failExternally(new IllegalStateException(msg));
-				}
-			} else {
-				failExternally(new IllegalStateException("Received partition producer state for " +
-						"unknown input gate " + intermediateDataSetId + "."));
-			}
-		} else {
-			LOG.debug("Task {} ignored a partition producer state notification, because it's not running.", taskNameWithSubtask);
-		}
-	}
-
-	/**
 	 * Utility method to dispatch an asynchronous call on the invokable.
-	 *
-	 * @param runnable The async call runnable.
+	 *  @param runnable The async call runnable.
 	 * @param callName The name of the call, for logging purposes.
 	 */
-	private void executeAsyncCallRunnable(Runnable runnable, String callName, boolean blocking) {
+	private void executeAsyncCallRunnable(Runnable runnable, String callName) {
 		// make sure the executor is initialized. lock against concurrent calls to this function
 		synchronized (this) {
 			if (executionState != ExecutionState.RUNNING) {
@@ -1286,20 +1217,12 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			}
 
 			// get ourselves a reference on the stack that cannot be concurrently modified
-			BlockingCallMonitoringThreadPool executor = this.asyncCallDispatcher;
+			ExecutorService executor = this.asyncCallDispatcher;
 			if (executor == null) {
 				// first time use, initialize
 				checkState(userCodeClassLoader != null, "userCodeClassLoader must not be null");
 
-				// Under normal execution, we expect that one thread will suffice, this is why we
-				// keep the core threads to 1. In the case of a synchronous savepoint, we will block
-				// the checkpointing thread, so we need an additional thread to execute the
-				// notifyCheckpointComplete() callback. Finally, we aggressively purge (potentially)
-				// idle thread so that we do not risk to have many idle thread on machines with multiple
-				// tasks on them. Either way, only one of them can execute at a time due to the
-				// checkpoint lock.
-
-				executor = new BlockingCallMonitoringThreadPool(
+				executor = Executors.newSingleThreadExecutor(
 						new DispatcherThreadFactory(
 							TASK_THREADS_GROUP,
 							"Async calls on " + taskNameWithSubtask,
@@ -1318,13 +1241,13 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 			LOG.debug("Invoking async call {} on task {}", callName, taskNameWithSubtask);
 
 			try {
-				executor.submit(runnable, blocking);
+				executor.submit(runnable);
 			}
 			catch (RejectedExecutionException e) {
 				// may be that we are concurrently finished or canceled.
 				// if not, report that something is fishy
 				if (executionState == ExecutionState.RUNNING) {
-					throw new RuntimeException("Async call with a " + (blocking ? "" : "non-") + "blocking call was rejected, even though the task is running.", e);
+					throw new RuntimeException("Async call was rejected, even though the task is running.", e);
 				}
 			}
 		}
@@ -1349,6 +1272,35 @@ public class Task implements Runnable, TaskActions, CheckpointListener {
 	@Override
 	public String toString() {
 		return String.format("%s (%s) [%s]", taskNameWithSubtask, executionId, executionState);
+	}
+
+	@VisibleForTesting
+	class PartitionProducerStateResponseHandle implements ResponseHandle {
+		private final Either<ExecutionState, Throwable> result;
+
+		PartitionProducerStateResponseHandle(@Nullable ExecutionState producerState, @Nullable Throwable t) {
+			this.result = producerState != null ? Either.Left(producerState) : Either.Right(t);
+		}
+
+		@Override
+		public ExecutionState getConsumerExecutionState() {
+			return executionState;
+		}
+
+		@Override
+		public Either<ExecutionState, Throwable> getProducerExecutionState() {
+			return result;
+		}
+
+		@Override
+		public void cancelConsumption() {
+			cancelExecution();
+		}
+
+		@Override
+		public void failConsumption(Throwable cause) {
+			failExternally(cause);
+		}
 	}
 
 	/**

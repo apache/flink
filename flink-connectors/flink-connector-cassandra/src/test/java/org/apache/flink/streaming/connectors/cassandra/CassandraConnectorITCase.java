@@ -637,4 +637,34 @@ public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<Stri
 		}
 		Assert.assertEquals(0, scalaTupleCollection.size());
 	}
+
+	@Test
+	public void testCassandraScalaTuplePartialColumnUpdate() throws Exception {
+		CassandraSinkBaseConfig config = CassandraSinkBaseConfig.newBuilder().setIgnoreNullFields(true).build();
+		CassandraScalaProductSink<scala.Tuple3<String, Integer, Integer>> sink = new CassandraScalaProductSink<>(injectTableName(INSERT_DATA_QUERY), builder, config);
+
+		String id = UUID.randomUUID().toString();
+		Integer counter = 1;
+		Integer batchId = 0;
+
+		// Send partial records across multiple request
+		scala.Tuple3<String, Integer, Integer> scalaTupleRecordFirst = new scala.Tuple3<>(id, counter, null);
+		scala.Tuple3<String, Integer, Integer> scalaTupleRecordSecond = new scala.Tuple3<>(id, null, batchId);
+
+		try {
+			sink.open(new Configuration());
+			sink.invoke(scalaTupleRecordFirst, SinkContextUtil.forTimestamp(0));
+			sink.invoke(scalaTupleRecordSecond, SinkContextUtil.forTimestamp(0));
+		} finally {
+			sink.close();
+		}
+
+		ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
+		List<com.datastax.driver.core.Row> rows = rs.all();
+		Assert.assertEquals(1, rows.size());
+		// Since nulls are ignored, we should be reading one complete record
+		for (com.datastax.driver.core.Row row : rows) {
+			Assert.assertEquals(new scala.Tuple3<>(id, counter, batchId), new scala.Tuple3<>(row.getString("id"), row.getInt("counter"), row.getInt("batch_id")));
+		}
+	}
 }

@@ -50,6 +50,9 @@ public class TestFailoverTopology implements FailoverTopology {
 		return containsCoLocationConstraints;
 	}
 
+	/**
+	 * A FailoverVertex implementation for tests.
+	 */
 	public static class TestFailoverVertex implements FailoverVertex {
 
 		private final Collection<FailoverEdge> inputEdges = new ArrayList<>();
@@ -90,6 +93,9 @@ public class TestFailoverTopology implements FailoverTopology {
 		}
 	}
 
+	/**
+	 * A FailoverEdge implementation for tests.
+	 */
 	public static class TestFailoverEdge implements FailoverEdge {
 
 		private final IntermediateResultPartitionID resultPartitionID;
@@ -125,14 +131,15 @@ public class TestFailoverTopology implements FailoverTopology {
 		}
 	}
 
+	/**
+	 * Builder for {@link TestFailoverTopology}.
+	 */
 	public static class Builder {
 		private boolean containsCoLocationConstraints = false;
 		private Collection<FailoverVertex> vertices = new ArrayList<>();
 
 		public TestFailoverVertex newVertex() {
-			TestFailoverVertex testFailoverVertex = newVertex(UUID.randomUUID().toString());
-			vertices.add(testFailoverVertex);
-			return testFailoverVertex;
+			return newVertex(UUID.randomUUID().toString());
 		}
 
 		public TestFailoverVertex newVertex(String name) {
@@ -143,6 +150,14 @@ public class TestFailoverTopology implements FailoverTopology {
 
 		public Builder connect(TestFailoverVertex source, TestFailoverVertex target, ResultPartitionType partitionType) {
 			FailoverEdge edge = new TestFailoverEdge(new IntermediateResultPartitionID(), partitionType, source, target);
+			source.addOuputEdge(edge);
+			target.addInputEdge(edge);
+
+			return this;
+		}
+
+		public Builder connect(TestFailoverVertex source, TestFailoverVertex target, ResultPartitionType partitionType, IntermediateResultPartitionID partitionID) {
+			FailoverEdge edge = new TestFailoverEdge(partitionID, partitionType, source, target);
 			source.addOuputEdge(edge);
 			target.addInputEdge(edge);
 

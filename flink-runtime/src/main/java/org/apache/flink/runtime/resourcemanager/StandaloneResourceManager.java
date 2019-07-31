@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -30,11 +31,13 @@ import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerExcept
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A standalone implementation of the resource manager. Used when the system is started in
@@ -43,6 +46,9 @@ import java.util.Collections;
  * <p>This ResourceManager doesn't acquire new resources.
  */
 public class StandaloneResourceManager extends ResourceManager<ResourceID> {
+
+	/** The duration of the startup period. A duration of zero means there is no startup period. */
+	private final Time startupPeriodTime;
 
 	public StandaloneResourceManager(
 			RpcService rpcService,
@@ -55,7 +61,8 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 			JobLeaderIdService jobLeaderIdService,
 			ClusterInformation clusterInformation,
 			FatalErrorHandler fatalErrorHandler,
-			JobManagerMetricGroup jobManagerMetricGroup) {
+			JobManagerMetricGroup jobManagerMetricGroup,
+			Time startupPeriodTime) {
 		super(
 			rpcService,
 			resourceManagerEndpointId,
@@ -68,6 +75,7 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 			clusterInformation,
 			fatalErrorHandler,
 			jobManagerMetricGroup);
+		this.startupPeriodTime = Preconditions.checkNotNull(startupPeriodTime);
 	}
 
 	@Override
@@ -95,4 +103,23 @@ public class StandaloneResourceManager extends ResourceManager<ResourceID> {
 		return resourceID;
 	}
 
+	@Override
+	protected void startServicesOnLeadership() {
+		super.startServicesOnLeadership();
+		startStartupPeriod();
+	}
+
+	private void startStartupPeriod() {
+		setFailUnfulfillableRequest(false);
+
+		final long startupPeriodMillis = startupPeriodTime.toMilliseconds();
+
+		if (startupPeriodMillis > 0) {
+			scheduleRunAsync(
+				() -> setFailUnfulfillableRequest(true),
+				startupPeriodMillis,
+				TimeUnit.MILLISECONDS
+			);
+		}
+	}
 }

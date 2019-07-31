@@ -31,10 +31,13 @@ import org.apache.flink.table.catalog.exceptions.PartitionSpecInvalidException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
+import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.factories.TableFactory;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * This interface is responsible for reading and writing metadata such as database/table/views/UDFs
@@ -42,6 +45,16 @@ import java.util.List;
  */
 @PublicEvolving
 public interface Catalog {
+
+	/**
+	 * Get an optional {@link TableFactory} instance that's responsible for generating table-related
+	 * instances stored in this catalog, instances such as source/sink and function definitions.
+	 *
+	 * @return an optional TableFactory instance
+	 */
+	default Optional<TableFactory> getTableFactory() {
+		return Optional.empty();
+	}
 
 	/**
 	 * Open the catalog. Used for any required preparation in initialization phase.
@@ -60,23 +73,14 @@ public interface Catalog {
 	// ------ databases ------
 
 	/**
-	 * Get the name of the current database of this type of catalog. This is used when users refers an object in the catalog
-	 * without specifying a database. For example, the current db in a Hive Metastore is 'default' by default.
+	 * Get the name of the default database for this catalog. The default database will be the current database for
+	 * the catalog when user's session doesn't specify a current database. The value probably comes from configuration,
+	 * will not change for the life time of the catalog instance.
 	 *
 	 * @return the name of the current database
 	 * @throws CatalogException in case of any runtime exception
 	 */
-	String getCurrentDatabase() throws CatalogException;
-
-	/**
-	 * Set the database with the given name as the current database. A current database is used when users refers an object
-	 * in the catalog without specifying a database.
-	 *
-	 * @param databaseName	the name of the database
-	 * @throws DatabaseNotExistException if the given database doesn't exist in the catalog
-	 * @throws CatalogException in case of any runtime exception
-	 */
-	void setCurrentDatabase(String databaseName) throws DatabaseNotExistException, CatalogException;
+	String getDefaultDatabase() throws CatalogException;
 
 	/**
 	 * Get the names of all databases in this catalog.
@@ -282,7 +286,7 @@ public interface Catalog {
 	 * @param partitionSpec partition spec of partition to get
 	 * @return the requested partition
 	 *
-	 * @throws PartitionNotExistException thrown if the partition is not partitioned
+	 * @throws PartitionNotExistException thrown if the partition doesn't exist
 	 * @throws CatalogException	in case of any runtime exception
 	 */
 	CatalogPartition getPartition(ObjectPath tablePath, CatalogPartitionSpec partitionSpec)
@@ -501,7 +505,7 @@ public interface Catalog {
 	 * @throws CatalogException	in case of any runtime exception
 	 */
 	void alterTableColumnStatistics(ObjectPath tablePath, CatalogColumnStatistics columnStatistics, boolean ignoreIfNotExists)
-		throws TableNotExistException, CatalogException;
+		throws TableNotExistException, CatalogException, TablePartitionedException;
 
 	/**
 	 * Update the statistics of a table partition.

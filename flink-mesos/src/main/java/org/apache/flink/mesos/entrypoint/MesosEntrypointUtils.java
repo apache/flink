@@ -168,7 +168,7 @@ public class MesosEntrypointUtils {
 	 */
 	public static Configuration loadConfiguration(Configuration dynamicProperties, Logger log) {
 		Configuration configuration =
-			GlobalConfiguration.loadConfigurationWithDynamicProperties(dynamicProperties);
+			GlobalConfiguration.loadConfiguration(dynamicProperties);
 
 		// read the environment variables
 		final Map<String, String> envs = System.getenv();

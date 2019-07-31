@@ -18,7 +18,7 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.table.util.SegmentsUtil;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
 
 /**
  * Binary format that in {@link MemorySegment}s.
@@ -151,14 +151,14 @@ public abstract class BinaryFormat {
 		if (mark == 0) {
 			final int subOffset = (int) (variablePartOffsetAndLen >> 32);
 			final int len = (int) variablePartOffsetAndLen;
-			return new BinaryString(segments, baseOffset + subOffset, len);
+			return BinaryString.fromAddress(segments, baseOffset + subOffset, len);
 		} else {
 			int len = (int) ((variablePartOffsetAndLen & HIGHEST_SECOND_TO_EIGHTH_BIT) >>> 56);
 			if (SegmentsUtil.LITTLE_ENDIAN) {
-				return new BinaryString(segments, fieldOffset, len);
+				return BinaryString.fromAddress(segments, fieldOffset, len);
 			} else {
 				// fieldOffset + 1 to skip header.
-				return new BinaryString(segments, fieldOffset + 1, len);
+				return BinaryString.fromAddress(segments, fieldOffset + 1, len);
 			}
 		}
 	}

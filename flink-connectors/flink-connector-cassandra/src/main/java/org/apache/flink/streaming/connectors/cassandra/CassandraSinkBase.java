@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.connectors.cassandra;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -64,7 +65,7 @@ public abstract class CassandraSinkBase<IN, V> extends RichSinkFunction<IN> impl
 		this.builder = builder;
 		this.config = config;
 		this.failureHandler = Preconditions.checkNotNull(failureHandler);
-		ClosureCleaner.clean(builder, true);
+		ClosureCleaner.clean(builder, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 	}
 
 	@Override

@@ -33,7 +33,7 @@ import org.apache.flink.util.Collector;
  * The easiest way to try this out is to open a text server (at port 12345)
  * using the <i>netcat</i> tool via
  * <pre>
- * nc -l 12345
+ * nc -l 12345 on Linux or nc -l -p 12345 on Windows
  * </pre>
  * and run this example with the hostname and the port as arguments.
  */

@@ -30,14 +30,19 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.io.network.partition.PartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
@@ -46,9 +51,12 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
+import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.shuffle.ProducerDescriptor;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
+import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -64,8 +72,10 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -75,6 +85,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.getConsumedPartitionShuffleDescriptor;
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELED;
 import static org.apache.flink.runtime.execution.ExecutionState.CANCELING;
 import static org.apache.flink.runtime.execution.ExecutionState.CREATED;
@@ -177,6 +188,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	private volatile IOMetrics ioMetrics;
 
+	private Map<IntermediateResultPartitionID, ResultPartitionDeploymentDescriptor> producedPartitions;
+
 	// --------------------------------------------------------------------------------------------
 
 	/**
@@ -215,6 +228,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		markTimestamp(CREATED, startTimestamp);
 
 		this.partitionInfos = new ArrayList<>(16);
+		this.producedPartitions = Collections.emptyMap();
 		this.terminalStateFuture = new CompletableFuture<>();
 		this.releaseFuture = new CompletableFuture<>();
 		this.taskManagerLocationFuture = new CompletableFuture<>();
@@ -266,6 +280,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	public LogicalSlot getAssignedResource() {
 		return assignedResource;
+	}
+
+	public Optional<ResultPartitionDeploymentDescriptor> getResultPartitionDeploymentDescriptor(
+			IntermediateResultPartitionID id) {
+		return Optional.ofNullable(producedPartitions.get(id));
 	}
 
 	/**
@@ -391,11 +410,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 	public CompletableFuture<Void> scheduleForExecution() {
 		final ExecutionGraph executionGraph = getVertex().getExecutionGraph();
-		final SlotProvider resourceProvider = executionGraph.getSlotProvider();
-		final boolean allowQueued = executionGraph.isQueuedSchedulingAllowed();
+		final SlotProviderStrategy resourceProvider = executionGraph.getSlotProviderStrategy();
 		return scheduleForExecution(
 			resourceProvider,
-			allowQueued,
 			LocationPreferenceConstraint.ANY,
 			Collections.emptySet());
 	}
@@ -405,34 +422,27 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	 *       to be scheduled immediately and no resource is available. If the task is accepted by the schedule, any
 	 *       error sets the vertex state to failed and triggers the recovery logic.
 	 *
-	 * @param slotProvider The slot provider to use to allocate slot for this execution attempt.
-	 * @param queued Flag to indicate whether the scheduler may queue this task if it cannot
-	 *               immediately deploy it.
+	 * @param slotProviderStrategy The slot provider strategy to use to allocate slot for this execution attempt.
 	 * @param locationPreferenceConstraint constraint for the location preferences
 	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
 	 *                                                 Can be empty if the allocation ids are not required for scheduling.
 	 * @return Future which is completed once the Execution has been deployed
 	 */
 	public CompletableFuture<Void> scheduleForExecution(
-			SlotProvider slotProvider,
-			boolean queued,
+			SlotProviderStrategy slotProviderStrategy,
 			LocationPreferenceConstraint locationPreferenceConstraint,
 			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 
 		assertRunningInJobMasterMainThread();
-		final ExecutionGraph executionGraph = vertex.getExecutionGraph();
-		final Time allocationTimeout = executionGraph.getAllocationTimeout();
 		try {
-			final CompletableFuture<Execution> allocationFuture = allocateAndAssignSlotForExecution(
-				slotProvider,
-				queued,
+			final CompletableFuture<Execution> allocationFuture = allocateResourcesForExecution(
+				slotProviderStrategy,
 				locationPreferenceConstraint,
-				allPreviousExecutionGraphAllocationIds,
-				allocationTimeout);
+				allPreviousExecutionGraphAllocationIds);
 
 			final CompletableFuture<Void> deploymentFuture;
 
-			if (allocationFuture.isDone() || queued) {
+			if (allocationFuture.isDone() || slotProviderStrategy.isQueuedSchedulingAllowed()) {
 				deploymentFuture = allocationFuture.thenRun(ThrowingRunnable.unchecked(this::deploy));
 			} else {
 				deploymentFuture = FutureUtils.completedExceptionally(
@@ -447,7 +457,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 						if (stripCompletionException instanceof TimeoutException) {
 							schedulingFailureCause = new NoResourceAvailableException(
-								"Could not allocate enough slots within timeout of " + allocationTimeout + " to run the job. " +
+								"Could not allocate enough slots to run the job. " +
 									"Please make sure that the cluster has enough resources.");
 						} else {
 							schedulingFailureCause = stripCompletionException;
@@ -463,26 +473,48 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	/**
-	 * Allocates and assigns a slot obtained from the slot provider to the execution.
+	 * Allocates resources for the execution.
 	 *
-	 * @param slotProvider to obtain a new slot from
-	 * @param queued if the allocation can be queued
+	 * <p>Allocates following resources:
+	 * <ol>
+	 *  <li>slot obtained from the slot provider</li>
+	 *  <li>registers produced partitions with the {@link org.apache.flink.runtime.shuffle.ShuffleMaster}</li>
+	 * </ol>
+	 *
+	 * @param slotProviderStrategy to obtain a new slot from
 	 * @param locationPreferenceConstraint constraint for the location preferences
 	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
 	 *                                                 Can be empty if the allocation ids are not required for scheduling.
-	 * @param allocationTimeout rpcTimeout for allocating a new slot
 	 * @return Future which is completed with this execution once the slot has been assigned
 	 * 			or with an exception if an error occurred.
-	 * @throws IllegalExecutionStateException if this method has been called while not being in the CREATED state
 	 */
-	public CompletableFuture<Execution> allocateAndAssignSlotForExecution(
-			SlotProvider slotProvider,
-			boolean queued,
+	CompletableFuture<Execution> allocateResourcesForExecution(
+			SlotProviderStrategy slotProviderStrategy,
 			LocationPreferenceConstraint locationPreferenceConstraint,
-			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds,
-			Time allocationTimeout) throws IllegalExecutionStateException {
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
+		return allocateAndAssignSlotForExecution(
+			slotProviderStrategy,
+			locationPreferenceConstraint,
+			allPreviousExecutionGraphAllocationIds)
+			.thenCompose(slot -> registerProducedPartitions(slot.getTaskManagerLocation()));
+	}
 
-		checkNotNull(slotProvider);
+	/**
+	 * Allocates and assigns a slot obtained from the slot provider to the execution.
+	 *
+	 * @param slotProviderStrategy to obtain a new slot from
+	 * @param locationPreferenceConstraint constraint for the location preferences
+	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
+	 *                                                 Can be empty if the allocation ids are not required for scheduling.
+	 * @return Future which is completed with the allocated slot once it has been assigned
+	 * 			or with an exception if an error occurred.
+	 */
+	private CompletableFuture<LogicalSlot> allocateAndAssignSlotForExecution(
+			SlotProviderStrategy slotProviderStrategy,
+			LocationPreferenceConstraint locationPreferenceConstraint,
+			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
+
+		checkNotNull(slotProviderStrategy);
 
 		assertRunningInJobMasterMainThread();
 
@@ -520,22 +552,20 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			final CompletableFuture<LogicalSlot> logicalSlotFuture =
 				preferredLocationsFuture.thenCompose(
 					(Collection<TaskManagerLocation> preferredLocations) ->
-						slotProvider.allocateSlot(
+						slotProviderStrategy.allocateSlot(
 							slotRequestId,
 							toSchedule,
 							new SlotProfile(
-								ResourceProfile.UNKNOWN,
+								vertex.getResourceProfile(),
 								preferredLocations,
 								previousAllocationIDs,
-								allPreviousExecutionGraphAllocationIds),
-							queued,
-							allocationTimeout));
+								allPreviousExecutionGraphAllocationIds)));
 
 			// register call back to cancel slot request in case that the execution gets canceled
 			releaseFuture.whenComplete(
 				(Object ignored, Throwable throwable) -> {
 					if (logicalSlotFuture.cancel(false)) {
-						slotProvider.cancelSlotRequest(
+						slotProviderStrategy.cancelSlotRequest(
 							slotRequestId,
 							slotSharingGroupId,
 							new FlinkException("Execution " + this + " was released."));
@@ -551,7 +581,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 					}
 
 					if (tryAssignResource(logicalSlot)) {
-						return this;
+						return logicalSlot;
 					} else {
 						// release the slot
 						logicalSlot.releaseSlot(new FlinkException("Could not assign logical slot to execution " + this + '.'));
@@ -564,6 +594,77 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			// call race, already deployed, or already done
 			throw new IllegalExecutionStateException(this, CREATED, state);
 		}
+	}
+
+	@VisibleForTesting
+	CompletableFuture<Execution> registerProducedPartitions(TaskManagerLocation location) {
+		assertRunningInJobMasterMainThread();
+
+		return FutureUtils.thenApplyAsyncIfNotDone(
+			registerProducedPartitions(vertex, location, attemptId),
+			vertex.getExecutionGraph().getJobMasterMainThreadExecutor(),
+			producedPartitionsCache -> {
+				producedPartitions = producedPartitionsCache;
+				startTrackingPartitions(location.getResourceID(), producedPartitionsCache.values());
+				return this;
+			});
+	}
+
+	@VisibleForTesting
+	static CompletableFuture<Map<IntermediateResultPartitionID, ResultPartitionDeploymentDescriptor>> registerProducedPartitions(
+			ExecutionVertex vertex,
+			TaskManagerLocation location,
+			ExecutionAttemptID attemptId) {
+		ProducerDescriptor producerDescriptor = ProducerDescriptor.create(location, attemptId);
+
+		boolean lazyScheduling = vertex.getExecutionGraph().getScheduleMode().allowLazyDeployment();
+
+		Collection<IntermediateResultPartition> partitions = vertex.getProducedPartitions().values();
+		Collection<CompletableFuture<ResultPartitionDeploymentDescriptor>> partitionRegistrations =
+			new ArrayList<>(partitions.size());
+
+		for (IntermediateResultPartition partition : partitions) {
+			PartitionDescriptor partitionDescriptor = PartitionDescriptor.from(partition);
+			int maxParallelism = getPartitionMaxParallelism(partition);
+			CompletableFuture<? extends ShuffleDescriptor> shuffleDescriptorFuture = vertex
+				.getExecutionGraph()
+				.getShuffleMaster()
+				.registerPartitionWithProducer(partitionDescriptor, producerDescriptor);
+
+			final boolean releasePartitionOnConsumption =
+				vertex.getExecutionGraph().isForcePartitionReleaseOnConsumption()
+				|| !partitionDescriptor.getPartitionType().isBlocking();
+
+			CompletableFuture<ResultPartitionDeploymentDescriptor> partitionRegistration = shuffleDescriptorFuture
+				.thenApply(shuffleDescriptor -> new ResultPartitionDeploymentDescriptor(
+					partitionDescriptor,
+					shuffleDescriptor,
+					maxParallelism,
+					lazyScheduling,
+					releasePartitionOnConsumption
+						? ShuffleDescriptor.ReleaseType.AUTO
+						: ShuffleDescriptor.ReleaseType.MANUAL));
+			partitionRegistrations.add(partitionRegistration);
+		}
+
+		return FutureUtils.combineAll(partitionRegistrations).thenApply(rpdds -> {
+			Map<IntermediateResultPartitionID, ResultPartitionDeploymentDescriptor> producedPartitions =
+				new LinkedHashMap<>(partitions.size());
+			rpdds.forEach(rpdd -> producedPartitions.put(rpdd.getPartitionId(), rpdd));
+			return producedPartitions;
+		});
+	}
+
+	private static int getPartitionMaxParallelism(IntermediateResultPartition partition) {
+		// TODO consumers.isEmpty() only exists for test, currently there has to be exactly one consumer in real jobs!
+		final List<List<ExecutionEdge>> consumers = partition.getConsumers();
+		int maxParallelism = KeyGroupRangeAssignment.UPPER_BOUND_MAX_PARALLELISM;
+		if (!consumers.isEmpty()) {
+			List<ExecutionEdge> consumer = consumers.get(0);
+			ExecutionJobVertex consumerVertex = consumer.get(0).getTarget().getJobVertex();
+			maxParallelism = consumerVertex.getMaxParallelism();
+		}
+		return maxParallelism;
 	}
 
 	/**
@@ -618,11 +719,13 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 						attemptNumber, getAssignedResourceLocation()));
 			}
 
-			final TaskDeploymentDescriptor deployment = vertex.createDeploymentDescriptor(
-				attemptId,
-				slot,
-				taskRestore,
-				attemptNumber);
+			final TaskDeploymentDescriptor deployment = TaskDeploymentDescriptorFactory
+				.fromExecutionVertex(vertex, attemptNumber)
+				.createDeploymentDescriptor(
+					slot.getAllocationId(),
+					slot.getPhysicalSlotNumber(),
+					taskRestore,
+					producedPartitions.values());
 
 			// null taskRestore to let it be GC'ed
 			taskRestore = null;
@@ -631,7 +734,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			final ComponentMainThreadExecutor jobMasterMainThreadExecutor =
 				vertex.getExecutionGraph().getJobMasterMainThreadExecutor();
-
 
 			// We run the submission in the future executor so that the serialization of large TDDs does not block
 			// the main thread and sync back to the main thread once submission is completed.
@@ -687,9 +789,8 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			}
 
 			else if (current == FINISHED || current == FAILED) {
-				// nothing to do any more. finished failed before it could be cancelled.
+				// nothing to do any more. finished/failed before it could be cancelled.
 				// in any case, the task is removed from the TaskManager already
-				sendReleaseIntermediateResultPartitionsRpcCall();
 
 				return;
 			}
@@ -722,8 +823,6 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				break;
 			case FINISHED:
 			case FAILED:
-				sendReleaseIntermediateResultPartitionsRpcCall();
-				break;
 			case CANCELED:
 				break;
 			default:
@@ -737,8 +836,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		try {
 			final ExecutionGraph executionGraph = consumerVertex.getExecutionGraph();
 			consumerVertex.scheduleForExecution(
-				executionGraph.getSlotProvider(),
-				executionGraph.isQueuedSchedulingAllowed(),
+				executionGraph.getSlotProviderStrategy(),
 				LocationPreferenceConstraint.ANY, // there must be at least one known location
 				Collections.emptySet());
 		} catch (Throwable t) {
@@ -783,7 +881,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 			// sent after switching to running
 			// ----------------------------------------------------------------
 			else if (consumerState == DEPLOYING || consumerState == RUNNING) {
-				final PartitionInfo partitionInfo = PartitionInfo.fromEdge(edge);
+				final PartitionInfo partitionInfo = createPartitionInfo(edge);
 
 				if (consumerState == DEPLOYING) {
 					consumerVertex.cachePartitionInfo(partitionInfo);
@@ -792,6 +890,12 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				}
 			}
 		}
+	}
+
+	private static PartitionInfo createPartitionInfo(ExecutionEdge executionEdge) {
+		IntermediateDataSetID intermediateDataSetID = executionEdge.getSource().getIntermediateResult().getId();
+		ShuffleDescriptor shuffleDescriptor = getConsumedPartitionShuffleDescriptor(executionEdge, false);
+		return new PartitionInfo(intermediateDataSetID, shuffleDescriptor);
 	}
 
 	/**
@@ -919,6 +1023,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		processFail(t, true, userAccumulators, metrics);
 	}
 
+	@VisibleForTesting
 	void markFinished() {
 		markFinished(null, null);
 	}
@@ -1039,12 +1144,10 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	}
 
 	private void finishCancellation() {
-		try {
-			releaseAssignedResource(new FlinkException("Execution " + this + " was cancelled."));
-			vertex.getExecutionGraph().deregisterExecution(this);
-		} finally {
-			vertex.executionCanceled(this);
-		}
+		releaseAssignedResource(new FlinkException("Execution " + this + " was cancelled."));
+		vertex.getExecutionGraph().deregisterExecution(this);
+		// release partitions on TM in case the Task finished while we where already CANCELING
+		stopTrackingAndReleasePartitions();
 	}
 
 	void cachePartitionInfo(PartitionInfo partitionInfo) {
@@ -1101,13 +1204,9 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 				updateAccumulatorsAndMetrics(userAccumulators, metrics);
 
-				try {
-					releaseAssignedResource(t);
-					vertex.getExecutionGraph().deregisterExecution(this);
-				}
-				finally {
-					vertex.executionFailed(this, t);
-				}
+				releaseAssignedResource(t);
+				vertex.getExecutionGraph().deregisterExecution(this);
+				stopTrackingAndReleasePartitions();
 
 				if (!isCallback && (current == RUNNING || current == DEPLOYING)) {
 					if (LOG.isDebugEnabled()) {
@@ -1203,23 +1302,25 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 		}
 	}
 
-	private void sendReleaseIntermediateResultPartitionsRpcCall() {
+	private void startTrackingPartitions(final ResourceID taskExecutorId, final Collection<ResultPartitionDeploymentDescriptor> partitions) {
+		PartitionTracker partitionTracker = vertex.getExecutionGraph().getPartitionTracker();
+		for (ResultPartitionDeploymentDescriptor partition : partitions) {
+			partitionTracker.startTrackingPartition(
+				taskExecutorId,
+				partition);
+		}
+	}
+
+	void stopTrackingAndReleasePartitions() {
 		LOG.info("Discarding the results produced by task execution {}.", attemptId);
-		final LogicalSlot slot = assignedResource;
+		if (producedPartitions != null && producedPartitions.size() > 0) {
+			final PartitionTracker partitionTracker = getVertex().getExecutionGraph().getPartitionTracker();
+			final List<ResultPartitionID> producedPartitionIds = producedPartitions.values().stream()
+				.map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
+				.map(ShuffleDescriptor::getResultPartitionID)
+				.collect(Collectors.toList());
 
-		if (slot != null) {
-			final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
-
-			Collection<IntermediateResultPartition> partitions = vertex.getProducedPartitions().values();
-			Collection<ResultPartitionID> partitionIds = new ArrayList<>(partitions.size());
-			for (IntermediateResultPartition partition : partitions) {
-				partitionIds.add(new ResultPartitionID(partition.getPartitionId(), attemptId));
-			}
-
-			if (!partitionIds.isEmpty()) {
-				// TODO For some tests this could be a problem when querying too early if all resources were released
-				taskManagerGateway.releasePartitions(partitionIds);
-			}
+			partitionTracker.stopTrackingAndReleasePartitions(producedPartitionIds);
 		}
 	}
 

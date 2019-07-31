@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable
 import org.apache.flink.streaming.api.datastream.{ConnectedStreams => JavaCStream, DataStream => JavaStream}
-import org.apache.flink.streaming.api.functions.co.{CoFlatMapFunction, CoMapFunction, CoProcessFunction}
+import org.apache.flink.streaming.api.functions.co._
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
 import org.apache.flink.util.Collector
 
@@ -109,10 +109,6 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
    * this function can also query the time and set timers. When reacting to the firing of set
    * timers the function can directly emit elements and/or register yet more timers.
    *
-   * A [[RichCoProcessFunction]]
-   * can be used to gain access to features provided by the
-   * [[org.apache.flink.api.common.functions.RichFunction]] interface.
-   *
    * @param coProcessFunction The [[CoProcessFunction]] that is called for each element
     *                    in the stream.
    * @return The transformed [[DataStream]].
@@ -128,6 +124,31 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
     val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
 
     asScalaStream(javaStream.process(coProcessFunction, outType))
+  }
+
+  /**
+    * Applies the given [[KeyedCoProcessFunction]] on the connected input keyed streams,
+    * thereby creating a transformed output stream.
+    *
+    * The function will be called for every element in the input keyed streams and can produce
+    * zero or more output elements. Contrary to the [[flatMap(CoFlatMapFunction)]] function, this
+    * function can also query the time and set timers. When reacting to the firing of set timers
+    * the function can directly emit elements and/or register yet more timers.
+    *
+    * @param keyedCoProcessFunction The [[KeyedCoProcessFunction]] that is called for each element
+    *                               in the stream.
+    * @return The transformed [[DataStream]].
+    */
+  @PublicEvolving
+  def process[K, R: TypeInformation](
+      keyedCoProcessFunction: KeyedCoProcessFunction[K, IN1, IN2, R]) : DataStream[R] = {
+    if (keyedCoProcessFunction == null) {
+      throw new NullPointerException("KeyedCoProcessFunction function must not be null.")
+    }
+
+    val outType : TypeInformation[R] = implicitly[TypeInformation[R]]
+
+    asScalaStream(javaStream.process(keyedCoProcessFunction, outType))
   }
 
 

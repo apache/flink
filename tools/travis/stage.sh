@@ -19,8 +19,11 @@
 
 STAGE_COMPILE="compile"
 STAGE_CORE="core"
+STAGE_PYTHON="python"
 STAGE_LIBRARIES="libraries"
+STAGE_BLINK_PLANNER="blink_planner"
 STAGE_CONNECTORS="connectors"
+STAGE_KAFKA_GELLY="kafka/gelly"
 STAGE_TESTS="tests"
 STAGE_MISC="misc"
 STAGE_CLEANUP="cleanup"
@@ -44,15 +47,18 @@ flink-metrics/flink-metrics-core"
 MODULES_LIBRARIES="\
 flink-libraries/flink-cep,\
 flink-libraries/flink-cep-scala,\
+flink-libraries/flink-state-processing-api,\
 flink-table/flink-table-common,\
 flink-table/flink-table-api-java,\
 flink-table/flink-table-api-scala,\
 flink-table/flink-table-api-java-bridge,\
 flink-table/flink-table-api-scala-bridge,\
 flink-table/flink-table-planner,\
-flink-table/flink-table-planner-blink,\
-flink-table/flink-table-runtime-blink,\
 flink-table/flink-sql-client"
+
+MODULES_BLINK_PLANNER="\
+flink-table/flink-table-planner-blink,\
+flink-table/flink-table-runtime-blink"
 
 MODULES_CONNECTORS="\
 flink-contrib/flink-connector-wikiedits,\
@@ -107,6 +113,13 @@ flink-metrics/flink-metrics-slf4j,\
 flink-queryable-state/flink-queryable-state-runtime,\
 flink-queryable-state/flink-queryable-state-client-java"
 
+MODULES_KAFKA_GELLY="\
+flink-libraries/flink-gelly,\
+flink-libraries/flink-gelly-scala,\
+flink-libraries/flink-gelly-examples,\
+flink-connectors/flink-connector-kafka,\
+flink-connectors/flink-sql-connector-kafka,"
+
 MODULES_CONNECTORS_JDK9_EXCLUSIONS="\
 !flink-filesystems/flink-s3-fs-hadoop,\
 !flink-filesystems/flink-s3-fs-presto,\
@@ -114,9 +127,6 @@ MODULES_CONNECTORS_JDK9_EXCLUSIONS="\
 !flink-connectors/flink-hbase"
 
 MODULES_TESTS="\
-flink-libraries/flink-gelly,\
-flink-libraries/flink-gelly-scala,\
-flink-libraries/flink-gelly-examples,\
 flink-tests"
 
 if [[ ${PROFILE} == *"include-kinesis"* ]]; then
@@ -143,8 +153,14 @@ function get_compile_modules_for_stage() {
         (${STAGE_LIBRARIES})
             echo "-pl $MODULES_LIBRARIES -am"
         ;;
+        (${STAGE_BLINK_PLANNER})
+            echo "-pl $MODULES_BLINK_PLANNER -am"
+        ;;
         (${STAGE_CONNECTORS})
             echo "-pl $MODULES_CONNECTORS -am"
+        ;;
+        (${STAGE_KAFKA_GELLY})
+            echo "-pl $MODULES_KAFKA_GELLY -am"
         ;;
         (${STAGE_TESTS})
             echo "-pl $MODULES_TESTS -am"
@@ -162,13 +178,16 @@ function get_test_modules_for_stage() {
 
     local modules_core=$MODULES_CORE
     local modules_libraries=$MODULES_LIBRARIES
+    local modules_blink_planner=$MODULES_BLINK_PLANNER
     local modules_connectors=$MODULES_CONNECTORS
     local modules_tests=$MODULES_TESTS
     local negated_core=\!${MODULES_CORE//,/,\!}
     local negated_libraries=\!${MODULES_LIBRARIES//,/,\!}
+    local negated_blink_planner=\!${MODULES_BLINK_PLANNER//,/,\!}
+    local negated_kafka_gelly=\!${MODULES_KAFKA_GELLY//,/,\!}
     local negated_connectors=\!${MODULES_CONNECTORS//,/,\!}
     local negated_tests=\!${MODULES_TESTS//,/,\!}
-    local modules_misc="$negated_core,$negated_libraries,$negated_connectors,$negated_tests"
+    local modules_misc="$negated_core,$negated_libraries,$negated_blink_planner,$negated_connectors,$negated_kafka_gelly,$negated_tests"
 
     # various modules fail testing on JDK 9; exclude them
     if [[ ${PROFILE} == *"jdk9"* ]]; then
@@ -182,8 +201,14 @@ function get_test_modules_for_stage() {
         (${STAGE_LIBRARIES})
             echo "-pl $modules_libraries"
         ;;
+        (${STAGE_BLINK_PLANNER})
+            echo "-pl $modules_blink_planner"
+        ;;
         (${STAGE_CONNECTORS})
             echo "-pl $modules_connectors"
+        ;;
+        (${STAGE_KAFKA_GELLY})
+            echo "-pl $MODULES_KAFKA_GELLY"
         ;;
         (${STAGE_TESTS})
             echo "-pl $modules_tests"

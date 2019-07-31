@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.cassandra;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 
@@ -54,7 +55,7 @@ public class CassandraCommitter extends CheckpointCommitter {
 
 	public CassandraCommitter(ClusterBuilder builder) {
 		this.builder = builder;
-		ClosureCleaner.clean(builder, true);
+		ClosureCleaner.clean(builder, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
 	}
 
 	public CassandraCommitter(ClusterBuilder builder, String keySpace) {

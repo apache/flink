@@ -32,13 +32,21 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
-  * Utilities to convert {@link TypeInformation} into a string representation and back.
-  */
+ * Utilities to convert {@link TypeInformation} into a string representation and back.
+ *
+ * @deprecated This utility is based on {@link TypeInformation}. However, the Table & SQL API is
+ *             currently updated to use {@link DataType}s based on {@link LogicalType}s. Use
+ *             {@link LogicalTypeParser} instead.
+ */
+@Deprecated
 @PublicEvolving
 public class TypeStringUtils {
 

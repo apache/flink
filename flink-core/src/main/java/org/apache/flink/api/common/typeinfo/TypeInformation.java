@@ -108,7 +108,7 @@ public abstract class TypeInformation<T> implements Serializable {
 
 	/**
 	 * Gets the number of logical fields in this type. This includes its nested and transitively nested
-	 * fields, in the case of composite types. In the example below, the OuterType type has three
+	 * fields, in the case of composite types. In the example above, the OuterType type has three
 	 * fields in total.
 	 *
 	 * <p>The total number of fields must be at least 1.

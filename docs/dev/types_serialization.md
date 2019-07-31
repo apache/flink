@@ -281,11 +281,11 @@ by all compilers (as of writing this document only reliably by the Eclipse JDT c
 
 #### Serialization of POJO types
 
-The PojoTypeInformation is creating serializers for all the fields inside the POJO. Standard types such as
+The `PojoTypeInfo` is creating serializers for all the fields inside the POJO. Standard types such as
 int, long, String etc. are handled by serializers we ship with Flink.
-For all other types, we fall back to Kryo.
+For all other types, we fall back to [Kryo](https://github.com/EsotericSoftware/kryo).
 
-If Kryo is not able to handle the type, you can ask the PojoTypeInfo to serialize the POJO using Avro.
+If Kryo is not able to handle the type, you can ask the `PojoTypeInfo` to serialize the POJO using [Avro](https://avro.apache.org).
 To do so, you have to call
 
 {% highlight java %}

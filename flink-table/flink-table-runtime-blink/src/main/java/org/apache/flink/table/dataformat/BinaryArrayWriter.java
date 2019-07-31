@@ -18,9 +18,8 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.table.type.InternalType;
-import org.apache.flink.table.type.InternalTypes;
-import org.apache.flink.table.util.SegmentsUtil;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
+import org.apache.flink.table.types.logical.LogicalType;
 
 /**
  * Writer for binary array. See {@link BinaryArray}.
@@ -108,31 +107,37 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 		setNullLong(ordinal);
 	}
 
-	public void setNullAt(int pos, InternalType type) {
-		if (type.equals(InternalTypes.BOOLEAN)) {
-			setNullBoolean(pos);
-		} else if (type.equals(InternalTypes.BYTE)) {
-			setNullByte(pos);
-		} else if (type.equals(InternalTypes.SHORT)) {
-			setNullShort(pos);
-		} else if (type.equals(InternalTypes.INT)) {
-			setNullInt(pos);
-		} else if (type.equals(InternalTypes.LONG)) {
-			setNullLong(pos);
-		} else if (type.equals(InternalTypes.FLOAT)) {
-			setNullFloat(pos);
-		} else if (type.equals(InternalTypes.DOUBLE)) {
-			setNullDouble(pos);
-		} else if (type.equals(InternalTypes.DATE)) {
-			setNullInt(pos);
-		} else if (type.equals(InternalTypes.TIME)) {
-			setNullInt(pos);
-		} else if (type.equals(InternalTypes.TIMESTAMP)) {
-			setNullLong(pos);
-		} else if (type.equals(InternalTypes.CHAR)) {
-			setNullShort(pos);
-		} else {
-			setNullAt(pos);
+	public void setNullAt(int pos, LogicalType type) {
+		switch (type.getTypeRoot()) {
+			case BOOLEAN:
+				setNullBoolean(pos);
+				break;
+			case TINYINT:
+				setNullByte(pos);
+				break;
+			case SMALLINT:
+				setNullShort(pos);
+				break;
+			case INTEGER:
+			case DATE:
+			case TIME_WITHOUT_TIME_ZONE:
+			case INTERVAL_YEAR_MONTH:
+				setNullInt(pos);
+				break;
+			case BIGINT:
+			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
+			case INTERVAL_DAY_TIME:
+				setNullLong(pos);
+				break;
+			case FLOAT:
+				setNullFloat(pos);
+				break;
+			case DOUBLE:
+				setNullDouble(pos);
+				break;
+			default:
+				setNullAt(pos);
 		}
 	}
 
@@ -193,11 +198,6 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 	}
 
 	@Override
-	public void writeChar(int pos, char value) {
-		segment.putChar(getElementOffset(pos, 2), value);
-	}
-
-	@Override
 	public void afterGrow() {
 		array.pointTo(segment, 0, segment.size());
 	}
@@ -208,5 +208,9 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 	@Override
 	public void complete() {
 		array.pointTo(segment, 0, cursor);
+	}
+
+	public int getNumElements() {
+		return numElements;
 	}
 }

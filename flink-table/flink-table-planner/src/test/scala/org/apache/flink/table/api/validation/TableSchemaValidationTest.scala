@@ -28,10 +28,10 @@ class TableSchemaValidationTest extends TableTestBase {
   def testColumnNameAndColumnTypeNotEqual() {
     thrown.expect(classOf[TableException])
     thrown.expectMessage(
-      "Number of field names and field types must be equal.\n" +
-        "Number of names is 3, number of types is 2.\n" +
+      "Number of field names and field data types must be equal.\n" +
+        "Number of names is 3, number of data types is 2.\n" +
         "List of field names: [a, b, c]\n" +
-        "List of field types: [Integer, String]")
+        "List of field data types: [INT, STRING]")
 
     val fieldNames = Array("a", "b", "c")
     val typeInfos: Array[TypeInformation[_]] = Array(

@@ -46,7 +46,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.Callable;
 
 /**
@@ -95,8 +94,7 @@ public class YarnTaskExecutorRunner {
 
 			final Configuration configuration = GlobalConfiguration.loadConfiguration(currDir);
 
-			//TODO provide path.
-			FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(Optional.empty()));
+			FileSystem.initialize(configuration, PluginUtils.createPluginManagerFromRootFolder(configuration));
 
 			setupConfigurationAndInstallSecurityContext(configuration, currDir, ENV);
 

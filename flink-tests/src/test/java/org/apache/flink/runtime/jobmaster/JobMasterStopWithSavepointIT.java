@@ -36,6 +36,8 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
 import org.apache.flink.test.util.AbstractTestBase;
 
 import org.junit.Assume;
@@ -244,7 +246,9 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 						10,
 						1,
 						CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-						true),
+						true,
+						false,
+						0),
 				null));
 
 		clusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
@@ -283,13 +287,14 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		protected void run() throws InterruptedException {
+		protected void performDefaultAction(DefaultActionContext context) throws Exception {
 			final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
 			if (taskIndex == 0) {
 				numberOfRestarts.countDown();
 			}
 			invokeLatch.countDown();
 			finishLatch.await();
+			context.allActionsCompleted();
 		}
 
 		@Override
@@ -339,46 +344,16 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		protected void run() throws InterruptedException {
+		protected void performDefaultAction(DefaultActionContext context) throws Exception {
 			invokeLatch.countDown();
 			finishLatch.await();
+			context.allActionsCompleted();
 		}
 
 		@Override
 		public void finishTask() throws Exception {
 			finishingLatch.await();
 			finishLatch.trigger();
-		}
-	}
-
-	/**
-	 * A {@link StreamTask} that does nothing.
-	 * This exists only to avoid having to implement all abstract methods in the subclasses above.
-	 */
-	public static class NoOpStreamTask extends StreamTask {
-
-		NoOpStreamTask(final Environment env) {
-			super(env);
-		}
-
-		@Override
-		protected void init() {
-
-		}
-
-		@Override
-		protected void run() throws Exception {
-
-		}
-
-		@Override
-		protected void cleanup() {
-
-		}
-
-		@Override
-		protected void cancelTask() throws Exception {
-
 		}
 	}
 }

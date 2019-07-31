@@ -35,7 +35,7 @@ import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
-import org.apache.flink.runtime.taskmanager.NetworkEnvironmentConfiguration;
+import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.util.ExceptionUtils;
@@ -147,14 +147,14 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 * can be started from the command line.
 	 */
 	@Test
-	public void testStartYarnSessionClusterInQaTeamQueue() throws IOException {
-		runWithArgs(new String[]{
-						"-j", flinkUberjar.getAbsolutePath(),
-						"-t", flinkLibFolder.getAbsolutePath(),
-						"-t", flinkShadedHadoopDir.getAbsolutePath(),
-						"-jm", "768m",
-						"-tm", "1024m", "-qu", "qa-team"},
-				"Flink JobManager is now running on ", null, RunTypes.YARN_SESSION, 0);
+	public void testStartYarnSessionClusterInQaTeamQueue() throws Exception {
+		runTest(() -> runWithArgs(new String[]{
+				"-j", flinkUberjar.getAbsolutePath(),
+				"-t", flinkLibFolder.getAbsolutePath(),
+				"-t", flinkShadedHadoopDir.getAbsolutePath(),
+				"-jm", "768m",
+				"-tm", "1024m", "-qu", "qa-team"},
+			"Flink JobManager is now running on ", null, RunTypes.YARN_SESSION, 0));
 	}
 
 	/**
@@ -165,25 +165,27 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 * The parallelism is requested at the YARN client (-ys).
 	 */
 	@Test
-	public void perJobYarnCluster() throws IOException {
-		LOG.info("Starting perJobYarnCluster()");
-		addTestAppender(CliFrontend.class, Level.INFO);
-		File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
-		runWithArgs(new String[]{"run", "-m", "yarn-cluster",
-				"-yj", flinkUberjar.getAbsolutePath(),
-				"-yt", flinkLibFolder.getAbsolutePath(),
-				"-yt", flinkShadedHadoopDir.getAbsolutePath(),
-				"-yn", "1",
-				"-ys", "2", //test that the job is executed with a DOP of 2
-				"-yjm", "768m",
-				"-ytm", "1024m", exampleJarLocation.getAbsolutePath()},
-			/* test succeeded after this string */
-			"Program execution finished",
-			/* prohibited strings: (to verify the parallelism) */
-			// (we should see "DataSink (...) (1/2)" and "DataSink (...) (2/2)" instead)
-			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
-			RunTypes.CLI_FRONTEND, 0, true);
-		LOG.info("Finished perJobYarnCluster()");
+	public void perJobYarnCluster() throws Exception {
+		runTest(() -> {
+			LOG.info("Starting perJobYarnCluster()");
+			addTestAppender(CliFrontend.class, Level.INFO);
+			File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
+			runWithArgs(new String[]{"run", "-m", "yarn-cluster",
+					"-yj", flinkUberjar.getAbsolutePath(),
+					"-yt", flinkLibFolder.getAbsolutePath(),
+					"-yt", flinkShadedHadoopDir.getAbsolutePath(),
+					"-yn", "1",
+					"-ys", "2", //test that the job is executed with a DOP of 2
+					"-yjm", "768m",
+					"-ytm", "1024m", exampleJarLocation.getAbsolutePath()},
+				/* test succeeded after this string */
+				"Program execution finished",
+				/* prohibited strings: (to verify the parallelism) */
+				// (we should see "DataSink (...) (1/2)" and "DataSink (...) (2/2)" instead)
+				new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
+				RunTypes.CLI_FRONTEND, 0, true);
+			LOG.info("Finished perJobYarnCluster()");
+		});
 	}
 
 	/**
@@ -195,41 +197,43 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 * memory remains.
 	 */
 	@Test
-	public void perJobYarnClusterOffHeap() throws IOException {
-		LOG.info("Starting perJobYarnCluster()");
-		addTestAppender(CliFrontend.class, Level.INFO);
-		File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
+	public void perJobYarnClusterOffHeap() throws Exception {
+		runTest(() -> {
+			LOG.info("Starting perJobYarnCluster()");
+			addTestAppender(CliFrontend.class, Level.INFO);
+			File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
 
-		// set memory constraints (otherwise this is the same test as perJobYarnCluster() above)
-		final long taskManagerMemoryMB = 1024;
-		//noinspection NumericOverflow if the calculation of the total Java memory size overflows, default configuration parameters are wrong in the first place, so we can ignore this inspection
-		final long networkBuffersMB = NetworkEnvironmentConfiguration.calculateNetworkBufferMemory(
-			(taskManagerMemoryMB - ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.defaultValue()) << 20,
-			new Configuration()) >> 20;
-		final long offHeapMemory = taskManagerMemoryMB
-			- ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.defaultValue()
-			// cutoff memory (will be added automatically)
-			- networkBuffersMB // amount of memory used for network buffers
-			- 100; // reserve something for the Java heap space
+			// set memory constraints (otherwise this is the same test as perJobYarnCluster() above)
+			final long taskManagerMemoryMB = 1024;
+			//noinspection NumericOverflow if the calculation of the total Java memory size overflows, default configuration parameters are wrong in the first place, so we can ignore this inspection
+			final long networkBuffersMB = NettyShuffleEnvironmentConfiguration.calculateNetworkBufferMemory(
+				(taskManagerMemoryMB - ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.defaultValue()) << 20,
+				new Configuration()) >> 20;
+			final long offHeapMemory = taskManagerMemoryMB
+				- ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.defaultValue()
+				// cutoff memory (will be added automatically)
+				- networkBuffersMB // amount of memory used for network buffers
+				- 100; // reserve something for the Java heap space
 
-		runWithArgs(new String[]{"run", "-m", "yarn-cluster",
-				"-yj", flinkUberjar.getAbsolutePath(),
-				"-yt", flinkLibFolder.getAbsolutePath(),
-				"-yt", flinkShadedHadoopDir.getAbsolutePath(),
-				"-yn", "1",
-				"-ys", "2", //test that the job is executed with a DOP of 2
-				"-yjm", "768m",
-				"-ytm", taskManagerMemoryMB + "m",
-				"-yD", "taskmanager.memory.off-heap=true",
-				"-yD", "taskmanager.memory.size=" + offHeapMemory + "m",
-				"-yD", "taskmanager.memory.preallocate=true", exampleJarLocation.getAbsolutePath()},
-			/* test succeeded after this string */
-			"Program execution finished",
-			/* prohibited strings: (to verify the parallelism) */
-			// (we should see "DataSink (...) (1/2)" and "DataSink (...) (2/2)" instead)
-			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
-			RunTypes.CLI_FRONTEND, 0, true);
-		LOG.info("Finished perJobYarnCluster()");
+			runWithArgs(new String[]{"run", "-m", "yarn-cluster",
+					"-yj", flinkUberjar.getAbsolutePath(),
+					"-yt", flinkLibFolder.getAbsolutePath(),
+					"-yt", flinkShadedHadoopDir.getAbsolutePath(),
+					"-yn", "1",
+					"-ys", "2", //test that the job is executed with a DOP of 2
+					"-yjm", "768m",
+					"-ytm", taskManagerMemoryMB + "m",
+					"-yD", "taskmanager.memory.off-heap=true",
+					"-yD", "taskmanager.memory.size=" + offHeapMemory + "m",
+					"-yD", "taskmanager.memory.preallocate=true", exampleJarLocation.getAbsolutePath()},
+				/* test succeeded after this string */
+				"Program execution finished",
+				/* prohibited strings: (to verify the parallelism) */
+				// (we should see "DataSink (...) (1/2)" and "DataSink (...) (2/2)" instead)
+				new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
+				RunTypes.CLI_FRONTEND, 0, true);
+			LOG.info("Finished perJobYarnCluster()");
+		});
 	}
 
 	/**
@@ -246,65 +250,67 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 *
 	 * <p><b>Hint: </b> If you think it is a good idea to add more assertions to this test, think again!
 	 */
-	@Test(timeout = 100_000)
+	@Test
 	public void testVCoresAreSetCorrectlyAndJobManagerHostnameAreShownInWebInterfaceAndDynamicPropertiesAndYarnApplicationNameAndTaskManagerSlots() throws Exception {
-		checkForProhibitedLogContents = false;
-		final Runner yarnSessionClusterRunner = startWithArgs(new String[]{
-				"-j", flinkUberjar.getAbsolutePath(),
-				"-t", flinkLibFolder.getAbsolutePath(),
-				"-t", flinkShadedHadoopDir.getAbsolutePath(),
-				"-jm", "768m",
-				"-tm", "1024m",
-				"-s", "3", // set the slots 3 to check if the vCores are set properly!
-				"-nm", "customName",
-				"-Dfancy-configuration-value=veryFancy",
-				"-Dyarn.maximum-failed-containers=3",
-				"-D" + YarnConfigOptions.VCORES.key() + "=2"},
-			"Flink JobManager is now running on ",
-			RunTypes.YARN_SESSION);
+		runTest(() -> {
+			checkForProhibitedLogContents = false;
+			final Runner yarnSessionClusterRunner = startWithArgs(new String[]{
+					"-j", flinkUberjar.getAbsolutePath(),
+					"-t", flinkLibFolder.getAbsolutePath(),
+					"-t", flinkShadedHadoopDir.getAbsolutePath(),
+					"-jm", "768m",
+					"-tm", "1024m",
+					"-s", "3", // set the slots 3 to check if the vCores are set properly!
+					"-nm", "customName",
+					"-Dfancy-configuration-value=veryFancy",
+					"-Dyarn.maximum-failed-containers=3",
+					"-D" + YarnConfigOptions.VCORES.key() + "=2"},
+				"Flink JobManager is now running on ",
+				RunTypes.YARN_SESSION);
 
-		try {
-			final String logs = outContent.toString();
-			final HostAndPort hostAndPort = parseJobManagerHostname(logs);
-			final String host = hostAndPort.getHostText();
-			final int port = hostAndPort.getPort();
-			LOG.info("Extracted hostname:port: {}", host, port);
+			try {
+				final String logs = outContent.toString();
+				final HostAndPort hostAndPort = parseJobManagerHostname(logs);
+				final String host = hostAndPort.getHostText();
+				final int port = hostAndPort.getPort();
+				LOG.info("Extracted hostname:port: {}", host, port);
 
-			submitJob("WindowJoin.jar");
+				submitJob("WindowJoin.jar");
 
-			//
-			// Assert that custom YARN application name "customName" is set
-			//
-			final ApplicationReport applicationReport = getOnlyApplicationReport();
-			assertEquals("customName", applicationReport.getName());
+				//
+				// Assert that custom YARN application name "customName" is set
+				//
+				final ApplicationReport applicationReport = getOnlyApplicationReport();
+				assertEquals("customName", applicationReport.getName());
 
-			//
-			// Assert the number of TaskManager slots are set
-			//
-			waitForTaskManagerRegistration(host, port, Duration.ofMillis(30_000));
-			assertNumberOfSlotsPerTask(host, port, 3);
+				//
+				// Assert the number of TaskManager slots are set
+				//
+				waitForTaskManagerRegistration(host, port, Duration.ofMillis(30_000));
+				assertNumberOfSlotsPerTask(host, port, 3);
 
-			final Map<String, String> flinkConfig = getFlinkConfig(host, port);
+				final Map<String, String> flinkConfig = getFlinkConfig(host, port);
 
-			//
-			// Assert dynamic properties
-			//
-			assertThat(flinkConfig, hasEntry("fancy-configuration-value", "veryFancy"));
-			assertThat(flinkConfig, hasEntry("yarn.maximum-failed-containers", "3"));
+				//
+				// Assert dynamic properties
+				//
+				assertThat(flinkConfig, hasEntry("fancy-configuration-value", "veryFancy"));
+				assertThat(flinkConfig, hasEntry("yarn.maximum-failed-containers", "3"));
 
-			//
-			// FLINK-2213: assert that vcores are set
-			//
-			assertThat(flinkConfig, hasEntry(YarnConfigOptions.VCORES.key(), "2"));
+				//
+				// FLINK-2213: assert that vcores are set
+				//
+				assertThat(flinkConfig, hasEntry(YarnConfigOptions.VCORES.key(), "2"));
 
-			//
-			// FLINK-1902: check if jobmanager hostname is shown in web interface
-			//
-			assertThat(flinkConfig, hasEntry(JobManagerOptions.ADDRESS.key(), host));
-		} finally {
-			yarnSessionClusterRunner.sendStop();
-			yarnSessionClusterRunner.join();
-		}
+				//
+				// FLINK-1902: check if jobmanager hostname is shown in web interface
+				//
+				assertThat(flinkConfig, hasEntry(JobManagerOptions.ADDRESS.key(), host));
+			} finally {
+				yarnSessionClusterRunner.sendStop();
+				yarnSessionClusterRunner.join();
+			}
+		});
 	}
 
 	private static HostAndPort parseJobManagerHostname(final String logs) {
@@ -398,50 +404,54 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 * target queue. With an error message, we can help users identifying the issue)
 	 */
 	@Test
-	public void testNonexistingQueueWARNmessage() throws IOException {
-		LOG.info("Starting testNonexistingQueueWARNmessage()");
-		addTestAppender(AbstractYarnClusterDescriptor.class, Level.WARN);
-		try {
-			runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
-				"-t", flinkLibFolder.getAbsolutePath(),
-				"-t", flinkShadedHadoopDir.getAbsolutePath(),
-				"-n", "1",
-				"-jm", "768m",
-				"-tm", "1024m",
-				"-qu", "doesntExist"}, "to unknown queue: doesntExist", null, RunTypes.YARN_SESSION, 1);
-		} catch (Exception e) {
-			assertTrue(ExceptionUtils.findThrowableWithMessage(e, "to unknown queue: doesntExist").isPresent());
-		}
-		checkForLogString("The specified queue 'doesntExist' does not exist. Available queues");
-		LOG.info("Finished testNonexistingQueueWARNmessage()");
+	public void testNonexistingQueueWARNmessage() throws Exception {
+		runTest(() -> {
+			LOG.info("Starting testNonexistingQueueWARNmessage()");
+			addTestAppender(AbstractYarnClusterDescriptor.class, Level.WARN);
+			try {
+				runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
+					"-t", flinkLibFolder.getAbsolutePath(),
+					"-t", flinkShadedHadoopDir.getAbsolutePath(),
+					"-n", "1",
+					"-jm", "768m",
+					"-tm", "1024m",
+					"-qu", "doesntExist"}, "to unknown queue: doesntExist", null, RunTypes.YARN_SESSION, 1);
+			} catch (Exception e) {
+				assertTrue(ExceptionUtils.findThrowableWithMessage(e, "to unknown queue: doesntExist").isPresent());
+			}
+			checkForLogString("The specified queue 'doesntExist' does not exist. Available queues");
+			LOG.info("Finished testNonexistingQueueWARNmessage()");
+		});
 	}
 
 	/**
 	 * Test per-job yarn cluster with the parallelism set at the CliFrontend instead of the YARN client.
 	 */
 	@Test
-	public void perJobYarnClusterWithParallelism() throws IOException {
-		LOG.info("Starting perJobYarnClusterWithParallelism()");
-		// write log messages to stdout as well, so that the runWithArgs() method
-		// is catching the log output
-		addTestAppender(CliFrontend.class, Level.INFO);
-		File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
-		runWithArgs(new String[]{"run",
-				"-p", "2", //test that the job is executed with a DOP of 2
-				"-m", "yarn-cluster",
-				"-yj", flinkUberjar.getAbsolutePath(),
-				"-yt", flinkLibFolder.getAbsolutePath(),
-				"-yt", flinkShadedHadoopDir.getAbsolutePath(),
-				"-yn", "1",
-				"-ys", "2",
-				"-yjm", "768m",
-				"-ytm", "1024m", exampleJarLocation.getAbsolutePath()},
+	public void perJobYarnClusterWithParallelism() throws Exception {
+		runTest(() -> {
+			LOG.info("Starting perJobYarnClusterWithParallelism()");
+			// write log messages to stdout as well, so that the runWithArgs() method
+			// is catching the log output
+			addTestAppender(CliFrontend.class, Level.INFO);
+			File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
+			runWithArgs(new String[]{"run",
+					"-p", "2", //test that the job is executed with a DOP of 2
+					"-m", "yarn-cluster",
+					"-yj", flinkUberjar.getAbsolutePath(),
+					"-yt", flinkLibFolder.getAbsolutePath(),
+					"-yt", flinkShadedHadoopDir.getAbsolutePath(),
+					"-yn", "1",
+					"-ys", "2",
+					"-yjm", "768m",
+					"-ytm", "1024m", exampleJarLocation.getAbsolutePath()},
 				/* test succeeded after this string */
-			"Program execution finished",
-			/* prohibited strings: (we want to see "DataSink (...) (2/2) switched to FINISHED") */
-			new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
-			RunTypes.CLI_FRONTEND, 0, true);
-		LOG.info("Finished perJobYarnClusterWithParallelism()");
+				"Program execution finished",
+				/* prohibited strings: (we want to see "DataSink (...) (2/2) switched to FINISHED") */
+				new String[]{"DataSink \\(.*\\) \\(1/1\\) switched to FINISHED"},
+				RunTypes.CLI_FRONTEND, 0, true);
+			LOG.info("Finished perJobYarnClusterWithParallelism()");
+		});
 	}
 
 	/**
@@ -449,13 +459,15 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 */
 	@Test(timeout = 60000)
 	public void testDetachedPerJobYarnCluster() throws Exception {
-		LOG.info("Starting testDetachedPerJobYarnCluster()");
+		runTest(() -> {
+			LOG.info("Starting testDetachedPerJobYarnCluster()");
 
-		File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
+			File exampleJarLocation = getTestJarPath("BatchWordCount.jar");
 
-		testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
+			testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
 
-		LOG.info("Finished testDetachedPerJobYarnCluster()");
+			LOG.info("Finished testDetachedPerJobYarnCluster()");
+		});
 	}
 
 	/**
@@ -463,13 +475,15 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	 */
 	@Test(timeout = 60000)
 	public void testDetachedPerJobYarnClusterWithStreamingJob() throws Exception {
-		LOG.info("Starting testDetachedPerJobYarnClusterWithStreamingJob()");
+		runTest(() -> {
+			LOG.info("Starting testDetachedPerJobYarnClusterWithStreamingJob()");
 
-		File exampleJarLocation = getTestJarPath("StreamingWordCount.jar");
+			File exampleJarLocation = getTestJarPath("StreamingWordCount.jar");
 
-		testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
+			testDetachedPerJobYarnClusterInternal(exampleJarLocation.getAbsolutePath());
 
-		LOG.info("Finished testDetachedPerJobYarnClusterWithStreamingJob()");
+			LOG.info("Finished testDetachedPerJobYarnClusterWithStreamingJob()");
+		});
 	}
 
 	private void testDetachedPerJobYarnClusterInternal(String job) throws Exception {

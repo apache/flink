@@ -35,7 +35,7 @@ import java.util.Set;
  * Logical type of an arbitrary serialized type. This type is a black box within the table ecosystem
  * and is only deserialized at the edges. The any type is an extension to the SQL standard.
  *
- * <p>The serialized string representation is {@code ANY(c, s)} where {@code c} is the originating
+ * <p>The serialized string representation is {@code ANY('c', 's')} where {@code c} is the originating
  * class and {@code s} is the serialized {@link TypeSerializerSnapshot} in Base64 encoding.
  *
  * @param <T> originating class for this type
@@ -43,7 +43,7 @@ import java.util.Set;
 @PublicEvolving
 public final class AnyType<T> extends LogicalType {
 
-	private static final String FORMAT = "ANY(%s, %s)";
+	private static final String FORMAT = "ANY('%s', '%s')";
 
 	private static final Set<String> INPUT_OUTPUT_CONVERSION = conversionSet(
 		byte[].class.getName(),
@@ -141,7 +141,7 @@ public final class AnyType<T> extends LogicalType {
 		if (serializerString == null) {
 			final DataOutputSerializer outputSerializer = new DataOutputSerializer(128);
 			try {
-				serializer.snapshotConfiguration().writeSnapshot(outputSerializer);
+				TypeSerializerSnapshot.writeVersionedSnapshot(outputSerializer, serializer.snapshotConfiguration());
 				serializerString = EncodingUtils.encodeBytesToBase64(outputSerializer.getCopyOfBuffer());
 				return serializerString;
 			} catch (Exception e) {
@@ -149,7 +149,7 @@ public final class AnyType<T> extends LogicalType {
 					"Unable to generate a string representation of the serializer snapshot of '%s' " +
 						"describing the class '%s' for the ANY type.",
 					serializer.getClass().getName(),
-					clazz.toString()));
+					clazz.toString()), e);
 			}
 		}
 		return serializerString;

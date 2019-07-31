@@ -106,7 +106,9 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 				10,
 				1,
 				CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-				true),
+				true,
+				false,
+				0),
 			null));
 
 		clusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());

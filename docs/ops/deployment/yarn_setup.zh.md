@@ -65,7 +65,7 @@ Apache [Hadoop YARN](http://hadoop.apache.org/) is a cluster resource management
 - at least Apache Hadoop 2.2
 - HDFS (Hadoop Distributed File System) (or another distributed file system supported by Hadoop)
 
-If you have troubles using the Flink YARN client, have a look in the [FAQ section](http://flink.apache.org/faq.html#yarn-deployment).
+If you have troubles using the Flink YARN client, have a look in the [FAQ section](https://flink.apache.org/faq.html#yarn-deployment).
 
 ### Start Flink Session
 
@@ -101,6 +101,7 @@ Usage:
      -d,--detached                   Start detached
      -jm,--jobManagerMemory <arg>    Memory for JobManager Container with optional unit (default: MB)
      -nm,--name                      Set a custom name for the application on YARN
+     -at,--applicationType           Set a custom application type on YARN
      -q,--query                      Display available YARN resources (memory, cores)
      -qu,--queue <arg>               Specify YARN queue.
      -s,--slots <arg>                Number of slots per TaskManager

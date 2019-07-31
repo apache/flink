@@ -43,7 +43,7 @@ public final class CollectionDataType extends DataType {
 			LogicalType logicalType,
 			@Nullable Class<?> conversionClass,
 			DataType elementDataType) {
-		super(logicalType, conversionClass);
+		super(logicalType, ensureArrayConversionClass(logicalType, elementDataType, conversionClass));
 		this.elementDataType = Preconditions.checkNotNull(elementDataType, "Element data type must not be null.");
 	}
 
@@ -82,13 +82,8 @@ public final class CollectionDataType extends DataType {
 	}
 
 	@Override
-	public Class<?> getConversionClass() {
-		// arrays are a special case because their default conversion class depends on the
-		// conversion class of the element type
-		if (logicalType.getTypeRoot() == LogicalTypeRoot.ARRAY && conversionClass == null) {
-			return Array.newInstance(elementDataType.getConversionClass(), 0).getClass();
-		}
-		return super.getConversionClass();
+	public <R> R accept(DataTypeVisitor<R> visitor) {
+		return visitor.visit(this);
 	}
 
 	@Override
@@ -109,5 +104,19 @@ public final class CollectionDataType extends DataType {
 	@Override
 	public int hashCode() {
 		return Objects.hash(super.hashCode(), elementDataType);
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	private static Class<?> ensureArrayConversionClass(
+			LogicalType logicalType,
+			DataType elementDataType,
+			@Nullable Class<?> clazz) {
+		// arrays are a special case because their default conversion class depends on the
+		// conversion class of the element type
+		if (logicalType.getTypeRoot() == LogicalTypeRoot.ARRAY && clazz == null) {
+			return Array.newInstance(elementDataType.getConversionClass(), 0).getClass();
+		}
+		return clazz;
 	}
 }

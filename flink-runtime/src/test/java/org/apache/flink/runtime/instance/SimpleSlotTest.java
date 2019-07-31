@@ -18,15 +18,14 @@
 
 package org.apache.flink.runtime.instance;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
+import org.apache.flink.runtime.jobmanager.slots.TestingSlotOwner;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingPayload;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-
-import java.net.InetAddress;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -44,7 +43,7 @@ public class SimpleSlotTest extends  TestLogger {
 				SimpleSlot slot = getSlot();
 				assertTrue(slot.isAlive());
 
-				slot.releaseSlot();
+				slot.releaseSlot(null);
 				assertFalse(slot.isAlive());
 				assertTrue(slot.isCanceled());
 				assertTrue(slot.isReleased());
@@ -112,7 +111,7 @@ public class SimpleSlotTest extends  TestLogger {
 			// assign to released
 			{
 				SimpleSlot slot = getSlot();
-				slot.releaseSlot();
+				slot.releaseSlot(null);
 
 				assertFalse(slot.tryAssignPayload(payload1));
 				assertNull(slot.getPayload());
@@ -124,19 +123,13 @@ public class SimpleSlotTest extends  TestLogger {
 		}
 	}
 
-	public static SimpleSlot getSlot() throws Exception {
-		ResourceID resourceID = ResourceID.generate();
-		HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
-		InetAddress address = InetAddress.getByName("127.0.0.1");
-		TaskManagerLocation connection = new TaskManagerLocation(resourceID, address, 10001);
-
-		Instance instance = new Instance(
-			new SimpleAckingTaskManagerGateway(),
-			connection,
-			new InstanceID(),
-			hardwareDescription,
-			1);
-
-		return instance.allocateSimpleSlot();
+	public static SimpleSlot getSlot() {
+		final TestingSlotOwner slotOwner = new TestingSlotOwner();
+		slotOwner.setReturnAllocatedSlotConsumer((LogicalSlot logicalSlot) -> ((SimpleSlot) logicalSlot).markReleased());
+		return new SimpleSlot(
+			slotOwner,
+			new LocalTaskManagerLocation(),
+			0,
+			new SimpleAckingTaskManagerGateway());
 	}
 }

@@ -18,24 +18,25 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.metrics.SimpleCounter;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
-import org.apache.flink.runtime.io.network.TaskEventDispatcher;
+import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.metrics.InputChannelMetrics;
-import org.apache.flink.runtime.io.network.netty.PartitionRequestClient;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.LocalInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.taskmanager.NoOpTaskActions;
 
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.net.InetSocketAddress;
+import java.util.Collection;
+import java.util.Collections;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -46,9 +47,6 @@ import static org.mockito.Mockito.when;
  * Some utility methods used for testing InputChannels and InputGates.
  */
 public class InputChannelTestUtils {
-
-	private static final ConnectionID STUB_CONNECTION_ID = new ConnectionID(new InetSocketAddress("localhost", 5000), 0);
-
 	/**
 	 * Creates a result partition manager that ignores all IDs, and simply returns the given
 	 * subpartitions in sequence.
@@ -75,24 +73,7 @@ public class InputChannelTestUtils {
 	}
 
 	public static SingleInputGate createSingleInputGate(int numberOfChannels) {
-		return createSingleInputGate(numberOfChannels, ResultPartitionType.PIPELINED, true);
-	}
-
-	public static SingleInputGate createSingleInputGate(
-		int numberOfChannels,
-		ResultPartitionType partitionType,
-		boolean isCreditBased) {
-
-		return new SingleInputGate(
-			"InputGate",
-			new JobID(),
-			new IntermediateDataSetID(),
-			partitionType,
-			0,
-			numberOfChannels,
-			new NoOpTaskActions(),
-			new SimpleCounter(),
-			isCreditBased);
+		return new SingleInputGateBuilder().setNumberOfChannels(numberOfChannels).build();
 	}
 
 	public static ConnectionManager createDummyConnectionManager() throws Exception {
@@ -116,15 +97,10 @@ public class InputChannelTestUtils {
 		int channelIndex,
 		ResultPartitionManager partitionManager) {
 
-		return new LocalInputChannel(
-			inputGate,
-			channelIndex,
-			new ResultPartitionID(),
-			partitionManager,
-			new TaskEventDispatcher(),
-			0,
-			0,
-			newUnregisteredInputChannelMetrics());
+		return InputChannelBuilder.newBuilder()
+			.setChannelIndex(channelIndex)
+			.setPartitionManager(partitionManager)
+			.buildLocalAndSetToGate(inputGate);
 	}
 
 	public static LocalInputChannel createLocalInputChannel(
@@ -133,15 +109,11 @@ public class InputChannelTestUtils {
 		int initialBackoff,
 		int maxBackoff) {
 
-		return new LocalInputChannel(
-			inputGate,
-			0,
-			new ResultPartitionID(),
-			partitionManager,
-			new TaskEventDispatcher(),
-			initialBackoff,
-			maxBackoff,
-			newUnregisteredInputChannelMetrics());
+		return InputChannelBuilder.newBuilder()
+			.setPartitionManager(partitionManager)
+			.setInitialBackoff(initialBackoff)
+			.setMaxBackoff(maxBackoff)
+			.buildLocalAndSetToGate(inputGate);
 	}
 
 	public static RemoteInputChannel createRemoteInputChannel(
@@ -149,15 +121,48 @@ public class InputChannelTestUtils {
 		int channelIndex,
 		ConnectionManager connectionManager) {
 
-		return new RemoteInputChannel(
-			inputGate,
-			channelIndex,
-			new ResultPartitionID(),
-			STUB_CONNECTION_ID,
-			connectionManager,
-			0,
-			0,
-			newUnregisteredInputChannelMetrics());
+		return InputChannelBuilder.newBuilder()
+			.setChannelIndex(channelIndex)
+			.setConnectionManager(connectionManager)
+			.buildRemoteAndSetToGate(inputGate);
+	}
+
+	public static RemoteInputChannel createRemoteInputChannel(
+		SingleInputGate inputGate,
+		PartitionRequestClient client,
+		MemorySegmentProvider memorySegmentProvider) {
+
+		return InputChannelBuilder.newBuilder()
+			.setConnectionManager(mockConnectionManagerWithPartitionRequestClient(client))
+			.setMemorySegmentProvider(memorySegmentProvider)
+			.buildRemoteAndSetToGate(inputGate);
+	}
+
+	public static ConnectionManager mockConnectionManagerWithPartitionRequestClient(PartitionRequestClient client) {
+		return new ConnectionManager() {
+			@Override
+			public int start() {
+				return -1;
+			}
+
+			@Override
+			public PartitionRequestClient createPartitionRequestClient(ConnectionID connectionId) {
+				return client;
+			}
+
+			@Override
+			public void closeOpenChannelConnections(ConnectionID connectionId) {
+			}
+
+			@Override
+			public int getNumberOfActiveConnections() {
+				return 0;
+			}
+
+			@Override
+			public void shutdown() {
+			}
+		};
 	}
 
 	public static InputChannelMetrics newUnregisteredInputChannelMetrics() {
@@ -168,4 +173,47 @@ public class InputChannelTestUtils {
 
 	/** This class is not meant to be instantiated. */
 	private InputChannelTestUtils() {}
+
+	/**
+	 * Test stub for {@link MemorySegmentProvider}.
+	 */
+	public static class StubMemorySegmentProvider implements MemorySegmentProvider {
+		private static final MemorySegmentProvider INSTANCE = new StubMemorySegmentProvider();
+
+		public static MemorySegmentProvider getInstance() {
+			return INSTANCE;
+		}
+
+		private StubMemorySegmentProvider() {
+		}
+
+		@Override
+		public Collection<MemorySegment> requestMemorySegments() {
+			return Collections.emptyList();
+		}
+
+		@Override
+		public void recycleMemorySegments(Collection<MemorySegment> segments) {
+		}
+	}
+
+	/**
+	 * {@link MemorySegmentProvider} that provides unpooled {@link MemorySegment}s.
+	 */
+	public static class UnpooledMemorySegmentProvider implements MemorySegmentProvider {
+		private final int pageSize;
+
+		public UnpooledMemorySegmentProvider(int pageSize) {
+			this.pageSize = pageSize;
+		}
+
+		@Override
+		public Collection<MemorySegment> requestMemorySegments() {
+			return Collections.singletonList(MemorySegmentFactory.allocateUnpooledSegment(pageSize));
+		}
+
+		@Override
+		public void recycleMemorySegments(Collection<MemorySegment> segments) {
+		}
+	}
 }

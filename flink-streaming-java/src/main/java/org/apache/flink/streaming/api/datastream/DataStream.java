@@ -36,6 +36,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.io.CsvOutputFormat;
@@ -66,7 +67,6 @@ import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
@@ -114,7 +114,7 @@ public class DataStream<T> {
 
 	protected final StreamExecutionEnvironment environment;
 
-	protected final StreamTransformation<T> transformation;
+	protected final Transformation<T> transformation;
 
 	/**
 	 * Create a new {@link DataStream} in the given execution environment with
@@ -122,7 +122,7 @@ public class DataStream<T> {
 	 *
 	 * @param environment The StreamExecutionEnvironment
 	 */
-	public DataStream(StreamExecutionEnvironment environment, StreamTransformation<T> transformation) {
+	public DataStream(StreamExecutionEnvironment environment, Transformation<T> transformation) {
 		this.environment = Preconditions.checkNotNull(environment, "Execution Environment must not be null.");
 		this.transformation = Preconditions.checkNotNull(transformation, "Stream Transformation must not be null.");
 	}
@@ -210,7 +210,7 @@ public class DataStream<T> {
 	 */
 	@SafeVarargs
 	public final DataStream<T> union(DataStream<T>... streams) {
-		List<StreamTransformation<T>> unionedTransforms = new ArrayList<>();
+		List<Transformation<T>> unionedTransforms = new ArrayList<>();
 		unionedTransforms.add(this.transformation);
 
 		for (DataStream<T> newStream : streams) {
@@ -1233,13 +1233,13 @@ public class DataStream<T> {
 	}
 
 	/**
-	 * Returns the {@link StreamTransformation} that represents the operation that logically creates
+	 * Returns the {@link Transformation} that represents the operation that logically creates
 	 * this {@link DataStream}.
 	 *
 	 * @return The Transformation
 	 */
 	@Internal
-	public StreamTransformation<T> getTransformation() {
+	public Transformation<T> getTransformation() {
 		return transformation;
 	}
 }

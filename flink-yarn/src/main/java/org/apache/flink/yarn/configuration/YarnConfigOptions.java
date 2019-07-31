@@ -50,6 +50,14 @@ public class YarnConfigOptions {
 			.withDescription("The port where the application master RPC system is listening.");
 
 	/**
+	 * The vcores used by YARN application master.
+	 */
+	public static final ConfigOption<Integer> APP_MASTER_VCORES =
+		key("yarn.appmaster.vcores")
+		.defaultValue(1)
+		.withDescription("The number of virtual cores (vcores) used by YARN application master.");
+
+	/**
 	 * Defines whether user-jars are included in the system class path for per-job-clusters as well as their positioning
 	 * in the path. They can be positioned at the beginning ("FIRST"), at the end ("LAST"), or be positioned based on
 	 * their name ("ORDER").
@@ -100,6 +108,19 @@ public class YarnConfigOptions {
 		.withDescription("Number of ApplicationMaster restarts. Note that that the entire Flink cluster will restart" +
 			" and the YARN Client will loose the connection. Also, the JobManager address will change and you’ll need" +
 			" to set the JM host:port manually. It is recommended to leave this option at 1.");
+
+	/**
+	 * The config parameter defining the attemptFailuresValidityInterval of Yarn application.
+	 */
+	public static final ConfigOption<Long> APPLICATION_ATTEMPT_FAILURE_VALIDITY_INTERVAL =
+		key("yarn.application-attempt-failures-validity-interval")
+		.defaultValue(10000L)
+		.withDescription(Description.builder()
+			.text("Time window in milliseconds which defines the number of application attempt failures when restarting the AM. " +
+				"Failures which fall outside of this window are not being considered. " +
+				"Set this value to -1 in order to count globally. " +
+				"See %s for more information.", link("https://hortonworks.com/blog/apache-hadoop-yarn-hdp-2-2-fault-tolerance-features-long-running-services/", "here"))
+			.build());
 
 	/**
 	 * The heartbeat interval between the Application Master and the YARN Resource Manager.

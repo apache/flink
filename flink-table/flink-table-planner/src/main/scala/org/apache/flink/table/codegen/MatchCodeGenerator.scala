@@ -43,7 +43,7 @@ import org.apache.flink.table.runtime.aggregate.AggregateUtil
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.table.util.MatchUtil.{ALL_PATTERN_VARIABLE, AggregationPatternVariableFinder}
 import org.apache.flink.table.utils.EncodingUtils
-import org.apache.flink.table.validate.BasicOperatorTable.{MATCH_PROCTIME, MATCH_ROWTIME}
+import org.apache.flink.table.catalog.BasicOperatorTable.{MATCH_PROCTIME, MATCH_ROWTIME}
 import org.apache.flink.types.Row
 import org.apache.flink.util.Collector
 import org.apache.flink.util.MathUtils.checkedDownCast

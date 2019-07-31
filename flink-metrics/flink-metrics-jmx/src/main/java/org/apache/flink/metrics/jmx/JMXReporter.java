@@ -26,6 +26,7 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.reporter.InstantiateViaFactory;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
@@ -34,6 +35,7 @@ import org.apache.flink.util.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import javax.management.InstanceAlreadyExistsException;
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanServer;
@@ -55,6 +57,7 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via JMX.
@@ -62,11 +65,10 @@ import java.util.Map;
  * <p>Largely based on the JmxReporter class of the dropwizard metrics library
  * https://github.com/dropwizard/metrics/blob/master/metrics-core/src/main/java/io/dropwizard/metrics/JmxReporter.java
  */
+@InstantiateViaFactory(factoryClassName = "org.apache.flink.metrics.jmx.JMXReporterFactory")
 public class JMXReporter implements MetricReporter {
 
 	static final String JMX_DOMAIN_PREFIX = "org.apache.flink.";
-
-	public static final String ARG_PORT = "port";
 
 	private static final Logger LOG = LoggerFactory.getLogger(JMXReporter.class);
 
@@ -86,33 +88,24 @@ public class JMXReporter implements MetricReporter {
 	private final Map<Metric, ObjectName> registeredMetrics;
 
 	/** The server to which JMX clients connect to. Allows for better control over port usage. */
-	private JMXServer jmxServer;
+	@Nullable
+	private final JMXServer jmxServer;
 
-	public JMXReporter() {
+	JMXReporter(@Nullable final String portsConfig) {
 		this.mBeanServer = ManagementFactory.getPlatformMBeanServer();
 		this.registeredMetrics = new HashMap<>();
-	}
-
-	// ------------------------------------------------------------------------
-	//  life cycle
-	// ------------------------------------------------------------------------
-
-	@Override
-	public void open(MetricConfig config) {
-		String portsConfig = config.getString(ARG_PORT, null);
 
 		if (portsConfig != null) {
 			Iterator<Integer> ports = NetUtils.getPortRangeFromString(portsConfig);
 
-			JMXServer server = new JMXServer();
-			while (ports.hasNext()) {
+			JMXServer successfullyStartedServer = null;
+			while (ports.hasNext() && successfullyStartedServer == null) {
+				JMXServer server = new JMXServer();
 				int port = ports.next();
 				try {
 					server.start(port);
 					LOG.info("Started JMX server on port " + port + ".");
-					// only set our field if the server was actually started
-					jmxServer = server;
-					break;
+					successfullyStartedServer = server;
 				} catch (IOException ioe) { //assume port conflict
 					LOG.debug("Could not start JMX server on port " + port + ".", ioe);
 					try {
@@ -122,11 +115,22 @@ public class JMXReporter implements MetricReporter {
 					}
 				}
 			}
-			if (jmxServer == null) {
+			if (successfullyStartedServer == null) {
 				throw new RuntimeException("Could not start JMX server on any configured port. Ports: " + portsConfig);
 			}
+			this.jmxServer = successfullyStartedServer;
+		} else {
+			this.jmxServer = null;
 		}
 		LOG.info("Configured JMXReporter with {port:{}}", portsConfig);
+	}
+
+	// ------------------------------------------------------------------------
+	//  life cycle
+	// ------------------------------------------------------------------------
+
+	@Override
+	public void open(MetricConfig config) {
 	}
 
 	@Override
@@ -140,11 +144,12 @@ public class JMXReporter implements MetricReporter {
 		}
 	}
 
-	public int getPort() {
+	public Optional<Integer> getPort() {
 		if (jmxServer == null) {
-			throw new NullPointerException("No server was opened. Did you specify a port?");
+			return Optional.empty();
+		} else {
+			return Optional.of(jmxServer.port);
 		}
-		return jmxServer.port;
 	}
 
 	// ------------------------------------------------------------------------

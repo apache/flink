@@ -31,30 +31,11 @@ import org.junit.Test;
 public class CheckpointExceptionHandlerTest extends TestLogger {
 
 	@Test
-	public void testRethrowingHandler() {
-		DeclineDummyEnvironment environment = new DeclineDummyEnvironment();
-		CheckpointExceptionHandlerFactory checkpointExceptionHandlerFactory = new CheckpointExceptionHandlerFactory();
-		CheckpointExceptionHandler exceptionHandler =
-			checkpointExceptionHandlerFactory.createCheckpointExceptionHandler(true, environment);
-
-		CheckpointMetaData failedCheckpointMetaData = new CheckpointMetaData(42L, 4711L);
-		Exception testException = new Exception("test");
-		try {
-			exceptionHandler.tryHandleCheckpointException(failedCheckpointMetaData, testException);
-			Assert.fail("Exception not rethrown.");
-		} catch (Exception e) {
-			Assert.assertEquals(testException, e);
-		}
-
-		Assert.assertNull(environment.getLastDeclinedCheckpointCause());
-	}
-
-	@Test
 	public void testDecliningHandler() {
 		DeclineDummyEnvironment environment = new DeclineDummyEnvironment();
 		CheckpointExceptionHandlerFactory checkpointExceptionHandlerFactory = new CheckpointExceptionHandlerFactory();
 		CheckpointExceptionHandler exceptionHandler =
-			checkpointExceptionHandlerFactory.createCheckpointExceptionHandler(false, environment);
+			checkpointExceptionHandlerFactory.createCheckpointExceptionHandler(environment);
 
 		CheckpointMetaData failedCheckpointMetaData = new CheckpointMetaData(42L, 4711L);
 		Exception testException = new Exception("test");

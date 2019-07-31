@@ -79,7 +79,8 @@ public class WebFrontendBootstrap {
 
 				// SSL should be the first handler in the pipeline
 				if (serverSSLFactory != null) {
-					ch.pipeline().addLast("ssl", serverSSLFactory.createNettySSLHandler());
+					ch.pipeline().addLast("ssl",
+						serverSSLFactory.createNettySSLHandler(ch.alloc()));
 				}
 
 				ch.pipeline()

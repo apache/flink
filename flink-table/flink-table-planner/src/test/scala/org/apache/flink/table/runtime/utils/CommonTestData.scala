@@ -46,20 +46,17 @@ object CommonTestData {
     )
 
     val tempFilePath = writeToTempFile(csvRecords.mkString("$"), "csv-test", "tmp")
-    new CsvTableSource(
-      tempFilePath,
-      Array("first", "id", "score", "last"),
-      Array(
-        Types.STRING,
-        Types.INT,
-        Types.DOUBLE,
-        Types.STRING
-      ),
-      fieldDelim = "#",
-      rowDelim = "$",
-      ignoreFirstLine = true,
-      ignoreComments = "%"
-    )
+    CsvTableSource.builder()
+      .path(tempFilePath)
+      .field("first",Types.STRING)
+      .field("id",Types.INT)
+      .field("score",Types.DOUBLE)
+      .field("last",Types.STRING)
+      .fieldDelimiter("#")
+      .lineDelimiter("$")
+      .ignoreFirstLine()
+      .commentPrefix("%")
+      .build()
   }
 
   def getInMemoryTestCatalog(isStreaming: Boolean): ExternalCatalog = {
@@ -70,7 +67,7 @@ object CommonTestData {
     )
     val tempFilePath1 = writeToTempFile(csvRecord1.mkString("\n"), "csv-test1", "tmp")
 
-    val connDesc1 = FileSystem().path(tempFilePath1)
+    val connDesc1 = new FileSystem().path(tempFilePath1)
     val formatDesc1 = OldCsv()
       .field("a", Types.INT)
       .field("b", Types.LONG)
@@ -109,7 +106,7 @@ object CommonTestData {
     )
     val tempFilePath2 = writeToTempFile(csvRecord2.mkString("\n"), "csv-test2", "tmp")
 
-    val connDesc2 = FileSystem().path(tempFilePath2)
+    val connDesc2 = new FileSystem().path(tempFilePath2)
     val formatDesc2 = OldCsv()
       .field("d", Types.INT)
       .field("e", Types.LONG)
@@ -134,7 +131,7 @@ object CommonTestData {
     }
 
     val tempFilePath3 = writeToTempFile("", "csv-test3", "tmp")
-    val connDesc3 = FileSystem().path(tempFilePath3)
+    val connDesc3 = new FileSystem().path(tempFilePath3)
     val formatDesc3 = OldCsv()
       .field("x", Types.INT)
       .field("y", Types.LONG)

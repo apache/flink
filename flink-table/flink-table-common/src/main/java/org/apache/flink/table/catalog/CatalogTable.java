@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Represents a table in a catalog.
@@ -37,4 +38,12 @@ public interface CatalogTable extends CatalogBaseTable {
 	 * @return partition keys of the table
 	 */
 	List<String> getPartitionKeys();
+
+	/**
+	 * Return a property map for table factory discovery purpose. The properties will be used to match a [[TableFactory]].
+	 * Please refer to {@link org.apache.flink.table.factories.TableFactory}
+	 *
+	 * @return a map of properties
+	 */
+	Map<String, String> toProperties();
 }

@@ -21,8 +21,9 @@ source "$(dirname "$0")"/common.sh
 
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-bucketing-sink-test/target/BucketingSinkTestProgram.jar
 
-# enable DEBUG logging level to retrieve truncate length later
-sed -i -e 's/#log4j.logger.org.apache.flink=INFO/log4j.logger.org.apache.flink=DEBUG/g' $FLINK_DIR/conf/log4j.properties
+# enable DEBUG logging level for the BucketingSink to retrieve truncate length later
+echo "" >> $FLINK_DIR/conf/log4j.properties
+echo "log4j.logger.org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink=DEBUG" >> $FLINK_DIR/conf/log4j.properties
 
 set_conf_ssl
 start_cluster
@@ -34,12 +35,8 @@ function bucketing_cleanup() {
 
   stop_cluster
   $FLINK_DIR/bin/taskmanager.sh stop-all
-
-  # restore default logging level
-  sed -i -e 's/log4j.logger.org.apache.flink=DEBUG/#log4j.logger.org.apache.flink=INFO/g' $FLINK_DIR/conf/log4j.properties
 }
-trap bucketing_cleanup INT
-trap bucketing_cleanup EXIT
+on_exit bucketing_cleanup
 
 JOB_ID=$($FLINK_DIR/bin/flink run -d -p 4 $TEST_PROGRAM_JAR -outputPath $TEST_DATA_DIR/out/result \
   | grep "Job has been submitted with JobID" | sed 's/.* //g')

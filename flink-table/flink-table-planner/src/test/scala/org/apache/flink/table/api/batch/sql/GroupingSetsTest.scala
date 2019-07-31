@@ -29,7 +29,7 @@ class GroupingSetsTest extends TableTestBase {
   @Test
   def testGroupingSets(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT b, c, avg(a) as a, GROUP_ID() as g FROM MyTable " +
       "GROUP BY GROUPING SETS (b, c)"
@@ -42,13 +42,13 @@ class GroupingSetsTest extends TableTestBase {
           "DataSetAggregate",
           unaryNode(
             "DataSetCalc",
-            batchTableNode(0),
+            batchTableNode(table),
             term("select", "b", "a")
           ),
           term("groupBy", "b"),
           term("select", "b", "AVG(a) AS a")
         ),
-        term("select", "b", "null AS c", "a", "1 AS g")
+        term("select", "b", "null:INTEGER AS c", "a", "1:BIGINT AS g")
       ),
       unaryNode(
         "DataSetCalc",
@@ -56,13 +56,13 @@ class GroupingSetsTest extends TableTestBase {
           "DataSetAggregate",
           unaryNode(
             "DataSetCalc",
-            batchTableNode(0),
+            batchTableNode(table),
             term("select", "c", "a")
           ),
           term("groupBy", "c"),
           term("select", "c", "AVG(a) AS a")
         ),
-        term("select", "null AS b", "c", "a", "2 AS g")
+        term("select", "null:BIGINT AS b", "c", "a", "2:BIGINT AS g")
       ),
       term("all", "true"),
       term("union", "b", "c", "a", "g")
@@ -74,7 +74,7 @@ class GroupingSetsTest extends TableTestBase {
   @Test
   def testCube(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT b, c, avg(a) as a, GROUP_ID() as g, " +
       "GROUPING(b) as gb, GROUPING(c) as gc, " +
@@ -87,12 +87,12 @@ class GroupingSetsTest extends TableTestBase {
       "DataSetCalc",
       unaryNode(
         "DataSetAggregate",
-        batchTableNode(0),
+        batchTableNode(table),
         term("groupBy", "b", "c"),
         term("select", "b", "c", "AVG(a) AS a")
       ),
-      term("select", "b", "c", "a", "3 AS g", "1 AS gb", "1 AS gc",
-        "1 AS gib", "1 AS gic", "3 AS gid")
+      term("select", "b", "c", "a", "3:BIGINT AS g", "1:BIGINT AS gb", "1:BIGINT AS gc",
+        "1:BIGINT AS gib", "1:BIGINT AS gic", "3:BIGINT AS gid")
     )
 
     val group2 = unaryNode(
@@ -101,14 +101,14 @@ class GroupingSetsTest extends TableTestBase {
         "DataSetAggregate",
         unaryNode(
           "DataSetCalc",
-          batchTableNode(0),
+          batchTableNode(table),
           term("select", "b", "a")
         ),
         term("groupBy", "b"),
         term("select", "b", "AVG(a) AS a")
       ),
-      term("select", "b", "null AS c", "a", "1 AS g", "1 AS gb", "0 AS gc",
-        "1 AS gib", "0 AS gic", "2 AS gid")
+      term("select", "b", "null:INTEGER AS c", "a", "1:BIGINT AS g", "1:BIGINT AS gb",
+        "0:BIGINT AS gc", "1:BIGINT AS gib", "0:BIGINT AS gic", "2:BIGINT AS gid")
     )
 
     val group3 = unaryNode(
@@ -117,14 +117,14 @@ class GroupingSetsTest extends TableTestBase {
         "DataSetAggregate",
         unaryNode(
           "DataSetCalc",
-          batchTableNode(0),
+          batchTableNode(table),
           term("select", "c", "a")
         ),
         term("groupBy", "c"),
         term("select", "c", "AVG(a) AS a")
       ),
-      term("select", "null AS b", "c", "a", "2 AS g", "0 AS gb", "1 AS gc",
-        "0 AS gib", "1 AS gic", "1 AS gid")
+      term("select", "null:BIGINT AS b", "c", "a", "2:BIGINT AS g", "0:BIGINT AS gb",
+        "1:BIGINT AS gc", "0:BIGINT AS gib", "1:BIGINT AS gic", "1:BIGINT AS gid")
     )
 
     val group4 = unaryNode(
@@ -133,14 +133,14 @@ class GroupingSetsTest extends TableTestBase {
         "DataSetAggregate",
         unaryNode(
           "DataSetCalc",
-          batchTableNode(0),
+          batchTableNode(table),
           term("select", "a")
         ),
         term("select", "AVG(a) AS a")
       ),
       term(
-        "select", "null AS b", "null AS c", "a", "0 AS g", "0 AS gb", "0 AS gc",
-        "0 AS gib", "0 AS gic", "0 AS gid")
+        "select", "null:BIGINT AS b", "null:INTEGER AS c", "a", "0:BIGINT AS g", "0:BIGINT AS gb",
+        "0:BIGINT AS gc", "0:BIGINT AS gib", "0:BIGINT AS gic", "0:BIGINT AS gid")
     )
 
     val union = binaryNode(
@@ -169,7 +169,7 @@ class GroupingSetsTest extends TableTestBase {
   @Test
   def testRollup(): Unit = {
     val util = batchTestUtil()
-    util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
+    val table = util.addTable[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
 
     val sqlQuery = "SELECT b, c, avg(a) as a, GROUP_ID() as g, " +
                    "GROUPING(b) as gb, GROUPING(c) as gc, " +
@@ -181,12 +181,12 @@ class GroupingSetsTest extends TableTestBase {
       "DataSetCalc",
       unaryNode(
         "DataSetAggregate",
-        batchTableNode(0),
+        batchTableNode(table),
         term("groupBy", "b", "c"),
         term("select", "b", "c", "AVG(a) AS a")
       ),
-      term("select", "b", "c", "a", "3 AS g", "1 AS gb", "1 AS gc",
-        "1 AS gib", "1 AS gic", "3 AS gid")
+      term("select", "b", "c", "a", "3:BIGINT AS g", "1:BIGINT AS gb", "1:BIGINT AS gc",
+        "1:BIGINT AS gib", "1:BIGINT AS gic", "3:BIGINT AS gid")
     )
 
     val group2 = unaryNode(
@@ -195,14 +195,14 @@ class GroupingSetsTest extends TableTestBase {
         "DataSetAggregate",
         unaryNode(
           "DataSetCalc",
-          batchTableNode(0),
+          batchTableNode(table),
           term("select", "b", "a")
         ),
         term("groupBy", "b"),
         term("select", "b", "AVG(a) AS a")
       ),
-      term("select", "b", "null AS c", "a", "1 AS g", "1 AS gb", "0 AS gc",
-        "1 AS gib", "0 AS gic", "2 AS gid")
+      term("select", "b", "null:INTEGER AS c", "a", "1:BIGINT AS g", "1:BIGINT AS gb",
+        "0:BIGINT AS gc", "1:BIGINT AS gib", "0:BIGINT AS gic", "2:BIGINT AS gid")
     )
 
     val group3 = unaryNode(
@@ -211,14 +211,14 @@ class GroupingSetsTest extends TableTestBase {
         "DataSetAggregate",
         unaryNode(
           "DataSetCalc",
-          batchTableNode(0),
+          batchTableNode(table),
           term("select", "a")
         ),
         term("select", "AVG(a) AS a")
       ),
       term(
-        "select", "null AS b", "null AS c", "a", "0 AS g", "0 AS gb", "0 AS gc",
-        "0 AS gib", "0 AS gic", "0 AS gid")
+        "select", "null:BIGINT AS b", "null:INTEGER AS c", "a", "0:BIGINT AS g", "0:BIGINT AS gb",
+        "0:BIGINT AS gc", "0:BIGINT AS gib", "0:BIGINT AS gic", "0:BIGINT AS gid")
     )
 
     val union = binaryNode(

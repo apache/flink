@@ -18,9 +18,12 @@
 
 package org.apache.flink.table.utils
 
+import java.util.Optional
+
+import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
-import org.apache.flink.table.catalog.ExternalCatalog
+import org.apache.flink.table.catalog.{Catalog, ExternalCatalog}
 import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.sinks.TableSink
@@ -51,11 +54,19 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def connect(connectorDescriptor: ConnectorDescriptor): TableDescriptor = ???
 
+  override def listCatalogs(): Array[String] = ???
+
+  override def listDatabases(): Array[String] = ???
+
   override def listTables(): Array[String] = ???
 
   override def listUserDefinedFunctions(): Array[String] = ???
 
   override def explain(table: Table): String = ???
+
+  override def explain(table: Table, extended: Boolean): String = ???
+
+  override def explain(extended: Boolean): String = ???
 
   override def getCompletionHints(statement: String, position: Int): Array[String] = ???
 
@@ -63,7 +74,26 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def sqlUpdate(stmt: String): Unit = ???
 
-  override def sqlUpdate(stmt: String, config: QueryConfig): Unit = ???
-
   override def getConfig: TableConfig = ???
+
+  override def registerCatalog(
+    name: String,
+    catalog: Catalog): Unit = ???
+
+  override def getCatalog(catalogName: String): Optional[Catalog] = ???
+
+  override def getCurrentCatalog: String = ???
+
+  override def getCurrentDatabase: String = ???
+
+  override def useCatalog(catalogName: String): Unit = ???
+
+  override def useDatabase(databaseName: String): Unit = ???
+
+  override def insertInto(
+    table: Table,
+    sinkPath: String,
+    sinkPathContinued: String*): Unit = ???
+
+  override def execute(jobName: String): JobExecutionResult = ???
 }

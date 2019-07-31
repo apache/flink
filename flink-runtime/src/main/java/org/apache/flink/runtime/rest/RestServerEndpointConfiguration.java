@@ -68,7 +68,7 @@ public final class RestServerEndpointConfiguration {
 			final int maxContentLength,
 			final Map<String, String> responseHeaders) {
 
-		Preconditions.checkArgument(maxContentLength > 0, "maxContentLength must be positive, was: %d", maxContentLength);
+		Preconditions.checkArgument(maxContentLength > 0, "maxContentLength must be positive, was: %s", maxContentLength);
 
 		this.restAddress = requireNonNull(restAddress);
 		this.restBindAddress = restBindAddress;

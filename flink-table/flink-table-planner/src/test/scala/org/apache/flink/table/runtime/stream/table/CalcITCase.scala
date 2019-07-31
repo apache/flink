@@ -174,7 +174,7 @@ class CalcITCase extends AbstractTestBase {
     StreamITCase.testResults = mutable.MutableList()
     val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
 
-    val filterDs = ds.filter( Literal(false) )
+    val filterDs = ds.filter(false)
     val results = filterDs.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()
@@ -193,7 +193,7 @@ class CalcITCase extends AbstractTestBase {
     StreamITCase.testResults = mutable.MutableList()
     val ds = StreamTestData.getSmall3TupleDataStream(env).toTable(tEnv, 'a, 'b, 'c)
 
-    val filterDs = ds.filter( Literal(true) )
+    val filterDs = ds.filter(true)
     val results = filterDs.toAppendStream[Row]
     results.addSink(new StreamITCase.StringSink[Row])
     env.execute()

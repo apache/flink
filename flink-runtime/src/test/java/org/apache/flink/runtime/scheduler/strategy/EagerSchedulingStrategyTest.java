@@ -29,8 +29,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.scheduler.strategy.StrategyTestUtil.getExecutionVertexIdsFromDeployOptions;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
@@ -110,12 +110,5 @@ public class EagerSchedulingStrategyTest extends TestLogger {
 
 		Collection<ExecutionVertexDeploymentOption> scheduledVertices2 = testingSchedulerOperations.getScheduledVertices().get(1);
 		assertThat(getExecutionVertexIdsFromDeployOptions(scheduledVertices2), containsInAnyOrder(verticesToRestart2.toArray()));
-	}
-
-	private static Collection<ExecutionVertexID> getExecutionVertexIdsFromDeployOptions(
-			Collection<ExecutionVertexDeploymentOption> deploymentOptions) {
-		return deploymentOptions.stream()
-				.map(ExecutionVertexDeploymentOption::getExecutionVertexId)
-				.collect(Collectors.toList());
 	}
 }

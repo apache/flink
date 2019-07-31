@@ -19,15 +19,33 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.blob.VoidBlobWriter;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
+import org.apache.flink.runtime.instance.SlotSharingGroupId;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.io.network.partition.TestingPartitionTracker;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
+import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmanager.scheduler.SchedulerTestUtils;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
@@ -35,6 +53,7 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SingleLogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
@@ -46,6 +65,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -54,7 +74,9 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -98,7 +120,7 @@ public class ExecutionTest extends TestLogger {
 			new NoRestartStrategy(),
 			jobVertex);
 
-		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
@@ -114,12 +136,10 @@ public class ExecutionTest extends TestLogger {
 
 		final LogicalSlot otherSlot = new TestingLogicalSlot();
 
-		CompletableFuture<Execution> allocationFuture = execution.allocateAndAssignSlotForExecution(
-			slotProvider,
-			false,
+		CompletableFuture<Execution> allocationFuture = execution.allocateResourcesForExecution(
+			executionGraph.getSlotProviderStrategy(),
 			LocationPreferenceConstraint.ALL,
-			Collections.emptySet(),
-			TestingUtils.infiniteTime());
+			Collections.emptySet());
 
 		assertFalse(allocationFuture.isDone());
 
@@ -160,18 +180,16 @@ public class ExecutionTest extends TestLogger {
 			new NoRestartStrategy(),
 			jobVertex);
 
-		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
 		final Execution execution = executionJobVertex.getTaskVertices()[0].getCurrentExecutionAttempt();
 
-		CompletableFuture<Execution> allocationFuture = execution.allocateAndAssignSlotForExecution(
-			slotProvider,
-			false,
+		CompletableFuture<Execution> allocationFuture = execution.allocateResourcesForExecution(
+			executionGraph.getSlotProviderStrategy(),
 			LocationPreferenceConstraint.ALL,
-			Collections.emptySet(),
-			TestingUtils.infiniteTime());
+			Collections.emptySet());
 
 		assertTrue(allocationFuture.isDone());
 
@@ -216,12 +234,10 @@ public class ExecutionTest extends TestLogger {
 
 		final Execution execution = executionJobVertex.getTaskVertices()[0].getCurrentExecutionAttempt();
 
-		CompletableFuture<Execution> allocationFuture = execution.allocateAndAssignSlotForExecution(
-			slotProvider,
-			false,
+		CompletableFuture<Execution> allocationFuture = execution.allocateResourcesForExecution(
+			executionGraph.getSlotProviderStrategy(),
 			LocationPreferenceConstraint.ALL,
-			Collections.emptySet(),
-			TestingUtils.infiniteTime());
+			Collections.emptySet());
 
 		assertTrue(allocationFuture.isDone());
 
@@ -262,18 +278,16 @@ public class ExecutionTest extends TestLogger {
 			new NoRestartStrategy(),
 			jobVertex);
 
-		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		final ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
 		final Execution currentExecutionAttempt = executionJobVertex.getTaskVertices()[0].getCurrentExecutionAttempt();
 
-		final CompletableFuture<Execution> allocationFuture = currentExecutionAttempt.allocateAndAssignSlotForExecution(
-			slotProvider,
-			false,
+		final CompletableFuture<Execution> allocationFuture = currentExecutionAttempt.allocateResourcesForExecution(
+			executionGraph.getSlotProviderStrategy(),
 			LocationPreferenceConstraint.ALL,
-			Collections.emptySet(),
-			TestingUtils.infiniteTime());
+			Collections.emptySet());
 
 		assertThat(allocationFuture.isDone(), is(false));
 
@@ -372,13 +386,16 @@ public class ExecutionTest extends TestLogger {
 			new NoRestartStrategy(),
 			jobVertex);
 
-		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
 		ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];
 
-		executionVertex.scheduleForExecution(slotProvider, false, LocationPreferenceConstraint.ANY, Collections.emptySet()).get();
+		executionVertex.scheduleForExecution(
+			executionGraph.getSlotProviderStrategy(),
+			LocationPreferenceConstraint.ANY,
+			Collections.emptySet()).get();
 
 		Execution currentExecutionAttempt = executionVertex.getCurrentExecutionAttempt();
 
@@ -430,7 +447,11 @@ public class ExecutionTest extends TestLogger {
 		assertThat(execution.getTaskRestore(), is(notNullValue()));
 
 		// schedule the execution vertex and wait for its deployment
-		executionVertex.scheduleForExecution(slotProvider, false, LocationPreferenceConstraint.ANY, Collections.emptySet()).get();
+		executionVertex.scheduleForExecution(
+			executionGraph.getSlotProviderStrategy(),
+			LocationPreferenceConstraint.ANY,
+			Collections.emptySet())
+			.get();
 
 		assertThat(execution.getTaskRestore(), is(nullValue()));
 	}
@@ -491,8 +512,7 @@ public class ExecutionTest extends TestLogger {
 
 		final CompletableFuture<Void> schedulingFuture = testMainThreadUtil.execute(
 			() -> execution.scheduleForExecution(
-				slotProvider,
-				false,
+				executionGraph.getSlotProviderStrategy(),
 				LocationPreferenceConstraint.ANY,
 				Collections.emptySet()));
 
@@ -504,6 +524,111 @@ public class ExecutionTest extends TestLogger {
 		}
 
 		assertThat(returnedSlotFuture.get(), is(equalTo(slotRequestIdFuture.get())));
+	}
+
+	@Test
+	public void testPartitionRetainedWhenFinished() throws Exception {
+		testPartitionTrackingForStateTransition(Execution::markFinished, false);
+	}
+
+	@Test
+	public void testPartitionReleasedWhenCanceled() throws Exception {
+		testPartitionTrackingForStateTransition(
+			execution -> {
+				execution.cancel();
+				execution.completeCancelling();
+			},
+			true);
+	}
+
+	@Test
+	public void testPartitionReleasedWhenFailed() throws Exception {
+		testPartitionTrackingForStateTransition(execution -> execution.fail(new Exception("Test exception")), true);
+	}
+
+	private void testPartitionTrackingForStateTransition(final Consumer<Execution> stateTransition, final boolean shouldPartitionBeReleased) throws Exception {
+		final JobVertex producerVertex = createNoOpJobVertex();
+		final JobVertex consumerVertex = createNoOpJobVertex();
+		consumerVertex.connectNewDataSetAsInput(producerVertex, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
+
+		final TaskManagerLocation taskManagerLocation = new LocalTaskManagerLocation();
+
+		final SlotProvider slotProvider = new SlotProvider() {
+			@Override
+			public CompletableFuture<LogicalSlot> allocateSlot(SlotRequestId slotRequestId, ScheduledUnit scheduledUnit, SlotProfile slotProfile, boolean allowQueuedScheduling, Time allocationTimeout) {
+				return CompletableFuture.completedFuture(new SimpleSlot(
+					new SingleSlotTestingSlotOwner(),
+					taskManagerLocation,
+					0,
+					new SimpleAckingTaskManagerGateway()));
+			}
+
+			@Override
+			public void cancelSlotRequest(SlotRequestId slotRequestId, @Nullable SlotSharingGroupId slotSharingGroupId, Throwable cause) {
+			}
+		};
+
+		CompletableFuture<Tuple2<ResourceID, ResultPartitionDeploymentDescriptor>> partitionStartTrackingFuture = new CompletableFuture<>();
+		CompletableFuture<Collection<ResultPartitionID>> partitionReleaseFuture = new CompletableFuture<>();
+		final TestingPartitionTracker partitionTracker = new TestingPartitionTracker();
+		partitionTracker.setStartTrackingPartitionsConsumer(
+			(resourceID, resultPartitionDeploymentDescriptor) ->
+				partitionStartTrackingFuture.complete(Tuple2.of(resourceID, resultPartitionDeploymentDescriptor))
+		);
+		partitionTracker.setStopTrackingAndReleasePartitionsConsumer(partitionReleaseFuture::complete);
+
+		final ExecutionGraph executionGraph = ExecutionGraphBuilder.buildGraph(
+			null,
+			new JobGraph(new JobID(), "test job", producerVertex, consumerVertex),
+			new Configuration(),
+			TestingUtils.defaultExecutor(),
+			TestingUtils.defaultExecutor(),
+			slotProvider,
+			ExecutionTest.class.getClassLoader(),
+			new StandaloneCheckpointRecoveryFactory(),
+			Time.seconds(10),
+			new NoRestartStrategy(),
+			new UnregisteredMetricsGroup(),
+			VoidBlobWriter.getInstance(),
+			Time.seconds(10),
+			log,
+			NettyShuffleMaster.INSTANCE,
+			partitionTracker);
+
+		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+
+		final ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(producerVertex.getID());
+		final ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];
+
+		final Execution execution = executionVertex.getCurrentExecutionAttempt();
+
+		execution.allocateResourcesForExecution(
+			executionGraph.getSlotProviderStrategy(),
+			LocationPreferenceConstraint.ALL,
+			Collections.emptySet());
+
+		assertThat(partitionStartTrackingFuture.isDone(), is(true));
+		final Tuple2<ResourceID, ResultPartitionDeploymentDescriptor> startTrackingCall = partitionStartTrackingFuture.get();
+
+		final IntermediateResultPartitionID expectedIntermediateResultPartitionId = executionJobVertex
+			.getProducedDataSets()[0]
+			.getPartitions()[0]
+			.getPartitionId();
+		final ResultPartitionDeploymentDescriptor descriptor = execution
+			.getResultPartitionDeploymentDescriptor(expectedIntermediateResultPartitionId).get();
+		assertThat(startTrackingCall.f0, equalTo(taskManagerLocation.getResourceID()));
+		assertThat(startTrackingCall.f1, equalTo(descriptor));
+
+		execution.deploy();
+		execution.switchToRunning();
+
+		stateTransition.accept(execution);
+
+		assertThat(partitionReleaseFuture.isDone(), is(shouldPartitionBeReleased));
+		if (shouldPartitionBeReleased) {
+			final Collection<ResultPartitionID> partitionReleaseCall = partitionReleaseFuture.get();
+			assertThat(partitionReleaseCall, contains(descriptor.getShuffleDescriptor().getResultPartitionID()));
+		}
 	}
 
 	/**

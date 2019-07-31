@@ -116,7 +116,10 @@ level is determined by 'nav-pos'.
         {% capture collapse_target %}"#collapse-{{ i }}" data-toggle="collapse"{% if active %} class="active"{% endif %}{% endcapture %}
         {% capture expand %}{% unless active %} <i class="fa fa-caret-down pull-right" aria-hidden="true" style="padding-top: 4px"></i>{% endunless %}{% endcapture %}
 <li><a href={{ collapse_target }}>{{ title }}{{ expand }}</a><div class="collapse{% if active %} in{% endif %}" id="collapse-{{ i }}"><ul>
-  {% if this.nav-show_overview %}<li><a href={{ overview_target }}>Overview</a></li>{% endif %}
+        {% if this.nav-show_overview %}
+          <li><a href={{ overview_target }}>
+            {% if page.is_default_language %}Overview{% else %}概览{% endif %}</a></li>
+        {% endif %}
         {% assign elements = elements | push: children %}
         {% assign elementsPosStack = elementsPosStack | push: elementsPos %}
         {% assign posStack = posStack | push: pos %}
@@ -134,6 +137,7 @@ level is determined by 'nav-pos'.
   <li class="divider"></li>
   <li><a href="{{ site.javadocs_baseurl }}/api/java"><i class="fa fa-external-link title" aria-hidden="true"></i> Javadocs</a></li>
   <li><a href="{{ site.javadocs_baseurl }}/api/scala/index.html#org.apache.flink.api.scala.package"><i class="fa fa-external-link title" aria-hidden="true"></i> Scaladocs</a></li>
+  <li><a href="{{ site.pythondocs_baseurl }}/api/python"><i class="fa fa-external-link title" aria-hidden="true"></i> Pythondocs</a></li>
   <li><a href="http://flink.apache.org"><i class="fa fa-external-link title" aria-hidden="true"></i> Project Page</a></li>
 </ul>
 

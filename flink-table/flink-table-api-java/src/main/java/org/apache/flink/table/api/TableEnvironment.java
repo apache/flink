@@ -18,8 +18,12 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.api.internal.TableEnvironmentImpl;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ExternalCatalog;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.TableDescriptor;
@@ -27,22 +31,54 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 
+import java.util.Optional;
+
 /**
- * The base class for batch and stream TableEnvironments.
+ * A table environment is the base class, entry point, and central context for creating Table & SQL
+ * API programs.
  *
- * <p>The TableEnvironment is a central concept of the Table API and SQL integration. It is
- * responsible for:
+ * <p>It is unified both on a language level for all JVM-based languages (i.e. there is no distinction
+ * between Scala and Java API) and for bounded and unbounded data processing.
  *
+ * <p>A table environment is responsible for:
  * <ul>
- *     <li>Registering a Table in the internal catalog</li>
- *     <li>Registering an external catalog</li>
- *     <li>Executing SQL queries</li>
- *     <li>Registering a user-defined scalar function. For the user-defined table and aggregate
- *     function, use the StreamTableEnvironment or BatchTableEnvironment</li>
+ *     <li>Connecting to external systems.</li>
+ *     <li>Registering and retrieving {@link Table}s and other meta objects from a catalog.</li>
+ *     <li>Executing SQL statements.</li>
+ *     <li>Offering further configuration options.</li>
  * </ul>
+ *
+ * <p>Note: This environment is meant for pure table programs. If you would like to convert from or to
+ * other Flink APIs, it might be necessary to use one of the available language-specific table environments
+ * in the corresponding bridging modules.
  */
 @PublicEvolving
 public interface TableEnvironment {
+
+	/**
+	 * Creates a table environment that is the entry point and central context for creating Table & SQL
+	 * API programs.
+	 *
+	 * <p>It is unified both on a language level for all JVM-based languages (i.e. there is no distinction
+	 * between Scala and Java API) and for bounded and unbounded data processing.
+	 *
+	 * <p>A table environment is responsible for:
+	 * <ul>
+	 *     <li>Connecting to external systems.</li>
+	 *     <li>Registering and retrieving {@link Table}s and other meta objects from a catalog.</li>
+	 *     <li>Executing SQL statements.</li>
+	 *     <li>Offering further configuration options.</li>
+	 * </ul>
+	 *
+	 * <p>Note: This environment is meant for pure table programs. If you would like to convert from or to
+	 * other Flink APIs, it might be necessary to use one of the available language-specific table environments
+	 * in the corresponding bridging modules.
+	 *
+	 * @param settings The environment settings used to instantiate the {@link TableEnvironment}.
+	 */
+	static TableEnvironment create(EnvironmentSettings settings) {
+		return TableEnvironmentImpl.create(settings);
+	}
 
 	/**
 	 * Creates a table from a table source.
@@ -55,18 +91,43 @@ public interface TableEnvironment {
 	 * Registers an {@link ExternalCatalog} under a unique name in the TableEnvironment's schema.
 	 * All tables registered in the {@link ExternalCatalog} can be accessed.
 	 *
-	 * @param name            The name under which the externalCatalog will be registered
-	 * @param externalCatalog The externalCatalog to register
+	 * @param name The name under which the externalCatalog will be registered.
+	 * @param externalCatalog The externalCatalog to register.
+	 * @see TableEnvironment#getCatalog(String)
+	 * @see TableEnvironment#registerCatalog(String, Catalog)
+	 * @deprecated the {@link ExternalCatalog} API is deprecated. Use the corresponding {@link Catalog} API.
 	 */
+	@Deprecated
 	void registerExternalCatalog(String name, ExternalCatalog externalCatalog);
 
 	/**
 	 * Gets a registered {@link ExternalCatalog} by name.
 	 *
-	 * @param name The name to look up the {@link ExternalCatalog}
-	 * @return The {@link ExternalCatalog}
+	 * @param name The name to look up the {@link ExternalCatalog}.
+	 * @return The {@link ExternalCatalog}.
+	 * @see TableEnvironment#getCatalog(String)
+	 * @see TableEnvironment#registerCatalog(String, Catalog)
+	 * @deprecated the {@link ExternalCatalog} API is deprecated. Use the corresponding {@link Catalog} API.
 	 */
+	@Deprecated
 	ExternalCatalog getRegisteredExternalCatalog(String name);
+
+	/**
+	 * Registers a {@link Catalog} under a unique name.
+	 * All tables registered in the {@link Catalog} can be accessed.
+	 *
+	 * @param catalogName The name under which the catalog will be registered.
+	 * @param catalog The catalog to register.
+	 */
+	void registerCatalog(String catalogName, Catalog catalog);
+
+	/**
+	 * Gets a registered {@link Catalog} by name.
+	 *
+	 * @param catalogName The name to look up the {@link Catalog}.
+	 * @return The requested catalog, empty if there is no registered catalog with given name.
+	 */
+	Optional<Catalog> getCatalog(String catalogName);
 
 	/**
 	 * Registers a {@link ScalarFunction} under a unique name. Replaces already existing
@@ -119,8 +180,11 @@ public interface TableEnvironment {
 	/**
 	 * Scans a registered table and returns the resulting {@link Table}.
 	 *
-	 * <p>A table to scan must be registered in the TableEnvironment. It can be either directly
-	 * registered or be a member of an {@link ExternalCatalog}.
+	 * <p>A table to scan must be registered in the {@link TableEnvironment}. It can be either directly
+	 * registered or be an external member of a {@link Catalog}.
+	 *
+	 * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or
+	 * {@link TableEnvironment#useCatalog(String)} for the rules on the path resolution.
 	 *
 	 * <p>Examples:
 	 *
@@ -140,9 +204,24 @@ public interface TableEnvironment {
 	 *
 	 * @param tablePath The path of the table to scan.
 	 * @return The resulting {@link Table}.
-	 * @throws TableException if no table is found using the given table path.
+	 * @see TableEnvironment#useCatalog(String)
+	 * @see TableEnvironment#useDatabase(String)
 	 */
-	Table scan(String... tablePath) throws TableException;
+	Table scan(String... tablePath);
+
+	/**
+	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
+	 *
+	 * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or
+	 * {@link TableEnvironment#useCatalog(String)} for the rules on the path resolution.
+	 *
+	 * @param table The Table to write to the sink.
+	 * @param sinkPath The first part of the path of the registered {@link TableSink} to which the {@link Table} is
+	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
+	 * @param sinkPathContinued The remaining part of the path of the registered {@link TableSink} to which the
+	 *        {@link Table} is written.
+	 */
+	void insertInto(Table table, String sinkPath, String... sinkPathContinued);
 
 	/**
 	 * Creates a table source and/or table sink from a descriptor.
@@ -178,9 +257,23 @@ public interface TableEnvironment {
 	TableDescriptor connect(ConnectorDescriptor connectorDescriptor);
 
 	/**
-	 * Gets the names of all tables registered directly in this environment.
+	 * Gets the names of all catalogs registered in this environment.
 	 *
-	 * @return A list of the names of all registered tables.
+	 * @return A list of the names of all registered catalogs.
+	 */
+	String[] listCatalogs();
+
+	/**
+	 * Gets the names of all databases registered in the current catalog.
+	 *
+	 * @return A list of the names of all registered databases in the current catalog.
+	 */
+	String[] listDatabases();
+
+	/**
+	 * Gets the names of all tables registered in the current database of the current catalog.
+	 *
+	 * @return A list of the names of all registered tables in the current database of the current catalog.
 	 */
 	String[] listTables();
 
@@ -196,6 +289,25 @@ public interface TableEnvironment {
 	 * @param table The table for which the AST and execution plan will be returned.
 	 */
 	String explain(Table table);
+
+	/**
+	 * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
+	 * the result of the given {@link Table}.
+	 *
+	 * @param table The table for which the AST and execution plan will be returned.
+	 * @param extended if the plan should contain additional properties such as
+	 * e.g. estimated cost, traits
+	 */
+	String explain(Table table, boolean extended);
+
+	/**
+	 * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
+	 * the result of multiple-sinks plan.
+	 *
+	 * @param extended if the plan should contain additional properties such as
+	 * e.g. estimated cost, traits
+	 */
+	String explain(boolean extended);
 
 	/**
 	 * Returns completion hints for the given statement at the given cursor position.
@@ -233,7 +345,7 @@ public interface TableEnvironment {
 
 	/**
 	 * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
-	 * NOTE: Currently only SQL INSERT statements are supported.
+	 * NOTE: Currently only SQL INSERT statements and CREATE TABLE statements are supported.
 	 *
 	 * <p>All tables referenced by the query must be registered in the TableEnvironment.
 	 * A {@link Table} is automatically registered when its {@link Table#toString()} method is
@@ -251,37 +363,214 @@ public interface TableEnvironment {
 	 * }
 	 * </pre>
 	 *
+	 * <p>A DDL statement can also be executed to create a table:
+	 * For example, the below DDL statement would create a CSV table named `tbl1`
+	 * into the current catalog:
+	 * <blockquote><pre>
+	 *    create table tbl1(
+	 *      a int,
+	 *      b bigint,
+	 *      c varchar
+	 *    ) with (
+	 *      connector.type = 'filesystem',
+	 *      format.type = 'csv',
+	 *      connector.path = 'xxx'
+	 *    )
+	 * </pre></blockquote>
+	 *
+	 * <p>SQL queries can directly execute as follows:
+	 *
+	 * <blockquote><pre>
+	 *    String sinkDDL = "create table sinkTable(
+	 *                        a int,
+	 *                        b varchar
+	 *                      ) with (
+	 *                        connector.type = 'filesystem',
+	 *                        format.type = 'csv',
+	 *                        connector.path = 'xxx'
+	 *                      )";
+	 *
+	 *    String sourceDDL ="create table sourceTable(
+	 *                        a int,
+	 *                        b varchar
+	 *                      ) with (
+	 *                        connector.type = 'kafka',
+	 *                        `update-mode` = 'append',
+	 *                        connector.topic = 'xxx',
+	 *                        connector.properties.0.key = 'k0',
+	 *                        connector.properties.0.value = 'v0',
+	 *                        ...
+	 *                      )";
+	 *
+	 *    String query = "INSERT INTO sinkTable SELECT * FROM sourceTable";
+	 *
+	 *    tEnv.sqlUpdate(sourceDDL);
+	 *    tEnv.sqlUpdate(sinkDDL);
+	 *    tEnv.sqlUpdate(query);
+	 *    tEnv.execute("MyJob");
+	 * </pre></blockquote>
+	 * This code snippet creates a job to read data from Kafka source into a CSV sink.
+	 *
 	 * @param stmt The SQL statement to evaluate.
 	 */
 	void sqlUpdate(String stmt);
 
 	/**
-	 * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
-	 * NOTE: Currently only SQL INSERT statements are supported.
+	 * Gets the current default catalog name of the current session.
 	 *
-	 * <p>All tables referenced by the query must be registered in the TableEnvironment.
-	 * A {@link Table} is automatically registered when its {@link Table#toString()} method is
-	 * called, for example when it is embedded into a String.
-	 * Hence, SQL queries can directly reference a {@link Table} as follows:
+	 * @return The current default catalog name that is used for the path resolution.
+	 * @see TableEnvironment#useCatalog(String)
+	 */
+	String getCurrentCatalog();
+
+	/**
+	 * Sets the current catalog to the given value. It also sets the default
+	 * database to the catalog's default one. See also {@link TableEnvironment#useDatabase(String)}.
 	 *
+	 * <p>This is used during the resolution of object paths. Both the catalog and database are optional
+	 * when referencing catalog objects such as tables, views etc. The algorithm looks for requested objects in
+	 * following paths in that order:
+	 * <ol>
+	 *     <li>{@code [current-catalog].[current-database].[requested-path]}</li>
+	 *     <li>{@code [current-catalog].[requested-path]}</li>
+	 *     <li>{@code [requested-path]}</li>
+	 * </ol>
+	 *
+	 * <p>Example:
+	 *
+	 * <p>Given structure with default catalog set to {@code default_catalog} and default database set to
+	 * {@code default_database}.
 	 * <pre>
-	 * {@code
-	 *   // register the configured table sink into which the result is inserted.
-	 *   tEnv.registerTableSink("sinkTable", configuredSink);
-	 *   Table sourceTable = ...
-	 *   String tableName = sourceTable.toString();
-	 *   // sourceTable is not registered to the table environment
-	 *   tEnv.sqlUpdate(s"INSERT INTO sinkTable SELECT * FROM tableName", config);
-	 * }
+	 * root:
+	 *   |- default_catalog
+	 *       |- default_database
+	 *           |- tab1
+	 *       |- db1
+	 *           |- tab1
+	 *   |- cat1
+	 *       |- db1
+	 *           |- tab1
 	 * </pre>
 	 *
-	 * @param stmt The SQL statement to evaluate.
-	 * @param config The {@link QueryConfig} to use.
+	 * <p>The following table describes resolved paths:
+	 * <table>
+	 *     <thead>
+	 *         <tr>
+	 *             <th>Requested path</th>
+	 *             <th>Resolved path</th>
+	 *         </tr>
+	 *     </thead>
+	 *     <tbody>
+	 *         <tr>
+	 *             <td>tab1</td>
+	 *             <td>default_catalog.default_database.tab1</td>
+	 *         </tr>
+	 *         <tr>
+	 *             <td>db1.tab1</td>
+	 *             <td>default_catalog.db1.tab1</td>
+	 *         </tr>
+	 *         <tr>
+	 *             <td>cat1.db1.tab1</td>
+	 *             <td>cat1.db1.tab1</td>
+	 *         </tr>
+	 *     </tbody>
+	 * </table>
+	 *
+	 * @param catalogName The name of the catalog to set as the current default catalog.
+	 * @see TableEnvironment#useDatabase(String)
 	 */
-	void sqlUpdate(String stmt, QueryConfig config);
+	@Experimental
+	void useCatalog(String catalogName);
+
+	/**
+	 * Gets the current default database name of the running session.
+	 *
+	 * @return The name of the current database of the current catalog.
+	 * @see TableEnvironment#useDatabase(String)
+	 */
+	String getCurrentDatabase();
+
+	/**
+	 * Sets the current default database. It has to exist in the current catalog. That path will be used as
+	 * the default one when looking for unqualified object names.
+	 *
+	 * <p>This is used during the resolution of object paths. Both the catalog and database are optional
+	 * when referencing catalog objects such as tables, views etc. The algorithm looks for requested objects in
+	 * following paths in that order:
+	 * <ol>
+	 *     <li>{@code [current-catalog].[current-database].[requested-path]}</li>
+	 *     <li>{@code [current-catalog].[requested-path]}</li>
+	 *     <li>{@code [requested-path]}</li>
+	 * </ol>
+	 *
+	 * <p>Example:
+	 *
+	 * <p>Given structure with default catalog set to {@code default_catalog} and default database set to
+	 * {@code default_database}.
+	 * <pre>
+	 * root:
+	 *   |- default_catalog
+	 *       |- default_database
+	 *           |- tab1
+	 *       |- db1
+	 *           |- tab1
+	 *   |- cat1
+	 *       |- db1
+	 *           |- tab1
+	 * </pre>
+	 *
+	 * <p></p>The following table describes resolved paths:
+	 * <table>
+	 *     <thead>
+	 *         <tr>
+	 *             <th>Requested path</th>
+	 *             <th>Resolved path</th>
+	 *         </tr>
+	 *     </thead>
+	 *     <tbody>
+	 *         <tr>
+	 *             <td>tab1</td>
+	 *             <td>default_catalog.default_database.tab1</td>
+	 *         </tr>
+	 *         <tr>
+	 *             <td>db1.tab1</td>
+	 *             <td>default_catalog.db1.tab1</td>
+	 *         </tr>
+	 *         <tr>
+	 *             <td>cat1.db1.tab1</td>
+	 *             <td>cat1.db1.tab1</td>
+	 *         </tr>
+	 *     </tbody>
+	 * </table>
+	 *
+	 * @param databaseName The name of the database to set as the current database.
+	 * @see TableEnvironment#useCatalog(String)
+	 */
+	@Experimental
+	void useDatabase(String databaseName);
 
 	/**
 	 * Returns the table config that defines the runtime behavior of the Table API.
 	 */
 	TableConfig getConfig();
+
+	/**
+	 * Triggers the program execution. The environment will execute all parts of
+	 * the program.
+	 *
+	 * <p>The program execution will be logged and displayed with the provided name
+	 *
+	 * <p><b>NOTE:</b>It is highly advised to set all parameters in the {@link TableConfig}
+	 * on the very beginning of the program. It is undefined what configurations values will
+	 * be used for the execution if queries are mixed with config changes. It depends on
+	 * the characteristic of the particular parameter. For some of them the value from the
+	 * point in time of query construction (e.g. the currentCatalog) will be used. On the
+	 * other hand some values might be evaluated according to the state from the time when
+	 * this method is called (e.g. timeZone).
+	 *
+	 * @param jobName Desired name of the job
+	 * @return The result of the job execution, containing elapsed time and accumulators.
+	 * @throws Exception which occurs during job execution.
+	 */
+	JobExecutionResult execute(String jobName) throws Exception;
 }

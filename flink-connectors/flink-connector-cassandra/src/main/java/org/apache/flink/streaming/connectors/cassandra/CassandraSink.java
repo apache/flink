@@ -21,6 +21,7 @@ package org.apache.flink.streaming.connectors.cassandra;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
@@ -29,9 +30,7 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.types.Row;
 
@@ -65,7 +64,7 @@ public class CassandraSink<IN> {
 		return sink1.getTransformation();
 	}
 
-	private StreamTransformation<IN> getStreamTransformation() {
+	private Transformation<IN> getTransformation() {
 		return sink2.getTransformation();
 	}
 
@@ -79,7 +78,7 @@ public class CassandraSink<IN> {
 		if (useDataStreamSink) {
 			getSinkTransformation().setName(name);
 		} else {
-			getStreamTransformation().setName(name);
+			getTransformation().setName(name);
 		}
 		return this;
 	}
@@ -101,7 +100,7 @@ public class CassandraSink<IN> {
 		if (useDataStreamSink) {
 			getSinkTransformation().setUid(uid);
 		} else {
-			getStreamTransformation().setUid(uid);
+			getTransformation().setUid(uid);
 		}
 		return this;
 	}
@@ -129,7 +128,7 @@ public class CassandraSink<IN> {
 		if (useDataStreamSink) {
 			getSinkTransformation().setUidHash(uidHash);
 		} else {
-			getStreamTransformation().setUidHash(uidHash);
+			getTransformation().setUidHash(uidHash);
 		}
 		return this;
 	}
@@ -142,9 +141,9 @@ public class CassandraSink<IN> {
 	 */
 	public CassandraSink<IN> setParallelism(int parallelism) {
 		if (useDataStreamSink) {
-			getSinkTransformation().setParallelism(parallelism);
+			sink1.setParallelism(parallelism);
 		} else {
-			getStreamTransformation().setParallelism(parallelism);
+			sink2.setParallelism(parallelism);
 		}
 		return this;
 	}
@@ -162,9 +161,9 @@ public class CassandraSink<IN> {
 	 */
 	public CassandraSink<IN> disableChaining() {
 		if (useDataStreamSink) {
-			getSinkTransformation().setChainingStrategy(ChainingStrategy.NEVER);
+			sink1.disableChaining();
 		} else {
-			getStreamTransformation().setChainingStrategy(ChainingStrategy.NEVER);
+			sink2.disableChaining();
 		}
 		return this;
 	}
@@ -186,7 +185,7 @@ public class CassandraSink<IN> {
 		if (useDataStreamSink) {
 			getSinkTransformation().setSlotSharingGroup(slotSharingGroup);
 		} else {
-			getStreamTransformation().setSlotSharingGroup(slotSharingGroup);
+			getTransformation().setSlotSharingGroup(slotSharingGroup);
 		}
 		return this;
 	}
@@ -396,6 +395,19 @@ public class CassandraSink<IN> {
 		 */
 		public CassandraSinkBuilder<IN> setMaxConcurrentRequests(int maxConcurrentRequests) {
 			this.configBuilder.setMaxConcurrentRequests(maxConcurrentRequests);
+			return this;
+		}
+
+		/**
+		 * Enables ignoring null values, treats null values as unset and avoids writing null fields
+		 * and creating tombstones.
+		 *
+		 * <p>This call has no effect if {@link CassandraSinkBuilder#enableWriteAheadLog()} is called.
+		 *
+		 * @return this builder
+		 */
+		public CassandraSinkBuilder<IN> enableIgnoreNullFields() {
+			this.configBuilder.setIgnoreNullFields(true);
 			return this;
 		}
 

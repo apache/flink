@@ -139,11 +139,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 
 	private final LeaderRetrievalService webMonitorRetrievalService;
 
-	private final LeaderRetrievalService dispatcherRetrievalService;
-
 	private final LeaderRetriever webMonitorLeaderRetriever = new LeaderRetriever();
-
-	private final LeaderRetriever dispatcherLeaderRetriever = new LeaderRetriever();
 
 	/** ExecutorService to run operations that can be retried on exceptions. */
 	private ScheduledExecutorService retryExecutorService;
@@ -193,14 +189,12 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		} else {
 			this.webMonitorRetrievalService = webMonitorRetrievalService;
 		}
-		this.dispatcherRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();
 		this.retryExecutorService = Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("Flink-RestClusterClient-Retry"));
 		startLeaderRetrievers();
 	}
 
 	private void startLeaderRetrievers() throws Exception {
 		this.webMonitorRetrievalService.start(webMonitorLeaderRetriever);
-		this.dispatcherRetrievalService.start(dispatcherLeaderRetriever);
 	}
 
 	@Override
@@ -214,12 +208,6 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			webMonitorRetrievalService.stop();
 		} catch (Exception e) {
 			log.error("An error occurred during stopping the webMonitorRetrievalService", e);
-		}
-
-		try {
-			dispatcherRetrievalService.stop();
-		} catch (Exception e) {
-			log.error("An error occurred during stopping the dispatcherLeaderRetriever", e);
 		}
 
 		try {

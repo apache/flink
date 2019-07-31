@@ -205,7 +205,12 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 	private TaskManagerServicesConfiguration createTaskManagerServiceConfiguration(
 			Configuration config) throws IOException {
 		return TaskManagerServicesConfiguration.fromConfiguration(
-			config, MEM_SIZE_PARAM, InetAddress.getLocalHost(), true);
+			config,
+			ResourceID.generate(),
+			InetAddress.getLocalHost(),
+			MEM_SIZE_PARAM,
+			MEM_SIZE_PARAM,
+			true);
 	}
 
 	private TaskManagerServices createTaskManagerServices(
@@ -213,9 +218,6 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 		return TaskManagerServices.fromConfiguration(
 			config,
 			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
-			ResourceID.generate(),
-			Executors.directExecutor(),
-			MEM_SIZE_PARAM,
-			MEM_SIZE_PARAM);
+			Executors.directExecutor());
 	}
 }

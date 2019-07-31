@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.transformations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
@@ -34,18 +35,18 @@ import java.util.List;
 
 /**
  * This Transformation represents the application of a
- * {@link TwoInputStreamOperator} to two input {@code StreamTransformations}.
+ * {@link TwoInputStreamOperator} to two input {@code Transformations}.
  * The result is again only one stream.
  *
- * @param <IN1> The type of the elements in the first input {@code StreamTransformation}
- * @param <IN2> The type of the elements in the second input {@code StreamTransformation}
+ * @param <IN1> The type of the elements in the first input {@code Transformation}
+ * @param <IN2> The type of the elements in the second input {@code Transformation}
  * @param <OUT> The type of the elements that result from this {@code TwoInputTransformation}
  */
 @Internal
-public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<OUT> {
+public class TwoInputTransformation<IN1, IN2, OUT> extends PhysicalTransformation<OUT> {
 
-	private final StreamTransformation<IN1> input1;
-	private final StreamTransformation<IN2> input2;
+	private final Transformation<IN1> input1;
+	private final Transformation<IN2> input2;
 
 	private final StreamOperatorFactory<OUT> operatorFactory;
 
@@ -58,16 +59,16 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<
 	/**
 	 * Creates a new {@code TwoInputTransformation} from the given inputs and operator.
 	 *
-	 * @param input1 The first input {@code StreamTransformation}
-	 * @param input2 The second input {@code StreamTransformation}
-	 * @param name The name of the {@code StreamTransformation}, this will be shown in Visualizations and the Log
+	 * @param input1 The first input {@code Transformation}
+	 * @param input2 The second input {@code Transformation}
+	 * @param name The name of the {@code Transformation}, this will be shown in Visualizations and the Log
 	 * @param operator The {@code TwoInputStreamOperator}
 	 * @param outputType The type of the elements produced by this Transformation
 	 * @param parallelism The parallelism of this Transformation
 	 */
 	public TwoInputTransformation(
-			StreamTransformation<IN1> input1,
-			StreamTransformation<IN2> input2,
+			Transformation<IN1> input1,
+			Transformation<IN2> input2,
 			String name,
 			TwoInputStreamOperator<IN1, IN2, OUT> operator,
 			TypeInformation<OUT> outputType,
@@ -76,8 +77,8 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<
 	}
 
 	public TwoInputTransformation(
-			StreamTransformation<IN1> input1,
-			StreamTransformation<IN2> input2,
+			Transformation<IN1> input1,
+			Transformation<IN2> input2,
 			String name,
 			StreamOperatorFactory<OUT> operatorFactory,
 			TypeInformation<OUT> outputType,
@@ -89,16 +90,16 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<
 	}
 
 	/**
-	 * Returns the first input {@code StreamTransformation} of this {@code TwoInputTransformation}.
+	 * Returns the first input {@code Transformation} of this {@code TwoInputTransformation}.
 	 */
-	public StreamTransformation<IN1> getInput1() {
+	public Transformation<IN1> getInput1() {
 		return input1;
 	}
 
 	/**
-	 * Returns the second input {@code StreamTransformation} of this {@code TwoInputTransformation}.
+	 * Returns the second input {@code Transformation} of this {@code TwoInputTransformation}.
 	 */
-	public StreamTransformation<IN2> getInput2() {
+	public Transformation<IN2> getInput2() {
 		return input2;
 	}
 
@@ -169,8 +170,8 @@ public class TwoInputTransformation<IN1, IN2, OUT> extends StreamTransformation<
 	}
 
 	@Override
-	public Collection<StreamTransformation<?>> getTransitivePredecessors() {
-		List<StreamTransformation<?>> result = Lists.newArrayList();
+	public Collection<Transformation<?>> getTransitivePredecessors() {
+		List<Transformation<?>> result = Lists.newArrayList();
 		result.add(this);
 		result.addAll(input1.getTransitivePredecessors());
 		result.addAll(input2.getTransitivePredecessors());

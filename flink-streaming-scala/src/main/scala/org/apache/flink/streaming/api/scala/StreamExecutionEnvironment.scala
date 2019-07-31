@@ -615,7 +615,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
     
     val cleanFun = scalaClean(function)
     val typeInfo = implicitly[TypeInformation[T]]
-    asScalaStream(javaEnv.addSource(cleanFun).returns(typeInfo))
+    asScalaStream(javaEnv.addSource(cleanFun, typeInfo))
   }
 
   /**
@@ -683,7 +683,7 @@ class StreamExecutionEnvironment(javaEnv: JavaEnv) {
    */
   private[flink] def scalaClean[F <: AnyRef](f: F): F = {
     if (getConfig.isClosureCleanerEnabled) {
-      ClosureCleaner.clean(f, true)
+      ClosureCleaner.clean(f, true, getConfig.getClosureCleanerLevel)
     } else {
       ClosureCleaner.ensureSerializable(f)
     }

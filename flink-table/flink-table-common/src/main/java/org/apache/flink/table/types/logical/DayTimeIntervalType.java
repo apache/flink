@@ -38,12 +38,12 @@ import java.util.Set;
  * ranging from {@code -999999 23:59:59.999999999} to {@code +999999 23:59:59.999999999}. The value
  * representation is the same for all types of resolutions. For example, an interval of seconds of 70
  * is always represented in an interval-of-days-to-seconds format (with default precisions):
- * {@code +00 00:01:10.000000}).
+ * {@code +00 00:01:10.000000}.
  *
  * <p>The serialized string representation is {@code INTERVAL DAY(p1)}, {@code INTERVAL DAY(p1) TO HOUR},
  * {@code INTERVAL DAY(p1) TO MINUTE}, {@code INTERVAL DAY(p1) TO SECOND(p2)}, {@code INTERVAL HOUR},
  * {@code INTERVAL HOUR TO MINUTE}, {@code INTERVAL HOUR TO SECOND(p2)}, {@code INTERVAL  MINUTE},
- * {@code INTERVAL  MINUTE TO SECOND(p2)}, or {@code INTERVAL SECOND(p2)} where {@code p1} is the number
+ * {@code INTERVAL MINUTE TO SECOND(p2)}, or {@code INTERVAL SECOND(p2)} where {@code p1} is the number
  * of digits of days (=day precision) and {@code p2} is the number of digits of fractional seconds
  * (=fractional precision). {@code p1} must have a value between 1 and 6 (both inclusive). {@code p2}
  * must have a value between 0 and 9 (both inclusive). If no {@code p1} is specified, it is equal to 2 by
@@ -101,6 +101,8 @@ public final class DayTimeIntervalType extends LogicalType {
 
 	/**
 	 * Supported resolutions of this type.
+	 *
+	 * <p>Note: The order of this enum reflects the granularity from coarse to fine.
 	 */
 	public enum DayTimeResolution {
 		DAY,

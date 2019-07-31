@@ -22,8 +22,8 @@ import org.apache.flink.core.memory.MemorySegment;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 
-import static org.apache.flink.table.util.SegmentsUtil.allocateReuseBytes;
-import static org.apache.flink.table.util.SegmentsUtil.allocateReuseChars;
+import static org.apache.flink.table.runtime.util.SegmentsUtil.allocateReuseBytes;
+import static org.apache.flink.table.runtime.util.SegmentsUtil.allocateReuseChars;
 
 /**
  * String utf-8 utils.

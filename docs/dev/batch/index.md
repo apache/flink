@@ -829,7 +829,7 @@ File-based:
 
 Collection-based:
 
-- `fromCollection(Collection)` - Creates a data set from the Java Java.util.Collection. All elements
+- `fromCollection(Collection)` - Creates a data set from a Java.util.Collection. All elements
   in the collection must be of the same type.
 
 - `fromCollection(Iterator, Class)` - Creates a data set from an iterator. The class specifies the
@@ -970,8 +970,8 @@ File-based:
 
 Collection-based:
 
-- `fromCollection(Seq)` - Creates a data set from a Seq. All elements
-  in the collection must be of the same type.
+- `fromCollection(Iterable)` - Creates a data set from an Iterable. All elements
+  returned by the Iterable must be of the same type.
 
 - `fromCollection(Iterator)` - Creates a data set from an Iterator. The class specifies the
   data type of the elements returned by the iterator.

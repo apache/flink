@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -47,6 +48,7 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -197,10 +199,11 @@ public class TimestampITCase extends TestLogger {
 							clusterClient.stopWithSavepoint(id, false, "test");
 						}
 						catch (Exception e) {
-							if (
-									!(e.getCause() instanceof CheckpointException) ||
-									!e.getCause().getMessage().contains("Not all required tasks are currently running.")
-							) {
+							boolean ignoreException = ExceptionUtils.findThrowable(e, CheckpointException.class)
+								.map(CheckpointException::getCheckpointFailureReason)
+								.map(reason -> reason == CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING)
+								.orElse(false);
+							if (!ignoreException) {
 								throw e;
 							}
 						}

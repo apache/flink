@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTest;
@@ -231,9 +232,10 @@ public class AbstractUdfStreamOperatorLifecycleTest {
 		@Override
 		public void run(Object lockingObject,
 						StreamStatusMaintainer streamStatusMaintainer,
-						Output<StreamRecord<OUT>> collector) throws Exception {
+						Output<StreamRecord<OUT>> collector,
+						OperatorChain<?, ?> operatorChain) throws Exception {
 			ACTUAL_ORDER_TRACKING.add("OPERATOR::run");
-			super.run(lockingObject, streamStatusMaintainer, collector);
+			super.run(lockingObject, streamStatusMaintainer, collector, operatorChain);
 			runStarted.trigger();
 			runFinish.await();
 		}

@@ -55,29 +55,16 @@ else
   NUM_SLOTS=$NEW_DOP
 fi
 
-change_conf "taskmanager.numberOfTaskSlots" "1" "${NUM_SLOTS}"
+set_config_key "taskmanager.numberOfTaskSlots" "${NUM_SLOTS}"
 
 if [ $STATE_BACKEND_ROCKS_TIMER_SERVICE_TYPE == 'rocks' ]; then
-  set_conf "state.backend.rocksdb.timer-service.factory" "rocksdb"
+  set_config_key "state.backend.rocksdb.timer-service.factory" "rocksdb"
 fi
-set_conf "metrics.fetcher.update-interval" "2000"
+set_config_key "metrics.fetcher.update-interval" "2000"
 
 setup_flink_slf4j_metric_reporter
 
 start_cluster
-
-# make sure to stop Kafka and ZooKeeper at the end, as well as cleaning up the Flink cluster and our moodifications
-function test_cleanup {
-  # don't call ourselves again for another signal interruption
-  trap "exit -1" INT
-  # don't call ourselves again for normal exit
-  trap "" EXIT
-
-  # revert our modifications to the Flink distribution
-  rm ${FLINK_DIR}/lib/flink-metrics-slf4j-*.jar
-}
-trap test_cleanup INT
-trap test_cleanup EXIT
 
 CHECKPOINT_DIR="file://$TEST_DATA_DIR/savepoint-e2e-test-chckpt-dir"
 

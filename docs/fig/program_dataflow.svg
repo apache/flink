@@ -336,7 +336,7 @@ under the License.
          y="202.80663"
          id="text3085"
          xml:space="preserve"
-         style="font-size:13.80343914px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Courier New">RollingSink</text>
+         style="font-size:13.80343914px;font-style:normal;font-weight:normal;text-align:start;text-anchor:start;fill:#000000;font-family:Courier New">BucketingSink</text>
       <text
          x="265.36435"
          y="202.80663"

@@ -8,6 +8,11 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>yarn.application-attempt-failures-validity-interval</h5></td>
+            <td style="word-wrap: break-word;">10000</td>
+            <td>Time window in milliseconds which defines the number of application attempt failures when restarting the AM. Failures which fall outside of this window are not being considered. Set this value to -1 in order to count globally. See <a href="https://hortonworks.com/blog/apache-hadoop-yarn-hdp-2-2-fault-tolerance-features-long-running-services/">here</a> for more information.</td>
+        </tr>
+        <tr>
             <td><h5>yarn.application-attempts</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Number of ApplicationMaster restarts. Note that that the entire Flink cluster will restart and the YARN Client will loose the connection. Also, the JobManager address will change and you’ll need to set the JM host:port manually. It is recommended to leave this option at 1.</td>
@@ -26,6 +31,11 @@
             <td><h5>yarn.appmaster.rpc.port</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>The port where the application master RPC system is listening.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.appmaster.vcores</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>The number of virtual cores (vcores) used by YARN application master.</td>
         </tr>
         <tr>
             <td><h5>yarn.containers.vcores</h5></td>

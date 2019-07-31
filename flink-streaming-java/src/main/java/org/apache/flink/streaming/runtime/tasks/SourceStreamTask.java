@@ -25,7 +25,10 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
 import org.apache.flink.util.FlinkException;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@link StreamTask} for executing a {@link StreamSource}.
@@ -46,6 +49,12 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	extends StreamTask<OUT, OP> {
 
 	private volatile boolean externallyInducedCheckpoints;
+
+	/**
+	 * Indicates whether this Task was purposefully finished (by finishTask()), in this case we
+	 * want to ignore exceptions thrown after finishing, to ensure shutdown works smoothly.
+	 */
+	private volatile boolean isFinished = false;
 
 	public SourceStreamTask(Environment env) {
 		super(env);
@@ -98,12 +107,25 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	}
 
 	@Override
-	protected void run() throws Exception {
-		headOperator.run(getCheckpointLock(), getStreamStatusMaintainer());
+	protected void performDefaultAction(DefaultActionContext context) throws Exception {
+
+		context.suspendDefaultAction();
+
+		// Against the usual contract of this method, this implementation is not step-wise but blocking instead for
+		// compatibility reasons with the current source interface (source functions run as a loop, not in steps).
+		final LegacySourceFunctionThread sourceThread = new LegacySourceFunctionThread(getName());
+		sourceThread.start();
+		sourceThread.getCompletionFuture().whenComplete((Void ignore, Throwable sourceThreadThrowable) -> {
+			if (sourceThreadThrowable == null || isFinished) {
+				mailboxProcessor.allActionsCompleted();
+			} else {
+				mailboxProcessor.reportThrowable(sourceThreadThrowable);
+			}
+		});
 	}
 
 	@Override
-	protected void cancelTask() throws Exception {
+	protected void cancelTask() {
 		if (headOperator != null) {
 			headOperator.cancel();
 		}
@@ -111,6 +133,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	@Override
 	protected void finishTask() throws Exception {
+		isFinished = true;
 		cancelTask();
 	}
 
@@ -128,6 +151,33 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 			synchronized (getCheckpointLock()) {
 				return isRunning();
 			}
+		}
+	}
+
+	/**
+	 * Runnable that executes the the source function in the head operator.
+	 */
+	private class LegacySourceFunctionThread extends Thread {
+
+		private final CompletableFuture<Void> completionFuture;
+
+		LegacySourceFunctionThread(String taskDescription) {
+			super("Legacy Source Thread - " + taskDescription);
+			this.completionFuture = new CompletableFuture<>();
+		}
+
+		@Override
+		public void run() {
+			try {
+				headOperator.run(getCheckpointLock(), getStreamStatusMaintainer(), operatorChain);
+				completionFuture.complete(null);
+			} catch (Throwable t) {
+				completionFuture.completeExceptionally(t);
+			}
+		}
+
+		CompletableFuture<Void> getCompletionFuture() {
+			return completionFuture;
 		}
 	}
 }
