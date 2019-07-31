@@ -2867,12 +2867,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 				Collection<OperatorStateHandle> managedOperatorState = opState.getManagedOperatorState();
 				assertEquals(1, managedOperatorState.size());
-				assertTrue(CommonTestUtils.isSteamContentEqual(expectedManagedOpState.openInputStream(),
+				assertTrue(CommonTestUtils.isStreamContentEqual(expectedManagedOpState.openInputStream(),
 					managedOperatorState.iterator().next().openInputStream()));
 
 				Collection<OperatorStateHandle> rawOperatorState = opState.getRawOperatorState();
 				assertEquals(1, rawOperatorState.size());
-				assertTrue(CommonTestUtils.isSteamContentEqual(expectedRawOpState.openInputStream(),
+				assertTrue(CommonTestUtils.isStreamContentEqual(expectedRawOpState.openInputStream(),
 					rawOperatorState.iterator().next().openInputStream()));
 			}
 			// operator2
@@ -2888,12 +2888,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 				Collection<OperatorStateHandle> managedOperatorState = opState.getManagedOperatorState();
 				assertEquals(1, managedOperatorState.size());
-				assertTrue(CommonTestUtils.isSteamContentEqual(expectedManagedOpState.openInputStream(),
+				assertTrue(CommonTestUtils.isStreamContentEqual(expectedManagedOpState.openInputStream(),
 					managedOperatorState.iterator().next().openInputStream()));
 
 				Collection<OperatorStateHandle> rawOperatorState = opState.getRawOperatorState();
 				assertEquals(1, rawOperatorState.size());
-				assertTrue(CommonTestUtils.isSteamContentEqual(expectedRawOpState.openInputStream(),
+				assertTrue(CommonTestUtils.isStreamContentEqual(expectedRawOpState.openInputStream(),
 					rawOperatorState.iterator().next().openInputStream()));
 			}
 		}
@@ -3290,7 +3290,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			ChainedStateHandle<OperatorStateHandle> expectedOpStateBackend =
 					generateChainedPartitionableStateHandle(jobVertexID, i, 2, 8, false);
 
-			assertTrue(CommonTestUtils.isSteamContentEqual(
+			assertTrue(CommonTestUtils.isStreamContentEqual(
 					expectedOpStateBackend.get(0).openInputStream(),
 					operatorState.getManagedOperatorState().iterator().next().openInputStream()));
 
