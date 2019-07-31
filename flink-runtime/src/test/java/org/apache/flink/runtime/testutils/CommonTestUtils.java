@@ -157,7 +157,7 @@ public class CommonTestUtils {
 		}
 	}
 
-	public static boolean isSteamContentEqual(InputStream input1, InputStream input2) throws IOException {
+	public static boolean isStreamContentEqual(InputStream input1, InputStream input2) throws IOException {
 
 		if (!(input1 instanceof BufferedInputStream)) {
 			input1 = new BufferedInputStream(input1);
