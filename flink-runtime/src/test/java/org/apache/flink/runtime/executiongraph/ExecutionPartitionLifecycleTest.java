@@ -99,6 +99,20 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
 
 	@Test
 	public void testPartitionReleaseOnFinishWhileCanceling() throws Exception {
+		testPartitionReleaseOnStateTransitionsAfterRunning(Execution::cancel, Execution::markFinished);
+	}
+
+	@Test
+	public void testPartitionReleaseOnCancelWhileFinished() throws Exception {
+		testPartitionReleaseOnStateTransitionsAfterRunning(Execution::markFinished, Execution::cancel);
+	}
+
+	@Test
+	public void testPartitionReleaseOnSuspendWhileFinished() throws Exception {
+		testPartitionReleaseOnStateTransitionsAfterRunning(Execution::markFinished, Execution::suspend);
+	}
+
+	private void testPartitionReleaseOnStateTransitionsAfterRunning(Consumer<Execution> stateTransition1, Consumer<Execution> stateTransition2) throws Exception {
 		final SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
 		final CompletableFuture<Tuple2<JobID, Collection<ResultPartitionID>>> releasePartitionsCallFuture = new CompletableFuture<>();
 		taskManagerGateway.setReleasePartitionsConsumer(((jobID, partitionIds) -> releasePartitionsCallFuture.complete(Tuple2.of(jobID, partitionIds))));
@@ -107,10 +121,10 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
 
 		setupExecutionGraphAndStartRunningJob(ResultPartitionType.PIPELINED, NoOpPartitionTracker.INSTANCE, taskManagerGateway, testingShuffleMaster);
 
-		execution.cancel();
+		stateTransition1.accept(execution);
 		assertFalse(releasePartitionsCallFuture.isDone());
 
-		execution.markFinished();
+		stateTransition2.accept(execution);
 		assertTrue(releasePartitionsCallFuture.isDone());
 
 		final Tuple2<JobID, Collection<ResultPartitionID>> releasePartitionsCall = releasePartitionsCallFuture.get();
