@@ -560,7 +560,7 @@ abstract class CommonLookupJoin(
       joinType: JoinRelType): Unit = {
 
     // check join on all fields of PRIMARY KEY or (UNIQUE) INDEX
-    if (allLookupKeys.isEmpty || allLookupKeys.isEmpty) {
+    if (allLookupKeys.isEmpty) {
       throw new TableException(
         "Temporal table join requires an equality condition on fields of " +
           s"table [${tableSource.explainSource()}].")
