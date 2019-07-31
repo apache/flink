@@ -350,11 +350,11 @@ Sink(name=[sink2], fields=[a, cnt])
 
 									 : Data Sink
 										content : Sink: collect
-										ship_strategy : FORWARD
+										ship_strategy : REBALANCE
 
 										 : Data Sink
 											content : Sink: collect
-											ship_strategy : FORWARD
+											ship_strategy : REBALANCE
 
 ]]>
     </Resource>
@@ -429,11 +429,11 @@ Sink(name=[sink2], fields=[a, cnt]): rowcount = , cumulative cost = {rows, cpu, 
 
 									 : Data Sink
 										content : Sink: collect
-										ship_strategy : FORWARD
+										ship_strategy : REBALANCE
 
 										 : Data Sink
 											content : Sink: collect
-											ship_strategy : FORWARD
+											ship_strategy : REBALANCE
 
 ]]>
     </Resource>

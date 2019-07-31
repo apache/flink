@@ -146,13 +146,16 @@ abstract class PlannerBase(
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
+    translateToPlan(execNodes)
+  }
+
+  protected def overrideEnvParallelism(): Unit = {
     // Use config parallelism to override env parallelism.
     val defaultParallelism = getTableConfig.getConfiguration.getInteger(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM)
     if (defaultParallelism > 0) {
       getExecEnv.setParallelism(defaultParallelism)
     }
-    translateToPlan(execNodes)
   }
 
   override def getCompletionHints(statement: String, position: Int): Array[String] = {

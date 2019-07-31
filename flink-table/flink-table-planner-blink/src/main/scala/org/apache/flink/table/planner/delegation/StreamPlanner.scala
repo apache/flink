@@ -56,6 +56,7 @@ class StreamPlanner(
 
   override protected def translateToPlan(
       execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
+    overrideEnvParallelism()
     execNodes.map {
       case node: StreamExecNode[_] => node.translateToPlan(this)
       case _ =>
