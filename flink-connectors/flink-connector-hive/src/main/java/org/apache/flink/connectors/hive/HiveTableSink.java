@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.batch.connectors.hive;
+package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
