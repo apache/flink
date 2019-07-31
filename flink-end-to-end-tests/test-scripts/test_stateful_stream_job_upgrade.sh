@@ -63,6 +63,17 @@ SAVEPOINT_PATH=$(stop_with_savepoint ${ORIGINAL_JOB} ${TEST_DATA_DIR} \
 
 wait_job_terminal_state "${ORIGINAL_JOB}" "FINISHED"
 
+# isolate the path without the scheme ("file:") and do the necessary checks
+SAVEPOINT_DIR=${SAVEPOINT_PATH#"file:"}
+
+if [ -z "$SAVEPOINT_DIR" ]; then
+  echo "Savepoint location was empty. This may mean that the stop-with-savepoint failed."
+  exit 1
+elif [ ! -d "$SAVEPOINT_DIR" ]; then
+  echo "Savepoint $SAVEPOINT_PATH does not exist."
+  exit 1
+fi
+
 JOB=$(job ${NEW_DOP})
 UPGRADED_JOB=$(${JOB} --test.job.variant upgraded \
   | grep "Job has been submitted with JobID" | sed 's/.* //g')
