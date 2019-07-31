@@ -471,6 +471,10 @@ function wait_job_terminal_state {
   done
 }
 
+function stop_with_savepoint {
+  "$FLINK_DIR"/bin/flink stop -p $2 $1
+}
+
 function take_savepoint {
   "$FLINK_DIR"/bin/flink savepoint $1 $2
 }
