@@ -220,7 +220,12 @@ public class FlinkDDLDataTypeTest {
 			createTestItem("ROW<f0 MyType, f1 `c`.`d`.`t`>",
 				"(?s).*UDT in DDL is not supported yet..*"),
 			createTestItem("^INTERVAL^ YEAR",
-				"(?s).*Encountered \"INTERVAL\" at line 2, column 6..*"));
+				"(?s).*Encountered \"INTERVAL\" at line 2, column 6..*"),
+			createTestItem("ANY(^'unknown.class'^, '')",
+				"(?s).*Encountered \"\\\\'unknown.class\\\\'\" at line 2, column 10.\n.*"
+					+ "Was expecting:\n"
+					+ "    <UNSIGNED_INTEGER_LITERAL> ...\n"
+					+ ".*"));
 	}
 
 	private static TestItem createTestItem(Object... args) {

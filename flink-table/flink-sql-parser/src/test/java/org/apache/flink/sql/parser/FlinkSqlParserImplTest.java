@@ -362,27 +362,6 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
-	public void testCreateTableWithDecimalType() {
-		check("CREATE TABLE tbl1 (\n" +
-			"  a decimal, \n" +
-			"  b decimal(10, 0),\n" +
-			"  c decimal(38, 38),\n" +
-			"  PRIMARY KEY (a, b) \n" +
-			") with (\n" +
-			"  x = 'y', \n" +
-			"  asd = 'data'\n" +
-			")\n", "CREATE TABLE `TBL1` (\n" +
-			"  `A`  DECIMAL,\n" +
-			"  `B`  DECIMAL(10, 0),\n" +
-			"  `C`  DECIMAL(38, 38),\n" +
-			"  PRIMARY KEY (`A`, `B`)\n" +
-			") WITH (\n" +
-			"  `X` = 'y',\n" +
-			"  `ASD` = 'data'\n" +
-			")");
-	}
-
-	@Test
 	public void testCreateTableWithComplexType() {
 		check("CREATE TABLE tbl1 (\n" +
 			"  a ARRAY<bigint>, \n" +

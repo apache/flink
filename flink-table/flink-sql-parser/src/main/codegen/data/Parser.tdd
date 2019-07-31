@@ -33,11 +33,11 @@
     "org.apache.flink.sql.parser.type.SqlArrayType",
     "org.apache.flink.sql.parser.type.SqlBytesType",
     "org.apache.flink.sql.parser.type.SqlMapType",
-    "org.apache.flink.sql.parser.type.SqlMultiSetType",
+    "org.apache.flink.sql.parser.type.SqlMultisetType",
     "org.apache.flink.sql.parser.type.SqlRowType",
     "org.apache.flink.sql.parser.type.SqlStringType",
-    "org.apache.flink.sql.parser.type.SqlZonedTimeType",
-    "org.apache.flink.sql.parser.type.SqlZonedTimestampType",
+    "org.apache.flink.sql.parser.type.SqlTimeType",
+    "org.apache.flink.sql.parser.type.SqlTimestampType",
     "org.apache.flink.sql.parser.utils.SqlTimeUnit",
     "org.apache.flink.sql.parser.validate.FlinkSqlConformance",
     "org.apache.flink.sql.parser.FlinkSqlDataTypeSpec",
@@ -392,18 +392,18 @@
   literalParserMethods: [
   ]
 
-  # List of methods for parsing flink custom data types.
+  # List of methods for parsing ddl supported data types.
   # Return type of method implementation should be "SqlIdentifier".
   # Example: SqlParseTimeStampZ().
   flinkDataTypeParserMethods: [
     "SqlArrayType()",
-    "SqlMultiSetType()",
+    "SqlMultisetType()",
     "SqlMapType()",
     "SqlRowType()",
     "SqlStringType()",
     "SqlBytesType()",
-    "SqlZonedTimestampType()",
-    "SqlZonedTimeType()"
+    "SqlTimestampType()",
+    "SqlTimeType()"
   ]
 
   # List of methods for parsing custom data types.

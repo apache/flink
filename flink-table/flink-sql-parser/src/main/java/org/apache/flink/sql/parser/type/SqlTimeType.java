@@ -27,11 +27,11 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * Parse type "TIME WITHOUT TIME ZONE", "TIME(3) WITHOUT TIME ZONE", "TIME WITH LOCAL TIME ZONE",
  * or "TIME(3) WITH LOCAL TIME ZONE".
  */
-public class SqlZonedTimeType extends SqlIdentifier implements ExtendedSqlType {
+public class SqlTimeType extends SqlIdentifier implements ExtendedSqlType {
 	private final int precision;
 	private final boolean withLocalTimeZone;
 
-	public SqlZonedTimeType(SqlParserPos pos, int precision, boolean withLocalTimeZone) {
+	public SqlTimeType(SqlParserPos pos, int precision, boolean withLocalTimeZone) {
 		super(getTypeName(withLocalTimeZone), pos);
 		this.precision = precision;
 		this.withLocalTimeZone = withLocalTimeZone;

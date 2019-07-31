@@ -22,11 +22,11 @@ import org.apache.flink.sql.parser.type.ExtendedSqlType;
 import org.apache.flink.sql.parser.type.SqlArrayType;
 import org.apache.flink.sql.parser.type.SqlBytesType;
 import org.apache.flink.sql.parser.type.SqlMapType;
-import org.apache.flink.sql.parser.type.SqlMultiSetType;
+import org.apache.flink.sql.parser.type.SqlMultisetType;
 import org.apache.flink.sql.parser.type.SqlRowType;
 import org.apache.flink.sql.parser.type.SqlStringType;
-import org.apache.flink.sql.parser.type.SqlZonedTimeType;
-import org.apache.flink.sql.parser.type.SqlZonedTimestampType;
+import org.apache.flink.sql.parser.type.SqlTimeType;
+import org.apache.flink.sql.parser.type.SqlTimestampType;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -56,8 +56,8 @@ import java.util.stream.Collectors;
  * complex type expressions like:</p>
  *
  * <blockquote><code>ROW(<br>
- *   NUMBER(5, 2) NOT NULL AS foo,<br>
- *   ROW(BOOLEAN AS b, MyUDT NOT NULL AS i) AS rec)</code></blockquote>
+ *   foo NUMBER(5, 2) NOT NULL,<br>
+ *   rec ROW(b BOOLEAN, i MyUDT NOT NULL))</code></blockquote>
  *
  * <p>Until <a href="https://issues.apache.org/jira/browse/CALCITE-3213">CALCITE-3213</a>
  * is resolved, we can remove this class.
@@ -285,8 +285,8 @@ public class FlinkSqlDataTypeSpec extends SqlDataTypeSpec {
 			final SqlArrayType arrayType = (SqlArrayType) typeName;
 			return typeFactory.createArrayType(arrayType.getElementType()
 				.deriveType(typeFactory), -1);
-		} else if (typeName instanceof SqlMultiSetType) {
-			final SqlMultiSetType multiSetType = (SqlMultiSetType) typeName;
+		} else if (typeName instanceof SqlMultisetType) {
+			final SqlMultisetType multiSetType = (SqlMultisetType) typeName;
 			return typeFactory.createMultisetType(multiSetType.getElementType()
 				.deriveType(typeFactory), -1);
 		} else if (typeName instanceof SqlMapType) {
@@ -301,8 +301,8 @@ public class FlinkSqlDataTypeSpec extends SqlDataTypeSpec {
 					.collect(Collectors.toList()),
 				rowType.getFieldNames().stream().map(SqlIdentifier::getSimple)
 					.collect(Collectors.toList()));
-		} else if (typeName instanceof SqlZonedTimeType) {
-			final SqlZonedTimeType zonedTimeType = (SqlZonedTimeType) typeName;
+		} else if (typeName instanceof SqlTimeType) {
+			final SqlTimeType zonedTimeType = (SqlTimeType) typeName;
 			if (zonedTimeType.getPrecision() >= 0) {
 				return typeFactory.createSqlType(zonedTimeType.getSqlTypeName(),
 					zonedTimeType.getPrecision());
@@ -310,8 +310,8 @@ public class FlinkSqlDataTypeSpec extends SqlDataTypeSpec {
 				// Use default precision.
 				return typeFactory.createSqlType(zonedTimeType.getSqlTypeName());
 			}
-		} else if (typeName instanceof SqlZonedTimestampType) {
-			final SqlZonedTimestampType zonedTimestampType = (SqlZonedTimestampType) typeName;
+		} else if (typeName instanceof SqlTimestampType) {
+			final SqlTimestampType zonedTimestampType = (SqlTimestampType) typeName;
 			if (zonedTimestampType.getPrecision() >= 0) {
 				return typeFactory.createSqlType(zonedTimestampType.getSqlTypeName(),
 					zonedTimestampType.getPrecision());

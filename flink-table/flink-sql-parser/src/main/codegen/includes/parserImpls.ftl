@@ -452,10 +452,6 @@ SqlDataTypeSpec FlinkDataType() :
         ]
         <RPAREN>
     ]
-    [
-        <CHARACTER> <SET>
-        charSetName = Identifier()
-    ]
     elementNullable = NullableOpt()
     [
         collectionTypeName = FlinkCollectionsTypeName()
@@ -518,7 +514,7 @@ boolean WithLocalTimeZone() :
     { return false; }
 }
 
-SqlIdentifier SqlZonedTimeType() :
+SqlIdentifier SqlTimeType() :
 {
     int precision = -1;
     boolean withLocalTimeZone = false;
@@ -531,10 +527,10 @@ SqlIdentifier SqlZonedTimeType() :
         { precision = -1; }
     )
     withLocalTimeZone = WithLocalTimeZone()
-    { return new SqlZonedTimeType(getPos(), precision, withLocalTimeZone); }
+    { return new SqlTimeType(getPos(), precision, withLocalTimeZone); }
 }
 
-SqlIdentifier SqlZonedTimestampType() :
+SqlIdentifier SqlTimestampType() :
 {
     int precision = -1;
     boolean withLocalTimeZone = false;
@@ -547,7 +543,7 @@ SqlIdentifier SqlZonedTimestampType() :
         { precision = -1; }
     )
     withLocalTimeZone = WithLocalTimeZone()
-    { return new SqlZonedTimestampType(getPos(), precision, withLocalTimeZone); }
+    { return new SqlTimestampType(getPos(), precision, withLocalTimeZone); }
 }
 
 SqlIdentifier SqlArrayType() :
@@ -566,7 +562,7 @@ SqlIdentifier SqlArrayType() :
     }
 }
 
-SqlIdentifier SqlMultiSetType() :
+SqlIdentifier SqlMultisetType() :
 {
     SqlParserPos pos;
     SqlDataTypeSpec elementType;
@@ -578,7 +574,7 @@ SqlIdentifier SqlMultiSetType() :
     elementType = FlinkDataType()
     <GT>
     {
-        return new SqlMultiSetType(pos, elementType);
+        return new SqlMultisetType(pos, elementType);
     }
 }
 
@@ -601,7 +597,7 @@ SqlIdentifier SqlMapType() :
 }
 
 /**
-* Parse a "name1 type1, name2 type2 ..." list.
+* Parse a "name1 type1 ['i'm a comment'], name2 type2 ..." list.
 */
 void FieldNameTypeCommaList(
         List<SqlIdentifier> fieldNames,

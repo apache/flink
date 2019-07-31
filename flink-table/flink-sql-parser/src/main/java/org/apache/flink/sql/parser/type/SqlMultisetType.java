@@ -27,11 +27,11 @@ import org.apache.calcite.sql.type.SqlTypeName;
 /**
  * Parse column of MULTISET type.
  */
-public class SqlMultiSetType extends SqlIdentifier implements ExtendedSqlType {
+public class SqlMultisetType extends SqlIdentifier implements ExtendedSqlType {
 
 	private final SqlDataTypeSpec elementType;
 
-	public SqlMultiSetType(SqlParserPos pos, SqlDataTypeSpec elementType) {
+	public SqlMultisetType(SqlParserPos pos, SqlDataTypeSpec elementType) {
 		super(SqlTypeName.MULTISET.getName(), pos);
 		this.elementType = elementType;
 	}
