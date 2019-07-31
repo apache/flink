@@ -161,6 +161,6 @@ class BatchExecCalc(
       RelExplainUtil.calcToString(calcProgram, getExpressionString),
       operator,
       BaseRowTypeInfo.of(outputType),
-      getResource.getParallelism)
+      inputTransform.getParallelism)
   }
 }

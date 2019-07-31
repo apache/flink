@@ -268,7 +268,7 @@ class BatchExecSortMergeJoin(
       getOperatorName,
       operator,
       BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
-      getResource.getParallelism)
+      rightInput.getParallelism)
     val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
     ret.setResources(resource, resource)
     ret

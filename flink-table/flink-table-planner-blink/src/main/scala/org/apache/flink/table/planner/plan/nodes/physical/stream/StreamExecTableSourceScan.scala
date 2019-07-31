@@ -96,7 +96,6 @@ class StreamExecTableSourceScan(
       planner: StreamPlanner): Transformation[BaseRow] = {
     val config = planner.getTableConfig
     val inputTransform = getSourceTransformation(planner.getExecEnv)
-    inputTransform.setParallelism(getResource.getParallelism)
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
@@ -143,7 +142,6 @@ class StreamExecTableSourceScan(
         rowtimeExpression,
         beforeConvert = extractElement,
         afterConvert = resetElement)
-      conversionTransform.setParallelism(getResource.getParallelism)
       conversionTransform
     } else {
       inputTransform.asInstanceOf[Transformation[BaseRow]]
@@ -174,7 +172,6 @@ class StreamExecTableSourceScan(
       // No need to generate watermarks if no rowtime attribute is specified.
       ingestedTable
     }
-    withWatermarks.getTransformation.setParallelism(getResource.getParallelism)
     withWatermarks.getTransformation
   }
 

@@ -125,6 +125,6 @@ abstract class BatchExecSortAggregateBase(
       getOperatorName,
       operator,
       BaseRowTypeInfo.of(outputType),
-      getResource.getParallelism)
+      input.getParallelism)
   }
 }

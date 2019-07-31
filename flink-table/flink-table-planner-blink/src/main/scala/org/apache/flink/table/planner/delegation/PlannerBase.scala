@@ -23,6 +23,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{TableConfig, TableEnvironment, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, CatalogTable, ConnectorCatalogTable, FunctionCatalog, ObjectPath}
 import org.apache.flink.table.delegation.{Executor, Planner}
@@ -146,6 +147,15 @@ abstract class PlannerBase(
     val optimizedRelNodes = optimize(relNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
     translateToPlan(execNodes)
+  }
+
+  protected def overrideEnvParallelism(): Unit = {
+    // Use config parallelism to override env parallelism.
+    val defaultParallelism = getTableConfig.getConfiguration.getInteger(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM)
+    if (defaultParallelism > 0) {
+      getExecEnv.setParallelism(defaultParallelism)
+    }
   }
 
   override def getCompletionHints(statement: String, position: Int): Array[String] = {

@@ -15,18 +15,18 @@ HashJoin(joinType=[InnerJoin], where=[=(s3, s30)], select=[b1, l2, s3, d4, dd5, 
  : Data Source
 	content : collect elements with CollectionInputFormat
 
- : Data Source
-	content : collect elements with CollectionInputFormat
-
 	 : Operator
 		content : SourceConversion(table:Buffer(default_catalog, default_database, T1, source: [TestTableSource(b1, l2, s3, d4, dd5)]), fields:(b1, l2, s3, d4, dd5))
 		ship_strategy : FORWARD
 
-		 : Operator
-			content : SourceConversion(table:Buffer(default_catalog, default_database, T2, source: [TestTableSource(b1, l2, s3, d4, dd5)]), fields:(b1, l2, s3, d4, dd5))
-			ship_strategy : FORWARD
+ : Data Source
+	content : collect elements with CollectionInputFormat
 
-			 : Operator
-				content : HashJoin(where: (s3 = s30), buildLeft)
-				ship_strategy : BROADCAST
+	 : Operator
+		content : SourceConversion(table:Buffer(default_catalog, default_database, T2, source: [TestTableSource(b1, l2, s3, d4, dd5)]), fields:(b1, l2, s3, d4, dd5))
+		ship_strategy : FORWARD
+
+		 : Operator
+			content : HashJoin(where: (s3 = s30), buildLeft)
+			ship_strategy : BROADCAST
 

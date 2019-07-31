@@ -26,7 +26,6 @@ import org.apache.flink.table.operations.{ModifyOperation, Operation, QueryOpera
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext
-import org.apache.flink.table.planner.plan.nodes.resource.parallelism.ParallelismProcessor
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.planner.plan.reuse.DeadlockBreakupProcessor
 import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
@@ -61,13 +60,12 @@ class BatchPlanner(
     val execNodePlan = super.translateToExecNodePlan(optimizedRelNodes)
     val context = new DAGProcessContext(this)
     // breakup deadlock
-    val postNodeDag = new DeadlockBreakupProcessor().process(execNodePlan, context)
-    // set parallelism
-    new ParallelismProcessor().process(postNodeDag, context)
+    new DeadlockBreakupProcessor().process(execNodePlan, context)
   }
 
   override protected def translateToPlan(
       execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
+    overrideEnvParallelism()
     execNodes.map {
       case node: BatchExecNode[_] => node.translateToPlan(this)
       case _ =>

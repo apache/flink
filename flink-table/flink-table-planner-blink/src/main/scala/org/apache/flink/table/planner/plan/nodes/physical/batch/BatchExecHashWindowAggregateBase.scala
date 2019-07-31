@@ -152,7 +152,7 @@ abstract class BatchExecHashWindowAggregateBase(
       getOperatorName,
       operator,
       BaseRowTypeInfo.of(outputType),
-      getResource.getParallelism)
+      input.getParallelism)
     val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
     ret.setResources(resource, resource)
     ret

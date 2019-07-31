@@ -105,7 +105,7 @@ class BatchExecExpand(
       operatorName,
       operator,
       BaseRowTypeInfo.of(outputType),
-      getResource.getParallelism)
+      inputTransform.getParallelism)
   }
 
 }

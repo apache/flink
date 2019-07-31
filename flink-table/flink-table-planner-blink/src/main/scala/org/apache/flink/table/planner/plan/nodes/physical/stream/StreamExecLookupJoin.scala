@@ -101,9 +101,9 @@ class StreamExecLookupJoin(
       planner.getExecEnv,
       planner.getTableConfig,
       planner.getRelBuilder)
-    transformation.setParallelism(getResource.getParallelism)
-    if (getResource.getMaxParallelism > 0) {
-      transformation.setMaxParallelism(getResource.getMaxParallelism)
+    if (inputsContainSingleton()) {
+      transformation.setParallelism(1)
+      transformation.setMaxParallelism(1)
     }
     transformation
   }
