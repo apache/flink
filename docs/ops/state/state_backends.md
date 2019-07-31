@@ -213,6 +213,9 @@ While we encourage the use of incremental checkpoints for large state, you need 
   - Setting a default in your `flink-conf.yaml`: `state.backend.incremental: true` will enable incremental checkpoints, unless the application overrides this setting in the code.
   - You can alternatively configure this directly in the code (overrides the config default): `RocksDBStateBackend backend = new RocksDBStateBackend(checkpointDirURI, true);`
 
+Notice that once incremental checkpoont is enabled, the `Checkpointed Data Size` showed in web UI only represents the 
+delta checkpointed data size of that checkpoint instead of full state size.
+
 ### Memory Management
 
 Flink aims to control the total process memory consumption to make sure that the Flink TaskManagers have a well-behaved memory footprint. That means staying within the limits enforced by the environment (Docker/Kubernetes, Yarn, etc) to not get killed for consuming too much memory, but also to not under-utilize memory (unnecessary spilling to disk, wasted caching opportunities, reduced performance).
