@@ -133,22 +133,17 @@ public class ResultPartitionFactory {
 			BoundedBlockingSubpartitionType blockingSubpartitionType,
 			ResultSubpartition[] subpartitions) {
 		// Create the subpartitions.
-		switch (type) {
-			case BLOCKING:
-			case BLOCKING_PERSISTENT:
-				initializeBoundedBlockingPartitions(subpartitions, partition, blockingSubpartitionType, networkBufferSize, channelManager);
-				break;
-
-			case PIPELINED:
-			case PIPELINED_BOUNDED:
-				for (int i = 0; i < subpartitions.length; i++) {
-					subpartitions[i] = new PipelinedSubpartition(i, partition);
-				}
-
-				break;
-
-			default:
-				throw new IllegalArgumentException("Unsupported result partition type.");
+		if (type.isBlocking()) {
+			initializeBoundedBlockingPartitions(
+				subpartitions,
+				partition,
+				blockingSubpartitionType,
+				networkBufferSize,
+				channelManager);
+		} else {
+			for (int i = 0; i < subpartitions.length; i++) {
+				subpartitions[i] = new PipelinedSubpartition(i, partition);
+			}
 		}
 	}
 
