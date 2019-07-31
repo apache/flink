@@ -50,5 +50,228 @@ under the License.
 	<properties>
 		<!-- When updating Janino, make sure that Calcite supports it as well. -->
 		<janino.version>3.0.9</janino.version>
+		<calcite.version>1.20.0</calcite.version>
 	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<!-- Used for translation of table programs -->
+			<dependency>
+				<groupId>org.apache.calcite</groupId>
+				<artifactId>calcite-core</artifactId>
+				<!-- When updating the Calcite version, make sure to update the dependency exclusions -->
+				<version>${calcite.version}</version>
+				<exclusions>
+					<!--
+					"mvn dependency:tree" as of Calcite 1.20:
+
+					[INFO] +- org.apache.calcite:calcite-core:jar:1.20.0:compile
+					[INFO] |  +- commons-codec:commons-codec:jar:1.10:compile
+					[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.15.0:compile
+					[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.20.0:compile
+					[INFO] |  +- org.apache.commons:commons-lang3:jar:3.3.2:compile
+					[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.9.6:compile
+					[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.9.6:compile
+					[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.9.6:compile
+					[INFO] |  +- com.google.guava:guava:jar:19.0:compile
+					[INFO] |  \- com.jayway.jsonpath:json-path:jar:2.4.0:compile
+
+					Dependencies that are not needed for how we use Calcite right now.
+					-->
+					<exclusion>
+						<groupId>org.apache.calcite.avatica</groupId>
+						<artifactId>avatica-metrics</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>com.google.protobuf</groupId>
+						<artifactId>protobuf-java</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.apache.httpcomponents</groupId>
+						<artifactId>httpclient</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.apache.httpcomponents</groupId>
+						<artifactId>httpcore</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.apache.commons</groupId>
+						<artifactId>commons-dbcp2</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>com.esri.geometry</groupId>
+						<artifactId>esri-geometry-api</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>com.fasterxml.jackson.dataformat</groupId>
+						<artifactId>jackson-dataformat-yaml</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>com.yahoo.datasketches</groupId>
+						<artifactId>sketches-core</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>net.hydromatic</groupId>
+						<artifactId>aggdesigner-algorithm</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.calcite.avatica</groupId>
+				<artifactId>avatica-core</artifactId>
+				<!-- When updating the Calcite version, make sure to update the version and dependency exclusions -->
+				<version>1.15.0</version>
+				<exclusions>
+					<!--
+
+					Dependencies that are not needed for how we use Avatica right now.
+
+					We exclude all the dependencies of Avatica because currently we only use
+					TimeUnit, TimeUnitRange and SqlDateTimeUtils which only dependent JDK.
+
+					"mvn dependency:tree" as of Avatica 1.15:
+
+					[INFO] +- org.apache.calcite.avatica:avatica-core:jar:1.15.0:compile
+
+					-->
+					<exclusion>
+						<groupId>org.apache.calcite.avatica</groupId>
+						<artifactId>avatica-metrics</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>com.google.protobuf</groupId>
+						<artifactId>protobuf-java</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.apache.httpcomponents</groupId>
+						<artifactId>httpclient</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>org.apache.httpcomponents</groupId>
+						<artifactId>httpcore</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>com.fasterxml.jackson.core</groupId>
+						<artifactId>jackson-core</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>com.fasterxml.jackson.core</groupId>
+						<artifactId>jackson-annotations</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>com.fasterxml.jackson.core</groupId>
+						<artifactId>jackson-databind</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+			<!-- Common dependency of calcite-core and flink-test-utils -->
+			<dependency>
+				<groupId>com.google.guava</groupId>
+				<artifactId>guava</artifactId>
+				<version>19.0</version>
+			</dependency>
+			<!-- Common dependency of calcite-core and janino -->
+			<dependency>
+				<groupId>org.codehaus.janino</groupId>
+				<artifactId>commons-compiler</artifactId>
+				<version>${janino.version}</version>
+			</dependency>
+			<!-- Common dependency of calcite-core and flink-table-planner -->
+			<dependency>
+				<groupId>org.codehaus.janino</groupId>
+				<artifactId>janino</artifactId>
+				<version>${janino.version}</version>
+			</dependency>
+			<!-- Common dependencies within calcite-core -->
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-annotations</artifactId>
+				<version>2.9.6</version>
+			</dependency>
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-core</artifactId>
+				<version>2.9.6</version>
+			</dependency>
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>2.9.6</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-shade-plugin</artifactId>
+					<executions>
+						<execution>
+							<id>shade-flink</id>
+							<configuration>
+								<shadeTestJar>false</shadeTestJar>
+								<filters>
+									<filter>
+										<artifact>*:*</artifact>
+										<excludes>
+											<!-- Excluded all these files for a clean flink-table-planner-blink JAR -->
+											<exclude>org-apache-calcite-jdbc.properties</exclude>
+											<exclude>common.proto</exclude>
+											<exclude>requests.proto</exclude>
+											<exclude>responses.proto</exclude>
+											<exclude>codegen/**</exclude>
+											<exclude>META-INF/*.SF</exclude>
+											<exclude>META-INF/*.DSA</exclude>
+											<exclude>META-INF/*.RSA</exclude>
+											<exclude>META-INF/services/java.sql.Driver</exclude>
+										</excludes>
+									</filter>
+								</filters>
+								<relocations>
+									<!-- Calcite is not relocated for now, because we expose it at some locations such as CalciteConfig -->
+									<!--<relocation>
+										<pattern>org.apache.calcite</pattern>
+										<shadedPattern>org.apache.flink.calcite.shaded.org.apache.calcite</shadedPattern>
+									</relocation>-->
+
+									<!-- Calcite's dependencies -->
+									<relocation>
+										<pattern>com.google</pattern>
+										<shadedPattern>org.apache.flink.calcite.shaded.com.google</shadedPattern>
+									</relocation>
+									<relocation>
+										<pattern>com.jayway</pattern>
+										<shadedPattern>org.apache.flink.calcite.shaded.com.jayway</shadedPattern>
+									</relocation>
+									<relocation>
+										<pattern>com.fasterxml</pattern>
+										<shadedPattern>org.apache.flink.calcite.shaded.com.fasterxml</shadedPattern>
+									</relocation>
+									<relocation>
+										<pattern>org.apache.commons.codec</pattern>
+										<shadedPattern>org.apache.flink.calcite.shaded.org.apache.commons.codec</shadedPattern>
+									</relocation>
+
+									<!-- flink-table-planner dependencies -->
+									<relocation>
+										<pattern>org.joda.time</pattern>
+										<shadedPattern>org.apache.flink.table.shaded.org.joda.time</shadedPattern>
+									</relocation>
+
+									<!-- not relocated for now, because we need to change the contents of the properties field otherwise -->
+									<!--<relocation>
+										<pattern>org.codehaus</pattern>
+										<shadedPattern>org.apache.flink.table.shaded.org.codehaus</shadedPattern>
+									</relocation>-->
+
+								</relocations>
+							</configuration>
+						</execution>
+					</executions>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
 </project>
