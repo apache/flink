@@ -83,11 +83,15 @@ public class HiveCatalogFactoryTest extends TestLogger {
 		// create HiveCatalog use the Hadoop Configuration
 		final CatalogDescriptor catalogDescriptor = new HiveCatalogDescriptor();
 		final Map<String, String> properties = catalogDescriptor.toProperties();
-		final HiveCatalog hiveCatalog = (HiveCatalog) TableFactoryService.find(CatalogFactory.class, properties)
-			.createCatalog(catalogName, properties);
-		final HiveConf hiveConf = hiveCatalog.getHiveConf();
-		// set the Env back
-		CommonTestUtils.setEnv(originalEnv);
+		final HiveConf hiveConf;
+		try {
+			final HiveCatalog hiveCatalog = (HiveCatalog) TableFactoryService.find(CatalogFactory.class, properties)
+				.createCatalog(catalogName, properties);
+			hiveConf = hiveCatalog.getHiveConf();
+		} finally {
+			// set the Env back
+			CommonTestUtils.setEnv(originalEnv);
+		}
 		//validate the result
 		assertEquals(v1, hiveConf.get(k1, null));
 	}
