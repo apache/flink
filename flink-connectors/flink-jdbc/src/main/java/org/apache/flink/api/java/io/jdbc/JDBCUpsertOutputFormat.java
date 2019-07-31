@@ -238,18 +238,18 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 		}
 
 		/**
-		 * required, upsert unique keys.
-		 */
-		public Builder setKeyFields(String[] keyFields) {
-			this.keyFields = keyFields;
-			return this;
-		}
-
-		/**
 		 * required, field types of this jdbc sink.
 		 */
 		public Builder setFieldTypes(int[] fieldTypes) {
 			this.fieldTypes = fieldTypes;
+			return this;
+		}
+
+		/**
+		 * optional, upsert unique keys, no need for append mode.
+		 */
+		public Builder setKeyFields(String[] keyFields) {
+			this.keyFields = keyFields;
 			return this;
 		}
 
@@ -286,6 +286,7 @@ public class JDBCUpsertOutputFormat extends AbstractJDBCOutputFormat<Tuple2<Bool
 		public JDBCUpsertOutputFormat build() {
 			checkNotNull(options, "No options supplied.");
 			checkNotNull(fieldNames, "No fieldNames supplied.");
+			checkNotNull(fieldTypes, "No fieldTypes supplied.");
 			return new JDBCUpsertOutputFormat(
 				options, fieldNames, keyFields, fieldTypes, flushMaxSize, flushIntervalMills, maxRetryTimes);
 		}

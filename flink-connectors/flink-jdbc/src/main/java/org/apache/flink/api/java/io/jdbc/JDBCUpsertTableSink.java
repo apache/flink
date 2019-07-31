@@ -60,7 +60,7 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 		int flushMaxSize,
 		long flushIntervalMills,
 		int maxRetryTime) {
-		this.schema = schema;
+		this.schema = JDBCUtils.toJDBCTableSchema(schema);
 		this.options = options;
 		this.flushMaxSize = flushMaxSize;
 		this.flushIntervalMills = flushIntervalMills;
@@ -69,7 +69,8 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 
 	private JDBCUpsertOutputFormat newFormat() {
 		if (!isAppendOnly && (keyFields == null || keyFields.length == 0)) {
-			throw new UnsupportedOperationException("JDBCUpsertTableSink can not support ");
+			throw new UnsupportedOperationException(
+				"Key fields must be specified when using JDBCUpsertTableSink in upsert mode");
 		}
 
 		// sql types

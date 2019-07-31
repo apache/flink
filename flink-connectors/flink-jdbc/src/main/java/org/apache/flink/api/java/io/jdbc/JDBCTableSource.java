@@ -66,12 +66,12 @@ public class JDBCTableSource implements
 		this.options = options;
 		this.readOptions = readOptions;
 		this.lookupOptions = lookupOptions;
-		this.schema = schema;
+		this.schema = JDBCUtils.toJDBCTableSchema(schema);
 
 		this.selectFields = selectFields;
 
-		final TypeInformation<?>[] schemaTypeInfos = schema.getFieldTypes();
-		final String[] schemaFieldNames = schema.getFieldNames();
+		final TypeInformation<?>[] schemaTypeInfos = this.schema.getFieldTypes();
+		final String[] schemaFieldNames = this.schema.getFieldNames();
 		if (selectFields != null) {
 			TypeInformation<?>[] typeInfos = new TypeInformation[selectFields.length];
 			String[] typeNames = new String[selectFields.length];

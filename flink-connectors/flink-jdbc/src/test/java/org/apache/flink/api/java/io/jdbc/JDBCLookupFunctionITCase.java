@@ -37,9 +37,12 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -79,21 +82,35 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 					"id1 INT NOT NULL DEFAULT 0," +
 					"id2 INT NOT NULL DEFAULT 0," +
 					"comment1 VARCHAR(1000)," +
-					"comment2 VARCHAR(1000))");
+					"comment2 VARCHAR(1000)," +
+					"my_date DATE," +
+					"my_time TIME," +
+					"my_timestamp TIMESTAMP)");
 
 			Object[][] data = new Object[][] {
-					new Object[] {1, 1, "11-c1-v1", "11-c2-v1"},
-					new Object[] {1, 1, "11-c1-v2", "11-c2-v2"},
-					new Object[] {2, 3, null, "23-c2"},
-					new Object[] {2, 5, "25-c1", "25-c2"},
-					new Object[] {3, 8, "38-c1", "38-c2"}
+					new Object[] {
+						1, 1, "11-c1-v1", "11-c2-v1",
+						null, Time.valueOf("01:11:11"), Timestamp.valueOf("2011-01-11 01:11:11")},
+					new Object[] {
+						1, 1, "11-c1-v2", "11-c2-v2",
+						Date.valueOf("2012-02-12"), null, Timestamp.valueOf("2012-02-12 02:12:12")},
+					new Object[] {
+						2, 3, null, "23-c2",
+						Date.valueOf("2013-03-13"), Time.valueOf("03:13:13"), Timestamp.valueOf("2013-03-13 03:13:13")},
+					new Object[] {
+						2, 5, "25-c1", "25-c2",
+						Date.valueOf("2014-04-14"), Time.valueOf("04:14:14"), Timestamp.valueOf("2014-04-14 04:14:14")},
+					new Object[] {
+						3, 8, "38-c1", "38-c2",
+						Date.valueOf("2015-05-15"), Time.valueOf("05:15:15"), Timestamp.valueOf("2015-05-15 05:15:15")}
 			};
 			boolean[] surroundedByQuotes = new boolean[] {
-				false, false, true, true
+				false, false, true, true, true, true, true
 			};
 
 			StringBuilder sqlQueryBuilder = new StringBuilder(
-					"INSERT INTO " + LOOKUP_TABLE + " (id1, id2, comment1, comment2) VALUES ");
+					"INSERT INTO " + LOOKUP_TABLE +
+						" (id1, id2, comment1, comment2, my_date, my_time, my_timestamp) VALUES ");
 			for (int i = 0; i < data.length; i++) {
 				sqlQueryBuilder.append("(");
 				for (int j = 0; j < data[i].length; j++) {
@@ -154,8 +171,10 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 						.setTableName(LOOKUP_TABLE)
 						.build())
 				.setSchema(TableSchema.builder().fields(
-						new String[]{"id1", "id2", "comment1", "comment2"},
-						new DataType[]{DataTypes.INT(), DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()})
+						new String[]{"id1", "id2", "comment1", "comment2", "my_date", "my_time", "my_timestamp"},
+						new DataType[]{
+							DataTypes.INT(), DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING(),
+							DataTypes.DATE(), DataTypes.TIME(), DataTypes.TIMESTAMP()})
 						.build());
 		if (useCache) {
 			builder.setLookupOptions(JDBCLookupOptions.builder()
@@ -164,8 +183,9 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 		tEnv.registerFunction("jdbcLookup",
 				builder.build().getLookupFunction(t.getSchema().getFieldNames()));
 
-		String sqlQuery = "SELECT id1, id2, comment1, comment2 FROM T, " +
-				"LATERAL TABLE(jdbcLookup(id1, id2)) AS S(l_id1, l_id2, comment1, comment2)";
+		String sqlQuery = "SELECT id1, id2, comment1, comment2, my_date, my_time, my_timestamp FROM T, " +
+				"LATERAL TABLE(jdbcLookup(id1, id2)) AS " +
+				"S(l_id1, l_id2, comment1, comment2, my_date, my_time, my_timestamp)";
 		Table result = tEnv.sqlQuery(sqlQuery);
 
 		DataStream<Row> resultSet = tEnv.toAppendStream(result, Row.class);
@@ -173,13 +193,13 @@ public class JDBCLookupFunctionITCase extends AbstractTestBase {
 		env.execute();
 
 		List<String> expected = new ArrayList<>();
-		expected.add("1,1,11-c1-v1,11-c2-v1");
-		expected.add("1,1,11-c1-v1,11-c2-v1");
-		expected.add("1,1,11-c1-v2,11-c2-v2");
-		expected.add("1,1,11-c1-v2,11-c2-v2");
-		expected.add("2,3,null,23-c2");
-		expected.add("2,5,25-c1,25-c2");
-		expected.add("3,8,38-c1,38-c2");
+		expected.add("1,1,11-c1-v1,11-c2-v1,null,01:11:11,2011-01-11 01:11:11.0");
+		expected.add("1,1,11-c1-v1,11-c2-v1,null,01:11:11,2011-01-11 01:11:11.0");
+		expected.add("1,1,11-c1-v2,11-c2-v2,2012-02-12,null,2012-02-12 02:12:12.0");
+		expected.add("1,1,11-c1-v2,11-c2-v2,2012-02-12,null,2012-02-12 02:12:12.0");
+		expected.add("2,3,null,23-c2,2013-03-13,03:13:13,2013-03-13 03:13:13.0");
+		expected.add("2,5,25-c1,25-c2,2014-04-14,04:14:14,2014-04-14 04:14:14.0");
+		expected.add("3,8,38-c1,38-c2,2015-05-15,05:15:15,2015-05-15 05:15:15.0");
 
 		StreamITCase.compareWithList(expected);
 	}

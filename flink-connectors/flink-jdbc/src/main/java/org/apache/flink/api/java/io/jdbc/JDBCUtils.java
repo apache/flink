@@ -18,14 +18,20 @@
 
 package org.apache.flink.api.java.io.jdbc;
 
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Time;
+import java.sql.Timestamp;
 
 /**
  * Utils for jdbc connectors.
@@ -230,5 +236,30 @@ public class JDBCUtils {
 		} else {
 			return ret;
 		}
+	}
+
+	public static TableSchema toJDBCTableSchema(TableSchema schema) {
+		TableSchema.Builder builder = TableSchema.builder();
+		DataType[] fieldDataTypes = schema.getFieldDataTypes();
+		String[] fieldNames = schema.getFieldNames();
+
+		for (int i = 0; i < fieldDataTypes.length; i++) {
+			switch (fieldDataTypes[i].getLogicalType().getTypeRoot()) {
+				case DATE:
+					builder.field(fieldNames[i], DataTypes.DATE().bridgedTo(Date.class));
+					break;
+				case TIME_WITHOUT_TIME_ZONE:
+					builder.field(fieldNames[i], DataTypes.TIME().bridgedTo(Time.class));
+					break;
+				case TIMESTAMP_WITHOUT_TIME_ZONE:
+					builder.field(fieldNames[i], DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class));
+					break;
+				default:
+					builder.field(fieldNames[i], fieldDataTypes[i]);
+					break;
+			}
+		}
+
+		return builder.build();
 	}
 }

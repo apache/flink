@@ -202,7 +202,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		Assert.assertEquals(1, jdbcInputFormat.createInputSplits(1).length);
 		jdbcInputFormat.openInputFormat();
 		jdbcInputFormat.open(null);
-		Row row =  new Row(5);
+		Row row =  new Row(8);
 		int recordCount = 0;
 		while (!jdbcInputFormat.reachedEnd()) {
 			Row next = jdbcInputFormat.nextRecord(row);
@@ -236,7 +236,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		//this query exploit parallelism (1 split for every id)
 		Assert.assertEquals(TEST_DATA.length, splits.length);
 		int recordCount = 0;
-		Row row =  new Row(5);
+		Row row =  new Row(8);
 		for (InputSplit split : splits) {
 			jdbcInputFormat.open(split);
 			while (!jdbcInputFormat.reachedEnd()) {
@@ -272,7 +272,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		//assert that a single split was generated
 		Assert.assertEquals(1, splits.length);
 		int recordCount = 0;
-		Row row =  new Row(5);
+		Row row =  new Row(8);
 		for (InputSplit split : splits) {
 			jdbcInputFormat.open(split);
 			while (!jdbcInputFormat.reachedEnd()) {
@@ -317,7 +317,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 	private void verifySplit(InputSplit split, int expectedIDSum) throws IOException {
 		int sum = 0;
 
-		Row row =  new Row(5);
+		Row row =  new Row(8);
 		jdbcInputFormat.open(split);
 		while (!jdbcInputFormat.reachedEnd()) {
 			row = jdbcInputFormat.nextRecord(row);
@@ -357,6 +357,9 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		Assert.assertEquals(expected.author, actual.getField(2));
 		Assert.assertEquals(expected.price, actual.getField(3));
 		Assert.assertEquals(expected.qty, actual.getField(4));
+		Assert.assertEquals(expected.printDate, actual.getField(5));
+		Assert.assertEquals(expected.printTime, actual.getField(6));
+		Assert.assertEquals(expected.printTimestamp, actual.getField(7));
 	}
 
 }
