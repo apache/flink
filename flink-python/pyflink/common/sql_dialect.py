@@ -25,8 +25,8 @@ class SqlDialect(object):
     Enumeration of valid SQL compatibility modes.
 
     In most of the cases, the built-in compatibility mode will suffice. For some features,
-    i.e. the "create partitionable table" grammar is only supported in Hive dialect, you may need
-    to switch to the Hive dialect if that is your purpose.
+    i.e. the "insert into T partition(a='xxx') ..." grammar is only supported in Hive dialect,
+    you may need to switch to the Hive dialect if that is your purpose.
 
     We may introduce other sql dialects in the future.
 
