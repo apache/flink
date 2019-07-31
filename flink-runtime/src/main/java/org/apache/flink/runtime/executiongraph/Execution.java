@@ -782,8 +782,21 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				// else: fall through the loop
 			}
 
-			else if (current == FINISHED || current == FAILED) {
-				// nothing to do any more. finished/failed before it could be cancelled.
+			else if (current == FINISHED) {
+				// finished before it could be cancelled.
+				// in any case, the task is removed from the TaskManager already
+
+				// a pipelined partition whose consumer has never been deployed could still be buffered on the TM
+				// release it here since pipelined partitions for FINISHED executions aren't handled elsewhere
+				// covers the following cases:
+				// 		a) restarts of this vertex
+				// 		b) a global failure (which may result in a FAILED job state)
+				sendReleaseIntermediateResultPartitionsRpcCall();
+
+				return;
+			}
+			else if (current == FAILED) {
+				// failed before it could be cancelled.
 				// in any case, the task is removed from the TaskManager already
 
 				return;
@@ -816,6 +829,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				completeCancelling();
 				break;
 			case FINISHED:
+				// a pipelined partition whose consumer has never been deployed could still be buffered on the TM
+				// release it here since pipelined partitions for FINISHED executions aren't handled elsewhere
+				// most notably, the TaskExecutor does not release pipelined partitions when disconnecting from the JM
+				sendReleaseIntermediateResultPartitionsRpcCall();
+				break;
 			case FAILED:
 			case CANCELED:
 				break;
