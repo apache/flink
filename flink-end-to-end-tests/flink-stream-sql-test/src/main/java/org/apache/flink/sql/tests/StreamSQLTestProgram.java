@@ -39,19 +39,8 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl;
-import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.FunctionCatalog;
-import org.apache.flink.table.catalog.GenericInMemoryCatalog;
-import org.apache.flink.table.delegation.Executor;
-import org.apache.flink.table.delegation.ExecutorFactory;
-import org.apache.flink.table.delegation.Planner;
-import org.apache.flink.table.delegation.PlannerFactory;
-import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.sources.DefinedFieldMapping;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
@@ -61,7 +50,6 @@ import org.apache.flink.table.sources.wmstrategies.BoundedOutOfOrderTimestamps;
 import org.apache.flink.types.Row;
 
 import java.io.PrintStream;
-import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -112,8 +100,7 @@ public class StreamSQLTestProgram {
 		sEnv.enableCheckpointing(4000);
 		sEnv.getConfig().setAutoWatermarkInterval(1000);
 
-		final Executor executor = lookupExecutor(settings.toExecutorProperties(), sEnv);
-		final StreamTableEnvironment tEnv = createStreamTableEnvironment(sEnv, settings, executor);
+		final StreamTableEnvironment tEnv = StreamTableEnvironment.create(sEnv, settings);
 
 		tEnv.registerTableSource("table1", new GeneratorTableSource(10, 100, 60, 0));
 		tEnv.registerTableSource("table2", new GeneratorTableSource(5, 0.2f, 60, 5));
@@ -368,53 +355,6 @@ public class StreamSQLTestProgram {
 			for (Integer i : state) {
 				saveRecordCnt += i;
 			}
-		}
-	}
-
-	private static StreamTableEnvironment createStreamTableEnvironment(
-		StreamExecutionEnvironment env,
-		EnvironmentSettings settings,
-		Executor executor) {
-
-		final TableConfig config = TableConfig.getDefault();
-
-		final CatalogManager catalogManager = new CatalogManager(
-			settings.getBuiltInCatalogName(),
-			new GenericInMemoryCatalog(settings.getBuiltInCatalogName(), settings.getBuiltInDatabaseName()));
-
-		final FunctionCatalog functionCatalog = new FunctionCatalog(catalogManager);
-
-		final Map<String, String> plannerProperties = settings.toPlannerProperties();
-		final Planner planner = ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
-			.create(plannerProperties, executor, config, functionCatalog, catalogManager);
-
-		return new StreamTableEnvironmentImpl(
-			catalogManager,
-			functionCatalog,
-			config,
-			env,
-			planner,
-			executor,
-			settings.isStreamingMode()
-		);
-	}
-
-	private static Executor lookupExecutor(
-		Map<String, String> executorProperties,
-		StreamExecutionEnvironment executionEnvironment) {
-		try {
-			ExecutorFactory executorFactory = ComponentFactoryService.find(ExecutorFactory.class, executorProperties);
-			Method createMethod = executorFactory.getClass()
-				.getMethod("create", Map.class, StreamExecutionEnvironment.class);
-
-			return (Executor) createMethod.invoke(
-				executorFactory,
-				executorProperties,
-				executionEnvironment);
-		} catch (Exception e) {
-			throw new TableException(
-				"Could not instantiate the executor. Make sure a planner module is on the classpath",
-				e);
 		}
 	}
 }
