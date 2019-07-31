@@ -42,7 +42,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.util.CatalogTableStatisticsConverter.convertToTableStats;
+import static org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter.convertToTableStats;
 
 /**
  * A mapping between Flink catalog's database and Calcite's schema.
