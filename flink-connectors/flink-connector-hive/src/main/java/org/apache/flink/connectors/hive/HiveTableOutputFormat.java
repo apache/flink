@@ -124,7 +124,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	private transient int numNonPartitionColumns;
 
 	// SerDe in Hive-1.2.1 and Hive-2.3.4 can be of different classes, make sure to use a common base class
-	private transient Serializer serializer;
+	private transient Serializer recordSerDe;
 	//StructObjectInspector represents the hive row structure.
 	private transient StructObjectInspector rowObjectInspector;
 	private transient Class<? extends Writable> outputClass;
@@ -259,13 +259,13 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	public void open(int taskNumber, int numTasks) throws IOException {
 		try {
 			StorageDescriptor sd = hiveTablePartition.getStorageDescriptor();
-			serializer = (Serializer) Class.forName(sd.getSerdeInfo().getSerializationLib()).newInstance();
-			Preconditions.checkArgument(serializer instanceof Deserializer,
-					"Expect to get a SerDe, but actually got " + serializer.getClass().getName());
-			ReflectionUtils.setConf(serializer, jobConf);
+			recordSerDe = (Serializer) Class.forName(sd.getSerdeInfo().getSerializationLib()).newInstance();
+			Preconditions.checkArgument(recordSerDe instanceof Deserializer,
+					"Expect to get a SerDe, but actually got " + recordSerDe.getClass().getName());
+			ReflectionUtils.setConf(recordSerDe, jobConf);
 			// TODO: support partition properties, for now assume they're same as table properties
-			SerDeUtils.initializeSerDe((Deserializer) serializer, jobConf, tableProperties, null);
-			outputClass = serializer.getSerializedClass();
+			SerDeUtils.initializeSerDe((Deserializer) recordSerDe, jobConf, tableProperties, null);
+			outputClass = recordSerDe.getSerializedClass();
 		} catch (IllegalAccessException | SerDeException | InstantiationException | ClassNotFoundException e) {
 			throw new FlinkRuntimeException("Error initializing Hive serializer", e);
 		}
@@ -335,7 +335,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 					partitionToWriter.put(partName, partitionWriter);
 				}
 			}
-			partitionWriter.recordWriter.write(serializer.serialize(getConvertedRow(record), rowObjectInspector));
+			partitionWriter.recordWriter.write(recordSerDe.serialize(getConvertedRow(record), rowObjectInspector));
 		} catch (IOException | SerDeException e) {
 			throw new IOException("Could not write Record.", e);
 		} catch (MetaException e) {
