@@ -331,10 +331,6 @@ class NodeTreeWriterImpl(
         printValues.add(Pair.of("__id__", rel.getId.toString))
       }
 
-      if (withResource) {
-        printValues.add(Pair.of("resource", node.getResource))
-      }
-
       if (withRetractTraits) {
         rel match {
           case streamRel: StreamPhysicalRel =>

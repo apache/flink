@@ -21,9 +21,13 @@ package org.apache.flink.table.planner.plan.nodes.exec
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.delegation.Planner
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResource
+
+import org.apache.calcite.rel.RelDistribution
+import org.apache.calcite.rel.core.Exchange
 
 import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * The representation of execution information for a [[FlinkPhysicalRel]].
@@ -34,19 +38,9 @@ import java.util
 trait ExecNode[E <: Planner, T] {
 
   /**
-    * Defines how much resource the node will take.
-    */
-  private val resource: NodeResource = new NodeResource
-
-  /**
     * The [[Transformation]] translated from this node.
     */
   private var transformation: Transformation[T] = _
-
-  /**
-    * Get node resource.
-    */
-  def getResource: NodeResource = resource
 
   /**
     * Translates this node into a Flink operator.
@@ -93,5 +87,15 @@ trait ExecNode[E <: Planner, T] {
     */
   def accept(visitor: ExecNodeVisitor): Unit = {
     visitor.visit(this)
+  }
+
+  /**
+    *  Whether there is singleton exchange node as input.
+    */
+  protected def inputsContainSingleton(): Boolean = {
+    getInputNodes.exists { node =>
+      node.isInstanceOf[Exchange] &&
+          node.asInstanceOf[Exchange].getDistribution.getType == RelDistribution.Type.SINGLETON
+    }
   }
 }

@@ -24,7 +24,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.TableTestBase
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 
-import org.junit.Test
+import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -41,6 +41,12 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   val STRING = new VarCharType(VarCharType.MAX_LENGTH)
   val LONG = new BigIntType()
   val INT = new IntType()
+
+  @Before
+  def before(): Unit = {
+    util.tableEnv.getConfig.getConfiguration.setInteger(
+      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4)
+  }
 
   @Test
   def testExplainTableSourceScan(): Unit = {
