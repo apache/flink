@@ -32,6 +32,8 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Arrays;
+
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -55,6 +57,18 @@ public class ResultPartitionFactoryTest extends TestLogger {
 	@AfterClass
 	public static void shutdown() throws Exception {
 		fileChannelManager.close();
+	}
+
+	@Test
+	public void testBoundedBlockingSubpartitionsCreated() {
+		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.BLOCKING);
+		Arrays.stream(resultPartition.subpartitions).forEach(sp -> assertThat(sp, instanceOf(BoundedBlockingSubpartition.class)));
+	}
+
+	@Test
+	public void testPipelinedSubpartitionsCreated() {
+		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.PIPELINED);
+		Arrays.stream(resultPartition.subpartitions).forEach(sp -> assertThat(sp, instanceOf(PipelinedSubpartition.class)));
 	}
 
 	@Test
