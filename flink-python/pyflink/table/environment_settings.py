@@ -188,12 +188,12 @@ class EnvironmentSettings(object):
     @staticmethod
     def new_instance():
         """
-        Creates a builder for creating an instance of EnvironmentSettingss.
+        Creates a builder for creating an instance of EnvironmentSettings.
 
         By default, it does not specify a required planner and will use the one that is available
         on the classpath via discovery.
 
-        :return: A builder of EnvironmentSettingss.
+        :return: A builder of EnvironmentSettings.
         :rtype: EnvironmentSettings.Builder
         """
         return EnvironmentSettings.Builder()
