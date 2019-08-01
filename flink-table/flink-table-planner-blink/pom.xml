@@ -336,7 +336,7 @@ under the License.
 									<include>commons-codec:commons-codec</include>
 
 									<!-- flink-table-planner-blink dependencies -->
-									<include>org.apache.flink.sql.parser:*</include>
+									<include>org.apache.flink:flink-sql-parser</include>
 
 									<!-- flink-table-runtime-blink dependencies -->
 									<include>org.codehaus.janino:*</include>

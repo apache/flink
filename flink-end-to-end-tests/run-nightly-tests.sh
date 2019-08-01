@@ -158,6 +158,8 @@ run_test "Heavy deployment end-to-end test" "$END_TO_END_DIR/test-scripts/test_h
 
 run_test "ConnectedComponents iterations with high parallelism end-to-end test" "$END_TO_END_DIR/test-scripts/test_high_parallelism_iterations.sh 25"
 
+run_test "Dependency shading of table modules test" "$END_TO_END_DIR/test-scripts/test_table_shaded_dependencies.sh"
+
 ################################################################################
 # Sticky Scheduling
 ################################################################################
