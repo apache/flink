@@ -27,6 +27,8 @@ Important classes of Flink Table API:
     - :class:`pyflink.table.TableConfig`
       A config to define the runtime behavior of the Table API.
       It is necessary when creating :class:`TableEnvironment`.
+    - :class:`pyflink.table.EnvironmentSettings`
+      Defines all parameters that initialize a table environment.
     - :class:`pyflink.table.StreamQueryConfig` and :class:`pyflink.table.BatchQueryConfig`
       A query config holds parameters to configure the behavior of queries.
     - :class:`pyflink.table.TableSource`
@@ -53,6 +55,7 @@ Important classes of Flink Table API:
 """
 from __future__ import absolute_import
 
+from pyflink.table.environment_settings import EnvironmentSettings
 from pyflink.table.table import Table, GroupedTable, GroupWindowedTable, OverWindowedTable, \
     WindowGroupedTable
 from pyflink.table.table_config import TableConfig
@@ -67,6 +70,7 @@ __all__ = [
     'TableEnvironment',
     'StreamTableEnvironment',
     'BatchTableEnvironment',
+    'EnvironmentSettings',
     'Table',
     'GroupedTable',
     'GroupWindowedTable',
