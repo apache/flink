@@ -662,6 +662,11 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 				metrics,
 				this);
 
+			// Make sure the user code classloader is accessible thread-locally.
+			// We are setting the correct context class loader before instantiating the invokable
+			// so that it is available to the invokable during its entire lifetime.
+			executingThread.setContextClassLoader(userCodeClassLoader);
+
 			// now load and instantiate the task's invokable code
 			invokable = loadAndInstantiateInvokable(userCodeClassLoader, nameOfInvokableClass, env);
 
@@ -680,9 +685,6 @@ public class Task implements Runnable, TaskActions, PartitionProducerStateProvid
 
 			// notify everyone that we switched to running
 			taskManagerActions.updateTaskExecutionState(new TaskExecutionState(jobId, executionId, ExecutionState.RUNNING));
-
-			// make sure the user code classloader is accessible thread-locally
-			executingThread.setContextClassLoader(userCodeClassLoader);
 
 			// run the invokable
 			invokable.invoke();
