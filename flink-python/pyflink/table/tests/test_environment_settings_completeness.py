@@ -41,6 +41,21 @@ class EnvironmentSettingsCompletenessTests(PythonAPICompletenessTestCase, unitte
         return {'toPlannerProperties', 'toExecutorProperties'}
 
 
+class EnvironmentSettingsBuilderCompletenessTests(PythonAPICompletenessTestCase, unittest.TestCase):
+    """
+    Tests whether the Python :class:`EnvironmentSettings.Builder` is consistent with
+    Java `org.apache.flink.table.api.EnvironmentSettings$Builder`.
+    """
+
+    @classmethod
+    def python_class(cls):
+        return EnvironmentSettings.Builder
+
+    @classmethod
+    def java_class(cls):
+        return "org.apache.flink.table.api.EnvironmentSettings$Builder"
+
+
 if __name__ == '__main__':
     import unittest
 
