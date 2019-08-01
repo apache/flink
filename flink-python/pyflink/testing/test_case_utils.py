@@ -25,6 +25,8 @@ import unittest
 from abc import abstractmethod
 
 from py4j.java_gateway import JavaObject
+from py4j.protocol import Py4JJavaError
+
 from pyflink.table.sources import CsvTableSource
 
 from pyflink.dataset import ExecutionEnvironment
@@ -46,6 +48,23 @@ else:
     log_level = logging.INFO
 logging.basicConfig(stream=sys.stdout, level=log_level,
                     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+
+def get_private_field(java_obj, field_name):
+    try:
+        field = java_obj.getClass().getDeclaredField(field_name)
+        field.setAccessible(True)
+        return field.get(java_obj)
+    except Py4JJavaError:
+        cls = java_obj.getClass()
+        while cls.getSuperclass() is not None:
+            cls = cls.getSuperclass()
+            try:
+                field = cls.getDeclaredField(field_name)
+                field.setAccessible(True)
+                return field.get(java_obj)
+            except Py4JJavaError:
+                pass
 
 
 class PyFlinkTestCase(unittest.TestCase):
