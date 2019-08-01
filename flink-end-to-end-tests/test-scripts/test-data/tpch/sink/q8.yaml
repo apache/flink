@@ -1,0 +1,19 @@
+tables:
+  - name: q8
+    type: sink-table
+    connector:
+      type: filesystem
+      path: "$RESULT_DIR/q8.csv"
+    format:
+      type: csv
+      fields:
+        - name: o_year
+          type: BIGINT
+        - name: mkt_share
+          type: DOUBLE
+      field-delimiter: "|"
+    schema:
+      - name: o_year
+        type: BIGINT
+      - name: mkt_share
+        type: DOUBLE
