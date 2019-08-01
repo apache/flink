@@ -96,7 +96,7 @@ public enum PartitionTestUtils {
 		}
 	}
 
-	static ResultPartitionDeploymentDescriptor createPartitionDeploymentDescriptor(
+	public static ResultPartitionDeploymentDescriptor createPartitionDeploymentDescriptor(
 		ResultPartitionType partitionType) {
 		ShuffleDescriptor shuffleDescriptor = NettyShuffleDescriptorBuilder.newBuilder().buildLocal();
 		PartitionDescriptor partitionDescriptor = new PartitionDescriptor(

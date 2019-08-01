@@ -382,7 +382,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		Execution execution1 = executions.values().iterator().next();
 		execution1.cancel();
-		execution1.completeCancelling(accumulators, ioMetrics);
+		execution1.completeCancelling(accumulators, ioMetrics, false);
 
 		assertEquals(ioMetrics, execution1.getIOMetrics());
 		assertEquals(accumulators, execution1.getUserAccumulators());

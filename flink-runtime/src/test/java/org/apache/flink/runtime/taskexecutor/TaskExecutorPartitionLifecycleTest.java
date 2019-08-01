@@ -45,6 +45,7 @@ import org.apache.flink.runtime.io.network.partition.PartitionProducerStateProvi
 import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
+import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
@@ -90,6 +91,7 @@ import java.util.stream.StreamSupport;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -190,33 +192,62 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 	}
 
 	@Test
-	public void testPartitionReleaseAfterDisconnect() throws Exception {
+	public void testBlockingPartitionReleaseAfterDisconnect() throws Exception {
 		testPartitionRelease(
 			(jobId, partitionId, taskExecutorGateway) -> taskExecutorGateway.disconnectJobManager(jobId, new Exception("test")),
-			true);
+			true,
+			ResultPartitionType.BLOCKING);
 	}
 
 	@Test
-	public void testPartitionReleaseAfterReleaseCall() throws Exception {
+	public void testPipelinedPartitionNotReleasedAfterDisconnect() throws Exception {
+		testPartitionRelease(
+			(jobId, partitionId, taskExecutorGateway) -> taskExecutorGateway.disconnectJobManager(jobId, new Exception("test")),
+			false,
+			ResultPartitionType.PIPELINED);
+	}
+
+	@Test
+	public void testBlockingPartitionReleaseAfterReleaseCall() throws Exception {
 		testPartitionRelease(
 			(jobId, partitionId, taskExecutorGateway) -> taskExecutorGateway.releasePartitions(jobId, Collections.singletonList(partitionId)),
-			true);
+			true,
+			ResultPartitionType.BLOCKING);
 	}
 
 	@Test
-	public void testPartitionReleaseAfterShutdown() throws Exception {
+	public void testPipelinedPartitionReleaseAfterReleaseCall() throws Exception {
+		testPartitionRelease(
+			(jobId, partitionId, taskExecutorGateway) -> taskExecutorGateway.releasePartitions(jobId, Collections.singletonList(partitionId)),
+			true,
+			ResultPartitionType.PIPELINED);
+	}
+
+	@Test
+	public void testBlockingPartitionReleaseAfterShutdown() throws Exception {
 		// don't do any explicit release action, so that the partition must be cleaned up on shutdown
 		testPartitionRelease(
 			(jobId, partitionId, taskExecutorGateway) -> { },
-			false);
+			false,
+			ResultPartitionType.BLOCKING);
+	}
+
+	@Test
+	public void testPipelinedPartitionReleaseAfterShutdown() throws Exception {
+		// don't do any explicit release action, so that the partition must be cleaned up on shutdown
+		testPartitionRelease(
+			(jobId, partitionId, taskExecutorGateway) -> { },
+			false,
+			ResultPartitionType.PIPELINED);
 	}
 
 	private void testPartitionRelease(
 		TriConsumer<JobID, ResultPartitionID, TaskExecutorGateway> releaseAction,
-		boolean waitForRelease) throws Exception {
+		boolean waitForRelease,
+		ResultPartitionType resultPartitionType) throws Exception {
 
 		final ResultPartitionDeploymentDescriptor taskResultPartitionDescriptor =
-			PartitionTestUtils.createPartitionDeploymentDescriptor();
+			PartitionTestUtils.createPartitionDeploymentDescriptor(resultPartitionType);
 		final ExecutionAttemptID eid1 = taskResultPartitionDescriptor.getShuffleDescriptor().getResultPartitionID().getProducerId();
 
 		final TaskDeploymentDescriptor taskDeploymentDescriptor =
@@ -343,7 +374,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			// the task is still running => the partition is in in-progress
 			runInTaskExecutorThreadAndWait(
 				taskExecutor,
-				() -> assertTrue(partitionTable.hasTrackedPartitions(jobId)));
+				() -> assertThat(partitionTable.hasTrackedPartitions(jobId), is(resultPartitionType.isBlocking())));
 
 			TestingInvokable.sync.releaseBlocker();
 			taskFinishedFuture.get(timeout.getSize(), timeout.getUnit());
@@ -351,7 +382,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 			// the task is finished => the partition should be finished now
 			runInTaskExecutorThreadAndWait(
 				taskExecutor,
-				() -> assertTrue(partitionTable.hasTrackedPartitions(jobId)));
+				() -> assertThat(partitionTable.hasTrackedPartitions(jobId), is(resultPartitionType.isBlocking())));
 
 			final CompletableFuture<Collection<ResultPartitionID>> releasePartitionsFuture = new CompletableFuture<>();
 			runInTaskExecutorThreadAndWait(
