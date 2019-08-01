@@ -59,6 +59,11 @@ public class RegistryAvroDeserializationSchemaTest {
 				public Schema readSchema(InputStream in) {
 					return Address.getClassSchema();
 				}
+
+				@Override
+				public int writeSchema(Schema recordClazz) throws IOException {
+					return 1;
+				}
 			}
 		);
 
@@ -86,7 +91,17 @@ public class RegistryAvroDeserializationSchemaTest {
 		RegistryAvroDeserializationSchema<SimpleRecord> deserializer = new RegistryAvroDeserializationSchema<>(
 			SimpleRecord.class,
 			null,
-			() -> in -> smallerUserSchema
+			() -> new SchemaCoder() {
+				@Override
+				public Schema readSchema(InputStream in) {
+					return smallerUserSchema;
+				}
+
+				@Override
+				public int writeSchema(Schema recordClazz) {
+					return 1;
+				}
+			}
 		);
 
 		GenericData.Record smallUser = new GenericRecordBuilder(smallerUserSchema)

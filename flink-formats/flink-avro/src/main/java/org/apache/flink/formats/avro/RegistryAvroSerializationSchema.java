@@ -18,11 +18,12 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.util.WrappingRuntimeException;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.specific.SpecificRecord;
-import org.apache.flink.util.WrappingRuntimeException;
 
 import java.io.IOException;
 
@@ -36,8 +37,9 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
 	private static final long serialVersionUID = -6766681879020862312L;
 
 	/** Provider for schema coder. Used for initializing in each task. */
-	protected final SchemaCoder.SchemaCoderProvider schemaCoderProvider;
+	private final SchemaCoder.SchemaCoderProvider schemaCoderProvider;
 
+	protected SchemaCoder schemaCoder;
 	/**
 	 * Creates a Avro serialization schema.
 	 *
@@ -83,6 +85,14 @@ public class RegistryAvroSerializationSchema<T> extends AvroSerializationSchema<
 			} catch (IOException e) {
 				throw new WrappingRuntimeException("Failed to serialize schema registry.", e);
 			}
+		}
+	}
+
+	@Override
+	protected void checkAvroInitialized() {
+		super.checkAvroInitialized();
+		if (schemaCoder == null) {
+			schemaCoder = schemaCoderProvider.get();
 		}
 	}
 }

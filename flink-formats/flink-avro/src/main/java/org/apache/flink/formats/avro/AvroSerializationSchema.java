@@ -18,12 +18,12 @@
 
 package org.apache.flink.formats.avro;
 
-import org.apache.avro.generic.GenericData;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryEncoder;
@@ -33,6 +33,7 @@ import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
 
 import javax.annotation.Nullable;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
@@ -100,7 +101,7 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
 		Preconditions.checkNotNull(recordClazz, "Avro record class must not be null.");
 		this.recordClazz = recordClazz;
 		this.schema = schema;
-		if(schema != null) {
+		if (schema != null) {
 			this.schemaString = schema.toString();
 		} else {
 			this.schemaString = null;
@@ -148,7 +149,7 @@ public class AvroSerializationSchema<T> implements SerializationSchema<T> {
 			return;
 		}
 		ClassLoader cl = Thread.currentThread().getContextClassLoader();
-		if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
+			if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
 			Schema schema = SpecificData.get().getSchema(recordClazz);
 			this.datumWriter = new SpecificDatumWriter<>(schema);
 			this.schema = schema;
