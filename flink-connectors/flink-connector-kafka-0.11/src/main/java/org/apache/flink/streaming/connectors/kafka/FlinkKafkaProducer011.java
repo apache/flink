@@ -882,20 +882,26 @@ public class FlinkKafkaProducer011<IN>
 	}
 
 	@Override
-	protected void finishRecoveringContext() {
-		cleanUpUserContext();
+	protected void finishRecoveringContext(Collection<FlinkKafkaProducer011.KafkaTransactionState> handledTransactions) {
+		cleanUpUserContext(handledTransactions);
 		resetAvailableTransactionalIdsPool(getUserContext().get().transactionalIds);
 		LOG.info("Recovered transactionalIds {}", getUserContext().get().transactionalIds);
 	}
 
 	/**
 	 * After initialization make sure that all previous transactions from the current user context have been completed.
+	 *
+	 * @param handledTransactions
+	 * 		transactions which were already committed or aborted and do not need further handling
 	 */
-	private void cleanUpUserContext() {
+	private void cleanUpUserContext(Collection<KafkaTransactionState> handledTransactions) {
 		if (!getUserContext().isPresent()) {
 			return;
 		}
-		abortTransactions(getUserContext().get().transactionalIds);
+		HashSet<String> abortTransactions = new HashSet<>(getUserContext().get().transactionalIds);
+		handledTransactions.forEach(
+			kafkaTransactionState -> abortTransactions.remove(kafkaTransactionState.transactionalId));
+		abortTransactions(abortTransactions);
 	}
 
 	private void resetAvailableTransactionalIdsPool(Collection<String> transactionalIds) {
