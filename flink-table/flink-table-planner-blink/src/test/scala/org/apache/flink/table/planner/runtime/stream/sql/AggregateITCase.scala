@@ -17,7 +17,6 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
@@ -469,76 +468,6 @@ class AggregateITCase(
     env.execute()
 
     val expected = List("1,1,1,1,1", "3,1,15,15,3", "4,1,34,34,4", "7,2,23,5,2")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
-  @Test
-  def testFirstLastWithOrder(): Unit = {
-    // set all operator parallelism to 1 to make sure the processed input element is in order
-    env.setParallelism(1)
-    val data = new mutable.MutableList[(Long, String, String, Int, Long, String)]
-    data.+=((2L, "u1", "i1", 0, 0L, "b1"))
-    data.+=((-1L, "u1", "i1", 1, 1L, "b1"))
-    data.+=((3L, "u2", "i1", 1, 1L, "b1"))
-    data.+=((4L, "u2", null, 0, 0L, "b1"))
-
-    val t = failingDataSource(data).toTable(tEnv, 'o, 'u, 'i, 'v, 's, 'b)
-    tEnv.registerTable("T", t)
-    val t1 = tEnv.sqlQuery(
-      """
-        |SELECT first_value(u, lo) as f, last_value(u, lo) as l
-        |FROM (
-        |  SELECT b, u, i, last_value(o) as lo, last_value(v, o) as lv,
-        |    first_value(o) as fo, first_value(v, o) as fv
-        |  FROM T
-        |  GROUP BY u, i, b)
-        |GROUP BY i
-      """.stripMargin)
-
-    val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = List(
-      "u1,u2",
-      "u2,u2")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
-  @Test
-  def testFirstValueWithInputContainingNull(): Unit = {
-    val data = List(
-      Row.of("blond", null, Long.box(23L)),
-      Row.of("slim", null, Long.box(21L)),
-      Row.of("slim", null, Long.box(17L)),
-      Row.of("blond", null, Long.box(19L))
-    )
-
-    implicit val tpe: TypeInformation[Row] = new RowTypeInfo(
-      BasicTypeInfo.STRING_TYPE_INFO,
-      BasicTypeInfo.LONG_TYPE_INFO,
-      BasicTypeInfo.LONG_TYPE_INFO) // tpe is automatically
-
-    val t = failingDataSource(data).toTable(tEnv, 't, 'name, 'age)
-    tEnv.registerTable("T", t)
-
-    /* use sql grammar to generate null input for firstValue,
-     * since fromCollection will throw exception when serializing null as Long
-     */
-    val t1 = tEnv.sqlQuery(
-      """
-        |SELECT t,
-        |first_value(name, age) as c,
-        |last_value(name, age) as d
-        |FROM T
-        |GROUP BY t
-      """.stripMargin)
-
-    val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = List("slim,null,null", "blond,null,null")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
