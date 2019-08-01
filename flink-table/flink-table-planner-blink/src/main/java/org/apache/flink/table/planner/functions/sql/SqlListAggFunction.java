@@ -25,30 +25,37 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
-import org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.sql.type.SqlTypeTransforms;
 
 import java.util.List;
 
 /**
- * <code>CONCAT_AGG</code> aggregate function returns the concatenation of
+ * <code>LISTAGG</code> aggregate function returns the concatenation of
  * a list of values that are input to the function.
+ *
+ * <p>NOTE: The difference between this and {@link SqlStdOperatorTable#LISTAGG} is that:
+ * (1). constraint the second parameter must to be a character literal.
+ * (2). not require over clause to use this aggregate function.
  */
-public class SqlConcatAggFunction extends SqlAggFunction {
+public class SqlListAggFunction extends SqlAggFunction {
 
-	public SqlConcatAggFunction() {
-		super("CONCAT_AGG",
+	public SqlListAggFunction() {
+		super("LISTAGG",
 				null,
-				SqlKind.OTHER_FUNCTION,
-				ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
+				SqlKind.LISTAGG,
+				ReturnTypes.ARG0_NULLABLE,
 				null,
 				OperandTypes.or(
 						OperandTypes.CHARACTER,
-						OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER)),
-				SqlFunctionCategory.STRING,
+						OperandTypes.sequence(
+								"'LISTAGG(<CHARACTER>, <CHARACTER_LITERAL>)'",
+								OperandTypes.CHARACTER,
+								OperandTypes.and(OperandTypes.CHARACTER, OperandTypes.LITERAL)
+						)),
+				SqlFunctionCategory.SYSTEM,
 				false,
 				false);
 	}

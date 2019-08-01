@@ -946,9 +946,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFirstLastValueAggFunction LAST_VALUE = new SqlFirstLastValueAggFunction(SqlKind.LAST_VALUE);
 
 	/**
-	 * <code>CONCAT_AGG</code> aggregate function.
+	 * <code>LISTAGG</code> aggregate function.
 	 */
-	public static final SqlConcatAggFunction CONCAT_AGG = new SqlConcatAggFunction();
+	public static final SqlListAggFunction LISTAGG = new SqlListAggFunction();
 
 	/**
 	 * <code>INCR_SUM</code> aggregate function.
