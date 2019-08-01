@@ -50,12 +50,12 @@ import static org.junit.Assert.assertEquals;
 public class PartitionTrackerImplTest extends TestLogger {
 
 	@Test
-	public void testReleasedOnConsumptionPartitionIsNotTracked() {
+	public void testPipelinedPartitionIsNotTracked() {
 		testReleaseOnConsumptionHandling(ResultPartitionType.PIPELINED);
 	}
 
 	@Test
-	public void testRetainedOnConsumptionPartitionIsTracked() {
+	public void testBlockingPartitionIsTracked() {
 		testReleaseOnConsumptionHandling(ResultPartitionType.BLOCKING);
 	}
 
@@ -75,8 +75,7 @@ public class PartitionTrackerImplTest extends TestLogger {
 				resultPartitionType,
 				false));
 
-		final boolean isTrackingExpected = resultPartitionType == ResultPartitionType.BLOCKING;
-		assertThat(partitionTracker.isTrackingPartitionsFor(resourceId), is(isTrackingExpected));
+		assertThat(partitionTracker.isTrackingPartitionsFor(resourceId), is(resultPartitionType.isBlocking()));
 	}
 
 	@Test
