@@ -133,4 +133,48 @@ public class HiveTableSourceTest {
 		assertArrayEquals(new String[]{"2014,3,0", "2014,4,0", "2015,2,1", "2015,5,1"}, rowStrings);
 	}
 
+	@Test
+	public void testPartitionPrunning() throws Exception {
+		final String dbName = "source_db";
+		final String tblName = "test_table_pt";
+		hiveShell.execute("CREATE TABLE source_db.test_table_pt " +
+						"(year STRING, value INT) partitioned by (pt int);");
+		hiveShell.insertInto("source_db", "test_table_pt")
+				.withColumns("year", "value", "pt")
+				.addRow("2014", 3, 0)
+				.addRow("2014", 4, 0)
+				.addRow("2015", 2, 1)
+				.addRow("2015", 5, 1)
+				.commit();
+		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
+		ObjectPath tablePath = new ObjectPath(dbName, tblName);
+		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(tablePath);
+		tEnv.registerTableSource("src", new HiveTableSource(new JobConf(hiveConf), tablePath, catalogTable));
+		Table table = tEnv.sqlQuery("select * from src where pt = 0");
+		assertEquals("== Abstract Syntax Tree ==\n" +
+					"LogicalProject(year=[$0], value=[$1], pt=[$2])\n" +
+					"+- LogicalFilter(condition=[=($2, 0)])\n" +
+					"   +- LogicalTableScan(table=[[default_catalog, default_database, src, source: [HiveTableSource(year, value, pt) PartitionPrunning: false, partitionNums: 2]]])\n" +
+					"\n" +
+					"== Optimized Logical Plan ==\n" +
+					"Calc(select=[year, value, CAST(0) AS pt])\n" +
+					"+- TableSourceScan(table=[[default_catalog, default_database, src, source: [HiveTableSource(year, value, pt) PartitionPrunning: true, partitionNums: 1]]], fields=[year, value, pt])\n" +
+					"\n" +
+					"== Physical Execution Plan ==\n" +
+					"Stage 1 : Data Source\n" +
+					"\tcontent : collect elements with CollectionInputFormat\n" +
+					"\n" +
+					"\tStage 2 : Operator\n" +
+					"\t\tcontent : SourceConversion(table:Buffer(default_catalog, default_database, src, source: [HiveTableSource(year, value, pt) PartitionPrunning: true, partitionNums: 1]), fields:(year, value, pt))\n" +
+					"\t\tship_strategy : FORWARD\n" +
+					"\n" +
+					"\t\tStage 3 : Operator\n" +
+					"\t\t\tcontent : Calc(select: (year, value, CAST(0) AS pt))\n" +
+					"\t\t\tship_strategy : FORWARD\n\n", tEnv.explain(table));
+		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) table)).asJava();
+		assertEquals(2, rows.size());
+		Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
+		assertArrayEquals(new String[]{"2014,3,0", "2014,4,0"}, rowStrings);
+	}
+
 }
