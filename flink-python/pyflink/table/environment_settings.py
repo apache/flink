@@ -39,7 +39,7 @@ class EnvironmentSettings(object):
 
     class Builder(object):
         """
-        A builder for :class:`EnvironmentSettingss`.
+        A builder for :class:`EnvironmentSettings`.
         """
 
         def __init__(self):
@@ -152,8 +152,8 @@ class EnvironmentSettings(object):
             """
             return EnvironmentSettings(self._j_builder.build())
 
-    def __init__(self, j_envrionment_settings):
-        self._j_environment_settings = j_envrionment_settings
+    def __init__(self, j_environment_settings):
+        self._j_environment_settings = j_environment_settings
 
     def get_built_in_catalog_name(self):
         """
