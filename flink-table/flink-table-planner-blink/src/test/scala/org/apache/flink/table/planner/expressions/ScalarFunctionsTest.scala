@@ -1473,7 +1473,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       1514356320000L / 60000.0, // the `/` is Scala operator, not Flink TableApi operator
       "1514356320000L / 60000",
       "1514356320000 / 60000",
-      "2.5239272E7")
+      "25239272")
 
     testAllApis(
       'f7 / 2,

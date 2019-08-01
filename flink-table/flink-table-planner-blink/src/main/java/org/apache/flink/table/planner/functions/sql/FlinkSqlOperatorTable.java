@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.plan.type.NumericExceptFirstOperandChecker
 import org.apache.flink.table.planner.plan.type.RepeatFamilyOperandTypeChecker;
 
 import org.apache.calcite.sql.SqlAggFunction;
-import org.apache.calcite.sql.SqlBinaryOperator;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlGroupedWindowFunction;
@@ -52,7 +51,6 @@ import java.util.List;
 
 import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.ARG0_VARCHAR_FORCE_NULLABLE;
 import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.FLINK_DIV_NULLABLE;
-import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.FLINK_QUOTIENT_NULLABLE;
 import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.STR_MAP_NULLABLE;
 import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_2000_NULLABLE;
 
@@ -107,20 +105,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	// -----------------------------------------------------------------------------
 	// Flink specific built-in scalar SQL functions
 	// -----------------------------------------------------------------------------
-
-	// OPERATORS
-
-	/**
-	 * Arithmetic division operator, '/'. Return DOUBLE or DECIMAL with fractional part.
-	 */
-	public static final SqlBinaryOperator DIVIDE = new SqlBinaryOperator(
-		"/",
-		SqlKind.DIVIDE,
-		60,
-		true,
-		FLINK_QUOTIENT_NULLABLE,
-		InferTypes.FIRST_KNOWN,
-		OperandTypes.DIVISION_OPERATOR);
 
 	// FUNCTIONS
 
@@ -953,6 +937,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlOperator AND = SqlStdOperatorTable.AND;
 	public static final SqlOperator AS = SqlStdOperatorTable.AS;
 	public static final SqlOperator CONCAT = SqlStdOperatorTable.CONCAT;
+	public static final SqlOperator DIVIDE = SqlStdOperatorTable.DIVIDE;
 	public static final SqlOperator DIVIDE_INTEGER = SqlStdOperatorTable.DIVIDE_INTEGER;
 	public static final SqlOperator DOT = SqlStdOperatorTable.DOT;
 	public static final SqlOperator EQUALS = SqlStdOperatorTable.EQUALS;
