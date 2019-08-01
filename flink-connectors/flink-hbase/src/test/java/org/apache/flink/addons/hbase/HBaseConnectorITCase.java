@@ -58,7 +58,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.addons.hbase.util.PlannerType.BLINK_PLANNER;
 import static org.apache.flink.addons.hbase.util.PlannerType.OLD_PLANNER;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
@@ -210,11 +209,6 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 
 	@Test
 	public void testTableInputFormat() throws Exception {
-		if (BLINK_PLANNER.equals(planner)) {
-			// this case is for testing TableInputFormat which is not works for flink-table
-			// we can just skip for blink planner
-			return;
-		}
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 		DataSet<Tuple1<Integer>> result = env
