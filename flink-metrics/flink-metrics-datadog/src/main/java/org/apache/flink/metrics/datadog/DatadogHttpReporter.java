@@ -155,7 +155,13 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
 		}
 
 		try {
-			client.send(request);
+			int seriesSize = request.getSeries().getSeries().size();
+			if (seriesSize > 0) {
+				client.send(request);
+			}
+			else  {
+				LOGGER.debug("Series size {}, so skipping sending to Datadog", seriesSize);
+			}
 		} catch (SocketTimeoutException e) {
 			LOGGER.warn("Failed reporting metrics to Datadog because of socket timeout.", e.getMessage());
 		} catch (Exception e) {
