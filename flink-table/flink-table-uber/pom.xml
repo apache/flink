@@ -86,7 +86,6 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
-					<!-- Exclude all flink-dist files and only include flink-table-* -->
 					<execution>
 						<id>shade-flink</id>
 						<phase>package</phase>
@@ -96,8 +95,8 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes combine.children="append">
+									<!--Sql parser is included in planners-->
 									<include>org.apache.flink:flink-table-common</include>
-									<include>org.apache.flink:flink-sql-parser</include>
 									<include>org.apache.flink:flink-table-api-java</include>
 									<include>org.apache.flink:flink-table-api-scala_${scala.binary.version}</include>
 									<include>org.apache.flink:flink-table-api-java-bridge_${scala.binary.version}</include>
