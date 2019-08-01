@@ -140,7 +140,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 	/**
 	 * Executor for starting new yarn containers.
 	 */
-	private final Executor startContainerExecutor;
+	private final ThreadPoolExecutor startContainerExecutor;
 
 	public YarnResourceManager(
 			RpcService rpcService,
@@ -289,6 +289,14 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		if (nodeManagerClient != null) {
 			try {
 				nodeManagerClient.stop();
+			} catch (Throwable t) {
+				firstException = ExceptionUtils.firstOrSuppressed(t, firstException);
+			}
+		}
+
+		if (startContainerExecutor != null) {
+			try {
+				startContainerExecutor.shutdownNow();
 			} catch (Throwable t) {
 				firstException = ExceptionUtils.firstOrSuppressed(t, firstException);
 			}
