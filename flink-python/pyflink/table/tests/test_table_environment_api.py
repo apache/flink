@@ -21,7 +21,7 @@ from py4j.compat import unicode
 
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment
+from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment, EnvironmentSettings
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import BatchTableEnvironment
 from pyflink.table.types import RowType
@@ -197,6 +197,17 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         self.assertEqual(readed_table_config.get_max_generated_code_length(), 32000)
         self.assertEqual(readed_table_config.get_local_timezone(), "Asia/Shanghai")
 
+    def test_create_table_environment_with_blink_planner(self):
+        t_env = StreamTableEnvironment.create(
+            self.env,
+            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
+
+        planner = t_env._j_tenv.getPlanner()
+
+        self.assertEqual(
+            planner.getClass().getName(),
+            "org.apache.flink.table.planner.delegation.StreamPlanner")
+
 
 class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
 
@@ -273,3 +284,14 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         self.assertFalse(readed_table_config.get_null_check())
         self.assertEqual(readed_table_config.get_max_generated_code_length(), 32000)
         self.assertEqual(readed_table_config.get_local_timezone(), "Asia/Shanghai")
+
+    def test_create_table_environment_with_blink_planner(self):
+        t_env = BatchTableEnvironment.create(
+            environment_settings=EnvironmentSettings.new_instance().in_batch_mode()
+            .use_blink_planner().build())
+
+        planner = t_env._j_tenv.getPlanner()
+
+        self.assertEqual(
+            planner.getClass().getName(),
+            "org.apache.flink.table.planner.delegation.BatchPlanner")

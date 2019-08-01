@@ -19,6 +19,8 @@ import os
 import tempfile
 from abc import ABCMeta, abstractmethod
 
+from py4j.java_gateway import get_java_class
+
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table.catalog import Catalog
 from pyflink.table.table_config import TableConfig
@@ -730,32 +732,58 @@ class StreamTableEnvironment(TableEnvironment):
             self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
 
     @staticmethod
-    def create(stream_execution_environment, table_config=None):
+    def create(stream_execution_environment, table_config=None, environment_settings=None):
         """
-        Creates a :class:`TableEnvironment` for a :class:`StreamExecutionEnvironment`
+        Creates a :class:`TableEnvironment` for a
+        :class:`~pyflink.datastream.StreamExecutionEnvironment`.
 
         Example:
         ::
 
             >>> env = StreamExecutionEnvironment.get_execution_environment()
-            # create without TableConfig
+            # create without optional parameters.
             >>> table_env = StreamTableEnvironment.create(env)
             # create with TableConfig
             >>> table_config = TableConfig()
             >>> table_config.set_null_check(False)
             >>> table_env = StreamTableEnvironment.create(env, table_config)
+            # create with EnvrionmentSettings
+            >>> environment_settings = EnvironmentSettings.new_instance().use_blink_planner() \\
+            ...     .build()
+            >>> table_env = StreamTableEnvironment.create(
+            ...     env, environment_settings=environment_settings)
 
-        :param stream_execution_environment: The :class:`StreamExecutionEnvironment` of the
-                                             TableEnvironment.
+
+        :param stream_execution_environment: The
+                                             :class:`~pyflink.datastream.StreamExecutionEnvironment`
+                                             of the TableEnvironment.
+        :type stream_execution_environment: pyflink.datastream.StreamExecutionEnvironment
         :param table_config: The configuration of the TableEnvironment, optional.
+        :type table_config: TableConfig
+        :param environment_settings: The environment settings used to instantiate the
+                                     TableEnvironment. It provides the interfaces about planner
+                                     selection(flink or blink), optional.
+        :type environment_settings: pyflink.table.EnvironmentSettings
         :return: The :class:`StreamTableEnvironment` created from given StreamExecutionEnvironment
                  and configuration.
+        :rtype: StreamTableEnvironment
         """
+        if table_config is not None and environment_settings is not None:
+            raise ValueError("The param 'table_config' and "
+                             "'environment_settings' cannot be used at the same time")
+
         gateway = get_gateway()
         if table_config is not None:
             j_tenv = gateway.jvm.StreamTableEnvironment.create(
                 stream_execution_environment._j_stream_execution_environment,
                 table_config._j_table_config)
+        elif environment_settings is not None:
+            if not environment_settings.is_streaming_mode():
+                raise ValueError("The environment settings for StreamTableEnvironment must be "
+                                 "set to streaming mode.")
+            j_tenv = gateway.jvm.StreamTableEnvironment.create(
+                stream_execution_environment._j_stream_execution_environment,
+                environment_settings._j_environment_settings)
         else:
             j_tenv = gateway.jvm.StreamTableEnvironment.create(
                 stream_execution_environment._j_stream_execution_environment)
@@ -770,10 +798,16 @@ class BatchTableEnvironment(TableEnvironment):
 
     def _from_file(self, filename, schema):
         gateway = get_gateway()
-        jds = gateway.jvm.PythonBridgeUtils.createDataSetFromFile(
-            self._j_tenv.execEnv(), filename, True)
-        return Table(gateway.jvm.PythonTableUtils.fromDataSet(
-            self._j_tenv, jds, _to_java_type(schema)))
+        blink_t_env_class = get_java_class(
+            gateway.jvm.org.apache.flink.table.api.internal.TableEnvironmentImpl)
+        if blink_t_env_class == self._j_tenv.getClass():
+            raise NotImplementedError("The operation 'from_elements' in batch mode is currently "
+                                      "not supported when using blink planner.")
+        else:
+            jds = gateway.jvm.PythonBridgeUtils.createDataSetFromFile(
+                self._j_tenv.execEnv(), filename, True)
+            return Table(gateway.jvm.PythonTableUtils.fromDataSet(
+                self._j_tenv, jds, _to_java_type(schema)))
 
     def get_config(self):
         """
@@ -810,38 +844,89 @@ class BatchTableEnvironment(TableEnvironment):
             ...     .register_table_source("MyTable")
 
         :param connector_descriptor: Connector descriptor describing the external system.
-        :return: A :class:`BatchTableDescriptor` used to build the table source/sink.
+        :type connector_descriptor: ConnectorDescriptor
+        :return: A :class:`BatchTableDescriptor` or a :class:`StreamTableDescriptor`
+                 (for blink planner) used to build the table source/sink.
+        :rtype: BatchTableDescriptor or StreamTableDescriptor
         """
-        # type: (ConnectorDescriptor) -> BatchTableDescriptor
-        return BatchTableDescriptor(
-            self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
+        gateway = get_gateway()
+        blink_t_env_class = get_java_class(
+            gateway.jvm.org.apache.flink.table.api.internal.TableEnvironmentImpl)
+        if blink_t_env_class == self._j_tenv.getClass():
+            return StreamTableDescriptor(
+                self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
+        else:
+            return BatchTableDescriptor(
+                self._j_tenv.connect(connector_descriptor._j_connector_descriptor))
 
     @staticmethod
-    def create(execution_environment, table_config=None):
+    def create(execution_environment=None, table_config=None, environment_settings=None):
         """
-        Creates a :class:`TableEnvironment` for a batch :class:`ExecutionEnvironment`.
+        Creates a :class:`BatchTableEnvironment`.
 
         Example:
         ::
 
+            # create with ExecutionEnvironment.
             >>> env = ExecutionEnvironment.get_execution_environment()
             >>> table_env = BatchTableEnvironment.create(env)
+            # create with ExecutionEnvironment and TableConfig.
             >>> table_config = TableConfig()
             >>> table_config.set_null_check(False)
             >>> table_env = BatchTableEnvironment.create(env, table_config)
+            # create with EnvironmentSettings.
+            >>> environment_settings = EnvironmentSettings.new_instance().in_batch_mode() \\
+            ...     .use_blink_planner().build()
+            >>> table_env = BatchTableEnvironment.create(environment_settings=environment_settings)
 
-        :param execution_environment: The batch :class:`ExecutionEnvironment` of the
-                                      TableEnvironment.
+        :param execution_environment: The batch :class:`pyflink.dataset.ExecutionEnvironment` of
+                                      the TableEnvironment.
+        :type execution_environment: pyflink.dataset.ExecutionEnvironment
         :param table_config: The configuration of the TableEnvironment, optional.
-        :return: The :class:`BatchTableEnvironment` created from given ExecutionEnvironment and
+        :type table_config: TableConfig
+        :param environment_settings: The environment settings used to instantiate the
+                                     TableEnvironment. It provides the interfaces about planner
+                                     selection(flink or blink), optional.
+        :type environment_settings: pyflink.table.EnvironmentSettings
+        :return: The BatchTableEnvironment created from given ExecutionEnvironment and
                  configuration.
+        :rtype: BatchTableEnvironment
         """
+        if execution_environment is None and \
+                table_config is None and \
+                environment_settings is None:
+            raise ValueError("No argument found, the param 'execution_environment' "
+                             "or 'environment_settings' is required.")
+        elif execution_environment is None and \
+                table_config is not None and \
+                environment_settings is None:
+            raise ValueError("Only the param 'table_config' is found, "
+                             "the param 'execution_environment' is also required.")
+        elif execution_environment is not None and \
+                environment_settings is not None:
+            raise ValueError("The param 'execution_environment' and "
+                             "'environment_settings' cannot be used at the same time")
+        elif table_config is not None and \
+                environment_settings is not None:
+            raise ValueError("The param 'table_config' and "
+                             "'environment_settings' cannot be used at the same time")
+
         gateway = get_gateway()
-        if table_config is not None:
-            j_tenv = gateway.jvm.BatchTableEnvironment.create(
-                execution_environment._j_execution_environment,
-                table_config._j_table_config)
-        else:
-            j_tenv = gateway.jvm.BatchTableEnvironment.create(
-                execution_environment._j_execution_environment)
-        return BatchTableEnvironment(j_tenv)
+        if execution_environment is not None and environment_settings is None:
+            if table_config is not None:
+                j_tenv = gateway.jvm.BatchTableEnvironment.create(
+                    execution_environment._j_execution_environment,
+                    table_config._j_table_config)
+            else:
+                j_tenv = gateway.jvm.BatchTableEnvironment.create(
+                    execution_environment._j_execution_environment)
+            return BatchTableEnvironment(j_tenv)
+        elif environment_settings is not None and \
+                execution_environment is None and \
+                table_config is None:
+            if environment_settings.is_streaming_mode():
+                raise ValueError("The environment settings for BatchTableEnvironment must be "
+                                 "set to batch mode.")
+            j_tenv = gateway.jvm.TableEnvironment.create(
+                environment_settings._j_environment_settings)
+            return BatchTableEnvironment(j_tenv)
