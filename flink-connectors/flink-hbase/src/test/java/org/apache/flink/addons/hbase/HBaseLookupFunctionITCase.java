@@ -29,8 +29,10 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.TableFactoryService;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.runtime.utils.StreamITCase;
 import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.sources.decorator.CachedLookupFunctionDecorator;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -153,7 +155,10 @@ public class HBaseLookupFunctionITCase extends HBaseTestingClusterAutostarter {
 		String[] columnNames = {FAMILY1, ROWKEY, FAMILY2, FAMILY3};
 		TypeInformation<Row> f1 = Types.ROW_NAMED(new String[]{F1COL1}, Types.INT);
 		TypeInformation<Row> f2 = Types.ROW_NAMED(new String[]{F2COL1, F2COL2}, Types.STRING, Types.LONG);
-		TypeInformation<Row> f3 = Types.ROW_NAMED(new String[]{F3COL1, F3COL2, F3COL3}, Types.DOUBLE, Types.BOOLEAN, Types.STRING);
+		TypeInformation<Row> f3 = Types.ROW_NAMED(new String[]{F3COL1, F3COL2, F3COL3},
+			Types.DOUBLE,
+			Types.BOOLEAN,
+			Types.STRING);
 		TypeInformation[] columnTypes = new TypeInformation[]{f1, Types.INT, f2, f3};
 
 		DescriptorProperties descriptorProperties = new DescriptorProperties(true);
@@ -177,11 +182,52 @@ public class HBaseLookupFunctionITCase extends HBaseTestingClusterAutostarter {
 		streamTableEnv.registerTable(srcTableName, in);
 
 		Map<String, String> tableProperties = hbaseTableProperties();
-		TableSource source = TableFactoryService
-			.find(HBaseTableFactory.class, tableProperties)
-			.createTableSource(tableProperties);
+		TableSource source = TableFactoryService.find(HBaseTableFactory.class, tableProperties).createTableSource(
+			tableProperties);
 
-		streamTableEnv.registerFunction("hbaseLookup", ((HBaseTableSource) source).getLookupFunction(new String[]{ROWKEY}));
+		streamTableEnv.registerFunction("hbaseLookup",
+			((HBaseTableSource) source).getLookupFunction(new String[]{ROWKEY}));
+
+		// perform a temporal table join query
+		String sqlQuery = "SELECT a,family1.col1, family3.col3 FROM testStreamSrcTable1, LATERAL TABLE(hbaseLookup(a))";
+		Table result = streamTableEnv.sqlQuery(sqlQuery);
+
+		DataStream<Row> resultSet = streamTableEnv.toAppendStream(result, Row.class);
+		resultSet.addSink(new StreamITCase.StringSink<>());
+
+		streamEnv.execute();
+
+		List<String> expected = new ArrayList<>();
+		expected.add("1,10,Welt-1");
+		expected.add("2,20,Welt-2");
+		expected.add("3,30,Welt-3");
+		expected.add("3,30,Welt-3");
+
+		StreamITCase.compareWithList(expected);
+	}
+
+	@Test
+	public void testHBaseLookupFunctionWithCache() throws Exception {
+		StreamExecutionEnvironment streamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+		streamEnv.setParallelism(4);
+		StreamTableEnvironment streamTableEnv = StreamTableEnvironment.create(streamEnv);
+		StreamITCase.clear();
+
+		// prepare a source table
+		String srcTableName = "testStreamSrcTable1";
+		DataStream<Row> ds = streamEnv.fromCollection(testData1).returns(testTypeInfo1);
+		Table in = streamTableEnv.fromDataStream(ds, String.join(",", testColumns1));
+		streamTableEnv.registerTable(srcTableName, in);
+
+		Map<String, String> tableProperties = hbaseTableProperties();
+		TableSource source = TableFactoryService.find(HBaseTableFactory.class, tableProperties).createTableSource(
+			tableProperties);
+
+		TableFunction<Row> realTableFunction = ((HBaseTableSource) source).getLookupFunction(new String[]{ROWKEY});
+		CachedLookupFunctionDecorator<Row> cachedLookup = new CachedLookupFunctionDecorator<>(realTableFunction,
+			1024L * 1024 * 1024);
+
+		streamTableEnv.registerFunction("hbaseLookup", cachedLookup);
 
 		// perform a temporal table join query
 		String sqlQuery = "SELECT a,family1.col1, family3.col3 FROM testStreamSrcTable1, LATERAL TABLE(hbaseLookup(a))";
