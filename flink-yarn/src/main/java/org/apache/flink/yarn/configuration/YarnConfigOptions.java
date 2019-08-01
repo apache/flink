@@ -193,7 +193,7 @@ public class YarnConfigOptions {
 	 */
 	public static final ConfigOption<Integer> CONTAINER_LAUNCHER_NUM_MAX =
 		key("yarn.max-container-launcher-number")
-			.defaultValue(100)
+			.defaultValue(10)
 			.withDescription("The max number of threads for starting yarn containers in yarn resource manager.");
 
 	// ------------------------------------------------------------------------
