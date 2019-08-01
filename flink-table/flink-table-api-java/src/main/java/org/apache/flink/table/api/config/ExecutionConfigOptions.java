@@ -45,8 +45,8 @@ public class ExecutionConfigOptions {
 	// ------------------------------------------------------------------------
 	public static final ConfigOption<Integer> TABLE_EXEC_SORT_DEFAULT_LIMIT =
 		key("table.exec.sort.default-limit")
-			.defaultValue(200)
-			.withDescription("Default limit when user don't set a limit after order by.");
+			.defaultValue(-1)
+			.withDescription("Default limit when user don't set a limit after order by. -1 indicates that this configuration is ignored.");
 
 	public static final ConfigOption<Integer> TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES =
 		key("table.exec.sort.max-num-file-handles")

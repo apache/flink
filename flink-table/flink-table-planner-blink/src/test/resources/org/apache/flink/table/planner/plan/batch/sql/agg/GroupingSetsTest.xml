@@ -407,15 +407,14 @@ LogicalSort(sort0=[$0], sort1=[$1], sort2=[$2], dir0=[ASC-nulls-first], dir1=[AS
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[deptno, job, empno, ename, sumsal, CASE(=(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 0:BIGINT), _UTF-16LE'grouped by deptno,job,empno,ename':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 1:BIGINT), _UTF-16LE'grouped by deptno,job':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 3:BIGINT), _UTF-16LE'grouped by deptno':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", =(CASE(=($e, 0:BIGINT), 0:BIGINT, =($e, 3:BIGINT), 1:BIGINT, =($e, 7:BIGINT), 3:BIGINT, 7:BIGINT), 7:BIGINT), _UTF-16LE'grouped by ()':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS gr_text])
-+- SortLimit(orderBy=[deptno ASC, job ASC, empno ASC], offset=[0], fetch=[200], global=[true])
++- Sort(orderBy=[deptno ASC, job ASC, empno ASC])
    +- Exchange(distribution=[single])
-      +- SortLimit(orderBy=[deptno ASC, job ASC, empno ASC], offset=[0], fetch=[200], global=[false])
-         +- HashAggregate(isMerge=[true], groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Final_SUM(sum$0) AS sumsal])
-            +- Exchange(distribution=[hash[deptno, job, empno, ename, $e]])
-               +- LocalHashAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Partial_SUM(sal) AS sum$0])
-                  +- Expand(projects=[{deptno=[$0], job=[$1], empno=[$2], ename=[$3], sal=[$4], $e=[0]}, {deptno=[$0], job=[$1], empno=[null], ename=[null], sal=[$4], $e=[3]}, {deptno=[$0], job=[null], empno=[null], ename=[null], sal=[$4], $e=[7]}, {deptno=[null], job=[null], empno=[null], ename=[null], sal=[$4], $e=[15]}], projects=[{deptno, job, empno, ename, sal, 0 AS $e}, {deptno, job, null AS empno, null AS ename, sal, 3 AS $e}, {deptno, null AS job, null AS empno, null AS ename, sal, 7 AS $e}, {null AS deptno, null AS job, null AS empno, null AS ename, sal, 15 AS $e}])
-                     +- Calc(select=[deptno, job, empno, ename, sal])
-                        +- TableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
+      +- HashAggregate(isMerge=[true], groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Final_SUM(sum$0) AS sumsal])
+         +- Exchange(distribution=[hash[deptno, job, empno, ename, $e]])
+            +- LocalHashAggregate(groupBy=[deptno, job, empno, ename, $e], select=[deptno, job, empno, ename, $e, Partial_SUM(sal) AS sum$0])
+               +- Expand(projects=[{deptno=[$0], job=[$1], empno=[$2], ename=[$3], sal=[$4], $e=[0]}, {deptno=[$0], job=[$1], empno=[null], ename=[null], sal=[$4], $e=[3]}, {deptno=[$0], job=[null], empno=[null], ename=[null], sal=[$4], $e=[7]}, {deptno=[null], job=[null], empno=[null], ename=[null], sal=[$4], $e=[15]}], projects=[{deptno, job, empno, ename, sal, 0 AS $e}, {deptno, job, null AS empno, null AS ename, sal, 3 AS $e}, {deptno, null AS job, null AS empno, null AS ename, sal, 7 AS $e}, {null AS deptno, null AS job, null AS empno, null AS ename, sal, 15 AS $e}])
+                  +- Calc(select=[deptno, job, empno, ename, sal])
+                     +- TableSourceScan(table=[[default_catalog, default_database, scott_emp, source: [TestTableSource(empno, ename, job, mgr, hiredate, sal, comm, deptno)]]], fields=[empno, ename, job, mgr, hiredate, sal, comm, deptno])
 ]]>
     </Resource>
   </TestCase>
@@ -726,16 +725,15 @@ LogicalProject(c=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c])
-+- SortLimit(orderBy=[EXPR$1 ASC, c ASC], offset=[0], fetch=[200], global=[true])
++- Sort(orderBy=[EXPR$1 ASC, c ASC])
    +- Exchange(distribution=[single])
-      +- SortLimit(orderBy=[EXPR$1 ASC, c ASC], offset=[0], fetch=[200], global=[false])
-         +- Calc(select=[c, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS EXPR$1])
-            +- HashAggregate(isMerge=[true], groupBy=[deptno, $e], select=[deptno, $e, Final_COUNT(count1$0) AS c])
-               +- Exchange(distribution=[hash[deptno, $e]])
-                  +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
-                     +- Expand(projects=[{deptno=[$0], $e=[0]}, {deptno=[null], $e=[1]}], projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
-                        +- Calc(select=[deptno])
-                           +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+      +- Calc(select=[c, CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT) AS EXPR$1])
+         +- HashAggregate(isMerge=[true], groupBy=[deptno, $e], select=[deptno, $e, Final_COUNT(count1$0) AS c])
+            +- Exchange(distribution=[hash[deptno, $e]])
+               +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
+                  +- Expand(projects=[{deptno=[$0], $e=[0]}, {deptno=[null], $e=[1]}], projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
+                     +- Calc(select=[deptno])
+                        +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -948,16 +946,15 @@ LogicalSort(sort0=[$1], dir0=[DESC-nulls-last])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[gender, c])
-+- SortLimit(orderBy=[c DESC], offset=[0], fetch=[200], global=[true])
-   +- Exchange(distribution=[single])
-      +- SortLimit(orderBy=[c DESC], offset=[0], fetch=[200], global=[false])
-         +- HashAggregate(isMerge=[true], groupBy=[gender, $e], select=[gender, $e, Final_COUNT(count1$0) AS c])
-            +- Exchange(distribution=[hash[gender, $e]])
-               +- LocalHashAggregate(groupBy=[gender, $e], select=[gender, $e, Partial_COUNT(*) AS count1$0])
-                  +- Expand(projects=[{gender=[$0], $e=[0]}, {gender=[null], $e=[1]}], projects=[{gender, 0 AS $e}, {null AS gender, 1 AS $e}])
-                     +- Calc(select=[gender])
-                        +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
+Sort(orderBy=[c DESC])
++- Exchange(distribution=[single])
+   +- Calc(select=[gender, c])
+      +- HashAggregate(isMerge=[true], groupBy=[gender, $e], select=[gender, $e, Final_COUNT(count1$0) AS c])
+         +- Exchange(distribution=[hash[gender, $e]])
+            +- LocalHashAggregate(groupBy=[gender, $e], select=[gender, $e, Partial_COUNT(*) AS count1$0])
+               +- Expand(projects=[{gender=[$0], $e=[0]}, {gender=[null], $e=[1]}], projects=[{gender, 0 AS $e}, {null AS gender, 1 AS $e}])
+                  +- Calc(select=[gender])
+                     +- TableSourceScan(table=[[default_catalog, default_database, emp, source: [TestTableSource(ename, deptno, gender)]]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
