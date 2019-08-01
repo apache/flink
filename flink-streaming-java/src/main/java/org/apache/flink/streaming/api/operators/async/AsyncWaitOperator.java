@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -76,7 +77,7 @@ import java.util.concurrent.TimeUnit;
 @Internal
 public class AsyncWaitOperator<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, AsyncFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT>, OperatorActions {
+		implements OneInputStreamOperator<IN, OUT>, OperatorActions, BoundedOneInput {
 	private static final long serialVersionUID = 1L;
 
 	private static final String STATE_NAME = "_async_wait_operator_state_";
@@ -273,15 +274,14 @@ public class AsyncWaitOperator<IN, OUT>
 	}
 
 	@Override
+	public void endInput() throws Exception {
+		waitInFlightInputsFinished();
+	}
+
+	@Override
 	public void close() throws Exception {
 		try {
-			assert(Thread.holdsLock(checkpointingLock));
-
-			while (!queue.isEmpty()) {
-				// wait for the emitter thread to output the remaining elements
-				// for that he needs the checkpointing lock and thus we have to free it
-				checkpointingLock.wait();
-			}
+			waitInFlightInputsFinished();
 		}
 		finally {
 			Exception exception = null;
@@ -407,6 +407,16 @@ public class AsyncWaitOperator<IN, OUT>
 		}
 
 		pendingStreamElementQueueEntry = null;
+	}
+
+	private void waitInFlightInputsFinished() throws InterruptedException {
+		assert(Thread.holdsLock(checkpointingLock));
+
+		while (!queue.isEmpty()) {
+			// wait for the emitter thread to output the remaining elements
+			// for that he needs the checkpointing lock and thus we have to free it
+			checkpointingLock.wait();
+		}
 	}
 
 	@Override
