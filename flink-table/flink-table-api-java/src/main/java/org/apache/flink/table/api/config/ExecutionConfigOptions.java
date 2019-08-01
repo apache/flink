@@ -83,8 +83,13 @@ public class ExecutionConfigOptions {
 	public static final ConfigOption<Integer> TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM =
 		key("table.exec.resource.default-parallelism")
 			.defaultValue(-1)
-			.withDescription("Default parallelism to override parallelism of " +
-					"StreamExecutionEnvironment. If it is <= 0, not to override.");
+			.withDescription("Sets default parallelism for all operators " +
+					"(such as aggregate, join, filter) to run with parallel instances. " +
+					"This config has a higher priority than parallelism of " +
+					"StreamExecutionEnvironment (actually, this config overrides the parallelism " +
+					"of StreamExecutionEnvironment). A value of -1 indicates that no " +
+					"default parallelism is set, then it will fallback to use the parallelism " +
+					"of StreamExecutionEnvironment.");
 
 	public static final ConfigOption<String> TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY =
 		key("table.exec.resource.external-buffer-memory")

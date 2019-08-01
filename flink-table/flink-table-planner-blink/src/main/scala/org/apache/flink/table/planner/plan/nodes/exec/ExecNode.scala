@@ -93,12 +93,9 @@ trait ExecNode[E <: Planner, T] {
     *  Whether there is singleton exchange node as input.
     */
   protected def inputsContainSingleton(): Boolean = {
-    getInputNodes.foreach {
-      case exchange: Exchange
-        if exchange.getDistribution.getType == RelDistribution.Type.SINGLETON =>
-        return true
-      case _ => Unit
+    getInputNodes.exists { node =>
+      node.isInstanceOf[Exchange] &&
+          node.asInstanceOf[Exchange].getDistribution.getType == RelDistribution.Type.SINGLETON
     }
-    false
   }
 }

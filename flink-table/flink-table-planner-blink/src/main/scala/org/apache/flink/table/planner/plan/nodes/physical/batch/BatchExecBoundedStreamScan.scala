@@ -102,9 +102,6 @@ class BatchExecBoundedStreamScan(
     }
   }
 
-  def getSourceTransformation: Transformation[_] =
-    boundedStreamTable.dataStream.getTransformation
-
   def needInternalConversion: Boolean = {
     ScanUtil.hasTimeAttributeField(boundedStreamTable.fieldIndexes) ||
         ScanUtil.needsConversion(boundedStreamTable.dataType)

@@ -77,9 +77,6 @@ class StreamExecDataStreamScan(
 
   override def deriveRowType(): RelDataType = outputRowType
 
-  def getSourceTransformation: Transformation[_] =
-    dataStreamTable.dataStream.getTransformation
-
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
     new StreamExecDataStreamScan(cluster, traitSet, getTable, getRowType)
   }
