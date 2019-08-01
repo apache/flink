@@ -157,19 +157,19 @@ Currently `HiveCatalog` supports most Flink data types with the following mappin
 
 |  Flink Data Type  |  Hive Data Type  |
 |---|---|
-| CHAR(p)       |  char(p)* |
-| VARCHAR(p)    |  varchar(p)** |
-| STRING        |  string |
-| BOOLEAN       |  boolean |
-| TINYINT       |  tinyint |
-| SMALLINT      |  smallint |
-| INT           |  int |
-| BIGINT        |  long |
-| FLOAT         |  float |
-| DOUBLE        |  double |
-| DECIMAL(p, s) |  decimal(p, s) |
-| DATE          |  date |
-| TIMESTAMP_WITHOUT_TIME_ZONE |  Timestamp |
+| CHAR(p)       |  CHAR(p)* |
+| VARCHAR(p)    |  VARCHAR(p)** |
+| STRING        |  STRING |
+| BOOLEAN       |  BOOLEAN |
+| TINYINT       |  TINYINT |
+| SMALLINT      |  SMALLINT |
+| INT           |  INT |
+| BIGINT        |  LONG |
+| FLOAT         |  FLOAT |
+| DOUBLE        |  DOUBLE |
+| DECIMAL(p, s) |  DECIMAL(p, s) |
+| DATE          |  DATE |
+| TIMESTAMP_WITHOUT_TIME_ZONE |  timestamp |
 | TIMESTAMP_WITH_TIME_ZONE |  N/A |
 | TIMESTAMP_WITH_LOCAL_TIME_ZONE |  N/A |
 | INTERVAL      |   N/A*** |
@@ -177,8 +177,8 @@ Currently `HiveCatalog` supports most Flink data types with the following mappin
 | VARBINARY(p)  |   N/A |
 | BYTES         |   BINARY |
 | ARRAY\<E>     |  ARRAY\<E> |
-| MAP<K, V>     |  map<K, V> ****|
-| ROW           |  struct |
+| MAP<K, V>     |  MAP<K, V> ****|
+| ROW           |  STRUCT |
 | MULTISET      |  N/A |
 
 
@@ -190,13 +190,13 @@ The following limitations in Hive's data types impact the mapping between Flink 
 
 \** maximum length is 65535
 
-## User-configured Catalog
-
-Catalogs are pluggable. Users can develop custom catalogs by implementing the `Catalog` interface, which defines a set of APIs for reading and writing catalog meta-objects such as database, tables, partitions, views, and functions.
-
 \*** `INTERVAL` type can not be mapped to hive `INTERVAL` for now.
 
 \**** Hive map key type only allows primitive types, while Flink map key can be any data type.
+
+## User-configured Catalog
+
+Catalogs are pluggable. Users can develop custom catalogs by implementing the `Catalog` interface, which defines a set of APIs for reading and writing catalog meta-objects such as database, tables, partitions, views, and functions.
 
 Catalog Registration
 --------------------
