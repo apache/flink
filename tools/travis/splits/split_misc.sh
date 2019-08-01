@@ -76,5 +76,7 @@ run_test "SQL Client end-to-end test for modern Kafka" "$END_TO_END_DIR/test-scr
 
 run_test "Dependency shading of table modules test" "$END_TO_END_DIR/test-scripts/test_table_shaded_dependencies.sh"
 
+run_test "Shaded Hadoop S3A with credentials provider end-to-end test" "$END_TO_END_DIR/test-scripts/test_batch_wordcount.sh hadoop_with_provider"
+
 printf "\n[PASS] All tests passed\n"
 exit 0
