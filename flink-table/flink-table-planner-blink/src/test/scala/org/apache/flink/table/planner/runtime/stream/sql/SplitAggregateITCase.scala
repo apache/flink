@@ -195,28 +195,6 @@ class SplitAggregateITCase(
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
-  @Test
-  def testFirstValueLastValueWithRetraction(): Unit = {
-    val t1 = tEnv.sqlQuery(
-      s"""
-         |SELECT
-         |  b, FIRST_VALUE(c, a), LAST_VALUE(c, a), COUNT(DISTINCT c)
-         |FROM(
-         |  SELECT
-         |    a, COUNT(DISTINCT b) as b, MAX(b) as c
-         |  FROM T
-         |  GROUP BY a
-         |) GROUP BY b
-       """.stripMargin)
-
-    val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = List("2,2,6,2", "4,5,5,1", "1,5,5,1")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
   @Ignore("[FLINK-12088]: JOIN is not supported")
   @Test
   def testAggWithJoin(): Unit = {

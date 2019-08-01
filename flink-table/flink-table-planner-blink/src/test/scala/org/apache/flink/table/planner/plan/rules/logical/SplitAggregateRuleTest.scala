@@ -75,22 +75,8 @@ class SplitAggregateRuleTest extends TableTestBase {
   }
 
   @Test
-  def testSingleFirstValueWithOrderWithDistinctAgg(): Unit = {
-    // FIRST_VALUE with order is not splittable,
-    // so SplitAggregateRule can not be applied to the plan
-    util.verifyPlan("SELECT a, FIRST_VALUE(c, b), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
-  }
-
-  @Test
   def testSingleLastValueWithDistinctAgg(): Unit = {
     util.verifyPlan("SELECT a, LAST_VALUE(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
-  }
-
-  @Test
-  def testSingleLastValueWithOrderWithDistinctAgg(): Unit = {
-    // LAST_VALUE with order is not splittable,
-    // so SplitAggregateRule can not be applied to the plan
-    util.verifyPlan("SELECT a, LAST_VALUE(c, b), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 
   @Test

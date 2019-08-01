@@ -339,10 +339,6 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
       "  c, b, " +
       "  LTCNT(a, CAST('4' AS BIGINT)) OVER (PARTITION BY c ORDER BY rowtime RANGE " +
       "    BETWEEN INTERVAL '1' SECOND PRECEDING AND CURRENT ROW), " +
-      "  first_value(a, a) OVER (PARTITION BY c ORDER BY rowtime RANGE " +
-      "    BETWEEN INTERVAL '1' SECOND PRECEDING AND CURRENT ROW), " +
-      "  last_value(a, a) OVER (PARTITION BY c ORDER BY rowtime RANGE " +
-      "    BETWEEN INTERVAL '1' SECOND PRECEDING AND CURRENT ROW), " +
       "  COUNT(a) OVER (PARTITION BY c ORDER BY rowtime RANGE " +
       "    BETWEEN INTERVAL '1' SECOND PRECEDING AND CURRENT ROW), " +
       "  SUM(a) OVER (PARTITION BY c ORDER BY rowtime RANGE " +
@@ -354,19 +350,26 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     env.execute()
 
     val expected = List(
-      "Hello,1,0,1,1,1,1", "Hello,15,0,1,1,2,2", "Hello,16,0,1,1,3,3",
-      "Hello,2,0,1,2,6,9", "Hello,3,0,1,2,6,9", "Hello,2,0,1,2,6,9",
-      "Hello,3,0,2,3,4,9",
-      "Hello,4,0,3,4,2,7",
-      "Hello,5,1,4,5,2,9",
-      "Hello,6,2,5,6,2,11", "Hello,65,2,6,6,2,12",
-      "Hello,9,2,6,6,2,12", "Hello,9,2,6,6,2,12", "Hello,18,3,6,6,3,18",
-      "Hello World,17,3,7,7,3,21",
-      "Hello World,7,1,7,7,1,7",
-      "Hello World,77,3,7,7,3,21",
-      "Hello World,18,1,7,7,1,7",
-      "Hello World,8,2,7,8,2,15",
-      "Hello World,20,1,20,20,1,20")
+      "Hello,1,0,1,1",
+      "Hello,15,0,2,2",
+      "Hello,16,0,3,3",
+      "Hello,2,0,6,9",
+      "Hello,3,0,6,9",
+      "Hello,2,0,6,9",
+      "Hello,3,0,4,9",
+      "Hello,4,0,2,7",
+      "Hello,5,1,2,9",
+      "Hello,6,2,2,11",
+      "Hello,65,2,2,12",
+      "Hello,9,2,2,12",
+      "Hello,9,2,2,12",
+      "Hello,18,3,3,18",
+      "Hello World,17,3,3,21",
+      "Hello World,7,1,1,7",
+      "Hello World,77,3,3,21",
+      "Hello World,18,1,1,7",
+      "Hello World,8,2,2,15",
+      "Hello World,20,1,1,20")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
