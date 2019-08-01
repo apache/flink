@@ -196,7 +196,9 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		this.resource = Resource.newInstance(defaultTaskManagerMemoryMB, defaultCpus);
 
 		this.slotsPerWorker = createWorkerSlotProfiles(flinkConfig);
-		this.startContainerExecutor = new ThreadPoolExecutor(0, flinkConfig.getInteger(YarnConfigOptions.CONTAINER_LAUNCHER_NUM_MAX),
+
+		final int containerLauncherNum = flinkConfig.getInteger(YarnConfigOptions.CONTAINER_LAUNCHER_NUM_MAX);
+		this.startContainerExecutor = new ThreadPoolExecutor(containerLauncherNum, containerLauncherNum,
 			60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(), new ThreadFactoryBuilder()
 			.setNameFormat("ContainerLauncher #%d")
 			.build());
