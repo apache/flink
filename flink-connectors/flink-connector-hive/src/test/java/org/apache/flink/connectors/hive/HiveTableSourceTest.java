@@ -46,6 +46,7 @@ import scala.collection.JavaConverters;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests {@link HiveTableSource}.
@@ -131,6 +132,38 @@ public class HiveTableSourceTest {
 		assertEquals(4, rows.size());
 		Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
 		assertArrayEquals(new String[]{"2014,3,0", "2014,4,0", "2015,2,1", "2015,5,1"}, rowStrings);
+	}
+
+	@Test
+	public void testPartitionPrunning() throws Exception {
+		final String dbName = "source_db";
+		final String tblName = "test_table_pt_1";
+		hiveShell.execute("CREATE TABLE source_db.test_table_pt_1 " +
+						"(year STRING, value INT) partitioned by (pt int);");
+		hiveShell.insertInto("source_db", "test_table_pt_1")
+				.withColumns("year", "value", "pt")
+				.addRow("2014", 3, 0)
+				.addRow("2014", 4, 0)
+				.addRow("2015", 2, 1)
+				.addRow("2015", 5, 1)
+				.commit();
+		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
+		ObjectPath tablePath = new ObjectPath(dbName, tblName);
+		CatalogTable catalogTable = (CatalogTable) hiveCatalog.getTable(tablePath);
+		tEnv.registerTableSource("src", new HiveTableSource(new JobConf(hiveConf), tablePath, catalogTable));
+		Table table = tEnv.sqlQuery("select * from src where pt = 0");
+		String[] explain = tEnv.explain(table).split("==.*==\n");
+		assertEquals(4, explain.length);
+		String abstractSyntaxTree = explain[1];
+		String optimizedLogicalPlan = explain[2];
+		String physicalExecutionPlan = explain[3];
+		assertTrue(abstractSyntaxTree.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: false, PartitionNums: 2]"));
+		assertTrue(optimizedLogicalPlan.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1]"));
+		assertTrue(physicalExecutionPlan.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1]"));
+		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) table)).asJava();
+		assertEquals(2, rows.size());
+		Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
+		assertArrayEquals(new String[]{"2014,3,0", "2014,4,0"}, rowStrings);
 	}
 
 }
