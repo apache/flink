@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFu
 import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions._
-import org.apache.flink.table.planner.functions.sql.{SqlConcatAggFunction, SqlFirstLastValueAggFunction, SqlIncrSumAggFunction}
+import org.apache.flink.table.planner.functions.sql.{SqlListAggFunction, SqlFirstLastValueAggFunction, SqlIncrSumAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
@@ -113,11 +113,11 @@ class AggFunctionFactory(
       case a: SqlFirstLastValueAggFunction if a.getKind == SqlKind.LAST_VALUE =>
         createLastValueAggFunction(argTypes, index)
 
-      case _: SqlConcatAggFunction if call.getArgList.size() == 1 =>
-        createConcatAggFunction(argTypes, index)
+      case _: SqlListAggFunction if call.getArgList.size() == 1 =>
+        createListAggFunction(argTypes, index)
 
-      case _: SqlConcatAggFunction if call.getArgList.size() == 2 =>
-        createConcatWsAggFunction(argTypes, index)
+      case _: SqlListAggFunction if call.getArgList.size() == 2 =>
+        createListAggWsFunction(argTypes, index)
 
       // TODO supports SqlCardinalityCountAggFunction
 
@@ -606,23 +606,23 @@ class AggFunctionFactory(
     }
   }
 
-  private def createConcatAggFunction(
+  private def createListAggFunction(
       argTypes: Array[LogicalType],
       index: Int): UserDefinedFunction = {
     if (needRetraction(index)) {
-      new ConcatWithRetractAggFunction
+      new ListAggWithRetractAggFunction
     } else {
-      new ConcatAggFunction(1)
+      new ListAggFunction(1)
     }
   }
 
-  private def createConcatWsAggFunction(
+  private def createListAggWsFunction(
       argTypes: Array[LogicalType],
       index: Int): UserDefinedFunction = {
     if (needRetraction(index)) {
-      new ConcatWsWithRetractAggFunction
+      new ListAggWsWithRetractAggFunction
     } else {
-      new ConcatAggFunction(2)
+      new ListAggFunction(2)
     }
   }
 

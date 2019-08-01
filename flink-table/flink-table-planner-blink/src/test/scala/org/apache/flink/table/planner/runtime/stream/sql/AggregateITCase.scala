@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.functions.aggfunctions.{ConcatWithRetractAggFunction, ConcatWsWithRetractAggFunction}
+import org.apache.flink.table.planner.functions.aggfunctions.{ListAggWithRetractAggFunction, ListAggWsWithRetractAggFunction}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.VarSumAggFunction
 import org.apache.flink.table.planner.runtime.batch.sql.agg.{MyPojoAggFunction, VarArgsAggFunction}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.AggMode
@@ -605,7 +605,7 @@ class AggregateITCase(
 
     val sqlQuery =
       s"""
-         |SELECT len, concat_agg('#', content) FROM T GROUP BY len
+         |SELECT len, listagg(content, '#') FROM T GROUP BY len
        """.stripMargin
 
     val sink = new TestingRetractSink
@@ -629,7 +629,7 @@ class AggregateITCase(
 
     val sqlQuery =
       s"""
-         |SELECT len, concat_agg(content) FROM T GROUP BY len
+         |SELECT len, listagg(content) FROM T GROUP BY len
        """.stripMargin
 
     val sink = new TestingRetractSink
@@ -906,7 +906,7 @@ class AggregateITCase(
       """
         |SELECT b, min(c), max(c)
         |FROM (
-        | SELECT a, b, concat_agg(c) as c
+        | SELECT a, b, listagg(c) as c
         | FROM T
         | GROUP BY a, b)
         |GROUP BY b
@@ -1061,15 +1061,15 @@ class AggregateITCase(
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
-  /** Test CONCAT_AGG **/
+  /** Test LISTAGG **/
   @Test
   def testConcatAgg(): Unit = {
-    tEnv.registerFunction("concat_agg_retract", new ConcatWithRetractAggFunction)
-    tEnv.registerFunction("concat_agg_ws_retract", new ConcatWsWithRetractAggFunction)
+    tEnv.registerFunction("listagg_retract", new ListAggWithRetractAggFunction)
+    tEnv.registerFunction("listagg_ws_retract", new ListAggWsWithRetractAggFunction)
     val sqlQuery =
       s"""
          |SELECT
-         |  concat_agg(c), concat_agg('-', c), concat_agg_retract(c), concat_agg_ws_retract('+', c)
+         |  listagg(c), listagg(c, '-'), listagg_retract(c), listagg_ws_retract(c, '+')
          |FROM MyTable
          |GROUP BY c
          |""".stripMargin
@@ -1085,8 +1085,8 @@ class AggregateITCase(
     val sink = new TestingRetractSink
     tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink)
     env.execute()
-    val expected = List("Hi\nHi\nHi\nHi\nHi\nHi\nHi\nHi\nHi\nHi,Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi," +
-      "Hi\nHi\nHi\nHi\nHi\nHi\nHi\nHi\nHi\nHi,Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi")
+    val expected = List("Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi," +
+      "Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 

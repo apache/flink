@@ -220,11 +220,11 @@ Calc(select=[a, b])
       <![CDATA[== Abstract Syntax Tree ==
 LogicalSink(name=[appendSink1], fields=[a, b])
 +- LogicalProject(id1=[$1], EXPR$1=[$2])
-   +- LogicalAggregate(group=[{0, 1}], EXPR$1=[CONCAT_AGG($2, $3)])
-      +- LogicalProject($f0=[HOP($2, 12000:INTERVAL SECOND, 4000:INTERVAL SECOND)], id1=[$0], $f2=[_UTF-16LE'*'], text=[$1])
+   +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
+      +- LogicalProject($f0=[HOP($2, 12000:INTERVAL SECOND, 4000:INTERVAL SECOND)], id1=[$0], text=[$1], $f3=[_UTF-16LE'*'])
          +- LogicalProject(id1=[$1], text=[$2], ts=[TUMBLE_ROWTIME($0)])
-            +- LogicalAggregate(group=[{0, 1}], text=[CONCAT_AGG($2, $3)])
-               +- LogicalProject($f0=[TUMBLE($1, 6000:INTERVAL SECOND)], id1=[$0], $f2=[_UTF-16LE'#'], text=[$2])
+            +- LogicalAggregate(group=[{0, 1}], text=[LISTAGG($2, $3)])
+               +- LogicalProject($f0=[TUMBLE($1, 6000:INTERVAL SECOND)], id1=[$0], text=[$2], $f3=[_UTF-16LE'#'])
                   +- LogicalProject(id1=[$0], ts=[$1], text=[$2])
                      +- LogicalFilter(condition=[AND(=($0, $3), >($1, -($4, 300000:INTERVAL MINUTE)), <($1, +($4, 180000:INTERVAL MINUTE)))])
                         +- LogicalJoin(condition=[true], joinType=[inner])
@@ -235,8 +235,8 @@ LogicalSink(name=[appendSink1], fields=[a, b])
 
 LogicalSink(name=[appendSink2], fields=[a, b])
 +- LogicalProject(id1=[$1], EXPR$1=[$2])
-   +- LogicalAggregate(group=[{0, 1}], EXPR$1=[CONCAT_AGG($2, $3)])
-      +- LogicalProject($f0=[TUMBLE($1, 9000:INTERVAL SECOND)], id1=[$0], $f2=[_UTF-16LE'-'], text=[$2])
+   +- LogicalAggregate(group=[{0, 1}], EXPR$1=[LISTAGG($2, $3)])
+      +- LogicalProject($f0=[TUMBLE($1, 9000:INTERVAL SECOND)], id1=[$0], text=[$2], $f3=[_UTF-16LE'-'])
          +- LogicalProject(id1=[$0], ts=[$1], text=[$2])
             +- LogicalFilter(condition=[AND(=($0, $3), >($1, -($4, 300000:INTERVAL MINUTE)), <($1, +($4, 180000:INTERVAL MINUTE)))])
                +- LogicalJoin(condition=[true], joinType=[inner])
@@ -249,8 +249,8 @@ LogicalSink(name=[appendSink3], fields=[a, b])
 +- LogicalAggregate(group=[{0}], EXPR$1=[COUNT($1)])
    +- LogicalProject(id1=[$0], text=[$1])
       +- LogicalProject(id1=[$1], text=[$2], ts=[TUMBLE_ROWTIME($0)])
-         +- LogicalAggregate(group=[{0, 1}], text=[CONCAT_AGG($2, $3)])
-            +- LogicalProject($f0=[TUMBLE($1, 6000:INTERVAL SECOND)], id1=[$0], $f2=[_UTF-16LE'#'], text=[$2])
+         +- LogicalAggregate(group=[{0, 1}], text=[LISTAGG($2, $3)])
+            +- LogicalProject($f0=[TUMBLE($1, 6000:INTERVAL SECOND)], id1=[$0], text=[$2], $f3=[_UTF-16LE'#'])
                +- LogicalProject(id1=[$0], ts=[$1], text=[$2])
                   +- LogicalFilter(condition=[AND(=($0, $3), >($1, -($4, 300000:INTERVAL MINUTE)), <($1, +($4, 180000:INTERVAL MINUTE)))])
                      +- LogicalJoin(condition=[true], joinType=[inner])
@@ -269,21 +269,21 @@ Calc(select=[id1, rowtime AS ts, text], reuse_id=[1])
       +- WatermarkAssigner(fields=[id2, rowtime, cnt, name, goods], rowtimeField=[rowtime], watermarkDelay=[0], miniBatchInterval=[None])
          +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[id2, rowtime, cnt, name, goods])
 
-GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime, w$proctime], select=[id1, CONCAT_AGG($f2, text) AS text, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime], reuse_id=[2])
+GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime, w$proctime], select=[id1, LISTAGG(text, $f3) AS text, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime], reuse_id=[2])
 +- Exchange(distribution=[hash[id1]])
-   +- Calc(select=[ts, id1, _UTF-16LE'#' AS $f2, text])
+   +- Calc(select=[ts, id1, text, _UTF-16LE'#' AS $f3])
       +- Reused(reference_id=[1])
 
 Sink(name=[appendSink1], fields=[a, b])
-+- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 4000, 12000)], select=[id1, CONCAT_AGG($f2, text) AS EXPR$1])
++- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, ts, 4000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[w$rowtime AS ts, id1, _UTF-16LE'*' AS $f2, text])
+      +- Calc(select=[w$rowtime AS ts, id1, text, _UTF-16LE'*' AS $f3])
          +- Reused(reference_id=[2])
 
 Sink(name=[appendSink2], fields=[a, b])
-+- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow], select=[id1, CONCAT_AGG($f2, text) AS EXPR$1])
++- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[ts, id1, _UTF-16LE'-' AS $f2, text])
+      +- Calc(select=[ts, id1, text, _UTF-16LE'-' AS $f3])
          +- Reused(reference_id=[1])
 
 Sink(name=[appendSink3], fields=[a, b])
@@ -325,19 +325,19 @@ Sink(name=[appendSink3], fields=[a, b])
 							ship_strategy : FORWARD
 
 							 : Operator
-								content : Calc(select: (ts, id1, _UTF-16LE'#' AS $f2, text))
+								content : Calc(select: (ts, id1, text, _UTF-16LE'#' AS $f3))
 								ship_strategy : FORWARD
 
 								 : Operator
-									content : window: (TumblingGroupWindow), groupBy: (id1), select: (id1, CONCAT_AGG($f2, text) AS text, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime)
+									content : window: (TumblingGroupWindow), groupBy: (id1), select: (id1, LISTAGG(text, $f3) AS text, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime)
 									ship_strategy : HASH
 
 									 : Operator
-										content : Calc(select: (w$rowtime AS ts, id1, _UTF-16LE'*' AS $f2, text))
+										content : Calc(select: (w$rowtime AS ts, id1, text, _UTF-16LE'*' AS $f3))
 										ship_strategy : FORWARD
 
 										 : Operator
-											content : window: (SlidingGroupWindow('w$, ts, 4000, 12000)), groupBy: (id1), select: (id1, CONCAT_AGG($f2, text) AS EXPR$1)
+											content : window: (SlidingGroupWindow('w$, ts, 4000, 12000)), groupBy: (id1), select: (id1, LISTAGG(text, $f3) AS EXPR$1)
 											ship_strategy : HASH
 
 											 : Operator
@@ -345,11 +345,11 @@ Sink(name=[appendSink3], fields=[a, b])
 												ship_strategy : FORWARD
 
 												 : Operator
-													content : Calc(select: (ts, id1, _UTF-16LE'-' AS $f2, text))
+													content : Calc(select: (ts, id1, text, _UTF-16LE'-' AS $f3))
 													ship_strategy : FORWARD
 
 													 : Operator
-														content : window: (TumblingGroupWindow), groupBy: (id1), select: (id1, CONCAT_AGG($f2, text) AS EXPR$1)
+														content : window: (TumblingGroupWindow), groupBy: (id1), select: (id1, LISTAGG(text, $f3) AS EXPR$1)
 														ship_strategy : HASH
 
 														 : Operator
