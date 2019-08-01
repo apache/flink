@@ -339,7 +339,7 @@ under the License.
 									<include>commons-codec:commons-codec</include>
 
 									<!-- flink-table-planner dependencies -->
-									<include>org.apache.flink.sql.parser:*</include>
+									<include>org.apache.flink:flink-sql-parser</include>
 									<include>org.codehaus.janino:*</include>
 									<include>joda-time:*</include>
 								</includes>
