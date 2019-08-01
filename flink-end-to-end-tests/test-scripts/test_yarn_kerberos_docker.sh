@@ -75,7 +75,7 @@ function start_hadoop_cluster() {
             return 1
         else
             echo "Waiting for hadoop cluster to come up. We have been trying for $time_diff seconds, retrying ..."
-            sleep 10
+            sleep 5
         fi
     done
 
@@ -87,6 +87,26 @@ function start_hadoop_cluster() {
     then
         return 1
     fi
+
+    # try and see if NodeManagers are up, otherwise the Flink job will not have enough resources
+    # to run
+    nm_running="0"
+    start_time=$(date +%s)
+    while [ "$nm_running" -lt "2" ]; do
+        current_time=$(date +%s)
+        time_diff=$((current_time - start_time))
+
+        if [ $time_diff -ge $MAX_RETRY_SECONDS ]; then
+            return 1
+        else
+            echo "We only have $nm_running NodeManagers up. We have been trying for $time_diff seconds, retrying ..."
+            sleep 1
+        fi
+
+        docker exec -it master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
+        nm_running=`docker exec -it master bash -c "yarn node -list" | grep RUNNING | wc -l`
+        docker exec -it master bash -c "kdestroy"
+    done
 
     return 0
 }
