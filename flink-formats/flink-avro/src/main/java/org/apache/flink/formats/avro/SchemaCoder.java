@@ -26,10 +26,13 @@ import java.io.Serializable;
 
 /**
  * Schema coder that allows reading schema that is somehow embedded into serialized record.
- * Used by {@link RegistryAvroDeserializationSchema}.
+ * Used by {@link RegistryAvroDeserializationSchema} and {@link RegistryAvroSerializationSchema}.
+ *
  */
 public interface SchemaCoder {
 	Schema readSchema(InputStream in) throws IOException;
+
+	int writeSchema(Schema schema) throws IOException;
 
 	/**
 	 * Provider for {@link SchemaCoder}. It allows creating multiple instances of client in

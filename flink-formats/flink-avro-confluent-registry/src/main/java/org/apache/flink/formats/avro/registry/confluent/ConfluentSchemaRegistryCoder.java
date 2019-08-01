@@ -18,11 +18,10 @@
 
 package org.apache.flink.formats.avro.registry.confluent;
 
-import org.apache.flink.formats.avro.SchemaCoder;
-
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import org.apache.avro.Schema;
+import org.apache.flink.formats.avro.SchemaCoder;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -31,11 +30,24 @@ import java.io.InputStream;
 import static java.lang.String.format;
 
 /**
- * Reads schema using Confluent Schema Registry protocol.
+ * Reads and Writes schema using Confluent Schema Registry protocol.
  */
 public class ConfluentSchemaRegistryCoder implements SchemaCoder {
 
 	private final SchemaRegistryClient schemaRegistryClient;
+	private String subject;
+
+	/**
+	 * Creates {@link SchemaCoder} that uses provided {@link SchemaRegistryClient} to connect to
+	 * schema registry.
+	 *
+	 * @param schemaRegistryClient client to connect schema registry
+	 * @param subject              subject of schema registry to produce
+	 */
+	public ConfluentSchemaRegistryCoder(String subject, SchemaRegistryClient schemaRegistryClient) {
+		this.schemaRegistryClient = schemaRegistryClient;
+		this.subject = subject;
+	}
 
 	/**
 	 * Creates {@link SchemaCoder} that uses provided {@link SchemaRegistryClient} to connect to
@@ -61,6 +73,16 @@ public class ConfluentSchemaRegistryCoder implements SchemaCoder {
 			} catch (RestClientException e) {
 				throw new IOException(format("Could not find schema with id %s in registry", schemaId), e);
 			}
+		}
+	}
+
+	@Override
+	public int writeSchema(Schema schema) throws IOException {
+		try {
+			int registeredId = schemaRegistryClient.register(subject,schema);
+			return registeredId;
+		} catch (RestClientException e) {
+			throw new IOException("Could not register schema in registry", e);
 		}
 	}
 
