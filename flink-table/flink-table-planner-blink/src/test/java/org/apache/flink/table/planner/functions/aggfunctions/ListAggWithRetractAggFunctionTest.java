@@ -20,17 +20,17 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.table.dataformat.BinaryString;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.ConcatWithRetractAggFunction.ConcatWithRetractAccumulator;
+import org.apache.flink.table.planner.functions.aggfunctions.ListAggWithRetractAggFunction.ListAggWithRetractAccumulator;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 
 /**
- * Test case for built-in concat with retraction aggregate function.
+ * Test case for built-in LISTAGG with retraction aggregate function.
  */
-public class ConcatWithRetractAggFunctionTest
-	extends AggFunctionTestBase<BinaryString, ConcatWithRetractAccumulator> {
+public class ListAggWithRetractAggFunctionTest
+	extends AggFunctionTestBase<BinaryString, ListAggWithRetractAccumulator> {
 
 	@Override
 	protected List<List<BinaryString>> getInputValueSets() {
@@ -53,14 +53,14 @@ public class ConcatWithRetractAggFunctionTest
 	@Override
 	protected List<BinaryString> getExpectedResults() {
 		return Arrays.asList(
-				BinaryString.fromString("a\nb\nc\nd\ne\nf"),
+				BinaryString.fromString("a,b,c,d,e,f"),
 				null,
 				BinaryString.fromString("a"));
 	}
 
 	@Override
-	protected AggregateFunction<BinaryString, ConcatWithRetractAccumulator> getAggregator() {
-		return new ConcatWithRetractAggFunction();
+	protected AggregateFunction<BinaryString, ListAggWithRetractAccumulator> getAggregator() {
+		return new ListAggWithRetractAggFunction();
 	}
 
 	@Override
@@ -75,6 +75,6 @@ public class ConcatWithRetractAggFunctionTest
 
 	@Override
 	protected Class<?> getAccClass() {
-		return ConcatWithRetractAccumulator.class;
+		return ListAggWithRetractAccumulator.class;
 	}
 }

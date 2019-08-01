@@ -125,7 +125,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 //  @Test
 //  def testSimpleLogical(): Unit = {
 //    val t = failingDataSource(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
-//      .select('c.firstValue, 'c.lastValue, 'c.concat_agg("#"))
+//      .select('c.firstValue, 'c.lastValue, 'c.LISTAGG("#"))
 //
 //    val sink = new TestingRetractSink()
 //    t.toRetractStream[Row].addSink(sink)

@@ -32,23 +32,23 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.liter
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
 
 /**
- * built-in concat aggregate function.
+ * built-in listagg aggregate function.
  */
-public class ConcatAggFunction extends DeclarativeAggregateFunction {
+public class ListAggFunction extends DeclarativeAggregateFunction {
 	private int operandCount;
 	private UnresolvedReferenceExpression acc = unresolvedRef("concatAcc");
 	private UnresolvedReferenceExpression accDelimiter = unresolvedRef("accDelimiter");
 	private Expression delimiter;
 	private Expression operand;
 
-	public ConcatAggFunction(int operandCount) {
+	public ListAggFunction(int operandCount) {
 		this.operandCount = operandCount;
 		if (operandCount == 1) {
-			delimiter = literal("\n", DataTypes.STRING());
+			delimiter = literal(",", DataTypes.STRING());
 			operand = operand(0);
 		} else {
-			delimiter = operand(0);
-			operand = operand(1);
+			delimiter = operand(1);
+			operand = operand(0);
 		}
 	}
 
@@ -75,7 +75,7 @@ public class ConcatAggFunction extends DeclarativeAggregateFunction {
 	@Override
 	public Expression[] initialValuesExpressions() {
 		return new Expression[] {
-				/* delimiter */ literal("\n", DataTypes.STRING()),
+				/* delimiter */ literal(",", DataTypes.STRING()),
 				/* acc */ nullOf(DataTypes.STRING())
 		};
 	}

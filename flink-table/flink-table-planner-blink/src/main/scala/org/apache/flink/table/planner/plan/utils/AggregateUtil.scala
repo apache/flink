@@ -32,7 +32,7 @@ import org.apache.flink.table.planner.dataview.DataViewUtils.useNullSerializerFo
 import org.apache.flink.table.planner.dataview.{DataViewSpec, MapViewSpec}
 import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart, RexNodeConverter}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
-import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlConcatAggFunction, SqlFirstLastValueAggFunction}
+import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlListAggFunction, SqlFirstLastValueAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
@@ -541,7 +541,7 @@ object AggregateUtil extends Enumeration {
              _: SqlSumAggFunction |
              _: SqlSumEmptyIsZeroAggFunction |
              _: SqlSingleValueAggFunction |
-             _: SqlConcatAggFunction => true
+             _: SqlListAggFunction => true
         case _: SqlFirstLastValueAggFunction => aggCall.getArgList.size() == 1
         case _ => false
       }

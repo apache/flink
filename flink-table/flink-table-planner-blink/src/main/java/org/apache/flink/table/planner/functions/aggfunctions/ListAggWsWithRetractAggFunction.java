@@ -31,20 +31,20 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * built-in concatWs with retraction aggregate function.
+ * built-in listAggWs with retraction aggregate function.
  */
-public final class ConcatWsWithRetractAggFunction
-	extends AggregateFunction<BinaryString, ConcatWsWithRetractAggFunction.ConcatWsWithRetractAccumulator> {
+public final class ListAggWsWithRetractAggFunction
+	extends AggregateFunction<BinaryString, ListAggWsWithRetractAggFunction.ListAggWsWithRetractAccumulator> {
 
 	private static final long serialVersionUID = -8627988150350160473L;
 
 	/**
 	 * The initial accumulator for concat with retraction aggregate function.
 	 */
-	public static class ConcatWsWithRetractAccumulator {
+	public static class ListAggWsWithRetractAccumulator {
 		public ListView<BinaryString> list = new ListView<>(BinaryStringTypeInfo.INSTANCE);
 		public ListView<BinaryString> retractList = new ListView<>(BinaryStringTypeInfo.INSTANCE);
-		public BinaryString delimiter = BinaryString.fromString("\n");
+		public BinaryString delimiter = BinaryString.fromString(",");
 
 		@VisibleForTesting
 		@Override
@@ -55,7 +55,7 @@ public final class ConcatWsWithRetractAggFunction
 			if (o == null || getClass() != o.getClass()) {
 				return false;
 			}
-			ConcatWsWithRetractAccumulator that = (ConcatWsWithRetractAccumulator) o;
+			ListAggWsWithRetractAccumulator that = (ListAggWsWithRetractAccumulator) o;
 			return Objects.equals(list, that.list) &&
 				Objects.equals(retractList, that.retractList) &&
 				Objects.equals(delimiter, that.delimiter);
@@ -63,11 +63,11 @@ public final class ConcatWsWithRetractAggFunction
 	}
 
 	@Override
-	public ConcatWsWithRetractAccumulator createAccumulator() {
-		return new ConcatWsWithRetractAccumulator();
+	public ListAggWsWithRetractAccumulator createAccumulator() {
+		return new ListAggWsWithRetractAccumulator();
 	}
 
-	public void accumulate(ConcatWsWithRetractAccumulator acc, BinaryString lineDelimiter, BinaryString value) throws Exception {
+	public void accumulate(ListAggWsWithRetractAccumulator acc, BinaryString value, BinaryString lineDelimiter) throws Exception {
 		// ignore null value
 		if (value != null) {
 			acc.delimiter = lineDelimiter;
@@ -75,7 +75,7 @@ public final class ConcatWsWithRetractAggFunction
 		}
 	}
 
-	public void retract(ConcatWsWithRetractAccumulator acc, BinaryString lineDelimiter, BinaryString value) throws Exception {
+	public void retract(ListAggWsWithRetractAccumulator acc, BinaryString value, BinaryString lineDelimiter) throws Exception {
 		if (value != null) {
 			acc.delimiter = lineDelimiter;
 			if (!acc.list.remove(value)) {
@@ -84,8 +84,8 @@ public final class ConcatWsWithRetractAggFunction
 		}
 	}
 
-	public void merge(ConcatWsWithRetractAccumulator acc, Iterable<ConcatWsWithRetractAccumulator> its) throws Exception {
-		for (ConcatWsWithRetractAccumulator otherAcc : its) {
+	public void merge(ListAggWsWithRetractAccumulator acc, Iterable<ListAggWsWithRetractAccumulator> its) throws Exception {
+		for (ListAggWsWithRetractAccumulator otherAcc : its) {
 			if (!otherAcc.list.get().iterator().hasNext()
 				&& !otherAcc.retractList.get().iterator().hasNext()) {
 				// otherAcc is empty, skip it
@@ -127,7 +127,7 @@ public final class ConcatWsWithRetractAggFunction
 	}
 
 	@Override
-	public BinaryString getValue(ConcatWsWithRetractAccumulator acc) {
+	public BinaryString getValue(ListAggWsWithRetractAccumulator acc) {
 		try {
 			Iterable<BinaryString> accList = acc.list.get();
 			if (accList == null || !accList.iterator().hasNext()) {
@@ -141,8 +141,8 @@ public final class ConcatWsWithRetractAggFunction
 		}
 	}
 
-	public void resetAccumulator(ConcatWsWithRetractAccumulator acc) {
-		acc.delimiter = BinaryString.fromString("\n");
+	public void resetAccumulator(ListAggWsWithRetractAccumulator acc) {
+		acc.delimiter = BinaryString.fromString(",");
 		acc.list.clear();
 		acc.retractList.clear();
 	}

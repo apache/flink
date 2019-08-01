@@ -138,27 +138,26 @@ class SortAggITCase
   }
 
   // NOTE: Spark has agg functions collect_list(), collect_set().
-  //       instead, we'll test concat_agg() here
-  @Ignore
+  //       instead, we'll test LISTAGG() here
   @Test
   def testConcatAgg(): Unit = {
     checkResult(
-      "SELECT concat_agg('-', c), concat_agg(c) FROM SmallTable3",
+      "SELECT LISTAGG(c, '-'), LISTAGG(c) FROM SmallTable3",
       Seq(
-        row("Hi-Hello-Hello world", "Hi\nHello\nHello world")
+        row("Hi-Hello-Hello world", "Hi,Hello,Hello world")
       )
     )
 
     // EmptyTable5
     checkResult(
-      "SELECT concat_agg('-', g), concat_agg(g) FROM EmptyTable5",
+      "SELECT LISTAGG(g, '-'), LISTAGG(g) FROM EmptyTable5",
       Seq(
         row(null, null)
       )
     )
 
     checkResult(
-      "SELECT concat_agg('-', c), concat_agg(c) FROM AllNullTable3",
+      "SELECT LISTAGG(c, '-'), LISTAGG(c) FROM AllNullTable3",
       Seq(
         row(null, null)
       )
