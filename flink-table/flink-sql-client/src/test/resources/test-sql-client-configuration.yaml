@@ -18,42 +18,16 @@
 
 #==============================================================================
 # TEST ENVIRONMENT FILE
-# Intended for org.apache.flink.table.client.gateway.local.DependencyTest.
+# This test file is to check whether the configuration can be successfully set.
 #==============================================================================
 
-# this file has variables that can be filled with content by replacing $VAR_XXX
-
-tables:
-  - name: TableNumber1
-    type: source-sink-table
-    update-mode: append
-    schema:
-      - name: IntegerField1
-        type: INT
-      - name: StringField1
-        type: VARCHAR
-      - name: rowtimeField
-        type: TIMESTAMP
-        rowtime:
-          timestamps:
-            type: from-field
-            from: rowtimeField
-          watermarks:
-            type: from-source
-    connector:
-      type: "$VAR_CONNECTOR_TYPE"
-      $VAR_CONNECTOR_PROPERTY: "$VAR_CONNECTOR_PROPERTY_VALUE"
-
 execution:
-  type: streaming
-  parallelism: 1
+  planner: blink
+  type: batch
+  result-mode: table
 
 configuration:
+  table.exec.sort.default-limit: 100
+  table.exec.spill-compression.enabled: true
+  table.exec.spill-compression.block-size: 128kb
   table.optimizer.join-reorder-enabled: true
-
-deployment:
-  response-timeout: 5000
-
-catalogs:
-  - name: catalog2
-    type: DependencyTest
