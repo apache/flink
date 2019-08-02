@@ -145,12 +145,12 @@ class StreamExecSink[T](
             "implemented and return the sink transformation DataStreamSink. " +
             s"However, ${sink.getClass.getCanonicalName} doesn't implement this method.")
         }
-        if (!UpdatingPlanChecker.isAppendOnly(this) &&
-            dsSink.getTransformation.getParallelism != transformation.getParallelism) {
-          throw new TableException(s"The configured sink parallelism should be equal to the" +
+        if (!UpdatingPlanChecker.isAppendOnly(this) && dsSink.getTransformation.getParallelism != 1
+            && dsSink.getTransformation.getParallelism != transformation.getParallelism) {
+          throw new TableException("The configured sink parallelism should be equal to the" +
               " input node when input is an update stream. The input parallelism is " +
-              "${transformation.getParallelism}, however the configured sink parallelism is " +
-              "${dsSink.getTransformation.getParallelism}.")
+              s"${transformation.getParallelism}, however the configured sink parallelism is " +
+              s"${dsSink.getTransformation.getParallelism}.")
         }
         dsSink.getTransformation
 
