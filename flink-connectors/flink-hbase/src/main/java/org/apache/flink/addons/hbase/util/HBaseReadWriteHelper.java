@@ -87,16 +87,26 @@ public class HBaseReadWriteHelper {
 	}
 
 	/**
+	 * Serializes a rowkey object into byte array.
+	 * @param rowKey rowkey object to serialize
+	 *
+	 * @return serialize bytes.
+	 */
+	public byte[] serialize(Object rowKey) {
+		byte[] key = HBaseTypeUtils.serializeFromObject(
+				rowKey,
+				rowKeyType,
+				charset);
+		return key;
+	}
+
+	/**
 	 * Returns an instance of Get that retrieves the matches records from the HBase table.
 	 *
 	 * @return The appropriate instance of Get for this use case.
 	 */
-	public Get createGet(Object rowKey) {
-		byte[] rowkey = HBaseTypeUtils.serializeFromObject(
-			rowKey,
-			rowKeyType,
-			charset);
-		Get get = new Get(rowkey);
+	public Get createGet(byte[] row) {
+		Get get = new Get(row);
 		for (int f = 0; f < families.length; f++) {
 			byte[] family = families[f];
 			for (byte[] qualifier : qualifiers[f]) {

@@ -20,6 +20,7 @@ package org.apache.flink.addons.hbase;
 
 import org.apache.flink.addons.hbase.util.HBaseConfigurationUtil;
 import org.apache.flink.addons.hbase.util.HBaseReadWriteHelper;
+import org.apache.flink.addons.hbase.util.HBaseTypeUtils;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.functions.FunctionContext;
@@ -34,7 +35,9 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.TableNotFoundException;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,7 +75,15 @@ public class HBaseLookupFunction extends TableFunction<Row> {
 	 */
 	public void eval(Object rowKey) throws IOException {
 		// fetch result
-		Result result = table.get(readHelper.createGet(rowKey));
+		byte[] row = readHelper.serialize(rowKey);
+		Get get;
+		try {
+			get = readHelper.createGet(row);
+		} catch (IllegalArgumentException e) {
+			LOG.warn("Ignore illegal rowKey : {}!", rowKey);
+			return;
+		}
+		Result result = table.get(get);
 		if (!result.isEmpty()) {
 			// parse and collect
 			collect(readHelper.parseToRow(result, rowKey));
