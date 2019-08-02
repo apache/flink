@@ -117,7 +117,6 @@ public class SlotManagerImpl implements SlotManager {
 
 	/**
 	 * If true, fail unfulfillable slot requests immediately. Otherwise, allow unfulfillable request to pend.
-	 *
 	 * A slot request is considered unfulfillable if it cannot be fulfilled by neither a slot that is already registered
 	 * (including allocated ones) nor a pending slot that the {@link ResourceActions} can allocate.
 	 * */
@@ -211,8 +210,7 @@ public class SlotManagerImpl implements SlotManager {
 	 * @param newResourceActions to use for resource (de-)allocations
 	 */
 	@Override
-	public void start(ResourceManagerId newResourceManagerId, Executor newMainThreadExecutor,
-					  ResourceActions newResourceActions) {
+	public void start(ResourceManagerId newResourceManagerId, Executor newMainThreadExecutor, ResourceActions newResourceActions) {
 		LOG.info("Starting the SlotManager.");
 
 		this.resourceManagerId = Preconditions.checkNotNull(newResourceManagerId);
