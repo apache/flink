@@ -169,7 +169,7 @@ Currently `HiveCatalog` supports most Flink data types with the following mappin
 | DOUBLE        |  DOUBLE |
 | DECIMAL(p, s) |  DECIMAL(p, s) |
 | DATE          |  DATE |
-| TIMESTAMP_WITHOUT_TIME_ZONE |  timestamp |
+| TIMESTAMP_WITHOUT_TIME_ZONE |  TIMESTAMP |
 | TIMESTAMP_WITH_TIME_ZONE |  N/A |
 | TIMESTAMP_WITH_LOCAL_TIME_ZONE |  N/A |
 | INTERVAL      |   N/A*** |

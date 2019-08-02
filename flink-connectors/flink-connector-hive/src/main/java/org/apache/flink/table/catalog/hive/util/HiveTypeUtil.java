@@ -22,36 +22,24 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DateType;
-import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
-import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.DoubleType;
 import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.LogicalTypeVisitor;
 import org.apache.flink.table.types.logical.MapType;
-import org.apache.flink.table.types.logical.MultisetType;
-import org.apache.flink.table.types.logical.NullType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.SmallIntType;
-import org.apache.flink.table.types.logical.StructuredType;
-import org.apache.flink.table.types.logical.SymbolType;
-import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.table.types.logical.YearMonthIntervalType;
-import org.apache.flink.table.types.logical.ZonedTimestampType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeDefaultVisitor;
 
 import org.apache.hadoop.hive.common.type.HiveChar;
 import org.apache.hadoop.hive.common.type.HiveVarchar;
@@ -101,16 +89,8 @@ public class HiveTypeUtil {
 	 */
 	public static TypeInfo toHiveTypeInfo(DataType dataType) {
 		checkNotNull(dataType, "type cannot be null");
-
-//		LogicalTypeRoot type = dataType.getLogicalType().getTypeRoot();
 		LogicalType logicalType = dataType.getLogicalType();
-		TypeInfo typeInfo = logicalType.accept(new TypeInfoLogicalTypeVisitor());
-		if (null == typeInfo) {
-			throw new UnsupportedOperationException(
-					String.format("Flink doesn't support converting type %s to Hive type yet.", dataType.toString()));
-		} else {
-			return typeInfo;
-		}
+		return logicalType.accept(new TypeInfoLogicalTypeVisitor(dataType));
 	}
 
 	/**
@@ -199,7 +179,13 @@ public class HiveTypeUtil {
 		}
 	}
 
-	private static class TypeInfoLogicalTypeVisitor implements LogicalTypeVisitor<TypeInfo> {
+	private static class TypeInfoLogicalTypeVisitor extends LogicalTypeDefaultVisitor<TypeInfo> {
+		private final DataType dataType;
+
+		public TypeInfoLogicalTypeVisitor(DataType dataType) {
+			this.dataType = dataType;
+		}
+
 		@Override
 		public TypeInfo visit(CharType charType) {
 			if (charType.getLength() > HiveChar.MAX_CHAR_LENGTH) {
@@ -234,11 +220,6 @@ public class HiveTypeUtil {
 		}
 
 		@Override
-		public TypeInfo visit(BinaryType binaryType) {
-			return null;
-		}
-
-		@Override
 		public TypeInfo visit(VarBinaryType varBinaryType) {
 			// Flink's BytesType is defined as VARBINARY(Integer.MAX_VALUE)
 			// We don't have more information in LogicalTypeRoot to distinguish BytesType and a VARBINARY(Integer.MAX_VALUE) instance
@@ -246,7 +227,7 @@ public class HiveTypeUtil {
 			if (varBinaryType.getLength() == VarBinaryType.MAX_LENGTH) {
 				return TypeInfoFactory.binaryTypeInfo;
 			}
-			return null;
+			return defaultMethod(varBinaryType);
 		}
 
 		@Override
@@ -292,59 +273,29 @@ public class HiveTypeUtil {
 		}
 
 		@Override
-		public TypeInfo visit(TimeType timeType) {
-			return null;
-		}
-
-		@Override
 		public TypeInfo visit(TimestampType timestampType) {
 			return TypeInfoFactory.timestampTypeInfo;
 		}
 
 		@Override
-		public TypeInfo visit(ZonedTimestampType zonedTimestampType) {
-			return null;
-		}
-
-		@Override
-		public TypeInfo visit(LocalZonedTimestampType localZonedTimestampType) {
-			return null;
-		}
-
-		@Override
-		public TypeInfo visit(YearMonthIntervalType yearMonthIntervalType) {
-			return null;
-		}
-
-		@Override
-		public TypeInfo visit(DayTimeIntervalType dayTimeIntervalType) {
-			return null;
-		}
-
-		@Override
 		public TypeInfo visit(ArrayType arrayType) {
 			LogicalType elementType = arrayType.getElementType();
-			TypeInfo elementTypeInfo = elementType.accept(new TypeInfoLogicalTypeVisitor());
+			TypeInfo elementTypeInfo = elementType.accept(new TypeInfoLogicalTypeVisitor(dataType));
 			if (null != elementTypeInfo) {
 				return TypeInfoFactory.getListTypeInfo(elementTypeInfo);
 			} else {
-				return null;
+				return defaultMethod(arrayType);
 			}
-		}
-
-		@Override
-		public TypeInfo visit(MultisetType multisetType) {
-			return null;
 		}
 
 		@Override
 		public TypeInfo visit(MapType mapType) {
 			LogicalType keyType  = mapType.getKeyType();
 			LogicalType valueType = mapType.getValueType();
-			TypeInfo keyTypeInfo = keyType.accept(new TypeInfoLogicalTypeVisitor());
-			TypeInfo valueTypeInfo = valueType.accept(new TypeInfoLogicalTypeVisitor());
+			TypeInfo keyTypeInfo = keyType.accept(new TypeInfoLogicalTypeVisitor(dataType));
+			TypeInfo valueTypeInfo = valueType.accept(new TypeInfoLogicalTypeVisitor(dataType));
 			if (null == keyTypeInfo || null == valueTypeInfo) {
-				return null;
+				return defaultMethod(mapType);
 			} else {
 				return TypeInfoFactory.getMapTypeInfo(keyTypeInfo, valueTypeInfo);
 			}
@@ -356,44 +307,20 @@ public class HiveTypeUtil {
 			List<TypeInfo> typeInfos = new ArrayList<>(names.size());
 			for (String name : names) {
 				TypeInfo typeInfo =
-						rowType.getTypeAt(rowType.getFieldIndex(name)).accept(new TypeInfoLogicalTypeVisitor());
+						rowType.getTypeAt(rowType.getFieldIndex(name)).accept(new TypeInfoLogicalTypeVisitor(dataType));
 				if (null != typeInfo) {
 					typeInfos.add(typeInfo);
 				} else {
-					return null;
+					return defaultMethod(rowType);
 				}
 			}
 			return TypeInfoFactory.getStructTypeInfo(names, typeInfos);
 		}
 
 		@Override
-		public TypeInfo visit(DistinctType distinctType) {
-			return null;
-		}
-
-		@Override
-		public TypeInfo visit(StructuredType structuredType) {
-			return null;
-		}
-
-		@Override
-		public TypeInfo visit(NullType nullType) {
-			return null;
-		}
-
-		@Override
-		public TypeInfo visit(AnyType<?> anyType) {
-			return null;
-		}
-
-		@Override
-		public TypeInfo visit(SymbolType<?> symbolType) {
-			return null;
-		}
-
-		@Override
-		public TypeInfo visit(LogicalType other) {
-			return null;
+		protected TypeInfo defaultMethod(LogicalType logicalType) {
+			throw new UnsupportedOperationException(
+					String.format("Flink doesn't support converting type %s to Hive type yet.", dataType.toString()));
 		}
 	}
 }
