@@ -412,6 +412,14 @@ under the License.
                     <artifactId>hive-contrib</artifactId>
                 </exclusion>
 				<exclusion>
+					<groupId>org.apache.hive</groupId>
+					<artifactId>hive-exec</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.hive</groupId>
+					<artifactId>hive-hcatalog-core</artifactId>
+				</exclusion>
+				<exclusion>
 					<groupId>org.apache.tez</groupId>
 					<artifactId>tez-common</artifactId>
 				</exclusion>
@@ -473,6 +481,10 @@ under the License.
             <version>${hive.version}</version>
             <scope>test</scope>
 			<exclusions>
+				<exclusion>
+					<groupId>org.apache.hive</groupId>
+					<artifactId>hive-exec</artifactId>
+				</exclusion>
 				<exclusion>
 					<groupId>com.google.guava</groupId>
 					<artifactId>guava</artifactId>
