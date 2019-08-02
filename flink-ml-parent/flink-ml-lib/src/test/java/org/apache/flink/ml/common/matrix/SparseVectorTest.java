@@ -27,10 +27,9 @@ import org.junit.Test;
  * Test cases for SparseVector.
  */
 public class SparseVectorTest {
+	private static final double TOL = 1.0e-6;
 	private SparseVector v1 = null;
 	private SparseVector v2 = null;
-
-	private static final double TOL = 1.0e-6;
 
 	@Before
 	public void setUp() throws Exception {
@@ -50,32 +49,44 @@ public class SparseVectorTest {
 	}
 
 	@Test
-	public void size() throws Exception {
+	public void testSize() throws Exception {
 		Assert.assertEquals(v1.size(), 8);
 	}
 
 	@Test
-	public void prefix() throws Exception {
+	public void testPrefix() throws Exception {
 		SparseVector prefixed = v1.prefix(0.2);
 		Assert.assertArrayEquals(prefixed.getIndices(), new int[]{0, 2, 4, 6, 8});
 		Assert.assertArrayEquals(prefixed.getValues(), new double[]{0.2, 2, 2, 2, 2}, 0);
 	}
 
 	@Test
-	public void append() throws Exception {
+	public void testAppend() throws Exception {
 		SparseVector prefixed = v1.append(0.2);
 		Assert.assertArrayEquals(prefixed.getIndices(), new int[]{1, 3, 5, 7, 8});
 		Assert.assertArrayEquals(prefixed.getValues(), new double[]{2, 2, 2, 2, 0.2}, 0);
 	}
 
 	@Test
-	public void normL2Square() throws Exception {
+	public void testSortIndices() throws Exception {
+		int n = 8;
+		int[] indices = new int[]{7, 5, 3, 1};
+		double[] values = new double[]{7, 5, 3, 1};
+		v1 = new SparseVector(n, indices, values);
+		Assert.assertArrayEquals(values, new double[]{1, 3, 5, 7}, 0.);
+		Assert.assertArrayEquals(v1.getValues(), new double[]{1, 3, 5, 7}, 0.);
+		Assert.assertArrayEquals(indices, new int[]{1, 3, 5, 7});
+		Assert.assertArrayEquals(v1.getIndices(), new int[]{1, 3, 5, 7});
+	}
+
+	@Test
+	public void testNormL2Square() throws Exception {
 		Assert.assertEquals(v2.normL2Square(), 3.0, TOL);
 	}
 
 	@Test
-	public void minus() throws Exception {
-		SparseVector d = v1.minus(v2);
+	public void testMinus() throws Exception {
+		Vector d = v1.minus(v2);
 		Assert.assertEquals(d.get(0), 0.0, TOL);
 		Assert.assertEquals(d.get(1), 2.0, TOL);
 		Assert.assertEquals(d.get(2), 0.0, TOL);
@@ -84,8 +95,8 @@ public class SparseVectorTest {
 	}
 
 	@Test
-	public void plus() throws Exception {
-		SparseVector d = v1.plus(v2);
+	public void testPlus() throws Exception {
+		Vector d = v1.plus(v2);
 		Assert.assertEquals(d.get(0), 0.0, TOL);
 		Assert.assertEquals(d.get(1), 2.0, TOL);
 		Assert.assertEquals(d.get(2), 0.0, TOL);
@@ -93,18 +104,18 @@ public class SparseVectorTest {
 	}
 
 	@Test
-	public void dot() throws Exception {
+	public void testDot() throws Exception {
 		Assert.assertEquals(v1.dot(v2), 4.0, TOL);
 	}
 
 	@Test
-	public void get() throws Exception {
+	public void testGet() throws Exception {
 		Assert.assertEquals(v1.get(5), 2.0, TOL);
 		Assert.assertEquals(v1.get(6), 0.0, TOL);
 	}
 
 	@Test
-	public void slice() throws Exception {
+	public void testSlice() throws Exception {
 		int n = 8;
 		int[] indices = new int[]{1, 3, 5, 7};
 		double[] values = new double[]{2.0, 3.0, 4.0, 5.0};
@@ -112,35 +123,35 @@ public class SparseVectorTest {
 
 		int[] indices1 = new int[]{5, 4, 3};
 		SparseVector vec1 = v.slice(indices1);
-		Assert.assertEquals(vec1.n, 3);
-		Assert.assertArrayEquals(vec1.indices, new int[]{0, 2});
-		Assert.assertArrayEquals(vec1.values, new double[]{4.0, 3.0}, 0.0);
+		Assert.assertEquals(vec1.size(), 3);
+		Assert.assertArrayEquals(vec1.getIndices(), new int[]{0, 2});
+		Assert.assertArrayEquals(vec1.getValues(), new double[]{4.0, 3.0}, 0.0);
 
 		int[] indices2 = new int[]{3, 5};
 		SparseVector vec2 = v.slice(indices2);
-		Assert.assertArrayEquals(vec2.indices, new int[]{0, 1});
-		Assert.assertArrayEquals(vec2.values, new double[]{3.0, 4.0}, 0.0);
+		Assert.assertArrayEquals(vec2.getIndices(), new int[]{0, 1});
+		Assert.assertArrayEquals(vec2.getValues(), new double[]{3.0, 4.0}, 0.0);
 
 		int[] indices3 = new int[]{2, 4};
 		SparseVector vec3 = v.slice(indices3);
-		Assert.assertEquals(vec3.n, 2);
-		Assert.assertArrayEquals(vec3.indices, new int[]{});
-		Assert.assertArrayEquals(vec3.values, new double[]{}, 0.0);
+		Assert.assertEquals(vec3.size(), 2);
+		Assert.assertArrayEquals(vec3.getIndices(), new int[]{});
+		Assert.assertArrayEquals(vec3.getValues(), new double[]{}, 0.0);
 
 		int[] indices4 = new int[]{2, 2, 4, 4};
 		SparseVector vec4 = v.slice(indices4);
-		Assert.assertEquals(vec4.n, 4);
-		Assert.assertArrayEquals(vec4.indices, new int[]{});
-		Assert.assertArrayEquals(vec4.values, new double[]{}, 0.0);
+		Assert.assertEquals(vec4.size(), 4);
+		Assert.assertArrayEquals(vec4.getIndices(), new int[]{});
+		Assert.assertArrayEquals(vec4.getValues(), new double[]{}, 0.0);
 	}
 
 	@Test
-	public void serialize() throws Exception {
+	public void testSerialize() throws Exception {
 		Assert.assertEquals(v1.serialize(), "$8$1:2.0,3:2.0,5:2.0,7:2.0");
 	}
 
 	@Test
-	public void deserialize() throws Exception {
+	public void testDeserialize() throws Exception {
 		SparseVector vec1 = SparseVector.deserialize("0:1,2:-3");
 		SparseVector vec3 = SparseVector.deserialize("$4$0:1,2:-3");
 		SparseVector vec4 = SparseVector.deserialize("$4$");
@@ -148,10 +159,10 @@ public class SparseVectorTest {
 		Assert.assertEquals(vec1.get(0), 1., 0.);
 		Assert.assertEquals(vec1.get(2), -3., 0.);
 		Assert.assertArrayEquals(vec3.toDenseVector().getData(), new double[]{1, 0, -3, 0}, 0);
-		Assert.assertEquals(vec3.n, 4);
+		Assert.assertEquals(vec3.size(), 4);
 		Assert.assertArrayEquals(vec4.toDenseVector().getData(), new double[]{0, 0, 0, 0}, 0);
-		Assert.assertEquals(vec4.n, 4);
-		Assert.assertEquals(vec5.n, -1);
+		Assert.assertEquals(vec4.size(), 4);
+		Assert.assertEquals(vec5.size(), -1);
 	}
 
 }

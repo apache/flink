@@ -31,25 +31,19 @@ public class DenseMatrix implements Serializable {
 	/**
 	 * Row dimension.
 	 */
-	int m;
+	private int m;
 
 	/**
 	 * Column dimension.
 	 */
-	int n;
+	private int n;
 
 	/**
 	 * Array for internal storage of elements.
-	 * <p>
-	 * The matrix data is stored in column major format internally.
+	 *
+	 * <p>The matrix data is stored in column major format internally.
 	 */
-	double[] data;
-
-	/**
-	 * The default constructor.
-	 */
-	DenseMatrix() {
-	}
+	private double[] data;
 
 	/**
 	 * Construct an m-by-n matrix of zeros.
@@ -58,19 +52,19 @@ public class DenseMatrix implements Serializable {
 	 * @param n Number of colums.
 	 */
 	public DenseMatrix(int m, int n) {
-		this(m, n, new double[m * n]);
+		this(m, n, new double[m * n], false);
 	}
 
 	/**
 	 * Construct a matrix from a 1-D array. The data in the array should organize
-	 * in row major.
+	 * in column major.
 	 *
 	 * @param m    Number of rows.
 	 * @param n    Number of cols.
 	 * @param data One-dimensional array of doubles.
 	 */
 	public DenseMatrix(int m, int n, double[] data) {
-		this(m, n, data, true);
+		this(m, n, data, false);
 	}
 
 	/**
@@ -87,15 +81,9 @@ public class DenseMatrix implements Serializable {
 		this.m = m;
 		this.n = n;
 		if (inRowMajor) {
-			this.data = new double[m * n];
-			for (int i = 0; i < m; i++) {
-				for (int j = 0; j < n; j++) {
-					this.set(i, j, data[i * n + j]);
-				}
-			}
-		} else {
-			this.data = data.clone();
+			toColumnMajor(m, n, data);
 		}
+		this.data = data;
 	}
 
 	/**
@@ -106,6 +94,11 @@ public class DenseMatrix implements Serializable {
 	 */
 	public DenseMatrix(double[][] data) {
 		this.m = data.length;
+		if (this.m == 0) {
+			this.n = 0;
+			this.data = new double[0];
+			return;
+		}
 		this.n = data[0].length;
 		for (int i = 0; i < m; i++) {
 			if (data[i].length != n) {
@@ -141,7 +134,7 @@ public class DenseMatrix implements Serializable {
 		DenseMatrix mat = new DenseMatrix(m, n);
 		int k = Math.min(m, n);
 		for (int i = 0; i < k; i++) {
-			mat.data[i * n + i] = 1.0;
+			mat.data[i * m + i] = 1.0;
 		}
 		return mat;
 	}
@@ -179,10 +172,8 @@ public class DenseMatrix implements Serializable {
 	 */
 	public static DenseMatrix rand(int m, int n) {
 		DenseMatrix mat = new DenseMatrix(m, n);
-		for (int i = 0; i < m; i++) {
-			for (int j = 0; j < n; j++) {
-				mat.set(i, j, Math.random());
-			}
+		for (int i = 0; i < mat.data.length; i++) {
+			mat.data[i] = Math.random();
 		}
 		return mat;
 	}
@@ -208,6 +199,76 @@ public class DenseMatrix implements Serializable {
 	}
 
 	/**
+	 * y = func(x).
+	 */
+	public static void apply(DenseMatrix x, DenseMatrix y, UnaryOp func) {
+		assert (x.m == y.m && x.n == y.n);
+		double[] xdata = x.data;
+		double[] ydata = y.data;
+		assert (xdata.length == ydata.length);
+		for (int i = 0; i < xdata.length; i++) {
+			ydata[i] = func.f(xdata[i]);
+		}
+	}
+
+	/**
+	 * y = func(x1, x2).
+	 */
+	public static void apply(DenseMatrix x1, DenseMatrix x2, DenseMatrix y, BinaryOp func) {
+		assert (x1.m == y.m && x1.n == y.n);
+		assert (x2.m == y.m && x2.n == y.n);
+		double[] x1data = x1.data;
+		double[] x2data = x2.data;
+		double[] ydata = y.data;
+		assert (x1data.length == ydata.length);
+		assert (x2data.length == ydata.length);
+		for (int i = 0; i < ydata.length; i++) {
+			ydata[i] = func.f(x1data[i], x2data[i]);
+		}
+	}
+
+	/**
+	 * y = func(x, alpha).
+	 */
+	public static void apply(DenseMatrix x, double alpha, DenseMatrix y, BinaryOp func) {
+		assert (x.m == y.m && x.n == y.n);
+		double[] xdata = x.data;
+		double[] ydata = y.data;
+		assert (xdata.length == ydata.length);
+		for (int i = 0; i < xdata.length; i++) {
+			ydata[i] = func.f(xdata[i], alpha);
+		}
+	}
+
+	/**
+	 * Compute element wise sum.
+	 * \sum_ij func(x_ij)
+	 */
+	public static double applySum(DenseMatrix x, UnaryOp func) {
+		double[] xdata = x.data;
+		double s = 0.;
+		for (int i = 0; i < xdata.length; i++) {
+			s += func.f(xdata[i]);
+		}
+		return s;
+	}
+
+	/**
+	 * Compute element wise sum.
+	 * \sum_ij func(x1_ij, x2_ij)
+	 */
+	public static double applySum(DenseMatrix x1, DenseMatrix x2, BinaryOp func) {
+		assert (x1.m == x2.m && x1.n == x2.n);
+		double[] x1data = x1.data;
+		double[] x2data = x2.data;
+		double s = 0.;
+		for (int i = 0; i < x1data.length; i++) {
+			s += func.f(x1data[i], x2data[i]);
+		}
+		return s;
+	}
+
+	/**
 	 * Get a single element.
 	 *
 	 * @param i Row index.
@@ -217,6 +278,13 @@ public class DenseMatrix implements Serializable {
 	 */
 	public double get(int i, int j) {
 		return data[j * m + i];
+	}
+
+	/**
+	 * Get the data array of this matrix.
+	 */
+	public double[] getData() {
+		return this.data;
 	}
 
 	/**
@@ -241,17 +309,17 @@ public class DenseMatrix implements Serializable {
 	 * @return
 	 */
 	public double[] getArrayCopy1D(boolean inRowMajor) {
-		double[] arrayData = new double[m * n];
-		for (int i = 0; i < m; i++) {
-			for (int j = 0; j < n; j++) {
-				if (inRowMajor) {
+		if (inRowMajor) {
+			double[] arrayData = new double[m * n];
+			for (int i = 0; i < m; i++) {
+				for (int j = 0; j < n; j++) {
 					arrayData[i * n + j] = this.get(i, j);
-				} else {
-					arrayData[j * m + i] = this.get(i, j);
 				}
 			}
+			return arrayData;
+		} else {
+			return this.data.clone();
 		}
-		return arrayData;
 	}
 
 	/**
@@ -275,18 +343,17 @@ public class DenseMatrix implements Serializable {
 	 * @return
 	 */
 	public double[] getColumn(int col) {
-		double[] c = new double[m];
-		for (int i = 0; i < m; i++) {
-			c[i] = this.get(i, col);
-		}
-		return c;
+		double[] columnData = new double[m];
+		System.arraycopy(this.data, col * m, columnData, 0, m);
+		return columnData;
 	}
 
 	/**
 	 * Clone the Matrix object.
 	 */
-	public DenseMatrix copy() {
-		return new DenseMatrix(this.m, this.n, this.data, false);
+	@Override
+	public DenseMatrix clone() {
+		return new DenseMatrix(this.m, this.n, this.data.clone(), false);
 	}
 
 	/**
@@ -380,9 +447,7 @@ public class DenseMatrix implements Serializable {
 	 */
 	public void setColData(double[] data, int col) {
 		assert data.length == m;
-		for (int i = 0; i < m; i++) {
-			this.set(i, col, data[i]);
-		}
+		System.arraycopy(data, 0, this.data, col * m, m);
 	}
 
 	/**
@@ -469,8 +534,11 @@ public class DenseMatrix implements Serializable {
 		return matC;
 	}
 
+	/**
+	 * matB := matA + alpha .
+	 */
 	public DenseMatrix plus(double alpha) {
-		DenseMatrix x = this.copy();
+		DenseMatrix x = this.clone();
 		DenseMatrix.apply(x, alpha, x, ((a, b) -> a + b));
 		return x;
 	}
@@ -564,12 +632,14 @@ public class DenseMatrix implements Serializable {
 		DenseVector y = new DenseVector(this.numRows());
 		for (int i = 0; i < this.numRows(); i++) {
 			double s = 0.;
-			for (int j = 0; j < x.indices.length; j++) {
-				int index = x.indices[j];
+			int[] indices = x.getIndices();
+			double[] values = x.getValues();
+			for (int j = 0; j < indices.length; j++) {
+				int index = indices[j];
 				if (index >= this.numCols()) {
 					throw new RuntimeException("Vector index out of bound:" + index);
 				}
-				s += this.get(i, index) * x.values[j];
+				s += this.get(i, index) * values[j];
 			}
 			y.set(i, s);
 		}
@@ -637,73 +707,41 @@ public class DenseMatrix implements Serializable {
 	}
 
 	/**
-	 * y = func(x).
+	 * Converts the data layout in "data" from row major to column major.
 	 */
-	public static void apply(DenseMatrix x, DenseMatrix y, UnaryOp func) {
-		assert (x.m == y.m && x.n == y.n);
-		double[] xdata = x.data;
-		double[] ydata = y.data;
-		assert (xdata.length == ydata.length);
-		for (int i = 0; i < xdata.length; i++) {
-			ydata[i] = func.f(xdata[i]);
+	private static void toColumnMajor(int m, int n, double[] data) {
+		if (m == n) {
+			for (int i = 0; i < m; i++) {
+				for (int j = i + 1; j < m; j++) {
+					int pos0 = j * m + i;
+					int pos1 = i * m + j;
+					double t = data[pos0];
+					data[pos0] = data[pos1];
+					data[pos1] = t;
+				}
+			}
+		} else {
+			DenseMatrix temp = new DenseMatrix(n, m, data, false);
+			System.arraycopy(temp.transpose().data, 0, data, 0, data.length);
 		}
 	}
 
 	/**
-	 * y = func(x1, x2).
+	 * matC := matA .* matB .
 	 */
-	public static void apply(DenseMatrix x1, DenseMatrix x2, DenseMatrix y, BinaryOp func) {
-		assert (x1.m == y.m && x1.n == y.n);
-		assert (x2.m == y.m && x2.n == y.n);
-		double[] x1data = x1.data;
-		double[] x2data = x2.data;
-		double[] ydata = y.data;
-		assert (x1data.length == ydata.length);
-		assert (x2data.length == ydata.length);
-		for (int i = 0; i < ydata.length; i++) {
-			ydata[i] = func.f(x1data[i], x2data[i]);
-		}
+	public static DenseMatrix elementWiseProduct(DenseMatrix matA, DenseMatrix matB) {
+		DenseMatrix matC = new DenseMatrix(matA.m, matA.n);
+		DenseMatrix.apply(matA, matB, matC, ((a, b) -> a * b));
+		return matC;
 	}
 
 	/**
-	 * y = func(x, alpha).
+	 * matC := matA ./ matB.
 	 */
-	public static void apply(DenseMatrix x, double alpha, DenseMatrix y, BinaryOp func) {
-		assert (x.m == y.m && x.n == y.n);
-		double[] xdata = x.data;
-		double[] ydata = y.data;
-		assert (xdata.length == ydata.length);
-		for (int i = 0; i < xdata.length; i++) {
-			ydata[i] = func.f(xdata[i], alpha);
-		}
-	}
-
-	/**
-	 * Compute element wise sum.
-	 * \sum_ij func(x_ij)
-	 */
-	public static double applySum(DenseMatrix x, UnaryOp func) {
-		double[] xdata = x.data;
-		double s = 0.;
-		for (int i = 0; i < xdata.length; i++) {
-			s += func.f(xdata[i]);
-		}
-		return s;
-	}
-
-	/**
-	 * Compute element wise sum.
-	 * \sum_ij func(x1_ij, x2_ij)
-	 */
-	public static double applySum(DenseMatrix x1, DenseMatrix x2, BinaryOp func) {
-		assert (x1.m == x2.m && x1.n == x2.n);
-		double[] x1data = x1.data;
-		double[] x2data = x2.data;
-		double s = 0.;
-		for (int i = 0; i < x1data.length; i++) {
-			s += func.f(x1data[i], x2data[i]);
-		}
-		return s;
+	public static DenseMatrix elementWiseDivide(DenseMatrix matA, DenseMatrix matB) {
+		DenseMatrix matC = new DenseMatrix(matA.m, matA.n);
+		DenseMatrix.apply(matA, matB, matC, ((a, b) -> a / b));
+		return matC;
 	}
 
 	@Override

@@ -72,7 +72,7 @@ public class DenseMatrixTest {
 	}
 
 	@Test
-	public void plus() throws Exception {
+	public void testPlus() throws Exception {
 		DenseMatrix matA = DenseMatrix.rand(4, 3);
 		DenseMatrix matB = DenseMatrix.ones(4, 3);
 		matA.plusEquals(matB);
@@ -80,14 +80,14 @@ public class DenseMatrixTest {
 	}
 
 	@Test
-	public void minus() throws Exception {
+	public void testMinus() throws Exception {
 		DenseMatrix matA = DenseMatrix.rand(4, 3);
 		DenseMatrix matB = DenseMatrix.ones(4, 3);
 		matA.minusEquals(matB);
 	}
 
 	@Test
-	public void times() throws Exception {
+	public void testMatrixTimesMatrix() throws Exception {
 		DenseMatrix matA = DenseMatrix.rand(4, 3);
 		DenseMatrix matB = DenseMatrix.rand(3, 5);
 
@@ -112,7 +112,7 @@ public class DenseMatrixTest {
 	}
 
 	@Test
-	public void times1() throws Exception {
+	public void testMatrixTimesVector() throws Exception {
 
 		DenseMatrix matA = DenseMatrix.rand(4, 3);
 
@@ -133,34 +133,7 @@ public class DenseMatrixTest {
 	}
 
 	@Test
-	public void times2() throws Exception {
-		{
-			DenseMatrix matA = DenseMatrix.rand(4, 3);
-			DenseVector x = DenseVector.ones(4);
-			DenseVector y = DenseVector.zeros(3);
-			BLAS.gemv(1.0, matA, true, x, 0., y);
-			Assert.assertArrayEquals(y.getData(), simpleMV(matA.transpose().getArrayCopy2D(), x.getData()), TOL);
-		}
-
-		{
-			DenseMatrix matA = DenseMatrix.rand(4, 3);
-			DenseVector x = DenseVector.ones(4);
-			DenseVector y = DenseVector.zeros(3);
-			BLAS.gemv(1.0, matA, true, x, 0., y);
-			Assert.assertArrayEquals(y.getData(), simpleMV(matA.transpose().getArrayCopy2D(), x.getData()), TOL);
-		}
-
-		{
-			DenseMatrix matA = DenseMatrix.rand(4, 3);
-			DenseVector x = DenseVector.ones(3);
-			DenseVector y = DenseVector.zeros(4);
-			BLAS.gemv(1.0, matA, false, x, 0., y);
-			Assert.assertArrayEquals(y.getData(), simpleMV(matA.getArrayCopy2D(), x.getData()), TOL);
-		}
-	}
-
-	@Test
-	public void selectData() throws Exception {
+	public void testDataSelection() throws Exception {
 		DenseMatrix matA = DenseMatrix.rand(4, 3);
 		double[][] matACopy = matA.getArrayCopy2D();
 		DenseMatrix subA = matA.selectRows(new int[]{1});
@@ -179,7 +152,7 @@ public class DenseMatrixTest {
 	}
 
 	@Test
-	public void sum() throws Exception {
+	public void testSum() throws Exception {
 		DenseMatrix matA = DenseMatrix.ones(3, 2);
 		Assert.assertEquals(matA.sum(), 6.0, TOL);
 		Assert.assertEquals(matA.sumAbs(), 6.0, TOL);
@@ -187,10 +160,15 @@ public class DenseMatrixTest {
 	}
 
 	@Test
-	public void changeMajor() throws Exception {
-		DenseMatrix matA = DenseMatrix.rand(4, 3);
-		double[][] dA = matA.getArrayCopy2D();
-		double[][] dA2 = matA.getArrayCopy2D();
-		assertEqual2D(dA, dA2);
+	public void testRowMajorFormat() throws Exception {
+		double[] data = new double[]{1, 2, 3, 4, 5, 6};
+		DenseMatrix matA = new DenseMatrix(2, 3, data, true);
+		Assert.assertArrayEquals(data, new double[]{1, 4, 2, 5, 3, 6}, 0.);
+		Assert.assertArrayEquals(matA.getData(), new double[]{1, 4, 2, 5, 3, 6}, 0.);
+
+		data = new double[]{1, 2, 3, 4};
+		matA = new DenseMatrix(2, 2, data, true);
+		Assert.assertArrayEquals(data, new double[]{1, 3, 2, 4}, 0.);
+		Assert.assertArrayEquals(matA.getData(), new double[]{1, 3, 2, 4}, 0.);
 	}
 }

@@ -23,7 +23,6 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -36,17 +35,17 @@ public class SparseVector extends Vector {
 	/**
 	 * Size of the vector. n = -1 indicates that the vector size is undetermined.
 	 */
-	int n;
+	private int n;
 
 	/**
 	 * Column indices.
 	 */
-	int[] indices;
+	private int[] indices;
 
 	/**
 	 * Column values.
 	 */
-	double[] values;
+	private double[] values;
 
 	/**
 	 * Construct an empty sparse vector with undetermined size.
@@ -72,9 +71,9 @@ public class SparseVector extends Vector {
 	 */
 	public SparseVector(int n, int[] indices, double[] values) {
 		this.n = n;
-		this.indices = indices.clone();
-		this.values = values.clone();
-		checkIndices();
+		this.indices = indices;
+		this.values = values;
+		checkSizeAndIndicesRange();
 		sortIndices();
 	}
 
@@ -98,14 +97,68 @@ public class SparseVector extends Vector {
 
 		this.indices = indices;
 		this.values = values;
-		checkIndices();
+		checkSizeAndIndicesRange();
 
 		if (!(kv instanceof TreeMap)) {
 			sortIndices();
 		}
 	}
 
-	private void checkIndices() {
+	/**
+	 * Parse the sparse vector from a formatted string.
+	 *
+	 * @throws IllegalArgumentException If the string is of invalid format.
+	 */
+	public static SparseVector deserialize(String str) {
+		try {
+			if (org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly(str)) {
+				return new SparseVector();
+			}
+
+			int n = -1;
+			int firstDollarPos = str.indexOf('$');
+			int lastDollarPos = -1;
+			if (firstDollarPos >= 0) {
+				lastDollarPos = StringUtils.lastIndexOf(str, '$');
+				String sizeStr = StringUtils.substring(str, firstDollarPos + 1, lastDollarPos);
+				n = Integer.valueOf(sizeStr);
+				if (lastDollarPos == str.length() - 1) {
+					return new SparseVector(n);
+				}
+			}
+
+			int numValues = StringUtils.countMatches(str, ",") + 1;
+			double[] data = new double[numValues];
+			int[] indices = new int[numValues];
+			int startPos = lastDollarPos + 1;
+			int endPos;
+			for (int i = 0; i < numValues; i++) {
+				endPos = StringUtils.indexOf(str, ",", startPos);
+				if (endPos == -1) {
+					endPos = str.length();
+				}
+				String valueStr = StringUtils.substring(str, startPos, endPos);
+				startPos = endPos + 1;
+
+				int colonPos = valueStr.indexOf(':');
+				if (colonPos < 0) {
+					throw new IllegalArgumentException("Format error.");
+				}
+				indices[i] = Integer.valueOf(valueStr.substring(0, colonPos).trim());
+				data[i] = Double.valueOf(valueStr.substring(colonPos + 1).trim());
+			}
+			return new SparseVector(n, indices, data);
+		} catch (Exception e) {
+			throw new IllegalArgumentException(String.format("Fail to parse sparse vector from string: \"%s\".", str),
+				e);
+		}
+	}
+
+	/**
+	 * Check whether the indices array and values array are of the same size,
+	 * and whether vector indices are in valid range.
+	 */
+	private void checkSizeAndIndicesRange() {
 		if (indices.length != values.length) {
 			throw new IllegalArgumentException("Indices size and values size should be the same.");
 		}
@@ -116,49 +169,45 @@ public class SparseVector extends Vector {
 		}
 	}
 
+	/**
+	 * Sort the indices and values using quick sort.
+	 */
+	private static void sortImpl(int[] indices, double[] values, int low, int high) {
+		int pivot = indices[high];
+		int pos = low - 1;
+		for (int i = low; i <= high; i++) {
+			if (indices[i] <= pivot) {
+				pos++;
+				int tempI = indices[pos];
+				double tempD = values[pos];
+				indices[pos] = indices[i];
+				values[pos] = values[i];
+				indices[i] = tempI;
+				values[i] = tempD;
+			}
+		}
+		if (pos - 1 > low) {
+			sortImpl(indices, values, low, pos - 1);
+		}
+		if (high > pos + 1) {
+			sortImpl(indices, values, pos + 1, high);
+		}
+	}
+
+	/**
+	 * Sort the indices and values if the indices are out of order.
+	 */
 	private void sortIndices() {
 		boolean outOfOrder = false;
 		for (int i = 0; i < this.indices.length - 1; i++) {
-			if (this.indices[i] >= this.indices[i + 1]) {
+			if (this.indices[i] > this.indices[i + 1]) {
 				outOfOrder = true;
 				break;
 			}
 		}
-
-		if (!outOfOrder) {
-			return;
+		if (outOfOrder) {
+			sortImpl(this.indices, this.values, 0, this.indices.length - 1);
 		}
-
-		// sort
-		Integer[] order = new Integer[this.indices.length];
-		for (int i = 0; i < order.length; i++) {
-			order[i] = i;
-		}
-
-		Arrays.sort(order, new Comparator<Integer>() {
-			@Override
-			public int compare(Integer o1, Integer o2) {
-				if (indices[o1] < indices[o2]) {
-					return -1;
-				} else if (indices[o1] > indices[o2]) {
-					return 1;
-				} else {
-					return 0;
-				}
-			}
-		});
-
-		int nnz = this.indices.length;
-		int[] sortedIndices = new int[nnz];
-		double[] sortedValues = new double[nnz];
-
-		for (int i = 0; i < order.length; i++) {
-			sortedValues[i] = this.values[order[i]];
-			sortedIndices[i] = this.indices[order[i]];
-		}
-
-		this.indices = sortedIndices;
-		this.values = sortedValues;
 	}
 
 	@Override
@@ -192,31 +241,27 @@ public class SparseVector extends Vector {
 		double[] values = new double[this.values.length + 1];
 		int n = (this.n >= 0) ? this.n + 1 : this.n;
 
-		int i;
-		for (i = 0; i < this.indices.length; i++) {
-			indices[i] = this.indices[i];
-			values[i] = this.values[i];
-		}
+		System.arraycopy(this.indices, 0, indices, 0, this.indices.length);
+		System.arraycopy(this.values, 0, values, 0, this.values.length);
 
-		indices[i] = n - 1;
-		values[i] = d;
+		indices[this.indices.length] = n - 1;
+		values[this.values.length] = d;
 
 		return new SparseVector(n, indices, values);
 	}
 
+	/**
+	 * Get the indices array.
+	 */
 	public int[] getIndices() {
 		return indices;
 	}
 
+	/**
+	 * Get the values array.
+	 */
 	public double[] getValues() {
 		return values;
-	}
-
-	public int getMaxIndex() {
-		if (indices.length <= 0) {
-			return -1;
-		}
-		return indices[indices.length - 1];
 	}
 
 	@Override
@@ -233,10 +278,16 @@ public class SparseVector extends Vector {
 		return 0.;
 	}
 
+	/**
+	 * Set the size of the vector.
+	 */
 	public void setSize(int n) {
 		this.n = n;
 	}
 
+	/**
+	 * Get number of values in this vector.
+	 */
 	public int numberOfValues() {
 		return this.values.length;
 	}
@@ -248,21 +299,7 @@ public class SparseVector extends Vector {
 			this.values[pos] = val;
 		} else {
 			pos = -(pos + 1);
-			double[] newValues = new double[this.values.length + 1];
-			int[] newIndices = new int[this.values.length + 1];
-			int j = 0;
-			for (; j < pos; j++) {
-				newValues[j] = this.values[j];
-				newIndices[j] = this.indices[j];
-			}
-			newValues[j] = val;
-			newIndices[j] = i;
-			for (; j < this.values.length; j++) {
-				newValues[j + 1] = this.values[j];
-				newIndices[j + 1] = this.indices[j];
-			}
-			this.values = newValues;
-			this.indices = newIndices;
+			insert(pos, i, val);
 		}
 	}
 
@@ -273,22 +310,24 @@ public class SparseVector extends Vector {
 			this.values[pos] += val;
 		} else {
 			pos = -(pos + 1);
-			double[] newValues = new double[this.values.length + 1];
-			int[] newIndices = new int[this.values.length + 1];
-			int j = 0;
-			for (; j < pos; j++) {
-				newValues[j] = this.values[j];
-				newIndices[j] = this.indices[j];
-			}
-			newValues[j] = val;
-			newIndices[j] = i;
-			for (; j < this.values.length; j++) {
-				newValues[j + 1] = this.values[j];
-				newIndices[j + 1] = this.indices[j];
-			}
-			this.values = newValues;
-			this.indices = newIndices;
+			insert(pos, i, val);
 		}
+	}
+
+	/**
+	 * Insert value "val" in the position "pos" with index "index".
+	 */
+	private void insert(int pos, int index, double val) {
+		double[] newValues = new double[this.values.length + 1];
+		int[] newIndices = new int[this.values.length + 1];
+		System.arraycopy(this.values, 0, newValues, 0, pos);
+		System.arraycopy(this.indices, 0, newIndices, 0, pos);
+		newValues[pos] = val;
+		newIndices[pos] = index;
+		System.arraycopy(this.values, pos, newValues, pos + 1, this.values.length - pos);
+		System.arraycopy(this.indices, pos, newIndices, pos + 1, this.values.length - pos);
+		this.values = newValues;
+		this.indices = newIndices;
 	}
 
 	@Override
@@ -360,170 +399,37 @@ public class SparseVector extends Vector {
 		return sliced;
 	}
 
-	public SparseVector plus(SparseVector other) {
-		if (this.size() != other.size()) {
-			throw new RuntimeException("The size of the two vectors are different.");
-		}
-
-		int totNnz = this.values.length + other.values.length;
-		int p0 = 0;
-		int p1 = 0;
-		while (p0 < this.values.length && p1 < other.values.length) {
-			if (this.indices[p0] == other.indices[p1]) {
-				totNnz--;
-				p0++;
-				p1++;
-			} else if (this.indices[p0] < other.indices[p1]) {
-				p0++;
-			} else {
-				p1++;
-			}
-		}
-
-		SparseVector r = new SparseVector(this.size());
-		r.indices = new int[totNnz];
-		r.values = new double[totNnz];
-		p0 = p1 = 0;
-		int pos = 0;
-		while (pos < totNnz) {
-			if (p0 < this.values.length && p1 < other.values.length) {
-				if (this.indices[p0] == other.indices[p1]) {
-					r.indices[pos] = this.indices[p0];
-					r.values[pos] = this.values[p0] + other.values[p1];
-					p0++;
-					p1++;
-				} else if (this.indices[p0] < other.indices[p1]) {
-					r.indices[pos] = this.indices[p0];
-					r.values[pos] = this.values[p0];
-					p0++;
-				} else {
-					r.indices[pos] = other.indices[p1];
-					r.values[pos] = other.values[p1];
-					p1++;
-				}
-				pos++;
-			} else {
-				if (p0 < this.values.length) {
-					r.indices[pos] = this.indices[p0];
-					r.values[pos] = this.values[p0];
-					p0++;
-					pos++;
-					continue;
-				}
-				if (p1 < other.values.length) {
-					r.indices[pos] = other.indices[p1];
-					r.values[pos] = other.values[p1];
-					p1++;
-					pos++;
-					continue;
-				}
-			}
-		}
-		return r;
-	}
-
-	public DenseVector plus(DenseVector other) {
-		if (this.size() != other.size()) {
-			throw new RuntimeException("The size of the two vectors are different.");
-		}
-
-		DenseVector r = other.clone();
-		for (int i = 0; i < this.indices.length; i++) {
-			r.add(this.indices[i], this.values[i]);
-		}
-		return r;
-	}
-
 	@Override
 	public Vector plus(Vector vec) {
+		if (this.size() != vec.size()) {
+			throw new IllegalArgumentException("The size of the two vectors are different.");
+		}
+
 		if (vec instanceof DenseVector) {
-			return plus((DenseVector) vec);
+			DenseVector r = ((DenseVector) vec).clone();
+			for (int i = 0; i < this.indices.length; i++) {
+				r.add(this.indices[i], this.values[i]);
+			}
+			return r;
 		} else {
-			return plus((SparseVector) vec);
+			return SparseVector.apply(this, (SparseVector) vec, ((a, b) -> a + b));
 		}
-	}
-
-	public SparseVector minus(SparseVector other) {
-		if (this.size() != other.size()) {
-			throw new RuntimeException("The size of the two vectors are different.");
-		}
-
-		int totNnz = this.values.length + other.values.length;
-		int p0 = 0;
-		int p1 = 0;
-		while (p0 < this.values.length && p1 < other.values.length) {
-			if (this.indices[p0] == other.indices[p1]) {
-				totNnz--;
-				p0++;
-				p1++;
-			} else if (this.indices[p0] < other.indices[p1]) {
-				p0++;
-			} else {
-				p1++;
-			}
-		}
-
-		SparseVector r = new SparseVector(this.size());
-		r.indices = new int[totNnz];
-		r.values = new double[totNnz];
-		p0 = p1 = 0;
-		int pos = 0;
-		while (pos < totNnz) {
-			if (p0 < this.values.length && p1 < other.values.length) {
-				if (this.indices[p0] == other.indices[p1]) {
-					r.indices[pos] = this.indices[p0];
-					r.values[pos] = this.values[p0] - other.values[p1];
-					p0++;
-					p1++;
-				} else if (this.indices[p0] < other.indices[p1]) {
-					r.indices[pos] = this.indices[p0];
-					r.values[pos] = this.values[p0];
-					p0++;
-				} else {
-					r.indices[pos] = other.indices[p1];
-					r.values[pos] = -other.values[p1];
-					p1++;
-				}
-				pos++;
-			} else {
-				if (p0 < this.values.length) {
-					r.indices[pos] = this.indices[p0];
-					r.values[pos] = this.values[p0];
-					p0++;
-					pos++;
-					continue;
-				}
-				if (p1 < other.values.length) {
-					r.indices[pos] = other.indices[p1];
-					r.values[pos] = -other.values[p1];
-					p1++;
-					pos++;
-					continue;
-				}
-			}
-		}
-
-		return r;
-	}
-
-	public DenseVector minus(DenseVector other) {
-		if (this.size() != other.size()) {
-			throw new RuntimeException("The size of the two vectors are different.");
-		}
-
-		DenseVector r = other.scale(-1.0);
-		for (int i = 0; i < this.indices.length; i++) {
-			r.add(this.indices[i], this.values[i]);
-		}
-		return r;
 	}
 
 	@Override
 	public Vector minus(Vector vec) {
+		if (this.size() != vec.size()) {
+			throw new IllegalArgumentException("The size of the two vectors are different.");
+		}
+
 		if (vec instanceof DenseVector) {
-			return minus((DenseVector) vec);
+			DenseVector r = ((DenseVector) vec).scale(-1.0);
+			for (int i = 0; i < this.indices.length; i++) {
+				r.add(this.indices[i], this.values[i]);
+			}
+			return r;
 		} else {
-			return minus((SparseVector) vec);
+			return SparseVector.apply(this, (SparseVector) vec, ((a, b) -> a - b));
 		}
 	}
 
@@ -543,6 +449,9 @@ public class SparseVector extends Vector {
 		}
 	}
 
+	/**
+	 * Remove all zero values away from this vector.
+	 */
 	public void removeZeroValues() {
 		if (this.values.length != 0) {
 			List<Integer> idxs = new ArrayList<>();
@@ -562,7 +471,7 @@ public class SparseVector extends Vector {
 		}
 	}
 
-	public double dot(SparseVector other) {
+	private double dot(SparseVector other) {
 		if (this.size() != other.size()) {
 			throw new RuntimeException("the size of the two vectors are different");
 		}
@@ -584,7 +493,7 @@ public class SparseVector extends Vector {
 		return d;
 	}
 
-	public double dot(DenseVector other) {
+	private double dot(DenseVector other) {
 		if (this.size() != other.size()) {
 			throw new RuntimeException(
 				"The size of the two vectors are different: " + this.size() + " vs " + other.size());
@@ -605,10 +514,20 @@ public class SparseVector extends Vector {
 		}
 	}
 
+	/**
+	 * Compute the outer product with itself.
+	 *
+	 * @return The outer product matrix.
+	 */
 	public DenseMatrix outer() {
 		return this.outer(this);
 	}
 
+	/**
+	 * Compute the outer product with another vector.
+	 *
+	 * @return The outer product matrix.
+	 */
 	public DenseMatrix outer(SparseVector other) {
 		int nrows = this.size();
 		int ncols = other.size();
@@ -646,36 +565,6 @@ public class SparseVector extends Vector {
 		}
 	}
 
-	private class SparseVectorVectorIterator implements VectorIterator {
-		private int cursor = 0;
-
-		@Override
-		public boolean hasNext() {
-			return cursor < values.length;
-		}
-
-		@Override
-		public void next() {
-			cursor++;
-		}
-
-		@Override
-		public int getIndex() {
-			if (cursor >= values.length) {
-				throw new RuntimeException("Iterator out of bound.");
-			}
-			return indices[cursor];
-		}
-
-		@Override
-		public double getValue() {
-			if (cursor >= values.length) {
-				throw new RuntimeException("Iterator out of bound.");
-			}
-			return values[cursor];
-		}
-	}
-
 	@Override
 	public String serialize() {
 		StringBuilder sbd = new StringBuilder();
@@ -697,55 +586,6 @@ public class SparseVector extends Vector {
 		}
 
 		return sbd.toString();
-	}
-
-	/**
-	 * Parse the sparse vector from a formatted string.
-	 *
-	 * @throws IllegalArgumentException If the string is of invalid format.
-	 */
-	public static SparseVector deserialize(String str) {
-		try {
-			if (org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly(str)) {
-				return new SparseVector();
-			}
-
-			int n = -1;
-			int firstDollarPos = str.indexOf('$');
-			int lastDollarPos = -1;
-			if (firstDollarPos >= 0) {
-				lastDollarPos = StringUtils.lastIndexOf(str, '$');
-				String sizeStr = StringUtils.substring(str, firstDollarPos + 1, lastDollarPos);
-				n = Integer.valueOf(sizeStr);
-				if (lastDollarPos == str.length() - 1) {
-					return new SparseVector(n);
-				}
-			}
-
-			int numValues = StringUtils.countMatches(str, ",") + 1;
-			double[] data = new double[numValues];
-			int[] indices = new int[numValues];
-			int startPos = lastDollarPos + 1;
-			int endPos;
-			for (int i = 0; i < numValues; i++) {
-				endPos = StringUtils.indexOf(str, ",", startPos);
-				if (endPos == -1) {
-					endPos = str.length();
-				}
-				String valueStr = StringUtils.substring(str, startPos, endPos);
-				startPos = endPos + 1;
-
-				int colonPos = valueStr.indexOf(':');
-				if (colonPos < 0) {
-					throw new IllegalArgumentException("Format error.");
-				}
-				indices[i] = Integer.valueOf(valueStr.substring(0, colonPos).trim());
-				data[i] = Double.valueOf(valueStr.substring(colonPos + 1).trim());
-			}
-			return new SparseVector(n, indices, data);
-		} catch (Exception e) {
-			throw new IllegalArgumentException(String.format("Fail to parse sparse vector from string: \"%s\".", str), e);
-		}
 	}
 
 	@Override
@@ -784,8 +624,102 @@ public class SparseVector extends Vector {
 		}
 	}
 
+	/**
+	 * y = func(x1, x2).
+	 */
+	public static SparseVector apply(SparseVector x1, SparseVector x2, BinaryOp func) {
+		assert (x1.size() == x2.size());
+
+		int totNnz = x1.values.length + x2.values.length;
+		int p0 = 0;
+		int p1 = 0;
+		while (p0 < x1.values.length && p1 < x2.values.length) {
+			if (x1.indices[p0] == x2.indices[p1]) {
+				totNnz--;
+				p0++;
+				p1++;
+			} else if (x1.indices[p0] < x2.indices[p1]) {
+				p0++;
+			} else {
+				p1++;
+			}
+		}
+
+		SparseVector r = new SparseVector(x1.size());
+		r.indices = new int[totNnz];
+		r.values = new double[totNnz];
+		p0 = p1 = 0;
+		int pos = 0;
+		while (pos < totNnz) {
+			if (p0 < x1.values.length && p1 < x2.values.length) {
+				if (x1.indices[p0] == x2.indices[p1]) {
+					r.indices[pos] = x1.indices[p0];
+					r.values[pos] = func.f(x1.values[p0], x2.values[p1]);
+					p0++;
+					p1++;
+				} else if (x1.indices[p0] < x2.indices[p1]) {
+					r.indices[pos] = x1.indices[p0];
+					r.values[pos] = func.f(x1.values[p0], 0.0);
+					p0++;
+				} else {
+					r.indices[pos] = x2.indices[p1];
+					r.values[pos] = func.f(0.0, x2.values[p1]);
+					p1++;
+				}
+				pos++;
+			} else {
+				if (p0 < x1.values.length) {
+					r.indices[pos] = x1.indices[p0];
+					r.values[pos] = func.f(x1.values[p0], 0.0);
+					p0++;
+					pos++;
+					continue;
+				}
+				if (p1 < x2.values.length) {
+					r.indices[pos] = x2.indices[p1];
+					r.values[pos] = func.f(0.0, x2.values[p1]);
+					p1++;
+					pos++;
+					continue;
+				}
+			}
+		}
+
+		return r;
+	}
+
 	@Override
 	public VectorIterator iterator() {
 		return new SparseVectorVectorIterator();
+	}
+
+	private class SparseVectorVectorIterator implements VectorIterator {
+		private int cursor = 0;
+
+		@Override
+		public boolean hasNext() {
+			return cursor < values.length;
+		}
+
+		@Override
+		public void next() {
+			cursor++;
+		}
+
+		@Override
+		public int getIndex() {
+			if (cursor >= values.length) {
+				throw new RuntimeException("Iterator out of bound.");
+			}
+			return indices[cursor];
+		}
+
+		@Override
+		public double getValue() {
+			if (cursor >= values.length) {
+				throw new RuntimeException("Iterator out of bound.");
+			}
+			return values[cursor];
+		}
 	}
 }

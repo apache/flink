@@ -33,6 +33,9 @@ public class BLAS {
 		BLAS.daxpy(x.length, a, x, 1, y, 1);
 	}
 
+	/**
+	 * y += a * x .
+	 */
 	public static void axpy(double a, DenseVector x, DenseVector y) {
 		axpy(a, x.getData(), y.getData());
 	}
@@ -44,6 +47,9 @@ public class BLAS {
 		return BLAS.ddot(x.length, x, 1, y, 1);
 	}
 
+	/**
+	 * x \cdot y .
+	 */
 	public static double dot(DenseVector x, DenseVector y) {
 		return dot(x.getData(), y.getData());
 	}
@@ -55,6 +61,9 @@ public class BLAS {
 		BLAS.dscal(x.length, a, x, 1);
 	}
 
+	/**
+	 * x = x * a .
+	 */
 	public static void scal(double a, DenseVector x) {
 		scal(a, x.getData());
 	}
@@ -107,9 +116,8 @@ public class BLAS {
 		final int ldc = matC.numRows();
 		final String ta = transA ? "T" : "N";
 		final String tb = transB ? "T" : "N";
-		BLAS.dgemm(ta, tb, m, n, k, alpha, matA.data, lda, matB.data, ldb, beta, matC.data, ldc);
+		BLAS.dgemm(ta, tb, m, n, k, alpha, matA.getData(), lda, matB.getData(), ldb, beta, matC.getData(), ldc);
 	}
-
 
 	/**
 	 * y := alpha * A * x + beta * y .
@@ -127,6 +135,6 @@ public class BLAS {
 		final int n = matA.numCols();
 		final int lda = matA.numRows();
 		final String ta = transA ? "T" : "N";
-		BLAS.dgemv(ta, m, n, alpha, matA.data, lda, x.getData(), 1, beta, y.getData(), 1);
+		BLAS.dgemv(ta, m, n, alpha, matA.getData(), lda, x.getData(), 1, beta, y.getData(), 1);
 	}
 }

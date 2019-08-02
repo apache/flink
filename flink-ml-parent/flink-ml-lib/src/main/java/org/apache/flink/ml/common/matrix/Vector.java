@@ -30,106 +30,6 @@ import java.io.Serializable;
 public abstract class Vector implements Serializable {
 
 	/**
-	 * Get the size of the vector.
-	 */
-	public abstract int size();
-
-	/**
-	 * Get the i-th element of the vector.
-	 */
-	public abstract double get(int i);
-
-	/**
-	 * Set the i-th element of the vector to value "val".
-	 */
-	public abstract void set(int i, double val);
-
-	/**
-	 * Add the i-th element of the vector by value "val".
-	 */
-	public abstract void add(int i, double val);
-
-	/**
-	 * Return the L1 norm of the vector.
-	 */
-	public abstract double normL1();
-
-	/**
-	 * Return the Inf norm of the vector.
-	 */
-	public abstract double normInf();
-
-	/**
-	 * Return the L2 norm of the vector.
-	 */
-	public abstract double normL2();
-
-	/**
-	 * Return the square of L2 norm of the vector.
-	 */
-	public abstract double normL2Square();
-
-	/**
-	 * Scale the vector by value "v" and create a new vector to store the result.
-	 */
-	public abstract Vector scale(double v);
-
-	/**
-	 * Scale the vector by value "v".
-	 */
-	public abstract void scaleEqual(double v);
-
-	/**
-	 * Normalize the vector.
-	 */
-	public abstract void normalizeEqual(double p);
-
-	/**
-	 * Standardize the vector.
-	 */
-	public abstract void standardizeEqual(double mean, double stdvar);
-
-	/**
-	 * Create a new vector by adding an element to the head of the vector.
-	 */
-	public abstract Vector prefix(double v);
-
-	/**
-	 * Create a new vector by adding an element to the end of the vector.
-	 */
-	public abstract Vector append(double v);
-
-	/**
-	 * Create a new vector by plussing another vector.
-	 */
-	public abstract Vector plus(Vector vec);
-
-	/**
-	 * Create a new vector by subtracting  another vector.
-	 */
-	public abstract Vector minus(Vector vec);
-
-	/**
-	 * Compute the dot product with another vector.
-	 */
-	public abstract double dot(Vector vec);
-
-	/**
-	 * Get the iterator of the vector.
-	 */
-	public abstract VectorIterator iterator();
-
-	/**
-	 * Serialize the vector to a string.
-	 */
-	public abstract String serialize();
-
-	/**
-	 * Slice the vector.
-	 */
-	public abstract Vector slice(int[] indexes);
-
-	/**
 	 * Parse a DenseVector from a formatted string.
 	 */
 	public static DenseVector dense(String str) {
@@ -141,17 +41,6 @@ public abstract class Vector implements Serializable {
 	 */
 	public static SparseVector sparse(String str) {
 		return SparseVector.deserialize(str);
-	}
-
-	/**
-	 * Convert the vector to DenseVector.
-	 */
-	public DenseVector toDenseVector() {
-		if (this instanceof DenseVector) {
-			return (DenseVector) this;
-		} else {
-			return ((SparseVector) this).toDenseVector();
-		}
 	}
 
 	/**
@@ -259,27 +148,31 @@ public abstract class Vector implements Serializable {
 		double s = 0.;
 		int p1 = 0;
 		int p2 = 0;
-		int nnz1 = x1.indices.length;
-		int nnz2 = x2.indices.length;
+		int[] x1Indices = x1.getIndices();
+		double[] x1Values = x1.getValues();
+		int[] x2Indices = x2.getIndices();
+		double[] x2Values = x2.getValues();
+		int nnz1 = x1Indices.length;
+		int nnz2 = x2Indices.length;
 		while (p1 < nnz1 || p2 < nnz2) {
 			if (p1 < nnz1 && p2 < nnz2) {
-				if (x1.indices[p1] == x2.indices[p2]) {
-					s += func.f(x1.values[p1], x2.values[p2]);
+				if (x1Indices[p1] == x2Indices[p2]) {
+					s += func.f(x1Values[p1], x2Values[p2]);
 					p1++;
 					p2++;
-				} else if (x1.indices[p1] < x2.indices[p2]) {
-					s += func.f(x1.values[p1], 0.);
+				} else if (x1Indices[p1] < x2Indices[p2]) {
+					s += func.f(x1Values[p1], 0.);
 					p1++;
 				} else {
-					s += func.f(0., x2.values[p2]);
+					s += func.f(0., x2Values[p2]);
 					p2++;
 				}
 			} else {
 				if (p1 < nnz1) {
-					s += func.f(x1.values[p1], 0.);
+					s += func.f(x1Values[p1], 0.);
 					p1++;
 				} else { // p2 < nnz2
-					s += func.f(0., x2.values[p2]);
+					s += func.f(0., x2Values[p2]);
 					p2++;
 				}
 			}
@@ -295,11 +188,13 @@ public abstract class Vector implements Serializable {
 		assert x1.size() == x2.size();
 		double s = 0.;
 		int p2 = 0;
-		int nnz2 = x2.indices.length;
+		int[] x2Indices = x2.getIndices();
+		double[] x2Values = x2.getValues();
+		int nnz2 = x2Indices.length;
 		double[] x1data = x1.getData();
 		for (int i = 0; i < x1data.length; i++) {
-			if (p2 < nnz2 && x2.indices[p2] == i) {
-				s += func.f(x1data[i], x2.values[p2]);
+			if (p2 < nnz2 && x2Indices[p2] == i) {
+				s += func.f(x1data[i], x2Values[p2]);
 				p2++;
 			} else {
 				s += func.f(x1data[i], 0.);
@@ -316,17 +211,130 @@ public abstract class Vector implements Serializable {
 		assert x1.size() == x2.size();
 		double s = 0.;
 		int p1 = 0;
-		int nnz1 = x1.indices.length;
+		int[] x1Indices = x1.getIndices();
+		double[] x1Values = x1.getValues();
+		int nnz1 = x1Indices.length;
 		double[] x2data = x2.getData();
 		for (int i = 0; i < x2data.length; i++) {
-			if (p1 < nnz1 && x1.indices[p1] == i) {
-				s += func.f(x1.values[p1], x2data[i]);
+			if (p1 < nnz1 && x1Indices[p1] == i) {
+				s += func.f(x1Values[p1], x2data[i]);
 				p1++;
 			} else {
 				s += func.f(0., x2data[i]);
 			}
 		}
 		return s;
+	}
+
+	/**
+	 * Get the size of the vector.
+	 */
+	public abstract int size();
+
+	/**
+	 * Get the i-th element of the vector.
+	 */
+	public abstract double get(int i);
+
+	/**
+	 * Set the i-th element of the vector to value "val".
+	 */
+	public abstract void set(int i, double val);
+
+	/**
+	 * Add the i-th element of the vector by value "val".
+	 */
+	public abstract void add(int i, double val);
+
+	/**
+	 * Return the L1 norm of the vector.
+	 */
+	public abstract double normL1();
+
+	/**
+	 * Return the Inf norm of the vector.
+	 */
+	public abstract double normInf();
+
+	/**
+	 * Return the L2 norm of the vector.
+	 */
+	public abstract double normL2();
+
+	/**
+	 * Return the square of L2 norm of the vector.
+	 */
+	public abstract double normL2Square();
+
+	/**
+	 * Scale the vector by value "v" and create a new vector to store the result.
+	 */
+	public abstract Vector scale(double v);
+
+	/**
+	 * Scale the vector by value "v".
+	 */
+	public abstract void scaleEqual(double v);
+
+	/**
+	 * Normalize the vector.
+	 */
+	public abstract void normalizeEqual(double p);
+
+	/**
+	 * Standardize the vector.
+	 */
+	public abstract void standardizeEqual(double mean, double stdvar);
+
+	/**
+	 * Create a new vector by adding an element to the head of the vector.
+	 */
+	public abstract Vector prefix(double v);
+
+	/**
+	 * Create a new vector by adding an element to the end of the vector.
+	 */
+	public abstract Vector append(double v);
+
+	/**
+	 * Create a new vector by plussing another vector.
+	 */
+	public abstract Vector plus(Vector vec);
+
+	/**
+	 * Create a new vector by subtracting  another vector.
+	 */
+	public abstract Vector minus(Vector vec);
+
+	/**
+	 * Compute the dot product with another vector.
+	 */
+	public abstract double dot(Vector vec);
+
+	/**
+	 * Get the iterator of the vector.
+	 */
+	public abstract VectorIterator iterator();
+
+	/**
+	 * Serialize the vector to a string.
+	 */
+	public abstract String serialize();
+
+	/**
+	 * Slice the vector.
+	 */
+	public abstract Vector slice(int[] indexes);
+
+	/**
+	 * Convert the vector to DenseVector.
+	 */
+	public DenseVector toDenseVector() {
+		if (this instanceof DenseVector) {
+			return (DenseVector) this;
+		} else {
+			return ((SparseVector) this).toDenseVector();
+		}
 	}
 
 }
