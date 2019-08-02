@@ -20,6 +20,7 @@ package org.apache.flink.table.client.config;
 
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.entries.CatalogEntry;
+import org.apache.flink.table.client.config.entries.ConfigurationEntry;
 import org.apache.flink.table.client.config.entries.DeploymentEntry;
 import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.FunctionEntry;
@@ -50,6 +51,9 @@ public class Environment {
 
 	public static final String DEPLOYMENT_ENTRY = "deployment";
 
+	public static final String[] CONFIGURATION_ENTRIES = new String[]{
+		"table.exec", "table.optimizer"};
+
 	private Map<String, CatalogEntry> catalogs;
 
 	private Map<String, TableEntry> tables;
@@ -60,12 +64,15 @@ public class Environment {
 
 	private DeploymentEntry deployment;
 
+	private ConfigurationEntry configuration;
+
 	public Environment() {
 		this.catalogs = Collections.emptyMap();
 		this.tables = Collections.emptyMap();
 		this.functions = Collections.emptyMap();
 		this.execution = ExecutionEntry.DEFAULT_INSTANCE;
 		this.deployment = DeploymentEntry.DEFAULT_INSTANCE;
+		this.configuration = ConfigurationEntry.DEFAULT_INSTANCE;
 	}
 
 	public Map<String, CatalogEntry> getCatalogs() {
@@ -136,6 +143,14 @@ public class Environment {
 		return deployment;
 	}
 
+	public void setConfiguration(Map<String, Object> config) {
+		this.configuration = ConfigurationEntry.create(config);
+	}
+
+	public ConfigurationEntry getConfiguration() {
+		return configuration;
+	}
+
 	@Override
 	public String toString() {
 		final StringBuilder sb = new StringBuilder();
@@ -158,6 +173,8 @@ public class Environment {
 		execution.asTopLevelMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
 		sb.append("=================== Deployment ===================\n");
 		deployment.asTopLevelMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
+		sb.append("================== Configuration =================\n");
+		configuration.asMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
 		return sb.toString();
 	}
 
@@ -212,6 +229,9 @@ public class Environment {
 		// merge deployment properties
 		mergedEnv.deployment = DeploymentEntry.merge(env1.getDeployment(), env2.getDeployment());
 
+		// merge execution properties
+		mergedEnv.configuration = ConfigurationEntry.merge(env1.getConfiguration(), env2.getConfiguration());
+
 		return mergedEnv;
 	}
 
@@ -239,6 +259,9 @@ public class Environment {
 
 		// enrich deployment properties
 		enrichedEnv.deployment = DeploymentEntry.enrich(env.deployment, properties);
+
+		// enrich configuration properties
+		enrichedEnv.configuration = ConfigurationEntry.enrich(env.configuration, properties);
 
 		return enrichedEnv;
 	}

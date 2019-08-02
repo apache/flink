@@ -92,6 +92,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
 	private static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
+	private static final String CONFIGURATIONS_ENVIRONMENT_FILE = "test-sql-client-configurations.yaml";
 
 	private static final int NUM_TMS = 2;
 	private static final int NUM_SLOTS_PER_TM = 2;
@@ -500,6 +501,45 @@ public class LocalExecutorITCase extends TestLogger {
 			executor.useDatabase(session, DependencyTest.TestHiveCatalogFactory.ADDITIONAL_TEST_DATABASE);
 
 			assertEquals(Arrays.asList(DependencyTest.TestHiveCatalogFactory.TEST_TABLE), executor.listTables(session));
+		} finally {
+			executor.stop(session);
+		}
+	}
+
+	@Test(timeout = 30_000L)
+	public void testTableEnvConfigurations() throws Exception {
+		if (!planner.equals("blink")) {
+			// Table env configurations can only be used on blink planner
+			return;
+		}
+
+		final URL url = getClass().getClassLoader().getResource("test-data.csv");
+		Objects.requireNonNull(url);
+
+		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", planner);
+		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
+		replaceVars.put("$VAR_RESULT_MODE", "table");
+		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
+		replaceVars.put("$VAR_MAX_ROWS", "100");
+		replaceVars.put("$SORT_DEFAULT_LIMIT", "3");
+
+		final String query = "SELECT * FROM TableNumber1 ORDER BY IntegerField1";
+
+		final List<String> expectedResults = new ArrayList<>();
+		expectedResults.add("22,Hello World");
+		expectedResults.add("32,Hello World");
+		expectedResults.add("32,Hello World");
+
+		final Executor executor = createModifiedExecutor(CONFIGURATIONS_ENVIRONMENT_FILE, clusterClient, replaceVars);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		try {
+			final ResultDescriptor desc = executor.executeQuery(session, query);
+			assertTrue(desc.isMaterialized());
+			final List<String> actualResults = retrieveTableResult(executor, session, desc.getResultId());
+			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
 		} finally {
 			executor.stop(session);
 		}
