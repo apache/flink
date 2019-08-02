@@ -91,6 +91,7 @@ public class JDBCUpsertTableSink implements UpsertStreamTableSink<Row> {
 	public DataStreamSink<?> consumeDataStream(DataStream<Tuple2<Boolean, Row>> dataStream) {
 		return dataStream
 				.addSink(new JDBCUpsertSinkFunction(newFormat()))
+				.setParallelism(dataStream.getParallelism())
 				.name(TableConnectorUtils.generateRuntimeName(this.getClass(), schema.getFieldNames()));
 	}
 
