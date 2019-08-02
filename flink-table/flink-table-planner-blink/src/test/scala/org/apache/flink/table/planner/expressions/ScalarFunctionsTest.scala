@@ -1470,7 +1470,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   def testDivide(): Unit = {
 
     testAllApis(
-      1514356320000L / 60000.0, // the `/` is Scala operator, not Flink TableApi operator
+      1514356320000L / 60000, // the `/` is Scala operator, not Flink TableApi operator
       "1514356320000L / 60000",
       "1514356320000 / 60000",
       "25239272")
@@ -1479,7 +1479,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       'f7 / 2,
       "f7 / 2",
       "f7 / 2",
-      "1.5")
+      "1")
 
     // f34 => Decimal(19,0)
     // 6 => Integer => Decimal(10,0)

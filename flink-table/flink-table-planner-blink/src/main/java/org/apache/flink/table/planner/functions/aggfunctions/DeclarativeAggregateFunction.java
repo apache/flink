@@ -45,6 +45,9 @@ import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unreso
  * defining {@link #initialValuesExpressions}, {@link #accumulateExpressions},
  * {@link #mergeExpressions} and {@link #getValueExpression}.
  *
+ * <p>Note: Developer of DeclarativeAggregateFunction should guarantee that the inferred type
+ * of {@link #getValueExpression} is the same as {@link #getResultType()}
+ *
  * <p>See an full example: {@link AvgAggFunction}.
  */
 public abstract class DeclarativeAggregateFunction extends UserDefinedFunction {
