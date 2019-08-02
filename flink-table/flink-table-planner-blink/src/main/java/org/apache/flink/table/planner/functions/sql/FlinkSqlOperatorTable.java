@@ -50,7 +50,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.ARG0_VARCHAR_FORCE_NULLABLE;
-import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.FLINK_DIV_NULLABLE;
 import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.STR_MAP_NULLABLE;
 import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_2000_NULLABLE;
 
@@ -107,30 +106,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	// -----------------------------------------------------------------------------
 
 	// FUNCTIONS
-
-	/**
-	 * DIV function. It corresponds to {@link #DIVIDE} operator but
-	 * returns without fractional part.
-	 */
-	public static final SqlFunction DIV = new SqlFunction(
-		"DIV",
-		SqlKind.OTHER_FUNCTION,
-		FLINK_DIV_NULLABLE,
-		null,
-		OperandTypes.EXACT_NUMERIC_EXACT_NUMERIC,
-		SqlFunctionCategory.NUMERIC);
-
-	/**
-	 * DIV_INT function. It corresponds to {@link #DIVIDE_INTEGER} operator but
-	 * returns without fractional part.
-	 */
-	public static final SqlFunction DIV_INT = new SqlFunction(
-		"DIV_INT",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.INTEGER_QUOTIENT_NULLABLE,
-		null,
-		OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
-		SqlFunctionCategory.NUMERIC);
 
 	/**
 	 * Function used to access a processing time attribute.
@@ -286,38 +261,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		OperandTypes.or(
 			OperandTypes.family(SqlTypeFamily.INTEGER),
 			OperandTypes.family(SqlTypeFamily.STRING)),
-		SqlFunctionCategory.NUMERIC);
-
-	public static final SqlFunction BITAND = new SqlFunction(
-		"BITAND",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.ARG0_NULLABLE,
-		null,
-		OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
-		SqlFunctionCategory.NUMERIC);
-
-	public static final SqlFunction BITOR = new SqlFunction(
-		"BITOR",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.ARG0_NULLABLE,
-		null,
-		OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
-		SqlFunctionCategory.NUMERIC);
-
-	public static final SqlFunction BITXOR = new SqlFunction(
-		"BITXOR",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.ARG0_NULLABLE,
-		null,
-		OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
-		SqlFunctionCategory.NUMERIC);
-
-	public static final SqlFunction BITNOT = new SqlFunction(
-		"BITNOT",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.ARG0_NULLABLE,
-		null,
-		OperandTypes.NUMERIC,
 		SqlFunctionCategory.NUMERIC);
 
 	public static final SqlFunction JSONVALUE = new SqlFunction(
