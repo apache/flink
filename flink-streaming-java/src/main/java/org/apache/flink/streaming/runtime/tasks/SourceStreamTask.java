@@ -61,7 +61,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 	public SourceStreamTask(Environment env) {
 		super(env);
-		this.sourceThread = new LegacySourceFunctionThread(getName());
+		this.sourceThread = new LegacySourceFunctionThread();
 	}
 
 	@Override
@@ -117,6 +117,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 		// Against the usual contract of this method, this implementation is not step-wise but blocking instead for
 		// compatibility reasons with the current source interface (source functions run as a loop, not in steps).
+		sourceThread.setTaskDescription(getName());
 		sourceThread.start();
 		sourceThread.getCompletionFuture().whenComplete((Void ignore, Throwable sourceThreadThrowable) -> {
 			if (sourceThreadThrowable == null || isFinished) {
@@ -169,8 +170,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 
 		private final CompletableFuture<Void> completionFuture;
 
-		LegacySourceFunctionThread(String taskDescription) {
-			super("Legacy Source Thread - " + taskDescription);
+		LegacySourceFunctionThread() {
 			this.completionFuture = new CompletableFuture<>();
 		}
 
@@ -182,6 +182,10 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 			} catch (Throwable t) {
 				completionFuture.completeExceptionally(t);
 			}
+		}
+
+		public void setTaskDescription(final String taskDescription) {
+			setName("Legacy Source Thread - " + taskDescription);
 		}
 
 		CompletableFuture<Void> getCompletionFuture() {
