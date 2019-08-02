@@ -157,9 +157,9 @@ public class HiveTableSourceTest {
 		String abstractSyntaxTree = explain[1];
 		String optimizedLogicalPlan = explain[2];
 		String physicalExecutionPlan = explain[3];
-		assertTrue(abstractSyntaxTree.contains("HiveTableSource(year, value, pt) PartitionPruned: false, partitionNums: 2]"));
-		assertTrue(optimizedLogicalPlan.contains("HiveTableSource(year, value, pt) PartitionPruned: true, partitionNums: 1]"));
-		assertTrue(physicalExecutionPlan.contains("HiveTableSource(year, value, pt) PartitionPruned: true, partitionNums: 1]"));
+		assertTrue(abstractSyntaxTree.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: false, PartitionNums: 2]"));
+		assertTrue(optimizedLogicalPlan.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1]"));
+		assertTrue(physicalExecutionPlan.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1]"));
 		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) table)).asJava();
 		assertEquals(2, rows.size());
 		Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();

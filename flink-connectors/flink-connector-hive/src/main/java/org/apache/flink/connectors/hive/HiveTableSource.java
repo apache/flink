@@ -229,7 +229,7 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 
 	@Override
 	public String explainSource() {
-		return super.explainSource() + String.format(" PartitionPruned: %s, partitionNums: %d",
-													partitionPruned, null == allHivePartitions ? 0 : allHivePartitions.size());
+		return super.explainSource() + String.format(" TablePath: %s, PartitionPruned: %s, PartitionNums: %d",
+													tablePath.getFullName(), partitionPruned, null == allHivePartitions ? 0 : allHivePartitions.size());
 	}
 }
