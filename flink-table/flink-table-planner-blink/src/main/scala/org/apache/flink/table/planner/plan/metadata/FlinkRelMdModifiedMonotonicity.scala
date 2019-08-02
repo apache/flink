@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.functions.sql.SqlIncrSumAggFunction
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ModifiedMonotonicity
@@ -337,7 +336,6 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
         case SqlKind.MIN => DECREASING
         case _ => NOT_MONOTONIC
       }
-      case _: SqlIncrSumAggFunction => INCREASING
       case _: SqlSumAggFunction | _: SqlSumEmptyIsZeroAggFunction =>
         val valueInterval = fmq.getFilteredColumnInterval(
           input, aggCall.getArgList.head, aggCall.filterArg)

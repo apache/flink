@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
@@ -169,16 +168,6 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
     assertEquals(
       new RelModifiedMonotonicity(Array(CONSTANT, NOT_MONOTONIC)),
       mq.getRelModifiedMonotonicity(aggWithAvg)
-    )
-
-    // incr_sum agg
-    val aggWithIncrSum = relBuilder.scan("MyTable3").aggregate(
-      relBuilder.groupKey(relBuilder.field("a")),
-      relBuilder.aggregateCall(FlinkSqlOperatorTable.INCR_SUM, false, null,
-        "incr_sum_b", relBuilder.field("b"))).build()
-    assertEquals(
-      new RelModifiedMonotonicity(Array(CONSTANT, INCREASING)),
-      mq.getRelModifiedMonotonicity(aggWithIncrSum)
     )
 
     // test monotonicity lost because group by a agg field
