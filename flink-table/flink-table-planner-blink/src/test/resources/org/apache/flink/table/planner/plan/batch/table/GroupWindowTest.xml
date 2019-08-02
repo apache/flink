@@ -20,15 +20,15 @@ limitations under the License.
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
-+- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow], properties=[])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, long, 5)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashWindowAggregate(window=[TumblingGroupWindow], select=[Final_COUNT(count$0) AS EXPR$0])
+HashWindowAggregate(window=[TumblingGroupWindow('w, long, 5)], select=[Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- LocalHashWindowAggregate(window=[TumblingGroupWindow], select=[Partial_COUNT(int) AS count$0])
+   +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w, long, 5)], select=[Partial_COUNT(int) AS count$0])
       +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]], fields=[long, int, string])
 ]]>
     </Resource>
@@ -54,15 +54,15 @@ HashWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, long, 8, 10
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow], properties=[])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, long, 5)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], select=[string, Final_COUNT(count$0) AS EXPR$0])
+HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
-   +- LocalHashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], select=[string, Partial_COUNT(int) AS count$0])
+   +- LocalHashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Partial_COUNT(int) AS count$0])
       +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]], fields=[long, int, string])
 ]]>
     </Resource>
@@ -71,15 +71,15 @@ HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], select=[stri
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow], properties=[EXPR$1, EXPR$2, EXPR$3])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, int, string)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Final_COUNT(count$0) AS EXPR$0])
+HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
-   +- LocalHashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Partial_COUNT(int) AS count$0])
+   +- LocalHashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Partial_COUNT(int) AS count$0])
       +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, int, string)]]], fields=[ts, int, string])
 ]]>
     </Resource>
@@ -88,16 +88,16 @@ HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], properties=[
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[myWeightedAvg($0, $1)], window=[TumblingGroupWindow], properties=[])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[myWeightedAvg($0, $1)], window=[TumblingGroupWindow('w, long, 5)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-SortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], select=[string, Final_myWeightedAvg(EXPR$0) AS EXPR$0])
+SortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Final_myWeightedAvg(EXPR$0) AS EXPR$0])
 +- Sort(orderBy=[string ASC, assignedWindow$ ASC])
    +- Exchange(distribution=[hash[string]])
-      +- LocalSortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], select=[string, Partial_myWeightedAvg(long, int) AS EXPR$0])
+      +- LocalSortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)], select=[string, Partial_myWeightedAvg(long, int) AS EXPR$0])
          +- Sort(orderBy=[string ASC, long ASC])
             +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(long, int, string)]]], fields=[long, int, string])
 ]]>
@@ -107,15 +107,15 @@ SortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], select=[stri
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow], properties=[EXPR$1, EXPR$2, EXPR$3])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, int, string)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Final_COUNT(count$0) AS EXPR$0])
+HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Final_COUNT(count$0) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
-   +- LocalHashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Partial_COUNT(int) AS count$0])
+   +- LocalHashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Partial_COUNT(int) AS count$0])
       +- TableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, int, string)]]], fields=[ts, int, string])
 ]]>
     </Resource>
