@@ -19,26 +19,82 @@
 
 source "$(dirname "$0")"/common.sh
 
-function checkDependencies {
-  JAR=$1
-  CONTENTS_FILE=$TEST_DATA_DIR/contentsInJar.txt
-  jdeps $JAR > $CONTENTS_FILE
-  if [[ `grep -c "(?<!org.apache.flink.calcite.shaded.)com.google" $CONTENTS_FILE` -eq '0' && \
-      `grep -c "(?<!org.apache.flink.calcite.shaded.)com.jayway" $CONTENTS_FILE` -eq '0' && \
-      `grep -c "(?<!org.apache.flink.calcite.shaded.)org.apache.commons.codec" $CONTENTS_FILE` -eq '0' && \
-      `grep -c "(?<!org.apache.flink.table.shaded.)org.joda.time" $CONTENTS_FILE` -eq '0' && \
-      `grep -c "(?<!org.apache.flink.table.shaded.)net.jpountz" $CONTENTS_FILE` -eq '0' && \
-      `grep -c "(?<!org.apache.flink.calcite.shaded.)com.fasterxml" $CONTENTS_FILE` -eq '0' ]]; then
+FLINK_VERSION=`ls "${END_TO_END_DIR}/../flink-table/flink-table-runtime-blink/target" | sed -n "s/.*flink-table-runtime-blink_\(.*\)-tests\.jar/\1/p" | uniq`
 
+# This checks the bytecode for dependencies on external classes. Some classes below
+# are not available in the uber jar. We check for classes that we expect in the uber jar with
+# checkAllowedPackages method.
+function checkCodeDependencies {
+  local JAR=$1
+  local CONTENTS_FILE=$TEST_DATA_DIR/contentsInJar.txt
+
+  jdeps $JAR |\
+      grep "^\s*\->" |\
+      `# jdk dependencies` \
+      grep -v "^\s*\-> java." |\
+      grep -v "^\s*\-> sun.misc." |\
+      grep -v "^\s*\-> javax." |\
+      `# scala dependencies` \
+      grep -v "^\s*\-> scala" |\
+      `# flink dependencies` \
+      grep -v "^\s*\-> org.apache.flink" |\
+      `# janino dependencies` \
+      grep -v "^\s*\-> org.codehaus.janino" |\
+      grep -v "^\s*\-> org.codehaus.commons" |\
+      grep -v "^\s*\-> org.apache.tools.ant" |\
+      `# calcite dependencies` \
+      grep -v "^\s*\-> org.apache.calcite" |\
+      grep -v "^\s*\-> org.pentaho.aggdes" |\
+      grep -v "^\s*\-> org.apache.commons.lang3" |\
+      grep -v "^\s*\-> org.apache.commons.math3" |\
+      grep -v "^\s*\-> org.apache.commons.dbcp2" |\
+      grep -v "^\s*\-> org.apache.http" |\
+      grep -v "^\s*\-> org.w3c.dom" |\
+      grep -v "^\s*\-> org.xml.sax" |\
+      grep -v "^\s*\-> org.ietf.jgss" |\
+      grep -v "^\s*\-> com.esri.core." |\
+      grep -v "^\s*\-> com.yahoo.sketches.hll." |\
+      grep -v "^\s*\-> org.slf4j" |\
+      grep -v "^\s*\-> org.json" |\
+      grep -v "^\s*\-> org.apache.tapestry5.json." |\
+      grep -v "^\s*\-> org.codehaus.jettison" |\
+      grep -v "^\s*\-> net.minidev.json" > $CONTENTS_FILE
+  if [[ `cat $CONTENTS_FILE | wc -l` -eq '0' ]]; then
       echo "Success: There are no unwanted dependencies in the ${JAR} jar."
   else
-      echo "Failure: There are unwanted dependencies in the ${JAR} jar."
+      echo "Failure: There are unwanted dependencies in the ${JAR} jar: `cat $CONTENTS_FILE`"
       exit 1
   fi
 }
 
-checkDependencies "${END_TO_END_DIR}/../flink-table/flink-table-planner/target/flink-table-planner_*.jar"
-checkDependencies "${END_TO_END_DIR}/../flink-table/flink-table-planner-blink/target/flink-table-planner-blink_*.jar"
-checkDependencies "${END_TO_END_DIR}/../flink-table/flink-table-runtime-blink/target/flink-table-runtime-blink_*.jar"
-checkDependencies "${FLINK_DIR}/lib/flink-table-blink.jar"
-checkDependencies "${FLINK_DIR}/lib/flink-table.jar"
+# Checks that the uber jars contain only flink, relocated packages, or packages that we
+# consciously decided to include as not relocated.
+function checkAllowedPackages {
+  local JAR=$1
+  local CONTENTS_FILE=$TEST_DATA_DIR/contentsInJar.txt
+
+  jar tf $JAR |\
+      grep ".*class" |\
+      grep -v "org/codehaus/janino" |\
+      grep -v "org/codehaus/commons" |\
+      grep -v "org/apache/calcite" |\
+      grep -v "org/apache/flink" > $CONTENTS_FILE
+  if [[ `cat $CONTENTS_FILE | wc -l` -eq '0' ]]; then
+      echo "Success: There are no unwanted classes in the ${JAR} jar."
+  else
+      echo "Failure: There are unwanted classes in the ${JAR} jar: `cat $CONTENTS_FILE`"
+      exit 1
+  fi
+}
+
+checkCodeDependencies "${END_TO_END_DIR}/../flink-table/flink-table-planner/target/flink-table-planner_${FLINK_VERSION}.jar"
+checkCodeDependencies "${END_TO_END_DIR}/../flink-table/flink-table-planner-blink/target/flink-table-planner-blink_${FLINK_VERSION}.jar"
+checkCodeDependencies "${END_TO_END_DIR}/../flink-table/flink-table-runtime-blink/target/flink-table-runtime-blink_${FLINK_VERSION}.jar"
+checkCodeDependencies "${FLINK_DIR}/lib/flink-table-blink_${FLINK_VERSION}.jar"
+checkCodeDependencies "${FLINK_DIR}/lib/flink-table_${FLINK_VERSION}.jar"
+
+checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-planner/target/flink-table-planner_${FLINK_VERSION}.jar"
+checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-planner-blink/target/flink-table-planner-blink_${FLINK_VERSION}.jar"
+checkAllowedPackages "${END_TO_END_DIR}/../flink-table/flink-table-runtime-blink/target/flink-table-runtime-blink_${FLINK_VERSION}.jar"
+checkAllowedPackages "${FLINK_DIR}/lib/flink-table-blink_${FLINK_VERSION}.jar"
+checkAllowedPackages "${FLINK_DIR}/lib/flink-table_${FLINK_VERSION}.jar"
