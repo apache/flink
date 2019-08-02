@@ -436,6 +436,46 @@ under the License.
 					<artifactId>hadoop-common</artifactId>
 					<groupId>org.apache.hadoop</groupId>
 				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-auth</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-annotations</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-hdfs</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-mapreduce-client-core</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-yarn-api</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-yarn-client</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-yarn-common</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-yarn-server-common</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-yarn-server-web-proxy</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-shim</artifactId>
+					<groupId>org.apache.tez</groupId>
+				</exclusion>
             </exclusions>
         </dependency>
 
@@ -480,6 +520,54 @@ under the License.
 					<artifactId>hadoop-common</artifactId>
 					<groupId>org.apache.hadoop</groupId>
 				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-auth</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-client</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-annotations</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-hdfs</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-mapreduce-client-core</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-yarn-api</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-yarn-common</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-yarn-registry</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-yarn-server-applicationhistoryservice</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-yarn-server-common</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-yarn-server-resourcemanager</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hbase-hadoop-compat</artifactId>
+					<groupId>org.apache.hbase</groupId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
@@ -499,6 +587,22 @@ under the License.
 				</exclusion>
 				<exclusion>
 					<artifactId>hadoop-common</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-archives</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-annotations</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-hdfs</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-mapreduce-client-core</artifactId>
 					<groupId>org.apache.hadoop</groupId>
 				</exclusion>
             </exclusions>
