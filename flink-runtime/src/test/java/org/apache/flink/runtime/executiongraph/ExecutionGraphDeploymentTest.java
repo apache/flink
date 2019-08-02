@@ -58,7 +58,7 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.BatchTask;
@@ -199,7 +199,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 				tdd.complete(taskDeploymentDescriptor);
 			}));
 
-			final LogicalSlot slot = new TestingLogicalSlot(taskManagerGateway);
+			final LogicalSlot slot = new TestingLogicalSlotBuilder().setTaskManagerGateway(taskManagerGateway).createTestingLogicalSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -443,7 +443,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		final ArrayDeque<CompletableFuture<LogicalSlot>> slotFutures = new ArrayDeque<>();
 		for (int i = 0; i < dop1; i++) {
-			slotFutures.addLast(CompletableFuture.completedFuture(new TestingLogicalSlot()));
+			slotFutures.addLast(CompletableFuture.completedFuture(new TestingLogicalSlotBuilder().createTestingLogicalSlot()));
 		}
 
 		final SlotProvider slotProvider = new TestingSlotProvider(ignore -> slotFutures.removeFirst());
@@ -507,7 +507,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		final ArrayDeque<CompletableFuture<LogicalSlot>> slotFutures = new ArrayDeque<>();
 		for (int i = 0; i < dop1 + dop2; i++) {
-			slotFutures.addLast(CompletableFuture.completedFuture(new TestingLogicalSlot()));
+			slotFutures.addLast(CompletableFuture.completedFuture(new TestingLogicalSlotBuilder().createTestingLogicalSlot()));
 		}
 
 		final SlotProvider slotProvider = new TestingSlotProvider(ignore -> slotFutures.removeFirst());
@@ -706,7 +706,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		Collections.shuffle(shuffledFutures);
 
 		for (CompletableFuture<LogicalSlot> slotFuture : shuffledFutures) {
-			slotFuture.complete(new TestingLogicalSlot(taskManagerGateway));
+			slotFuture.complete(new TestingLogicalSlotBuilder().setTaskManagerGateway(taskManagerGateway).createTestingLogicalSlot());
 		}
 
 		final List<ExecutionAttemptID> submittedTasks = new ArrayList<>(numberTasks);

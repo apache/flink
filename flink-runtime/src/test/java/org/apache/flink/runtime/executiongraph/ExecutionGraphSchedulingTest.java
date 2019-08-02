@@ -32,7 +32,6 @@ import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -48,10 +47,10 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SingleLogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
-import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
@@ -62,7 +61,6 @@ import org.junit.After;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.net.InetAddress;
 import java.util.Set;
@@ -444,16 +442,15 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 		executionGraph.scheduleForExecution();
 
-		final CompletableFuture<?> releaseFuture = new CompletableFuture<>();
-
-		final TestingLogicalSlot slot = createTestingSlot(releaseFuture);
+		final TestingLogicalSlot slot = createTestingSlot();
+		final CompletableFuture<?> releaseFuture = slot.getReleaseFuture();
 		slotFuture1.complete(slot);
 
 		// cancel should change the state of all executions to CANCELLED
 		executionGraph.cancel();
 
 		// complete the now CANCELLED execution --> this should cause a failure
-		slotFuture2.complete(new TestingLogicalSlot());
+		slotFuture2.complete(new TestingLogicalSlotBuilder().createTestingLogicalSlot());
 
 		Thread.sleep(1L);
 		// release the first slot to finish the cancellation
@@ -650,14 +647,9 @@ public class ExecutionGraphSchedulingTest extends TestLogger {
 	}
 
 	@Nonnull
-	private static TestingLogicalSlot createTestingSlot(@Nullable CompletableFuture<?> releaseFuture) {
-		return new TestingLogicalSlot(
-			new LocalTaskManagerLocation(),
-			new SimpleAckingTaskManagerGateway(),
-			0,
-			new AllocationID(),
-			new SlotRequestId(),
-			new SlotSharingGroupId(),
-			releaseFuture);
+	private static TestingLogicalSlot createTestingSlot() {
+		return new TestingLogicalSlotBuilder()
+			.setAutomaticallyCompleteReleaseFuture(false)
+			.createTestingLogicalSlot();
 	}
 }
