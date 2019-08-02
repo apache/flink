@@ -186,6 +186,7 @@ public abstract class ElasticsearchUpsertTableSinkBase implements UpsertStreamTa
 			sinkOptions,
 			upsertFunction);
 		return dataStream.addSink(sinkFunction)
+			.setParallelism(dataStream.getParallelism())
 			.name(TableConnectorUtils.generateRuntimeName(this.getClass(), getFieldNames()));
 	}
 
