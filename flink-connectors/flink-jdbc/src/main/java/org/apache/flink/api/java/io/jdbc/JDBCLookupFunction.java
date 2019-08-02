@@ -47,9 +47,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A {@link TableFunction} to query fields from JDBC by keys.
- * The query template like:
+ * If look up keys don't contain any null value, using the nonNullableQuery template like:
  * <PRE>
  * SELECT c, d, e, f from T where a = ? and b = ?
+ * </PRE>
+ *
+ * If lookup keys contain any null value, using the nullableQuery template like:
+ * <PRE>
+ * SELECT c, d, e, f from T where (a = ? or (a is null and ? is null)) and (b = ? or (b is null and ? is null))
+ * </PRE>
+ *
+ * Note: the following query template is better, but `Is NOT DISTINCT FROM` is not generally supported yet:
+ * <PRE>
+ * SELECT c, d, e, f from T where (a is not distinct from ?) and (b is not distinct from ?)
  * </PRE>
  *
  * <p>Support cache the result to avoid frequent accessing to remote databases.
@@ -61,7 +71,8 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 	private static final Logger LOG = LoggerFactory.getLogger(JDBCLookupFunction.class);
 	private static final long serialVersionUID = 1L;
 
-	private final String query;
+	private final String nonNullableQuery;
+	private final String nullableQuery;
 	private final String drivername;
 	private final String dbURL;
 	private final String username;
@@ -76,7 +87,8 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 	private final int maxRetryTimes;
 
 	private transient Connection dbConn;
-	private transient PreparedStatement statement;
+	private transient PreparedStatement fastStatement;
+	private transient PreparedStatement slowStatement;
 	private transient Cache<Row, List<Row>> cache;
 
 	public JDBCLookupFunction(
@@ -101,7 +113,8 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 		this.maxRetryTimes = lookupOptions.getMaxRetryTimes();
 		this.keySqlTypes = Arrays.stream(keyTypes).mapToInt(JDBCTypeUtil::typeInformationToSqlType).toArray();
 		this.outputSqlTypes = Arrays.stream(fieldTypes).mapToInt(JDBCTypeUtil::typeInformationToSqlType).toArray();
-		this.query = options.getDialect().getSelectFromStatement(
+		this.nonNullableQuery = options.getDialect().getSelectFromStatement(options.getTableName(), fieldNames, keyNames);
+		this.nullableQuery = options.getDialect().getSelectNotDistinctFromStatement(
 				options.getTableName(), fieldNames, keyNames);
 	}
 
@@ -113,7 +126,8 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 	public void open(FunctionContext context) throws Exception {
 		try {
 			establishConnection();
-			statement = dbConn.prepareStatement(query);
+			fastStatement = dbConn.prepareStatement(nonNullableQuery);
+			slowStatement = dbConn.prepareStatement(nullableQuery);
 			this.cache = cacheMaxSize == -1 || cacheExpireMs == -1 ? null : CacheBuilder.newBuilder()
 					.expireAfterWrite(cacheExpireMs, TimeUnit.MILLISECONDS)
 					.maximumSize(cacheMaxSize)
@@ -126,6 +140,20 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 	}
 
 	public void eval(Object... keys) {
+		boolean containsNull = false;
+		for (Object key : keys) {
+			if (key == null) {
+				containsNull = true;
+				break;
+			}
+		}
+		PreparedStatement statement;
+		if (containsNull) {
+			statement = slowStatement;
+		} else {
+			statement = fastStatement;
+		}
+
 		Row keyRow = Row.of(keys);
 		if (cache != null) {
 			List<Row> cachedRows = cache.getIfPresent(keyRow);
@@ -141,7 +169,12 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 			try {
 				statement.clearParameters();
 				for (int i = 0; i < keys.length; i++) {
-					JDBCUtils.setField(statement, keySqlTypes[i], keys[i], i);
+					if (containsNull) {
+						JDBCUtils.setField(statement, keySqlTypes[i], keys[i], 2 * i);
+						JDBCUtils.setField(statement, keySqlTypes[i], keys[i], 2 * i + 1);
+					} else {
+						JDBCUtils.setField(statement, keySqlTypes[i], keys[i], i);
+					}
 				}
 				try (ResultSet resultSet = statement.executeQuery()) {
 					if (cache == null) {
@@ -198,13 +231,23 @@ public class JDBCLookupFunction extends TableFunction<Row> {
 			cache.cleanUp();
 			cache = null;
 		}
-		if (statement != null) {
+		if (fastStatement != null) {
 			try {
-				statement.close();
+				fastStatement.close();
 			} catch (SQLException e) {
-				LOG.info("JDBC statement could not be closed: " + e.getMessage());
+				LOG.info("JDBC fastStatement could not be closed: " + e.getMessage());
 			} finally {
-				statement = null;
+				fastStatement = null;
+			}
+		}
+
+		if (slowStatement != null) {
+			try {
+				slowStatement.close();
+			} catch (SQLException e) {
+				LOG.info("JDBC slowStatement could not be closed: " + e.getMessage());
+			} finally {
+				slowStatement = null;
 			}
 		}
 
