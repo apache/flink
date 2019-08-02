@@ -49,10 +49,9 @@ public class Environment {
 
 	public static final String EXECUTION_ENTRY = "execution";
 
-	public static final String DEPLOYMENT_ENTRY = "deployment";
+	public static final String CONFIGURATION_ENTRY = "table";
 
-	public static final String[] CONFIGURATION_ENTRIES = new String[]{
-		"table.exec", "table.optimizer"};
+	public static final String DEPLOYMENT_ENTRY = "deployment";
 
 	private Map<String, CatalogEntry> catalogs;
 
@@ -62,17 +61,17 @@ public class Environment {
 
 	private ExecutionEntry execution;
 
-	private DeploymentEntry deployment;
-
 	private ConfigurationEntry configuration;
+
+	private DeploymentEntry deployment;
 
 	public Environment() {
 		this.catalogs = Collections.emptyMap();
 		this.tables = Collections.emptyMap();
 		this.functions = Collections.emptyMap();
 		this.execution = ExecutionEntry.DEFAULT_INSTANCE;
-		this.deployment = DeploymentEntry.DEFAULT_INSTANCE;
 		this.configuration = ConfigurationEntry.DEFAULT_INSTANCE;
+		this.deployment = DeploymentEntry.DEFAULT_INSTANCE;
 	}
 
 	public Map<String, CatalogEntry> getCatalogs() {
@@ -135,20 +134,20 @@ public class Environment {
 		return execution;
 	}
 
-	public void setDeployment(Map<String, Object> config) {
-		this.deployment = DeploymentEntry.create(config);
-	}
-
-	public DeploymentEntry getDeployment() {
-		return deployment;
-	}
-
 	public void setConfiguration(Map<String, Object> config) {
 		this.configuration = ConfigurationEntry.create(config);
 	}
 
 	public ConfigurationEntry getConfiguration() {
 		return configuration;
+	}
+
+	public void setDeployment(Map<String, Object> config) {
+		this.deployment = DeploymentEntry.create(config);
+	}
+
+	public DeploymentEntry getDeployment() {
+		return deployment;
 	}
 
 	@Override
@@ -171,10 +170,10 @@ public class Environment {
 		});
 		sb.append("=================== Execution ====================\n");
 		execution.asTopLevelMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
-		sb.append("=================== Deployment ===================\n");
-		deployment.asTopLevelMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
 		sb.append("================== Configuration =================\n");
 		configuration.asMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
+		sb.append("=================== Deployment ===================\n");
+		deployment.asTopLevelMap().forEach((k, v) -> sb.append(k).append(": ").append(v).append('\n'));
 		return sb.toString();
 	}
 
@@ -226,11 +225,11 @@ public class Environment {
 		// merge execution properties
 		mergedEnv.execution = ExecutionEntry.merge(env1.getExecution(), env2.getExecution());
 
+		// merge configuration properties
+		mergedEnv.configuration = ConfigurationEntry.merge(env1.getConfiguration(), env2.getConfiguration());
+
 		// merge deployment properties
 		mergedEnv.deployment = DeploymentEntry.merge(env1.getDeployment(), env2.getDeployment());
-
-		// merge execution properties
-		mergedEnv.configuration = ConfigurationEntry.merge(env1.getConfiguration(), env2.getConfiguration());
 
 		return mergedEnv;
 	}
@@ -257,11 +256,11 @@ public class Environment {
 		// enrich execution properties
 		enrichedEnv.execution = ExecutionEntry.enrich(env.execution, properties);
 
-		// enrich deployment properties
-		enrichedEnv.deployment = DeploymentEntry.enrich(env.deployment, properties);
-
 		// enrich configuration properties
 		enrichedEnv.configuration = ConfigurationEntry.enrich(env.configuration, properties);
+
+		// enrich deployment properties
+		enrichedEnv.deployment = DeploymentEntry.enrich(env.deployment, properties);
 
 		return enrichedEnv;
 	}

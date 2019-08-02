@@ -313,13 +313,6 @@ public class ExecutionContextTest {
 	}
 
 	private <T> ExecutionContext<T> createConfigurationExecutionContext() throws Exception {
-		final Map<String, String> replaceVars = new HashMap<>();
-		replaceVars.put("$VAR_PLANNER", "blink");
-		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
-		replaceVars.put("$VAR_RESULT_MODE", "table");
-		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
-		replaceVars.put("$VAR_MAX_ROWS", "100");
-		replaceVars.put("$SORT_DEFAULT_LIMIT", "100");
-		return createExecutionContext(CONFIGURATIONS_ENVIRONMENT_FILE, replaceVars);
+		return createExecutionContext(CONFIGURATIONS_ENVIRONMENT_FILE, new HashMap<>());
 	}
 }

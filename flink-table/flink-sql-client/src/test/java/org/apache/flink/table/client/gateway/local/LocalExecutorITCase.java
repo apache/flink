@@ -506,45 +506,6 @@ public class LocalExecutorITCase extends TestLogger {
 		}
 	}
 
-	@Test(timeout = 30_000L)
-	public void testTableEnvConfigurations() throws Exception {
-		if (!planner.equals("blink")) {
-			// Table env configurations can only be used on blink planner
-			return;
-		}
-
-		final URL url = getClass().getClassLoader().getResource("test-data.csv");
-		Objects.requireNonNull(url);
-
-		final Map<String, String> replaceVars = new HashMap<>();
-		replaceVars.put("$VAR_PLANNER", planner);
-		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
-		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
-		replaceVars.put("$VAR_RESULT_MODE", "table");
-		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
-		replaceVars.put("$VAR_MAX_ROWS", "100");
-		replaceVars.put("$SORT_DEFAULT_LIMIT", "3");
-
-		final String query = "SELECT * FROM TableNumber1 ORDER BY IntegerField1";
-
-		final List<String> expectedResults = new ArrayList<>();
-		expectedResults.add("22,Hello World");
-		expectedResults.add("32,Hello World");
-		expectedResults.add("32,Hello World");
-
-		final Executor executor = createModifiedExecutor(CONFIGURATIONS_ENVIRONMENT_FILE, clusterClient, replaceVars);
-		final SessionContext session = new SessionContext("test-session", new Environment());
-
-		try {
-			final ResultDescriptor desc = executor.executeQuery(session, query);
-			assertTrue(desc.isMaterialized());
-			final List<String> actualResults = retrieveTableResult(executor, session, desc.getResultId());
-			TestBaseUtils.compareResultCollections(expectedResults, actualResults, Comparator.naturalOrder());
-		} finally {
-			executor.stop(session);
-		}
-	}
-
 	private void executeStreamQueryTable(
 			Map<String, String> replaceVars,
 			String query,

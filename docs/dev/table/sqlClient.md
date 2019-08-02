@@ -233,6 +233,20 @@ execution:
   restart-strategy:                 # optional: restart strategy
     type: fallback                  #   "fallback" to global restart strategy by default
 
+# Table configurations allow for tuning the table environment in which the queries run.
+# These configurations currently only work with blink planner.
+# For a detailed list of available options,
+# see ExecutionConfigOptions.java and OptimizerConfigOptions.java
+
+# Every table config has its default value,
+# so the default configuration part does not exist.
+# You can directly set the table environment config options here, for example,
+
+# configuration:
+#   table.exec.spill-compression.enabled: true
+#   table.exec.spill-compression.block-size: 128kb
+#   table.optimizer.join-reorder-enabled: true
+
 # Deployment properties allow for describing the cluster to which table programs are submitted to.
 
 deployment:

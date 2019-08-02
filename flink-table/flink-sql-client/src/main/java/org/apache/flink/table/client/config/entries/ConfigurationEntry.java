@@ -18,19 +18,16 @@
 
 package org.apache.flink.table.client.config.entries;
 
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.client.config.ConfigUtil;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.table.client.config.Environment.CONFIGURATION_ENTRIES;
+import static org.apache.flink.table.client.config.Environment.CONFIGURATION_ENTRY;
 
 /**
- * Configuration of a table environment.
- * The options are the same with {@link ExecutionConfigOptions} and {@link OptimizerConfigOptions}.
+ * Configuration for configuring {@link org.apache.flink.table.api.TableConfig}.
  */
 public class ConfigurationEntry extends ConfigEntry {
 
@@ -53,7 +50,7 @@ public class ConfigurationEntry extends ConfigEntry {
 	}
 
 	/**
-	 * Merges two execution entries. The properties of the first execution entry might be
+	 * Merges two configuration entries. The properties of the first configuration entry might be
 	 * overwritten by the second one.
 	 */
 	public static ConfigurationEntry merge(ConfigurationEntry configuration1, ConfigurationEntry configuration2) {
@@ -71,11 +68,8 @@ public class ConfigurationEntry extends ConfigEntry {
 
 		prefixedProperties.forEach((k, v) -> {
 			final String normalizedKey = k.toLowerCase();
-			for (String prefix : CONFIGURATION_ENTRIES) {
-				if (k.startsWith(prefix + ".")) {
-					enrichedProperties.put(normalizedKey, v);
-					break;
-				}
+			if (k.startsWith(CONFIGURATION_ENTRY + ".")) {
+				enrichedProperties.put(normalizedKey, v);
 			}
 		});
 
