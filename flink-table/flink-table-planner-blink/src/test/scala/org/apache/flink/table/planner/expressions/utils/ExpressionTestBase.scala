@@ -59,7 +59,7 @@ abstract class ExpressionTestBase {
   val config = new TableConfig()
 
   // (originalExpr, optimizedExpr, expectedResult)
-  private val testExprs = mutable.ArrayBuffer[(RexNode, String)]()
+  private val testExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
   private val env = StreamExecutionEnvironment.createLocalEnvironment(4)
   private val setting = EnvironmentSettings.newInstance()
     .useBlinkPlanner().inStreamingMode().build()
@@ -103,7 +103,7 @@ abstract class ExpressionTestBase {
     val exprGenerator = new ExprCodeGenerator(ctx, nullableInput = false).bindInput(inputType)
 
     // cast expressions to String
-    val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._1, VARCHAR))
+    val stringTestExprs = testExprs.map(expr => relBuilder.cast(expr._2, VARCHAR))
 
     // generate code
     val resultType = RowType.of(Seq.fill(testExprs.size)(
@@ -159,7 +159,7 @@ abstract class ExpressionTestBase {
     testExprs
       .zipWithIndex
       .foreach {
-        case ((optimizedExpr, expected), index) =>
+        case ((originalExpr, optimizedExpr, expected), index) =>
 
           // adapt string result
           val actual = if(!result.asInstanceOf[BinaryRow].isNullAt(index)) {
@@ -168,23 +168,24 @@ abstract class ExpressionTestBase {
             null
           }
 
+          val original = if (originalExpr == null) "" else s"for: [$originalExpr]"
+
           assertEquals(
-            s"Wrong result for: [$optimizedExpr]",
+            s"Wrong result $original optimized to: [$optimizedExpr]",
             expected,
             if (actual == null) "null" else actual)
       }
-
   }
 
-  def addSqlTestExpr(sqlExpr: String, expected: String): Unit = {
+  private def addSqlTestExpr(sqlExpr: String, expected: String): Unit = {
     // create RelNode from SQL expression
     val parsed = calcitePlanner.parse(s"SELECT $sqlExpr FROM $tableName")
     val validated = calcitePlanner.validate(parsed)
     val converted = calcitePlanner.rel(validated).rel
-    addTestExpr(converted, expected)
+    addTestExpr(converted, expected, sqlExpr)
   }
 
-  private def addTestExpr(relNode: RelNode, expected: String): Unit = {
+  private def addTestExpr(relNode: RelNode, expected: String, summaryString: String): Unit = {
     val builder = new HepProgramBuilder()
     builder.addRuleInstance(ProjectToCalcRule.INSTANCE)
     val hep = new HepPlanner(builder.build())
@@ -196,7 +197,7 @@ abstract class ExpressionTestBase {
       fail("Expression is converted into more than a Calc operation. Use a different test method.")
     }
 
-    testExprs += ((extractRexNode(optimized), expected))
+    testExprs += ((summaryString, extractRexNode(optimized), expected))
   }
 
   private def extractRexNode(node: RelNode): RexNode = {
@@ -220,7 +221,7 @@ abstract class ExpressionTestBase {
     }
   }
 
-  def /**/testTableApi(
+  def testTableApi(
       expr: Expression,
       exprString: String,
       expected: String): Unit = {
@@ -239,7 +240,7 @@ abstract class ExpressionTestBase {
     // create RelNode from Table API expression
     val relNode = relBuilder
         .queryOperation(tEnv.scan(tableName).select(tableApiExpr).getQueryOperation).build()
-    addTestExpr(relNode, expected)
+    addTestExpr(relNode, expected, tableApiExpr.asSummaryString())
   }
 
   def testSqlNullable(nullUdf: String): Unit = {

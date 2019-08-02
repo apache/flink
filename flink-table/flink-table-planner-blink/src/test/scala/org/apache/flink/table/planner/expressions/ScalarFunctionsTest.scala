@@ -23,7 +23,7 @@ import org.apache.flink.table.api.{DataTypes, Types}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser, TimeIntervalUnit, TimePointUnit}
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
 
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 class ScalarFunctionsTest extends ScalarTypesTestBase {
 
@@ -139,6 +139,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "POSITION('aa' IN 'aaads')",
       "1")
+
+    testSqlApi("position('aa' in 'aaads')", "1")
   }
 
   @Test
@@ -774,6 +776,8 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "concat_ws('~~~~','Flink', f33, 'xx', f33, f33)",
       "CONCAT_WS('~~~~','Flink', f33, 'xx', f33, f33)",
       "Flink~~~~xx")
+
+    testSqlApi("concat_ws('||', f35, f36, f33)", "a||b")
   }
 
   @Test
@@ -899,20 +903,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "foothebar")
   }
 
-  @Ignore // Implicit type conversion
-  @Test
-  def testConcat2(): Unit = {
-    testSqlApi("concat(f35)", "a")
-    testSqlApi("concat(f1,f2,f3,f4,f5,f16,f17,f18,f33,f43)",
-      "true4243444.51996-11-1006:55:441996-11-10 06:55:44.333-1")
-    testSqlApi("concat(f35,f36,f33,f1)", "abtrue") // note: Spark expects the result to be `null`
-  }
-
-  @Test
-  def testConcatWs2(): Unit = {
-    testSqlApi("concat_ws('||', f35, f36, f33)", "a||b")
-  }
-
   @Test
   def testFromBase64(): Unit = {
     testSqlApi(
@@ -976,17 +966,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
         testSqlApi(s"$substr(f0, f30, f7)", "Thi")
         testSqlApi(s"$substr(f39, 1, 2)", "1世")
     }
-  }
-
-  @Test
-  def testPosition2(): Unit = {
-
-    // NOTE: Spark names this function as instr() , i.e. "in string"
-    testSqlApi("position('aa' in 'aaads')", "1")
-
-    // NOTE: Spark names this as locate()
-    //testSqlApi("position('aa' in 'aaads' from 2)", "2")
-    // todo: that does not work in blink.
   }
 
   @Test
@@ -1179,13 +1158,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("split_index(CAST(null as VARCHAR), 'e', 1)", "null")
     testSqlApi("split_index('test', CAST(null as VARCHAR), 1)", "null")
     testSqlApi("split_index('test', 'e', -1)", "null")
-  }
-
-  @Test
-  def testInitCap2(): Unit = {
-    testSqlApi("initCap('ab')", "Ab")
-    testSqlApi("initCap('a B')", "A B")
-    testSqlApi("initCap('bLinK')", "Blink")
   }
 
   @Test
@@ -2474,13 +2446,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "ROUND(f29, f30)",
       0.5.toString)
 
-    // Now not support round decimal with non-literal
-//    testAllApis(
-//      'f31.round('f7),
-//      "f31.round(f7)",
-//      "ROUND(f31, f7)",
-//      "-0.123")
-
     testAllApis(
       'f4.round('f32),
       "f4.round(f32)",
@@ -3477,6 +3442,87 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "Null(SQL_TIMESTAMP) + 3.months",
       "TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))",
       "null")
+
+    testAllApis(
+      "2016-02-24 12:42:25".toTimestamp + nullOf(Types.INTERVAL_MILLIS),
+      "'2016-02-24 12:42:25'.toTimestamp + nullOf(INTERVAL_MILLIS)",
+      "TIMESTAMPADD(HOUR, CAST(NULL AS INTEGER), TIMESTAMP '2016-02-24 12:42:25')",
+      "null")
+
+    testAllApis(
+      nullOf(Types.SQL_TIMESTAMP) + -200.hours,
+      "nullOf(SQL_TIMESTAMP) + -200.hours",
+      "TIMESTAMPADD(HOUR, -200, CAST(NULL AS TIMESTAMP))",
+      "null")
+
+    testAllApis(
+      nullOf(Types.SQL_TIMESTAMP) + 3.months,
+      "nullOf(SQL_TIMESTAMP) + 3.months",
+      "TIMESTAMPADD(MONTH, 3, CAST(NULL AS TIMESTAMP))",
+      "null")
+
+    // TIMESTAMPADD with DATE returns a TIMESTAMP value for sub-day intervals.
+    testAllApis("2016-06-15".toDate + 1.month,
+      "'2016-06-15'.toDate + 1.month",
+      "timestampadd(MONTH, 1, date '2016-06-15')",
+      "2016-07-15")
+
+    testAllApis("2016-06-15".toDate + 1.day,
+      "'2016-06-15'.toDate + 1.day",
+      "timestampadd(DAY, 1, date '2016-06-15')",
+      "2016-06-16")
+
+    // TODO support '2016-06-15'.toTimestamp
+//    testAllApis("2016-06-15".toTimestamp - 1.hour,
+//      "'2016-06-15'.toTimestamp - 1.hour",
+//      "timestampadd(HOUR, -1, date '2016-06-15')",
+//      "2016-06-14 23:00:00.0")
+
+//    testAllApis("2016-06-15".toTimestamp + 1.minute,
+//      "'2016-06-15'.toTimestamp + 1.minute",
+//      "timestampadd(MINUTE, 1, date '2016-06-15')",
+//      "2016-06-15 00:01:00.0")
+
+//    testAllApis("2016-06-15".toTimestamp - 1.second,
+//      "'2016-06-15'.toTimestamp - 1.second",
+//      "timestampadd(SQL_TSI_SECOND, -1, date '2016-06-15')",
+//      "2016-06-14 23:59:59.0")
+
+//    testAllApis("2016-06-15".toTimestamp + 1.second,
+//      "'2016-06-15'.toTimestamp + 1.second",
+//      "timestampadd(SECOND, 1, date '2016-06-15')",
+//      "2016-06-15 00:00:01.0")
+
+    testAllApis(nullOf(Types.SQL_TIMESTAMP) + 1.second,
+      "nullOf(SQL_TIMESTAMP) + 1.second",
+      "timestampadd(SECOND, 1, cast(null as date))",
+      "null")
+
+    testAllApis(nullOf(Types.SQL_TIMESTAMP) + 1.day,
+      "nullOf(SQL_TIMESTAMP) + 1.day",
+      "timestampadd(DAY, 1, cast(null as date))",
+      "null")
+
+    // Round to the last day of previous month
+    testAllApis("2016-05-31".toDate + 1.month,
+      "'2016-05-31'.toDate + 1.month",
+      "timestampadd(MONTH, 1, date '2016-05-31')",
+      "2016-06-30")
+
+    testAllApis("2016-01-31".toDate + 5.month,
+      "'2016-01-31'.toDate + 5.month",
+      "timestampadd(MONTH, 5, date '2016-01-31')",
+      "2016-06-30")
+
+    testAllApis("2016-03-31".toDate - 1.month,
+      "'2016-03-31'.toDate - 1.month",
+      "timestampadd(MONTH, -1, date '2016-03-31')",
+      "2016-02-29")
+
+    testAllApis("2016-03-31".toDate - 1.week,
+      "'2016-03-31'.toDate - 1.week",
+      "timestampadd(WEEK, -1, date '2016-03-31')",
+      "2016-03-24")
   }
 
   @Test
@@ -3767,11 +3813,10 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   @Test
   def testNullBigDecimal(): Unit = {
     testAllApis(
-      ExpressionParser.parseExpression("f41.sign()"),
+      'f41.sign(),
       "f41.sign()",
       "SIGN(f41)",
       "null")
-    testSqlApi("SIGN(f41)", "null")
   }
 
   @Test
@@ -4159,12 +4204,5 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "BITNOT(-3)",
       "2")
-  }
-
-  @Ignore // Implicit type conversion
-  @Test
-  def testEmptyStringToTime(): Unit = {
-    addSqlTestExpr("to_date('2017-09-15 00:00:00') <> ''", "null")
-    addSqlTestExpr("to_timestamp(1513135677000) <> ''", "null")
   }
 }

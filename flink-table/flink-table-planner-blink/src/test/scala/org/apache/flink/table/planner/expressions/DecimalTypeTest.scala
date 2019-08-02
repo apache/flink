@@ -316,11 +316,11 @@ class DecimalTypeTest extends ExpressionTestBase {
 
   override def typeInfo: RowTypeInfo = {
     new RowTypeInfo(
-      BigDecimalTypeInfo.of(30, 18),
-      BigDecimalTypeInfo.of(30, 0),
-      Types.INT,
-      Types.DOUBLE,
-      BigDecimalTypeInfo.of(10, 0),
-      BigDecimalTypeInfo.of(10, 3))
+      /* 1 */ BigDecimalTypeInfo.of(30, 18),
+      /* 2 */ BigDecimalTypeInfo.of(30, 0),
+      /* 3 */ Types.INT,
+      /* 4 */ Types.DOUBLE,
+      /* 5 */ BigDecimalTypeInfo.of(10, 0),
+      /* 6 */ BigDecimalTypeInfo.of(10, 3))
   }
 }

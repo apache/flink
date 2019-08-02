@@ -211,6 +211,18 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func8('a', 'a')",
       "Func8('a', 'a')",
       "c")
+
+    testAllApis(
+      Func21('f15),
+      "Func21(f15)",
+      "Func21(f15)",
+      "student#Bob")
+
+    testAllApis(
+      Func22('f16),
+      "Func22(f16)",
+      "Func22(f16)",
+      "student#Bob")
   }
 
   @Test
@@ -388,7 +400,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Row = {
-    val testData = new Row(15)
+    val testData = new Row(17)
     testData.setField(0, 42)
     testData.setField(1, "Test")
     testData.setField(2, null)
@@ -408,6 +420,8 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       true.asInstanceOf[JBoolean],
       Row.of(1.asInstanceOf[Integer], 2.asInstanceOf[Integer], 3.asInstanceOf[Integer]))
     )
+    testData.setField(15, new GraduatedStudent("Bob"))
+    testData.setField(16, Array(new GraduatedStudent("Bob")))
     testData
   }
 
@@ -427,7 +441,9 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       Types.BYTE,
       Types.SHORT,
       Types.FLOAT,
-      Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT))
+      Types.ROW(Types.INT, Types.BOOLEAN, Types.ROW(Types.INT, Types.INT, Types.INT)),
+      TypeInformation.of(classOf[GraduatedStudent]),
+      TypeInformation.of(classOf[Array[GraduatedStudent]])
     )
   }
 
