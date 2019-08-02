@@ -20,6 +20,10 @@ package org.apache.flink.streaming.api.functions.sink.filesystem;
 
 import org.apache.flink.util.Preconditions;
 
+/**
+ * Part file name configuration.
+ * This allow to define a prefix and a suffix to the part file name.
+ */
 public class PartFileConfig {
 
 	public static final String DEFAULT_PART_PREFIX = "part-";
