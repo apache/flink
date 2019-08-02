@@ -96,7 +96,10 @@ public abstract class KafkaTableSinkBase implements AppendStreamTableSink<Row> {
 			properties,
 			serializationSchema,
 			partitioner);
-		return dataStream.addSink(kafkaProducer).name(TableConnectorUtils.generateRuntimeName(this.getClass(), getFieldNames()));
+		return dataStream
+			.addSink(kafkaProducer)
+			.setParallelism(dataStream.getParallelism())
+			.name(TableConnectorUtils.generateRuntimeName(this.getClass(), getFieldNames()));
 	}
 
 	@Override
