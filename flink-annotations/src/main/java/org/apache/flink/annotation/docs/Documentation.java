@@ -60,6 +60,28 @@ public final class Documentation {
 	}
 
 	/**
+	 * Annotation used on table config to introduce additional table-related meta data.
+	 *
+	 * <p>The {@link TableMeta#execMode()} argument indicates which exec mode the config works for,
+	 * for batch, streaming or both.
+	 *
+	 */
+	@Target(ElementType.FIELD)
+	@Retention(RetentionPolicy.RUNTIME)
+	@Internal
+	public @interface TableMeta {
+		ExecMode execMode();
+	}
+
+	/**
+	 * Which exec mode the config works for.
+	 */
+	public enum ExecMode {
+		BATCH, STREAMING, BATCH_STREAMING
+	}
+
+
+	/**
 	 * Annotation used on config option fields to exclude the config option from documentation.
 	 */
 	@Target(ElementType.FIELD)
