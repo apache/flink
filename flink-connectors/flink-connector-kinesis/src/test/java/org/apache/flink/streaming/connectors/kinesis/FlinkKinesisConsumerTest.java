@@ -57,6 +57,7 @@ import org.apache.flink.streaming.connectors.kinesis.util.RecordEmitter;
 import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.CollectingSourceContext;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -103,7 +104,7 @@ import static org.mockito.Mockito.when;
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({FlinkKinesisConsumer.class, KinesisConfigUtil.class})
-public class FlinkKinesisConsumerTest {
+public class FlinkKinesisConsumerTest extends TestLogger {
 
 	@Rule
 	private ExpectedException exception = ExpectedException.none();
