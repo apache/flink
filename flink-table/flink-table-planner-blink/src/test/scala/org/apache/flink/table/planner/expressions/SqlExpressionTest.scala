@@ -137,12 +137,6 @@ class SqlExpressionTest extends ExpressionTestBase {
     // Decimal(2,1) / Decimal(10,0) => Decimal(23,12)
     testSqlApi("2.0/(-3)", "-0.666666666667")
     testSqlApi("-7.9/2", "-3.950000000000")
-
-    //div function
-    testSqlApi("div(7, 2)", "3")
-    testSqlApi("div(7.9, 2.009)", "3")
-    testSqlApi("div(7, -2.009)", "-3")
-    testSqlApi("div(-7.9, 2)", "-3")
   }
 
   @Test
@@ -277,26 +271,6 @@ class SqlExpressionTest extends ExpressionTestBase {
 
   @Test
   def testNullableCases(): Unit = {
-    testSqlApi(
-      "BITAND(cast(NUll as bigInt), cast(NUll as bigInt))",
-      nullable
-    )
-
-    testSqlApi(
-      "BITNOT(cast(NUll as bigInt))",
-      nullable
-    )
-
-    testSqlApi(
-      "BITOR(cast(NUll as bigInt), cast(NUll as bigInt))",
-      nullable
-    )
-
-    testSqlApi(
-      "BITXOR(cast(NUll as bigInt), cast(NUll as bigInt))",
-      nullable
-    )
-
     testSqlApi(
       "TO_BASE64(FROM_BASE64(cast(NUll as varchar)))",
       nullable
