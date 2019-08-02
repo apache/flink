@@ -544,86 +544,6 @@ object FunctionGenerator {
     BuiltInMethods.TANH_DEC)
 
   addSqlFunctionMethod(
-    BITAND,
-    Seq(INTEGER, INTEGER),
-    BuiltInMethods.BITAND_BYTE)
-
-  addSqlFunctionMethod(
-    BITAND,
-    Seq(SMALLINT, SMALLINT),
-    BuiltInMethods.BITAND_SHORT)
-
-  addSqlFunctionMethod(
-    BITAND,
-    Seq(INTEGER, INTEGER),
-    BuiltInMethods.BITAND_INTEGER)
-
-  addSqlFunctionMethod(
-    BITAND,
-    Seq(BIGINT, BIGINT),
-    BuiltInMethods.BITAND_LONG)
-
-  addSqlFunctionMethod(
-    BITNOT,
-    Seq(INTEGER),
-    BuiltInMethods.BITNOT_BYTE)
-
-  addSqlFunctionMethod(
-    BITNOT,
-    Seq(SMALLINT),
-    BuiltInMethods.BITNOT_SHORT)
-
-  addSqlFunctionMethod(
-    BITNOT,
-    Seq(INTEGER),
-    BuiltInMethods.BITNOT_INTEGER)
-
-  addSqlFunctionMethod(
-    BITNOT,
-    Seq(BIGINT),
-    BuiltInMethods.BITNOT_LONG)
-
-  addSqlFunctionMethod(
-    BITOR,
-    Seq(INTEGER, INTEGER),
-    BuiltInMethods.BITOR_BYTE)
-
-  addSqlFunctionMethod(
-    BITOR,
-    Seq(SMALLINT, SMALLINT),
-    BuiltInMethods.BITOR_SHORT)
-
-  addSqlFunctionMethod(
-    BITOR,
-    Seq(INTEGER, INTEGER),
-    BuiltInMethods.BITOR_INTEGER)
-
-  addSqlFunctionMethod(
-    BITOR,
-    Seq(BIGINT, BIGINT),
-    BuiltInMethods.BITOR_LONG)
-
-  addSqlFunctionMethod(
-    BITXOR,
-    Seq(INTEGER, INTEGER),
-    BuiltInMethods.BITXOR_BYTE)
-
-  addSqlFunctionMethod(
-    BITXOR,
-    Seq(SMALLINT, SMALLINT),
-    BuiltInMethods.BITXOR_SHORT)
-
-  addSqlFunctionMethod(
-    BITXOR,
-    Seq(INTEGER, INTEGER),
-    BuiltInMethods.BITXOR_INTEGER)
-
-  addSqlFunctionMethod(
-    BITXOR,
-    Seq(BIGINT, BIGINT),
-    BuiltInMethods.BITXOR_LONG)
-
-  addSqlFunctionMethod(
     NOW,
     Seq(),
     BuiltInMethods.NOW)
@@ -692,35 +612,6 @@ object FunctionGenerator {
       BINARY,
       BINARY),
     new IfCallGen())
-
-  addSqlFunctionMethod(
-    DIV_INT,
-    Seq(INTEGER, INTEGER),
-    BuiltInMethods.DIV_INT)
-
-  addSqlFunction(
-    DIV,
-    Seq(DECIMAL, DOUBLE),
-    new DivCallGen()
-  )
-
-  addSqlFunction(
-    DIV,
-    Seq(DECIMAL, DECIMAL),
-    new DivCallGen()
-  )
-
-  addSqlFunction(
-    DIV,
-    Seq(DOUBLE, DOUBLE),
-    new DivCallGen()
-  )
-
-  addSqlFunction(
-    DIV,
-    Seq(DOUBLE, DECIMAL),
-    new DivCallGen()
-  )
 
   addSqlFunction(
     HASH_CODE,
