@@ -432,6 +432,10 @@ under the License.
 					<groupId>jdk.tools</groupId>
 					<artifactId>jdk.tools</artifactId>
 				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-common</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
             </exclusions>
         </dependency>
 
@@ -472,8 +476,12 @@ under the License.
 					<groupId>jdk.tools</groupId>
 					<artifactId>jdk.tools</artifactId>
 				</exclusion>
+				<exclusion>
+					<artifactId>hadoop-common</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
 			</exclusions>
-        </dependency>
+		</dependency>
 
 		<dependency>
             <groupId>org.apache.hive.hcatalog</groupId>
@@ -489,7 +497,11 @@ under the License.
 					<groupId>com.google.guava</groupId>
 					<artifactId>guava</artifactId>
 				</exclusion>
-			</exclusions>
+				<exclusion>
+					<artifactId>hadoop-common</artifactId>
+					<groupId>org.apache.hadoop</groupId>
+				</exclusion>
+            </exclusions>
         </dependency>
 
 		<!-- TODO: move to flink-connector-hive-test end-to-end test module once it's setup -->
