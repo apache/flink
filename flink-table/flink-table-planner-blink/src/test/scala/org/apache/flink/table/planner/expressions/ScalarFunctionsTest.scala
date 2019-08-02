@@ -731,7 +731,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       concat("xx", 'f33),
       "concat('xx', f33)",
       "CONCAT('xx', f33)",
-      "xx")
+      "null")
     testAllApis(
       concat("AA", "BB", "CC", "---"),
       "concat('AA','BB','CC','---')",
@@ -745,7 +745,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
     testSqlApi("concat(f35)", "a")
     testSqlApi("concat(f35,f36)", "ab")
-    testSqlApi("concat(f35,f36,f33)", "ab")
+    testSqlApi("concat(f35,f36,f33)", "null")
   }
 
   @Test
@@ -754,7 +754,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       concat_ws('f33, "AA"),
       "concat_ws(f33, 'AA')",
       "CONCAT_WS(f33, 'AA')",
-      "AA")
+      "null")
     testAllApis(
       concat_ws("~~~~", "AA"),
       "concat_ws('~~~~','AA')",
