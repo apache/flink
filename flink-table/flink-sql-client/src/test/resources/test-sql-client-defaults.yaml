@@ -139,5 +139,8 @@ execution:
     failure-rate-interval: 99000
     delay: 1000
 
+configuration:
+  table.optimizer.join-reorder-enabled: false
+
 deployment:
   response-timeout: 5000

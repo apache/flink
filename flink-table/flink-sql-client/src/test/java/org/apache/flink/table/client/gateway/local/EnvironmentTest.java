@@ -79,6 +79,11 @@ public class EnvironmentTest {
 		assertEquals(tables, merged.getTables().keySet());
 		assertTrue(merged.getExecution().inStreamingMode());
 		assertEquals(16, merged.getExecution().getMaxParallelism());
+
+		final Map<String, String> configuration = new HashMap<>();
+		configuration.put("table.optimizer.join-reorder-enabled", "true");
+
+		assertEquals(configuration, merged.getConfiguration().asMap());
 	}
 
 	@Test
