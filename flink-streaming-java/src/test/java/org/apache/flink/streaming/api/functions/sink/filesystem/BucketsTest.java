@@ -317,7 +317,8 @@ public class BucketsTest {
 				new DefaultBucketFactoryImpl<>(),
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				DefaultRollingPolicy.create().build(),
-				2
+				2,
+				new PartFileConfig()
 		);
 
 		buckets.onElement(
@@ -371,16 +372,27 @@ public class BucketsTest {
 	private static Buckets<String, String> createBuckets(
 			final Path basePath,
 			final RollingPolicy<String, String> rollingPolicy,
-			final int subtaskIdx
-	) throws IOException {
+			final int subtaskIdx) throws IOException {
+		return createBuckets(
+				basePath,
+				rollingPolicy,
+				subtaskIdx,
+				new PartFileConfig());
+	}
 
+	private static Buckets<String, String> createBuckets(
+			final Path basePath,
+			final RollingPolicy<String, String> rollingPolicy,
+			final int subtaskIdx,
+			final PartFileConfig partFileConfig) throws IOException {
 		return new Buckets<>(
 				basePath,
 				new TestUtils.StringIdentityBucketAssigner(),
 				new DefaultBucketFactoryImpl<>(),
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				rollingPolicy,
-				subtaskIdx
+				subtaskIdx,
+				partFileConfig
 		);
 	}
 
@@ -389,10 +401,24 @@ public class BucketsTest {
 			final RollingPolicy<String, String> rollingPolicy,
 			final int subtaskIdx,
 			final ListState<byte[]> bucketState,
-			final ListState<Long> partCounterState
-	) throws Exception {
+			final ListState<Long> partCounterState) throws Exception {
+		return restoreBuckets(
+				basePath,
+				rollingPolicy,
+				subtaskIdx,
+				bucketState,
+				partCounterState,
+				new PartFileConfig());
+	}
 
-		final Buckets<String, String> restoredBuckets = createBuckets(basePath, rollingPolicy, subtaskIdx);
+	private static Buckets<String, String> restoreBuckets(
+			final Path basePath,
+			final RollingPolicy<String, String> rollingPolicy,
+			final int subtaskIdx,
+			final ListState<byte[]> bucketState,
+			final ListState<Long> partCounterState,
+			final PartFileConfig partFileConfig) throws Exception {
+		final Buckets<String, String> restoredBuckets = createBuckets(basePath, rollingPolicy, subtaskIdx, partFileConfig);
 		restoredBuckets.initializeState(bucketState, partCounterState);
 		return restoredBuckets;
 	}
