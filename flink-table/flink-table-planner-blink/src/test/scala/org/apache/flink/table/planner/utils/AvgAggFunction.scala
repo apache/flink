@@ -69,7 +69,7 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T, IntegralAv
     if (acc.f1 == 0) {
       null.asInstanceOf[T]
     } else {
-      resultTypeConvert(acc.f0.doubleValue() / acc.f1)
+      resultTypeConvert(acc.f0 / acc.f1)
     }
   }
 
@@ -98,28 +98,28 @@ abstract class IntegralAvgAggFunction[T] extends AggregateFunction[T, IntegralAv
     *              the intermediate result to avoid the overflow by sum operation.
     * @return the result value with the expected aggregation result type
     */
-  def resultTypeConvert(value: Double): T
+  def resultTypeConvert(value: Long): T
 }
 
 /**
   * Built-in Byte Avg aggregate function
   */
-class ByteAvgAggFunction extends IntegralAvgAggFunction[Double] {
-  override def resultTypeConvert(value: Double): Double = value
+class ByteAvgAggFunction extends IntegralAvgAggFunction[Byte] {
+  override def resultTypeConvert(value: Long): Byte = value.toByte
 }
 
 /**
   * Built-in Short Avg aggregate function
   */
-class ShortAvgAggFunction extends IntegralAvgAggFunction[Double] {
-  override def resultTypeConvert(value: Double): Double = value
+class ShortAvgAggFunction extends IntegralAvgAggFunction[Short] {
+  override def resultTypeConvert(value: Long): Short = value.toShort
 }
 
 /**
   * Built-in Int Avg aggregate function
   */
-class IntAvgAggFunction extends IntegralAvgAggFunction[Double] {
-  override def resultTypeConvert(value: Double): Double = value
+class IntAvgAggFunction extends IntegralAvgAggFunction[Int] {
+  override def resultTypeConvert(value: Long): Int = value.toInt
 }
 
 /** The initial accumulator for Big Integral Avg aggregate function */
@@ -161,7 +161,7 @@ abstract class BigIntegralAvgAggFunction[T]
     if (acc.f1 == 0) {
       null.asInstanceOf[T]
     } else {
-      resultTypeConvert(acc.f0.doubleValue() / acc.f1)
+      resultTypeConvert(acc.f0.divide(BigInteger.valueOf(acc.f1)))
     }
   }
 
@@ -191,14 +191,14 @@ abstract class BigIntegralAvgAggFunction[T]
     *              operation.
     * @return the result value with the expected aggregation result type
     */
-  def resultTypeConvert(value: Double): T
+  def resultTypeConvert(value: BigInteger): T
 }
 
 /**
   * Built-in Long Avg aggregate function
   */
-class LongAvgAggFunction extends BigIntegralAvgAggFunction[Double] {
-  override def resultTypeConvert(value: Double): Double = value
+class LongAvgAggFunction extends BigIntegralAvgAggFunction[Long] {
+  override def resultTypeConvert(value: BigInteger): Long = value.longValue()
 }
 
 /** The initial accumulator for Floating Avg aggregate function */

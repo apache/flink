@@ -27,8 +27,8 @@ import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregat
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.LogicalType
-
 import org.apache.calcite.tools.RelBuilder
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 
 import scala.collection.JavaConverters._
 

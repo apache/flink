@@ -100,9 +100,9 @@ class AggregateITCase(
     t1.toRetractStream[Row].addSink(sink)
     env.execute()
     val expected = List(
-      "1,1.0,1,1,1",
-      "2,2.0,2,1,1",
-      "3,3.0,3,1,1")
+      "1,1,1,1,1",
+      "2,2,2,1,1",
+      "3,3,3,1,1")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
@@ -145,7 +145,7 @@ class AggregateITCase(
     val sink = new TestingRetractSink
     t1.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
-    val expected = List("6,2.0,1,3,3")
+    val expected = List("6,2,1,3,3")
     assertEquals(expected, sink.getRetractResults)
   }
 
@@ -261,7 +261,7 @@ class AggregateITCase(
     t1.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = List("3,9,4,2,3.0,5")
+    val expected = List("3,9,4,2,3,5")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
@@ -1021,7 +1021,7 @@ class AggregateITCase(
     tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink)
     env.execute()
     // TODO: define precise behavior of VAR_POP()
-    val expected = List(15602500d.toString, 28888.8888888893d.toString)
+    val expected = List(15602500.toString, 28889.toString)
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 

@@ -111,8 +111,8 @@ class SplitAggregateITCase(
     t1.toRetractStream[Row].addSink(sink)
     env.execute()
 
-    val expected = List("1,3,2,1.5", "2,29,5,3.625",
-      "3,10,2,5.0", "4,21,3,5.25")
+    val expected = List("1,3,2,1", "2,29,5,3",
+      "3,10,2,5", "4,21,3,5")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 

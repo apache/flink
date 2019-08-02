@@ -120,8 +120,6 @@ class AggCallSelectivityEstimatorTest {
     val aggCalls = sqlAggFunWithArg.map {
       case (sqlAggFun, arg) =>
         val aggCallType = sqlAggFun match {
-          case SqlStdOperatorTable.AVG =>
-            typeFactory.createSqlType(SqlTypeName.DOUBLE)
           case SqlStdOperatorTable.COUNT =>
             typeFactory.createSqlType(SqlTypeName.BIGINT)
           case _ =>

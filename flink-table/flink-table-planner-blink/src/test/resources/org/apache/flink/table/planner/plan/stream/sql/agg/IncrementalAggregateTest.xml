@@ -261,7 +261,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($2)], EXP
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, EXPR$1, CASE(=($f3, 0), null:BIGINT, EXPR$2) AS EXPR$2, /(CAST(CASE(=($f3, 0), null:BIGINT, EXPR$2)), $f3) AS EXPR$3, EXPR$4, EXPR$5, $f3 AS EXPR$6, EXPR$7])
+Calc(select=[a, EXPR$1, CASE(=($f3, 0), null:BIGINT, EXPR$2) AS EXPR$2, /(CASE(=($f3, 0), null:BIGINT, EXPR$2), $f3) AS EXPR$3, EXPR$4, EXPR$5, $f3 AS EXPR$6, EXPR$7])
 +- GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(count$0) AS $f1, $SUM0(sum$1) AS $f2, $SUM0(count$2) AS $f3, MAX(max$3) AS $f4, MIN(min$4) AS $f5, $SUM0(count1$5) AS $f6])
    +- Exchange(distribution=[hash[a]])
       +- IncrementalGroupAggregate(partialAggGrouping=[a, $f3, $f4], finalAggGrouping=[a], select=[a, COUNT(distinct$0 count$0) AS count$0, $SUM0(sum$1) AS sum$1, COUNT(count$2) AS count$2, MAX(max$3) AS max$3, MIN(min$4) AS min$4, COUNT(count1$5) AS count1$5])
@@ -288,7 +288,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($1)], EXP
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, $f1, $f2, CAST(/($f3, $f4)) AS $f3])
+Calc(select=[a, $f1, $f2, IF(=($f4, 0:BIGINT), null:BIGINT, /($f3, $f4)) AS $f3])
 +- GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(count$0) AS $f1, SUM(sum$1) AS $f2, $SUM0(sum$2) AS $f3, $SUM0(count$3) AS $f4])
    +- Exchange(distribution=[hash[a]])
       +- IncrementalGroupAggregate(partialAggGrouping=[a, $f2], finalAggGrouping=[a], select=[a, COUNT(distinct$0 count$0) AS count$0, SUM(sum$1) AS sum$1, $SUM0(sum$2) AS sum$2, COUNT(count$3) AS count$3])
