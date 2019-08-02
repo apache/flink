@@ -476,6 +476,10 @@ under the License.
 					<artifactId>hadoop-shim</artifactId>
 					<groupId>org.apache.tez</groupId>
 				</exclusion>
+				<exclusion>
+					<artifactId>jms</artifactId>
+					<groupId>javax.jms</groupId>
+				</exclusion>
             </exclusions>
         </dependency>
 
