@@ -264,6 +264,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 					"-nm", "customName",
 					"-Dfancy-configuration-value=veryFancy",
 					"-Dyarn.maximum-failed-containers=3",
+					"-Dyarn.application.priority=-5",
 					"-D" + YarnConfigOptions.VCORES.key() + "=2"},
 				"Flink JobManager is now running on ",
 				RunTypes.YARN_SESSION);
@@ -296,6 +297,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				//
 				assertThat(flinkConfig, hasEntry("fancy-configuration-value", "veryFancy"));
 				assertThat(flinkConfig, hasEntry("yarn.maximum-failed-containers", "3"));
+				assertThat(flinkConfig, hasEntry(YarnConfigOptions.APPLICATION_PRIORITY.key(), "5"));
 
 				//
 				// FLINK-2213: assert that vcores are set

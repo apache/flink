@@ -262,6 +262,15 @@ Flink's YARN client has the following configuration parameters to control how to
 
 - `yarn.application-attempts`: The number of ApplicationMaster (+ its TaskManager containers) attempts. If this value is set to 1 (default), the entire YARN session will fail when the Application master fails. Higher values specify the number of restarts of the ApplicationMaster by YARN.
 
+## Setup for application priority on YARN
+
+Flink's YARN client has the following configuration parameters to setup application priority. These parameters can be set either from the `conf/flink-conf.yaml` or when starting the YARN session, using `-D` parameters.
+
+- `yarn.application.priority`: A non-negative integer indicating the priority for submitting a Flink YARN application. 
+It will only take effect if YARN priority scheduling setting is enabled. Larger integer corresponds with higher priority. 
+If priority is negative or set to '-1'(default), Flink will unset yarn priority setting and use cluster default priority. 
+Please refer to YARN's official documentation for specific settings required to enable priority scheduling for the targeted YARN version.
+
 ## Debugging a failed YARN session
 
 There are many reasons why a Flink YARN session deployment can fail. A misconfigured Hadoop setup (HDFS permissions, YARN configuration), version incompatibilities (running Flink with vanilla Hadoop dependencies on Cloudera Hadoop) or other errors.
