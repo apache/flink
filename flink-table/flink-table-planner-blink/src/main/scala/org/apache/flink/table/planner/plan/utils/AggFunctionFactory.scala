@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.functions.aggfunctions.MinWithRetractAggFu
 import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions._
-import org.apache.flink.table.planner.functions.sql.{SqlListAggFunction, SqlFirstLastValueAggFunction, SqlIncrSumAggFunction}
+import org.apache.flink.table.planner.functions.sql.{SqlListAggFunction, SqlFirstLastValueAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
@@ -74,8 +74,6 @@ class AggFunctionFactory(
       case _: SqlSumAggFunction => createSumAggFunction(argTypes, index)
 
       case _: SqlSumEmptyIsZeroAggFunction => createSum0AggFunction(argTypes)
-
-      case _: SqlIncrSumAggFunction => createIncrSumAggFunction(argTypes, index)
 
       case a: SqlMinMaxAggFunction if a.getKind == SqlKind.MIN =>
         createMinAggFunction(argTypes, index)
