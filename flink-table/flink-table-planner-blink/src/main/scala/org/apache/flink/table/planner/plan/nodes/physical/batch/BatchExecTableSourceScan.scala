@@ -29,8 +29,8 @@ import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceSca
 import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.TableSourceUtil
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.sources.StreamTableSource
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -90,11 +90,11 @@ class BatchExecTableSourceScan(
       isStreamTable = false,
       tableSourceTable.selectedFields)
 
-    val inputDataType = fromLegacyInfoToDataType(inputTransform.getOutputType)
+    val inputDataType = inputTransform.getOutputType
     val producedDataType = tableSource.getProducedDataType
 
     // check that declared and actual type of table source DataStream are identical
-    if (inputDataType != producedDataType) {
+    if (inputDataType != TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(producedDataType)) {
       throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
         s"returned a DataStream of data type $producedDataType that does not match with the " +
         s"data type $producedDataType declared by the TableSource.getProducedDataType() method. " +
