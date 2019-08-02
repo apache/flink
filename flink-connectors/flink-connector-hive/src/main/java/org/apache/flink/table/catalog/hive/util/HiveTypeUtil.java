@@ -55,6 +55,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 
+import java.sql.Date;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -165,9 +166,10 @@ public class HiveTypeUtil {
 			case DOUBLE:
 				return DataTypes.DOUBLE();
 			case DATE:
-				return DataTypes.DATE();
+				return DataTypes.DATE().bridgedTo(Date.class);
 			case TIMESTAMP:
-				return DataTypes.TIMESTAMP();
+				throw new UnsupportedOperationException(
+					"Hive connector does not support timestamp type currently, as the precision may be lost.");
 			case BINARY:
 				return DataTypes.BYTES();
 			case DECIMAL:

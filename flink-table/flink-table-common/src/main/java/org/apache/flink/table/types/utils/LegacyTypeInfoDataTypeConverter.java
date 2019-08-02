@@ -250,7 +250,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 				dataType.getConversionClass().getName()));
 	}
 
-	private static boolean canConvertToTimestampTypeInfoLenient(DataType dataType) {
+	public static boolean canConvertToTimestampTypeInfoLenient(DataType dataType) {
 		LogicalType logicalType = dataType.getLogicalType();
 		return hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) &&
 			dataType.getConversionClass() != LocalDateTime.class &&

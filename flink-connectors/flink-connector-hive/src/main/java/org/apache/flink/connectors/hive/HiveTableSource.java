@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
+import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.sources.InputFormatTableSource;
 import org.apache.flink.table.sources.PartitionableTableSource;
 import org.apache.flink.table.sources.TableSource;
@@ -70,7 +71,10 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 	public HiveTableSource(JobConf jobConf, ObjectPath tablePath, CatalogTable catalogTable) {
 		this.jobConf = Preconditions.checkNotNull(jobConf);
 		this.tablePath = Preconditions.checkNotNull(tablePath);
-		this.catalogTable = Preconditions.checkNotNull(catalogTable);
+
+		Preconditions.checkNotNull(catalogTable);
+		this.catalogTable = HiveTableUtil.toHiveCatalogTable(catalogTable);
+
 		this.hiveVersion = Preconditions.checkNotNull(jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
 				"Hive version is not defined");
 		initAllPartitions = false;

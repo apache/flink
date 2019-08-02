@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
+import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.sinks.OutputFormatTableSink;
 import org.apache.flink.table.sinks.OverwritableTableSink;
 import org.apache.flink.table.sinks.PartitionableTableSink;
@@ -74,10 +75,13 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 	public HiveTableSink(JobConf jobConf, ObjectPath tablePath, CatalogTable table) {
 		this.jobConf = jobConf;
 		this.tablePath = tablePath;
-		this.catalogTable = table;
+
+		this.catalogTable = HiveTableUtil.toHiveCatalogTable(table);
+
 		hiveVersion = Preconditions.checkNotNull(jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
 				"Hive version is not defined");
-		tableSchema = table.getSchema();
+
+		tableSchema = catalogTable.getSchema();
 	}
 
 	@Override
