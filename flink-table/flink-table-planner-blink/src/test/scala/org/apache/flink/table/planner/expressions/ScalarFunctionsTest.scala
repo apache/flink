@@ -1480,7 +1480,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       'f7 / 2,
       "f7 / 2",
       "f7 / 2",
-      "1.5")
+      "1")
 
     // f34 => Decimal(19,0)
     // 6 => Integer => Decimal(10,0)

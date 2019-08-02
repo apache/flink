@@ -125,6 +125,91 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
+	 * Built-in Byte Avg aggregate function.
+	 */
+	public static class ByteAvgAggFunction extends AvgAggFunction {
+
+		@Override
+		public DataType getResultType() {
+			return DataTypes.TINYINT();
+		}
+
+		@Override
+		public DataType getSumType() {
+			return DataTypes.BIGINT();
+		}
+	}
+
+	/**
+	 * Built-in Short Avg aggregate function.
+	 */
+	public static class ShortAvgAggFunction extends AvgAggFunction {
+
+		@Override
+		public DataType getResultType() {
+			return DataTypes.SMALLINT();
+		}
+
+		@Override
+		public DataType getSumType() {
+			return DataTypes.BIGINT();
+		}
+	}
+
+	/**
+	 * Built-in Integer Avg aggregate function.
+	 */
+	public static class IntAvgAggFunction extends AvgAggFunction {
+
+		@Override
+		public DataType getResultType() {
+			return DataTypes.INT();
+		}
+
+		@Override
+		public DataType getSumType() {
+			return DataTypes.BIGINT();
+		}
+	}
+
+	/**
+	 * Built-in Long Avg aggregate function.
+	 */
+	public static class LongAvgAggFunction extends AvgAggFunction {
+
+		@Override
+		public DataType getResultType() {
+			return DataTypes.BIGINT();
+		}
+
+		@Override
+		public DataType getSumType() {
+			return DataTypes.BIGINT();
+		}
+	}
+
+	/**
+	 * Built-in Float Avg aggregate function.
+	 */
+	public static class FloatAvgAggFunction extends AvgAggFunction {
+
+		@Override
+		public DataType getResultType() {
+			return DataTypes.FLOAT();
+		}
+
+		@Override
+		public DataType getSumType() {
+			return DataTypes.DOUBLE();
+		}
+
+		@Override
+		public Expression[] initialValuesExpressions() {
+			return new Expression[] {literal(0D), literal(0L)};
+		}
+	}
+
+	/**
 	 * Built-in Double Avg aggregate function.
 	 */
 	public static class DoubleAvgAggFunction extends AvgAggFunction {

@@ -37,11 +37,11 @@ import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
-
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
+import org.apache.flink.table.types.DataType
 
 import java.util
 
@@ -140,9 +140,17 @@ class AggFunctionFactory(
 
   private def createAvgAggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
     argTypes(0).getTypeRoot match {
-      case TINYINT | SMALLINT | INTEGER | BIGINT =>
-        new AvgAggFunction.IntegralAvgAggFunction
-      case FLOAT | DOUBLE =>
+      case TINYINT =>
+        new AvgAggFunction.ByteAvgAggFunction
+      case SMALLINT =>
+        new AvgAggFunction.ShortAvgAggFunction
+      case INTEGER =>
+        new AvgAggFunction.IntAvgAggFunction
+      case BIGINT =>
+        new AvgAggFunction.LongAvgAggFunction
+      case FLOAT =>
+        new AvgAggFunction.FloatAvgAggFunction
+      case DOUBLE =>
         new AvgAggFunction.DoubleAvgAggFunction
       case DECIMAL =>
         val d = argTypes(0).asInstanceOf[DecimalType]
