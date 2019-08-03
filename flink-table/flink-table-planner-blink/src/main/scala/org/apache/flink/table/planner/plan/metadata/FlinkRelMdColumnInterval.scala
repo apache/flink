@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ColumnInterval
-import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
+import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, TableAggregate, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
@@ -365,6 +365,20 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
     estimateColumnIntervalOfAggregate(aggregate, mq, index)
 
   /**
+    * Gets interval of the given column on TableAggregates.
+    *
+    * @param aggregate TableAggregate RelNode
+    * @param mq        RelMetadataQuery instance
+    * @param index     the index of the given column
+    * @return interval of the given column on TableAggregate
+    */
+  def getColumnInterval(
+      aggregate: TableAggregate,
+      mq: RelMetadataQuery, index: Int): ValueInterval =
+
+    estimateColumnIntervalOfAggregate(aggregate, mq, index)
+
+  /**
     * Gets interval of the given column on batch group aggregate.
     *
     * @param aggregate batch group aggregate RelNode
@@ -389,6 +403,19 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
       aggregate: StreamExecGroupAggregate,
       mq: RelMetadataQuery,
       index: Int): ValueInterval = estimateColumnIntervalOfAggregate(aggregate, mq, index)
+
+  /**
+    * Gets interval of the given column on stream group table aggregate.
+    *
+    * @param aggregate stream group table aggregate RelNode
+    * @param mq        RelMetadataQuery instance
+    * @param index     the index of the given column
+    * @return interval of the given column on stream group TableAggregate
+    */
+  def getColumnInterval(
+    aggregate: StreamExecGroupTableAggregate,
+    mq: RelMetadataQuery,
+    index: Int): ValueInterval = estimateColumnIntervalOfAggregate(aggregate, mq, index)
 
   /**
     * Gets interval of the given column on stream local group aggregate.
@@ -476,6 +503,8 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
         // grouping + assignTs + auxGrouping
         agg.getGrouping ++ Array(agg.inputTimeFieldIndex) ++ agg.getAuxGrouping
       case agg: BatchExecWindowAggregateBase => agg.getGrouping ++ agg.getAuxGrouping
+      case agg: TableAggregate => agg.getGroupSet.toArray
+      case agg: StreamExecGroupTableAggregate => agg.grouping
     }
 
     if (index < groupSet.length) {

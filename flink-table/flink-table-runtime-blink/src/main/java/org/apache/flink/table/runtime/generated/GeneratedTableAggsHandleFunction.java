@@ -18,21 +18,14 @@
 
 package org.apache.flink.table.runtime.generated;
 
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.functions.AggregateFunction;
-
 /**
- * The base class for handling aggregate functions.
- *
- * <p>It is code generated to handle all {@link AggregateFunction}s together in an aggregation.
- *
- * <p>It is the entry point for aggregate operators to operate all {@link AggregateFunction}s.
+ * Describes a generated {@link TableAggsHandleFunction}.
  */
-public interface AggsHandleFunction extends AggsHandleFunctionBase {
+public class GeneratedTableAggsHandleFunction extends GeneratedClass<TableAggsHandleFunction> {
 
-	/**
-	 * Gets the result of the aggregation from the current accumulators.
-	 * @return the final result (saved in a row) of the current accumulators.
-	 */
-	BaseRow getValue() throws Exception;
+	private static final long serialVersionUID = 1L;
+
+	public GeneratedTableAggsHandleFunction(String className, String code, Object[] references) {
+		super(className, code, references);
+	}
 }

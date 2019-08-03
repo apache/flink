@@ -19,20 +19,24 @@
 package org.apache.flink.table.runtime.generated;
 
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.functions.AggregateFunction;
+import org.apache.flink.table.functions.TableAggregateFunction;
+import org.apache.flink.util.Collector;
 
 /**
- * The base class for handling aggregate functions.
+ * The base class for handling table aggregate functions.
  *
- * <p>It is code generated to handle all {@link AggregateFunction}s together in an aggregation.
+ * <p>It is code generated to handle all {@link TableAggregateFunction}s together in an aggregation.
  *
- * <p>It is the entry point for aggregate operators to operate all {@link AggregateFunction}s.
+ * <p>It is the entry point for aggregate operators to operate all {@link TableAggregateFunction}s.
  */
-public interface AggsHandleFunction extends AggsHandleFunctionBase {
+public interface TableAggsHandleFunction extends AggsHandleFunctionBase {
 
 	/**
-	 * Gets the result of the aggregation from the current accumulators.
-	 * @return the final result (saved in a row) of the current accumulators.
+	 * Emit the result of the table aggregation through the collector.
+	 *
+	 * @param out        the collector used to emit records.
+	 * @param currentKey the current group key.
+	 * @param isRetract  the retraction flag which indicates whether emit retract values.
 	 */
-	BaseRow getValue() throws Exception;
+	void emitValue(Collector<BaseRow> out, BaseRow currentKey, boolean isRetract) throws Exception;
 }

@@ -18,7 +18,7 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
-import org.apache.flink.table.planner.plan.stats.ValueInterval
+import org.apache.flink.table.planner.plan.stats.{RightSemiInfiniteValueInterval,ValueInterval}
 import org.apache.flink.table.types.logical._
 
 import org.apache.calcite.rel.RelNode
@@ -158,6 +158,18 @@ class FlinkRelMdFilteredColumnIntervalTest extends FlinkRelMdHandlerTestBase {
       assertNull(mq.getFilteredColumnInterval(agg, 1, -1))
       assertEquals(ValueInterval(161.0, 172.1), mq.getFilteredColumnInterval(agg, 2, -1))
       assertNull(mq.getFilteredColumnInterval(agg, 3, -1))
+    }
+  }
+
+  @Test
+  def testGetColumnIntervalOnTableAggregate(): Unit = {
+    Array(logicalTableAgg, flinkLogicalTableAgg, streamExecTableAgg).foreach {
+      agg =>
+        assertEquals(
+          RightSemiInfiniteValueInterval(0, true),
+          mq.getFilteredColumnInterval(agg, 0, -1))
+        assertNull(mq.getFilteredColumnInterval(agg, 1, -1))
+        assertNull(mq.getFilteredColumnInterval(agg, 2, -1))
     }
   }
 

@@ -22,6 +22,7 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog}
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.intervalOfMillis
+import org.apache.flink.table.functions.UserFunctionsTypeHelper
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.delegation.PlannerContext
@@ -29,11 +30,12 @@ import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, Pla
 import org.apache.flink.table.planner.functions.aggfunctions.SumAggFunction.DoubleSumAggFunction
 import org.apache.flink.table.planner.functions.aggfunctions.{DenseRankAggFunction, RankAggFunction, RowNumberAggFunction}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
+import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalExpand, LogicalRank, LogicalWindowAggregate}
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalExpand, LogicalRank, LogicalTableAggregate, LogicalWindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
@@ -41,11 +43,11 @@ import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.transformToStreamAggregateInfoList
 import org.apache.flink.table.planner.plan.utils._
-import org.apache.flink.table.planner.utils.CountAggFunction
+import org.apache.flink.table.planner.utils.{CountAggFunction, Top3}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType, VariableRankRange}
 import org.apache.flink.table.types.AtomicDataType
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, IntType, LogicalType, TimestampKind, TimestampType, VarCharType}
-
+import org.apache.flink.table.types.utils.TypeConversions
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan._
@@ -58,7 +60,7 @@ import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQu
 import org.apache.calcite.rex._
 import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.SqlWindow
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
 import org.apache.calcite.sql.`type`.SqlTypeName.{BIGINT, BOOLEAN, DATE, DOUBLE, FLOAT, TIME, TIMESTAMP, VARCHAR}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable.{AND, CASE, DIVIDE, EQUALS, GREATER_THAN, LESS_THAN, MINUS, MULTIPLY, OR, PLUS}
 import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
@@ -703,6 +705,69 @@ class FlinkRelMdHandlerTestBase {
     )
 
     (logicalRankWithVariableRange, flinkLogicalRankWithVariableRange, streamRankWithVariableRange)
+  }
+
+  protected lazy val tableAggCall = {
+    val top3 = new Top3
+    val resultTypeInfo = UserFunctionsTypeHelper.getReturnTypeOfAggregateFunction(top3)
+    val accTypeInfo = UserFunctionsTypeHelper.getAccumulatorTypeOfAggregateFunction(top3)
+
+    val resultDataType = TypeConversions.fromLegacyInfoToDataType(resultTypeInfo)
+    val accDataType = TypeConversions.fromLegacyInfoToDataType(accTypeInfo)
+
+    val builder = typeFactory.builder()
+    builder.add("f0", new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.INTEGER))
+    builder.add("f1", new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.INTEGER))
+    val relDataType = builder.build()
+
+    AggregateCall.create(
+      AggSqlFunction("top3", "top3", new Top3, resultDataType, accDataType, typeFactory, false),
+      false,
+      false,
+      false,
+      Seq(Integer.valueOf(0)).toList,
+      -1,
+      RelCollationImpl.of(),
+      relDataType,
+      ""
+    )
+  }
+
+  protected lazy val (logicalTableAgg, flinkLogicalTableAgg, streamExecTableAgg) = {
+
+    val logicalTableAgg = new LogicalTableAggregate(
+      cluster,
+      logicalTraits,
+      studentLogicalScan,
+      ImmutableBitSet.of(0),
+      null,
+      Seq(tableAggCall))
+
+    val flinkLogicalTableAgg = new FlinkLogicalTableAggregate(
+      cluster,
+      logicalTraits,
+      studentLogicalScan,
+      ImmutableBitSet.of(0),
+      null,
+      Seq(tableAggCall)
+    )
+
+    val builder = typeFactory.builder()
+    builder.add("key", new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.BIGINT))
+    builder.add("f0", new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.INTEGER))
+    builder.add("f1", new BasicSqlType(typeFactory.getTypeSystem, SqlTypeName.INTEGER))
+    val relDataType = builder.build()
+
+    val streamExecTableAgg = new StreamExecGroupTableAggregate(
+      cluster,
+      logicalTraits,
+      studentLogicalScan,
+      relDataType,
+      Array(0),
+      Seq(tableAggCall)
+    )
+
+    (logicalTableAgg, flinkLogicalTableAgg, streamExecTableAgg)
   }
 
   // equivalent SQL is

@@ -354,14 +354,15 @@ class DistinctAggCodeGen(
       needAccumulate: Boolean,
       needRetract: Boolean,
       needMerge: Boolean,
-      needReset: Boolean): Unit = {
+      needReset: Boolean,
+      needEmitValue: Boolean): Unit = {
     if (needMerge) {
       // see merge method for more information
       innerAggCodeGens
       .foreach(_.checkNeededMethods(needAccumulate = true, needRetract = consumeRetraction))
     } else {
-      innerAggCodeGens
-      .foreach(_.checkNeededMethods(needAccumulate, needRetract, needMerge, needReset))
+      innerAggCodeGens.foreach(
+        _.checkNeededMethods(needAccumulate, needRetract, needMerge, needReset, needEmitValue))
     }
   }
 
