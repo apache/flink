@@ -337,7 +337,7 @@ object RelExplainUtil {
       val accFieldNames = inputRowType.getFieldNames.toList.toArray
       grouping.map(inFieldNames(_)) ++ localAggOutputFieldNames(aggOffset, aggInfos, accFieldNames)
     } else if (isTableAggregate) {
-      outFieldNames.toList.subList(0, grouping.length).toArray ++
+      outFieldNames.slice(0, grouping.length) ++
         Seq(s"(${outFieldNames.drop(grouping.length).mkString(", ")})")
     } else {
       outFieldNames

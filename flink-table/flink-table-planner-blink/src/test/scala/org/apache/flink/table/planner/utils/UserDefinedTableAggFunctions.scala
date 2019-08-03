@@ -22,10 +22,14 @@ import java.lang.{Integer => JInt, Iterable => JIterable}
 import java.sql.Timestamp
 import java.util
 
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.dataview.MapView
+import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.functions.TableAggregateFunction
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
+import org.apache.flink.table.types.logical.IntType
 import org.apache.flink.util.Collector
 
 import scala.collection.mutable.ListBuffer
@@ -236,6 +240,32 @@ class Top3WithRetractInput
       i += 1
       out.collect(JTuple2.of(v, v))
     }
+  }
+}
+
+/****** Function for testing internal accumulator type ******/
+
+class TableAggSum extends TableAggregateFunction[JInt, GenericRow] {
+
+  override def createAccumulator(): GenericRow = {
+    val acc = new GenericRow(1)
+    acc.setInt(0, 0)
+    acc
+  }
+
+  def accumulate(acc: GenericRow, v: Int): Unit = {
+    acc.setInt(0, acc.getInt(0) + v)
+  }
+
+  def emitValue(acc: GenericRow, out: Collector[JInt]): Unit = {
+    // output two records
+    val result = acc.getInt(0)
+    out.collect(result)
+    out.collect(result)
+  }
+
+  override def getAccumulatorType: TypeInformation[GenericRow] = {
+    new BaseRowTypeInfo(new IntType()).asInstanceOf[TypeInformation[GenericRow]]
   }
 }
 

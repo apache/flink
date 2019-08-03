@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.GenericRow
+import org.apache.flink.table.dataformat.util.BaseRowUtil
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{BASE_ROW, _}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
@@ -29,7 +30,8 @@ import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, Pla
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.runtime.dataview.{StateListView, StateMapView}
-import org.apache.flink.table.runtime.generated.{AggsHandleFunction, GeneratedAggsHandleFunction, GeneratedNamespaceAggsHandleFunction, GeneratedTableAggsHandleFunction, NamespaceAggsHandleFunction}
+import org.apache.flink.table.runtime.generated.{AggsHandleFunction, GeneratedAggsHandleFunction, GeneratedNamespaceAggsHandleFunction, GeneratedTableAggsHandleFunction, NamespaceAggsHandleFunction, TableAggsHandleFunction}
+import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, RowType}
@@ -420,13 +422,33 @@ class AggsHandlerCodeGenerator(
 
     // gen converter
     val aggExternalType = aggInfoList.getActualAggregateInfos(0).externalResultType
-    val collectorInputName = newName("collectorInput")
-    val converterCode = CodeGenUtils.genToInternal(ctx, aggExternalType, collectorInputName)
+    val recordInputName = newName("recordInput")
+    val converterCode = CodeGenUtils.genToInternal(ctx, aggExternalType, recordInputName)
+
+    def genRecordToBaseRow: String = {
+      val resultType = fromDataTypeToLogicalType(aggExternalType)
+      val resultBaseRowType = PlannerTypeUtils.toRowType(resultType)
+
+      val newCtx = CodeGeneratorContext(ctx.tableConfig)
+      val exprGenerator = new ExprCodeGenerator(newCtx, false).bindInput(resultType)
+      val resultExpr = exprGenerator.generateConverterResultExpression(
+        resultBaseRowType, classOf[GenericRow], "convertResult")
+
+      val resultTypeClass = boxedTypeTermForType(resultType)
+      s"""
+         |${newCtx.reuseMemberCode()}
+         |$resultTypeClass ${exprGenerator.input1Term} = ($resultTypeClass) $converterCode;
+         |${newCtx.reuseLocalVariableCode()}
+         |${newCtx.reuseInputUnboxingCode()}
+         |${resultExpr.code}
+         |return ${resultExpr.resultTerm};
+       """.stripMargin
+    }
 
     val functionName = newName(name)
     val functionCode =
       j"""
-        public final class $functionName implements $TABLE_AGGS_HANDLER_FUNCTION {
+        public final class $functionName implements ${className[TableAggsHandleFunction]} {
 
           ${ctx.reuseMemberCode()}
           private $CONVERT_COLLECTOR_TYPE_TERM $MEMBER_COLLECTOR_TERM;
@@ -481,8 +503,7 @@ class AggsHandlerCodeGenerator(
             $COLLECTOR<$BASE_ROW> $COLLECTOR_TERM, $BASE_ROW key, boolean isRetract)
             throws Exception {
 
-            $MEMBER_COLLECTOR_TERM.$COLLECTOR_TERM = $COLLECTOR_TERM;
-            $MEMBER_COLLECTOR_TERM.reset(key, isRetract);
+            $MEMBER_COLLECTOR_TERM.reset(key, isRetract, $COLLECTOR_TERM);
             $emitValueCode
           }
 
@@ -497,12 +518,10 @@ class AggsHandlerCodeGenerator(
           }
 
           private class $CONVERT_COLLECTOR_TYPE_TERM implements $COLLECTOR {
-            public $COLLECTOR<$BASE_ROW> $COLLECTOR_TERM;
+            private $COLLECTOR<$BASE_ROW> $COLLECTOR_TERM;
             private $BASE_ROW key;
             private $JOINED_ROW result;
             private boolean isRetract = false;
-            private static final byte ACCUMULATE_MSG = 0;
-            private static final byte RETRACT_MSG = 1;
             ${ctx.reuseMemberCode()}
 
             public $CONVERT_COLLECTOR_TYPE_TERM(java.lang.Object[] references) throws Exception {
@@ -510,19 +529,25 @@ class AggsHandlerCodeGenerator(
               result = new $JOINED_ROW();
             }
 
-            public void reset($BASE_ROW key, boolean isRetract) {
+            public void reset(
+              $BASE_ROW key, boolean isRetract, $COLLECTOR<$BASE_ROW> $COLLECTOR_TERM) {
               this.key = key;
               this.isRetract = isRetract;
+              this.$COLLECTOR_TERM = $COLLECTOR_TERM;
+            }
+
+            public $BASE_ROW convertToBaseRow(Object $recordInputName) throws Exception {
+              $genRecordToBaseRow
             }
 
             @Override
-            public void collect(Object $collectorInputName) throws Exception {
-              $BASE_ROW tempBaseRow = $converterCode;
+            public void collect(Object $recordInputName) throws Exception {
+              $BASE_ROW tempBaseRow = convertToBaseRow($recordInputName);
               result.replace(key, tempBaseRow);
               if (isRetract) {
-                result.setHeader(RETRACT_MSG);
+                result.setHeader(${className[BaseRowUtil]}.RETRACT_MSG);
               } else {
-                result.setHeader(ACCUMULATE_MSG);
+                result.setHeader(${className[BaseRowUtil]}.ACCUMULATE_MSG);
               }
               $COLLECTOR_TERM.collect(result);
             }

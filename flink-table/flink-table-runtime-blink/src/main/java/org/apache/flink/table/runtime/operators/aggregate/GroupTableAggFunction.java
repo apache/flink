@@ -37,7 +37,7 @@ import static org.apache.flink.table.dataformat.util.BaseRowUtil.isAccumulateMsg
  */
 public class GroupTableAggFunction extends KeyedProcessFunctionWithCleanupState<BaseRow, BaseRow, BaseRow> {
 
-	private static final long serialVersionUID = -4767158666069797704L;
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The code generated function used to handle table aggregates.
@@ -103,7 +103,6 @@ public class GroupTableAggFunction extends KeyedProcessFunctionWithCleanupState<
 		accState = getRuntimeContext().getState(accDesc);
 
 		initCleanupTimeState("GroupTableAggregateCleanupTime");
-
 	}
 
 	@Override

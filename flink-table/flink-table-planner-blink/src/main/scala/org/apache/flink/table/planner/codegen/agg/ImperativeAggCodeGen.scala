@@ -519,8 +519,6 @@ class ImperativeAggCodeGen(
 
   def emitValue: String = {
     val accTerm = if (isAccTypeInternal) accInternalTerm else accExternalTerm
-    s"""
-       |$functionTerm.emitValue($accTerm, $MEMBER_COLLECTOR_TERM);
-    """.stripMargin
+    s"$functionTerm.emitValue($accTerm, $MEMBER_COLLECTOR_TERM);"
   }
 }

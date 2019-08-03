@@ -25,7 +25,7 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData.tupleData3
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingRetractSink}
-import org.apache.flink.table.planner.utils.{EmptyTableAggFuncWithoutEmit, Top3, Top3WithMapView, Top3WithRetractInput}
+import org.apache.flink.table.planner.utils.{EmptyTableAggFuncWithoutEmit, TableAggSum, Top3, Top3WithMapView, Top3WithRetractInput}
 import org.apache.flink.types.Row
 import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
@@ -101,6 +101,33 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
   }
 
   @Test
+  def testAggregateAfterTableAggregate(): Unit = {
+    val top3 = new Top3
+
+    val resultTable = failingDataSource(tupleData3).toTable(tEnv, 'a, 'b, 'c)
+      .groupBy('b)
+      .flatAggregate(top3('a))
+      .select('b, 'f0, 'f1)
+      .as('category, 'v1, 'v2)
+      .groupBy('category)
+      .select('category, 'v1.max)
+
+    val sink = new TestingRetractSink()
+    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List(
+      "1,1",
+      "2,3",
+      "3,6",
+      "4,10",
+      "5,15",
+      "6,21"
+    ).sorted
+    assertEquals(expected, sink.getRetractResults.sorted)
+  }
+
+  @Test
   def testGroupByFlatAggregateWithMapView(): Unit = {
     val top3 = new Top3WithMapView
 
@@ -154,6 +181,24 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
       "65,65",
       "34,34"
     ).sorted
+    assertEquals(expected, sink.getRetractResults.sorted)
+  }
+
+  @Test
+  def testInternalAccumulatorType(): Unit = {
+    val tableAggSum = new TableAggSum
+    val source = failingDataSource(tupleData3).toTable(tEnv, 'a, 'b, 'c)
+    val resultTable = source
+      .groupBy('b)
+      .flatAggregate(tableAggSum('a) as 'sum)
+      .select('b, 'sum)
+
+    val sink = new TestingRetractSink()
+    resultTable.toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = List("6,111", "6,111", "5,65", "5,65", "4,34", "4,34", "3,15", "3,15",
+      "2,5", "2,5", "1,1", "1,1").sorted
     assertEquals(expected, sink.getRetractResults.sorted)
   }
 
