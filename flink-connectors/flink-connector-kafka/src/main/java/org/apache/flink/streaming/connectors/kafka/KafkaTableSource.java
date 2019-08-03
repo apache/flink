@@ -22,6 +22,7 @@ import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.descriptors.KafkaTopicDescriptor;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 /**
  * Kafka {@link StreamTableSource}.
@@ -45,7 +47,7 @@ public class KafkaTableSource extends KafkaTableSourceBase {
 	 * @param rowtimeAttributeDescriptors Descriptor for a rowtime attribute
 	 * @param fieldMapping                Mapping for the fields of the table schema to
 	 *                                    fields of the physical returned type.
-	 * @param topic                       Kafka topic to consume.
+	 * @param kafkaTopicDescriptor        Kafka topic descriptor to describe which topic(topics or pattern) to consume.
 	 * @param properties                  Properties for the Kafka consumer.
 	 * @param deserializationSchema       Deserialization schema for decoding records from Kafka.
 	 * @param startupMode                 Startup mode for the contained consumer.
@@ -57,7 +59,7 @@ public class KafkaTableSource extends KafkaTableSourceBase {
 		Optional<String> proctimeAttribute,
 		List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
 		Optional<Map<String, String>> fieldMapping,
-		String topic,
+		KafkaTopicDescriptor kafkaTopicDescriptor,
 		Properties properties,
 		DeserializationSchema<Row> deserializationSchema,
 		StartupMode startupMode,
@@ -68,7 +70,7 @@ public class KafkaTableSource extends KafkaTableSourceBase {
 			proctimeAttribute,
 			rowtimeAttributeDescriptors,
 			fieldMapping,
-			topic,
+			kafkaTopicDescriptor,
 			properties,
 			deserializationSchema,
 			startupMode,
@@ -79,17 +81,17 @@ public class KafkaTableSource extends KafkaTableSourceBase {
 	 * Creates a generic Kafka {@link StreamTableSource}.
 	 *
 	 * @param schema                Schema of the produced table.
-	 * @param topic                 Kafka topic to consume.
+	 * @param kafkaTopicDescriptor  Kafka topic descriptor to describe which topic(topics or pattern) to consume.
 	 * @param properties            Properties for the Kafka consumer.
 	 * @param deserializationSchema Deserialization schema for decoding records from Kafka.
 	 */
 	public KafkaTableSource(
 		TableSchema schema,
-		String topic,
+		KafkaTopicDescriptor kafkaTopicDescriptor,
 		Properties properties,
 		DeserializationSchema<Row> deserializationSchema) {
 
-		super(schema, topic, properties, deserializationSchema);
+		super(schema, kafkaTopicDescriptor, properties, deserializationSchema);
 	}
 
 	@Override
@@ -99,5 +101,15 @@ public class KafkaTableSource extends KafkaTableSourceBase {
 		DeserializationSchema<Row> deserializationSchema) {
 
 		return new FlinkKafkaConsumer<Row>(topic, deserializationSchema, properties);
+	}
+
+	@Override
+	protected FlinkKafkaConsumerBase<Row> createKafkaConsumer(List<String> topics, Properties properties, DeserializationSchema<Row> deserializationSchema) {
+		return new FlinkKafkaConsumer<Row>(topics, deserializationSchema, properties);
+	}
+
+	@Override
+	protected FlinkKafkaConsumerBase<Row> createKafkaConsumer(Pattern subscriptionPattern, Properties properties, DeserializationSchema<Row> deserializationSchema) {
+		return new FlinkKafkaConsumer<Row>(subscriptionPattern, deserializationSchema, properties);
 	}
 }

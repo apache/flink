@@ -26,9 +26,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartiti
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.KafkaValidator;
-import org.apache.flink.table.descriptors.SchemaValidator;
+import org.apache.flink.table.descriptors.*;
 import org.apache.flink.table.factories.DeserializationSchemaFactory;
 import org.apache.flink.table.factories.SerializationSchemaFactory;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
@@ -47,25 +45,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_KEY;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_VALUE;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_CLASS;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_VALUE_FIXED;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_VALUE_ROUND_ROBIN;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_OFFSET;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_PARTITION;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_STARTUP_MODE;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TOPIC;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TYPE_VALUE_KAFKA;
+import static org.apache.flink.table.descriptors.KafkaValidator.*;
+import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SUBSCRIPTION_PATTERN;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_CLASS;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_FROM;
 import static org.apache.flink.table.descriptors.Rowtime.ROWTIME_TIMESTAMPS_SERIALIZED;
@@ -105,6 +92,8 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 
 		// kafka
 		properties.add(CONNECTOR_TOPIC);
+		properties.add(CONNECTOR_TOPICS);
+		properties.add(CONNECTOR_SUBSCRIPTION_PATTERN);
 		properties.add(CONNECTOR_PROPERTIES);
 		properties.add(CONNECTOR_PROPERTIES + ".#." + CONNECTOR_PROPERTIES_KEY);
 		properties.add(CONNECTOR_PROPERTIES + ".#." + CONNECTOR_PROPERTIES_VALUE);
@@ -138,9 +127,16 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 
 	@Override
 	public StreamTableSource<Row> createStreamTableSource(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+		final DescriptorProperties descriptorProperties = getValidatedTableSourceProperties(properties);
 
-		final String topic = descriptorProperties.getString(CONNECTOR_TOPIC);
+		final String topic = descriptorProperties.containsKey(CONNECTOR_TOPIC)?
+			descriptorProperties.getString(CONNECTOR_TOPIC): null;
+		final List<String> topics = descriptorProperties.containsKey(CONNECTOR_TOPICS)?
+			Arrays.asList(descriptorProperties.getString(CONNECTOR_TOPICS).split(",")): null;
+		final Pattern subscriptionPattern = descriptorProperties.containsKey(CONNECTOR_SUBSCRIPTION_PATTERN)?
+			Pattern.compile(descriptorProperties.getString(CONNECTOR_SUBSCRIPTION_PATTERN)): null;
+		final KafkaTopicDescriptor kafkaTopicDescriptor = new KafkaTopicDescriptor(topic, topics, subscriptionPattern);
+
 		final DeserializationSchema<Row> deserializationSchema = getDeserializationSchema(properties);
 		final StartupOptions startupOptions = getStartupOptions(descriptorProperties, topic);
 
@@ -151,7 +147,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 			SchemaValidator.deriveFieldMapping(
 				descriptorProperties,
 				Optional.of(deserializationSchema.getProducedType())),
-			topic,
+			kafkaTopicDescriptor,
 			getKafkaProperties(descriptorProperties),
 			deserializationSchema,
 			startupOptions.startupMode,
@@ -160,7 +156,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 
 	@Override
 	public StreamTableSink<Row> createStreamTableSink(Map<String, String> properties) {
-		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+		final DescriptorProperties descriptorProperties = getValidatedTableSinkProperties(properties);
 
 		final TableSchema schema = descriptorProperties.getTableSchema(SCHEMA);
 		final String topic = descriptorProperties.getString(CONNECTOR_TOPIC);
@@ -206,7 +202,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 	 * @param rowtimeAttributeDescriptors Descriptor for a rowtime attribute
 	 * @param fieldMapping                Mapping for the fields of the table schema to
 	 *                                    fields of the physical returned type.
-	 * @param topic                       Kafka topic to consume.
+	 * @param kafkaTopicDescriptor        Kafka topic descriptor to describe which topic(topics or pattern) to consume.
 	 * @param properties                  Properties for the Kafka consumer.
 	 * @param deserializationSchema       Deserialization schema for decoding records from Kafka.
 	 * @param startupMode                 Startup mode for the contained consumer.
@@ -218,7 +214,7 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 		Optional<String> proctimeAttribute,
 		List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
 		Map<String, String> fieldMapping,
-		String topic,
+		KafkaTopicDescriptor kafkaTopicDescriptor,
 		Properties properties,
 		DeserializationSchema<Row> deserializationSchema,
 		StartupMode startupMode,
@@ -249,8 +245,19 @@ public abstract class KafkaTableSourceSinkFactoryBase implements
 
 		// allow Kafka timestamps to be used, watermarks can not be received from source
 		new SchemaValidator(true, supportsKafkaTimestamps(), false).validate(descriptorProperties);
-		new KafkaValidator().validate(descriptorProperties);
 
+		return descriptorProperties;
+	}
+
+	private DescriptorProperties getValidatedTableSourceProperties(Map<String, String> properties) {
+		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+		new KafkaConsumerValidator().validate(descriptorProperties);
+		return descriptorProperties;
+	}
+
+	private DescriptorProperties getValidatedTableSinkProperties(Map<String, String> properties) {
+		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
+		new KafkaProducerValidator().validate(descriptorProperties);
 		return descriptorProperties;
 	}
 

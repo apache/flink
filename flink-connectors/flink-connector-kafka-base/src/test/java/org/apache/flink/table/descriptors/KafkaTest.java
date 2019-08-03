@@ -64,7 +64,27 @@ public class KafkaTest extends DescriptorTestBase {
 				.properties(properties)
 				.sinkPartitionerCustom(FlinkFixedPartitioner.class);
 
-		return Arrays.asList(earliestDesc, specificOffsetsDesc, specificOffsetsMapDesc);
+		final Descriptor specificConsumerTopicDesc =
+			new Kafka()
+				.version("0.11")
+				.topic("MyTable")
+				.startFromEarliest()
+				.topic("WhateverTopic");
+
+		final Descriptor specificConsumerTopicsDesc =
+			new Kafka()
+				.version("0.11")
+				.topics("MyTable1", "MyTable2", "MyTable3")
+				.startFromEarliest();
+
+		final Descriptor specificConsumerPatternDesc =
+			new Kafka()
+				.version("0.11")
+				.subscriptionPattern("MyTable*")
+				.startFromEarliest();
+
+		return Arrays.asList(earliestDesc, specificOffsetsDesc, specificOffsetsMapDesc,
+			specificConsumerTopicDesc, specificConsumerTopicsDesc, specificConsumerPatternDesc);
 	}
 
 	@Override
@@ -108,11 +128,32 @@ public class KafkaTest extends DescriptorTestBase {
 		props3.put("connector.sink-partitioner", "custom");
 		props3.put("connector.sink-partitioner-class", FlinkFixedPartitioner.class.getName());
 
-		return Arrays.asList(props1, props2, props3);
+		final Map<String, String> props4 = new HashMap<>();
+		props1.put("connector.property-version", "1");
+		props1.put("connector.type", "kafka");
+		props1.put("connector.version", "0.11");
+		props1.put("connector.topic", "MyTable");
+		props1.put("connector.startup-mode", "earliest-offset");
+
+		final Map<String, String> props5 = new HashMap<>();
+		props1.put("connector.property-version", "1");
+		props1.put("connector.type", "kafka");
+		props1.put("connector.version", "0.11");
+		props1.put("connector.topics", "MyTable1,MyTable2,MyTable3");
+		props1.put("connector.startup-mode", "earliest-offset");
+
+		final Map<String, String> props6 = new HashMap<>();
+		props1.put("connector.property-version", "1");
+		props1.put("connector.type", "kafka");
+		props1.put("connector.version", "0.11");
+		props1.put("connector.subscription-pattern", "MyTable*");
+		props1.put("connector.startup-mode", "earliest-offset");
+
+		return Arrays.asList(props1, props2, props3, props4, props5, props6);
 	}
 
 	@Override
 	public DescriptorValidator validator() {
-		return new KafkaValidator();
+		return new KafkaConsumerValidator();
 	}
 }

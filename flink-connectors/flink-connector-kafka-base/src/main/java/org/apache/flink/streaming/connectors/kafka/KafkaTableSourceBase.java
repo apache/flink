@@ -28,6 +28,7 @@ import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.descriptors.KafkaTopicDescriptor;
 import org.apache.flink.table.sources.DefinedFieldMapping;
 import org.apache.flink.table.sources.DefinedProctimeAttribute;
 import org.apache.flink.table.sources.DefinedRowtimeAttributes;
@@ -43,6 +44,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 /**
  * A version-agnostic Kafka {@link StreamTableSource}.
@@ -73,8 +75,8 @@ public abstract class KafkaTableSourceBase implements
 
 	// Kafka-specific attributes
 
-	/** The Kafka topic to consume. */
-	private final String topic;
+	/** Kafka topic descriptor to describe which topic(topics or pattern) to consume. */
+	private final KafkaTopicDescriptor kafkaTopicDescriptor;
 
 	/** Properties for the Kafka consumer. */
 	private final Properties properties;
@@ -96,7 +98,7 @@ public abstract class KafkaTableSourceBase implements
 	 * @param rowtimeAttributeDescriptors Descriptor for a rowtime attribute
 	 * @param fieldMapping                Mapping for the fields of the table schema to
 	 *                                    fields of the physical returned type.
-	 * @param topic                       Kafka topic to consume.
+	 * @param kafkaTopicDescriptor        Kafka topic descriptor to describe which topic(topics or pattern) to consume.
 	 * @param properties                  Properties for the Kafka consumer.
 	 * @param deserializationSchema       Deserialization schema for decoding records from Kafka.
 	 * @param startupMode                 Startup mode for the contained consumer.
@@ -108,7 +110,7 @@ public abstract class KafkaTableSourceBase implements
 			Optional<String> proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
 			Optional<Map<String, String>> fieldMapping,
-			String topic,
+			KafkaTopicDescriptor kafkaTopicDescriptor,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema,
 			StartupMode startupMode,
@@ -117,7 +119,7 @@ public abstract class KafkaTableSourceBase implements
 		this.proctimeAttribute = validateProctimeAttribute(proctimeAttribute);
 		this.rowtimeAttributeDescriptors = validateRowtimeAttributeDescriptors(rowtimeAttributeDescriptors);
 		this.fieldMapping = fieldMapping;
-		this.topic = Preconditions.checkNotNull(topic, "Topic must not be null.");
+		this.kafkaTopicDescriptor = Preconditions.checkNotNull(kafkaTopicDescriptor, "KafkaTopicDescriptor must not be null.");
 		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
 		this.deserializationSchema = Preconditions.checkNotNull(
 			deserializationSchema, "Deserialization schema must not be null.");
@@ -130,13 +132,13 @@ public abstract class KafkaTableSourceBase implements
 	 * Creates a generic Kafka {@link StreamTableSource}.
 	 *
 	 * @param schema                Schema of the produced table.
-	 * @param topic                 Kafka topic to consume.
+	 * @param kafkaTopicDescriptor  Kafka topic descriptor to describe which topic(topics or pattern) to consume.
 	 * @param properties            Properties for the Kafka consumer.
 	 * @param deserializationSchema Deserialization schema for decoding records from Kafka.
 	 */
 	protected KafkaTableSourceBase(
 			TableSchema schema,
-			String topic,
+			KafkaTopicDescriptor kafkaTopicDescriptor,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema) {
 		this(
@@ -144,7 +146,8 @@ public abstract class KafkaTableSourceBase implements
 			Optional.empty(),
 			Collections.emptyList(),
 			Optional.empty(),
-			topic, properties,
+			kafkaTopicDescriptor,
+			properties,
 			deserializationSchema,
 			StartupMode.GROUP_OFFSETS,
 			Collections.emptyMap());
@@ -159,7 +162,7 @@ public abstract class KafkaTableSourceBase implements
 
 		DeserializationSchema<Row> deserializationSchema = getDeserializationSchema();
 		// Version-specific Kafka consumer
-		FlinkKafkaConsumerBase<Row> kafkaConsumer = getKafkaConsumer(topic, properties, deserializationSchema);
+		FlinkKafkaConsumerBase<Row> kafkaConsumer = getKafkaConsumer(kafkaTopicDescriptor, properties, deserializationSchema);
 		return env.addSource(kafkaConsumer).name(explainSource());
 	}
 
@@ -224,7 +227,7 @@ public abstract class KafkaTableSourceBase implements
 			Objects.equals(proctimeAttribute, that.proctimeAttribute) &&
 			Objects.equals(rowtimeAttributeDescriptors, that.rowtimeAttributeDescriptors) &&
 			Objects.equals(fieldMapping, that.fieldMapping) &&
-			Objects.equals(topic, that.topic) &&
+			Objects.equals(kafkaTopicDescriptor, that.kafkaTopicDescriptor) &&
 			Objects.equals(properties, that.properties) &&
 			Objects.equals(deserializationSchema, that.deserializationSchema) &&
 			startupMode == that.startupMode &&
@@ -238,7 +241,7 @@ public abstract class KafkaTableSourceBase implements
 			proctimeAttribute,
 			rowtimeAttributeDescriptors,
 			fieldMapping,
-			topic,
+			kafkaTopicDescriptor,
 			properties,
 			deserializationSchema,
 			startupMode,
@@ -248,17 +251,17 @@ public abstract class KafkaTableSourceBase implements
 	/**
 	 * Returns a version-specific Kafka consumer with the start position configured.
 	 *
-	 * @param topic                 Kafka topic to consume.
+	 * @param kafkaTopicDescriptor  Kafka topic descriptor to describe which topic(topics or pattern) to consume.
 	 * @param properties            Properties for the Kafka consumer.
 	 * @param deserializationSchema Deserialization schema to use for Kafka records.
 	 * @return The version-specific Kafka consumer
 	 */
 	protected FlinkKafkaConsumerBase<Row> getKafkaConsumer(
-			String topic,
+			KafkaTopicDescriptor kafkaTopicDescriptor,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema) {
 		FlinkKafkaConsumerBase<Row> kafkaConsumer =
-				createKafkaConsumer(topic, properties, deserializationSchema);
+				createKafkaConsumer(kafkaTopicDescriptor, properties, deserializationSchema);
 		switch (startupMode) {
 			case EARLIEST:
 				kafkaConsumer.setStartFromEarliest();
@@ -327,8 +330,60 @@ public abstract class KafkaTableSourceBase implements
 	 * @return The version-specific Kafka consumer
 	 */
 	protected abstract FlinkKafkaConsumerBase<Row> createKafkaConsumer(
-			String topic,
+		String topic,
+		Properties properties,
+		DeserializationSchema<Row> deserializationSchema);
+
+	/**
+	 * Creates a version-specific Kafka consumer.
+	 *
+	 * @param topics                Kafka topics to consume.
+	 * @param properties            Properties for the Kafka consumer.
+	 * @param deserializationSchema Deserialization schema to use for Kafka records.
+	 * @return The version-specific Kafka consumer
+	 */
+	protected abstract FlinkKafkaConsumerBase<Row> createKafkaConsumer(
+		List<String> topics,
+		Properties properties,
+		DeserializationSchema<Row> deserializationSchema);
+
+	/**
+	 * Creates a version-specific Kafka consumer.
+	 *
+	 * @param subscriptionPattern   Kafka topics regex pattern to consume.
+	 * @param properties            Properties for the Kafka consumer.
+	 * @param deserializationSchema Deserialization schema to use for Kafka records.
+	 * @return The version-specific Kafka consumer
+	 */
+	protected abstract FlinkKafkaConsumerBase<Row> createKafkaConsumer(
+		Pattern subscriptionPattern,
+		Properties properties,
+		DeserializationSchema<Row> deserializationSchema);
+
+	/**
+	 * Creates a version-specific Kafka consumer.
+	 *
+	 * @param kafkaTopicDescriptor  Kafka topic descriptor to describe which topic(topics or pattern) to consume.
+	 * @param properties            Properties for the Kafka consumer.
+	 * @param deserializationSchema Deserialization schema to use for Kafka records.
+	 * @return The version-specific Kafka consumer
+	 */
+	protected FlinkKafkaConsumerBase<Row> createKafkaConsumer(
+			KafkaTopicDescriptor kafkaTopicDescriptor,
 			Properties properties,
-			DeserializationSchema<Row> deserializationSchema);
+			DeserializationSchema<Row> deserializationSchema) {
+
+		if (kafkaTopicDescriptor.getType() == KafkaTopicDescriptor.TYPE.SINGLE) {
+			return createKafkaConsumer(kafkaTopicDescriptor.getTopic(), properties, deserializationSchema);
+		} else if (kafkaTopicDescriptor.getType() == KafkaTopicDescriptor.TYPE.LIST) {
+			return createKafkaConsumer(kafkaTopicDescriptor.getTopics(), properties, deserializationSchema);
+		} else if (kafkaTopicDescriptor.getType() == KafkaTopicDescriptor.TYPE.PATTERN) {
+			return createKafkaConsumer(kafkaTopicDescriptor.getSubscriptionPattern(), properties, deserializationSchema);
+		} else if (kafkaTopicDescriptor.getType() == KafkaTopicDescriptor.TYPE.UNKNOWN) {
+			throw new IllegalArgumentException("Specify topic, topics or subscriptionPattern for Kafka consumer");
+		} else {
+			throw new IllegalArgumentException("Specify topic, topics or subscriptionPattern for Kafka consumer");
+		}
+	}
 
 }

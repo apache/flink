@@ -24,6 +24,7 @@ import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
 import org.apache.flink.streaming.connectors.kafka.internals.KafkaTopicPartition;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.descriptors.KafkaTopicDescriptor;
 import org.apache.flink.table.descriptors.KafkaValidator;
 import org.apache.flink.table.sources.RowtimeAttributeDescriptor;
 import org.apache.flink.types.Row;
@@ -54,7 +55,7 @@ public class Kafka09TableSourceSinkFactory extends KafkaTableSourceSinkFactoryBa
 			Optional<String> proctimeAttribute,
 			List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
 			Map<String, String> fieldMapping,
-			String topic,
+			KafkaTopicDescriptor kafkaTopicDescriptor,
 			Properties properties,
 			DeserializationSchema<Row> deserializationSchema,
 			StartupMode startupMode,
@@ -65,7 +66,7 @@ public class Kafka09TableSourceSinkFactory extends KafkaTableSourceSinkFactoryBa
 			proctimeAttribute,
 			rowtimeAttributeDescriptors,
 			Optional.of(fieldMapping),
-			topic,
+			kafkaTopicDescriptor,
 			properties,
 			deserializationSchema,
 			startupMode,

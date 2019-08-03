@@ -36,10 +36,7 @@ import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartiti
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
-import org.apache.flink.table.descriptors.Kafka;
-import org.apache.flink.table.descriptors.Rowtime;
-import org.apache.flink.table.descriptors.Schema;
-import org.apache.flink.table.descriptors.TestTableDescriptor;
+import org.apache.flink.table.descriptors.*;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
 import org.apache.flink.table.factories.StreamTableSourceFactory;
 import org.apache.flink.table.factories.TableFactoryService;
@@ -118,6 +115,9 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		fieldMapping.put(NAME, NAME);
 		fieldMapping.put(COUNT, COUNT);
 		fieldMapping.put(TIME, TIME);
+		
+		final KafkaTopicDescriptor kafkaTopicDescriptor = new KafkaTopicDescriptor();
+		kafkaTopicDescriptor.setTopic(TOPIC);
 
 		final Map<KafkaTopicPartition, Long> specificOffsets = new HashMap<>();
 		specificOffsets.put(new KafkaTopicPartition(TOPIC, PARTITION_0), OFFSET_0);
@@ -132,12 +132,13 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 				.toRowType()
 		);
 
+		// TODO: 2019/8/3 add more test for topics and subscriptionPattern
 		final KafkaTableSourceBase expected = getExpectedKafkaTableSource(
 			schema,
 			Optional.of(PROC_TIME),
 			rowtimeAttributeDescriptors,
 			fieldMapping,
-			TOPIC,
+			kafkaTopicDescriptor,
 			KAFKA_PROPERTIES,
 			deserializationSchema,
 			StartupMode.SPECIFIC_OFFSETS,
@@ -285,7 +286,7 @@ public abstract class KafkaTableSourceSinkFactoryTestBase extends TestLogger {
 		Optional<String> proctimeAttribute,
 		List<RowtimeAttributeDescriptor> rowtimeAttributeDescriptors,
 		Map<String, String> fieldMapping,
-		String topic,
+		KafkaTopicDescriptor kafkaTopicDescriptor,
 		Properties properties,
 		DeserializationSchema<Row> deserializationSchema,
 		StartupMode startupMode,
