@@ -259,9 +259,10 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	public void open(int taskNumber, int numTasks) throws IOException {
 		try {
 			StorageDescriptor sd = hiveTablePartition.getStorageDescriptor();
-			recordSerDe = (Serializer) Class.forName(sd.getSerdeInfo().getSerializationLib()).newInstance();
-			Preconditions.checkArgument(recordSerDe instanceof Deserializer,
-					"Expect to get a SerDe, but actually got " + recordSerDe.getClass().getName());
+			Object serdeLib = Class.forName(sd.getSerdeInfo().getSerializationLib()).newInstance();
+			Preconditions.checkArgument(serdeLib instanceof Serializer && serdeLib instanceof Deserializer,
+					"Expect a SerDe lib implementing both Serializer and Deserializer, but actually got " + serdeLib.getClass().getName());
+			recordSerDe = (Serializer) serdeLib;
 			ReflectionUtils.setConf(recordSerDe, jobConf);
 			// TODO: support partition properties, for now assume they're same as table properties
 			SerDeUtils.initializeSerDe((Deserializer) recordSerDe, jobConf, tableProperties, null);
