@@ -39,8 +39,6 @@ import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeUtil
 import org.apache.calcite.util.ImmutableBitSet
 
-import _root_.java.math.BigDecimal
-
 import _root_.scala.collection.JavaConversions._
 
 /**
@@ -247,11 +245,6 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       windowExpr: RexCall,
       windowExprIdx: Int,
       rowType: RelDataType): LogicalWindow = {
-    def getOperandAsLong(call: RexCall, idx: Int): Long =
-      call.getOperands.get(idx) match {
-        case v: RexLiteral => v.getValue.asInstanceOf[BigDecimal].longValue()
-        case _ => throw new TableException("Only constant window descriptors are supported")
-      }
 
     val timeField = getTimeFieldReference(windowExpr.getOperands.get(0), windowExprIdx, rowType)
     val resultType = Some(fromDataTypeToLogicalType(timeField.getOutputDataType))
@@ -288,4 +281,9 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
       operand: RexNode,
       windowExprIdx: Int,
       rowType: RelDataType): FieldReferenceExpression
+
+  /**
+    * get operand value as Long type
+    */
+  def getOperandAsLong(call: RexCall, idx: Int): Long
 }

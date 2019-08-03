@@ -28,7 +28,9 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLog
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.logical.{LogicalAggregate, LogicalProject}
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.`type`.{SqlTypeFamily, SqlTypeName}
+
+import _root_.java.math.{BigDecimal => JBigDecimal}
 
 /**
   * Planner rule that transforms simple [[LogicalAggregate]] on a [[LogicalProject]]
@@ -83,6 +85,16 @@ class StreamLogicalWindowAggregateRule
         throw new ValidationException("Window can only be defined over a time attribute column.")
     }
   }
+
+  def getOperandAsLong(call: RexCall, idx: Int): Long =
+    call.getOperands.get(idx) match {
+      case v: RexLiteral if v.getTypeName.getFamily == SqlTypeFamily.INTERVAL_DAY_TIME =>
+        v.getValue.asInstanceOf[JBigDecimal].longValue()
+      case _: RexLiteral => throw new TableException(
+        "Window aggregate only support SECOND, MINUTE, HOUR, DAY as the time unit. " +
+          "MONTH and YEAR time unit are not supported yet.")
+      case _ => throw new TableException("Only constant window descriptors are supported.")
+    }
 }
 
 object StreamLogicalWindowAggregateRule {
