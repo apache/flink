@@ -507,4 +507,30 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(cou
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testTwoDistinctAggregateWithNonDistinctAgg[splitDistinctAggEnabled=true, aggPhaseEnforcer=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) FROM MyTable GROUP BY c]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[SUM($1)], EXPR$3=[COUNT(DISTINCT $2)])
++- LogicalProject(c=[$2], a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+GlobalGroupAggregate(groupBy=[c], partialFinalType=[FINAL], select=[c, SUM(sum$0) AS $f1, SUM(sum$1) AS $f2, $SUM0(count$2) AS $f3])
++- Exchange(distribution=[hash[c]])
+   +- IncrementalGroupAggregate(partialAggGrouping=[c, $f3, $f4], finalAggGrouping=[c], select=[c, SUM(distinct$0 sum$0) AS sum$0, SUM(sum$1) AS sum$1, COUNT(distinct$1 count$2) AS count$2])
+      +- Exchange(distribution=[hash[c, $f3, $f4]])
+         +- LocalGroupAggregate(groupBy=[c, $f3, $f4], partialFinalType=[PARTIAL], select=[c, $f3, $f4, SUM(distinct$0 a) FILTER $g_1 AS sum$0, SUM(a) FILTER $g_3 AS sum$1, COUNT(distinct$1 b) FILTER $g_2 AS count$2, DISTINCT(a) AS distinct$0, DISTINCT(b) AS distinct$1])
+            +- Calc(select=[a, b, c, $f3, $f4, =($e, 1) AS $g_1, =($e, 3) AS $g_3, =($e, 2) AS $g_2])
+               +- Expand(projects=[{a=[$0], b=[$1], c=[$2], $f3=[$3], $f4=[null], $e=[1]}, {a=[$0], b=[$1], c=[$2], $f3=[null], $f4=[$4], $e=[2]}, {a=[$0], b=[$1], c=[$2], $f3=[null], $f4=[null], $e=[3]}])
+                  +- Calc(select=[a, b, c, MOD(HASH_CODE(a), 1024) AS $f3, MOD(HASH_CODE(b), 1024) AS $f4])
+                     +- WatermarkAssigner(fields=[a, b, c], miniBatchInterval=[Proctime, 1000ms])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
 </Root>

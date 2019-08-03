@@ -524,7 +524,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
           case agg: StreamExecGlobalGroupAggregate
             if agg.globalAggInfoList.getActualAggregateCalls.length > aggCallIndex =>
             val aggCallIndexInLocalAgg = getAggCallIndexInLocalAgg(
-              aggCallIndex, agg.globalAggInfoList.getActualAggregateCalls, agg.getInput.getRowType)
+              aggCallIndex, agg.globalAggInfoList.getActualAggregateCalls, agg.inputRowType)
             if (aggCallIndexInLocalAgg != null) {
               return fmq.getColumnInterval(agg.getInput, groupSet.length + aggCallIndexInLocalAgg)
             } else {
