@@ -32,20 +32,7 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_VERSION;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_KEY;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_PROPERTIES_VALUE;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_CLASS;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_VALUE_CUSTOM;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_VALUE_FIXED;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SINK_PARTITIONER_VALUE_ROUND_ROBIN;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_OFFSET;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_SPECIFIC_OFFSETS_PARTITION;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_STARTUP_MODE;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TOPIC;
-import static org.apache.flink.table.descriptors.KafkaValidator.CONNECTOR_TYPE_VALUE_KAFKA;
+import static org.apache.flink.table.descriptors.KafkaValidator.*;
 
 /**
  * Connector descriptor for the Apache Kafka message queue.
@@ -54,6 +41,8 @@ public class Kafka extends ConnectorDescriptor {
 
 	private String version;
 	private String topic;
+	private String topics;
+	private String subscriptionPattern;
 	private StartupMode startupMode;
 	private Map<Integer, Long> specificOffsets;
 	private Map<String, String> kafkaProperties;
@@ -86,6 +75,28 @@ public class Kafka extends ConnectorDescriptor {
 	public Kafka topic(String topic) {
 		Preconditions.checkNotNull(topic);
 		this.topic = topic;
+		return this;
+	}
+
+	/**
+	 * Set the topics from which the table is read.
+	 *
+	 * @param topics The topics from which the table is read.
+	 */
+	public Kafka topics(String... topics) {
+		Preconditions.checkNotNull(topics);
+		this.topics = String.join(",", topics);
+		return this;
+	}
+
+	/**
+	 * Set the regex pattern of topics from which the table is read.
+	 *
+	 * @param subscriptionPattern The regex pattern of topics from which the table is read.
+	 */
+	public Kafka subscriptionPattern(String subscriptionPattern) {
+		Preconditions.checkNotNull(subscriptionPattern);
+		this.subscriptionPattern = subscriptionPattern;
 		return this;
 	}
 
@@ -256,6 +267,14 @@ public class Kafka extends ConnectorDescriptor {
 
 		if (topic != null) {
 			properties.putString(CONNECTOR_TOPIC, topic);
+		}
+
+		if (topics != null) {
+			properties.putString(CONNECTOR_TOPICS, topics);
+		}
+
+		if (subscriptionPattern != null) {
+			properties.putString(CONNECTOR_SUBSCRIPTION_PATTERN, subscriptionPattern);
 		}
 
 		if (startupMode != null) {

@@ -31,7 +31,7 @@ import static org.apache.flink.table.descriptors.DescriptorProperties.noValidati
  * The validator for {@link Kafka}.
  */
 @Internal
-public class KafkaValidator extends ConnectorDescriptorValidator {
+public abstract class KafkaValidator extends ConnectorDescriptorValidator {
 
 	public static final String CONNECTOR_TYPE_VALUE_KAFKA = "kafka";
 	public static final String CONNECTOR_VERSION_VALUE_08 = "0.8";
@@ -40,6 +40,8 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_VERSION_VALUE_011 = "0.11";
 	public static final String CONNECTOR_VERSION_VALUE_UNIVERSAL = "universal";
 	public static final String CONNECTOR_TOPIC = "connector.topic";
+	public static final String CONNECTOR_TOPICS = "connector.topics";
+	public static final String CONNECTOR_SUBSCRIPTION_PATTERN = "connector.subscription-pattern";
 	public static final String CONNECTOR_STARTUP_MODE = "connector.startup-mode";
 	public static final String CONNECTOR_STARTUP_MODE_VALUE_EARLIEST = "earliest-offset";
 	public static final String CONNECTOR_STARTUP_MODE_VALUE_LATEST = "latest-offset";
@@ -62,7 +64,7 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 		super.validate(properties);
 		properties.validateValue(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_KAFKA, false);
 
-		properties.validateString(CONNECTOR_TOPIC, false, 1, Integer.MAX_VALUE);
+		validateTopicSetting(properties);
 
 		validateStartupMode(properties);
 
@@ -70,6 +72,11 @@ public class KafkaValidator extends ConnectorDescriptorValidator {
 
 		validateSinkPartitioner(properties);
 	}
+
+	/**
+	 * Different validate rules for Kafka consumer or producer.
+	 */
+	public abstract void validateTopicSetting(DescriptorProperties properties);
 
 	private void validateStartupMode(DescriptorProperties properties) {
 		final Map<String, Consumer<String>> specificOffsetValidators = new HashMap<>();
