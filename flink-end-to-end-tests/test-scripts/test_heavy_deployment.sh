@@ -25,7 +25,10 @@ TEST=flink-heavy-deployment-stress-test
 TEST_PROGRAM_NAME=HeavyDeploymentStressTestProgram
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/$TEST/target/$TEST_PROGRAM_NAME.jar
 
-set_config_key "taskmanager.heap.size" "512m" # 512Mb x 10TMs = 5Gb total heap
+set_config_key "containerized.heap-cutoff-min" "100"
+
+set_config_key "jobmanager.heap.size" "2048m"
+set_config_key "taskmanager.heap.size" "1024m" # 1024Mb x 10TMs = 10Gb total heap
 
 set_config_key "taskmanager.memory.size" "8" # 8Mb
 set_config_key "taskmanager.network.memory.min" "8mb"
