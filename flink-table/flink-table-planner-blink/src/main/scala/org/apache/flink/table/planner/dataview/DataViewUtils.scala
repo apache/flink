@@ -24,7 +24,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview._
 import org.apache.flink.table.dataformat.{BinaryGeneric, GenericRow}
 import org.apache.flink.table.dataview.{ListViewTypeInfo, MapViewTypeInfo}
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.{AggregateFunction, UserDefinedAggregateFunction}
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.DataType
@@ -49,7 +49,7 @@ object DataViewUtils {
     */
   def useNullSerializerForStateViewFieldsFromAccType(
       index: Int,
-      aggFun: AggregateFunction[_, _],
+      aggFun: UserDefinedAggregateFunction[_, _],
       externalAccType: DataType,
       isStateBackedDataViews: Boolean): (DataType, Array[DataViewSpec]) = {
 

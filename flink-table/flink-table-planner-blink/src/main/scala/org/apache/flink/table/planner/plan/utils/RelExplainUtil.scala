@@ -329,11 +329,16 @@ object RelExplainUtil {
       stringifyAggregates(aggInfos, distinctAggs, aggFilters, inFieldNames)
     }
 
+    val isTableAggregate =
+      AggregateUtil.isTableAggregate(aggInfoList.getActualAggregateCalls.toList)
     val outputFieldNames = if (isLocal) {
       grouping.map(inFieldNames(_)) ++ localAggOutputFieldNames(aggOffset, aggInfos, outFieldNames)
     } else if (isIncremental) {
       val accFieldNames = inputRowType.getFieldNames.toList.toArray
       grouping.map(inFieldNames(_)) ++ localAggOutputFieldNames(aggOffset, aggInfos, accFieldNames)
+    } else if (isTableAggregate) {
+      outFieldNames.toList.subList(0, grouping.length).toArray ++
+        Seq(s"(${outFieldNames.drop(grouping.length).mkString(", ")})")
     } else {
       outFieldNames
     }

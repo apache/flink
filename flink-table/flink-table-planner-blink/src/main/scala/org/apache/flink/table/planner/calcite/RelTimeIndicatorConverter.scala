@@ -133,6 +133,15 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         aggregate.getNamedProperties,
         convAggregate)
 
+    case tableAggregate: LogicalTableAggregate =>
+      val correspondingAggregate = LogicalAggregate.create(
+        tableAggregate.getInput,
+        tableAggregate.getGroupSet,
+        tableAggregate.getGroupSets,
+        tableAggregate.getAggCallList)
+      val convAggregate = convertAggregate(correspondingAggregate)
+      LogicalTableAggregate.create(convAggregate)
+
     case watermarkAssigner: LogicalWatermarkAssigner =>
       watermarkAssigner
 

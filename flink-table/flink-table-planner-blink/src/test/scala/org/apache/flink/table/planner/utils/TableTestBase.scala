@@ -38,7 +38,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.ComponentFactoryService
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserFunctionsTypeHelper}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableAggregateFunction, TableFunction, UserDefinedAggregateFunction, UserFunctionsTypeHelper}
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, QueryOperation}
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.delegation.PlannerBase
@@ -549,6 +549,15 @@ abstract class TableTestUtil(
       name: String,
       function: AggregateFunction[T, ACC]): Unit = testingTableEnv.registerFunction(name, function)
 
+  /**
+    * Registers a [[TableAggregateFunction]] under given name into the TableEnvironment's catalog.
+    */
+  def addFunction[T: TypeInformation, ACC: TypeInformation](
+      name: String,
+      function: TableAggregateFunction[T, ACC]): Unit = {
+    testingTableEnv.registerFunction(name, function)
+  }
+
   def verifyPlan(): Unit = {
     doVerifyPlan(
       SqlExplainLevel.EXPPLAN_ATTRIBUTES,
@@ -616,6 +625,13 @@ abstract class ScalaTableTestUtil(
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
+
+  /**
+    * Registers a [[TableAggregateFunction]] under given name into the TableEnvironment's catalog.
+    */
+  def addFunction[T: TypeInformation, ACC: TypeInformation](
+      name: String,
+      function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 }
 
 abstract class JavaTableTestUtil(
@@ -645,6 +661,13 @@ abstract class JavaTableTestUtil(
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
+
+  /**
+    * Registers a [[TableAggregateFunction]] under given name into the TableEnvironment's catalog.
+    */
+  def addFunction[T: TypeInformation, ACC: TypeInformation](
+      name: String,
+      function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 }
 
 /**
@@ -902,6 +925,21 @@ class TestingTableEnvironment private(
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       f: AggregateFunction[T, ACC]): Unit = {
+    registerUserDefinedAggregateFunction(name, f)
+  }
+
+  // just for testing, remove this method while
+  // `<T, ACC> void registerFunction(String name, TableAggregateFunction<T, ACC> tableAggFunc);`
+  // is added into TableEnvironment
+  def registerFunction[T: TypeInformation, ACC: TypeInformation](
+      name: String,
+      f: TableAggregateFunction[T, ACC]): Unit = {
+    registerUserDefinedAggregateFunction(name, f)
+  }
+
+  private def registerUserDefinedAggregateFunction[T: TypeInformation, ACC: TypeInformation](
+      name: String,
+      f: UserDefinedAggregateFunction[T, ACC]): Unit = {
     val typeInfo = UserFunctionsTypeHelper
       .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
     val accTypeInfo = UserFunctionsTypeHelper
