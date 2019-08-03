@@ -86,6 +86,18 @@ class WindowAggregateTest extends TableTestBase {
   }
 
   @Test
+  def testWindowWrongWindowParameter(): Unit = {
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage(
+      "Only constant window intervals with millisecond resolution are supported")
+
+    val sqlQuery =
+      "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, INTERVAL '2-10' YEAR TO MONTH)"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
   def testTumbleFunction(): Unit = {
     val sql =
       """
