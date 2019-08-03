@@ -24,7 +24,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.dataview._
 import org.apache.flink.table.dataformat.{BinaryGeneric, GenericRow}
 import org.apache.flink.table.dataview.{ListViewTypeInfo, MapViewTypeInfo}
-import org.apache.flink.table.functions.{AggregateFunction, UserDefinedAggregateFunction}
+import org.apache.flink.table.functions.UserDefinedAggregateFunction
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.DataType
@@ -41,7 +41,7 @@ object DataViewUtils {
     * Use NullSerializer for StateView fields from accumulator type information.
     *
     * @param index index of aggregate function
-    * @param aggFun aggregate function
+    * @param aggFun aggregate or table aggregate function
     * @param externalAccType accumulator type information, only support pojo type
     * @param isStateBackedDataViews is data views use state backend
     * @return mapping of accumulator type information and data view config which contains id,

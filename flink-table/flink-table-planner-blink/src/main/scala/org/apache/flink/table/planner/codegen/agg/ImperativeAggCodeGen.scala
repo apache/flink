@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow, UpdatableRow}
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.functions.AggregateFunction
+import org.apache.flink.table.functions.UserDefinedAggregateFunction
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
@@ -34,6 +34,7 @@ import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDat
 import org.apache.flink.table.runtime.types.{ClassDataTypeConverter, PlannerTypeUtils}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
+import org.apache.flink.util.Collector
 
 import org.apache.calcite.tools.RelBuilder
 
@@ -79,7 +80,7 @@ class ImperativeAggCodeGen(
   private val SINGLE_ITERABLE = className[SingleElementIterator[_]]
   private val UPDATABLE_ROW = className[UpdatableRow]
 
-  val function: AggregateFunction[_, _] = aggInfo.function.asInstanceOf[AggregateFunction[_, _]]
+  val function = aggInfo.function.asInstanceOf[UserDefinedAggregateFunction[_, _]]
   val functionTerm: String = ctx.addReusableFunction(
     function,
     contextTerm = s"$STORE_TERM.getRuntimeContext()")
@@ -441,7 +442,8 @@ class ImperativeAggCodeGen(
       needAccumulate: Boolean = false,
       needRetract: Boolean = false,
       needMerge: Boolean = false,
-      needReset: Boolean = false): Unit = {
+      needReset: Boolean = false,
+      needEmitValue: Boolean = false): Unit = {
 
     val methodSignatures = internalTypesToClasses(argTypes)
 
@@ -503,5 +505,22 @@ class ImperativeAggCodeGen(
               s"aggregate ${function.getClass.getCanonicalName}'.")
         )
     }
+
+    if (needEmitValue) {
+      val collectorDataType = ClassDataTypeConverter.fromClassToDataType(classOf[Collector[_]])
+      getUserDefinedMethod(function, "emitValue", Array(externalAccType, collectorDataType))
+        .getOrElse(
+          throw new CodeGenException(
+            s"No matching emitValue method found for " +
+              s"table aggregate ${function.getClass.getCanonicalName}'.")
+        )
+    }
+  }
+
+  def emitValue: String = {
+    val accTerm = if (isAccTypeInternal) accInternalTerm else accExternalTerm
+    s"""
+       |$functionTerm.emitValue($accTerm, $MEMBER_COLLECTOR_TERM);
+    """.stripMargin
   }
 }

@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.codegen.agg
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.GenericRow
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{BASE_ROW, _}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen._
@@ -30,11 +29,13 @@ import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, Pla
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.runtime.dataview.{StateListView, StateMapView}
-import org.apache.flink.table.runtime.generated.{AggsHandleFunction, GeneratedAggsHandleFunction, GeneratedNamespaceAggsHandleFunction, NamespaceAggsHandleFunction}
+import org.apache.flink.table.runtime.generated.{AggsHandleFunction, GeneratedAggsHandleFunction, GeneratedNamespaceAggsHandleFunction, GeneratedTableAggsHandleFunction, NamespaceAggsHandleFunction}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{BooleanType, IntType, LogicalType, RowType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+import org.apache.flink.table.functions.UserDefinedAggregateFunction
+import org.apache.flink.util.Collector
 
 import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
@@ -221,7 +222,7 @@ class AggsHandlerCodeGenerator(
             inputFieldTypes,
             constantExprs,
             relBuilder)
-        case _: AggregateFunction[_, _] =>
+        case _: UserDefinedAggregateFunction[_, _] =>
           new ImperativeAggCodeGen(
             ctx,
             aggInfo,
@@ -395,6 +396,146 @@ class AggsHandlerCodeGenerator(
       """.stripMargin
 
     new GeneratedAggsHandleFunction(functionName, functionCode, ctx.references.toArray)
+  }
+
+  /**
+    * Generate [[GeneratedTableAggsHandleFunction]] with the given function name and aggregate
+    * infos.
+    */
+  def generateTableAggsHandler(
+    name: String,
+    aggInfoList: AggregateInfoList): GeneratedTableAggsHandleFunction = {
+
+    initialAggregateInformation(aggInfoList)
+
+    // generates all methods body first to add necessary reuse code to context
+    val createAccumulatorsCode = genCreateAccumulators()
+    val getAccumulatorsCode = genGetAccumulators()
+    val setAccumulatorsCode = genSetAccumulators()
+    val resetAccumulatorsCode = genResetAccumulators()
+    val accumulateCode = genAccumulate()
+    val retractCode = genRetract()
+    val mergeCode = genMerge()
+    val emitValueCode = genEmitValue()
+
+    // gen converter
+    val aggExternalType = aggInfoList.getActualAggregateInfos(0).externalResultType
+    val collectorInputName = newName("collectorInput")
+    val converterCode = CodeGenUtils.genToInternal(ctx, aggExternalType, collectorInputName)
+
+    val functionName = newName(name)
+    val functionCode =
+      j"""
+        public final class $functionName implements $TABLE_AGGS_HANDLER_FUNCTION {
+
+          ${ctx.reuseMemberCode()}
+          private $CONVERT_COLLECTOR_TYPE_TERM $MEMBER_COLLECTOR_TERM;
+
+          public $functionName(java.lang.Object[] references) throws Exception {
+            ${ctx.reuseInitCode()}
+            $MEMBER_COLLECTOR_TERM = new $CONVERT_COLLECTOR_TYPE_TERM(references);
+          }
+
+          @Override
+          public void open($STATE_DATA_VIEW_STORE store) throws Exception {
+            ${ctx.reuseOpenCode()}
+          }
+
+          @Override
+          public void accumulate($BASE_ROW $ACCUMULATE_INPUT_TERM) throws Exception {
+            $accumulateCode
+          }
+
+          @Override
+          public void retract($BASE_ROW $RETRACT_INPUT_TERM) throws Exception {
+            $retractCode
+          }
+
+          @Override
+          public void merge($BASE_ROW $MERGED_ACC_TERM) throws Exception {
+            $mergeCode
+          }
+
+          @Override
+          public void setAccumulators($BASE_ROW $ACC_TERM) throws Exception {
+            $setAccumulatorsCode
+          }
+
+          @Override
+          public void resetAccumulators() throws Exception {
+            $resetAccumulatorsCode
+          }
+
+          @Override
+          public $BASE_ROW getAccumulators() throws Exception {
+            $getAccumulatorsCode
+          }
+
+          @Override
+          public $BASE_ROW createAccumulators() throws Exception {
+            $createAccumulatorsCode
+          }
+
+          @Override
+          public void emitValue(
+            $COLLECTOR<$BASE_ROW> $COLLECTOR_TERM, $BASE_ROW key, boolean isRetract)
+            throws Exception {
+
+            $MEMBER_COLLECTOR_TERM.$COLLECTOR_TERM = $COLLECTOR_TERM;
+            $MEMBER_COLLECTOR_TERM.reset(key, isRetract);
+            $emitValueCode
+          }
+
+          @Override
+          public void cleanup() throws Exception {
+            ${ctx.reuseCleanupCode()}
+          }
+
+          @Override
+          public void close() throws Exception {
+            ${ctx.reuseCloseCode()}
+          }
+
+          private class $CONVERT_COLLECTOR_TYPE_TERM implements $COLLECTOR {
+            public $COLLECTOR<$BASE_ROW> $COLLECTOR_TERM;
+            private $BASE_ROW key;
+            private $JOINED_ROW result;
+            private boolean isRetract = false;
+            private static final byte ACCUMULATE_MSG = 0;
+            private static final byte RETRACT_MSG = 1;
+            ${ctx.reuseMemberCode()}
+
+            public $CONVERT_COLLECTOR_TYPE_TERM(java.lang.Object[] references) throws Exception {
+              ${ctx.reuseInitCode()}
+              result = new $JOINED_ROW();
+            }
+
+            public void reset($BASE_ROW key, boolean isRetract) {
+              this.key = key;
+              this.isRetract = isRetract;
+            }
+
+            @Override
+            public void collect(Object $collectorInputName) throws Exception {
+              $BASE_ROW tempBaseRow = $converterCode;
+              result.replace(key, tempBaseRow);
+              if (isRetract) {
+                result.setHeader(RETRACT_MSG);
+              } else {
+                result.setHeader(ACCUMULATE_MSG);
+              }
+              $COLLECTOR_TERM.collect(result);
+            }
+
+            @Override
+            public void close() {
+              $COLLECTOR_TERM.close();
+            }
+          }
+        }
+      """.stripMargin
+
+    new GeneratedTableAggsHandleFunction(functionName, functionCode, ctx.references.toArray)
   }
 
   /**
@@ -700,14 +841,21 @@ class AggsHandlerCodeGenerator(
     """.stripMargin
   }
 
+  private def genEmitValue(): String = {
+    // validation check
+    checkNeededMethods(needEmitValue = true)
+    aggBufferCodeGens(0).asInstanceOf[ImperativeAggCodeGen].emitValue
+  }
+
   private def checkNeededMethods(
       needAccumulate: Boolean = false,
       needRetract: Boolean = false,
       needMerge: Boolean = false,
-      needReset: Boolean = false): Unit = {
+      needReset: Boolean = false,
+      needEmitValue: Boolean = false): Unit = {
     // check and validate the needed methods
-    aggBufferCodeGens
-        .foreach(_.checkNeededMethods(needAccumulate, needRetract, needMerge, needReset))
+    aggBufferCodeGens.foreach(
+      _.checkNeededMethods(needAccumulate, needRetract, needMerge, needReset, needEmitValue))
   }
 
   private def genThrowException(msg: String): String = {
@@ -728,6 +876,11 @@ object AggsHandlerCodeGenerator {
 
   val NAMESPACE_TERM = "namespace"
   val STORE_TERM = "store"
+
+  val COLLECTOR: String = className[Collector[_]]
+  val COLLECTOR_TERM = "out"
+  val MEMBER_COLLECTOR_TERM = "convertCollector"
+  val CONVERT_COLLECTOR_TYPE_TERM = "ConvertCollector"
 
   val INPUT_NOT_NULL = false
 

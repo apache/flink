@@ -20,16 +20,24 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import java.util
 
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.streaming.api.operators.KeyedProcessOperator
+import org.apache.flink.streaming.api.transformations.OneInputTransformation
 import org.apache.flink.table.dataformat.BaseRow
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
-import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, KeySelectorUtil, RelExplainUtil}
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.flink.table.runtime.operators.aggregate.GroupTableAggFunction
 
 import scala.collection.JavaConversions._
 
@@ -121,7 +129,60 @@ class StreamExecGroupTableAggregate(
     val inputTransformation = getInputNodes.get(0).translateToPlan(planner)
       .asInstanceOf[Transformation[BaseRow]]
 
-    // TODO: only for plan test. Will add the detailed implementation in the next commit.
-    inputTransformation
+    val outRowType = FlinkTypeFactory.toLogicalRowType(outputRowType)
+    val inputRowType = FlinkTypeFactory.toLogicalRowType(getInput.getRowType)
+
+    val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
+    val needRetraction = StreamExecRetractionRules.isAccRetract(getInput)
+
+    val generator = new AggsHandlerCodeGenerator(
+      CodeGeneratorContext(tableConfig),
+      planner.getRelBuilder,
+      inputRowType.getChildren,
+      // TODO: heap state backend do not copy key currently, we have to copy input field
+      // TODO: copy is not need when state backend is rocksdb, improve this in future
+      // TODO: but other operators do not copy this input field.....
+      copyInputField = true)
+
+    if (needRetraction) {
+      generator.needRetract()
+    }
+
+    val aggsHandler = generator
+      .needAccumulate()
+      .generateTableAggsHandler("GroupTableAggHandler", aggInfoList)
+
+    val accTypes = aggInfoList.getAccTypes.map(fromDataTypeToLogicalType)
+    val inputCountIndex = aggInfoList.getIndexOfCountStar
+
+    val aggFunction = new GroupTableAggFunction(
+      tableConfig.getMinIdleStateRetentionTime,
+      tableConfig.getMaxIdleStateRetentionTime,
+      aggsHandler,
+      accTypes,
+      inputCountIndex,
+      generateRetraction)
+    val operator = new KeyedProcessOperator[BaseRow, BaseRow, BaseRow](aggFunction)
+
+    val selector = KeySelectorUtil.getBaseRowSelector(
+      grouping,
+      BaseRowTypeInfo.of(inputRowType))
+
+    // partitioned aggregation
+    val ret = new OneInputTransformation(
+      inputTransformation,
+      "GroupTableAggregate",
+      operator,
+      BaseRowTypeInfo.of(outRowType),
+      getResource.getParallelism)
+
+    if (getResource.getMaxParallelism > 0) {
+      ret.setMaxParallelism(getResource.getMaxParallelism)
+    }
+
+    // set KeyType and Selector for state
+    ret.setStateKeySelector(selector)
+    ret.setStateKeyType(selector.getProducedType)
+    ret
   }
 }

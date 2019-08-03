@@ -304,7 +304,8 @@ class DeclarativeAggCodeGen(
      needAccumulate: Boolean = false,
      needRetract: Boolean = false,
      needMerge: Boolean = false,
-     needReset: Boolean = false): Unit = {
+     needReset: Boolean = false,
+     needEmitValue: Boolean = false): Unit = {
     // skip the check for DeclarativeAggregateFunction for now
   }
 }
