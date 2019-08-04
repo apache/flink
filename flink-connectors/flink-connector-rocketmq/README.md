@@ -20,6 +20,11 @@ under the License.
 # Flink Connector for RocketMQ
 
 This module is a implementation for the message queue middleware 'RocketMQ'.The MQ now is belongs to ASF and born in Alibaba,You can refer to this module to make connection between Flink and RocketMQ cluster
+
+## Features
+* Connect RocketMQ cluster as a `DataSink` from Flink to produce message to RocketMQ cluster
+* Connect RocketMQ cluster as a `DataSource` from Flink to pull and consumer message from RocketMQ cluster
+
 ## Quick Start
 
 The `Example.java` can be used to learn how to use Flink to connect RocketMQ cluster.
