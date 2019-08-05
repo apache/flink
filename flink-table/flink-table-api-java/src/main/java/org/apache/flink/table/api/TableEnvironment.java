@@ -372,9 +372,9 @@ public interface TableEnvironment {
 	 *      b bigint,
 	 *      c varchar
 	 *    ) with (
-	 *      connector.type = 'filesystem',
-	 *      format.type = 'csv',
-	 *      connector.path = 'xxx'
+	 *      'connector.type' = 'filesystem',
+	 *      'format.type' = 'csv',
+	 *      'connector.path' = 'xxx'
 	 *    )
 	 * </pre></blockquote>
 	 *
@@ -385,20 +385,20 @@ public interface TableEnvironment {
 	 *                        a int,
 	 *                        b varchar
 	 *                      ) with (
-	 *                        connector.type = 'filesystem',
-	 *                        format.type = 'csv',
-	 *                        connector.path = 'xxx'
+	 *                        'connector.type' = 'filesystem',
+	 *                        'format.type' = 'csv',
+	 *                        'connector.path' = 'xxx'
 	 *                      )";
 	 *
 	 *    String sourceDDL ="create table sourceTable(
 	 *                        a int,
 	 *                        b varchar
 	 *                      ) with (
-	 *                        connector.type = 'kafka',
-	 *                        `update-mode` = 'append',
-	 *                        connector.topic = 'xxx',
-	 *                        connector.properties.0.key = 'k0',
-	 *                        connector.properties.0.value = 'v0',
+	 *                        'connector.type' = 'kafka',
+	 *                        'update-mode' = 'append',
+	 *                        'connector.topic' = 'xxx',
+	 *                        'connector.properties.0.key' = 'k0',
+	 *                        'connector.properties.0.value' = 'v0',
 	 *                        ...
 	 *                      )";
 	 *
