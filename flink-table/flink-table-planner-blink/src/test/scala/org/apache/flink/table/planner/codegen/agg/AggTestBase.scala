@@ -71,6 +71,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
     when(aggInfo, "externalAccTypes").thenReturn(Array(DataTypes.BIGINT, DataTypes.BIGINT))
     when(aggInfo, "argIndexes").thenReturn(Array(1))
     when(aggInfo, "aggIndex").thenReturn(0)
+    when(aggInfo, "externalResultType").thenReturn(DataTypes.BIGINT)
     aggInfo
   }
 
@@ -83,6 +84,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
     when(aggInfo, "externalAccTypes").thenReturn(Array(DataTypes.DOUBLE, DataTypes.BIGINT))
     when(aggInfo, "argIndexes").thenReturn(Array(2))
     when(aggInfo, "aggIndex").thenReturn(1)
+    when(aggInfo, "externalResultType").thenReturn(DataTypes.DOUBLE)
     aggInfo
   }
 

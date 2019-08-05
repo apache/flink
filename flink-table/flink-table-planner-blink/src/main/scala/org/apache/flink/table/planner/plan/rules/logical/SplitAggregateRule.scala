@@ -27,7 +27,6 @@ import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.doAllAggSupportSplit
 import org.apache.flink.table.planner.plan.utils.ExpandUtil
-
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -37,8 +36,10 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.fun.{SqlMinMaxAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.calcite.util.{ImmutableBitSet, ImmutableIntList}
-
+import java.math.{BigDecimal => JBigDecimal}
 import java.util
+
+import org.apache.calcite.sql.`type`.SqlTypeName
 
 import scala.collection.JavaConversions._
 
@@ -303,7 +304,19 @@ class SplitAggregateRule extends RelOptRule(
             aggGroupCount + index + avgAggCount + 1,
             finalAggregate.getRowType)
           avgAggCount += 1
-          relBuilder.call(FlinkSqlOperatorTable.DIVIDE, sumInputRef, countInputRef)
+          // TODO
+          val equals = relBuilder.call(
+            FlinkSqlOperatorTable.EQUALS,
+            countInputRef,
+            relBuilder.getRexBuilder.makeBigintLiteral(JBigDecimal.valueOf(0)))
+          val falseT = relBuilder.call(FlinkSqlOperatorTable.DIVIDE, sumInputRef, countInputRef)
+          val trueT = relBuilder.cast(
+            relBuilder.getRexBuilder.constantNull(), aggCall.`type`.getSqlTypeName)
+          relBuilder.call(
+            FlinkSqlOperatorTable.IF,
+            equals,
+            trueT,
+            falseT)
         } else {
           RexInputRef.of(aggGroupCount + index + avgAggCount, finalAggregate.getRowType)
         }

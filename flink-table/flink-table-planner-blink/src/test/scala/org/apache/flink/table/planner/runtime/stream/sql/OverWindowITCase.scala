@@ -594,19 +594,19 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     env.execute()
 
     val expected = List(
-      s"1,1,Hello,0,6,3,${6.0/3},3,1",
-      s"1,2,Hello,0,6,3,${6.0/3},3,1",
-      s"1,3,Hello world,0,6,3,${6.0/3},3,1",
-      s"1,1,Hi,0,7,4,${7.0/4},3,1",
-      s"2,1,Hello,0,1,1,${1.0/1},1,1",
-      s"2,2,Hello world,0,6,3,${6.0/3},3,1",
-      s"2,3,Hello world,0,6,3,${6.0/3},3,1",
-      s"1,4,Hello world,0,11,5,${11.0/5},4,1",
-      s"1,5,Hello world,3,29,8,${29.0/8},7,1",
-      s"1,6,Hello world,3,29,8,${29.0/8},7,1",
-      s"1,7,Hello world,3,29,8,${29.0/8},7,1",
-      s"2,4,Hello world,1,15,5,${15.0/5},5,1",
-      s"2,5,Hello world,1,15,5,${15.0/5},5,1")
+      s"1,1,Hello,0,6,3,${6/3},3,1",
+      s"1,2,Hello,0,6,3,${6/3},3,1",
+      s"1,3,Hello world,0,6,3,${6/3},3,1",
+      s"1,1,Hi,0,7,4,${7/4},3,1",
+      s"2,1,Hello,0,1,1,${1/1},1,1",
+      s"2,2,Hello world,0,6,3,${6/3},3,1",
+      s"2,3,Hello world,0,6,3,${6/3},3,1",
+      s"1,4,Hello world,0,11,5,${11/5},4,1",
+      s"1,5,Hello world,3,29,8,${29/8},7,1",
+      s"1,6,Hello world,3,29,8,${29/8},7,1",
+      s"1,7,Hello world,3,29,8,${29/8},7,1",
+      s"2,4,Hello world,1,15,5,${15/5},5,1",
+      s"2,5,Hello world,1,15,5,${15/5},5,1")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -659,20 +659,20 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     env.execute()
 
     val expected = mutable.MutableList(
-      s"1,2,Hello,0,2,1,${2.0/1},2,2",
-      s"1,3,Hello world,0,5,2,${5.0/2},3,2",
-      s"1,1,Hi,0,6,3,${6.0/3},3,1",
-      s"2,1,Hello,0,1,1,${1.0/1},1,1",
-      s"2,2,Hello world,0,3,2,${3.0/2},2,1",
-      s"3,1,Hello,0,1,1,${1.0/1},1,1",
-      s"3,2,Hello world,0,3,2,${3.0/2},2,1",
-      s"1,5,Hello world,1,11,4,${11.0/4},5,1",
-      s"1,6,Hello world,2,17,5,${17.0/5},6,1",
-      s"1,9,Hello world,3,26,6,${26.0/6},9,1",
-      s"1,8,Hello world,4,34,7,${34.0/7},9,1",
-      s"1,7,Hello world,5,41,8,${41.0/8},9,1",
-      s"2,5,Hello world,1,8,3,${8.0/3},5,1",
-      s"3,5,Hello world,1,8,3,${8.0/3},5,1")
+      s"1,2,Hello,0,2,1,${2/1},2,2",
+      s"1,3,Hello world,0,5,2,${5/2},3,2",
+      s"1,1,Hi,0,6,3,${6/3},3,1",
+      s"2,1,Hello,0,1,1,${1/1},1,1",
+      s"2,2,Hello world,0,3,2,${3/2},2,1",
+      s"3,1,Hello,0,1,1,${1/1},1,1",
+      s"3,2,Hello world,0,3,2,${3/2},2,1",
+      s"1,5,Hello world,1,11,4,${11/4},5,1",
+      s"1,6,Hello world,2,17,5,${17/5},6,1",
+      s"1,9,Hello world,3,26,6,${26/6},9,1",
+      s"1,8,Hello world,4,34,7,${34/7},9,1",
+      s"1,7,Hello world,5,41,8,${41/8},9,1",
+      s"2,5,Hello world,1,8,3,${8/3},5,1",
+      s"3,5,Hello world,1,8,3,${8/3},5,1")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -715,19 +715,19 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     env.execute()
 
     val expected = List(
-      s"2,1,Hello,1,1,${1.0/1},1,1",
-      s"1,1,Hello,7,4,${7.0/4},3,1",
-      s"1,2,Hello,7,4,${7.0/4},3,1",
-      s"1,3,Hello world,7,4,${7.0/4},3,1",
-      s"2,2,Hello world,12,6,${12.0/6},3,1",
-      s"2,3,Hello world,12,6,${12.0/6},3,1",
-      s"1,1,Hi,13,7,${13.0/7},3,1",
-      s"1,4,Hello world,17,8,${17.0/8},4,1",
-      s"1,5,Hello world,35,11,${35.0/11},7,1",
-      s"1,6,Hello world,35,11,${35.0/11},7,1",
-      s"1,7,Hello world,35,11,${35.0/11},7,1",
-      s"2,4,Hello world,44,13,${44.0/13},7,1",
-      s"2,5,Hello world,44,13,${44.0/13},7,1")
+      s"2,1,Hello,1,1,${1/1},1,1",
+      s"1,1,Hello,7,4,${7/4},3,1",
+      s"1,2,Hello,7,4,${7/4},3,1",
+      s"1,3,Hello world,7,4,${7/4},3,1",
+      s"2,2,Hello world,12,6,${12/6},3,1",
+      s"2,3,Hello world,12,6,${12/6},3,1",
+      s"1,1,Hi,13,7,${13/7},3,1",
+      s"1,4,Hello world,17,8,${17/8},4,1",
+      s"1,5,Hello world,35,11,${35/11},7,1",
+      s"1,6,Hello world,35,11,${35/11},7,1",
+      s"1,7,Hello world,35,11,${35/11},7,1",
+      s"2,4,Hello world,44,13,${44/13},7,1",
+      s"2,5,Hello world,44,13,${44/13},7,1")
 
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
@@ -770,14 +770,14 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     env.execute()
 
     val expected = mutable.MutableList(
-      s"2,2,Hello,2,1,${2.0/1},2,2",
-      s"3,5,Hello,7,2,${7.0/2},5,2",
-      s"1,3,Hello,10,3,${10.0/3},5,2",
-      s"3,7,Hello world,17,4,${17.0/4},7,2",
-      s"1,1,Hi,18,5,${18.0/5},7,1",
-      s"4,9,Hello world,27,6,${27.0/6},9,1",
-      s"5,8,Hello world,35,7,${35.0/7},9,1",
-      s"6,8,Hello world,43,8,${43.0/8},9,1")
+      s"2,2,Hello,2,1,${2/1},2,2",
+      s"3,5,Hello,7,2,${7/2},5,2",
+      s"1,3,Hello,10,3,${10/3},5,2",
+      s"3,7,Hello world,17,4,${17/4},7,2",
+      s"1,1,Hi,18,5,${18/5},7,1",
+      s"4,9,Hello world,27,6,${27/6},9,1",
+      s"5,8,Hello world,35,7,${35/7},9,1",
+      s"6,8,Hello world,43,8,${43/8},9,1")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }
 
@@ -837,20 +837,20 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     env.execute()
 
     val expected = List(
-      s"1,2,Hello,2,1,${2.0/1},2,2",
-      s"1,3,Hello world,5,2,${5.0/2},3,2",
-      s"1,1,Hi,6,3,${6.0/3},3,1",
-      s"2,1,Hello,1,1,${1.0/1},1,1",
-      s"2,2,Hello world,3,2,${3.0/2},2,1",
-      s"3,1,Hello,1,1,${1.0/1},1,1",
-      s"3,2,Hello world,3,2,${3.0/2},2,1",
-      s"1,5,Hello world,11,4,${11.0/4},5,1",
-      s"1,6,Hello world,17,5,${17.0/5},6,1",
-      s"1,9,Hello world,26,6,${26.0/6},9,1",
-      s"1,8,Hello world,34,7,${34.0/7},9,1",
-      s"1,7,Hello world,41,8,${41.0/8},9,1",
-      s"2,5,Hello world,8,3,${8.0/3},5,1",
-      s"3,5,Hello world,8,3,${8.0/3},5,1"
+      s"1,2,Hello,2,1,${2/1},2,2",
+      s"1,3,Hello world,5,2,${5/2},3,2",
+      s"1,1,Hi,6,3,${6/3},3,1",
+      s"2,1,Hello,1,1,${1/1},1,1",
+      s"2,2,Hello world,3,2,${3/2},2,1",
+      s"3,1,Hello,1,1,${1/1},1,1",
+      s"3,2,Hello world,3,2,${3/2},2,1",
+      s"1,5,Hello world,11,4,${11/4},5,1",
+      s"1,6,Hello world,17,5,${17/5},6,1",
+      s"1,9,Hello world,26,6,${26/6},9,1",
+      s"1,8,Hello world,34,7,${34/7},9,1",
+      s"1,7,Hello world,41,8,${41/8},9,1",
+      s"2,5,Hello world,8,3,${8/3},5,1",
+      s"3,5,Hello world,8,3,${8/3},5,1"
     )
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }

@@ -27,8 +27,8 @@ import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregat
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.LogicalType
-
 import org.apache.calcite.tools.RelBuilder
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 
 import scala.collection.JavaConverters._
 
@@ -204,8 +204,13 @@ class DeclarativeAggCodeGen(
   }
 
   def getValue(generator: ExprCodeGenerator): GeneratedExpression = {
-    val resolvedGetValueExpression = function.getValueExpression
+    val expr = function.getValueExpression
       .accept(ResolveReference())
+    val resolvedGetValueExpression = ApiExpressionUtils.unresolvedCall(
+      BuiltInFunctionDefinitions.CAST,
+      expr,
+      ApiExpressionUtils.typeLiteral(aggInfo.externalResultType)
+    )
     generator.generateExpression(resolvedGetValueExpression.accept(rexNodeGen))
   }
 

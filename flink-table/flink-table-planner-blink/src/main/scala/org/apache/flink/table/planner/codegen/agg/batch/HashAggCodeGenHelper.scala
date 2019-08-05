@@ -23,7 +23,7 @@ import org.apache.flink.metrics.Gauge
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, GenericRow, JoinedRow}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils
 import org.apache.flink.table.expressions.{Expression, ExpressionVisitor, FieldReferenceExpression, TypeLiteralExpression, UnresolvedCallExpression, UnresolvedReferenceExpression, ValueLiteralExpression, _}
-import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
+import org.apache.flink.table.functions.{AggregateFunction, BuiltInFunctionDefinitions, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{binaryRowFieldSetAccess, binaryRowSetNull}
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.agg.batch.AggCodeGenHelper.buildAggregateArgsMapping
@@ -37,7 +37,6 @@ import org.apache.flink.table.runtime.operators.sort.BufferedKVExternalSorter
 import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
-
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
 
@@ -293,8 +292,13 @@ object HashAggCodeGenHelper {
       val getAggValueExprs = aggregates.zipWithIndex.map {
         case (agg: DeclarativeAggregateFunction, aggIndex) =>
           val idx = auxGrouping.length + aggIndex
-          agg.getValueExpression.accept(
+          val expr = agg.getValueExpression.accept(
             ResolveReference(ctx, isMerge, bindRefOffset, agg, idx, argsMapping, aggBuffMapping))
+          ApiExpressionUtils.unresolvedCall(
+            BuiltInFunctionDefinitions.CAST,
+            expr,
+            ApiExpressionUtils.typeLiteral(agg.getResultType)
+          )
       }.map(_.accept(new RexNodeConverter(builder))).map(exprCodegen.generateExpression)
 
       val getValueExprs = getAuxGroupingExprs ++ getAggValueExprs

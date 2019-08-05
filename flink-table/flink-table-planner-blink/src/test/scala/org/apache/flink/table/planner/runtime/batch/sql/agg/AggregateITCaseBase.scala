@@ -83,7 +83,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     // for hash agg mode it will fallback
     val largeData5 = for (i <- 0 until 100000) yield row(i, 1L, 10, "Hallo", 1L)
     registerCollection("LargeTable5", largeData5, type5, "d, e, f, g, h")
-    val expected = for (i <- 0 until 100000) yield row(i, "Hallo", 1L, 10.0, 1L)
+    val expected = for (i <- 0 until 100000) yield row(i, "Hallo", 1L, 10, 1L)
     checkResult(
       "SELECT d, g, sum(e), avg(f), min(h) FROM LargeTable5 GROUP BY d, g",
       expected
@@ -95,7 +95,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     registerCollection("LargeTypedTable5", largeTypedData5, genericType5, "d, e, f, g, h")
     val expectedTypedData5 =
       for (i <- 0 until 100000) yield
-        row(row(i, i), "Hallo", 1L, 10.0, 1L)
+        row(row(i, i), "Hallo", 1L, 10, 1L)
     checkResult(
       "SELECT d, g, sum(e), avg(f), min(h) FROM LargeTypedTable5 GROUP BY d, g",
       expectedTypedData5
@@ -106,7 +106,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     registerCollection("SingleGroupLargeTable5", singleGrouplargeData5, type5, "d, e, f, g, h")
     checkResult(
       "SELECT d, g, sum(e), avg(f), min(h) FROM SingleGroupLargeTable5 GROUP BY d, g",
-      Seq(row(999, "Hallo", 100000L, 10.0, 1L))
+      Seq(row(999, "Hallo", 100000L, 10, 1L))
     )
   }
 
@@ -127,9 +127,9 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     checkResult(
       "SELECT sum(d), avg(d), count(g), min(e), h FROM Table5 GROUP BY h",
       Seq(
-        row(16, 16.0 / 5, 5, 1L, 1),
-        row(26, 26.0 / 7, 7, 2L, 2),
-        row(13, 13.0 / 3, 3, 6L, 3)
+        row(16, 16 / 5, 5, 1L, 1),
+        row(26, 26 / 7, 7, 2L, 2),
+        row(13, 13 / 3, 3, 6L, 3)
       )
     )
   }
@@ -163,7 +163,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     checkResult(
       "SELECT sum(d), avg(d), count(g), min(e) FROM Table5",
       Seq(
-        row(55, 55.0 / 15, 15, 1L)
+        row(55, 55 / 15, 15, 1L)
       )
     )
   }
@@ -196,7 +196,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     checkResult(
       "SELECT avg(d + 2) + 2 FROM Table5",
       Seq(
-        row(85.0 / 15 + 2)
+        row(85 / 15 + 2)
       )
     )
   }
@@ -537,7 +537,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     checkQuery(
       Seq[(Integer, Integer)]((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)),
       "select avg(f0), avg(f0) from TableName", // spark has mean(), but we don't
-      Seq((2.0, 2.0))
+      Seq((2, 2))
     )
 
     checkQuery(
@@ -557,7 +557,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     checkQuery(
       Seq[(Integer, Integer)]((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)),
       "select avg(f0), sum(distinct f0) from TableName",
-      Seq((2.0, 6))
+      Seq((2, 6))
     )
     checkQuery(
       Seq((b1, b1), (b1, b2), (b2, b1), (b2, b2), (b3, b1), (b3, b2)),
@@ -579,7 +579,7 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     checkQuery(
       testData3,
       "select avg(f1) from TableName",
-      Seq(Tuple1(2.0))
+      Seq(Tuple1(2))
     )
   }
 
@@ -591,12 +591,12 @@ abstract class AggregateITCaseBase(testName: String) extends BatchTestBase {
     checkQuery(
       testData3,
       "select avg(f1), count(distinct f1) from TableName",
-      Seq((2.0, 1L))
+      Seq((2, 1L))
     )
     checkQuery(
       testData3,
       "select avg(f1), sum(distinct f1) from TableName",
-      Seq((2.0, 2))
+      Seq((2, 2))
     )
   }
 
