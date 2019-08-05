@@ -565,14 +565,14 @@ public class SingleInputGateTest extends InputGateTestBase {
 	public void testQueuedBuffers() throws Exception {
 		final NettyShuffleEnvironment network = createNettyShuffleEnvironment();
 
-		final ResultPartition localResultPartition = new ResultPartitionBuilder()
+		final ResultPartition resultPartition = new ResultPartitionBuilder()
 			.setResultPartitionManager(network.getResultPartitionManager())
 			.setupBufferPoolFactoryFromNettyShuffleEnvironment(network)
 			.build();
 
 		final SingleInputGate inputGate = createInputGate(network, 2, ResultPartitionType.PIPELINED);
 
-		final ResultPartitionID localResultPartitionId = localResultPartition.getPartitionId();
+		final ResultPartitionID localResultPartitionId = resultPartition.getPartitionId();
 
 		final RemoteInputChannel remoteInputChannel = InputChannelBuilder.newBuilder()
 			.setChannelIndex(1)
@@ -588,20 +588,19 @@ public class SingleInputGateTest extends InputGateTestBase {
 			.buildLocalAndSetToGate(inputGate);
 
 		try {
-			localResultPartition.setup();
+			resultPartition.setup();
 			inputGate.setup();
 
 			remoteInputChannel.onBuffer(TestBufferFactory.createBuffer(1), 0, 0);
 			assertEquals(1, inputGate.getNumberOfQueuedBuffers());
 
-			localResultPartition.addBufferConsumer(BufferBuilderTestUtils.createFilledBufferConsumer(1), 0);
+			resultPartition.addBufferConsumer(BufferBuilderTestUtils.createFilledBufferConsumer(1), 0);
 			assertEquals(2, inputGate.getNumberOfQueuedBuffers());
 		} finally {
-			localResultPartition.release();
+			resultPartition.release();
 			inputGate.close();
 			network.close();
 		}
-
 	}
 
 	/**
