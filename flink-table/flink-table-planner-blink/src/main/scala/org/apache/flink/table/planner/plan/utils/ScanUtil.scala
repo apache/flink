@@ -131,7 +131,8 @@ object ScanUtil {
     * @param qualifiedName qualified name for table
     */
   private[flink] def getOperatorName(qualifiedName: Seq[String], rowType: RelDataType): String = {
-    val s = s"table:$qualifiedName, fields:(${rowType.getFieldNames.mkString(", ")})"
-    s"SourceConversion($s)"
+    val tableQualifiedName = qualifiedName.mkString(".")
+    val fieldNames = rowType.getFieldNames.mkString(", ")
+    s"SourceConversion(table=[$tableQualifiedName], fields=[$fieldNames])"
   }
 }

@@ -421,7 +421,11 @@ class BatchExecOverAggregate(
     }
     val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
     val ret = new OneInputTransformation(
-      input, "OverAggregate", operator, BaseRowTypeInfo.of(outputType), input.getParallelism)
+      input,
+      getRelDetailedDescription,
+      operator,
+      BaseRowTypeInfo.of(outputType),
+      input.getParallelism)
     ret.setResources(resource, resource)
     ret
   }

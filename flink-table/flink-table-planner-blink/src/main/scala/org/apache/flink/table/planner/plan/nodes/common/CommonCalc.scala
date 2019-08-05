@@ -20,8 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.nodes.{ExpressionFormat, FlinkRelNode}
-import org.apache.flink.table.planner.plan.utils.RelExplainUtil.conditionToString
-
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil.{conditionToString, preferExpressionFormat}
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.core.Calc
 import org.apache.calcite.rel.metadata.RelMetadataQuery
@@ -60,9 +59,9 @@ abstract class CommonCalc(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("input", getInput)
-      .item("select", projectionToString())
+      .item("select", projectionToString(preferExpressionFormat(pw)))
       .itemIf("where",
-        conditionToString(calcProgram, getExpressionString),
+        conditionToString(calcProgram, getExpressionString, preferExpressionFormat(pw)),
         calcProgram.getCondition != null)
   }
 

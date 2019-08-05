@@ -99,10 +99,9 @@ class BatchExecExpand(
       projects,
       opName = "BatchExpand")
 
-    val operatorName = s"BatchExecExpand: ${getRowType.getFieldList.map(_.getName).mkString(", ")}"
     new OneInputTransformation(
       inputTransform,
-      operatorName,
+      getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
       inputTransform.getParallelism)

@@ -95,7 +95,7 @@ class StreamPlanner(
     val (explainLevel, withRetractTraits) = if (extended) {
       (SqlExplainLevel.ALL_ATTRIBUTES, true)
     } else {
-      (SqlExplainLevel.EXPPLAN_ATTRIBUTES, false)
+      (SqlExplainLevel.DIGEST_ATTRIBUTES, false)
     }
     sb.append(ExecNodePlanDumper.dagToString(
       execNodes,

@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.nodes.ExpressionFormat
 import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
 
 import com.google.common.collect.ImmutableMap
-import org.apache.calcite.rel.RelCollation
+import org.apache.calcite.rel.{RelCollation, RelWriter}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.Window.Group
 import org.apache.calcite.rel.core.{AggregateCall, Window}
@@ -45,6 +45,19 @@ import scala.collection.mutable
   * Explain rel utility methods.
   */
 object RelExplainUtil {
+
+  /**
+    * Returns the prefer [[ExpressionFormat]] of the [[RelWriter]]. Use Prefix for traditional
+    * writers, but use Infix for [[RelDescriptionWriterImpl]] which is more readable.
+    * The [[RelDescriptionWriterImpl]] is mainly used to generate
+    * [[org.apache.flink.table.planner.plan.nodes.FlinkRelNode#getRelDetailedDescription()]].
+    */
+  def preferExpressionFormat(pw: RelWriter): ExpressionFormat = pw match {
+    // infix format is more readable for displaying
+    case _: RelDescriptionWriterImpl => ExpressionFormat.Infix
+    // traditional writer prefers prefix expression format, e.g. +(x, y)
+    case _ => ExpressionFormat.Prefix
+  }
 
   /**
     * Converts field names corresponding to given indices to String.
@@ -574,33 +587,16 @@ object RelExplainUtil {
     buf.toString
   }
 
-  def calcToString(
-      calcProgram: RexProgram,
-      f: (RexNode, List[String], Option[List[RexNode]], ExpressionFormat) => String): String = {
-    val inFields = calcProgram.getInputRowType.getFieldNames.toList
-    val localExprs = calcProgram.getExprList.toList
-    val selectionStr = selectionToString(calcProgram, f, ExpressionFormat.Infix)
-    val cond = calcProgram.getCondition
-    val name = s"${
-      if (cond != null) {
-        s"where: ${
-          f(cond, inFields, Some(localExprs), ExpressionFormat.Infix)}, "
-      } else {
-        ""
-      }
-    }select: ($selectionStr)"
-    s"Calc($name)"
-  }
-
   def conditionToString(
       calcProgram: RexProgram,
-      f: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
+      f: (RexNode, List[String], Option[List[RexNode]], ExpressionFormat) => String,
+      expressionFormat: ExpressionFormat = ExpressionFormat.Prefix): String = {
     val cond = calcProgram.getCondition
     val inputFieldNames = calcProgram.getInputRowType.getFieldNames.toList
     val localExprs = calcProgram.getExprList.toList
 
     if (cond != null) {
-      f(cond, inputFieldNames, Some(localExprs))
+      f(cond, inputFieldNames, Some(localExprs), expressionFormat)
     } else {
       ""
     }
@@ -626,16 +622,6 @@ object RelExplainUtil {
     }.mkString(", ")
   }
 
-  def correlateOpName(
-      inputType: RelDataType,
-      rexCall: RexCall,
-      sqlFunction: TableSqlFunction,
-      rowType: RelDataType,
-      expression: (RexNode, List[String], Option[List[RexNode]]) => String): String = {
-    s"correlate: ${correlateToString(inputType, rexCall, sqlFunction, expression)}," +
-        s" select: ${rowType.getFieldNames.mkString(",")}"
-  }
-
   def correlateToString(
       inputType: RelDataType,
       rexCall: RexCall,
@@ -645,39 +631,6 @@ object RelExplainUtil {
     val udtfName = sqlFunction.toString
     val operands = rexCall.getOperands.map(expression(_, inFields, None)).mkString(",")
     s"table($udtfName($operands))"
-  }
-
-  def aggOperatorName(
-      prefix: String,
-      grouping: Array[Int],
-      auxGrouping: Array[Int],
-      inputRowType: RelDataType,
-      outputRowType: RelDataType,
-      aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
-      isMerge: Boolean,
-      isFinal: Boolean): String = {
-    val groupingStr = if (grouping.nonEmpty) {
-      s"groupBy:(${fieldToString(grouping, inputRowType)}),"
-    } else {
-      ""
-    }
-    val auxGroupingStr = if (auxGrouping.nonEmpty) {
-      s"auxGrouping:(${fieldToString(auxGrouping, inputRowType)}),"
-    } else {
-      ""
-    }
-
-    val selectString = s"select:(${
-      groupAggregationToString(
-        inputRowType,
-        outputRowType,
-        grouping,
-        auxGrouping,
-        aggCallToAggFunction,
-        isMerge,
-        isFinal)
-    }),"
-    s"$prefix($groupingStr$auxGroupingStr$selectString)"
   }
 
   def windowAggregationToString(

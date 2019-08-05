@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.planner.plan.nodes
 
-import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
+import org.apache.flink.table.planner.plan.utils.RelDescriptionWriterImpl
+
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlAsOperator
 import org.apache.calcite.sql.SqlKind._
-import org.apache.flink.table.planner.plan.nodes.ExpressionFormat.ExpressionFormat
-import org.apache.flink.table.planner.plan.utils.RelDisplayNameWriterImpl
 
 import java.io.{PrintWriter, StringWriter}
 
@@ -35,13 +36,17 @@ import scala.collection.JavaConversions._
 trait FlinkRelNode extends RelNode {
 
   /**
-    * Returns the display name of the RelNode. The display name are usually used to be displayed
-    * in log or Web UI.
+    * Returns a string which describes the detailed information of relational expression
+    * with attributes which contribute to the plan output.
+    *
+    * This method leverages [[RelNode#explain]] with
+    * [[org.apache.calcite.sql.SqlExplainLevel.EXPPLAN_ATTRIBUTES]] explain level to generate
+    * the description.
     */
-  def getDisplayName: String = {
+  def getRelDetailedDescription: String = {
     val sw = new StringWriter
     val pw = new PrintWriter(sw)
-    val relWriter = new RelDisplayNameWriterImpl(pw)
+    val relWriter = new RelDescriptionWriterImpl(pw)
     this.explain(relWriter)
     sw.toString
   }
@@ -114,14 +119,6 @@ trait FlinkRelNode extends RelNode {
         throw new IllegalArgumentException(s"Unknown expression type '${expr.getClass}': $expr")
     }
   }
-
-  def getExpressionFormat(pw: RelWriter): ExpressionFormat = pw match {
-    // infix format is more readable for displaying
-    case _: RelDisplayNameWriterImpl => ExpressionFormat.Infix
-    // traditional writer prefers prefix expression format, e.g. +(x, y)
-    case _ => ExpressionFormat.Prefix
-  }
-
 }
 
 /**

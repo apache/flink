@@ -99,7 +99,7 @@ LogicalProject(a=[$5], c=[$7], c0=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a, BIGINT c, BIGINT c0)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>

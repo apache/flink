@@ -288,17 +288,9 @@ class BatchExecRank(
 
     new OneInputTransformation(
       input,
-      getOperatorName,
+      getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
       input.getParallelism)
-  }
-
-  private def getOperatorName: String = {
-    if (isGlobal) {
-      "GlobalRank"
-    } else {
-      "LocalRank"
-    }
   }
 }
