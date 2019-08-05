@@ -212,7 +212,7 @@ class UserDefinedScalarFunctionTest extends ExpressionTestBase {
       "Func8('a', 'a')",
       "c")
 
-    // TODO fix FLINK-10958 to blink-planner
+    // TODO fix FLINK-13580 to blink-planner
 //    testAllApis(
 //      Func21('f15),
 //      "Func21(f15)",
