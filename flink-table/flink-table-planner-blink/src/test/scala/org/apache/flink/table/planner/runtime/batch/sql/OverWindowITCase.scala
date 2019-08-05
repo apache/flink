@@ -292,6 +292,31 @@ class OverWindowITCase extends BatchTestBase {
   }
 
   @Test
+  def testRankByDecimal(): Unit = {
+    checkResult(
+      "SELECT d, de, rank() over (order by de desc), dense_rank() over (order by de desc) FROM" +
+          " (select d, cast(e as decimal(10, 0)) as de from Table5)",
+      Seq(
+        row(5, 15, 1, 1),
+        row(5, 14, 2, 2),
+        row(5, 13, 3, 3),
+        row(5, 12, 4, 4),
+        row(5, 11, 5, 5),
+        row(4, 10, 6, 6),
+        row(4, 9, 7, 7),
+        row(4, 8, 8, 8),
+        row(4, 7, 9, 9),
+        row(3, 6, 10, 10),
+        row(3, 5, 11, 11),
+        row(3, 4, 12, 12),
+        row(2, 3, 13, 13),
+        row(2, 2, 14, 14),
+        row(1, 1, 15, 15)
+      )
+    )
+  }
+
+  @Test
   def testWindowAggregationRank3(): Unit = {
 
     checkResult(
