@@ -115,18 +115,18 @@ void UniqueKey(List<SqlNodeList> list) :
     }
 }
 
-SqlNode PropertyValue() :
+SqlNode TableOption() :
 {
-    SqlIdentifier key;
+    SqlNode key;
     SqlNode value;
     SqlParserPos pos;
 }
 {
-    key = CompoundIdentifier()
+    key = StringLiteral()
     { pos = getPos(); }
     <EQ> value = StringLiteral()
     {
-        return new SqlProperty(key, value, getPos());
+        return new SqlTableOption(key, value, getPos());
     }
 }
 
@@ -140,12 +140,12 @@ SqlNodeList TableProperties():
 {
     <LPAREN> { span = span(); }
     [
-        property = PropertyValue()
+        property = TableOption()
         {
             proList.add(property);
         }
         (
-            <COMMA> property = PropertyValue()
+            <COMMA> property = TableOption()
             {
                 proList.add(property);
             }

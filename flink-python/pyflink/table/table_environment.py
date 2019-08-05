@@ -303,9 +303,9 @@ class TableEnvironment(object):
                 b bigint,
                 c varchar
             ) with (
-                connector.type = 'filesystem',
-                format.type = 'csv',
-                connector.path = 'xxx'
+                'connector.type' = 'filesystem',
+                'format.type' = 'csv',
+                'connector.path' = 'xxx'
             )
 
         SQL queries can directly execute as follows:
@@ -317,11 +317,11 @@ class TableEnvironment(object):
             ...     a int,
             ...     b varchar
             ... ) with (
-            ...     connector.type = 'kafka',
-            ...     `update-mode` = 'append',
-            ...     connector.topic = 'xxx',
-            ...     connector.properties.0.key = 'k0',
-            ...     connector.properties.0.value = 'v0'
+            ...     'connector.type' = 'kafka',
+            ...     'update-mode' = 'append',
+            ...     'connector.topic' = 'xxx',
+            ...     'connector.properties.0.key' = 'k0',
+            ...     'connector.properties.0.value' = 'v0'
             ... )
             ... '''
 
@@ -331,9 +331,9 @@ class TableEnvironment(object):
             ...     a int,
             ...     b varchar
             ... ) with (
-            ...     connector.type = 'filesystem',
-            ...     format.type = 'csv',
-            ...     connector.path = 'xxx'
+            ...     'connector.type' = 'filesystem',
+            ...     'format.type' = 'csv',
+            ...     'connector.path' = 'xxx'
             ... )
             ... '''
 
