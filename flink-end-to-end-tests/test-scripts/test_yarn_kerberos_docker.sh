@@ -138,7 +138,7 @@ docker exec -it master bash -c "tar xzf /home/hadoop-user/$FLINK_TARBALL --direc
 # minimal Flink config, bebe
 docker exec -it master bash -c "echo \"security.kerberos.login.keytab: /home/hadoop-user/hadoop-user.keytab\" > /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
 docker exec -it master bash -c "echo \"security.kerberos.login.principal: hadoop-user\" >> /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
-docker exec -it master bash -c "echo \"slot.request.timeout: 60000\" >> /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
+docker exec -it master bash -c "echo \"slot.request.timeout: 120000\" >> /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
 docker exec -it master bash -c "echo \"containerized.heap-cutoff-min: 100\" >> /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"
 
 echo "Flink config:"
