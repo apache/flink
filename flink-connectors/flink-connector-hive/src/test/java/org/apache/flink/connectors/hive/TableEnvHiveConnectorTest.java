@@ -138,6 +138,21 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("drop database db1 cascade");
 	}
 
+	@Test
+	public void testDecimal() throws Exception {
+		hiveShell.execute("create database db1");
+		hiveShell.execute("create table db1.src (x decimal)");
+		hiveShell.execute("create table db1.dest (x decimal)");
+		hiveShell.execute("insert into db1.src values (10),(5.5)");
+
+		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+
+		tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
+		tableEnv.execute(null);
+
+		hiveShell.execute("drop database db1 cascade");
+	}
+
 	private TableEnvironment getTableEnvWithHiveCatalog() {
 		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
 		tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);

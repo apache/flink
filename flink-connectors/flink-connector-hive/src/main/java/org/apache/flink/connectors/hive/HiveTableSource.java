@@ -21,7 +21,6 @@ package org.apache.flink.connectors.hive;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -107,12 +106,7 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 
 	@Override
 	public DataType getProducedDataType() {
-		TableSchema tableSchema = catalogTable.getSchema();
-		DataTypes.Field[] fields = new DataTypes.Field[tableSchema.getFieldCount()];
-		for (int i = 0; i < fields.length; i++) {
-			fields[i] = DataTypes.FIELD(tableSchema.getFieldName(i).get(), tableSchema.getFieldDataType(i).get());
-		}
-		return DataTypes.ROW(fields);
+		return getTableSchema().toRowDataType();
 	}
 
 	@Override
