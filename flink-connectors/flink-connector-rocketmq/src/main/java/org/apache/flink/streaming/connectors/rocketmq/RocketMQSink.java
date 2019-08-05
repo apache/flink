@@ -26,9 +26,9 @@ import com.alibaba.rocketmq.client.exception.MQClientException;
 import com.alibaba.rocketmq.client.producer.DefaultMQProducer;
 import com.alibaba.rocketmq.client.producer.SendResult;
 import com.alibaba.rocketmq.client.producer.SendStatus;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 /**
  * A flink Data Sink for RocketMQ {@link RocketMQSink}.

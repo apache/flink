@@ -18,10 +18,11 @@
 package org.apache.flink.streaming.connectors.rocketmq;
 
 import org.apache.flink.streaming.connectors.rocketmq.common.ProducerConfig;
-import org.junit.Assert;
 
 import org.junit.Before;
 import org.junit.Test;
+
+import org.junit.Assert;
 
 /**
  * Tests for the {@link RocketMQSink}.

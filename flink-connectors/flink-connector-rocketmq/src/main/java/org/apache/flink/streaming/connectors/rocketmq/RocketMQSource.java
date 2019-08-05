@@ -27,7 +27,6 @@ import com.alibaba.rocketmq.client.consumer.PullResult;
 import com.alibaba.rocketmq.common.message.MessageExt;
 import com.alibaba.rocketmq.common.message.MessageQueue;
 import com.alibaba.rocketmq.common.protocol.heartbeat.MessageModel;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
