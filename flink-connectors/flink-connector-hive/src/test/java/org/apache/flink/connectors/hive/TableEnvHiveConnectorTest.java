@@ -149,6 +149,7 @@ public class TableEnvHiveConnectorTest {
 
 		tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
 		tableEnv.execute(null);
+		System.out.println(hiveShell.executeQuery("select * from db1.dest"));
 
 		hiveShell.execute("drop database db1 cascade");
 	}
