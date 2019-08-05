@@ -267,9 +267,9 @@ public class ConfigOptionsDocGenerator {
 			Documentation.ExecMode execMode = tableMeta.execMode();
 			if (Documentation.ExecMode.BATCH_STREAMING.equals(execMode)) {
 				execModeStringBuilder.append("<br> <span class=\"label label-primary\">")
-						.append("BATCH")
+						.append(Documentation.ExecMode.BATCH.toString())
 						.append("</span> <span class=\"label label-primary\">")
-						.append("STREAMING")
+						.append(Documentation.ExecMode.STREAMING.toString())
 						.append("</span>");
 			} else {
 				execModeStringBuilder.append("<br> <span class=\"label label-primary\">")

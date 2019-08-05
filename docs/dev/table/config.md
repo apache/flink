@@ -2,7 +2,7 @@
 title: "Configuration"
 nav-id: "config"
 nav-parent_id: tableapi
-nav-pos: 4
+nav-pos: 150
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,7 +23,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-This page lists all the options that are used to tune Flink Table API/SQL jobs. You can set options via `TableConfig`:
+This page lists  all the options that are used to tune Flink Table API/SQL jobs. You can set options via `TableConfig`:
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -34,9 +34,9 @@ TableEnvironment tEnv = ...
 // set key-value options
 tEnv.getConfig()
   .getConfiguration()
-  .setString("sql.exec.mini-batch.enabled", "true")
-  .setString("sql.exec.mini-batch.allow-latency", "5 s")
-  .setString("sql.exec.mini-batch.size", "5000");
+  .setString("table.exec.mini-batch.enabled", "true")
+  .setString("table.exec.mini-batch.allow-latency", "5 s")
+  .setString("table.exec.mini-batch.size", "5000");
 {% endhighlight %}
 </div>
 
@@ -48,9 +48,9 @@ val tEnv: TableEnvironment = ...
 // set key-value options
 tEnv.getConfig
   .getConfiguration
-  .setString("sql.exec.mini-batch.enabled", "true")
-  .setString("sql.exec.mini-batch.allow-latency", "5 s")
-  .setString("sql.exec.mini-batch.size", "5000")
+  .setString("table.exec.mini-batch.enabled", "true")
+  .setString("table.exec.mini-batch.allow-latency", "5 s")
+  .setString("table.exec.mini-batch.size", "5000")
 {% endhighlight %}
 </div>
 
@@ -62,14 +62,14 @@ tEnv = ...
 # set key-value options
 t_env.get_config()
   .get_configuration()
-  .set_string("sql.exec.mini-batch.enabled", "true")
-  .set_string("sql.exec.mini-batch.allow-latency", "5 s")
-  .set_string("sql.exec.mini-batch.size", "5000");
+  .set_string("table.exec.mini-batch.enabled", "true")
+  .set_string("table.exec.mini-batch.allow-latency", "5 s")
+  .set_string("table.exec.mini-batch.size", "5000");
 {% endhighlight %}
 </div>
 </div>
 
-**NOTE: currently, all the options are only works in blink planner. See [how to use blink planner](index.html).**
+**NOTE: currently, all the options are only supported in blink planner. See [how to use blink planner](index.html).**
 
 * This will be replaced by the TOC
 {:toc}
