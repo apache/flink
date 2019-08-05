@@ -18,8 +18,8 @@
 package org.apache.flink.streaming.connectors.rocketmq;
 
 import org.apache.flink.streaming.connectors.rocketmq.common.ProducerConfig;
-import org.junit.After;
 import org.junit.Assert;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -44,9 +44,4 @@ public class RocketMQSinkTest {
 		RocketMQSink rocketMQSink = new RocketMQSink(producerConfig);
 		Assert.assertNotNull(rocketMQSink);
 	}
-
-	@After
-	public void after() throws Exception {
-	}
-
 }

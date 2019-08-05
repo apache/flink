@@ -17,15 +17,17 @@
 
 package org.apache.flink.streaming.connectors.rocketmq;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
+import org.apache.flink.streaming.connectors.rocketmq.common.ConsumerConfig;
+import org.apache.flink.streaming.connectors.rocketmq.common.RocketMQMessage;
+
 import com.alibaba.rocketmq.client.consumer.DefaultMQPullConsumer;
 import com.alibaba.rocketmq.client.consumer.PullResult;
 import com.alibaba.rocketmq.common.message.MessageExt;
 import com.alibaba.rocketmq.common.message.MessageQueue;
 import com.alibaba.rocketmq.common.protocol.heartbeat.MessageModel;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
-import org.apache.flink.streaming.connectors.rocketmq.common.ConsumerConfig;
-import org.apache.flink.streaming.connectors.rocketmq.common.RocketMQMessage;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,27 +44,27 @@ public class RocketMQSource extends RichSourceFunction<RocketMQMessage> {
 	private static final Logger LOG = LoggerFactory.getLogger(RocketMQSource.class);
 
 	/**
-	 * define the ConsumerConfig for consumer init
+	 * define the ConsumerConfig for consumer init.
 	 */
 	private ConsumerConfig consumerConfig = null;
 
 	/**
-	 * the status for running thread,if equal 'false' then stop the message consumering
+	 * the status for running thread,if equal 'false' then stop the message consumering.
 	 */
 	private transient volatile boolean running = false;
 
 	/**
-	 * the RocketMQ consumer client to get messasge from message cluster
+	 * the RocketMQ consumer client to get messasge from message cluster.
 	 */
 	private transient DefaultMQPullConsumer consumer = null;
 
 	/**
-	 * defien the offset_table to maintain the status for local message queue
+	 * defien the offset_table to maintain the status for local message queue.
 	 */
 	private static final Map<MessageQueue, Long> OFFSE_TABLE = new HashMap<MessageQueue, Long>();
 
 	/**
-	 * Constructor for RocketMQSource,need the ConsumerConfig
+	 * Constructor for RocketMQSource,need the ConsumerConfig.
 	 *
 	 * @param consumerConfig
 	 */
@@ -80,7 +82,7 @@ public class RocketMQSource extends RichSourceFunction<RocketMQMessage> {
 	}
 
 	/**
-	 * Flink source life cycle open()
+	 * Flink source life cycle open().
 	 *
 	 * @param parameters
 	 * @throws Exception
@@ -108,7 +110,7 @@ public class RocketMQSource extends RichSourceFunction<RocketMQMessage> {
 	}
 
 	/**
-	 * Flink source life cycle run()
+	 * Flink source life cycle run().
 	 *
 	 * @param ctx The context to emit elements to and for accessing locks.
 	 * @throws Exception
@@ -148,7 +150,7 @@ public class RocketMQSource extends RichSourceFunction<RocketMQMessage> {
 	}
 
 	/**
-	 * Flink source life cycle cancel()
+	 * Flink source life cycle cancel().
 	 */
 	@Override
 	public void cancel() {
@@ -156,7 +158,7 @@ public class RocketMQSource extends RichSourceFunction<RocketMQMessage> {
 	}
 
 	/**
-	 * Flink source life cycle close()
+	 * Flink source life cycle close().
 	 *
 	 * @throws Exception
 	 */
@@ -170,7 +172,7 @@ public class RocketMQSource extends RichSourceFunction<RocketMQMessage> {
 	}
 
 	/**
-	 * get Message Queue Offset like the function name
+	 * get Message Queue Offset like the function name.
 	 *
 	 * @param mq
 	 * @return
@@ -178,14 +180,15 @@ public class RocketMQSource extends RichSourceFunction<RocketMQMessage> {
 	private long getMessageQueueOffset(MessageQueue mq) {
 
 		Long offset = OFFSE_TABLE.get(mq);
-		if (offset != null)
+		if (offset != null) {
 			return offset;
+		}
 
 		return 0;
 	}
 
 	/**
-	 * update the Message Queue Offset like the function name
+	 * update the Message Queue Offset like the function name.
 	 *
 	 * @param mq
 	 * @param offset

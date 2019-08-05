@@ -31,7 +31,7 @@ import org.apache.flink.streaming.connectors.rocketmq.common.RocketMQMessage;
 public class Example {
 
 	/**
-	 * Main function entry for example
+	 * Main function entry for example.
 	 *
 	 * @param args
 	 * @throws Exception
@@ -56,7 +56,7 @@ public class Example {
 		source.addSink(new RocketMQSink(producerConfig));
 
 		// execute program
-		env.execute("Flink Streaming Java API Skeleton");
+		env.execute("test program for flink-connector-rocketmq");
 	}
 
 }

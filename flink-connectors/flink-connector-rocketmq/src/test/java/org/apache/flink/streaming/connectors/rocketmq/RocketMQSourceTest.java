@@ -18,8 +18,9 @@
 package org.apache.flink.streaming.connectors.rocketmq;
 
 import org.apache.flink.streaming.connectors.rocketmq.common.ConsumerConfig;
-import org.junit.After;
+
 import org.junit.Assert;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -45,9 +46,5 @@ public class RocketMQSourceTest {
 
 		RocketMQSource rocketMQSource = new RocketMQSource(consumerConfig);
 		Assert.assertNotNull(rocketMQSource);
-	}
-
-	@After
-	public void after() throws Exception {
 	}
 }

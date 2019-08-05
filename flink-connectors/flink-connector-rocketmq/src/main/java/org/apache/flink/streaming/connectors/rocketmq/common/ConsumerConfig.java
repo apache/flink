@@ -25,7 +25,7 @@ public class ConsumerConfig extends RocketMQConnectionConfig {
 	private String consumerGroupName;
 
 	/**
-	 * Consumering models: MessageModel.CLUSTERING; MessageModel.BROADCASTING
+	 * Consumering models: MessageModel.CLUSTERING; MessageModel.BROADCASTING.
 	 */
 	private String messageModel;
 	private String subscribeTopics;

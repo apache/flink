@@ -17,14 +17,16 @@
 
 package org.apache.flink.streaming.connectors.rocketmq;
 
-import com.alibaba.rocketmq.client.exception.MQClientException;
-import com.alibaba.rocketmq.client.producer.DefaultMQProducer;
-import com.alibaba.rocketmq.client.producer.SendResult;
-import com.alibaba.rocketmq.client.producer.SendStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.connectors.rocketmq.common.ProducerConfig;
 import org.apache.flink.streaming.connectors.rocketmq.common.RocketMQMessage;
+
+import com.alibaba.rocketmq.client.exception.MQClientException;
+import com.alibaba.rocketmq.client.producer.DefaultMQProducer;
+import com.alibaba.rocketmq.client.producer.SendResult;
+import com.alibaba.rocketmq.client.producer.SendStatus;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,17 +38,17 @@ public class RocketMQSink extends RichSinkFunction<RocketMQMessage> {
 	private static final Logger LOG = LoggerFactory.getLogger(RocketMQSink.class);
 
 	/**
-	 * define the RocketMQ producer client here to send flink message to RocketMQ cluster
+	 * define the RocketMQ producer client here to send flink message to RocketMQ cluster.
 	 */
 	private transient DefaultMQProducer producer = null;
 
 	/**
-	 * define the ProducerConfig for producer init
+	 * define the ProducerConfig for producer init.
 	 */
 	private ProducerConfig producerConfig = null;
 
 	/**
-	 * Constructor for RocketMQSink,need the ProducerConfig
+	 * Constructor for RocketMQSink,need the ProducerConfig.
 	 *
 	 * @param producerConfig
 	 * @throws MQClientException
@@ -65,7 +67,7 @@ public class RocketMQSink extends RichSinkFunction<RocketMQMessage> {
 	}
 
 	/**
-	 * Flink sink life cycle open()
+	 * Flink sink life cycle open().
 	 *
 	 * @param parameters
 	 * @throws Exception
@@ -83,7 +85,7 @@ public class RocketMQSink extends RichSinkFunction<RocketMQMessage> {
 	}
 
 	/**
-	 * Flink sink life cycle invoke(),all the logical processing are here
+	 * Flink sink life cycle invoke(),all the logical processing are here.
 	 *
 	 * @param value   The input record.
 	 * @param context Additional context about the input record.
@@ -101,7 +103,7 @@ public class RocketMQSink extends RichSinkFunction<RocketMQMessage> {
 	}
 
 	/**
-	 * Flink sink life cycle close()
+	 * Flink sink life cycle close().
 	 *
 	 * @throws Exception
 	 */
