@@ -61,4 +61,9 @@ public class NoOpResultSubpartitionView implements ResultSubpartitionView {
 	public boolean isAvailable() {
 		return false;
 	}
+
+	@Override
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
+		return 0;
+	}
 }
