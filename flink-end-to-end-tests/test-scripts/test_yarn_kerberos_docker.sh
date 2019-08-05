@@ -139,7 +139,7 @@ docker exec -it master bash -c "tar xzf /home/hadoop-user/$FLINK_TARBALL --direc
 FLINK_CONFIG=$(cat << END
 security.kerberos.login.keytab: /home/hadoop-user/hadoop-user.keytab
 security.kerberos.login.principal: hadoop-user
-slot.request.timeout: 60000
+slot.request.timeout: 120000
 containerized.heap-cutoff-min: 100
 END
 )
