@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.sqlexec;
 
+import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
@@ -51,6 +52,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 import static org.junit.Assert.assertArrayEquals;
@@ -107,8 +110,8 @@ public class SqlToOperationConverterTest {
 			")\n" +
 			"  PARTITIONED BY (a, d)\n" +
 			"  with (\n" +
-			"    connector = 'kafka', \n" +
-			"    kafka.topic = 'log.test'\n" +
+			"    'connector' = 'kafka', \n" +
+			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
 		Operation operation = parse(sql, planner);
@@ -139,10 +142,40 @@ public class SqlToOperationConverterTest {
 			")\n" +
 			"  PARTITIONED BY (a, d)\n" +
 			"  with (\n" +
-			"    connector = 'kafka', \n" +
-			"    kafka.topic = 'log.test'\n" +
+			"    'connector' = 'kafka', \n" +
+			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		parse(sql, planner);
+	}
+
+	@Test
+	public void testCreateTableWithMinusInOptionKey() {
+		final String sql = "create table source_table(\n" +
+			"  a int,\n" +
+			"  b bigint,\n" +
+			"  c varchar\n" +
+			") with (\n" +
+			"  'a-b-c-d124' = 'ab',\n" +
+			"  'a.b-c-d.e-f.g' = 'ada',\n" +
+			"  'a.b-c-d.e-f1231.g' = 'ada',\n" +
+			"  'a.b-c-d.*' = 'adad')\n";
+		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		SqlNode node = planner.parse(sql);
+		assert node instanceof SqlCreateTable;
+		Operation operation = SqlToOperationConverter.convert(planner, node);
+		assert operation instanceof CreateTableOperation;
+		CreateTableOperation op = (CreateTableOperation) operation;
+		CatalogTable catalogTable = op.getCatalogTable();
+		Map<String, String> properties = catalogTable.toProperties()
+			.entrySet().stream()
+			.filter(e -> !e.getKey().contains("schema"))
+			.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+		Map<String, String> sortedProperties = new TreeMap<>(properties);
+		final String expected = "{a-b-c-d124=ab, "
+			+ "a.b-c-d.*=adad, "
+			+ "a.b-c-d.e-f.g=ada, "
+			+ "a.b-c-d.e-f1231.g=ada}";
+		assertEquals(expected, sortedProperties.toString());
 	}
 
 	@Test

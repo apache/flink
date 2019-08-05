@@ -67,7 +67,7 @@ public class FlinkDDLDataTypeTest {
 	private static final String DDL_FORMAT = "create table t1 (\n" +
 		"  f0 %s\n" +
 		") with (\n" +
-		"  k1 = 'v1'\n" +
+		"  'k1' = 'v1'\n" +
 		")";
 
 	@Parameterized.Parameters(name = "{index}: {0}")

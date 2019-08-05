@@ -42,6 +42,7 @@
     "org.apache.flink.sql.parser.validate.FlinkSqlConformance",
     "org.apache.flink.sql.parser.FlinkSqlDataTypeSpec",
     "org.apache.flink.sql.parser.SqlProperty",
+    "org.apache.flink.sql.parser.TableOption",
     "org.apache.calcite.sql.SqlDrop",
     "org.apache.calcite.sql.SqlCreate",
     "java.util.List",
