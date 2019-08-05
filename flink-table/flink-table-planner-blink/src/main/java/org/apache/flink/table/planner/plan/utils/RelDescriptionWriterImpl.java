@@ -34,17 +34,19 @@ import java.util.List;
 /**
  * Converts an {@link RelNode} to string with only the information from the RelNode itself
  * without the information from its inputs. This is mainly used to generate
- * {@link FlinkRelNode#getDisplayName()}.
+ * {@link FlinkRelNode#getRelDetailedDescription()}.
  */
-public class RelDisplayNameWriterImpl implements RelWriter {
+public class RelDescriptionWriterImpl implements RelWriter {
 
-	private static final String STREAM_EXEC = "StreamExec";
-	private static final String BATCH_EXEC = "BatchExec";
+	/**
+	 * all the supported prefixes of RelNode class name (i.e. all the implementation of {@link FlinkRelNode}).
+	 */
+	private static final String[] REL_TYPE_NAME_PREFIXES = {"StreamExec", "BatchExec", "FlinkLogical"};
 
 	private final PrintWriter pw;
 	private final List<Pair<String, Object>> values = new ArrayList<>();
 
-	public RelDisplayNameWriterImpl(PrintWriter pw) {
+	public RelDescriptionWriterImpl(PrintWriter pw) {
 		this.pw = pw;
 	}
 
@@ -95,12 +97,11 @@ public class RelDisplayNameWriterImpl implements RelWriter {
 
 	private String getNodeTypeName(RelNode rel) {
 		String typeName = rel.getRelTypeName();
-		if (typeName.startsWith(STREAM_EXEC)) {
-			return typeName.substring(STREAM_EXEC.length());
-		} else if (typeName.startsWith(BATCH_EXEC)) {
-			return typeName.substring(BATCH_EXEC.length());
-		} else {
-			throw new IllegalStateException("Unsupported RelNode class name '" + typeName + "'");
+		for (String prefix : REL_TYPE_NAME_PREFIXES) {
+			if (typeName.startsWith(prefix)) {
+				return typeName.substring(prefix.length());
+			}
 		}
+		throw new IllegalStateException("Unsupported RelNode class name '" + typeName + "'");
 	}
 }

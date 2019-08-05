@@ -167,7 +167,7 @@ class StreamExecLimit(
     // as input node is singleton exchange, its parallelism is 1.
     val ret = new OneInputTransformation(
       inputTransform,
-      s"Limit(offset: $limitStart, fetch: ${fetchToString(fetch)})",
+      getRelDetailedDescription,
       operator,
       outputRowTypeInfo,
       inputTransform.getParallelism)

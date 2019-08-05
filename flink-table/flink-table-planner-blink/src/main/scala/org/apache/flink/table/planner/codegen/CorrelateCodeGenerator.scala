@@ -135,12 +135,7 @@ object CorrelateCodeGenerator {
 
     new OneInputTransformation(
       inputTransformation,
-      RelExplainUtil.correlateOpName(
-        inputRelType,
-        rexCall,
-        sqlFunction,
-        outDataType,
-        expression),
+      ruleDescription,
       substituteStreamOperator,
       BaseRowTypeInfo.of(returnType),
       parallelism)

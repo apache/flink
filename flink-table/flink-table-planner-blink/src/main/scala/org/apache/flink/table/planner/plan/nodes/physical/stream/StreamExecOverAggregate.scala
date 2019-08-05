@@ -282,7 +282,7 @@ class StreamExecOverAggregate(
 
     val ret = new OneInputTransformation(
       inputDS,
-      "OverAggregate",
+      getRelDetailedDescription,
       operator,
       returnTypeInfo,
       inputDS.getParallelism)

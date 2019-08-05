@@ -104,7 +104,7 @@ class BatchPlanner(
     val explainLevel = if (extended) {
       SqlExplainLevel.ALL_ATTRIBUTES
     } else {
-      SqlExplainLevel.EXPPLAN_ATTRIBUTES
+      SqlExplainLevel.DIGEST_ATTRIBUTES
     }
     sb.append(ExecNodePlanDumper.dagToString(execNodes, explainLevel))
     sb.append(System.lineSeparator)

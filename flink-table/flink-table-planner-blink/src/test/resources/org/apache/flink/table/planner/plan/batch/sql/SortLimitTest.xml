@@ -49,7 +49,7 @@ LogicalSort(sort0=[$0], sort1=[$1], dir0=[DESC-nulls-last], dir1=[ASC-nulls-firs
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]], values=[a, b, c])
+Values(type=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)], tuples=[[]], values=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -85,7 +85,7 @@ LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]], values=[a, b, c])
+Values(type=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)], tuples=[[]], values=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -141,7 +141,7 @@ LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]], values=[a, b, c])
+Values(type=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)], tuples=[[]], values=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -198,7 +198,7 @@ LogicalSort(sort0=[$0], sort1=[$1], dir0=[DESC-nulls-last], dir1=[ASC-nulls-firs
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]], values=[a, b, c])
+Values(type=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)], tuples=[[]], values=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

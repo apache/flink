@@ -183,7 +183,7 @@ class StreamExecIncrementalGroupAggregate(
     // partitioned aggregation
     val ret = new OneInputTransformation(
       inputTransformation,
-      "IncrementalGroupAggregate",
+      getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outRowType),
       inputTransformation.getParallelism)

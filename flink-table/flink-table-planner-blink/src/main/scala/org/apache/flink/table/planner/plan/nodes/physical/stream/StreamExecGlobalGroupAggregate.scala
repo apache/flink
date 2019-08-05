@@ -186,7 +186,7 @@ class StreamExecGlobalGroupAggregate(
     // partitioned aggregation
     val ret = new OneInputTransformation(
       inputTransformation,
-      "GlobalGroupAggregate",
+      getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outRowType),
       inputTransformation.getParallelism)
