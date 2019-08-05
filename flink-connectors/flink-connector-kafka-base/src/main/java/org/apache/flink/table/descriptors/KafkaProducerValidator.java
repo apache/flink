@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.descriptors;
 
+/**
+ * Validator for Kafka producer setting.
+ */
 public class KafkaProducerValidator extends KafkaValidator {
 
 	/**

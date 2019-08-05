@@ -19,6 +19,7 @@
 package org.apache.flink.table.descriptors;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
@@ -88,4 +89,23 @@ public class KafkaTopicDescriptor {
 		this.type = type;
 	}
 
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		KafkaTopicDescriptor that = (KafkaTopicDescriptor) o;
+		return Objects.equals(topic, that.topic) &&
+			Objects.equals(topics, that.topics) &&
+			Objects.equals(subscriptionPattern, that.subscriptionPattern) &&
+			type == that.type;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(topic, topics, subscriptionPattern, type);
+	}
 }

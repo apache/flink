@@ -23,6 +23,9 @@ import org.apache.flink.table.api.ValidationException;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+/**
+ * Validator for Kafka producer setting.
+ */
 public class KafkaConsumerValidator extends KafkaValidator {
 
 	/**
@@ -64,8 +67,10 @@ public class KafkaConsumerValidator extends KafkaValidator {
 
 	private int keyCount(DescriptorProperties properties, String... keys) {
 		int count = 0;
-		for (String key: keys) {
-			if (properties.containsKey(key)) count++;
+		for (String key : keys) {
+			if (properties.containsKey(key)) {
+				count++;
+			}
 		}
 		return count;
 	}

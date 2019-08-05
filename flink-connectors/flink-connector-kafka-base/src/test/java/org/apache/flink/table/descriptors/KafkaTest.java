@@ -19,6 +19,7 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
+
 import org.junit.Test;
 
 import java.util.Arrays;
