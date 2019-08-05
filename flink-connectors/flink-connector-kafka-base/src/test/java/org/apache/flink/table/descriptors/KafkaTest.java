@@ -19,6 +19,7 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
+import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -68,8 +69,7 @@ public class KafkaTest extends DescriptorTestBase {
 			new Kafka()
 				.version("0.11")
 				.topic("MyTable")
-				.startFromEarliest()
-				.topic("WhateverTopic");
+				.startFromEarliest();
 
 		final Descriptor specificConsumerTopicsDesc =
 			new Kafka()
@@ -129,25 +129,25 @@ public class KafkaTest extends DescriptorTestBase {
 		props3.put("connector.sink-partitioner-class", FlinkFixedPartitioner.class.getName());
 
 		final Map<String, String> props4 = new HashMap<>();
-		props1.put("connector.property-version", "1");
-		props1.put("connector.type", "kafka");
-		props1.put("connector.version", "0.11");
-		props1.put("connector.topic", "MyTable");
-		props1.put("connector.startup-mode", "earliest-offset");
+		props4.put("connector.property-version", "1");
+		props4.put("connector.type", "kafka");
+		props4.put("connector.version", "0.11");
+		props4.put("connector.topic", "MyTable");
+		props4.put("connector.startup-mode", "earliest-offset");
 
 		final Map<String, String> props5 = new HashMap<>();
-		props1.put("connector.property-version", "1");
-		props1.put("connector.type", "kafka");
-		props1.put("connector.version", "0.11");
-		props1.put("connector.topics", "MyTable1,MyTable2,MyTable3");
-		props1.put("connector.startup-mode", "earliest-offset");
+		props5.put("connector.property-version", "1");
+		props5.put("connector.type", "kafka");
+		props5.put("connector.version", "0.11");
+		props5.put("connector.topics", "MyTable1,MyTable2,MyTable3");
+		props5.put("connector.startup-mode", "earliest-offset");
 
 		final Map<String, String> props6 = new HashMap<>();
-		props1.put("connector.property-version", "1");
-		props1.put("connector.type", "kafka");
-		props1.put("connector.version", "0.11");
-		props1.put("connector.subscription-pattern", "MyTable*");
-		props1.put("connector.startup-mode", "earliest-offset");
+		props6.put("connector.property-version", "1");
+		props6.put("connector.type", "kafka");
+		props6.put("connector.version", "0.11");
+		props6.put("connector.subscription-pattern", "MyTable*");
+		props6.put("connector.startup-mode", "earliest-offset");
 
 		return Arrays.asList(props1, props2, props3, props4, props5, props6);
 	}
@@ -156,4 +156,34 @@ public class KafkaTest extends DescriptorTestBase {
 	public DescriptorValidator validator() {
 		return new KafkaConsumerValidator();
 	}
+
+	@Test(expected = org.apache.flink.table.api.ValidationException.class)
+	public void testInvalidTopicSetting() {
+		final Map<String, String> props = new HashMap<>();
+		props.put("connector.property-version", "1");
+		props.put("connector.type", "kafka");
+		props.put("connector.version", "0.11");
+		props.put("connector.topic", "MyTable");
+		props.put("connector.topics", "MyTable1,MyTable2,MyTable3");
+		props.put("connector.startup-mode", "earliest-offset");
+
+		final DescriptorProperties properties = new DescriptorProperties();
+		properties.putProperties(props);
+		validator().validate(properties);
+	}
+
+	@Test(expected = org.apache.flink.table.api.ValidationException.class)
+	public void testInvalidSubscriptionPatternSetting() {
+		final Map<String, String> props = new HashMap<>();
+		props.put("connector.property-version", "1");
+		props.put("connector.type", "kafka");
+		props.put("connector.version", "0.11");
+		props.put("connector.subscription-pattern", "MyTable[");
+		props.put("connector.startup-mode", "earliest-offset");
+
+		final DescriptorProperties properties = new DescriptorProperties();
+		properties.putProperties(props);
+		validator().validate(properties);
+	}
+
 }
