@@ -45,12 +45,10 @@ import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.HashMap;
@@ -448,7 +446,7 @@ public class CheckpointCoordinator {
 			long latestGeneratedCheckpointId = getCheckpointIdCounter().get();
 			// here we can not get the failed pending checkpoint's id,
 			// so we pass the negative latest generated checkpoint id as a special flag
-			failureManager.handleCheckpointException(e, -1 * latestGeneratedCheckpointId, null);
+			failureManager.handleCheckpointException(e, -1 * latestGeneratedCheckpointId);
 			return false;
 		}
 	}
@@ -663,7 +661,7 @@ public class CheckpointCoordinator {
 						checkpointID, job, numUnsuccessful, t);
 
 				if (!checkpoint.isDiscarded()) {
-					failPendingCheckpoint(checkpoint, CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE, t, null);
+					failPendingCheckpoint(checkpoint, CheckpointFailureReason.TRIGGER_CHECKPOINT_FAILURE, t);
 				}
 
 				try {
@@ -860,7 +858,7 @@ public class CheckpointCoordinator {
 			catch (Exception e1) {
 				// abort the current pending checkpoint if we fails to finalize the pending checkpoint.
 				if (!pendingCheckpoint.isDiscarded()) {
-					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE, e1, null);
+					failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE, e1);
 				}
 
 				throw new CheckpointException("Could not finalize the pending checkpoint " + checkpointId + '.',
@@ -1406,16 +1404,23 @@ public class CheckpointCoordinator {
 	}
 
 	private void failPendingCheckpoint(
-		final PendingCheckpoint pendingCheckpoint,
-		final CheckpointFailureReason reason) {
+			final PendingCheckpoint pendingCheckpoint,
+			final CheckpointFailureReason reason) {
 
-		failPendingCheckpoint(pendingCheckpoint, reason, null);
+		failPendingCheckpoint(pendingCheckpoint, reason, (ExecutionAttemptID) null);
 	}
 
 	private void failPendingCheckpoint(
-		final PendingCheckpoint pendingCheckpoint,
-		final CheckpointFailureReason reason,
-		final ExecutionAttemptID executionAttemptID) {
+			final PendingCheckpoint pendingCheckpoint,
+			final CheckpointFailureReason reason,
+			final Throwable cause) {
+		failPendingCheckpoint(pendingCheckpoint, reason, cause, null);
+	}
+
+	private void failPendingCheckpoint(
+			final PendingCheckpoint pendingCheckpoint,
+			final CheckpointFailureReason reason,
+			final ExecutionAttemptID executionAttemptID) {
 
 		failPendingCheckpoint(pendingCheckpoint, reason, null, executionAttemptID);
 	}
@@ -1424,7 +1429,7 @@ public class CheckpointCoordinator {
 			final PendingCheckpoint pendingCheckpoint,
 			final CheckpointFailureReason reason,
 			final Throwable cause,
-			final ExecutionAttemptID executionAttemptID) {
+			@Nullable final ExecutionAttemptID executionAttemptID) {
 
 		CheckpointException exception = new CheckpointException(reason, cause);
 		pendingCheckpoint.abort(reason, cause);

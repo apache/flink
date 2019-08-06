@@ -75,9 +75,9 @@ public class CheckpointFailureManager {
 	 * @param executionAttemptID the execution attempt id, as a safe guard.
 	 */
 	public void handleCheckpointException(
-		CheckpointException exception,
-		long checkpointId,
-		@Nullable ExecutionAttemptID executionAttemptID) {
+			CheckpointException exception,
+			long checkpointId,
+			@Nullable ExecutionAttemptID executionAttemptID) {
 		if (tolerableCpFailureNumber == UNLIMITED_TOLERABLE_FAILURE_NUMBER) {
 			return;
 		}
@@ -154,7 +154,7 @@ public class CheckpointFailureManager {
 	 * */
 	void handleSynchronousSavepointFailure(final Throwable cause) {
 		if (!isPreFlightFailure(cause)) {
-			failureCallback.failJob(cause, null);
+			failureCallback.failJob(cause);
 		}
 	}
 
@@ -169,6 +169,15 @@ public class CheckpointFailureManager {
 	 * A callback interface about how to fail a job.
 	 */
 	public interface FailJobCallback {
+
+		/**
+		 * Fails the whole job graph.
+		 *
+		 * @param cause The reason why the job is cancelled.
+		 */
+		default void failJob(final Throwable cause) {
+			failJob(cause, null);
+		}
 
 		/**
 		 * Fails the whole job graph.
