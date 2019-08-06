@@ -22,24 +22,13 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.ConnectorFormatDescriptor;
 import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.FormatDescriptor;
-import org.apache.flink.table.descriptors.Metadata;
-import org.apache.flink.table.descriptors.Statistics;
-import org.apache.flink.table.descriptors.StreamableDescriptor;
 import org.apache.flink.table.descriptors.TableDescriptor;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.Optional;
-
-import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
-import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
-import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_RETRACT;
-import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_UPSERT;
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A builder for creating a {@link CatalogTable}.
@@ -58,8 +47,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *       new ExternalSystemXYZ()
  *         .version("0.11"),
  *       new TableSchema.Builder()
- *     	   .fields(names, dataTypes)
- *     	   .build())
+ *         .fields(names, dataTypes)
+ *         .build())
  *   .withFormat(
  *     new Json()
  *       .jsonSchema("{...}")
@@ -69,73 +58,36 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * </code>
  */
 @PublicEvolving
-public class CatalogTableBuilder
-		extends TableDescriptor
-		implements ConnectorFormatDescriptor<CatalogTableBuilder>, StreamableDescriptor<CatalogTableBuilder> {
+public final class CatalogTableBuilder extends TableDescriptor<CatalogTableBuilder> {
 
-	private final ConnectorDescriptor connectorDescriptor;
 	private final TableSchema tableSchema;
-	private final boolean isGeneric;
 
 	private String comment;
 
-	private Optional<FormatDescriptor> formatDescriptor = Optional.empty();
-	private Optional<Statistics> statisticsDescriptor = Optional.empty();
-	private Optional<Metadata> metadataDescriptor = Optional.empty();
-	private Optional<String> updateMode = Optional.empty();
+	private final boolean isGeneric;
+
 	private Map<String, String> properties = Collections.emptyMap();
 
-	/**
-	 *
-	 * @param connectorDescriptor descriptor of the connector
-	 * @param tableSchema schema of the table
-	 */
 	public CatalogTableBuilder(ConnectorDescriptor connectorDescriptor, TableSchema tableSchema) {
-		this.connectorDescriptor = checkNotNull(connectorDescriptor);
-		this.tableSchema = checkNotNull(tableSchema);
+		super(connectorDescriptor);
+		this.tableSchema = Preconditions.checkNotNull(tableSchema);
 
-		// We don't support non generic table currently
+		// We don't support non-generic table currently
 		this.isGeneric = true;
 	}
 
-	@Override
-	public CatalogTableBuilder withFormat(FormatDescriptor format) {
-		this.formatDescriptor = Optional.of(checkNotNull(format));
-		return this;
-	}
-
-	@Override
-	public CatalogTableBuilder inAppendMode() {
-		updateMode = Optional.of(UPDATE_MODE_VALUE_APPEND);
-		return this;
-	}
-
-	@Override
-	public CatalogTableBuilder inRetractMode() {
-		updateMode = Optional.of(UPDATE_MODE_VALUE_RETRACT);
-		return this;
-	}
-
-	@Override
-	public CatalogTableBuilder inUpsertMode() {
-		updateMode = Optional.of(UPDATE_MODE_VALUE_UPSERT);
-		return this;
-	}
-
 	public CatalogTableBuilder withComment(String comment) {
-		this.comment = comment;
+		this.comment = Preconditions.checkNotNull(comment, "Comment must not be null.");
 		return this;
 	}
 
 	public CatalogTableBuilder withProperties(Map<String, String> properties) {
-		this.properties = checkNotNull(properties);
+		this.properties = Preconditions.checkNotNull(properties, "Properties must not be null.");
 		return this;
 	}
 
 	/**
-	 * Build a {@link CatalogTable}.
-	 *
-	 * @return catalog table
+	 * Builds a {@link CatalogTable}.
 	 */
 	public CatalogTable build() {
 		return new CatalogTableImpl(
@@ -145,28 +97,12 @@ public class CatalogTableBuilder
 	}
 
 	@Override
-	public Map<String, String> toProperties() {
+	protected Map<String, String> additionalProperties() {
 		DescriptorProperties descriptorProperties = new DescriptorProperties();
-		descriptorProperties.putProperties(connectorDescriptor.toProperties());
 
-		if (formatDescriptor.isPresent()) {
-			descriptorProperties.putProperties(formatDescriptor.get().toProperties());
-		}
-
-		if (statisticsDescriptor.isPresent()) {
-			descriptorProperties.putProperties(statisticsDescriptor.get().toProperties());
-		}
-
-		if (metadataDescriptor.isPresent()) {
-			descriptorProperties.putProperties(metadataDescriptor.get().toProperties());
-		}
-
-		if (updateMode.isPresent()) {
-			descriptorProperties.putString(UPDATE_MODE, updateMode.get());
-		}
+		descriptorProperties.putBoolean(CatalogConfig.IS_GENERIC, isGeneric);
 
 		descriptorProperties.putProperties(this.properties);
-		descriptorProperties.putString(CatalogConfig.IS_GENERIC, String.valueOf(isGeneric));
 
 		return descriptorProperties.asMap();
 	}

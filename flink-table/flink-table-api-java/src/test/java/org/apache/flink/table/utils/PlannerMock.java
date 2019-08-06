@@ -16,18 +16,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors;
+package org.apache.flink.table.utils;
+
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.Operation;
+
+import java.util.List;
 
 /**
- * An interface for descriptors that allow to define a schema.
- *
- * @deprecated This class can be dropped once we remove external catalog support.
+ * Mocking {@link Planner} for tests.
  */
-@Deprecated
-public interface SchematicDescriptor<D extends SchematicDescriptor<D>> extends Descriptor {
+public class PlannerMock implements Planner {
 
-	/**
-	 * Specifies the resulting table schema.
-	 */
-	D withSchema(Schema schema);
+	@Override
+	public List<Operation> parse(String statement) {
+		return null;
+	}
+
+	@Override
+	public List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
+		return null;
+	}
+
+	@Override
+	public String explain(List<Operation> operations, boolean extended) {
+		return null;
+	}
+
+	@Override
+	public String[] getCompletionHints(String statement, int position) {
+		return new String[0];
+	}
 }
