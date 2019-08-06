@@ -30,7 +30,20 @@ if sys.version > '3':
 
 class TableConfig(object):
     """
-    A config to define the runtime behavior of the Table API.
+    Configuration for the current :class:`TableEnvironment` session to adjust Table & SQL API
+    programs.
+
+    For common or important configuration options, this class provides getters and setters methods
+    with detailed inline documentation.
+
+    For more advanced configuration, users can directly access the underlying key-value map via
+    :func:`~pyflink.table.TableConfig.get_configuration`. Currently, key-value options are only
+    supported for the Blink planner.
+
+    .. note::
+
+        Because options are read at different point in time when performing operations, it is
+        recommended to set configuration options early after instantiating a table environment.
     """
 
     def __init__(self, j_table_config=None):
@@ -231,18 +244,19 @@ class TableConfig(object):
 
     def get_configuration(self):
         """
-        Returns all key/value configuration.
+        Gives direct access to the underlying key-value map for advanced configuration.
 
-        :return: All key/value configuration.
+        :return: Entire key-value configuration.
         :rtype: Configuration
         """
         return Configuration(j_configuration=self._j_table_config.getConfiguration())
 
     def add_configuration(self, configuration):
         """
-        Adds the given key/value configuration.
+        Adds the given key-value configuration to the underlying configuration. It overwrites
+        existing keys.
 
-        :param configuration: The given key/value configuration.
+        :param configuration: Key-value configuration to be added.
         :type configuration: Configuration
         """
         self._j_table_config.addConfiguration(configuration._j_configuration)
