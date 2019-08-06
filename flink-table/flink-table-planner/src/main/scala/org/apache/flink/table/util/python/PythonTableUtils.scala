@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.api.common.python
+package org.apache.flink.table.util.python
 
 import java.nio.charset.StandardCharsets
 import java.sql.{Date, Time, Timestamp}
