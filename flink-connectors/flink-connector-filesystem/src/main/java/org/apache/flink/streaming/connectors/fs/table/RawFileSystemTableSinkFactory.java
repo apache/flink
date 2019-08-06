@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -40,21 +40,29 @@ import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketV
 import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_DATE_FORMAT;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
-import static org.apache.flink.table.descriptors.Schema.*;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_FROM;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
+import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 
+
+
+/**
+ */
 public class RawFileSystemTableSinkFactory extends FileSystemTableSinkFactoryBase {
-
 
 	@Override
 	public StreamTableSink<Row> createStreamTableSink(Map<String, String> properties) {
-
 
 		final DescriptorProperties descriptorProperties = getValidatedProperties(properties);
 		final TableSchema schema = descriptorProperties.getTableSchema(SCHEMA);
 		final String path = descriptorProperties.getString(CONNECTOR_BASEPATH);
 
 		SerializationSchema<Row> serializationSchema = getSerializationSchema(properties);
-		StreamingFileSink.RowFormatBuilder builder = StreamingFileSink.forRowFormat(new Path(path), new SerializationEncoder<Row>(serializationSchema));
+		StreamingFileSink.RowFormatBuilder builder = StreamingFileSink.forRowFormat(
+			new Path(path),
+			new SerializationEncoder<Row>(
+				serializationSchema));
 
 		if (descriptorProperties.containsKey(CONNECTOR_DATE_FORMAT)) {
 			String dateFormat = descriptorProperties.getString(CONNECTOR_DATE_FORMAT);
@@ -96,13 +104,13 @@ public class RawFileSystemTableSinkFactory extends FileSystemTableSinkFactoryBas
 	}
 
 	private SerializationSchema<Row> getSerializationSchema(Map<String, String> properties) {
-		@SuppressWarnings("unchecked") final SerializationSchemaFactory<Row> formatFactory = TableFactoryService.find(
-			SerializationSchemaFactory.class,
-			properties,
-			this.getClass().getClassLoader());
+		@SuppressWarnings("unchecked") final SerializationSchemaFactory<Row> formatFactory = TableFactoryService
+			.find(
+				SerializationSchemaFactory.class,
+				properties,
+				this.getClass().getClassLoader());
 		return formatFactory.createSerializationSchema(properties);
 	}
-
 
 	@Override
 	protected String formatType() {

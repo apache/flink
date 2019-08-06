@@ -11,14 +11,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ *
+ */
 public class BucketTest extends DescriptorTestBase {
+
 	@Override
 	protected List<Descriptor> descriptors() {
 		final Descriptor fileRawDesc =
-			new Bucket().basePath("file:///tmp/flink-data/json").rawFormat().dateFormat("yyyy-MM-dd-HHmm");
+			new Bucket().basePath("file:///tmp/flink-data/json")
+				.rawFormat()
+				.dateFormat("yyyy-MM-dd-HHmm");
 
 		final Descriptor fileBultDesc =
-			new Bucket().basePath("hdfs://localhost/tmp/flink-data/avro").bultFormat().dateFormat("yyyy-MM-dd");
+			new Bucket().basePath("hdfs://localhost/tmp/flink-data/avro")
+				.bultFormat()
+				.dateFormat("yyyy-MM-dd");
 
 		return Arrays.asList(fileRawDesc, fileBultDesc);
 	}
@@ -31,7 +39,6 @@ public class BucketTest extends DescriptorTestBase {
 		fileRawDesc.put("connector.basepath", "file:///tmp/flink-data/json");
 		fileRawDesc.put("connector.date.format", "yyyy-MM-dd-HHmm");
 		fileRawDesc.put("connector.format.type", "raw");
-
 
 		final Map<String, String> fileBultDesc = new HashMap<>();
 		fileBultDesc.put("connector.property-version", "1");

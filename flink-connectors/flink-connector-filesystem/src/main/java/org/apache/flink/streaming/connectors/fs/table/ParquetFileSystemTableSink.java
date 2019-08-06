@@ -24,18 +24,18 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.table.api.TableSchema;
 
+/**
+ *
+ */
 @Internal
 public class ParquetFileSystemTableSink extends FileSystemTableSinkBase {
 
-
 	private final String schemaString;
-
 
 	public ParquetFileSystemTableSink(String schemaString, StreamingFileSink sink) {
 		super(TableSchema.fromTypeInfo(AvroSchemaConverter.convertToTypeInfo(schemaString)), sink);
 		this.schemaString = schemaString;
 	}
-
 
 	@Override
 	DataStream getDataStream(DataStream dataStream) {

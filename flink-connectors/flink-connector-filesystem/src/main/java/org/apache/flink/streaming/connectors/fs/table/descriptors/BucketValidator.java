@@ -19,7 +19,13 @@
 package org.apache.flink.streaming.connectors.fs.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.descriptors.*;
+import org.apache.flink.table.descriptors.AvroValidator;
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
+import org.apache.flink.table.descriptors.CsvValidator;
+import org.apache.flink.table.descriptors.DescriptorProperties;
+import org.apache.flink.table.descriptors.FormatDescriptorValidator;
+import org.apache.flink.table.descriptors.JsonValidator;
+import org.apache.flink.table.descriptors.ParquetValidator;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -38,7 +44,6 @@ public class BucketValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_SINK_BUCKET_CLASS = "connector.bucket.class";
 	public static final String CONNECTOR_SINK_WRITE_CLASS = "connector.write.class";
 
-
 	public static final String CONNECTOR_DATA_TYPE = "connector.format.type";
 	public static final String CONNECTOR_DATA_TYPE_RAW_VALUE = "raw";
 	public static final String CONNECTOR_DATA_TYPE_BULT_VALUE = "bult";
@@ -56,7 +61,9 @@ public class BucketValidator extends ConnectorDescriptorValidator {
 	private void validateDataType(DescriptorProperties properties) {
 
 		final Map<String, Consumer<String>> validation = new HashMap<>();
-		validation.put(getDataType(properties.getString(FormatDescriptorValidator.FORMAT_TYPE)), noValidation());
+		validation.put(
+			getDataType(properties.getString(FormatDescriptorValidator.FORMAT_TYPE)),
+			noValidation());
 		properties.validateEnum(CONNECTOR_DATA_TYPE, false, validation);
 	}
 
@@ -71,6 +78,5 @@ public class BucketValidator extends ConnectorDescriptorValidator {
 		}
 		throw new IllegalArgumentException("Invalid formatType.");
 	}
-
 
 }

@@ -18,14 +18,15 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.core.fs.FSDataOutputStream;
+
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.core.fs.FSDataOutputStream;
 
 import java.io.IOException;
 
@@ -38,12 +39,11 @@ import java.io.IOException;
 @PublicEvolving
 public class AvroWriterFactory<T> implements BulkWriter.Factory<T> {
 
-
 	private static final long serialVersionUID = -2017036224698284254L;
-
-	/** The Schema to construct the ParquetWriter. */
+	/**
+	 * The Schema to construct the ParquetWriter.
+	 */
 	private final String schemaStr;
-
 
 	public AvroWriterFactory(String schemaStr) {
 		this.schemaStr = schemaStr;
@@ -53,7 +53,7 @@ public class AvroWriterFactory<T> implements BulkWriter.Factory<T> {
 	public BulkWriter<T> create(FSDataOutputStream stream) throws IOException {
 		DatumWriter<GenericRecord> userDatumWriter = new SpecificDatumWriter<>();
 		DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<>(userDatumWriter);
-		dataFileWriter.create(Schema.parse(schemaStr),stream);
+		dataFileWriter.create(Schema.parse(schemaStr), stream);
 		return new AvroWriter<>(dataFileWriter, schemaStr);
 	}
 }

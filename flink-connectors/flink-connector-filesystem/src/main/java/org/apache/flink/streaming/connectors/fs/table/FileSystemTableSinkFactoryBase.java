@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.connectors.fs.table;
 
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.DateTimeBucketAssigner;
 import org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.StreamTableSinkFactory;
@@ -28,14 +26,15 @@ import org.apache.flink.types.Row;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_DATE_FORMAT;
 import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_TYPE_VALUE_BUCKET;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
 
-
+/**
+ *
+ */
 public abstract class FileSystemTableSinkFactoryBase implements StreamTableSinkFactory<Row> {
 
 	@Override
@@ -56,6 +55,5 @@ public abstract class FileSystemTableSinkFactoryBase implements StreamTableSinkF
 		new BucketValidator().validate(descriptorProperties);
 		return descriptorProperties;
 	}
-
 
 }

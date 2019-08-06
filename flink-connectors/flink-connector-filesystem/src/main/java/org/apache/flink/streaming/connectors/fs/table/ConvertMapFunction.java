@@ -1,23 +1,22 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
+ * agreements.  See the NOTICE file distributed with this work for additional information regarding
+ * copyright ownership.  The ASF licenses this file to you under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with the License.  You may obtain
+ * a copy of the License at
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 
-
 package org.apache.flink.streaming.connectors.fs.table;
+
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.types.Row;
 
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -25,8 +24,6 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.types.Row;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -38,7 +35,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
+/**
+ *
+ */
 public class ConvertMapFunction implements MapFunction<Row, GenericRecord> {
+
 	private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
 	private String schemaString;
 
@@ -52,7 +53,6 @@ public class ConvertMapFunction implements MapFunction<Row, GenericRecord> {
 		return convertRowToAvroRecord(schema, value);
 	}
 
-
 	private GenericRecord convertRowToAvroRecord(Schema schema, Row row) {
 		final List<Schema.Field> fields = schema.getFields();
 		final int length = fields.size();
@@ -63,7 +63,6 @@ public class ConvertMapFunction implements MapFunction<Row, GenericRecord> {
 		}
 		return record;
 	}
-
 
 	private Object convertFlinkType(Schema schema, Object object) {
 		if (object == null) {
@@ -80,7 +79,9 @@ public class ConvertMapFunction implements MapFunction<Row, GenericRecord> {
 			case ARRAY:
 				final Schema elementSchema = schema.getElementType();
 				final Object[] array = (Object[]) object;
-				final GenericData.Array<Object> convertedArray = new GenericData.Array<>(array.length, schema);
+				final GenericData.Array<Object> convertedArray = new GenericData.Array<>(
+					array.length,
+					schema);
 				for (Object element : array) {
 					convertedArray.add(convertFlinkType(elementSchema, element));
 				}
@@ -152,7 +153,9 @@ public class ConvertMapFunction implements MapFunction<Row, GenericRecord> {
 		if (logicalType instanceof LogicalTypes.Decimal) {
 			final LogicalTypes.Decimal decimalType = (LogicalTypes.Decimal) logicalType;
 			// rescale to target type
-			final BigDecimal rescaled = decimal.setScale(decimalType.getScale(), BigDecimal.ROUND_UNNECESSARY);
+			final BigDecimal rescaled = decimal.setScale(
+				decimalType.getScale(),
+				BigDecimal.ROUND_UNNECESSARY);
 			// byte array must contain the two's-complement representation of the
 			// unscaled integer value in big-endian byte order
 			return decimal.unscaledValue().toByteArray();

@@ -72,8 +72,6 @@ public class Parquet extends FormatDescriptor {
 		if (null != schema) {
 			properties.putString(ParquetValidator.FORMAT_PARQUET_SCHEMA, schema.toString());
 		}
-
-
 		return properties.asMap();
 	}
 }

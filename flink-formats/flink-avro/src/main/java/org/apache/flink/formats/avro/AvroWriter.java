@@ -18,6 +18,10 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.serialization.BulkWriter;
+import org.apache.flink.types.Row;
+
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
@@ -25,9 +29,6 @@ import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.serialization.BulkWriter;
-import org.apache.flink.types.Row;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -41,10 +42,8 @@ import java.util.Map;
 import java.util.TimeZone;
 
 /**
- * A {@link BulkWriter} implementation that wraps a {@link SequenceFile.Writer}.
- *
- * @param <K> The type of key written.
- * @param <V> The type of value written.
+ * A  implementation .
+ * @param <T> The type of written.
  */
 @PublicEvolving
 public class AvroWriter<T> implements BulkWriter<T> {

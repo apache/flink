@@ -18,12 +18,9 @@
 
 package org.apache.flink.table.examples.java;
 
-
-import com.alibaba.fastjson.JSONObject;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.core.fs.Path;
@@ -39,12 +36,16 @@ import org.apache.flink.streaming.connectors.fs.bucketing.BucketingSink;
 import org.apache.flink.streaming.connectors.fs.table.descriptors.Bucket;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.descriptors.*;
+import org.apache.flink.table.descriptors.Avro;
+import org.apache.flink.table.descriptors.Csv;
+import org.apache.flink.table.descriptors.Json;
+import org.apache.flink.table.descriptors.Parquet;
+import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.types.Row;
-import org.apache.parquet.avro.AvroSchemaConverter;
+
+import com.alibaba.fastjson.JSONObject;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -54,9 +55,8 @@ import java.util.Properties;
  * Simple example for demonstrating the use of SQL on a Stream Table in Java.
  *
  * <p>This example shows how to:
- * - Convert DataStreams to Tables
- * - Register a Table under a name
- * - Run a StreamSQL query on the registered Table
+ * - Convert DataStreams to Tables - Register a Table under a name - Run a StreamSQL query on the
+ * registered Table
  */
 public class FileSystemSinkTest {
 
@@ -73,19 +73,20 @@ public class FileSystemSinkTest {
 
 	}
 
-
 	@Test
 	public void testKafka2Hdfs() throws Exception {
 		Properties properties = new Properties();
 		properties.setProperty("bootstrap.servers", "localhost:9092");
 		properties.setProperty("group.id", "test");
 
-		FlinkKafkaConsumer010<String> myConsumer = new FlinkKafkaConsumer010<>("test3", new SimpleStringSchema(),
+		FlinkKafkaConsumer010<String> myConsumer = new FlinkKafkaConsumer010<>("test3",
+			new SimpleStringSchema(),
 			properties);
 		myConsumer.setStartFromLatest();
 
 		StreamingFileSink<String> sink = StreamingFileSink
-			.forRowFormat(new Path("hdfs://localhost/tmp/flink-data/json"), new SimpleStringEncoder<String>("UTF-8"))
+			.forRowFormat(new Path("hdfs://localhost/tmp/flink-data/json"),
+				new SimpleStringEncoder<String>("UTF-8"))
 			.build();
 
 		DataStream ds = env.addSource(myConsumer);
@@ -97,7 +98,8 @@ public class FileSystemSinkTest {
 	@Test
 	public void testKafka2File() throws Exception {
 		StreamingFileSink<Row> sink = StreamingFileSink
-			.forRowFormat(new Path("hdfs://localhost/tmp/flink-data/json"), new SimpleStringEncoder<Row>("UTF-8"))
+			.forRowFormat(new Path("hdfs://localhost/tmp/flink-data/json"),
+				new SimpleStringEncoder<Row>("UTF-8"))
 			.build();
 
 		BucketingSink sink1 = new BucketingSink<Row>("hdfs://localhost/tmp/flink-data/json");
@@ -107,7 +109,6 @@ public class FileSystemSinkTest {
 		tEnv.toAppendStream(result, Row.class).addSink(sink1);
 		env.execute();
 	}
-
 
 	@Test
 	public void testKafka2Parquet() throws Exception {
@@ -128,7 +129,8 @@ public class FileSystemSinkTest {
 
 		registerOrder();
 
-		tEnv.connect(new Bucket().basePath("file:///tmp/flink-data/json").rawFormat().dateFormat("yyyy-MM-dd-HHmm"))
+		tEnv.connect(new Bucket().basePath("file:///tmp/flink-data/json").rawFormat()
+			.dateFormat("yyyy-MM-dd-HHmm"))
 			.withFormat(new Json().deriveSchema())
 			.withSchema(new Schema()
 				.field("a", Types.STRING())
@@ -139,22 +141,20 @@ public class FileSystemSinkTest {
 
 		tEnv.sqlUpdate("insert into mysink SELECT * FROM mysource");
 
-
 //		Table table = tEnv.sqlQuery("select * from mysource");
 //		tEnv.toAppendStream(table, Row.class).print();
 
 		env.execute();
 	}
 
-
 	@Test
 	public void testFileCsv() throws Exception {
 
 		registerOrder();
 
-
 		char c = 0x01;
-		tEnv.connect(new Bucket().basePath("file:///tmp/flink-data/csv").rawFormat().dateFormat("yyyy-MM-dd-HHmm"))
+		tEnv.connect(new Bucket().basePath("file:///tmp/flink-data/csv").rawFormat()
+			.dateFormat("yyyy-MM-dd-HHmm"))
 			.withFormat(new Csv().deriveSchema().fieldDelimiter(c))
 			.withSchema(new Schema()
 				.field("a", Types.STRING())
@@ -167,16 +167,16 @@ public class FileSystemSinkTest {
 		env.execute();
 	}
 
-
 	@Test
 	public void testFileAvro() throws Exception {
 //		TableSchema ts = TableSchema.fromTypeInfo(AvroSchemaConverter.convertToTypeInfo(Address.class));
 		registerAddresFromKafka();
 
-
-		tEnv.connect(new Bucket().basePath("file:///tmp/flink-data/avro").bultFormat().dateFormat("yyyy-MM-dd-HHmm"))
+		tEnv.connect(new Bucket().basePath("file:///tmp/flink-data/avro").bultFormat()
+			.dateFormat("yyyy-MM-dd-HHmm"))
 //			.withFormat(new Avro().recordClass(Address.class))
-			.withFormat(new Avro().avroSchema("{\"type\":\"record\",\"name\":\"Address\",\"namespace\":\"org.apache.flink.formats.avro.generated\",\"fields\":[{\"name\":\"num\",\"type\":\"int\"},{\"name\":\"street\",\"type\":\"string\"},{\"name\":\"city\",\"type\":\"string\"},{\"name\":\"state\",\"type\":\"string\"},{\"name\":\"zip\",\"type\":\"string\"}]}"))
+			.withFormat(new Avro().avroSchema(
+				"{\"type\":\"record\",\"name\":\"Address\",\"namespace\":\"org.apache.flink.formats.avro.generated\",\"fields\":[{\"name\":\"num\",\"type\":\"int\"},{\"name\":\"street\",\"type\":\"string\"},{\"name\":\"city\",\"type\":\"string\"},{\"name\":\"state\",\"type\":\"string\"},{\"name\":\"zip\",\"type\":\"string\"}]}"))
 			.inAppendMode()
 			.registerTableSink("mysink");
 
@@ -190,7 +190,6 @@ public class FileSystemSinkTest {
 //			.inAppendMode()
 //			.registerTableSink("mysink");
 
-
 //		Table result = tEnv.sqlQuery("SELECT * FROM mysource");
 //		tEnv.toAppendStream(result, Row.class).print();
 
@@ -200,16 +199,15 @@ public class FileSystemSinkTest {
 		env.execute();
 	}
 
-
 	@Test
 	public void testFileParquet() throws Exception {
 		registerAddresFromKafka();
 
-
 		String schemaStr = "{\"type\":\"record\",\"name\":\"Address\",\"namespace\":\"org.apache.flink.formats.avro.generated\",\"fields\":[{\"name\":\"num\",\"type\":\"int\"},{\"name\":\"street\",\"type\":\"string\"},{\"name\":\"city\",\"type\":\"string\"},{\"name\":\"state\",\"type\":\"string\"},{\"name\":\"zip\",\"type\":\"string\"}]}";
 		org.apache.avro.Schema avroschema = new org.apache.avro.Schema.Parser().parse(schemaStr);
 
-		tEnv.connect(new Bucket().basePath("file:///tmp/flink-data/parquet").bultFormat().dateFormat("yyyy-MM-dd-HHmm"))
+		tEnv.connect(new Bucket().basePath("file:///tmp/flink-data/parquet").bultFormat()
+			.dateFormat("yyyy-MM-dd-HHmm"))
 			.withFormat(new Parquet().reflectClass(Address.class))
 			.inAppendMode()
 			.registerTableSink("mysink");
@@ -227,17 +225,15 @@ public class FileSystemSinkTest {
 		properties.setProperty("bootstrap.servers", "localhost:9092");
 		properties.setProperty("group.id", "test");
 
-
-		FlinkKafkaConsumer010<String> myConsumer = new FlinkKafkaConsumer010("kafkaSourceJson", new SimpleStringSchema(),
+		FlinkKafkaConsumer010<String> myConsumer = new FlinkKafkaConsumer010("kafkaSourceJson",
+			new SimpleStringSchema(),
 			properties);
 		myConsumer.setStartFromLatest();
-
 
 		StreamingFileSink<Address> sink = StreamingFileSink.forBulkFormat(
 			new Path("file:///tmp/flink-data/a"),
 			new AvroWriterFactory(Address.getClassSchema().toString()))
 			.build();
-
 
 //		StreamingFileSink<Address> sink = StreamingFileSink.forBulkFormat(
 //			new Path("file:///tmp/flink-data/a"),
@@ -264,7 +260,6 @@ public class FileSystemSinkTest {
 
 	}
 
-
 	private void registerOrder() {
 //		DataStream<Order> orderB = env.fromCollection(Arrays.asList(
 //			new Order(2L, "pen", 3),
@@ -273,7 +268,11 @@ public class FileSystemSinkTest {
 //
 //		tEnv.registerDataStream("OrderB", orderB, "user, product, amount");
 
-		DataStream<Tuple3<String, String, Long>> dataStream = env.addSource(new MySource()).returns(org.apache.flink.api.common.typeinfo.Types.TUPLE(org.apache.flink.api.common.typeinfo.Types.STRING, org.apache.flink.api.common.typeinfo.Types.STRING, org.apache.flink.api.common.typeinfo.Types.LONG));
+		DataStream<Tuple3<String, String, Long>> dataStream = env.addSource(new MySource()).returns(
+			org.apache.flink.api.common.typeinfo.Types
+				.TUPLE(org.apache.flink.api.common.typeinfo.Types.STRING,
+					org.apache.flink.api.common.typeinfo.Types.STRING,
+					org.apache.flink.api.common.typeinfo.Types.LONG));
 		tEnv.registerDataStream("mysource", dataStream, "appName,clientIp,uploadTime");
 //		tEnv.connect(new Kafka()
 //			.version("0.10")
@@ -305,27 +304,31 @@ public class FileSystemSinkTest {
 //			.inAppendMode()
 //			.registerTableSource("mysource");
 
-
-		DataStream<Tuple5<Integer, String, String, String, String>> dataStream = env.addSource(new MySourceAvro()).returns(org.apache.flink.api.common.typeinfo.Types.TUPLE(org.apache.flink.api.common.typeinfo.Types.INT, org.apache.flink.api.common.typeinfo.Types.STRING, org.apache.flink.api.common.typeinfo.Types.STRING, org.apache.flink.api.common.typeinfo.Types.STRING, org.apache.flink.api.common.typeinfo.Types.STRING));
+		DataStream<Tuple5<Integer, String, String, String, String>> dataStream = env
+			.addSource(new MySourceAvro()).returns(org.apache.flink.api.common.typeinfo.Types
+				.TUPLE(org.apache.flink.api.common.typeinfo.Types.INT,
+					org.apache.flink.api.common.typeinfo.Types.STRING,
+					org.apache.flink.api.common.typeinfo.Types.STRING,
+					org.apache.flink.api.common.typeinfo.Types.STRING,
+					org.apache.flink.api.common.typeinfo.Types.STRING));
 		tEnv.registerDataStream("mysource", dataStream, "num, street, city,state,zip");
 
-
 	}
-	// *************************************************************************
-	//     USER DATA TYPES
-	// *************************************************************************
 
-
+	/**
+	 *
+	 */
 	public static class MySource implements SourceFunction<Tuple3<String, String, Long>> {
+
 		private volatile boolean isRunning = true;
 		long n = 1;
-
 
 		@Override
 		public void run(SourceContext<Tuple3<String, String, Long>> ctx) throws Exception {
 			while (isRunning) {
 				Thread.sleep((int) (Math.random() * 100));
-				Tuple3<String, String, Long> tuple3 = new Tuple3("appName" + n++, "clientIp" + n++, n++);
+				Tuple3<String, String, Long> tuple3 = new Tuple3("appName" + n++, "clientIp" + n++,
+					n++);
 				ctx.collect(tuple3);
 			}
 		}
@@ -336,18 +339,22 @@ public class FileSystemSinkTest {
 		}
 	}
 
+	/**
+	 *
+	 */
+	public static class MySourceAvro implements
+		SourceFunction<Tuple5<Integer, String, String, String, String>> {
 
-
-	public static class MySourceAvro implements SourceFunction<Tuple5<Integer, String, String, String, String>> {
 		private volatile boolean isRunning = true;
 		int n = 1;
 
-
 		@Override
-		public void run(SourceContext<Tuple5<Integer, String, String, String, String>> ctx) throws Exception {
+		public void run(SourceContext<Tuple5<Integer, String, String, String, String>> ctx)
+			throws Exception {
 			while (isRunning) {
 				Thread.sleep((int) (Math.random() * 100));
-				Tuple5<Integer, String, String, String, String> tuple5 = new Tuple5(n, "street" + n++, "city" + n++, "state" + n++, "zip" + n++);
+				Tuple5<Integer, String, String, String, String> tuple5 = new Tuple5(n,
+					"street" + n++, "city" + n++, "state" + n++, "zip" + n++);
 				ctx.collect(tuple5);
 			}
 		}
@@ -362,6 +369,7 @@ public class FileSystemSinkTest {
 	 * Simple POJO.
 	 */
 	public static class Order {
+
 		public Long user;
 		public String product;
 		public int amount;

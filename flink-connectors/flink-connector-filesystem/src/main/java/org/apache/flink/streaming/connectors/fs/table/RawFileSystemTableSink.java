@@ -22,17 +22,16 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.utils.TableConnectorUtils;
-import org.apache.flink.types.Row;
 
+/**
+ *
+ */
 @Internal
 public class RawFileSystemTableSink extends FileSystemTableSinkBase {
-
 
 	public RawFileSystemTableSink(TableSchema schema, StreamingFileSink sink) {
 		super(schema, sink);
 	}
-
 
 	@Override
 	DataStream getDataStream(DataStream dataStream) {

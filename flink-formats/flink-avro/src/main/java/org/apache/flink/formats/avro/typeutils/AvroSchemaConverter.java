@@ -66,7 +66,6 @@ public class AvroSchemaConverter {
 	/**
 	 * Converts an Avro schema string into a nested row structure with deterministic field order and data
 	 * types that are compatible with Flink's Table & SQL API.
-	 *
 	 * convertFlinkType@return type information matching the schema
 	 */
 	@SuppressWarnings("unchecked")

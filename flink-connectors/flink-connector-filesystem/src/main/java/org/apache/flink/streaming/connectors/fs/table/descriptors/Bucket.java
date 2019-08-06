@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.flink.streaming.connectors.fs.table.descriptors;
 
 import org.apache.flink.streaming.connectors.fs.Writer;
@@ -25,18 +26,22 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
 
-import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.*;
+import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_BASEPATH;
+import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_DATA_TYPE;
+import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_DATE_FORMAT;
+import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_SINK_BUCKET_CLASS;
+import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_SINK_WRITE_CLASS;
+import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_TYPE_VALUE_BUCKET;
 
 
 /**
- * Connector descriptor for the Bucket File System
+ * Connector descriptor for the Bucket File System .
  */
 public class Bucket extends ConnectorDescriptor {
 
 	private String basePath;
 	private String dateFormat;
 	private FormatType formatType;
-
 
 	private Class<? extends Bucketer> bucketerClass;
 	private Class<? extends Writer> writerClass;
@@ -49,7 +54,6 @@ public class Bucket extends ConnectorDescriptor {
 		this.dateFormat = dateFormat;
 		return this;
 	}
-
 
 	public Bucket rawFormat() {
 		this.formatType = FormatType.RAW;
@@ -67,12 +71,10 @@ public class Bucket extends ConnectorDescriptor {
 		return this;
 	}
 
-
 	public Bucket writer(Class<? extends Writer> writerClass) {
 		this.writerClass = Preconditions.checkNotNull(writerClass);
 		return this;
 	}
-
 
 	public Bucket bucketer(Class<? extends Bucketer> bucketerClass) {
 		this.bucketerClass = Preconditions.checkNotNull(bucketerClass);

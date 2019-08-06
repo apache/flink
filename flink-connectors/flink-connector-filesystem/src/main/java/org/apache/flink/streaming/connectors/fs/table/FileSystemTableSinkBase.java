@@ -31,6 +31,9 @@ import org.apache.flink.types.Row;
 
 import java.util.Arrays;
 
+/**
+ *
+ */
 @Internal
 public abstract class FileSystemTableSinkBase implements AppendStreamTableSink<Row> {
 
@@ -47,9 +50,11 @@ public abstract class FileSystemTableSinkBase implements AppendStreamTableSink<R
 
 	@Override
 	public void emitDataStream(DataStream<Row> dataStream) {
-		getDataStream(dataStream).addSink(sink).name(TableConnectorUtils.generateRuntimeName(this.getClass(), schema.getFieldNames()));
+		getDataStream(dataStream).addSink(sink)
+			.name(TableConnectorUtils.generateRuntimeName(
+				this.getClass(),
+				schema.getFieldNames()));
 	}
-
 
 	abstract DataStream getDataStream(DataStream dataStream);
 
@@ -70,10 +75,13 @@ public abstract class FileSystemTableSinkBase implements AppendStreamTableSink<R
 
 	@Override
 	public TableSink<Row> configure(String[] fieldNames, TypeInformation<?>[] fieldTypes) {
-		if (!Arrays.equals(getFieldNames(), fieldNames) || !Arrays.equals(getFieldTypes(), fieldTypes)) {
+		if (!Arrays.equals(getFieldNames(), fieldNames) ||
+			!Arrays.equals(getFieldTypes(), fieldTypes)) {
 			throw new ValidationException("Reconfiguration with different fields is not allowed. " +
-				"Expected: " + Arrays.toString(getFieldNames()) + " / " + Arrays.toString(getFieldTypes()) + ". " +
-				"But was: " + Arrays.toString(fieldNames) + " / " + Arrays.toString(fieldTypes));
+				"Expected: " + Arrays.toString(getFieldNames()) + " / " +
+				Arrays.toString(getFieldTypes()) + ". " +
+				"But was: " + Arrays.toString(fieldNames) + " / " +
+				Arrays.toString(fieldTypes));
 		}
 		return this;
 	}

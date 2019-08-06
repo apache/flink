@@ -23,9 +23,11 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.table.api.TableSchema;
 
+/**
+ *
+ */
 @Internal
 public class AvroFileSystemTableSink extends FileSystemTableSinkBase {
-
 
 	private final String avroschema;
 
@@ -33,7 +35,6 @@ public class AvroFileSystemTableSink extends FileSystemTableSinkBase {
 		super(schema, sink);
 		this.avroschema = avroschema;
 	}
-
 
 	@Override
 	DataStream getDataStream(DataStream dataStream) {
