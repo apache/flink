@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 
 import javax.annotation.concurrent.ThreadSafe;
 
-import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -112,8 +112,8 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 		return heartbeatListener;
 	}
 
-	Collection<HeartbeatMonitor<O>> getHeartbeatTargets() {
-		return heartbeatTargets.values();
+	Map<ResourceID, HeartbeatMonitor<O>> getHeartbeatTargets() {
+		return heartbeatTargets;
 	}
 
 	//----------------------------------------------------------------------------------------------
