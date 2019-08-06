@@ -398,42 +398,6 @@ class AggregateITCase(
   }
 
   @Test
-  def testIncrSum(): Unit = {
-    val data = new mutable.MutableList[(Int, Long, String)]
-    data.+=((1, 1L, "A"))
-    data.+=((-2, 2L, "B"))
-    data.+=((3, 2L, "B"))
-    data.+=((-4, 3L, "C"))
-    data.+=((5, 3L, "C"))
-    data.+=((6, 3L, "C"))
-    data.+=((-7, 4L, "B"))
-    data.+=((8, 4L, "A"))
-    data.+=((9, 4L, "D"))
-    data.+=((10, 4L, "E"))
-    data.+=((-11, 5L, "A"))
-    data.+=((12, 5L, "B"))
-
-    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T", t)
-
-    val sql =
-      """
-        |SELECT b, incr_sum(a)
-        |FROM T
-        |GROUP BY b
-      """.stripMargin
-
-    val t1 = tEnv.sqlQuery(sql)
-    val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = List("1,1", "2,3", "3,11", "4,27", "5,12")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-
-  }
-
-  @Test
   def testNestedGroupByAgg(): Unit = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "A"))
