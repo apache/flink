@@ -294,7 +294,7 @@ function query_number_of_running_tms {
 
 function wait_for_number_of_running_tms {
   local TM_NUM_TO_WAIT=${1}
-  local TIMEOUT_COUNTER=30
+  local TIMEOUT_COUNTER=10
   local TIMEOUT_INC=4
   local TIMEOUT=$(( $TIMEOUT_COUNTER * $TIMEOUT_INC ))
   local TM_NUM_TEXT="Number of running task managers"

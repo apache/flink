@@ -78,8 +78,6 @@ function truncate_files_with_valid_data() {
         continue
     fi
 
-    echo "TRUNCATING $PART"
-
     dd if=$PART of="$PART.truncated" bs=$LENGTH count=1 >& /dev/null
     rm $PART
     mv "$PART.truncated" $PART
@@ -94,7 +92,7 @@ function bucketing_cleanup() {
 # Fix the necessary configuration parameters.
 
 set_conf_ssl
-set_config_key "heartbeat.timeout" "70000"
+set_config_key "heartbeat.timeout" "20000"
 
 # enable DEBUG logging level for the BucketingSink to retrieve truncate length later
 echo "" >> $FLINK_DIR/conf/log4j.properties
