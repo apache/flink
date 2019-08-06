@@ -27,17 +27,15 @@ The Table API and SQL are integrated in a joint API. The central concept of this
 * This will be replaced by the TOC
 {:toc}
 
-Main differences of two planners
---------------------------------
+Main Differences Between the Two Planners
+-----------------------------------------
 
-the main differences on user interfaces level are
-
-1. The Blink planner does not support `BatchTableSource`, only supports `StreamTableSource`. Because the batch job is a special case of streaming job in Blink planner, and a batch job will not be translated into `DateSet` program but translated into `DataStream` program same as the stream job.
+1. The Blink planner does not support `BatchTableSource`, only `StreamTableSource`. Blink treats batch jobs a special case of streaming. As such, batch jobs will not be translated into `DateSet` programs but translated into `DataStream` programs, the same as the streaming jobs.
 2. The Blink planner does not support `ExternalCatalog` which is deprecated.
-3. The implementation of `FilterableTableSource` for the Flink planner and the Blink planner is incompatible. The Flink planner will push down `PlannerExpression`s into `FilterableTableSource`, while the Blink planner will push down `Expression`s.
+3. The implementations of `FilterableTableSource` for the Flink planner and the Blink planner are incompatible. The Flink planner will push down `PlannerExpression`s into `FilterableTableSource`, while the Blink planner will push down `Expression`s.
 4. String based key-value config options (defined in `OptimizerConfigOptions` and `ExecutionConfigOptions`) are only used for the Blink planner.
 5. The implementation(`CalciteConfig`) of `PlannerConfig` in two planners is different.
-6. The Blink planner will optimize multiple-sinks into one DAG (supported only on `TableEnvironment`, not on `StreamTableEnvironment`), while the Flink planner will always optimize each sink into a new DAG, and all DAGs are independent of each other.
+6. The Blink planner will optimize multiple-sinks into one DAG (supported only on `TableEnvironment`, not on `StreamTableEnvironment`). The Flink planner will always optimize each sink into a new DAG, where all DAGs are independent of each other.
 7. The Flink planner does not support catalog statistics now, while the Blink planner does.
 
 
@@ -104,8 +102,7 @@ tableEnv.execute("scala_job")
 <div data-lang="python" markdown="1">
 {% highlight python %}
 
-# create a TableEnvironment
-// create a TableEnvironment for specific planner batch or streaming
+# create a TableEnvironment for specific planner batch or streaming
 table_env = ... # see `Create a TableEnvironment` section
 
 # register a Table
@@ -152,7 +149,7 @@ A `TableEnvironment` is created by calling the static `BatchTableEnvironment.cre
 
 Make sure to choose the specific planner `BatchTableEnvironment`/`StreamTableEnvironment` that matches your programming language.
 
-If both planner jars are located in `/lib` directory, we should explicitly set which planner is active in current program.
+If both planner jars are in the `/lib` directory, you should explicitly set which planner is active in the current program.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -253,9 +250,9 @@ val bbTableEnv = TableEnvironment.create(bbSettings)
 <div data-lang="python" markdown="1">
 {% highlight python %}
 
-// **********************
-// FLINK STREAMING QUERY
-// **********************
+# **********************
+# FLINK STREAMING QUERY
+# **********************
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import StreamTableEnvironment, EnvironmentSettings
 
@@ -263,18 +260,18 @@ f_s_env = StreamExecutionEnvironment.get_execution_environment()
 f_s_settings = EnvironmentSettings.new_instance().use_old_planner().in_streaming_mode().build()
 f_s_t_env = StreamTableEnvironment.create(f_s_env, environment_settings=f_s_settings)
 
-// ******************
-// FLINK BATCH QUERY
-// ******************
+# ******************
+# FLINK BATCH QUERY
+# ******************
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.table import BatchTableEnvironment
 
 f_b_env = ExecutionEnvironment.get_execution_environment()
 f_b_t_env = BatchTableEnvironment.create(f_b_env, table_config)
 
-// **********************
-// BLINK STREAMING QUERY
-// **********************
+# **********************
+# BLINK STREAMING QUERY
+# **********************
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import StreamTableEnvironment, EnvironmentSettings
 
@@ -282,9 +279,9 @@ b_s_env = StreamExecutionEnvironment.get_execution_environment()
 b_s_settings = EnvironmentSettings.new_instance().use_blink_planner().in_streaming_mode().build()
 b_s_t_env = StreamTableEnvironment.create(b_s_env, environment_settings=b_s_settings)
 
-// ******************
-// BLINK BATCH QUERY
-// ******************
+# ******************
+# BLINK BATCH QUERY
+# ******************
 from pyflink.table import EnvironmentSettings, BatchTableEnvironment
 
 b_b_settings = EnvironmentSettings.new_instance().use_blink_planner().in_batch_mode().build()
@@ -294,7 +291,7 @@ b_b_t_env = BatchTableEnvironment.create(environment_settings=b_b_settings)
 </div>
 </div>
 
-**Note:** If there is only one planner jar in `/lib` directory, we can use `useAnyPlanner` (`use_any_planner` for python) to create specific `EnvironmentSettings`.
+**Note:** If there is only one planner jar in `/lib` directory, you can use `useAnyPlanner` (`use_any_planner` for python) to create specific `EnvironmentSettings`.
 
 
 {% top %}
@@ -319,7 +316,7 @@ A `Table` is registered in a `TableEnvironment` as follows:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-# get a TableEnvironment
+// get a TableEnvironment
 TableEnvironment tableEnv = ...; // see `Create a TableEnvironment` section
 
 // table is the result of a simple projection query 
@@ -372,7 +369,7 @@ A `TableSource` is registered in a `TableEnvironment` as follows:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-# get a TableEnvironment
+// get a TableEnvironment
 TableEnvironment tableEnv = ...; // see `Create a TableEnvironment` section
 
 // create a TableSource
@@ -425,7 +422,7 @@ A `TableSink` is registered in a `TableEnvironment` as follows:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-# get a TableEnvironment
+// get a TableEnvironment
 TableEnvironment tableEnv = ...; // see `Create a TableEnvironment` section
 
 // create a TableSink
@@ -516,7 +513,7 @@ Once registered in a `TableEnvironment`, all tables defined in a `ExternalCatalo
 
 Currently, Flink provides an `InMemoryExternalCatalog` for demo and testing purposes. However, the `ExternalCatalog` interface can also be used to connect catalogs like HCatalog or Metastore to the Table API.
 
-**Note:** The Blink planner does not support External Catalog.
+**Note:** The Blink planner does not support external catalog.
 
 {% top %}
 
@@ -536,7 +533,7 @@ The following example shows a simple Table API aggregation query:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-# get a TableEnvironment
+// get a TableEnvironment
 TableEnvironment tableEnv = ...; // see `Create a TableEnvironment` section
 
 // register Orders table
@@ -610,7 +607,7 @@ The following example shows how to specify a query and return the result as a `T
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-# get a TableEnvironment
+// get a TableEnvironment
 TableEnvironment tableEnv = ...; // see `Create a TableEnvironment` section
 
 // register Orders table
@@ -675,7 +672,7 @@ The following example shows how to specify an update query that inserts its resu
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-# get a TableEnvironment
+// get a TableEnvironment
 TableEnvironment tableEnv = ...; // see `Create a TableEnvironment` section
 
 // register "Orders" table
@@ -765,7 +762,7 @@ The following examples shows how to emit a `Table`:
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-# get a TableEnvironment
+// get a TableEnvironment
 TableEnvironment tableEnv = ...; // see `Create a TableEnvironment` section
 
 // create a TableSink
@@ -838,15 +835,14 @@ result.insert_into("CsvSinkTable")
 Translate and Execute a Query
 -----------------------------
 
-The behavior of `Translate and Execute a Query` is different for two planners:
+The behavior of translating and executing a query is different for the two planners.
 
 <div class="codetabs" markdown="1">
 <div data-lang="Flink planner" markdown="1">
-{% highlight java %}
 Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/dev/datastream_api.html) or [DataSet]({{ site.baseurl }}/dev/batch) programs depending on whether their input is a streaming or batch input. A query is internally represented as a logical query plan and is translated in two phases: 
 
-1. optimization of the logical plan, 
-2. translation into a DataStream or DataSet program.
+1. Optimization of the logical plan
+2. Translation into a DataStream or DataSet program
 
 A Table API or SQL query is translated when:
 
@@ -856,25 +852,26 @@ A Table API or SQL query is translated when:
 
 Once translated, a Table API or SQL query is handled like a regular DataStream or DataSet program and is executed when `StreamExecutionEnvironment.execute()` or `ExecutionEnvironment.execute()` is called.
 
-{% endhighlight %}
 </div>
 
 <div data-lang="Blink planner" markdown="1">
-{% highlight java %}
-Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/dev/datastream_api.html) program whether their input is a streaming or batch input. A query is internally represented as a logical query plan and is translated in two phases: 
+Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/dev/datastream_api.html) programs whether their input is streaming or batch. A query is internally represented as a logical query plan and is translated in two phases: 
 
-1. optimization of the logical plan, 
-2. translation into a DataStream program.
+1. Optimization of the logical plan, 
+2. Translation into a DataStream program.
 
-A Table API or SQL query is translated when:
+The behavior of translating  a query is different for `TableEnvironment` and `StreamTableEnvironment`.
+
+For `TableEnvironment`, A Table API or SQL query is translated when `TableEnvironment.execute()` is called, because `TableEnvironment` will optimize multiple-sinks into one DAG.
+
+while for `StreamTableEnvironment`, A Table API or SQL query is translated when:
 
 * a `Table` is emitted to a `TableSink`, i.e., when `Table.insertInto()` is called.
 * a SQL update query is specified, i.e., when `TableEnvironment.sqlUpdate()` is called.
-* a `Table` is converted into a `DataStream` (only for Blink stream job).
+* a `Table` is converted into a `DataStream`.
 
 Once translated, a Table API or SQL query is handled like a regular DataStream program and is executed when `TableEnvironment.execute()` or `StreamExecutionEnvironment.execute()` is called.
 
-{% endhighlight %}
 </div>
 </div>
 
@@ -883,8 +880,8 @@ Once translated, a Table API or SQL query is handled like a regular DataStream p
 Integration with DataStream and DataSet API
 -------------------------------------------
 
-Both Flink stream job and Blink stream job could be integrated with `DataStream`, and only Flink batch job could be integrated with `DataSet`, Blink batch job could not be integrated with both.
-**Note:** The `DataSet` discussed next is only for the Flink batch planner.
+Both Flink and Blink streaming jobs can integrate with the `DataStream` API. Only Flink batch job can integrate with the `DataSet API`, Blink batch job could not be combined with both.
+**Note:** The `DataSet` API discussed below is only relevant for the Flink batch planner.
 
 Table API and SQL queries can be easily integrated with and embedded into [DataStream]({{ site.baseurl }}/dev/datastream_api.html) and [DataSet]({{ site.baseurl }}/dev/batch) programs. For instance, it is possible to query an external table (for example from a RDBMS), do some pre-processing, such as filtering, projecting, aggregating, or joining with meta data, and then further process the data with either the DataStream or DataSet API (and any of the libraries built on top of these APIs, such as CEP or Gelly). Inversely, a Table API or SQL query can also be applied on the result of a DataStream or DataSet program.
 
@@ -1418,24 +1415,21 @@ Query Optimization
 ------------------
 
 <div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight Flink planner %}
+<div data-lang="Flink planner" markdown="1">
 
 Apache Flink leverages Apache Calcite to optimize and translate queries. The optimization currently performed include projection and filter push-down, subquery decorrelation, and other kinds of query rewriting. Flink planner does not yet optimize the order of joins, but executes them in the same order as defined in the query (order of Tables in the `FROM` clause and/or order of join predicates in the `WHERE` clause).
 
 It is possible to tweak the set of optimization rules which are applied in different phases by providing a `CalciteConfig` object. This can be created via a builder by calling `CalciteConfig.createBuilder())` and is provided to the TableEnvironment by calling `tableEnv.getConfig.setPlannerConfig(calciteConfig)`. 
 
-{% endhighlight %}
 </div>
 
-<div data-lang="scala" markdown="1">
-{% highlight Blink planner %}
+<div data-lang="Blink planner" markdown="1">
 
 The foundation of Apache Flink query optimization is Apache Calcite. In addition to apply Calcite in optimization, Blink planner also does a lot to enhance it.
 
 Fist of all, Blink planner does a series of rule-based optimization and cost-based optimization including:
-* special subquery rewriting, including two part: 1. converts IN and EXISTS into left semi-join 2.converts NOT IN and NOT EXISTS into left anti-join. Note: only IN/EXISTS/NOT IN/NOT EXISTS in conjunctive condition is supported.
-* normal subquery decorrelation based on Calcite
+* special subquery rewriting, including two part: 1. converts IN and EXISTS into left semi-join 2.converts NOT IN and NOT EXISTS into left anti-join. Note: only IN/EXISTS/NOT IN/NOT EXISTS in conjunctive condition is supported now.
+* normal subquery decorrelation based on Apache Calcite
 * projection pruning
 * filter push down
 * partition pruning
@@ -1444,11 +1438,12 @@ Fist of all, Blink planner does a series of rule-based optimization and cost-bas
 
 Secondly, Blink planner introduces rich statistics of data source and propagate those statistics up to the whole plan based on all kinds of extended `MetadataHandler`s. Optimizer could choose better plan based on those metadata.
 
-Finally, Blink planner provides fine-grain cost of each operator, which takes io, cpu, network and memory into account. Cost-based optimization could choose better plan based on fine-grain cost definition .
+Thirdly, Blink planner provides fine-grain cost of each operator, which takes io, cpu, network and memory into account. Cost-based optimization could choose better plan based on fine-grain cost definition.
+
+Finally, Blink planner will try to find out duplicated sub-plans and reuse them to reduce duplicated computation. 
 
 It is possible to customize optimization programs referencing to `FlinkBatchProgram`(default optimization programs for batch) or `FlinkStreamProgram`(default optimization programs for stream), and replace the default optimization programs by providing a `CalciteConfig` object. This can be created via a builder by calling `CalciteConfig.createBuilder())` and is provided to the TableEnvironment by calling `tableEnv.getConfig.setPlannerConfig(calciteConfig)`. 
 
-{% endhighlight %}
 </div>
 </div>
 
@@ -1456,7 +1451,7 @@ It is possible to customize optimization programs referencing to `FlinkBatchProg
 ### Explaining a Table
 
 The Table API provides a mechanism to explain the logical and optimized query plans to compute a `Table`. 
-This is done through the `TableEnvironment.explain(table)` method or `TableEnvironment.explain()` method. `explain(table)` returns the plan of given `Table`, `explain()` returns the result of multiple-sinks plan mainly used for Blink planner. It returns a String describing three plans: 
+This is done through the `TableEnvironment.explain(table)` method or `TableEnvironment.explain()` method. `explain(table)` returns the plan of a given `Table`. `explain()` returns the result of a multiple-sinks plan and is mainly used for the Blink planner. It returns a String describing three plans: 
 
 1. the Abstract Syntax Tree of the relational query, i.e., the unoptimized logical query plan,
 2. the optimized logical query plan, and
@@ -1648,18 +1643,13 @@ The following code shows an example and the corresponding output for multiple-si
 
 EnvironmentSettings settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
 TableEnvironment tEnv = TableEnvironment.create(settings);
-tEnv.registerTableSource("MySource1", new CsvTableSource("/source/path1",
-		new String[] { "count", "word" },
-		new TypeInformation[] { Types.INT, Types.STRING }));
-tEnv.registerTableSource("MySource2", new CsvTableSource("/source/path2",
-		new String[] { "count", "word" },
-		new TypeInformation[] { Types.INT, Types.STRING }));
-tEnv.registerTableSink("MySink1", new CsvTableSink("/sink/path1").configure(
-		new String[] { "count", "word" },
-		new TypeInformation[] { Types.INT, Types.STRING }));
-tEnv.registerTableSink("MySink2", new CsvTableSink("/sink/path1").configure(
-		new String[] { "count", "word" },
-		new TypeInformation[] { Types.INT, Types.STRING }));
+
+String[] fieldNames = { "count", "word" };
+TypeInformation[] fieldTypes = { Types.INT, Types.STRING };
+tEnv.registerTableSource("MySource1", new CsvTableSource("/source/path1", fieldNames, fieldTypes));
+tEnv.registerTableSource("MySource2", new CsvTableSource("/source/path2", fieldNames, fieldTypes));
+tEnv.registerTableSink("MySink1", new CsvTableSink("/sink/path1").configure(fieldNames, fieldTypes));
+tEnv.registerTableSink("MySink2", new CsvTableSink("/sink/path2").configure(fieldNames, fieldTypes));
 
 Table table1 = tEnv.scan("MySource1").where("LIKE(word, 'F%')");
 table1.insertInto("MySink1");
@@ -1677,18 +1667,13 @@ System.out.println(explanation);
 {% highlight scala %}
 val settings = EnvironmentSettings.newInstance.useBlinkPlanner.inStreamingMode.build
 val tEnv = TableEnvironment.create(settings)
-tEnv.registerTableSource("MySource1", new CsvTableSource("/source/path1",
-  Array("count", "word"),
-  Array(Types.INT, Types.STRING)))
-tEnv.registerTableSource("MySource2", new CsvTableSource("/source/path2",
-  Array("count", "word"),
-  Array(Types.INT, Types.STRING)))
-tEnv.registerTableSink("MySink1", new CsvTableSink("/sink/path1").configure(
-  Array("count", "word"),
-  Array(Types.INT, Types.STRING)))
-tEnv.registerTableSink("MySink2", new CsvTableSink("/sink/path2").configure(
-  Array("count", "word"),
-  Array(Types.INT, Types.STRING)))
+
+val fieldNames = Array("count", "word")
+val fieldTypes = Array[TypeInformation[_]](Types.INT, Types.STRING)
+tEnv.registerTableSource("MySource1", new CsvTableSource("/source/path1", fieldNames, fieldTypes))
+tEnv.registerTableSource("MySource2", new CsvTableSource("/source/path2",fieldNames, fieldTypes))
+tEnv.registerTableSink("MySink1", new CsvTableSink("/sink/path1").configure(fieldNames, fieldTypes))
+tEnv.registerTableSink("MySink2", new CsvTableSink("/sink/path2").configure(fieldNames, fieldTypes))
 
 val table1 = tEnv.scan("MySource1").where("LIKE(word, 'F%')")
 table1.insertInto("MySink1")
@@ -1705,12 +1690,14 @@ println(explanation)
 <div data-lang="python" markdown="1">
 {% highlight python %}
 settings = EnvironmentSettings.new_instance().use_blink_planner().in_streaming_mode().build()
-t_env = TableEnvironment.create(environment_settings=b_s_settings)
+t_env = TableEnvironment.create(environment_settings=settings)
 
-t_env.register_table_source("MySource1", CsvTableSource("/source/path1", ["count", "word"], [DataTypes.INT(), DataTypes.STRING()]))
-t_env.register_table_source("MySource2", CsvTableSource("/source/path2", ["count", "word"], [DataTypes.INT(), DataTypes.STRING()]))
-t_env.register_table_sink("MySink1", CsvTableSink("/sink/path1", ["count", "word"], [DataTypes.INT(), DataTypes.STRING()]))
-t_env.register_table_sink("MySink2", CsvTableSink("/sink/path2", ["count", "word"], [DataTypes.INT(), DataTypes.STRING()]))
+field_names = ["count", "word"]
+field_types = [DataTypes.INT(), DataTypes.STRING()]
+t_env.register_table_source("MySource1", CsvTableSource("/source/path1", field_names, field_types))
+t_env.register_table_source("MySource2", CsvTableSource("/source/path2", field_names, field_types))
+t_env.register_table_sink("MySink1", CsvTableSink("/sink/path1", field_names, field_types))
+t_env.register_table_sink("MySink2", CsvTableSink("/sink/path2", field_names, field_types))
             
 table1 = t_env.scan("MySource1").where("LIKE(word, 'F%')")
 table1.insert_into("MySink1")
