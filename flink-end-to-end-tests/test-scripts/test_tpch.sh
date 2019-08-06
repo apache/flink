@@ -31,9 +31,7 @@ echo "Generating test data..."
 
 TARGET_DIR="$END_TO_END_DIR/flink-tpch-test/target"
 TPCH_DATA_DIR="$END_TO_END_DIR/test-scripts/test-data/tpch"
-FLINK_VERSION=`ls "${END_TO_END_DIR}/../flink-table/flink-table-api-java/target" | sed -n "s/.*flink-table-api-java-\(.*\)-tests\.jar/\1/p" | uniq`
-
-java -cp "$TARGET_DIR/flink-tpch-test-"$FLINK_VERSION".jar:$TARGET_DIR/lib/*" org.apache.flink.table.tpch.TpchDataGenerator "$SCALE" "$TARGET_DIR"
+java -cp "$TARGET_DIR/TpchTestProgram.jar:$TARGET_DIR/lib/*" org.apache.flink.table.tpch.TpchDataGenerator "$SCALE" "$TARGET_DIR"
 
 ################################################################################
 # Prepare Flink
@@ -90,5 +88,5 @@ EOF
 
     wait_job_terminal_state "$JOB_ID" "FINISHED"
 
-    java -cp "$TARGET_DIR/flink-tpch-test-"$FLINK_VERSION".jar" org.apache.flink.table.tpch.TpchResultComparator "$EXPECTED_DIR/q$i.csv" "$RESULT_DIR/q$i.csv"
+    java -cp "$TARGET_DIR/TpchTestProgram.jar" org.apache.flink.table.tpch.TpchResultComparator "$EXPECTED_DIR/q$i.csv" "$RESULT_DIR/q$i.csv"
 done
