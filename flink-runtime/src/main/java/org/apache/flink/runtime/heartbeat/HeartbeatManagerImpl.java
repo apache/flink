@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import javax.annotation.concurrent.ThreadSafe;
 
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -114,6 +115,10 @@ public class HeartbeatManagerImpl<I, O> implements HeartbeatManager<I, O> {
 
 	Collection<HeartbeatMonitor<O>> getHeartbeatTargets() {
 		return heartbeatTargets.values();
+	}
+
+	Optional<HeartbeatMonitor<O>> getHeartbeatTarget(ResourceID resourceId) {
+		return Optional.ofNullable(heartbeatTargets.get(resourceId));
 	}
 
 	//----------------------------------------------------------------------------------------------
