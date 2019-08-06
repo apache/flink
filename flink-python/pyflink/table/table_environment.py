@@ -668,12 +668,21 @@ class TableEnvironment(object):
                 serializer.dump_to_stream(elements, temp_file)
             finally:
                 temp_file.close()
-            return self._from_file(temp_file.name, schema)
+            row_type_info = _to_java_type(schema)
+            execution_config = self._get_execution_config(temp_file.name, schema)
+            gateway = get_gateway()
+            j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, True)
+            j_input_format = gateway.jvm.PythonTableUtils.getInputFormat(
+                j_objs, row_type_info, execution_config)
+            j_table_source = gateway.jvm.PythonCollectionInputFormatTableSource(
+                j_input_format, row_type_info)
+
+            return Table(self._j_tenv.fromTableSource(j_table_source))
         finally:
             os.unlink(temp_file.name)
 
     @abstractmethod
-    def _from_file(self, filename, schema):
+    def _get_execution_config(self, filename, schema):
         pass
 
 
@@ -683,18 +692,8 @@ class StreamTableEnvironment(TableEnvironment):
         self._j_tenv = j_tenv
         super(StreamTableEnvironment, self).__init__(j_tenv)
 
-    def _from_file(self, filename, schema):
-        gateway = get_gateway()
-        execution_config = self._j_tenv.execEnv().getConfig()
-
-        j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(filename, True)
-        row_type_info = _to_java_type(schema)
-        j_input_format = gateway.jvm.PythonTableUtils.getInputFormat(
-            j_objs, row_type_info, execution_config)
-        j_table_source = gateway.jvm.PythonCollectionInputFormatTableSource(
-            j_input_format, row_type_info)
-
-        return Table(self._j_tenv.fromTableSource(j_table_source))
+    def _get_execution_config(self, filename, schema):
+        return self._j_tenv.execEnv().getConfig()
 
     def get_config(self):
         """
@@ -802,24 +801,19 @@ class BatchTableEnvironment(TableEnvironment):
         self._j_tenv = j_tenv
         super(BatchTableEnvironment, self).__init__(j_tenv)
 
-    def _from_file(self, filename, schema):
+    def _get_execution_config(self, filename, schema):
         gateway = get_gateway()
         blink_t_env_class = get_java_class(
             gateway.jvm.org.apache.flink.table.api.internal.TableEnvironmentImpl)
         is_blink = (blink_t_env_class == self._j_tenv.getClass())
-        row_type_info = _to_java_type(schema)
         if is_blink:
+            # we can not get ExecutionConfig object from the TableEnvironmentImpl
+            # for the moment, just create a new ExecutionConfig.
             execution_config = gateway.jvm.org.apache.flink.api.common.ExecutionConfig()
         else:
             execution_config = self._j_tenv.execEnv().getConfig()
 
-        j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(filename, True)
-        j_input_format = gateway.jvm.PythonTableUtils.getInputFormat(
-            j_objs, row_type_info, execution_config)
-        j_table_source = gateway.jvm.PythonCollectionInputFormatTableSource(
-            j_input_format, row_type_info)
-
-        return Table(self._j_tenv.fromTableSource(j_table_source))
+        return execution_config
 
     def get_config(self):
         """

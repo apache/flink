@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.util.python
+package org.apache.flink.client.python
 
 import java.time.ZoneId
 import java.util.TimeZone
 
-import org.apache.calcite.avatica.util.DateTimeUtils
-import org.junit.Test
+import org.apache.flink.api.common.python.PythonTableUtils
 import org.junit.Assert.assertEquals
+import org.junit.Test
 
 class PythonTableUtilsTest {
 
@@ -33,22 +33,48 @@ class PythonTableUtilsTest {
       assertEquals(expected, PythonTableUtils.getOffsetFromLocalMillis(localMillis))
     }
 
+    val EPOCH_JULIAN = 2440588
+    val MILLIS_PER_DAY = 86400000
+    val MILLIS_PER_HOUR = 3600000
+    val MILLIS_PER_MINUTE = 60000
+    val MILLIS_PER_SECOND = 1000
+
+    def ymdToUnixDate(year: Int, month: Int, day: Int): Long = {
+      val julian = ymdToJulian(year, month, day)
+      julian - EPOCH_JULIAN
+    }
+
+    def ymdToJulian(year: Int, month: Int, day: Int): Long = {
+      val a = (14 - month) / 12
+      val y = year + 4800 - a
+      val m = month + 12 * a - 3
+      var j = day + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045
+      if (j < 2299161) j = day + (153 * m + 2) / 5 + 365 * y + y / 4 - 32083
+      j
+    }
+
+    def dateToLocalMillis(year: Int, month: Int, day: Int, hour: Int, minute: Int, second: Int)
+    : Long = {
+      ymdToUnixDate(year, month, day) * MILLIS_PER_DAY + hour * MILLIS_PER_HOUR +
+        minute * MILLIS_PER_MINUTE + second * MILLIS_PER_SECOND
+    }
+
     val originalZone = TimeZone.getDefault
     try {
       // Daylight Saving Time Test
       TimeZone.setDefault(TimeZone.getTimeZone(ZoneId.of("PST", ZoneId.SHORT_IDS)))
 
       // 2018-03-11 01:59:59.0 PST
-      testOffset(DateTimeUtils.timestampStringToUnixDate("2018-03-11 01:59:59.0"), -28800000)
+      testOffset(dateToLocalMillis(2018, 3, 11, 1, 59, 59), -28800000)
 
       // 2018-03-11 03:00:00.0 PST
-      testOffset(DateTimeUtils.timestampStringToUnixDate("2018-03-11 03:00:00.0"), -25200000)
+      testOffset(dateToLocalMillis(2018, 3, 11, 3, 0, 0), -25200000)
 
       // 2018-11-04 00:59:59.0 PST
-      testOffset(DateTimeUtils.timestampStringToUnixDate("2018-11-04 00:59:59.0"), -25200000)
+      testOffset(dateToLocalMillis(2018, 11, 4, 0, 59, 59), -25200000)
 
       // 2018-11-04 02:00:00.0 PST
-      testOffset(DateTimeUtils.timestampStringToUnixDate("2018-11-04 02:00:00.0"), -28800000)
+      testOffset(dateToLocalMillis(2018, 11, 4, 2, 0, 0), -28800000)
     } finally {
       TimeZone.setDefault(originalZone)
     }
