@@ -72,6 +72,7 @@ execution:
   planner: blink
   type: batch
   result-mode: table
+  parallelism: 2
 EOF
 
     if [[ -e "$MODIFIED_QUERY_DIR/q$i.sql" ]]
