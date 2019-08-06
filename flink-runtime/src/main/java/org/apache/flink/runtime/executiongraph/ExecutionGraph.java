@@ -575,8 +575,17 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		checkpointStatsTracker = checkNotNull(statsTracker, "CheckpointStatsTracker");
 
 		CheckpointFailureManager failureManager = new CheckpointFailureManager(
-				chkConfig.getTolerableCheckpointFailureNumber(),
-				cause -> getJobMasterMainThreadExecutor().execute(() -> failGlobal(cause))
+			chkConfig.getTolerableCheckpointFailureNumber(),
+			(cause, failingAttempt) -> getJobMasterMainThreadExecutor().execute(() -> {
+				if (failingAttempt == null) {
+					failGlobal(cause);
+				} else {
+					final Execution failedExecution = currentExecutions.get(failingAttempt);
+					if (failedExecution != null && failedExecution.getState() == ExecutionState.RUNNING) {
+						failGlobal(cause);
+					}
+				}
+			})
 		);
 
 		// create the coordinator that triggers and commits checkpoints and holds the state

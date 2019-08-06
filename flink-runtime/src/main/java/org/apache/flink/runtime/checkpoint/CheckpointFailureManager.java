@@ -17,9 +17,11 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
+import javax.annotation.Nullable;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -59,6 +61,23 @@ public class CheckpointFailureManager {
 	 *                      latest generated checkpoint id as a special flag.
 	 */
 	public void handleCheckpointException(CheckpointException exception, long checkpointId) {
+		handleCheckpointException(exception, checkpointId, null);
+	}
+
+	/**
+	 * Handle checkpoint exception with a handler callback.
+	 *
+	 * @param exception the checkpoint exception.
+	 * @param checkpointId the failed checkpoint id used to count the continuous failure number based on
+	 *                     checkpoint id sequence. In trigger phase, we may not get the checkpoint id when the failure
+	 *                     happens before the checkpoint id generation. In this case, it will be specified a negative
+	 *                      latest generated checkpoint id as a special flag.
+	 * @param executionAttemptID the execution attempt id, as a safe guard.
+	 */
+	public void handleCheckpointException(
+		CheckpointException exception,
+		long checkpointId,
+		@Nullable ExecutionAttemptID executionAttemptID) {
 		if (tolerableCpFailureNumber == UNLIMITED_TOLERABLE_FAILURE_NUMBER) {
 			return;
 		}
@@ -105,7 +124,7 @@ public class CheckpointFailureManager {
 
 		if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
 			clearCount();
-			failureCallback.failJob(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."));
+			failureCallback.failJob(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."), executionAttemptID);
 		}
 	}
 
@@ -135,7 +154,7 @@ public class CheckpointFailureManager {
 	 * */
 	void handleSynchronousSavepointFailure(final Throwable cause) {
 		if (!isPreFlightFailure(cause)) {
-			failureCallback.failJob(cause);
+			failureCallback.failJob(cause, null);
 		}
 	}
 
@@ -151,7 +170,13 @@ public class CheckpointFailureManager {
 	 */
 	public interface FailJobCallback {
 
-		void failJob(final Throwable cause);
+		/**
+		 * Fails the whole job graph.
+		 *
+		 * @param cause The reason why the job is cancelled.
+		 * @param failingAttempt The failing attempt id to prevent failing the wrong job.
+		 */
+		void failJob(final Throwable cause, @Nullable final ExecutionAttemptID failingAttempt);
 
 	}
 
