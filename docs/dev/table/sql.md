@@ -1078,6 +1078,12 @@ Generic types are treated as a black box and can be passed on or processed by [u
 
 {% top %}
 
+DDLs
+-----
+Please see the dedicated page about [DDL](ddl.html).
+
+{% top %}
+
 Reserved Keywords
 -----------------
 
