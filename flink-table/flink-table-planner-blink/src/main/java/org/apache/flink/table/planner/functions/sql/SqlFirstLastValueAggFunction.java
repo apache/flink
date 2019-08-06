@@ -18,15 +18,15 @@
 
 package org.apache.flink.table.planner.functions.sql;
 
+import org.apache.flink.util.Preconditions;
+
 import org.apache.flink.shaded.guava18.com.google.common.collect.ImmutableList;
 
-import com.google.common.base.Preconditions;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.OperandTypes;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlTypeName;
