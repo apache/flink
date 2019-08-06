@@ -290,28 +290,10 @@ object BuiltInMethods {
     classOf[SqlDateTimeUtils], "unixTimestamp", classOf[Long])
 
   val FROM_UNIXTIME_FORMAT = Types.lookupMethod(
-    classOf[SqlDateTimeUtils], "fromUnixtime", classOf[Long], classOf[String])
-
-  val FROM_UNIXTIME = Types.lookupMethod(
-    classOf[SqlDateTimeUtils], "fromUnixtime", classOf[Long])
-
-  val FROM_UNIXTIME_AS_DOUBLE = Types.lookupMethod(
-    classOf[SqlDateTimeUtils], "fromUnixtime", classOf[Double])
-
-  val FROM_UNIXTIME_AS_DECIMAL = Types.lookupMethod(
-    classOf[SqlDateTimeUtils], "fromUnixtime", classOf[Decimal])
-
-  val FROM_UNIXTIME_FORMAT_TIME_ZONE = Types.lookupMethod(
     classOf[SqlDateTimeUtils], "fromUnixtime", classOf[Long], classOf[String], classOf[TimeZone])
 
-  val FROM_UNIXTIME_TIME_ZONE = Types.lookupMethod(
+  val FROM_UNIXTIME = Types.lookupMethod(
     classOf[SqlDateTimeUtils], "fromUnixtime", classOf[Long], classOf[TimeZone])
-
-  val FROM_UNIXTIME_AS_DOUBLE_TIME_ZONE = Types.lookupMethod(
-    classOf[SqlDateTimeUtils], "fromUnixtime", classOf[Double], classOf[TimeZone])
-
-  val FROM_UNIXTIME_AS_DECIMAL_TIME_ZONE = Types.lookupMethod(
-    classOf[SqlDateTimeUtils], "fromUnixtime", classOf[Decimal], classOf[TimeZone])
 
   val DATEDIFF_T_S_TIME_ZONE = Types.lookupMethod(
     classOf[SqlDateTimeUtils], "dateDiff", classOf[Long], classOf[String], classOf[TimeZone])
@@ -360,11 +342,6 @@ object BuiltInMethods {
 
   val DATE_ADD_T = Types.lookupMethod(
     classOf[SqlDateTimeUtils], "dateAdd", classOf[Long], classOf[Int])
-
-  val INT_TO_DATE = Types.lookupMethod(
-    classOf[SqlDateTimeUtils],
-    "toDate",
-    classOf[Int])
 
   val LONG_TO_TIMESTAMP = Types.lookupMethod(
     classOf[SqlDateTimeUtils],

@@ -653,8 +653,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		VARCHAR_2000_NULLABLE,
 		null,
 		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.NUMERIC),
-			OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.STRING)),
+			OperandTypes.family(SqlTypeFamily.INTEGER),
+			OperandTypes.family(SqlTypeFamily.INTEGER, SqlTypeFamily.STRING)),
 		SqlFunctionCategory.TIMEDATE);
 
 	public static final SqlFunction IF = new SqlFunction(

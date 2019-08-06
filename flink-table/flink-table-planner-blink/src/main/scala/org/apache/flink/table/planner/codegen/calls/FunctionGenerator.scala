@@ -792,11 +792,6 @@ object FunctionGenerator {
     Seq(DECIMAL),
     new HashCodeCallGen())
 
-  addSqlFunctionMethod(
-    TO_DATE,
-    Seq(INTEGER),
-    BuiltInMethods.INT_TO_DATE)
-
   INTEGRAL_TYPES foreach (
     dt => addSqlFunctionMethod(TO_TIMESTAMP,
       Seq(dt),
@@ -816,17 +811,6 @@ object FunctionGenerator {
       FROM_UNIXTIME,
       Seq(dt),
       BuiltInMethods.FROM_UNIXTIME))
-
-  FRACTIONAL_TYPES foreach (
-    dt => addSqlFunctionMethod(
-      FROM_UNIXTIME,
-      Seq(dt),
-      BuiltInMethods.FROM_UNIXTIME_AS_DOUBLE))
-
-  addSqlFunctionMethod(
-    FROM_UNIXTIME,
-    Seq(DECIMAL),
-    BuiltInMethods.FROM_UNIXTIME_AS_DECIMAL)
 
   addSqlFunctionMethod(FROM_UNIXTIME, Seq(BIGINT, VARCHAR), BuiltInMethods.FROM_UNIXTIME_FORMAT)
   addSqlFunctionMethod(FROM_UNIXTIME, Seq(BIGINT, CHAR), BuiltInMethods.FROM_UNIXTIME_FORMAT)
