@@ -1158,14 +1158,6 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
-  def testFromUnixTime(): Unit = {
-    checkResult("SELECT" +
-        " FROM_UNIXTIME(1513193130), FROM_UNIXTIME(1513193130, 'MM/dd/yyyy HH:mm:ss')" +
-        " FROM testTable WHERE a = TRUE",
-      Seq(row("2017-12-13 19:25:30", "12/13/2017 19:25:30")))
-  }
-
-  @Test
   def testToDate(): Unit = {
     checkResult("SELECT" +
         " TO_DATE(CAST(null AS VARCHAR))," +
