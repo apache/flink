@@ -16,27 +16,37 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors
+package org.apache.flink.table.utils;
 
-import java.util
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.Operation;
 
-class TestTableDescriptor(connector: ConnectorDescriptor)
-  extends TableDescriptor[TestTableDescriptor](connector)
-  with SchematicDescriptor[TestTableDescriptor] {
+import java.util.List;
 
-  private var schemaDescriptor: Option[Schema] = None
+/**
+ * Mocking {@link Planner} for tests.
+ */
+public class PlannerMock implements Planner {
 
-  override def toProperties: util.Map[String, String] = {
-    val properties = new DescriptorProperties()
-    properties.putProperties(super.toProperties)
+	@Override
+	public List<Operation> parse(String statement) {
+		return null;
+	}
 
-    schemaDescriptor.foreach(d => properties.putProperties(d.toProperties))
+	@Override
+	public List<Transformation<?>> translate(List<ModifyOperation> modifyOperations) {
+		return null;
+	}
 
-    properties.asMap()
-  }
+	@Override
+	public String explain(List<Operation> operations, boolean extended) {
+		return null;
+	}
 
-  override def withSchema(schema: Schema): TestTableDescriptor = {
-    this.schemaDescriptor = Some(schema)
-    this
-  }
+	@Override
+	public String[] getCompletionHints(String statement, int position) {
+		return new String[0];
+	}
 }

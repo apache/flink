@@ -16,27 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors
+package org.apache.flink.table.utils;
 
-import java.util
+import org.apache.flink.table.descriptors.FormatDescriptor;
 
-class TestTableDescriptor(connector: ConnectorDescriptor)
-  extends TableDescriptor[TestTableDescriptor](connector)
-  with SchematicDescriptor[TestTableDescriptor] {
+import java.util.HashMap;
+import java.util.Map;
 
-  private var schemaDescriptor: Option[Schema] = None
+/**
+ * Mocking {@link FormatDescriptor} for tests.
+ */
+public class FormatDescriptorMock extends FormatDescriptor {
 
-  override def toProperties: util.Map[String, String] = {
-    val properties = new DescriptorProperties()
-    properties.putProperties(super.toProperties)
+	private Map<String, String> formatProperties = new HashMap<>();
 
-    schemaDescriptor.foreach(d => properties.putProperties(d.toProperties))
+	public FormatDescriptorMock(String type, int version) {
+		super(type, version);
+	}
 
-    properties.asMap()
-  }
+	public FormatDescriptorMock property(String key, String value) {
+		formatProperties.put(key, value);
+		return this;
+	}
 
-  override def withSchema(schema: Schema): TestTableDescriptor = {
-    this.schemaDescriptor = Some(schema)
-    this
-  }
+	@Override
+	protected Map<String, String> toFormatProperties() {
+		return formatProperties;
+	}
 }

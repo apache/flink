@@ -16,18 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors;
+package org.apache.flink.table.utils;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.descriptors.ConnectorDescriptor;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * An interface for descriptors that allow to define a format.
+ * Mocking {@link ConnectorDescriptor} for tests.
  */
-@PublicEvolving
-public interface ConnectorFormatDescriptor<D extends ConnectorFormatDescriptor<D>> extends Descriptor {
+public class ConnectorDescriptorMock extends ConnectorDescriptor {
 
-	/**
-	 * Specifies the format that defines how to read data from a connector.
-	 */
-	D withFormat(FormatDescriptor format);
+	private Map<String, String> connectorProperties = new HashMap<>();
+
+	public ConnectorDescriptorMock(String type, int version, boolean formatNeeded) {
+		super(type, version, formatNeeded);
+	}
+
+	public ConnectorDescriptorMock property(String key, String value) {
+		connectorProperties.put(key, value);
+		return this;
+	}
+
+	@Override
+	protected Map<String, String> toConnectorProperties() {
+		return connectorProperties;
+	}
 }

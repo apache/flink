@@ -16,27 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors
+package org.apache.flink.table.utils;
 
-import java.util
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.delegation.Executor;
 
-class TestTableDescriptor(connector: ConnectorDescriptor)
-  extends TableDescriptor[TestTableDescriptor](connector)
-  with SchematicDescriptor[TestTableDescriptor] {
+import java.util.List;
 
-  private var schemaDescriptor: Option[Schema] = None
+/**
+ * Mocking {@link Executor} for tests.
+ */
+public class ExecutorMock implements Executor {
 
-  override def toProperties: util.Map[String, String] = {
-    val properties = new DescriptorProperties()
-    properties.putProperties(super.toProperties)
+	@Override
+	public void apply(List<Transformation<?>> transformations) {
+		// nothing to do
+	}
 
-    schemaDescriptor.foreach(d => properties.putProperties(d.toProperties))
-
-    properties.asMap()
-  }
-
-  override def withSchema(schema: Schema): TestTableDescriptor = {
-    this.schemaDescriptor = Some(schema)
-    this
-  }
+	@Override
+	public JobExecutionResult execute(String jobName) throws Exception {
+		return null;
+	}
 }
