@@ -109,7 +109,7 @@ public class HiveCatalogITCase {
 				schema)
 			.withFormat(format)
 			.inAppendMode()
-			.withComment(null)
+			.withComment("Comment.")
 			.build();
 
 		Path p = Paths.get(tempFolder.newFolder().getAbsolutePath(), "test.csv");
@@ -120,7 +120,7 @@ public class HiveCatalogITCase {
 				schema)
 				.withFormat(format)
 				.inAppendMode()
-				.withComment(null)
+				.withComment("Comment.")
 				.build();
 
 		hiveCatalog.createTable(

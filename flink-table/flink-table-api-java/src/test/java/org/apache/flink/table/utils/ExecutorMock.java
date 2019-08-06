@@ -16,18 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors;
+package org.apache.flink.table.utils;
+
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.delegation.Executor;
+
+import java.util.List;
 
 /**
- * An interface for descriptors that allow to define a schema.
- *
- * @deprecated This class can be dropped once we remove external catalog support.
+ * Mocking {@link Executor} for tests.
  */
-@Deprecated
-public interface SchematicDescriptor<D extends SchematicDescriptor<D>> extends Descriptor {
+public class ExecutorMock implements Executor {
 
-	/**
-	 * Specifies the resulting table schema.
-	 */
-	D withSchema(Schema schema);
+	@Override
+	public void apply(List<Transformation<?>> transformations) {
+		// nothing to do
+	}
+
+	@Override
+	public JobExecutionResult execute(String jobName) throws Exception {
+		return null;
+	}
 }

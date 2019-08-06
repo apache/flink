@@ -16,18 +16,31 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors;
+package org.apache.flink.table.utils;
+
+import org.apache.flink.table.descriptors.FormatDescriptor;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * An interface for descriptors that allow to define a schema.
- *
- * @deprecated This class can be dropped once we remove external catalog support.
+ * Mocking {@link FormatDescriptor} for tests.
  */
-@Deprecated
-public interface SchematicDescriptor<D extends SchematicDescriptor<D>> extends Descriptor {
+public class FormatDescriptorMock extends FormatDescriptor {
 
-	/**
-	 * Specifies the resulting table schema.
-	 */
-	D withSchema(Schema schema);
+	private Map<String, String> formatProperties = new HashMap<>();
+
+	public FormatDescriptorMock(String type, int version) {
+		super(type, version);
+	}
+
+	public FormatDescriptorMock property(String key, String value) {
+		formatProperties.put(key, value);
+		return this;
+	}
+
+	@Override
+	protected Map<String, String> toFormatProperties() {
+		return formatProperties;
+	}
 }

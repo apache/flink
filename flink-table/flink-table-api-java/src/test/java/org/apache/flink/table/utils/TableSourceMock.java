@@ -16,20 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.descriptors;
+package org.apache.flink.table.utils;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.sources.TableSource;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.types.Row;
 
 /**
- * Descriptor for specifying a table source and/or sink in a batch environment.
+ * Mocking {@link TableSource} for tests.
  */
-@PublicEvolving
-public class BatchTableDescriptor extends ConnectTableDescriptor<BatchTableDescriptor> {
+public class TableSourceMock implements TableSource<Row> {
 
-	public BatchTableDescriptor(
-		TableEnvironment tableEnv,
-		ConnectorDescriptor connectorDescriptor) {
-		super(tableEnv, connectorDescriptor);
+	private final DataType producedDataType;
+
+	private final TableSchema tableSchema;
+
+	public TableSourceMock(DataType producedDataType, TableSchema tableSchema) {
+		this.producedDataType = producedDataType;
+		this.tableSchema = tableSchema;
+	}
+
+	@Override
+	public DataType getProducedDataType() {
+		return producedDataType;
+	}
+
+	@Override
+	public TableSchema getTableSchema() {
+		return tableSchema;
 	}
 }
