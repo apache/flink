@@ -268,6 +268,20 @@ under the License.
 			<fileMode>0755</fileMode>
 		</fileSet>
 
+		<!-- copy jar file of the table examples -->
+		<fileSet>
+			<directory>../flink-examples/flink-examples-table/target</directory>
+			<outputDirectory>examples/table</outputDirectory>
+			<fileMode>0644</fileMode>
+			<includes>
+				<include>*.jar</include>
+			</includes>
+			<excludes>
+				<exclude>flink-*.jar</exclude>
+				<exclude>original-*.jar</exclude>
+			</excludes>
+		</fileSet>
+
 	</fileSets>
 
 </assembly>
