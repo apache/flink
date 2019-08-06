@@ -136,10 +136,12 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 					SqlTableColumn tableColumn = (SqlTableColumn) column;
 					columnName = tableColumn.getName().getSimple();
 					String typeName = tableColumn.getType().getTypeName().getSimple();
-					if (SqlColumnType.getType(typeName).isUnsupported()) {
+					if (typeName == null) {
 						throw new SqlParseException(
 							column.getParserPosition(),
-							"Not support type [" + typeName + "], at " + column.getParserPosition());
+							"Non supported type for column ["
+								+ columnName + "], at "
+								+ column.getParserPosition());
 					}
 				} else if (column instanceof SqlBasicCall) {
 					SqlBasicCall tableColumn = (SqlBasicCall) column;

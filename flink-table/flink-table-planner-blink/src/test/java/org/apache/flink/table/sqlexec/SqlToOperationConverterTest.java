@@ -190,6 +190,73 @@ public class SqlToOperationConverterTest {
 		assertEquals(expectedStaticPartitions, sinkModifyOperation.getStaticPartitions());
 	}
 
+	@Test
+	public void testCreateTableWithFullDataTypes() {
+		final String sql = "create table t1(\n" +
+			"  f0 CHAR,\n" +
+			"  f1 CHAR NOT NULL,\n" +
+			"  f2 CHAR NULL,\n" +
+			"  f3 CHAR(33),\n" +
+			"  f4 VARCHAR,\n" +
+			"  f5 VARCHAR(33),\n" +
+			"  f6 STRING,\n" +
+			"  f7 BOOLEAN,\n" +
+			"  f8 BINARY,\n" +
+			"  f9 BINARY(33),\n" +
+			"  f10 VARBINARY,\n" +
+			"  f11 VARBINARY(33),\n" +
+			"  f12 BYTES,\n" +
+			"  f13 DECIMAL,\n" +
+			"  f14 DEC,\n" +
+			"  f15 NUMERIC,\n" +
+			"  f16 DECIMAL(10),\n" +
+			"  f17 DEC(10),\n" +
+			"  f18 NUMERIC(10),\n" +
+			"  f19 DECIMAL(10, 3),\n" +
+			"  f20 DEC(10, 3),\n" +
+			"  f21 NUMERIC(10, 3),\n" +
+			"  f22 TINYINT,\n" +
+			"  f23 SMALLINT,\n" +
+			"  f24 INTEGER,\n" +
+			"  f25 INT,\n" +
+			"  f26 BIGINT,\n" +
+			"  f27 FLOAT,\n" +
+			"  f28 DOUBLE,\n" +
+			"  f29 DOUBLE PRECISION,\n" +
+			"  f30 DATE,\n" +
+			"  f31 TIME,\n" +
+			"  f32 TIME WITHOUT TIME ZONE,\n" +
+			"  f33 TIME(3),\n" +
+			"  f34 TIME(3) WITHOUT TIME ZONE,\n" +
+			"  f35 TIMESTAMP,\n" +
+			"  f36 TIMESTAMP WITHOUT TIME ZONE,\n" +
+			"  f37 TIMESTAMP(3),\n" +
+			"  f38 TIMESTAMP(3) WITHOUT TIME ZONE,\n" +
+			"  f39 TIMESTAMP WITH LOCAL TIME ZONE,\n" +
+			"  f40 TIMESTAMP(3) WITH LOCAL TIME ZONE,\n" +
+			"  f41 ARRAY<TIMESTAMP(3) WITH LOCAL TIME ZONE>,\n" +
+			"  f42 ARRAY<INT NOT NULL>,\n" +
+			"  f43 INT ARRAY,\n" +
+			"  f44 INT NOT NULL ARRAY,\n" +
+			"  f45 INT ARRAY NOT NULL,\n" +
+			"  f46 MULTISET<INT NOT NULL>,\n" +
+			"  f47 INT MULTISET,\n" +
+			"  f48 INT NOT NULL MULTISET,\n" +
+			"  f49 INT MULTISET NOT NULL,\n" +
+			"  f50 MAP<BIGINT, BOOLEAN>,\n" +
+			"  f51 ROW<f0 INT NOT NULL, f1 BOOLEAN>,\n" +
+			"  f52 ROW(f0 INT NOT NULL, f1 BOOLEAN),\n" +
+			"  f53 ROW<`f0` INT>,\n" +
+			"  f54 ROW(`f0` INT),\n" +
+			"  f55 ROW<>,\n" +
+			"  f56 ROW(),\n" +
+			"  f57 ROW<f0 INT NOT NULL 'This is a comment.', f1 BOOLEAN 'This as well.'>)";
+		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+		SqlNode node = planner.parse(sql);
+		assert node instanceof SqlCreateTable;
+		SqlToOperationConverter.convert(planner, node);
+	}
+
 	private Operation parse(String sql, FlinkPlannerImpl planner) {
 		SqlNode node = planner.parse(sql);
 		return SqlToOperationConverter.convert(planner, node);
