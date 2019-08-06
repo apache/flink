@@ -685,10 +685,16 @@ class StreamTableEnvironment(TableEnvironment):
 
     def _from_file(self, filename, schema):
         gateway = get_gateway()
-        jds = gateway.jvm.PythonBridgeUtils.createDataStreamFromFile(
-            self._j_tenv.execEnv(), filename, True)
-        return Table(gateway.jvm.PythonTableUtils.fromDataStream(
-            self._j_tenv, jds, _to_java_type(schema)))
+        execution_config = self._j_tenv.execEnv().getConfig()
+
+        j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(filename, True)
+        row_type_info = _to_java_type(schema)
+        j_input_format = gateway.jvm.PythonTableUtils.getInputFormat(
+            j_objs, row_type_info, execution_config)
+        j_table_source = gateway.jvm.PythonCollectionInputFormatTableSource(
+            j_input_format, row_type_info)
+
+        return Table(self._j_tenv.fromTableSource(j_table_source))
 
     def get_config(self):
         """
@@ -800,14 +806,20 @@ class BatchTableEnvironment(TableEnvironment):
         gateway = get_gateway()
         blink_t_env_class = get_java_class(
             gateway.jvm.org.apache.flink.table.api.internal.TableEnvironmentImpl)
-        if blink_t_env_class == self._j_tenv.getClass():
-            raise NotImplementedError("The operation 'from_elements' in batch mode is currently "
-                                      "not supported when using blink planner.")
+        is_blink = (blink_t_env_class == self._j_tenv.getClass())
+        row_type_info = _to_java_type(schema)
+        if is_blink:
+            execution_config = gateway.jvm.org.apache.flink.api.common.ExecutionConfig()
         else:
-            jds = gateway.jvm.PythonBridgeUtils.createDataSetFromFile(
-                self._j_tenv.execEnv(), filename, True)
-            return Table(gateway.jvm.PythonTableUtils.fromDataSet(
-                self._j_tenv, jds, _to_java_type(schema)))
+            execution_config = self._j_tenv.execEnv().getConfig()
+
+        j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(filename, True)
+        j_input_format = gateway.jvm.PythonTableUtils.getInputFormat(
+            j_objs, row_type_info, execution_config)
+        j_table_source = gateway.jvm.PythonCollectionInputFormatTableSource(
+            j_input_format, row_type_info)
+
+        return Table(self._j_tenv.fromTableSource(j_table_source))
 
     def get_config(self):
         """

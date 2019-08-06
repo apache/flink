@@ -24,61 +24,28 @@ import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.util.TimeZone
 import java.util.function.BiConsumer
 
-import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, BasicTypeInfo, PrimitiveArrayTypeInfo, TypeInformation}
-import org.apache.flink.api.java.DataSet
+import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.java.{BatchTableEnvironment, StreamTableEnvironment}
-import org.apache.flink.table.api.{Table, Types}
+import org.apache.flink.core.io.InputSplit
+import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.sources.InputFormatTableSource
 import org.apache.flink.types.Row
 
 object PythonTableUtils {
 
-  /**
-    * Converts the given [[DataStream]] into a [[Table]].
-    *
-    * The schema of the [[Table]] is derived from the specified schemaString.
-    *
-    * @param tableEnv The table environment.
-    * @param dataStream The [[DataStream]] to be converted.
-    * @param dataType The type information of the table.
-    * @return The converted [[Table]].
-    */
-  def fromDataStream(
-      tableEnv: StreamTableEnvironment,
-      dataStream: DataStream[Array[Object]],
-      dataType: TypeInformation[Row]): Table = {
-    val convertedDataStream = dataStream.map(
-      new MapFunction[Array[Object], Row] {
-        override def map(value: Array[Object]): Row =
-          convertTo(dataType).apply(value).asInstanceOf[Row]
-      }).returns(dataType.asInstanceOf[TypeInformation[Row]])
-
-    tableEnv.fromDataStream(convertedDataStream)
-  }
-
-  /**
-    * Converts the given [[DataSet]] into a [[Table]].
-    *
-    * The schema of the [[Table]] is derived from the specified schemaString.
-    *
-    * @param tableEnv The table environment.
-    * @param dataSet The [[DataSet]] to be converted.
-    * @param dataType The type information of the table.
-    * @return The converted [[Table]].
-    */
-  def fromDataSet(
-      tableEnv: BatchTableEnvironment,
-      dataSet: DataSet[Array[Object]],
-      dataType: TypeInformation[Row]): Table = {
-    val convertedDataSet = dataSet.map(
-      new MapFunction[Array[Object], Row] {
-        override def map(value: Array[Object]): Row =
-          convertTo(dataType).apply(value).asInstanceOf[Row]
-      }).returns(dataType.asInstanceOf[TypeInformation[Row]])
-
-    tableEnv.fromDataSet(convertedDataSet)
+  def getInputFormat(
+      data: java.util.List[Array[Object]],
+      dataType: TypeInformation[Row],
+      config: ExecutionConfig): InputFormat[Row, _] = {
+    val converter = convertTo(dataType)
+    val rowData = new java.util.ArrayList[Row]()
+    for (x <- 0 until data.size()) {
+      rowData.add(converter(data.get(x)).asInstanceOf[Row])
+    }
+    new CollectionInputFormat(rowData, dataType.createSerializer(config))
   }
 
   /**
@@ -421,4 +388,16 @@ object PythonTableUtils {
     }
     result
   }
+}
+
+class PythonCollectionInputFormatTableSource[Row](
+    inputFormat: InputFormat[Row, _ <: InputSplit],
+    rowTypeInfo: RowTypeInfo
+) extends InputFormatTableSource[Row] {
+
+  override def getInputFormat: InputFormat[Row, _ <: InputSplit] = inputFormat
+
+  override def getTableSchema: TableSchema = TableSchema.fromTypeInfo(rowTypeInfo)
+
+  override def getReturnType: TypeInformation[Row] = rowTypeInfo.asInstanceOf[TypeInformation[Row]]
 }

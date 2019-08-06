@@ -825,10 +825,26 @@ class DataTypeConvertTests(unittest.TestCase):
                     DataTypes.DECIMAL(20, 10, False)]
         self.assertEqual(converted_python_types, expected)
 
+        # Legacy type tests
+        Types = gateway.jvm.org.apache.flink.table.api.Types
+        BlinkBigDecimalTypeInfo = \
+            gateway.jvm.org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
+
+        java_types = [Types.STRING(),
+                      Types.DECIMAL(),
+                      BlinkBigDecimalTypeInfo(12, 5)]
+
+        converted_python_types = [_from_java_type(item) for item in java_types]
+
+        expected = [DataTypes.VARCHAR(2147483647),
+                    DataTypes.DECIMAL(10, 0),
+                    DataTypes.DECIMAL(12, 5)]
+        self.assertEqual(converted_python_types, expected)
+
     def test_array_type(self):
+        # nullable/not_null flag will be lost during the conversion.
         test_types = [DataTypes.ARRAY(DataTypes.BIGINT()),
-                      # array type with not null basic data type means primitive array
-                      DataTypes.ARRAY(DataTypes.BIGINT().not_null()),
+                      DataTypes.ARRAY(DataTypes.BIGINT()),
                       DataTypes.ARRAY(DataTypes.STRING()),
                       DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.BIGINT())),
                       DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))]
