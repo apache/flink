@@ -468,6 +468,7 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  c string\n" +
 			") with (\n" +
 			"  'a-b-c-d124' = 'ab',\n" +
+			"  'a.b.1.c' = 'aabb',\n" +
 			"  'a.b-c-connector.e-f.g' = 'ada',\n" +
 			"  'a.b-c-d.e-1231.g' = 'ada',\n" +
 			"  'a.b-c-d.*' = 'adad')\n";
@@ -477,11 +478,24 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  `C`  STRING\n" +
 			") WITH (\n" +
 			"  'a-b-c-d124' = 'ab',\n" +
+			"  'a.b.1.c' = 'aabb',\n" +
 			"  'a.b-c-connector.e-f.g' = 'ada',\n" +
 			"  'a.b-c-d.e-1231.g' = 'ada',\n" +
 			"  'a.b-c-d.*' = 'adad'\n" +
 			")";
 		check(sql, expected);
+	}
+
+	@Test
+	public void testCreateTableWithOptionKeyAsIdentifier() {
+		String sql = "create table source_table(\n" +
+			"  a int,\n" +
+			"  b bigint,\n" +
+			"  c string\n" +
+			") with (\n" +
+			"  ^a^.b.c = 'ab',\n" +
+			"  a.b.c1 = 'aabb')\n";
+		sql(sql).fails("(?s).*Encountered \"a\" at line 6, column 3.\n.*");
 	}
 
 	@Test

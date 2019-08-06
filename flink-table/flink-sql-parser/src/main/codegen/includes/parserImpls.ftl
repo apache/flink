@@ -126,7 +126,7 @@ SqlNode TableOption() :
     { pos = getPos(); }
     <EQ> value = StringLiteral()
     {
-        return new TableOption(key, value, getPos());
+        return new SqlTableOption(key, value, getPos());
     }
 }
 

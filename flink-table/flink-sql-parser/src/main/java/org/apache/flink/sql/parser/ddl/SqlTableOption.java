@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser;
+package org.apache.flink.sql.parser.ddl;
 
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
@@ -36,7 +36,7 @@ import static java.util.Objects.requireNonNull;
  * Table options of a DDL, a key-value pair
  * with both key and value as string literal.
  */
-public class TableOption extends SqlCall {
+public class SqlTableOption extends SqlCall {
 	/** Use this operator only if you don't have a better one. */
 	protected static final SqlOperator OPERATOR =
 		new SqlSpecialOperator("TableOption", SqlKind.OTHER);
@@ -44,7 +44,7 @@ public class TableOption extends SqlCall {
 	private final SqlNode key;
 	private final SqlNode value;
 
-	public TableOption(SqlNode key, SqlNode value, SqlParserPos pos) {
+	public SqlTableOption(SqlNode key, SqlNode value, SqlParserPos pos) {
 		super(pos);
 		this.key = requireNonNull(key, "Option key is missing");
 		this.value = requireNonNull(value, "Option value is missing");
