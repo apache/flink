@@ -107,24 +107,6 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 	}
 
 	/**
-	 * Built-in Int Avg aggregate function for integral arguments,
-	 * including BYTE, SHORT, INT, LONG.
-	 * The result type is DOUBLE.
-	 */
-	public static class IntegralAvgAggFunction extends AvgAggFunction {
-
-		@Override
-		public DataType getResultType() {
-			return DataTypes.DOUBLE();
-		}
-
-		@Override
-		public DataType getSumType() {
-			return DataTypes.BIGINT();
-		}
-	}
-
-	/**
 	 * Built-in Byte Avg aggregate function.
 	 */
 	public static class ByteAvgAggFunction extends AvgAggFunction {

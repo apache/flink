@@ -41,7 +41,6 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
-import org.apache.flink.table.types.DataType
 
 import java.util
 
