@@ -152,6 +152,32 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	}
 
 	@Test
+	public void testRestoreSerializerDeserialize() throws IOException {
+		final TypeSerializer<T> serializer = getSerializer();
+
+		T[] testData = getData();
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+		try (DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(outputStream)) {
+			outView.writeInt(testData.length);
+			for (T datum : testData) {
+				serializer.serialize(datum, outView);
+			}
+		}
+
+		final TypeSerializerSnapshot<T> configSnapshot = serializer.snapshotConfiguration();
+		final TypeSerializer<T> restoreSerializer = configSnapshot.restoreSerializer();
+
+		try (DataInputViewStreamWrapper inputView =
+				 new DataInputViewStreamWrapper(new ByteArrayInputStream(outputStream.toByteArray()))) {
+			int length = inputView.readInt();
+			assertEquals(testData.length, length);
+			for (int i = 0; i < length; i++) {
+				assertEquals(testData[i], restoreSerializer.deserialize(inputView));
+			}
+		}
+	}
+
+	@Test
 	public void testGetLength() {
 		final int len = getLength();
 
