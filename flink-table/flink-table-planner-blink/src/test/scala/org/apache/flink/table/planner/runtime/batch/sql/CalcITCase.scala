@@ -1079,12 +1079,10 @@ class CalcITCase extends BatchTestBase {
     //j 2015-05-20 10:00:00.887
     checkResult("SELECT j, " +
         " DATE_FORMAT(j, 'yyyy/MM/dd HH:mm:ss')," +
-        " DATE_FORMAT('2015-05-20 10:00:00.887', 'yyyy/MM/dd HH:mm:ss')," +
-        " DATE_FORMAT('2015-05-20 10:00:00.887', 'yyyy-MM-dd HH:mm:ss', 'yyyy/MM/dd HH:mm:ss')" +
+        " DATE_FORMAT('2015-05-20 10:00:00.887', 'yyyy/MM/dd HH:mm:ss')" +
         " FROM testTable WHERE a = TRUE",
       Seq(
         row(localDateTime("2015-05-20 10:00:00.887"),
-          "2015/05/20 10:00:00",
           "2015/05/20 10:00:00",
           "2015/05/20 10:00:00")
       ))
