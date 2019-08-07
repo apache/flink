@@ -839,28 +839,14 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testNullableCases(): Unit = {
-    testSqlApi(
-      "DATE_FORMAT_TZ(TO_TIMESTAMP(cast(NUll as bigInt)), 'yyyy/MM/dd HH:mm:ss', 'Asia/Shanghai')",
+    testSqlApi("CONVERT_TZ(cast(NULL as varchar), 'UTC', 'Asia/Shanghai')",
       nullable)
 
-    testSqlApi("CONVERT_TZ(cast(NUll as varchar), 'yyyy-MM-dd HH:mm:ss', 'UTC', 'Asia/Shanghai')",
-      nullable)
+    testSqlApi("DATE_FORMAT(cast(NULL as varchar), 'yyyy/MM/dd HH:mm:ss')", nullable)
 
-    testSqlApi("FROM_TIMESTAMP(f13)", nullable)
+    testSqlApi("FROM_UNIXTIME(cast(NULL as bigInt))", nullable)
 
-    testSqlApi("DATE_FORMAT(cast(NUll as varchar), 'yyyy/MM/dd HH:mm:ss')", nullable)
-
-    testSqlApi("UNIX_TIMESTAMP(TO_TIMESTAMP(cast(NUll as bigInt)))", nullable)
-
-    testSqlApi("FROM_UNIXTIME(cast(NUll as bigInt))", nullable)
-
-    testSqlApi("TO_DATE(cast(NUll as varchar))", nullable)
-
-    testSqlApi("TO_TIMESTAMP_TZ(cast(NUll as varchar), 'Asia/Shanghai')", nullable)
-
-    testSqlApi(
-      "DATE_FORMAT_TZ(cast(NUll as timestamp), 'yyyy/MM/dd HH:mm:ss', 'Asia/Shanghai')",
-      nullable)
+    testSqlApi("TO_DATE(cast(NULL as varchar))", nullable)
   }
 
   @Test
@@ -869,7 +855,6 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(s"DATE_FORMAT('$invalidStr', 'yyyy/MM/dd HH:mm:ss')", nullable)
     testSqlApi(s"TO_TIMESTAMP('$invalidStr', 'yyyy-mm-dd')", nullable)
     testSqlApi(s"TO_DATE('$invalidStr')", nullable)
-    testSqlApi(s"TO_TIMESTAMP_TZ('$invalidStr', 'Asia/Shanghai')", nullable)
     testSqlApi(
       s"CONVERT_TZ('$invalidStr', 'yyyy-MM-dd HH:mm:ss', 'UTC', 'Asia/Shanghai')",
       nullable)
@@ -882,7 +867,6 @@ class TemporalTypesTest extends ExpressionTestBase {
       s"DATE_FORMAT('$invalidStr', 'yyyy/MM/dd HH:mm:ss')",
       s"TO_TIMESTAMP('$invalidStr', 'yyyy-mm-dd')",
       s"TO_DATE('$invalidStr')",
-      s"TO_TIMESTAMP_TZ('$invalidStr', 'Asia/Shanghai')",
       s"CONVERT_TZ('$invalidStr', 'yyyy-MM-dd HH:mm:ss', 'UTC', 'Asia/Shanghai')")
 
     cases.foreach {
@@ -892,20 +876,9 @@ class TemporalTypesTest extends ExpressionTestBase {
   }
 
   @Test
-  def testTimeZoneFunction(): Unit = {
-    testSqlApi("TO_TIMESTAMP_TZ('2018-03-14 11:00:00', 'Asia/Shanghai')", "2018-03-14 03:00:00.000")
-    testSqlApi("TO_TIMESTAMP_TZ('2018-03-14 11:00:00', 'yyyy-MM-dd HH:mm:ss', 'Asia/Shanghai')",
-               "2018-03-14 03:00:00.000")
-
+  def testConvertTZ(): Unit = {
     testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'yyyy-MM-dd HH:mm:ss', 'UTC', 'Asia/Shanghai')",
                "2018-03-14 19:00:00")
-
-    testSqlApi("TO_TIMESTAMP_TZ(f14, 'UTC')", "null")
-
-    // Note that, if timezone is invalid, here we follow the default behavior of JDK's getTimeZone()
-    // It will use UTC timezone by default.
-    // TODO: it is would be better to report the error at compiling stage. timezone/format codegen
-    testSqlApi("TO_TIMESTAMP_TZ('2018-03-14 11:00:00', 'invalid_tz')", "2018-03-14 11:00:00.000")
   }
 
   // ----------------------------------------------------------------------------------------------

@@ -460,22 +460,6 @@ object BuiltInMethods {
     "timestampCeil",
     classOf[TimeUnitRange], classOf[Long], classOf[TimeZone])
 
-  val STRING_TO_TIMESTAMP_TZ = Types.lookupMethod(
-    classOf[SqlDateTimeUtils],
-    "toTimestampTz",
-    classOf[String], classOf[String])
-
-  val STRING_TO_TIMESTAMP_FORMAT_TZ = Types.lookupMethod(
-    classOf[SqlDateTimeUtils],
-    "toTimestampTz",
-    classOf[String], classOf[String], classOf[String])
-
-  val DATE_FORMAT_LONG_ZONE = Types.lookupMethod(
-    classOf[SqlDateTimeUtils], "dateFormatTz", classOf[Long], classOf[String])
-
-  val DATE_FORMAT_LONG_STRING_ZONE = Types.lookupMethod(
-    classOf[SqlDateTimeUtils], "dateFormatTz", classOf[Long], classOf[String], classOf[String])
-
   val CONVERT_TZ = Types.lookupMethod(
     classOf[SqlDateTimeUtils],
     "convertTz",
