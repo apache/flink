@@ -3531,6 +3531,9 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("to_timestamp(1513135677000)", "2017-12-13 03:27:57.000")
     testSqlApi("to_timestamp('2017-09-15 00:00:00')", "2017-09-15 00:00:00.000")
     testSqlApi("to_timestamp('20170915000000', 'yyyyMMddHHmmss')", "2017-09-15 00:00:00.000")
+    testSqlApi("to_timestamp('2017-09-15', 'yyyy-MM-dd')", "2017-09-15 00:00:00.000")
+    // test with null input
+    testSqlApi("to_timestamp(cast(null as varchar))", "null")
   }
 
   @Test
@@ -3986,37 +3989,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "IF(f7 < 5, f18, f52)",
       "1996-11-10 06:55:44.333")
-  }
-
-  @Test
-  def testToTimestampWithNumeric(): Unit = {
-    // Test integral and fractional numeric to timestamp.
-    testSqlApi(
-      "to_timestamp(f2)",
-      "1970-01-01 00:00:00.042")
-    testSqlApi(
-      "to_timestamp(f3)",
-      "1970-01-01 00:00:00.043")
-    testSqlApi(
-      "to_timestamp(f4)",
-      "1970-01-01 00:00:00.044")
-    testSqlApi(
-      "to_timestamp(f5)",
-      "1970-01-01 00:00:00.004")
-    testSqlApi(
-      "to_timestamp(f6)",
-      "1970-01-01 00:00:00.004")
-    testSqlApi(
-      "to_timestamp(f7)",
-      "1970-01-01 00:00:00.003")
-    // Test decimal to timestamp.
-    testSqlApi(
-      "to_timestamp(f15)",
-      "1969-12-31 23:59:58.769")
-    // test with null input
-    testSqlApi(
-      "to_timestamp(cast(null as varchar))",
-      "null")
   }
 
   @Test
