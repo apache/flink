@@ -38,6 +38,7 @@ import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.util.Objects;
 
 import static org.apache.flink.table.runtime.typeutils.SerializerTestUtil.MyObj;
 import static org.apache.flink.table.runtime.typeutils.SerializerTestUtil.MyObjSerializer;
@@ -48,6 +49,8 @@ import static org.junit.Assert.assertEquals;
  * A test for the {@link BaseArraySerializer}.
  */
 public class BaseArraySerializerTest extends SerializerTestBase<BaseArray> {
+
+	private final BaseArraySerializer baseArraySerializer;
 
 	public BaseArraySerializerTest() {
 		super(new DeeplyEqualsChecker().withCustomCheck(
@@ -72,6 +75,7 @@ public class BaseArraySerializerTest extends SerializerTestBase<BaseArray> {
 					return true;
 				}
 		));
+		this.baseArraySerializer = new BaseArraySerializer(DataTypes.STRING().getLogicalType(), new ExecutionConfig());
 	}
 
 	@Test
@@ -117,7 +121,7 @@ public class BaseArraySerializerTest extends SerializerTestBase<BaseArray> {
 
 	@Override
 	protected BaseArraySerializer createSerializer() {
-		return new BaseArraySerializer(DataTypes.STRING().getLogicalType(), new ExecutionConfig());
+		return baseArraySerializer;
 	}
 
 	@Override
@@ -139,6 +143,11 @@ public class BaseArraySerializerTest extends SerializerTestBase<BaseArray> {
 				createArray("11", "haa", "ke"),
 				createArray("11", "lele", "haa", "ke"),
 		};
+	}
+
+	@Override
+	protected boolean isObjectEquals(BaseArray originalArray, BaseArray deserializedArray) {
+		return Objects.equals(baseArraySerializer.toBinaryArray(originalArray), baseArraySerializer.toBinaryArray(deserializedArray));
 	}
 
 	static BinaryArray createArray(String... vs) {

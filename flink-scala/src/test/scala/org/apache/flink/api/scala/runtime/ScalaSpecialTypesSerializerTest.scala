@@ -18,6 +18,7 @@
 package org.apache.flink.api.scala.runtime
 
 import java.lang.{Boolean => JBoolean}
+import java.util
 import java.util.function.BiFunction
 
 import org.apache.flink.api.common.ExecutionConfig
@@ -231,6 +232,31 @@ class ScalaSpecialTypesSerializerTestInstance[T](
         e.printStackTrace()
         fail("Exception in test: " + e.getMessage)
       }
+    }
+  }
+
+  override protected def isObjectEquals(originalObject: T, deserializedObject: T): Boolean = {
+    originalObject match {
+      // 'scala.util.Failure' is not supported to directly compare with equals
+      case failure: Failure[Throwable] =>
+        deserializedObject match {
+          case value: Failure[Throwable] =>
+            failure.exception.getMessage.equals(value.exception.getMessage)
+          case _ => false
+        }
+      case array: Array[Int] =>
+        deserializedObject match {
+          case value: Array[Int] =>
+            util.Arrays.equals(array, value)
+          case _ => false
+        }
+      case array: Array[Object] =>
+        deserializedObject match {
+          case value: Array[Object] =>
+            util.Arrays.equals(array, value)
+          case _ => false
+        }
+      case _ => super.isObjectEquals(originalObject, deserializedObject)
     }
   }
 }

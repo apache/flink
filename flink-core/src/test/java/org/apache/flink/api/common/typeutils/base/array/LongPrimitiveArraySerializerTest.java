@@ -22,6 +22,8 @@ import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 
+import java.util.Arrays;
+
 /**
  * A test for the {@link LongPrimitiveArraySerializer}.
  */
@@ -49,5 +51,10 @@ public class LongPrimitiveArraySerializerTest extends SerializerTestBase<long[]>
 			new long[] {},
 			new long[] {-1, -2, 96769243, 26782, 0, 0, 0}
 		};
+	}
+
+	@Override
+	protected boolean isObjectEquals(long[] originalArray, long[] deserializedArray) {
+		return Arrays.equals(originalArray, deserializedArray);
 	}
 }

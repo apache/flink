@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.IntPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 
+import java.util.Arrays;
+
 /**
  * A test for the {@link LongPrimitiveArraySerializer}.
  */
@@ -50,5 +52,10 @@ public class IntPrimitiveArraySerializerTest extends SerializerTestBase<int[]> {
 			new int[] {},
 			new int[] {-1, -2, 96769243, 26782, 0, 0, 0}
 		};
+	}
+
+	@Override
+	protected boolean isObjectEquals(int[] originalArray, int[] deserializedArray) {
+		return Arrays.equals(originalArray, deserializedArray);
 	}
 }

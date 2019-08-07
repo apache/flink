@@ -42,6 +42,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CyclicBarrier;
 
 import static org.junit.Assert.assertEquals;
@@ -83,6 +84,10 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 	protected abstract Class<T> getTypeClass();
 
 	protected abstract T[] getTestData();
+
+	protected boolean isObjectEquals(T originalObject, T deserializedObject) {
+		return Objects.equals(originalObject, deserializedObject);
+	}
 
 	// --------------------------------------------------------------------------------------------
 
@@ -162,6 +167,7 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			for (T datum : testData) {
 				serializer.serialize(datum, outView);
 			}
+			outView.flush();
 		}
 
 		final TypeSerializerSnapshot<T> configSnapshot = serializer.snapshotConfiguration();
@@ -172,7 +178,9 @@ public abstract class SerializerTestBase<T> extends TestLogger {
 			int length = inputView.readInt();
 			assertEquals(testData.length, length);
 			for (int i = 0; i < length; i++) {
-				assertEquals(testData[i], restoreSerializer.deserialize(inputView));
+				T datum = testData[i];
+				T deserialize = restoreSerializer.deserialize(inputView);
+				assertTrue(isObjectEquals(datum, deserialize));
 			}
 		}
 	}

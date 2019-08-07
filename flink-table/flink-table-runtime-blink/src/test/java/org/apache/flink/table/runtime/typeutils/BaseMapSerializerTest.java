@@ -42,6 +42,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import static org.apache.flink.table.runtime.typeutils.SerializerTestUtil.MyObj;
 import static org.apache.flink.table.runtime.typeutils.SerializerTestUtil.MyObjSerializer;
@@ -55,6 +56,7 @@ public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
 
 	private static final LogicalType INT = DataTypes.INT().getLogicalType();
 	private static final LogicalType STRING = DataTypes.STRING().getLogicalType();
+	private final BaseMapSerializer baseMapSerializer;
 
 	public BaseMapSerializerTest() {
 		super(new DeeplyEqualsChecker().withCustomCheck(
@@ -69,6 +71,7 @@ public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
 						((BaseMap) o1).toJavaMap(INT, STRING)
 								.equals(((BaseMap) o2).toJavaMap(INT, STRING))
 		));
+		this.baseMapSerializer = new BaseMapSerializer(INT, STRING, new ExecutionConfig());
 	}
 
 	@Test
@@ -119,13 +122,9 @@ public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
 			config);
 	}
 
-	private static BaseMapSerializer newSer() {
-		return new BaseMapSerializer(INT, STRING, new ExecutionConfig());
-	}
-
 	@Override
 	protected BaseMapSerializer createSerializer() {
-		return newSer();
+		return baseMapSerializer;
 	}
 
 	@Override
@@ -149,6 +148,11 @@ public class BaseMapSerializerTest extends SerializerTestBase<BaseMap> {
 				BinaryMap.valueOf(createArray(1, 4, 2), BaseArraySerializerTest.createArray("11", "haa", "ke")),
 				BinaryMap.valueOf(createArray(1, 5, 6, 7), BaseArraySerializerTest.createArray("11", "lele", "haa", "ke"))
 		};
+	}
+
+	@Override
+	protected boolean isObjectEquals(BaseMap originalMap, BaseMap deserializedMap) {
+		return Objects.equals(baseMapSerializer.toBinaryMap(originalMap), baseMapSerializer.toBinaryMap(deserializedMap));
 	}
 
 	private static BinaryArray createArray(int... vs) {

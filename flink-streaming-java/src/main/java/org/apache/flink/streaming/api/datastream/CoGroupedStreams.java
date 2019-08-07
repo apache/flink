@@ -50,6 +50,7 @@ import org.apache.flink.util.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
 
@@ -424,6 +425,21 @@ public class CoGroupedStreams<T1, T2> {
 
 		public static <T1, T2> TaggedUnion<T1, T2> two(T2 two) {
 			return new TaggedUnion<>(null, two);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj instanceof TaggedUnion) {
+				TaggedUnion that = (TaggedUnion) obj;
+				return Objects.equals(one, that.one) && Objects.equals(two, that.two);
+			} else {
+				return false;
+			}
+		}
+
+		@Override
+		public int hashCode() {
+			return 31 * Objects.hashCode(one) + Objects.hashCode(two);
 		}
 	}
 

@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.FloatPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 
+import java.util.Arrays;
+
 /**
  * A test for the {@link LongPrimitiveArraySerializer}.
  */
@@ -51,5 +53,10 @@ public class FloatPrimitiveArraySerializerTest extends SerializerTestBase<float[
 			new float[] {},
 			new float[] {-1, -2, 96769243, Float.NaN, Float.POSITIVE_INFINITY, 26782, Float.MIN_NORMAL, 0, 0, 0}
 		};
+	}
+
+	@Override
+	protected boolean isObjectEquals(float[] originalArray, float[] deserializedArray) {
+		return Arrays.equals(originalArray, deserializedArray);
 	}
 }

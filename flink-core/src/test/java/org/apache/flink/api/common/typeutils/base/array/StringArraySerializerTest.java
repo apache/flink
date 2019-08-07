@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
+import java.util.Arrays;
 import java.util.Random;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
@@ -78,5 +79,10 @@ public class StringArraySerializerTest extends SerializerTestBase<String[]> {
 	public void arrayTypeIsMutable() {
 		StringArraySerializer serializer = (StringArraySerializer) createSerializer();
 		assertFalse(serializer.isImmutableType());
+	}
+
+	@Override
+	protected boolean isObjectEquals(String[] originalArray, String[] deserializedArray) {
+		return Arrays.equals(originalArray, deserializedArray);
 	}
 }

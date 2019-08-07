@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BooleanPrimitiveArraySerializer;
 import org.apache.flink.api.common.typeutils.base.array.LongPrimitiveArraySerializer;
 
+import java.util.Arrays;
+
 /**
  * A test for the {@link LongPrimitiveArraySerializer}.
  */
@@ -50,5 +52,10 @@ public class BooleanPrimitiveArraySerializerTest extends SerializerTestBase<bool
 			new boolean[] {},
 			new boolean[] {false, true, false, false, false, false, true, false}
 		};
+	}
+
+	@Override
+	protected boolean isObjectEquals(boolean[] originalArray, boolean[] deserializedArray) {
+		return Arrays.equals(originalArray, deserializedArray);
 	}
 }

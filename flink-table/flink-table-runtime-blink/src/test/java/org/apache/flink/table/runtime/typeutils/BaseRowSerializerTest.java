@@ -83,6 +83,11 @@ public class BaseRowSerializerTest extends SerializerTestInstance<BaseRow> {
 				testBaseRowSerializerWithComplexTypes());
 	}
 
+	@Override
+	protected boolean isObjectEquals(BaseRow originalRow, BaseRow deserializedRow) {
+		return Objects.equals(serializer.toBinaryRow(originalRow), serializer.toBinaryRow(deserializedRow));
+	}
+
 	private static Object[] testBaseRowSerializer() {
 		BaseRowTypeInfo typeInfo = new BaseRowTypeInfo(new IntType(), new VarCharType(VarCharType.MAX_LENGTH));
 		GenericRow row1 = new GenericRow(2);

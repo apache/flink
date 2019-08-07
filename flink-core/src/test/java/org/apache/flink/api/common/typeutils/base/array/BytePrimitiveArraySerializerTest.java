@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.typeutils.base.array;
 
+import java.util.Arrays;
 import java.util.Random;
 
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
@@ -63,7 +64,12 @@ public class BytePrimitiveArraySerializerTest extends SerializerTestBase<byte[]>
 			new byte[] {}
 		};
 	}
-	
+
+	@Override
+	protected boolean isObjectEquals(byte[] originalArray, byte[] deserializedArray) {
+		return Arrays.equals(originalArray, deserializedArray);
+	}
+
 	private final byte[] randomByteArray() {
 		int len = rnd.nextInt(1024 * 1024);
 		byte[] data = new byte[len];

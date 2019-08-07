@@ -21,6 +21,8 @@ package org.apache.flink.api.common.typeutils.base.array;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 
+import java.util.Arrays;
+
 /**
  * A test for the {@link LongPrimitiveArraySerializer}.
  */
@@ -48,5 +50,10 @@ public class CharPrimitiveArraySerializerTest extends SerializerTestBase<char[]>
 			new char[] {},
 			new char[] {100, 200, 315, 0, 17, 0, 0}
 		};
+	}
+
+	@Override
+	protected boolean isObjectEquals(char[] originalArray, char[] deserializedArray) {
+		return Arrays.equals(originalArray, deserializedArray);
 	}
 }
