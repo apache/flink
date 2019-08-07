@@ -629,11 +629,6 @@ object FunctionGenerator {
     BuiltInMethods.NOW)
 
   addSqlFunctionMethod(
-    NOW,
-    Seq(INTEGER),
-    BuiltInMethods.NOW_OFFSET)
-
-  addSqlFunctionMethod(
     UNIX_TIMESTAMP,
     Seq(),
     BuiltInMethods.UNIX_TIMESTAMP)
