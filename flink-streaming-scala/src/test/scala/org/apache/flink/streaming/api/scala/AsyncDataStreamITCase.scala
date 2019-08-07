@@ -51,7 +51,7 @@ class AsyncDataStreamITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
 
-    val source = env.fromElements(1, 2)
+    val source = env.fromElements(1)
 
     val timeout = 1L
     val asyncMapped = if (ordered) {
@@ -62,7 +62,7 @@ class AsyncDataStreamITCase extends AbstractTestBase {
         source, new AsyncFunctionWithTimeoutExpired(), timeout, TimeUnit.MILLISECONDS)
     }
 
-    executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](2, 6))
+    executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](3))
   }
 
   private def executeAndValidate(ordered: Boolean,
@@ -139,34 +139,21 @@ class AsyncDataStreamITCase extends AbstractTestBase {
 }
 
 class AsyncFunctionWithTimeoutExpired extends RichAsyncFunction[Int, Int] {
-  @transient var timeoutLatch: CountDownLatch = _
   @transient var invokeLatch: CountDownLatch = _
 
   override def open(parameters: Configuration): Unit = {
-    timeoutLatch = new CountDownLatch(1)
     invokeLatch = new CountDownLatch(1)
   }
 
   override def asyncInvoke(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     Future {
-      // trigger the timeout of the even input number
-      if (input % 2 == 0) {
-        invokeLatch.await()
-        resultFuture.complete(Seq(input * 2))
-      } else {
-        resultFuture.complete(Seq(input * 2))
-        timeoutLatch.countDown()
-      }
+      invokeLatch.await()
+      resultFuture.complete(Seq(input * 2))
     } (ExecutionContext.global)
   }
   override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
-    if (input % 2 == 0) {
-      resultFuture.complete(Seq(input * 3))
-      invokeLatch.countDown()
-    } else {
-      timeoutLatch.await()
-      resultFuture.complete(Seq(input * 3))
-    }
+    resultFuture.complete(Seq(input * 3))
+    invokeLatch.countDown()
   }
 }
 
