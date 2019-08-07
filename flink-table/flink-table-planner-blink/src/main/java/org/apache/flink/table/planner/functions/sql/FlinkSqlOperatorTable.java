@@ -659,38 +659,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.STRING)),
 		SqlFunctionCategory.TIMEDATE);
 
-	public static final SqlFunction DATEDIFF = new SqlFunction(
-		"DATEDIFF",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.INTEGER_NULLABLE,
-		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.TIMESTAMP),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.TIMESTAMP),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
-		SqlFunctionCategory.TIMEDATE);
-
-	public static final SqlFunction DATE_SUB = new SqlFunction(
-		"DATE_SUB",
-		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
-		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.INTEGER),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER)),
-		SqlFunctionCategory.TIMEDATE);
-
-	public static final SqlFunction DATE_ADD = new SqlFunction(
-		"DATE_ADD",
-		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
-		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.INTEGER),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER)),
-		SqlFunctionCategory.TIMEDATE);
-
 	public static final SqlFunction IF = new SqlFunction(
 		"IF",
 		SqlKind.OTHER_FUNCTION,
@@ -800,14 +768,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
 		SqlFunctionCategory.TIMEDATE);
 
-	public static final SqlFunction FROM_TIMESTAMP = new SqlFunction(
-		"FROM_TIMESTAMP",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.BIGINT, SqlTypeTransforms.TO_NULLABLE),
-		null,
-		OperandTypes.family(SqlTypeFamily.TIMESTAMP),
-		SqlFunctionCategory.TIMEDATE);
-
 	public static final SqlFunction TO_DATE = new SqlFunction(
 		"TO_DATE",
 		SqlKind.OTHER_FUNCTION,
@@ -817,26 +777,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			OperandTypes.family(SqlTypeFamily.NUMERIC),
 			OperandTypes.family(SqlTypeFamily.STRING),
 			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
-		SqlFunctionCategory.TIMEDATE);
-
-	public static final SqlFunction TO_TIMESTAMP_TZ = new SqlFunction(
-		"TO_TIMESTAMP_TZ",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.TIMESTAMP), SqlTypeTransforms.FORCE_NULLABLE),
-		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
-		SqlFunctionCategory.TIMEDATE);
-
-	public static final SqlFunction DATE_FORMAT_TZ = new SqlFunction(
-		"DATE_FORMAT_TZ",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
-		InferTypes.RETURN_TYPE,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.STRING)),
 		SqlFunctionCategory.TIMEDATE);
 
 	public static final SqlFunction CONVERT_TZ = new SqlFunction(

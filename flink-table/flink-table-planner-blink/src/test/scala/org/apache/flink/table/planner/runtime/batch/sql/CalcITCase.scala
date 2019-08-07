@@ -1168,35 +1168,6 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
-  def testDateDiff(): Unit = {
-    checkResult("SELECT" +
-        " DATEDIFF('2017-12-14 01:00:34', '2016-12-14 12:00:00')," +
-        " DATEDIFF(TIMESTAMP '2017-12-14 01:00:23', '2016-08-14 12:00:00')," +
-        " DATEDIFF('2017-12-14 09:00:23', TIMESTAMP '2013-08-19 11:00:00')," +
-        " DATEDIFF(TIMESTAMP '2017-12-14 09:00:23', TIMESTAMP '2018-08-19 11:00:00')" +
-        " FROM testTable WHERE a = TRUE",
-      Seq(row(365, 487, 1578, -248)))
-  }
-
-  @Test
-  def testDateSub(): Unit = {
-    checkResult("SELECT" +
-        " DATE_SUB(TIMESTAMP '2017-12-14 09:00:23', 3)," +
-        " DATE_SUB('2017-12-14 09:00:23', -3)" +
-        " FROM testTable WHERE a = TRUE",
-      Seq(row("2017-12-11", "2017-12-17")))
-  }
-
-  @Test
-  def testDateAdd(): Unit = {
-    checkResult("SELECT" +
-        " DATE_ADD('2017-12-14', 4)," +
-        " DATE_ADD(TIMESTAMP '2017-12-14 09:10:20',-4)" +
-        " FROM testTable WHERE a = TRUE",
-      Seq(row("2017-12-18", "2017-12-10")))
-  }
-
-  @Test
   def testToDate(): Unit = {
     checkResult("SELECT" +
         " TO_DATE(CAST(null AS VARCHAR))," +

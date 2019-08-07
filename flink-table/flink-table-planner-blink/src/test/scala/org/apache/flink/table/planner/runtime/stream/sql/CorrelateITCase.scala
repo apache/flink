@@ -214,7 +214,7 @@ class CorrelateITCase extends StreamingTestBase {
     val sql =
       """
         |SELECT * FROM TMP1
-        |where DATE_ADD(v, 3) > DATE_FORMAT(CURRENT_TIMESTAMP, 'yyyy-MM-dd')
+        |where TIMESTAMP_ADD(day, 3, v) > DATE_FORMAT(CURRENT_TIMESTAMP, 'yyyy-MM-dd')
       """.stripMargin
 
     val sink = new TestingAppendSink
