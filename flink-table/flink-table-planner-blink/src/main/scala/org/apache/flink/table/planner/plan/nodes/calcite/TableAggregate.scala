@@ -83,7 +83,7 @@ abstract class TableAggregate(
       aggCall.`type`.getFieldList.foreach(builder.add)
     } else {
       // A non-structured type does not have a field list, so get field name through
-      // TableEnvImpl.getFieldNames.
+      // FieldInfoUtils.getFieldNames.
       val logicalType = FlinkTypeFactory.toLogicalType(aggCall.`type`)
       val dataType = TypeConversions.fromLogicalToDataType(logicalType)
       val name = FieldInfoUtils
