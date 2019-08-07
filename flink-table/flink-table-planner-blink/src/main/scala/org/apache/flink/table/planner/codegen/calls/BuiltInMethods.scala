@@ -268,19 +268,10 @@ object BuiltInMethods {
     classOf[SqlDateTimeUtils],
     "unixTimestamp",
     classOf[String],
-    classOf[String])
-
-  val UNIX_TIMESTAMP_FORMAT_TIME_ZONE = Types.lookupMethod(
-    classOf[SqlDateTimeUtils],
-    "unixTimestamp",
-    classOf[String],
     classOf[String],
     classOf[TimeZone])
 
   val UNIX_TIMESTAMP_STR = Types.lookupMethod(
-    classOf[SqlDateTimeUtils], "unixTimestamp", classOf[String])
-
-  val UNIX_TIMESTAMP_STR_TIME_ZONE = Types.lookupMethod(
     classOf[SqlDateTimeUtils], "unixTimestamp", classOf[String], classOf[TimeZone])
 
   val UNIX_TIMESTAMP = Types.lookupMethod(

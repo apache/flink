@@ -25,9 +25,7 @@ import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
 import org.junit.Test
 
 import java.sql.Timestamp
-import java.text.SimpleDateFormat
 import java.time.ZoneId
-import java.util.Locale
 
 class ScalarFunctionsTest extends ScalarTypesTestBase {
 

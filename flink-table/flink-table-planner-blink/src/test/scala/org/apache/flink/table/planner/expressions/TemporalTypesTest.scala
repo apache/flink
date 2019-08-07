@@ -741,6 +741,20 @@ class TemporalTypesTest extends ExpressionTestBase {
   }
 
   @Test
+  def testDaylightSavingTimeZone(): Unit = {
+    // test from MySQL
+    // https://dev.mysql.com/doc/refman/8.0/en/date-and-time-functions.html#function_unix-timestamp
+    // due to conventions for local time zone changes such as Daylight Saving Time (DST),
+    // it is possible for UNIX_TIMESTAMP() to map two values that are distinct in a non-UTC
+    // time zone to the same Unix timestamp value
+    config.setLocalTimeZone(ZoneId.of("MET")) // Europe/Amsterdam
+
+    testSqlApi("UNIX_TIMESTAMP('2005-03-27 03:00:00')", "1111885200")
+    testSqlApi("UNIX_TIMESTAMP('2005-03-27 02:00:00')", "1111885200")
+    testSqlApi("FROM_UNIXTIME(1111885200)", "2005-03-27 03:00:00")
+  }
+
+  @Test
   def testHourUnitRangoonTimeZone(): Unit = {
     // Asia/Rangoon UTC Offset 6.5
     config.setLocalTimeZone(ZoneId.of("Asia/Rangoon"))
@@ -850,6 +864,33 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(
       s"from_unixtime(f22, '$fmt')",
       "70-01-01 09-00-03")
+  }
+
+  @Test
+  def testUnixTimestamp(): Unit = {
+    val ts1 = Timestamp.valueOf("2015-07-24 10:00:00.3")
+    val ts2 = Timestamp.valueOf("2015-07-25 02:02:02.2")
+    val s1 = "2015/07/24 10:00:00.5"
+    val s2 = "2015/07/25 02:02:02.6"
+    val ss1 = "2015-07-24 10:00:00"
+    val ss2 = "2015-07-25 02:02:02"
+    val fmt = "yyyy/MM/dd HH:mm:ss.S"
+
+    testSqlApi(s"UNIX_TIMESTAMP('$ss1')", (ts1.getTime / 1000L).toString)
+    testSqlApi(s"UNIX_TIMESTAMP('$ss2')", (ts2.getTime / 1000L).toString)
+    testSqlApi(s"UNIX_TIMESTAMP('$s1', '$fmt')", (ts1.getTime / 1000L).toString)
+    testSqlApi(s"UNIX_TIMESTAMP('$s2', '$fmt')", (ts2.getTime / 1000L).toString)
+  }
+
+  @Test
+  def testUnixTimestampInTokyo(): Unit = {
+    config.setLocalTimeZone(ZoneId.of("Asia/Tokyo"))
+    testSqlApi(
+      "UNIX_TIMESTAMP('2015-07-24 10:00:00')",
+      "1437699600")
+    testSqlApi(
+      "UNIX_TIMESTAMP('2015/07/24 10:00:00.5', 'yyyy/MM/dd HH:mm:ss.S')",
+      "1437699600")
   }
 
   // ----------------------------------------------------------------------------------------------
