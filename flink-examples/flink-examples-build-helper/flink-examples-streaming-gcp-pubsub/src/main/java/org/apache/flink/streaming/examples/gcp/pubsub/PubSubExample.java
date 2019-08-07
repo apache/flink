@@ -67,6 +67,7 @@ public class PubSubExample {
 								.withDeserializationSchema(new IntegerSerializer())
 								.withProjectName(projectName)
 								.withSubscriptionName(subscriptionName)
+								.withMessageRateLimit(1)
 								.build())
 			.map(PubSubExample::printAndReturn).disableChaining()
 			.addSink(PubSubSink.newBuilder()
