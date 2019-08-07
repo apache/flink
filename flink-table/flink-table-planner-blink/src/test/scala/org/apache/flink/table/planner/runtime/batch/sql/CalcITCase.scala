@@ -1149,15 +1149,6 @@ class CalcITCase extends BatchTestBase {
   }
 
   @Test
-  def testUnixTimestamp(): Unit = {
-    checkResult("SELECT" +
-        " UNIX_TIMESTAMP('2017-12-13 19:25:30')," +
-        " UNIX_TIMESTAMP('2017-12-13 19:25:30', 'yyyy-MM-dd HH:mm:ss')" +
-        " FROM testTable WHERE a = TRUE",
-      Seq(row(1513193130, 1513193130)))
-  }
-
-  @Test
   def testToDate(): Unit = {
     checkResult("SELECT" +
         " TO_DATE(CAST(null AS VARCHAR))," +

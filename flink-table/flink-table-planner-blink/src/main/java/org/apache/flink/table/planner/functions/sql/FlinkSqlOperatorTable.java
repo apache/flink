@@ -632,8 +632,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		OperandTypes.or(
 			OperandTypes.NILADIC,
 			OperandTypes.family(SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP)),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
 		SqlFunctionCategory.TIMEDATE) {
 
 		@Override
