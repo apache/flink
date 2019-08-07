@@ -42,7 +42,6 @@ public interface LookupableTableSource<T> extends TableSource<T> {
 	 * E.g., for a MySQL table with the following schema, send a lookup request with null value
 	 * on `age` field means to find students whose age are unknown (CAUTION: It is equivalent to filter condition:
 	 * `WHERE age IS NULL` instead of `WHERE age = null`).
-	 *
 	 * -----------------
 	 *  Table : Student
 	 * -----------------
