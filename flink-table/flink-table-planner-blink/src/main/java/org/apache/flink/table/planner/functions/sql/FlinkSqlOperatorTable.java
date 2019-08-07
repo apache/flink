@@ -606,11 +606,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction NOW = new SqlFunction(
 		"NOW",
 		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.BIGINT,
+		ReturnTypes.explicit(SqlTypeName.TIMESTAMP, 0),
 		null,
-		OperandTypes.or(
-			OperandTypes.NILADIC,
-			OperandTypes.family(SqlTypeFamily.INTEGER)),
+		OperandTypes.NILADIC,
 		SqlFunctionCategory.TIMEDATE) {
 
 		@Override
