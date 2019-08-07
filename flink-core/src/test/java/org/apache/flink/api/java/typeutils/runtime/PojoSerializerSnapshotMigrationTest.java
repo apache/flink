@@ -31,6 +31,7 @@ import org.junit.runners.Parameterized;
 import java.util.Collection;
 
 import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.hasSameCompatibilityAs;
+import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -84,6 +85,22 @@ public class PojoSerializerSnapshotMigrationTest extends TypeSerializerSnapshotM
 		}
 	}
 
+	/**
+	 * Data test files of test specification that used this type
+	 * had the data written using {@code PojoSerializer}s generated
+	 * using the base class {@code TestPojo}.
+	 */
+	public static class TestPojoSubclass extends TestPojo {
+		public String githubId;
+
+		public TestPojoSubclass() {}
+
+		public TestPojoSubclass(int id, String name, int age, String githubId) {
+			super(id, name, age);
+			this.githubId = githubId;
+		}
+	}
+
 	public PojoSerializerSnapshotMigrationTest(TestSpecification<Object> testSpecification) {
 		super(testSpecification);
 	}
@@ -107,6 +124,19 @@ public class PojoSerializerSnapshotMigrationTest extends TypeSerializerSnapshotM
 			PojoSerializerSnapshotMigrationTest::testPojoWithNewAndRemovedFieldsSerializerSupplier,
 			hasSameCompatibilityAs(TypeSerializerSchemaCompatibility.compatibleAfterMigration()));
 
+		testSpecifications.addWithCompatibilityMatcher(
+			"pojo-unregistered-subclass-serializer",
+			PojoSerializer.class,
+			PojoSerializerSnapshot.class,
+			PojoSerializerSnapshotMigrationTest::testPojoSerializerSupplier,
+			isCompatibleWithReconfiguredSerializer());
+
+		testSpecifications.add(
+			"pojo-registered-subclass-serializer",
+			PojoSerializer.class,
+			PojoSerializerSnapshot.class,
+			PojoSerializerSnapshotMigrationTest::testPojoSerializerWithSubclassRegisteredSupplier);
+
 		return testSpecifications.get();
 	}
 
@@ -121,6 +151,17 @@ public class PojoSerializerSnapshotMigrationTest extends TypeSerializerSnapshotM
 	private static TypeSerializer<TestPojoWithNewAndRemovedFields> testPojoWithNewAndRemovedFieldsSerializerSupplier() {
 		TypeSerializer<TestPojoWithNewAndRemovedFields> serializer =
 			TypeExtractor.createTypeInfo(TestPojoWithNewAndRemovedFields.class).createSerializer(new ExecutionConfig());
+
+		assertTrue(serializer instanceof PojoSerializer);
+		return serializer;
+	}
+
+	private static TypeSerializer<TestPojo> testPojoSerializerWithSubclassRegisteredSupplier() {
+		ExecutionConfig executionConfig = new ExecutionConfig();
+		executionConfig.registerPojoType(TestPojoSubclass.class);
+
+		TypeSerializer<TestPojo> serializer =
+			TypeExtractor.createTypeInfo(TestPojo.class).createSerializer(executionConfig);
 
 		assertTrue(serializer instanceof PojoSerializer);
 		return serializer;
