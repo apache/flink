@@ -110,7 +110,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
                                              .new_instance().use_blink_planner()
                                              .in_batch_mode().build())
         field_names = ["a", "b", "c", "d", "e", "f", "g", "h",
-                       "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s"]
+                       "i", "j", "k", "l", "m", "n", "o", "p", "q", "r"]
         field_types = [DataTypes.BIGINT(), DataTypes.DOUBLE(), DataTypes.STRING(),
                        DataTypes.STRING(), DataTypes.DATE(),
                        DataTypes.TIME(),
@@ -125,7 +125,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
                        DataTypes.ROW([DataTypes.FIELD("a", DataTypes.BIGINT()),
                                       DataTypes.FIELD("b", DataTypes.DOUBLE())]),
                        DataTypes.MAP(DataTypes.STRING(), DataTypes.DOUBLE()),
-                       DataTypes.BYTES(), ExamplePointUDT(),
+                       DataTypes.BYTES(),
                        PythonOnlyUDT()]
         schema = DataTypes.ROW(
             list(map(lambda field_name, field_type: DataTypes.FIELD(field_name, field_type),
@@ -139,7 +139,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
               datetime.timedelta(days=1, microseconds=10),
               [1.0, None], array.array("d", [1.0, 2.0]),
               ["abc"], [datetime.date(1970, 1, 2)], Decimal(1), Row("a", "b")(1, 2.0),
-              {"key": 1.0}, bytearray(b'ABCD'), ExamplePoint(1.0, 2.0),
+              {"key": 1.0}, bytearray(b'ABCD'),
               PythonOnlyPoint(3.0, 4.0))],
             schema)
         t.insert_into("Results")
@@ -148,7 +148,7 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
 
         expected = ['1,1.0,hi,hello,1970-01-02,01:00:00,1970-01-02 00:00:00.0,'
                     '1970-01-02 00:00:00.0,86400000,[1.0, null],[1.0, 2.0],[abc],[1970-01-02],'
-                    '1.000000000000000000,1,2.0,{key=1.0},[65, 66, 67, 68],[1.0, 2.0],[3.0, 4.0]']
+                    '1.000000000000000000,1,2.0,{key=1.0},[65, 66, 67, 68],[3.0, 4.0]']
         self.assert_equals(actual, expected)
 
 
