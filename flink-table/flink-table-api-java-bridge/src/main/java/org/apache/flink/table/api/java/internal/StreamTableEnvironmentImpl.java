@@ -214,46 +214,54 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 
 	@Override
 	public <T> DataStream<T> toAppendStream(Table table, Class<T> clazz) {
-		return toAppendStream(table, clazz, new StreamQueryConfig());
+		TypeInformation<T> typeInfo = extractTypeInformation(table, clazz);
+		return toAppendStream(table, typeInfo);
 	}
 
 	@Override
 	public <T> DataStream<T> toAppendStream(Table table, TypeInformation<T> typeInfo) {
-		return toAppendStream(table, typeInfo, new StreamQueryConfig());
-	}
-
-	@Override
-	public <T> DataStream<T> toAppendStream(
-			Table table,
-			Class<T> clazz,
-			StreamQueryConfig queryConfig) {
-		TypeInformation<T> typeInfo = extractTypeInformation(table, clazz);
-		return toAppendStream(table, typeInfo, queryConfig);
-	}
-
-	@Override
-	public <T> DataStream<T> toAppendStream(
-			Table table,
-			TypeInformation<T> typeInfo,
-			StreamQueryConfig queryConfig) {
 		OutputConversionModifyOperation modifyOperation = new OutputConversionModifyOperation(
 			table.getQueryOperation(),
 			TypeConversions.fromLegacyInfoToDataType(typeInfo),
 			OutputConversionModifyOperation.UpdateMode.APPEND);
-		tableConfig.setIdleStateRetentionTime(
-			Time.milliseconds(queryConfig.getMinIdleStateRetentionTime()),
-			Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime()));
 		return toDataStream(table, modifyOperation);
 	}
 
 	@Override
+	public <T> DataStream<T> toAppendStream(
+			Table table,
+			Class<T> clazz,
+			StreamQueryConfig queryConfig) {
+		tableConfig.setIdleStateRetentionTime(
+			Time.milliseconds(queryConfig.getMinIdleStateRetentionTime()),
+			Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime()));
+		return toAppendStream(table, clazz);
+	}
+
+	@Override
+	public <T> DataStream<T> toAppendStream(
+			Table table,
+			TypeInformation<T> typeInfo,
+			StreamQueryConfig queryConfig) {
+		tableConfig.setIdleStateRetentionTime(
+			Time.milliseconds(queryConfig.getMinIdleStateRetentionTime()),
+			Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime()));
+		return toAppendStream(table, typeInfo);
+	}
+
+	@Override
 	public <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, Class<T> clazz) {
-		return toRetractStream(table, clazz, new StreamQueryConfig());
+		TypeInformation<T> typeInfo = extractTypeInformation(table, clazz);
+		return toRetractStream(table, typeInfo);
 	}
 
 	@Override
 	public <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, TypeInformation<T> typeInfo) {
-		return toRetractStream(table, typeInfo, new StreamQueryConfig());
+		OutputConversionModifyOperation modifyOperation = new OutputConversionModifyOperation(
+			table.getQueryOperation(),
+			wrapWithChangeFlag(typeInfo),
+			OutputConversionModifyOperation.UpdateMode.RETRACT);
+		return toDataStream(table, modifyOperation);
 	}
 
 	@Override
@@ -261,8 +269,10 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 			Table table,
 			Class<T> clazz,
 			StreamQueryConfig queryConfig) {
-		TypeInformation<T> typeInfo = extractTypeInformation(table, clazz);
-		return toRetractStream(table, typeInfo, queryConfig);
+		tableConfig.setIdleStateRetentionTime(
+			Time.milliseconds(queryConfig.getMinIdleStateRetentionTime()),
+			Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime()));
+		return toRetractStream(table, clazz);
 	}
 
 	@Override
@@ -270,14 +280,10 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 			Table table,
 			TypeInformation<T> typeInfo,
 			StreamQueryConfig queryConfig) {
-		OutputConversionModifyOperation modifyOperation = new OutputConversionModifyOperation(
-			table.getQueryOperation(),
-			wrapWithChangeFlag(typeInfo),
-			OutputConversionModifyOperation.UpdateMode.RETRACT);
 		tableConfig.setIdleStateRetentionTime(
 			Time.milliseconds(queryConfig.getMinIdleStateRetentionTime()),
 			Time.milliseconds(queryConfig.getMaxIdleStateRetentionTime()));
-		return toDataStream(table, modifyOperation);
+		return toRetractStream(table, typeInfo);
 	}
 
 	@Override
