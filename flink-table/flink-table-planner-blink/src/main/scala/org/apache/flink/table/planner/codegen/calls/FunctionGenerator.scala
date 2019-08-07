@@ -648,12 +648,6 @@ object FunctionGenerator {
     Seq(TIMESTAMP_WITH_LOCAL_TIME_ZONE),
     BuiltInMethods.UNIX_TIMESTAMP_TS)
 
-  addSqlFunctionMethod(
-    DATEDIFF,
-    Seq(TIMESTAMP_WITHOUT_TIME_ZONE,
-      TIMESTAMP_WITHOUT_TIME_ZONE),
-    BuiltInMethods.DATEDIFF_T_T)
-
   // This sequence must be in sync with [[NumericOrDefaultReturnTypeInference]]
   val numericTypes = Seq(
     INTEGER,
@@ -817,11 +811,6 @@ object FunctionGenerator {
     Seq(DECIMAL),
     BuiltInMethods.DECIMAL_TO_TIMESTAMP)
 
-  addSqlFunctionMethod(
-    FROM_TIMESTAMP,
-    Seq(TIMESTAMP_WITHOUT_TIME_ZONE),
-    BuiltInMethods.TIMESTAMP_TO_BIGINT)
-
   INTEGRAL_TYPES foreach (
     dt => addSqlFunctionMethod(
       FROM_UNIXTIME,
@@ -841,18 +830,6 @@ object FunctionGenerator {
 
   addSqlFunctionMethod(FROM_UNIXTIME, Seq(BIGINT, VARCHAR), BuiltInMethods.FROM_UNIXTIME_FORMAT)
   addSqlFunctionMethod(FROM_UNIXTIME, Seq(BIGINT, CHAR), BuiltInMethods.FROM_UNIXTIME_FORMAT)
-
-  addSqlFunctionMethod(DATE_SUB, Seq(VARCHAR, INTEGER), BuiltInMethods.DATE_SUB_S)
-  addSqlFunctionMethod(DATE_SUB, Seq(CHAR, INTEGER), BuiltInMethods.DATE_SUB_S)
-
-  addSqlFunctionMethod(
-    DATE_SUB, Seq(TIMESTAMP_WITHOUT_TIME_ZONE, INTEGER), BuiltInMethods.DATE_SUB_T)
-
-  addSqlFunctionMethod(DATE_ADD, Seq(VARCHAR, INTEGER), BuiltInMethods.DATE_ADD_S)
-  addSqlFunctionMethod(DATE_ADD, Seq(CHAR, INTEGER), BuiltInMethods.DATE_ADD_S)
-
-  addSqlFunctionMethod(
-    DATE_ADD, Seq(TIMESTAMP_WITHOUT_TIME_ZONE, INTEGER), BuiltInMethods.DATE_ADD_T)
 
   // ----------------------------------------------------------------------------------------------
 
