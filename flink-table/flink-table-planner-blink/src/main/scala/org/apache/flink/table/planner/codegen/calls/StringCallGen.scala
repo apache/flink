@@ -221,12 +221,6 @@ object StringCallGen {
           isCharacterString(operands(1).resultType) =>
         methodGen(BuiltInMethods.DATE_FORMAT_STIRNG_STRING)
 
-      case DATE_FORMAT if operands.size == 3 &&
-          isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) &&
-          isCharacterString(operands(2).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_STRING_STRING_STRING)
-
       case CONVERT_TZ if operands.size == 3 &&
           isCharacterString(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) &&

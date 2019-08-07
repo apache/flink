@@ -258,10 +258,6 @@ object BuiltInMethods {
   val DATE_FORMAT_LONG_STRING_TIME_ZONE = Types.lookupMethod(
     classOf[SqlDateTimeUtils], "dateFormat", classOf[Long], classOf[String], classOf[TimeZone])
 
-  val DATE_FORMAT_STRING_STRING_STRING = Types.lookupMethod(
-    classOf[SqlDateTimeUtils], "dateFormat", classOf[String],
-    classOf[String], classOf[String])
-
   val DATE_FORMAT_STIRNG_STRING = Types.lookupMethod(
     classOf[SqlDateTimeUtils], "dateFormat", classOf[String], classOf[String])
 
