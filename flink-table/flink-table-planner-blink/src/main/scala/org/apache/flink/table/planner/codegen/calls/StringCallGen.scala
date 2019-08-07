@@ -227,13 +227,6 @@ object StringCallGen {
           isCharacterString(operands(2).resultType) =>
         methodGen(BuiltInMethods.CONVERT_TZ)
 
-      case CONVERT_TZ if operands.size == 4 &&
-          isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) &&
-          isCharacterString(operands(2).resultType) &&
-          isCharacterString(operands(3).resultType) =>
-        methodGen(BuiltInMethods.CONVERT_FORMAT_TZ)
-
       case _ => null
     }
 
