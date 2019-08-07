@@ -24,7 +24,7 @@ under the License.
 
 Java 8 引入了几种新的语言特性，旨在实现更快、更清晰的编码。 作为最重要的特性，即所谓的“Lambda 表达式”，它开启了函数式编程的大门。Lambda 表达式允许以简捷的方式实现和传递函数，而无需声明额外的（匿名）类。
 
-<span class="label label-danger">注意</span> Flink 支持对 Java API 的所有算子使用 Lambda 表达式，但是，当 Lambda 表达式使用 Java 泛型时，你需要*显式*声明类型信息。
+<span class="label label-danger">注意</span> Flink 支持对 Java API 的所有算子使用 Lambda 表达式，但是，当 Lambda 表达式使用 Java 泛型时，你需要 *显式* 声明类型信息。
 
 本文档介绍了如何使用 Lambda 表达式并描述了其在当前应用中的限制。有关 Flink API 的一般性介绍， 请参阅[编程指南]({{ site.baseurl }}/zh/dev/api_concepts.html)。
 
@@ -52,7 +52,7 @@ org.apache.flink.api.common.functions.InvalidTypesException: The generic type pa
     Otherwise the type has to be specified explicitly using type information.
 {% endhighlight %}
 
-在这种情况下，需要*显式*指定类型信息，否则输出将被视为 `Object` 类型，这会导致低效的序列化。
+在这种情况下，需要 *显式* 指定类型信息，否则输出将被视为 `Object` 类型，这会导致低效的序列化。
 
 {% highlight java %}
 import org.apache.flink.api.common.typeinfo.Types;
