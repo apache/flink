@@ -590,11 +590,6 @@ class TemporalTypesTest extends ExpressionTestBase {
     )
 
     testSqlApi(
-      "FROM_TIMESTAMP(f13)",
-      "null"
-    )
-
-    testSqlApi(
       "TO_TIMESTAMP(SUBSTR('', 2, -1))",
       "null"
     )
@@ -606,11 +601,14 @@ class TemporalTypesTest extends ExpressionTestBase {
   }
 
   @Test
-  def testdebug() = {
-    testSqlApi("DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
+  def testDateFormat(): Unit = {
+    testSqlApi(
+      "DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
       "2018/03/14 01:02:03")
-    testSqlApi("DATE_FORMAT('2018-03-14 01:02:03', 'yyyy-MM-dd HH:mm:ss', " +
-        "'yyyy/MM/dd HH:mm:ss')", "2018/03/14 01:02:03")
+
+    testSqlApi(
+      s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03")}, 'yyyy-MM-dd HH:mm:ss')",
+      "2018-03-14 01:02:03")
   }
 
   @Test
@@ -659,12 +657,12 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(timestampTz("2018-03-14 19:00:00.010"), "2018-03-14 19:00:00.010")
 
     // DATE_FORMAT
-    testSqlApi("DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
+    testSqlApi(
+      "DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
       "2018/03/14 01:02:03")
-    testSqlApi("DATE_FORMAT('2018-03-14 01:02:03', 'yyyy-MM-dd HH:mm:ss', " +
-      "'yyyy/MM/dd HH:mm:ss')", "2018/03/14 01:02:03")
-    testSqlApi(s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03")}," +
-        " 'yyyy-MM-dd HH:mm:ss')",
+
+    testSqlApi(
+      s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03")}, 'yyyy-MM-dd HH:mm:ss')",
       "2018-03-14 01:02:03")
 
     // EXTRACT

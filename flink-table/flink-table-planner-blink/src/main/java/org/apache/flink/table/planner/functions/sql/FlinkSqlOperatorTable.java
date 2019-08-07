@@ -573,9 +573,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.FORCE_NULLABLE),
 		InferTypes.RETURN_TYPE,
 		OperandTypes.or(
-			OperandTypes.sequence("'(TIMESTAMP, FORMAT)'",
-				OperandTypes.DATETIME, OperandTypes.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.STRING),
 			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
 		SqlFunctionCategory.TIMEDATE);
 
