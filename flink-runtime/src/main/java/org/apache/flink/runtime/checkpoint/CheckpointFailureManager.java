@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import java.util.Set;
@@ -104,7 +105,7 @@ public class CheckpointFailureManager {
 
 		if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
 			clearCount();
-			failureCallback.failJob();
+			failureCallback.failJob(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."));
 		}
 	}
 
@@ -124,11 +125,33 @@ public class CheckpointFailureManager {
 	}
 
 	/**
+	 * Fails the whole job graph in case an in-progress synchronous savepoint is discarded.
+	 *
+	 * <p>If the checkpoint was cancelled at the checkpoint coordinator, i.e. before
+	 * the synchronous savepoint barrier was sent to the tasks, then we do not cancel the job
+	 * as we do not risk having a deadlock.
+	 *
+	 * @param cause The reason why the job is cancelled.
+	 * */
+	void handleSynchronousSavepointFailure(final Throwable cause) {
+		if (!isPreFlightFailure(cause)) {
+			failureCallback.failJob(cause);
+		}
+	}
+
+	private static boolean isPreFlightFailure(final Throwable cause) {
+		return ExceptionUtils.findThrowable(cause, CheckpointException.class)
+				.map(CheckpointException::getCheckpointFailureReason)
+				.map(CheckpointFailureReason::isPreFlight)
+				.orElse(false);
+	}
+
+	/**
 	 * A callback interface about how to fail a job.
 	 */
 	public interface FailJobCallback {
 
-		void failJob();
+		void failJob(final Throwable cause);
 
 	}
 

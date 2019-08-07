@@ -127,7 +127,8 @@ class StreamExecLimit(
       tableConfig, "AlwaysEqualsComparator", Array(), Array(), Array(), Array())
 
     val processFunction = if (generateRetraction) {
-      val cacheSize = tableConfig.getConfiguration.getLong(StreamExecRank.SQL_EXEC_TOPN_CACHE_SIZE)
+      val cacheSize = tableConfig.getConfiguration.getLong(
+        StreamExecRank.TABLE_EXEC_TOPN_CACHE_SIZE)
       new AppendOnlyTopNFunction(
         minIdleStateRetentionTime,
         maxIdleStateRetentionTime,
@@ -169,10 +170,11 @@ class StreamExecLimit(
       s"Limit(offset: $limitStart, fetch: ${fetchToString(fetch)})",
       operator,
       outputRowTypeInfo,
-      getResource.getParallelism)
+      inputTransform.getParallelism)
 
-    if (getResource.getMaxParallelism > 0) {
-      ret.setMaxParallelism(getResource.getMaxParallelism)
+    if (inputsContainSingleton()) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
     }
 
     val selector = NullBinaryRowKeySelector.INSTANCE

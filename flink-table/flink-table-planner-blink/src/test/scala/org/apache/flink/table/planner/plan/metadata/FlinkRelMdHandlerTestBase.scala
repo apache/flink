@@ -76,9 +76,10 @@ class FlinkRelMdHandlerTestBase {
   val tableConfig = new TableConfig()
   val rootSchema: SchemaPlus = MetadataTestUtil.initRootSchema()
 
-  val defaultCatalog = "default_catalog"
+  val builtinCatalog = "default_catalog"
+  val builtinDatabase = "default_database"
   val catalogManager = new CatalogManager(
-    defaultCatalog, new GenericInMemoryCatalog(defaultCatalog, "default_database"))
+    builtinCatalog, new GenericInMemoryCatalog(builtinCatalog, builtinDatabase))
 
   // TODO batch RelNode and stream RelNode should have different PlannerContext
   //  and RelOptCluster due to they have different trait definitions.

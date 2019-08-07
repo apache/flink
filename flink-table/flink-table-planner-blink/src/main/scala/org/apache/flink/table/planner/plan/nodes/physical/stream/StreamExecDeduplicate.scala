@@ -115,7 +115,7 @@ class StreamExecDeduplicate(
     val generateRetraction = StreamExecRetractionRules.isAccRetract(this)
     val tableConfig = planner.getTableConfig
     val isMiniBatchEnabled = tableConfig.getConfiguration.getBoolean(
-      ExecutionConfigOptions.SQL_EXEC_MINIBATCH_ENABLED)
+      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
     val operator = if (isMiniBatchEnabled) {
       val exeConfig = planner.getExecEnv.getConfig
       val rowSerializer = rowTypeInfo.createSerializer(exeConfig)
@@ -144,10 +144,11 @@ class StreamExecDeduplicate(
       getOperatorName,
       operator,
       rowTypeInfo,
-      getResource.getParallelism)
+      inputTransform.getParallelism)
 
-    if (getResource.getMaxParallelism > 0) {
-      ret.setMaxParallelism(getResource.getMaxParallelism)
+    if (inputsContainSingleton()) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
     }
 
     val selector = KeySelectorUtil.getBaseRowSelector(uniqueKeys, rowTypeInfo)

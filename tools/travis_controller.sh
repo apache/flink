@@ -90,8 +90,7 @@ EXIT_CODE=0
 
 # Run actual compile&test steps
 if [ $STAGE == "$STAGE_COMPILE" ]; then
-    # We use -Punsafe-mapr-repo since the https version fails on Travis for some reason.
-	MVN="mvn clean install -nsu -Punsafe-mapr-repo -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B -DskipTests $PROFILE"
+	MVN="mvn clean install -nsu -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B -DskipTests $PROFILE"
 	$MVN
 	EXIT_CODE=$?
 
@@ -146,7 +145,8 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
             ! -path "$CACHE_FLINK_DIR/flink-runtime/target/flink-runtime*tests.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-streaming-java/target/flink-streaming-java*tests.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-dist*.jar" \
-            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/opt/flink-table*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-table_*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-table-blink*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/opt/flink-python*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-connectors/flink-connector-elasticsearch-base/target/flink-*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-connectors/flink-connector-kafka-base/target/flink-*.jar" \

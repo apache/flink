@@ -38,7 +38,7 @@ class IncrementalAggregateTest(
     super.before()
     // enable incremental agg
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      IncrementalAggregateRule.SQL_OPTIMIZER_INCREMENTAL_AGG_ENABLED, true)
+      IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED, true)
   }
 }
 

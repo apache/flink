@@ -199,6 +199,7 @@ class DataSetJoin(
           rightKeys.toArray,
           returnType,
           config)
+      case _ => throw new TableException(s"$joinType is not supported.")
     }
   }
 

@@ -37,6 +37,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSin
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.OnCheckpointRollingPolicy;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
@@ -77,8 +78,20 @@ public class StreamSQLTestProgram {
 
 		ParameterTool params = ParameterTool.fromArgs(args);
 		String outputPath = params.getRequired("outputPath");
+		String planner = params.get("planner", "old");
 
-		StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+		final EnvironmentSettings.Builder builder = EnvironmentSettings.newInstance();
+		builder.inStreamingMode();
+
+		if (planner.equals("old")) {
+			builder.useOldPlanner();
+		} else if (planner.equals("blink")) {
+			builder.useBlinkPlanner();
+		}
+
+		final EnvironmentSettings settings = builder.build();
+
+		final StreamExecutionEnvironment sEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 		sEnv.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 			3,
 			Time.of(10, TimeUnit.SECONDS)
@@ -87,7 +100,7 @@ public class StreamSQLTestProgram {
 		sEnv.enableCheckpointing(4000);
 		sEnv.getConfig().setAutoWatermarkInterval(1000);
 
-		StreamTableEnvironment tEnv = StreamTableEnvironment.create(sEnv);
+		final StreamTableEnvironment tEnv = StreamTableEnvironment.create(sEnv, settings);
 
 		tEnv.registerTableSource("table1", new GeneratorTableSource(10, 100, 60, 0));
 		tEnv.registerTableSource("table2", new GeneratorTableSource(5, 0.2f, 60, 5));
@@ -106,9 +119,7 @@ public class StreamSQLTestProgram {
 		String tumbleQuery = String.format(
 			"SELECT " +
 			"  key, " +
-			//TODO: The "WHEN -1 THEN NULL" part is a temporary workaround, to make the test pass, for
-			// https://issues.apache.org/jira/browse/FLINK-12249. We should remove it once the issue is fixed.
-			"  CASE SUM(cnt) / COUNT(*) WHEN 101 THEN 1 WHEN -1 THEN NULL ELSE 99 END AS correct, " +
+			"  CASE SUM(cnt) / COUNT(*) WHEN 101 THEN 1 ELSE 99 END AS correct, " +
 			"  TUMBLE_START(rowtime, INTERVAL '%d' SECOND) AS wStart, " +
 			"  TUMBLE_ROWTIME(rowtime, INTERVAL '%d' SECOND) AS rowtime " +
 			"FROM (%s) " +
@@ -342,5 +353,4 @@ public class StreamSQLTestProgram {
 			}
 		}
 	}
-
 }

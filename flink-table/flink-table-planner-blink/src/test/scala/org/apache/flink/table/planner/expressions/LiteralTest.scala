@@ -20,7 +20,9 @@ package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.planner.expressions.utils.{ExpressionTestBase, Func3}
 import org.apache.flink.types.Row
 
 import org.junit.Test
@@ -30,27 +32,37 @@ class LiteralTest extends ExpressionTestBase {
   @Test
   def testFieldWithBooleanPrefix(): Unit = {
 
-    testSqlApi(
+    testAllApis(
+      'trUeX,
+      "trUeX",
       "trUeX",
       "trUeX_value"
     )
 
-    testSqlApi(
+    testAllApis(
+      'FALSE_A,
+      "FALSE_A",
       "FALSE_A",
       "FALSE_A_value"
     )
 
-    testSqlApi(
+    testAllApis(
+      'FALSE_AB,
+      "FALSE_AB",
       "FALSE_AB",
       "FALSE_AB_value"
     )
 
-    testSqlApi(
+    testAllApis(
+      true,
+      "trUe",
       "trUe",
       "true"
     )
 
-    testSqlApi(
+    testAllApis(
+      false,
+      "FALSE",
       "FALSE",
       "false"
     )
@@ -58,11 +70,15 @@ class LiteralTest extends ExpressionTestBase {
 
   @Test
   def testNonAsciiLiteral(): Unit = {
-    testSqlApi(
+    testAllApis(
+      'f4.like("%测试%"),
+      "f4.like('%测试%')",
       "f4 LIKE '%测试%'",
       "true")
 
-    testSqlApi(
+    testAllApis(
+      "Абвгде" + "谢谢",
+      "'Абвгде' + '谢谢'",
       "'Абвгде' || '谢谢'",
       "Абвгде谢谢")
   }
@@ -70,9 +86,11 @@ class LiteralTest extends ExpressionTestBase {
   @Test
   def testDoubleQuote(): Unit = {
     val hello = "\"<hello>\""
-    testSqlApi(
-      s"concat('a', ' ', '$hello')",
-      s"a $hello")
+    testAllApis(
+      Func3(42, hello),
+      s"Func3(42, '$hello')",
+      s"Func3(42, '$hello')",
+      s"42 and $hello")
   }
 
   @Test
@@ -80,43 +98,57 @@ class LiteralTest extends ExpressionTestBase {
 
     // these tests use Java/Scala escaping for non-quoting unicode characters
 
-    testSqlApi(
+    testAllApis(
+      ">\n<",
+      "'>\n<'",
       "'>\n<'",
       ">\n<")
 
-    testSqlApi(
+    testAllApis(
+      ">\u263A<",
+      "'>\u263A<'",
       "'>\u263A<'",
       ">\u263A<")
 
-    testSqlApi(
-      "'>\u263A<'",
-      ">\u263A<")
-
-    testSqlApi(
+    testAllApis(
+      ">\\<",
+      "'>\\<'",
       "'>\\<'",
       ">\\<")
 
-    testSqlApi(
+    testAllApis(
+      ">'<",
+      "'>''<'",
       "'>''<'",
       ">'<")
 
-    testSqlApi(
+    testAllApis(
+      " ",
+      "' '",
       "' '",
       " ")
 
-    testSqlApi(
+    testAllApis(
+      "",
+      "''",
       "''",
       "")
 
-    testSqlApi(
+    testAllApis(
+      ">foo([\\w]+)<",
+      "'>foo([\\w]+)<'",
       "'>foo([\\w]+)<'",
       ">foo([\\w]+)<")
 
-    testSqlApi(
+    testAllApis(
+      ">\\'\n<",
+      "\">\\'\n<\"",
       "'>\\''\n<'",
       ">\\'\n<")
 
-    testSqlApi(
+    testAllApis(
+      "It's me.",
+      "'It''s me.'",
       "'It''s me.'",
       "It's me.")
 
@@ -134,6 +166,10 @@ class LiteralTest extends ExpressionTestBase {
       """'>\\<'""",
       ">\\\\<")
   }
+
+  override def functions: Map[String, ScalarFunction] = Map(
+    "Func3" -> Func3
+  )
 
   override def testData: Row = {
     val testData = new Row(4)

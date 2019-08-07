@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.planner.expressions
 
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.expressions.utils.ArrayTypeTestBase
+import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
 
 import org.junit.Test
 
@@ -27,115 +30,175 @@ class ArrayTypeTest extends ArrayTypeTestBase {
   @Test
   def testArrayLiterals(): Unit = {
     // primitive literals
-    testSqlApi(
-      "ARRAY[1, 2, 3]",
-      "[1, 2, 3]")
+    testAllApis(array(1, 2, 3), "array(1, 2, 3)", "ARRAY[1, 2, 3]", "[1, 2, 3]")
 
-    testSqlApi(
+    testAllApis(
+      array(true, true, true),
+      "array(true, true, true)",
       "ARRAY[TRUE, TRUE, TRUE]",
       "[true, true, true]")
 
-    testSqlApi(
+    // object literals
+    testTableApi(array(BigDecimal(1), BigDecimal(1)), "array(1p, 1p)", "[1, 1]")
+
+    testAllApis(
+      array(array(array(1), array(1))),
+      "array(array(array(1), array(1)))",
       "ARRAY[ARRAY[ARRAY[1], ARRAY[1]]]",
       "[[[1], [1]]]")
 
-    testSqlApi(
+    testAllApis(
+      array(1 + 1, 3 * 3),
+      "array(1 + 1, 3 * 3)",
       "ARRAY[1 + 1, 3 * 3]",
       "[2, 9]")
 
-    testSqlApi(
+    testAllApis(
+      array(nullOf(DataTypes.INT), 1),
+      "array(Null(INT), 1)",
       "ARRAY[NULLIF(1,1), 1]",
       "[null, 1]")
 
-    testSqlApi(
+    testAllApis(
+      array(array(nullOf(DataTypes.INT), 1)),
+      "array(array(Null(INT), 1))",
       "ARRAY[ARRAY[NULLIF(1,1), 1]]",
       "[[null, 1]]")
 
-    testSqlApi(
+    // implicit conversion
+    testTableApi(
+      Array(1, 2, 3),
+      "array(1, 2, 3)",
+      "[1, 2, 3]")
+
+    testTableApi(
+      Array[Integer](1, 2, 3),
+      "array(1, 2, 3)",
+      "[1, 2, 3]")
+
+    testAllApis(
+      Array(localDate("1985-04-11"), localDate("2018-07-26")),
+      "array('1985-04-11'.toDate, '2018-07-26'.toDate)",
       "ARRAY[DATE '1985-04-11', DATE '2018-07-26']",
       "[1985-04-11, 2018-07-26]")
 
-    testSqlApi(
+    testAllApis(
+      Array(gLocalTime("14:15:16"), gLocalTime("17:18:19")),
+      "array('14:15:16'.toTime, '17:18:19'.toTime)",
       "ARRAY[TIME '14:15:16', TIME '17:18:19']",
       "[14:15:16, 17:18:19]")
 
-    testSqlApi(
+    testAllApis(
+      Array(localDateTime("1985-04-11 14:15:16"), localDateTime("2018-07-26 17:18:19")),
+      "array('1985-04-11 14:15:16'.toTimestamp, '2018-07-26 17:18:19'.toTimestamp)",
       "ARRAY[TIMESTAMP '1985-04-11 14:15:16', TIMESTAMP '2018-07-26 17:18:19']",
       "[1985-04-11 14:15:16.000, 2018-07-26 17:18:19.000]")
 
-    testSqlApi(
+    testAllApis(
+      Array(BigDecimal(2.0002), BigDecimal(2.0003)),
+      "Array(2.0002p, 2.0003p)",
       "ARRAY[CAST(2.0002 AS DECIMAL(10,4)), CAST(2.0003 AS DECIMAL(10,4))]",
       "[2.0002, 2.0003]")
 
-    testSqlApi(
+    testAllApis(
+      Array(Array(x = true)),
+      "Array(Array(true))",
       "ARRAY[ARRAY[TRUE]]",
       "[[true]]")
 
-    testSqlApi(
+    testAllApis(
+      Array(Array(1, 2, 3), Array(3, 2, 1)),
+      "Array(Array(1, 2, 3), Array(3, 2, 1))",
       "ARRAY[ARRAY[1, 2, 3], ARRAY[3, 2, 1]]",
       "[[1, 2, 3], [3, 2, 1]]")
 
     // implicit type cast only works on SQL APIs.
-    testSqlApi(
-      "ARRAY[CAST(1 AS DOUBLE), CAST(2 AS FLOAT)]",
-      "[1.0, 2.0]")
+    testSqlApi("ARRAY[CAST(1 AS DOUBLE), CAST(2 AS FLOAT)]", "[1.0, 2.0]")
   }
 
   @Test
   def testArrayField(): Unit = {
-    testSqlApi(
+    testAllApis(
+      array('f0, 'f1),
+      "array(f0, f1)",
       "ARRAY[f0, f1]",
       "[null, 42]")
 
-    testSqlApi(
+    testAllApis(
+      array('f0, 'f1),
+      "array(f0, f1)",
       "ARRAY[f0, f1]",
       "[null, 42]")
 
-    testSqlApi(
+    testAllApis(
+      'f2,
+      "f2",
       "f2",
       "[1, 2, 3]")
 
-    testSqlApi(
+    testAllApis(
+      'f3,
+      "f3",
       "f3",
       "[1984-03-12, 1984-02-10]")
 
-    testSqlApi(
+    testAllApis(
+      'f5,
+      "f5",
       "f5",
       "[[1, 2, 3], null]")
 
-    testSqlApi(
+    testAllApis(
+      'f6,
+      "f6",
       "f6",
       "[1, null, null, 4]")
 
-    testSqlApi(
+    testAllApis(
+      'f2,
+      "f2",
       "f2",
       "[1, 2, 3]")
 
-    testSqlApi(
+    testAllApis(
+      'f2.at(1),
+      "f2.at(1)",
       "f2[1]",
       "1")
 
-    testSqlApi(
+    testAllApis(
+      'f3.at(1),
+      "f3.at(1)",
       "f3[1]",
       "1984-03-12")
 
-    testSqlApi(
+    testAllApis(
+      'f3.at(2),
+      "f3.at(2)",
       "f3[2]",
       "1984-02-10")
 
-    testSqlApi(
+    testAllApis(
+      'f5.at(1).at(2),
+      "f5.at(1).at(2)",
       "f5[1][2]",
       "2")
 
-    testSqlApi(
+    testAllApis(
+      'f5.at(2).at(2),
+      "f5.at(2).at(2)",
       "f5[2][2]",
       "null")
 
-    testSqlApi(
+    testAllApis(
+      'f4.at(2).at(2),
+      "f4.at(2).at(2)",
       "f4[2][2]",
       "null")
 
-    testSqlApi(
+    testAllApis(
+      'f11.at(1),
+      "f11.at(1)",
       "f11[1]",
       "1")
   }
@@ -143,74 +206,117 @@ class ArrayTypeTest extends ArrayTypeTestBase {
   @Test
   def testArrayOperations(): Unit = {
     // cardinality
-    testSqlApi(
+    testAllApis(
+      'f2.cardinality(),
+      "f2.cardinality()",
       "CARDINALITY(f2)",
       "3")
 
-    testSqlApi(
+    testAllApis(
+      'f4.cardinality(),
+      "f4.cardinality()",
       "CARDINALITY(f4)",
       "null")
 
-    testSqlApi(
+    testAllApis(
+      'f11.cardinality(),
+      "f11.cardinality()",
       "CARDINALITY(f11)",
       "1")
 
     // element
-    testSqlApi(
+    testAllApis(
+      'f9.element(),
+      "f9.element()",
       "ELEMENT(f9)",
       "1")
 
-    testSqlApi(
+    testAllApis(
+      'f8.element(),
+      "f8.element()",
       "ELEMENT(f8)",
       "4.0")
 
-    testSqlApi(
+    testAllApis(
+      'f10.element(),
+      "f10.element()",
       "ELEMENT(f10)",
       "null")
 
-    testSqlApi(
+    testAllApis(
+      'f4.element(),
+      "f4.element()",
       "ELEMENT(f4)",
       "null")
 
-    testSqlApi(
+    testAllApis(
+      'f11.element(),
+      "f11.element()",
       "ELEMENT(f11)",
       "1")
 
     // comparison
-    testSqlApi(
+    testAllApis(
+      'f2 === 'f5.at(1),
+      "f2 === f5.at(1)",
       "f2 = f5[1]",
       "true")
 
-    testSqlApi(
+    testAllApis(
+      'f6 === array(1, 2, 3),
+      "f6 === array(1, 2, 3)",
       "f6 = ARRAY[1, 2, 3]",
       "false")
 
-    testSqlApi(
+    testAllApis(
+      'f2 !== 'f5.at(1),
+      "f2 !== f5.at(1)",
       "f2 <> f5[1]",
       "false")
 
-    testSqlApi(
+    testAllApis(
+      'f2 === 'f7,
+      "f2 === f7",
       "f2 = f7",
       "false")
 
-    testSqlApi(
+    testAllApis(
+      'f2 !== 'f7,
+      "f2 !== f7",
       "f2 <> f7",
       "true")
 
-    testSqlApi(
+    testAllApis(
+      'f11 === 'f11,
+      "f11 === f11",
       "f11 = f11",
       "true")
 
-    testSqlApi(
+    testAllApis(
+      'f11 === 'f9,
+      "f11 === f9",
       "f11 = f9",
       "true")
 
-    testSqlApi(
+    testAllApis(
+      'f11 !== 'f11,
+      "f11 !== f11",
       "f11 <> f11",
       "false")
 
-    testSqlApi(
+    testAllApis(
+      'f11 !== 'f9,
+      "f11 !== f9",
       "f11 <> f9",
       "false")
+  }
+
+  @Test
+  def testArrayTypeCasting(): Unit = {
+    testTableApi(
+      'f3.cast(DataTypes.ARRAY(DataTypes.DATE)),
+      "f3.cast(OBJECT_ARRAY(SQL_DATE))",
+      "[1984-03-12, 1984-02-10]"
+    )
   }
 }

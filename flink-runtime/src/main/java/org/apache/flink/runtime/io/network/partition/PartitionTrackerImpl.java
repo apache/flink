@@ -64,8 +64,8 @@ public class PartitionTrackerImpl implements PartitionTracker {
 		Preconditions.checkNotNull(producingTaskExecutorId);
 		Preconditions.checkNotNull(resultPartitionDeploymentDescriptor);
 
-		// if it is released on consumption we do not need to issue any release calls
-		if (resultPartitionDeploymentDescriptor.isReleasedOnConsumption()) {
+		// only blocking partitions require explicit release call
+		if (!resultPartitionDeploymentDescriptor.getPartitionType().isBlocking()) {
 			return;
 		}
 
@@ -103,6 +103,13 @@ public class PartitionTrackerImpl implements PartitionTracker {
 					toList())));
 
 		partitionsToReleaseByResourceId.forEach(this::internalReleasePartitions);
+	}
+
+	@Override
+	public void stopTrackingPartitions(Collection<ResultPartitionID> resultPartitionIds) {
+		Preconditions.checkNotNull(resultPartitionIds);
+
+		resultPartitionIds.forEach(this::internalStopTrackingPartition);
 	}
 
 	@Override

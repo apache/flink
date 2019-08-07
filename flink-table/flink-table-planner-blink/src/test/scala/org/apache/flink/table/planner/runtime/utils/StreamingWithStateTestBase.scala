@@ -30,10 +30,10 @@ import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.scala.StreamTableEnvironment
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter, BinaryString}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
+import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.types.logical.RowType
-
 import org.junit.runners.Parameterized
 import org.junit.{After, Assert, Before}
 
@@ -72,7 +72,7 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
         env.setStateBackend(new RocksDBStateBackend(
           "file://" + baseCheckpointPath).configure(conf, classLoader))
     }
-    this.tEnv = StreamTableEnvironment.create(env)
+    this.tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     FailingCollectionSource.failedBefore = true
   }
 

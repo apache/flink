@@ -45,12 +45,12 @@ class DistinctAggregateTest(
     util.tableEnv.getConfig.setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
     util.enableMiniBatch()
     util.tableEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.SQL_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhaseEnforcer.toString)
+      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggPhaseEnforcer.toString)
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.SQL_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, splitDistinctAggEnabled)
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, splitDistinctAggEnabled)
     // disable incremental agg
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      IncrementalAggregateRule.SQL_OPTIMIZER_INCREMENTAL_AGG_ENABLED, false)
+      IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED, false)
   }
 
   @Test

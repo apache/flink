@@ -100,9 +100,10 @@ class StreamExecExpand(
       operatorName,
       operator,
       BaseRowTypeInfo.of(outputType),
-      getResource.getParallelism)
-    if (getResource.getMaxParallelism > 0) {
-      transform.setMaxParallelism(getResource.getMaxParallelism)
+      inputTransform.getParallelism)
+    if (inputsContainSingleton()) {
+      transform.setParallelism(1)
+      transform.setMaxParallelism(1)
     }
     transform
   }

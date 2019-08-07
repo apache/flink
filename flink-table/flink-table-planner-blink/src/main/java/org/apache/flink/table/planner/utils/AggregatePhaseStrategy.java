@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 
 /**
- * Aggregate phase strategy which could be specified in {@link OptimizerConfigOptions#SQL_OPTIMIZER_AGG_PHASE_STRATEGY}.
+ * Aggregate phase strategy which could be specified in {@link OptimizerConfigOptions#TABLE_OPTIMIZER_AGG_PHASE_STRATEGY}.
  */
 public enum AggregatePhaseStrategy {
 

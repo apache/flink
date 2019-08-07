@@ -84,7 +84,6 @@ class BatchExecTableSourceScan(
       planner: BatchPlanner): Transformation[BaseRow] = {
     val config = planner.getTableConfig
     val inputTransform = getSourceTransformation(planner.getExecEnv)
-    inputTransform.setParallelism(getResource.getParallelism)
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
@@ -110,7 +109,7 @@ class BatchExecTableSourceScan(
       planner.getRelBuilder
     )
     if (needInternalConversion) {
-      val conversionTransform = ScanUtil.convertToInternalRow(
+      ScanUtil.convertToInternalRow(
         CodeGeneratorContext(config),
         inputTransform.asInstanceOf[Transformation[Any]],
         fieldIndexes,
@@ -119,8 +118,6 @@ class BatchExecTableSourceScan(
         getTable.getQualifiedName,
         config,
         rowtimeExpression)
-      conversionTransform.setParallelism(getResource.getParallelism)
-      conversionTransform
     } else {
       inputTransform.asInstanceOf[Transformation[BaseRow]]
     }

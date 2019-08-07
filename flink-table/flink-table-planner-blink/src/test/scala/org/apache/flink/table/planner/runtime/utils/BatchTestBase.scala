@@ -23,7 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.transformations.ShuffleMode
-import org.apache.flink.table.api.config.ExecutionConfigOptions
+import org.apache.flink.table.api.config.ExecutionConfigOptions._
 import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableImpl}
 import org.apache.flink.table.api.{EnvironmentSettings, SqlParserException, Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter}
@@ -56,7 +56,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   private val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
   private val testingTableEnv: TestingTableEnvironment = TestingTableEnvironment
-    .create(settings, catalogManager = None, getTableConfig)
+    .create(settings, catalogManager = None, new TableConfig)
   val tEnv: TableEnvironment = testingTableEnv
   private val planner = tEnv.asInstanceOf[TableEnvironmentImpl].getPlanner.asInstanceOf[PlannerBase]
   val env: StreamExecutionEnvironment = planner.getExecEnv
@@ -67,24 +67,14 @@ class BatchTestBase extends BatchAbstractTestBase {
   val LINE_COL_TWICE_PATTERN: Pattern = Pattern.compile("(?s)From line ([0-9]+),"
     + " column ([0-9]+) to line ([0-9]+), column ([0-9]+): (.*)")
 
-  // TODO: [FLINK-13338] will expose dialect option to TableConfig to
-  //  avoid override CalciteConfig by users
-  /**
-    * Subclass should overwrite this method if we want to overwrite configuration during
-    * sql parse to sql to rel conversion phrase.
-    */
-  protected def getTableConfig: TableConfig = new TableConfig
-
   @Before
   def before(): Unit = {
-    conf.getConfiguration.setInteger(
-      ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
-    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_AGG_TABLE_MEM, 2)
-    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_HASH_JOIN_TABLE_MEM, 2)
-    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_SORT_BUFFER_MEM, 1)
-    conf.getConfiguration.setInteger(ExecutionConfigOptions.SQL_RESOURCE_EXTERNAL_BUFFER_MEM, 1)
-    conf.getConfiguration.setString(ExecutionConfigOptions.SQL_EXEC_SHUFFLE_MODE,
-      ShuffleMode.PIPELINED.toString)
+    conf.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, DEFAULT_PARALLELISM)
+    conf.getConfiguration.setString(TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY, "2mb")
+    conf.getConfiguration.setString(TABLE_EXEC_RESOURCE_HASH_JOIN_MEMORY, "2mb")
+    conf.getConfiguration.setString(TABLE_EXEC_RESOURCE_SORT_MEMORY, "1mb")
+    conf.getConfiguration.setString(TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY, "1mb")
+    conf.getConfiguration.setString(TABLE_EXEC_SHUFFLE_MODE, ShuffleMode.PIPELINED.toString)
   }
 
   /**

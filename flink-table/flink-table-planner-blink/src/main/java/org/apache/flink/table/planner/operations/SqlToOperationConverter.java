@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.operations;
 
-import org.apache.flink.sql.parser.SqlProperty;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
@@ -112,8 +112,8 @@ public class SqlToOperationConverter {
 		Map<String, String> properties = new HashMap<>();
 		if (propertyList != null) {
 			propertyList.getList().forEach(p ->
-				properties.put(((SqlProperty) p).getKeyString().toLowerCase(),
-					((SqlProperty) p).getValueString()));
+				properties.put(((SqlTableOption) p).getKeyString().toLowerCase(),
+					((SqlTableOption) p).getValueString()));
 		}
 
 		TableSchema tableSchema = createTableSchema(sqlCreateTable,
@@ -172,8 +172,8 @@ public class SqlToOperationConverter {
 	 *     b varchar,
 	 *     c as to_timestamp(b))
 	 *   with (
-	 *     connector = 'csv',
-	 *     k1 = 'v1')
+	 *     'connector' = 'csv',
+	 *     'k1' = 'v1')
 	 * </pre></blockquote>
 	 *
 	 * <p>The returned table schema contains columns (a:int, b:varchar, c:timestamp).

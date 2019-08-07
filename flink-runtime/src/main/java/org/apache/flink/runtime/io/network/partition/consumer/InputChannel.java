@@ -249,6 +249,14 @@ public abstract class InputChannel {
 	}
 
 	// ------------------------------------------------------------------------
+	// Metric related method
+	// ------------------------------------------------------------------------
+
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
+		return 0;
+	}
+
+	// ------------------------------------------------------------------------
 
 	/**
 	 * A combination of a {@link Buffer} and a flag indicating availability of further buffers,

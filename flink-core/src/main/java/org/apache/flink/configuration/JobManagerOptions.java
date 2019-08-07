@@ -195,11 +195,6 @@ public class JobManagerOptions {
 			.defaultValue(true)
 			.withDescription("Controls whether partitions should already be released during the job execution.");
 
-	@Documentation.ExcludeFromDocumentation("dev use only; likely temporary")
-	public static final ConfigOption<Boolean> FORCE_PARTITION_RELEASE_ON_CONSUMPTION =
-			key("jobmanager.scheduler.partition.force-release-on-consumption")
-			.defaultValue(false);
-
 	// ---------------------------------------------------------------------------------------------
 
 	private JobManagerOptions() {

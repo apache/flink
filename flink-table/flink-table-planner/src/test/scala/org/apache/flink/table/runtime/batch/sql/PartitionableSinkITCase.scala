@@ -27,19 +27,15 @@ import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.ExecutionEnvironment
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl
-import org.apache.flink.sql.parser.validate.FlinkSqlConformance
 import org.apache.flink.table.api.scala.BatchTableEnvironment
-import org.apache.flink.table.api.{DataTypes, PlannerConfig, TableSchema, ValidationException}
-import org.apache.flink.table.calcite.CalciteConfig
+import org.apache.flink.table.api.{DataTypes, SqlDialect, TableSchema, ValidationException}
 import org.apache.flink.table.factories.utils.TestCollectionTableFactory.TestCollectionInputFormat
 import org.apache.flink.table.runtime.batch.sql.PartitionableSinkITCase.{RESULT1, RESULT2, RESULT3, _}
 import org.apache.flink.table.sinks.{BatchTableSink, PartitionableTableSink, TableSink}
 import org.apache.flink.table.sources.BatchTableSource
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.types.Row
-import org.apache.calcite.config.Lex
-import org.apache.calcite.sql.parser.SqlParser
+
 import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.{Before, Rule, Test}
@@ -65,7 +61,7 @@ class PartitionableSinkITCase {
   def before(): Unit = {
     batchExec.setParallelism(3)
     tEnv = BatchTableEnvironment.create(batchExec)
-    tEnv.getConfig.setPlannerConfig(getPlannerConfig)
+    tEnv.getConfig.setSqlDialect(SqlDialect.HIVE)
     registerTableSource("nonSortTable", testData.toList)
     registerTableSource("sortTable", testData1.toList)
     PartitionableSinkITCase.init()
@@ -78,17 +74,6 @@ class PartitionableSinkITCase {
       .field("c", DataTypes.STRING())
       .build()
     tEnv.registerTableSource(name, new CollectionTableSource(data, 100, tableSchema))
-  }
-
-  private def getPlannerConfig: PlannerConfig = {
-    val parserConfig = SqlParser.configBuilder
-      .setParserFactory(FlinkSqlParserImpl.FACTORY)
-      .setConformance(FlinkSqlConformance.HIVE) // set up hive dialect
-      .setLex(Lex.JAVA)
-      .setIdentifierMaxLength(256).build
-    CalciteConfig.createBuilder()
-      .replaceSqlParserConfig(parserConfig)
-      .build()
   }
 
   @Test

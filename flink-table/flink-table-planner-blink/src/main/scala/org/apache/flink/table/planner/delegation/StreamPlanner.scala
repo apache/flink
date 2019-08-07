@@ -25,14 +25,11 @@ import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.operations.{ModifyOperation, Operation, QueryOperation}
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.nodes.process.DAGProcessContext
-import org.apache.flink.table.planner.plan.nodes.resource.parallelism.ParallelismProcessor
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
 import org.apache.flink.table.planner.plan.utils.{ExecNodePlanDumper, FlinkRelOptUtil}
 import org.apache.flink.table.planner.utils.PlanUtil
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql.SqlExplainLevel
 
 import java.util
@@ -57,15 +54,9 @@ class StreamPlanner(
 
   override protected def getOptimizer: Optimizer = new StreamCommonSubGraphBasedOptimizer(this)
 
-  override private[flink] def translateToExecNodePlan(
-      optimizedRelNodes: Seq[RelNode]): util.List[ExecNode[_, _]] = {
-    val execNodePlan = super.translateToExecNodePlan(optimizedRelNodes)
-    val context = new DAGProcessContext(this)
-    new ParallelismProcessor().process(execNodePlan, context)
-  }
-
   override protected def translateToPlan(
       execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]] = {
+    overrideEnvParallelism()
     execNodes.map {
       case node: StreamExecNode[_] => node.translateToPlan(this)
       case _ =>

@@ -15,5 +15,6 @@
 
 org.apache.flink.table.client.gateway.utils.DummyTableSinkFactory
 org.apache.flink.table.client.gateway.utils.DummyTableSourceFactory
+org.apache.flink.table.client.gateway.utils.SimpleCatalogFactory
 org.apache.flink.table.client.gateway.local.DependencyTest$TestCatalogFactory
 org.apache.flink.table.client.gateway.local.DependencyTest$TestHiveCatalogFactory

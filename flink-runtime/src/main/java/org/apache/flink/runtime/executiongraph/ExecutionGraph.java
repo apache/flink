@@ -80,7 +80,6 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
-import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
@@ -321,8 +320,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	/** Shuffle master to register partitions for task deployment. */
 	private final ShuffleMaster<?> shuffleMaster;
 
-	private boolean forcePartitionReleaseOnConsumption;
-
 	// --------------------------------------------------------------------------------------------
 	//   Constructors
 	// --------------------------------------------------------------------------------------------
@@ -426,7 +423,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			allocationTimeout,
 			new NotReleasingPartitionReleaseStrategy.Factory(),
 			NettyShuffleMaster.INSTANCE,
-			true,
 			new PartitionTrackerImpl(
 				jobInformation.getJobId(),
 				NettyShuffleMaster.INSTANCE,
@@ -449,7 +445,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			Time allocationTimeout,
 			PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory,
 			ShuffleMaster<?> shuffleMaster,
-			boolean forcePartitionReleaseOnConsumption,
 			PartitionTracker partitionTracker,
 			ScheduleMode scheduleMode,
 			boolean allowQueuedScheduling) throws IOException {
@@ -511,8 +506,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					"Call to ExecutionGraph.start(...) required.");
 
 		this.shuffleMaster = checkNotNull(shuffleMaster);
-
-		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 
 		this.partitionTracker = checkNotNull(partitionTracker);
 
@@ -581,10 +574,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 		checkpointStatsTracker = checkNotNull(statsTracker, "CheckpointStatsTracker");
 
-		CheckpointFailureManager failureManager = new CheckpointFailureManager(chkConfig.getTolerableCheckpointFailureNumber(), () ->
-			getJobMasterMainThreadExecutor().execute(() ->
-				failGlobal(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."))
-			));
+		CheckpointFailureManager failureManager = new CheckpointFailureManager(
+				chkConfig.getTolerableCheckpointFailureNumber(),
+				cause -> getJobMasterMainThreadExecutor().execute(() -> failGlobal(cause))
+		);
 
 		// create the coordinator that triggers and commits checkpoints and holds the state
 		checkpointCoordinator = new CheckpointCoordinator(
@@ -736,10 +729,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	public long getNumberOfFullRestarts() {
 		// subtract one, because the version starts at one
 		return globalModVersion - 1;
-	}
-
-	boolean isForcePartitionReleaseOnConsumption() {
-		return forcePartitionReleaseOnConsumption;
 	}
 
 	@Override
@@ -1536,7 +1525,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			case CANCELED:
 				// this deserialization is exception-free
 				accumulators = deserializeAccumulators(state);
-				attempt.completeCancelling(accumulators, state.getIOMetrics());
+				attempt.completeCancelling(accumulators, state.getIOMetrics(), false);
 				return true;
 
 			case FAILED:

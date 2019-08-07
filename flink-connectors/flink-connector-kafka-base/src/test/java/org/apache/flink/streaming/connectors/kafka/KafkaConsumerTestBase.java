@@ -1176,7 +1176,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 			Tuple2WithTopicSchema schema = new Tuple2WithTopicSchema(env.getConfig());
 			kafkaServer.produceIntoKafka(stream, "dummy", schema, props, null);
 		} else {
-			TestDeSerializer schema = new TestDeSerializer(env.getConfig());
+			TestDeserializer schema = new TestDeserializer(env.getConfig());
 			kafkaServer.produceIntoKafka(stream, "dummy", schema, props);
 		}
 
@@ -1190,7 +1190,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 			Tuple2WithTopicSchema schema = new Tuple2WithTopicSchema(env.getConfig());
 			stream = env.addSource(kafkaServer.getConsumer(topics, schema, props));
 		} else {
-			TestDeSerializer schema = new TestDeSerializer(env.getConfig());
+			TestDeserializer schema = new TestDeserializer(env.getConfig());
 			stream = env.addSource(kafkaServer.getConsumer(topics, schema, props));
 		}
 
@@ -2207,12 +2207,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		}
 	}
 
-	private abstract static class TestDeserializer implements
+	private abstract static class AbstractTestDeserializer implements
 			KafkaDeserializationSchema<Tuple3<Integer, Integer, String>> {
 
 		protected final TypeSerializer<Tuple2<Integer, Integer>> ts;
 
-		public TestDeserializer(ExecutionConfig ec) {
+		public AbstractTestDeserializer(ExecutionConfig ec) {
 			ts = TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>(){}).createSerializer(ec);
 		}
 
@@ -2234,7 +2234,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		}
 	}
 
-	private static class Tuple2WithTopicSchema extends TestDeserializer
+	private static class Tuple2WithTopicSchema extends AbstractTestDeserializer
 			implements KeyedSerializationSchema<Tuple3<Integer, Integer, String>> {
 
 		public Tuple2WithTopicSchema(ExecutionConfig ec) {
@@ -2264,10 +2264,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 		}
 	}
 
-	private static class TestDeSerializer extends TestDeserializer
+	private static class TestDeserializer extends AbstractTestDeserializer
 			implements KafkaSerializationSchema<Tuple3<Integer, Integer, String>> {
 
-		public TestDeSerializer(ExecutionConfig ec) {
+		public TestDeserializer(ExecutionConfig ec) {
 			super(ec);
 		}
 

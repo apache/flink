@@ -106,8 +106,9 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 
 	private static MiniClusterWithClientResource miniClusterResource;
 
-	private static OneShotLatch waitForCheckpointLatch = new OneShotLatch();
-	private static OneShotLatch failInCheckpointLatch = new OneShotLatch();
+	private static OneShotLatch waitForCheckpointLatch;
+	private static OneShotLatch failInCheckpointLatch;
+	private static OneShotLatch blockSnapshotLatch;
 
 	@BeforeClass
 	public static void setup() throws Exception {
@@ -179,6 +180,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 
 		waitForCheckpointLatch = new OneShotLatch();
 		failInCheckpointLatch = new OneShotLatch();
+		blockSnapshotLatch = new OneShotLatch();
 
 		ClusterClient<?> clusterClient = miniClusterResource.getClusterClient();
 		final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
@@ -255,6 +257,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 				return FileVisitResult.CONTINUE;
 			}
 		});
+		blockSnapshotLatch.trigger();
 
 		// now the job should be able to go to RUNNING again and then eventually to FINISHED,
 		// which it only does if it could successfully restore
@@ -366,6 +369,11 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 				failInCheckpointLatch.await();
 				if (!failedAlready.getAndSet(true)) {
 					throw new RuntimeException("Failing on purpose.");
+				} else {
+					// make sure there would be no more successful checkpoint before job failing
+					// otherwise there might be a successful checkpoint 7 which is unexpected
+					// we expect checkpoint 5 is the last successful one before ha storage recovering
+					blockSnapshotLatch.await();
 				}
 			}
 		}

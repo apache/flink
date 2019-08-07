@@ -24,7 +24,6 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
-import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.TestLogger;
@@ -33,6 +32,8 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Arrays;
+
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -40,9 +41,11 @@ import static org.hamcrest.MatcherAssert.assertThat;
 /**
  * Tests for the {@link ResultPartitionFactory}.
  */
+@SuppressWarnings("StaticVariableUsedBeforeInitialization")
 public class ResultPartitionFactoryTest extends TestLogger {
 
 	private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
+	private static final int SEGMENT_SIZE = 64;
 
 	private static FileChannelManager fileChannelManager;
 
@@ -57,28 +60,48 @@ public class ResultPartitionFactoryTest extends TestLogger {
 	}
 
 	@Test
-	public void testConsumptionOnReleaseEnabled() {
-		final ResultPartition resultPartition = createResultPartition(ShuffleDescriptor.ReleaseType.AUTO);
+	public void testBoundedBlockingSubpartitionsCreated() {
+		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.BLOCKING);
+		Arrays.stream(resultPartition.subpartitions).forEach(sp -> assertThat(sp, instanceOf(BoundedBlockingSubpartition.class)));
+	}
+
+	@Test
+	public void testPipelinedSubpartitionsCreated() {
+		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.PIPELINED);
+		Arrays.stream(resultPartition.subpartitions).forEach(sp -> assertThat(sp, instanceOf(PipelinedSubpartition.class)));
+	}
+
+	@Test
+	public void testConsumptionOnReleaseForced() {
+		final ResultPartition resultPartition = createResultPartition(true, ResultPartitionType.BLOCKING);
+		assertThat(resultPartition, instanceOf(ReleaseOnConsumptionResultPartition.class));
+	}
+
+	@Test
+	public void testConsumptionOnReleaseEnabledForNonBlocking() {
+		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.PIPELINED);
 		assertThat(resultPartition, instanceOf(ReleaseOnConsumptionResultPartition.class));
 	}
 
 	@Test
 	public void testConsumptionOnReleaseDisabled() {
-		final ResultPartition resultPartition = createResultPartition(ShuffleDescriptor.ReleaseType.MANUAL);
+		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.BLOCKING);
 		assertThat(resultPartition, not(instanceOf(ReleaseOnConsumptionResultPartition.class)));
 	}
 
-	private static ResultPartition createResultPartition(ShuffleDescriptor.ReleaseType releaseType) {
+	private static ResultPartition createResultPartition(
+			boolean releasePartitionOnConsumption,
+			ResultPartitionType partitionType) {
 		ResultPartitionFactory factory = new ResultPartitionFactory(
 			new ResultPartitionManager(),
 			fileChannelManager,
-			new NetworkBufferPool(1, 64, 1),
+			new NetworkBufferPool(1, SEGMENT_SIZE, 1),
 			BoundedBlockingSubpartitionType.AUTO,
 			1,
 			1,
-			64);
+			SEGMENT_SIZE,
+			releasePartitionOnConsumption);
 
-		ResultPartitionType partitionType = ResultPartitionType.BLOCKING;
 		final ResultPartitionDeploymentDescriptor descriptor = new ResultPartitionDeploymentDescriptor(
 			new PartitionDescriptor(
 				new IntermediateDataSetID(),
@@ -86,10 +109,9 @@ public class ResultPartitionFactoryTest extends TestLogger {
 				partitionType,
 				1,
 				0),
-			NettyShuffleDescriptorBuilder.newBuilder().setBlocking(partitionType.isBlocking()).buildLocal(),
+			NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
 			1,
-			true,
-			releaseType
+			true
 		);
 
 		return factory.create("test", descriptor);

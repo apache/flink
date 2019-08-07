@@ -103,7 +103,7 @@ class StreamTableSourceScan(
 
     // check that declared and actual type of table source DataStream are identical
     if (inputDataType != producedDataType) {
-      throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
+      throw new TableException(s"TableSource of type ${tableSource.getClass.getName} " +
         s"returned a DataStream of data type $inputDataType that does not match with the " +
         s"data type $producedDataType declared by the TableSource.getProducedDataType() method. " +
         s"Please validate the implementation of the TableSource.")

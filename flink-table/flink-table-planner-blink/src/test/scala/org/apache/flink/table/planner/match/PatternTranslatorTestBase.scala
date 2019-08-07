@@ -35,7 +35,6 @@ import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.types.logical.{IntType, RowType}
 import org.apache.flink.types.Row
 import org.apache.flink.util.TestLogger
-
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.RelBuilder
 import org.junit.Assert._
@@ -55,7 +54,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
   private val testTableRowType = RowType.of(new IntType)
   private val tableName = "testTable"
   private val context = prepareContext(testTableTypeInfo)
-  private val calcitePlanner: FlinkPlannerImpl = context._2.getFlinkPlanner
+  private val calcitePlanner: FlinkPlannerImpl = context._2.createFlinkPlanner
 
   private def prepareContext(typeInfo: TypeInformation[Row])
   : (RelBuilder, PlannerBase, StreamExecutionEnvironment) = {
@@ -67,7 +66,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
     when(jDataStreamMock.getId).thenReturn(0)
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     TableTestUtil.registerDataStream(
       tEnv, tableName, dataStreamMock.javaStream, Some(Array[Expression]('f0, 'proctime.proctime)))
 

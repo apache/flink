@@ -29,8 +29,8 @@ import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
-
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,6 +73,8 @@ public class NettyShuffleEnvironmentConfiguration {
 
 	private final BoundedBlockingSubpartitionType blockingSubpartitionType;
 
+	private final boolean forcePartitionReleaseOnConsumption;
+
 	public NettyShuffleEnvironmentConfiguration(
 			int numNetworkBuffers,
 			int networkBufferSize,
@@ -85,7 +87,8 @@ public class NettyShuffleEnvironmentConfiguration {
 			boolean isNetworkDetailedMetrics,
 			@Nullable NettyConfig nettyConfig,
 			String[] tempDirs,
-			BoundedBlockingSubpartitionType blockingSubpartitionType) {
+			BoundedBlockingSubpartitionType blockingSubpartitionType,
+			boolean forcePartitionReleaseOnConsumption) {
 
 		this.numNetworkBuffers = numNetworkBuffers;
 		this.networkBufferSize = networkBufferSize;
@@ -99,6 +102,7 @@ public class NettyShuffleEnvironmentConfiguration {
 		this.nettyConfig = nettyConfig;
 		this.tempDirs = Preconditions.checkNotNull(tempDirs);
 		this.blockingSubpartitionType = Preconditions.checkNotNull(blockingSubpartitionType);
+		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 	}
 
 	// ------------------------------------------------------------------------
@@ -151,6 +155,10 @@ public class NettyShuffleEnvironmentConfiguration {
 		return blockingSubpartitionType;
 	}
 
+	public boolean isForcePartitionReleaseOnConsumption() {
+		return forcePartitionReleaseOnConsumption;
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -194,6 +202,9 @@ public class NettyShuffleEnvironmentConfiguration {
 
 		BoundedBlockingSubpartitionType blockingSubpartitionType = getBlockingSubpartitionType(configuration);
 
+		boolean forcePartitionReleaseOnConsumption =
+			configuration.getBoolean(NettyShuffleEnvironmentOptions.FORCE_PARTITION_RELEASE_ON_CONSUMPTION);
+
 		return new NettyShuffleEnvironmentConfiguration(
 			numberOfNetworkBuffers,
 			pageSize,
@@ -206,7 +217,8 @@ public class NettyShuffleEnvironmentConfiguration {
 			isNetworkDetailedMetrics,
 			nettyConfig,
 			tempDirs,
-			blockingSubpartitionType);
+			blockingSubpartitionType,
+			forcePartitionReleaseOnConsumption);
 	}
 
 	/**
@@ -521,6 +533,7 @@ public class NettyShuffleEnvironmentConfiguration {
 		result = 31 * result + (isCreditBased ? 1 : 0);
 		result = 31 * result + (nettyConfig != null ? nettyConfig.hashCode() : 0);
 		result = 31 * result + Arrays.hashCode(tempDirs);
+		result = 31 * result + (forcePartitionReleaseOnConsumption ? 1 : 0);
 		return result;
 	}
 
@@ -544,7 +557,8 @@ public class NettyShuffleEnvironmentConfiguration {
 					this.requestSegmentsTimeout.equals(that.requestSegmentsTimeout) &&
 					this.isCreditBased == that.isCreditBased &&
 					(nettyConfig != null ? nettyConfig.equals(that.nettyConfig) : that.nettyConfig == null) &&
-					Arrays.equals(this.tempDirs, that.tempDirs);
+					Arrays.equals(this.tempDirs, that.tempDirs) &&
+					this.forcePartitionReleaseOnConsumption == that.forcePartitionReleaseOnConsumption;
 		}
 	}
 
@@ -561,6 +575,7 @@ public class NettyShuffleEnvironmentConfiguration {
 				", isCreditBased=" + isCreditBased +
 				", nettyConfig=" + nettyConfig +
 				", tempDirs=" + Arrays.toString(tempDirs) +
+				", forcePartitionReleaseOnConsumption=" + forcePartitionReleaseOnConsumption +
 				'}';
 	}
 }

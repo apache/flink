@@ -22,13 +22,10 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl
-import org.apache.flink.sql.parser.validate.FlinkSqlConformance
 import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.{TableConfig, TableSchema, ValidationException}
-import org.apache.flink.table.planner.calcite.CalciteConfig
+import org.apache.flink.table.api.{SqlDialect, TableSchema, ValidationException}
 import org.apache.flink.table.planner.runtime.batch.sql.PartitionableSinkITCase._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -37,8 +34,6 @@ import org.apache.flink.table.sinks.{PartitionableTableSink, StreamTableSink, Ta
 import org.apache.flink.table.types.logical.{BigIntType, IntType, VarCharType}
 import org.apache.flink.types.Row
 
-import org.apache.calcite.config.Lex
-import org.apache.calcite.sql.parser.SqlParser
 import org.junit.Assert._
 import org.junit.rules.ExpectedException
 import org.junit.{Before, Rule, Test}
@@ -65,23 +60,11 @@ class PartitionableSinkITCase extends BatchTestBase {
     env.setParallelism(3)
     tEnv.getConfig
       .getConfiguration
-      .setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 3)
+      .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 3)
+    tEnv.getConfig.setSqlDialect(SqlDialect.HIVE)
     registerCollection("nonSortTable", testData, type3, "a, b, c", dataNullables)
     registerCollection("sortTable", testData1, type3, "a, b, c", dataNullables)
     PartitionableSinkITCase.init()
-  }
-
-  override def getTableConfig: TableConfig = {
-    val parserConfig = SqlParser.configBuilder
-      .setParserFactory(FlinkSqlParserImpl.FACTORY)
-      .setConformance(FlinkSqlConformance.HIVE) // set up hive dialect
-      .setLex(Lex.JAVA)
-      .setIdentifierMaxLength(256).build
-    val plannerConfig = CalciteConfig.createBuilder(CalciteConfig.DEFAULT)
-      .replaceSqlParserConfig(parserConfig)
-    val tableConfig = new TableConfig
-    tableConfig.setPlannerConfig(plannerConfig.build())
-    tableConfig
   }
 
   @Test
@@ -181,7 +164,7 @@ class PartitionableSinkITCase extends BatchTestBase {
     expectedEx.expect(classOf[ValidationException])
     expectedEx.expectMessage("Static partition column b "
       + "should appear before dynamic partition a")
-    registerTableSink(grouping = true, partitionColumns = Array("a", "b"))
+    registerTableSink(partitionColumns = Array("a", "b"))
     tEnv.sqlUpdate("insert into sinkTable partition(b=1) select a, c from sortTable")
     tEnv.execute("testJob")
   }

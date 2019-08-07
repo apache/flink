@@ -70,7 +70,7 @@ abstract class JoinReorderTestBase extends TableTestBase {
       ))).build())
 
     util.getTableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.SQL_OPTIMIZER_JOIN_REORDER_ENABLED, true)
+      OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED, true)
   }
 
   @Test

@@ -152,13 +152,13 @@ object WindowEmitStrategy {
       tableConfig.getMinIdleStateRetentionTime
     }
     val enableEarlyFireDelay = tableConfig.getConfiguration.getBoolean(
-      SQL_EXEC_EMIT_EARLY_FIRE_ENABLED)
+      TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED)
     val earlyFireDelay = getMillisecondFromConfigDuration(
-      tableConfig, SQL_EXEC_EMIT_EARLY_FIRE_DELAY)
+      tableConfig, TABLE_EXEC_EMIT_EARLY_FIRE_DELAY)
     val enableLateFireDelay = tableConfig.getConfiguration.getBoolean(
-      SQL_EXEC_EMIT_LATE_FIRE_ENABLED)
+      TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)
     val lateFireDelay = getMillisecondFromConfigDuration(
-      tableConfig, SQL_EXEC_EMIT_LATE_FIRE_DELAY)
+      tableConfig, TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
     new WindowEmitStrategy(
       isEventTime,
       isSessionWindow,
@@ -171,16 +171,16 @@ object WindowEmitStrategy {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_EXEC_EMIT_EARLY_FIRE_ENABLED: ConfigOption[Boolean] =
-  key("sql.exec.emit.early-fire.enabled")
+  val TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED: ConfigOption[Boolean] =
+  key("table.exec.emit.early-fire.enabled")
       .defaultValue(Boolean.valueOf(false))
       .withDescription("Specifies whether to enable early-fire emit." +
           "Early-fire is an emit strategy before watermark advanced to end of window.")
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_EXEC_EMIT_EARLY_FIRE_DELAY: ConfigOption[String] =
-  key("sql.exec.emit.early-fire.delay")
+  val TABLE_EXEC_EMIT_EARLY_FIRE_DELAY: ConfigOption[String] =
+  key("table.exec.emit.early-fire.delay")
       .noDefaultValue
       .withDescription("The early firing delay in milli second, early fire is " +
           "the emit strategy before watermark advanced to end of window. " +
@@ -190,16 +190,16 @@ object WindowEmitStrategy {
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_EXEC_EMIT_LATE_FIRE_ENABLED: ConfigOption[Boolean] =
-  key("sql.exec.emit.late-fire.enabled")
+  val TABLE_EXEC_EMIT_LATE_FIRE_ENABLED: ConfigOption[Boolean] =
+  key("table.exec.emit.late-fire.enabled")
       .defaultValue(Boolean.valueOf(false))
       .withDescription("Specifies whether to enable late-fire emit. " +
           "Late-fire is an emit strategy after watermark advanced to end of window.")
 
   // It is a experimental config, will may be removed later.
   @Experimental
-  val SQL_EXEC_EMIT_LATE_FIRE_DELAY: ConfigOption[String] =
-  key("sql.exec.emit.late-fire.delay")
+  val TABLE_EXEC_EMIT_LATE_FIRE_DELAY: ConfigOption[String] =
+  key("table.exec.emit.late-fire.delay")
       .noDefaultValue
       .withDescription("The late firing delay in milli second, late fire is " +
           "the emit strategy after watermark advanced to end of window. " +

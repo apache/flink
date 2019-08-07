@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.{BasicArrayTypeInfo, PrimitiveArrayT
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo, TupleTypeInfo, TypeExtractor}
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.Types
-import org.apache.flink.table.api.config.ExecutionConfigOptions.{SQL_EXEC_DISABLED_OPERATORS, SQL_RESOURCE_DEFAULT_PARALLELISM}
+import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_DISABLED_OPERATORS, TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM}
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -45,7 +45,7 @@ class SortAggITCase
     extends AggregateITCaseBase("SortAggregate") {
   override def prepareAggOp(): Unit = {
     tEnv.getConfig.getConfiguration.setString(
-      SQL_EXEC_DISABLED_OPERATORS, "HashAgg")
+      TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
 
     registerFunction("countFun", new CountAggFunction())
     registerFunction("intSumFun", new IntSumAggFunction())
@@ -63,7 +63,7 @@ class SortAggITCase
 
   @Test
   def testBigDataSimpleArrayUDAF(): Unit = {
-    tEnv.getConfig.getConfiguration.setInteger(SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+    tEnv.getConfig.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
     registerFunction("simplePrimitiveArrayUdaf", new SimplePrimitiveArrayUdaf())
     registerRange("RangeT", 1000000)
     env.setParallelism(1)
@@ -267,7 +267,7 @@ class SortAggITCase
 
   @Test
   def testArrayUdaf(): Unit = {
-    tEnv.getConfig.getConfiguration.setInteger(SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+    tEnv.getConfig.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
     env.setParallelism(1)
     checkResult(
       "SELECT myPrimitiveArrayUdaf(a, b) FROM Table3",

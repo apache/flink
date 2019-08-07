@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -371,9 +372,9 @@ public interface TableEnvironment {
 	 *      b bigint,
 	 *      c varchar
 	 *    ) with (
-	 *      connector.type = 'filesystem',
-	 *      format.type = 'csv',
-	 *      connector.path = 'xxx'
+	 *      'connector.type' = 'filesystem',
+	 *      'format.type' = 'csv',
+	 *      'connector.path' = 'xxx'
 	 *    )
 	 * </pre></blockquote>
 	 *
@@ -384,20 +385,20 @@ public interface TableEnvironment {
 	 *                        a int,
 	 *                        b varchar
 	 *                      ) with (
-	 *                        connector.type = 'filesystem',
-	 *                        format.type = 'csv',
-	 *                        connector.path = 'xxx'
+	 *                        'connector.type' = 'filesystem',
+	 *                        'format.type' = 'csv',
+	 *                        'connector.path' = 'xxx'
 	 *                      )";
 	 *
 	 *    String sourceDDL ="create table sourceTable(
 	 *                        a int,
 	 *                        b varchar
 	 *                      ) with (
-	 *                        connector.type = 'kafka',
-	 *                        `update-mode` = 'append',
-	 *                        connector.topic = 'xxx',
-	 *                        connector.properties.0.key = 'k0',
-	 *                        connector.properties.0.value = 'v0',
+	 *                        'connector.type' = 'kafka',
+	 *                        'update-mode' = 'append',
+	 *                        'connector.topic' = 'xxx',
+	 *                        'connector.properties.0.key' = 'k0',
+	 *                        'connector.properties.0.value' = 'v0',
 	 *                        ...
 	 *                      )";
 	 *
@@ -478,6 +479,7 @@ public interface TableEnvironment {
 	 * @param catalogName The name of the catalog to set as the current default catalog.
 	 * @see TableEnvironment#useDatabase(String)
 	 */
+	@Experimental
 	void useCatalog(String catalogName);
 
 	/**
@@ -544,6 +546,7 @@ public interface TableEnvironment {
 	 * @param databaseName The name of the database to set as the current database.
 	 * @see TableEnvironment#useCatalog(String)
 	 */
+	@Experimental
 	void useDatabase(String databaseName);
 
 	/**

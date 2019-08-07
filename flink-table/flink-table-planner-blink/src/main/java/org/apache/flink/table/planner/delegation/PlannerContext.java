@@ -21,7 +21,9 @@ package org.apache.flink.table.planner.delegation;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
+import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
@@ -41,6 +43,7 @@ import org.apache.flink.table.planner.utils.TableConfigUtils;
 
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitDef;
@@ -72,8 +75,10 @@ public class PlannerContext {
 	private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
 	private final TableConfig tableConfig;
 	private final FunctionCatalog functionCatalog;
-	private final FrameworkConfig frameworkConfig;
 	private final RelOptCluster cluster;
+	private final Context context;
+	private final CalciteSchema rootSchema;
+	private final List<RelTraitDef> traitDefs;
 
 	public PlannerContext(
 			TableConfig tableConfig,
@@ -82,7 +87,13 @@ public class PlannerContext {
 			List<RelTraitDef> traitDefs) {
 		this.tableConfig = tableConfig;
 		this.functionCatalog = functionCatalog;
-		this.frameworkConfig = createFrameworkConfig(rootSchema, traitDefs);
+		this.context = new FlinkContextImpl(tableConfig, functionCatalog);
+		this.rootSchema = rootSchema;
+		this.traitDefs = traitDefs;
+		// Make a framework config to initialize the RelOptCluster instance,
+		// caution that we can only use the attributes that can not be overwrite/configured
+		// by user.
+		final FrameworkConfig frameworkConfig = createFrameworkConfig();
 
 		RelOptPlanner planner = new VolcanoPlanner(frameworkConfig.getCostFactory(), frameworkConfig.getContext());
 		planner.setExecutor(frameworkConfig.getExecutor());
@@ -92,19 +103,19 @@ public class PlannerContext {
 		this.cluster = FlinkRelOptClusterFactory.create(planner, new RexBuilder(typeFactory));
 	}
 
-	private FrameworkConfig createFrameworkConfig(CalciteSchema rootSchema, List<RelTraitDef> traitDefs) {
+	private FrameworkConfig createFrameworkConfig() {
 		return Frameworks.newConfigBuilder()
-				.defaultSchema(rootSchema.plus())
-				.parserConfig(getSqlParserConfig())
-				.costFactory(new FlinkCostFactory())
-				.typeSystem(typeSystem)
-				.sqlToRelConverterConfig(getSqlToRelConverterConfig(getCalciteConfig(tableConfig)))
-				.operatorTable(getSqlOperatorTable(getCalciteConfig(tableConfig), functionCatalog))
-				// set the executor to evaluate constant expressions
-				.executor(new ExpressionReducer(tableConfig, false))
-				.context(new FlinkContextImpl(tableConfig, functionCatalog))
-				.traitDefs(traitDefs)
-				.build();
+			.defaultSchema(rootSchema.plus())
+			.parserConfig(getSqlParserConfig())
+			.costFactory(new FlinkCostFactory())
+			.typeSystem(typeSystem)
+			.sqlToRelConverterConfig(getSqlToRelConverterConfig(getCalciteConfig(tableConfig)))
+			.operatorTable(getSqlOperatorTable(getCalciteConfig(tableConfig), functionCatalog))
+			// set the executor to evaluate constant expressions
+			.executor(new ExpressionReducer(tableConfig, false))
+			.context(context)
+			.traitDefs(traitDefs)
+			.build();
 	}
 
 	/** Returns the {@link FlinkTypeFactory} that will be used. */
@@ -121,7 +132,7 @@ public class PlannerContext {
 	 */
 	public FlinkRelBuilder createRelBuilder(String currentCatalog, String currentDatabase) {
 		FlinkCalciteCatalogReader relOptSchema = createCatalogReader(false, currentCatalog, currentDatabase);
-		return new FlinkRelBuilder(frameworkConfig.getContext(), cluster, relOptSchema);
+		return new FlinkRelBuilder(this.context, cluster, relOptSchema);
 	}
 
 	/**
@@ -133,7 +144,7 @@ public class PlannerContext {
 	 */
 	public FlinkPlannerImpl createFlinkPlanner(String currentCatalog, String currentDatabase) {
 		return new FlinkPlannerImpl(
-				frameworkConfig,
+				createFrameworkConfig(),
 				isLenient -> createCatalogReader(isLenient, currentCatalog, currentDatabase),
 				typeFactory,
 				cluster);
@@ -143,7 +154,7 @@ public class PlannerContext {
 			boolean lenientCaseSensitivity,
 			String currentCatalog,
 			String currentDatabase) {
-		SqlParser.Config sqlParserConfig = frameworkConfig.getParserConfig();
+		SqlParser.Config sqlParserConfig = getSqlParserConfig();
 		final boolean caseSensitive;
 		if (lenientCaseSensitivity) {
 			caseSensitive = false;
@@ -155,7 +166,7 @@ public class PlannerContext {
 				.setCaseSensitive(caseSensitive)
 				.build();
 
-		SchemaPlus rootSchema = getRootSchema(frameworkConfig.getDefaultSchema());
+		SchemaPlus rootSchema = getRootSchema(this.rootSchema.plus());
 		return new FlinkCalciteCatalogReader(
 				CalciteSchema.from(rootSchema),
 				asList(
@@ -188,10 +199,22 @@ public class PlannerContext {
 				() -> SqlParser
 						.configBuilder()
 						.setParserFactory(FlinkSqlParserImpl.FACTORY)
-						.setConformance(FlinkSqlConformance.DEFAULT)
+						.setConformance(getSqlConformance())
 						.setLex(Lex.JAVA)
 						.setIdentifierMaxLength(256)
 						.build());
+	}
+
+	private FlinkSqlConformance getSqlConformance() {
+		SqlDialect sqlDialect = tableConfig.getSqlDialect();
+		switch (sqlDialect) {
+			case HIVE:
+				return FlinkSqlConformance.HIVE;
+			case DEFAULT:
+				return FlinkSqlConformance.DEFAULT;
+			default:
+				throw new TableException("Unsupported SQL dialect: " + sqlDialect);
+		}
 	}
 
 	/**

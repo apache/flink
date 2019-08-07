@@ -1337,7 +1337,7 @@ under the License.
 						<exclude>flink-table/flink-table-planner-blink/src/test/resources/digest/*.out</exclude>
 						<exclude>flink-table/flink-table-planner-blink/src/test/resources/explain/*.out</exclude>
 						<exclude>flink-yarn/src/test/resources/krb5.keytab</exclude>
-						<exclude>flink-end-to-end-tests/test-scripts/test-data/*</exclude>
+						<exclude>flink-end-to-end-tests/test-scripts/test-data/**</exclude>
 						<exclude>flink-end-to-end-tests/test-scripts/docker-hadoop-secure-cluster/config/keystore.jks</exclude>
 						<exclude>flink-connectors/flink-connector-kafka/src/test/resources/**</exclude>
 						<exclude>flink-connectors/flink-connector-kafka-0.11/src/test/resources/**</exclude>
@@ -1775,6 +1775,9 @@ under the License.
 						<args>
 							<arg>-nobootcp</arg>
 						</args>
+						<jvmArgs>
+							<arg>-Xss2m</arg>
+						</jvmArgs>
 					</configuration>
 				</plugin>
 

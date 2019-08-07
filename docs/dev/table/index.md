@@ -34,7 +34,13 @@ The Table API and the SQL interfaces are tightly integrated with each other as w
 Dependency Structure
 --------------------
 
-All Table API and SQL components are bundled in the `flink-table` Maven artifact.
+Starting from Flink 1.9, Flink provides two different planner implementations for evaluating Table & SQL API programs: the Blink planner and the old planner that was available before Flink 1.9. Planners are responsible for
+translating relational operators into an executable, optimized Flink job. Both of the planners come with different optimization rules and runtime classes.
+They may also differ in the set of supported features.
+
+<span class="label label-danger">Attention</span> For production use cases, we recommend the old planner that was present before Flink 1.9 for now.
+
+All Table API and SQL components are bundled in the `flink-table` or `flink-table-blink` Maven artifacts.
 
 The following dependencies are relevant for most projects:
 
@@ -43,22 +49,17 @@ The following dependencies are relevant for most projects:
 * `flink-table-api-scala`: The Table & SQL API for pure table programs using the Scala programming language (in early development stage, not recommended!).
 * `flink-table-api-java-bridge`: The Table & SQL API with DataStream/DataSet API support using the Java programming language.
 * `flink-table-api-scala-bridge`: The Table & SQL API with DataStream/DataSet API support using the Scala programming language.
-* `flink-table-planner`: The table program planner and runtime.
-* `flink-table-uber`: Packages the modules above into a distribution for most Table & SQL API use cases. The uber JAR file `flink-table*.jar` is located in the `/opt` directory of a Flink release and can be moved to `/lib` if desired.
+* `flink-table-planner`: The table program planner and runtime. This was the only planner of Flink before the 1.9 release. It is still the recommended one.
+* `flink-table-planner-blink`: The new Blink planner.
+* `flink-table-runtime-blink`: The new Blink runtime.
+* `flink-table-uber`: Packages the API modules above plus the old planner into a distribution for most Table & SQL API use cases. The uber JAR file `flink-table-*.jar` is located in the `/lib` directory of a Flink release by default.
+* `flink-table-uber-blink`: Packages the API modules above plus the Blink specific modules into a distribution for most Table & SQL API use cases. The uber JAR file `flink-table-blink-*.jar` is located in the `/lib` directory of a Flink release by default.
+
+See the [common API](common.html) page for more information about how to switch between the old and new Blink planner in table programs.
 
 ### Table Program Dependencies
 
-The following dependencies must be added to a project in order to use the Table API & SQL for defining pipelines:
-
-{% highlight xml %}
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-table-planner{{ site.scala_version_suffix }}</artifactId>
-  <version>{{site.version}}</version>
-</dependency>
-{% endhighlight %}
-
-Additionally, depending on the target programming language, you need to add the Java or Scala API.
+Depending on the target programming language, you need to add the Java or Scala API to a project in order to use the Table API & SQL for defining pipelines:
 
 {% highlight xml %}
 <!-- Either... -->
@@ -66,12 +67,34 @@ Additionally, depending on the target programming language, you need to add the 
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-table-api-java-bridge{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
+  <scope>provided</scope>
 </dependency>
 <!-- or... -->
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-table-api-scala-bridge{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
+  <scope>provided</scope>
+</dependency>
+{% endhighlight %}
+
+Additionally, if you want to run the Table API & SQL programs locally within your IDE, you must add one of the
+following set of modules, depending which planner you want to use:
+
+{% highlight xml %}
+<!-- Either... (for the old planner that was available before Flink 1.9) -->
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-table-planner{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
+  <scope>provided</scope>
+</dependency>
+<!-- or.. (for the new Blink planner) -->
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-table-planner-blink{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
+  <scope>provided</scope>
 </dependency>
 {% endhighlight %}
 
@@ -82,6 +105,7 @@ Internally, parts of the table ecosystem are implemented in Scala. Therefore, pl
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-streaming-scala{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
+  <scope>provided</scope>
 </dependency>
 {% endhighlight %}
 
@@ -94,6 +118,7 @@ If you want to implement a [custom format]({{ site.baseurl }}/dev/table/sourceSi
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-table-common</artifactId>
   <version>{{site.version}}</version>
+  <scope>provided</scope>
 </dependency>
 {% endhighlight %}
 

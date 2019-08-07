@@ -159,7 +159,13 @@ import java.util.UUID;
  * @see SequenceFileWriter
  *
  * @param <T> Type of the elements emitted by this sink
+ *
+ * @deprecated Please use the
+ * {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink StreamingFileSink}
+ * instead.
+ *
  */
+@Deprecated
 public class BucketingSink<T>
 		extends RichSinkFunction<T>
 		implements InputTypeConfigurable, CheckpointedFunction, CheckpointListener, ProcessingTimeCallback {

@@ -22,6 +22,7 @@ import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.utils.ThreadLocalCache;
 
 import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.avatica.util.TimeUnit;

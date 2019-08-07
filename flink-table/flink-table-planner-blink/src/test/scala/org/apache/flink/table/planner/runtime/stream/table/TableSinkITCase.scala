@@ -26,11 +26,10 @@ import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{TableException, Tumble, Types}
 import org.apache.flink.table.planner.runtime.utils.TestData.{smallTupleData3, tupleData3, tupleData5}
 import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
-import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil
+import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTestUtil}
 import org.apache.flink.table.sinks._
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.types.Row
-
 import org.junit.Assert._
 import org.junit.Test
 
@@ -47,7 +46,7 @@ class TableSinkITCase extends AbstractTestBase {
     env.getConfig.enableObjectReuse()
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     MemoryTableSourceSinkUtil.clear()
 
     val input = env.fromCollection(tupleData3)
@@ -83,7 +82,7 @@ class TableSinkITCase extends AbstractTestBase {
     env.getConfig.enableObjectReuse()
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     env.setParallelism(4)
 
     tEnv.registerTableSink(
@@ -121,7 +120,7 @@ class TableSinkITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(tupleData3)
         .assignAscendingTimestamps(_._1.toLong)
@@ -152,12 +151,42 @@ class TableSinkITCase extends AbstractTestBase {
     assertEquals(expected, result)
   }
 
+
+  @Test
+  def testAppendSinkWithNestedRow(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.getConfig.enableObjectReuse()
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+
+    val t = env.fromCollection(smallTupleData3)
+      .toTable(tEnv, 'id, 'num, 'text)
+    tEnv.registerTable("src", t)
+
+    val sink = new TestingAppendTableSink()
+    tEnv.registerTableSink(
+      "appendSink",
+      sink.configure(
+        Array[String]("t", "item"),
+        Array[TypeInformation[_]](Types.INT(), Types.ROW(Types.LONG, Types.STRING()))))
+
+    tEnv.sqlUpdate("INSERT INTO appendSink SELECT id, ROW(num, text) FROM src")
+
+    env.execute()
+
+    val result = sink.getAppendResults.sorted
+    val expected = List(
+      "1,1,Hi",
+      "2,2,Hello",
+      "3,2,Hello world").sorted
+    assertEquals(expected, result)
+  }
+
   @Test
   def testAppendSinkOnAppendTableForInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val ds1 = env.fromCollection(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
     val ds2 = env.fromCollection(tupleData5).toTable(tEnv, 'd, 'e, 'f, 'g, 'h)
@@ -185,7 +214,7 @@ class TableSinkITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
@@ -223,7 +252,7 @@ class TableSinkITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
@@ -264,7 +293,7 @@ class TableSinkITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
@@ -306,7 +335,7 @@ class TableSinkITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
@@ -352,7 +381,7 @@ class TableSinkITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
@@ -399,7 +428,7 @@ class TableSinkITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
@@ -444,7 +473,7 @@ class TableSinkITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
@@ -489,7 +518,7 @@ class TableSinkITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)
@@ -508,7 +537,7 @@ class TableSinkITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.getConfig.enableObjectReuse()
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-    val tEnv = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
     val t = env.fromCollection(tupleData3)
       .assignAscendingTimestamps(_._1.toLong)

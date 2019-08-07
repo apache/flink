@@ -85,8 +85,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				")\n" +
 				"PARTITIONED BY (a, h)\n" +
 				"  with (\n" +
-				"    connector = 'kafka', \n" +
-				"    kafka.topic = 'log.test'\n" +
+				"    'connector' = 'kafka', \n" +
+				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"CREATE TABLE `TBL1` (\n" +
 				"  `A`  BIGINT,\n" +
@@ -99,8 +99,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				")\n" +
 				"PARTITIONED BY (`A`, `H`)\n" +
 				"WITH (\n" +
-				"  `CONNECTOR` = 'kafka',\n" +
-				"  `KAFKA`.`TOPIC` = 'log.test'\n" +
+				"  'connector' = 'kafka',\n" +
+				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
 
@@ -118,8 +118,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"comment 'test table comment ABC.'\n" +
 				"PARTITIONED BY (a, h)\n" +
 				"  with (\n" +
-				"    connector = 'kafka', \n" +
-				"    kafka.topic = 'log.test'\n" +
+				"    'connector' = 'kafka', \n" +
+				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"CREATE TABLE `TBL1` (\n" +
 				"  `A`  BIGINT  COMMENT 'test column comment AAA.',\n" +
@@ -133,8 +133,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"COMMENT 'test table comment ABC.'\n" +
 				"PARTITIONED BY (`A`, `H`)\n" +
 				"WITH (\n" +
-				"  `CONNECTOR` = 'kafka',\n" +
-				"  `KAFKA`.`TOPIC` = 'log.test'\n" +
+				"  'connector' = 'kafka',\n" +
+				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
 
@@ -153,8 +153,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"comment 'test table comment ABC.'\n" +
 				"PARTITIONED BY (a, h)\n" +
 				"  with (\n" +
-				"    connector = 'kafka', \n" +
-				"    kafka.topic = 'log.test'\n" +
+				"    'connector' = 'kafka', \n" +
+				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"CREATE TABLE `TBL1` (\n" +
 				"  `A`  BIGINT  COMMENT 'test column comment AAA.',\n" +
@@ -169,8 +169,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"COMMENT 'test table comment ABC.'\n" +
 				"PARTITIONED BY (`A`, `H`)\n" +
 				"WITH (\n" +
-				"  `CONNECTOR` = 'kafka',\n" +
-				"  `KAFKA`.`TOPIC` = 'log.test'\n" +
+				"  'connector' = 'kafka',\n" +
+				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
 
@@ -184,8 +184,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  WATERMARK FOR a AS BOUNDED WITH DELAY 1000 MILLISECOND\n" +
 				")\n" +
 				"  with (\n" +
-				"    connector = 'kafka', \n" +
-				"    kafka.topic = 'log.test'\n" +
+				"    'connector' = 'kafka', \n" +
+				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"CREATE TABLE `TBL1` (\n" +
 				"  `A`  BIGINT,\n" +
@@ -193,8 +193,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  `C` AS (2 * (`A` + 1)),\n" +
 				"  WATERMARK FOR `A` AS BOUNDED WITH DELAY 1000 MILLISECOND\n" +
 				") WITH (\n" +
-				"  `CONNECTOR` = 'kafka',\n" +
-				"  `KAFKA`.`TOPIC` = 'log.test'\n" +
+				"  'connector' = 'kafka',\n" +
+				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
 
@@ -208,8 +208,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  WATERMARK wk FOR a AS BOUNDED WITH DELAY 1000 DAY\n" +
 				")\n" +
 				"  with (\n" +
-				"    connector = 'kafka', \n" +
-				"    kafka.topic = 'log.test'\n" +
+				"    'connector' = 'kafka', \n" +
+				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"CREATE TABLE `TBL1` (\n" +
 				"  `A`  BIGINT,\n" +
@@ -217,8 +217,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  `C` AS (2 * (`A` + 1)),\n" +
 				"  WATERMARK `WK` FOR `A` AS BOUNDED WITH DELAY 1000 DAY\n" +
 				") WITH (\n" +
-				"  `CONNECTOR` = 'kafka',\n" +
-				"  `KAFKA`.`TOPIC` = 'log.test'\n" +
+				"  'connector' = 'kafka',\n" +
+				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
 
@@ -232,8 +232,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  WATERMARK wk FOR a AS BOUNDED WITH DELAY 1000 HOUR\n" +
 				")\n" +
 				"  with (\n" +
-				"    connector = 'kafka', \n" +
-				"    kafka.topic = 'log.test'\n" +
+				"    'connector' = 'kafka', \n" +
+				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"CREATE TABLE `TBL1` (\n" +
 				"  `A`  BIGINT,\n" +
@@ -241,8 +241,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  `C` AS (2 * (`A` + 1)),\n" +
 				"  WATERMARK `WK` FOR `A` AS BOUNDED WITH DELAY 1000 HOUR\n" +
 				") WITH (\n" +
-				"  `CONNECTOR` = 'kafka',\n" +
-				"  `KAFKA`.`TOPIC` = 'log.test'\n" +
+				"  'connector' = 'kafka',\n" +
+				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
 
@@ -256,8 +256,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  WATERMARK wk FOR a AS BOUNDED WITH DELAY 1000 MINUTE\n" +
 				")\n" +
 				"  with (\n" +
-				"    connector = 'kafka', \n" +
-				"    kafka.topic = 'log.test'\n" +
+				"    'connector' = 'kafka', \n" +
+				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"CREATE TABLE `TBL1` (\n" +
 				"  `A`  BIGINT,\n" +
@@ -265,8 +265,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  `C` AS (2 * (`A` + 1)),\n" +
 				"  WATERMARK `WK` FOR `A` AS BOUNDED WITH DELAY 1000 MINUTE\n" +
 				") WITH (\n" +
-				"  `CONNECTOR` = 'kafka',\n" +
-				"  `KAFKA`.`TOPIC` = 'log.test'\n" +
+				"  'connector' = 'kafka',\n" +
+				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
 
@@ -280,8 +280,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  WATERMARK wk FOR a AS BOUNDED WITH DELAY 1000 SECOND\n" +
 				")\n" +
 				"  with (\n" +
-				"    connector = 'kafka', \n" +
-				"    kafka.topic = 'log.test'\n" +
+				"    'connector' = 'kafka', \n" +
+				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"CREATE TABLE `TBL1` (\n" +
 				"  `A`  BIGINT,\n" +
@@ -289,8 +289,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  `C` AS (2 * (`A` + 1)),\n" +
 				"  WATERMARK `WK` FOR `A` AS BOUNDED WITH DELAY 1000 SECOND\n" +
 				") WITH (\n" +
-				"  `CONNECTOR` = 'kafka',\n" +
-				"  `KAFKA`.`TOPIC` = 'log.test'\n" +
+				"  'connector' = 'kafka',\n" +
+				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
 
@@ -304,8 +304,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  WATERMARK wk FOR a AS BOUNDED WITH DELAY ^-^1000 SECOND\n" +
 				")\n" +
 				"  with (\n" +
-				"    connector = 'kafka', \n" +
-				"    kafka.topic = 'log.test'\n" +
+				"    'connector' = 'kafka', \n" +
+				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"(?s).*Encountered \"-\" at line 5, column 44.\n" +
 				"Was expecting:\n" +
@@ -323,8 +323,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  WATERMARK wk FOR a AS ASCENDING\n" +
 				")\n" +
 				"  with (\n" +
-				"    connector = 'kafka', \n" +
-				"    kafka.topic = 'log.test'\n" +
+				"    'connector' = 'kafka', \n" +
+				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"CREATE TABLE `TBL1` (\n" +
 				"  `A`  BIGINT,\n" +
@@ -332,8 +332,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  `C` AS (2 * (`A` + 1)),\n" +
 				"  WATERMARK `WK` FOR `A` AS ASCENDING\n" +
 				") WITH (\n" +
-				"  `CONNECTOR` = 'kafka',\n" +
-				"  `KAFKA`.`TOPIC` = 'log.test'\n" +
+				"  'connector' = 'kafka',\n" +
+				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
 
@@ -347,8 +347,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  WATERMARK wk FOR a AS FROM_SOURCE\n" +
 				")\n" +
 				"  with (\n" +
-				"    connector = 'kafka', \n" +
-				"    kafka.topic = 'log.test'\n" +
+				"    'connector' = 'kafka', \n" +
+				"    'kafka.topic' = 'log.test'\n" +
 				")\n",
 			"CREATE TABLE `TBL1` (\n" +
 				"  `A`  BIGINT,\n" +
@@ -356,8 +356,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 				"  `C` AS (2 * (`A` + 1)),\n" +
 				"  WATERMARK `WK` FOR `A` AS FROM_SOURCE\n" +
 				") WITH (\n" +
-				"  `CONNECTOR` = 'kafka',\n" +
-				"  `KAFKA`.`TOPIC` = 'log.test'\n" +
+				"  'connector' = 'kafka',\n" +
+				"  'kafka.topic' = 'log.test'\n" +
 				")");
 	}
 
@@ -366,40 +366,21 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 		check("CREATE TABLE tbl1 (\n" +
 			"  a ARRAY<bigint>, \n" +
 			"  b MAP<int, varchar>,\n" +
-			"  c ROW<cc0:int, cc1: float, cc2: varchar>,\n" +
+			"  c ROW<cc0 int, cc1 float, cc2 varchar>,\n" +
+			"  d MULTISET<varchar>,\n" +
 			"  PRIMARY KEY (a, b) \n" +
 			") with (\n" +
-			"  x = 'y', \n" +
-			"  asd = 'data'\n" +
+			"  'x' = 'y', \n" +
+			"  'asd' = 'data'\n" +
 			")\n", "CREATE TABLE `TBL1` (\n" +
 			"  `A`  ARRAY< BIGINT >,\n" +
 			"  `B`  MAP< INTEGER, VARCHAR >,\n" +
-			"  `C`  ROW< `CC0` : INTEGER, `CC1` : FLOAT, `CC2` : VARCHAR >,\n" +
+			"  `C`  ROW< `CC0` INTEGER, `CC1` FLOAT, `CC2` VARCHAR >,\n" +
+			"  `D`  MULTISET< VARCHAR >,\n" +
 			"  PRIMARY KEY (`A`, `B`)\n" +
 			") WITH (\n" +
-			"  `X` = 'y',\n" +
-			"  `ASD` = 'data'\n" +
-			")");
-	}
-
-	@Test
-	public void testCreateTableWithDecimalType() {
-		check("CREATE TABLE tbl1 (\n" +
-			"  a decimal, \n" +
-			"  b decimal(10, 0),\n" +
-			"  c decimal(38, 38),\n" +
-			"  PRIMARY KEY (a, b) \n" +
-			") with (\n" +
-			"  x = 'y', \n" +
-			"  asd = 'data'\n" +
-			")\n", "CREATE TABLE `TBL1` (\n" +
-			"  `A`  DECIMAL,\n" +
-			"  `B`  DECIMAL(10, 0),\n" +
-			"  `C`  DECIMAL(38, 38),\n" +
-			"  PRIMARY KEY (`A`, `B`)\n" +
-			") WITH (\n" +
-			"  `X` = 'y',\n" +
-			"  `ASD` = 'data'\n" +
+			"  'x' = 'y',\n" +
+			"  'asd' = 'data'\n" +
 			")");
 	}
 
@@ -408,19 +389,21 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 		check("CREATE TABLE tbl1 (\n" +
 			"  a ARRAY<ARRAY<bigint>>, \n" +
 			"  b MAP<MAP<int, varchar>, ARRAY<varchar>>,\n" +
-			"  c ROW<cc0:ARRAY<int>, cc1: float, cc2: varchar>,\n" +
+			"  c ROW<cc0 ARRAY<int>, cc1 float, cc2 varchar>,\n" +
+			"  d MULTISET<ARRAY<int>>,\n" +
 			"  PRIMARY KEY (a, b) \n" +
 			") with (\n" +
-			"  x = 'y', \n" +
-			"  asd = 'data'\n" +
+			"  'x' = 'y', \n" +
+			"  'asd' = 'data'\n" +
 			")\n", "CREATE TABLE `TBL1` (\n" +
 			"  `A`  ARRAY< ARRAY< BIGINT > >,\n" +
 			"  `B`  MAP< MAP< INTEGER, VARCHAR >, ARRAY< VARCHAR > >,\n" +
-			"  `C`  ROW< `CC0` : ARRAY< INTEGER >, `CC1` : FLOAT, `CC2` : VARCHAR >,\n" +
+			"  `C`  ROW< `CC0` ARRAY< INTEGER >, `CC1` FLOAT, `CC2` VARCHAR >,\n" +
+			"  `D`  MULTISET< ARRAY< INTEGER > >,\n" +
 			"  PRIMARY KEY (`A`, `B`)\n" +
 			") WITH (\n" +
-			"  `X` = 'y',\n" +
-			"  `ASD` = 'data'\n" +
+			"  'x' = 'y',\n" +
+			"  'asd' = 'data'\n" +
 			")");
 	}
 
@@ -432,12 +415,12 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  toTimestamp^(^b, 'yyyy-MM-dd HH:mm:ss'), \n" +
 			"  PRIMARY KEY (a, b) \n" +
 			") with (\n" +
-			"  x = 'y', \n" +
-			"  asd = 'data'\n" +
+			"  'x' = 'y', \n" +
+			"  'asd' = 'data'\n" +
 			")\n", "(?s).*Encountered \"\\(\" at line 4, column 14.\n" +
 			"Was expecting one of:\n" +
 			"    \"AS\" ...\n" +
-			"    \"CHARACTER\" ...\n" +
+			"    \"ARRAY\" ...\n" +
 			".*");
 	}
 
@@ -452,8 +435,8 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			"  c int,\n" +
 			"  PRIMARY KEY (a, b) \n" +
 			") with (\n" +
-			"  x = 'y', \n" +
-			"  asd = 'data'\n" +
+			"  'x' = 'y', \n" +
+			"  'asd' = 'data'\n" +
 			")\n";
 		String expected = "`A`, (`A` + 1) AS `F`, `B`, "
 			+ "`TOTIMESTAMP`(`B`, 'yyyy-MM-dd HH:mm:ss') AS `TS`, "
@@ -471,10 +454,48 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 			") PARTITIONED BY (\n" +
 			"  c,\n" +
 			"  d\n" +
-			") with ( x = 'y', asd = 'dada')";
+			") with ( 'x' = 'y', 'asd' = 'dada')";
 		sql(sql).node(new ValidationMatcher()
 			.fails("Partition column [C] not defined in columns, at line 6, column 3"));
 
+	}
+
+	@Test
+	public void testCreateTableWithMinusInOptionKey() {
+		String sql = "create table source_table(\n" +
+			"  a int,\n" +
+			"  b bigint,\n" +
+			"  c string\n" +
+			") with (\n" +
+			"  'a-b-c-d124' = 'ab',\n" +
+			"  'a.b.1.c' = 'aabb',\n" +
+			"  'a.b-c-connector.e-f.g' = 'ada',\n" +
+			"  'a.b-c-d.e-1231.g' = 'ada',\n" +
+			"  'a.b-c-d.*' = 'adad')\n";
+		String expected = "CREATE TABLE `SOURCE_TABLE` (\n" +
+			"  `A`  INTEGER,\n" +
+			"  `B`  BIGINT,\n" +
+			"  `C`  STRING\n" +
+			") WITH (\n" +
+			"  'a-b-c-d124' = 'ab',\n" +
+			"  'a.b.1.c' = 'aabb',\n" +
+			"  'a.b-c-connector.e-f.g' = 'ada',\n" +
+			"  'a.b-c-d.e-1231.g' = 'ada',\n" +
+			"  'a.b-c-d.*' = 'adad'\n" +
+			")";
+		check(sql, expected);
+	}
+
+	@Test
+	public void testCreateTableWithOptionKeyAsIdentifier() {
+		String sql = "create table source_table(\n" +
+			"  a int,\n" +
+			"  b bigint,\n" +
+			"  c string\n" +
+			") with (\n" +
+			"  ^a^.b.c = 'ab',\n" +
+			"  a.b.c1 = 'aabb')\n";
+		sql(sql).fails("(?s).*Encountered \"a\" at line 6, column 3.\n.*");
 	}
 
 	@Test

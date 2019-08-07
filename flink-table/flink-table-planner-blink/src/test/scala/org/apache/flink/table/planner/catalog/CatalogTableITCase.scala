@@ -67,7 +67,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
   def before(): Unit = {
     tableEnv.getConfig
       .getConfiguration
-      .setInteger(ExecutionConfigOptions.SQL_RESOURCE_DEFAULT_PARALLELISM, 1)
+      .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
     TestCollectionTableFactory.reset()
     TestCollectionTableFactory.isStreaming = isStreamingMode
   }
@@ -101,7 +101,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  b varchar,
         |  c int
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -111,7 +111,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  b varchar,
         |  c int
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -137,7 +137,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  b varchar,
         |  c int
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -147,7 +147,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  b varchar,
         |  c as a + 1
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -186,7 +186,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  b int,
         |  c int
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -197,7 +197,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  c int,
         |  d int
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -241,7 +241,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  b int,
         |  c int
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -250,7 +250,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  a int,
         |  b int
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -281,7 +281,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  c as proctime,
         |  primary key(a)
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -290,7 +290,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  a int,
         |  b int
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -322,7 +322,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  primary key(a),
         |  WATERMARK wm FOR a AS BOUNDED WITH DELAY 1000 MILLISECOND
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -331,7 +331,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  a bigint,
         |  b bigint
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -363,7 +363,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  c as proctime,
         |  primary key(a)
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -372,7 +372,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  a int,
         |  b int
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -404,7 +404,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  primary key(a),
         |  WATERMARK wm FOR a AS BOUNDED WITH DELAY 1000 MILLISECOND
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val sinkDDL =
@@ -413,7 +413,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  a bigint,
         |  b bigint
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val query =
@@ -438,7 +438,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  b bigint,
         |  c varchar
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val ddl2 =
@@ -447,7 +447,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  a bigint,
         |  b bigint
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
 
@@ -467,7 +467,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  b bigint,
         |  c varchar
         |) with (
-        |  connector = 'COLLECTION'
+        | 'connector' = 'COLLECTION'
         |)
       """.stripMargin
     val ddl2 =
@@ -476,7 +476,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  a bigint,
         |  b bigint
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
 
@@ -497,7 +497,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  b bigint,
         |  c varchar
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
 
@@ -516,7 +516,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  b bigint,
         |  c varchar
         |) with (
-        |  connector = 'COLLECTION'
+        |  'connector' = 'COLLECTION'
         |)
       """.stripMargin
 

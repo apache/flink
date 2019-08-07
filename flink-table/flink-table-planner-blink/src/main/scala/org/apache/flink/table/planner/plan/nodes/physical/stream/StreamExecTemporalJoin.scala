@@ -143,10 +143,11 @@ class StreamExecTemporalJoin(
       getJoinOperatorName,
       joinOperator,
       BaseRowTypeInfo.of(returnType),
-      getResource.getParallelism)
+      leftTransform.getParallelism)
 
-    if (getResource.getMaxParallelism > 0) {
-      ret.setMaxParallelism(getResource.getMaxParallelism)
+    if (inputsContainSingleton()) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
     }
 
     // set KeyType and Selector for state

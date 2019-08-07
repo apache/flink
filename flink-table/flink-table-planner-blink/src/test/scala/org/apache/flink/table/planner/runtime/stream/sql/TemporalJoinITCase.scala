@@ -26,8 +26,8 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink}
+import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.types.Row
-
 import org.junit.Assert.assertEquals
 import org.junit._
 import org.junit.runner.RunWith
@@ -49,7 +49,7 @@ class TemporalJoinITCase(state: StateBackendMode)
   @Test
   def testProcessTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     env.setParallelism(1)
     env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime)
 
@@ -98,7 +98,7 @@ class TemporalJoinITCase(state: StateBackendMode)
   @Test
   def testEventTimeInnerJoin(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv: StreamTableEnvironment = StreamTableEnvironment.create(env)
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
     env.setParallelism(1)
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 

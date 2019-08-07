@@ -29,7 +29,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
+import org.apache.flink.test.util.InfiniteIntegerSource;
 import org.apache.flink.util.Collector;
 
 import java.util.concurrent.ThreadLocalRandom;
@@ -74,26 +74,6 @@ public class CustomKvStateProgram {
 				}).flatMap(new ReducingStateFlatMap()).writeAsText(outputPath);
 
 		env.execute();
-	}
-
-	private static class InfiniteIntegerSource implements ParallelSourceFunction<Integer> {
-		private static final long serialVersionUID = -7517574288730066280L;
-		private volatile boolean running = true;
-
-		@Override
-		public void run(SourceContext<Integer> ctx) throws Exception {
-			int counter = 0;
-			while (running) {
-				synchronized (ctx.getCheckpointLock()) {
-					ctx.collect(counter++);
-				}
-			}
-		}
-
-		@Override
-		public void cancel() {
-			running = false;
-		}
 	}
 
 	private static class ReducingStateFlatMap extends RichFlatMapFunction<Tuple2<Integer, Integer>, Integer> {

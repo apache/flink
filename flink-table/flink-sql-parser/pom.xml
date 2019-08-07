@@ -40,11 +40,6 @@ under the License.
 
 	<dependencies>
 		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-guava</artifactId>
-		</dependency>
-
-		<dependency>
 			<groupId>org.apache.calcite</groupId>
 			<artifactId>calcite-core</artifactId>
 			<!-- When updating the Calcite version, make sure to update the dependency exclusions -->

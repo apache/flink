@@ -117,6 +117,10 @@ public class CsvTableSink implements BatchTableSink<Row>, AppendStreamTableSink<
 		if (numFiles > 0) {
 			csvRows.setParallelism(numFiles);
 			sink.setParallelism(numFiles);
+		} else {
+			// if file number is not set, use input parallelism to make it chained.
+			csvRows.setParallelism(dataStream.getParallelism());
+			sink.setParallelism(dataStream.getParallelism());
 		}
 
 		sink.name(TableConnectorUtils.generateRuntimeName(CsvTableSink.class, fieldNames));

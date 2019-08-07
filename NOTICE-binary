@@ -14186,91 +14186,6 @@ See bundled license files for details.
 - org.jline:jline-terminal:3.9.0
 - org.jline:jline-reader:3.9.0
 
-
-flink-cep
-Copyright 2014-2019 The Apache Software Foundation
-
-flink-table-common
-Copyright 2014-2019 The Apache Software Foundation
-
-flink-table-api-java
-Copyright 2014-2019 The Apache Software Foundation
-
-flink-table-api-java-bridge
-Copyright 2014-2019 The Apache Software Foundation
-
-flink-table-planner
-Copyright 2014-2019 The Apache Software Foundation
-
-This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
-
-- com.google.guava:guava:19.0
-- com.fasterxml.jackson.core:jackson-annotations:2.9.6
-- com.fasterxml.jackson.core:jackson-core:2.9.6
-- com.fasterxml.jackson.core:jackson-databind:2.9.6
-- com.jayway.jsonpath:json-path:2.4.0
-- joda-time:joda-time:2.5
-- org.apache.calcite:calcite-core:1.20.0
-- org.apache.calcite:calcite-linq4j:1.20.0
-- org.apache.calcite.avatica:avatica-core:1.15.0
-- commons-codec:commons-codec:1.10
-
-This project bundles the following dependencies under the BSD license.
-See bundled license files for details
-
-- org.codehaus.janino:janino:3.0.9
-- org.codehaus.janino:commons-compiler:3.0.9
-
-Calcite Core
-Copyright 2012-2019 The Apache Software Foundation
-
-Apache Commons Codec
-Copyright 2002-2014 The Apache Software Foundation
-
-src/test/org/apache/commons/codec/language/DoubleMetaphoneTest.java
-contains test data from http://aspell.net/test/orig/batch0.tab.
-Copyright (C) 2002 Kevin Atkinson (kevina@gnu.org)
-
-===============================================================================
-
-The content of package org.apache.commons.codec.language.bm has been translated
-from the original php source code available at http://stevemorse.org/phoneticinfo.htm
-with permission from the original authors.
-Original source copyright:
-Copyright (c) 2008 Alexander Beider & Stephen P. Morse.
-
-Apache Calcite Avatica
-Copyright 2012-2019 The Apache Software Foundation
-
-Calcite Linq4j
-Copyright 2012-2019 The Apache Software Foundation
-
-# Jackson JSON processor
-
-Jackson is a high-performance, Free/Open Source JSON processing library.
-It was originally written by Tatu Saloranta (tatu.saloranta@iki.fi), and has
-been in development since 2007.
-It is currently developed by a community of developers, as well as supported
-commercially by FasterXML.com.
-
-## Licensing
-
-Jackson core and extension components may licensed under different licenses.
-To find the details that apply to this artifact see the accompanying LICENSE file.
-For more information, including possible other licensing options, contact
-FasterXML.com (http://fasterxml.com).
-
-## Credits
-
-A list of contributors may be found from CREDITS file, which is included
-in some artifacts (usually source distributions); but is always available
-from the source code management (SCM) system project uses.
-
-Jackson core and extension components may be licensed under different licenses.
-To find the details that apply to this artifact see the accompanying LICENSE file.
-For more information, including possible other licensing options, contact
-FasterXML.com (http://fasterxml.com).
-
 =============================================================================
 = NOTICE file corresponding to section 4d of the Apache License Version 2.0 =
 =============================================================================
@@ -16383,6 +16298,9 @@ The Apache Software Foundation (http://www.apache.org/).
 flink-table-uber
 Copyright 2014-2019 The Apache Software Foundation
 
+flink-table-uber-blink
+Copyright 2014-2019 The Apache Software Foundation
+
 flink-table-common
 Copyright 2014-2019 The Apache Software Foundation
 
@@ -16399,6 +16317,87 @@ flink-table-api-java-bridge
 Copyright 2014-2019 The Apache Software Foundation
 
 flink-table-api-scala-bridge
+Copyright 2014-2019 The Apache Software Foundation
+
+flink-table-planner-blink
+Copyright 2014-2019 The Apache Software Foundation
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.google.guava:guava:19.0
+- com.fasterxml.jackson.core:jackson-annotations:2.9.6
+- com.fasterxml.jackson.core:jackson-core:2.9.6
+- com.fasterxml.jackson.core:jackson-databind:2.9.6
+- com.jayway.jsonpath:json-path:2.4.0
+- joda-time:joda-time:2.5
+- org.apache.calcite:calcite-core:1.20.0
+- org.apache.calcite:calcite-linq4j:1.20.0
+- org.apache.calcite.avatica:avatica-core:1.15.0
+- commons-codec:commons-codec:1.10
+
+This project bundles the following dependencies under the BSD license.
+See bundled license files for details
+
+- org.codehaus.janino:janino:3.0.9
+- org.codehaus.janino:commons-compiler:3.0.9
+
+Apache Calcite Avatica
+Copyright 2012-2019 The Apache Software Foundation
+
+Calcite Core
+Copyright 2012-2019 The Apache Software Foundation
+
+Apache Commons Codec
+Copyright 2002-2014 The Apache Software Foundation
+
+src/test/org/apache/commons/codec/language/DoubleMetaphoneTest.java
+contains test data from http://aspell.net/test/orig/batch0.tab.
+Copyright (C) 2002 Kevin Atkinson (kevina@gnu.org)
+
+===============================================================================
+
+The content of package org.apache.commons.codec.language.bm has been translated
+from the original php source code available at http://stevemorse.org/phoneticinfo.htm
+with permission from the original authors.
+Original source copyright:
+Copyright (c) 2008 Alexander Beider & Stephen P. Morse.
+
+Calcite Linq4j
+Copyright 2012-2019 The Apache Software Foundation
+
+# Jackson JSON processor
+
+Jackson is a high-performance, Free/Open Source JSON processing library.
+It was originally written by Tatu Saloranta (tatu.saloranta@iki.fi), and has
+been in development since 2007.
+It is currently developed by a community of developers, as well as supported
+commercially by FasterXML.com.
+
+## Licensing
+
+Jackson core and extension components may licensed under different licenses.
+To find the details that apply to this artifact see the accompanying LICENSE file.
+For more information, including possible other licensing options, contact
+FasterXML.com (http://fasterxml.com).
+
+## Credits
+
+A list of contributors may be found from CREDITS file, which is included
+in some artifacts (usually source distributions); but is always available
+from the source code management (SCM) system project uses.
+
+Jackson core and extension components may be licensed under different licenses.
+To find the details that apply to this artifact see the accompanying LICENSE file.
+For more information, including possible other licensing options, contact
+FasterXML.com (http://fasterxml.com).
+
+flink-table-runtime-blink
+Copyright 2014-2019 The Apache Software Foundation
+
+- org.lz4:lz4-java:1.5.0
+- org.apache.calcite.avatica:avatica-core:1.13.0
+
+flink-cep
 Copyright 2014-2019 The Apache Software Foundation
 
 flink-table-planner
@@ -16484,3 +16483,22 @@ Copyright 2007 The Apache Software Foundation
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
+
+// ------------------------------------------------------------------
+// NOTICE file corresponding to the section 4d of The Apache License,
+// Version 2.0, in this case for Apache Flink
+// ------------------------------------------------------------------
+
+Apache Flink
+Copyright 2006-2019 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+flink-table-runtime-blink
+Copyright 2014-2019 The Apache Software Foundation
+
+This project bundles the following dependencies under the Apache Software License 2.0. (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- org.lz4:lz4-java:1.5.0
+- org.apache.calcite.avatica:avatica-core:1.13.0
