@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.batch.sql.agg
 
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.TableTestBase
 
@@ -27,6 +28,25 @@ import org.junit.Test
 class DistinctAggregateTest extends TableTestBase {
   private val util = batchTestUtil()
   util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
+
+  @Test
+  def testApproximateCountDistinct(): Unit = {
+    util.verifyPlan("SELECT APPROX_COUNT_DISTINCT(b) FROM MyTable")
+  }
+
+  @Test
+  def testApproximateCountDistinctAndAccurateDistinctAggregateOnDiffColumn(): Unit = {
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("There are both Distinct AggCall and Approximate Distinct AggCall " +
+      "in one sql statement, it is not supported yet.")
+    util.verifyPlan("SELECT COUNT(DISTINCT a), APPROX_COUNT_DISTINCT(b) FROM MyTable")
+  }
+
+  @Test
+  def testApproximateCountDistinctAndAccurateDistinctAggregateOnSameColumn(): Unit = {
+    // APPROX_COUNT_DISTINCT(b) will be treated as COUNT(DISTINCT b)
+    util.verifyPlan("SELECT COUNT(DISTINCT b), APPROX_COUNT_DISTINCT(b) FROM MyTable")
+  }
 
   @Test
   def testSingleDistinctAggregate(): Unit = {

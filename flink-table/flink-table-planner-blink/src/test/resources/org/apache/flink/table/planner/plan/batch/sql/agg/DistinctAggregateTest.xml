@@ -16,6 +16,53 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testApproximateCountDistinct">
+    <Resource name="sql">
+      <![CDATA[SELECT APPROX_COUNT_DISTINCT(b) FROM MyTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
++- LogicalProject(b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[true], select=[Final_COUNT(APPROXIMATE DISTINCT EXPR$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- LocalSortAggregate(select=[Partial_COUNT(APPROXIMATE DISTINCT b) AS EXPR$0])
+      +- Calc(select=[b])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testApproximateCountDistinctAndAccurateDistinctAggregateOnSameColumn">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(DISTINCT b), APPROX_COUNT_DISTINCT(b) FROM MyTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0], EXPR$1=[$0])
++- LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
+   +- LogicalProject(b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0, EXPR$0 AS EXPR$1])
++- HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS EXPR$0])
+   +- Exchange(distribution=[single])
+      +- LocalHashAggregate(select=[Partial_COUNT(b) AS count$0])
+         +- HashAggregate(isMerge=[true], groupBy=[b], select=[b])
+            +- Exchange(distribution=[hash[b]])
+               +- LocalHashAggregate(groupBy=[b], select=[b])
+                  +- Calc(select=[b])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMultiDistinctAggregateOnDifferentColumn">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(DISTINCT a), SUM(DISTINCT b) FROM MyTable]]>

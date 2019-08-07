@@ -86,4 +86,11 @@ class SortDistinctAggregateITCase extends DistinctAggregateITCaseBase {
     )
   }
 
+  @Test
+  def testApproximateCountDistinct(): Unit = {
+    checkResult(
+      "SELECT APPROX_COUNT_DISTINCT(b) FROM Table3",
+      Seq(row(6))
+    )
+  }
 }

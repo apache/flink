@@ -173,11 +173,17 @@ object RelExplainUtil {
     val aggStrings = aggCallToAggFunction.zipWithIndex.map {
       case ((aggCall, udf), index) =>
         val distinct = if (aggCall.isDistinct) {
-          if (aggCall.getArgList.size() == 0) {
+          val approximate = if (aggCall.isApproximate) {
+            "APPROXIMATE "
+          } else {
+            ""
+          }
+          val distinct = if (aggCall.getArgList.size() == 0) {
             "DISTINCT"
           } else {
             "DISTINCT "
           }
+          approximate + distinct
         } else {
           if (isMerge && aggToDistinctMapping.contains(index)) {
             "DISTINCT "

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.functions.aggfunctions.ApproximateCountDistinctAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.FirstValueWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.IncrSumAggFunction._
@@ -64,6 +65,16 @@ class AggFunctionFactory(
     */
   def createAggFunction(call: AggregateCall, index: Int): UserDefinedFunction = {
 
+    if (call.isDistinct || call.isApproximate) {
+      if (!(call.isDistinct && call.isApproximate &&
+        call.getAggregation.isInstanceOf[SqlCountAggFunction])) {
+        throw new TableException(
+          s"${if (call.isApproximate) "APPROXIMATE " else ""}" +
+            s"${if (call.isDistinct) "DISTINCT " else ""}" +
+            s"${call.getAggregation} is not supported now")
+      }
+    }
+
     val argTypes: Array[LogicalType] = call.getArgList
       .map(inputType.getFieldList.get(_).getType)
       .map(FlinkTypeFactory.toLogicalType)
@@ -85,7 +96,12 @@ class AggFunctionFactory(
       case _: SqlCountAggFunction if call.getArgList.size() > 1 =>
         throw new TableException("We now only support the count of one field.")
 
-      // TODO supports ApproximateCountDistinctAggFunction and CountDistinctAggFunction
+      case _: SqlCountAggFunction if call.isApproximate && call.isDistinct =>
+        if (needRetraction(index)) {
+          throw new TableException("Approximate Count Distinct does not support retract now.")
+        } else {
+          createApproximateCountDistinctAggFunction(argTypes)
+        }
 
       case _: SqlCountAggFunction if call.getArgList.isEmpty => createCount1AggFunction(argTypes)
 
@@ -445,6 +461,40 @@ class AggFunctionFactory(
           throw new TableException(s"Max aggregate function does not support type: ''$t''.\n" +
             s"Please re-check the data type.")
       }
+    }
+  }
+
+  private def createApproximateCountDistinctAggFunction(
+      argTypes: Array[LogicalType]): UserDefinedFunction = {
+    argTypes(0).getTypeRoot match {
+      case TINYINT =>
+        new ByteApproximateCountDistinctAggFunction
+      case SMALLINT =>
+        new ShortApproximateCountDistinctAggFunction
+      case INTEGER =>
+        new IntApproximateCountDistinctAggFunction
+      case BIGINT =>
+        new LongApproximateCountDistinctAggFunction
+      case FLOAT =>
+        new FloatApproximateCountDistinctAggFunction
+      case DOUBLE =>
+        new DoubleApproximateCountDistinctAggFunction
+      case BOOLEAN =>
+        new BooleanApproximateCountDistinctAggFunction
+      case DATE =>
+        new DateApproximateCountDistinctAggFunction
+      case TIME_WITHOUT_TIME_ZONE =>
+        new TimeApproximateCountDistinctAggFunction
+      case TIMESTAMP_WITHOUT_TIME_ZONE =>
+        new TimestampApproximateCountDistinctAggFunction
+      case VARCHAR =>
+        new StringApproximateCountDistinctAggFunction
+      case DECIMAL =>
+        val d = argTypes(0).asInstanceOf[DecimalType]
+        new DecimalApproximateCountDistinctAggFunction(d)
+      case t =>
+        throw new TableException(
+          s"Approximate Count Distinct aggregate function doesn't support type '$t'.")
     }
   }
 

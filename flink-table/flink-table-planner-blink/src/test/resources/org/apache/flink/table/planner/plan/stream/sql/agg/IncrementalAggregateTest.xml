@@ -50,6 +50,32 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0(cou
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testApproximateCountDistinctAndAccurateDistinctAggregateOnSameColumn[splitDistinctAggEnabled=true, aggPhaseEnforcer=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(DISTINCT b), APPROX_COUNT_DISTINCT(b) FROM MyTable]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0], EXPR$1=[$0])
++- LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
+   +- LogicalProject(b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0, EXPR$0 AS EXPR$1])
++- GlobalGroupAggregate(partialFinalType=[FINAL], select=[$SUM0(count$0) AS $f0])
+   +- Exchange(distribution=[single])
+      +- IncrementalGroupAggregate(partialAggGrouping=[$f1], finalAggGrouping=[], select=[COUNT(distinct$0 count$0) AS count$0])
+         +- Exchange(distribution=[hash[$f1]])
+            +- LocalGroupAggregate(groupBy=[$f1], partialFinalType=[PARTIAL], select=[$f1, COUNT(distinct$0 b) AS count$0, DISTINCT(b) AS distinct$0])
+               +- Calc(select=[b, MOD(HASH_CODE(b), 1024) AS $f1])
+                  +- WatermarkAssigner(fields=[a, b, c], miniBatchInterval=[Proctime, 1000ms])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testFirstValueLastValueWithRetraction[splitDistinctAggEnabled=true, aggPhaseEnforcer=TWO_PHASE]">
     <Resource name="sql">
       <![CDATA[

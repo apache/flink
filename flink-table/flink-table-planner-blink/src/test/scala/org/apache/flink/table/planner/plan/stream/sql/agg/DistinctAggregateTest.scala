@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.stream.sql.agg
 
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.plan.rules.physical.stream.IncrementalAggregateRule
@@ -51,6 +52,26 @@ class DistinctAggregateTest(
     // disable incremental agg
     util.tableEnv.getConfig.getConfiguration.setBoolean(
       IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED, false)
+  }
+
+  @Test
+  def testApproximateCountDistinct(): Unit = {
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Approximate Distinct Aggregate Function is not supported yet.")
+    util.verifyPlan("SELECT APPROX_COUNT_DISTINCT(b) FROM MyTable")
+  }
+
+  @Test
+  def testApproximateCountDistinctAndAccurateDistinctAggregateOnDiffColumn(): Unit = {
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("Approximate Distinct Aggregate Function is not supported yet.")
+    util.verifyPlan("SELECT COUNT(DISTINCT a), APPROX_COUNT_DISTINCT(b) FROM MyTable")
+  }
+
+  @Test
+  def testApproximateCountDistinctAndAccurateDistinctAggregateOnSameColumn(): Unit = {
+    // APPROX_COUNT_DISTINCT(b) will be treated as COUNT(DISTINCT b)
+    util.verifyPlan("SELECT COUNT(DISTINCT b), APPROX_COUNT_DISTINCT(b) FROM MyTable")
   }
 
   @Test

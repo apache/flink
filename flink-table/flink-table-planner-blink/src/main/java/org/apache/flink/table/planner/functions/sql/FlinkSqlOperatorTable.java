@@ -881,6 +881,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlAggFunction SUM = SqlStdOperatorTable.SUM;
 	public static final SqlAggFunction SUM0 = SqlStdOperatorTable.SUM0;
 	public static final SqlAggFunction COUNT = SqlStdOperatorTable.COUNT;
+	public static final SqlAggFunction APPROX_COUNT_DISTINCT = SqlStdOperatorTable.APPROX_COUNT_DISTINCT;
 	public static final SqlAggFunction COLLECT = SqlStdOperatorTable.COLLECT;
 	public static final SqlAggFunction MIN = SqlStdOperatorTable.MIN;
 	public static final SqlAggFunction MAX = SqlStdOperatorTable.MAX;
