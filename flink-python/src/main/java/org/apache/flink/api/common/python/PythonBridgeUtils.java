@@ -31,7 +31,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * Utility class that contains helper methods to create a DataStream/DataSet from
+ * Utility class that contains helper methods to create a TableSource from
  * a file which contains Python objects.
  */
 public final class PythonBridgeUtils {
