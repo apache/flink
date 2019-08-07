@@ -21,7 +21,10 @@ import ctypes
 import datetime
 import pickle
 import sys
+import tempfile
 import unittest
+
+from pyflink.serializers import BatchedSerializer, PickleSerializer
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import (_infer_schema_from_data, _infer_type,
@@ -893,6 +896,41 @@ class DataTypeConvertTests(unittest.TestCase):
         converted_python_types = [_from_java_type(item) for item in java_types]
 
         self.assertEqual(test_types, converted_python_types)
+
+
+class DataSerializerTests(unittest.TestCase):
+
+    def test_java_pickle_deserializer(self):
+        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
+        serializer = PickleSerializer()
+        data = [(1, 2), (3, 4), (5, 6), (7, 8)]
+
+        try:
+            serializer.dump_to_stream(data, temp_file)
+        finally:
+            temp_file.close()
+
+        gateway = get_gateway()
+        result = [tuple(int_pair) for int_pair in
+                  list(gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, False))]
+
+        self.assertEqual(result, [(1, 2), (3, 4), (5, 6), (7, 8)])
+
+    def test_java_batch_deserializer(self):
+        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
+        serializer = BatchedSerializer(PickleSerializer(), 2)
+        data = [(1, 2), (3, 4), (5, 6), (7, 8)]
+
+        try:
+            serializer.dump_to_stream(data, temp_file)
+        finally:
+            temp_file.close()
+
+        gateway = get_gateway()
+        result = [tuple(int_pair) for int_pair in
+                  list(gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, True))]
+
+        self.assertEqual(result, [(1, 2), (3, 4), (5, 6), (7, 8)])
 
 
 if __name__ == "__main__":

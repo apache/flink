@@ -674,7 +674,7 @@ class TableEnvironment(object):
             j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, True)
             j_input_format = gateway.jvm.PythonTableUtils.getInputFormat(
                 j_objs, row_type_info, execution_config)
-            j_table_source = gateway.jvm.PythonCollectionInputFormatTableSource(
+            j_table_source = gateway.jvm.PythonInputFormatTableSource(
                 j_input_format, row_type_info)
 
             return Table(self._j_tenv.fromTableSource(j_table_source))
