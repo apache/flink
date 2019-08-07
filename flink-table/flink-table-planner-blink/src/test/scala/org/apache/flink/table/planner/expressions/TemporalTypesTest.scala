@@ -854,7 +854,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(s"TO_TIMESTAMP('$invalidStr', 'yyyy-mm-dd')", nullable)
     testSqlApi(s"TO_DATE('$invalidStr')", nullable)
     testSqlApi(
-      s"CONVERT_TZ('$invalidStr', 'yyyy-MM-dd HH:mm:ss', 'UTC', 'Asia/Shanghai')",
+      s"CONVERT_TZ('$invalidStr', 'UTC', 'Asia/Shanghai')",
       nullable)
   }
 
@@ -865,7 +865,7 @@ class TemporalTypesTest extends ExpressionTestBase {
       s"DATE_FORMAT('$invalidStr', 'yyyy/MM/dd HH:mm:ss')",
       s"TO_TIMESTAMP('$invalidStr', 'yyyy-mm-dd')",
       s"TO_DATE('$invalidStr')",
-      s"CONVERT_TZ('$invalidStr', 'yyyy-MM-dd HH:mm:ss', 'UTC', 'Asia/Shanghai')")
+      s"CONVERT_TZ('$invalidStr', 'UTC', 'Asia/Shanghai')")
 
     cases.foreach {
       caseExpr =>
@@ -875,7 +875,7 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testConvertTZ(): Unit = {
-    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'yyyy-MM-dd HH:mm:ss', 'UTC', 'Asia/Shanghai')",
+    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'Asia/Shanghai')",
                "2018-03-14 19:00:00")
   }
 
