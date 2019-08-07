@@ -67,7 +67,7 @@ public class CheckpointStateRestoreTest {
 
 	@Before
 	public void setUp() throws Exception {
-		failureManager = new CheckpointFailureManager(0, (throwable, attemptID) -> {});
+		failureManager = new CheckpointFailureManager(0, new CheckpointFailureManager.FailJobCallback() {});
 	}
 
 	/**

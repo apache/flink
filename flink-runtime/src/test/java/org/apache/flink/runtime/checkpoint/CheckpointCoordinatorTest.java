@@ -128,7 +128,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 	@Before
 	public void setUp() throws Exception {
-		failureManager = new CheckpointFailureManager(0, (throwable,attemptID) -> {});
+		failureManager = new CheckpointFailureManager(0, new CheckpointFailureManager.FailJobCallback() {
+		});
 	}
 
 	@Test
@@ -327,9 +328,19 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		final String errorMsg = "Exceeded checkpoint failure tolerance number!";
 
-		CheckpointFailureManager checkpointFailureManager = new CheckpointFailureManager(0, (throwable, attemptID) -> {
-			throw new RuntimeException(errorMsg);
-		});
+		CheckpointFailureManager checkpointFailureManager = new CheckpointFailureManager(
+			0,
+			new CheckpointFailureManager.FailJobCallback() {
+				@Override
+				public void failJob(Throwable cause) {
+					throw new RuntimeException(errorMsg);
+				}
+
+				@Override
+				public void failJobDueToTaskFailure(Throwable cause, ExecutionAttemptID failingTask) {
+					throw new RuntimeException(errorMsg);
+				}
+			});
 
 		// set up the coordinator
 		CheckpointCoordinator coord = getCheckpointCoordinator(jid, vertex1, vertex2, checkpointFailureManager);
@@ -3910,10 +3921,15 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		// set up the coordinator and validate the initial state
 		final CheckpointCoordinator coordinator = getCheckpointCoordinator(jobId, vertex1, vertex2,
-				new CheckpointFailureManager(0, (throwable, attemptID) -> {
-					invocationCounterAndException.f0 += 1;
-					invocationCounterAndException.f1 = throwable;
-				}));
+				new CheckpointFailureManager(
+					0,
+					new CheckpointFailureManager.FailJobCallback() {
+						@Override
+						public void failJob(Throwable cause) {
+							invocationCounterAndException.f0 += 1;
+							invocationCounterAndException.f1 = cause;
+						}
+					}));
 
 		final CompletableFuture<CompletedCheckpoint> savepointFuture = coordinator
 				.triggerSynchronousSavepoint(10L, false, "test-dir");
