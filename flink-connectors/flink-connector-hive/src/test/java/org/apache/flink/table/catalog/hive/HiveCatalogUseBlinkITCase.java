@@ -52,7 +52,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
@@ -191,10 +194,10 @@ public class HiveCatalogUseBlinkITCase {
 				}
 			});
 		}
-		Assert.assertEquals(
-				"2,2,4,4\n" +
-				"3,3,6,6\n" +
-				"1,1,2,2\n",
-				builder.toString());
+		List<String> results = Arrays.stream(builder.toString().split("\n"))
+				.filter(s -> !s.isEmpty())
+				.collect(Collectors.toList());
+		results.sort(String::compareTo);
+		Assert.assertEquals(Arrays.asList("1,1,2,2", "2,2,4,4", "3,3,6,6"), results);
 	}
 }
