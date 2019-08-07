@@ -39,15 +39,17 @@ class AsyncDataStreamITCase extends AbstractTestBase {
 
   @Test
   def testOrderedWait(): Unit = {
-    testAsyncWait(true)
+    testAsyncWithTimeout(true)
+    testAsyncWithoutTimeout(true)
   }
 
   @Test
   def testUnorderedWait(): Unit = {
-    testAsyncWait(false)
+    testAsyncWithTimeout(false)
+    testAsyncWithoutTimeout(false)
   }
 
-  private def testAsyncWait(ordered: Boolean): Unit = {
+  private def testAsyncWithTimeout(ordered: Boolean): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
 
@@ -63,6 +65,24 @@ class AsyncDataStreamITCase extends AbstractTestBase {
     }
 
     executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](3))
+  }
+
+  private def testAsyncWithoutTimeout(ordered: Boolean): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.setParallelism(1)
+
+    val source = env.fromElements(1)
+
+    val timeout = 1L
+    val asyncMapped = if (ordered) {
+      AsyncDataStream.orderedWait(
+        source, new AsyncFunctionWithoutTimeoutExpired(), timeout, TimeUnit.MILLISECONDS)
+    } else {
+      AsyncDataStream.unorderedWait(
+        source, new AsyncFunctionWithoutTimeoutExpired(), timeout, TimeUnit.MILLISECONDS)
+    }
+
+    executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](2))
   }
 
   private def executeAndValidate(ordered: Boolean,
@@ -154,6 +174,32 @@ class AsyncFunctionWithTimeoutExpired extends RichAsyncFunction[Int, Int] {
   override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     resultFuture.complete(Seq(input * 3))
     invokeLatch.countDown()
+  }
+}
+
+/**
+  * The asyncInvoke and timeout might be invoked at the same time.
+  * The target is checking whether there is a race condition or not between asyncInvoke, timeout and timer cancellation.
+  * See https://issues.apache.org/jira/browse/FLINK-13605 for more details.
+  */
+class AsyncFunctionWithoutTimeoutExpired extends RichAsyncFunction[Int, Int] {
+  @transient var timeoutLatch: CountDownLatch = _
+
+  override def open(parameters: Configuration): Unit = {
+    timeoutLatch = new CountDownLatch(1)
+  }
+
+  override def asyncInvoke(input: Int, resultFuture: ResultFuture[Int]): Unit = {
+    Future {
+      resultFuture.complete(Seq(input * 2))
+      timeoutLatch.countDown()
+    } (ExecutionContext.global)
+  }
+  override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
+    // this sleeping helps reproducing race condition with cancellation
+    Thread.sleep(10)
+    timeoutLatch.await()
+    resultFuture.complete(Seq(input * 3))
   }
 }
 

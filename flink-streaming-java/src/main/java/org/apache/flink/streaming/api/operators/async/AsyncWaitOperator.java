@@ -54,6 +54,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The {@link AsyncWaitOperator} allows to asynchronously process incoming stream records. For that
@@ -207,12 +208,16 @@ public class AsyncWaitOperator<IN, OUT>
 			// register a timeout for this AsyncStreamRecordBufferEntry
 			long timeoutTimestamp = timeout + getProcessingTimeService().getCurrentProcessingTime();
 
+			final AtomicBoolean timeoutFiredOrCancelled = new AtomicBoolean(false);
+
 			final ScheduledFuture<?> timerFuture = getProcessingTimeService().registerTimer(
 				timeoutTimestamp,
 				new ProcessingTimeCallback() {
 					@Override
 					public void onProcessingTime(long timestamp) throws Exception {
-						userFunction.timeout(element.getValue(), streamRecordBufferEntry);
+						if (timeoutFiredOrCancelled.compareAndSet(false, true)) {
+							userFunction.timeout(element.getValue(), streamRecordBufferEntry);
+						}
 					}
 				});
 
@@ -220,7 +225,9 @@ public class AsyncWaitOperator<IN, OUT>
 			// the register trigger task
 			streamRecordBufferEntry.onComplete(
 				(StreamElementQueueEntry<Collection<OUT>> value) -> {
-					timerFuture.cancel(true);
+					if (timeoutFiredOrCancelled.compareAndSet(false, true)) {
+						timerFuture.cancel(true);
+					}
 				},
 				executor);
 		}

@@ -89,6 +89,7 @@ public interface AsyncFunction<IN, OUT> extends Function, Serializable {
 	/**
 	 * {@link AsyncFunction#asyncInvoke} timeout occurred.
 	 * By default, the result future is exceptionally completed with a timeout exception.
+	 * Note that timeout and asyncInvoke might be invoked at the same time.
 	 *
 	 * @param input element coming from an upstream task
 	 * @param resultFuture to be completed with the result data
