@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.flink.ml.common.matrix;
+package org.apache.flink.ml.common.linalg;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -30,20 +30,26 @@ public class DenseMatrix implements Serializable {
 
 	/**
 	 * Row dimension.
+	 *
+	 * <p>Package private to allow access from {@link MatVecOp} and {@link BLAS}.
 	 */
-	private int m;
+	int m;
 
 	/**
 	 * Column dimension.
+	 *
+	 * <p>Package private to allow access from {@link MatVecOp} and {@link BLAS}.
 	 */
-	private int n;
+	int n;
 
 	/**
 	 * Array for internal storage of elements.
 	 *
+	 * <p>Package private to allow access from {@link MatVecOp} and {@link BLAS}.
+	 *
 	 * <p>The matrix data is stored in column major format internally.
 	 */
-	private double[] data;
+	double[] data;
 
 	/**
 	 * Construct an m-by-n matrix of zeros.
@@ -116,19 +122,19 @@ public class DenseMatrix implements Serializable {
 	/**
 	 * Create an identity matrix.
 	 *
-	 * @param n
-	 * @return
+	 * @param n the dimension of the eye matrix.
+	 * @return an identity matrix.
 	 */
 	public static DenseMatrix eye(int n) {
 		return eye(n, n);
 	}
 
 	/**
-	 * Create a identity matrix.
+	 * Create a m * n identity matrix.
 	 *
-	 * @param m
-	 * @param n
-	 * @return
+	 * @param m the row dimension.
+	 * @param n the column dimension.e
+	 * @return the m * n identity matrix.
 	 */
 	public static DenseMatrix eye(int m, int n) {
 		DenseMatrix mat = new DenseMatrix(m, n);
@@ -142,20 +148,20 @@ public class DenseMatrix implements Serializable {
 	/**
 	 * Create a zero matrix.
 	 *
-	 * @param m
-	 * @param n
-	 * @return
+	 * @param m the row dimension.
+	 * @param n the column dimension.
+	 * @return a m * n zero matrix.
 	 */
 	public static DenseMatrix zeros(int m, int n) {
 		return new DenseMatrix(m, n);
 	}
 
 	/**
-	 * Create a matrix will all elements 1.
+	 * Create a matrix with all elements set to 1.
 	 *
-	 * @param m
-	 * @param n
-	 * @return
+	 * @param m the row dimension
+	 * @param n the column dimension
+	 * @return the m * n matrix with all elements set to 1.
 	 */
 	public static DenseMatrix ones(int m, int n) {
 		DenseMatrix mat = new DenseMatrix(m, n);
@@ -166,9 +172,9 @@ public class DenseMatrix implements Serializable {
 	/**
 	 * Create a random matrix.
 	 *
-	 * @param m
-	 * @param n
-	 * @return
+	 * @param m the row dimension
+	 * @param n the column dimension.
+	 * @return a m * n random matrix.
 	 */
 	public static DenseMatrix rand(int m, int n) {
 		DenseMatrix mat = new DenseMatrix(m, n);
@@ -181,8 +187,8 @@ public class DenseMatrix implements Serializable {
 	/**
 	 * Create a random symmetric matrix.
 	 *
-	 * @param n
-	 * @return
+	 * @param n the dimension of the symmetric matrix.
+	 * @return a n * n random symmetric matrix.
 	 */
 	public static DenseMatrix randSymmetric(int n) {
 		DenseMatrix mat = new DenseMatrix(n, n);
@@ -199,76 +205,6 @@ public class DenseMatrix implements Serializable {
 	}
 
 	/**
-	 * y = func(x).
-	 */
-	public static void apply(DenseMatrix x, DenseMatrix y, UnaryOp func) {
-		assert (x.m == y.m && x.n == y.n);
-		double[] xdata = x.data;
-		double[] ydata = y.data;
-		assert (xdata.length == ydata.length);
-		for (int i = 0; i < xdata.length; i++) {
-			ydata[i] = func.f(xdata[i]);
-		}
-	}
-
-	/**
-	 * y = func(x1, x2).
-	 */
-	public static void apply(DenseMatrix x1, DenseMatrix x2, DenseMatrix y, BinaryOp func) {
-		assert (x1.m == y.m && x1.n == y.n);
-		assert (x2.m == y.m && x2.n == y.n);
-		double[] x1data = x1.data;
-		double[] x2data = x2.data;
-		double[] ydata = y.data;
-		assert (x1data.length == ydata.length);
-		assert (x2data.length == ydata.length);
-		for (int i = 0; i < ydata.length; i++) {
-			ydata[i] = func.f(x1data[i], x2data[i]);
-		}
-	}
-
-	/**
-	 * y = func(x, alpha).
-	 */
-	public static void apply(DenseMatrix x, double alpha, DenseMatrix y, BinaryOp func) {
-		assert (x.m == y.m && x.n == y.n);
-		double[] xdata = x.data;
-		double[] ydata = y.data;
-		assert (xdata.length == ydata.length);
-		for (int i = 0; i < xdata.length; i++) {
-			ydata[i] = func.f(xdata[i], alpha);
-		}
-	}
-
-	/**
-	 * Compute element wise sum.
-	 * \sum_ij func(x_ij)
-	 */
-	public static double applySum(DenseMatrix x, UnaryOp func) {
-		double[] xdata = x.data;
-		double s = 0.;
-		for (int i = 0; i < xdata.length; i++) {
-			s += func.f(xdata[i]);
-		}
-		return s;
-	}
-
-	/**
-	 * Compute element wise sum.
-	 * \sum_ij func(x1_ij, x2_ij)
-	 */
-	public static double applySum(DenseMatrix x1, DenseMatrix x2, BinaryOp func) {
-		assert (x1.m == x2.m && x1.n == x2.n);
-		double[] x1data = x1.data;
-		double[] x2data = x2.data;
-		double s = 0.;
-		for (int i = 0; i < x1data.length; i++) {
-			s += func.f(x1data[i], x2data[i]);
-		}
-		return s;
-	}
-
-	/**
 	 * Get a single element.
 	 *
 	 * @param i Row index.
@@ -282,15 +218,17 @@ public class DenseMatrix implements Serializable {
 
 	/**
 	 * Get the data array of this matrix.
+	 *
+	 * @return the data array of this matrix.
 	 */
 	public double[] getData() {
 		return this.data;
 	}
 
 	/**
-	 * Get all matrix data, returned as a 2d array.
+	 * Get all the matrix data, returned as a 2-D array.
 	 *
-	 * @return
+	 * @return all matrix data, returned as a 2-D array.
 	 */
 	public double[][] getArrayCopy2D() {
 		double[][] arrayData = new double[m][n];
@@ -303,10 +241,10 @@ public class DenseMatrix implements Serializable {
 	}
 
 	/**
-	 * Get all matrix data, returned as a 1d array.
+	 * Get all matrix data, returned as a 1-D array.
 	 *
 	 * @param inRowMajor Whether to return data in row major.
-	 * @return
+	 * @return all matrix data, returned as a 1-D array.
 	 */
 	public double[] getArrayCopy1D(boolean inRowMajor) {
 		if (inRowMajor) {
@@ -325,10 +263,11 @@ public class DenseMatrix implements Serializable {
 	/**
 	 * Get one row.
 	 *
-	 * @param row
-	 * @return
+	 * @param row the row index.
+	 * @return the row with the given index.
 	 */
 	public double[] getRow(int row) {
+		assert (row >= 0 && row < m) : "Invalid row index.";
 		double[] r = new double[n];
 		for (int i = 0; i < n; i++) {
 			r[i] = this.get(row, i);
@@ -339,10 +278,11 @@ public class DenseMatrix implements Serializable {
 	/**
 	 * Get one column.
 	 *
-	 * @param col
-	 * @return
+	 * @param col the column index.
+	 * @return the column with the given index.
 	 */
 	public double[] getColumn(int col) {
+		assert (col >= 0 && col < n) : "Invalid column index.";
 		double[] columnData = new double[m];
 		System.arraycopy(this.data, col * m, columnData, 0, m);
 		return columnData;
@@ -359,8 +299,8 @@ public class DenseMatrix implements Serializable {
 	/**
 	 * Create a new matrix by selecting some of the rows.
 	 *
-	 * @param rows
-	 * @return
+	 * @param rows the array of row indexes to select.
+	 * @return a new matrix by selecting some of the rows.
 	 */
 	public DenseMatrix selectRows(int[] rows) {
 		DenseMatrix sub = new DenseMatrix(rows.length, this.n);
@@ -375,15 +315,14 @@ public class DenseMatrix implements Serializable {
 	/**
 	 * Get sub matrix.
 	 *
-	 * @param m0
-	 * @param m1
-	 * @param n0
-	 * @param n1
-	 * @return
+	 * @param m0 the starting row index (inclusive)
+	 * @param m1 the ending row index (exclusive)
+	 * @param n0 the starting column index (inclusive)
+	 * @param n1 the ending column index (exclusive)
+	 * @return the specified sub matrix.
 	 */
 	public DenseMatrix getSubMatrix(int m0, int m1, int n0, int n1) {
-		assert (m0 >= 0 && m1 <= m);
-		assert (n0 >= 0 && n1 <= n);
+		assert (m0 >= 0 && m1 <= m) && (n0 >= 0 && n1 <= n) : "Invalid index range.";
 		DenseMatrix sub = new DenseMatrix(m1 - m0, n1 - n0);
 		for (int i = 0; i < sub.m; i++) {
 			for (int j = 0; j < sub.n; j++) {
@@ -394,12 +333,21 @@ public class DenseMatrix implements Serializable {
 	}
 
 	/**
-	 * Set all matrix elements to 'val'.
+	 * Set part of the matrix values from the values of another matrix.
 	 *
-	 * @param val
+	 * @param sub the matrix whose element values will be assigned to the sub matrix of this matrix.
+	 * @param m0  the starting row index (inclusive)
+	 * @param m1  the ending row index (exclusive)
+	 * @param n0  the starting column index (inclusive)
+	 * @param n1  the ending column index (exclusive)
 	 */
-	public void fillAll(double val) {
-		Arrays.fill(this.data, val);
+	public void setSubMatrix(DenseMatrix sub, int m0, int m1, int n0, int n1) {
+		assert (m0 >= 0 && m1 <= m) && (n0 >= 0 && n1 <= n) : "Invalid index range.";
+		for (int i = 0; i < sub.m; i++) {
+			for (int j = 0; j < sub.n; j++) {
+				this.set(m0 + i, n0 + j, sub.get(i, j));
+			}
+		}
 	}
 
 	/**
@@ -415,7 +363,7 @@ public class DenseMatrix implements Serializable {
 	}
 
 	/**
-	 * Add a single element.
+	 * Add the given value to a single element.
 	 *
 	 * @param i Row index.
 	 * @param j Column index.
@@ -427,44 +375,9 @@ public class DenseMatrix implements Serializable {
 	}
 
 	/**
-	 * Set a row.
-	 *
-	 * @param data
-	 * @param row
-	 */
-	public void setRowData(double[] data, int row) {
-		assert data.length == n;
-		for (int i = 0; i < n; i++) {
-			this.set(row, i, data[i]);
-		}
-	}
-
-	/**
-	 * Set a column.
-	 *
-	 * @param data
-	 * @param col
-	 */
-	public void setColData(double[] data, int col) {
-		assert data.length == m;
-		System.arraycopy(data, 0, this.data, col * m, m);
-	}
-
-	/**
-	 * Set part of the matrix values from the values of another matrix.
-	 */
-	public void setSubMatrix(DenseMatrix sub, int m0, int m1, int n0, int n1) {
-		assert (m0 >= 0 && m1 <= m);
-		assert (n0 >= 0 && n1 <= n);
-		for (int i = 0; i < sub.m; i++) {
-			for (int j = 0; j < sub.n; j++) {
-				this.set(m0 + i, n0 + j, sub.get(i, j));
-			}
-		}
-	}
-
-	/**
 	 * Check whether the matrix is square matrix.
+	 *
+	 * @return <code>true</code> if this matrix is a square matrix, <code>false</code> otherwise.
 	 */
 	public boolean isSquare() {
 		return m == n;
@@ -472,6 +385,8 @@ public class DenseMatrix implements Serializable {
 
 	/**
 	 * Check whether the matrix is symmetric matrix.
+	 *
+	 * @return <code>true</code> if this matrix is a symmetric matrix, <code>false</code> otherwise.
 	 */
 	public boolean isSymmetric() {
 		if (m != n) {
@@ -489,6 +404,8 @@ public class DenseMatrix implements Serializable {
 
 	/**
 	 * Get the number of rows.
+	 *
+	 * @return the number of rows.
 	 */
 	public int numRows() {
 		return m;
@@ -496,139 +413,114 @@ public class DenseMatrix implements Serializable {
 
 	/**
 	 * Get the number of columns.
+	 *
+	 * @return the number of columns.
 	 */
 	public int numCols() {
 		return n;
 	}
 
 	/**
-	 * Element wise sum.
+	 * Sum of all elements of the matrix.
 	 */
 	public double sum() {
-		return DenseMatrix.applySum(this, x -> x);
+		double s = 0.;
+		for (int i = 0; i < this.data.length; i++) {
+			s += this.data[i];
+		}
+		return s;
 	}
 
 	/**
-	 * Element wise sum of absolute values.
+	 * Scale the vector by value "v" and create a new matrix to store the result.
 	 */
-	public double sumAbs() {
-		return DenseMatrix.applySum(this, x -> Math.abs(x));
+	public DenseMatrix scale(double v) {
+		DenseMatrix r = this.clone();
+		BLAS.scal(v, r);
+		return r;
 	}
 
 	/**
-	 * Element wise sum of square values.
+	 * Scale the matrix by value "v".
 	 */
-	public double sumSquare() {
-		return DenseMatrix.applySum(this, x -> x * x);
+	public void scaleEqual(double v) {
+		BLAS.scal(v, this);
 	}
 
 	/**
-	 * matC = matA + matB .
-	 *
-	 * @param matB another matrix
-	 * @return matA + matB
+	 * Create a new matrix by plussing another matrix.
 	 */
-	public DenseMatrix plus(DenseMatrix matB) {
-		DenseMatrix matC = new DenseMatrix(m, n);
-		DenseMatrix.apply(this, matB, matC, ((a, b) -> a + b));
-		return matC;
+	public DenseMatrix plus(DenseMatrix mat) {
+		DenseMatrix r = this.clone();
+		BLAS.axpy(1.0, mat, r);
+		return r;
 	}
 
 	/**
-	 * matB := matA + alpha .
+	 * Create a new matrix by plussing a constant.
 	 */
 	public DenseMatrix plus(double alpha) {
-		DenseMatrix x = this.clone();
-		DenseMatrix.apply(x, alpha, x, ((a, b) -> a + b));
-		return x;
+		DenseMatrix r = this.clone();
+		for (int i = 0; i < r.data.length; i++) {
+			r.data[i] += alpha;
+		}
+		return r;
 	}
 
 	/**
-	 * matA = matA + matB .
-	 *
-	 * @param matB another matrix
+	 * Plus with another matrix.
 	 */
-	public void plusEquals(DenseMatrix matB) {
-		DenseMatrix.apply(this, matB, this, ((a, b) -> a + b));
+	public void plusEquals(DenseMatrix mat) {
+		BLAS.axpy(1.0, mat, this);
 	}
 
 	/**
-	 * matA := matA + alpha .
-	 *
-	 * @return
+	 * Plus with a constant.
 	 */
 	public void plusEquals(double alpha) {
-		DenseMatrix.apply(this, alpha, this, ((a, b) -> a + b));
+		for (int i = 0; i < this.data.length; i++) {
+			this.data[i] += alpha;
+		}
 	}
 
 	/**
-	 * matC = matA - matB .
-	 *
-	 * @param matB another matrix
-	 * @return matA - matB
+	 * Create a new matrix by subtracting another matrix.
 	 */
-	public DenseMatrix minus(DenseMatrix matB) {
-		DenseMatrix matC = new DenseMatrix(m, n);
-		DenseMatrix.apply(this, matB, matC, ((a, b) -> a - b));
-		return matC;
+	public DenseMatrix minus(DenseMatrix mat) {
+		DenseMatrix r = this.clone();
+		BLAS.axpy(-1.0, mat, r);
+		return r;
 	}
 
 	/**
-	 * matA = matA - matB .
-	 *
-	 * @param matB another matrix
+	 * Minus with another vector.
 	 */
-	public void minusEquals(DenseMatrix matB) {
-		DenseMatrix.apply(this, matB, this, ((a, b) -> a - b));
+	public void minusEquals(DenseMatrix mat) {
+		BLAS.axpy(-1.0, mat, this);
 	}
 
 	/**
-	 * Multiply a matrix by a scalar, matC = s*matA .
-	 *
-	 * @param s scalar
-	 * @return s*matA
+	 * Multiply with another matrix.
 	 */
-	public DenseMatrix times(double s) {
-		DenseMatrix matC = new DenseMatrix(m, n);
-		DenseMatrix.apply(this, s, matC, ((a, b) -> a * b));
-		return matC;
+	public DenseMatrix multiplies(DenseMatrix mat) {
+		DenseMatrix r = new DenseMatrix(this.m, mat.n);
+		BLAS.gemm(1.0, this, false, mat, false, 0., r);
+		return r;
 	}
 
 	/**
-	 * Multiply a matrix by a scalar in place, matA = s*matA .
-	 *
-	 * @param s scalar
+	 * Multiply with a dense vector.
 	 */
-	public void timesEquals(double s) {
-		DenseMatrix.apply(this, s, this, ((a, b) -> a * b));
-	}
-
-	/**
-	 * Linear algebraic matrix multiplication, matA * matB .
-	 *
-	 * @param matB another matrix
-	 * @return Matrix product, matA * matB
-	 * @throws IllegalArgumentException Matrix inner dimensions must agree.
-	 */
-	public DenseMatrix times(DenseMatrix matB) {
-		DenseMatrix matC = new DenseMatrix(this.m, matB.n);
-		BLAS.gemm(1.0, this, false, matB, false, 0., matC);
-		return matC;
-	}
-
-	/**
-	 * Matrix vector multiplication: matA * x .
-	 */
-	public DenseVector times(DenseVector x) {
+	public DenseVector multiplies(DenseVector x) {
 		DenseVector y = new DenseVector(this.numRows());
 		BLAS.gemv(1.0, this, false, x, 0.0, y);
 		return y;
 	}
 
 	/**
-	 * Matrix vector multiplication: matA * x .
+	 * Multiply with a sparse vector.
 	 */
-	public DenseVector times(SparseVector x) {
+	public DenseVector multiplies(SparseVector x) {
 		DenseVector y = new DenseVector(this.numRows());
 		for (int i = 0; i < this.numRows(); i++) {
 			double s = 0.;
@@ -648,12 +540,11 @@ public class DenseMatrix implements Serializable {
 
 	/**
 	 * Create a new matrix by transposing current matrix.
-	 * Use cache-oblivious matrix transpose algorithm.
 	 *
-	 * @return matA'
+	 * <p>Use cache-oblivious matrix transpose algorithm.
 	 */
 	public DenseMatrix transpose() {
-		DenseMatrix matA = new DenseMatrix(n, m);
+		DenseMatrix mat = new DenseMatrix(n, m);
 		int m0 = m;
 		int n0 = n;
 		int barrierSize = 16384;
@@ -668,42 +559,12 @@ public class DenseMatrix implements Serializable {
 			for (int j0 = 0; j0 < n; j0 += n0) {
 				for (int i = i0; i < i0 + m0 && i < m; i++) {
 					for (int j = j0; j < j0 + n0 && j < n; j++) {
-						matA.set(j, i, this.get(i, j));
+						mat.set(j, i, this.get(i, j));
 					}
 				}
 			}
 		}
-		return matA;
-	}
-
-	/**
-	 * Create a 1 x m matrix by summing each of the rows of a m x n matrix.
-	 */
-	public DenseMatrix sumByRow() {
-		DenseMatrix rowSums = new DenseMatrix(1, m);
-		for (int i = 0; i < this.m; i++) {
-			double s = 0.;
-			for (int j = 0; j < this.n; j++) {
-				s += this.get(i, j);
-			}
-			rowSums.set(0, i, s);
-		}
-		return rowSums;
-	}
-
-	/**
-	 * Create a 1 x n matrix by summing each of the columns of a m x n matrix.
-	 */
-	public DenseMatrix sumByCol() {
-		DenseMatrix colSums = new DenseMatrix(1, n);
-		for (int i = 0; i < this.n; i++) {
-			double s = 0.;
-			for (int j = 0; j < this.m; j++) {
-				s += this.get(j, i);
-			}
-			colSums.set(0, i, s);
-		}
-		return colSums;
+		return mat;
 	}
 
 	/**
@@ -724,24 +585,6 @@ public class DenseMatrix implements Serializable {
 			DenseMatrix temp = new DenseMatrix(n, m, data, false);
 			System.arraycopy(temp.transpose().data, 0, data, 0, data.length);
 		}
-	}
-
-	/**
-	 * matC := matA .* matB .
-	 */
-	public static DenseMatrix elementWiseProduct(DenseMatrix matA, DenseMatrix matB) {
-		DenseMatrix matC = new DenseMatrix(matA.m, matA.n);
-		DenseMatrix.apply(matA, matB, matC, ((a, b) -> a * b));
-		return matC;
-	}
-
-	/**
-	 * matC := matA ./ matB.
-	 */
-	public static DenseMatrix elementWiseDivide(DenseMatrix matA, DenseMatrix matB) {
-		DenseMatrix matC = new DenseMatrix(matA.m, matA.n);
-		DenseMatrix.apply(matA, matB, matC, ((a, b) -> a / b));
-		return matC;
 	}
 
 	@Override

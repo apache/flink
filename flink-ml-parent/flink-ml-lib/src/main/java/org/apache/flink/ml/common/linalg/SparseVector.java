@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.flink.ml.common.matrix;
+package org.apache.flink.ml.common.linalg;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -34,18 +34,24 @@ public class SparseVector extends Vector {
 
 	/**
 	 * Size of the vector. n = -1 indicates that the vector size is undetermined.
+	 *
+	 * <p>Package private to allow access from {@link MatVecOp} and {@link BLAS}.
 	 */
-	private int n;
+	int n;
 
 	/**
 	 * Column indices.
+	 * <p>
+	 * Package private to allow access from {@link MatVecOp} and {@link BLAS}.
 	 */
-	private int[] indices;
+	int[] indices;
 
 	/**
 	 * Column values.
+	 * <p>
+	 * Package private to allow access from {@link MatVecOp} and {@link BLAS}.
 	 */
-	private double[] values;
+	double[] values;
 
 	/**
 	 * Construct an empty sparse vector with undetermined size.
@@ -105,7 +111,50 @@ public class SparseVector extends Vector {
 	}
 
 	/**
+	 * Delimiter between vector size and vector data.
+	 * Package private to allow access from {@link Vector#parse(String)}.
+	 */
+	static final char HEADER_DELIMITER = '$';
+
+	/**
+	 * Delimiter between index and value.
+	 * Package private to allow access from {@link Vector#parse(String)}.
+	 */
+	static final char INDEX_VALUE_DELIMITER = ':';
+
+	/**
+	 * Delimiter between elements.
+	 */
+	private static final char ELEMENT_DELIMITER = ' ';
+
+	@Override
+	public String serialize() {
+		StringBuilder sbd = new StringBuilder();
+		if (n > 0) {
+			sbd.append(HEADER_DELIMITER);
+			sbd.append(n);
+			sbd.append(HEADER_DELIMITER);
+		}
+		if (null != indices) {
+			for (int i = 0; i < indices.length; i++) {
+				sbd.append(indices[i]);
+				sbd.append(INDEX_VALUE_DELIMITER);
+				sbd.append(values[i]);
+				if (i < indices.length - 1) {
+					sbd.append(ELEMENT_DELIMITER);
+				}
+			}
+		}
+
+		return sbd.toString();
+	}
+
+	/**
 	 * Parse the sparse vector from a formatted string.
+	 *
+	 * <p>The format of a sparse vector is comma separated index-value pairs, such as "0:1 2:3 3:4".
+	 * If the sparse vector has determined vector size, the size is prepended to the head. For example,
+	 * the string "$4$0:1 2:3 3:4" represents a sparse vector with size 4.
 	 *
 	 * @throws IllegalArgumentException If the string is of invalid format.
 	 */
@@ -116,10 +165,10 @@ public class SparseVector extends Vector {
 			}
 
 			int n = -1;
-			int firstDollarPos = str.indexOf('$');
+			int firstDollarPos = str.indexOf(HEADER_DELIMITER);
 			int lastDollarPos = -1;
 			if (firstDollarPos >= 0) {
-				lastDollarPos = StringUtils.lastIndexOf(str, '$');
+				lastDollarPos = StringUtils.lastIndexOf(str, HEADER_DELIMITER);
 				String sizeStr = StringUtils.substring(str, firstDollarPos + 1, lastDollarPos);
 				n = Integer.valueOf(sizeStr);
 				if (lastDollarPos == str.length() - 1) {
@@ -127,25 +176,23 @@ public class SparseVector extends Vector {
 				}
 			}
 
-			int numValues = StringUtils.countMatches(str, ",") + 1;
+			int numValues = StringUtils.countMatches(str, String.valueOf(INDEX_VALUE_DELIMITER));
 			double[] data = new double[numValues];
 			int[] indices = new int[numValues];
 			int startPos = lastDollarPos + 1;
 			int endPos;
 			for (int i = 0; i < numValues; i++) {
-				endPos = StringUtils.indexOf(str, ",", startPos);
-				if (endPos == -1) {
-					endPos = str.length();
-				}
-				String valueStr = StringUtils.substring(str, startPos, endPos);
-				startPos = endPos + 1;
-
-				int colonPos = valueStr.indexOf(':');
+				int colonPos = StringUtils.indexOf(str, INDEX_VALUE_DELIMITER, startPos);
 				if (colonPos < 0) {
 					throw new IllegalArgumentException("Format error.");
 				}
-				indices[i] = Integer.valueOf(valueStr.substring(0, colonPos).trim());
-				data[i] = Double.valueOf(valueStr.substring(colonPos + 1).trim());
+				endPos = StringUtils.indexOf(str, ELEMENT_DELIMITER, colonPos);
+				if (endPos == -1) {
+					endPos = str.length();
+				}
+				indices[i] = Integer.valueOf(str.substring(startPos, colonPos).trim());
+				data[i] = Double.valueOf(str.substring(colonPos + 1, endPos).trim());
+				startPos = endPos + 1;
 			}
 			return new SparseVector(n, indices, data);
 		} catch (Exception e) {
@@ -412,7 +459,7 @@ public class SparseVector extends Vector {
 			}
 			return r;
 		} else {
-			return SparseVector.apply(this, (SparseVector) vec, ((a, b) -> a + b));
+			return MatVecOp.apply(this, (SparseVector) vec, ((a, b) -> a + b));
 		}
 	}
 
@@ -429,24 +476,20 @@ public class SparseVector extends Vector {
 			}
 			return r;
 		} else {
-			return SparseVector.apply(this, (SparseVector) vec, ((a, b) -> a - b));
+			return MatVecOp.apply(this, (SparseVector) vec, ((a, b) -> a - b));
 		}
 	}
 
 	@Override
 	public SparseVector scale(double d) {
-		SparseVector r = new SparseVector(this.n, this.indices, this.values);
-		for (int i = 0; i < this.values.length; i++) {
-			r.values[i] *= d;
-		}
+		SparseVector r = this.clone();
+		BLAS.scal(d, r);
 		return r;
 	}
 
 	@Override
 	public void scaleEqual(double d) {
-		for (int i = 0; i < this.values.length; i++) {
-			this.values[i] *= d;
-		}
+		BLAS.scal(d, this);
 	}
 
 	/**
@@ -531,19 +574,18 @@ public class SparseVector extends Vector {
 	public DenseMatrix outer(SparseVector other) {
 		int nrows = this.size();
 		int ncols = other.size();
-		double[][] mat = new double[nrows][ncols];
-		for (int i = 0; i < mat.length; i++) {
-			Arrays.fill(mat[i], 0.);
-		}
+		double[] data = new double[ncols * nrows];
 		for (int i = 0; i < this.values.length; i++) {
 			for (int j = 0; j < other.values.length; j++) {
-				mat[this.indices[i]][other.indices[j]] = this.values[i] * other.values[j];
+				data[this.indices[i] + other.indices[j] * nrows] = this.values[i] * other.values[j];
 			}
 		}
-		return new DenseMatrix(mat);
+		return new DenseMatrix(nrows, ncols, data);
 	}
 
-	@Override
+	/**
+	 * Convert to a dense vector.
+	 */
 	public DenseVector toDenseVector() {
 		if (n >= 0) {
 			DenseVector r = new DenseVector(n);
@@ -566,29 +608,6 @@ public class SparseVector extends Vector {
 	}
 
 	@Override
-	public String serialize() {
-		StringBuilder sbd = new StringBuilder();
-		if (n > 0) {
-			sbd.append("$");
-			sbd.append(n);
-			sbd.append("$");
-		}
-		if (null != indices) {
-			assert (indices.length == values.length);
-			for (int i = 0; i < indices.length; i++) {
-
-				sbd.append(indices[i] + ":");
-				sbd.append(values[i]);
-				if (i < indices.length - 1) {
-					sbd.append(",");
-				}
-			}
-		}
-
-		return sbd.toString();
-	}
-
-	@Override
 	public void standardizeEqual(double mean, double stdvar) {
 		for (int i = 0; i < indices.length; i++) {
 			values[i] -= mean;
@@ -600,18 +619,11 @@ public class SparseVector extends Vector {
 	public void normalizeEqual(double p) {
 		double norm = 0.0;
 		if (Double.isInfinite(p)) {
-			for (int i = 0; i < indices.length; i++) {
-				norm = Math.max(norm, Math.abs(values[i]));
-			}
+			norm = normInf();
 		} else if (p == 1.0) {
-			for (int i = 0; i < indices.length; i++) {
-				norm += Math.abs(values[i]);
-			}
+			norm = normL1();
 		} else if (p == 2.0) {
-			for (int i = 0; i < indices.length; i++) {
-				norm += values[i] * values[i];
-			}
-			norm = Math.sqrt(norm);
+			norm = normL2();
 		} else {
 			for (int i = 0; i < indices.length; i++) {
 				norm += Math.pow(values[i], p);
@@ -622,70 +634,6 @@ public class SparseVector extends Vector {
 		for (int i = 0; i < indices.length; i++) {
 			values[i] /= norm;
 		}
-	}
-
-	/**
-	 * y = func(x1, x2).
-	 */
-	public static SparseVector apply(SparseVector x1, SparseVector x2, BinaryOp func) {
-		assert (x1.size() == x2.size());
-
-		int totNnz = x1.values.length + x2.values.length;
-		int p0 = 0;
-		int p1 = 0;
-		while (p0 < x1.values.length && p1 < x2.values.length) {
-			if (x1.indices[p0] == x2.indices[p1]) {
-				totNnz--;
-				p0++;
-				p1++;
-			} else if (x1.indices[p0] < x2.indices[p1]) {
-				p0++;
-			} else {
-				p1++;
-			}
-		}
-
-		SparseVector r = new SparseVector(x1.size());
-		r.indices = new int[totNnz];
-		r.values = new double[totNnz];
-		p0 = p1 = 0;
-		int pos = 0;
-		while (pos < totNnz) {
-			if (p0 < x1.values.length && p1 < x2.values.length) {
-				if (x1.indices[p0] == x2.indices[p1]) {
-					r.indices[pos] = x1.indices[p0];
-					r.values[pos] = func.f(x1.values[p0], x2.values[p1]);
-					p0++;
-					p1++;
-				} else if (x1.indices[p0] < x2.indices[p1]) {
-					r.indices[pos] = x1.indices[p0];
-					r.values[pos] = func.f(x1.values[p0], 0.0);
-					p0++;
-				} else {
-					r.indices[pos] = x2.indices[p1];
-					r.values[pos] = func.f(0.0, x2.values[p1]);
-					p1++;
-				}
-				pos++;
-			} else {
-				if (p0 < x1.values.length) {
-					r.indices[pos] = x1.indices[p0];
-					r.values[pos] = func.f(x1.values[p0], 0.0);
-					p0++;
-					pos++;
-					continue;
-				}
-				if (p1 < x2.values.length) {
-					r.indices[pos] = x2.indices[p1];
-					r.values[pos] = func.f(0.0, x2.values[p1]);
-					p1++;
-					pos++;
-					continue;
-				}
-			}
-		}
-
-		return r;
 	}
 
 	@Override

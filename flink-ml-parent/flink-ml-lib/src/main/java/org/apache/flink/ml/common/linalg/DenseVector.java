@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.flink.ml.common.matrix;
+package org.apache.flink.ml.common.linalg;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -28,11 +28,12 @@ import java.util.Random;
  * A dense vector represented by a values array.
  */
 public class DenseVector extends Vector {
-
 	/**
 	 * The array holding the vector data.
+	 * <p>
+	 * Package private to allow access from {@link MatVecOp} and {@link BLAS}.
 	 */
-	private double[] data;
+	double[] data;
 
 	/**
 	 * Create a zero size vector.
@@ -56,6 +57,20 @@ public class DenseVector extends Vector {
 	 * @param data The vector data.
 	 */
 	public DenseVector(double[] data) {
+		this.data = data;
+	}
+
+	/**
+	 * Get the data array.
+	 */
+	public double[] getData() {
+		return this.data;
+	}
+
+	/**
+	 * Set the data array.
+	 */
+	public void setData(double[] data) {
 		this.data = data;
 	}
 
@@ -98,6 +113,11 @@ public class DenseVector extends Vector {
 		return v;
 	}
 
+	/**
+	 * Delimiter between elements.
+	 */
+	private static final char ELEMENT_DELIMITER = ' ';
+
 	@Override
 	public String serialize() {
 		StringBuilder sbd = new StringBuilder();
@@ -105,7 +125,7 @@ public class DenseVector extends Vector {
 		for (int i = 0; i < data.length; i++) {
 			sbd.append(data[i]);
 			if (i < data.length - 1) {
-				sbd.append(",");
+				sbd.append(ELEMENT_DELIMITER);
 			}
 		}
 		return sbd.toString();
@@ -114,59 +134,66 @@ public class DenseVector extends Vector {
 	/**
 	 * Parse the dense vector from a formatted string.
 	 *
-	 * @param str A string of comma separated values.
+	 * <p>The format of a dense vector is comma separated values such as "1 2 3 4".
+	 *
+	 * @param str A string of space separated values.
 	 * @return The parsed vector.
 	 */
 	public static DenseVector deserialize(String str) {
-		try {
-			if (org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly(str)) {
-				return new DenseVector();
+		if (org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly(str)) {
+			return new DenseVector();
+		}
+
+		int len = str.length();
+
+		int inDataBuffPos = 0;
+		boolean isInBuff = false;
+
+		for (int i = 0; i < len; ++i) {
+			if (str.charAt(i) == ELEMENT_DELIMITER) {
+				if (isInBuff) {
+					inDataBuffPos++;
+				}
+
+				isInBuff = false;
+			} else {
+				isInBuff = true;
 			}
+		}
 
-			int n = StringUtils.countMatches(str, ",") + 1;
-			double[] data = new double[n];
-			int startPos = 0;
-			for (int i = 0; i < n - 1; i++) {
-				int commaPos = StringUtils.indexOf(str, ",", startPos);
-				data[i] = Double.valueOf(StringUtils.substring(str, startPos, commaPos));
-				startPos = commaPos + 1;
+		if (isInBuff) {
+			inDataBuffPos++;
+		}
+
+		double[] data = new double[inDataBuffPos];
+		int lastestInCharBuffPos = 0;
+
+		inDataBuffPos = 0;
+		isInBuff = false;
+
+		for (int i = 0; i < len; ++i) {
+			if (str.charAt(i) == ELEMENT_DELIMITER) {
+				if (isInBuff) {
+					data[inDataBuffPos++] = Double.parseDouble(
+						StringUtils.substring(str, lastestInCharBuffPos, i).trim()
+					);
+
+					lastestInCharBuffPos = i + 1;
+				}
+
+				isInBuff = false;
+			} else {
+				isInBuff = true;
 			}
-			data[n - 1] = Double.valueOf(StringUtils.substring(str, startPos));
-			return new DenseVector(data);
-		} catch (Exception e) {
-			throw new RuntimeException(String.format("Fail to parse vector \"%s\".", str), e);
 		}
-	}
 
-	/**
-	 * y = func(x).
-	 */
-	public static void apply(DenseVector x, DenseVector y, UnaryOp func) {
-		assert (x.data.length == y.data.length);
-		for (int i = 0; i < x.data.length; i++) {
-			y.data[i] = func.f(x.data[i]);
+		if (isInBuff) {
+			data[inDataBuffPos] = Double.valueOf(
+				StringUtils.substring(str, lastestInCharBuffPos).trim()
+			);
 		}
-	}
 
-	/**
-	 * y = func(x1, x2).
-	 */
-	public static void apply(DenseVector x1, DenseVector x2, DenseVector y, BinaryOp func) {
-		assert (x1.data.length == y.data.length);
-		assert (x2.data.length == y.data.length);
-		for (int i = 0; i < y.data.length; i++) {
-			y.data[i] = func.f(x1.data[i], x2.data[i]);
-		}
-	}
-
-	/**
-	 * y = func(x, alpha).
-	 */
-	public static void apply(DenseVector x, double alpha, DenseVector y, BinaryOp func) {
-		assert (x.data.length == y.data.length);
-		for (int i = 0; i < x.data.length; i++) {
-			y.data[i] = func.f(x.data[i], alpha);
-		}
+		return new DenseVector(data);
 	}
 
 	@Override
@@ -265,128 +292,114 @@ public class DenseVector extends Vector {
 
 	@Override
 	public void scaleEqual(double d) {
-		for (int i = 0; i < this.size(); i++) {
-			this.data[i] *= d;
-		}
+		BLAS.scal(d, this);
 	}
 
 	@Override
 	public DenseVector plus(Vector other) {
+		DenseVector r = this.clone();
 		if (other instanceof DenseVector) {
-			DenseVector r = this.clone();
-			DenseVector.apply(this, (DenseVector) other, r, ((a, b) -> a + b));
-			return r;
+			BLAS.axpy(1.0, (DenseVector) other, r);
 		} else {
-			return (DenseVector) other.plus(this);
+			BLAS.axpy(1.0, (SparseVector) other, r);
 		}
+		return r;
 	}
 
 	@Override
 	public DenseVector minus(Vector other) {
+		DenseVector r = this.clone();
 		if (other instanceof DenseVector) {
-			DenseVector r = this.clone();
-			DenseVector.apply(this, (DenseVector) other, r, ((a, b) -> a - b));
-			return r;
+			BLAS.axpy(-1.0, (DenseVector) other, r);
 		} else {
-			return (DenseVector) other.scale(-1.0).plus(this);
+			BLAS.axpy(-1.0, (SparseVector) other, r);
 		}
+		return r;
 	}
 
 	@Override
 	public DenseVector scale(double d) {
 		DenseVector r = this.clone();
-		for (int i = 0; i < this.size(); i++) {
-			r.data[i] *= d;
-		}
+		BLAS.scal(d, r);
 		return r;
+	}
+
+	@Override
+	public double dot(Vector vec) {
+		if (vec instanceof DenseVector) {
+			return BLAS.dot(this, (DenseVector) vec);
+		} else {
+			return ((SparseVector) vec).dot(this);
+		}
+	}
+
+	@Override
+	public void standardizeEqual(double mean, double stdvar) {
+		int size = data.length;
+		for (int i = 0; i < size; i++) {
+			data[i] -= mean;
+			data[i] *= (1.0 / stdvar);
+		}
+	}
+
+	@Override
+	public void normalizeEqual(double p) {
+		double norm = 0.0;
+		if (Double.isInfinite(p)) {
+			norm = normInf();
+		} else if (p == 1.0) {
+			norm = normL1();
+		} else if (p == 2.0) {
+			norm = normL2();
+		} else {
+			for (int i = 0; i < data.length; i++) {
+				norm += Math.pow(Math.abs(data[i]), p);
+			}
+			norm = Math.pow(norm, 1 / p);
+		}
+		for (int i = 0; i < data.length; i++) {
+			data[i] /= norm;
+		}
 	}
 
 	/**
 	 * Set the data of the vector the same as those of another vector.
 	 */
 	public void setEqual(DenseVector other) {
+		assert this.size() == other.size() : "Size of the two vectors mismatched.";
 		System.arraycopy(other.data, 0, this.data, 0, this.size());
 	}
 
 	/**
-	 * this += other .
+	 * Plus with another vector.
 	 */
-	public void plusEqual(DenseVector other) {
-		DenseVector.apply(this, other, this, ((a, b) -> a + b));
-	}
-
-	/**
-	 * this += alpha * other .
-	 */
-	public void plusScaleEqual(DenseVector other, double alpha) {
-		for (int i = 0; i < this.size(); i++) {
-			this.data[i] += other.data[i] * alpha;
-		}
-	}
-
-	/**
-	 * this -= other .
-	 */
-	public void minusEqual(DenseVector other) {
-		DenseVector.apply(this, other, this, ((a, b) -> a - b));
-	}
-
-	/**
-	 * this -= alpha * other .
-	 */
-	public void minusScaleEqual(DenseVector other, double alpha) {
-		for (int i = 0; i < this.size(); i++) {
-			this.data[i] -= other.data[i] * alpha;
-		}
-	}
-
-	/**
-	 * this = max(this, other) .
-	 */
-	public void maxEqual(DenseVector other) {
-		DenseVector.apply(this, other, this, ((a, b) -> Math.max(a, b)));
-	}
-
-	/**
-	 * this = min(this, other) .
-	 */
-	public void minEqual(DenseVector other) {
-		DenseVector.apply(this, other, this, ((a, b) -> Math.min(a, b)));
-	}
-
-	@Override
-	public double dot(Vector vec) {
-		if (vec instanceof DenseVector) {
-			DenseVector other = (DenseVector) vec;
-			double d = 0;
-			for (int i = 0; i < this.size(); i++) {
-				d += this.data[i] * other.data[i];
-			}
-			return d;
+	public void plusEqual(Vector other) {
+		if (other instanceof DenseVector) {
+			BLAS.axpy(1.0, (DenseVector) other, this);
 		} else {
-			return ((SparseVector) vec).dot(this);
+			BLAS.axpy(1.0, (SparseVector) other, this);
 		}
 	}
 
 	/**
-	 * Round each elements and create a new vector to store the result.
-	 *
-	 * @return The newly created dense vector.
+	 * Minus with another vector.
 	 */
-	public DenseVector round() {
-		DenseVector r = new DenseVector(this.size());
-		for (int i = 0; i < this.size(); i++) {
-			r.data[i] = Math.round(this.data[i]);
+	public void minusEqual(Vector other) {
+		if (other instanceof DenseVector) {
+			BLAS.axpy(-1.0, (DenseVector) other, this);
+		} else {
+			BLAS.axpy(-1.0, (SparseVector) other, this);
 		}
-		return r;
 	}
 
 	/**
-	 * Round each elements inplace.
+	 * Plus with another vector scaled by "alpha".
 	 */
-	public void roundEqual() {
-		for (int i = 0; i < this.size(); i++) {
-			this.data[i] = Math.round(this.data[i]);
+	public void plusScaleEqual(Vector other, double alpha) {
+		if (other instanceof DenseVector) {
+			BLAS.axpy(alpha, (DenseVector) other, this);
+		} else {
+			BLAS.axpy(alpha, (SparseVector) other, this);
 		}
 	}
 
@@ -415,56 +428,6 @@ public class DenseVector extends Vector {
 			}
 		}
 		return new DenseMatrix(nrows, ncols, data, false);
-	}
-
-	/**
-	 * Get the data array.
-	 */
-	public double[] getData() {
-		return this.data;
-	}
-
-	/**
-	 * Set the data array.
-	 */
-	public void setData(double[] data) {
-		this.data = data;
-	}
-
-	@Override
-	public void standardizeEqual(double mean, double stdvar) {
-		int size = data.length;
-		for (int i = 0; i < size; i++) {
-			data[i] -= mean;
-			data[i] *= (1.0 / stdvar);
-		}
-	}
-
-	@Override
-	public void normalizeEqual(double p) {
-		double norm = 0.0;
-		if (Double.isInfinite(p)) {
-			for (int i = 0; i < data.length; i++) {
-				norm = Math.max(norm, Math.abs(data[i]));
-			}
-		} else if (p == 1.0) {
-			for (int i = 0; i < data.length; i++) {
-				norm += Math.abs(data[i]);
-			}
-		} else if (p == 2.0) {
-			for (int i = 0; i < data.length; i++) {
-				norm += data[i] * data[i];
-			}
-			norm = Math.sqrt(norm);
-		} else {
-			for (int i = 0; i < data.length; i++) {
-				norm += Math.pow(Math.abs(data[i]), p);
-			}
-			norm = Math.pow(norm, 1 / p);
-		}
-		for (int i = 0; i < data.length; i++) {
-			data[i] /= norm;
-		}
 	}
 
 	@Override

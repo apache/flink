@@ -17,11 +17,33 @@
  * under the License.
  */
 
-package org.apache.flink.ml.common.matrix;
+package org.apache.flink.ml.common.linalg;
+
+import java.io.Serializable;
 
 /**
- * Defines the matrix or vector element-wise unary operation.
+ * An iterator over the elements of a vector.
+ *
+ * <p>Usage:
+ *
+ * <code>
+ * Vector vector = ...;
+ * VectorIterator iterator = vector.iterator();
+ *
+ * while(iterator.hasNext()) {
+ *     int index = iterator.getIndex();
+ *     double value = iterator.getValue();
+ *     iterator.next();
+ * }
+ * </code>
  */
-public interface UnaryOp {
-	double f(double x);
+public interface VectorIterator extends Serializable {
+
+	boolean hasNext();
+
+	void next();
+
+	int getIndex();
+
+	double getValue();
 }

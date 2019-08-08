@@ -17,11 +17,14 @@
  * under the License.
  */
 
-package org.apache.flink.ml.common.matrix;
+package org.apache.flink.ml.common.linalg;
 
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Test cases for SparseVector.
@@ -49,8 +52,39 @@ public class SparseVectorTest {
 	}
 
 	@Test
+	public void testConstructor() throws Exception {
+		int[] indices = new int[]{3, 7, 2, 1};
+		double[] values = new double[]{3.0, 7.0, 2.0, 1.0};
+		Map<Integer, Double> map = new TreeMap<>();
+		for (int i = 0; i < indices.length; i++) {
+			map.put(indices[i], values[i]);
+		}
+		SparseVector v = new SparseVector(8, map);
+		Assert.assertArrayEquals(v.getIndices(), new int[]{1, 2, 3, 7});
+		Assert.assertArrayEquals(v.getValues(), new double[]{1, 2, 3, 7}, TOL);
+	}
+
+	@Test
 	public void testSize() throws Exception {
 		Assert.assertEquals(v1.size(), 8);
+	}
+
+	@Test
+	public void testSet() throws Exception {
+		SparseVector v = v1.clone();
+		v.set(2, 2.0);
+		v.set(3, 3.0);
+		Assert.assertEquals(v.get(2), 2.0, TOL);
+		Assert.assertEquals(v.get(3), 3.0, TOL);
+	}
+
+	@Test
+	public void testAdd() throws Exception {
+		SparseVector v = v1.clone();
+		v.add(2, 2.0);
+		v.add(3, 3.0);
+		Assert.assertEquals(v.get(2), 2.0, TOL);
+		Assert.assertEquals(v.get(3), 5.0, TOL);
 	}
 
 	@Test
@@ -86,12 +120,12 @@ public class SparseVectorTest {
 
 	@Test
 	public void testMinus() throws Exception {
-		Vector d = v1.minus(v2);
+		Vector d = v2.minus(v1);
 		Assert.assertEquals(d.get(0), 0.0, TOL);
-		Assert.assertEquals(d.get(1), 2.0, TOL);
+		Assert.assertEquals(d.get(1), -2.0, TOL);
 		Assert.assertEquals(d.get(2), 0.0, TOL);
-		Assert.assertEquals(d.get(3), 1.0, TOL);
-		Assert.assertEquals(d.get(4), -1.0, TOL);
+		Assert.assertEquals(d.get(3), -1.0, TOL);
+		Assert.assertEquals(d.get(4), 1.0, TOL);
 	}
 
 	@Test
@@ -101,6 +135,10 @@ public class SparseVectorTest {
 		Assert.assertEquals(d.get(1), 2.0, TOL);
 		Assert.assertEquals(d.get(2), 0.0, TOL);
 		Assert.assertEquals(d.get(3), 3.0, TOL);
+
+		DenseVector dv = DenseVector.ones(8);
+		dv = dv.plus(v2);
+		Assert.assertArrayEquals(dv.getData(), new double[]{1, 1, 1, 2, 2, 2, 1, 1}, TOL);
 	}
 
 	@Test
@@ -146,14 +184,49 @@ public class SparseVectorTest {
 	}
 
 	@Test
+	public void testToDenseVector() throws Exception {
+		int[] indices = new int[]{1, 3, 5};
+		double[] values = new double[]{1.0, 3.0, 5.0};
+		SparseVector v = new SparseVector(-1, indices, values);
+		DenseVector dv = v.toDenseVector();
+		Assert.assertEquals(dv.size(), 6);
+		Assert.assertArrayEquals(dv.getData(), new double[]{0, 1, 0, 3, 0, 5}, TOL);
+	}
+
+	@Test
+	public void testRemoveZeroValues() throws Exception {
+		int[] indices = new int[]{1, 3, 5};
+		double[] values = new double[]{0.0, 3.0, 0.0};
+		SparseVector v = new SparseVector(6, indices, values);
+		v.removeZeroValues();
+		Assert.assertArrayEquals(v.getIndices(), new int[]{3});
+		Assert.assertArrayEquals(v.getValues(), new double[]{3}, TOL);
+	}
+
+	@Test
+	public void testOuter() throws Exception {
+		DenseMatrix outerProduct = v1.outer(v2);
+		Assert.assertEquals(outerProduct.numRows(), 8);
+		Assert.assertEquals(outerProduct.numCols(), 8);
+		Assert.assertArrayEquals(outerProduct.getRow(0), new double[]{0, 0, 0, 0, 0, 0, 0, 0}, TOL);
+		Assert.assertArrayEquals(outerProduct.getRow(1), new double[]{0, 0, 0, 2, 2, 2, 0, 0}, TOL);
+		Assert.assertArrayEquals(outerProduct.getRow(2), new double[]{0, 0, 0, 0, 0, 0, 0, 0}, TOL);
+		Assert.assertArrayEquals(outerProduct.getRow(3), new double[]{0, 0, 0, 2, 2, 2, 0, 0}, TOL);
+		Assert.assertArrayEquals(outerProduct.getRow(4), new double[]{0, 0, 0, 0, 0, 0, 0, 0}, TOL);
+		Assert.assertArrayEquals(outerProduct.getRow(5), new double[]{0, 0, 0, 2, 2, 2, 0, 0}, TOL);
+		Assert.assertArrayEquals(outerProduct.getRow(6), new double[]{0, 0, 0, 0, 0, 0, 0, 0}, TOL);
+		Assert.assertArrayEquals(outerProduct.getRow(7), new double[]{0, 0, 0, 2, 2, 2, 0, 0}, TOL);
+	}
+
+	@Test
 	public void testSerialize() throws Exception {
-		Assert.assertEquals(v1.serialize(), "$8$1:2.0,3:2.0,5:2.0,7:2.0");
+		Assert.assertEquals(v1.serialize(), "$8$1:2.0 3:2.0 5:2.0 7:2.0");
 	}
 
 	@Test
 	public void testDeserialize() throws Exception {
-		SparseVector vec1 = SparseVector.deserialize("0:1,2:-3");
-		SparseVector vec3 = SparseVector.deserialize("$4$0:1,2:-3");
+		SparseVector vec1 = SparseVector.deserialize("0:1 2:-3");
+		SparseVector vec3 = SparseVector.deserialize("$4$0:1 2:-3");
 		SparseVector vec4 = SparseVector.deserialize("$4$");
 		SparseVector vec5 = SparseVector.deserialize("");
 		Assert.assertEquals(vec1.get(0), 1., 0.);
@@ -165,4 +238,25 @@ public class SparseVectorTest {
 		Assert.assertEquals(vec5.size(), -1);
 	}
 
+	@Test
+	public void testIterator() throws Exception {
+		VectorIterator iterator = v1.iterator();
+		Assert.assertTrue(iterator.hasNext());
+		Assert.assertEquals(iterator.getIndex(), 1);
+		Assert.assertEquals(iterator.getValue(), 2, 0);
+		iterator.next();
+		Assert.assertTrue(iterator.hasNext());
+		Assert.assertEquals(iterator.getIndex(), 3);
+		Assert.assertEquals(iterator.getValue(), 2, 0);
+		iterator.next();
+		Assert.assertTrue(iterator.hasNext());
+		Assert.assertEquals(iterator.getIndex(), 5);
+		Assert.assertEquals(iterator.getValue(), 2, 0);
+		iterator.next();
+		Assert.assertTrue(iterator.hasNext());
+		Assert.assertEquals(iterator.getIndex(), 7);
+		Assert.assertEquals(iterator.getValue(), 2, 0);
+		iterator.next();
+		Assert.assertFalse(iterator.hasNext());
+	}
 }

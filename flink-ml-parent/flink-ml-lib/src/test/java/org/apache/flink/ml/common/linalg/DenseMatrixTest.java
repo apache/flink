@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.flink.ml.common.matrix;
+package org.apache.flink.ml.common.linalg;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -72,91 +72,103 @@ public class DenseMatrixTest {
 	}
 
 	@Test
-	public void testPlus() throws Exception {
-		DenseMatrix matA = DenseMatrix.rand(4, 3);
-		DenseMatrix matB = DenseMatrix.ones(4, 3);
+	public void testPlusEquals() throws Exception {
+		DenseMatrix matA = new DenseMatrix(new double[][]{
+			new double[]{1, 3, 5},
+			new double[]{2, 4, 6},
+		});
+		DenseMatrix matB = DenseMatrix.ones(2, 3);
 		matA.plusEquals(matB);
-		matA.plusEquals(3.0);
+		Assert.assertArrayEquals(matA.getData(), new double[]{2, 3, 4, 5, 6, 7}, TOL);
+		matA.plusEquals(1.0);
+		Assert.assertArrayEquals(matA.getData(), new double[]{3, 4, 5, 6, 7, 8}, TOL);
+	}
+
+	@Test
+	public void testMinusEquals() throws Exception {
+		DenseMatrix matA = new DenseMatrix(new double[][]{
+			new double[]{1, 3, 5},
+			new double[]{2, 4, 6},
+		});
+		DenseMatrix matB = DenseMatrix.ones(2, 3);
+		matA.minusEquals(matB);
+		Assert.assertArrayEquals(matA.getData(), new double[]{0, 1, 2, 3, 4, 5}, TOL);
+	}
+
+	@Test
+	public void testPlus() throws Exception {
+		DenseMatrix matA = new DenseMatrix(new double[][]{
+			new double[]{1, 3, 5},
+			new double[]{2, 4, 6},
+		});
+		DenseMatrix matB = DenseMatrix.ones(2, 3);
+		DenseMatrix matC = matA.plus(matB);
+		Assert.assertArrayEquals(matC.getData(), new double[]{2, 3, 4, 5, 6, 7}, TOL);
+		DenseMatrix matD = matA.plus(1.0);
+		Assert.assertArrayEquals(matD.getData(), new double[]{2, 3, 4, 5, 6, 7}, TOL);
 	}
 
 	@Test
 	public void testMinus() throws Exception {
-		DenseMatrix matA = DenseMatrix.rand(4, 3);
-		DenseMatrix matB = DenseMatrix.ones(4, 3);
-		matA.minusEquals(matB);
+		DenseMatrix matA = new DenseMatrix(new double[][]{
+			new double[]{1, 3, 5},
+			new double[]{2, 4, 6},
+		});
+		DenseMatrix matB = DenseMatrix.ones(2, 3);
+		DenseMatrix matC = matA.minus(matB);
+		Assert.assertArrayEquals(matC.getData(), new double[]{0, 1, 2, 3, 4, 5}, TOL);
 	}
 
 	@Test
-	public void testMatrixTimesMatrix() throws Exception {
+	public void testMM() throws Exception {
 		DenseMatrix matA = DenseMatrix.rand(4, 3);
 		DenseMatrix matB = DenseMatrix.rand(3, 5);
+		DenseMatrix matC = matA.multiplies(matB);
+		assertEqual2D(matC.getArrayCopy2D(), simpleMM(matA.getArrayCopy2D(), matB.getArrayCopy2D()));
 
-		DenseMatrix matC1 = matA.times(matB);
-		assertEqual2D(matC1.getArrayCopy2D(), simpleMM(matA.getArrayCopy2D(), matB.getArrayCopy2D()));
-
-		DenseMatrix matC2 = matA.times(matB);
-		assertEqual2D(matC2.getArrayCopy2D(), simpleMM(matA.getArrayCopy2D(), matB.getArrayCopy2D()));
-
-		DenseMatrix matC3 = DenseMatrix.zeros(5, 4);
-		BLAS.gemm(1., matB, true, matA, true, 0., matC3);
-		assertEqual2D(matC3.getArrayCopy2D(),
-			simpleMM(matB.transpose().getArrayCopy2D(), matA.transpose().getArrayCopy2D()));
-
-		DenseMatrix matC4 = DenseMatrix.zeros(5, 4);
-		BLAS.gemm(1., matB, true, matA, true, 0., matC4);
-		assertEqual2D(matC4.getArrayCopy2D(),
-			simpleMM(matB.transpose().getArrayCopy2D(), matA.transpose().getArrayCopy2D()));
-
-		DenseMatrix matC5 = matA.times(matB);
-		assertEqual2D(matC5.getArrayCopy2D(), simpleMM(matA.getArrayCopy2D(), matB.getArrayCopy2D()));
+		DenseMatrix matD = new DenseMatrix(5, 4);
+		BLAS.gemm(1., matB, true, matA, true, 0., matD);
+		Assert.assertArrayEquals(matD.transpose().getData(), matC.data, TOL);
 	}
 
 	@Test
-	public void testMatrixTimesVector() throws Exception {
-
+	public void testMV() throws Exception {
 		DenseMatrix matA = DenseMatrix.rand(4, 3);
-
 		DenseVector x = DenseVector.ones(3);
-		DenseVector y = matA.times(x);
+		DenseVector y = matA.multiplies(x);
 		Assert.assertArrayEquals(y.getData(), simpleMV(matA.getArrayCopy2D(), x.getData()), TOL);
 
-		DenseVector y2 = matA.times(x);
-		Assert.assertArrayEquals(y2.getData(), simpleMV(matA.getArrayCopy2D(), x.getData()), TOL);
-
-		x = DenseVector.ones(4);
-		DenseVector y3 = new DenseVector(3);
-		BLAS.gemv(1., matA, true, x, 0., y3);
-		Assert.assertArrayEquals(y3.getData(), simpleMV(matA.transpose().getArrayCopy2D(), x.getData()), TOL);
-
-		BLAS.gemv(1., matA, true, x, 0., y3);
-		Assert.assertArrayEquals(y3.getData(), simpleMV(matA.transpose().getArrayCopy2D(), x.getData()), TOL);
+		SparseVector x2 = new SparseVector(3, new int[]{0, 1, 2}, new double[]{1, 1, 1});
+		DenseVector y2 = matA.multiplies(x2);
+		Assert.assertArrayEquals(y2.getData(), y.getData(), TOL);
 	}
 
 	@Test
 	public void testDataSelection() throws Exception {
-		DenseMatrix matA = DenseMatrix.rand(4, 3);
-		double[][] matACopy = matA.getArrayCopy2D();
-		DenseMatrix subA = matA.selectRows(new int[]{1});
-		double[][] subACopy = subA.getArrayCopy2D();
-		Assert.assertArrayEquals(matACopy[1], subACopy[0], TOL);
+		DenseMatrix mat = new DenseMatrix(new double[][]{
+			new double[]{1, 2, 3},
+			new double[]{4, 5, 6},
+			new double[]{7, 8, 9},
+		});
+		DenseMatrix sub1 = mat.selectRows(new int[]{1});
+		DenseMatrix sub2 = mat.getSubMatrix(1, 2, 1, 2);
+		Assert.assertEquals(sub1.numRows(), 1);
+		Assert.assertEquals(sub1.numCols(), 3);
+		Assert.assertEquals(sub2.numRows(), 1);
+		Assert.assertEquals(sub2.numCols(), 1);
+		Assert.assertArrayEquals(sub1.getData(), new double[]{4, 5, 6}, TOL);
+		Assert.assertArrayEquals(sub2.getData(), new double[]{5}, TOL);
 
-		DenseVector row = DenseVector.rand(3);
-		matA.setRowData(row.getData(), 2);
-		double[] row0 = matA.getRow(2);
-		Assert.assertArrayEquals(row0, row.getData(), TOL);
-
-		DenseVector col = DenseVector.rand(4);
-		matA.setColData(col.getData(), 2);
-		double[] col0 = matA.getColumn(2);
-		Assert.assertArrayEquals(col0, col.getData(), TOL);
+		double[] row = mat.getRow(1);
+		double[] col = mat.getColumn(1);
+		Assert.assertArrayEquals(row, new double[]{4, 5, 6}, 0.);
+		Assert.assertArrayEquals(col, new double[]{2, 5, 8}, 0.);
 	}
 
 	@Test
 	public void testSum() throws Exception {
 		DenseMatrix matA = DenseMatrix.ones(3, 2);
 		Assert.assertEquals(matA.sum(), 6.0, TOL);
-		Assert.assertEquals(matA.sumAbs(), 6.0, TOL);
-		Assert.assertEquals(matA.sumSquare(), 6.0, TOL);
 	}
 
 	@Test
