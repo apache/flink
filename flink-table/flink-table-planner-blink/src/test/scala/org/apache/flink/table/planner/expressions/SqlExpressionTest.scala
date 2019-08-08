@@ -158,10 +158,6 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("SUBSTRING('hello world', 2)", "ello world")
     testSqlApi("SUBSTRING('hello world', 2, 3)", "ell")
     testSqlApi("SUBSTRING('hello world', 2, 300)", "ello world")
-    testSqlApi("SUBSTR('hello world', 2, 3)", "ell")
-    testSqlApi("SUBSTR('hello world', 2)", "ello world")
-    testSqlApi("SUBSTR('hello world', 2, 300)", "ello world")
-    testSqlApi("SUBSTR('hello world', 0, 3)", "hel")
     testSqlApi("INITCAP('hello world')", "Hello World")
     testSqlApi("REGEXP_REPLACE('foobar', 'oo|ar', '')", "fb")
     testSqlApi("REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)", "bar")
@@ -177,8 +173,6 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("CASE WHEN 1 = 2 THEN 2 WHEN 1 = 1 THEN 3 ELSE 3 END", "3")
     testSqlApi("NULLIF(1, 1)", "null")
     testSqlApi("COALESCE(NULL, 5)", "5")
-    testSqlApi("COALESCE(keyvalue('', ';', ':', 'isB2C'), '5')", "5")
-    testSqlApi("COALESCE(jsonvalue('xx', '$x'), '5')", "5")
   }
 
   @Test
