@@ -518,21 +518,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
-  def testLength(): Unit = {
-    testSqlApi(
-      "LENGTH(f0)",
-      "22")
-
-    testSqlApi(
-      "LENGTH(f0)",
-      "22")
-
-    testSqlApi(
-      "length(uuid())",
-      "36")
-  }
-
-  @Test
   def testUpperCase(): Unit = {
     testAllApis(
       'f0.upperCase(),
@@ -953,7 +938,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testSubString(): Unit = {
-    Array("substring", "substr").foreach {
+    Array("substring").foreach {
       substr =>
         testSqlApi(s"$substr(f0, 2, 3)", "his")
         testSqlApi(s"$substr(f0, 2, 100)", "his is a test String.")
@@ -1160,21 +1145,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
-  def testKeyValue(): Unit = {
-    // NOTE: Spark has str_to_map
-    testSqlApi("keyValue('a=1,b=2,c=3', ',', '=', 'a')", "1")
-    testSqlApi("keyValue('a=1,b=2,c=3', ',', '=', 'b')", "2")
-    testSqlApi("keyValue('a=1,b=2,c=3', ',', '=', 'c')", "3")
-    testSqlApi("keyValue('', ',', '=', 'c')", "null")
-    testSqlApi("keyValue(f40, ',', '=', 'c')", "null")
-    testSqlApi("keyValue(CAST(null as VARCHAR), ',', '=', 'c')", "null")
-    testSqlApi("keyValue('a=1,b=2,c=3', ',', '=', 'd')", "null")
-    testSqlApi("keyValue('a=1,b=2,c=3', CAST(null as VARCHAR), '=', 'a')", "null")
-    testSqlApi("keyValue('a=1,b=2,c=3', ',', CAST(null as VARCHAR), 'a')", "null")
-    testSqlApi("keyValue('a=1,b=2,c=3', ',', '=', CAST(null as VARCHAR))", "null")
-  }
-
-  @Test
   def testHashCode(): Unit = {
     testSqlApi("hash_code('abc')", "96354")
     testSqlApi("hash_code(f35)", "97")
@@ -1199,17 +1169,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("regexp(f40, '(\\d+)')", "null")
     testSqlApi("regexp(CAST(null as VARCHAR), '(\\d+)')", "null")
     testSqlApi("regexp('100-200', CAST(null as VARCHAR))", "null")
-  }
-
-  @Test
-  def testJsonValue(): Unit = {
-    testSqlApi("jsonValue('[10, 20, [30, 40]]', '$[2][*]')", "[30,40]")
-    testSqlApi("jsonValue('[10, 20, [30, [40, 50, 60]]]', '$[2][*][1][*]')", "[30,[40,50,60]]")
-    testSqlApi("jsonValue(f40, '$[2][*][1][*]')", "null")
-    testSqlApi("jsonValue('[10, 20, [30, [40, 50, 60]]]', '')", "null")
-    testSqlApi("jsonValue('', '$[2][*][1][*]')", "null")
-    testSqlApi("jsonValue(CAST(null as VARCHAR), '$[2][*][1][*]')", "null")
-    testSqlApi("jsonValue('[10, 20, [30, [40, 50, 60]]]', CAST(null as VARCHAR))", "null")
   }
 
   @Test

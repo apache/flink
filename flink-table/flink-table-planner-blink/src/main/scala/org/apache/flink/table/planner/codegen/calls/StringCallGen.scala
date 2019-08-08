@@ -63,13 +63,13 @@ object StringCallGen {
       case NOT_LIKE =>
         generateNot(ctx, new LikeCallGen().generate(ctx, operands, new BooleanType()))
 
-      case SUBSTRING | SUBSTR => generateSubString(ctx, operands)
+      case SUBSTRING => generateSubString(ctx, operands)
 
       case LEFT => generateLeft(ctx, operands.head, operands(1))
 
       case RIGHT => generateRight(ctx, operands.head, operands(1))
 
-      case CHAR_LENGTH | CHARACTER_LENGTH | LENGTH => generateCharLength(ctx, operands)
+      case CHAR_LENGTH | CHARACTER_LENGTH => generateCharLength(ctx, operands)
 
       case SIMILAR_TO => generateSimilarTo(ctx, operands)
 
@@ -109,8 +109,6 @@ object StringCallGen {
 
       case SPLIT_INDEX => generateSplitIndex(ctx, operands)
 
-      case KEYVALUE => generateKeyValue(ctx, operands)
-
       case HASH_CODE if isCharacterString(operands.head.resultType) =>
         generateHashCode(ctx, operands)
 
@@ -137,8 +135,6 @@ object StringCallGen {
       case CHR => generateChr(ctx, operands)
 
       case REGEXP => generateRegExp(ctx, operands)
-
-      case JSONVALUE => generateJsonValue(ctx, operands)
 
       case BIN => generateBin(ctx, operands)
 

@@ -589,7 +589,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     )
 
     testSqlApi(
-      "TO_TIMESTAMP(SUBSTR('', 2, -1))",
+      "TO_TIMESTAMP(SUBSTRING('', 2, -1))",
       "null"
     )
 
