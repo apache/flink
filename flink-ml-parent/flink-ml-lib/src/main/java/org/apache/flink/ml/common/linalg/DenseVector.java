@@ -403,11 +403,7 @@ public class DenseVector extends Vector {
 		}
 	}
 
-	/**
-	 * Compute the outer product with itself.
-	 *
-	 * @return The outer product matrix.
-	 */
+	@Override
 	public DenseMatrix outer() {
 		return this.outer(this);
 	}

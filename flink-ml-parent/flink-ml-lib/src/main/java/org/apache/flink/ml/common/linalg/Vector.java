@@ -129,6 +129,13 @@ public abstract class Vector implements Serializable {
 	public abstract Vector slice(int[] indexes);
 
 	/**
+	 * Compute the outer product with itself.
+	 *
+	 * @return The outer product matrix.
+	 */
+	public abstract DenseMatrix outer();
+
+	/**
 	 * Parse either a {@link SparseVector} or a {@link DenseVector} from a formatted string.
 	 *
 	 * <p>The format of a dense vector is comma separated values such as "1 2 3 4".
