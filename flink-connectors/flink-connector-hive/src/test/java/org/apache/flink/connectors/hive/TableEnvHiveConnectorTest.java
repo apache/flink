@@ -143,16 +143,24 @@ public class TableEnvHiveConnectorTest {
 		hiveShell.execute("create database db1");
 		try {
 			// Hive's default decimal is decimal(10, 0)
-			hiveShell.execute("create table db1.src (x decimal)");
+			hiveShell.execute("create table db1.src1 (x decimal)");
+			hiveShell.execute("create table db1.src2 (x decimal)");
 			hiveShell.execute("create table db1.dest (x decimal)");
-			// TODO: test generating src from Flink side
-			hiveShell.execute("insert into db1.src values (1),(2.0),(5.4),(5.5),(123456789123)");
+			// populate src1 from Hive
+			hiveShell.execute("insert into db1.src1 values (1),(2.0),(5.4),(5.5),(123456789123)");
 
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			// populate src2 with same data from Flink
+			tableEnv.sqlUpdate("insert into db1.src2 values (cast(1 as decimal(10,0))), (cast(2.0 as decimal(10,0))), " +
+					"(cast(5.4 as decimal(10,0))), (cast(5.5 as decimal(10,0))), (cast(123456789123 as decimal(10,0)))");
+			tableEnv.execute("test1");
+			// verify src1 and src2 contain same data
+			verifyHiveQueryResult("select * from db1.src2", hiveShell.executeQuery("select * from db1.src1"));
 
-			tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
-			tableEnv.execute("test");
-			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1", "2", "5", "6", "NULL"));
+			// populate dest with src1 from Flink -- to test reading decimal type from Hive
+			tableEnv.sqlUpdate("insert into db1.dest select * from db1.src1");
+			tableEnv.execute("test2");
+			verifyHiveQueryResult("select * from db1.dest", hiveShell.executeQuery("select * from db1.src1"));
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}
