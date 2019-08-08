@@ -701,6 +701,57 @@ object FunctionGenerator {
   addSqlFunctionMethod(FROM_UNIXTIME, Seq(BIGINT, VARCHAR), BuiltInMethods.FROM_UNIXTIME_FORMAT)
   addSqlFunctionMethod(FROM_UNIXTIME, Seq(BIGINT, CHAR), BuiltInMethods.FROM_UNIXTIME_FORMAT)
 
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(BIGINT),
+    BuiltInMethods.TRUNCATE_LONG_ONE)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(INTEGER),
+    BuiltInMethods.TRUNCATE_INT_ONE)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(DECIMAL),
+    BuiltInMethods.TRUNCATE_DEC_ONE)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(DOUBLE),
+    BuiltInMethods.TRUNCATE_DOUBLE_ONE)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(FLOAT),
+    BuiltInMethods.TRUNCATE_FLOAT_ONE)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(BIGINT, INTEGER),
+    BuiltInMethods.TRUNCATE_LONG)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(INTEGER, INTEGER),
+    BuiltInMethods.TRUNCATE_INT)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(DECIMAL, INTEGER),
+    BuiltInMethods.TRUNCATE_DEC)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(DOUBLE, INTEGER),
+    BuiltInMethods.TRUNCATE_DOUBLE)
+
+  addSqlFunctionMethod(
+    TRUNCATE,
+    Seq(FLOAT, INTEGER),
+    BuiltInMethods.TRUNCATE_FLOAT)
+
+
   // ----------------------------------------------------------------------------------------------
 
   /**
