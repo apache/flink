@@ -20,7 +20,6 @@
 package org.apache.flink.ml.common.linalg;
 
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Map;
@@ -31,25 +30,8 @@ import java.util.TreeMap;
  */
 public class SparseVectorTest {
 	private static final double TOL = 1.0e-6;
-	private SparseVector v1 = null;
-	private SparseVector v2 = null;
-
-	@Before
-	public void setUp() throws Exception {
-		{
-			int n = 8;
-			int[] indices = new int[]{1, 3, 5, 7};
-			double[] values = new double[]{2.0, 2.0, 2.0, 2.0};
-			v1 = new SparseVector(n, indices, values);
-		}
-
-		{
-			int n = 8;
-			int[] indices = new int[]{3, 4, 5};
-			double[] values = new double[]{1.0, 1.0, 1.0};
-			v2 = new SparseVector(n, indices, values);
-		}
-	}
+	private SparseVector v1 = new SparseVector(8, new int[]{1, 3, 5, 7}, new double[]{2.0, 2.0, 2.0, 2.0});
+	private SparseVector v2 = new SparseVector(8, new int[]{3, 4, 5}, new double[]{1.0, 1.0, 1.0});
 
 	@Test
 	public void testConstructor() throws Exception {
