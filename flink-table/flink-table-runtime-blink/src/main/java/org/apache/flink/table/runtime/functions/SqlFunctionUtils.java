@@ -1074,4 +1074,35 @@ public class SqlFunctionUtils {
 	public static String uuid(byte[] b){
 		return UUID.nameUUIDFromBytes(b).toString();
 	}
+
+	/** SQL <code>TRUNCATE</code> operator applied to BigDecimal values. */
+	public static Decimal struncate(Decimal b0) {
+		return struncate(b0, 0);
+	}
+
+	public static Decimal struncate(Decimal b0, int b1) {
+		if (b1 >= b0.getScale()) {
+			return b0;
+		}
+
+		BigDecimal b2 = b0.toBigDecimal().movePointRight(b1)
+			.setScale(0, RoundingMode.DOWN).movePointLeft(b1);
+		int p = b0.getPrecision();
+		int s = b0.getScale();
+
+		if (b1 < 0) {
+			return Decimal.fromBigDecimal(b2, Math.min(38, 1 + p - s), 0);
+		} else {
+			return Decimal.fromBigDecimal(b2, 1 + p - s + b1, b1);
+		}
+	}
+
+	/** SQL <code>TRUNCATE</code> operator applied to double values. */
+	public static float struncate(float b0) {
+		return struncate(b0, 0);
+	}
+
+	public static float struncate(float b0, int b1) {
+		return (float) struncate(Decimal.castFrom((double) b0, 38, 18), b1).doubleValue();
+	}
 }
