@@ -165,12 +165,8 @@ class ExternalCatalogTableBuilder(connectorDescriptor: ConnectorDescriptor)
 
   // ----------------------------------------------------------------------------------------------
 
-  /**
-    * Converts this descriptor into a set of properties.
-    */
-  override def toProperties: util.Map[String, String] = {
+  override protected def additionalProperties(): util.Map[String, String] = {
     val properties = new DescriptorProperties()
-    properties.putProperties(super.toProperties)
     schemaDescriptor.foreach(d => properties.putProperties(d.toProperties))
     statisticsDescriptor.foreach(d => properties.putProperties(d.toProperties))
     metadataDescriptor.foreach(d => properties.putProperties(d.toProperties))

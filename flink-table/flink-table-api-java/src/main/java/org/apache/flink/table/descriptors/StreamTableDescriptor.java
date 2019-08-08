@@ -23,6 +23,9 @@ import org.apache.flink.table.api.TableEnvironment;
 
 /**
  * Describes a table connected from a streaming environment.
+ *
+ * <p>This class just exists for backwards compatibility use {@link ConnectTableDescriptor} for
+ * declarations.
  */
 @PublicEvolving
 public final class StreamTableDescriptor extends ConnectTableDescriptor {

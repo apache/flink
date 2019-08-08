@@ -40,7 +40,7 @@ public class TableEnvironmentTest {
 
 	@Test
 	public void testConnect() throws Exception {
-		final TableEnvironmentMock tableEnv = TableEnvironmentMock.getInstance(true);
+		final TableEnvironmentMock tableEnv = TableEnvironmentMock.getStreamingInstance();
 
 		tableEnv
 			.connect(new ConnectorDescriptorMock(TableSourceFactoryMock.CONNECTOR_TYPE_VALUE, 1, true))

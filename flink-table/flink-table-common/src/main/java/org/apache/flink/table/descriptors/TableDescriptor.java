@@ -24,6 +24,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.Map;
 
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE;
@@ -33,6 +34,8 @@ import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.
 
 /**
  * Describes a table consisting of a connector (in a given update mode) and a format.
+ *
+ * @param <D> return type for builder pattern
  */
 @PublicEvolving
 public abstract class TableDescriptor<D extends TableDescriptor<D>> extends DescriptorBase {
@@ -117,7 +120,7 @@ public abstract class TableDescriptor<D extends TableDescriptor<D>> extends Desc
 	 * Converts this descriptor into a set of properties.
 	 */
 	@Override
-	public Map<String, String> toProperties() {
+	public final Map<String, String> toProperties() {
 		final DescriptorProperties properties = new DescriptorProperties();
 
 		// this performs only basic validation
@@ -145,6 +148,15 @@ public abstract class TableDescriptor<D extends TableDescriptor<D>> extends Desc
 			properties.putString(UPDATE_MODE, updateMode);
 		}
 
+		properties.putProperties(additionalProperties());
+
 		return properties.asMap();
+	}
+
+	/**
+	 * Enables adding more specific properties to {@link #toProperties()}.
+	 */
+	protected Map<String, String> additionalProperties() {
+		return Collections.emptyMap();
 	}
 }

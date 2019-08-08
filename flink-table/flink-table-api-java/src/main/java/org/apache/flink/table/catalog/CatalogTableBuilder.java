@@ -24,14 +24,11 @@ import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.Metadata;
-import org.apache.flink.table.descriptors.Statistics;
 import org.apache.flink.table.descriptors.TableDescriptor;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * A builder for creating a {@link CatalogTable}.
@@ -69,10 +66,6 @@ public final class CatalogTableBuilder extends TableDescriptor<CatalogTableBuild
 
 	private final boolean isGeneric;
 
-	private Optional<Statistics> statisticsDescriptor = Optional.empty();
-
-	private Optional<Metadata> metadataDescriptor = Optional.empty();
-
 	private Map<String, String> properties = Collections.emptyMap();
 
 	public CatalogTableBuilder(ConnectorDescriptor connectorDescriptor, TableSchema tableSchema) {
@@ -104,16 +97,10 @@ public final class CatalogTableBuilder extends TableDescriptor<CatalogTableBuild
 	}
 
 	@Override
-	public Map<String, String> toProperties() {
+	protected Map<String, String> additionalProperties() {
 		DescriptorProperties descriptorProperties = new DescriptorProperties();
 
-		descriptorProperties.putProperties(super.toProperties());
-
 		descriptorProperties.putBoolean(CatalogConfig.IS_GENERIC, isGeneric);
-
-		statisticsDescriptor.ifPresent(d -> descriptorProperties.putProperties(d.toProperties()));
-
-		metadataDescriptor.ifPresent(d -> descriptorProperties.putProperties(d.toProperties()));
 
 		descriptorProperties.putProperties(this.properties);
 

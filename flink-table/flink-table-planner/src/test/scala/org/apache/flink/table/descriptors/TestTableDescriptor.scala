@@ -19,6 +19,7 @@
 package org.apache.flink.table.descriptors
 
 import java.util
+import java.util.Collections
 
 class TestTableDescriptor(connector: ConnectorDescriptor)
   extends TableDescriptor[TestTableDescriptor](connector)
@@ -26,17 +27,15 @@ class TestTableDescriptor(connector: ConnectorDescriptor)
 
   private var schemaDescriptor: Option[Schema] = None
 
-  override def toProperties: util.Map[String, String] = {
-    val properties = new DescriptorProperties()
-    properties.putProperties(super.toProperties)
-
-    schemaDescriptor.foreach(d => properties.putProperties(d.toProperties))
-
-    properties.asMap()
-  }
-
   override def withSchema(schema: Schema): TestTableDescriptor = {
     this.schemaDescriptor = Some(schema)
     this
+  }
+
+  override protected def additionalProperties(): util.Map[String, String] = {
+    schemaDescriptor match {
+      case Some(d) => d.toProperties
+      case None => Collections.emptyMap()
+    }
   }
 }

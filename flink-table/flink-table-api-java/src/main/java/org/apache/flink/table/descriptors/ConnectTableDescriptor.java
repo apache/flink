@@ -27,6 +27,7 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -92,19 +93,11 @@ public abstract class ConnectTableDescriptor
 		registerTableSink(name);
 	}
 
-	/**
-	 * Converts this descriptor into a set of properties.
-	 */
 	@Override
-	public Map<String, String> toProperties() {
-		DescriptorProperties properties = new DescriptorProperties();
-
-		properties.putProperties(super.toProperties());
-
+	protected Map<String, String> additionalProperties() {
 		if (schemaDescriptor != null) {
-			properties.putProperties(schemaDescriptor.toProperties());
+			return schemaDescriptor.toProperties();
 		}
-
-		return properties.asMap();
+		return Collections.emptyMap();
 	}
 }

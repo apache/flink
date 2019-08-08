@@ -54,7 +54,15 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
 		this.planner = planner;
 	}
 
-	public static TableEnvironmentMock getInstance(boolean isStreamingMode) {
+	public static TableEnvironmentMock getStreamingInstance() {
+		return getInstance(true);
+	}
+
+	public static TableEnvironmentMock getBatchInstance() {
+		return getInstance(false);
+	}
+
+	private static TableEnvironmentMock getInstance(boolean isStreamingMode) {
 		final CatalogManager catalogManager = createCatalogManager();
 		return new TableEnvironmentMock(
 			catalogManager,
