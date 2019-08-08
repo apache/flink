@@ -455,6 +455,16 @@ class FlinkRelMdColumnIntervalTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
+  def testGetColumnIntervalOnTableAggregate(): Unit = {
+    Array(logicalTableAgg, flinkLogicalTableAgg, streamExecTableAgg).foreach {
+      agg =>
+        assertEquals(RightSemiInfiniteValueInterval(0, true), mq.getColumnInterval(agg, 0))
+        assertNull(mq.getColumnInterval(agg, 1))
+        assertNull(mq.getColumnInterval(agg, 2))
+    }
+  }
+
+  @Test
   def testGetColumnIntervalOnWindowAgg(): Unit = {
     Array(logicalWindowAgg, flinkLogicalWindowAgg, batchGlobalWindowAggWithLocalAgg,
       batchGlobalWindowAggWithoutLocalAgg, streamWindowAgg).foreach { agg =>

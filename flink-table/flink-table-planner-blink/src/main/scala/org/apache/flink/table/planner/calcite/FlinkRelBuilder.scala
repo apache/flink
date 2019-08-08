@@ -26,7 +26,8 @@ import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, 
 import org.apache.flink.table.planner.expressions.{PlannerWindowProperty, WindowProperty}
 import org.apache.flink.table.planner.plan.QueryOperationConverter
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
-import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalTableAggregate, LogicalWindowAggregate}
+import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 import org.apache.flink.table.sinks.TableSink
 
@@ -111,7 +112,22 @@ class FlinkRelBuilder(
     push(rank)
   }
 
-  def aggregate(
+  /**
+    * Build non-window aggregate for either aggregate or table aggregate.
+    */
+  override def aggregate(groupKey: GroupKey, aggCalls: Iterable[AggCall]): RelBuilder = {
+    // build a relNode, the build() may also return a project
+    val relNode = super.aggregate(groupKey, aggCalls).build()
+
+    relNode match {
+      case logicalAggregate: LogicalAggregate
+        if AggregateUtil.isTableAggregate(logicalAggregate.getAggCallList) =>
+        push(LogicalTableAggregate.create(logicalAggregate))
+      case _ => push(relNode)
+    }
+  }
+
+  def windowAggregate(
       window: LogicalWindow,
       groupKey: GroupKey,
       namedProperties: List[PlannerNamedWindowProperty],

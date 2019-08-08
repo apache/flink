@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.catalog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.functions.AggregateFunctionDefinition;
@@ -26,8 +27,14 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
+import org.apache.flink.table.planner.functions.utils.HiveScalarSqlFunction;
+import org.apache.flink.table.planner.functions.utils.HiveTableSqlFunction;
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils;
+import org.apache.flink.table.planner.plan.schema.DeferredTypeFlinkTableFunction;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.types.Row;
 
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
@@ -39,6 +46,9 @@ import org.apache.calcite.sql.validate.SqlNameMatcher;
 
 import java.util.List;
 import java.util.Optional;
+
+import static org.apache.flink.table.planner.functions.utils.HiveFunctionUtils.isHiveFunc;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
  * Thin adapter between {@link SqlOperatorTable} and {@link FunctionCatalog}.
@@ -90,13 +100,44 @@ public class FunctionCatalogOperatorTable implements SqlOperatorTable {
 			String name,
 			FunctionDefinition functionDefinition) {
 		if (functionDefinition instanceof AggregateFunctionDefinition) {
-			return convertAggregateFunction(name, (AggregateFunctionDefinition) functionDefinition);
+			AggregateFunctionDefinition def = (AggregateFunctionDefinition) functionDefinition;
+			if (isHiveFunc(def.getAggregateFunction())) {
+				return Optional.of(new HiveAggSqlFunction(
+						name,
+						name,
+						def.getAggregateFunction(),
+						typeFactory));
+			} else {
+				return convertAggregateFunction(name, (AggregateFunctionDefinition) functionDefinition);
+			}
 		} else if (functionDefinition instanceof ScalarFunctionDefinition) {
-			return convertScalarFunction(name, (ScalarFunctionDefinition) functionDefinition);
+			ScalarFunctionDefinition def = (ScalarFunctionDefinition) functionDefinition;
+			if (isHiveFunc(def.getScalarFunction())) {
+				return Optional.of(new HiveScalarSqlFunction(
+						name,
+						name,
+						def.getScalarFunction(),
+						typeFactory));
+			} else {
+				return convertScalarFunction(name, def);
+			}
 		} else if (functionDefinition instanceof TableFunctionDefinition &&
 				category != null &&
 				category.isTableFunction()) {
-			return convertTableFunction(name, (TableFunctionDefinition) functionDefinition);
+			TableFunctionDefinition def = (TableFunctionDefinition) functionDefinition;
+			if (isHiveFunc(def.getTableFunction())) {
+				DataType returnType = fromLegacyInfoToDataType(new GenericTypeInfo<>(Row.class));
+				return Optional.of(new HiveTableSqlFunction(
+						name,
+						name,
+						def.getTableFunction(),
+						returnType,
+						typeFactory,
+						new DeferredTypeFlinkTableFunction(def.getTableFunction(), returnType),
+						HiveTableSqlFunction.operandTypeChecker(name, def.getTableFunction())));
+			} else {
+				return convertTableFunction(name, (TableFunctionDefinition) functionDefinition);
+			}
 		}
 
 		return Optional.empty();

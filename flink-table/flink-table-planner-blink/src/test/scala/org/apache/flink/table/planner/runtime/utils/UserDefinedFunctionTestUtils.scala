@@ -334,7 +334,7 @@ object UserDefinedFunctionTestUtils {
       }
       a + b
     }
-    
+
     def eval(a: Long, b: Int): Long = {
       eval(a, b.asInstanceOf[Long])
     }
