@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.testutils;
+package org.apache.flink.testutils;
 
 import org.junit.Test;
 
@@ -27,32 +27,32 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link CommonTestUtils}.
+ * Tests for the {@link ClassLoaderUtils}.
  */
-public class CommonTestUtilsTest {
+public class ClassLoaderUtilsTest {
 
 	@Test
 	public void testObjectFromNewClassLoaderObject() throws Exception {
-		testObjectFromNewClassLoaderObject(CommonTestUtils::createSerializableObjectFromNewClassLoader);
+		testObjectFromNewClassLoaderObject(ClassLoaderUtils::createSerializableObjectFromNewClassLoader);
 	}
 
 	@Test
 	public void testObjectFromNewClassLoaderClassLoaders() throws Exception {
-		testObjectFromNewClassLoaderClassLoaders(CommonTestUtils::createSerializableObjectFromNewClassLoader);
+		testObjectFromNewClassLoaderClassLoaders(ClassLoaderUtils::createSerializableObjectFromNewClassLoader);
 	}
 
 	@Test
 	public void testExceptionObjectFromNewClassLoaderObject() throws Exception {
-		testObjectFromNewClassLoaderObject(CommonTestUtils::createExceptionObjectFromNewClassLoader);
+		testObjectFromNewClassLoaderObject(ClassLoaderUtils::createExceptionObjectFromNewClassLoader);
 	}
 
 	@Test
 	public void testExceptionObjectFromNewClassLoaderClassLoaders() throws Exception {
-		testObjectFromNewClassLoaderClassLoaders(CommonTestUtils::createExceptionObjectFromNewClassLoader);
+		testObjectFromNewClassLoaderClassLoaders(ClassLoaderUtils::createExceptionObjectFromNewClassLoader);
 	}
 
-	private static <X> void testObjectFromNewClassLoaderObject(Supplier<CommonTestUtils.ObjectAndClassLoader<X>> supplier) {
-		final CommonTestUtils.ObjectAndClassLoader<X> objectAndClassLoader = supplier.get();
+	private static <X> void testObjectFromNewClassLoaderObject(Supplier<ClassLoaderUtils.ObjectAndClassLoader<X>> supplier) {
+		final ClassLoaderUtils.ObjectAndClassLoader<X> objectAndClassLoader = supplier.get();
 		final Object o = objectAndClassLoader.getObject();
 
 		assertNotEquals(ClassLoader.getSystemClassLoader(), o.getClass().getClassLoader());
@@ -64,8 +64,8 @@ public class CommonTestUtilsTest {
 		catch (ClassNotFoundException ignored) {}
 	}
 
-	private static <X> void testObjectFromNewClassLoaderClassLoaders(Supplier<CommonTestUtils.ObjectAndClassLoader<X>> supplier) {
-		final CommonTestUtils.ObjectAndClassLoader<X> objectAndClassLoader = supplier.get();
+	private static <X> void testObjectFromNewClassLoaderClassLoaders(Supplier<ClassLoaderUtils.ObjectAndClassLoader<X>> supplier) {
+		final ClassLoaderUtils.ObjectAndClassLoader<X> objectAndClassLoader = supplier.get();
 
 		assertNotEquals(ClassLoader.getSystemClassLoader(), objectAndClassLoader.getClassLoader());
 		assertEquals(ClassLoader.getSystemClassLoader(), objectAndClassLoader.getClassLoader().getParent());

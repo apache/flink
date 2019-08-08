@@ -30,7 +30,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoPojosForMigrationTes
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.testutils.ClassLoaderUtils;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -128,7 +128,7 @@ public class KryoSerializerSnapshotTest {
 	private static byte[] unLoadableSnapshotBytes() throws IOException {
 		final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
 
-		final CommonTestUtils.ObjectAndClassLoader<Serializable> outsideClassLoading = CommonTestUtils.createSerializableObjectFromNewClassLoader();
+		final ClassLoaderUtils.ObjectAndClassLoader<Serializable> outsideClassLoading = ClassLoaderUtils.createSerializableObjectFromNewClassLoader();
 
 		try {
 			Thread.currentThread().setContextClassLoader(outsideClassLoading.getClassLoader());

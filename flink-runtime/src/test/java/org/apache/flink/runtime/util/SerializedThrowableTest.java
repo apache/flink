@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedThrowable;
@@ -56,7 +57,7 @@ public class SerializedThrowableTest {
 	public void testSerialization() {
 		try {
 			// We need an exception whose class is not in the core class loader
-			final CommonTestUtils.ObjectAndClassLoader<Exception> outsideClassLoading = CommonTestUtils.createExceptionObjectFromNewClassLoader();
+			final ClassLoaderUtils.ObjectAndClassLoader<Exception> outsideClassLoading = ClassLoaderUtils.createExceptionObjectFromNewClassLoader();
 			ClassLoader loader = outsideClassLoading.getClassLoader();
 			Exception userException = outsideClassLoading.getObject();
 			Class<?> clazz = userException.getClass();
