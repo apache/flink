@@ -793,7 +793,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
 	 * per key.
 	 *
 	 * @param positionToMax
-	 *            The field position in the data points to minimize. This is applicable to
+	 *            The field position in the data points to maximize. This is applicable to
 	 *            Tuple types, Scala case classes, and primitive types (which is considered
 	 *            as having one field).
 	 * @return The transformed DataStream.
