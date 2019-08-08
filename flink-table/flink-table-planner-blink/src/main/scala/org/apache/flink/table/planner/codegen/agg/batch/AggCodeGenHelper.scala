@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils
 import org.apache.flink.table.expressions.{Expression, ExpressionVisitor, FieldReferenceExpression, TypeLiteralExpression, UnresolvedCallExpression, UnresolvedReferenceExpression, ValueLiteralExpression, _}
-import org.apache.flink.table.functions.{AggregateFunction, BuiltInFunctionDefinitions, UserDefinedFunction}
+import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.STREAM_RECORD
 import org.apache.flink.table.planner.codegen._
@@ -524,12 +524,8 @@ object AggCodeGenHelper {
     val aggExprs = aggregates.zipWithIndex.map {
       case (agg: DeclarativeAggregateFunction, aggIndex) =>
         val idx = auxGrouping.length + aggIndex
-        val expr = agg.getValueExpression.accept(ResolveReference(
+        agg.getValueExpression.accept(ResolveReference(
           ctx, isMerge, agg, idx, argsMapping, aggBufferTypes))
-        ApiExpressionUtils.unresolvedCall(
-          BuiltInFunctionDefinitions.CAST,
-          expr,
-          ApiExpressionUtils.typeLiteral(agg.getResultType))
       case (agg: AggregateFunction[_, _], aggIndex) =>
         val idx = auxGrouping.length + aggIndex
         (agg, idx)

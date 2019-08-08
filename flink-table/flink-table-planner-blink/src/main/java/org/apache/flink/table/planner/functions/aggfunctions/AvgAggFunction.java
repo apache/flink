@@ -28,6 +28,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import java.math.BigDecimal;
 
 import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.div;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
@@ -36,6 +37,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.liter
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.minus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeLiteral;
 
 /**
  * built-in avg aggregate function.
@@ -103,7 +105,9 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 	 */
 	@Override
 	public Expression getValueExpression() {
-		return ifThenElse(equalTo(count, literal(0L)), nullOf(getResultType()), div(sum, count));
+		Expression ifTrue = nullOf(getResultType());
+		Expression ifFalse = cast(div(sum, count), typeLiteral(getResultType()));
+		return ifThenElse(equalTo(count, literal(0L)), ifTrue, ifFalse);
 	}
 
 	/**

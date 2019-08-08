@@ -39,8 +39,6 @@ import org.apache.calcite.util.{ImmutableBitSet, ImmutableIntList}
 import java.math.{BigDecimal => JBigDecimal}
 import java.util
 
-import org.apache.calcite.sql.`type`.SqlTypeName
-
 import scala.collection.JavaConversions._
 
 /**
@@ -304,19 +302,22 @@ class SplitAggregateRule extends RelOptRule(
             aggGroupCount + index + avgAggCount + 1,
             finalAggregate.getRowType)
           avgAggCount += 1
-          // TODO
+          // Make a guarantee that the final aggregation returns NULL if underlying count is ZERO.
+          // We use SUM0 for underlying sum, which may run into ZERO / ZERO,
+          // and division by zero exception occurs.
+          // @see Glossary#SQL2011 SQL:2011 Part 2 Section 6.27
           val equals = relBuilder.call(
             FlinkSqlOperatorTable.EQUALS,
             countInputRef,
             relBuilder.getRexBuilder.makeBigintLiteral(JBigDecimal.valueOf(0)))
-          val falseT = relBuilder.call(FlinkSqlOperatorTable.DIVIDE, sumInputRef, countInputRef)
-          val trueT = relBuilder.cast(
+          val ifTrue = relBuilder.cast(
             relBuilder.getRexBuilder.constantNull(), aggCall.`type`.getSqlTypeName)
+          val ifFalse = relBuilder.call(FlinkSqlOperatorTable.DIVIDE, sumInputRef, countInputRef)
           relBuilder.call(
             FlinkSqlOperatorTable.IF,
             equals,
-            trueT,
-            falseT)
+            ifTrue,
+            ifFalse)
         } else {
           RexInputRef.of(aggGroupCount + index + avgAggCount, finalAggregate.getRowType)
         }

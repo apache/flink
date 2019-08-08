@@ -204,13 +204,8 @@ class DeclarativeAggCodeGen(
   }
 
   def getValue(generator: ExprCodeGenerator): GeneratedExpression = {
-    val expr = function.getValueExpression
+    val resolvedGetValueExpression = function.getValueExpression
       .accept(ResolveReference())
-    val resolvedGetValueExpression = ApiExpressionUtils.unresolvedCall(
-      BuiltInFunctionDefinitions.CAST,
-      expr,
-      ApiExpressionUtils.typeLiteral(aggInfo.externalResultType)
-    )
     generator.generateExpression(resolvedGetValueExpression.accept(rexNodeGen))
   }
 
