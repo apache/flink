@@ -263,14 +263,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			OperandTypes.family(SqlTypeFamily.STRING)),
 		SqlFunctionCategory.NUMERIC);
 
-	public static final SqlFunction JSONVALUE = new SqlFunction(
-		"JSONVALUE",
-		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
-		null,
-		OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER),
-		SqlFunctionCategory.STRING);
-
 	public static final SqlFunction STR_TO_MAP = new SqlFunction(
 		"STR_TO_MAP",
 		SqlKind.OTHER_FUNCTION,
@@ -398,18 +390,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			OperandTypes.STRING_STRING),
 		SqlFunctionCategory.STRING);
 
-	public static final SqlFunction KEYVALUE = new SqlFunction(
-		"KEYVALUE",
-		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
-		null,
-		OperandTypes.family(
-			SqlTypeFamily.STRING,
-			SqlTypeFamily.STRING,
-			SqlTypeFamily.STRING,
-			SqlTypeFamily.STRING),
-		SqlFunctionCategory.STRING);
-
 	public static final SqlFunction HASH_CODE = new SqlFunction(
 		"HASH_CODE",
 		SqlKind.OTHER_FUNCTION,
@@ -429,9 +409,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction SHA1 = new SqlFunction(
@@ -439,9 +417,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction SHA224 = new SqlFunction(
@@ -449,9 +425,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction SHA256 = new SqlFunction(
@@ -459,9 +433,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction SHA384 = new SqlFunction(
@@ -469,9 +441,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction SHA512 = new SqlFunction(
@@ -479,9 +449,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction SHA2 = new SqlFunction(
@@ -489,9 +457,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.INTEGER)),
+		OperandTypes.sequence("'SHA2(DATA, HASH_LENGTH)'",
+			OperandTypes.STRING,  OperandTypes.NUMERIC_INTEGER),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction DATE_FORMAT = new SqlFunction(
@@ -625,9 +592,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		ReturnTypes.VARCHAR_2000,
 		null,
-		OperandTypes.or(
-			OperandTypes.NILADIC,
-			OperandTypes.ANY),
+		OperandTypes.NILADIC,
 		SqlFunctionCategory.STRING) {
 
 		@Override
@@ -647,19 +612,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		ARG0_VARCHAR_FORCE_NULLABLE,
 		null,
 		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER)
-		),
-		SqlFunctionCategory.STRING);
-
-	public static final SqlFunction SUBSTR = new SqlFunction(
-		"SUBSTR",
-		SqlKind.OTHER_FUNCTION,
-		ARG0_VARCHAR_FORCE_NULLABLE,
-		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER)
+			OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.INTEGER),
+			OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER)
 		),
 		SqlFunctionCategory.STRING);
 
@@ -717,21 +671,12 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.INTEGER)),
 		SqlFunctionCategory.NUMERIC);
 
-	public static final SqlFunction LENGTH = new SqlFunction(
-		"LENGTH",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.INTEGER_NULLABLE,
-		null,
-		OperandTypes.family(SqlTypeFamily.STRING),
-		SqlFunctionCategory.NUMERIC);
-
-
 	public static final SqlFunction ASCII = new SqlFunction(
 		"ASCII",
 		SqlKind.OTHER_FUNCTION,
 		ReturnTypes.INTEGER_NULLABLE,
 		null,
-		OperandTypes.family(SqlTypeFamily.STRING),
+		OperandTypes.family(SqlTypeFamily.CHARACTER),
 		SqlFunctionCategory.NUMERIC);
 
 	public static final SqlFunction ENCODE = new SqlFunction(
