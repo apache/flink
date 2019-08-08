@@ -45,11 +45,13 @@ If a table with the same name already exists in the database, replace it if this
 
 **PARTITIONED BY**
 
-Partition the created table by the specified columns. A directory is created for each partition.
+Partition the created table by the specified columns. A directory is created for each partition if this table is used as a filesystem sink.
 
 **WITH OPTIONS**
 
 Table properties used to create a table source/sink. The properties are usually used to find and create the underlying connector. **Notes:** the key and value of expression `key1=val1` should both be string literal.
+
+See details in [Connect to External Systems](connect.html) for all the supported table properties of different connectors.
 
 **Examples**:
 {% highlight sql %}
@@ -64,54 +66,48 @@ PARTITIONED BY(f0)
 WITH (
   'connector.type' = 'filesystem',
   'format.type' = 'csv',
-  'connector.path' = 'path1'
+  'connector.path' = 'path1',
   'format.fields.0.name' = 'f0',
   'format.fields.0.type' = 'INT',
   'format.fields.1.name' = 'f1',
   'format.fields.1.type' = 'BIGINT',
   'format.fields.2.name' = 'f2',
-  'format.fields.2.type' = 'STRING',
+  'format.fields.2.type' = 'STRING'
 );
 
--- CREATE a Kafka table start from the earliest offset(as table source) and append mode(as table sink).
-create table kafka_table (
+-- CREATE a 011 version Kafka table start from the earliest offset(as table source) and append mode(as table sink).
+create table kafka011_table (
   f0 int,
   f1 bigint,
   f2 string
 ) with (
   'connector.type' = 'kafka',
+  'connector.version' = '0.11',
+  'format.type' = 'csv',
+  'format.derive-schema' = 'true',
   'update-mode' = 'append',
   'connector.topic' = 'topic_name',
   'connector.startup-mode' = 'earliest-offset',
   'connector.properties.0.key' = 'props-key0',
-  'connector.properties.0.value' = 'props-val0',
-  'format.fields.0.name' = 'f0',
-  'format.fields.0.type' = 'INT',
-  'format.fields.1.name' = 'f1',
-  'format.fields.1.type' = 'BIGINT',
-  'format.fields.2.name' = 'f2',
-  'format.fields.2.type' = 'STRING'
+  'connector.properties.0.value' = 'props-val0'
 );
 
--- CREATE a Elasticsearch table.
-create table kafka_table (
+-- CREATE a version 6 Elasticsearch table.
+create table es6_table (
   f0 int,
   f1 bigint,
   f2 string
 ) with (
   'connector.type' = 'elasticsearch',
+  'connector.version' = '6',
+  'format.type' = 'json',
+  'format.derive-schema' = 'true',
   'update-mode' = 'append',
   'connector.hosts.0.hostname' = 'host_name',
   'connector.hosts.0.port' = '9092',
-  'connector.hosts.0.protocal' = 'http',
+  'connector.hosts.0.protocol' = 'http',
   'connector.index' = 'index_name',
-  'connector.document-type' = 'type_name',
-  'format.fields.0.name' = 'f0',
-  'format.fields.0.type' = 'INT',
-  'format.fields.1.name' = 'f1',
-  'format.fields.1.type' = 'BIGINT',
-  'format.fields.2.name' = 'f2',
-  'format.fields.2.type' = 'STRING'
+  'connector.document-type' = 'type_name'
 );
 {% endhighlight %}
 
@@ -217,7 +213,51 @@ table_env.sql_update("create table table_name ...")
 </div>
 </div>
 
-**Notes:** The table name can be two format: 1. `catalog_name.db_name.table_name` 2. `table_name`; For `catalog_name.db_name.table_name`, the table would be registered into metastore with catalog named "catalog_name" and database named "db_name", for `table_name`, the table would be registered into the current catalog and database of the execution table environment.
+An demo dependencies for connectors ES6, Kafka011, CSV and format csv, json:
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-table-api-java</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-table-planner{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-connector-elasticsearch-base{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-connector-elasticsearch6{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-connector-kafka-base{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-connector-kafka-0.11{{ site.scala_version_suffix }}</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-csv</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-json</artifactId>
+  <version>{{site.version}}</version>
+</dependency>
+{% endhighlight %}
+
+**Notes:** The table name can be of two formats: 1. `catalog_name.db_name.table_name` 2. `table_name`. For `catalog_name.db_name.table_name`, the table would be registered into metastore with catalog named "catalog_name" and database named "db_name"; for `table_name`, the table would be registered into the current catalog and database of the execution table environment.
 
 {% top %}
 
@@ -225,6 +265,6 @@ DDL Data Types
 ---------------------------------------
 For DDLs, we support full data types defined in page [Data Types]({{ site.baseurl }}/dev/table/types.html).
 
-**Notes:** Some of the data types are not supported in the sql query(the cast expression or literals). E.G. `STRING`, `BYTES`, `TIME(p) WITHOUT TIME ZONE`, `TIME(p) WITH LOCAL TIME ZONE`, `TIMESTAMP(p) WITHOUT TIME ZONE`, `TIMESTAMP(p) WITH LOCAL TIME ZONE`.
+**Notes:** Some of the data types are not supported in the sql query(the cast expression or literals). E.G. `STRING`, `BYTES`, `TIME(p) WITHOUT TIME ZONE`, `TIME(p) WITH LOCAL TIME ZONE`, `TIMESTAMP(p) WITHOUT TIME ZONE`, `TIMESTAMP(p) WITH LOCAL TIME ZONE`, `ARRAY`, `MULTISET`, `ROW`.
 
 {% top %}
