@@ -19,21 +19,21 @@
 package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.annotation.VisibleForTesting
-import org.apache.flink.api.common.accumulators.SerializedListAccumulator
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.{Table, TableEnvironment}
+import org.apache.flink.table.api.{EnvironmentSettings, Table, TableEnvironment}
 import org.apache.flink.table.expressions.ExpressionParser
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.sinks.CollectTableSink
-import org.apache.flink.table.planner.utils.TableTestUtil
-import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
-import org.apache.flink.util.AbstractID
-import _root_.java.util.{UUID, ArrayList => JArrayList}
+import org.apache.flink.table.planner.sinks.{CollectRowTableSink, CollectTableSink}
+import org.apache.flink.table.planner.utils.{CollectResultUtil, TableTestUtil}
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter
+import org.apache.flink.types.Row
+
+import _root_.java.util.UUID
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
@@ -41,26 +41,36 @@ import scala.reflect.ClassTag
 
 object BatchTableEnvUtil {
 
-  def collect[T](
-      tEnv: TableEnvironment,
-      table: Table,
-      sink: CollectTableSink[T],
-      jobName: Option[String],
-      builtInCatalogName: String,
-      builtInDBName: String): Seq[T] = {
-    val typeSerializer = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
-      .asInstanceOf[TypeInformation[T]]
-      .createSerializer(tEnv.asInstanceOf[TableEnvironmentImpl]
-        .getPlanner.asInstanceOf[PlannerBase].getExecEnv.getConfig)
-    val id = new AbstractID().toString
-    sink.init(typeSerializer.asInstanceOf[TypeSerializer[T]], id)
-    val sinkName = UUID.randomUUID().toString
-    tEnv.registerTableSink(sinkName, sink)
-    tEnv.insertInto(table, builtInCatalogName, builtInDBName, sinkName)
+  /**
+    * Returns an collection that contains all rows in this Table.
+    * Notes: all nested type will be converted to row type.
+    */
+  def collect(table: Table): Seq[Row] = collect(table, Some("test"))
 
-    val res = tEnv.execute("test")
-    val accResult: JArrayList[Array[Byte]] = res.getAccumulatorResult(id)
-    SerializedListAccumulator.deserializeList(accResult, typeSerializer)
+  /**
+    * Returns an collection that contains all rows in this Table.
+    * Notes: all nested type will be converted to row type.
+    */
+  def collect(
+      table: Table,
+      jobName: Option[String] = None,
+      builtInCatalogName: String = EnvironmentSettings.DEFAULT_BUILTIN_CATALOG,
+      builtInDBName: String = EnvironmentSettings.DEFAULT_BUILTIN_DATABASE): Seq[Row] = {
+    // get schema information of table
+    val relNode = TableTestUtil.toRelNode(table)
+    val rowType = relNode.getRowType
+    val fieldNames = rowType.getFieldNames.asScala.toArray
+    val fieldTypes = rowType.getFieldList.map { field =>
+      val t = FlinkTypeFactory.toLogicalType(field.getType)
+      TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo(t)
+    }.toArray
+
+    val configuredSink = new CollectRowTableSink()
+      .configure(fieldNames, fieldTypes)
+      .asInstanceOf[CollectTableSink[Row]]
+
+    CollectResultUtil.collectConfiguredSink(
+      table, configuredSink, jobName, builtInCatalogName, builtInDBName).asScala
   }
 
   def parseFieldNames(fields: String): Array[String] = {

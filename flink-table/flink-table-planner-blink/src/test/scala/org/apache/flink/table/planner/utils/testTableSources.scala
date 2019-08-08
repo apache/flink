@@ -22,7 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.api.java.io.CollectionInputFormat
+import org.apache.flink.api.java.io.{CollectionInputFormat, CsvInputFormat}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.datastream.DataStream
@@ -35,14 +35,19 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TimeTestUtil.EventTimeSourceFunction
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromLogicalTypeToTypeInfo
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.{AscendingTimestamps, PreserveWatermarks}
 import org.apache.flink.table.types.DataType
+import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.types.Row
 
+import org.apache.calcite.avatica.util.DateTimeUtils
+
 import java.io.{File, FileOutputStream, OutputStreamWriter}
+import java.sql.Timestamp
 import java.util
 import java.util.{Collections, List => JList, Map => JMap}
 
@@ -123,6 +128,30 @@ object TestTableSources {
       .fieldDelimiter(",")
       .lineDelimiter("$")
       .build()
+  }
+
+  def createCsvTableSource(
+      data: Seq[Row],
+      fieldNames: Array[String],
+      fieldTypes: Array[LogicalType],
+      fieldDelim: String = CsvInputFormat.DEFAULT_FIELD_DELIMITER,
+      rowDelim: String = CsvInputFormat.DEFAULT_LINE_DELIMITER): CsvTableSource = {
+    val contents = data.map { r =>
+      (0 until r.getArity).map(i => r.getField(i)).map {
+        case null => ""
+        case t: Timestamp => DateTimeUtils.unixTimestampToString(t.getTime)
+        case f => f.toString
+      }.mkString(fieldDelim)
+    }.mkString(rowDelim)
+    val tempFilePath = writeToTempFile(contents, "testCsvTableSource", "tmp")
+    val builder = CsvTableSource.builder()
+      .path(tempFilePath)
+      .fieldDelimiter(fieldDelim)
+      .lineDelimiter(rowDelim)
+    fieldNames.zip(fieldTypes).foreach {
+      case (fieldName, fieldType) => builder.field(fieldName, fromLogicalTypeToTypeInfo(fieldType))
+    }
+    builder.build()
   }
 
   private def writeToTempFile(

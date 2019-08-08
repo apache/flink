@@ -39,10 +39,9 @@ import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.TableFactoryService;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.planner.runtime.utils.BatchTableEnvUtil;
 import org.apache.flink.table.planner.sinks.CollectRowTableSink;
 import org.apache.flink.table.planner.sinks.CollectTableSink;
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.CollectResultUtil;
 import org.apache.flink.table.runtime.utils.StreamITCase;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -562,10 +561,9 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			CollectRowTableSink sink = new CollectRowTableSink();
 			CollectTableSink<Row> configuredSink = (CollectTableSink<Row>) sink.configure(
 				schema.getFieldNames(), types.toArray(new TypeInformation[0]));
-			return JavaScalaConversionUtil.toJava(
-				BatchTableEnvUtil.collect(
-					t.getTableEnvironment(), table, configuredSink, Option.apply("JOB"),
-					EnvironmentSettings.DEFAULT_BUILTIN_CATALOG, EnvironmentSettings.DEFAULT_BUILTIN_DATABASE));
+			return CollectResultUtil.collectSink(
+					table, configuredSink, Option.apply("JOB"),
+					EnvironmentSettings.DEFAULT_BUILTIN_CATALOG, EnvironmentSettings.DEFAULT_BUILTIN_DATABASE);
 		}
 	}
 

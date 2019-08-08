@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.transformations.ShuffleMode
 import org.apache.flink.table.api.config.ExecutionConfigOptions._
-import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableImpl}
+import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.{EnvironmentSettings, SqlParserException, Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, BinaryRowWriter}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction}
@@ -285,7 +285,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   def parseQuery(sqlQuery: String): Table = tEnv.sqlQuery(sqlQuery)
 
-  def executeQuery(table: Table): Seq[Row] = TableUtil.collect(table.asInstanceOf[TableImpl])
+  def executeQuery(table: Table): Seq[Row] = BatchTableEnvUtil.collect(table)
 
   def executeQuery(sqlQuery: String): Seq[Row] = {
     val table = parseQuery(sqlQuery)

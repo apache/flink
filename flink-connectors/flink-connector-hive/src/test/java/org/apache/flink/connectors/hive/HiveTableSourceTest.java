@@ -20,10 +20,9 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
-import org.apache.flink.table.planner.runtime.utils.TableUtil;
+import org.apache.flink.table.planner.utils.CollectResultUtil;
 import org.apache.flink.types.Row;
 
 import com.klarna.hiverunner.HiveShell;
@@ -40,8 +39,6 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import scala.collection.JavaConverters;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -95,7 +92,7 @@ public class HiveTableSourceTest {
 		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table src = tEnv.sqlQuery("select * from hive.source_db.test");
-		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) src)).asJava();
+		List<Row> rows = CollectResultUtil.collect(src);
 
 		Assert.assertEquals(4, rows.size());
 		Assert.assertEquals("1,1,a,1000,1.11", rows.get(0).toString());
@@ -123,7 +120,7 @@ public class HiveTableSourceTest {
 		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table src = tEnv.sqlQuery("select * from hive.source_db.complex_test");
-		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) src)).asJava();
+		List<Row> rows = CollectResultUtil.collect(src);
 		Assert.assertEquals(1, rows.size());
 		assertArrayEquals(array, (Integer[]) rows.get(0).getField(0));
 		assertEquals(map, rows.get(0).getField(1));
@@ -151,7 +148,7 @@ public class HiveTableSourceTest {
 		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
 		tEnv.registerCatalog(catalogName, hiveCatalog);
 		Table src = tEnv.sqlQuery("select * from hive.source_db.test_table_pt");
-		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) src)).asJava();
+		List<Row> rows = CollectResultUtil.collect(src);
 
 		assertEquals(4, rows.size());
 		Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
@@ -185,7 +182,7 @@ public class HiveTableSourceTest {
 		assertTrue(optimizedLogicalPlan.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
 		assertTrue(physicalExecutionPlan.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
 		// second check execute results
-		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) src)).asJava();
+		List<Row> rows = CollectResultUtil.collect(src);
 		assertEquals(2, rows.size());
 		Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
 		assertArrayEquals(new String[]{"2014,3,0", "2014,4,0"}, rowStrings);
@@ -213,7 +210,7 @@ public class HiveTableSourceTest {
 			assertTrue(logicalPlan.contains(expectedExplain));
 			assertTrue(physicalPlan.contains(expectedExplain));
 
-			List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) table)).asJava();
+			List<Row> rows = CollectResultUtil.collect(table);
 			assertEquals(2, rows.size());
 			Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
 			assertArrayEquals(new String[]{"2013,2", "2014,1"}, rowStrings);
