@@ -69,7 +69,8 @@ import scala.collection.JavaConversions._
   *
   * flink logical plan:
   * {{{
-  * FlinkLogicalCalc(select=[a, $f1, $f2, /($f3, $f4) AS $f3])
+  * FlinkLogicalCalc(select=[a, $f1, $f2, CAST(IF(=($f4, 0:BIGINT), null:INTEGER, /($f3, $f4))) AS
+  *     $f3])
   * +- FlinkLogicalAggregate(group=[{0}], agg#0=[SUM($2)], agg#1=[$SUM0($3)], agg#2=[$SUM0($4)],
   *        agg#3=[$SUM0($5)])
   *    +- FlinkLogicalAggregate(group=[{0, 3}], agg#0=[SUM($1) FILTER $4], agg#1=[COUNT(DISTINCT $2)
