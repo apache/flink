@@ -24,9 +24,6 @@ import org.apache.flink.table.expressions.{Expression, ExpressionParser, TimeInt
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
 import org.junit.Test
 
-import java.sql.Timestamp
-import java.time.ZoneId
-
 class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   // ----------------------------------------------------------------------------------------------
@@ -3474,26 +3471,25 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "timestampadd(DAY, 1, date '2016-06-15')",
       "2016-06-16")
 
-    // TODO support '2016-06-15'.toTimestamp
-//    testAllApis("2016-06-15".toTimestamp - 1.hour,
-//      "'2016-06-15'.toTimestamp - 1.hour",
-//      "timestampadd(HOUR, -1, date '2016-06-15')",
-//      "2016-06-14 23:00:00.0")
+    testAllApis("2016-06-15".toTimestamp - 1.hour,
+      "'2016-06-15'.toTimestamp - 1.hour",
+      "timestampadd(HOUR, -1, date '2016-06-15')",
+      "2016-06-14 23:00:00.000")
 
-//    testAllApis("2016-06-15".toTimestamp + 1.minute,
-//      "'2016-06-15'.toTimestamp + 1.minute",
-//      "timestampadd(MINUTE, 1, date '2016-06-15')",
-//      "2016-06-15 00:01:00.0")
+    testAllApis("2016-06-15".toTimestamp + 1.minute,
+      "'2016-06-15'.toTimestamp + 1.minute",
+      "timestampadd(MINUTE, 1, date '2016-06-15')",
+      "2016-06-15 00:01:00.000")
 
-//    testAllApis("2016-06-15".toTimestamp - 1.second,
-//      "'2016-06-15'.toTimestamp - 1.second",
-//      "timestampadd(SQL_TSI_SECOND, -1, date '2016-06-15')",
-//      "2016-06-14 23:59:59.0")
+    testAllApis("2016-06-15".toTimestamp - 1.second,
+      "'2016-06-15'.toTimestamp - 1.second",
+      "timestampadd(SQL_TSI_SECOND, -1, date '2016-06-15')",
+      "2016-06-14 23:59:59.000")
 
-//    testAllApis("2016-06-15".toTimestamp + 1.second,
-//      "'2016-06-15'.toTimestamp + 1.second",
-//      "timestampadd(SECOND, 1, date '2016-06-15')",
-//      "2016-06-15 00:00:01.0")
+    testAllApis("2016-06-15".toTimestamp + 1.second,
+      "'2016-06-15'.toTimestamp + 1.second",
+      "timestampadd(SECOND, 1, date '2016-06-15')",
+      "2016-06-15 00:00:01.000")
 
     testAllApis(nullOf(Types.SQL_TIMESTAMP) + 1.second,
       "nullOf(SQL_TIMESTAMP) + 1.second",
