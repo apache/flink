@@ -73,7 +73,8 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 	protected transient boolean fetched = false;
 	protected transient boolean hasNext;
 
-	private int arity;
+	// arity of each row, including partition columns
+	private int rowArity;
 
 	//Necessary info to init deserializer
 	private List<String> partitionColNames;
@@ -97,7 +98,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 
 		this.jobConf = new JobConf(jobConf);
 		this.partitionColNames = catalogTable.getPartitionKeys();
-		arity = catalogTable.getSchema().getFieldCount();
+		rowArity = catalogTable.getSchema().getFieldCount();
 	}
 
 	@Override
@@ -206,7 +207,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 		if (reachedEnd()) {
 			return null;
 		}
-		Row row = new Row(arity);
+		Row row = new Row(rowArity);
 		try {
 			//Use HiveDeserializer to deserialize an object out of a Writable blob
 			Object hiveRowStruct = deserializer.deserialize(value);
@@ -235,7 +236,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 	private void writeObject(ObjectOutputStream out) throws IOException {
 		super.write(out);
 		jobConf.write(out);
-		out.writeObject(arity);
+		out.writeObject(rowArity);
 		out.writeObject(partitionColNames);
 		out.writeObject(partitions);
 	}
@@ -252,7 +253,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 		if (currentUserCreds != null) {
 			jobConf.getCredentials().addAll(currentUserCreds);
 		}
-		arity = (int) in.readObject();
+		rowArity = (int) in.readObject();
 		partitionColNames = (List<String>) in.readObject();
 		partitions = (List<HiveTablePartition>) in.readObject();
 	}

@@ -141,17 +141,21 @@ public class TableEnvHiveConnectorTest {
 	@Test
 	public void testDecimal() throws Exception {
 		hiveShell.execute("create database db1");
-		hiveShell.execute("create table db1.src (x decimal)");
-		hiveShell.execute("create table db1.dest (x decimal)");
-		hiveShell.execute("insert into db1.src values (10),(5.5)");
+		try {
+			// Hive's default decimal is decimal(10, 0)
+			hiveShell.execute("create table db1.src (x decimal)");
+			hiveShell.execute("create table db1.dest (x decimal)");
+			// TODO: test generating src from Flink side
+			hiveShell.execute("insert into db1.src values (1),(2.0),(5.4),(5.5),(123456789123)");
 
-		TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
 
-		tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
-		tableEnv.execute(null);
-		System.out.println(hiveShell.executeQuery("select * from db1.dest"));
-
-		hiveShell.execute("drop database db1 cascade");
+			tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
+			tableEnv.execute("test");
+			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1", "2", "5", "6", "NULL"));
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
 	}
 
 	private TableEnvironment getTableEnvWithHiveCatalog() {
