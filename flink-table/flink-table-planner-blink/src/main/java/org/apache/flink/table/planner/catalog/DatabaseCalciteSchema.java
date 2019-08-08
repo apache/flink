@@ -57,7 +57,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.util.CatalogTableStatisticsConverter.convertToTableStats;
+import static org.apache.flink.table.planner.utils.CatalogTableStatisticsConverter.convertToTableStats;
 
 /**
  * A mapping between Flink catalog's database and Calcite's schema.
@@ -138,7 +138,7 @@ class DatabaseCalciteSchema extends FlinkSchema {
 			if (!table.isPartitioned()) {
 				CatalogTableStatistics tableStatistics = catalog.getTableStatistics(tablePath);
 				CatalogColumnStatistics columnStatistics = catalog.getTableColumnStatistics(tablePath);
-				tableStats = convertToTableStats(tableStatistics, columnStatistics);
+				tableStats = convertToTableStats(tableStatistics, columnStatistics, table.getSchema());
 			}
 			return new TableSourceTable<>(
 					tableSource,

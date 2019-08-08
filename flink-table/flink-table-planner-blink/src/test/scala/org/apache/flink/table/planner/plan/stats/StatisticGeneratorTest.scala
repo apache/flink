@@ -22,6 +22,7 @@ import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.dataformat.Decimal
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.plan.stats.StatisticGenerator.generateTableStats
+import org.apache.flink.table.planner.plan.stats.StatisticGeneratorTest._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, CollectionBatchExecTable}
 import org.apache.flink.table.planner.utils.TestTableSources
@@ -191,7 +192,11 @@ class StatisticGeneratorTest extends BatchTestBase {
     generateTableStats(tEnv, Array("MyTable"), Some(Array("a", "B")))
   }
 
-  private def assertTableStatsEquals(expected: TableStats, actual: TableStats): Unit = {
+}
+
+object StatisticGeneratorTest{
+
+  def assertTableStatsEquals(expected: TableStats, actual: TableStats): Unit = {
     assertEquals("rowCount is not equal", expected.getRowCount, actual.getRowCount)
     assertEquals("size of columnStats map is not equal",
       expected.getColumnStats.size(), actual.getColumnStats.size())
@@ -203,7 +208,7 @@ class StatisticGeneratorTest extends BatchTestBase {
     }
   }
 
-  private def assertColumnStatsEquals(
+  def assertColumnStatsEquals(
       fieldName: String, expected: ColumnStats, actual: ColumnStats): Unit = {
     assertEquals(s"ndv of '$fieldName' is not equal", expected.getNdv, actual.getNdv)
     assertEquals(s"nullCount of '$fieldName' is not equal",
@@ -213,5 +218,4 @@ class StatisticGeneratorTest extends BatchTestBase {
     assertEquals(s"max of '$fieldName' is not equal", expected.getMaxValue, actual.getMaxValue)
     assertEquals(s"min of '$fieldName' is not equal", expected.getMinValue, actual.getMinValue)
   }
-
 }

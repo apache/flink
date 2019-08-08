@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.util;
+package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
@@ -28,20 +29,30 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataDouble;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataLong;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
+import org.apache.flink.table.catalog.stats.GenericCatalogColumnStatisticsData;
 import org.apache.flink.table.plan.stats.ColumnStats;
 import org.apache.flink.table.plan.stats.TableStats;
+import org.apache.flink.table.types.DataType;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Utility class for converting {@link CatalogTableStatistics} to {@link TableStats}.
  */
 public class CatalogTableStatisticsConverter {
 
+	private static final Logger LOG = LoggerFactory.getLogger(CatalogTableStatisticsConverter.class);
+
 	public static TableStats convertToTableStats(
 			CatalogTableStatistics tableStatistics,
-			CatalogColumnStatistics columnStatistics) {
+			CatalogColumnStatistics columnStatistics,
+			TableSchema schema) {
 		if (tableStatistics == null || tableStatistics.equals(CatalogTableStatistics.UNKNOWN)) {
 			return TableStats.UNKNOWN;
 		}
@@ -49,7 +60,7 @@ public class CatalogTableStatisticsConverter {
 		long rowCount = tableStatistics.getRowCount();
 		Map<String, ColumnStats> columnStatsMap = null;
 		if (columnStatistics != null && !columnStatistics.equals(CatalogColumnStatistics.UNKNOWN)) {
-			columnStatsMap = convertToColumnStatsMap(columnStatistics.getColumnStatisticsData());
+			columnStatsMap = convertToColumnStatsMap(columnStatistics.getColumnStatisticsData(), schema);
 		}
 		if (columnStatsMap == null) {
 			columnStatsMap = new HashMap<>();
@@ -58,17 +69,26 @@ public class CatalogTableStatisticsConverter {
 	}
 
 	private static Map<String, ColumnStats> convertToColumnStatsMap(
-			Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData) {
+			Map<String, CatalogColumnStatisticsDataBase> columnStatisticsData,
+			TableSchema schema) {
 		Map<String, ColumnStats> columnStatsMap = new HashMap<>();
 		for (Map.Entry<String, CatalogColumnStatisticsDataBase> entry : columnStatisticsData.entrySet()) {
-			ColumnStats columnStats = convertToColumnStats(entry.getValue());
-			columnStatsMap.put(entry.getKey(), columnStats);
+			String fieldName = entry.getKey();
+			Optional<DataType> fieldType = schema.getFieldDataType(fieldName);
+			if (fieldType.isPresent()) {
+				ColumnStats columnStats = convertToColumnStats(entry.getValue(), fieldType.get());
+				if (columnStats != null) {
+					columnStatsMap.put(fieldName, columnStats);
+				}
+			} else {
+				LOG.warn(fieldName + " is not found in TableSchema: " + schema);
+			}
 		}
 		return columnStatsMap;
 	}
 
 	private static ColumnStats convertToColumnStats(
-			CatalogColumnStatisticsDataBase columnStatisticsData) {
+			CatalogColumnStatisticsDataBase columnStatisticsData, DataType fieldType) {
 		Long ndv = null;
 		Long nullCount = columnStatisticsData.getNullCount();
 		Double avgLen = null;
@@ -90,15 +110,15 @@ public class CatalogTableStatisticsConverter {
 			ndv = longData.getNdv();
 			avgLen = 8.0;
 			maxLen = 8;
-			max = longData.getMax();
-			min = longData.getMin();
+			max = convertToNumber("" + longData.getMax(), fieldType);
+			min = convertToNumber("" + longData.getMin(), fieldType);
 		} else if (columnStatisticsData instanceof CatalogColumnStatisticsDataDouble) {
 			CatalogColumnStatisticsDataDouble doubleData = (CatalogColumnStatisticsDataDouble) columnStatisticsData;
 			ndv = doubleData.getNdv();
 			avgLen = 8.0;
 			maxLen = 8;
-			max = doubleData.getMax();
-			min = doubleData.getMin();
+			max = convertToNumber("" + doubleData.getMax(), fieldType);
+			min = convertToNumber("" + doubleData.getMin(), fieldType);
 		} else if (columnStatisticsData instanceof CatalogColumnStatisticsDataString) {
 			CatalogColumnStatisticsDataString strData = (CatalogColumnStatisticsDataString) columnStatisticsData;
 			ndv = strData.getNdv();
@@ -111,10 +131,62 @@ public class CatalogTableStatisticsConverter {
 		} else if (columnStatisticsData instanceof CatalogColumnStatisticsDataDate) {
 			CatalogColumnStatisticsDataDate dateData = (CatalogColumnStatisticsDataDate) columnStatisticsData;
 			ndv = dateData.getNdv();
+		} else if (columnStatisticsData instanceof GenericCatalogColumnStatisticsData) {
+			boolean hasValue = false;
+			Map<String, String> properties = columnStatisticsData.getProperties();
+			if (properties.containsKey(TableStatsConverter.NDV)) {
+				ndv = Long.valueOf(properties.get(TableStatsConverter.NDV));
+				hasValue = true;
+			}
+			nullCount = null;
+			if (properties.containsKey(TableStatsConverter.NULL_COUNT)) {
+				nullCount = Long.valueOf(properties.get(TableStatsConverter.NULL_COUNT));
+				hasValue = true;
+			}
+			if (properties.containsKey(TableStatsConverter.MAX_LEN)) {
+				maxLen = Integer.valueOf(properties.get(TableStatsConverter.MAX_LEN));
+				hasValue = true;
+			}
+			if (properties.containsKey(TableStatsConverter.AVG_LEN)) {
+				avgLen = Double.valueOf(properties.get(TableStatsConverter.AVG_LEN));
+				hasValue = true;
+			}
+			if (properties.containsKey(TableStatsConverter.MAX_VALUE)) {
+				max = convertToNumber(properties.get(TableStatsConverter.MAX_VALUE), fieldType);
+				hasValue = true;
+			}
+			if (properties.containsKey(TableStatsConverter.MIN_VALUE)) {
+				min = convertToNumber(properties.get(TableStatsConverter.MIN_VALUE), fieldType);
+				hasValue = true;
+			}
+			if (!hasValue) {
+				return null;
+			}
 		} else {
 			throw new TableException("Unsupported CatalogColumnStatisticsDataBase: " +
 					columnStatisticsData.getClass().getCanonicalName());
 		}
 		return new ColumnStats(ndv, nullCount, avgLen, maxLen, max, min);
+	}
+
+	private static Number convertToNumber(String value, DataType dataType) {
+		switch (dataType.getLogicalType().getTypeRoot()) {
+			case TINYINT:
+				return Byte.valueOf(value);
+			case SMALLINT:
+				return Short.valueOf(value);
+			case INTEGER:
+				return Integer.valueOf(value);
+			case BIGINT:
+				return Long.valueOf(value);
+			case FLOAT:
+				return Float.valueOf(value);
+			case DOUBLE:
+				return Double.valueOf(value);
+			case DECIMAL:
+				return BigDecimal.valueOf(Double.valueOf(value));
+			default:
+				return null;
+		}
 	}
 }
