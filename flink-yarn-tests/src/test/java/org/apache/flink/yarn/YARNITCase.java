@@ -119,14 +119,14 @@ public class YARNITCase extends YarnTestBase {
 
 					assertThat(jobResult, is(notNullValue()));
 					assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
-					
+
 					final FileSystem fs = FileSystem.get(getYarnConfiguration());
 					String suffix = ".flink/" + applicationId.toString() + "/" + flinkUberjar.getName();
 
 					Path uberJarHDFSPath = new Path(fs.getHomeDirectory(), suffix);
 					FileStatus fsStatus = fs.getFileStatus(uberJarHDFSPath);
 					Assert.assertEquals(5, fsStatus.getReplication());
-					
+
 					Path appPath = uberJarHDFSPath.getParent();
 					FileStatus[] fileStatuses = fs.listStatus(appPath, new PathFilter() {
 						@Override
