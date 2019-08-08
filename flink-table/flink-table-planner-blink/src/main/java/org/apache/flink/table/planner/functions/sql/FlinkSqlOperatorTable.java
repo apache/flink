@@ -658,8 +658,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		ARG0_VARCHAR_FORCE_NULLABLE,
 		null,
 		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER)
+			OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.INTEGER),
+			OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER)
 		),
 		SqlFunctionCategory.STRING);
 
