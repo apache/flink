@@ -436,4 +436,26 @@ object BuiltInMethods {
 
   val STRING_TO_TIME = Types.lookupMethod(
     classOf[SqlDateTimeUtils], "timeStringToUnixDate", classOf[String])
+
+  val TRUNCATE_DOUBLE_ONE = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+    classOf[Double])
+  val TRUNCATE_FLOAT_ONE = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
+    classOf[Float])
+  val TRUNCATE_INT_ONE = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+    classOf[Int])
+  val TRUNCATE_LONG_ONE = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+    classOf[Long])
+  val TRUNCATE_DEC_ONE = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
+    classOf[Decimal])
+
+  val TRUNCATE_DOUBLE = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+    classOf[Double], classOf[Int])
+  val TRUNCATE_FLOAT = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
+    classOf[Float], classOf[Int])
+  val TRUNCATE_INT = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+    classOf[Int], classOf[Int])
+  val TRUNCATE_LONG = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+    classOf[Long], classOf[Int])
+  val TRUNCATE_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
+    classOf[Decimal], classOf[Int])
 }
