@@ -119,6 +119,8 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("ROUND(-12.345, 2)", "-12.35")
     testSqlApi("PI()", "3.141592653589793")
     testSqlApi("E()", "2.718281828459045")
+    testSqlApi("truncate(42.345)", "42")
+    testSqlApi("truncate(cast(42.345 as decimal(5, 3)), 2)", "42.34")
   }
 
   @Test
