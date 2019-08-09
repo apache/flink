@@ -47,7 +47,7 @@ Flink 很可能抛出类似如下的异常：
 
 {% highlight plain%}
 org.apache.flink.api.common.functions.InvalidTypesException: The generic type parameters of 'Collector' are missing.
-    In many cases Lambda methods don't provide enough information for automatic type extraction when Java generics are involved.
+    In many cases lambda methods don't provide enough information for automatic type extraction when Java generics are involved.
     An easy workaround is to use an (anonymous) class instead that implements the 'org.apache.flink.api.common.functions.FlatMapFunction' interface.
     Otherwise the type has to be specified explicitly using type information.
 {% endhighlight %}
