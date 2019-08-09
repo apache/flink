@@ -457,7 +457,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.sequence("'(DATA, HASH_LENGTH)'",
+		OperandTypes.sequence("'SHA2(DATA, HASH_LENGTH)'",
 			OperandTypes.STRING,  OperandTypes.NUMERIC_INTEGER),
 		SqlFunctionCategory.STRING);
 
