@@ -130,13 +130,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 	public void setUp() throws Exception {
 		failureManager = new CheckpointFailureManager(
 			0,
-			new CheckpointFailureManager.FailJobCallback() {
-				@Override
-				public void failJob(Throwable cause) {}
-
-				@Override
-				public void failJobDueToTaskFailure(Throwable cause, ExecutionAttemptID failingTask) {}
-		});
+			NoOpFailJobCall.INSTANCE);
 	}
 
 	@Test

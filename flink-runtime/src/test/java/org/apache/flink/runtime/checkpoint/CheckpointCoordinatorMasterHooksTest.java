@@ -444,14 +444,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 				SharedStateRegistry.DEFAULT_FACTORY,
 				new CheckpointFailureManager(
 					0,
-					new CheckpointFailureManager.FailJobCallback() {
-						@Override
-						public void failJob(Throwable cause) {}
-
-						@Override
-						public void failJobDueToTaskFailure(Throwable cause, ExecutionAttemptID failingTask) {}
-				})
-		);
+					NoOpFailJobCall.INSTANCE));
 	}
 
 	private static <T> T mockGeneric(Class<?> clazz) {
