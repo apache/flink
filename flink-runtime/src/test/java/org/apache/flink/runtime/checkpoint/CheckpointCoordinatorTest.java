@@ -128,7 +128,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 	@Before
 	public void setUp() throws Exception {
-		failureManager = new CheckpointFailureManager(0, new CheckpointFailureManager.FailJobCallback() {
+		failureManager = new CheckpointFailureManager(
+			0,
+			new CheckpointFailureManager.FailJobCallback() {
+				@Override
+				public void failJob(Throwable cause) {}
+
+				@Override
+				public void failJobDueToTaskFailure(Throwable cause, ExecutionAttemptID failingTask) {}
 		});
 	}
 
@@ -3929,6 +3936,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
 							invocationCounterAndException.f0 += 1;
 							invocationCounterAndException.f1 = cause;
 						}
+
+						@Override
+						public void failJobDueToTaskFailure(Throwable cause, ExecutionAttemptID failingTask) {}
 					}));
 
 		final CompletableFuture<CompletedCheckpoint> savepointFuture = coordinator

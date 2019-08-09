@@ -68,7 +68,13 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 
 		CheckpointFailureManager failureManager = new CheckpointFailureManager(
 			0,
-			new CheckpointFailureManager.FailJobCallback() {});
+			new CheckpointFailureManager.FailJobCallback() {
+				@Override
+				public void failJob(Throwable cause) {}
+
+				@Override
+				public void failJobDueToTaskFailure(Throwable cause, ExecutionAttemptID failingTask) {}
+			});
 
 		// set up the coordinator and validate the initial state
 		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(

@@ -183,7 +183,7 @@ public class CheckpointFailureManager {
 		 *
 		 * @param cause The reason why the synchronous savepoint fails.
 		 */
-		default void failJob(final Throwable cause){}
+		void failJob(final Throwable cause);
 
 		/**
 		 * Fails the whole job graph due to task failure.
@@ -191,7 +191,7 @@ public class CheckpointFailureManager {
 		 * @param cause The reason why the job is cancelled.
 		 * @param failingTask The id of the failing task attempt to prevent failing the job multiple times.
 		 */
-		default void failJobDueToTaskFailure(final Throwable cause, final ExecutionAttemptID failingTask){}
+		void failJobDueToTaskFailure(final Throwable cause, final ExecutionAttemptID failingTask);
 
 	}
 
