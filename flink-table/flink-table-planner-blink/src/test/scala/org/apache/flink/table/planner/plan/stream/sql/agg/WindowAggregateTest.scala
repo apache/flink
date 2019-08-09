@@ -86,14 +86,35 @@ class WindowAggregateTest extends TableTestBase {
   }
 
   @Test
-  def testWindowWrongWindowParameter(): Unit = {
+  def testWindowWrongWindowParameter1(): Unit = {
     expectedException.expect(classOf[TableException])
     expectedException.expectMessage(
-      "Only constant window intervals with millisecond resolution are supported")
+      "Window aggregate only support SECOND, MINUTE, HOUR, DAY as the time unit. " +
+        "MONTH and YEAR time unit are not supported yet.")
+
+    val sqlQuery =
+      "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, INTERVAL '1' MONTH)"
+
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testWindowWrongWindowParameter2(): Unit = {
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage(
+      "Window aggregate only support SECOND, MINUTE, HOUR, DAY as the time unit. " +
+        "MONTH and YEAR time unit are not supported yet.")
 
     val sqlQuery =
       "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, INTERVAL '2-10' YEAR TO MONTH)"
 
+    util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testIntervalDay(): Unit = {
+    val sqlQuery =
+      "SELECT COUNT(*) FROM MyTable GROUP BY TUMBLE(proctime, INTERVAL '35' DAY)"
     util.verifyPlan(sqlQuery)
   }
 
@@ -308,7 +329,7 @@ class WindowAggregateTest extends TableTestBase {
   }
 
   @Test
-  def testReturnTypeInferenceForWindowAgg() = {
+  def testReturnTypeInferenceForWindowAgg(): Unit = {
 
     val sql =
       """
