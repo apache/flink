@@ -37,6 +37,9 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 
 /**
  * The closure cleaner is a utility that tries to truncate the closure (enclosing instance)
@@ -65,7 +68,15 @@ public class ClosureCleaner {
 	 *                          be loaded, in order to process during the closure cleaning.
 	 */
 	public static void clean(Object func, ExecutionConfig.ClosureCleanerLevel level, boolean checkSerializable) {
+		clean(func, level, checkSerializable, Collections.newSetFromMap(new IdentityHashMap<>()));
+	}
+
+	private static void clean(Object func, ExecutionConfig.ClosureCleanerLevel level, boolean checkSerializable, Set<Object> visited) {
 		if (func == null) {
+			return;
+		}
+
+		if (!visited.add(func)) {
 			return;
 		}
 
@@ -112,7 +123,7 @@ public class ClosureCleaner {
 						LOG.debug("Dig to clean the {}", fieldObject.getClass().getName());
 					}
 
-					clean(fieldObject, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+					clean(fieldObject, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true, visited);
 				}
 			}
 		}
@@ -151,6 +162,11 @@ public class ClosureCleaner {
 	private static boolean usesCustomSerialization(Class<?> cls) {
 		try {
 			cls.getDeclaredMethod("writeObject", ObjectOutputStream.class);
+			return true;
+		} catch (NoSuchMethodException ignored) {}
+
+		try {
+			cls.getDeclaredMethod("writeReplace");
 			return true;
 		} catch (NoSuchMethodException ignored) {}
 

@@ -48,8 +48,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A generic catalog implementation that holds all meta objects in memory.
  */
 public class GenericInMemoryCatalog extends AbstractCatalog {
-	public static final String FLINK_IS_GENERIC_KEY = "is_generic";
-	public static final String FLINK_IS_GENERIC_VALUE = "true";
 
 	public static final String DEFAULT_DB = "default";
 
@@ -592,9 +590,12 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 		if (!tableExists(tablePath)) {
 			throw new TableNotExistException(getName(), tablePath);
 		}
-
-		CatalogTableStatistics result = tableStats.get(tablePath);
-		return result != null ? result.copy() : CatalogTableStatistics.UNKNOWN;
+		if (!isPartitionedTable(tablePath)) {
+			CatalogTableStatistics result = tableStats.get(tablePath);
+			return result != null ? result.copy() : CatalogTableStatistics.UNKNOWN;
+		} else {
+			return CatalogTableStatistics.UNKNOWN;
+		}
 	}
 
 	@Override

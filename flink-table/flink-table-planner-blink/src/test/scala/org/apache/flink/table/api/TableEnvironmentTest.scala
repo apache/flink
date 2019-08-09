@@ -22,6 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
+import org.apache.flink.table.planner.utils.TableTestUtil
 
 import org.apache.calcite.plan.RelOptUtil
 import org.junit.Assert.assertEquals
@@ -38,11 +39,11 @@ class TableEnvironmentTest {
   def thrown: ExpectedException = expectedException
 
   val env = new StreamExecutionEnvironment(new LocalStreamEnvironment())
-  val tableEnv: scala.StreamTableEnvironment = StreamTableEnvironment.create(env)
+  val tableEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
 
   @Test
   def testScanNonExistTable(): Unit = {
-    thrown.expect(classOf[TableException])
+    thrown.expect(classOf[ValidationException])
     thrown.expectMessage("Table 'MyTable' was not found")
     tableEnv.scan("MyTable")
   }
@@ -52,14 +53,14 @@ class TableEnvironmentTest {
     val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
     tableEnv.registerTable("MyTable", table)
     val scanTable = tableEnv.scan("MyTable")
-    val actual = RelOptUtil.toString(scanTable.asInstanceOf[TableImpl].getRelNode)
+    val relNode = TableTestUtil.toRelNode(scanTable)
+    val actual = RelOptUtil.toString(relNode)
     val expected = "LogicalTableScan(table=[[default_catalog, default_database, MyTable]])\n"
     assertEquals(expected, actual)
 
     // register on a conflict name
-    thrown.expect(classOf[org.apache.flink.table.catalog.exceptions.TableAlreadyExistException])
-    thrown.expectMessage(
-      "Table (or view) default_database.MyTable already exists in Catalog default_catalog.")
+    thrown.expect(classOf[org.apache.flink.table.api.TableException])
+    thrown.expectMessage("Could not register table")
     tableEnv.registerDataStream("MyTable", env.fromElements[(Int, Long)]())
   }
 
@@ -68,7 +69,8 @@ class TableEnvironmentTest {
     val table = env.fromElements[(Int, Long, String, Boolean)]().toTable(tableEnv, 'a, 'b, 'c, 'd)
     tableEnv.registerTable("MyTable", table)
     val queryTable = tableEnv.sqlQuery("SELECT a, c, d FROM MyTable")
-    val actual = RelOptUtil.toString(queryTable.asInstanceOf[TableImpl].getRelNode)
+    val relNode = TableTestUtil.toRelNode(queryTable)
+    val actual = RelOptUtil.toString(relNode)
     val expected = "LogicalProject(a=[$0], c=[$2], d=[$3])\n" +
       "  LogicalTableScan(table=[[default_catalog, default_database, MyTable]])\n"
     assertEquals(expected, actual)

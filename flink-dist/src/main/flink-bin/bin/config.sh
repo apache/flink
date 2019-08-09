@@ -296,7 +296,10 @@ bin=`dirname "$target"`
 SYMLINK_RESOLVED_BIN=`cd "$bin"; pwd -P`
 
 # Define the main directory of the flink installation
-FLINK_HOME=`dirname "$SYMLINK_RESOLVED_BIN"`
+# If config.sh is called by pyflink-shell.sh in python bin directory(pip installed), then do not need to set the FLINK_HOME here.
+if [ -z "$_FLINK_HOME_DETERMINED" ]; then
+    FLINK_HOME=`dirname "$SYMLINK_RESOLVED_BIN"`
+fi
 FLINK_LIB_DIR=$FLINK_HOME/lib
 FLINK_PLUGINS_DIR=$FLINK_HOME/plugins
 FLINK_OPT_DIR=$FLINK_HOME/opt

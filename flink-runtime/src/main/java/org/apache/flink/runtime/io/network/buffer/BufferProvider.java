@@ -63,11 +63,4 @@ public interface BufferProvider {
 	 * Returns whether the buffer provider has been destroyed.
 	 */
 	boolean isDestroyed();
-
-	/**
-	 * Returns the size of the underlying memory segments. This is the maximum size a {@link Buffer}
-	 * instance can have.
-	 */
-	int getMemorySegmentSize();
-
 }

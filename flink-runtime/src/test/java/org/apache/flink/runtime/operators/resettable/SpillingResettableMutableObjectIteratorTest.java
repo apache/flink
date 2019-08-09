@@ -68,11 +68,8 @@ public class SpillingResettableMutableObjectIteratorTest {
 	}
 
 	@After
-	public void shutdown() {
-		this.ioman.shutdown();
-		if (!this.ioman.isProperlyShutDown()) {
-			Assert.fail("I/O Manager Shutdown was not completed properly.");
-		}
+	public void shutdown() throws Exception {
+		this.ioman.close();
 		this.ioman = null;
 
 		if (!this.memman.verifyEmpty()) {

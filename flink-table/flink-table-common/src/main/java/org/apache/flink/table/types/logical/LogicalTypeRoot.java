@@ -101,7 +101,8 @@ public enum LogicalTypeRoot {
 
 	TIME_WITHOUT_TIME_ZONE(
 		LogicalTypeFamily.PREDEFINED,
-		LogicalTypeFamily.DATETIME),
+		LogicalTypeFamily.DATETIME,
+		LogicalTypeFamily.TIME),
 
 	TIMESTAMP_WITHOUT_TIME_ZONE(
 		LogicalTypeFamily.PREDEFINED,
@@ -155,6 +156,9 @@ public enum LogicalTypeRoot {
 		LogicalTypeFamily.EXTENSION),
 
 	SYMBOL(
+		LogicalTypeFamily.EXTENSION),
+
+	UNRESOLVED(
 		LogicalTypeFamily.EXTENSION);
 
 	private final Set<LogicalTypeFamily> families;

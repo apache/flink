@@ -110,10 +110,7 @@ public class HashTableTest {
 	 */
 	@Test
 	public void testBufferMissingForProbing() {
-
-		final IOManager ioMan = new IOManagerAsync();
-
-		try {
+		try (final IOManager ioMan = new IOManagerAsync()) {
 			final int pageSize = 32*1024;
 			final int numSegments = 34;
 			final int numRecords = 3400;
@@ -151,9 +148,6 @@ public class HashTableTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			ioMan.shutdown();
-		}
 	}
 
 	/**
@@ -163,8 +157,6 @@ public class HashTableTest {
 	 */
 	@Test
 	public void testSpillingFreesOnlyOverflowSegments() {
-		final IOManager ioMan = new IOManagerAsync();
-		
 		final TypeSerializer<ByteValue> serializer = ByteValueSerializer.INSTANCE;
 		final TypeComparator<ByteValue> buildComparator = new ValueComparator<>(true, ByteValue.class);
 		final TypeComparator<ByteValue> probeComparator = new ValueComparator<>(true, ByteValue.class);
@@ -172,7 +164,7 @@ public class HashTableTest {
 		@SuppressWarnings("unchecked")
 		final TypePairComparator<ByteValue, ByteValue> pairComparator = Mockito.mock(TypePairComparator.class);
 		
-		try {
+		try (final IOManager ioMan = new IOManagerAsync()) {
 			final int pageSize = 32*1024;
 			final int numSegments = 34;
 
@@ -192,9 +184,6 @@ public class HashTableTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			ioMan.shutdown();
-		}
 	}
 
 	/**
@@ -203,9 +192,7 @@ public class HashTableTest {
 	 */
 	@Test
 	public void testSpillingWhenBuildingTableWithoutOverflow() throws Exception {
-		final IOManager ioMan = new IOManagerAsync();
-
-		try {
+		try (final IOManager ioMan = new IOManagerAsync()) {
 			final TypeSerializer<byte[]> serializer = BytePrimitiveArraySerializer.INSTANCE;
 			final TypeComparator<byte[]> buildComparator = new BytePrimitiveArrayComparator(true);
 			final TypeComparator<byte[]> probeComparator = new BytePrimitiveArrayComparator(true);
@@ -254,8 +241,6 @@ public class HashTableTest {
 			}
 
 			table.close();
-		} finally {
-			ioMan.shutdown();
 		}
 	}
 	

@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -39,7 +39,9 @@ under the License.
 		<module>flink-parent-child-classloading-test-program</module>
 		<module>flink-parent-child-classloading-test-lib-package</module>
 		<module>flink-dataset-allround-test</module>
+		<module>flink-dataset-fine-grained-recovery-test</module>
 		<module>flink-datastream-allround-test</module>
+		<module>flink-batch-sql-test</module>
 		<module>flink-stream-sql-test</module>
 		<module>flink-bucketing-sink-test</module>
 		<module>flink-distributed-cache-via-blob-test</module>
@@ -61,11 +63,13 @@ under the License.
 		<module>flink-metrics-availability-test</module>
 		<module>flink-metrics-reporter-prometheus-test</module>
 		<module>flink-heavy-deployment-stress-test</module>
+		<module>flink-connector-gcp-pubsub-emulator-tests</module>
 		<module>flink-streaming-kafka-test-base</module>
 		<module>flink-streaming-kafka-test</module>
 		<module>flink-streaming-kafka011-test</module>
 		<module>flink-streaming-kafka010-test</module>
 		<module>flink-plugins-test</module>
+		<module>flink-tpch-test</module>
 	</modules>
 
 	<!-- See main pom.xml for explanation of profiles -->

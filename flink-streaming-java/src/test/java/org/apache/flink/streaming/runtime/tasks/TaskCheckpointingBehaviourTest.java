@@ -82,6 +82,7 @@ import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
@@ -99,7 +100,6 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 
@@ -122,27 +122,12 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 	}
 
 	@Test
-	public void testTaskFailingOnCheckpointErrorInSyncPart() throws Exception {
-		Throwable failureCause = runTestTaskFailingOnCheckpointError(new SyncFailureInducingStateBackend());
-		assertNotNull(failureCause);
-
-		String expectedMessageStart = "Could not perform checkpoint";
-		assertEquals(expectedMessageStart, failureCause.getMessage().substring(0, expectedMessageStart.length()));
-	}
-
-	@Test
-	public void testTaskFailingOnCheckpointErrorInAsyncPart() throws Exception {
-		Throwable failureCause = runTestTaskFailingOnCheckpointError(new AsyncFailureInducingStateBackend());
-		assertEquals(AsynchronousException.class, failureCause.getClass());
-	}
-
-	@Test
 	public void testBlockingNonInterruptibleCheckpoint() throws Exception {
 
 		StateBackend lockingStateBackend = new BackendForTestStream(LockingOutputStream::new);
 
 		Task task =
-			createTask(new TestOperator(), lockingStateBackend, mock(CheckpointResponder.class), true);
+			createTask(new TestOperator(), lockingStateBackend, mock(CheckpointResponder.class));
 
 		// start the task and wait until it is in "restore"
 		task.startTaskThread();
@@ -162,7 +147,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		TestDeclinedCheckpointResponder checkpointResponder = new TestDeclinedCheckpointResponder();
 
 		Task task =
-			createTask(new FilterOperator(), backend, checkpointResponder, false);
+			createTask(new FilterOperator(), backend, checkpointResponder);
 
 		// start the task and wait until it is in "restore"
 		task.startTaskThread();
@@ -175,20 +160,6 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		task.getExecutingThread().join();
 	}
 
-	private Throwable runTestTaskFailingOnCheckpointError(AbstractStateBackend backend) throws Exception {
-
-		Task task =
-			createTask(new FilterOperator(), backend, mock(CheckpointResponder.class), true);
-
-		// start the task and wait until it is in "restore"
-		task.startTaskThread();
-
-		task.getExecutingThread().join();
-
-		assertEquals(ExecutionState.FAILED, task.getExecutionState());
-		return task.getFailureCause();
-	}
-
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -196,8 +167,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 	private static Task createTask(
 		StreamOperator<?> op,
 		StateBackend backend,
-		CheckpointResponder checkpointResponder,
-		boolean failOnCheckpointErrors) throws IOException {
+		CheckpointResponder checkpointResponder) throws IOException {
 
 		Configuration taskConfig = new Configuration();
 		StreamConfig cfg = new StreamConfig(taskConfig);
@@ -206,7 +176,6 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		cfg.setStateBackend(backend);
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
-		executionConfig.setFailTaskOnCheckpointError(failOnCheckpointErrors);
 
 		JobInformation jobInformation = new JobInformation(
 				new JobID(),
@@ -506,7 +475,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		public void init() {}
 
 		@Override
-		protected void performDefaultAction(ActionContext context) throws Exception {
+		protected void performDefaultAction(DefaultActionContext context) throws Exception {
 			triggerCheckpointOnBarrier(
 				new CheckpointMetaData(
 					11L,
@@ -522,8 +491,5 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 
 		@Override
 		protected void cleanup() {}
-
-		@Override
-		protected void cancelTask() {}
 	}
 }

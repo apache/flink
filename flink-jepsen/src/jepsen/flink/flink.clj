@@ -120,7 +120,6 @@
                      :parse-fn read-test-spec
                      :validate [#(->> % :dbs (map dbs) (every? (complement nil?)))
                                 (str "Invalid :dbs specification. " (keys->allowed-values-help-text dbs))]]
-                    [nil "--ha-storage-dir DIR" "high-availability.storageDir"]
                     [nil "--nemesis-gen GEN" (str "Which nemesis should be used?"
                                                   (keys->allowed-values-help-text fn/nemesis-generator-factories))
                      :parse-fn keyword

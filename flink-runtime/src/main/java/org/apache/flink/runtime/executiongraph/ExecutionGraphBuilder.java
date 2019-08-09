@@ -38,11 +38,14 @@ import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
+import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.PartitionReleaseStrategyFactoryLoader;
 import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.NumberOfFullRestartsGauge;
 import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
+import org.apache.flink.runtime.io.network.partition.PartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -94,15 +97,55 @@ public class ExecutionGraphBuilder {
 			BlobWriter blobWriter,
 			Time allocationTimeout,
 			Logger log,
-			ShuffleMaster<?> shuffleMaster) throws JobExecutionException, JobException {
+			ShuffleMaster<?> shuffleMaster,
+			PartitionTracker partitionTracker) throws JobExecutionException, JobException {
+
+		final FailoverStrategy.Factory failoverStrategy =
+			FailoverStrategyLoader.loadFailoverStrategy(jobManagerConfig, log);
+
+		return buildGraph(
+			prior,
+			jobGraph,
+			jobManagerConfig,
+			futureExecutor,
+			ioExecutor,
+			slotProvider,
+			classLoader,
+			recoveryFactory,
+			rpcTimeout,
+			restartStrategy,
+			metrics,
+			blobWriter,
+			allocationTimeout,
+			log,
+			shuffleMaster,
+			partitionTracker,
+			failoverStrategy);
+	}
+
+	public static ExecutionGraph buildGraph(
+		@Nullable ExecutionGraph prior,
+		JobGraph jobGraph,
+		Configuration jobManagerConfig,
+		ScheduledExecutorService futureExecutor,
+		Executor ioExecutor,
+		SlotProvider slotProvider,
+		ClassLoader classLoader,
+		CheckpointRecoveryFactory recoveryFactory,
+		Time rpcTimeout,
+		RestartStrategy restartStrategy,
+		MetricGroup metrics,
+		BlobWriter blobWriter,
+		Time allocationTimeout,
+		Logger log,
+		ShuffleMaster<?> shuffleMaster,
+		PartitionTracker partitionTracker,
+		FailoverStrategy.Factory failoverStrategyFactory) throws JobExecutionException, JobException {
 
 		checkNotNull(jobGraph, "job graph cannot be null");
 
 		final String jobName = jobGraph.getName();
 		final JobID jobId = jobGraph.getJobID();
-
-		final FailoverStrategy.Factory failoverStrategy =
-				FailoverStrategyLoader.loadFailoverStrategy(jobManagerConfig, log);
 
 		final JobInformation jobInformation = new JobInformation(
 			jobId,
@@ -115,6 +158,9 @@ public class ExecutionGraphBuilder {
 		final int maxPriorAttemptsHistoryLength =
 				jobManagerConfig.getInteger(JobManagerOptions.MAX_ATTEMPTS_HISTORY_SIZE);
 
+		final PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory =
+			PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(jobManagerConfig);
+
 		// create a new execution graph, if none exists so far
 		final ExecutionGraph executionGraph;
 		try {
@@ -126,20 +172,21 @@ public class ExecutionGraphBuilder {
 					rpcTimeout,
 					restartStrategy,
 					maxPriorAttemptsHistoryLength,
-					failoverStrategy,
+					failoverStrategyFactory,
 					slotProvider,
 					classLoader,
 					blobWriter,
 					allocationTimeout,
-					shuffleMaster);
+					partitionReleaseStrategyFactory,
+					shuffleMaster,
+					partitionTracker,
+					jobGraph.getScheduleMode(),
+					jobGraph.getAllowQueuedScheduling());
 		} catch (IOException e) {
 			throw new JobException("Could not create the ExecutionGraph.", e);
 		}
 
 		// set the basic properties
-
-		executionGraph.setScheduleMode(jobGraph.getScheduleMode());
-		executionGraph.setQueuedSchedulingAllowed(jobGraph.getAllowQueuedScheduling());
 
 		try {
 			executionGraph.setJsonPlan(JsonPlanGenerator.generatePlan(jobGraph));

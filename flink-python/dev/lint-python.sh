@@ -178,7 +178,7 @@ function install_miniconda() {
 
 # Install some kinds of py env.
 function install_py_env() {
-    py_env=("2.7" "3.3" "3.4" "3.5" "3.6" "3.7")
+    py_env=("2.7" "3.5" "3.6" "3.7")
     for ((i=0;i<${#py_env[@]};i++)) do
         if [ -d "$CURRENT_DIR/.conda/envs/${py_env[i]}" ]; then
             rm -rf "$CURRENT_DIR/.conda/envs/${py_env[i]}"
@@ -190,7 +190,7 @@ function install_py_env() {
             fi
         fi
         print_function "STEP" "installing python${py_env[i]}..."
-        ${CONDA_PATH} create --name ${py_env[i]} -y -q python=${py_env[i]} 2>&1 >/dev/null
+        $CONDA_PATH create --name ${py_env[i]} -y -q python=${py_env[i]} 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
             echo "conda install ${py_env[i]} failed.\
             You can retry to exec the script."
@@ -204,7 +204,7 @@ function install_py_env() {
 # In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_tox() {
     if [ -f "$TOX_PATH" ]; then
-        ${CONDA_PATH} remove tox -y -q 2>&1 >/dev/null
+        $CONDA_PATH remove -p $CONDA_HOME tox -y -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
             echo "conda remove tox failed \
             please try to exec the script again.\
@@ -213,7 +213,9 @@ function install_tox() {
         fi
     fi
 
-    ${CONDA_PATH} install -c conda-forge tox -y -q 2>&1 >/dev/null
+    # virtualenv 16.6.2 released in 2019-07-14 is incompatible with py27 and py34,
+    # force install an older version(16.0.0) to avoid this problem.
+    $CONDA_PATH install -p $CONDA_HOME -c conda-forge virtualenv=16.0.0 tox -y -q 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "conda install tox failed \
         please try to exec the script again.\
@@ -226,7 +228,7 @@ function install_tox() {
 # In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_flake8() {
     if [ -f "$FLAKE8_PATH" ]; then
-        ${CONDA_PATH} remove flake8 -y -q 2>&1 >/dev/null
+        $CONDA_PATH remove -p $CONDA_HOME flake8 -y -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
             echo "conda remove flake8 failed \
             please try to exec the script again.\
@@ -235,7 +237,7 @@ function install_flake8() {
         fi
     fi
 
-    ${CONDA_PATH} install -c anaconda flake8 -y -q 2>&1 >/dev/null
+    $CONDA_PATH install -p $CONDA_HOME -c anaconda flake8 -y -q 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "conda install flake8 failed \
         please try to exec the script again.\
@@ -248,7 +250,7 @@ function install_flake8() {
 # In some situations,you need to run the script with "sudo". e.g. sudo ./lint-python.sh
 function install_sphinx() {
     if [ -f "$SPHINX_PATH" ]; then
-        ${CONDA_PATH} remove sphinx -y -q 2>&1 >/dev/null
+        $CONDA_PATH remove -p $CONDA_HOME sphinx -y -q 2>&1 >/dev/null
         if [ $? -ne 0 ]; then
             echo "conda remove sphinx failed \
             please try to exec the script again.\
@@ -257,7 +259,7 @@ function install_sphinx() {
         fi
     fi
 
-    ${CONDA_PATH} install -c anaconda sphinx -y -q 2>&1 >/dev/null
+    $CONDA_PATH install -p $CONDA_HOME -c anaconda sphinx -y -q 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "conda install sphinx failed \
         please try to exec the script again.\
@@ -352,13 +354,13 @@ function create_dir() {
 
 # Set created py-env in $PATH for tox's creating virtual env
 function activate () {
-    if [ ! -d ${CURRENT_DIR}/.conda/envs ]; then
-        echo "For some unkown reasons,missing the directory ${CURRENT_DIR}/.conda/envs,\
+    if [ ! -d $CURRENT_DIR/.conda/envs ]; then
+        echo "For some unkown reasons,missing the directory $CURRENT_DIR/.conda/envs,\
         you should exec the script with the option: -f"
         exit 1
     fi
 
-    for py_dir in ${CURRENT_DIR}/.conda/envs/*
+    for py_dir in $CURRENT_DIR/.conda/envs/*
     do
         PATH=$py_dir/bin:$PATH
     done
@@ -529,17 +531,20 @@ CURRENT_DIR="$(cd "$( dirname "$0" )" && pwd)"
 FLINK_PYTHON_DIR=$(dirname "$CURRENT_DIR")
 pushd "$FLINK_PYTHON_DIR" &> /dev/null
 
+# conda home path
+CONDA_HOME=$CURRENT_DIR/.conda
+
 # conda path
-CONDA_PATH=$CURRENT_DIR/.conda/bin/conda
+CONDA_PATH=$CONDA_HOME/bin/conda
 
 # tox path
-TOX_PATH=$CURRENT_DIR/.conda/bin/tox
+TOX_PATH=$CONDA_HOME/bin/tox
 
 # flake8 path
-FLAKE8_PATH=$CURRENT_DIR/.conda/bin/flake8
+FLAKE8_PATH=$CONDA_HOME/bin/flake8
 
 # sphinx path
-SPHINX_PATH=$CURRENT_DIR/.conda/bin/sphinx-build
+SPHINX_PATH=$CONDA_HOME/bin/sphinx-build
 
 _OLD_PATH="$PATH"
 
@@ -549,7 +554,7 @@ SUPPORT_OS=("Darwin" "Linux")
 STAGE_FILE=$CURRENT_DIR/.stage.txt
 
 # the dir includes all kinds of py env installed.
-VIRTUAL_ENV=$CURRENT_DIR/.conda/envs
+VIRTUAL_ENV=$CONDA_HOME/envs
 
 LOG_DIR=$CURRENT_DIR/log
 

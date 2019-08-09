@@ -32,6 +32,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.Utils;
@@ -73,7 +74,6 @@ import org.apache.flink.streaming.api.functions.source.StatefulSequenceSource;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SplittableIterator;
 import org.apache.flink.util.StringUtils;
@@ -132,7 +132,7 @@ public abstract class StreamExecutionEnvironment {
 	/** Settings that control the checkpointing behavior. */
 	private final CheckpointConfig checkpointCfg = new CheckpointConfig();
 
-	protected final List<StreamTransformation<?>> transformations = new ArrayList<>();
+	protected final List<Transformation<?>> transformations = new ArrayList<>();
 
 	private long bufferTimeout = DEFAULT_NETWORK_BUFFER_TIMEOUT;
 
@@ -1453,17 +1453,16 @@ public abstract class StreamExecutionEnvironment {
 	@SuppressWarnings("unchecked")
 	public <OUT> DataStreamSource<OUT> addSource(SourceFunction<OUT> function, String sourceName, TypeInformation<OUT> typeInfo) {
 
+		if (function instanceof ResultTypeQueryable) {
+			typeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
+		}
 		if (typeInfo == null) {
-			if (function instanceof ResultTypeQueryable) {
-				typeInfo = ((ResultTypeQueryable<OUT>) function).getProducedType();
-			} else {
-				try {
-					typeInfo = TypeExtractor.createTypeInfo(
-							SourceFunction.class,
-							function.getClass(), 0, null, null);
-				} catch (final InvalidTypesException e) {
-					typeInfo = (TypeInformation<OUT>) new MissingTypeInfo(sourceName, e);
-				}
+			try {
+				typeInfo = TypeExtractor.createTypeInfo(
+						SourceFunction.class,
+						function.getClass(), 0, null, null);
+			} catch (final InvalidTypesException e) {
+				typeInfo = (TypeInformation<OUT>) new MissingTypeInfo(sourceName, e);
 			}
 		}
 
@@ -1502,7 +1501,23 @@ public abstract class StreamExecutionEnvironment {
 	 * @return The result of the job execution, containing elapsed time and accumulators.
 	 * @throws Exception which occurs during job execution.
 	 */
-	public abstract JobExecutionResult execute(String jobName) throws Exception;
+	public JobExecutionResult execute(String jobName) throws Exception {
+		Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
+
+		return execute(getStreamGraph(jobName));
+	}
+
+	/**
+	 * Triggers the program execution. The environment will execute all parts of
+	 * the program that have resulted in a "sink" operation. Sink operations are
+	 * for example printing results or forwarding them to a message queue.
+	 *
+	 * @param streamGraph the stream graph representing the transformations
+	 * @return The result of the job execution, containing elapsed time and accumulators.
+	 * @throws Exception which occurs during job execution.
+	 */
+	@Internal
+	public abstract JobExecutionResult execute(StreamGraph streamGraph) throws Exception;
 
 	/**
 	 * Getter of the {@link org.apache.flink.streaming.api.graph.StreamGraph} of the streaming job.
@@ -1573,7 +1588,7 @@ public abstract class StreamExecutionEnvironment {
 	 * this method.
 	 */
 	@Internal
-	public void addOperator(StreamTransformation<?> transformation) {
+	public void addOperator(Transformation<?> transformation) {
 		Preconditions.checkNotNull(transformation, "transformation must not be null.");
 		this.transformations.add(transformation);
 	}

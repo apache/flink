@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.transformations;
 
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.util.OutputTag;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
@@ -38,21 +38,21 @@ import static java.util.Objects.requireNonNull;
  *
  * @param <T> The type of the elements that result from this {@code SideOutputTransformation}
  */
-public class SideOutputTransformation<T> extends StreamTransformation<T> {
-	private final StreamTransformation<?> input;
+public class SideOutputTransformation<T> extends Transformation<T> {
+	private final Transformation<?> input;
 
 	private final OutputTag<T> tag;
 
-	public SideOutputTransformation(StreamTransformation<?> input, final OutputTag<T> tag) {
+	public SideOutputTransformation(Transformation<?> input, final OutputTag<T> tag) {
 		super("SideOutput", tag.getTypeInfo(), requireNonNull(input).getParallelism());
 		this.input = input;
 		this.tag = requireNonNull(tag);
 	}
 
 	/**
-	 * Returns the input {@code StreamTransformation}.
+	 * Returns the input {@code Transformation}.
 	 */
-	public StreamTransformation<?> getInput() {
+	public Transformation<?> getInput() {
 		return input;
 	}
 
@@ -61,15 +61,10 @@ public class SideOutputTransformation<T> extends StreamTransformation<T> {
 	}
 
 	@Override
-	public Collection<StreamTransformation<?>> getTransitivePredecessors() {
-		List<StreamTransformation<?>> result = Lists.newArrayList();
+	public Collection<Transformation<?>> getTransitivePredecessors() {
+		List<Transformation<?>> result = Lists.newArrayList();
 		result.add(this);
 		result.addAll(input.getTransitivePredecessors());
 		return result;
-	}
-
-	@Override
-	public final void setChainingStrategy(ChainingStrategy strategy) {
-		throw new UnsupportedOperationException("Cannot set chaining strategy on SideOutput Transformation.");
 	}
 }

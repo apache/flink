@@ -18,15 +18,18 @@
 
 package org.apache.flink.table.catalog
 
-import _root_.java.util.{List => JList}
+import org.apache.flink.table.calcite.FlinkTypeFactory
+import org.apache.flink.table.functions.sql.ScalarSqlFunctions
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.{OperandTypes, ReturnTypes, SqlReturnTypeInference, SqlTypeTransforms}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.util.ReflectiveSqlOperatorTable
-import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.sql.ScalarSqlFunctions
+import org.apache.calcite.sql.validate.{SqlNameMatcher, SqlNameMatchers}
+
+import _root_.java.util.{List => JList}
+import java.util
 
 import _root_.scala.collection.JavaConversions._
 
@@ -149,8 +152,6 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.CURRENT_DATE,
     ScalarSqlFunctions.DATE_FORMAT,
     SqlStdOperatorTable.CAST,
-    SqlStdOperatorTable.EXTRACT,
-    SqlStdOperatorTable.QUARTER,
     SqlStdOperatorTable.SCALAR_QUERY,
     SqlStdOperatorTable.EXISTS,
     SqlStdOperatorTable.SIN,
@@ -176,8 +177,6 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     SqlStdOperatorTable.REPLACE,
     ScalarSqlFunctions.BIN,
     ScalarSqlFunctions.HEX,
-    SqlStdOperatorTable.TIMESTAMP_ADD,
-    SqlStdOperatorTable.TIMESTAMP_DIFF,
     ScalarSqlFunctions.LOG,
     ScalarSqlFunctions.LPAD,
     ScalarSqlFunctions.RPAD,
@@ -198,6 +197,20 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
     ScalarSqlFunctions.REPEAT,
     ScalarSqlFunctions.REGEXP_REPLACE,
     SqlStdOperatorTable.TRUNCATE,
+
+    // TIME FUNCTIONS
+    SqlStdOperatorTable.YEAR,
+    SqlStdOperatorTable.QUARTER,
+    SqlStdOperatorTable.MONTH,
+    SqlStdOperatorTable.WEEK,
+    SqlStdOperatorTable.HOUR,
+    SqlStdOperatorTable.MINUTE,
+    SqlStdOperatorTable.SECOND,
+    SqlStdOperatorTable.DAYOFYEAR,
+    SqlStdOperatorTable.DAYOFMONTH,
+    SqlStdOperatorTable.DAYOFWEEK,
+    SqlStdOperatorTable.TIMESTAMP_ADD,
+    SqlStdOperatorTable.TIMESTAMP_DIFF,
 
     // MATCH_RECOGNIZE
     SqlStdOperatorTable.FIRST,
@@ -227,6 +240,17 @@ class BasicOperatorTable extends ReflectiveSqlOperatorTable {
   )
 
   builtInSqlOperators.foreach(register)
+
+  override def lookupOperatorOverloads(
+      opName: SqlIdentifier,
+      category: SqlFunctionCategory,
+      syntax: SqlSyntax,
+      operatorList: util.List[SqlOperator],
+      nameMatcher: SqlNameMatcher): Unit = {
+    // set caseSensitive=false to make sure the behavior is same with before.
+    super.lookupOperatorOverloads(
+      opName, category, syntax, operatorList, SqlNameMatchers.withCaseSensitive(false))
+  }
 }
 
 object BasicOperatorTable {

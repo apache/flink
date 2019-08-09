@@ -71,6 +71,16 @@ public class TableSourceValidation {
 		validateNotOverlapping(rowtimeAttributes, proctimeAttribute);
 	}
 
+	/**
+	 * Checks if the given {@link TableSource} defines a rowtime attribute.
+	 *
+	 * @param tableSource The table source to check.
+	 * @return true if the given table source defines rotime attribute
+	 */
+	public static boolean hasRowtimeAttribute(TableSource<?> tableSource) {
+		return !getRowtimeAttributes(tableSource).isEmpty();
+	}
+
 	private static void validateSingleRowtimeAttribute(List<RowtimeAttributeDescriptor> rowtimeAttributes) {
 		if (rowtimeAttributes.size() > 1) {
 			throw new ValidationException("Currently, only a single rowtime attribute is supported. " +
@@ -259,8 +269,10 @@ public class TableSourceValidation {
 			lookupFieldType(
 				producedDataType,
 				fieldName,
-				String.format("Table field '%s' was not found in the return type $returnType of the " +
-					"TableSource.", fieldName)));
+				String.format(
+					"Table field '%s' was not found in the return type %s of the TableSource.",
+					fieldName,
+					producedDataType)));
 	}
 
 	/** Look up a field by name in a {@link DataType}. */

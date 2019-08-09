@@ -80,7 +80,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 	public void testStopWithDefaultSavepointDir() throws Exception {
 		JobID jid = new JobID();
 
-		String[] parameters = { "-s", jid.toString() };
+		String[] parameters = {jid.toString() };
 		final ClusterClient<String> clusterClient = createClusterClient(null);
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 		testFrontend.stop(parameters);
@@ -93,7 +93,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 	public void testStopWithExplicitSavepointDir() throws Exception {
 		JobID jid = new JobID();
 
-		String[] parameters = { "-s", "test-target-dir", jid.toString() };
+		String[] parameters = { "-p", "test-target-dir", jid.toString() };
 		final ClusterClient<String> clusterClient = createClusterClient(null);
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 		testFrontend.stop(parameters);
@@ -119,7 +119,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 	public void testStopWithMaxWMAndDefaultSavepointDir() throws Exception {
 		JobID jid = new JobID();
 
-		String[] parameters = { "-s", "-d", jid.toString() };
+		String[] parameters = { "-p", "-d", jid.toString() };
 		final ClusterClient<String> clusterClient = createClusterClient(null);
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 		testFrontend.stop(parameters);
@@ -132,7 +132,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 	public void testStopWithMaxWMAndExplicitSavepointDir() throws Exception {
 		JobID jid = new JobID();
 
-		String[] parameters = { "-d", "-s", "test-target-dir", jid.toString() };
+		String[] parameters = { "-d", "-p", "test-target-dir", jid.toString() };
 		final ClusterClient<String> clusterClient = createClusterClient(null);
 		MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 		testFrontend.stop(parameters);
@@ -181,7 +181,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
 		// test unknown job Id
 		JobID jid = new JobID();
 
-		String[] parameters = { "-s", "test-target-dir", jid.toString() };
+		String[] parameters = { "-p", "test-target-dir", jid.toString() };
 		String expectedMessage = "Test exception";
 		FlinkException testException = new FlinkException(expectedMessage);
 		final ClusterClient<String> clusterClient = createClusterClient(testException);

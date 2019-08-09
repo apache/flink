@@ -20,10 +20,11 @@ package org.apache.flink.table.utils
 
 import java.util.Optional
 
+import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.catalog.{Catalog, ExternalCatalog}
-import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
+import org.apache.flink.table.descriptors.{ConnectTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
@@ -51,7 +52,11 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def scan(tablePath: String*): Table = ???
 
-  override def connect(connectorDescriptor: ConnectorDescriptor): TableDescriptor = ???
+  override def connect(connectorDescriptor: ConnectorDescriptor): ConnectTableDescriptor = ???
+
+  override def listCatalogs(): Array[String] = ???
+
+  override def listDatabases(): Array[String] = ???
 
   override def listTables(): Array[String] = ???
 
@@ -59,13 +64,15 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def explain(table: Table): String = ???
 
+  override def explain(table: Table, extended: Boolean): String = ???
+
+  override def explain(extended: Boolean): String = ???
+
   override def getCompletionHints(statement: String, position: Int): Array[String] = ???
 
   override def sqlQuery(query: String): Table = ???
 
   override def sqlUpdate(stmt: String): Unit = ???
-
-  override def sqlUpdate(stmt: String, config: QueryConfig): Unit = ???
 
   override def getConfig: TableConfig = ???
 
@@ -85,12 +92,8 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def insertInto(
     table: Table,
-    queryConfig: QueryConfig,
     sinkPath: String,
     sinkPathContinued: String*): Unit = ???
 
-  override def insertInto(
-    table: Table,
-    sinkPath: String,
-    sinkPathContinued: String*): Unit = ???
+  override def execute(jobName: String): JobExecutionResult = ???
 }

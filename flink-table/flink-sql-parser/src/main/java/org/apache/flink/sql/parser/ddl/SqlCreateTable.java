@@ -123,6 +123,10 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 		return comment;
 	}
 
+	public boolean isIfNotExists() {
+		return ifNotExists;
+	}
+
 	public void validate() throws SqlParseException {
 		Set<String> columnNames = new HashSet<>();
 		if (columnList != null) {
@@ -208,7 +212,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 	 *     col2 varchar,
 	 *     col3 as to_timestamp(col2)
 	 *   ) with (
-	 *     connector = 'csv'
+	 *     'connector' = 'csv'
 	 *   )
 	 * </pre>
 	 * we would return a query like:
@@ -272,6 +276,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 				writer.endList(keyFrame);
 			}
 		}
+
 		writer.newlineAndIndent();
 		writer.endList(frame);
 
@@ -281,7 +286,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 			comment.unparse(writer, leftPrec, rightPrec);
 		}
 
-		if (this.partitionKeyList != null) {
+		if (this.partitionKeyList != null && this.partitionKeyList.size() > 0) {
 			writer.newlineAndIndent();
 			writer.keyword("PARTITIONED BY");
 			SqlWriter.Frame withFrame = writer.startList("(", ")");

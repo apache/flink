@@ -28,9 +28,12 @@ import org.apache.flink.util.function.SupplierWithException;
 
 import akka.dispatch.OnComplete;
 
+import javax.annotation.Nonnull;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -184,6 +187,61 @@ public class FutureUtils {
 			retryDelay,
 			(throwable) -> true,
 			scheduledExecutor);
+	}
+
+	/**
+	 * Schedule the operation with the given delay.
+	 *
+	 * @param operation to schedule
+	 * @param delay delay to schedule
+	 * @param scheduledExecutor executor to be used for the operation
+	 * @return Future which schedules the given operation with given delay.
+	 */
+	public static CompletableFuture<Void> scheduleWithDelay(
+			final Runnable operation,
+			final Time delay,
+			final ScheduledExecutor scheduledExecutor) {
+		Supplier<Void> operationSupplier = () -> {
+			operation.run();
+			return null;
+		};
+		return scheduleWithDelay(operationSupplier, delay, scheduledExecutor);
+	}
+
+	/**
+	 * Schedule the operation with the given delay.
+	 *
+	 * @param operation to schedule
+	 * @param delay delay to schedule
+	 * @param scheduledExecutor executor to be used for the operation
+	 * @param <T> type of the result
+	 * @return Future which schedules the given operation with given delay.
+	 */
+	public static <T> CompletableFuture<T> scheduleWithDelay(
+			final Supplier<T> operation,
+			final Time delay,
+			final ScheduledExecutor scheduledExecutor) {
+		final CompletableFuture<T> resultFuture = new CompletableFuture<>();
+
+		ScheduledFuture<?> scheduledFuture = scheduledExecutor.schedule(
+			() -> {
+				try {
+					resultFuture.complete(operation.get());
+				} catch (Throwable t) {
+					resultFuture.completeExceptionally(t);
+				}
+			},
+			delay.getSize(),
+			delay.getUnit()
+		);
+
+		resultFuture.whenComplete(
+			(t, throwable) -> {
+				if (!scheduledFuture.isDone()) {
+					scheduledFuture.cancel(false);
+				}
+			});
+		return resultFuture;
 	}
 
 	private static <T> void retryOperationWithDelay(
@@ -994,5 +1052,28 @@ public class FutureUtils {
 				uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), throwable);
 			}
 		});
+	}
+
+	/**
+	 * Cancels all instances of {@link java.util.concurrent.Future} in the given list of runnables without interrupting.
+	 * This method will suppress unexpected exceptions until the whole list is processed and then rethrow.
+	 *
+	 * @param runnables list of {@link Runnable} candidates to cancel.
+	 */
+	public static void cancelRunnableFutures(@Nonnull List<Runnable> runnables) {
+		RuntimeException suppressedExceptions = null;
+		for (Runnable runnable : runnables) {
+			if (runnable instanceof java.util.concurrent.Future) {
+				try {
+					((java.util.concurrent.Future<?>) runnable).cancel(false);
+				} catch (RuntimeException ex) {
+					// safety net to ensure all candidates get cancelled before we let the exception bubble up.
+					suppressedExceptions = ExceptionUtils.firstOrSuppressed(ex, suppressedExceptions);
+				}
+			}
+		}
+		if (suppressedExceptions != null) {
+			throw suppressedExceptions;
+		}
 	}
 }

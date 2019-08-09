@@ -25,14 +25,23 @@
     "org.apache.flink.sql.parser.ddl.SqlCreateTable",
     "org.apache.flink.sql.parser.ddl.SqlDropTable"
     "org.apache.flink.sql.parser.ddl.SqlCreateTable.TableCreationContext",
+    "org.apache.flink.sql.parser.ddl.SqlCreateView",
+    "org.apache.flink.sql.parser.ddl.SqlDropView",
     "org.apache.flink.sql.parser.ddl.SqlTableColumn",
+    "org.apache.flink.sql.parser.ddl.SqlTableOption",
     "org.apache.flink.sql.parser.dml.RichSqlInsert",
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
     "org.apache.flink.sql.parser.type.SqlArrayType",
+    "org.apache.flink.sql.parser.type.SqlBytesType",
     "org.apache.flink.sql.parser.type.SqlMapType",
+    "org.apache.flink.sql.parser.type.SqlMultisetType",
     "org.apache.flink.sql.parser.type.SqlRowType",
+    "org.apache.flink.sql.parser.type.SqlStringType",
+    "org.apache.flink.sql.parser.type.SqlTimeType",
+    "org.apache.flink.sql.parser.type.SqlTimestampType",
     "org.apache.flink.sql.parser.utils.SqlTimeUnit",
     "org.apache.flink.sql.parser.validate.FlinkSqlConformance",
+    "org.apache.flink.sql.parser.FlinkSqlDataTypeSpec",
     "org.apache.flink.sql.parser.SqlProperty",
     "org.apache.calcite.sql.SqlDrop",
     "org.apache.calcite.sql.SqlCreate",
@@ -52,9 +61,8 @@
     "BOUNDED",
     "DELAY",
     "OVERWRITE",
-    "JSON_PRETTY",
-    "JSON_TYPE",
-    "JSON_DEPTH"
+    "STRING",
+    "BYTES"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -153,6 +161,7 @@
     "GOTO"
     "GRANTED"
     "HIERARCHY"
+    "IGNORE"
     "IMMEDIATE"
     "IMMEDIATELY"
     "IMPLEMENTATION"
@@ -168,9 +177,6 @@
     "ISOLATION"
     "JAVA"
     "JSON"
-    "JSON_TYPE"
-    "JSON_DEPTH"
-    "JSON_PRETTY"
     "K"
     "KEY"
     "KEY_MEMBER"
@@ -182,7 +188,6 @@
     "LIBRARY"
     "LOCATOR"
     "M"
-    "MAP"
     "MATCHED"
     "MAXVALUE"
     "MICROSECOND"
@@ -237,6 +242,7 @@
     "RELATIVE"
     "REPEATABLE"
     "REPLACE"
+    "RESPECT"
     "RESTART"
     "RESTRICT"
     "RETURNED_CARDINALITY"
@@ -363,9 +369,6 @@
     "WRITE"
     "XML"
     "ZONE",
-    "JSON_PRETTY",
-    "JSON_TYPE",
-    "JSON_DEPTH",
 
     # not in core, added in Flink
     "PARTITIONED",
@@ -390,13 +393,24 @@
   literalParserMethods: [
   ]
 
+  # List of methods for parsing ddl supported data types.
+  # Return type of method implementation should be "SqlIdentifier".
+  # Example: SqlParseTimeStampZ().
+  flinkDataTypeParserMethods: [
+    "SqlArrayType()",
+    "SqlMultisetType()",
+    "SqlMapType()",
+    "SqlRowType()",
+    "SqlStringType()",
+    "SqlBytesType()",
+    "SqlTimestampType()",
+    "SqlTimeType()"
+  ]
+
   # List of methods for parsing custom data types.
   # Return type of method implementation should be "SqlIdentifier".
   # Example: SqlParseTimeStampZ().
   dataTypeParserMethods: [
-    "SqlArrayType()",
-    "SqlMapType()",
-    "SqlRowType()"
   ]
 
   # List of methods for parsing builtin function calls.
@@ -414,13 +428,15 @@
   # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.
   # Each must accept arguments "(SqlParserPos pos, boolean replace)".
   createStatementParserMethods: [
-    "SqlCreateTable"
+    "SqlCreateTable",
+    "SqlCreateView"
   ]
 
   # List of methods for parsing extensions to "DROP" calls.
   # Each must accept arguments "(Span s)".
   dropStatementParserMethods: [
-    "SqlDropTable"
+    "SqlDropTable",
+    "SqlDropView"
   ]
 
   # List of files in @includes directory that have parser method

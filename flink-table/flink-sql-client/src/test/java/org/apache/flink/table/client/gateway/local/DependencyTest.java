@@ -20,10 +20,19 @@ package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogDatabaseImpl;
+import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.ObjectPath;
+import org.apache.flink.table.catalog.config.CatalogConfig;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
@@ -161,6 +170,9 @@ public class DependencyTest {
 	 * to test logic of {@link HiveCatalogFactory}.
 	 */
 	public static class TestHiveCatalogFactory extends HiveCatalogFactory {
+		public static final String ADDITIONAL_TEST_DATABASE = "additional_test_database";
+		public static final String TEST_TABLE = "test_table";
+
 		@Override
 		public Map<String, String> requiredContext() {
 			Map<String, String> context = super.requiredContext();
@@ -179,7 +191,33 @@ public class DependencyTest {
 			// Developers may already have their own production/testing hive-site.xml set in their environment,
 			// and Flink tests should avoid using those hive-site.xml.
 			// Thus, explicitly create a testing HiveConf for unit tests here
-			return HiveTestUtils.createHiveCatalog(name, properties.get(HiveCatalogValidator.CATALOG_HIVE_VERSION));
+			Catalog hiveCatalog = HiveTestUtils.createHiveCatalog(name, properties.get(HiveCatalogValidator.CATALOG_HIVE_VERSION));
+
+			// Creates an additional database to test tableEnv.useDatabase() will switch current database of the catalog
+			hiveCatalog.open();
+			try {
+				hiveCatalog.createDatabase(
+					ADDITIONAL_TEST_DATABASE,
+					new CatalogDatabaseImpl(new HashMap<>(), null),
+					false);
+				hiveCatalog.createTable(
+					new ObjectPath(ADDITIONAL_TEST_DATABASE, TEST_TABLE),
+					new CatalogTableImpl(
+						TableSchema.builder()
+							.field("testcol", DataTypes.INT())
+							.build(),
+						new HashMap<String, String>() {{
+							put(CatalogConfig.IS_GENERIC, String.valueOf(true));
+						}},
+						""
+					),
+					false
+				);
+			} catch (DatabaseAlreadyExistException | TableAlreadyExistException | DatabaseNotExistException e) {
+				throw new CatalogException(e);
+			}
+
+			return hiveCatalog;
 		}
 	}
 }

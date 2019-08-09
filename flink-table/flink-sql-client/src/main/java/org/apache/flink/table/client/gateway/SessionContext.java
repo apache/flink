@@ -19,13 +19,18 @@
 package org.apache.flink.table.client.gateway;
 
 import org.apache.flink.table.client.config.Environment;
+import org.apache.flink.table.client.config.entries.ExecutionEntry;
 import org.apache.flink.table.client.config.entries.ViewEntry;
+import org.apache.flink.util.StringUtils;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Context describing a session.
@@ -71,6 +76,26 @@ public class SessionContext {
 
 	public String getName() {
 		return name;
+	}
+
+	public Optional<String> getCurrentCatalog() {
+		return Optional.ofNullable(sessionProperties.get(ExecutionEntry.EXECUTION_CURRENT_CATALOG));
+	}
+
+	public void setCurrentCatalog(String currentCatalog) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(currentCatalog));
+
+		sessionProperties.put(ExecutionEntry.EXECUTION_CURRENT_CATALOG, currentCatalog);
+	}
+
+	public Optional<String> getCurrentDatabase() {
+		return Optional.ofNullable(sessionProperties.get(ExecutionEntry.EXECUTION_CURRENT_DATABASE));
+	}
+
+	public void setCurrentDatabase(String currentDatabase) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(currentDatabase));
+
+		sessionProperties.put(ExecutionEntry.EXECUTION_CURRENT_DATABASE, currentDatabase);
 	}
 
 	public Environment getEnvironment() {

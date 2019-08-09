@@ -15,11 +15,25 @@
 // limitations under the License.
 -->
 
+/**
+* Parse a nullable option, default to be nullable.
+*/
+boolean NullableOpt() :
+{
+}
+{
+    <NULL> { return true; }
+|
+    <NOT> <NULL> { return false; }
+|
+    { return true; }
+}
+
 void TableColumn(TableCreationContext context) :
 {
 }
 {
-    (
+    (LOOKAHEAD(2)
         TableColumn2(context.columnList)
     |
         context.primaryKeyList = PrimaryKey()
@@ -55,14 +69,8 @@ void TableColumn2(List<SqlNode> list) :
 }
 {
     name = SimpleIdentifier()
-    type = DataType()
-    (
-        <NULL> { type = type.withNullable(true); }
-    |
-        <NOT> <NULL> { type = type.withNullable(false); }
-    |
-        { type = type.withNullable(true); }
-    )
+    <#-- #FlinkDataType already takes care of the nullable attribute. -->
+    type = FlinkDataType()
     [ <COMMENT> <QUOTED_STRING> {
         String p = SqlParserUtil.parseString(token.image);
         comment = SqlLiteral.createCharString(p, getPos());
@@ -107,19 +115,44 @@ void UniqueKey(List<SqlNodeList> list) :
     }
 }
 
-SqlNode PropertyValue() :
+SqlNode TableOption() :
 {
-    SqlIdentifier key;
+    SqlNode key;
     SqlNode value;
     SqlParserPos pos;
 }
 {
-    key = CompoundIdentifier()
+    key = StringLiteral()
     { pos = getPos(); }
     <EQ> value = StringLiteral()
     {
-        return new SqlProperty(key, value, getPos());
+        return new SqlTableOption(key, value, getPos());
     }
+}
+
+/** Parse a table properties. */
+SqlNodeList TableProperties():
+{
+    SqlNode property;
+    final List<SqlNode> proList = new ArrayList<SqlNode>();
+    final Span span;
+}
+{
+    <LPAREN> { span = span(); }
+    [
+        property = TableOption()
+        {
+            proList.add(property);
+        }
+        (
+            <COMMA> property = TableOption()
+            {
+                proList.add(property);
+            }
+        )*
+    ]
+    <RPAREN>
+    {  return new SqlNodeList(proList, span.end(this)); }
 }
 
 SqlCreate SqlCreateTable(Span s, boolean replace) :
@@ -131,8 +164,8 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     SqlNodeList columnList = SqlNodeList.EMPTY;
 	SqlCharStringLiteral comment = null;
 
-    SqlNodeList propertyList = null;
-    SqlNodeList partitionColumns = null;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlNodeList partitionColumns = SqlNodeList.EMPTY;
     SqlParserPos pos = startPos;
 }
 {
@@ -159,54 +192,12 @@ SqlCreate SqlCreateTable(Span s, boolean replace) :
     }]
     [
         <PARTITIONED> <BY>
-            {
-                SqlNode column;
-                List<SqlNode> partitionKey = new ArrayList<SqlNode>();
-                pos = getPos();
-
-            }
-            <LPAREN>
-            [
-                column = SimpleIdentifier()
-                {
-                    partitionKey.add(column);
-                }
-                (
-                    <COMMA> column = SimpleIdentifier()
-                        {
-                            partitionKey.add(column);
-                        }
-                )*
-            ]
-            <RPAREN>
-            {
-                partitionColumns = new SqlNodeList(partitionKey, pos.plus(getPos()));
-            }
+        partitionColumns = ParenthesizedSimpleIdentifierList()
     ]
     [
         <WITH>
-            {
-                SqlNode property;
-                List<SqlNode> proList = new ArrayList<SqlNode>();
-                pos = getPos();
-            }
-            <LPAREN>
-            [
-                property = PropertyValue()
-                {
-                proList.add(property);
-                }
-                (
-                <COMMA> property = PropertyValue()
-                    {
-                    proList.add(property);
-                    }
-                )*
-            ]
-            <RPAREN>
-        {  propertyList = new SqlNodeList(proList, pos.plus(getPos())); }
+        propertyList = TableProperties()
     ]
-
     {
         return new SqlCreateTable(startPos.plus(getPos()),
                 tableName,
@@ -227,7 +218,11 @@ SqlDrop SqlDropTable(Span s, boolean replace) :
 {
     <TABLE>
 
-    [<IF> <EXISTS> { ifExists = true; } ]
+    (
+        <IF> <EXISTS> { ifExists = true; }
+    |
+        { ifExists = false; }
+    )
 
     tableName = CompoundIdentifier()
 
@@ -334,54 +329,341 @@ void PartitionSpecCommaList(SqlNodeList list) :
     <RPAREN>
 }
 
+/**
+* Parses a create view or replace existing view statement.
+*   CREATE [OR REPLACE] VIEW view_name [ (field1, field2 ...) ] AS select_statement
+*/
+SqlCreate SqlCreateView(Span s, boolean replace) : {
+    SqlIdentifier viewName;
+    SqlCharStringLiteral comment = null;
+    SqlNode query;
+    SqlNodeList fieldList = SqlNodeList.EMPTY;
+}
+{
+    <VIEW>
+    viewName = CompoundIdentifier()
+    [
+        fieldList = ParenthesizedSimpleIdentifierList()
+    ]
+    [ <COMMENT> <QUOTED_STRING> {
+            String p = SqlParserUtil.parseString(token.image);
+            comment = SqlLiteral.createCharString(p, getPos());
+        }
+    ]
+    <AS>
+    query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+    {
+        return new SqlCreateView(s.pos(), viewName, fieldList, query, replace, comment);
+    }
+}
+
+SqlDrop SqlDropView(Span s, boolean replace) :
+{
+    SqlIdentifier viewName = null;
+    boolean ifExists = false;
+}
+{
+    <VIEW>
+    (
+        <IF> <EXISTS> { ifExists = true; }
+    |
+        { ifExists = false; }
+    )
+    viewName = CompoundIdentifier()
+    {
+        return new SqlDropView(s.pos(), viewName, ifExists);
+    }
+}
+
+SqlIdentifier FlinkCollectionsTypeName() :
+{
+}
+{
+    LOOKAHEAD(2)
+    <MULTISET> {
+        return new SqlIdentifier(SqlTypeName.MULTISET.name(), getPos());
+    }
+|
+    <ARRAY> {
+        return new SqlIdentifier(SqlTypeName.ARRAY.name(), getPos());
+    }
+}
+
+SqlIdentifier FlinkTypeName() :
+{
+    final SqlTypeName sqlTypeName;
+    final SqlIdentifier typeName;
+    final Span s = Span.of();
+}
+{
+    (
+<#-- additional types are included here -->
+<#-- make custom data types in front of Calcite core data types -->
+<#list parser.flinkDataTypeParserMethods as method>
+    <#if (method?index > 0)>
+    |
+    </#if>
+        LOOKAHEAD(2)
+        typeName = ${method}
+</#list>
+    |
+        LOOKAHEAD(2)
+        sqlTypeName = SqlTypeName(s) {
+            typeName = new SqlIdentifier(sqlTypeName.name(), s.end(this));
+        }
+    |
+        LOOKAHEAD(2)
+        typeName = FlinkCollectionsTypeName()
+    |
+        typeName = CompoundIdentifier() {
+            throw new ParseException("UDT in DDL is not supported yet.");
+        }
+    )
+    {
+        return typeName;
+    }
+}
+
+/**
+* Parse a Flink data type with nullable options, NULL -> nullable, NOT NULL -> not nullable.
+* Default to be nullable.
+*/
+SqlDataTypeSpec FlinkDataType() :
+{
+    final SqlIdentifier typeName;
+    SqlIdentifier collectionTypeName = null;
+    int scale = -1;
+    int precision = -1;
+    String charSetName = null;
+    final Span s;
+    boolean nullable = true;
+    boolean elementNullable = true;
+}
+{
+    typeName = FlinkTypeName() {
+        s = span();
+    }
+    [
+        <LPAREN>
+        precision = UnsignedIntLiteral()
+        [
+            <COMMA>
+            scale = UnsignedIntLiteral()
+        ]
+        <RPAREN>
+    ]
+    elementNullable = NullableOpt()
+    [
+        collectionTypeName = FlinkCollectionsTypeName()
+        nullable = NullableOpt()
+    ]
+    {
+        if (null != collectionTypeName) {
+            return new FlinkSqlDataTypeSpec(
+                    collectionTypeName,
+                    typeName,
+                    precision,
+                    scale,
+                    charSetName,
+                    nullable,
+                    elementNullable,
+                    s.end(collectionTypeName));
+        }
+        nullable = elementNullable;
+        return new FlinkSqlDataTypeSpec(typeName,
+                precision,
+                scale,
+                charSetName,
+                null,
+                nullable,
+                elementNullable,
+                s.end(this));
+    }
+}
+
+SqlIdentifier SqlStringType() :
+{
+}
+{
+    <STRING> { return new SqlStringType(getPos()); }
+}
+
+SqlIdentifier SqlBytesType() :
+{
+}
+{
+    <BYTES> { return new SqlBytesType(getPos()); }
+}
+
+boolean WithLocalTimeZone() :
+{
+}
+{
+    <WITHOUT> <TIME> <ZONE> { return false; }
+|
+    <WITH>
+    (
+         <LOCAL> <TIME> <ZONE> { return true; }
+    |
+        <TIME> <ZONE> {
+            throw new ParseException("'WITH TIME ZONE' is not supported yet, options: " +
+                "'WITHOUT TIME ZONE', 'WITH LOCAL TIME ZONE'.");
+        }
+    )
+|
+    { return false; }
+}
+
+SqlIdentifier SqlTimeType() :
+{
+    int precision = -1;
+    boolean withLocalTimeZone = false;
+}
+{
+    <TIME>
+    (
+        <LPAREN> precision = UnsignedIntLiteral() <RPAREN>
+    |
+        { precision = -1; }
+    )
+    withLocalTimeZone = WithLocalTimeZone()
+    { return new SqlTimeType(getPos(), precision, withLocalTimeZone); }
+}
+
+SqlIdentifier SqlTimestampType() :
+{
+    int precision = -1;
+    boolean withLocalTimeZone = false;
+}
+{
+    <TIMESTAMP>
+    (
+        <LPAREN> precision = UnsignedIntLiteral() <RPAREN>
+    |
+        { precision = -1; }
+    )
+    withLocalTimeZone = WithLocalTimeZone()
+    { return new SqlTimestampType(getPos(), precision, withLocalTimeZone); }
+}
+
 SqlIdentifier SqlArrayType() :
 {
     SqlParserPos pos;
     SqlDataTypeSpec elementType;
+    boolean nullable = true;
 }
 {
     <ARRAY> { pos = getPos(); }
-    <LT> elementType = DataType()
+    <LT>
+    elementType = FlinkDataType()
     <GT>
     {
         return new SqlArrayType(pos, elementType);
     }
 }
 
-SqlIdentifier SqlMapType() :
+SqlIdentifier SqlMultisetType() :
 {
     SqlParserPos pos;
-    SqlDataTypeSpec keyType;
-    SqlDataTypeSpec valType;
+    SqlDataTypeSpec elementType;
+    boolean nullable = true;
 }
 {
-    <MAP> { pos = getPos(); }
-    <LT> keyType = DataType()
-    <COMMA> valType = DataType()
+    <MULTISET> { pos = getPos(); }
+    <LT>
+    elementType = FlinkDataType()
     <GT>
     {
-        return new SqlMapType(pos, keyType, valType);
+        return new SqlMultisetType(pos, elementType);
     }
 }
 
-SqlIdentifier SqlRowType() :
+SqlIdentifier SqlMapType() :
 {
-    SqlParserPos pos;
-    List<SqlIdentifier> fieldNames = new ArrayList<SqlIdentifier>();
-    List<SqlDataTypeSpec> fieldTypes = new ArrayList<SqlDataTypeSpec>();
+    SqlDataTypeSpec keyType;
+    SqlDataTypeSpec valType;
+    boolean nullable = true;
 }
 {
-    <ROW> { pos = getPos(); SqlIdentifier fName; SqlDataTypeSpec fType;}
+    <MAP>
     <LT>
-    fName = SimpleIdentifier() <COLON> fType = DataType()
-    { fieldNames.add(fName); fieldTypes.add(fType); }
-    (
-        <COMMA>
-        fName = SimpleIdentifier() <COLON> fType = DataType()
-        { fieldNames.add(fName); fieldTypes.add(fType); }
-    )*
+    keyType = FlinkDataType()
+    <COMMA>
+    valType = FlinkDataType()
     <GT>
     {
-        return new SqlRowType(pos, fieldNames, fieldTypes);
+        return new SqlMapType(getPos(), keyType, valType);
+    }
+}
+
+/**
+* Parse a "name1 type1 ['i'm a comment'], name2 type2 ..." list.
+*/
+void FieldNameTypeCommaList(
+        List<SqlIdentifier> fieldNames,
+        List<SqlDataTypeSpec> fieldTypes,
+        List<SqlCharStringLiteral> comments) :
+{
+    SqlIdentifier fName;
+    SqlDataTypeSpec fType;
+}
+{
+    [
+        fName = SimpleIdentifier()
+        fType = FlinkDataType()
+        {
+            fieldNames.add(fName);
+            fieldTypes.add(fType);
+        }
+        (
+            <QUOTED_STRING> {
+                String p = SqlParserUtil.parseString(token.image);
+                comments.add(SqlLiteral.createCharString(p, getPos()));
+            }
+        |
+            { comments.add(null); }
+        )
+    ]
+    (
+        <COMMA>
+        fName = SimpleIdentifier()
+        fType = FlinkDataType()
+        {
+            fieldNames.add(fName);
+            fieldTypes.add(fType);
+        }
+        (
+            <QUOTED_STRING> {
+                String p = SqlParserUtil.parseString(token.image);
+                comments.add(SqlLiteral.createCharString(p, getPos()));
+            }
+        |
+            { comments.add(null); }
+        )
+    )*
+}
+
+/**
+* Parse Row type, we support both Row(name1 type1, name2 type2) and Row<name1 type1, name2 type2>.
+* Every item type can have suffix of `NULL` or `NOT NULL` to indicate if this type is nullable.
+* i.e. Row(f0 int not null, f1 varchar null).
+*/
+SqlIdentifier SqlRowType() :
+{
+    List<SqlIdentifier> fieldNames = new ArrayList<SqlIdentifier>();
+    List<SqlDataTypeSpec> fieldTypes = new ArrayList<SqlDataTypeSpec>();
+    List<SqlCharStringLiteral> comments = new ArrayList<SqlCharStringLiteral>();
+}
+{
+    <ROW>
+    (
+        <NE>
+    |
+        <LT> FieldNameTypeCommaList(fieldNames, fieldTypes, comments) <GT>
+    |
+        <LPAREN> FieldNameTypeCommaList(fieldNames, fieldTypes, comments) <RPAREN>
+    )
+    {
+        return new SqlRowType(getPos(), fieldNames, fieldTypes, comments);
     }
 }

@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.TableDescriptor;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.plan.stats.ColumnStats;
 import org.apache.flink.table.plan.stats.TableStats;
@@ -42,7 +42,7 @@ import static org.apache.flink.table.descriptors.StatisticsValidator.readColumnS
  * @deprecated use {@link CatalogTable} instead.
  */
 @Deprecated
-public class ExternalCatalogTable extends TableDescriptor {
+public class ExternalCatalogTable implements Descriptor {
 
 	/**
 	 * Flag whether this external table is intended for batch environments.

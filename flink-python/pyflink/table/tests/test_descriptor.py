@@ -18,7 +18,8 @@
 import os
 
 from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Kafka,
-                                       Elasticsearch, Csv, Avro, Json)
+                                       Elasticsearch, Csv, Avro, Json, CustomConnectorDescriptor,
+                                       CustomFormatDescriptor)
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.types import DataTypes
 from pyflink.testing.test_case_utils import (PyFlinkTestCase, PyFlinkStreamTableTestCase,
@@ -354,6 +355,22 @@ class ElasticsearchDescriptorTest(PyFlinkTestCase):
         self.assertEqual(expected, properties)
 
 
+class CustomConnectorDescriptorTests(PyFlinkTestCase):
+
+    def test_custom_connector(self):
+        custom_connector = CustomConnectorDescriptor('kafka', 1, True) \
+            .property('connector.topic', 'topic1')\
+            .properties({'connector.version': '0.11', 'connector.startup-mode': 'earliest-offset'})
+
+        properties = custom_connector.to_properties()
+        expected = {'connector.type': 'kafka',
+                    'connector.property-version': '1',
+                    'connector.topic': 'topic1',
+                    'connector.version': '0.11',
+                    'connector.startup-mode': 'earliest-offset'}
+        self.assertEqual(expected, properties)
+
+
 class OldCsvDescriptorTests(PyFlinkTestCase):
 
     def test_field_delimiter(self):
@@ -663,6 +680,22 @@ class JsonDescriptorTests(PyFlinkTestCase):
         self.assertEqual(expected, properties)
 
 
+class CustomFormatDescriptorTests(PyFlinkTestCase):
+
+    def test_custom_format_descriptor(self):
+        custom_format = CustomFormatDescriptor('json', 1) \
+            .property('format.schema', 'ROW<a INT, b VARCHAR>') \
+            .properties({'format.fail-on-missing-field': 'true'})
+
+        expected = {'format.fail-on-missing-field': 'true',
+                    'format.schema': 'ROW<a INT, b VARCHAR>',
+                    'format.property-version': '1',
+                    'format.type': 'json'}
+
+        properties = custom_format.to_properties()
+        self.assertEqual(expected, properties)
+
+
 class RowTimeDescriptorTests(PyFlinkTestCase):
 
     def test_timestamps_from_field(self):
@@ -956,7 +989,7 @@ class AbstractTableDescriptorTests(object):
         t_env.scan("source") \
              .select("a + 1, b, c") \
              .insert_into("sink")
-        t_env.execute()
+        self.t_env.execute("test")
 
         with open(sink_path, 'r') as f:
             lines = f.read()
@@ -998,7 +1031,7 @@ class AbstractTableDescriptorTests(object):
         t_env.scan("source") \
              .select("a + 1, b, c") \
              .insert_into("sink")
-        t_env.execute()
+        self.t_env.execute("test")
 
         with open(sink_path, 'r') as f:
             lines = f.read()

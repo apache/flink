@@ -29,7 +29,6 @@ import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
@@ -163,7 +162,21 @@ public interface SlotPool extends AllocatedSlotActions, AutoCloseable {
 	CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull ResourceProfile resourceProfile,
-		@RpcTimeout Time timeout);
+		Time timeout);
+
+	/**
+	 * Requests the allocation of a new batch slot from the resource manager. Unlike the normal slot, a batch
+	 * slot will only time out if the slot pool does not contain a suitable slot. Moreover, it won't react to
+	 * failure signals from the resource manager.
+	 *
+	 * @param slotRequestId identifying the requested slot
+	 * @param resourceProfile resource profile that specifies the resource requirements for the requested batch slot
+	 * @return a future which is completed with newly allocated batch slot
+	 */
+	@Nonnull
+	CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
+		@Nonnull SlotRequestId slotRequestId,
+		@Nonnull ResourceProfile resourceProfile);
 
 	/**
 	 * Create report about the allocated slots belonging to the specified task manager.

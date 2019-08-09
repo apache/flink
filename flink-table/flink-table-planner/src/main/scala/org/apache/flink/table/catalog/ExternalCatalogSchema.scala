@@ -42,7 +42,7 @@ import scala.collection.JavaConverters._
   */
 @deprecated
 class ExternalCatalogSchema(
-    isBatch: Boolean,
+    isStreamingMode: Boolean,
     catalogIdentifier: String,
     catalog: ExternalCatalog) extends Schema with Logging {
 
@@ -56,7 +56,7 @@ class ExternalCatalogSchema(
   override def getSubSchema(name: String): Schema = {
     try {
       val db = catalog.getSubCatalog(name)
-      new ExternalCatalogSchema(isBatch, name, db)
+      new ExternalCatalogSchema(isStreamingMode, name, db)
     } catch {
       case _: CatalogNotExistException =>
         LOG.warn(s"Sub-catalog $name does not exist in externalCatalog $catalogIdentifier")
@@ -81,7 +81,7 @@ class ExternalCatalogSchema(
     */
   override def getTable(name: String): Table = try {
     val externalCatalogTable = catalog.getTable(name)
-    ExternalTableUtil.fromExternalCatalogTable(isBatch, externalCatalogTable).orNull
+    ExternalTableUtil.fromExternalCatalogTable(isStreamingMode, externalCatalogTable).orNull
   } catch {
     case _: TableNotExistException => {
       LOG.warn(s"Table $name does not exist in externalCatalog $catalogIdentifier")
@@ -126,11 +126,12 @@ object ExternalCatalogSchema {
     * @param externalCatalog           The external catalog to register
     */
   def registerCatalog(
-      isBatch: Boolean,
+      isStreamingMode: Boolean,
       parentSchema: SchemaPlus,
       externalCatalogIdentifier: String,
       externalCatalog: ExternalCatalog): Unit = {
-    val newSchema = new ExternalCatalogSchema(isBatch, externalCatalogIdentifier, externalCatalog)
+    val newSchema = new ExternalCatalogSchema(
+      isStreamingMode, externalCatalogIdentifier, externalCatalog)
     val schemaPlusOfNewSchema = parentSchema.add(externalCatalogIdentifier, newSchema)
     newSchema.registerSubSchemas(schemaPlusOfNewSchema)
   }

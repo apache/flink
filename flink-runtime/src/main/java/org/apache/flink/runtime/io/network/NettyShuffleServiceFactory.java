@@ -20,10 +20,10 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.io.disk.FileChannelManager;
+import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.netty.NettyConnectionManager;
@@ -38,6 +38,7 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
 
+import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerShuffleMetrics;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -45,9 +46,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettyShuffleDescriptor, ResultPartition, SingleInputGate> {
 
-	private static final String METRIC_GROUP_NETWORK = "Network";
-	private static final String METRIC_TOTAL_MEMORY_SEGMENT = "TotalMemorySegments";
-	private static final String METRIC_AVAILABLE_MEMORY_SEGMENT = "AvailableMemorySegments";
+	private static final String DIR_NAME_PREFIX = "netty-shuffle";
 
 	@Override
 	public NettyShuffleMaster createShuffleMaster(Configuration configuration) {
@@ -66,8 +65,7 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			networkConfig,
 			shuffleEnvironmentContext.getTaskExecutorResourceId(),
 			shuffleEnvironmentContext.getEventPublisher(),
-			shuffleEnvironmentContext.getParentMetricGroup(),
-			shuffleEnvironmentContext.getIOManager());
+			shuffleEnvironmentContext.getParentMetricGroup());
 	}
 
 	@VisibleForTesting
@@ -75,17 +73,17 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			NettyShuffleEnvironmentConfiguration config,
 			ResourceID taskExecutorResourceId,
 			TaskEventPublisher taskEventPublisher,
-			MetricGroup metricGroup,
-			IOManager ioManager) {
+			MetricGroup metricGroup) {
 		checkNotNull(config);
 		checkNotNull(taskExecutorResourceId);
 		checkNotNull(taskEventPublisher);
 		checkNotNull(metricGroup);
-		checkNotNull(ioManager);
 
 		NettyConfig nettyConfig = config.nettyConfig();
 
 		ResultPartitionManager resultPartitionManager = new ResultPartitionManager();
+
+		FileChannelManager fileChannelManager = new FileChannelManagerImpl(config.getTempDirs(), DIR_NAME_PREFIX);
 
 		ConnectionManager connectionManager = nettyConfig != null ?
 			new NettyConnectionManager(resultPartitionManager, taskEventPublisher, nettyConfig, config.isCreditBased()) :
@@ -94,16 +92,19 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 		NetworkBufferPool networkBufferPool = new NetworkBufferPool(
 			config.numNetworkBuffers(),
 			config.networkBufferSize(),
-			config.networkBuffersPerChannel());
+			config.networkBuffersPerChannel(),
+			config.getRequestSegmentsTimeout());
 
-		registerNetworkMetrics(metricGroup, networkBufferPool);
+		registerShuffleMetrics(metricGroup, networkBufferPool);
 
 		ResultPartitionFactory resultPartitionFactory = new ResultPartitionFactory(
 			resultPartitionManager,
-			ioManager,
+			fileChannelManager,
 			networkBufferPool,
+			config.getBlockingSubpartitionType(),
 			config.networkBuffersPerChannel(),
 			config.floatingNetworkBuffersPerGate(),
+			config.networkBufferSize(),
 			config.isForcePartitionReleaseOnConsumption());
 
 		SingleInputGateFactory singleInputGateFactory = new SingleInputGateFactory(
@@ -120,15 +121,8 @@ public class NettyShuffleServiceFactory implements ShuffleServiceFactory<NettySh
 			networkBufferPool,
 			connectionManager,
 			resultPartitionManager,
+			fileChannelManager,
 			resultPartitionFactory,
 			singleInputGateFactory);
-	}
-
-	private static void registerNetworkMetrics(MetricGroup metricGroup, NetworkBufferPool networkBufferPool) {
-		MetricGroup networkGroup = metricGroup.addGroup(METRIC_GROUP_NETWORK);
-		networkGroup.<Integer, Gauge<Integer>>gauge(METRIC_TOTAL_MEMORY_SEGMENT,
-			networkBufferPool::getTotalNumberOfMemorySegments);
-		networkGroup.<Integer, Gauge<Integer>>gauge(METRIC_AVAILABLE_MEMORY_SEGMENT,
-			networkBufferPool::getNumberOfAvailableMemorySegments);
 	}
 }

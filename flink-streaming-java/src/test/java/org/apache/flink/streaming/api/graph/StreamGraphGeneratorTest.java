@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.graph;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -36,7 +37,6 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.OutputTypeConfigurable;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
@@ -467,7 +467,7 @@ public class StreamGraphGeneratorTest {
 		DataStream<Integer> filter = map.filter((x) -> false).name("filter").setParallelism(2);
 		iteration.closeWith(filter).print();
 
-		List<StreamTransformation<?>> transformations = new ArrayList<>();
+		List<Transformation<?>> transformations = new ArrayList<>();
 		transformations.add(source.getTransformation());
 		transformations.add(iteration.getTransformation());
 		transformations.add(map.getTransformation());
@@ -495,7 +495,7 @@ public class StreamGraphGeneratorTest {
 		DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
 		DataStream<Integer> mapDataStream = sourceDataStream.map(x -> x + 1);
 
-		final List<StreamTransformation<?>> transformations = new ArrayList<>();
+		final List<Transformation<?>> transformations = new ArrayList<>();
 		transformations.add(sourceDataStream.getTransformation());
 		transformations.add(mapDataStream.getTransformation());
 
@@ -519,7 +519,7 @@ public class StreamGraphGeneratorTest {
 		DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
 		DataStream<Integer> mapDataStream = sourceDataStream.map(x -> x + 1);
 
-		final List<StreamTransformation<?>> transformations = new ArrayList<>();
+		final List<Transformation<?>> transformations = new ArrayList<>();
 		transformations.add(sourceDataStream.getTransformation());
 		transformations.add(mapDataStream.getTransformation());
 

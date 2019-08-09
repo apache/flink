@@ -62,7 +62,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -106,7 +105,7 @@ public class TaskAsyncCallTest extends TestLogger {
 
 	private static final List<ClassLoader> classLoaders = Collections.synchronizedList(new ArrayList<>());
 
-	private ShuffleEnvironment shuffleEnvironment;
+	private ShuffleEnvironment<?, ?> shuffleEnvironment;
 
 	@Before
 	public void createQueuesAndActors() {
@@ -130,15 +129,11 @@ public class TaskAsyncCallTest extends TestLogger {
 	}
 
 	// ------------------------------------------------------------------------
-	//  Tests 
+	//  Tests
 	// ------------------------------------------------------------------------
 
 	@Test
-	@Ignore
 	public void testCheckpointCallsInOrder() throws Exception {
-
-		// test ignored because with the changes introduced by [FLINK-11667],
-		// there is not guarantee about the order in which checkpoints are executed.
 
 		Task task = createTask(CheckpointsInOrderInvokable.class);
 		try (TaskCleaner ignored = new TaskCleaner(task)) {
@@ -160,11 +155,7 @@ public class TaskAsyncCallTest extends TestLogger {
 	}
 
 	@Test
-	@Ignore
 	public void testMixedAsyncCallsInOrder() throws Exception {
-
-		// test ignored because with the changes introduced by [FLINK-11667],
-		// there is not guarantee about the order in which checkpoints are executed.
 
 		Task task = createTask(CheckpointsInOrderInvokable.class);
 		try (TaskCleaner ignored = new TaskCleaner(task)) {

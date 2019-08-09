@@ -59,6 +59,7 @@ import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
@@ -523,7 +524,9 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		}
 		setupCalled = false;
 
-		internalEnvironment.ifPresent(MockEnvironment::close);
+		if (internalEnvironment.isPresent()) {
+			internalEnvironment.get().close();
+		}
 	}
 
 	public void setProcessingTime(long time) throws Exception {
@@ -562,6 +565,11 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		} else {
 			throw new UnsupportedOperationException();
 		}
+	}
+
+	@VisibleForTesting
+	public StreamStatus getStreamStatus() {
+		return mockTask.getStreamStatusMaintainer().getStreamStatus();
 	}
 
 	private class MockOutput implements Output<StreamRecord<OUT>> {

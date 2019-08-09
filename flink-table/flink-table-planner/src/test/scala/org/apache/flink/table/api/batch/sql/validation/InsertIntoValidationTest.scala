@@ -72,6 +72,6 @@ class InsertIntoValidationTest extends TableTestBase {
     val sql = "INSERT INTO targetTable (d, f) SELECT a, c FROM sourceTable"
 
     // must fail because partial insert is not supported yet.
-    util.tableEnv.sqlUpdate(sql, util.tableEnv.queryConfig)
+    util.tableEnv.sqlUpdate(sql)
   }
 }

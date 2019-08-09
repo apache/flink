@@ -18,21 +18,22 @@
 
 package org.apache.flink.table.api.validation
 
-import java.util
-import java.util.Collections
-
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala.StreamTableEnvironment
-import org.apache.flink.table.api.{TableException, TableSchema, Types, ValidationException}
+import org.apache.flink.table.api.{TableSchema, Types, ValidationException}
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.ExistingField
 import org.apache.flink.table.sources.wmstrategies.AscendingTimestamps
-import org.apache.flink.table.utils.{TableTestBase, TestInputFormatTableSource, TestTableSourceWithTime}
+import org.apache.flink.table.utils.{TableTestBase, TestTableSourceWithTime}
 import org.apache.flink.types.Row
+
 import org.junit.Test
+
+import java.util
+import java.util.Collections
 
 class TableSourceValidationTest extends TableTestBase{
 
@@ -295,23 +296,5 @@ class TableSourceValidationTest extends TableTestBase{
       .path("/path/to/csv")
       // should fail, field can be empty
       .build()
-  }
-
-  @Test(expected = classOf[TableException])
-  def testBoundedTableSourceForStreamEnv(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    val tEnv = StreamTableEnvironment.create(env)
-
-    val fieldNames = Array("id", "name")
-    val rowType = new RowTypeInfo(
-      Array(Types.LONG, Types.STRING).asInstanceOf[Array[TypeInformation[_]]],
-      fieldNames)
-    val schema = new TableSchema(
-      fieldNames,
-      Array(Types.LONG, Types.STRING()))
-    val ts = new TestInputFormatTableSource(schema, rowType, Seq[Row]())
-
-    // should fail because InputFormatTableSource is not supported in StreamTableEnvironment
-    tEnv.registerTableSource("testTable", ts)
   }
 }

@@ -48,9 +48,6 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 	/** Flag whether the result partition should send scheduleOrUpdateConsumer messages. */
 	private final boolean sendScheduleOrUpdateConsumersMessage;
 
-	/** Whether the result partition is released on consumption. */
-	private final boolean releasedOnConsumption;
-
 	public ResultPartitionDeploymentDescriptor(
 			PartitionDescriptor partitionDescriptor,
 			ShuffleDescriptor shuffleDescriptor,
@@ -61,7 +58,6 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 		KeyGroupRangeAssignment.checkParallelismPreconditions(maxParallelism);
 		this.maxParallelism = maxParallelism;
 		this.sendScheduleOrUpdateConsumersMessage = sendScheduleOrUpdateConsumersMessage;
-		this.releasedOnConsumption = partitionDescriptor.getPartitionType() != ResultPartitionType.BLOCKING;
 	}
 
 	public IntermediateDataSetID getResultId() {
@@ -90,10 +86,6 @@ public class ResultPartitionDeploymentDescriptor implements Serializable {
 
 	public boolean sendScheduleOrUpdateConsumersMessage() {
 		return sendScheduleOrUpdateConsumersMessage;
-	}
-
-	public boolean isReleasedOnConsumption() {
-		return releasedOnConsumption;
 	}
 
 	@Override

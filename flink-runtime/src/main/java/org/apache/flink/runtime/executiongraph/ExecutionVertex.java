@@ -28,6 +28,7 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -38,7 +39,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EvictingBoundedList;
 import org.apache.flink.util.ExceptionUtils;
@@ -82,6 +83,8 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	private final ExecutionEdge[][] inputEdges;
 
 	private final int subTaskIndex;
+
+	private final ExecutionVertexID executionVertexId;
 
 	private final EvictingBoundedList<ArchivedExecution> priorExecutions;
 
@@ -142,6 +145,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 		this.jobVertex = jobVertex;
 		this.subTaskIndex = subTaskIndex;
+		this.executionVertexId = new ExecutionVertexID(jobVertex.getJobVertexId(), subTaskIndex);
 		this.taskNameWithSubtask = String.format("%s (%d/%d)",
 				jobVertex.getJobVertex().getName(), subTaskIndex + 1, jobVertex.getParallelism());
 
@@ -223,9 +227,17 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 		return this.jobVertex.getMaxParallelism();
 	}
 
+	public ResourceProfile getResourceProfile() {
+		return this.jobVertex.getResourceProfile();
+	}
+
 	@Override
 	public int getParallelSubtaskIndex() {
 		return this.subTaskIndex;
+	}
+
+	public ExecutionVertexID getID() {
+		return executionVertexId;
 	}
 
 	public int getNumberOfInputs() {
@@ -591,6 +603,13 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 			final ExecutionState oldState = oldExecution.getState();
 
 			if (oldState.isTerminal()) {
+				if (oldState == FINISHED) {
+					// pipelined partitions are released in Execution#cancel(), covering both job failures and vertex resets
+					// do not release pipelined partitions here to save RPC calls
+					oldExecution.handlePartitionCleanup(false, true);
+					getExecutionGraph().getPartitionReleaseStrategy().vertexUnfinished(executionVertexId);
+				}
+
 				priorExecutions.add(oldExecution.archive());
 
 				final Execution newExecution = new Execution(
@@ -641,8 +660,7 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	/**
 	 * Schedules the current execution of this ExecutionVertex.
 	 *
-	 * @param slotProvider to allocate the slots from
-	 * @param queued if the allocation can be queued
+	 * @param slotProviderStrategy to allocate the slots from
 	 * @param locationPreferenceConstraint constraint for the location preferences
 	 * @param allPreviousExecutionGraphAllocationIds set with all previous allocation ids in the job graph.
 	 *                                                 Can be empty if the allocation ids are not required for scheduling.
@@ -650,13 +668,11 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 	 * can also completed exceptionally.
 	 */
 	public CompletableFuture<Void> scheduleForExecution(
-			SlotProvider slotProvider,
-			boolean queued,
+			SlotProviderStrategy slotProviderStrategy,
 			LocationPreferenceConstraint locationPreferenceConstraint,
 			@Nonnull Set<AllocationID> allPreviousExecutionGraphAllocationIds) {
 		return this.currentExecution.scheduleForExecution(
-			slotProvider,
-			queued,
+			slotProviderStrategy,
 			locationPreferenceConstraint,
 			allPreviousExecutionGraphAllocationIds);
 	}

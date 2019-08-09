@@ -21,7 +21,7 @@ package org.apache.flink.table.api.stream.table
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{Session, Slide, Tumble}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.{EmptyTableAggFunc, TableTestBase}
+import org.apache.flink.table.utils.{EmptyTableAggFunc, EmptyTableAggFuncWithIntResultType, TableTestBase}
 import org.apache.flink.table.utils.TableTestUtil._
 import org.junit.Test
 
@@ -513,6 +513,38 @@ class GroupWindowTableAggregateTest extends TableTestBase {
             "c", "EmptyTableAggFunc(a, b) AS (f0, f1)", "end('w) AS EXPR$0", "start('w) AS EXPR$1")
         ),
         term("select", "EXPR$0 AS we1", "f0", "+(f1, 1) AS _c2", "EXPR$1", "EXPR$0")
+      )
+
+    util.verifyTable(windowedTable, expected)
+  }
+
+  @Test
+  def testTableAggregateWithIntResultType(): Unit = {
+    val table = util.addTable[(Long, Int, Long, Long)]('f0, 'f1, 'f2, 'd.rowtime, 'e.proctime)
+    val func = new EmptyTableAggFuncWithIntResultType
+
+    val windowedTable = table
+      .window(Session withGap 3.milli on 'd as 'w)
+      .groupBy('w, 'f0)
+      .flatAggregate(func('f1))
+      .select('w.end as 'we1, 'f0, 'f0_0 + 1, 'w.start, 'w.end)
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamGroupWindowTableAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(table),
+            term("select", "f0", "f1", "d")
+          ),
+          term("groupBy", "f0"),
+          term("window", "SessionGroupWindow('w, 'd, 3.millis)"),
+          term("select", "f0", "EmptyTableAggFuncWithIntResultType(f1) AS (f0_0)",
+            "end('w) AS EXPR$0", "start('w) AS EXPR$1")
+        ),
+        term("select", "EXPR$0 AS we1", "f0", "+(f0_0, 1) AS _c2", "EXPR$1", "EXPR$0")
       )
 
     util.verifyTable(windowedTable, expected)

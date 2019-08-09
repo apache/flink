@@ -442,7 +442,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
-				new CheckpointFailureManager(0, () -> {}));
+				new CheckpointFailureManager(0, throwable -> {}));
 	}
 
 	private static <T> T mockGeneric(Class<?> clazz) {

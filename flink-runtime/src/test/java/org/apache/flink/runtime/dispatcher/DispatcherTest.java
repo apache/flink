@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
@@ -28,6 +29,7 @@ import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.savepoint.SavepointV2;
+import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -267,6 +269,44 @@ public class DispatcherTest extends TestLogger {
 		assertTrue(
 			"jobManagerRunner was not started",
 			dispatcherLeaderElectionService.getStartFuture().isDone());
+	}
+
+	/**
+	 * Tests that we can submit a job to the Dispatcher which then spawns a
+	 * new JobManagerRunner.
+	 */
+	@Test
+	public void testJobSubmissionWithPartialResourceConfigured() throws Exception {
+		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch));
+
+		CompletableFuture<UUID> leaderFuture = dispatcherLeaderElectionService.isLeader(UUID.randomUUID());
+
+		// wait for the leader to be elected
+		leaderFuture.get();
+
+		DispatcherGateway dispatcherGateway = dispatcher.getSelfGateway(DispatcherGateway.class);
+
+		ResourceSpec resourceSpec = ResourceSpec.newBuilder().setCpuCores(2).build();
+
+		final JobVertex firstVertex = new JobVertex("firstVertex");
+		firstVertex.setInvokableClass(NoOpInvokable.class);
+		firstVertex.setResources(resourceSpec, resourceSpec);
+
+		final JobVertex secondVertex = new JobVertex("secondVertex");
+		secondVertex.setInvokableClass(NoOpInvokable.class);
+
+		JobGraph jobGraphWithTwoVertices = new JobGraph(TEST_JOB_ID, "twoVerticesJob", firstVertex, secondVertex);
+		jobGraphWithTwoVertices.setAllowQueuedScheduling(true);
+
+		CompletableFuture<Acknowledge> acknowledgeFuture = dispatcherGateway.submitJob(jobGraphWithTwoVertices, TIMEOUT);
+
+		try {
+			acknowledgeFuture.get();
+			fail("job submission should have failed");
+		}
+		catch (ExecutionException e) {
+			assertTrue(ExceptionUtils.findThrowable(e, JobSubmissionException.class).isPresent());
+		}
 	}
 
 	/**

@@ -27,7 +27,8 @@ import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.udf.generic.Collector;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFReplicateRows;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFInline;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFPosExplode;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDTFStack;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
@@ -109,29 +110,6 @@ public class HiveGenericUDTFTest {
 	}
 
 	@Test
-	public void testReplicateRows() throws Exception {
-		Object[] constantArgs = new Object[] {
-			2L,
-			null
-		};
-
-		DataType[] dataTypes = new DataType[] {
-			DataTypes.BIGINT(),
-			DataTypes.INT()
-		};
-
-		HiveGenericUDTF udf = init(
-			GenericUDTFReplicateRows.class,
-			constantArgs,
-			dataTypes
-		);
-
-		udf.eval(2L, 5);
-
-		assertEquals(Arrays.asList(Row.of(2L, 5), Row.of(2L, 5)), collector.result);
-	}
-
-	@Test
 	public void testStack() throws Exception {
 		Object[] constantArgs = new Object[] {
 			2,
@@ -158,6 +136,58 @@ public class HiveGenericUDTFTest {
 		udf.eval(2, "a", "b", "c", "d");
 
 		assertEquals(Arrays.asList(Row.of("a", "b"), Row.of("c", "d")), collector.result);
+	}
+
+	@Test
+	public void testArray() throws Exception {
+		Object[] constantArgs = new Object[] {
+			null
+		};
+
+		DataType[] dataTypes = new DataType[] {
+			DataTypes.ARRAY(DataTypes.INT())
+		};
+
+		HiveGenericUDTF udf = init(
+			GenericUDTFPosExplode.class,
+			constantArgs,
+			dataTypes
+		);
+
+		udf.eval(new Integer[] { 1, 2, 3});
+
+		assertEquals(Arrays.asList(Row.of(0, 1), Row.of(1, 2), Row.of(2, 3)), collector.result);
+	}
+
+	@Test
+	public void testStruct() throws Exception {
+		Object[] constantArgs = new Object[] {
+			null
+		};
+
+		DataType[] dataTypes = new DataType[] {
+			DataTypes.ARRAY(
+				DataTypes.ROW(
+					DataTypes.FIELD("1", DataTypes.INT()),
+					DataTypes.FIELD("2", DataTypes.DOUBLE())
+				)
+			)
+		};
+
+		HiveGenericUDTF udf = init(
+			GenericUDTFInline.class,
+			constantArgs,
+			dataTypes
+		);
+
+		udf.eval(
+			new Row[]{
+				Row.of(1, 2.2d),
+				Row.of(3, 4.4d)
+			}
+		);
+
+		assertEquals(Arrays.asList(Row.of(1, 2.2), Row.of(3, 4.4)), collector.result);
 	}
 
 	private static HiveGenericUDTF init(Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) throws Exception {
@@ -188,7 +218,7 @@ public class HiveGenericUDTFTest {
 		}
 
 		@Override
-		public void collect(Object o) throws HiveException {
+		public void collect(Object o) {
 			Row row = (Row) HiveInspectors.toFlinkObject(returnInspector, o);
 
 			result.add(row);

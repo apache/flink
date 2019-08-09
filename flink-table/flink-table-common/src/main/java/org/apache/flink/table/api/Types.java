@@ -130,6 +130,27 @@ public final class Types {
 	}
 
 	/**
+	 * Returns type information for a Table API LocalDate type.
+	 */
+	public static TypeInformation<java.time.LocalDate> LOCAL_DATE() {
+		return org.apache.flink.api.common.typeinfo.Types.LOCAL_DATE;
+	}
+
+	/**
+	 * Returns type information for a Table API LocalTime type.
+	 */
+	public static TypeInformation<java.time.LocalTime> LOCAL_TIME() {
+		return org.apache.flink.api.common.typeinfo.Types.LOCAL_TIME;
+	}
+
+	/**
+	 * Returns type information for a Table API LocalDateTime type.
+	 */
+	public static TypeInformation<java.time.LocalDateTime> LOCAL_DATE_TIME() {
+		return org.apache.flink.api.common.typeinfo.Types.LOCAL_DATE_TIME;
+	}
+
+	/**
 	 * Returns type information for a Table API interval of months.
 	 */
 	public static TypeInformation<Integer> INTERVAL_MONTHS() {

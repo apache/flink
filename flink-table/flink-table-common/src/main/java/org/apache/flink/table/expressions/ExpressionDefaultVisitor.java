@@ -21,20 +21,19 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.Internal;
 
 /**
- * Implementations of {@link ExpressionVisitor} that redirects all calls to
- * {@link ExpressionDefaultVisitor#defaultMethod(Expression)}.
+ * Implementation of {@link ExpressionVisitor} that redirects all calls to {@link #defaultMethod(Expression)}.
  */
 @Internal
 public abstract class ExpressionDefaultVisitor<T> implements ExpressionVisitor<T> {
 
 	@Override
-	public T visit(UnresolvedCallExpression unresolvedCall) {
-		return defaultMethod(unresolvedCall);
+	public T visit(CallExpression call) {
+		return defaultMethod(call);
 	}
 
 	@Override
-	public T visit(ValueLiteralExpression valueLiteralExpression) {
-		return defaultMethod(valueLiteralExpression);
+	public T visit(ValueLiteralExpression valueLiteral) {
+		return defaultMethod(valueLiteral);
 	}
 
 	@Override

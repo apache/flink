@@ -39,7 +39,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * Simple {@link ScheduledExecutor} implementation for testing purposes.
  */
-public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor, ComponentMainThreadExecutor {
+public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor {
 
 	private final Executor executorDelegate;
 	private final ArrayDeque<Runnable> queuedRunnables = new ArrayDeque<>();
@@ -146,10 +146,6 @@ public class ManuallyTriggeredScheduledExecutor implements ScheduledExecutor, Co
 		scheduledTasks.offer(scheduledTask);
 
 		return scheduledTask;
-	}
-
-	@Override
-	public void assertRunningInMainThread() {
 	}
 
 	private static final class ScheduledTask<T> implements ScheduledFuture<T> {

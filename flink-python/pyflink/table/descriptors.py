@@ -24,6 +24,7 @@ from pyflink.table.types import _to_java_type
 from pyflink.java_gateway import get_gateway
 
 if sys.version >= '3':
+    long = int
     unicode = str
 
 __all__ = [
@@ -39,7 +40,9 @@ __all__ = [
     'FileSystem',
     'ConnectTableDescriptor',
     'StreamTableDescriptor',
-    'BatchTableDescriptor'
+    'BatchTableDescriptor',
+    'CustomConnectorDescriptor',
+    'CustomFormatDescriptor'
 ]
 
 
@@ -611,6 +614,58 @@ class Json(FormatDescriptor):
         return self
 
 
+class CustomFormatDescriptor(FormatDescriptor):
+    """
+    Describes the custom format of data.
+    """
+
+    def __init__(self, type, version):
+        """
+        Constructs a :class:`CustomFormatDescriptor`.
+
+        :param type: String that identifies this format.
+        :param version: Property version for backwards compatibility.
+        """
+
+        if not isinstance(type, (str, unicode)):
+            raise TypeError("type must be of type str.")
+        if not isinstance(version, (int, long)):
+            raise TypeError("version must be of type int.")
+        gateway = get_gateway()
+        super(CustomFormatDescriptor, self).__init__(
+            gateway.jvm.CustomFormatDescriptor(type, version))
+
+    def property(self, key, value):
+        """
+        Adds a configuration property for the format.
+
+        :param key: The property key to be set.
+        :param value: The property value to be set.
+        :return: This object.
+        """
+
+        if not isinstance(key, (str, unicode)):
+            raise TypeError("key must be of type str.")
+        if not isinstance(value, (str, unicode)):
+            raise TypeError("value must be of type str.")
+        self._j_format_descriptor = self._j_format_descriptor.property(key, value)
+        return self
+
+    def properties(self, property_dict):
+        """
+        Adds a set of properties for the format.
+
+        :param property_dict: The dict object contains configuration properties for the format.
+                              Both the keys and values should be strings.
+        :return: This object.
+        """
+
+        if not isinstance(property_dict, dict):
+            raise TypeError("property_dict must be of type dict.")
+        self._j_format_descriptor = self._j_format_descriptor.properties(property_dict)
+        return self
+
+
 class ConnectorDescriptor(Descriptor):
     """
     Describes a connector to an other system.
@@ -814,9 +869,9 @@ class Kafka(ConnectorDescriptor):
             |    Flink Sinks --------- Kafka Partitions
             |        1    ---------------->    1
             |        2    ---------------->    2
-            |                                  3
-            |                                  4
-            |                                  5
+            |             ................     3
+            |             ................     4
+            |             ................     5
 
         :return: This object.
         """
@@ -1126,6 +1181,61 @@ class Elasticsearch(ConnectorDescriptor):
         return self
 
 
+class CustomConnectorDescriptor(ConnectorDescriptor):
+    """
+    Describes a custom connector to an other system.
+    """
+
+    def __init__(self, type, version, format_needed):
+        """
+        Constructs a :class:`CustomConnectorDescriptor`.
+
+        :param type: String that identifies this connector.
+        :param version: Property version for backwards compatibility.
+        :param format_needed: Flag for basic validation of a needed format descriptor.
+        """
+
+        if not isinstance(type, (str, unicode)):
+            raise TypeError("type must be of type str.")
+        if not isinstance(version, (int, long)):
+            raise TypeError("version must be of type int.")
+        if not isinstance(format_needed, bool):
+            raise TypeError("format_needed must be of type bool.")
+        gateway = get_gateway()
+        super(CustomConnectorDescriptor, self).__init__(
+            gateway.jvm.CustomConnectorDescriptor(type, version, format_needed))
+
+    def property(self, key, value):
+        """
+        Adds a configuration property for the connector.
+
+        :param key: The property key to be set.
+        :param value: The property value to be set.
+        :return: This object.
+        """
+
+        if not isinstance(key, (str, unicode)):
+            raise TypeError("key must be of type str.")
+        if not isinstance(value, (str, unicode)):
+            raise TypeError("value must be of type str.")
+        self._j_connector_descriptor = self._j_connector_descriptor.property(key, value)
+        return self
+
+    def properties(self, property_dict):
+        """
+        Adds a set of properties for the connector.
+
+        :param property_dict: The dict object contains configuration properties for the connector.
+                              Both the keys and values should be strings.
+        :return: This object.
+        """
+
+        if not isinstance(property_dict, dict):
+            raise TypeError("property_dict must be of type dict.")
+        self._j_connector_descriptor = self._j_connector_descriptor.properties(property_dict)
+        return self
+
+
 class ConnectTableDescriptor(Descriptor):
     """
     Common class for table's created with :class:`pyflink.table.TableEnvironment.connect`.
@@ -1199,6 +1309,8 @@ class ConnectTableDescriptor(Descriptor):
 class StreamTableDescriptor(ConnectTableDescriptor):
     """
     Descriptor for specifying a table source and/or sink in a streaming environment.
+
+    .. seealso:: parent class: :class:`ConnectTableDescriptor`
     """
 
     def __init__(self, j_stream_table_descriptor):
@@ -1259,6 +1371,8 @@ class StreamTableDescriptor(ConnectTableDescriptor):
 class BatchTableDescriptor(ConnectTableDescriptor):
     """
     Descriptor for specifying a table source and/or sink in a batch environment.
+
+    .. seealso:: parent class: :class:`ConnectTableDescriptor`
     """
 
     def __init__(self, j_batch_table_descriptor):

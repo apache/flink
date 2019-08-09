@@ -1,0 +1,19 @@
+tables:
+  - name: q11
+    type: sink-table
+    connector:
+      type: filesystem
+      path: "$RESULT_DIR/q11.csv"
+    format:
+      type: csv
+      fields:
+        - name: ps_partkey
+          type: BIGINT
+        - name: value
+          type: DOUBLE
+      field-delimiter: "|"
+    schema:
+      - name: ps_partkey
+        type: BIGINT
+      - name: value
+        type: DOUBLE

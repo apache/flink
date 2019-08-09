@@ -42,16 +42,17 @@ class Table(object):
     Example:
     ::
 
-        >>> t_config = TableConfig.Builder().as_streaming_execution().set_parallelism(1).build()
-        >>> t_env = TableEnvironment.create(t_config)
+        >>> env = StreamExecutionEnvironment.get_execution_environment()
+        >>> env.set_parallelism(1)
+        >>> t_env = StreamTableEnvironment.create(env)
         >>> ...
         >>> t_env.register_table_source("source", ...)
         >>> t = t_env.scan("source")
         >>> t.select(...)
-        ...
+        >>> ...
         >>> t_env.register_table_sink("result", ...)
         >>> t.insert_into("result")
-        >>> t_env.execute()
+        >>> t_env.execute("table_job")
 
     Operations such as :func:`~pyflink.table.Table.join`, :func:`~pyflink.table.Table.select`,
     :func:`~pyflink.table.Table.where` and :func:`~pyflink.table.Table.group_by`
@@ -245,6 +246,57 @@ class Table(object):
         :return: The result :class:`Table`.
         """
         return Table(self._j_table.fullOuterJoin(right._j_table, join_predicate))
+
+    def join_lateral(self, table_function_call, join_predicate=None):
+        """
+        Joins this Table with an user-defined TableFunction. This join is similar to a SQL inner
+        join but works with a table function. Each row of the table is joined with the rows
+        produced by the table function.
+
+        Example:
+        ::
+
+            >>> t_env.register_java_function("split", "java.table.function.class.name")
+            >>> tab.join_lateral("split(text, ' ') as (b)", "a = b")
+
+        :param table_function_call: An expression representing a table function call.
+        :type table_function_call: str
+        :param join_predicate: Optional, The join predicate expression string, join ON TRUE if not
+                               exist.
+        :type join_predicate: str
+        :return: The result Table.
+        :rtype: Table
+        """
+        if join_predicate is None:
+            return Table(self._j_table.joinLateral(table_function_call))
+        else:
+            return Table(self._j_table.joinLateral(table_function_call, join_predicate))
+
+    def left_outer_join_lateral(self, table_function_call, join_predicate=None):
+        """
+        Joins this Table with an user-defined TableFunction. This join is similar to
+        a SQL left outer join but works with a table function. Each row of the table is joined
+        with all rows produced by the table function. If the join does not produce any row, the
+        outer row is padded with nulls.
+
+        Example:
+        ::
+
+            >>> t_env.register_java_function("split", "java.table.function.class.name")
+            >>> tab.left_outer_join_lateral("split(text, ' ') as (b)")
+
+        :param table_function_call: An expression representing a table function call.
+        :type table_function_call: str
+        :param join_predicate: Optional, The join predicate expression string, join ON TRUE if not
+                               exist.
+        :type join_predicate: str
+        :return: The result Table.
+        :rtype: Table
+        """
+        if join_predicate is None:
+            return Table(self._j_table.leftOuterJoinLateral(table_function_call))
+        else:
+            return Table(self._j_table.leftOuterJoinLateral(table_function_call, join_predicate))
 
     def minus(self, right):
         """
@@ -451,6 +503,13 @@ class Table(object):
             If the :func:`~pyflink.table.GroupWindowedTable.group_by` only references a GroupWindow
             alias, the streamed table will be processed by a single task, i.e., with parallelism 1.
 
+        Example:
+        ::
+
+            >>> tab.window(Tumble.over("10.minutes").on("rowtime").alias("w")) \\
+            ...     .group_by("w") \\
+            ...     .select("a.sum as a, w.start as b, w.end as c, w.rowtime as d")
+
         :param window: A :class:`pyflink.table.window.GroupWindow` created from
                        :class:`pyflink.table.window.Tumble`, :class:`pyflink.table.window.Session`
                        or :class:`pyflink.table.window.Slide`.
@@ -469,8 +528,8 @@ class Table(object):
         Example:
         ::
 
-            >>> table.window(Over.partition_by("c").order_by("rowTime")\\
-            ...     .preceding("10.seconds").alias("ow"))\\
+            >>> table.window(Over.partition_by("c").order_by("rowTime") \\
+            ...     .preceding("10.seconds").alias("ow")) \\
             ...     .select("c, b.count over ow, e.sum over ow")
 
         .. note::
@@ -562,7 +621,7 @@ class Table(object):
         Example:
         ::
 
-            >>> tab.insert_into("print")
+            >>> tab.insert_into("sink")
 
         :param table_path: The first part of the path of the registered :class:`TableSink` to which
                the :class:`Table` is written. This is to ensure at least the name of the
@@ -640,7 +699,7 @@ class GroupWindowedTable(object):
         Example:
         ::
 
-            >>> tab.window(groupWindow.alias("w")).group_by("w, key").select("key, value.avg")
+            >>> tab.window(group_window.alias("w")).group_by("w, key").select("key, value.avg")
 
         :param fields: Group keys.
         :return: A :class:`WindowGroupedTable`.

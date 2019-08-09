@@ -38,9 +38,8 @@ public class NettyShuffleDescriptorBuilder {
 	private ResourceID producerLocation = ResourceID.generate();
 	private ResultPartitionID id = new ResultPartitionID();
 	private InetAddress address = InetAddress.getLoopbackAddress();
-	private int dataPort = 0;
-	private int connectionIndex = 0;
-
+	private int dataPort;
+	private int connectionIndex;
 	public NettyShuffleDescriptorBuilder setProducerLocation(ResourceID producerLocation) {
 		this.producerLocation = producerLocation;
 		return this;

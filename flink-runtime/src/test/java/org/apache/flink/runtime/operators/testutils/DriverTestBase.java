@@ -385,8 +385,7 @@ public abstract class DriverTestBase<S extends Function> extends TestLogger impl
 		this.sorters.clear();
 		
 		// 2nd, shutdown I/O
-		this.ioManager.shutdown();
-		Assert.assertTrue("I/O Manager has not properly shut down.", this.ioManager.isProperlyShutDown());
+		this.ioManager.close();
 
 		// last, verify all memory is returned and shutdown mem manager
 		MemoryManager memMan = getMemoryManager();

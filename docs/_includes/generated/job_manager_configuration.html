@@ -18,6 +18,11 @@
             <td>The maximum number of prior execution attempts kept in history.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.execution.failover-strategy</h5></td>
+            <td style="word-wrap: break-word;">"full"</td>
+            <td>This option specifies how the job computation recovers from task failures. Accepted values are:<ul><li>'full': Restarts all tasks to recover the job.</li><li>'region': Restarts all tasks that could be affected by the task failure. More details can be found <a href="../dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy">here</a>.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.heap.size</h5></td>
             <td style="word-wrap: break-word;">"1024m"</td>
             <td>JVM heap size for the JobManager.</td>

@@ -29,7 +29,8 @@ class StreamTableJoinTests(PyFlinkStreamTableTestCase):
 
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('INNER', query_operation.getJoinType().toString())
-        self.assertEqual('equals(a, d)', query_operation.getCondition().toString())
+        self.assertEqual('`default_catalog`.`default_database`.`equals`(a, d)',
+                         query_operation.getCondition().toString())
         self.assertFalse(query_operation.isCorrelated())
 
     def test_join_with_where(self):
@@ -51,7 +52,8 @@ class StreamTableJoinTests(PyFlinkStreamTableTestCase):
 
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('LEFT_OUTER', query_operation.getJoinType().toString())
-        self.assertEqual('equals(a, d)', query_operation.getCondition().toString())
+        self.assertEqual('`default_catalog`.`default_database`.`equals`(a, d)',
+                         query_operation.getCondition().toString())
         self.assertFalse(query_operation.isCorrelated())
 
     def test_left_outer_join_with_where(self):
@@ -73,7 +75,8 @@ class StreamTableJoinTests(PyFlinkStreamTableTestCase):
 
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('RIGHT_OUTER', query_operation.getJoinType().toString())
-        self.assertEqual('equals(a, d)', query_operation.getCondition().toString())
+        self.assertEqual('`default_catalog`.`default_database`.`equals`(a, d)',
+                         query_operation.getCondition().toString())
         self.assertFalse(query_operation.isCorrelated())
 
     def test_full_outer_join(self):
@@ -84,7 +87,8 @@ class StreamTableJoinTests(PyFlinkStreamTableTestCase):
         result = t1.full_outer_join(t2, "a = d")
         query_operation = result._j_table.getQueryOperation()
         self.assertEqual('FULL_OUTER', query_operation.getJoinType().toString())
-        self.assertEqual('equals(a, d)', query_operation.getCondition().toString())
+        self.assertEqual('`default_catalog`.`default_database`.`equals`(a, d)',
+                         query_operation.getCondition().toString())
         self.assertFalse(query_operation.isCorrelated())
 
 

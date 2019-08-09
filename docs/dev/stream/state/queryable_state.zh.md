@@ -174,7 +174,7 @@ jar which must be explicitly included as a dependency in the `pom.xml` of your p
 </dependency>
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-queryable-state-client-java{{ site.scala_version_suffix }}</artifactId>
+  <artifactId>flink-queryable-state-client-java</artifactId>
   <version>{{ site.version }}</version>
 </dependency>
 {% endhighlight %}

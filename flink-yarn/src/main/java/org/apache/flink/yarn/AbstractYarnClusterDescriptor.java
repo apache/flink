@@ -1515,30 +1515,39 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	protected void addEnvironmentFoldersToShipFiles(Collection<File> effectiveShipFiles) {
+		addLibFoldersToShipFiles(effectiveShipFiles);
+		addPluginsFoldersToShipFiles(effectiveShipFiles);
+	}
+
+	private void addLibFoldersToShipFiles(Collection<File> effectiveShipFiles) {
 		// Add lib folder to the ship files if the environment variable is set.
 		// This is for convenience when running from the command-line.
 		// (for other files users explicitly set the ship files)
 		String libDir = System.getenv().get(ENV_FLINK_LIB_DIR);
 		if (libDir != null) {
-			addEnvFolderToShipFiles(effectiveShipFiles, libDir, ENV_FLINK_LIB_DIR);
+			File directoryFile = new File(libDir);
+			if (directoryFile.isDirectory()) {
+				effectiveShipFiles.add(directoryFile);
+			} else {
+				throw new YarnDeploymentException("The environment variable '" + ENV_FLINK_LIB_DIR +
+					"' is set to '" + libDir + "' but the directory doesn't exist.");
+			}
 		} else if (this.shipFiles.isEmpty()) {
 			LOG.warn("Environment variable '{}' not set and ship files have not been provided manually. " +
 				"Not shipping any library files.", ENV_FLINK_LIB_DIR);
 		}
-
-		String pluginsDir = System.getenv().get(ENV_FLINK_PLUGINS_DIR);
-		if (pluginsDir != null) {
-			addEnvFolderToShipFiles(effectiveShipFiles, pluginsDir, ENV_FLINK_PLUGINS_DIR);
-		}
 	}
 
-	private void addEnvFolderToShipFiles(Collection<File> effectiveShipFiles, String directory, String environmentVariableName) {
-		File directoryFile = new File(directory);
-		if (directoryFile.isDirectory()) {
-			effectiveShipFiles.add(directoryFile);
-		} else {
-			throw new YarnDeploymentException("The environment variable '" + environmentVariableName +
-				"' is set to '" + directory + "' but the directory doesn't exist.");
+	private void addPluginsFoldersToShipFiles(Collection<File> effectiveShipFiles) {
+		String pluginsDir = System.getenv().get(ENV_FLINK_PLUGINS_DIR);
+		if (pluginsDir != null) {
+			File directoryFile = new File(pluginsDir);
+			if (directoryFile.isDirectory()) {
+				effectiveShipFiles.add(directoryFile);
+			} else {
+				LOG.warn("The environment variable '" + ENV_FLINK_PLUGINS_DIR +
+					"' is set to '" + pluginsDir + "' but the directory doesn't exist.");
+			}
 		}
 	}
 

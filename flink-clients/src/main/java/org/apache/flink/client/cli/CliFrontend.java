@@ -531,14 +531,14 @@ public class CliFrontend {
 			activeCommandLine,
 			commandLine,
 			clusterClient -> {
+				final String savepointPath;
 				try {
-					clusterClient.stopWithSavepoint(jobId, advanceToEndOfEventTime, targetDirectory);
+					savepointPath = clusterClient.stopWithSavepoint(jobId, advanceToEndOfEventTime, targetDirectory);
 				} catch (Exception e) {
 					throw new FlinkException("Could not stop with a savepoint job \"" + jobId + "\".", e);
 				}
+				logAndSysout("Savepoint completed. Path: " + savepointPath);
 			});
-
-		logAndSysout((advanceToEndOfEventTime ? "Drained job " : "Suspended job ") + "\"" + jobId + "\" with a savepoint.");
 	}
 
 	/**
@@ -568,6 +568,9 @@ public class CliFrontend {
 		final String[] cleanedArgs = cancelOptions.getArgs();
 
 		if (cancelOptions.isWithSavepoint()) {
+
+			logAndSysout("DEPRECATION WARNING: Cancelling a job with savepoint is deprecated. Use \"stop\" instead.");
+
 			final JobID jobId;
 			final String targetDirectory;
 

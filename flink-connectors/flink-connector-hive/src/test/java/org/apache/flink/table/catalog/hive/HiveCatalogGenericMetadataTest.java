@@ -18,155 +18,20 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogPartition;
-import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTestBase;
-import org.apache.flink.table.catalog.CatalogView;
-import org.apache.flink.table.catalog.GenericCatalogFunction;
-import org.apache.flink.table.catalog.GenericCatalogTable;
-import org.apache.flink.table.catalog.GenericCatalogView;
-import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.BinaryType;
-import org.apache.flink.table.types.logical.VarBinaryType;
 
-import org.apache.hadoop.hive.common.type.HiveChar;
-import org.apache.hadoop.hive.common.type.HiveVarchar;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import java.util.Arrays;
-import java.util.HashMap;
-
-import static org.junit.Assert.assertEquals;
 
 /**
  * Test for HiveCatalog on generic metadata.
  */
-public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
+public class HiveCatalogGenericMetadataTest extends HiveCatalogTestBase {
 
 	@BeforeClass
 	public static void init() {
 		catalog = HiveTestUtils.createHiveCatalog();
 		catalog.open();
-	}
-
-	// ------ TODO: Move data types tests to its own test class as it's shared between generic metadata and hive metadata
-	// ------ data types ------
-
-	@Test
-	public void testDataTypes() throws Exception {
-		// TODO: the following Hive types are not supported in Flink yet, including MAP, STRUCT
-		DataType[] types = new DataType[] {
-			DataTypes.TINYINT(),
-			DataTypes.SMALLINT(),
-			DataTypes.INT(),
-			DataTypes.BIGINT(),
-			DataTypes.FLOAT(),
-			DataTypes.DOUBLE(),
-			DataTypes.BOOLEAN(),
-			DataTypes.STRING(),
-			DataTypes.BYTES(),
-			DataTypes.DATE(),
-			DataTypes.TIMESTAMP(),
-			DataTypes.CHAR(HiveChar.MAX_CHAR_LENGTH),
-			DataTypes.VARCHAR(HiveVarchar.MAX_VARCHAR_LENGTH),
-			DataTypes.DECIMAL(5, 3)
-		};
-
-		verifyDataTypes(types);
-	}
-
-	@Test
-	public void testNonExactlyMatchedDataTypes() throws Exception {
-		DataType[] types = new DataType[] {
-			DataTypes.BINARY(BinaryType.MAX_LENGTH),
-			DataTypes.VARBINARY(VarBinaryType.MAX_LENGTH)
-		};
-
-		CatalogTable table = createCatalogTable(types);
-
-		catalog.createDatabase(db1, createDb(), false);
-		catalog.createTable(path1, table, false);
-
-		Arrays.equals(
-			new DataType[] {DataTypes.BYTES(), DataTypes.BYTES()},
-			catalog.getTable(path1).getSchema().getFieldDataTypes());
-	}
-
-	@Test
-	public void testCharTypeLength() throws Exception {
-		DataType[] types = new DataType[] {
-			DataTypes.CHAR(HiveChar.MAX_CHAR_LENGTH + 1)
-		};
-
-		exception.expect(CatalogException.class);
-		exception.expectMessage("HiveCatalog doesn't support char type with length of '256'. The maximum length is 255");
-		verifyDataTypes(types);
-	}
-
-	@Test
-	public void testVarCharTypeLength() throws Exception {
-		DataType[] types = new DataType[] {
-			DataTypes.VARCHAR(HiveVarchar.MAX_VARCHAR_LENGTH + 1)
-		};
-
-		exception.expect(CatalogException.class);
-		exception.expectMessage("HiveCatalog doesn't support varchar type with length of '65536'. The maximum length is 65535");
-		verifyDataTypes(types);
-	}
-
-	@Test
-	public void testComplexDataTypes() throws Exception {
-		DataType[] types = new DataType[]{
-			DataTypes.ARRAY(DataTypes.DOUBLE()),
-			DataTypes.MAP(DataTypes.FLOAT(), DataTypes.BIGINT()),
-			DataTypes.ROW(
-				DataTypes.FIELD("0", DataTypes.BOOLEAN()),
-				DataTypes.FIELD("1", DataTypes.BOOLEAN()),
-				DataTypes.FIELD("2", DataTypes.DATE())),
-
-			// nested complex types
-			DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT())),
-			DataTypes.MAP(DataTypes.STRING(), DataTypes.MAP(DataTypes.STRING(), DataTypes.BIGINT())),
-			DataTypes.ROW(
-				DataTypes.FIELD("3", DataTypes.ARRAY(DataTypes.DECIMAL(5, 3))),
-				DataTypes.FIELD("4", DataTypes.MAP(DataTypes.TINYINT(), DataTypes.SMALLINT())),
-				DataTypes.FIELD("5", DataTypes.ROW(DataTypes.FIELD("3", DataTypes.TIMESTAMP())))
-			)
-		};
-
-		verifyDataTypes(types);
-	}
-
-	private CatalogTable createCatalogTable(DataType[] types) {
-		String[] colNames = new String[types.length];
-
-		for (int i = 0; i < types.length; i++) {
-			colNames[i] = String.format("%s_%d", types[i].toString().toLowerCase(), i);
-		}
-
-		TableSchema schema = TableSchema.builder()
-			.fields(colNames, types)
-			.build();
-
-		return new GenericCatalogTable(
-			schema,
-			getBatchTableProperties(),
-			TEST_COMMENT
-		);
-	}
-
-	private void verifyDataTypes(DataType[] types) throws Exception {
-		CatalogTable table = createCatalogTable(types);
-
-		catalog.createDatabase(db1, createDb(), false);
-		catalog.createTable(path1, table, false);
-
-		assertEquals(table.getSchema(), catalog.getTable(path1).getSchema());
 	}
 
 	// ------ partitions ------
@@ -271,78 +136,19 @@ public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
 	public void testListPartitionPartialSpec() throws Exception {
 	}
 
+	@Override
+	public void testGetPartitionStats() throws Exception {
+	}
+
+	@Override
+	public void testAlterPartitionTableStats() throws Exception {
+	}
+
 	// ------ test utils ------
 
 	@Override
-	public CatalogTable createTable() {
-		return new GenericCatalogTable(
-			createTableSchema(),
-			getBatchTableProperties(),
-			TEST_COMMENT);
-	}
-
-	@Override
-	public CatalogTable createAnotherTable() {
-		return new GenericCatalogTable(
-			createAnotherTableSchema(),
-			getBatchTableProperties(),
-			TEST_COMMENT);
-	}
-
-	@Override
-	public CatalogTable createStreamingTable() {
-		return new GenericCatalogTable(
-			createTableSchema(),
-			getStreamingTableProperties(),
-			TEST_COMMENT);
-	}
-
-	@Override
-	public CatalogTable createPartitionedTable() {
-		return new GenericCatalogTable(
-			createTableSchema(),
-			createPartitionKeys(),
-			getBatchTableProperties(),
-			TEST_COMMENT);
-	}
-
-	@Override
-	public CatalogTable createAnotherPartitionedTable() {
-		return new GenericCatalogTable(
-			createAnotherTableSchema(),
-			createPartitionKeys(),
-			getBatchTableProperties(),
-			TEST_COMMENT);
-	}
-
-	@Override
-	public CatalogView createView() {
-		return new GenericCatalogView(
-			String.format("select * from %s", t1),
-			String.format("select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
-			createTableSchema(),
-			new HashMap<>(),
-			"This is a view");
-	}
-
-	@Override
-	public CatalogView createAnotherView() {
-		return new GenericCatalogView(
-			String.format("select * from %s", t2),
-			String.format("select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
-			createAnotherTableSchema(),
-			new HashMap<>(),
-			"This is another view");
-	}
-
-	@Override
-	protected CatalogFunction createFunction() {
-		return new GenericCatalogFunction(MyScalarFunction.class.getName());
-	}
-
-	@Override
-	protected CatalogFunction createAnotherFunction() {
-		return new GenericCatalogFunction(MyOtherScalarFunction.class.getName());
+	protected boolean isGeneric() {
+		return true;
 	}
 
 	@Override

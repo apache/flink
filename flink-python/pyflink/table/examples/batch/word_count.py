@@ -21,7 +21,9 @@ import shutil
 import sys
 import tempfile
 
-from pyflink.table import TableEnvironment, TableConfig, FileSystem, OldCsv, Schema
+from pyflink.dataset import ExecutionEnvironment
+from pyflink.table import BatchTableEnvironment, TableConfig
+from pyflink.table.descriptors import FileSystem, OldCsv, Schema
 from pyflink.table.types import DataTypes
 
 
@@ -34,8 +36,9 @@ def word_count():
               "License you may not use this file except in compliance " \
               "with the License"
 
-    t_config = TableConfig.Builder().as_batch_execution().build()
-    t_env = TableEnvironment.create(t_config)
+    t_config = TableConfig()
+    env = ExecutionEnvironment.get_execution_environment()
+    t_env = BatchTableEnvironment.create(env, t_config)
 
     # register Results table in table environment
     tmp_dir = tempfile.gettempdir()
@@ -67,7 +70,7 @@ def word_count():
          .select("word, count(1) as count") \
          .insert_into("Results")
 
-    t_env.execute()
+    t_env.execute("word_count")
 
 
 if __name__ == '__main__':

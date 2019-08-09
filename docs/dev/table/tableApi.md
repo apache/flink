@@ -44,6 +44,9 @@ The following example shows the differences between the Scala and Java Table API
 The Java Table API is enabled by importing `org.apache.flink.table.api.java.*`. The following example shows how a Java Table API program is constructed and how expressions are specified as strings.
 
 {% highlight java %}
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.java._
+
 // environment configuration
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 BatchTableEnvironment tEnv = BatchTableEnvironment.create(env);
@@ -73,6 +76,7 @@ The following example shows how a Scala Table API program is constructed. Table 
 
 {% highlight scala %}
 import org.apache.flink.api.scala._
+import org.apache.flink.table.api._
 import org.apache.flink.table.api.scala._
 
 // environment configuration
@@ -101,9 +105,11 @@ The following example shows how a Python Table API program is constructed and ho
 
 {% highlight python %}
 from pyflink.table import *
+from pyflink.dataset import *
 
 # environment configuration
-t_env = TableEnvironment.create(TableConfig.Builder().as_batch_execution().build())
+env = ExecutionEnvironment.get_execution_environment()
+t_env = TableEnvironment.create(env, TableConfig())
 
 # register Orders table and Result table sink in table environment
 # ...
@@ -113,7 +119,7 @@ orders = t_env.scan("Orders")  # schema (a, b, c, rowtime)
 
 orders.group_by("a").select("a, b.count as cnt").insert_into("result")
 
-t_env.execute()
+t_env.execute("python_job")
 
 {% endhighlight %}
 
@@ -917,10 +923,10 @@ result = orders.window(Tumble.over("5.minutes").on("rowtime").alias("w")) \
        <p>Similar to a SQL OVER clause. Over window aggregates are computed for each row, based on a window (range) of preceding and succeeding rows. See the <a href="#over-windows">over windows section</a> for more details.</p>
 {% highlight python %}
 orders = table_env.scan("Orders")
-result = orders.over_window(Over.partition_by("a").order_by("rowtime") \
-      	       .preceding("UNBOUNDED_RANGE").following("CURRENT_RANGE") \
-               .alias("w")) \
-               .select("a, b.avg over w, b.max over w, b.min over w")
+result = orders.over_window(Over.partition_by("a").order_by("rowtime")
+                            .preceding("UNBOUNDED_RANGE").following("CURRENT_RANGE")
+                            .alias("w")) \
+    .select("a, b.avg over w, b.max over w, b.min over w")
 {% endhighlight %}
        <p><b>Note:</b> All aggregates must be defined over the same window, i.e., same partitioning, sorting, and range. Currently, only windows with PRECEDING (UNBOUNDED and bounded) to CURRENT ROW range are supported. Ranges with FOLLOWING are not supported yet. ORDER BY must be specified on a single <a href="streaming/time_attributes.html">time attribute</a>.</p>
       </td>
@@ -1330,7 +1336,16 @@ full_outer_result = left.full_outer_join(right, "a = d").select("a, b, e")
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
-        <p>Currently not supported in python API.</p>
+        <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. A row of the left (outer) table is dropped, if its table function call returns an empty result.
+        </p>
+{% highlight python %}
+# register Java User-Defined Table Function
+table_env.register_java_function("split", "com.my.udf.MySplitUDTF")
+
+# join
+orders = table_env.scan("Orders")
+result = orders.join_lateral("split(c).as(s, t, v)").select("a, b, s, t, v")
+{% endhighlight %}
       </td>
     </tr>
     <tr>
@@ -1339,7 +1354,16 @@ full_outer_result = left.full_outer_join(right, "a = d").select("a, b, e")
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Currently not supported in python API.</p>
+        <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.</p>
+        <p><b>Note:</b> Currently, the predicate of a table function left outer join can only be empty or literal <code>true</code>.</p>
+{% highlight python %}
+# register Java User-Defined Table Function
+table_env.register_java_function("split", "com.my.udf.MySplitUDTF")
+
+# join
+orders = table_env.scan("Orders")
+result = orders.left_outer_join_lateral("split(c).as(s, t, v)").select("a, b, s, t, v")
+{% endhighlight %}
       </td>
     </tr>
     <tr>
@@ -2287,10 +2311,10 @@ A session window is defined by using the `Session` class as follows:
 <div data-lang="python" markdown="1">
 {% highlight python %}
 # Session Event-time Window
-.window(Session.withGap("10.minutes").on("rowtime").alias("w"))
+.window(Session.with_gap("10.minutes").on("rowtime").alias("w"))
 
 # Session Processing-time Window (assuming a processing-time attribute "proctime")
-.window(Session.withGap("10.minutes").on("proctime").alias("w"))
+.window(Session.with_gap("10.minutes").on("proctime").alias("w"))
 {% endhighlight %}
 </div>
 </div>
@@ -2324,7 +2348,7 @@ val table = input
 {% highlight python %}
 # define over window with alias w and aggregate over the over window w
 table = input.over_window([OverWindow w].alias("w")) \
-             .select("a, b.sum over w, c.min over w")
+    .select("a, b.sum over w, c.min over w")
 {% endhighlight %}
 </div>
 </div>
@@ -2637,13 +2661,33 @@ Table table = input
     
     <tr>
       <td>
+        <strong>Group Window Aggregate</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Groups and aggregates a table on a <a href="#group-windows">group window</a> and possibly one or more grouping keys. You have to close the "aggregate" with a select statement. And the select statement does not support "*" or aggregate functions.</p>
+{% highlight java %}
+AggregateFunction myAggFunc = new MyMinMax();
+tableEnv.registerFunction("myAggFunc", myAggFunc);
+
+Table table = input
+    .window(Tumble.over("5.minutes").on("rowtime").as("w")) // define window
+    .groupBy("key, w") // group by key and window
+    .aggregate("myAggFunc(a) as (x, y)")
+    .select("key, x, y, w.start, w.end"); // access window properties and aggregate results
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>
         <strong>FlatAggregate</strong><br>
         <span class="label label-primary">Streaming</span><br>
         <span class="label label-info">Result Updating</span>
       </td>
       <td>
         <p>Similar to a <b>GroupBy Aggregation</b>. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
-        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally.</p>
+        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally. See <a href="udfs.html#table-aggregation-functions">Table Aggregation Functions</a> for details.</p>
 {% highlight java %}
 /**
  * Accumulator for Top2.
@@ -2831,7 +2875,7 @@ class MyMinMax extends AggregateFunction[Row, MyMinMaxAcc] {
   }
 }
 
-val myAggFunc: AggregateFunction = new MyMinMax
+val myAggFunc = new MyMinMax
 val table = input
   .groupBy('key)
   .aggregate(myAggFunc('a) as ('x, 'y))
@@ -2842,13 +2886,32 @@ val table = input
     
     <tr>
       <td>
+        <strong>Group Window Aggregate</strong><br>
+        <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
+      </td>
+      <td>
+        <p>Groups and aggregates a table on a <a href="#group-windows">group window</a> and possibly one or more grouping keys. You have to close the "aggregate" with a select statement. And the select statement does not support "*" or aggregate functions.</p>
+{% highlight scala %}
+val myAggFunc = new MyMinMax
+val table = input
+    .window(Tumble over 5.minutes on 'rowtime as 'w) // define window
+    .groupBy('key, 'w) // group by key and window
+    .aggregate(myAggFunc('a) as ('x, 'y))
+    .select('key, 'x, 'y, 'w.start, 'w.end) // access window properties and aggregate results
+
+{% endhighlight %}
+      </td>
+    </tr>
+
+    <tr>
+      <td>
         <strong>FlatAggregate</strong><br>
         <span class="label label-primary">Streaming</span><br>
         <span class="label label-info">Result Updating</span>
       </td>
       <td>
         <p>Similar to a <b>GroupBy Aggregation</b>. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flatAggregate" with a select statement. And the select statement does not support aggregate functions.</p>
-        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally.</p>
+        <p>Instead of using <code>emitValue</code> to output results, you can also use the <code>emitUpdateWithRetract</code> method. Different from <code>emitValue</code>, <code>emitUpdateWithRetract</code> is used to emit values that have been updated. This method outputs data incrementally in retract mode, i.e., once there is an update, we have to retract old records before sending new updated ones. The <code>emitUpdateWithRetract</code> method will be used in preference to the <code>emitValue</code> method if both methods are defined in the table aggregate function, because the method is treated to be more efficient than <code>emitValue</code> as it can output values incrementally. See <a href="udfs.html#table-aggregation-functions">Table Aggregation Functions</a> for details.</p>
 {% highlight scala %}
 import java.lang.{Integer => JInteger}
 import org.apache.flink.table.api.Types
@@ -2943,29 +3006,7 @@ val result = orders
 Data Types
 ----------
 
-The Table API is built on top of Flink's DataSet and DataStream APIs. Internally, it also uses Flink's `TypeInformation` to define data types. Fully supported types are listed in `org.apache.flink.table.api.Types`. The following table summarizes the relation between Table API types, SQL types, and the resulting Java class.
-
-| Table API              | SQL                         | Java type              |
-| :--------------------- | :-------------------------- | :--------------------- |
-| `Types.STRING`         | `VARCHAR`                   | `java.lang.String`     |
-| `Types.BOOLEAN`        | `BOOLEAN`                   | `java.lang.Boolean`    |
-| `Types.BYTE`           | `TINYINT`                   | `java.lang.Byte`       |
-| `Types.SHORT`          | `SMALLINT`                  | `java.lang.Short`      |
-| `Types.INT`            | `INTEGER, INT`              | `java.lang.Integer`    |
-| `Types.LONG`           | `BIGINT`                    | `java.lang.Long`       |
-| `Types.FLOAT`          | `REAL, FLOAT`               | `java.lang.Float`      |
-| `Types.DOUBLE`         | `DOUBLE`                    | `java.lang.Double`     |
-| `Types.DECIMAL`        | `DECIMAL`                   | `java.math.BigDecimal` |
-| `Types.SQL_DATE`       | `DATE`                      | `java.sql.Date`        |
-| `Types.SQL_TIME`       | `TIME`                      | `java.sql.Time`        |
-| `Types.SQL_TIMESTAMP`  | `TIMESTAMP(3)`              | `java.sql.Timestamp`   |
-| `Types.INTERVAL_MONTHS`| `INTERVAL YEAR TO MONTH`    | `java.lang.Integer`    |
-| `Types.INTERVAL_MILLIS`| `INTERVAL DAY TO SECOND(3)` | `java.lang.Long`       |
-| `Types.PRIMITIVE_ARRAY`| `ARRAY`                     | e.g. `int[]`           |
-| `Types.OBJECT_ARRAY`   | `ARRAY`                     | e.g. `java.lang.Byte[]`|
-| `Types.MAP`            | `MAP`                       | `java.util.HashMap`    |
-| `Types.MULTISET`       | `MULTISET`                  | e.g. `java.util.HashMap<String, Integer>` for a multiset of `String` |
-| `Types.ROW`            | `ROW`                       | `org.apache.flink.types.Row` |
+Please see the dedicated page about [data types](types.html).
 
 Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
 

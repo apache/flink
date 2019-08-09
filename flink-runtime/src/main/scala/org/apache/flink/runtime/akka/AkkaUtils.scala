@@ -547,7 +547,7 @@ object AkkaUtils {
       } else {
         // if bindAddress is null or empty, then leave bindAddress unspecified. Akka will pick
         // InetAddress.getLocalHost.getHostAddress
-        "\"\""
+        ""
       }
 
     val hostnameConfigString =
@@ -556,8 +556,8 @@ object AkkaUtils {
          |  remote {
          |    netty {
          |      tcp {
-         |        hostname = $effectiveHostname
-         |        bind-hostname = $bindAddress
+         |        hostname = "$effectiveHostname"
+         |        bind-hostname = "$bindAddress"
          |      }
          |    }
          |  }

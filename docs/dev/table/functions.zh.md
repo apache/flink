@@ -316,7 +316,7 @@ value NOT IN (sub-query)
 </table>
 </div>
 
-<div data-lang="java" markdown="1">
+<div data-lang="Java/Python" markdown="1">
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -429,7 +429,7 @@ STRING1.like(STRING2)
     <tr>
       <td>
         {% highlight java %}
-STRING.similar(STRING)
+STRING1.similar(STRING2)
 {% endhighlight %}
       </td>
       <td>
@@ -796,7 +796,7 @@ boolean IS NOT UNKNOWN
 </table>
 </div>
 
-<div data-lang="java" markdown="1">
+<div data-lang="Java/Python" markdown="1">
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -1471,7 +1471,7 @@ TRUNCATE(numeric1, integer2)
 </table>
 </div>
 
-<div data-lang="java" markdown="1">
+<div data-lang="Java/Python" markdown="1">
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -2693,7 +2693,7 @@ TO_BASE64(string)
 </table>
 </div>
 
-<div data-lang="java" markdown="1">
+<div data-lang="Java/Python" markdown="1">
 
 <table class="table table-bordered">
   <thead>
@@ -3545,7 +3545,7 @@ TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
 </table>
 </div>
 
-<div data-lang="java" markdown="1">
+<div data-lang="Java/Python" markdown="1">
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -4185,7 +4185,7 @@ COALESCE(value1, value2 [, value3 ]* )
 </table>
 </div>
 
-<div data-lang="java" markdown="1">
+<div data-lang="Java/Python" markdown="1">
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -4267,7 +4267,7 @@ CAST(value AS type)
 </table>
 </div>
 
-<div data-lang="java" markdown="1">
+<div data-lang="Java/Python" markdown="1">
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -4393,7 +4393,7 @@ map ‘[’ value ‘]’
 </table>
 </div>
 
-<div data-lang="java" markdown="1">
+<div data-lang="Java/Python" markdown="1">
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -4581,7 +4581,7 @@ MAP ‘[’ value1, value2 [, value3, value4 ]* ‘]’
 </table>
 
 </div>
-<div data-lang="java" markdown="1">
+<div data-lang="Java/Python" markdown="1">
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -4738,7 +4738,7 @@ tableName.compositeType.*
 </table>
 </div>
 
-<div data-lang="java" markdown="1">
+<div data-lang="Java/Python" markdown="1">
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -4856,7 +4856,7 @@ GROUPING_ID(expression1 [, expression2]* )
 </table>
 </div>
 
-<div data-lang="Java" markdown="1">
+<div data-lang="Java/Python" markdown="1">
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -4977,7 +4977,7 @@ SHA2(string, hashLength)
 </table>
 </div>
 
-<div data-lang="java" markdown="1">
+<div data-lang="Java/Python" markdown="1">
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -5180,7 +5180,7 @@ STRING.sha2(INT)
 </table>
 </div>
 
-<div data-lang="java" markdown="1">
+<div data-lang="Java/Python" markdown="1">
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -5372,7 +5372,7 @@ COLLECT([ ALL | DISTINCT ] expression)
 
 </div>
 
-<div data-lang="java" markdown="1">
+<div data-lang="Java/Python" markdown="1">
 <table class="table table-bordered">
   <thead>
     <tr>
@@ -5832,7 +5832,7 @@ The usage of the column function is illustrated in the following table. (Suppose
 
 
 <div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
+<div data-lang="Java/Python" markdown="1">
 
 <table class="table table-bordered">
   <thead>
@@ -6075,6 +6075,14 @@ table
 table
    .groupBy(withColumns(1 to 3))
    .select(withColumns('a to 'b), myUDAgg(myUDF(withColumns(5 to 20))))
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+table \
+    .group_by("withColumns(1 to 3)") \
+    .select("withColumns(a to b), myUDAgg(myUDF(withColumns(5 to 20)))")
 {% endhighlight %}
 </div>
 </div>

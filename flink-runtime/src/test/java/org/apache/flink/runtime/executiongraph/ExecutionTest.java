@@ -19,16 +19,12 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
@@ -37,11 +33,11 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SingleLogicalSlot;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
@@ -58,7 +54,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -69,7 +64,6 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -104,7 +98,7 @@ public class ExecutionTest extends TestLogger {
 			new NoRestartStrategy(),
 			jobVertex);
 
-		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
@@ -112,20 +106,14 @@ public class ExecutionTest extends TestLogger {
 
 		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
 
-		final SimpleSlot slot = new SimpleSlot(
-			slotOwner,
-			new LocalTaskManagerLocation(),
-			0,
-			new SimpleAckingTaskManagerGateway());
+		final LogicalSlot slot = createTestingLogicalSlot(slotOwner);
 
-		final LogicalSlot otherSlot = new TestingLogicalSlot();
+		final LogicalSlot otherSlot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
 		CompletableFuture<Execution> allocationFuture = execution.allocateResourcesForExecution(
-			slotProvider,
-			false,
+			executionGraph.getSlotProviderStrategy(),
 			LocationPreferenceConstraint.ALL,
-			Collections.emptySet(),
-			TestingUtils.infiniteTime());
+			Collections.emptySet());
 
 		assertFalse(allocationFuture.isDone());
 
@@ -140,6 +128,12 @@ public class ExecutionTest extends TestLogger {
 		assertEquals(slot, slotOwner.getReturnedSlotFuture().get());
 	}
 
+	private TestingLogicalSlot createTestingLogicalSlot(SlotOwner slotOwner) {
+		return new TestingLogicalSlotBuilder()
+			.setSlotOwner(slotOwner)
+			.createTestingLogicalSlot();
+	}
+
 	/**
 	 * Tests that the slot is released in case of a execution cancellation when having
 	 * a slot assigned and being in state SCHEDULED.
@@ -151,11 +145,7 @@ public class ExecutionTest extends TestLogger {
 
 		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
 
-		final SimpleSlot slot = new SimpleSlot(
-			slotOwner,
-			new LocalTaskManagerLocation(),
-			0,
-			new SimpleAckingTaskManagerGateway());
+		final LogicalSlot slot = createTestingLogicalSlot(slotOwner);
 
 		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(1);
 		slotProvider.addSlot(jobVertexId, 0, CompletableFuture.completedFuture(slot));
@@ -166,18 +156,16 @@ public class ExecutionTest extends TestLogger {
 			new NoRestartStrategy(),
 			jobVertex);
 
-		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
 		final Execution execution = executionJobVertex.getTaskVertices()[0].getCurrentExecutionAttempt();
 
 		CompletableFuture<Execution> allocationFuture = execution.allocateResourcesForExecution(
-			slotProvider,
-			false,
+			executionGraph.getSlotProviderStrategy(),
 			LocationPreferenceConstraint.ALL,
-			Collections.emptySet(),
-			TestingUtils.infiniteTime());
+			Collections.emptySet());
 
 		assertTrue(allocationFuture.isDone());
 
@@ -203,11 +191,7 @@ public class ExecutionTest extends TestLogger {
 
 		final SingleSlotTestingSlotOwner slotOwner = new SingleSlotTestingSlotOwner();
 
-		final SimpleSlot slot = new SimpleSlot(
-			slotOwner,
-			new LocalTaskManagerLocation(),
-			0,
-			new SimpleAckingTaskManagerGateway());
+		final LogicalSlot slot = createTestingLogicalSlot(slotOwner);
 
 		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(1);
 		slotProvider.addSlot(jobVertexId, 0, CompletableFuture.completedFuture(slot));
@@ -223,11 +207,9 @@ public class ExecutionTest extends TestLogger {
 		final Execution execution = executionJobVertex.getTaskVertices()[0].getCurrentExecutionAttempt();
 
 		CompletableFuture<Execution> allocationFuture = execution.allocateResourcesForExecution(
-			slotProvider,
-			false,
+			executionGraph.getSlotProviderStrategy(),
 			LocationPreferenceConstraint.ALL,
-			Collections.emptySet(),
-			TestingUtils.infiniteTime());
+			Collections.emptySet());
 
 		assertTrue(allocationFuture.isDone());
 
@@ -268,18 +250,16 @@ public class ExecutionTest extends TestLogger {
 			new NoRestartStrategy(),
 			jobVertex);
 
-		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		final ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
 		final Execution currentExecutionAttempt = executionJobVertex.getTaskVertices()[0].getCurrentExecutionAttempt();
 
 		final CompletableFuture<Execution> allocationFuture = currentExecutionAttempt.allocateResourcesForExecution(
-			slotProvider,
-			false,
+			executionGraph.getSlotProviderStrategy(),
 			LocationPreferenceConstraint.ALL,
-			Collections.emptySet(),
-			TestingUtils.infiniteTime());
+			Collections.emptySet());
 
 		assertThat(allocationFuture.isDone(), is(false));
 
@@ -297,82 +277,6 @@ public class ExecutionTest extends TestLogger {
 
 		final Set<SlotRequestId> canceledSlotRequests = slotProvider.getCanceledSlotRequests();
 		assertThat(canceledSlotRequests, equalTo(slotRequests));
-	}
-
-	/**
-	 * Tests that the partitions are released in case of an execution cancellation after the execution is already finished.
-	 */
-	@Test
-	public void testPartitionReleaseOnCancelingAfterBeingFinished() throws Exception {
-		testPartitionReleaseAfterFinished(Execution::cancel);
-	}
-
-	/**
-	 * Tests that the partitions are released in case of an execution suspension after the execution is already finished.
-	 */
-	@Test
-	public void testPartitionReleaseOnSuspendingAfterBeingFinished() throws Exception {
-		testPartitionReleaseAfterFinished(Execution::suspend);
-	}
-
-	private void testPartitionReleaseAfterFinished(Consumer<Execution> postFinishedExecutionAction) throws Exception {
-		final Tuple2<JobID, Collection<ResultPartitionID>> releasedPartitions = Tuple2.of(null, null);
-		final SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
-		taskManagerGateway.setReleasePartitionsConsumer(releasedPartitions::setFields);
-
-		final JobVertex producerVertex = createNoOpJobVertex();
-		final JobVertex consumerVertex = createNoOpJobVertex();
-		consumerVertex.connectNewDataSetAsInput(producerVertex, DistributionPattern.ALL_TO_ALL, ResultPartitionType.BLOCKING);
-
-		final SimpleSlot slot = new SimpleSlot(
-			new SingleSlotTestingSlotOwner(),
-			new LocalTaskManagerLocation(),
-			0,
-			taskManagerGateway);
-
-		final ProgrammedSlotProvider slotProvider = new ProgrammedSlotProvider(1);
-		slotProvider.addSlot(producerVertex.getID(), 0, CompletableFuture.completedFuture(slot));
-
-		ExecutionGraph executionGraph = ExecutionGraphTestUtils.createSimpleTestGraph(
-			new JobID(),
-			slotProvider,
-			new NoRestartStrategy(),
-			producerVertex,
-			consumerVertex);
-
-		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
-
-		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(producerVertex.getID());
-		ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];
-
-		final Execution execution = executionVertex.getCurrentExecutionAttempt();
-
-		execution.allocateResourcesForExecution(
-			slotProvider,
-			false,
-			LocationPreferenceConstraint.ALL,
-			Collections.emptySet(),
-			TestingUtils.infiniteTime());
-
-		execution.deploy();
-		execution.switchToRunning();
-
-		// simulate a case where a cancel/suspend call is too slow and the task is already finished
-		// in this case we have to explicitly release the finished partition
-		// if the task were canceled properly the TM would release the partition automatically
-		execution.markFinished();
-		postFinishedExecutionAction.accept(execution);
-
-		assertEquals(executionGraph.getJobID(), releasedPartitions.f0);
-		assertEquals(executionVertex.getProducedPartitions().size(), releasedPartitions.f1.size());
-		for (ResultPartitionID partitionId : releasedPartitions.f1) {
-			// ensure all IDs of released partitions are actually valid
-			IntermediateResultPartition intermediateResultPartition = executionVertex
-				.getProducedPartitions()
-				.get(partitionId.getPartitionId());
-			assertNotNull(intermediateResultPartition);
-			assertEquals(execution.getAttemptId(), partitionId.getProducerId());
-		}
 	}
 
 	/**
@@ -454,13 +358,16 @@ public class ExecutionTest extends TestLogger {
 			new NoRestartStrategy(),
 			jobVertex);
 
-		executionGraph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		executionGraph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		ExecutionJobVertex executionJobVertex = executionGraph.getJobVertex(jobVertexId);
 
 		ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];
 
-		executionVertex.scheduleForExecution(slotProvider, false, LocationPreferenceConstraint.ANY, Collections.emptySet()).get();
+		executionVertex.scheduleForExecution(
+			executionGraph.getSlotProviderStrategy(),
+			LocationPreferenceConstraint.ANY,
+			Collections.emptySet()).get();
 
 		Execution currentExecutionAttempt = executionVertex.getCurrentExecutionAttempt();
 
@@ -512,7 +419,11 @@ public class ExecutionTest extends TestLogger {
 		assertThat(execution.getTaskRestore(), is(notNullValue()));
 
 		// schedule the execution vertex and wait for its deployment
-		executionVertex.scheduleForExecution(slotProvider, false, LocationPreferenceConstraint.ANY, Collections.emptySet()).get();
+		executionVertex.scheduleForExecution(
+			executionGraph.getSlotProviderStrategy(),
+			LocationPreferenceConstraint.ANY,
+			Collections.emptySet())
+			.get();
 
 		assertThat(execution.getTaskRestore(), is(nullValue()));
 	}
@@ -573,8 +484,7 @@ public class ExecutionTest extends TestLogger {
 
 		final CompletableFuture<Void> schedulingFuture = testMainThreadUtil.execute(
 			() -> execution.scheduleForExecution(
-				slotProvider,
-				false,
+				executionGraph.getSlotProviderStrategy(),
 				LocationPreferenceConstraint.ANY,
 				Collections.emptySet()));
 
@@ -647,13 +557,7 @@ public class ExecutionTest extends TestLogger {
 
 		for (JobVertexID jobVertexId : jobVertexIds) {
 			for (int i = 0; i < parallelism; i++) {
-				final SimpleSlot slot = new SimpleSlot(
-					slotOwner,
-					new LocalTaskManagerLocation(),
-					0,
-					new SimpleAckingTaskManagerGateway(),
-					null,
-					null);
+				final LogicalSlot slot = createTestingLogicalSlot(slotOwner);
 
 				slotProvider.addSlot(jobVertexId, 0, CompletableFuture.completedFuture(slot));
 			}

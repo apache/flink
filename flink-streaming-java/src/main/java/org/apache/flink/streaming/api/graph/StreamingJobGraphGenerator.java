@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -74,6 +73,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
 
 /**
  * The StreamingJobGraphGenerator converts a {@link StreamGraph} into a {@link JobGraph}.
@@ -515,6 +516,10 @@ public class StreamingJobGraphGenerator {
 			case BATCH:
 				resultPartitionType = ResultPartitionType.BLOCKING;
 				break;
+			case UNDEFINED:
+				resultPartitionType = streamGraph.isBlockingConnectionsBetweenChains() ?
+						ResultPartitionType.BLOCKING : ResultPartitionType.PIPELINED_BOUNDED;
+				break;
 			default:
 				throw new UnsupportedOperationException("Data exchange mode " +
 					edge.getShuffleMode() + " is not supported yet.");
@@ -606,11 +611,7 @@ public class StreamingJobGraphGenerator {
 		CheckpointConfig cfg = streamGraph.getCheckpointConfig();
 
 		long interval = cfg.getCheckpointInterval();
-		if (interval >= 10) {
-			ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
-			// propagate the expected behaviour for checkpoint errors to task.
-			executionConfig.setFailTaskOnCheckpointError(cfg.isFailOnCheckpointingErrors());
-		} else {
+		if (interval < MINIMAL_CHECKPOINT_TIME) {
 			// interval of max value means disable periodic checkpoint
 			interval = Long.MAX_VALUE;
 		}

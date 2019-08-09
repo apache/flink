@@ -21,6 +21,7 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -34,12 +35,12 @@ import java.util.Map;
 @Internal
 public class ProjectQueryOperation implements QueryOperation {
 
-	private final List<Expression> projectList;
+	private final List<ResolvedExpression> projectList;
 	private final QueryOperation child;
 	private final TableSchema tableSchema;
 
 	public ProjectQueryOperation(
-			List<Expression> projectList,
+			List<ResolvedExpression> projectList,
 			QueryOperation child,
 			TableSchema tableSchema) {
 		this.projectList = projectList;
@@ -47,7 +48,7 @@ public class ProjectQueryOperation implements QueryOperation {
 		this.tableSchema = tableSchema;
 	}
 
-	public List<Expression> getProjectList() {
+	public List<ResolvedExpression> getProjectList() {
 		return projectList;
 	}
 

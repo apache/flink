@@ -21,8 +21,8 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
 
 import java.util.Arrays;
 import java.util.List;
@@ -74,7 +74,7 @@ public class BroadcastStream<T> {
 		return environment.clean(f);
 	}
 
-	public StreamTransformation<T> getTransformation() {
+	public Transformation<T> getTransformation() {
 		return inputStream.getTransformation();
 	}
 

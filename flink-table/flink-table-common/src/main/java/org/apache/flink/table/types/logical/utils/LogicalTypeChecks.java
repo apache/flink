@@ -19,21 +19,29 @@
 package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
 import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DecimalType;
+import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
+
+import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utilities for checking {@link LogicalType} and avoiding a lot of type casting and repetitive work.
@@ -54,6 +62,8 @@ public final class LogicalTypeChecks {
 	private static final DayPrecisionExtractor DAY_PRECISION_EXTRACTOR = new DayPrecisionExtractor();
 
 	private static final FractionalPrecisionExtractor FRACTIONAL_PRECISION_EXTRACTOR = new FractionalPrecisionExtractor();
+
+	private static final SingleFieldIntervalExtractor SINGLE_FIELD_INTERVAL_EXTRACTOR = new SingleFieldIntervalExtractor();
 
 	public static boolean hasRoot(LogicalType logicalType, LogicalTypeRoot typeRoot) {
 		return logicalType.getTypeRoot() == typeRoot;
@@ -83,18 +93,30 @@ public final class LogicalTypeChecks {
 		return getLength(logicalType) == length;
 	}
 
+	/**
+	 * Returns the precision of all types that define a precision implicitly or explicitly.
+	 */
 	public static int getPrecision(LogicalType logicalType) {
 		return logicalType.accept(PRECISION_EXTRACTOR);
 	}
 
+	/**
+	 * Checks the precision of a type that defines a precision implicitly or explicitly.
+	 */
 	public static boolean hasPrecision(LogicalType logicalType, int precision) {
 		return getPrecision(logicalType) == precision;
 	}
 
+	/**
+	 * Returns the scale of all types that define a scale implicitly or explicitly.
+	 */
 	public static int getScale(LogicalType logicalType) {
 		return logicalType.accept(SCALE_EXTRACTOR);
 	}
 
+	/**
+	 * Checks the scale of all types that define a scale implicitly or explicitly.
+	 */
 	public static boolean hasScale(LogicalType logicalType, int scale) {
 		return getScale(logicalType) == scale;
 	}
@@ -121,6 +143,24 @@ public final class LogicalTypeChecks {
 
 	public static boolean hasFractionalPrecision(LogicalType logicalType, int fractionalPrecision) {
 		return getFractionalPrecision(logicalType) == fractionalPrecision;
+	}
+
+	public static boolean isSingleFieldInterval(LogicalType logicalType) {
+		return logicalType.accept(SINGLE_FIELD_INTERVAL_EXTRACTOR);
+	}
+
+	/**
+	 * Returns true if the two given types are compatible. Types are compatible is for atomic types
+	 * (VARCHAR, INT, BOOLEAN, etc..), they must be fully equal (i.e. {@link LogicalType#equals(Object)}),
+	 * for complex types (ARRAY, ROW, MAP, etc..), they must be in the same type but ignore field
+	 * names and other logical attributes, and all the children types ({@link LogicalType#getChildren()})
+	 * must be compatible too.
+	 */
+	public static boolean areTypesCompatible(LogicalType thisType, LogicalType thatType) {
+		checkNotNull(thisType);
+		checkNotNull(thatType);
+		TypeCompatibleVisitor visitor = new TypeCompatibleVisitor(thisType);
+		return thatType.accept(visitor);
 	}
 
 	private LogicalTypeChecks() {
@@ -174,6 +214,26 @@ public final class LogicalTypeChecks {
 		}
 
 		@Override
+		public Integer visit(TinyIntType tinyIntType) {
+			return TinyIntType.PRECISION;
+		}
+
+		@Override
+		public Integer visit(SmallIntType smallIntType) {
+			return SmallIntType.PRECISION;
+		}
+
+		@Override
+		public Integer visit(IntType intType) {
+			return IntType.PRECISION;
+		}
+
+		@Override
+		public Integer visit(BigIntType bigIntType) {
+			return BigIntType.PRECISION;
+		}
+
+		@Override
 		public Integer visit(TimeType timeType) {
 			return timeType.getPrecision();
 		}
@@ -199,6 +259,26 @@ public final class LogicalTypeChecks {
 		@Override
 		public Integer visit(DecimalType decimalType) {
 			return decimalType.getScale();
+		}
+
+		@Override
+		public Integer visit(TinyIntType tinyIntType) {
+			return 0;
+		}
+
+		@Override
+		public Integer visit(SmallIntType smallIntType) {
+			return 0;
+		}
+
+		@Override
+		public Integer visit(IntType intType) {
+			return 0;
+		}
+
+		@Override
+		public Integer visit(BigIntType bigIntType) {
+			return 0;
 		}
 	}
 
@@ -241,6 +321,76 @@ public final class LogicalTypeChecks {
 		@Override
 		public TimestampKind visit(LocalZonedTimestampType localZonedTimestampType) {
 			return localZonedTimestampType.getKind();
+		}
+	}
+
+	private static class SingleFieldIntervalExtractor extends Extractor<Boolean> {
+
+		@Override
+		public Boolean visit(YearMonthIntervalType yearMonthIntervalType) {
+			switch (yearMonthIntervalType.getResolution()) {
+				case YEAR:
+				case MONTH:
+					return true;
+				default:
+					return false;
+			}
+		}
+
+		@Override
+		public Boolean visit(DayTimeIntervalType dayTimeIntervalType) {
+			switch (dayTimeIntervalType.getResolution()) {
+				case DAY:
+				case HOUR:
+				case MINUTE:
+				case SECOND:
+					return true;
+				default:
+					return false;
+			}
+		}
+	}
+
+	private static class TypeCompatibleVisitor extends LogicalTypeDefaultVisitor<Boolean> {
+
+		private final LogicalType thisType;
+
+		private TypeCompatibleVisitor(LogicalType thisType) {
+			checkNotNull(thisType);
+			this.thisType = thisType;
+		}
+
+		@Override
+		protected Boolean defaultMethod(LogicalType thatType) {
+			checkNotNull(thatType);
+			if (thisType == thatType) {
+				return true;
+			}
+			if (thisType.getClass() != thatType.getClass() ||
+				thisType.isNullable() != thatType.isNullable() ||
+				thisType.getTypeRoot() != thatType.getTypeRoot()) {
+				return false;
+			}
+
+			List<LogicalType> thisChildren = thisType.getChildren();
+			List<LogicalType> thatChildren = thatType.getChildren();
+			if (thisChildren.size() != thatChildren.size()) {
+				return false;
+			}
+			if (thisChildren.isEmpty()) {
+				// if it is an atomic type, delegate to equals method.
+				return thisType.equals(thatType);
+			} else {
+				// if it is composite type, only need to check children types
+				for (int i = 0; i < thisChildren.size(); i++) {
+					LogicalType thisChild = thisChildren.get(i);
+					LogicalType thatChild = thatChildren.get(i);
+					if (!areTypesCompatible(thisChild, thatChild)) {
+						return false;
+					}
+				}
+				return true;
+			}
 		}
 	}
 }

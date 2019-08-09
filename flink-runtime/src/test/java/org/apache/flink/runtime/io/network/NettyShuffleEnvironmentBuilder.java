@@ -20,24 +20,30 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
+import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
+import org.apache.flink.runtime.util.EnvironmentInformation;
+
+import java.time.Duration;
 
 /**
  * Builder for the {@link NettyShuffleEnvironment}.
  */
 public class NettyShuffleEnvironmentBuilder {
 
-	private int numNetworkBuffers = 1024;
+	private static final int DEFAULT_NETWORK_BUFFER_SIZE = 32 << 10;
+	private static final int DEFAULT_NUM_NETWORK_BUFFERS = 1024;
 
-	private int networkBufferSize = 32 * 1024;
+	private static final String[] DEFAULT_TEMP_DIRS = {EnvironmentInformation.getTemporaryFileDirectory()};
+	private static final Duration DEFAULT_REQUEST_SEGMENTS_TIMEOUT = Duration.ofMillis(30000L);
 
-	private int partitionRequestInitialBackoff = 0;
+	private int numNetworkBuffers = DEFAULT_NUM_NETWORK_BUFFERS;
 
-	private int partitionRequestMaxBackoff = 0;
+	private int partitionRequestInitialBackoff;
+
+	private int partitionRequestMaxBackoff;
 
 	private int networkBuffersPerChannel = 2;
 
@@ -45,17 +51,11 @@ public class NettyShuffleEnvironmentBuilder {
 
 	private boolean isCreditBased = true;
 
-	private boolean isNetworkDetailedMetrics = false;
-
 	private ResourceID taskManagerLocation = ResourceID.generate();
 
 	private NettyConfig nettyConfig;
 
-	private TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
-
 	private MetricGroup metricGroup = UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup();
-
-	private IOManager ioManager = new IOManagerAsync();
 
 	public NettyShuffleEnvironmentBuilder setTaskManagerLocation(ResourceID taskManagerLocation) {
 		this.taskManagerLocation = taskManagerLocation;
@@ -64,11 +64,6 @@ public class NettyShuffleEnvironmentBuilder {
 
 	public NettyShuffleEnvironmentBuilder setNumNetworkBuffers(int numNetworkBuffers) {
 		this.numNetworkBuffers = numNetworkBuffers;
-		return this;
-	}
-
-	public NettyShuffleEnvironmentBuilder setNetworkBufferSize(int networkBufferSize) {
-		this.networkBufferSize = networkBufferSize;
 		return this;
 	}
 
@@ -102,18 +97,8 @@ public class NettyShuffleEnvironmentBuilder {
 		return this;
 	}
 
-	public NettyShuffleEnvironmentBuilder setTaskEventDispatcher(TaskEventDispatcher taskEventDispatcher) {
-		this.taskEventDispatcher = taskEventDispatcher;
-		return this;
-	}
-
 	public NettyShuffleEnvironmentBuilder setMetricGroup(MetricGroup metricGroup) {
 		this.metricGroup = metricGroup;
-		return this;
-	}
-
-	public NettyShuffleEnvironmentBuilder setIOManager(IOManager ioManager) {
-		this.ioManager = ioManager;
 		return this;
 	}
 
@@ -121,18 +106,20 @@ public class NettyShuffleEnvironmentBuilder {
 		return NettyShuffleServiceFactory.createNettyShuffleEnvironment(
 			new NettyShuffleEnvironmentConfiguration(
 				numNetworkBuffers,
-				networkBufferSize,
+				DEFAULT_NETWORK_BUFFER_SIZE,
 				partitionRequestInitialBackoff,
 				partitionRequestMaxBackoff,
 				networkBuffersPerChannel,
 				floatingNetworkBuffersPerGate,
+				DEFAULT_REQUEST_SEGMENTS_TIMEOUT,
 				isCreditBased,
-				isNetworkDetailedMetrics,
-				true,
-				nettyConfig),
+				false,
+				nettyConfig,
+				DEFAULT_TEMP_DIRS,
+				BoundedBlockingSubpartitionType.AUTO,
+				false),
 			taskManagerLocation,
-			taskEventDispatcher,
-			metricGroup,
-			ioManager);
+			new TaskEventDispatcher(),
+			metricGroup);
 	}
 }

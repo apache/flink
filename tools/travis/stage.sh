@@ -47,6 +47,7 @@ flink-metrics/flink-metrics-core"
 MODULES_LIBRARIES="\
 flink-libraries/flink-cep,\
 flink-libraries/flink-cep-scala,\
+flink-libraries/flink-state-processing-api,\
 flink-table/flink-table-common,\
 flink-table/flink-table-api-java,\
 flink-table/flink-table-api-scala,\

@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.catalog.config.CatalogConfig;
+
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Base of tests for any catalog implementations, like GenericInMemoryCatalog and HiveCatalog.
@@ -44,4 +47,117 @@ public abstract class CatalogTestBase extends CatalogTest {
 			TEST_COMMENT
 		);
 	}
+
+	@Override
+	public CatalogTable createTable() {
+		return new CatalogTableImpl(
+			createTableSchema(),
+			getBatchTableProperties(),
+			TEST_COMMENT
+		);
+	}
+
+	@Override
+	public CatalogTable createAnotherTable() {
+		return new CatalogTableImpl(
+			createAnotherTableSchema(),
+			getBatchTableProperties(),
+			TEST_COMMENT
+		);
+	}
+
+	@Override
+	public CatalogTable createStreamingTable() {
+		Map<String, String> prop = getBatchTableProperties();
+		prop.put(CatalogConfig.IS_GENERIC, String.valueOf(false));
+
+		return new CatalogTableImpl(
+			createTableSchema(),
+			getStreamingTableProperties(),
+			TEST_COMMENT);
+	}
+
+	@Override
+	public CatalogTable createPartitionedTable() {
+		return new CatalogTableImpl(
+			createTableSchema(),
+			createPartitionKeys(),
+			getBatchTableProperties(),
+			TEST_COMMENT);
+	}
+
+	@Override
+	public CatalogTable createAnotherPartitionedTable() {
+		return new CatalogTableImpl(
+			createAnotherTableSchema(),
+			createPartitionKeys(),
+			getBatchTableProperties(),
+			TEST_COMMENT);
+	}
+
+	@Override
+	public CatalogPartition createPartition() {
+		return new CatalogPartitionImpl(getBatchTableProperties(), TEST_COMMENT);
+	}
+
+	@Override
+	public CatalogView createView() {
+		return new CatalogViewImpl(
+			String.format("select * from %s", t1),
+			String.format("select * from %s.%s", TEST_CATALOG_NAME, path1.getFullName()),
+			createTableSchema(),
+			getBatchTableProperties(),
+			"This is a view");
+	}
+
+	@Override
+	public CatalogView createAnotherView() {
+		return new CatalogViewImpl(
+			String.format("select * from %s", t2),
+			String.format("select * from %s.%s", TEST_CATALOG_NAME, path2.getFullName()),
+			createAnotherTableSchema(),
+			getBatchTableProperties(),
+			"This is another view");
+	}
+
+	@Override
+	protected CatalogFunction createFunction() {
+		return new CatalogFunctionImpl(
+			"test.class.name",
+			getGenericFlag(isGeneric())
+		);
+	}
+
+	@Override
+	protected CatalogFunction createAnotherFunction() {
+		return new CatalogFunctionImpl(
+			"test.another.class.name",
+			getGenericFlag(isGeneric())
+		);
+	}
+
+	protected Map<String, String> getBatchTableProperties() {
+		return new HashMap<String, String>() {{
+			put(IS_STREAMING, "false");
+			putAll(getGenericFlag(isGeneric()));
+		}};
+	}
+
+	protected Map<String, String> getStreamingTableProperties() {
+		return new HashMap<String, String>() {{
+			put(IS_STREAMING, "true");
+			putAll(getGenericFlag(isGeneric()));
+		}};
+	}
+
+	private Map<String, String> getGenericFlag(boolean isGeneric) {
+		return new HashMap<String, String>() {{
+			put(CatalogConfig.IS_GENERIC, String.valueOf(isGeneric));
+		}};
+	}
+
+	/**
+	 * Whether the test meta-object is generic or not.
+	 */
+	protected abstract boolean isGeneric();
 }

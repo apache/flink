@@ -134,6 +134,12 @@ public class NetUtils {
 			host = InetAddress.getLoopbackAddress().getHostAddress();
 		} else {
 			host = host.trim().toLowerCase();
+			if (host.startsWith("[") && host.endsWith("]")) {
+				String address = host.substring(1, host.length() - 1);
+				if (IPAddressUtil.isIPv6LiteralAddress(address)) {
+					host = address;
+				}
+			}
 		}
 
 		// normalize and valid address

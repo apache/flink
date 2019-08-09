@@ -48,7 +48,7 @@ public class DatabaseCalciteSchemaTest {
 	@Test
 	public void testCatalogTable() throws TableAlreadyExistException, DatabaseNotExistException {
 		GenericInMemoryCatalog catalog = new GenericInMemoryCatalog(catalogName, databaseName);
-		DatabaseCalciteSchema calciteSchema = new DatabaseCalciteSchema(
+		DatabaseCalciteSchema calciteSchema = new DatabaseCalciteSchema(true,
 			databaseName,
 			catalogName,
 			catalog);
@@ -59,16 +59,16 @@ public class DatabaseCalciteSchemaTest {
 		assertThat(table, instanceOf(TableSourceTable.class));
 		TableSourceTable tableSourceTable = (TableSourceTable) table;
 		assertThat(tableSourceTable.tableSource(), instanceOf(TestExternalTableSource.class));
-		assertThat(tableSourceTable.isStreaming(), is(true));
+		assertThat(tableSourceTable.isStreamingMode(), is(true));
 	}
 
-	private static final class TestCatalogBaseTable extends GenericCatalogTable {
+	private static final class TestCatalogBaseTable extends CatalogTableImpl {
 		private TestCatalogBaseTable() {
 			super(TableSchema.builder().build(), new HashMap<>(), "");
 		}
 
 		@Override
-		public GenericCatalogTable copy() {
+		public CatalogTable copy() {
 			return this;
 		}
 

@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.apache.flink.runtime.instance.SlotSharingGroupAssignment;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
@@ -34,13 +33,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 public class SlotSharingGroup implements java.io.Serializable {
 	
 	private static final long serialVersionUID = 1L;
-	
 
 	private final Set<JobVertexID> ids = new TreeSet<JobVertexID>();
-	
-	/** Mapping of tasks to subslots. This field is only needed inside the JobManager, and is not RPCed. */
-	private transient SlotSharingGroupAssignment taskAssignment;
-
 	private final SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
 	
 	public SlotSharingGroup() {}
@@ -67,23 +61,6 @@ public class SlotSharingGroup implements java.io.Serializable {
 
 	public SlotSharingGroupId getSlotSharingGroupId() {
 		return slotSharingGroupId;
-	}
-
-	public SlotSharingGroupAssignment getTaskAssignment() {
-		if (this.taskAssignment == null) {
-			this.taskAssignment = new SlotSharingGroupAssignment();
-		}
-		
-		return this.taskAssignment;
-	}
-	
-	public void clearTaskAssignment() {
-		if (this.taskAssignment != null) {
-			if (this.taskAssignment.getNumberOfSlots() > 0) {
-				throw new IllegalStateException("SlotSharingGroup cannot clear task assignment, group still has allocated resources.");
-			}
-		}
-		this.taskAssignment = null;
 	}
 	
 	// ------------------------------------------------------------------------

@@ -17,6 +17,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 {% extends "!layout.html" %}
-{% set script_files = script_files + ["_static/pyflink.js"] %}
-{% block rootrellink %}
+{% block linktags %}
+{{ super() }}
+<script src="_static/pyflink.js" ></script>
+<link rel="stylesheet" href="_static/pyflink.css" type="text/css" />
 {% endblock %}

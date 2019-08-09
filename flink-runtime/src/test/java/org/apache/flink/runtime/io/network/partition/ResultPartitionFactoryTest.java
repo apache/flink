@@ -18,15 +18,21 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.io.disk.iomanager.NoOpIOManager;
+import org.apache.flink.runtime.io.disk.FileChannelManager;
+import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
+import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
+
+import java.util.Arrays;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.not;
@@ -35,46 +41,79 @@ import static org.hamcrest.MatcherAssert.assertThat;
 /**
  * Tests for the {@link ResultPartitionFactory}.
  */
+@SuppressWarnings("StaticVariableUsedBeforeInitialization")
 public class ResultPartitionFactoryTest extends TestLogger {
 
-	@Test
-	public void testForceConsumptionOnReleaseEnabled() {
-		testForceConsumptionOnRelease(true);
+	private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
+	private static final int SEGMENT_SIZE = 64;
+
+	private static FileChannelManager fileChannelManager;
+
+	@BeforeClass
+	public static void setUp() {
+		fileChannelManager = new FileChannelManagerImpl(new String[] {tempDir}, "testing");
+	}
+
+	@AfterClass
+	public static void shutdown() throws Exception {
+		fileChannelManager.close();
 	}
 
 	@Test
-	public void testForceConsumptionOnReleaseDisabled() {
-		testForceConsumptionOnRelease(false);
+	public void testBoundedBlockingSubpartitionsCreated() {
+		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.BLOCKING);
+		Arrays.stream(resultPartition.subpartitions).forEach(sp -> assertThat(sp, instanceOf(BoundedBlockingSubpartition.class)));
 	}
 
-	private static void testForceConsumptionOnRelease(boolean forceConsumptionOnRelease) {
+	@Test
+	public void testPipelinedSubpartitionsCreated() {
+		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.PIPELINED);
+		Arrays.stream(resultPartition.subpartitions).forEach(sp -> assertThat(sp, instanceOf(PipelinedSubpartition.class)));
+	}
+
+	@Test
+	public void testConsumptionOnReleaseForced() {
+		final ResultPartition resultPartition = createResultPartition(true, ResultPartitionType.BLOCKING);
+		assertThat(resultPartition, instanceOf(ReleaseOnConsumptionResultPartition.class));
+	}
+
+	@Test
+	public void testConsumptionOnReleaseEnabledForNonBlocking() {
+		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.PIPELINED);
+		assertThat(resultPartition, instanceOf(ReleaseOnConsumptionResultPartition.class));
+	}
+
+	@Test
+	public void testConsumptionOnReleaseDisabled() {
+		final ResultPartition resultPartition = createResultPartition(false, ResultPartitionType.BLOCKING);
+		assertThat(resultPartition, not(instanceOf(ReleaseOnConsumptionResultPartition.class)));
+	}
+
+	private static ResultPartition createResultPartition(
+			boolean releasePartitionOnConsumption,
+			ResultPartitionType partitionType) {
 		ResultPartitionFactory factory = new ResultPartitionFactory(
 			new ResultPartitionManager(),
-			new NoOpIOManager(),
-			new NetworkBufferPool(1, 64, 1),
+			fileChannelManager,
+			new NetworkBufferPool(1, SEGMENT_SIZE, 1),
+			BoundedBlockingSubpartitionType.AUTO,
 			1,
 			1,
-			forceConsumptionOnRelease
-		);
+			SEGMENT_SIZE,
+			releasePartitionOnConsumption);
 
 		final ResultPartitionDeploymentDescriptor descriptor = new ResultPartitionDeploymentDescriptor(
 			new PartitionDescriptor(
 				new IntermediateDataSetID(),
 				new IntermediateResultPartitionID(),
-				ResultPartitionType.BLOCKING,
+				partitionType,
 				1,
 				0),
-			ResultPartitionID::new,
+			NettyShuffleDescriptorBuilder.newBuilder().buildLocal(),
 			1,
 			true
 		);
 
-		final ResultPartition test = factory.create("test", new ExecutionAttemptID(), descriptor);
-
-		if (forceConsumptionOnRelease) {
-			assertThat(test, instanceOf(ReleaseOnConsumptionResultPartition.class));
-		} else {
-			assertThat(test, not(instanceOf(ReleaseOnConsumptionResultPartition.class)));
-		}
+		return factory.create("test", descriptor);
 	}
 }

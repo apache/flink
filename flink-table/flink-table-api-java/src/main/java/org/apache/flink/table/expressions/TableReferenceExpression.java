@@ -20,6 +20,7 @@ package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -32,7 +33,7 @@ import java.util.Objects;
  * <p>This is a pure API expression that is translated into uncorrelated sub-queries by the planner.
  */
 @PublicEvolving
-public final class TableReferenceExpression implements Expression {
+public final class TableReferenceExpression implements ResolvedExpression {
 
 	private final String name;
 	private final QueryOperation queryOperation;
@@ -48,6 +49,16 @@ public final class TableReferenceExpression implements Expression {
 
 	public QueryOperation getQueryOperation() {
 		return queryOperation;
+	}
+
+	@Override
+	public DataType getOutputDataType() {
+		return queryOperation.getTableSchema().toRowDataType();
+	}
+
+	@Override
+	public List<ResolvedExpression> getResolvedChildren() {
+		return Collections.emptyList();
 	}
 
 	@Override

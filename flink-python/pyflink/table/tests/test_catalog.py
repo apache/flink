@@ -110,7 +110,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_table():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_table_schema()
-        j_table = gateway.jvm.GenericCatalogTable(
+        j_table = gateway.jvm.CatalogTableImpl(
             table_schema._j_table_schema, CatalogTestBase.get_batch_table_properties(),
             CatalogTestBase.test_comment)
         return CatalogBaseTable(j_table)
@@ -119,7 +119,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_another_table():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_another_table_schema()
-        j_table = gateway.jvm.GenericCatalogTable(
+        j_table = gateway.jvm.CatalogTableImpl(
             table_schema._j_table_schema, CatalogTestBase.get_batch_table_properties(),
             CatalogTestBase.test_comment)
         return CatalogBaseTable(j_table)
@@ -128,7 +128,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_stream_table():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_table_schema()
-        j_table = gateway.jvm.GenericCatalogTable(
+        j_table = gateway.jvm.CatalogTableImpl(
             table_schema._j_table_schema, CatalogTestBase.get_streaming_table_properties(),
             CatalogTestBase.test_comment)
         return CatalogBaseTable(j_table)
@@ -137,7 +137,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_partitioned_table():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_table_schema()
-        j_table = gateway.jvm.GenericCatalogTable(
+        j_table = gateway.jvm.CatalogTableImpl(
             table_schema._j_table_schema, CatalogTestBase.create_partition_keys(),
             CatalogTestBase.get_batch_table_properties(), CatalogTestBase.test_comment)
         return CatalogBaseTable(j_table)
@@ -146,7 +146,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_another_partitioned_table():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_another_table_schema()
-        j_table = gateway.jvm.GenericCatalogTable(
+        j_table = gateway.jvm.CatalogTableImpl(
             table_schema._j_table_schema, CatalogTestBase.create_partition_keys(),
             CatalogTestBase.get_batch_table_properties(), CatalogTestBase.test_comment)
         return CatalogBaseTable(j_table)
@@ -155,7 +155,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_view():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_table_schema()
-        j_view = gateway.jvm.GenericCatalogView(
+        j_view = gateway.jvm.CatalogViewImpl(
             "select * from t1",
             "select * from test-catalog.db1.t1",
             table_schema._j_table_schema,
@@ -167,7 +167,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_another_view():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_another_table_schema()
-        j_view = gateway.jvm.GenericCatalogView(
+        j_view = gateway.jvm.CatalogViewImpl(
             "select * from t2",
             "select * from test-catalog.db2.t2",
             table_schema._j_table_schema,
@@ -178,13 +178,13 @@ class CatalogTestBase(PyFlinkTestCase):
     @staticmethod
     def create_function():
         gateway = get_gateway()
-        j_function = gateway.jvm.GenericCatalogFunction("MyFunction", {})
+        j_function = gateway.jvm.CatalogFunctionImpl("MyFunction", {})
         return CatalogFunction(j_function)
 
     @staticmethod
     def create_another_function():
         gateway = get_gateway()
-        j_function = gateway.jvm.GenericCatalogFunction("MyAnotherFunction", {})
+        j_function = gateway.jvm.CatalogFunctionImpl("MyAnotherFunction", {})
         return CatalogFunction(j_function)
 
     @staticmethod
@@ -204,8 +204,8 @@ class CatalogTestBase(PyFlinkTestCase):
     @staticmethod
     def create_partition():
         gateway = get_gateway()
-        j_partition = gateway.jvm.GenericCatalogPartition(
-            CatalogTestBase.get_batch_table_properties(), "Generic batch table")
+        j_partition = gateway.jvm.CatalogPartitionImpl(
+            CatalogTestBase.get_batch_table_properties(), "catalog partition tests")
         return CatalogPartition(j_partition)
 
     @staticmethod
@@ -808,8 +808,8 @@ class CatalogTestBase(PyFlinkTestCase):
         self.assertIsNone(cp.get_properties().get("k"))
 
         gateway = get_gateway()
-        j_partition = gateway.jvm.GenericCatalogPartition(
-            {"is_streaming": "false", "k": "v"}, "Generic batch table")
+        j_partition = gateway.jvm.CatalogPartitionImpl(
+            {"is_streaming": "false", "k": "v"}, "catalog partition")
         another = CatalogPartition(j_partition)
         self.catalog.alter_partition(self.path1, self.create_partition_spec(), another, False)
 

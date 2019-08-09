@@ -24,8 +24,13 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Function;
+import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
+import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
+import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.thrift.TException;
 
 import java.io.IOException;
@@ -83,4 +88,21 @@ public interface HiveShim {
 	 * @throws IOException if the file/directory cannot be properly moved or deleted
 	 */
 	boolean moveToTrash(FileSystem fs, Path path, Configuration conf, boolean purge) throws IOException;
+
+	/**
+	 * Alters a Hive table.
+	 *
+	 * @param client       the Hive metastore client
+	 * @param databaseName the name of the database to which the table belongs
+	 * @param tableName    the name of the table to be altered
+	 * @param table        the new Hive table
+	 */
+	void alterTable(IMetaStoreClient client, String databaseName, String tableName, Table table)
+			throws InvalidOperationException, MetaException, TException;
+
+	/**
+	 * Creates SimpleGenericUDAFParameterInfo.
+	 */
+	SimpleGenericUDAFParameterInfo createUDAFParameterInfo(ObjectInspector[] params, boolean isWindowing,
+			boolean distinct, boolean allColumns);
 }

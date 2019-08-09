@@ -50,7 +50,7 @@ esac
 export FLINK_JOB_ARGUMENTS="--input ${INPUT_LOCATION} --output ${OUTPUT_PATH}/docker_wc_out"
 
 build_image() {
-    ./build.sh --from-local-dist --job-jar ${FLINK_DIR}/examples/batch/WordCount.jar --image-name ${FLINK_DOCKER_IMAGE_NAME}
+    ./build.sh --from-local-dist --job-artifacts ${FLINK_DIR}/examples/batch/WordCount.jar --image-name ${FLINK_DOCKER_IMAGE_NAME}
 }
 
 # user inside the container must be able to create files, this is a workaround in-container permissions

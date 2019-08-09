@@ -26,6 +26,8 @@ import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -57,9 +59,8 @@ public class SynchronousCheckpointTest {
 		execLatch = new OneShotLatch();
 		error = new AtomicReference<>();
 
-		streamTaskUnderTest = createTask(runningLatch, execLatch);
-
 		mainThreadExecutingTaskUnderTest = launchOnSeparateThread(() -> {
+			streamTaskUnderTest = createTask(runningLatch, execLatch);
 			try {
 				streamTaskUnderTest.invoke();
 			} catch (Exception e) {
@@ -156,7 +157,7 @@ public class SynchronousCheckpointTest {
 		return new StreamTaskUnderTest(environment, runningLatch, execLatch);
 	}
 
-	private static class StreamTaskUnderTest extends StreamTask {
+	private static class StreamTaskUnderTest extends NoOpStreamTask {
 
 		private final OneShotLatch runningLatch;
 		private final OneShotLatch execLatch;
@@ -171,19 +172,10 @@ public class SynchronousCheckpointTest {
 		}
 
 		@Override
-		protected void init() {}
-
-		@Override
-		protected void performDefaultAction(ActionContext context) throws Exception {
+		protected void performDefaultAction(DefaultActionContext context) throws Exception {
 			runningLatch.trigger();
 			execLatch.await();
-			context.allActionsCompleted();
+			super.performDefaultAction(context);
 		}
-
-		@Override
-		protected void cleanup() {}
-
-		@Override
-		protected void cancelTask() {}
 	}
 }

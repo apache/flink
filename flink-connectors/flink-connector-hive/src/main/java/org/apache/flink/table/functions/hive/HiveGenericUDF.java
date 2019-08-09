@@ -67,7 +67,7 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 			deferredObjects[i] = new DeferredObjectAdapter(
 				TypeInfoUtils.getStandardJavaObjectInspectorFromTypeInfo(
 					HiveTypeUtil.toHiveTypeInfo(argTypes[i])),
-				argTypes[i]
+				argTypes[i].getLogicalType()
 			);
 		}
 	}

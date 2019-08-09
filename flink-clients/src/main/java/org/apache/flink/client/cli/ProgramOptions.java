@@ -81,7 +81,7 @@ public abstract class ProgramOptions extends CommandLineOptions {
 			line.getOptionValue(CLASS_OPTION.getOpt()) : null;
 
 		isPython = line.hasOption(PY_OPTION.getOpt()) | line.hasOption(PYMODULE_OPTION.getOpt())
-			| "org.apache.flink.python.client.PythonGatewayServer".equals(entryPointClass);
+			| "org.apache.flink.client.python.PythonGatewayServer".equals(entryPointClass);
 		// If specified the option -py(--python)
 		if (line.hasOption(PY_OPTION.getOpt())) {
 			// Cannot use option -py and -pym simultaneously.

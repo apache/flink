@@ -42,8 +42,7 @@ public class FileChannelStreamsTest {
 
 	@Test
 	public void testCloseAndDeleteOutputView() {
-		final IOManager ioManager = new IOManagerAsync();
-		try {
+		try (IOManager ioManager = new IOManagerAsync()) {
 			MemoryManager memMan = new MemoryManager(4 * 16*1024, 1, 16*1024, MemoryType.HEAP, true);
 			List<MemorySegment> memory = new ArrayList<MemorySegment>();
 			memMan.allocatePages(new DummyInvokable(), memory, 4);
@@ -69,15 +68,11 @@ public class FileChannelStreamsTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			ioManager.shutdown();
-		}
 	}
 	
 	@Test
 	public void testCloseAndDeleteInputView() {
-		final IOManager ioManager = new IOManagerAsync();
-		try {
+		try (IOManager ioManager = new IOManagerAsync()) {
 			MemoryManager memMan = new MemoryManager(4 * 16*1024, 1, 16*1024, MemoryType.HEAP, true);
 			List<MemorySegment> memory = new ArrayList<MemorySegment>();
 			memMan.allocatePages(new DummyInvokable(), memory, 4);
@@ -109,9 +104,6 @@ public class FileChannelStreamsTest {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-		finally {
-			ioManager.shutdown();
 		}
 	}
 }

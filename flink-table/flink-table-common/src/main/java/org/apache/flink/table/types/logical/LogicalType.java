@@ -19,6 +19,9 @@
 package org.apache.flink.table.types.logical;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
+import org.apache.flink.table.types.logical.utils.LogicalTypeGeneralization;
+import org.apache.flink.table.types.logical.utils.LogicalTypeParser;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
@@ -37,10 +40,14 @@ import java.util.Set;
  * also contains information about the nullability of a value for efficient handling of scalar
  * expressions.
  *
- * <p>Subclasses of this class define characteristics of built-in or user-defined types.
+ * <p>Subclasses of this class define characteristics of built-in or user-defined types. Every logical
+ * type must support nullability.
  *
  * <p>Instances of this class describe the fully parameterized, immutable type with additional
  * information such as numeric precision or expected length.
+ *
+ * <p>Contracts how logical types relate to other types are defined by {@link LogicalTypeCasts} and
+ * {@link LogicalTypeGeneralization}.
  *
  * <p>NOTE: A logical type is just a description of a type, a planner or runtime might not support
  * every type in every logical precision yet!
@@ -91,6 +98,8 @@ public abstract class LogicalType implements Serializable {
 	/**
 	 * Returns a string that fully serializes this instance. The serialized string can be used for
 	 * transmitting or persisting a type.
+	 *
+	 * <p>See {@link LogicalTypeParser} for the reverse operation.
 	 *
 	 * @return detailed string for transmission or persistence
 	 */

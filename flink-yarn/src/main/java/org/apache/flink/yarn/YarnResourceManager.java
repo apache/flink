@@ -184,7 +184,7 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 		this.defaultCpus = flinkConfig.getInteger(YarnConfigOptions.VCORES, numberOfTaskSlots);
 		this.resource = Resource.newInstance(defaultTaskManagerMemoryMB, defaultCpus);
 
-		this.slotsPerWorker = createSlotsPerWorker(numberOfTaskSlots);
+		this.slotsPerWorker = createWorkerSlotProfiles(flinkConfig);
 	}
 
 	protected AMRMClientAsync<AMRMClient.ContainerRequest> createAndStartResourceManagerClient(
@@ -310,11 +310,10 @@ public class YarnResourceManager extends ResourceManager<YarnWorkerNode> impleme
 
 	@Override
 	public Collection<ResourceProfile> startNewWorker(ResourceProfile resourceProfile) {
-		Preconditions.checkArgument(
-			ResourceProfile.UNKNOWN.equals(resourceProfile),
-			"The YarnResourceManager does not support custom ResourceProfiles yet. It assumes that all containers have the same resources.");
+		if (!slotsPerWorker.iterator().next().isMatching(resourceProfile)) {
+			return Collections.emptyList();
+		}
 		requestYarnContainer();
-
 		return slotsPerWorker;
 	}
 

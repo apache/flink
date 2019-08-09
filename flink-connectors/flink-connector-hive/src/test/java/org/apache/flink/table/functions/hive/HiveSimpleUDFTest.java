@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.functions.hive.util.TestHiveUDFArray;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.hive.ql.udf.UDFBase64;
@@ -28,11 +29,13 @@ import org.apache.hadoop.hive.ql.udf.UDFJson;
 import org.apache.hadoop.hive.ql.udf.UDFMinute;
 import org.apache.hadoop.hive.ql.udf.UDFRand;
 import org.apache.hadoop.hive.ql.udf.UDFRegExpExtract;
+import org.apache.hadoop.hive.ql.udf.UDFToInteger;
 import org.apache.hadoop.hive.ql.udf.UDFUnhex;
 import org.apache.hadoop.hive.ql.udf.UDFWeekOfYear;
 import org.junit.Test;
 
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
 
@@ -178,6 +181,52 @@ public class HiveSimpleUDFTest {
 			});
 
 		assertEquals("MySQL", new String((byte[]) udf.eval("4D7953514C"), "UTF-8"));
+	}
+
+	@Test
+	public void testUDFToInteger() {
+		HiveSimpleUDF udf = init(
+			UDFToInteger.class,
+			new DataType[]{
+				DataTypes.DECIMAL(5, 3)
+			});
+
+		assertEquals(1, udf.eval(BigDecimal.valueOf(1.1d)));
+	}
+
+	@Test
+	public void testUDFArray_singleArray() {
+		Double[] testInputs = new Double[] { 1.1d, 2.2d };
+
+		// input arg is a single array
+		HiveSimpleUDF udf = init(
+			TestHiveUDFArray.class,
+			new DataType[]{
+				DataTypes.ARRAY(DataTypes.DOUBLE())
+			});
+
+		assertEquals(3, udf.eval(1.1d, 2.2d));
+		assertEquals(3, udf.eval(testInputs));
+
+		// input is not a single array
+		udf = init(
+			TestHiveUDFArray.class,
+			new DataType[]{
+				DataTypes.INT(),
+				DataTypes.ARRAY(DataTypes.DOUBLE())
+			});
+
+		assertEquals(8, udf.eval(5, testInputs));
+
+		udf = init(
+			TestHiveUDFArray.class,
+			new DataType[]{
+				DataTypes.INT(),
+				DataTypes.ARRAY(DataTypes.DOUBLE()),
+				DataTypes.ARRAY(DataTypes.DOUBLE())
+			});
+
+		assertEquals(11, udf.eval(5, testInputs, testInputs));
 	}
 
 	protected static HiveSimpleUDF init(Class hiveUdfClass, DataType[] argTypes) {
