@@ -753,7 +753,7 @@ public class BinaryStringUtil {
 	 * Returns NULL If the separator is NULL.</p>
 	 *
 	 * <p>Note: CONCAT_WS() does not skip any empty strings, however it does skip any NULL values after
-	 * the separator. For example, concat(",", "a", null, "c") would yield "a,c".</p>
+	 * the separator. For example, concat_ws(",", "a", null, "c") would yield "a,c".</p>
 	 */
 	public static BinaryString concatWs(BinaryString separator, BinaryString... inputs) {
 		return concatWs(separator, Arrays.asList(inputs));
