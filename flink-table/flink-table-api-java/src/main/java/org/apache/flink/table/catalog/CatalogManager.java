@@ -294,8 +294,8 @@ public class CatalogManager {
 
 			LOG.info(
 				"Set the current default database as [{}] in the current default catalog [{}].",
-				currentCatalogName,
-				currentDatabaseName);
+				currentDatabaseName,
+				currentCatalogName);
 		}
 	}
 
