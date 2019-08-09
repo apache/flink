@@ -506,6 +506,30 @@ public class LocalExecutorITCase extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testUseNonExistingDatabase() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		try {
+			executor.useDatabase(session, "nonexistingdb");
+		} catch (SqlExecutionException e) {
+			// expected
+		}
+	}
+
+	@Test
+	public void testUseNonExistingCatalog() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		try {
+			executor.useCatalog(session, "nonexistingcatalog");
+		} catch (SqlExecutionException e) {
+			// expected
+		}
+	}
+
 	private void executeStreamQueryTable(
 			Map<String, String> replaceVars,
 			String query,
