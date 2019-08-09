@@ -410,7 +410,14 @@ object FlinkTypeFactory {
     case FLOAT => FLOAT_TYPE_INFO
     case DOUBLE => DOUBLE_TYPE_INFO
     case VARCHAR | CHAR => STRING_TYPE_INFO
-    case DECIMAL => BIG_DEC_TYPE_INFO
+    case DECIMAL =>
+      val precision = relDataType.getPrecision
+      val scale = relDataType.getScale
+      if (precision < scale) {
+        throw new TableException(
+          "scale of DECIMAL type should between 0 to precision(included).")
+      }
+      BIG_DEC_TYPE_INFO
 
     // time indicators
     case TIMESTAMP if relDataType.isInstanceOf[TimeIndicatorRelDataType] =>
