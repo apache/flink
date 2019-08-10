@@ -84,7 +84,15 @@ class StreamExecGroupWindowTableAggregate(
     timeIdx: Int,
     aggInfoList: AggregateInfoList): WindowOperator[_, _] = {
 
-    // TODO: will be implement in the next commit, only for plan test.
-    null
+    val aggsHandler = aggCodeGenerator.generateNamespaceTableAggsHandler(
+      "GroupingWindowTableAggsHandler",
+      aggInfoList,
+      namedProperties.map(_.property),
+      getWindowClass(window))
+
+    val builder = getWindowOperatorBuilder(inputFields, timeIdx)
+    builder
+      .aggregate(aggsHandler, accTypes, aggValueTypes, windowPropertyTypes)
+      .build()
   }
 }

@@ -21,8 +21,10 @@ package org.apache.flink.table.runtime.operators.window;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
+import org.apache.flink.table.runtime.generated.GeneratedNamespaceTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
+import org.apache.flink.table.runtime.generated.NamespaceTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.window.assigners.CountSlidingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.CountTumblingWindowAssigner;
@@ -61,7 +63,9 @@ public class WindowOperatorBuilder {
 	private WindowAssigner<?> windowAssigner;
 	private Trigger<?> trigger;
 	private NamespaceAggsHandleFunction<?> aggregateFunction;
+	private NamespaceTableAggsHandleFunction<?> tableAggregateFunction;
 	private GeneratedNamespaceAggsHandleFunction<?> generatedAggregateFunction;
+	private GeneratedNamespaceTableAggsHandleFunction<?> generatedTableAggregateFunction;
 	private RecordEqualiser equaliser;
 	private GeneratedRecordEqualiser generatedEqualiser;
 	private LogicalType[] accumulatorTypes;
@@ -160,6 +164,15 @@ public class WindowOperatorBuilder {
 		return this;
 	}
 
+	private void aggregate(
+			LogicalType[] accumulatorTypes,
+			LogicalType[] aggResultTypes,
+			LogicalType[] windowPropertyTypes) {
+		this.accumulatorTypes = accumulatorTypes;
+		this.aggResultTypes = aggResultTypes;
+		this.windowPropertyTypes = windowPropertyTypes;
+	}
+
 	public WindowOperatorBuilder aggregate(
 			NamespaceAggsHandleFunction<?> aggregateFunction,
 			RecordEqualiser equaliser,
@@ -167,9 +180,7 @@ public class WindowOperatorBuilder {
 			LogicalType[] aggResultTypes,
 			LogicalType[] windowPropertyTypes) {
 		ClosureCleaner.clean(aggregateFunction, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
-		this.accumulatorTypes = accumulatorTypes;
-		this.aggResultTypes = aggResultTypes;
-		this.windowPropertyTypes = windowPropertyTypes;
+		aggregate(accumulatorTypes, aggResultTypes, windowPropertyTypes);
 		this.aggregateFunction = checkNotNull(aggregateFunction);
 		this.equaliser = checkNotNull(equaliser);
 		return this;
@@ -181,11 +192,30 @@ public class WindowOperatorBuilder {
 			LogicalType[] accumulatorTypes,
 			LogicalType[] aggResultTypes,
 			LogicalType[] windowPropertyTypes) {
-		this.accumulatorTypes = accumulatorTypes;
-		this.aggResultTypes = aggResultTypes;
-		this.windowPropertyTypes = windowPropertyTypes;
+		aggregate(accumulatorTypes, aggResultTypes, windowPropertyTypes);
 		this.generatedAggregateFunction = checkNotNull(generatedAggregateFunction);
 		this.generatedEqualiser = checkNotNull(generatedEqualiser);
+		return this;
+	}
+
+	public WindowOperatorBuilder aggregate(
+			NamespaceTableAggsHandleFunction<?> tableAggregateFunction,
+			LogicalType[] accumulatorTypes,
+			LogicalType[] aggResultTypes,
+			LogicalType[] windowPropertyTypes) {
+		ClosureCleaner.clean(tableAggregateFunction, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		aggregate(accumulatorTypes, aggResultTypes, windowPropertyTypes);
+		this.tableAggregateFunction = checkNotNull(tableAggregateFunction);
+		return this;
+	}
+
+	public WindowOperatorBuilder aggregate(
+			GeneratedNamespaceTableAggsHandleFunction<?> generatedTableAggregateFunction,
+			LogicalType[] accumulatorTypes,
+			LogicalType[] aggResultTypes,
+			LogicalType[] windowPropertyTypes) {
+		aggregate(accumulatorTypes, aggResultTypes, windowPropertyTypes);
+		this.generatedTableAggregateFunction = checkNotNull(generatedTableAggregateFunction);
 		return this;
 	}
 
@@ -196,9 +226,23 @@ public class WindowOperatorBuilder {
 
 	public WindowOperator build() {
 		checkNotNull(trigger, "trigger is not set");
-		if (generatedAggregateFunction != null && generatedEqualiser != null) {
+		if (generatedTableAggregateFunction != null) {
 			//noinspection unchecked
-			return new WindowOperator(
+			return new TableAggregateWindowOperator(
+					generatedTableAggregateFunction,
+					windowAssigner,
+					trigger,
+					windowAssigner.getWindowSerializer(new ExecutionConfig()),
+					inputFieldTypes,
+					accumulatorTypes,
+					aggResultTypes,
+					windowPropertyTypes,
+					rowtimeIndex,
+					sendRetraction,
+					allowedLateness);
+		} else if (generatedAggregateFunction != null && generatedEqualiser != null) {
+			//noinspection unchecked
+			return new AggregateWindowOperator(
 					generatedAggregateFunction,
 					generatedEqualiser,
 					windowAssigner,
@@ -211,9 +255,23 @@ public class WindowOperatorBuilder {
 					rowtimeIndex,
 					sendRetraction,
 					allowedLateness);
+		} else if (tableAggregateFunction != null) {
+			//noinspection unchecked
+			return new TableAggregateWindowOperator(
+					tableAggregateFunction,
+					windowAssigner,
+					trigger,
+					windowAssigner.getWindowSerializer(new ExecutionConfig()),
+					inputFieldTypes,
+					accumulatorTypes,
+					aggResultTypes,
+					windowPropertyTypes,
+					rowtimeIndex,
+					sendRetraction,
+					allowedLateness);
 		} else {
 			//noinspection unchecked
-			return new WindowOperator(
+			return new AggregateWindowOperator(
 					aggregateFunction,
 					equaliser,
 					windowAssigner,
