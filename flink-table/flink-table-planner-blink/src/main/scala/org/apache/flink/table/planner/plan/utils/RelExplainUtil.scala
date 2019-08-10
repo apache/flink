@@ -746,7 +746,16 @@ object RelExplainUtil {
       namedProperties: Seq[PlannerNamedWindowProperty],
       withOutputFieldNames: Boolean = true): String = {
     val inFields = inputType.getFieldNames
-    val outFields = rowType.getFieldNames
+    val isTableAggregate = AggregateUtil.isTableAggregate(aggs)
+    val outFields: Seq[String] = if (isTableAggregate) {
+      val outNames = rowType.getFieldNames
+      outNames.slice(0, grouping.length) ++
+        List(s"(${outNames.drop(grouping.length)
+          .dropRight(namedProperties.length).mkString(", ")})") ++
+        outNames.slice(outNames.length - namedProperties.length, outNames.length)
+    } else {
+      rowType.getFieldNames
+    }
     val groupStrings = grouping.map(inFields(_))
 
     val aggStrings = aggs.map(a => {
