@@ -18,19 +18,15 @@
 
 package org.apache.flink.table.runtime.generated;
 
-import org.apache.flink.table.dataformat.BaseRow;
-
 /**
- * The base class for handling aggregate functions with namespace.
+ * Describes a generated {@link NamespaceTableAggsHandleFunction}.
  */
-public interface NamespaceAggsHandleFunction<N> extends NamespaceAggsHandleFunctionBase<N> {
+public class GeneratedNamespaceTableAggsHandleFunction<N>
+	extends GeneratedClass<NamespaceTableAggsHandleFunction<N>> {
 
-	/**
-	 * Gets the result of the aggregation from the current accumulators and
-	 * namespace properties (like window start).
-	 *
-	 * @param namespace the namespace properties which should be calculated, such window start
-	 * @return the final result (saved in a row) of the current accumulators.
-	 */
-	BaseRow getValue(N namespace) throws Exception;
+	private static final long serialVersionUID = 1L;
+
+	public GeneratedNamespaceTableAggsHandleFunction(String className, String code, Object[] references) {
+		super(className, code, references);
+	}
 }

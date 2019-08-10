@@ -19,18 +19,20 @@
 package org.apache.flink.table.runtime.generated;
 
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.util.Collector;
 
 /**
- * The base class for handling aggregate functions with namespace.
+ * The base class for handling table aggregate functions with namespace.
  */
-public interface NamespaceAggsHandleFunction<N> extends NamespaceAggsHandleFunctionBase<N> {
+public interface NamespaceTableAggsHandleFunction<N> extends NamespaceAggsHandleFunctionBase<N> {
 
 	/**
-	 * Gets the result of the aggregation from the current accumulators and
-	 * namespace properties (like window start).
+	 * Emits the result of the aggregation from the current accumulators and namespace
+	 * properties (like window start).
 	 *
 	 * @param namespace the namespace properties which should be calculated, such window start
-	 * @return the final result (saved in a row) of the current accumulators.
+	 * @param key       the group key for the current emit.
+	 * @param out       the collector used to emit results.
 	 */
-	BaseRow getValue(N namespace) throws Exception;
+	void emitValue(N namespace, BaseRow key, Collector<BaseRow> out) throws Exception;
 }

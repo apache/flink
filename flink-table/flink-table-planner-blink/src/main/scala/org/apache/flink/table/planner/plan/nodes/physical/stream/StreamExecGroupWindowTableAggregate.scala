@@ -18,19 +18,19 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.planner.plan.logical._
-import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.RelNode
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
+import org.apache.flink.table.planner.plan.logical._
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy
 
 /**
-  * Streaming group window aggregate physical node which will be translate to window operator.
+  * Streaming group window table aggregate physical node which will be translate to window operator.
   */
-class StreamExecGroupWindowAggregate(
+class StreamExecGroupWindowTableAggregate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     inputRel: RelNode,
@@ -54,10 +54,14 @@ class StreamExecGroupWindowAggregate(
     namedProperties,
     inputTimeFieldIndex,
     emitStrategy,
-    "Aggregate") {
+    "TableAggregate") {
+
+  if (emitStrategy.produceUpdates) {
+    throw new TableException("Emit strategy has not been supported for Table Aggregate!")
+  }
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
-    new StreamExecGroupWindowAggregate(
+    new StreamExecGroupWindowTableAggregate(
       cluster,
       traitSet,
       inputs.get(0),

@@ -30,7 +30,7 @@ import org.apache.flink.table.planner.expressions.{PlannerProctimeAttribute, Pla
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.runtime.dataview.{StateListView, StateMapView}
-import org.apache.flink.table.runtime.generated.{AggsHandleFunction, GeneratedAggsHandleFunction, GeneratedNamespaceAggsHandleFunction, GeneratedTableAggsHandleFunction, NamespaceAggsHandleFunction, TableAggsHandleFunction}
+import org.apache.flink.table.runtime.generated.{AggsHandleFunction, TableAggsHandleFunction, GeneratedAggsHandleFunction, GeneratedNamespaceAggsHandleFunction, GeneratedNamespaceTableAggsHandleFunction, GeneratedTableAggsHandleFunction, NamespaceAggsHandleFunction, NamespaceTableAggsHandleFunction}
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
@@ -423,27 +423,7 @@ class AggsHandlerCodeGenerator(
     // gen converter
     val aggExternalType = aggInfoList.getActualAggregateInfos(0).externalResultType
     val recordInputName = newName("recordInput")
-    val converterCode = CodeGenUtils.genToInternal(ctx, aggExternalType, recordInputName)
-
-    def genRecordToBaseRow: String = {
-      val resultType = fromDataTypeToLogicalType(aggExternalType)
-      val resultBaseRowType = PlannerTypeUtils.toRowType(resultType)
-
-      val newCtx = CodeGeneratorContext(ctx.tableConfig)
-      val exprGenerator = new ExprCodeGenerator(newCtx, false).bindInput(resultType)
-      val resultExpr = exprGenerator.generateConverterResultExpression(
-        resultBaseRowType, classOf[GenericRow], "convertResult")
-
-      val resultTypeClass = boxedTypeTermForType(resultType)
-      s"""
-         |${newCtx.reuseMemberCode()}
-         |$resultTypeClass ${exprGenerator.input1Term} = ($resultTypeClass) $converterCode;
-         |${newCtx.reuseLocalVariableCode()}
-         |${newCtx.reuseInputUnboxingCode()}
-         |${resultExpr.code}
-         |return ${resultExpr.resultTerm};
-       """.stripMargin
-    }
+    val recordToBaseRowCode = genRecordToBaseRow(aggExternalType, recordInputName)
 
     val functionName = newName(name)
     val functionCode =
@@ -537,7 +517,7 @@ class AggsHandlerCodeGenerator(
             }
 
             public $BASE_ROW convertToBaseRow(Object $recordInputName) throws Exception {
-              $genRecordToBaseRow
+              $recordToBaseRowCode
             }
 
             @Override
@@ -564,7 +544,7 @@ class AggsHandlerCodeGenerator(
   }
 
   /**
-    * Generate [[GeneratedAggsHandleFunction]] with the given function name and aggregate infos
+    * Generate [[NamespaceAggsHandleFunction]] with the given function name and aggregate infos
     * and window properties.
     */
   def generateNamespaceAggsHandler[N](
@@ -656,6 +636,148 @@ class AggsHandlerCodeGenerator(
       """.stripMargin
 
     new GeneratedNamespaceAggsHandleFunction[N](functionName, functionCode, ctx.references.toArray)
+  }
+
+  /**
+    * Generate [[NamespaceTableAggsHandleFunction]] with the given function name and aggregate infos
+    * and window properties.
+    */
+  def generateNamespaceTableAggsHandler[N](
+      name: String,
+      aggInfoList: AggregateInfoList,
+      windowProperties: Seq[PlannerWindowProperty],
+      windowClass: Class[N]): GeneratedNamespaceTableAggsHandleFunction[N] = {
+
+    initialWindowProperties(windowProperties, windowClass)
+    initialAggregateInformation(aggInfoList)
+
+    // generates all methods body first to add necessary reuse code to context
+    val createAccumulatorsCode = genCreateAccumulators()
+    val getAccumulatorsCode = genGetAccumulators()
+    val setAccumulatorsCode = genSetAccumulators()
+    val accumulateCode = genAccumulate()
+    val retractCode = genRetract()
+    val mergeCode = genMerge()
+    val emitValueCode = genEmitValue(isWindow = true)
+
+    // gen converter
+    val aggExternalType = aggInfoList.getActualAggregateInfos(0).externalResultType
+    val recordInputName = newName("recordInput")
+    val recordToBaseRowCode = genRecordToBaseRow(aggExternalType, recordInputName)
+
+    val functionName = newName(name)
+    val functionCode =
+      j"""
+        public final class $functionName
+          implements ${className[NamespaceTableAggsHandleFunction[_]]}<$namespaceClassName> {
+
+          ${ctx.reuseMemberCode()}
+          private $CONVERT_COLLECTOR_TYPE_TERM $MEMBER_COLLECTOR_TERM;
+
+          public $functionName(Object[] references) throws Exception {
+            ${ctx.reuseInitCode()}
+            $MEMBER_COLLECTOR_TERM = new $CONVERT_COLLECTOR_TYPE_TERM(references);
+          }
+
+          @Override
+          public void open($STATE_DATA_VIEW_STORE store) throws Exception {
+            ${ctx.reuseOpenCode()}
+          }
+
+          @Override
+          public void accumulate($BASE_ROW $ACCUMULATE_INPUT_TERM) throws Exception {
+            $accumulateCode
+          }
+
+          @Override
+          public void retract($BASE_ROW $RETRACT_INPUT_TERM) throws Exception {
+            $retractCode
+          }
+
+          @Override
+          public void merge(Object ns, $BASE_ROW $MERGED_ACC_TERM) throws Exception {
+            $namespaceClassName $NAMESPACE_TERM = ($namespaceClassName) ns;
+            $mergeCode
+          }
+
+          @Override
+          public void setAccumulators(Object ns, $BASE_ROW $ACC_TERM)
+          throws Exception {
+            $namespaceClassName $NAMESPACE_TERM = ($namespaceClassName) ns;
+            $setAccumulatorsCode
+          }
+
+          @Override
+          public $BASE_ROW getAccumulators() throws Exception {
+            $getAccumulatorsCode
+          }
+
+          @Override
+          public $BASE_ROW createAccumulators() throws Exception {
+            $createAccumulatorsCode
+          }
+
+          @Override
+          public void emitValue(Object ns, $BASE_ROW $KEY_TERM,
+            $COLLECTOR<$BASE_ROW> $COLLECTOR_TERM) throws Exception {
+
+            $MEMBER_COLLECTOR_TERM.$COLLECTOR_TERM = $COLLECTOR_TERM;
+            $namespaceClassName $NAMESPACE_TERM = ($namespaceClassName) ns;
+            $emitValueCode
+          }
+
+          @Override
+          public void cleanup(Object ns) throws Exception {
+            $namespaceClassName $NAMESPACE_TERM = ($namespaceClassName) ns;
+            ${ctx.reuseCleanupCode()}
+          }
+
+          @Override
+          public void close() throws Exception {
+            ${ctx.reuseCloseCode()}
+          }
+
+          private class $CONVERT_COLLECTOR_TYPE_TERM implements $COLLECTOR {
+            public $COLLECTOR<$BASE_ROW> $COLLECTOR_TERM;
+            private $BASE_ROW timeProperties;
+            private $BASE_ROW key;
+            private $JOINED_ROW outerResult;
+            private $JOINED_ROW innerResult;
+            ${ctx.reuseMemberCode()}
+
+            public $CONVERT_COLLECTOR_TYPE_TERM(java.lang.Object[] references) throws Exception {
+              ${ctx.reuseInitCode()}
+              outerResult = new $JOINED_ROW();
+              innerResult = new $JOINED_ROW();
+            }
+
+            public void reset($BASE_ROW $KEY_TERM, $BASE_ROW timeProperties) {
+              this.timeProperties = timeProperties;
+              this.key = $KEY_TERM;
+            }
+
+            public $BASE_ROW convertToBaseRow(Object $recordInputName) throws Exception {
+              $recordToBaseRowCode
+            }
+
+            @Override
+            public void collect(Object $recordInputName) throws Exception {
+              $BASE_ROW tempBaseRow = convertToBaseRow($recordInputName);
+              innerResult.replace(tempBaseRow, timeProperties);
+              outerResult.replace(key, innerResult);
+              $COLLECTOR_TERM.collect(outerResult);
+            }
+
+            @Override
+            public void close() {
+              $COLLECTOR_TERM.close();
+            }
+          }
+        }
+      """.stripMargin
+
+    new GeneratedNamespaceTableAggsHandleFunction[N](
+      functionName, functionCode, ctx.references.toArray)
   }
 
   private def genCreateAccumulators(): String = {
@@ -812,6 +934,27 @@ class AggsHandlerCodeGenerator(
     }
   }
 
+  private def getWindowExpressions(
+      windowProperties: Seq[PlannerWindowProperty]): Seq[GeneratedExpression] = {
+    windowProperties.map {
+      case w: PlannerWindowStart =>
+        // return a Timestamp(Internal is long)
+        GeneratedExpression(
+          s"$NAMESPACE_TERM.getStart()", "false", "", w.resultType)
+      case w: PlannerWindowEnd =>
+        // return a Timestamp(Internal is long)
+        GeneratedExpression(
+          s"$NAMESPACE_TERM.getEnd()", "false", "", w.resultType)
+      case r: PlannerRowtimeAttribute =>
+        // return a rowtime, use long as internal type
+        GeneratedExpression(
+          s"$NAMESPACE_TERM.getEnd() - 1", "false", "", r.resultType)
+      case p: PlannerProctimeAttribute =>
+        // ignore this property, it will be null at the position later
+        GeneratedExpression("-1L", "true", "", p.resultType)
+    }
+  }
+
   private def genGetValue(): String = {
     val methodName = "getValue"
     ctx.startNewLocalVariableStatement(methodName)
@@ -828,23 +971,7 @@ class AggsHandlerCodeGenerator(
 
     if (hasNamespace) {
       // append window property results
-      val windowExprs = windowProperties.map {
-        case w: PlannerWindowStart =>
-          // return a Timestamp(Internal is long)
-          GeneratedExpression(
-            s"$NAMESPACE_TERM.getStart()", "false", "", w.resultType)
-        case w: PlannerWindowEnd =>
-          // return a Timestamp(Internal is long)
-          GeneratedExpression(
-            s"$NAMESPACE_TERM.getEnd()", "false", "", w.resultType)
-        case r: PlannerRowtimeAttribute =>
-          // return a rowtime, use long as internal type
-          GeneratedExpression(
-            s"$NAMESPACE_TERM.getEnd() - 1", "false", "", r.resultType)
-        case p: PlannerProctimeAttribute =>
-          // ignore this property, it will be null at the position later
-          GeneratedExpression("-1L", "true", "", p.resultType)
-      }
+      val windowExprs = getWindowExpressions(windowProperties)
       valueExprs = valueExprs ++ windowExprs
     }
 
@@ -866,10 +993,60 @@ class AggsHandlerCodeGenerator(
     """.stripMargin
   }
 
-  private def genEmitValue(): String = {
+  private def genEmitValue(isWindow: Boolean = false): String = {
     // validation check
     checkNeededMethods(needEmitValue = true)
-    aggBufferCodeGens(0).asInstanceOf[ImperativeAggCodeGen].emitValue
+    val methodName = "emitValue"
+    ctx.startNewLocalVariableStatement(methodName)
+
+    val windowCode =
+      if (isWindow) {
+        // no need to bind input
+        val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
+        var valueExprs = getWindowExpressions(windowProperties)
+
+        val aggValueTerm = newName("windowProperties")
+        valueType = RowType.of(valueExprs.map(_.resultType): _*)
+
+        // always create a new result row
+        val resultExpr = exprGenerator.generateResultExpression(
+          valueExprs,
+          valueType,
+          classOf[GenericRow],
+          outRow = aggValueTerm,
+          reusedOutRow = false)
+
+        s"""
+           |${ctx.reuseLocalVariableCode(methodName)}
+           |${resultExpr.code}
+           |$MEMBER_COLLECTOR_TERM.reset($KEY_TERM, ${resultExpr.resultTerm});
+        """.stripMargin
+      } else {
+        ""
+      }
+
+    windowCode + aggBufferCodeGens(0).asInstanceOf[ImperativeAggCodeGen].emitValue
+  }
+
+  private def genRecordToBaseRow(aggExternalType: DataType, recordInputName: String): String = {
+    val resultType = fromDataTypeToLogicalType(aggExternalType)
+    val resultBaseRowType = PlannerTypeUtils.toRowType(resultType)
+
+    val newCtx = CodeGeneratorContext(ctx.tableConfig)
+    val exprGenerator = new ExprCodeGenerator(newCtx, false).bindInput(resultType)
+    val resultExpr = exprGenerator.generateConverterResultExpression(
+      resultBaseRowType, classOf[GenericRow], "convertResult")
+
+    val converterCode = CodeGenUtils.genToInternal(ctx, aggExternalType, recordInputName)
+    val resultTypeClass = boxedTypeTermForType(resultType)
+    s"""
+       |${newCtx.reuseMemberCode()}
+       |$resultTypeClass ${exprGenerator.input1Term} = ($resultTypeClass) $converterCode;
+       |${newCtx.reuseLocalVariableCode()}
+       |${newCtx.reuseInputUnboxingCode()}
+       |${resultExpr.code}
+       |return ${resultExpr.resultTerm};
+       """.stripMargin
   }
 
   private def checkNeededMethods(
@@ -906,6 +1083,7 @@ object AggsHandlerCodeGenerator {
   val COLLECTOR_TERM = "out"
   val MEMBER_COLLECTOR_TERM = "convertCollector"
   val CONVERT_COLLECTOR_TYPE_TERM = "ConvertCollector"
+  val KEY_TERM = "groupKey"
 
   val INPUT_NOT_NULL = false
 

@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ModifiedMonotonicity
-import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, TableAggregate, WindowAggregate}
+import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, TableAggregate, WindowAggregate, WindowTableAggregate}
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecCorrelate, BatchExecGroupAggregateBase}
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
@@ -226,6 +226,16 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(
+    rel: WindowTableAggregate,
+    mq: RelMetadataQuery): RelModifiedMonotonicity = {
+    if (allAppend(mq, rel.getInput)) {
+      constants(rel.getRowType.getFieldCount)
+    } else {
+      null
+    }
+  }
+
+  def getRelModifiedMonotonicity(
       rel: TableAggregate, mq: RelMetadataQuery): RelModifiedMonotonicity = {
     getRelModifiedMonotonicityOnTableAggregate(
       rel.getInput, rel.getGroupSet.toArray, rel.getRowType.getFieldCount, mq)
@@ -277,6 +287,16 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       rel: StreamExecGroupWindowAggregate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     if (allAppend(mq, rel.getInput) && !rel.producesUpdates) {
+      constants(rel.getRowType.getFieldCount)
+    } else {
+      null
+    }
+  }
+
+  def getRelModifiedMonotonicity(
+    rel: StreamExecGroupWindowTableAggregate,
+    mq: RelMetadataQuery): RelModifiedMonotonicity = {
+    if (allAppend(mq, rel.getInput)) {
       constants(rel.getRowType.getFieldCount)
     } else {
       null

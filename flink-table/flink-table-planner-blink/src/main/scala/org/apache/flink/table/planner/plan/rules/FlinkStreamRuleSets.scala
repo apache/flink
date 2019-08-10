@@ -305,6 +305,7 @@ object FlinkStreamRuleSets {
     FlinkLogicalExpand.CONVERTER,
     FlinkLogicalWatermarkAssigner.CONVERTER,
     FlinkLogicalWindowAggregate.CONVERTER,
+    FlinkLogicalWindowTableAggregate.CONVERTER,
     FlinkLogicalSnapshot.CONVERTER,
     FlinkLogicalMatch.CONVERTER,
     FlinkLogicalSink.CONVERTER
@@ -371,6 +372,7 @@ object FlinkStreamRuleSets {
     StreamExecOverAggregateRule.INSTANCE,
     // window agg
     StreamExecGroupWindowAggregateRule.INSTANCE,
+    StreamExecGroupWindowTableAggregateRule.INSTANCE,
     // join
     StreamExecJoinRule.INSTANCE,
     StreamExecWindowJoinRule.INSTANCE,

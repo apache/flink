@@ -35,7 +35,7 @@ import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
-import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalExpand, LogicalRank, LogicalTableAggregate, LogicalWindowAggregate}
+import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalExpand, LogicalRank, LogicalTableAggregate, LogicalWindowAggregate, LogicalWindowTableAggregate}
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
@@ -768,6 +768,73 @@ class FlinkRelMdHandlerTestBase {
     )
 
     (logicalTableAgg, flinkLogicalTableAgg, streamExecTableAgg)
+  }
+
+  // equivalent Table API is
+  // tEnv.scan("TemporalTable1")
+  //  .select("c, a, b, rowtime")
+  //  .window(Tumble.over("15.minutes").on("rowtime").as("w"))
+  //  .groupBy("a, w")
+  //  .flatAggregate("top3(c)")
+  //  .select("a, f0, f1, w.start, w.end, w.rowtime, w.proctime")
+  protected lazy val (
+    logicalWindowTableAgg,
+    flinkLogicalWindowTableAgg,
+    streamWindowTableAgg) = {
+
+    relBuilder.scan("TemporalTable1")
+    val ts = relBuilder.peek()
+    val project = relBuilder.project(relBuilder.fields(Seq[Integer](2, 0, 1, 4).toList))
+      .build().asInstanceOf[Project]
+    val program = RexProgram.create(
+      ts.getRowType, project.getProjects, null, project.getRowType, rexBuilder)
+    val aggCallOfWindowAgg = Lists.newArrayList(tableAggCall)
+    val logicalWindowAgg = new LogicalWindowTableAggregate(
+      ts.getCluster,
+      ts.getTraitSet,
+      project,
+      ImmutableBitSet.of(1),
+      ImmutableList.of(ImmutableBitSet.of(1)),
+      aggCallOfWindowAgg,
+      tumblingGroupWindow,
+      namedPropertiesOfWindowAgg)
+
+    val flinkLogicalTs: FlinkLogicalDataStreamTableScan =
+      createDataStreamScan(ImmutableList.of("TemporalTable1"), flinkLogicalTraits)
+    val flinkLogicalWindowAgg = new FlinkLogicalWindowTableAggregate(
+      ts.getCluster,
+      logicalTraits,
+      new FlinkLogicalCalc(ts.getCluster, flinkLogicalTraits, flinkLogicalTs, program),
+      ImmutableBitSet.of(1),
+      ImmutableList.of(ImmutableBitSet.of(1)),
+      aggCallOfWindowAgg,
+      tumblingGroupWindow,
+      namedPropertiesOfWindowAgg)
+
+    val hash01 = FlinkRelDistribution.hash(Array(1), requireStrict = true)
+
+    val streamTs: StreamExecDataStreamScan =
+      createDataStreamScan(ImmutableList.of("TemporalTable1"), streamPhysicalTraits)
+    val streamCalc = new BatchExecCalc(
+      cluster, streamPhysicalTraits, streamTs, program, program.getOutputRowType)
+    val streamExchange = new StreamExecExchange(
+      cluster, streamPhysicalTraits.replace(hash01), streamCalc, hash01)
+    val emitStrategy = WindowEmitStrategy(tableConfig, tumblingGroupWindow)
+    val streamWindowAgg = new StreamExecGroupWindowTableAggregate(
+      cluster,
+      streamPhysicalTraits,
+      streamExchange,
+      flinkLogicalWindowAgg.getRowType,
+      streamExchange.getRowType,
+      Array(1),
+      flinkLogicalWindowAgg.getAggCallList,
+      tumblingGroupWindow,
+      namedPropertiesOfWindowAgg,
+      inputTimeFieldIndex = 2,
+      emitStrategy
+    )
+
+    (logicalWindowAgg, flinkLogicalWindowAgg, streamWindowAgg)
   }
 
   // equivalent SQL is
