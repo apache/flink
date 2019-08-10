@@ -18,77 +18,100 @@
 
 package org.apache.flink.runtime.resourcemanager;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
+import org.apache.flink.runtime.resourcemanager.slotmanager.TestingSlotManagerBuilder;
 import org.apache.flink.runtime.resourcemanager.utils.MockResourceManagerRuntimeServices;
+import org.apache.flink.runtime.rpc.FatalErrorHandler;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
 import org.junit.Test;
 
-import java.time.Duration;
 import java.util.UUID;
-import java.util.function.Supplier;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.core.IsNull.nullValue;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the Standalone Resource Manager.
  */
-public class StandaloneResourceManagerTest {
+public class StandaloneResourceManagerTest extends TestLogger {
 
 	@ClassRule
 	public static final TestingRpcServiceResource RPC_SERVICE = new TestingRpcServiceResource();
 
-	private static final Time TIMEOUT = Time.seconds(10);
+	private static final Time TIMEOUT = Time.seconds(10L);
 
 	private final TestingFatalErrorHandler fatalErrorHandler = new TestingFatalErrorHandler();
 
 	@Test
 	public void testStartupPeriod() throws Exception {
-		final Tuple2<StandaloneResourceManager, SlotManager> managers = createResourceManagerAndSlotManager(Time.milliseconds(1));
-		final StandaloneResourceManager rm = managers.f0;
-		final SlotManager sm = managers.f1;
+		final LinkedBlockingQueue<Boolean> setFailUnfulfillableRequestInvokes = new LinkedBlockingQueue<>();
+		final SlotManager slotManager = new TestingSlotManagerBuilder()
+			.setSetFailUnfulfillableRequestConsumer(setFailUnfulfillableRequestInvokes::add)
+			.createSlotManager();
+		final TestingStandaloneResourceManager rm = createResourceManager(Time.milliseconds(1L), slotManager);
 
-		assertHappensUntil(sm::isFailingUnfulfillableRequest, Deadline.fromNow(Duration.ofSeconds(10)));
+		assertThat(setFailUnfulfillableRequestInvokes.take(), is(false));
+		assertThat(setFailUnfulfillableRequestInvokes.take(), is(true));
 
 		rm.close();
 	}
 
 	@Test
 	public void testNoStartupPeriod() throws Exception {
-		final Tuple2<StandaloneResourceManager, SlotManager> managers = createResourceManagerAndSlotManager(Time.milliseconds(-1));
-		final StandaloneResourceManager rm = managers.f0;
-		final SlotManager sm = managers.f1;
+		final LinkedBlockingQueue<Boolean> setFailUnfulfillableRequestInvokes = new LinkedBlockingQueue<>();
+		final SlotManager slotManager = new TestingSlotManagerBuilder()
+			.setSetFailUnfulfillableRequestConsumer(setFailUnfulfillableRequestInvokes::add)
+			.createSlotManager();
+		final TestingStandaloneResourceManager rm = createResourceManager(Time.milliseconds(-1L), slotManager);
 
-		// startup includes initialization and granting leadership, so by the time we are
-		// here, the initialization method scheduling the startup period will have been executed.
-
-		assertFalse(fatalErrorHandler.hasExceptionOccurred());
-		assertFalse(sm.isFailingUnfulfillableRequest());
+		assertThat(setFailUnfulfillableRequestInvokes.take(), is(false));
+		assertThat(setFailUnfulfillableRequestInvokes.poll(50L, TimeUnit.MILLISECONDS), is(nullValue()));
 
 		rm.close();
 	}
 
-	private StandaloneResourceManager createResourceManager(Time startupPeriod) throws Exception {
-		return createResourceManagerAndSlotManager(startupPeriod).f0;
+	@Test
+	public void testStartUpPeriodAfterLeadershipSwitch() throws Exception {
+		final LinkedBlockingQueue<Boolean> setFailUnfulfillableRequestInvokes = new LinkedBlockingQueue<>();
+		final SlotManager slotManager = new TestingSlotManagerBuilder()
+			.setSetFailUnfulfillableRequestConsumer(setFailUnfulfillableRequestInvokes::add)
+			.createSlotManager();
+		final TestingStandaloneResourceManager rm = createResourceManager(Time.milliseconds(1L), slotManager);
+
+		assertThat(setFailUnfulfillableRequestInvokes.take(), is(false));
+		assertThat(setFailUnfulfillableRequestInvokes.take(), is(true));
+
+		rm.rmServices.revokeLeadership();
+		rm.rmServices.grantLeadership();
+
+		assertThat(setFailUnfulfillableRequestInvokes.take(), is(false));
+		assertThat(setFailUnfulfillableRequestInvokes.take(), is(true));
 	}
 
-	private Tuple2<StandaloneResourceManager, SlotManager> createResourceManagerAndSlotManager(
-			Time startupPeriod) throws Exception {
+	private TestingStandaloneResourceManager createResourceManager(Time startupPeriod, SlotManager slotManager) throws Exception {
 
 		final MockResourceManagerRuntimeServices rmServices = new MockResourceManagerRuntimeServices(
 			RPC_SERVICE.getTestingRpcService(),
-			TIMEOUT);
+			TIMEOUT,
+			slotManager);
 
-		final StandaloneResourceManager rm = new StandaloneResourceManager(
+		final TestingStandaloneResourceManager rm = new TestingStandaloneResourceManager(
 			rmServices.rpcService,
 			UUID.randomUUID().toString(),
 			ResourceID.generate(),
@@ -100,20 +123,46 @@ public class StandaloneResourceManagerTest {
 			new ClusterInformation("localhost", 1234),
 			fatalErrorHandler,
 			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
-			startupPeriod);
+			startupPeriod,
+			rmServices);
 
 		rm.start();
 		rmServices.grantLeadership();
 
-		return new Tuple2<>(rm, rmServices.slotManager);
+		return rm;
 	}
 
-	private static void assertHappensUntil(Supplier<Boolean> condition, Deadline until) throws InterruptedException {
-		while (!condition.get()) {
-			if (!until.hasTimeLeft()) {
-				fail("condition was not fulfilled before the deadline");
-			}
-			Thread.sleep(2);
+	private static class TestingStandaloneResourceManager extends StandaloneResourceManager {
+		private final MockResourceManagerRuntimeServices rmServices;
+
+		private TestingStandaloneResourceManager(
+				RpcService rpcService,
+				String resourceManagerEndpointId,
+				ResourceID resourceId,
+				HighAvailabilityServices highAvailabilityServices,
+				HeartbeatServices heartbeatServices,
+				SlotManager slotManager,
+				MetricRegistry metricRegistry,
+				JobLeaderIdService jobLeaderIdService,
+				ClusterInformation clusterInformation,
+				FatalErrorHandler fatalErrorHandler,
+				JobManagerMetricGroup jobManagerMetricGroup,
+				Time startupPeriodTime,
+				MockResourceManagerRuntimeServices rmServices) {
+			super(
+				rpcService,
+				resourceManagerEndpointId,
+				resourceId,
+				highAvailabilityServices,
+				heartbeatServices,
+				slotManager,
+				metricRegistry,
+				jobLeaderIdService,
+				clusterInformation,
+				fatalErrorHandler,
+				jobManagerMetricGroup,
+				startupPeriodTime);
+			this.rmServices = rmServices;
 		}
 	}
 }

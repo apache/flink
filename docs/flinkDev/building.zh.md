@@ -56,11 +56,9 @@ To speed up the build you can skip tests, QA plugins, and JavaDocs:
 mvn clean install -DskipTests -Dfast
 {% endhighlight %}
 
-The default build adds a Flink-specific JAR for Hadoop 2, to allow using Flink with HDFS and YARN.
-
 ## 构建PyFlink
 
-如果您想构建一个可用于pip安装的PyFlink包，您需要先构建Flink的Jar包，如[构建Flink](##Build Flink)中所述。
+如果您想构建一个可用于pip安装的PyFlink包，您需要先构建Flink的Jar包，如[构建Flink](#build-flink)中所述。
 之后，进入Flink源码根目录，并执行以下命令，构建PyFlink的源码发布包和wheel包：
 
 {% highlight bash %}
@@ -97,34 +95,48 @@ mvn clean install
 
 ## Hadoop Versions
 
-{% info %} Most users do not need to do this manually. The [download page]({{ site.download_url }}) contains binary packages for common Hadoop versions.
+Flink has optional dependencies to HDFS and YARN which are both dependencies from [Apache Hadoop](http://hadoop.apache.org). There exist many different versions of Hadoop (from both the upstream project and the different Hadoop distributions). If you are using an incompatible combination of versions, exceptions may occur.
 
-Flink has dependencies to HDFS and YARN which are both dependencies from [Apache Hadoop](http://hadoop.apache.org). There exist many different versions of Hadoop (from both the upstream project and the different Hadoop distributions). If you are using a wrong combination of versions, exceptions can occur.
+Flink can be built against any Hadoop version >= 2.4.0, but depending on the version it may be a 1 or 2 step process.
 
-Hadoop is only supported from version 2.4.0 upwards.
-You can also specify a specific Hadoop version to build against:
+### Pre-bundled versions
+
+To build against Hadoop 2.4.1, 2.6.5, 2.7.5 or 2.8.3, it is sufficient to run (e.g., for version `2.6.5`):
 
 {% highlight bash %}
-mvn clean install -DskipTests -Dhadoop.version=2.6.1
+mvn clean install -DskipTests -Dhadoop.version=2.6.5
 {% endhighlight %}
 
-### Packaging Hadoop into the Flink distribution
-
-If you want to build a Flink distribution that has a shaded Hadoop pre-packaged in the lib folder you can use the `include-hadoop` profile to do so. You would build Flink as described above but include the profile:
+To package a shaded pre-packaged Hadoop jar into the distributions `/lib` directory, activate the `include-hadoop` profile`:
 
 {% highlight bash %}
 mvn clean install -DskipTests -Pinclude-hadoop
 {% endhighlight %}
 
-### Vendor-specific Versions
-To check the list of supported vendor versions, look in https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-hdfs?repo=cloudera
-To build Flink against a vendor specific Hadoop version, issue the following command:
+### Custom / Vendor-specific versions
+
+If you want to build against Hadoop version that is *NOT* 2.4.1, 2.6.5, 2.7.5 or 2.8.3,
+then it is first necessary to build [flink-shaded](https://github.com/apache/flink-shaded) against this version.
+You can find the source for this project in the [Additional Components]({{ site.download_url }}#additional-components) section of the download page.
+
+Run the following command to build and install `flink-shaded` against your desired Hadoop version (e.g., for version `2.6.5-custom`):
+
+{% highlight bash %}
+mvn clean install -Dhadoop.version=2.6.5-custom
+{% endhighlight %}
+
+After this step is complete, follow the steps for [Pre-bundled versions](#pre-bundled-versions).
+
+To build Flink against a vendor specific Hadoop version, additionally activate -Pvendor-repos` profile when building
+`flink-shaded`.
 
 {% highlight bash %}
 mvn clean install -DskipTests -Pvendor-repos -Dhadoop.version=2.6.0-cdh5.16.1
 {% endhighlight %}
 
 The `-Pvendor-repos` activates a Maven [build profile](http://maven.apache.org/guides/introduction/introduction-to-profiles.html) that includes the repositories of popular Hadoop vendors such as Cloudera, Hortonworks, or MapR.
+
+The list of supported vendor versions can be checked [here](https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-hdfs?repo=cloudera).
 
 {% top %}
 

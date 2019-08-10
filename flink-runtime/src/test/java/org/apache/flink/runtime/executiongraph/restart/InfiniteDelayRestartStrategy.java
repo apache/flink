@@ -20,8 +20,11 @@ package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Testing restart strategy which promise to restart {@link ExecutionGraph} after the infinite time delay.
@@ -49,11 +52,12 @@ public class InfiniteDelayRestartStrategy implements RestartStrategy {
 	}
 
 	@Override
-	public void restart(RestartCallback restarter, ScheduledExecutor executor) {
+	public CompletableFuture<Void> restart(RestartCallback restarter, ScheduledExecutor executor) {
 		LOG.info("Delaying retry of job execution forever");
 
 		if (maxRestartAttempts >= 0) {
 			restartAttemptCounter++;
 		}
+		return new CompletableFuture<>();
 	}
 }

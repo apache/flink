@@ -50,7 +50,6 @@ done
 log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-python-$HOSTNAME.log
 log_setting=(-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-cli.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml)
 
-TABLE_JAR_PATH=`echo "$FLINK_HOME"/opt/flink-table*.jar`
 PYTHON_JAR_PATH=`echo "$FLINK_HOME"/opt/flink-python*.jar`
 
 FLINK_TEST_CLASSPATH=""
@@ -94,8 +93,8 @@ fi
 ARGS_COUNT=${#ARGS[@]}
 if [[ ${ARGS[0]} == "local" ]]; then
   ARGS=("${ARGS[@]:1:$ARGS_COUNT}")
-  exec $JAVA_RUN $JVM_ARGS "${log_setting[@]}" -cp ${FLINK_CLASSPATH}:${TABLE_JAR_PATH}:${PYTHON_JAR_PATH}:${FLINK_TEST_CLASSPATH} ${DRIVER} ${ARGS[@]}
+  exec $JAVA_RUN $JVM_ARGS "${log_setting[@]}" -cp ${FLINK_CLASSPATH}:${PYTHON_JAR_PATH}:${FLINK_TEST_CLASSPATH} ${DRIVER} ${ARGS[@]}
 else
   ARGS=("${ARGS[@]:1:$ARGS_COUNT}")
-  exec "$FLINK_BIN_DIR"/flink run ${ARGS[@]} -c ${DRIVER} -j ${TABLE_JAR_PATH}
+  exec "$FLINK_BIN_DIR"/flink run ${ARGS[@]} -c ${DRIVER}
 fi

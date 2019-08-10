@@ -23,6 +23,7 @@ import org.apache.flink.table.dataformat.BinaryStringUtil;
 import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.runtime.util.JsonUtils;
 import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.table.utils.ThreadLocalCache;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -341,22 +342,15 @@ public class SqlFunctionUtils {
 	}
 
 	/**
-	 * Returns a string resulting from replacing all substrings that match the regular
-	 * expression with replacement.
+	 * Returns a string resulting from replacing all substrings
+	 * that match the regular expression with replacement.
 	 */
 	public static String regexpReplace(String str, String regex, String replacement) {
-		if (regex.isEmpty()) {
-			return str;
+		if (str == null || regex == null || replacement == null) {
+			return null;
 		}
 		try {
-			// we should use StringBuffer here because Matcher only accept it
-			StringBuffer sb = new StringBuffer();
-			Matcher m = REGEXP_PATTERN_CACHE.get(regex).matcher(str);
-			while (m.find()) {
-				m.appendReplacement(sb, replacement);
-			}
-			m.appendTail(sb);
-			return sb.toString();
+			return str.replaceAll(regex, Matcher.quoteReplacement(replacement));
 		} catch (Exception e) {
 			LOG.error(
 				String.format("Exception in regexpReplace('%s', '%s', '%s')", str, regex, replacement),
@@ -367,27 +361,26 @@ public class SqlFunctionUtils {
 	}
 
 	/**
-	 * Returns a string extracted with a specified regular expression and a regex
-	 * match group index.
+	 * Returns a string extracted with a specified regular expression and a regex match group index.
 	 */
 	public static String regexpExtract(String str, String regex, int extractIndex) {
-		if (extractIndex < 0) {
+		if (str == null || regex == null) {
 			return null;
 		}
 
 		try {
-			Matcher m = REGEXP_PATTERN_CACHE.get(regex).matcher(str);
+			Matcher m = Pattern.compile(regex).matcher(str);
 			if (m.find()) {
 				MatchResult mr = m.toMatchResult();
 				return mr.group(extractIndex);
 			}
-			return null;
 		} catch (Exception e) {
 			LOG.error(
 				String.format("Exception in regexpExtract('%s', '%s', '%d')", str, regex, extractIndex),
 				e);
-			return null;
 		}
+
+		return null;
 	}
 
 	public static String regexpExtract(String str, String regex, long extractIndex) {
@@ -1080,5 +1073,36 @@ public class SqlFunctionUtils {
 
 	public static String uuid(byte[] b){
 		return UUID.nameUUIDFromBytes(b).toString();
+	}
+
+	/** SQL <code>TRUNCATE</code> operator applied to BigDecimal values. */
+	public static Decimal struncate(Decimal b0) {
+		return struncate(b0, 0);
+	}
+
+	public static Decimal struncate(Decimal b0, int b1) {
+		if (b1 >= b0.getScale()) {
+			return b0;
+		}
+
+		BigDecimal b2 = b0.toBigDecimal().movePointRight(b1)
+			.setScale(0, RoundingMode.DOWN).movePointLeft(b1);
+		int p = b0.getPrecision();
+		int s = b0.getScale();
+
+		if (b1 < 0) {
+			return Decimal.fromBigDecimal(b2, Math.min(38, 1 + p - s), 0);
+		} else {
+			return Decimal.fromBigDecimal(b2, 1 + p - s + b1, b1);
+		}
+	}
+
+	/** SQL <code>TRUNCATE</code> operator applied to double values. */
+	public static float struncate(float b0) {
+		return struncate(b0, 0);
+	}
+
+	public static float struncate(float b0, int b1) {
+		return (float) struncate(Decimal.castFrom((double) b0, 38, 18), b1).doubleValue();
 	}
 }

@@ -30,7 +30,6 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotContext;
-import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.ExceptionUtils;
@@ -51,6 +50,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.stream.Collectors;
 
 /**
  * Scheduler that assigns tasks to slots. This class is currently work in progress, comments will be updated as we
@@ -293,7 +293,11 @@ public class SchedulerImpl implements Scheduler {
 		@Nonnull SlotRequestId slotRequestId,
 		@Nonnull SlotProfile slotProfile) {
 
-		Collection<SlotInfo> slotInfoList = slotPool.getAvailableSlotsInformation();
+		Collection<SlotSelectionStrategy.SlotInfoAndResources> slotInfoList =
+				slotPool.getAvailableSlotsInformation()
+						.stream()
+						.map(SlotSelectionStrategy.SlotInfoAndResources::new)
+						.collect(Collectors.toList());
 
 		Optional<SlotSelectionStrategy.SlotInfoAndLocality> selectedAvailableSlot =
 			slotSelectionStrategy.selectBestSlotForProfile(slotInfoList, slotProfile);
@@ -479,7 +483,8 @@ public class SchedulerImpl implements Scheduler {
 			boolean allowQueuedScheduling,
 			@Nullable Time allocationTimeout) throws NoResourceAvailableException {
 
-		Collection<SlotInfo> resolvedRootSlotsInfo = slotSharingManager.listResolvedRootSlotInfo(groupId);
+		Collection<SlotSelectionStrategy.SlotInfoAndResources> resolvedRootSlotsInfo =
+				slotSharingManager.listResolvedRootSlotInfo(groupId);
 
 		SlotSelectionStrategy.SlotInfoAndLocality bestResolvedRootSlotWithLocality =
 			slotSelectionStrategy.selectBestSlotForProfile(resolvedRootSlotsInfo, slotProfile).orElse(null);

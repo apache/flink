@@ -1,6 +1,6 @@
 ---
-title: "HDFS 连接器"
-nav-title: Rolling File Sink
+title: "Hadoop FileSystem 连接器"
+nav-title: Hadoop FileSystem
 nav-parent_id: connectors
 nav-pos: 5
 ---
@@ -126,6 +126,6 @@ input.addSink(sink)
 `date-time` 是我们从日期/时间格式获得的字符串，`parallel-task` 是 sink 并发实例的索引，`count` 是因文件大小或者滚动周期而产生的
 文件的编号。
 
-更多信息，请参考 [BucketingSink](http://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/connectors/fs/bucketing/BucketingSink.html)。
+更多信息，请参考 [BucketingSink](https://flink.apache.org/docs/latest/api/java/org/apache/flink/streaming/connectors/fs/bucketing/BucketingSink.html)。
 
 {% top %}

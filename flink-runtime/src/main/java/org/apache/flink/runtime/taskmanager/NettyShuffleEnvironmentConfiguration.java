@@ -29,8 +29,8 @@ import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
 import org.apache.flink.runtime.io.network.partition.BoundedBlockingSubpartitionType;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
-
 import org.apache.flink.util.Preconditions;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,6 +73,8 @@ public class NettyShuffleEnvironmentConfiguration {
 
 	private final BoundedBlockingSubpartitionType blockingSubpartitionType;
 
+	private final boolean forcePartitionReleaseOnConsumption;
+
 	public NettyShuffleEnvironmentConfiguration(
 			int numNetworkBuffers,
 			int networkBufferSize,
@@ -85,7 +87,8 @@ public class NettyShuffleEnvironmentConfiguration {
 			boolean isNetworkDetailedMetrics,
 			@Nullable NettyConfig nettyConfig,
 			String[] tempDirs,
-			BoundedBlockingSubpartitionType blockingSubpartitionType) {
+			BoundedBlockingSubpartitionType blockingSubpartitionType,
+			boolean forcePartitionReleaseOnConsumption) {
 
 		this.numNetworkBuffers = numNetworkBuffers;
 		this.networkBufferSize = networkBufferSize;
@@ -99,6 +102,7 @@ public class NettyShuffleEnvironmentConfiguration {
 		this.nettyConfig = nettyConfig;
 		this.tempDirs = Preconditions.checkNotNull(tempDirs);
 		this.blockingSubpartitionType = Preconditions.checkNotNull(blockingSubpartitionType);
+		this.forcePartitionReleaseOnConsumption = forcePartitionReleaseOnConsumption;
 	}
 
 	// ------------------------------------------------------------------------
@@ -151,6 +155,10 @@ public class NettyShuffleEnvironmentConfiguration {
 		return blockingSubpartitionType;
 	}
 
+	public boolean isForcePartitionReleaseOnConsumption() {
+		return forcePartitionReleaseOnConsumption;
+	}
+
 	// ------------------------------------------------------------------------
 
 	/**
@@ -194,6 +202,9 @@ public class NettyShuffleEnvironmentConfiguration {
 
 		BoundedBlockingSubpartitionType blockingSubpartitionType = getBlockingSubpartitionType(configuration);
 
+		boolean forcePartitionReleaseOnConsumption =
+			configuration.getBoolean(NettyShuffleEnvironmentOptions.FORCE_PARTITION_RELEASE_ON_CONSUMPTION);
+
 		return new NettyShuffleEnvironmentConfiguration(
 			numberOfNetworkBuffers,
 			pageSize,
@@ -206,7 +217,8 @@ public class NettyShuffleEnvironmentConfiguration {
 			isNetworkDetailedMetrics,
 			nettyConfig,
 			tempDirs,
-			blockingSubpartitionType);
+			blockingSubpartitionType,
+			forcePartitionReleaseOnConsumption);
 	}
 
 	/**
@@ -236,32 +248,40 @@ public class NettyShuffleEnvironmentConfiguration {
 	public static long calculateNewNetworkBufferMemory(Configuration config, long maxJvmHeapMemory) {
 		// The maximum heap memory has been adjusted as in TaskManagerServices#calculateHeapSizeMB
 		// and we need to invert these calculations.
-		final long jvmHeapNoNet;
+		final long heapAndManagedMemory;
 		final MemoryType memoryType = ConfigurationParserUtils.getMemoryType(config);
 		if (memoryType == MemoryType.HEAP) {
-			jvmHeapNoNet = maxJvmHeapMemory;
+			heapAndManagedMemory = maxJvmHeapMemory;
 		} else if (memoryType == MemoryType.OFF_HEAP) {
 			long configuredMemory = ConfigurationParserUtils.getManagedMemorySize(config) << 20; // megabytes to bytes
 			if (configuredMemory > 0) {
 				// The maximum heap memory has been adjusted according to configuredMemory, i.e.
 				// maxJvmHeap = jvmHeapNoNet - configuredMemory
-				jvmHeapNoNet = maxJvmHeapMemory + configuredMemory;
+				heapAndManagedMemory = maxJvmHeapMemory + configuredMemory;
 			} else {
 				// The maximum heap memory has been adjusted according to the fraction, i.e.
 				// maxJvmHeap = jvmHeapNoNet - jvmHeapNoNet * managedFraction = jvmHeapNoNet * (1 - managedFraction)
-				jvmHeapNoNet = (long) (maxJvmHeapMemory / (1.0 - ConfigurationParserUtils.getManagedMemoryFraction(config)));
+				heapAndManagedMemory = (long) (maxJvmHeapMemory / (1.0 - ConfigurationParserUtils.getManagedMemoryFraction(config)));
 			}
 		} else {
 			throw new RuntimeException("No supported memory type detected.");
 		}
 
 		// finally extract the network buffer memory size again from:
-		// jvmHeapNoNet = jvmHeap - networkBufBytes
-		//              = jvmHeap - Math.min(networkBufMax, Math.max(networkBufMin, jvmHeap * netFraction)
-		// jvmHeap = jvmHeapNoNet / (1.0 - networkBufFraction)
+		// heapAndManagedMemory = totalProcessMemory - networkReservedMemory
+		//                      = totalProcessMemory - Math.min(networkBufMax, Math.max(networkBufMin, totalProcessMemory * networkBufFraction)
+		// totalProcessMemory = heapAndManagedMemory / (1.0 - networkBufFraction)
 		float networkBufFraction = config.getFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
-		long networkBufSize = (long) (jvmHeapNoNet / (1.0 - networkBufFraction) * networkBufFraction);
-		return calculateNewNetworkBufferMemory(config, networkBufSize, maxJvmHeapMemory);
+
+		// Converts to double for higher precision. Converting via string achieve higher precision for those
+		// numbers can not be represented preciously by float, like 0.4f.
+		double heapAndManagedFraction = 1.0 - Double.valueOf(Float.toString(networkBufFraction));
+		long totalProcessMemory = (long) (heapAndManagedMemory / heapAndManagedFraction);
+		long networkMemoryByFraction = (long) (totalProcessMemory * networkBufFraction);
+
+		// Do not need to check the maximum allowed memory since the computed total memory should always
+		// be larger than the computed network buffer memory as long as the fraction is less than 1.
+		return calculateNewNetworkBufferMemory(config, networkMemoryByFraction, Long.MAX_VALUE);
 	}
 
 	/**
@@ -276,34 +296,34 @@ public class NettyShuffleEnvironmentConfiguration {
 	 *  <li>{@link NettyShuffleEnvironmentOptions#NETWORK_NUM_BUFFERS} (fallback if the ones above do not exist)</li>
 	 * </ul>.
 	 *
-	 * @param totalJavaMemorySize overall available memory to use (in bytes)
+	 * @param totalProcessMemory overall available memory to use (in bytes)
 	 * @param config configuration object
 	 *
 	 * @return memory to use for network buffers (in bytes)
 	 */
 	@SuppressWarnings("deprecation")
-	public static long calculateNetworkBufferMemory(long totalJavaMemorySize, Configuration config) {
+	public static long calculateNetworkBufferMemory(long totalProcessMemory, Configuration config) {
 		final int segmentSize = ConfigurationParserUtils.getPageSize(config);
 
-		final long networkBufBytes;
+		final long networkReservedMemory;
 		if (hasNewNetworkConfig(config)) {
 			float networkBufFraction = config.getFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
-			long networkBufSize = (long) (totalJavaMemorySize * networkBufFraction);
-			networkBufBytes = calculateNewNetworkBufferMemory(config, networkBufSize, totalJavaMemorySize);
+			long networkMemoryByFraction = (long) (totalProcessMemory * networkBufFraction);
+			networkReservedMemory = calculateNewNetworkBufferMemory(config, networkMemoryByFraction, totalProcessMemory);
 		} else {
 			// use old (deprecated) network buffers parameter
 			int numNetworkBuffers = config.getInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS);
-			networkBufBytes = (long) numNetworkBuffers * (long) segmentSize;
+			networkReservedMemory = (long) numNetworkBuffers * (long) segmentSize;
 
 			checkOldNetworkConfig(numNetworkBuffers);
 
-			ConfigurationParserUtils.checkConfigParameter(networkBufBytes < totalJavaMemorySize,
-				networkBufBytes, NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS.key(),
-				"Network buffer memory size too large: " + networkBufBytes + " >= " +
-					totalJavaMemorySize + " (total JVM memory size)");
+			ConfigurationParserUtils.checkConfigParameter(networkReservedMemory < totalProcessMemory,
+				networkReservedMemory, NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS.key(),
+				"Network buffer memory size too large: " + networkReservedMemory + " >= " +
+					totalProcessMemory + " (total JVM memory size)");
 		}
 
-		return networkBufBytes;
+		return networkReservedMemory;
 	}
 
 	/**
@@ -318,12 +338,12 @@ public class NettyShuffleEnvironmentConfiguration {
 	 * </ul>.
 	 *
 	 * @param config configuration object
-	 * @param networkBufSize memory of network buffers based on JVM memory size and network fraction
-	 * @param maxJvmHeapMemory maximum memory used for checking the results of network memory
+	 * @param networkMemoryByFraction memory of network buffers based on JVM memory size and network fraction
+	 * @param maxAllowedMemory maximum memory used for checking the results of network memory
 	 *
 	 * @return memory to use for network buffers (in bytes)
 	 */
-	private static long calculateNewNetworkBufferMemory(Configuration config, long networkBufSize, long maxJvmHeapMemory) {
+	private static long calculateNewNetworkBufferMemory(Configuration config, long networkMemoryByFraction, long maxAllowedMemory) {
 		float networkBufFraction = config.getFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION);
 		long networkBufMin = MemorySize.parse(config.getString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN)).getBytes();
 		long networkBufMax = MemorySize.parse(config.getString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX)).getBytes();
@@ -332,15 +352,15 @@ public class NettyShuffleEnvironmentConfiguration {
 
 		checkNewNetworkConfig(pageSize, networkBufFraction, networkBufMin, networkBufMax);
 
-		long networkBufBytes = Math.min(networkBufMax, Math.max(networkBufMin, networkBufSize));
+		long networkBufBytes = Math.min(networkBufMax, Math.max(networkBufMin, networkMemoryByFraction));
 
-		ConfigurationParserUtils.checkConfigParameter(networkBufBytes < maxJvmHeapMemory,
+		ConfigurationParserUtils.checkConfigParameter(networkBufBytes < maxAllowedMemory,
 			"(" + networkBufFraction + ", " + networkBufMin + ", " + networkBufMax + ")",
 			"(" + NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key() + ", " +
 				NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN.key() + ", " +
 				NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key() + ")",
 			"Network buffer memory size too large: " + networkBufBytes + " >= " +
-				maxJvmHeapMemory + " (maximum JVM memory size)");
+				maxAllowedMemory + " (maximum JVM memory size)");
 
 		return networkBufBytes;
 	}
@@ -521,6 +541,7 @@ public class NettyShuffleEnvironmentConfiguration {
 		result = 31 * result + (isCreditBased ? 1 : 0);
 		result = 31 * result + (nettyConfig != null ? nettyConfig.hashCode() : 0);
 		result = 31 * result + Arrays.hashCode(tempDirs);
+		result = 31 * result + (forcePartitionReleaseOnConsumption ? 1 : 0);
 		return result;
 	}
 
@@ -544,7 +565,8 @@ public class NettyShuffleEnvironmentConfiguration {
 					this.requestSegmentsTimeout.equals(that.requestSegmentsTimeout) &&
 					this.isCreditBased == that.isCreditBased &&
 					(nettyConfig != null ? nettyConfig.equals(that.nettyConfig) : that.nettyConfig == null) &&
-					Arrays.equals(this.tempDirs, that.tempDirs);
+					Arrays.equals(this.tempDirs, that.tempDirs) &&
+					this.forcePartitionReleaseOnConsumption == that.forcePartitionReleaseOnConsumption;
 		}
 	}
 
@@ -561,6 +583,7 @@ public class NettyShuffleEnvironmentConfiguration {
 				", isCreditBased=" + isCreditBased +
 				", nettyConfig=" + nettyConfig +
 				", tempDirs=" + Arrays.toString(tempDirs) +
+				", forcePartitionReleaseOnConsumption=" + forcePartitionReleaseOnConsumption +
 				'}';
 	}
 }

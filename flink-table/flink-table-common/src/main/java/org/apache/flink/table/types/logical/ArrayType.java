@@ -33,7 +33,7 @@ import java.util.Set;
  * valid type is supported as a subtype.
  *
  * <p>The serialized string representation is {@code ARRAY<t>} where {@code t} is the logical type of
- * the contained elements.
+ * the contained elements. {@code t ARRAY} is a synonym for being closer to the SQL standard.
  */
 @PublicEvolving
 public final class ArrayType extends LogicalType {

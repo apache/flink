@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableFactoryUtil;
 import org.apache.flink.table.factories.TableSourceFactory;
+import org.apache.flink.table.plan.schema.TableSinkTable;
 import org.apache.flink.table.plan.schema.TableSourceTable;
 import org.apache.flink.table.plan.stats.FlinkStatistic;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -100,12 +101,25 @@ class DatabaseCalciteSchema implements Schema {
 	}
 
 	private Table convertConnectorTable(ConnectorCatalogTable<?, ?> table) {
-		return table.getTableSource()
+		Optional<TableSourceTable> tableSourceTable = table.getTableSource()
 			.map(tableSource -> new TableSourceTable<>(
 				tableSource,
 				!table.isBatch(),
-				FlinkStatistic.UNKNOWN()))
-			.orElseThrow(() -> new TableException("Cannot query a sink only table."));
+				FlinkStatistic.UNKNOWN()));
+		if (tableSourceTable.isPresent()) {
+			return tableSourceTable.get();
+		} else {
+			Optional<TableSinkTable> tableSinkTable = table.getTableSink()
+				.map(tableSink -> new TableSinkTable<>(
+					tableSink,
+					FlinkStatistic.UNKNOWN()));
+			if (tableSinkTable.isPresent()) {
+				return tableSinkTable.get();
+			} else {
+				throw new TableException("Cannot convert a connector table " +
+					"without either source or sink.");
+			}
+		}
 	}
 
 	private Table convertCatalogTable(ObjectPath tablePath, CatalogTable table) {

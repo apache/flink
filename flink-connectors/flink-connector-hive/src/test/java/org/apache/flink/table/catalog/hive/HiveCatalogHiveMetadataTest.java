@@ -23,7 +23,6 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
-import org.apache.flink.table.catalog.CatalogTestBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
@@ -47,7 +46,7 @@ import static org.junit.Assert.assertFalse;
 /**
  * Test for HiveCatalog on Hive metadata.
  */
-public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
+public class HiveCatalogHiveMetadataTest extends HiveCatalogTestBase {
 
 	@BeforeClass
 	public static void init() {
@@ -88,7 +87,7 @@ public class HiveCatalogHiveMetadataTest extends CatalogTestBase {
 											.field("fourth", DataTypes.DATE())
 											.field("fifth", DataTypes.DOUBLE())
 											.field("sixth", DataTypes.BIGINT())
-											.field("seventh", DataTypes.VARBINARY(200))
+											.field("seventh", DataTypes.BYTES())
 											.build();
 		CatalogTable catalogTable = new CatalogTableImpl(tableSchema, getBatchTableProperties(), TEST_COMMENT);
 		catalog.createTable(path1, catalogTable, false);

@@ -22,6 +22,7 @@ import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.types.logical.DateType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.utils.ThreadLocalCache;
 
 import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.avatica.util.TimeUnit;
@@ -219,7 +220,9 @@ public class SqlDateTimeUtils {
 	public static Long toTimestamp(String dateStr, TimeZone tz) {
 		int length = dateStr.length();
 		String format;
-		if (length == 21) {
+		if (length == 10) {
+			format = DATE_FORMAT_STRING;
+		} else if (length == 21) {
 			format = DEFAULT_DATETIME_FORMATS[1];
 		} else if (length == 22) {
 			format = DEFAULT_DATETIME_FORMATS[2];

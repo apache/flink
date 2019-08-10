@@ -285,12 +285,8 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
             }
 
           case REPLACE =>
-            assert(args.size == 2 || args.size == 3)
-            if (args.size == 2) {
-              new Replace(args.head, args.last)
-            } else {
-              Replace(args.head, args(1), args.last)
-            }
+            assert(args.size == 3)
+            Replace(args.head, args(1), args.last)
 
           case TRIM =>
             assert(args.size == 4)

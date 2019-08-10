@@ -94,8 +94,6 @@ public class MiniClusterResource extends ExternalResource {
 
 	@Override
 	public void after() {
-		temporaryFolder.delete();
-
 		Exception exception = null;
 
 		if (miniCluster != null) {
@@ -147,6 +145,8 @@ public class MiniClusterResource extends ExternalResource {
 		if (exception != null) {
 			log.warn("Could not properly shut down the MiniClusterResource.", exception);
 		}
+
+		temporaryFolder.delete();
 	}
 
 	private void startMiniCluster() throws Exception {

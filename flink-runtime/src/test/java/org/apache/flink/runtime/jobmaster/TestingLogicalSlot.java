@@ -19,11 +19,9 @@
 package org.apache.flink.runtime.jobmaster;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.Locality;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.Preconditions;
 
@@ -47,10 +45,8 @@ public class TestingLogicalSlot implements LogicalSlot {
 
 	private final CompletableFuture<?> releaseFuture;
 
-	@Nullable
-	private final CompletableFuture<?> customReleaseFuture;
+	private final boolean automaticallyCompleteReleaseFuture;
 
-	@Nullable
 	private final SlotOwner slotOwner;
 
 	private final AllocationID allocationId;
@@ -59,49 +55,15 @@ public class TestingLogicalSlot implements LogicalSlot {
 
 	private final SlotSharingGroupId slotSharingGroupId;
 
-	public TestingLogicalSlot() {
-		this(new SimpleAckingTaskManagerGateway());
-	}
-
-	public TestingLogicalSlot(TaskManagerGateway taskManagerGateway) {
-		this(
-			new LocalTaskManagerLocation(),
-			taskManagerGateway,
-			0,
-			new AllocationID(),
-			new SlotRequestId(),
-			new SlotSharingGroupId(),
-			null);
-	}
-
-	public TestingLogicalSlot(
+	TestingLogicalSlot(
 			TaskManagerLocation taskManagerLocation,
 			TaskManagerGateway taskManagerGateway,
 			int slotNumber,
 			AllocationID allocationId,
 			SlotRequestId slotRequestId,
 			SlotSharingGroupId slotSharingGroupId,
-			@Nullable CompletableFuture<?> customReleaseFuture) {
-		this(
-			taskManagerLocation,
-			taskManagerGateway,
-			slotNumber,
-			allocationId,
-			slotRequestId,
-			slotSharingGroupId,
-			customReleaseFuture,
-			null);
-	}
-
-	public TestingLogicalSlot(
-			TaskManagerLocation taskManagerLocation,
-			TaskManagerGateway taskManagerGateway,
-			int slotNumber,
-			AllocationID allocationId,
-			SlotRequestId slotRequestId,
-			SlotSharingGroupId slotSharingGroupId,
-			@Nullable CompletableFuture<?> customReleaseFuture,
-			@Nullable SlotOwner slotOwner) {
+			boolean automaticallyCompleteReleaseFuture,
+			SlotOwner slotOwner) {
 
 		this.taskManagerLocation = Preconditions.checkNotNull(taskManagerLocation);
 		this.taskManagerGateway = Preconditions.checkNotNull(taskManagerGateway);
@@ -111,7 +73,7 @@ public class TestingLogicalSlot implements LogicalSlot {
 		this.slotRequestId = Preconditions.checkNotNull(slotRequestId);
 		this.slotSharingGroupId = Preconditions.checkNotNull(slotSharingGroupId);
 		this.releaseFuture = new CompletableFuture<>();
-		this.customReleaseFuture = customReleaseFuture;
+		this.automaticallyCompleteReleaseFuture = automaticallyCompleteReleaseFuture;
 		this.slotOwner = slotOwner;
 	}
 
@@ -132,11 +94,7 @@ public class TestingLogicalSlot implements LogicalSlot {
 
 	@Override
 	public boolean isAlive() {
-		if (customReleaseFuture != null) {
-			return !customReleaseFuture.isDone();
-		} else {
-			return !releaseFuture.isDone();
-		}
+		return !releaseFuture.isDone();
 	}
 
 	@Override
@@ -152,16 +110,13 @@ public class TestingLogicalSlot implements LogicalSlot {
 
 	@Override
 	public CompletableFuture<?> releaseSlot(@Nullable Throwable cause) {
-		if (slotOwner != null) {
-			slotOwner.returnLogicalSlot(this);
+		slotOwner.returnLogicalSlot(this);
+
+		if (automaticallyCompleteReleaseFuture) {
+			releaseFuture.complete(null);
 		}
 
-		if (customReleaseFuture != null) {
-			return customReleaseFuture;
-		} else {
-			releaseFuture.complete(null);
-			return releaseFuture;
-		}
+		return releaseFuture;
 	}
 
 	@Override
@@ -183,5 +138,9 @@ public class TestingLogicalSlot implements LogicalSlot {
 	@Override
 	public SlotSharingGroupId getSlotSharingGroupId() {
 		return slotSharingGroupId;
+	}
+
+	public CompletableFuture<?> getReleaseFuture() {
+		return releaseFuture;
 	}
 }

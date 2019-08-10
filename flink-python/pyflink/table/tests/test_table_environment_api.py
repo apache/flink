@@ -15,14 +15,13 @@
 # #  See the License for the specific language governing permissions and
 # # limitations under the License.
 ################################################################################
-import datetime
 import os
 
 from py4j.compat import unicode
 
 from pyflink.dataset import ExecutionEnvironment
 from pyflink.datastream import StreamExecutionEnvironment
-from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment
+from pyflink.table import DataTypes, CsvTableSink, StreamTableEnvironment, EnvironmentSettings
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import BatchTableEnvironment
 from pyflink.table.types import RowType
@@ -170,31 +169,18 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         expected = ['1,Hi,Hello', '2,Hello,Hello']
         self.assert_equals(actual, expected)
 
-    def test_table_config(self):
+    def test_register_java_function(self):
+        t_env = self.t_env
 
-        table_config = TableConfig.get_default()
-        table_config.set_idle_state_retention_time(
-            datetime.timedelta(days=1), datetime.timedelta(days=2))
+        t_env.register_java_function("scalar_func",
+                                     "org.apache.flink.table.expressions.utils.RichFunc0")
+        t_env.register_java_function(
+            "agg_func", "org.apache.flink.table.functions.aggfunctions.ByteMaxAggFunction")
+        t_env.register_java_function("table_func", "org.apache.flink.table.utils.TableFunc1")
 
-        self.assertEqual(2 * 24 * 3600 * 1000, table_config.get_max_idle_state_retention_time())
-        self.assertEqual(24 * 3600 * 1000, table_config.get_min_idle_state_retention_time())
-
-        table_config.set_decimal_context(20, "UNNECESSARY")
-        self.assertEqual((20, "UNNECESSARY"), table_config.get_decimal_context())
-        table_config.set_decimal_context(20, "HALF_EVEN")
-        self.assertEqual((20, "HALF_EVEN"), table_config.get_decimal_context())
-        table_config.set_decimal_context(20, "HALF_DOWN")
-        self.assertEqual((20, "HALF_DOWN"), table_config.get_decimal_context())
-        table_config.set_decimal_context(20, "HALF_UP")
-        self.assertEqual((20, "HALF_UP"), table_config.get_decimal_context())
-        table_config.set_decimal_context(20, "FLOOR")
-        self.assertEqual((20, "FLOOR"), table_config.get_decimal_context())
-        table_config.set_decimal_context(20, "CEILING")
-        self.assertEqual((20, "CEILING"), table_config.get_decimal_context())
-        table_config.set_decimal_context(20, "DOWN")
-        self.assertEqual((20, "DOWN"), table_config.get_decimal_context())
-        table_config.set_decimal_context(20, "UP")
-        self.assertEqual((20, "UP"), table_config.get_decimal_context())
+        actual = t_env.list_user_defined_functions()
+        expected = ['scalar_func', 'agg_func', 'table_func']
+        self.assert_equals(actual, expected)
 
     def test_create_table_environment(self):
         table_config = TableConfig()
@@ -210,6 +196,49 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         self.assertFalse(readed_table_config.get_null_check())
         self.assertEqual(readed_table_config.get_max_generated_code_length(), 32000)
         self.assertEqual(readed_table_config.get_local_timezone(), "Asia/Shanghai")
+
+    def test_create_table_environment_with_blink_planner(self):
+        t_env = StreamTableEnvironment.create(
+            self.env,
+            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
+
+        planner = t_env._j_tenv.getPlanner()
+
+        self.assertEqual(
+            planner.getClass().getName(),
+            "org.apache.flink.table.planner.delegation.StreamPlanner")
+
+    def test_table_environment_with_blink_planner(self):
+        t_env = StreamTableEnvironment.create(
+            self.env,
+            environment_settings=EnvironmentSettings.new_instance().use_blink_planner().build())
+
+        source_path = os.path.join(self.tempdir + '/streaming.csv')
+        sink_path = os.path.join(self.tempdir + '/result.csv')
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
+        data = [(1, 'hi', 'hello'), (2, 'hello', 'hello')]
+        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
+
+        t_env.register_table_source("source", csv_source)
+
+        t_env.register_table_sink(
+            "sink",
+            CsvTableSink(field_names, field_types, sink_path))
+        source = t_env.scan("source")
+
+        result = source.alias("a, b, c").select("1 + a, b, c")
+
+        result.insert_into("sink")
+
+        t_env.execute("blink_test")
+
+        results = []
+        with open(sink_path, 'r') as f:
+            results.append(f.readline())
+            results.append(f.readline())
+
+        self.assert_equals(results, ['2,hi,hello\n', '3,hello,hello\n'])
 
 
 class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
@@ -260,16 +289,18 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         with self.assertRaises(TableException):
             t_env.explain(extended=True)
 
-    def test_table_config(self):
+    def test_register_java_function(self):
+        t_env = self.t_env
 
-        table_config = TableConfig()
-        table_config.set_local_timezone("Asia/Shanghai")
-        table_config.set_max_generated_code_length(64000)
-        table_config.set_null_check(True)
+        t_env.register_java_function("scalar_func",
+                                     "org.apache.flink.table.expressions.utils.RichFunc0")
+        t_env.register_java_function(
+            "agg_func", "org.apache.flink.table.functions.aggfunctions.ByteMaxAggFunction")
+        t_env.register_java_function("table_func", "org.apache.flink.table.utils.TableFunc1")
 
-        self.assertTrue(table_config.get_null_check())
-        self.assertEqual(table_config.get_max_generated_code_length(), 64000)
-        self.assertEqual(table_config.get_local_timezone(), "Asia/Shanghai")
+        actual = t_env.list_user_defined_functions()
+        expected = ['scalar_func', 'agg_func', 'table_func']
+        self.assert_equals(actual, expected)
 
     def test_create_table_environment(self):
         table_config = TableConfig()
@@ -285,3 +316,50 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         self.assertFalse(readed_table_config.get_null_check())
         self.assertEqual(readed_table_config.get_max_generated_code_length(), 32000)
         self.assertEqual(readed_table_config.get_local_timezone(), "Asia/Shanghai")
+
+    def test_create_table_environment_with_blink_planner(self):
+        t_env = BatchTableEnvironment.create(
+            environment_settings=EnvironmentSettings.new_instance().in_batch_mode()
+            .use_blink_planner().build())
+
+        planner = t_env._j_tenv.getPlanner()
+
+        self.assertEqual(
+            planner.getClass().getName(),
+            "org.apache.flink.table.planner.delegation.BatchPlanner")
+
+    def test_table_environment_with_blink_planner(self):
+        t_env = BatchTableEnvironment.create(
+            environment_settings=EnvironmentSettings.new_instance().in_batch_mode()
+            .use_blink_planner().build())
+
+        source_path = os.path.join(self.tempdir + '/streaming.csv')
+        sink_path = os.path.join(self.tempdir + '/results')
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
+        data = [(1, 'hi', 'hello'), (2, 'hello', 'hello')]
+        csv_source = self.prepare_csv_source(source_path, data, field_types, field_names)
+
+        t_env.register_table_source("source", csv_source)
+
+        t_env.register_table_sink(
+            "sink",
+            CsvTableSink(field_names, field_types, sink_path))
+        source = t_env.scan("source")
+
+        result = source.alias("a, b, c").select("1 + a, b, c")
+
+        result.insert_into("sink")
+
+        t_env.execute("blink_test")
+
+        results = []
+        for root, dirs, files in os.walk(sink_path):
+            for sub_file in files:
+                with open(os.path.join(root, sub_file), 'r') as f:
+                    line = f.readline()
+                    while line is not None and line != '':
+                        results.append(line)
+                        line = f.readline()
+
+        self.assert_equals(results, ['2,hi,hello\n', '3,hello,hello\n'])

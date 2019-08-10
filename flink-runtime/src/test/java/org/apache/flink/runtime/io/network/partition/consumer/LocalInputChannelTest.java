@@ -558,5 +558,6 @@ public class LocalInputChannelTest {
 
 			return null;
 		}
+
 	}
 }

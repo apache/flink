@@ -50,6 +50,12 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-api-java</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-streaming-java_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
@@ -164,6 +170,13 @@ under the License.
 									<include>org.lz4:lz4-java</include>
 								</includes>
 							</artifactSet>
+							<relocations>
+								<relocation>
+									<!-- Relocate org.lz4:lz4-java -->
+									<pattern>net.jpountz</pattern>
+									<shadedPattern>org.apache.flink.table.shaded.net.jpountz</shadedPattern>
+								</relocation>
+							</relocations>
 						</configuration>
 					</execution>
 				</executions>

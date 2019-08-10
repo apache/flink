@@ -23,6 +23,7 @@ import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
@@ -105,8 +106,16 @@ public class JobManagerOptions {
 
 	/**
 	 * This option specifies the failover strategy, i.e. how the job computation recovers from task failures.
+	 *
+	 * <p>The options "individual" and "region-legacy" are intentionally not included
+	 * as they have some known limitations or issues:
+	 * <ul>
+	 *     <li>"individual" strategy only works when all tasks are not connected, in which case the "region"
+	 * failover strategy would also restart failed tasks individually.
+	 *     <li>"region-legacy" strategy is not able to backtrack missing input result partitions.
+	 * </ul>
+	 * The new "region" strategy supersedes "individual" and "region-legacy" strategies and should always work.
 	 */
-	@Documentation.ExcludeFromDocumentation("The failover strategy feature is highly experimental.")
 	public static final ConfigOption<String> EXECUTION_FAILOVER_STRATEGY =
 		key("jobmanager.execution.failover-strategy")
 			.defaultValue("full")
@@ -114,9 +123,12 @@ public class JobManagerOptions {
 				.text("This option specifies how the job computation recovers from task failures. " +
 					"Accepted values are:")
 				.list(
-					text("'full': Restarts all tasks."),
-					text("'individual': Restarts only the failed task. Should only be used if all tasks are independent components."),
-					text("'region': Restarts all tasks that could be affected by the task failure.")
+					text("'full': Restarts all tasks to recover the job."),
+					text("'region': Restarts all tasks that could be affected by the task failure. " +
+						"More details can be found %s.",
+						link(
+							"../dev/task_failure_recovery.html#restart-pipelined-region-failover-strategy",
+							"here"))
 				).build());
 
 	/**
@@ -182,11 +194,6 @@ public class JobManagerOptions {
 		key("jobmanager.partition.release-during-job-execution")
 			.defaultValue(true)
 			.withDescription("Controls whether partitions should already be released during the job execution.");
-
-	@Documentation.ExcludeFromDocumentation("dev use only; likely temporary")
-	public static final ConfigOption<Boolean> FORCE_PARTITION_RELEASE_ON_CONSUMPTION =
-			key("jobmanager.scheduler.partition.force-release-on-consumption")
-			.defaultValue(false);
 
 	// ---------------------------------------------------------------------------------------------
 

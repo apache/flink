@@ -161,9 +161,6 @@ public class ExecutionGraphBuilder {
 		final PartitionReleaseStrategy.Factory partitionReleaseStrategyFactory =
 			PartitionReleaseStrategyFactoryLoader.loadPartitionReleaseStrategyFactory(jobManagerConfig);
 
-		final boolean forcePartitionReleaseOnConsumption =
-			jobManagerConfig.getBoolean(JobManagerOptions.FORCE_PARTITION_RELEASE_ON_CONSUMPTION);
-
 		// create a new execution graph, if none exists so far
 		final ExecutionGraph executionGraph;
 		try {
@@ -182,7 +179,6 @@ public class ExecutionGraphBuilder {
 					allocationTimeout,
 					partitionReleaseStrategyFactory,
 					shuffleMaster,
-					forcePartitionReleaseOnConsumption,
 					partitionTracker,
 					jobGraph.getScheduleMode(),
 					jobGraph.getAllowQueuedScheduling());

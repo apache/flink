@@ -99,14 +99,6 @@ under the License.
 			<scope>provided</scope>
 			<optional>true</optional>
 		</dependency>
-		<!-- A planner dependency won't be necessary once FLIP-32 has been completed. -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-			<optional>true</optional>
-		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -257,6 +249,13 @@ under the License.
 			<artifactId>hadoop-minicluster</artifactId>
 			<version>${hadoop.version}</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<!-- This dependency is no longer shipped with the JDK since Java 9.-->
+					<groupId>jdk.tools</groupId>
+					<artifactId>jdk.tools</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -292,6 +291,25 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
 		</dependency>
@@ -322,30 +340,6 @@ under the License.
 				</dependencies>
 			</dependencyManagement>
 		</profile>
-		<profile>
-			<id>java9</id>
-			<activation>
-				<jdk>9</jdk>
-			</activation>
-
-			<dependencyManagement>
-				<dependencies>
-					<dependency>
-						<groupId>org.apache.hadoop</groupId>
-						<artifactId>hadoop-minicluster</artifactId>
-						<scope>test</scope>
-						<exclusions>
-							<exclusion>
-								<!-- This dependency is not available with java 9.-->
-								<groupId>jdk.tools</groupId>
-								<artifactId>jdk.tools</artifactId>
-							</exclusion>
-						</exclusions>
-					</dependency>
-				</dependencies>
-			</dependencyManagement>
-		</profile>
-
 	</profiles>
 
 </project>

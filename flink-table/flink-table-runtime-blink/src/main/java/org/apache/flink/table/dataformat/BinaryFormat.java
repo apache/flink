@@ -18,7 +18,7 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.table.util.SegmentsUtil;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
 
 /**
  * Binary format that in {@link MemorySegment}s.

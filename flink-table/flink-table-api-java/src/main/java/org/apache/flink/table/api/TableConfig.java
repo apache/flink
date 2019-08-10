@@ -21,13 +21,27 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.util.Preconditions;
 
 import java.math.MathContext;
 import java.time.ZoneId;
 
 /**
- * A config to define the runtime behavior of the Table API.
+ * Configuration for the current {@link TableEnvironment} session to adjust Table & SQL API programs.
+ *
+ * <p>For common or important configuration options, this class provides getters and setters methods
+ * with detailed inline documentation.
+ *
+ * <p>For more advanced configuration, users can directly access the underlying key-value map via
+ * {@link #getConfiguration()}. Currently, key-value options are only supported for the Blink planner.
+ *
+ * <p>Note: Because options are read at different point in time when performing operations, it is
+ * recommended to set configuration options early after instantiating a table environment.
+ *
+ * @see ExecutionConfigOptions
+ * @see OptimizerConfigOptions
  */
 @PublicEvolving
 public class TableConfig {
@@ -77,20 +91,41 @@ public class TableConfig {
 	private Configuration configuration = new Configuration();
 
 	/**
-	 * Returns all key/value configuration.
+	 * The SQL dialect defines how to parse a SQL query. A different SQL dialect may support different
+	 * SQL grammar.
+	 */
+	private SqlDialect sqlDialect = SqlDialect.DEFAULT;
+
+	/**
+	 * Gives direct access to the underlying key-value map for advanced configuration.
 	 */
 	public Configuration getConfiguration() {
 		return configuration;
 	}
 
 	/**
-	 * Adds the given key/value configuration.
+	 * Adds the given key-value configuration to the underlying configuration. It overwrites
+	 * existing keys.
 	 *
-	 * @param configuration key/value configuration to adds
+	 * @param configuration key-value configuration to be added
 	 */
 	public void addConfiguration(Configuration configuration) {
 		Preconditions.checkNotNull(configuration);
 		this.configuration.addAll(configuration);
+	}
+
+	/**
+	 * Returns the current SQL dialect.
+	 */
+	public SqlDialect getSqlDialect() {
+		return this.sqlDialect;
+	}
+
+	/**
+	 * Sets the current SQL dialect to parse a SQL query. Flink's SQL behavior by default.
+	 */
+	public void setSqlDialect(SqlDialect sqlDialect) {
+		this.sqlDialect = sqlDialect;
 	}
 
 	/**

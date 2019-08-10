@@ -22,13 +22,13 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
+import org.apache.flink.table.runtime.typeutils.BaseMapSerializer;
+import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.table.typeutils.BaseArraySerializer;
-import org.apache.flink.table.typeutils.BaseMapSerializer;
-import org.apache.flink.table.typeutils.BaseRowSerializer;
-import org.apache.flink.table.util.SegmentsUtil;
 
 import org.junit.Assert;
 import org.junit.Test;

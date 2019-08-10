@@ -36,8 +36,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.net.URL;
-import java.net.URLClassLoader;
 
 import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isCompatibleAsIs;
 import static org.apache.flink.api.common.typeutils.TypeSerializerMatchers.isCompatibleWithReconfiguredSerializer;
@@ -129,12 +127,13 @@ public class KryoSerializerSnapshotTest {
 	private static byte[] unLoadableSnapshotBytes() throws IOException {
 		final ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
 
-		ClassLoader tempClassLoader =
-			new URLClassLoader(new URL[0], KryoSerializerSnapshotTest.class.getClassLoader());
-		try {
-			Thread.currentThread().setContextClassLoader(tempClassLoader);
+		final CommonTestUtils.ObjectAndClassLoader outsideClassLoading = CommonTestUtils.createObjectFromNewClassLoader();
 
-			ExecutionConfig conf = registerClassThatIsNotInClassPath(tempClassLoader);
+		try {
+			Thread.currentThread().setContextClassLoader(outsideClassLoading.getClassLoader());
+
+			ExecutionConfig conf = new ExecutionConfig();
+			conf.registerKryoType(outsideClassLoading.getObject().getClass());
 
 			KryoSerializer<Animal> previousSerializer = new KryoSerializer<>(Animal.class, conf);
 			TypeSerializerSnapshot<Animal> previousSnapshot = previousSerializer.snapshotConfiguration();
@@ -146,15 +145,6 @@ public class KryoSerializerSnapshotTest {
 		finally {
 			Thread.currentThread().setContextClassLoader(originalClassLoader);
 		}
-	}
-
-	private static ExecutionConfig registerClassThatIsNotInClassPath(ClassLoader tempClassLoader) {
-		Object objectForClassNotInClassPath =
-			CommonTestUtils.createObjectForClassNotInClassPath(tempClassLoader);
-
-		ExecutionConfig conf = new ExecutionConfig();
-		conf.registerKryoType(objectForClassNotInClassPath.getClass());
-		return conf;
 	}
 
 	private static TypeSerializerSchemaCompatibility<Animal> resolveKryoCompatibility(ExecutionConfig previous, ExecutionConfig current) {

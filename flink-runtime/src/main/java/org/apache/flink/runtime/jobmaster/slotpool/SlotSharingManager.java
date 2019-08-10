@@ -51,6 +51,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -180,14 +181,22 @@ public class SlotSharingManager {
 	}
 
 	@Nonnull
-	public Collection<SlotInfo> listResolvedRootSlotInfo(@Nullable AbstractID groupId) {
+	public Collection<SlotSelectionStrategy.SlotInfoAndResources> listResolvedRootSlotInfo(@Nullable AbstractID groupId) {
 		return resolvedRootSlots
 			.values()
 			.stream()
-			.flatMap((Map<AllocationID, MultiTaskSlot> map) -> map.values().stream())
-			.filter((MultiTaskSlot multiTaskSlot) -> !multiTaskSlot.contains(groupId))
-			.map((MultiTaskSlot multiTaskSlot) -> (SlotInfo) multiTaskSlot.getSlotContextFuture().join())
-			.collect(Collectors.toList());
+				.flatMap((Map<AllocationID, MultiTaskSlot> map) -> map.values().stream())
+				.filter(validMultiTaskSlotAndDoesNotContain(groupId))
+				.map((MultiTaskSlot multiTaskSlot) -> {
+					SlotInfo slotInfo = multiTaskSlot.getSlotContextFuture().join();
+					return new SlotSelectionStrategy.SlotInfoAndResources(
+							slotInfo,
+							slotInfo.getResourceProfile().subtract(multiTaskSlot.getReservedResources()));
+				}).collect(Collectors.toList());
+	}
+
+	private Predicate<MultiTaskSlot> validMultiTaskSlotAndDoesNotContain(@Nullable AbstractID groupId) {
+		return (MultiTaskSlot multiTaskSlot) -> !multiTaskSlot.contains(groupId) && !multiTaskSlot.isReleasing();
 	}
 
 	@Nullable
@@ -205,13 +214,10 @@ public class SlotSharingManager {
 	 */
 	@Nullable
 	MultiTaskSlot getUnresolvedRootSlot(AbstractID groupId) {
-		for (MultiTaskSlot multiTaskSlot : unresolvedRootSlots.values()) {
-			if (!multiTaskSlot.contains(groupId)) {
-				return multiTaskSlot;
-			}
-		}
-
-		return null;
+		return unresolvedRootSlots.values().stream()
+			.filter(validMultiTaskSlotAndDoesNotContain(groupId))
+			.findFirst()
+			.orElse(null);
 	}
 
 	@Override
@@ -621,6 +627,10 @@ public class SlotSharingManager {
 						"The allocated slot does not have enough resource for all the tasks.", true));
 				}
 			}
+		}
+
+		boolean isReleasing() {
+			return releasingChildren;
 		}
 
 		@Override

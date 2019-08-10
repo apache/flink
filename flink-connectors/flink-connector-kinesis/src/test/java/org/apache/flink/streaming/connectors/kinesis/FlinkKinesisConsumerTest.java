@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.PojoSerializer;
@@ -52,9 +53,11 @@ import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisShardIdGen
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestUtils;
 import org.apache.flink.streaming.connectors.kinesis.testutils.TestableFlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
+import org.apache.flink.streaming.connectors.kinesis.util.RecordEmitter;
 import org.apache.flink.streaming.connectors.kinesis.util.WatermarkTracker;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.CollectingSourceContext;
+import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -72,7 +75,9 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -99,7 +104,7 @@ import static org.mockito.Mockito.when;
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({FlinkKinesisConsumer.class, KinesisConfigUtil.class})
-public class FlinkKinesisConsumerTest {
+public class FlinkKinesisConsumerTest extends TestLogger {
 
 	@Rule
 	private ExpectedException exception = ExpectedException.none();
@@ -531,8 +536,8 @@ public class FlinkKinesisConsumerTest {
 	}
 
 	/**
-	 * FLINK-8484: ensure that a state change in the StreamShardMetadata other than {@link StreamShardMetadata#shardId} or
-	 * {@link StreamShardMetadata#streamName} does not result in the shard not being able to be restored.
+	 * FLINK-8484: ensure that a state change in the StreamShardMetadata other than {@link StreamShardMetadata#getShardId()} or
+	 * {@link StreamShardMetadata#getStreamName()} does not result in the shard not being able to be restored.
 	 * This handles the corner case where the stored shard metadata is open (no ending sequence number), but after the
 	 * job restore, the shard has been closed (ending number set) due to re-sharding, and we can no longer rely on
 	 * {@link StreamShardMetadata#equals(Object)} to find back the sequence number in the collection of restored shard metadata.
@@ -833,6 +838,7 @@ public class FlinkKinesisConsumerTest {
 		final long autoWatermarkInterval = 1_000;
 		final long watermarkSyncInterval = autoWatermarkInterval + 1;
 
+		TestWatermarkTracker.WATERMARK.set(0);
 		HashMap<String, String> subscribedStreamsToLastDiscoveredShardIds = new HashMap<>();
 		subscribedStreamsToLastDiscoveredShardIds.put(streamName, null);
 
@@ -846,10 +852,9 @@ public class FlinkKinesisConsumerTest {
 		props.setProperty(ConsumerConfigConstants.WATERMARK_LOOKAHEAD_MILLIS, Long.toString(5));
 
 		BlockingQueue<String> shard1 = new LinkedBlockingQueue();
-		BlockingQueue<String> shard2 = new LinkedBlockingQueue();
 
 		Map<String, List<BlockingQueue<String>>> streamToQueueMap = new HashMap<>();
-		streamToQueueMap.put(streamName, Lists.newArrayList(shard1, shard2));
+		streamToQueueMap.put(streamName, Collections.singletonList(shard1));
 
 		// override createFetcher to mock Kinesis
 		FlinkKinesisConsumer<String> sourceFunc =
@@ -878,7 +883,16 @@ public class FlinkKinesisConsumerTest {
 							subscribedStreamsToLastDiscoveredShardIds,
 							(props) -> FakeKinesisBehavioursFactory.blockingQueueGetRecords(
 								streamToQueueMap)
-						) {};
+						) {
+							@Override
+							protected void emitWatermark() {
+								// necessary in this test to ensure that watermark state is updated
+								// before the watermark timer callback is triggered
+								synchronized (sourceContext.getCheckpointLock()) {
+									super.emitWatermark();
+								}
+							}
+						};
 					return fetcher;
 				}
 			};
@@ -952,27 +966,33 @@ public class FlinkKinesisConsumerTest {
 
 		// trigger sync
 		testHarness.setProcessingTime(testHarness.getProcessingTime() + 1);
-		TestWatermarkTracker.assertSingleWatermark(-4);
+		TestWatermarkTracker.assertGlobalWatermark(-4);
 
 		final long record2 = record1 + (watermarkSyncInterval * 3) + 1;
 		shard1.put(Long.toString(record2));
 
-		// TODO: check for record received instead
-		Thread.sleep(100);
+		// wait for the record to be buffered in the emitter
+		final RecordEmitter<?> emitter = org.powermock.reflect.Whitebox.getInternalState(fetcher, "recordEmitter");
+		RecordEmitter.RecordQueue emitterQueue = emitter.getQueue(0);
+		Deadline deadline = Deadline.fromNow(Duration.ofSeconds(10));
+		while (deadline.hasTimeLeft() && emitterQueue.getSize() < 1) {
+			Thread.sleep(10);
+		}
+		assertEquals("first record received", 1, emitterQueue.getSize());
 
 		// Advance the watermark. Since the new record is past global watermark + threshold,
 		// it won't be emitted and the watermark does not advance
 		testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
 		assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
 		assertEquals(3000L, (long) org.powermock.reflect.Whitebox.getInternalState(fetcher, "nextWatermark"));
-		TestWatermarkTracker.assertSingleWatermark(-4);
+		TestWatermarkTracker.assertGlobalWatermark(-4);
 
 		// Trigger global watermark sync
 		testHarness.setProcessingTime(testHarness.getProcessingTime() + 1);
 		expectedResults.add(Long.toString(record2));
 		awaitRecordCount(results, expectedResults.size());
 		assertThat(results, org.hamcrest.Matchers.contains(expectedResults.toArray()));
-		TestWatermarkTracker.assertSingleWatermark(3000);
+		TestWatermarkTracker.assertGlobalWatermark(3000);
 
 		// Trigger watermark update and emit
 		testHarness.setProcessingTime(testHarness.getProcessingTime() + autoWatermarkInterval);
@@ -984,8 +1004,8 @@ public class FlinkKinesisConsumerTest {
 	}
 
 	private void awaitRecordCount(ConcurrentLinkedQueue<? extends Object> queue, int count) throws Exception {
-		long timeoutMillis = System.currentTimeMillis() + 10_000;
-		while (System.currentTimeMillis() < timeoutMillis && queue.size() < count) {
+		Deadline deadline  = Deadline.fromNow(Duration.ofSeconds(10));
+		while (deadline.hasTimeLeft() && queue.size() < count) {
 			Thread.sleep(10);
 		}
 	}
@@ -1018,7 +1038,7 @@ public class FlinkKinesisConsumerTest {
 			return localWatermark;
 		}
 
-		static void assertSingleWatermark(long expected) {
+		static void assertGlobalWatermark(long expected) {
 			Assert.assertEquals(expected, WATERMARK.get());
 		}
 	}

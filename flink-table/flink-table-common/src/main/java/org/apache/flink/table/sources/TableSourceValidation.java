@@ -269,8 +269,10 @@ public class TableSourceValidation {
 			lookupFieldType(
 				producedDataType,
 				fieldName,
-				String.format("Table field '%s' was not found in the return type $returnType of the " +
-					"TableSource.", fieldName)));
+				String.format(
+					"Table field '%s' was not found in the return type %s of the TableSource.",
+					fieldName,
+					producedDataType)));
 	}
 
 	/** Look up a field by name in a {@link DataType}. */

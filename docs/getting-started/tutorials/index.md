@@ -3,7 +3,7 @@ title: "Tutorials"
 nav-id: tutorials
 nav-title: '<i class="fa fa-power-off title appetizer" aria-hidden="true"></i> Tutorials'
 nav-parent_id: getting-started
-nav-pos: 1
+nav-pos: 2
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

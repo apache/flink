@@ -336,7 +336,7 @@ under the License.
 									<include>commons-codec:commons-codec</include>
 
 									<!-- flink-table-planner-blink dependencies -->
-									<include>org.apache.flink.sql.parser:*</include>
+									<include>org.apache.flink:flink-sql-parser</include>
 
 									<!-- flink-table-runtime-blink dependencies -->
 									<include>org.codehaus.janino:*</include>
@@ -387,6 +387,39 @@ under the License.
 				<configuration>
 					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
 				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>integration-tests</id>
+						<phase>integration-test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/*ITCase.*</include>
+							</includes>
+							<!-- override reuseForks to true to reduce testing time -->
+							<reuseForks>true</reuseForks>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

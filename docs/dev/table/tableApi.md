@@ -1336,7 +1336,16 @@ full_outer_result = left.full_outer_join(right, "a = d").select("a, b, e")
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
-        <p>Currently not supported in python API.</p>
+        <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. A row of the left (outer) table is dropped, if its table function call returns an empty result.
+        </p>
+{% highlight python %}
+# register Java User-Defined Table Function
+table_env.register_java_function("split", "com.my.udf.MySplitUDTF")
+
+# join
+orders = table_env.scan("Orders")
+result = orders.join_lateral("split(c).as(s, t, v)").select("a, b, s, t, v")
+{% endhighlight %}
       </td>
     </tr>
     <tr>
@@ -1345,7 +1354,16 @@ full_outer_result = left.full_outer_join(right, "a = d").select("a, b, e")
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Currently not supported in python API.</p>
+        <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.</p>
+        <p><b>Note:</b> Currently, the predicate of a table function left outer join can only be empty or literal <code>true</code>.</p>
+{% highlight python %}
+# register Java User-Defined Table Function
+table_env.register_java_function("split", "com.my.udf.MySplitUDTF")
+
+# join
+orders = table_env.scan("Orders")
+result = orders.left_outer_join_lateral("split(c).as(s, t, v)").select("a, b, s, t, v")
+{% endhighlight %}
       </td>
     </tr>
     <tr>
@@ -2988,29 +3006,7 @@ val result = orders
 Data Types
 ----------
 
-The Table API is built on top of Flink's DataSet and DataStream APIs. Internally, it also uses Flink's `TypeInformation` to define data types. Fully supported types are listed in `org.apache.flink.table.api.Types`. The following table summarizes the relation between Table API types, SQL types, and the resulting Java class.
-
-| Table API              | SQL                         | Java type              |
-| :--------------------- | :-------------------------- | :--------------------- |
-| `Types.STRING`         | `VARCHAR`                   | `java.lang.String`     |
-| `Types.BOOLEAN`        | `BOOLEAN`                   | `java.lang.Boolean`    |
-| `Types.BYTE`           | `TINYINT`                   | `java.lang.Byte`       |
-| `Types.SHORT`          | `SMALLINT`                  | `java.lang.Short`      |
-| `Types.INT`            | `INTEGER, INT`              | `java.lang.Integer`    |
-| `Types.LONG`           | `BIGINT`                    | `java.lang.Long`       |
-| `Types.FLOAT`          | `REAL, FLOAT`               | `java.lang.Float`      |
-| `Types.DOUBLE`         | `DOUBLE`                    | `java.lang.Double`     |
-| `Types.DECIMAL`        | `DECIMAL`                   | `java.math.BigDecimal` |
-| `Types.SQL_DATE`       | `DATE`                      | `java.sql.Date`        |
-| `Types.SQL_TIME`       | `TIME`                      | `java.sql.Time`        |
-| `Types.SQL_TIMESTAMP`  | `TIMESTAMP(3)`              | `java.sql.Timestamp`   |
-| `Types.INTERVAL_MONTHS`| `INTERVAL YEAR TO MONTH`    | `java.lang.Integer`    |
-| `Types.INTERVAL_MILLIS`| `INTERVAL DAY TO SECOND(3)` | `java.lang.Long`       |
-| `Types.PRIMITIVE_ARRAY`| `ARRAY`                     | e.g. `int[]`           |
-| `Types.OBJECT_ARRAY`   | `ARRAY`                     | e.g. `java.lang.Byte[]`|
-| `Types.MAP`            | `MAP`                       | `java.util.HashMap`    |
-| `Types.MULTISET`       | `MULTISET`                  | e.g. `java.util.HashMap<String, Integer>` for a multiset of `String` |
-| `Types.ROW`            | `ROW`                       | `org.apache.flink.types.Row` |
+Please see the dedicated page about [data types](types.html).
 
 Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
 

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
@@ -553,6 +554,45 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * SlotPool#failAllocation should not fail with a {@link java.util.ConcurrentModificationException}
+	 * if there is a concurrent scheduling operation. See FLINK-13421.
+	 */
+	@Test
+	public void slotPoolExecutionGraph_ConcurrentSchedulingAndAllocationFailure_ShouldNotFailWithConcurrentModificationException() throws Exception {
+		final SlotSharingGroup group = new SlotSharingGroup();
+		final JobVertex vertex1 = createNoOpVertex("vertex1", 1);
+		vertex1.setSlotSharingGroup(group);
+		final JobVertex vertex2 = createNoOpVertex("vertex2", 3);
+		vertex2.setSlotSharingGroup(group);
+		final JobVertex vertex3 = createNoOpVertex("vertex3", 1);
+		vertex3.setSlotSharingGroup(group);
+		vertex3.connectNewDataSetAsInput(vertex2, DistributionPattern.ALL_TO_ALL, ResultPartitionType.PIPELINED);
+
+		try (SlotPool slotPool = createSlotPoolImpl()) {
+			final SlotProvider slots = createSchedulerWithSlots(2, slotPool, new LocalTaskManagerLocation());
+
+			final AllocationID allocationId = slotPool.getAvailableSlotsInformation().iterator().next().getAllocationId();
+
+			final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(TEST_JOB_ID, vertex1, vertex2, vertex3)
+				.setSlotProvider(slots)
+				.setAllocationTimeout(Time.minutes(60))
+				.setScheduleMode(ScheduleMode.EAGER)
+				.setAllowQueuedScheduling(true)
+				.build();
+
+			eg.start(mainThreadExecutor);
+
+			eg.scheduleForExecution();
+
+			slotPool.failAllocation(
+				allocationId,
+				new Exception("test exception"));
+
+			eg.waitUntilTerminal();
+		}
+	}
+
 	@Test
 	public void testRestartWithEagerSchedulingAndSlotSharing() throws Exception {
 		// this test is inconclusive if not used with a proper multi-threaded executor
@@ -691,6 +731,47 @@ public class ExecutionGraphRestartTest extends TestLogger {
 		restartStrategy.triggerAll().join();
 
 		assertEquals(JobStatus.RUNNING, executionGraph.getState());
+	}
+
+	@Test
+	public void failGlobalIfExecutionIsStillRunning_failingAnExecutionTwice_ShouldTriggerOnlyOneFailover() throws Exception {
+		JobVertex sender = ExecutionGraphTestUtils.createJobVertex("Task1", 1, NoOpInvokable.class);
+		JobVertex receiver = ExecutionGraphTestUtils.createJobVertex("Task2", 1, NoOpInvokable.class);
+		JobGraph jobGraph = new JobGraph("Pointwise job", sender, receiver);
+
+		try (SlotPool slotPool = createSlotPoolImpl()) {
+			ExecutionGraph eg = TestingExecutionGraphBuilder.newBuilder()
+				.setRestartStrategy(new TestRestartStrategy(1, false))
+				.setJobGraph(jobGraph)
+				.setNumberOfTasks(2)
+				.buildAndScheduleForExecution(slotPool);
+
+			Iterator<ExecutionVertex> executionVertices = eg.getAllExecutionVertices().iterator();
+
+			Execution finishedExecution = executionVertices.next().getCurrentExecutionAttempt();
+			Execution failedExecution = executionVertices.next().getCurrentExecutionAttempt();
+
+			finishedExecution.markFinished();
+
+			failedExecution.fail(new Exception("Test Exception"));
+			failedExecution.completeCancelling();
+
+			assertEquals(JobStatus.RUNNING, eg.getState());
+
+			// At this point all resources have been assigned
+			for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
+				assertNotNull("No assigned resource (test instability).", vertex.getCurrentAssignedResource());
+				vertex.getCurrentExecutionAttempt().switchToRunning();
+			}
+
+			// fail global with old finished execution, this should not affect the execution
+			eg.failGlobalIfExecutionIsStillRunning(new Exception("This should have no effect"), finishedExecution.getAttemptId());
+
+			assertThat(eg.getState(), is(JobStatus.RUNNING));
+
+			// the state of the finished execution should have not changed since it is terminal
+			assertThat(finishedExecution.getState(), is(ExecutionState.FINISHED));
+		}
 	}
 
 	// ------------------------------------------------------------------------

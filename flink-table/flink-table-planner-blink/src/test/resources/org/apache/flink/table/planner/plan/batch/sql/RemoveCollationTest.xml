@@ -1,0 +1,708 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testRemoveCollation_Aggregate">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
+SELECT sum(b) FROM r group by a
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalFilter(condition=[AND(=($0, $3), LIKE($2, _UTF-16LE'He%'))])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- SortAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$0])
+   +- Calc(select=[a, b])
+      +- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d])
+         :- Exchange(distribution=[hash[a]])
+         :  +- Calc(select=[a, b], where=[LIKE(c, _UTF-16LE'He%')])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- Exchange(distribution=[hash[d]])
+            +- Calc(select=[d])
+               +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_Aggregate_1">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
+SELECT sum(b) FROM r group by d
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(d=[$3], b=[$1])
+      +- LogicalFilter(condition=[AND(=($0, $3), LIKE($2, _UTF-16LE'He%'))])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- SortAggregate(isMerge=[false], groupBy=[d], select=[d, SUM(b) AS EXPR$0])
+   +- Calc(select=[d, b])
+      +- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d])
+         :- Exchange(distribution=[hash[a]])
+         :  +- Calc(select=[a, b], where=[LIKE(c, _UTF-16LE'He%')])
+         :     +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+         +- Exchange(distribution=[hash[d]])
+            +- Calc(select=[d])
+               +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_Aggregate_3">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT * FROM x ORDER BY a, b)
+SELECT a, b, COUNT(c) AS cnt FROM r GROUP BY a, b
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_COUNT(count$0) AS cnt])
++- Sort(orderBy=[a ASC, b ASC])
+   +- Exchange(distribution=[hash[a, b]])
+      +- LocalSortAggregate(groupBy=[a, b], select=[a, b, Partial_COUNT(c) AS count$0])
+         +- Sort(orderBy=[a ASC, b ASC])
+            +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_Correlate1">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),
+     v as (SELECT f1, f, cnt FROM r, LATERAL TABLE(split(f)) AS T(f1))
+SELECT * FROM x, v WHERE c = f
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], f1=[$3], f=[$4], cnt=[$5])
++- LogicalFilter(condition=[=($2, $4)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalProject(f1=[$2], f=[$0], cnt=[$1])
+         +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+            :- LogicalAggregate(group=[{0}], cnt=[COUNT($0)])
+            :  +- LogicalProject(f=[$2])
+            :     +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+            +- LogicalTableFunctionScan(invocation=[split($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortMergeJoin(joinType=[InnerJoin], where=[=(c, f)], select=[a, b, c, f1, f, cnt], rightSorted=[true])
+:- Exchange(distribution=[hash[c]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Calc(select=[f0 AS f1, f, cnt])
+   +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(2147483647) f, BIGINT cnt, VARCHAR(2147483647) f0)], joinType=[INNER])
+      +- SortAggregate(isMerge=[true], groupBy=[f], select=[f, Final_COUNT(count$0) AS cnt])
+         +- Sort(orderBy=[f ASC])
+            +- Exchange(distribution=[hash[f]])
+               +- LocalSortAggregate(groupBy=[f], select=[f, Partial_COUNT(f) AS count$0])
+                  +- Sort(orderBy=[f ASC])
+                     +- Calc(select=[f])
+                        +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_Correlate2">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),
+     v as (SELECT f, f1 FROM r, LATERAL TABLE(split(f)) AS T(f1))
+SELECT * FROM x, v WHERE c = f AND f LIKE '%llo%'
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], f=[$3], f1=[$4])
++- LogicalFilter(condition=[AND(=($2, $3), LIKE($3, _UTF-16LE'%llo%'))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalProject(f=[$0], f1=[$2])
+         +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+            :- LogicalAggregate(group=[{0}], cnt=[COUNT($0)])
+            :  +- LogicalProject(f=[$2])
+            :     +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+            +- LogicalTableFunctionScan(invocation=[split($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortMergeJoin(joinType=[InnerJoin], where=[=(c, f)], select=[a, b, c, f, f1], rightSorted=[true])
+:- Exchange(distribution=[hash[c]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Calc(select=[f, f0 AS f1])
+   +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(2147483647) f, BIGINT cnt, VARCHAR(2147483647) f0)], joinType=[INNER])
+      +- SortAggregate(isMerge=[true], groupBy=[f], select=[f, Final_COUNT(count$0) AS cnt])
+         +- Sort(orderBy=[f ASC])
+            +- Exchange(distribution=[hash[f]])
+               +- LocalSortAggregate(groupBy=[f], select=[f, Partial_COUNT(f) AS count$0])
+                  +- Sort(orderBy=[f ASC])
+                     +- Calc(select=[f], where=[LIKE(f, _UTF-16LE'%llo%')])
+                        +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_Correlate3">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT f, count(f) as cnt FROM y GROUP BY f),
+     v as (SELECT f1 FROM r, LATERAL TABLE(split(f)) AS T(f1))
+SELECT * FROM x, v WHERE c = f1
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], f1=[$3])
++- LogicalFilter(condition=[=($2, $3)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+      +- LogicalProject(f1=[$2])
+         +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+            :- LogicalAggregate(group=[{0}], cnt=[COUNT($0)])
+            :  +- LogicalProject(f=[$2])
+            :     +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+            +- LogicalTableFunctionScan(invocation=[split($cor0.f)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortMergeJoin(joinType=[InnerJoin], where=[=(c, f1)], select=[a, b, c, f1])
+:- Exchange(distribution=[hash[c]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
++- Exchange(distribution=[hash[f1]])
+   +- Calc(select=[f0 AS f1])
+      +- Correlate(invocation=[split($cor0.f)], correlate=[table(split($cor0.f))], select=[f,cnt,f0], rowType=[RecordType(VARCHAR(2147483647) f, BIGINT cnt, VARCHAR(2147483647) f0)], joinType=[INNER])
+         +- SortAggregate(isMerge=[true], groupBy=[f], select=[f, Final_COUNT(count$0) AS cnt])
+            +- Sort(orderBy=[f ASC])
+               +- Exchange(distribution=[hash[f]])
+                  +- LocalSortAggregate(groupBy=[f], select=[f, Partial_COUNT(f) AS count$0])
+                     +- Sort(orderBy=[f ASC])
+                        +- Calc(select=[f])
+                           +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_MultipleSortMergeJoins1">
+    <Resource name="sql">
+      <![CDATA[
+select * from
+   x join y on a = d
+   join t1 on a = a1
+   left outer join t2 on a = d1
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a1=[$6], b1=[$7], c1=[$8], d1=[$9], e1=[$10], f1=[$11])
++- LogicalJoin(condition=[=($0, $9)], joinType=[left])
+   :- LogicalJoin(condition=[=($0, $6)], joinType=[inner])
+   :  :- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+   :  :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortMergeJoin(joinType=[LeftOuterJoin], where=[=(a, d1)], select=[a, b, c, d, e, f, a1, b1, c1, d1, e1, f1], leftSorted=[true])
+:- SortMergeJoin(joinType=[InnerJoin], where=[=(a, a1)], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])
+:  :- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
+:  :  :- Exchange(distribution=[hash[a]])
+:  :  :  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  :  +- Exchange(distribution=[hash[d]])
+:  :     +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:  +- Exchange(distribution=[hash[a1]])
+:     +- TableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
++- Exchange(distribution=[hash[d1]])
+   +- TableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_MultipleSortMergeJoins2">
+    <Resource name="sql">
+      <![CDATA[
+select * from
+   x join y on a = d
+   join t1 on d = a1
+   left outer join t2 on a1 = d1
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a1=[$6], b1=[$7], c1=[$8], d1=[$9], e1=[$10], f1=[$11])
++- LogicalJoin(condition=[=($6, $9)], joinType=[left])
+   :- LogicalJoin(condition=[=($3, $6)], joinType=[inner])
+   :  :- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+   :  :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortMergeJoin(joinType=[LeftOuterJoin], where=[=(a1, d1)], select=[a, b, c, d, e, f, a1, b1, c1, d1, e1, f1], leftSorted=[true])
+:- SortMergeJoin(joinType=[InnerJoin], where=[=(d, a1)], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])
+:  :- SortMergeJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, c, d, e, f])
+:  :  :- Exchange(distribution=[hash[a]])
+:  :  :  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  :  +- Exchange(distribution=[hash[d]])
+:  :     +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:  +- Exchange(distribution=[hash[a1]])
+:     +- TableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
++- Exchange(distribution=[hash[d1]])
+   +- TableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_MultipleSortMergeJoins3">
+    <Resource name="sql">
+      <![CDATA[
+with v1 as (
+ select id, tb2_id from tb1, LATERAL TABLE(split(tb2_ids)) AS T(tb2_id)
+),
+v2 as (
+ select id, tb3_id from tb1, LATERAL TABLE(split(tb3_ids)) AS T(tb3_id)
+),
+
+join_tb2 as (
+ select tb1_id, LISTAGG(tb2_name, ',') as tb2_names
+ from (
+  select v1.id as tb1_id, tb2.name as tb2_name
+   from v1 left outer join tb2 on tb2_id = tb2.id
+ ) group by tb1_id
+),
+
+join_tb3 as (
+ select tb1_id, LISTAGG(tb3_name, ',') as tb3_names
+ from (
+  select v2.id as tb1_id, tb3.name as tb3_name
+   from v2 left outer join tb3 on tb3_id = tb3.id
+ ) group by tb1_id
+)
+
+select
+   tb1.id,
+   tb1.tb2_ids,
+   tb1.tb3_ids,
+   tb1.name,
+   tb2_names,
+   tb3_names,
+   tb4.name,
+   tb5.name
+ from tb1
+   left outer join join_tb2 on tb1.id = join_tb2.tb1_id
+   left outer join join_tb3 on tb1.id = join_tb3.tb1_id
+   left outer join tb4 on tb1.key = tb4.id
+   left outer join tb5 on tb1.key = tb5.id
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(id=[$0], tb2_ids=[$2], tb3_ids=[$3], name=[$4], tb2_names=[$6], tb3_names=[$8], name0=[$10], name1=[$12])
++- LogicalJoin(condition=[=($1, $11)], joinType=[left])
+   :- LogicalJoin(condition=[=($1, $9)], joinType=[left])
+   :  :- LogicalJoin(condition=[=($0, $7)], joinType=[left])
+   :  :  :- LogicalJoin(condition=[=($0, $5)], joinType=[left])
+   :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]])
+   :  :  :  +- LogicalAggregate(group=[{0}], tb2_names=[LISTAGG($1, $2)])
+   :  :  :     +- LogicalProject(tb1_id=[$0], tb2_name=[$3], $f2=[_UTF-16LE','])
+   :  :  :        +- LogicalJoin(condition=[=($1, $2)], joinType=[left])
+   :  :  :           :- LogicalProject(id=[$0], tb2_id=[$5])
+   :  :  :           :  +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :  :  :           :     :- LogicalTableScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]])
+   :  :  :           :     +- LogicalTableFunctionScan(invocation=[split($cor0.tb2_ids)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+   :  :  :           +- LogicalTableScan(table=[[default_catalog, default_database, tb2, source: [TestTableSource(id, name)]]])
+   :  :  +- LogicalAggregate(group=[{0}], tb3_names=[LISTAGG($1, $2)])
+   :  :     +- LogicalProject(tb1_id=[$0], tb3_name=[$3], $f2=[_UTF-16LE','])
+   :  :        +- LogicalJoin(condition=[=($1, $2)], joinType=[left])
+   :  :           :- LogicalProject(id=[$0], tb3_id=[$5])
+   :  :           :  +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{3}])
+   :  :           :     :- LogicalTableScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]])
+   :  :           :     +- LogicalTableFunctionScan(invocation=[split($cor1.tb3_ids)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
+   :  :           +- LogicalTableScan(table=[[default_catalog, default_database, tb3, source: [TestTableSource(id, name)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, tb4, source: [TestTableSource(id, name)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, tb5, source: [TestTableSource(id, name)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[id, tb2_ids, tb3_ids, name, tb2_names, tb3_names, name0, name1])
++- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(key, id0)], select=[id, key, tb2_ids, tb3_ids, name, tb2_names, tb3_names, name0, id0, name1], leftSorted=[true])
+   :- Calc(select=[id, key, tb2_ids, tb3_ids, name, tb2_names, tb3_names, name0])
+   :  +- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(key, id0)], select=[id, key, tb2_ids, tb3_ids, name, tb2_names, tb3_names, id0, name0])
+   :     :- Exchange(distribution=[hash[key]])
+   :     :  +- Calc(select=[id, key, tb2_ids, tb3_ids, name, tb2_names, tb3_names])
+   :     :     +- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(id, tb1_id)], select=[id, key, tb2_ids, tb3_ids, name, tb2_names, tb1_id, tb3_names], leftSorted=[true], rightSorted=[true])
+   :     :        :- Calc(select=[id, key, tb2_ids, tb3_ids, name, tb2_names])
+   :     :        :  +- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(id, tb1_id)], select=[id, key, tb2_ids, tb3_ids, name, tb1_id, tb2_names], rightSorted=[true])
+   :     :        :     :- Exchange(distribution=[hash[id]])
+   :     :        :     :  +- TableSourceScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]], fields=[id, key, tb2_ids, tb3_ids, name], reuse_id=[1])
+   :     :        :     +- SortAggregate(isMerge=[true], groupBy=[tb1_id], select=[tb1_id, Final_LISTAGG(accDelimiter$0, concatAcc$1) AS tb2_names])
+   :     :        :        +- Sort(orderBy=[tb1_id ASC])
+   :     :        :           +- Exchange(distribution=[hash[tb1_id]])
+   :     :        :              +- LocalSortAggregate(groupBy=[tb1_id], select=[tb1_id, Partial_LISTAGG(tb2_name, $f2) AS (accDelimiter$0, concatAcc$1)])
+   :     :        :                 +- Sort(orderBy=[tb1_id ASC])
+   :     :        :                    +- Calc(select=[id AS tb1_id, name AS tb2_name, _UTF-16LE',' AS $f2])
+   :     :        :                       +- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(tb2_id, id0)], select=[id, tb2_id, id0, name])
+   :     :        :                          :- Exchange(distribution=[hash[tb2_id]])
+   :     :        :                          :  +- Calc(select=[id, f0 AS tb2_id])
+   :     :        :                          :     +- Correlate(invocation=[split($cor0.tb2_ids)], correlate=[table(split($cor0.tb2_ids))], select=[id,key,tb2_ids,tb3_ids,name,f0], rowType=[RecordType(VARCHAR(2147483647) id, VARCHAR(2147483647) key, VARCHAR(2147483647) tb2_ids, VARCHAR(2147483647) tb3_ids, VARCHAR(2147483647) name, VARCHAR(2147483647) f0)], joinType=[INNER])
+   :     :        :                          :        +- Reused(reference_id=[1])
+   :     :        :                          +- Exchange(distribution=[hash[id]])
+   :     :        :                             +- TableSourceScan(table=[[default_catalog, default_database, tb2, source: [TestTableSource(id, name)]]], fields=[id, name])
+   :     :        +- SortAggregate(isMerge=[true], groupBy=[tb1_id], select=[tb1_id, Final_LISTAGG(accDelimiter$0, concatAcc$1) AS tb3_names])
+   :     :           +- Sort(orderBy=[tb1_id ASC])
+   :     :              +- Exchange(distribution=[hash[tb1_id]])
+   :     :                 +- LocalSortAggregate(groupBy=[tb1_id], select=[tb1_id, Partial_LISTAGG(tb3_name, $f2) AS (accDelimiter$0, concatAcc$1)])
+   :     :                    +- Sort(orderBy=[tb1_id ASC])
+   :     :                       +- Calc(select=[id AS tb1_id, name AS tb3_name, _UTF-16LE',' AS $f2])
+   :     :                          +- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(tb3_id, id0)], select=[id, tb3_id, id0, name])
+   :     :                             :- Exchange(distribution=[hash[tb3_id]])
+   :     :                             :  +- Calc(select=[id, f0 AS tb3_id])
+   :     :                             :     +- Correlate(invocation=[split($cor1.tb3_ids)], correlate=[table(split($cor1.tb3_ids))], select=[id,key,tb2_ids,tb3_ids,name,f0], rowType=[RecordType(VARCHAR(2147483647) id, VARCHAR(2147483647) key, VARCHAR(2147483647) tb2_ids, VARCHAR(2147483647) tb3_ids, VARCHAR(2147483647) name, VARCHAR(2147483647) f0)], joinType=[INNER])
+   :     :                             :        +- Reused(reference_id=[1])
+   :     :                             +- Exchange(distribution=[hash[id]])
+   :     :                                +- TableSourceScan(table=[[default_catalog, default_database, tb3, source: [TestTableSource(id, name)]]], fields=[id, name])
+   :     +- Exchange(distribution=[hash[id]])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, tb4, source: [TestTableSource(id, name)]]], fields=[id, name])
+   +- Exchange(distribution=[hash[id]])
+      +- TableSourceScan(table=[[default_catalog, default_database, tb5, source: [TestTableSource(id, name)]]], fields=[id, name])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_MultipleSortMergeJoins_MultiJoinKeys1">
+    <Resource name="sql">
+      <![CDATA[
+select * from
+   x join y on a = d and b = e
+   join t1 on a = a1 and b = b1
+   left outer join t2 on a = d1 and b = e1
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a1=[$6], b1=[$7], c1=[$8], d1=[$9], e1=[$10], f1=[$11])
++- LogicalJoin(condition=[AND(=($0, $9), =($1, $10))], joinType=[left])
+   :- LogicalJoin(condition=[AND(=($0, $6), =($1, $7))], joinType=[inner])
+   :  :- LogicalJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[inner])
+   :  :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortMergeJoin(joinType=[LeftOuterJoin], where=[AND(=(a, d1), =(b, e1))], select=[a, b, c, d, e, f, a1, b1, c1, d1, e1, f1], leftSorted=[true])
+:- SortMergeJoin(joinType=[InnerJoin], where=[AND(=(a, a1), =(b, b1))], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])
+:  :- SortMergeJoin(joinType=[InnerJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c, d, e, f])
+:  :  :- Exchange(distribution=[hash[a, b]])
+:  :  :  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  :  +- Exchange(distribution=[hash[d, e]])
+:  :     +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:  +- Exchange(distribution=[hash[a1, b1]])
+:     +- TableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
++- Exchange(distribution=[hash[d1, e1]])
+   +- TableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_MultipleSortMergeJoins_MultiJoinKeys2">
+    <Resource name="sql">
+      <![CDATA[
+select * from
+   x join y on a = d and b = e
+   join t1 on d = a1 and e = b1
+   left outer join t2 on a1 = d1 and b1 = e1
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5], a1=[$6], b1=[$7], c1=[$8], d1=[$9], e1=[$10], f1=[$11])
++- LogicalJoin(condition=[AND(=($6, $9), =($7, $10))], joinType=[left])
+   :- LogicalJoin(condition=[AND(=($3, $6), =($4, $7))], joinType=[inner])
+   :  :- LogicalJoin(condition=[AND(=($0, $3), =($1, $4))], joinType=[inner])
+   :  :  :- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortMergeJoin(joinType=[LeftOuterJoin], where=[AND(=(a1, d1), =(b1, e1))], select=[a, b, c, d, e, f, a1, b1, c1, d1, e1, f1], leftSorted=[true])
+:- SortMergeJoin(joinType=[InnerJoin], where=[AND(=(d, a1), =(e, b1))], select=[a, b, c, d, e, f, a1, b1, c1], leftSorted=[true])
+:  :- SortMergeJoin(joinType=[InnerJoin], where=[AND(=(a, d), =(b, e))], select=[a, b, c, d, e, f])
+:  :  :- Exchange(distribution=[hash[a, b]])
+:  :  :  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+:  :  +- Exchange(distribution=[hash[d, e]])
+:  :     +- TableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+:  +- Exchange(distribution=[hash[a1, b1]])
+:     +- TableSourceScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(a1, b1, c1)]]], fields=[a1, b1, c1])
++- Exchange(distribution=[hash[d1, e1]])
+   +- TableSourceScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(d1, e1, f1)]]], fields=[d1, e1, f1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_OverWindowAgg">
+    <Resource name="sql">
+      <![CDATA[
+ SELECT
+   SUM(b) sum_b,
+   AVG(SUM(b)) OVER (PARTITION BY a order by a) avg_b,
+   RANK() OVER (PARTITION BY a ORDER BY a) rn
+ FROM x
+ GROUP BY a
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(sum_b=[$1], avg_b=[/(CASE(>(COUNT($1) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($1) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:BIGINT), COUNT($1) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW))], rn=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
++- LogicalAggregate(group=[{0}], sum_b=[SUM($1)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Calc(select=[sum_b, /(CASE(>(w0$o0, 0:BIGINT), w0$o1, null:BIGINT), w0$o0) AS avg_b, w0$o2 AS rn])
++- OverAggregate(partitionBy=[a], orderBy=[a ASC], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1, RANK(*) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, sum_b, w0$o0, w0$o1, w0$o2])
+   +- SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS sum_b])
+      +- Sort(orderBy=[a ASC])
+         +- Exchange(distribution=[hash[a]])
+            +- LocalSortAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
+               +- Sort(orderBy=[a ASC])
+                  +- Calc(select=[a, b])
+                     +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_Sort">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT a, b, COUNT(c) AS cnt FROM x GROUP BY a, b)
+SELECT * FROM r ORDER BY a
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalSort(sort0=[$0], dir0=[ASC-nulls-first])
++- LogicalProject(a=[$0], b=[$1], cnt=[$2])
+   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Sort(orderBy=[a ASC])
++- Exchange(distribution=[range[a ASC]])
+   +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_COUNT(count$0) AS cnt])
+      +- Exchange(distribution=[hash[a, b]])
+         +- LocalHashAggregate(groupBy=[a, b], select=[a, b, Partial_COUNT(c) AS count$0])
+            +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_Rank_1">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, SUM(b) FROM (
+ SELECT * FROM (
+   SELECT a, b, RANK() OVER(PARTITION BY a ORDER BY b) rk FROM x)
+ WHERE rk <= 10
+) GROUP BY a
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalFilter(condition=[<=($2, 10)])
+      +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$1])
++- Calc(select=[a, b])
+   +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, c])
+      +- Sort(orderBy=[a ASC, b ASC])
+         +- Exchange(distribution=[hash[a]])
+            +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b, c])
+               +- Sort(orderBy=[a ASC, b ASC])
+                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_Rank_2">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, b, MAX(c) FROM (
+ SELECT * FROM (
+   SELECT a, b, c, RANK() OVER(PARTITION BY a ORDER BY b) rk FROM x)
+ WHERE rk <= 10
+) GROUP BY a, b
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[MAX($2)])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalFilter(condition=[<=($3, 10)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[false], groupBy=[a, b], select=[a, b, MAX(c) AS EXPR$2])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, c])
+   +- Sort(orderBy=[a ASC, b ASC])
+      +- Exchange(distribution=[hash[a]])
+         +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b, c])
+            +- Sort(orderBy=[a ASC, b ASC])
+               +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_Rank_3">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, c, RANK() OVER(PARTITION BY a ORDER BY b) rk FROM (
+   SELECT a, b, c FROM x ORDER BY a, b
+ )
+) WHERE rk <= 10
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], rk=[$3])
++- LogicalFilter(condition=[<=($3, 10)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[true], select=[a, b, c, w0$o0])
++- Sort(orderBy=[a ASC, b ASC])
+   +- Exchange(distribution=[hash[a]])
+      +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b, c])
+         +- Sort(orderBy=[a ASC, b ASC])
+            +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_Rank_4">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, c, RANK() OVER(PARTITION BY a ORDER BY a) rk FROM (
+   SELECT a, COUNT(c) AS c FROM x GROUP BY a
+ )
+) WHERE rk <= 10
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$1], rk=[$2])
++- LogicalFilter(condition=[<=($2, 10)])
+   +- LogicalProject(a=[$0], c=[$1], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+      +- LogicalAggregate(group=[{0}], c=[COUNT($1)])
+         +- LogicalProject(a=[$0], c=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a], orderBy=[a ASC], global=[true], select=[a, c, w0$o0])
++- SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS c])
+   +- Sort(orderBy=[a ASC])
+      +- Exchange(distribution=[hash[a]])
+         +- LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(c) AS count$0])
+            +- Sort(orderBy=[a ASC])
+               +- Calc(select=[a, c])
+                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_Rank_Singleton">
+    <Resource name="sql">
+      <![CDATA[
+SELECT COUNT(a), SUM(b) FROM (
+ SELECT * FROM (
+   SELECT a, b, RANK() OVER(ORDER BY b) rk FROM x)
+ WHERE rk <= 10
+)
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)], EXPR$1=[SUM($1)])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalFilter(condition=[<=($2, 10)])
+      +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (ORDER BY $1 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+SortAggregate(isMerge=[false], select=[COUNT(a) AS EXPR$0, SUM(b) AS EXPR$1])
++- Calc(select=[a, b])
+   +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[true], select=[a, b, c])
+      +- Sort(orderBy=[b ASC])
+         +- Exchange(distribution=[single])
+            +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[], orderBy=[b ASC], global=[false], select=[a, b, c])
+               +- Sort(orderBy=[b ASC])
+                  +- TableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

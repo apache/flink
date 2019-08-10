@@ -42,6 +42,7 @@ under the License.
 		<module>flink-table-planner-blink</module>
 		<module>flink-table-runtime-blink</module>
 		<module>flink-table-uber</module>
+		<module>flink-table-uber-blink</module>
 		<module>flink-sql-client</module>
 		<module>flink-sql-parser</module>
 	</modules>

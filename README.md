@@ -2,7 +2,7 @@
 
 Apache Flink is an open source stream processing framework with powerful stream- and batch-processing capabilities.
 
-Learn more about Flink at [http://flink.apache.org/](http://flink.apache.org/)
+Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
 
 
 ### Features
@@ -114,14 +114,14 @@ due to version incompatibilities with the bundled Scala version in Scala IDE 4.4
 
 Don’t hesitate to ask!
 
-Contact the developers and community on the [mailing lists](http://flink.apache.org/community.html#mailing-lists) if you need any help.
+Contact the developers and community on the [mailing lists](https://flink.apache.org/community.html#mailing-lists) if you need any help.
 
 [Open an issue](https://issues.apache.org/jira/browse/FLINK) if you found a bug in Flink.
 
 
 ## Documentation
 
-The documentation of Apache Flink is located on the website: [http://flink.apache.org](http://flink.apache.org)
+The documentation of Apache Flink is located on the website: [https://flink.apache.org](https://flink.apache.org)
 or in the `docs/` directory of the source code.
 
 
@@ -129,7 +129,7 @@ or in the `docs/` directory of the source code.
 
 This is an active open-source project. We are always open to people who want to use the system or contribute to it.
 Contact us if you are looking for implementation tasks that fit your skills.
-This article describes [how to contribute to Apache Flink](http://flink.apache.org/contributing/how-to-contribute.html).
+This article describes [how to contribute to Apache Flink](https://flink.apache.org/contributing/how-to-contribute.html).
 
 
 ## About

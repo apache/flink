@@ -43,11 +43,20 @@ public enum NoOpPartitionTracker implements PartitionTracker {
 	}
 
 	@Override
+	public void stopTrackingPartitions(Collection<ResultPartitionID> resultPartitionIds) {
+	}
+
+	@Override
 	public void stopTrackingAndReleasePartitionsFor(ResourceID producingTaskExecutorId) {
 	}
 
 	@Override
 	public boolean isTrackingPartitionsFor(ResourceID producingTaskExecutorId) {
+		return false;
+	}
+
+	@Override
+	public boolean isPartitionTracked(final ResultPartitionID resultPartitionID) {
 		return false;
 	}
 }

@@ -46,6 +46,11 @@ public interface PartitionTracker {
 	void stopTrackingAndReleasePartitions(Collection<ResultPartitionID> resultPartitionIds);
 
 	/**
+	 * Stops the tracking of the given partitions.
+	 */
+	void stopTrackingPartitions(Collection<ResultPartitionID> resultPartitionIds);
+
+	/**
 	 * Releases all partitions for the given task executor ID, and stop the tracking of partitions that were released.
 	 */
 	void stopTrackingAndReleasePartitionsFor(ResourceID producingTaskExecutorId);
@@ -54,4 +59,9 @@ public interface PartitionTracker {
 	 * Returns whether any partition is being tracked for the given task executor ID.
 	 */
 	boolean isTrackingPartitionsFor(ResourceID producingTaskExecutorId);
+
+	/**
+	 * Returns whether the given partition is being tracked.
+	 */
+	boolean isPartitionTracked(ResultPartitionID resultPartitionID);
 }

@@ -65,7 +65,7 @@ Apache [Hadoop YARN](http://hadoop.apache.org/) is a cluster resource management
 - at least Apache Hadoop 2.2
 - HDFS (Hadoop Distributed File System) (or another distributed file system supported by Hadoop)
 
-If you have troubles using the Flink YARN client, have a look in the [FAQ section](http://flink.apache.org/faq.html#yarn-deployment).
+If you have troubles using the Flink YARN client, have a look in the [FAQ section](https://flink.apache.org/faq.html#yarn-deployment).
 
 ### Start Flink Session
 

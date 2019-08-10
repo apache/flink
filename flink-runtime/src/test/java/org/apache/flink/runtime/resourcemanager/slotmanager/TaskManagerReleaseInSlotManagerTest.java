@@ -104,7 +104,7 @@ public class TaskManagerReleaseInSlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testTaskManagerIsNotReleasedBeforeItCanBe() throws Exception {
-		try (SlotManager slotManager = createAndStartSlotManagerWithTM()) {
+		try (SlotManagerImpl slotManager = createAndStartSlotManagerWithTM()) {
 			checkTaskManagerTimeoutWithCustomCanBeReleasedResponse(slotManager, false);
 			verifyTmReleased(false);
 
@@ -118,7 +118,7 @@ public class TaskManagerReleaseInSlotManagerTest extends TestLogger {
 	 */
 	@Test
 	public void testTaskManagerIsNotReleasedInCaseOfConcurrentAllocation() throws Exception {
-		try (SlotManager slotManager = createAndStartSlotManagerWithTM()) {
+		try (SlotManagerImpl slotManager = createAndStartSlotManagerWithTM()) {
 			checkTaskManagerTimeoutWithCustomCanBeReleasedResponse(slotManager, true, () -> {
 				// Allocate and free slot between triggering TM.canBeReleased request and receiving response.
 				// There can be potentially newly unreleased partitions, therefore TM can not be released yet.
@@ -134,8 +134,8 @@ public class TaskManagerReleaseInSlotManagerTest extends TestLogger {
 		}
 	}
 
-	private SlotManager createAndStartSlotManagerWithTM() {
-		SlotManager slotManager = SlotManagerBuilder
+	private SlotManagerImpl createAndStartSlotManagerWithTM() {
+		SlotManagerImpl slotManager = SlotManagerBuilder
 			.newBuilder()
 			.setScheduledExecutor(mainThreadExecutor)
 			.setTaskManagerTimeout(Time.milliseconds(0L))
@@ -146,13 +146,13 @@ public class TaskManagerReleaseInSlotManagerTest extends TestLogger {
 	}
 
 	private void checkTaskManagerTimeoutWithCustomCanBeReleasedResponse(
-			SlotManager slotManager,
+			SlotManagerImpl slotManager,
 			boolean canBeReleased) throws Exception {
 		checkTaskManagerTimeoutWithCustomCanBeReleasedResponse(slotManager, canBeReleased, () -> {});
 	}
 
 	private void checkTaskManagerTimeoutWithCustomCanBeReleasedResponse(
-			SlotManager slotManager,
+			SlotManagerImpl slotManager,
 			boolean canBeReleased,
 			RunnableWithException doAfterCheckTriggerBeforeCanBeReleasedResponse) throws Exception {
 		canBeReleasedFuture.set(new CompletableFuture<>());

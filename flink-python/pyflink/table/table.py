@@ -247,6 +247,57 @@ class Table(object):
         """
         return Table(self._j_table.fullOuterJoin(right._j_table, join_predicate))
 
+    def join_lateral(self, table_function_call, join_predicate=None):
+        """
+        Joins this Table with an user-defined TableFunction. This join is similar to a SQL inner
+        join but works with a table function. Each row of the table is joined with the rows
+        produced by the table function.
+
+        Example:
+        ::
+
+            >>> t_env.register_java_function("split", "java.table.function.class.name")
+            >>> tab.join_lateral("split(text, ' ') as (b)", "a = b")
+
+        :param table_function_call: An expression representing a table function call.
+        :type table_function_call: str
+        :param join_predicate: Optional, The join predicate expression string, join ON TRUE if not
+                               exist.
+        :type join_predicate: str
+        :return: The result Table.
+        :rtype: Table
+        """
+        if join_predicate is None:
+            return Table(self._j_table.joinLateral(table_function_call))
+        else:
+            return Table(self._j_table.joinLateral(table_function_call, join_predicate))
+
+    def left_outer_join_lateral(self, table_function_call, join_predicate=None):
+        """
+        Joins this Table with an user-defined TableFunction. This join is similar to
+        a SQL left outer join but works with a table function. Each row of the table is joined
+        with all rows produced by the table function. If the join does not produce any row, the
+        outer row is padded with nulls.
+
+        Example:
+        ::
+
+            >>> t_env.register_java_function("split", "java.table.function.class.name")
+            >>> tab.left_outer_join_lateral("split(text, ' ') as (b)")
+
+        :param table_function_call: An expression representing a table function call.
+        :type table_function_call: str
+        :param join_predicate: Optional, The join predicate expression string, join ON TRUE if not
+                               exist.
+        :type join_predicate: str
+        :return: The result Table.
+        :rtype: Table
+        """
+        if join_predicate is None:
+            return Table(self._j_table.leftOuterJoinLateral(table_function_call))
+        else:
+            return Table(self._j_table.leftOuterJoinLateral(table_function_call, join_predicate))
+
     def minus(self, right):
         """
         Minus of two :class:`Table` with duplicate records removed.

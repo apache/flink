@@ -30,19 +30,19 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
+import org.apache.flink.table.runtime.types.InternalSerializers;
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
+import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.InternalSerializers;
 import org.apache.flink.table.types.KeyValueDataType;
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TypeInformationAnyType;
 import org.apache.flink.table.types.utils.TypeConversions;
-import org.apache.flink.table.typeutils.BigDecimalTypeInfo;
-import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
-import org.apache.flink.table.typeutils.DecimalTypeInfo;
 import org.apache.flink.types.Row;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -65,7 +65,7 @@ import java.util.stream.Stream;
 
 import scala.Product;
 
-import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
+import static org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
@@ -209,7 +209,7 @@ public class DataFormatConverters {
 						DataTypes.INT().bridgedTo(Integer.class));
 			case ROW:
 			case STRUCTURED_TYPE:
-				CompositeType compositeType = (CompositeType) fromDataTypeToLegacyInfo(dataType);
+				CompositeType compositeType = (CompositeType) fromDataTypeToTypeInfo(dataType);
 				DataType[] fieldTypes = Stream.iterate(0, x -> x + 1).limit(compositeType.getArity())
 						.map((Function<Integer, TypeInformation>) compositeType::getTypeAt)
 						.map(TypeConversions::fromLegacyInfoToDataType).toArray(DataType[]::new);

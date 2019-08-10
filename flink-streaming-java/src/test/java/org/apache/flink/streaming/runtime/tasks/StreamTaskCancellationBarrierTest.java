@@ -185,6 +185,7 @@ public class StreamTaskCancellationBarrierTest {
 
 		@Override
 		protected void init() throws Exception {
+			super.init();
 			synchronized (lock) {
 				while (running) {
 					lock.wait();

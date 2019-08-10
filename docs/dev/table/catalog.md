@@ -97,25 +97,17 @@ The ultimate goal for integrating Flink with Hive metadata is that:
 
 2. Meta-objects created by `HiveCatalog` can be written back to Hive metastore such that Hive and other Hive-compatible applications can consume.
 
-## User-configured Catalog
-
-Catalogs are pluggable. Users can develop custom catalogs by implementing the `Catalog` interface, which defines a set of APIs for reading and writing catalog meta-objects such as database, tables, partitions, views, and functions.
-
-
-HiveCatalog
------------
-
-## Supported Hive Versions
+### Supported Hive Versions
 
 Flink's `HiveCatalog` officially supports Hive 2.3.4 and 1.2.1.
 
 The Hive version is explicitly specified as a String, either by passing it to the constructor when creating `HiveCatalog` instances directly in Table API or specifying it in yaml config file in SQL CLI. The Hive version string are `2.3.4` and `1.2.1`.
 
-## Case Insensitive to Meta-Object Names
+### Case Insensitive to Meta-Object Names
 
 Note that Hive Metastore stores meta-object names in lower cases. Thus, unlike `GenericInMemoryCatalog`, `HiveCatalog` is case-insensitive to meta-object names, and users need to be cautious on that.
 
-## Dependencies
+### Dependencies
 
 To use `HiveCatalog`, users need to include the following dependency jars.
 
@@ -140,6 +132,7 @@ For Hive 1.2.1, users need:
 
 - hive-metastore-1.2.1.jar
 - hive-exec-1.2.1.jar
+- libfb303-0.9.3.jar
 
 
 // Hadoop dependencies
@@ -156,7 +149,7 @@ If you don't have Hive dependencies at hand, they can be found at [mvnrepostory.
 Note that users need to make sure the compatibility between their Hive versions and Hadoop versions. Otherwise, there may be potential problem, for example, Hive 2.3.4 is compiled against Hadoop 2.7.2, you may run into problems when using Hive 2.3.4 with Hadoop 2.4.
 
 
-## Data Type Mapping
+### Data Type Mapping
 
 For both Flink and Hive tables, `HiveCatalog` stores table schemas by mapping them to Hive table schemas with Hive data types. Types are dynamically mapped back on read.
 
@@ -164,27 +157,28 @@ Currently `HiveCatalog` supports most Flink data types with the following mappin
 
 |  Flink Data Type  |  Hive Data Type  |
 |---|---|
-| CHAR(p)       |  char(p)* |
-| VARCHAR(p)    |  varchar(p)** |
-| STRING        |  string |
-| BOOLEAN       |  boolean |
-| BYTE          |  tinyint |
-| SHORT         |  smallint |
-| INT           |  int |
-| BIGINT        |  long |
-| FLOAT         |  float |
-| DOUBLE        |  double |
-| DECIMAL(p, s) |  decimal(p, s) |
-| DATE          |  date |
-| TIMESTAMP_WITHOUT_TIME_ZONE |  Timestamp |
+| CHAR(p)       |  CHAR(p)* |
+| VARCHAR(p)    |  VARCHAR(p)** |
+| STRING        |  STRING |
+| BOOLEAN       |  BOOLEAN |
+| TINYINT       |  TINYINT |
+| SMALLINT      |  SMALLINT |
+| INT           |  INT |
+| BIGINT        |  LONG |
+| FLOAT         |  FLOAT |
+| DOUBLE        |  DOUBLE |
+| DECIMAL(p, s) |  DECIMAL(p, s) |
+| DATE          |  DATE |
+| TIMESTAMP_WITHOUT_TIME_ZONE |  TIMESTAMP |
 | TIMESTAMP_WITH_TIME_ZONE |  N/A |
 | TIMESTAMP_WITH_LOCAL_TIME_ZONE |  N/A |
-| INTERVAL |  N/A |
-| BINARY        |  binary |
-| VARBINARY(p)  |  binary |
-| ARRAY\<E>     |  list\<E> |
-| MAP<K, V>     |  map<K, V> |
-| ROW           |  struct |
+| INTERVAL      |   N/A*** |
+| BINARY        |   N/A |
+| VARBINARY(p)  |   N/A |
+| BYTES         |   BINARY |
+| ARRAY\<E>     |  ARRAY\<E> |
+| MAP<K, V>     |  MAP<K, V> ****|
+| ROW           |  STRUCT |
 | MULTISET      |  N/A |
 
 
@@ -196,6 +190,13 @@ The following limitations in Hive's data types impact the mapping between Flink 
 
 \** maximum length is 65535
 
+\*** `INTERVAL` type can not be mapped to hive `INTERVAL` for now.
+
+\**** Hive map key type only allows primitive types, while Flink map key can be any data type.
+
+## User-configured Catalog
+
+Catalogs are pluggable. Users can develop custom catalogs by implementing the `Catalog` interface, which defines a set of APIs for reading and writing catalog meta-objects such as database, tables, partitions, views, and functions.
 
 Catalog Registration
 --------------------

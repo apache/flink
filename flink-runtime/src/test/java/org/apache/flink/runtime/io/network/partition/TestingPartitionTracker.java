@@ -31,10 +31,12 @@ import java.util.function.Function;
 public class TestingPartitionTracker implements PartitionTracker {
 
 	private Function<ResourceID, Boolean> isTrackingPartitionsForFunction = ignored -> false;
+	private Function<ResultPartitionID, Boolean> isPartitionTrackedFunction = ignored -> false;
 	private Consumer<ResourceID> stopTrackingAllPartitionsConsumer = ignored -> {};
 	private Consumer<ResourceID> stopTrackingAndReleaseAllPartitionsConsumer = ignored -> {};
 	private BiConsumer<ResourceID, ResultPartitionDeploymentDescriptor> startTrackingPartitionsConsumer = (ignoredA, ignoredB) -> {};
 	private Consumer<Collection<ResultPartitionID>> stopTrackingAndReleasePartitionsConsumer = ignored -> {};
+	private Consumer<Collection<ResultPartitionID>> stopTrackingPartitionsConsumer = ignored -> {};
 
 	public void setStartTrackingPartitionsConsumer(BiConsumer<ResourceID, ResultPartitionDeploymentDescriptor> startTrackingPartitionsConsumer) {
 		this.startTrackingPartitionsConsumer = startTrackingPartitionsConsumer;
@@ -42,6 +44,10 @@ public class TestingPartitionTracker implements PartitionTracker {
 
 	public void setIsTrackingPartitionsForFunction(Function<ResourceID, Boolean> isTrackingPartitionsForFunction) {
 		this.isTrackingPartitionsForFunction = isTrackingPartitionsForFunction;
+	}
+
+	public void setIsPartitionTrackedFunction(Function<ResultPartitionID, Boolean> isPartitionTrackedFunction) {
+		this.isPartitionTrackedFunction = isPartitionTrackedFunction;
 	}
 
 	public void setStopTrackingAllPartitionsConsumer(Consumer<ResourceID> stopTrackingAllPartitionsConsumer) {
@@ -54,6 +60,10 @@ public class TestingPartitionTracker implements PartitionTracker {
 
 	public void setStopTrackingAndReleasePartitionsConsumer(Consumer<Collection<ResultPartitionID>> stopTrackingAndReleasePartitionsConsumer) {
 		this.stopTrackingAndReleasePartitionsConsumer = stopTrackingAndReleasePartitionsConsumer;
+	}
+
+	public void setStopTrackingPartitionsConsumer(Consumer<Collection<ResultPartitionID>> stopTrackingPartitionsConsumer) {
+		this.stopTrackingPartitionsConsumer = stopTrackingPartitionsConsumer;
 	}
 
 	@Override
@@ -72,6 +82,11 @@ public class TestingPartitionTracker implements PartitionTracker {
 	}
 
 	@Override
+	public void stopTrackingPartitions(Collection<ResultPartitionID> resultPartitionIds) {
+		stopTrackingPartitionsConsumer.accept(resultPartitionIds);
+	}
+
+	@Override
 	public void stopTrackingAndReleasePartitionsFor(ResourceID producingTaskExecutorId) {
 		stopTrackingAndReleaseAllPartitionsConsumer.accept(producingTaskExecutorId);
 	}
@@ -79,5 +94,10 @@ public class TestingPartitionTracker implements PartitionTracker {
 	@Override
 	public boolean isTrackingPartitionsFor(ResourceID producingTaskExecutorId) {
 		return isTrackingPartitionsForFunction.apply(producingTaskExecutorId);
+	}
+
+	@Override
+	public boolean isPartitionTracked(final ResultPartitionID resultPartitionID) {
+		return isPartitionTrackedFunction.apply(resultPartitionID);
 	}
 }

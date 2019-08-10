@@ -215,7 +215,8 @@ public class SingleInputGate extends InputGate {
 		requestPartitions();
 	}
 
-	private void requestPartitions() throws IOException, InterruptedException {
+	@VisibleForTesting
+	void requestPartitions() throws IOException, InterruptedException {
 		synchronized (requestLock) {
 			if (!requestedPartitionsFlag) {
 				if (closeFuture.isDone()) {
@@ -278,9 +279,7 @@ public class SingleInputGate extends InputGate {
 				int totalBuffers = 0;
 
 				for (InputChannel channel : inputChannels.values()) {
-					if (channel instanceof RemoteInputChannel) {
-						totalBuffers += ((RemoteInputChannel) channel).getNumberOfQueuedBuffers();
-					}
+					totalBuffers += channel.unsynchronizedGetNumberOfQueuedBuffers();
 				}
 
 				return  totalBuffers;

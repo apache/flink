@@ -54,6 +54,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -108,16 +109,18 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 
 		FutureUtils.assertNoException(
 			cancelTasks(verticesToRestart)
-				.thenRunAsync(resetAndRescheduleTasks(globalModVersion, vertexVersions), executionGraph.getJobMasterMainThreadExecutor())
+				.thenComposeAsync(resetAndRescheduleTasks(globalModVersion, vertexVersions), executionGraph.getJobMasterMainThreadExecutor())
 				.handle(failGlobalOnError()));
 	}
 
-	private Runnable resetAndRescheduleTasks(final long globalModVersion, final Set<ExecutionVertexVersion> vertexVersions) {
-		final RestartStrategy restartStrategy = executionGraph.getRestartStrategy();
-		return () -> restartStrategy.restart(
-			createResetAndRescheduleTasksCallback(globalModVersion, vertexVersions),
-			executionGraph.getJobMasterMainThreadExecutor()
-		);
+	private Function<Object, CompletableFuture<Void>> resetAndRescheduleTasks(final long globalModVersion, final Set<ExecutionVertexVersion> vertexVersions) {
+		return (ignored) -> {
+			final RestartStrategy restartStrategy = executionGraph.getRestartStrategy();
+			return restartStrategy.restart(
+				createResetAndRescheduleTasksCallback(globalModVersion, vertexVersions),
+				executionGraph.getJobMasterMainThreadExecutor()
+			);
+		};
 	}
 
 	private RestartCallback createResetAndRescheduleTasksCallback(final long globalModVersion, final Set<ExecutionVertexVersion> vertexVersions) {
@@ -290,7 +293,7 @@ public class AdaptedRestartPipelinedRegionStrategyNG extends FailoverStrategy {
 		// currently it's safe to add it here, as this method is invoked only once in production code.
 		checkState(restartPipelinedRegionStrategy == null, "notifyNewVertices() must be called only once");
 		this.restartPipelinedRegionStrategy = new RestartPipelinedRegionStrategy(
-			new DefaultFailoverTopology(executionGraph));
+			new DefaultFailoverTopology(executionGraph), executionGraph.getResultPartitionAvailabilityChecker());
 	}
 
 	@Override

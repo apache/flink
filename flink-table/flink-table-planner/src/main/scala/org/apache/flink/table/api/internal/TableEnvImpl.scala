@@ -21,6 +21,7 @@ package org.apache.flink.table.api.internal
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.sql.parser.ddl.{SqlCreateTable, SqlDropTable}
+import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder}
 import org.apache.flink.table.catalog._
@@ -33,7 +34,7 @@ import org.apache.flink.table.operations.ddl.CreateTableOperation
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
 import org.apache.flink.table.operations.{CatalogQueryOperation, PlannerQueryOperation, TableSourceQueryOperation, _}
 import org.apache.flink.table.planner.PlanningConfigurationBuilder
-import org.apache.flink.table.sinks.{TableSink, TableSinkUtils}
+import org.apache.flink.table.sinks.{PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.sqlexec.SqlToOperationConverter
 import org.apache.flink.table.util.JavaScalaConversionUtil
@@ -44,7 +45,7 @@ import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
 
-import _root_.java.util.Optional
+import _root_.java.util.{Optional, Map => JMap, HashMap => JHashMap}
 
 import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.JavaConversions._
@@ -58,10 +59,6 @@ abstract class TableEnvImpl(
     val config: TableConfig,
     private val catalogManager: CatalogManager)
   extends TableEnvironment {
-
-  // The current catalog and database are definitely builtin.
-  protected val builtinCatalogName: String = catalogManager.getCurrentCatalog
-  protected val builtinDatabaseName: String = catalogManager.getCurrentDatabase
 
   // Table API/SQL function catalog
   private[flink] val functionCatalog: FunctionCatalog = new FunctionCatalog(catalogManager)
@@ -265,7 +262,9 @@ abstract class TableEnvImpl(
     tableSource: TableSource[_])
   : Unit = {
     // register
-    getCatalogTable(builtinCatalogName, builtinDatabaseName, name) match {
+    getCatalogTable(
+      catalogManager.getBuiltInCatalogName,
+      catalogManager.getBuiltInDatabaseName, name) match {
 
       // check if a table (source or sink) is registered
       case Some(table: ConnectorCatalogTable[_, _]) =>
@@ -292,7 +291,10 @@ abstract class TableEnvImpl(
     tableSink: TableSink[_])
   : Unit = {
     // check if a table (source or sink) is registered
-    getCatalogTable(builtinCatalogName, builtinDatabaseName, name) match {
+    getCatalogTable(
+      catalogManager.getBuiltInCatalogName,
+      catalogManager.getBuiltInDatabaseName,
+      name) match {
 
       // table source and/or sink is registered
       case Some(table: ConnectorCatalogTable[_, _]) =>
@@ -351,27 +353,29 @@ abstract class TableEnvImpl(
 
   protected def registerTableInternal(name: String, table: CatalogBaseTable): Unit = {
     checkValidTableName(name)
-    val path = new ObjectPath(builtinDatabaseName, name)
-    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(builtinCatalogName)) match {
+    val path = new ObjectPath(catalogManager.getBuiltInDatabaseName, name)
+    JavaScalaConversionUtil.toScala(
+      catalogManager.getCatalog(catalogManager.getBuiltInCatalogName)) match {
       case Some(catalog) =>
         catalog.createTable(
           path,
           table,
           false)
-      case None => throw new TableException("The default catalog does not exist.")
+      case None => throw new TableException("The built-in catalog does not exist.")
     }
   }
 
   protected def replaceTableInternal(name: String, table: CatalogBaseTable): Unit = {
     checkValidTableName(name)
-    val path = new ObjectPath(builtinDatabaseName, name)
-    JavaScalaConversionUtil.toScala(catalogManager.getCatalog(builtinCatalogName)) match {
+    val path = new ObjectPath(catalogManager.getBuiltInDatabaseName, name)
+    JavaScalaConversionUtil.toScala(
+      catalogManager.getCatalog(catalogManager.getBuiltInCatalogName)) match {
       case Some(catalog) =>
         catalog.alterTable(
           path,
           table,
           false)
-      case None => throw new TableException("The default catalog does not exist.")
+      case None => throw new TableException("The built-in catalog does not exist.")
     }
   }
 
@@ -440,10 +444,12 @@ abstract class TableEnvImpl(
     // parse the sql query
     val parsed = planner.parse(stmt)
     parsed match {
-      case insert: SqlInsert =>
-        // validate the SQL query
-        val query = insert.getSource
-        val validatedQuery = planner.validate(query)
+      case insert: RichSqlInsert =>
+        // validate the insert
+        val validatedInsert = planner.validate(insert).asInstanceOf[RichSqlInsert]
+        // we do not validate the row type for sql insert now, so validate the source
+        // separately.
+        val validatedQuery = planner.validate(validatedInsert.getSource)
 
         val tableOperation = new PlannerQueryOperation(planner.rel(validatedQuery).rel)
         // get query result as Table
@@ -453,7 +459,8 @@ abstract class TableEnvImpl(
         val targetTablePath = insert.getTargetTable.asInstanceOf[SqlIdentifier].names
 
         // insert query result into sink table
-        insertInto(queryResult, targetTablePath.asScala:_*)
+        insertInto(queryResult, InsertOptions(insert.getStaticPartitionKVs),
+          targetTablePath.asScala:_*)
       case createTable: SqlCreateTable =>
         val operation = SqlToOperationConverter
           .convert(planner, createTable)
@@ -503,11 +510,17 @@ abstract class TableEnvImpl(
   private[flink] def writeToSink[T](table: Table, sink: TableSink[T]): Unit
 
   override def insertInto(
-    table: Table,
-    path: String,
-    pathContinued: String*): Unit = {
-    insertInto(table, path +: pathContinued: _*)
+      table: Table,
+      path: String,
+      pathContinued: String*): Unit = {
+    insertInto(
+      table,
+      InsertOptions(new JHashMap[String, String]()),
+      path +: pathContinued: _*)
   }
+
+  /** Insert options for executing sql insert. **/
+  case class InsertOptions(staticPartitions: JMap[String, String])
 
   /**
     * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
@@ -515,7 +528,9 @@ abstract class TableEnvImpl(
     * @param table The table to write to the TableSink.
     * @param sinkTablePath The name of the registered TableSink.
     */
-  private def insertInto(table: Table, sinkTablePath: String*): Unit = {
+  private def insertInto(table: Table,
+      insertOptions: InsertOptions,
+      sinkTablePath: String*): Unit = {
 
     // check that sink table exists
     if (null == sinkTablePath) {
@@ -532,7 +547,19 @@ abstract class TableEnvImpl(
 
       case Some(tableSink) =>
         // validate schema of source table and table sink
-        TableSinkUtils.validateSink(table.getQueryOperation, sinkTablePath.asJava, tableSink)
+        TableSinkUtils.validateSink(
+          insertOptions.staticPartitions,
+          table.getQueryOperation,
+          sinkTablePath.asJava,
+          tableSink)
+        // set static partitions if it is a partitioned table sink
+        tableSink match {
+          case partitionableSink: PartitionableTableSink
+            if partitionableSink.getPartitionFieldNames != null
+              && partitionableSink.getPartitionFieldNames.nonEmpty =>
+            partitionableSink.setStaticPartition(insertOptions.staticPartitions)
+          case _ =>
+        }
         // emit the table to the configured table sink
         writeToSink(table, tableSink)
     }

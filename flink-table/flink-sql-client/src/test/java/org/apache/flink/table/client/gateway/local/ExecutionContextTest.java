@@ -25,6 +25,8 @@ import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.Types;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
@@ -60,6 +62,7 @@ public class ExecutionContextTest {
 	private static final String DEFAULTS_ENVIRONMENT_FILE = "test-sql-client-defaults.yaml";
 	private static final String CATALOGS_ENVIRONMENT_FILE = "test-sql-client-catalogs.yaml";
 	private static final String STREAMING_ENVIRONMENT_FILE = "test-sql-client-streaming.yaml";
+	private static final String CONFIGURATION_ENVIRONMENT_FILE = "test-sql-client-configuration.yaml";
 
 	@Test
 	public void testExecutionConfig() throws Exception {
@@ -230,6 +233,42 @@ public class ExecutionContextTest {
 			tableEnv.scan("TemporalTableUsage").getSchema().getFieldNames());
 	}
 
+	@Test
+	public void testConfiguration() throws Exception {
+		final ExecutionContext<?> context = createConfigurationExecutionContext();
+		final TableEnvironment tableEnv = context.createEnvironmentInstance().getTableEnvironment();
+
+		assertEquals(
+			100,
+			tableEnv.getConfig().getConfiguration().getInteger(
+				ExecutionConfigOptions.TABLE_EXEC_SORT_DEFAULT_LIMIT));
+		assertTrue(
+			tableEnv.getConfig().getConfiguration().getBoolean(
+				ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_ENABLED));
+		assertEquals(
+			"128kb",
+			tableEnv.getConfig().getConfiguration().getString(
+				ExecutionConfigOptions.TABLE_EXEC_SPILL_COMPRESSION_BLOCK_SIZE));
+
+		assertTrue(
+			tableEnv.getConfig().getConfiguration().getBoolean(
+				OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED));
+
+		// these options are not modified and should be equal to their default value
+		assertEquals(
+			ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED.defaultValue(),
+			tableEnv.getConfig().getConfiguration().getBoolean(
+				ExecutionConfigOptions.TABLE_EXEC_SORT_ASYNC_MERGE_ENABLED));
+		assertEquals(
+			ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE.defaultValue(),
+			tableEnv.getConfig().getConfiguration().getString(
+				ExecutionConfigOptions.TABLE_EXEC_SHUFFLE_MODE));
+		assertEquals(
+			OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD.defaultValue().longValue(),
+			tableEnv.getConfig().getConfiguration().getLong(
+				OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD));
+	}
+
 	private <T> ExecutionContext<T> createExecutionContext(String file, Map<String, String> replaceVars) throws Exception {
 		final Environment env = EnvironmentFileUtil.parseModified(
 			file,
@@ -247,6 +286,7 @@ public class ExecutionContextTest {
 
 	private <T> ExecutionContext<T> createDefaultExecutionContext() throws Exception {
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", "old");
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_RESULT_MODE", "changelog");
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
@@ -256,6 +296,7 @@ public class ExecutionContextTest {
 
 	private <T> ExecutionContext<T> createCatalogExecutionContext() throws Exception {
 		final Map<String, String> replaceVars = new HashMap<>();
+		replaceVars.put("$VAR_PLANNER", "old");
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_RESULT_MODE", "changelog");
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
@@ -269,5 +310,9 @@ public class ExecutionContextTest {
 		replaceVars.put("$VAR_CONNECTOR_PROPERTY", DummyTableSourceFactory.TEST_PROPERTY);
 		replaceVars.put("$VAR_CONNECTOR_PROPERTY_VALUE", "");
 		return createExecutionContext(STREAMING_ENVIRONMENT_FILE, replaceVars);
+	}
+
+	private <T> ExecutionContext<T> createConfigurationExecutionContext() throws Exception {
+		return createExecutionContext(CONFIGURATION_ENVIRONMENT_FILE, new HashMap<>());
 	}
 }

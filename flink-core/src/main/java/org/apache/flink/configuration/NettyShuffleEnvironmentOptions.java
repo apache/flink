@@ -231,6 +231,11 @@ public class NettyShuffleEnvironmentOptions {
 
 	// ------------------------------------------------------------------------
 
+	@Documentation.ExcludeFromDocumentation("dev use only; likely temporary")
+	public static final ConfigOption<Boolean> FORCE_PARTITION_RELEASE_ON_CONSUMPTION =
+		key("taskmanager.network.partition.force-release-on-consumption")
+			.defaultValue(false);
+
 	/** Not intended to be instantiated. */
 	private NettyShuffleEnvironmentOptions() {}
 }

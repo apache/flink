@@ -18,8 +18,8 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
 import org.apache.flink.table.runtime.util.StringUtf8Utils;
-import org.apache.flink.table.util.SegmentsUtil;
 import org.apache.flink.table.utils.EncodingUtils;
 
 import java.math.BigDecimal;
@@ -717,22 +717,22 @@ public class BinaryStringUtil {
 
 	/**
 	 * Concatenates input strings together into a single string.
+	 * Returns NULL if any argument is NULL.
 	 */
 	public static BinaryString concat(BinaryString... inputs) {
 		return concat(Arrays.asList(inputs));
 	}
 
-	/**
-	 * Concatenates input strings together into a single string.
-	 */
 	public static BinaryString concat(Iterable<BinaryString> inputs) {
 		// Compute the total length of the result.
 		int totalLength = 0;
 		for (BinaryString input : inputs) {
-			if (input != null) {
-				input.ensureMaterialized();
-				totalLength += input.getSizeInBytes();
+			if (input == null) {
+				return null;
 			}
+
+			input.ensureMaterialized();
+			totalLength += input.getSizeInBytes();
 		}
 
 		// Allocate a new byte array, and copy the inputs one by one into it.
@@ -749,21 +749,21 @@ public class BinaryStringUtil {
 	}
 
 	/**
-	 * Concatenates input strings together into a single string using the separator.
-	 * A null input is skipped. For example, concat(",", "a", null, "c") would yield "a,c".
+	 * <p>Concatenates input strings together into a single string using the separator.
+	 * Returns NULL If the separator is NULL.</p>
+	 *
+	 * <p>Note: CONCAT_WS() does not skip any empty strings, however it does skip any NULL values after
+	 * the separator. For example, concat_ws(",", "a", null, "c") would yield "a,c".</p>
 	 */
 	public static BinaryString concatWs(BinaryString separator, BinaryString... inputs) {
 		return concatWs(separator, Arrays.asList(inputs));
 	}
 
-	/**
-	 * Concatenates input strings together into a single string using the separator.
-	 * A null input is skipped. For example, concat(",", "a", null, "c") would yield "a,c".
-	 */
 	public static BinaryString concatWs(BinaryString separator, Iterable<BinaryString> inputs) {
-		if (null == separator || EMPTY_UTF8.equals(separator)) {
-			return concat(inputs);
+		if (null == separator) {
+			return null;
 		}
+
 		separator.ensureMaterialized();
 
 		int numInputBytes = 0;  // total number of bytes from the inputs
