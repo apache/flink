@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.plan.logical._
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser
-import org.apache.flink.table.runtime.operators.window.WindowOperator
+import org.apache.flink.table.runtime.operators.window.{TableAggregateWindowOperatorBuilder, WindowOperator, WindowOperatorBuilder}
 import org.apache.flink.table.types.logical.LogicalType
 
 /**
@@ -90,8 +90,8 @@ class StreamExecGroupWindowTableAggregate(
       namedProperties.map(_.property),
       getWindowClass(window))
 
-    val builder = getWindowOperatorBuilder(inputFields, timeIdx)
-    builder
+    enrichWindowOperatorBuilder(new TableAggregateWindowOperatorBuilder(), inputFields, timeIdx)
+      .asInstanceOf[TableAggregateWindowOperatorBuilder]
       .aggregate(aggsHandler, accTypes, aggValueTypes, windowPropertyTypes)
       .build()
   }

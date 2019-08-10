@@ -106,6 +106,10 @@ public class WindowOperatorTest {
 		return isTableAggregate ? sumAndCountTableAggCountWindow : sumAndCountAggCountWindow;
 	}
 
+	private WindowOperatorBuilder getWindowOperatorBuilder() {
+		return isTableAggregate ? new TableAggregateWindowOperatorBuilder() : new AggregateWindowOperatorBuilder();
+	}
+
 	// For counting if close() is called the correct number of times on the SumReducer
 	private static AtomicInteger closeCalled = new AtomicInteger(0);
 
@@ -145,8 +149,7 @@ public class WindowOperatorTest {
 	public void testEventTimeSlidingWindows() throws Exception {
 		closeCalled.set(0);
 
-		WindowOperator operator = WindowOperatorBuilder
-				.builder()
+		WindowOperator operator = getWindowOperatorBuilder()
 				.withInputFields(inputFieldTypes)
 				.sliding(Duration.ofSeconds(3), Duration.ofSeconds(1))
 				.withEventTime(2)
@@ -232,8 +235,7 @@ public class WindowOperatorTest {
 	public void testProcessingTimeSlidingWindows() throws Throwable {
 		closeCalled.set(0);
 
-		WindowOperator operator = WindowOperatorBuilder
-				.builder()
+		WindowOperator operator = getWindowOperatorBuilder()
 				.withInputFields(inputFieldTypes)
 				.sliding(Duration.ofSeconds(3), Duration.ofSeconds(1))
 				.withProcessingTime()
@@ -295,8 +297,7 @@ public class WindowOperatorTest {
 	public void testEventTimeTumblingWindows() throws Exception {
 		closeCalled.set(0);
 
-		WindowOperator operator = WindowOperatorBuilder
-				.builder()
+		WindowOperator operator = getWindowOperatorBuilder()
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(3))
 				.withEventTime(2)
@@ -377,7 +378,7 @@ public class WindowOperatorTest {
 	public void testEventTimeTumblingWindowsWithEarlyFiring() throws Exception {
 		closeCalled.set(0);
 
-		WindowOperator operator = WindowOperatorBuilder
+		WindowOperator operator = AggregateWindowOperatorBuilder
 				.builder()
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(3))
@@ -495,7 +496,7 @@ public class WindowOperatorTest {
 	public void testEventTimeTumblingWindowsWithEarlyAndLateFirings() throws Exception {
 		closeCalled.set(0);
 
-		WindowOperator operator = WindowOperatorBuilder
+		WindowOperator operator = AggregateWindowOperatorBuilder
 				.builder()
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(3))
@@ -621,8 +622,7 @@ public class WindowOperatorTest {
 	public void testProcessingTimeTumblingWindows() throws Exception {
 		closeCalled.set(0);
 
-		WindowOperator operator = WindowOperatorBuilder
-				.builder()
+		WindowOperator operator = getWindowOperatorBuilder()
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(3))
 				.withProcessingTime()
@@ -671,8 +671,7 @@ public class WindowOperatorTest {
 	public void testEventTimeSessionWindows() throws Exception {
 		closeCalled.set(0);
 
-		WindowOperator operator = WindowOperatorBuilder
-				.builder()
+		WindowOperator operator = getWindowOperatorBuilder()
 				.withInputFields(inputFieldTypes)
 				.session(Duration.ofSeconds(3))
 				.withEventTime(2)
@@ -746,8 +745,7 @@ public class WindowOperatorTest {
 	public void testProcessingTimeSessionWindows() throws Throwable {
 		closeCalled.set(0);
 
-		WindowOperator operator = WindowOperatorBuilder
-				.builder()
+		WindowOperator operator = getWindowOperatorBuilder()
 				.withInputFields(inputFieldTypes)
 				.session(Duration.ofSeconds(3))
 				.withProcessingTime()
@@ -804,8 +802,7 @@ public class WindowOperatorTest {
 	public void testPointSessions() throws Exception {
 		closeCalled.set(0);
 
-		WindowOperator operator = WindowOperatorBuilder
-				.builder()
+		WindowOperator operator = getWindowOperatorBuilder()
 				.withInputFields(inputFieldTypes)
 				.assigner(new PointSessionWindowAssigner(3000))
 				.withEventTime(2)
@@ -853,7 +850,7 @@ public class WindowOperatorTest {
 
 	@Test
 	public void testLateness() throws Exception {
-		WindowOperator operator = WindowOperatorBuilder
+		WindowOperator operator = AggregateWindowOperatorBuilder
 				.builder()
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(2))
@@ -908,7 +905,7 @@ public class WindowOperatorTest {
 	public void testCleanupTimeOverflow() throws Exception {
 		long windowSize = 1000;
 		long lateness = 2000;
-		WindowOperator operator = WindowOperatorBuilder
+		WindowOperator operator = AggregateWindowOperatorBuilder
 				.builder()
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofMillis(windowSize))
@@ -964,7 +961,7 @@ public class WindowOperatorTest {
 		final int windowSize = 2;
 		final long lateness = 1;
 
-		WindowOperator operator = WindowOperatorBuilder
+		WindowOperator operator = AggregateWindowOperatorBuilder
 				.builder()
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(windowSize))
@@ -1003,7 +1000,7 @@ public class WindowOperatorTest {
 		final int windowSize = 3;
 		LogicalType[] windowTypes = new LogicalType[] { new BigIntType() };
 
-		WindowOperator operator = WindowOperatorBuilder.builder()
+		WindowOperator operator = getWindowOperatorBuilder()
 				.withInputFields(inputFieldTypes)
 				.countWindow(windowSize)
 				.aggregate(getCountWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes)
@@ -1073,7 +1070,7 @@ public class WindowOperatorTest {
 		final int windowSlide = 3;
 		LogicalType[] windowTypes = new LogicalType[] { new BigIntType() };
 
-		WindowOperator operator = WindowOperatorBuilder.builder()
+		WindowOperator operator = getWindowOperatorBuilder()
 				.withInputFields(inputFieldTypes)
 				.countWindow(windowSize, windowSlide)
 				.aggregate(getCountWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes)

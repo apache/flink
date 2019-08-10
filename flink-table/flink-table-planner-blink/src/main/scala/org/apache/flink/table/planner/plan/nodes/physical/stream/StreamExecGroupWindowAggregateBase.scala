@@ -254,12 +254,12 @@ abstract class StreamExecGroupWindowAggregateBase(
     generator
   }
 
-  protected def getWindowOperatorBuilder(
+  protected def enrichWindowOperatorBuilder(
+    inputWindowOperatorBuilder: WindowOperatorBuilder,
     inputFields: Seq[LogicalType],
     timeIdx: Int): WindowOperatorBuilder = {
 
-    val builder = WindowOperatorBuilder
-      .builder()
+    val builder = inputWindowOperatorBuilder
       .withInputFields(inputFields.toArray)
 
     val newBuilder = window match {

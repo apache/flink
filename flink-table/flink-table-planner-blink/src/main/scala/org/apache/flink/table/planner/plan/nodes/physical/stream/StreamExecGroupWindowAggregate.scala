@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.plan.logical._
 import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, WindowEmitStrategy}
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser
-import org.apache.flink.table.runtime.operators.window.WindowOperator
+import org.apache.flink.table.runtime.operators.window.{AggregateWindowOperatorBuilder, WindowOperator, WindowOperatorBuilder}
 import org.apache.flink.table.types.logical.LogicalType
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -95,8 +95,8 @@ class StreamExecGroupWindowAggregate(
       namedProperties.map(_.property),
       getWindowClass(window))
 
-    val builder = getWindowOperatorBuilder(inputFields, timeIdx)
-    builder
+    enrichWindowOperatorBuilder(new AggregateWindowOperatorBuilder(), inputFields, timeIdx)
+      .asInstanceOf[AggregateWindowOperatorBuilder]
       .aggregate(aggsHandler, recordEqualiser, accTypes, aggValueTypes, windowPropertyTypes)
       .withAllowedLateness(Duration.ofMillis(emitStrategy.getAllowLateness))
       .build()

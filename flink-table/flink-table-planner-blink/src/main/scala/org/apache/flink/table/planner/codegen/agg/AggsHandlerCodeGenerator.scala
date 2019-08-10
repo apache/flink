@@ -1003,12 +1003,7 @@ class AggsHandlerCodeGenerator(
       if (isWindow) {
         // no need to bind input
         val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
-        var valueExprs = Seq[GeneratedExpression]()
-        if (hasNamespace) {
-        // append window property results
-          val windowExprs = getWindowExpressions(windowProperties)
-          valueExprs = valueExprs ++ windowExprs
-        }
+        var valueExprs = getWindowExpressions(windowProperties)
 
         val aggValueTerm = newName("windowProperties")
         valueType = RowType.of(valueExprs.map(_.resultType): _*)
