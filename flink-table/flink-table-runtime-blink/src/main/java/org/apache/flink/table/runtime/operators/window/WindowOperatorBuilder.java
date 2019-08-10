@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.runtime.operators.window;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
+import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.generated.NamespaceTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.window.assigners.CountSlidingWindowAssigner;
@@ -216,6 +218,28 @@ public class WindowOperatorBuilder {
 			LogicalType[] windowPropertyTypes) {
 		aggregate(accumulatorTypes, aggResultTypes, windowPropertyTypes);
 		this.generatedTableAggregateFunction = checkNotNull(generatedTableAggregateFunction);
+		return this;
+	}
+
+	@VisibleForTesting
+	public WindowOperatorBuilder aggregate(
+		NamespaceAggsHandleFunctionBase<?> aggregateFunction,
+		RecordEqualiser equaliser,
+		LogicalType[] accumulatorTypes,
+		LogicalType[] aggResultTypes,
+		LogicalType[] windowPropertyTypes) {
+		if (aggregateFunction instanceof NamespaceAggsHandleFunction) {
+			aggregate((NamespaceAggsHandleFunction) aggregateFunction,
+				equaliser,
+				accumulatorTypes,
+				aggResultTypes,
+				windowPropertyTypes);
+		} else {
+			aggregate((NamespaceTableAggsHandleFunction) aggregateFunction,
+				accumulatorTypes,
+				aggResultTypes,
+				windowPropertyTypes);
+		}
 		return this;
 	}
 
