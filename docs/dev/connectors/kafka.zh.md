@@ -110,7 +110,7 @@ Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入
 
 ## Kafka 1.0.0+ 连接器
 
-从 Flink 1.7 开始，有一个新的通用 Kafka 连接器，它不跟踪专用的 Kafka 主要版本。相反，它是在 Flink 发布时跟踪最新版本的 Kafka 。
+从 Flink 1.7 开始，有一个新的通用 Kafka 连接器，它不跟踪特定的 Kafka 主版本。相反，它是在 Flink 发布时跟踪最新版本的 Kafka 。
 如果你的 Kafka broker 版本是 1.0.0 或 更新的版本，你应该使用这个 Kafka 连接器。
 如果你使用的是 Kafka 的旧版本( 0.11、0.10、0.9 或 0.8 )，那么你应该使用与 Kafka broker 版本相对应的连接器。
 
