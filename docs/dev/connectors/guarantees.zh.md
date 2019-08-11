@@ -62,6 +62,11 @@ Please read the documentation of each connector to understand the details of the
             <td></td>
         </tr>
         <tr>
+            <td>Google PubSub</td>
+            <td>at least once</td>
+            <td></td>
+        </tr>
+        <tr>
             <td>Collections</td>
             <td>exactly once</td>
             <td></td>
@@ -104,7 +109,7 @@ state updates) of Flink coupled with bundled sinks:
     </tr>
     <tr>
         <td>Kafka producer</td>
-        <td>at least once/ exactly once</td>
+        <td>at least once / exactly once</td>
         <td>exactly once with transactional producers (v 0.11+)</td>
     </tr>
     <tr>
