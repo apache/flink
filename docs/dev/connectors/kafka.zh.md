@@ -83,7 +83,7 @@ Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入
         FlinkKafkaProducer</td>
         <td>>= 1.0.0</td>
         <td>
-        这个通用的 Kafka 连接器企图与最新版本的 Kafka client 保持同步，连接器使用的 Kafka client 版本可能会在 Flink 版本之间发生变化。从 Flink 1.9 版本开始，它使用 Kafka 2.2.0 client 。当前 Kafka 客户端向后兼容 0.10.0 或更高版本的 Kafka broker 。
+        这个通用的 Kafka 连接器尽力与 Kafka client 的最新版本保持同步。该连接器使用的 Kafka client 版本可能会在 Flink 版本之间发生变化。从 Flink 1.9 版本开始，它使用 Kafka 2.2.0 client 。当前 Kafka 客户端向后兼容 0.10.0 或更高版本的 Kafka broker 。
         但是对于 Kafka 0.11.x 和 0.10.x 版本，我们建议你分别使用专用的 flink-connector-kafka-0.11{{ site.scala_version_suffix }} 和 flink-connector-kafka-0.10{{ site.scala_version_suffix }} 连接器。
         </td>
     </tr>
