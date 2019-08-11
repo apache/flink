@@ -444,7 +444,7 @@ stream = env
 
 在内部，每个 Kafka 分区执行一个 assigner 实例。当指定了这样的 assigner 时，对于从 Kafka 读取的每条消息，调用 `extractTimestamp(T element, long previousElementTimestamp)` 来为记录分配时间戳，并为 `Watermark getCurrentWatermark()` （定期形式）或 `Watermark checkAndGetNextWatermark(T lastElement, long extractedTimestamp)` （打点形式）以确定是否应该发出新的 watermark 以及使用哪个时间戳。
 
-**请注意**： 如果水位线 assigner 依赖于从 Kafka 读取的消息来上涨其水位(通常就是这种情况)，那么所有主题和分区都需要有连续的消息流。否则，整个应用程序的水位将无法上涨，所有基于时间的算子(例如时间窗口或带有计时器的函数)也无法运行。单个的 Kafka 分区也会导致这种反应。这是一个已在计划中的 Flink improvement ，目的是为了防止这种情况发生（请见[FLINK-5479: Per-partition watermarks in FlinkKafkaConsumer should consider idle partitions](https://issues.apache.org/jira/browse/FLINK-5479)）。同时，可能的解决方法是将*心跳消息*发送到所有 consumer 的分区里，从而上涨空闲分区的水位。
+**请注意**： 如果 watermark assigner 依赖于从 Kafka 读取的消息来上涨其 watermark (通常就是这种情况)，那么所有主题和分区都需要有连续的消息流。否则，整个应用程序的 watermark 将无法上涨，所有基于时间的算子(例如时间窗口或带有计时器的函数)也无法运行。单个的 Kafka 分区也会导致这种反应。这是一个已在计划中的 Flink 改进，目的是为了防止这种情况发生（请见[FLINK-5479: Per-partition watermarks in FlinkKafkaConsumer should consider idle partitions](https://issues.apache.org/jira/browse/FLINK-5479)）。同时，可能的解决方法是将*心跳消息*发送到所有 consumer 的分区里，从而上涨空闲分区的 watermark。
 
 ## Kafka Producer
 
