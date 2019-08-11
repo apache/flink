@@ -450,7 +450,7 @@ stream = env
 
 Flink Kafka Producer 被称为 `FlinkKafkaProducer011` （或适用于 Kafka 0.10.0.x 版本的 `FlinkKafkaProducer010`，或适用于 Kafka >= 1.0.0 版本的 `FlinkKafkaProducer`）。它允许将消息流写入一个或多个 Kafka topics 。
 
-举例：
+示例：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
