@@ -28,7 +28,7 @@ under the License.
 
 此连接器提供了访问 [Apache Kafka](https://kafka.apache.org/) 事件流的服务。
 
-Flink 提供了专门的 Kafka 连接器，向 Kafka topics 中读取或者写入数据。 Flink Kafka Consumer 集成了 Flink 的 Checkpoint 机制，可提供 exactly-once 的处理语义。为此， Flink 并不完全依赖于跟踪 Kafka 消费组的偏移量，而是在内部跟踪和检查偏移量。
+Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入数据。 Flink Kafka Consumer 集成了 Flink 的 Checkpoint 机制，可提供 exactly-once 的处理语义。为此， Flink 并不完全依赖于跟踪 Kafka 消费组的偏移量，而是在内部跟踪和检查偏移量。
 
 为你的用例和环境选择相应的包（ maven artifact id ）和类名。对于大多数用户来说， 使用 `FlinkKafkaConsumer08`（ `flink-connector-kafka` 的一部分）是比较合适的。
 
