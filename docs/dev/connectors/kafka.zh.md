@@ -74,7 +74,7 @@ Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入
         <td>FlinkKafkaConsumer011<br>
         FlinkKafkaProducer011</td>
         <td>0.11.x</td>
-        <td>由于 Kafka 的 0.11.x 版本不支持 scala 2.10 ，所以此连接器通过支持 <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-98+-+Exactly+Once+Delivery+and+Transactional+Messaging">Kafka 事务性的消息传递</a>来为生产者提供 Exactly once 语义。</td>
+        <td>Kafka 从 0.11.x 版本开始不支持 Scala 2.10。此连接器支持了 <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-98+-+Exactly+Once+Delivery+and+Transactional+Messaging">Kafka 事务性的消息传递</a>来为生产者提供 Exactly once 语义。</td>
     </tr>
     <tr>
         <td>flink-connector-kafka{{ site.scala_version_suffix }}</td>
