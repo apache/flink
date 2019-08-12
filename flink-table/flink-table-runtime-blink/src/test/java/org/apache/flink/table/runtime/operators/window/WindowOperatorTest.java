@@ -106,10 +106,6 @@ public class WindowOperatorTest {
 		return isTableAggregate ? sumAndCountTableAggCountWindow : sumAndCountAggCountWindow;
 	}
 
-	private WindowOperatorBuilder getWindowOperatorBuilder() {
-		return isTableAggregate ? new TableAggregateWindowOperatorBuilder() : new AggregateWindowOperatorBuilder();
-	}
-
 	// For counting if close() is called the correct number of times on the SumReducer
 	private static AtomicInteger closeCalled = new AtomicInteger(0);
 
@@ -149,12 +145,12 @@ public class WindowOperatorTest {
 	public void testEventTimeSlidingWindows() throws Exception {
 		closeCalled.set(0);
 
-		WindowOperator operator = getWindowOperatorBuilder()
+		WindowOperator operator = WindowOperatorBuilder
+				.builder()
 				.withInputFields(inputFieldTypes)
 				.sliding(Duration.ofSeconds(3), Duration.ofSeconds(1))
 				.withEventTime(2)
-				.aggregate(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes)
-				.build();
+				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -235,12 +231,12 @@ public class WindowOperatorTest {
 	public void testProcessingTimeSlidingWindows() throws Throwable {
 		closeCalled.set(0);
 
-		WindowOperator operator = getWindowOperatorBuilder()
+		WindowOperator operator = WindowOperatorBuilder
+				.builder()
 				.withInputFields(inputFieldTypes)
 				.sliding(Duration.ofSeconds(3), Duration.ofSeconds(1))
 				.withProcessingTime()
-				.aggregate(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes)
-				.build();
+				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -297,12 +293,12 @@ public class WindowOperatorTest {
 	public void testEventTimeTumblingWindows() throws Exception {
 		closeCalled.set(0);
 
-		WindowOperator operator = getWindowOperatorBuilder()
+		WindowOperator operator = WindowOperatorBuilder
+				.builder()
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(3))
 				.withEventTime(2)
-				.aggregate(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes)
-				.build();
+				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -378,7 +374,7 @@ public class WindowOperatorTest {
 	public void testEventTimeTumblingWindowsWithEarlyFiring() throws Exception {
 		closeCalled.set(0);
 
-		WindowOperator operator = AggregateWindowOperatorBuilder
+		WindowOperator operator = WindowOperatorBuilder
 				.builder()
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(3))
@@ -387,8 +383,8 @@ public class WindowOperatorTest {
 						EventTimeTriggers
 								.afterEndOfWindow()
 								.withEarlyFirings(ProcessingTimeTriggers.every(Duration.ofSeconds(1))))
-				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.withSendRetraction()
+				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
@@ -496,7 +492,7 @@ public class WindowOperatorTest {
 	public void testEventTimeTumblingWindowsWithEarlyAndLateFirings() throws Exception {
 		closeCalled.set(0);
 
-		WindowOperator operator = AggregateWindowOperatorBuilder
+		WindowOperator operator = WindowOperatorBuilder
 				.builder()
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(3))
@@ -506,9 +502,9 @@ public class WindowOperatorTest {
 								.afterEndOfWindow()
 								.withEarlyFirings(ProcessingTimeTriggers.every(Duration.ofSeconds(1)))
 								.withLateFirings(ElementTriggers.every()))
-				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.withAllowedLateness(Duration.ofSeconds(3))
 				.withSendRetraction()
+				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
@@ -622,12 +618,11 @@ public class WindowOperatorTest {
 	public void testProcessingTimeTumblingWindows() throws Exception {
 		closeCalled.set(0);
 
-		WindowOperator operator = getWindowOperatorBuilder()
+		WindowOperator operator = WindowOperatorBuilder.builder()
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(3))
 				.withProcessingTime()
-				.aggregate(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes)
-				.build();
+				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -671,12 +666,12 @@ public class WindowOperatorTest {
 	public void testEventTimeSessionWindows() throws Exception {
 		closeCalled.set(0);
 
-		WindowOperator operator = getWindowOperatorBuilder()
+		WindowOperator operator = WindowOperatorBuilder
+				.builder()
 				.withInputFields(inputFieldTypes)
 				.session(Duration.ofSeconds(3))
 				.withEventTime(2)
-				.aggregate(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes)
-				.build();
+				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -745,12 +740,12 @@ public class WindowOperatorTest {
 	public void testProcessingTimeSessionWindows() throws Throwable {
 		closeCalled.set(0);
 
-		WindowOperator operator = getWindowOperatorBuilder()
+		WindowOperator operator = WindowOperatorBuilder
+				.builder()
 				.withInputFields(inputFieldTypes)
 				.session(Duration.ofSeconds(3))
 				.withProcessingTime()
-				.aggregate(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes)
-				.build();
+				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -802,12 +797,12 @@ public class WindowOperatorTest {
 	public void testPointSessions() throws Exception {
 		closeCalled.set(0);
 
-		WindowOperator operator = getWindowOperatorBuilder()
+		WindowOperator operator = WindowOperatorBuilder
+				.builder()
 				.withInputFields(inputFieldTypes)
 				.assigner(new PointSessionWindowAssigner(3000))
 				.withEventTime(2)
-				.aggregate(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes)
-				.build();
+				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -850,15 +845,14 @@ public class WindowOperatorTest {
 
 	@Test
 	public void testLateness() throws Exception {
-		WindowOperator operator = AggregateWindowOperatorBuilder
+		WindowOperator operator = WindowOperatorBuilder
 				.builder()
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(2))
 				.withEventTime(2)
-				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.withAllowedLateness(Duration.ofMillis(500))
 				.withSendRetraction()
-				.build();
+				.aggregateAndBuild(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -905,15 +899,14 @@ public class WindowOperatorTest {
 	public void testCleanupTimeOverflow() throws Exception {
 		long windowSize = 1000;
 		long lateness = 2000;
-		WindowOperator operator = AggregateWindowOperatorBuilder
+		WindowOperator operator = WindowOperatorBuilder
 				.builder()
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofMillis(windowSize))
 				.withEventTime(2)
-				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.withAllowedLateness(Duration.ofMillis(lateness))
 				.withSendRetraction()
-				.build();
+				.aggregateAndBuild(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow>(
@@ -961,15 +954,14 @@ public class WindowOperatorTest {
 		final int windowSize = 2;
 		final long lateness = 1;
 
-		WindowOperator operator = AggregateWindowOperatorBuilder
+		WindowOperator operator = WindowOperatorBuilder
 				.builder()
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(windowSize))
 				.withEventTime(2)
-				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.withAllowedLateness(Duration.ofMillis(lateness))
 				.withSendRetraction()
-				.build();
+				.aggregateAndBuild(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -1000,11 +992,11 @@ public class WindowOperatorTest {
 		final int windowSize = 3;
 		LogicalType[] windowTypes = new LogicalType[] { new BigIntType() };
 
-		WindowOperator operator = getWindowOperatorBuilder()
+		WindowOperator operator = WindowOperatorBuilder
+				.builder()
 				.withInputFields(inputFieldTypes)
 				.countWindow(windowSize)
-				.aggregate(getCountWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes)
-				.build();
+				.aggregateAndBuild(getCountWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -1070,11 +1062,11 @@ public class WindowOperatorTest {
 		final int windowSlide = 3;
 		LogicalType[] windowTypes = new LogicalType[] { new BigIntType() };
 
-		WindowOperator operator = getWindowOperatorBuilder()
+		WindowOperator operator = WindowOperatorBuilder
+				.builder()
 				.withInputFields(inputFieldTypes)
 				.countWindow(windowSize, windowSlide)
-				.aggregate(getCountWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes)
-				.build();
+				.aggregateAndBuild(getCountWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 

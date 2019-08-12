@@ -819,6 +819,7 @@ class FlinkRelMdHandlerTestBase {
       cluster, streamPhysicalTraits, streamTs, program, program.getOutputRowType)
     val streamExchange = new StreamExecExchange(
       cluster, streamPhysicalTraits.replace(hash01), streamCalc, hash01)
+    val emitStrategy = WindowEmitStrategy(tableConfig, tumblingGroupWindow)
     val streamWindowAgg = new StreamExecGroupWindowTableAggregate(
       cluster,
       streamPhysicalTraits,
@@ -829,7 +830,8 @@ class FlinkRelMdHandlerTestBase {
       flinkLogicalWindowAgg.getAggCallList,
       tumblingGroupWindow,
       namedPropertiesOfWindowAgg,
-      inputTimeFieldIndex = 2
+      inputTimeFieldIndex = 2,
+      emitStrategy
     )
 
     (logicalWindowAgg, flinkLogicalWindowAgg, streamWindowAgg)

@@ -22,14 +22,9 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.RelNode
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.PlannerNamedWindowProperty
-import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator
 import org.apache.flink.table.planner.plan.logical._
-import org.apache.flink.table.planner.plan.utils.AggregateInfoList
-import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser
-import org.apache.flink.table.runtime.operators.window.{TableAggregateWindowOperatorBuilder, WindowOperator, WindowOperatorBuilder}
-import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy
 
 /**
   * Streaming group window table aggregate physical node which will be translate to window operator.
@@ -44,7 +39,8 @@ class StreamExecGroupWindowTableAggregate(
     aggCalls: Seq[AggregateCall],
     window: LogicalWindow,
     namedProperties: Seq[PlannerNamedWindowProperty],
-    inputTimeFieldIndex: Int)
+    inputTimeFieldIndex: Int,
+    emitStrategy: WindowEmitStrategy)
   extends StreamExecGroupWindowAggregateBase(
     cluster,
     traitSet,
@@ -56,7 +52,7 @@ class StreamExecGroupWindowTableAggregate(
     window,
     namedProperties,
     inputTimeFieldIndex,
-    None,
+    emitStrategy,
     "TableAggregate") {
 
   override def copy(traitSet: RelTraitSet, inputs: java.util.List[RelNode]): RelNode = {
@@ -70,29 +66,7 @@ class StreamExecGroupWindowTableAggregate(
       aggCalls,
       window,
       namedProperties,
-      inputTimeFieldIndex)
-  }
-
-  override def createWindowOperator(
-    config: TableConfig,
-    aggCodeGenerator: AggsHandlerCodeGenerator,
-    recordEqualiser: GeneratedRecordEqualiser,
-    accTypes: Array[LogicalType],
-    windowPropertyTypes: Array[LogicalType],
-    aggValueTypes: Array[LogicalType],
-    inputFields: Seq[LogicalType],
-    timeIdx: Int,
-    aggInfoList: AggregateInfoList): WindowOperator[_, _] = {
-
-    val aggsHandler = aggCodeGenerator.generateNamespaceTableAggsHandler(
-      "GroupingWindowTableAggsHandler",
-      aggInfoList,
-      namedProperties.map(_.property),
-      getWindowClass(window))
-
-    enrichWindowOperatorBuilder(new TableAggregateWindowOperatorBuilder(), inputFields, timeIdx)
-      .asInstanceOf[TableAggregateWindowOperatorBuilder]
-      .aggregate(aggsHandler, accTypes, aggValueTypes, windowPropertyTypes)
-      .build()
+      inputTimeFieldIndex,
+      emitStrategy)
   }
 }

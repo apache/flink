@@ -22,11 +22,13 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowTableAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamExecGroupWindowTableAggregate
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.{isRowtimeAttribute, timeFieldIndex}
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy
 
 import scala.collection.JavaConversions._
 
@@ -76,6 +78,9 @@ class StreamExecGroupWindowTableAggregateRule
       -1
     }
 
+    val config = cluster.getPlanner.getContext.asInstanceOf[FlinkContext].getTableConfig
+    val emitStrategy = WindowEmitStrategy(config, agg.getWindow)
+
     new StreamExecGroupWindowTableAggregate(
       cluster,
       providedTraitSet,
@@ -86,7 +91,8 @@ class StreamExecGroupWindowTableAggregateRule
       agg.getAggCallList,
       agg.getWindow,
       agg.getNamedProperties,
-      inputTimestampIndex)
+      inputTimestampIndex,
+      emitStrategy)
   }
 }
 

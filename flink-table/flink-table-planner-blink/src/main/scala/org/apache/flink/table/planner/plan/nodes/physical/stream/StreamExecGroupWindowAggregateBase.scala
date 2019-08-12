@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import java.time.Duration
 import java.util
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -38,8 +39,8 @@ import org.apache.flink.table.planner.plan.logical._
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
 import org.apache.flink.table.planner.plan.rules.physical.stream.StreamExecRetractionRules
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.{hasRowIntervalType, hasTimeIntervalType, isProctimeAttribute, isRowtimeAttribute, toDuration, toLong, transformToStreamAggregateInfoList}
-import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, KeySelectorUtil, RelExplainUtil, WindowEmitStrategy}
-import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser
+import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, KeySelectorUtil, RelExplainUtil, WindowEmitStrategy}
+import org.apache.flink.table.runtime.generated.{GeneratedClass, GeneratedNamespaceAggsHandleFunction, GeneratedNamespaceTableAggsHandleFunction, GeneratedRecordEqualiser}
 import org.apache.flink.table.runtime.operators.window.{CountWindow, TimeWindow, WindowOperator, WindowOperatorBuilder}
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
@@ -61,13 +62,13 @@ abstract class StreamExecGroupWindowAggregateBase(
     val window: LogicalWindow,
     namedProperties: Seq[PlannerNamedWindowProperty],
     inputTimeFieldIndex: Int,
-    val emitStrategy: Option[WindowEmitStrategy],
+    emitStrategy: WindowEmitStrategy,
     aggType: String)
   extends SingleRel(cluster, traitSet, inputRel)
     with StreamPhysicalRel
     with StreamExecNode[BaseRow] {
 
-  override def producesUpdates: Boolean = emitStrategy.isDefined && emitStrategy.get.produceUpdates
+  override def producesUpdates: Boolean = emitStrategy.produceUpdates
 
   override def consumesRetractions = true
 
@@ -102,8 +103,7 @@ abstract class StreamExecGroupWindowAggregateBase(
         outputRowType,
         aggCalls,
         namedProperties))
-      .itemIf("emit",
-        emitStrategy.getOrElse(""), emitStrategy.isDefined && !emitStrategy.get.toString.isEmpty)
+      .itemIf("emit", emitStrategy, !emitStrategy.toString.isEmpty)
   }
 
   //~ ExecNode methods -----------------------------------------------------------
@@ -113,13 +113,13 @@ abstract class StreamExecGroupWindowAggregateBase(
   }
 
   override def replaceInputNode(
-    ordinalInParent: Int,
-    newInputNode: ExecNode[StreamPlanner, _]): Unit = {
+      ordinalInParent: Int,
+      newInputNode: ExecNode[StreamPlanner, _]): Unit = {
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
   override protected def translateToPlanInternal(
-    planner: StreamPlanner): Transformation[BaseRow] = {
+      planner: StreamPlanner): Transformation[BaseRow] = {
     val config = planner.getTableConfig
 
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
@@ -151,13 +151,6 @@ abstract class StreamExecGroupWindowAggregateBase(
           "excessive state size. You may specify a retention time of 0 to not clean up the state.")
     }
 
-    val aggString = RelExplainUtil.streamWindowAggregationToString(
-      inputRowType,
-      grouping,
-      outputRowType,
-      aggCalls,
-      namedProperties)
-
     val timeIdx = if (isRowtimeAttribute(window.timeAttribute)) {
       if (inputTimeFieldIndex < 0) {
         throw new TableException(
@@ -179,7 +172,7 @@ abstract class StreamExecGroupWindowAggregateBase(
       needInputCount = needRetraction,
       isStateBackendDataViews = true)
 
-    val aggCodeGenerator = getAggsHandlerCodeGenerator(
+    val aggCodeGenerator = createAggsHandler(
       aggInfoList,
       config,
       planner.getRelBuilder,
@@ -201,8 +194,7 @@ abstract class StreamExecGroupWindowAggregateBase(
       windowPropertyTypes,
       aggValueTypes,
       inputRowTypeInfo.getLogicalTypes,
-      timeIdx,
-      aggInfoList)
+      timeIdx)
 
     val transformation = new OneInputTransformation(
       inputTransform,
@@ -224,17 +216,24 @@ abstract class StreamExecGroupWindowAggregateBase(
     transformation
   }
 
-  private def getAggsHandlerCodeGenerator(
-    aggInfoList: AggregateInfoList,
-    config: TableConfig,
-    relBuilder: RelBuilder,
-    fieldTypeInfos: Seq[LogicalType],
-    needRetraction: Boolean): AggsHandlerCodeGenerator = {
+  private def createAggsHandler(
+      aggInfoList: AggregateInfoList,
+      config: TableConfig,
+      relBuilder: RelBuilder,
+      fieldTypeInfos: Seq[LogicalType],
+      needRetraction: Boolean): GeneratedClass[_] = {
 
     val needMerge = window match {
       case SlidingGroupWindow(_, _, size, _) if hasTimeIntervalType(size) => true
       case SessionGroupWindow(_, _, _) => true
       case _ => false
+    }
+    val windowClass = window match {
+      case TumblingGroupWindow(_, _, size) if hasRowIntervalType(size) =>
+        classOf[CountWindow]
+      case SlidingGroupWindow(_, _, size, _) if hasRowIntervalType(size) =>
+        classOf[CountWindow]
+      case _ => classOf[TimeWindow]
     }
 
     val generator = new AggsHandlerCodeGenerator(
@@ -251,15 +250,35 @@ abstract class StreamExecGroupWindowAggregateBase(
       generator.needRetract()
     }
 
-    generator
+    val isTableAggregate =
+      AggregateUtil.isTableAggregate(aggInfoList.getActualAggregateCalls.toList)
+    if (isTableAggregate) {
+      generator.generateNamespaceTableAggsHandler(
+        "GroupingWindowTableAggsHandler",
+        aggInfoList,
+        namedProperties.map(_.property),
+        windowClass)
+    } else {
+      generator.generateNamespaceAggsHandler(
+        "GroupingWindowAggsHandler",
+        aggInfoList,
+        namedProperties.map(_.property),
+        windowClass)
+    }
   }
 
-  protected def enrichWindowOperatorBuilder(
-    inputWindowOperatorBuilder: WindowOperatorBuilder,
-    inputFields: Seq[LogicalType],
-    timeIdx: Int): WindowOperatorBuilder = {
+  private def createWindowOperator(
+      config: TableConfig,
+      aggsHandler: GeneratedClass[_],
+      recordEqualiser: GeneratedRecordEqualiser,
+      accTypes: Array[LogicalType],
+      windowPropertyTypes: Array[LogicalType],
+      aggValueTypes: Array[LogicalType],
+      inputFields: Seq[LogicalType],
+      timeIdx: Int): WindowOperator[_, _] = {
 
-    val builder = inputWindowOperatorBuilder
+    val builder = WindowOperatorBuilder
+      .builder()
       .withInputFields(inputFields.toArray)
 
     val newBuilder = window match {
@@ -312,34 +331,23 @@ abstract class StreamExecGroupWindowAggregateBase(
         builder.session(toDuration(gap)).withEventTime(timeIdx)
     }
 
-    if (emitStrategy.isDefined && emitStrategy.get.produceUpdates) {
+    if (emitStrategy.produceUpdates) {
       // mark this operator will send retraction and set new trigger
       newBuilder
         .withSendRetraction()
-        .triggering(emitStrategy.get.getTrigger)
-    } else {
-      newBuilder
+        .triggering(emitStrategy.getTrigger)
+    }
+
+    newBuilder.withAllowedLateness(Duration.ofMillis(emitStrategy.getAllowLateness))
+    aggsHandler match {
+      case agg: GeneratedNamespaceAggsHandleFunction[_] =>
+        newBuilder
+          .aggregate(agg, recordEqualiser, accTypes, aggValueTypes, windowPropertyTypes)
+          .build()
+      case tableAgg: GeneratedNamespaceTableAggsHandleFunction[_] =>
+        newBuilder
+          .aggregate(tableAgg, accTypes, aggValueTypes, windowPropertyTypes)
+          .build()
     }
   }
-
-  protected def getWindowClass(window: LogicalWindow): Class[_] = {
-    window match {
-      case TumblingGroupWindow(_, _, size) if hasRowIntervalType(size) =>
-        classOf[CountWindow]
-      case SlidingGroupWindow(_, _, size, _) if hasRowIntervalType(size) =>
-        classOf[CountWindow]
-      case _ => classOf[TimeWindow]
-    }
-  }
-
-  protected def createWindowOperator(
-    config: TableConfig,
-    aggCodeGenerator: AggsHandlerCodeGenerator,
-    recordEqualiser: GeneratedRecordEqualiser,
-    accTypes: Array[LogicalType],
-    windowPropertyTypes: Array[LogicalType],
-    aggValueTypes: Array[LogicalType],
-    inputFields: Seq[LogicalType],
-    timeIdx: Int,
-    aggInfoList: AggregateInfoList): WindowOperator[_, _]
 }
