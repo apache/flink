@@ -18,12 +18,13 @@
 
 package org.apache.flink.table.sinks
 
-import org.apache.flink.table.api.{TableException, ValidationException}
+import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.catalog.ObjectIdentifier
 import org.apache.flink.table.operations.QueryOperation
 
-import java.util.{List => JList, Map => JMap}
+import java.util.{Map => JMap}
 
-import collection.JavaConversions._
+import scala.collection.JavaConversions._
 
 object TableSinkUtils {
 
@@ -41,7 +42,7 @@ object TableSinkUtils {
   def validateSink(
       staticPartitions: JMap[String, String],
       query: QueryOperation,
-      sinkPath: JList[String],
+      sinkPath: ObjectIdentifier,
       sink: TableSink[_])
     : Unit = {
     // validate schema of source table and table sink

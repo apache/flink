@@ -19,12 +19,11 @@
 package org.apache.flink.table.planner.sinks
 
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.catalog.ObjectIdentifier
 import org.apache.flink.table.operations.CatalogSinkModifyOperation
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.sinks.{PartitionableTableSink, TableSink}
-
-import java.util.{List => JList}
 
 import scala.collection.JavaConversions._
 
@@ -42,7 +41,7 @@ object TableSinkUtils {
     */
   def validateSink(
       sinkOperation: CatalogSinkModifyOperation,
-      sinkPath: JList[String],
+      sinkPath: ObjectIdentifier,
       sink: TableSink[_]): Unit = {
     val query = sinkOperation.getChild
     // validate schema of source table and table sink
