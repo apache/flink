@@ -1,0 +1,39 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- hosts: all
+  become: yes
+  roles:
+    - role: install-openjdk
+      java_version: '8'
+      with_scala: true
+      scala_version: '2.11.0'
+    - role: install-maven
+      maven_version: '3.2.5'
+
+  tasks:
+    - name: Build Flink
+      shell:
+        cmd: |
+          set -xe
+
+          mvn clean install -nsu -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 \
+          -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B -DskipTests -Dhadoop.version=2.8.3 \
+          -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -am \
+          -pl flink-tests
+      args:
+        executable: /bin/bash
+        chdir: '{{ zuul.project.src_dir }}'
+      environment: '{{ global_env }}'
