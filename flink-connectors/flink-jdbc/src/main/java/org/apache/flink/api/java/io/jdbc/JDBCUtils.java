@@ -152,6 +152,8 @@ public class JDBCUtils {
 	}
 
 	public static Object getFieldFromResultSet(int index, int type, ResultSet set) throws SQLException {
+		//set.wasNull() return whether the last column read had a value of SQL NULL; it can judge current column was null
+		set.getObject(index + 1);
 		if (set.wasNull()) {
 			return null;
 		}
