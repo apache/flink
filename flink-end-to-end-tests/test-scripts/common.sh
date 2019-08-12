@@ -747,3 +747,47 @@ function retry_times() {
     echo "Command: ${command} failed ${retriesNumber} times."
     return 1
 }
+
+##################################################################################
+# Retry action until it has successfully exited and wait for condition.
+#
+# Globals:
+#   -
+# Arguments:
+#   $1 - action to run
+#   $2 - boolean function to check whether the action has been successfully done
+#   $3 - action name for logs
+#   $4 - (default: 10) max number of retries to run action until passed and check done
+#   $5 - (default: 0) backoff delay in seconds between retry attempts
+# Returns:
+#   Done or failed message
+###################################################################################
+function retry_until_passed_and_wait_condition {
+    local action=${@:1}
+    local check_done=${@:2}
+    local name=${3}
+    local max_retry="${4:-10}"
+    local backoff_delay="${5:-0}"
+
+    local attempt=1
+    local action_passed=1
+
+    while true; do
+        if [[ "${action_passed}" -ne 0 ]] && ! ${check_done}; then
+            ${action}
+            action_passed=$?
+        fi
+
+        if [[ "${attempt}" -lt "${max_retry}" ]] && ! ${check_done}; then
+            echo "Retry <${name}> after ${backoff_delay} seconds, attempt $(( ++attempt ))"
+            sleep ${backoff_delay}
+        elif ! ${check_done}; then
+            echo "Failed <${name}> after ${max_retry} attempts"
+            exit 1
+        else
+            break
+        fi
+    done
+
+    echo "Done <${name}>"
+}

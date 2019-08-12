@@ -28,9 +28,26 @@ export AWS_SECRET_KEY=flinkKinesisTestFakeAccessKey
 
 KINESALITE_PORT=4567
 
-#docker run -d --rm --name flink-test-kinesis -p ${KINESALITE_PORT}:${KINESALITE_PORT} instructure/kinesalite
-# override entrypoint to enable SSL
-docker run -d --rm --entrypoint "/tini" --name flink-test-kinesis -p ${KINESALITE_PORT}:${KINESALITE_PORT} instructure/kinesalite -- /usr/src/app/node_modules/kinesalite/cli.js --path /var/lib/kinesalite --ssl
+function START_KINESALITE {
+    #docker run -d --rm --name flink-test-kinesis -p ${KINESALITE_PORT}:${KINESALITE_PORT} instructure/kinesalite
+    # override entrypoint to enable SSL
+    docker run -d --rm --entrypoint "/tini" \
+        --name flink-test-kinesis \
+        -p ${KINESALITE_PORT}:${KINESALITE_PORT} \
+        instructure/kinesalite -- \
+        /usr/src/app/node_modules/kinesalite/cli.js --path /var/lib/kinesalite --ssl
+}
+
+function KINESALITE_STARTED {
+    if [[ "$(docker ps --format '{{.Names}}' | grep flink-test-kinesis)" = "flink-test-kinesis" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+START_KINESALITE_MAX_RETRY_NUMBER=10
+retry_until_passed_and_wait_condition START_KINESALITE KINESALITE_STARTED "start kinesalite" ${START_KINESALITE_MAX_RETRY_NUMBER}
 
 # reveal potential issues with the container in the CI environment
 docker logs flink-test-kinesis
