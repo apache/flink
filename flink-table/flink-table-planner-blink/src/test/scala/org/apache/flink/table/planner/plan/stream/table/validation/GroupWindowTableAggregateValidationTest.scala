@@ -19,8 +19,9 @@
 package org.apache.flink.table.planner.plan.stream.table.validation
 
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.{Slide, Tumble, ValidationException}
+import org.apache.flink.table.api.{Slide, TableException, Tumble, ValidationException}
 import org.apache.flink.table.api.scala._
+import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED}
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.planner.utils.{TableTestBase, Top3}
 import org.junit.Test
@@ -59,5 +60,26 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
       .groupBy('string, 'w)
       .flatAggregate(top3('int))
       .select('*)
+  }
+
+  @Test
+  def testEmitStrategyNotSupported(): Unit = {
+    expectedException.expect(classOf[TableException])
+    expectedException.expectMessage("Emit strategy has not been supported for Table Aggregate!")
+
+    val util = streamTestUtil()
+    val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)
+
+    val tableConf = util.getTableEnv.getConfig
+    tableConf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, true)
+    tableConf.getConfiguration.setString(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, 10 + " ms")
+
+    val result = table
+      .window(Tumble over 2.hours on 'proctime as 'w)
+      .groupBy('string, 'w)
+      .flatAggregate(top3('int))
+      .select('string, 'f0, 'w.start)
+
+    util.verifyPlan(result)
   }
 }

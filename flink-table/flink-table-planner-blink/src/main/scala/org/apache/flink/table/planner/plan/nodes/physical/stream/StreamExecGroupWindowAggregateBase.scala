@@ -336,9 +336,9 @@ abstract class StreamExecGroupWindowAggregateBase(
       newBuilder
         .withSendRetraction()
         .triggering(emitStrategy.getTrigger)
+        .withAllowedLateness(Duration.ofMillis(emitStrategy.getAllowLateness))
     }
 
-    newBuilder.withAllowedLateness(Duration.ofMillis(emitStrategy.getAllowLateness))
     aggsHandler match {
       case agg: GeneratedNamespaceAggsHandleFunction[_] =>
         newBuilder
