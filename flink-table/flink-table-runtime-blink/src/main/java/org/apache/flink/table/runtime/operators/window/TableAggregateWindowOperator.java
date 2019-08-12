@@ -29,7 +29,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Collector;
 
 /**
- * A {@link WindowOperator} that dedicates for group table aggregate.
+ * A {@link WindowOperator} for grouped and windowed table aggregates.
  *
  * <p>When an element arrives it gets assigned a key using a {@link KeySelector} and it gets
  * assigned to zero or more windows using a {@link WindowAssigner}. Based on this, the element

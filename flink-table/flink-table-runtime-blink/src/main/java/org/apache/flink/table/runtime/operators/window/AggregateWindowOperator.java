@@ -34,7 +34,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link WindowOperator} that dedicates for group aggregate.
+ * A {@link WindowOperator} for grouped window aggregates.
  *
  * <p>When an element arrives it gets assigned a key using a {@link KeySelector} and it gets
  * assigned to zero or more windows using a {@link WindowAssigner}. Based on this, the element
