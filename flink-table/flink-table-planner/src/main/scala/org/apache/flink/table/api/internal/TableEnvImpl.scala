@@ -100,17 +100,6 @@ abstract class TableEnvImpl(
 
   private def isBatchTable: Boolean = !isStreamingMode
 
-  override def registerExternalCatalog(name: String, externalCatalog: ExternalCatalog): Unit = {
-    catalogManager.registerExternalCatalog(name, externalCatalog)
-  }
-
-  override def getRegisteredExternalCatalog(name: String): ExternalCatalog = {
-    JavaScalaConversionUtil.toScala(catalogManager.getExternalCatalog(name)) match {
-      case Some(catalog) => catalog
-      case None => throw new CatalogNotExistException(name)
-    }
-  }
-
   override def registerFunction(name: String, function: ScalarFunction): Unit = {
     functionCatalog.registerScalarFunction(
       name,

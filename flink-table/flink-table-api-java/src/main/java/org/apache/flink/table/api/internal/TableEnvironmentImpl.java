@@ -156,16 +156,6 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
-	public void registerExternalCatalog(String name, ExternalCatalog externalCatalog) {
-		catalogManager.registerExternalCatalog(name, externalCatalog);
-	}
-
-	@Override
-	public ExternalCatalog getRegisteredExternalCatalog(String name) {
-		return catalogManager.getExternalCatalog(name).orElseThrow(() -> new CatalogNotExistException(name));
-	}
-
-	@Override
 	public void registerCatalog(String catalogName, Catalog catalog) {
 		catalogManager.registerCatalog(catalogName, catalog);
 	}

@@ -44,8 +44,7 @@ StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
 // register a Table
 tableEnv.registerTable("table1", ...)            // or
-tableEnv.registerTableSource("table2", ...);     // or
-tableEnv.registerExternalCatalog("extCat", ...);
+tableEnv.registerTableSource("table2", ...);
 // register an output Table
 tableEnv.registerTableSink("outputTable", ...);
 
@@ -73,8 +72,7 @@ val tableEnv = StreamTableEnvironment.create(env)
 
 // register a Table
 tableEnv.registerTable("table1", ...)           // or
-tableEnv.registerTableSource("table2", ...)     // or
-tableEnv.registerExternalCatalog("extCat", ...)
+tableEnv.registerTableSource("table2", ...)
 // register an output Table
 tableEnv.registerTableSink("outputTable", ...);
 
@@ -396,48 +394,7 @@ table_env.register_table_sink("CsvSinkTable", csv_sink)
 
 {% top %}
 
-Register an External Catalog
-----------------------------
-
-An external catalog can provide information about external databases and tables such as their name, schema, statistics, and information for how to access data stored in an external database, table, or file.
-
-An external catalog can be created by implementing the `ExternalCatalog` interface and is registered in a `TableEnvironment` as follows:
-
-<div class="codetabs" markdown="1">
-<div data-lang="java" markdown="1">
-{% highlight java %}
-// get a StreamTableEnvironment, works for BatchTableEnvironment equivalently
-StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
-
-// create an external catalog
-ExternalCatalog catalog = new InMemoryExternalCatalog();
-
-// register the ExternalCatalog catalog
-tableEnv.registerExternalCatalog("InMemCatalog", catalog);
-{% endhighlight %}
-</div>
-
-<div data-lang="scala" markdown="1">
-{% highlight scala %}
-// get a TableEnvironment
-val tableEnv = StreamTableEnvironment.create(env)
-
-// create an external catalog
-val catalog: ExternalCatalog = new InMemoryExternalCatalog
-
-// register the ExternalCatalog catalog
-tableEnv.registerExternalCatalog("InMemCatalog", catalog)
-{% endhighlight %}
-</div>
-</div>
-
-Once registered in a `TableEnvironment`, all tables defined in a `ExternalCatalog` can be accessed from Table API or SQL queries by specifying their full path, such as `catalog.database.table`.
-
-Currently, Flink provides an `InMemoryExternalCatalog` for demo and testing purposes. However, the `ExternalCatalog` interface can also be used to connect catalogs like HCatalog or Metastore to the Table API.
-
-{% top %}
-
-Query a Table 
+Query a Table
 -------------
 
 ### Table API

@@ -19,7 +19,6 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.runtime.utils.CommonTestData;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
@@ -33,7 +32,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Tests for {@link CatalogManager}. See also {@link CatalogManagerPathResolutionTest}.
+ * Tests for {@link CatalogManager}. See also {@link PathResolutionTest}.
  */
 public class CatalogManagerTest extends TestLogger {
 
@@ -90,44 +89,6 @@ public class CatalogManagerTest extends TestLogger {
 			.build();
 
 		manager.registerCatalog(TEST_CATALOG_NAME, new GenericInMemoryCatalog(TEST_CATALOG_NAME));
-	}
-
-	@Test
-	public void testRegisterCatalogWithExistingExternalCatalog() throws Exception {
-		thrown.expect(CatalogException.class);
-
-		CatalogManager manager = root()
-			.builtin(
-				database(BUILTIN_DEFAULT_DATABASE_NAME))
-			.externalCatalog(TEST_CATALOG_NAME)
-			.build();
-
-		manager.registerCatalog(TEST_CATALOG_NAME, new GenericInMemoryCatalog(TEST_CATALOG_NAME));
-	}
-
-	@Test
-	public void testRegisterExternalCatalogWithExistingName() throws Exception {
-		thrown.expect(CatalogException.class);
-		thrown.expectMessage("An external catalog named [test] already exists.");
-
-		CatalogManager manager = root()
-			.builtin(
-				database(BUILTIN_DEFAULT_DATABASE_NAME))
-			.catalog(TEST_CATALOG_NAME, database(TEST_CATALOG_DEFAULT_DB_NAME))
-			.build();
-
-		manager.registerExternalCatalog(TEST_CATALOG_NAME, CommonTestData.getInMemoryTestCatalog(false));
-	}
-
-	@Test
-	public void testCannotSetExternalCatalogAsDefault() throws Exception {
-		thrown.expect(CatalogException.class);
-		thrown.expectMessage("An external catalog cannot be set as the default one.");
-
-		CatalogManager manager = root()
-			.externalCatalog("ext")
-			.build();
-		manager.setCurrentCatalog("ext");
 	}
 
 	@Test
