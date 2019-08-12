@@ -537,7 +537,7 @@ stream.addSink(myProducer)
 
 ##### 注意事项
 
-`Semantic.EXACTLY_ONCE` 模式依赖于，在从上述 checkpoint 恢复之后提交在获取 checkpoint 之前启动的事务的能力。如果 Flink 应用程序崩溃和完成重新启动之间的时间大于 Kafka 的事务超时，则会丢失数据（ Kafka 将自动中止超出超时时间的事务）。记住这一点，请根据预期的停机时间适当地配置事务超时时间。
+`Semantic.EXACTLY_ONCE` 模式依赖于事务提交的能力。事务提交发生于触发 checkpoint 之前，以及从 checkpoint 恢复之后。如果从 Flink 应用程序崩溃到完全重启的时间超过了 Kafka 的事务超时时间，那么将会有数据丢失（Kafka 会自动丢弃超出超时时间的事务）。考虑到这一点，请根据预期的宕机时间来合理地配置事务超时时间。
 
 默认情况下， Kafka brokers 将 `transaction.max.timeout.ms` 设置为 15 分钟。此属性不允许为大于其值的 producers 设置事务超时时间。
 默认情况下， `FlinkKafkaProducer011` 将 producer config 中的 `transaction.timeout.ms` 属性设置为 1 小时，因此在使用 `Semantic.EXACTLY_ONCE` 模式之前应该增加 `transaction.max.timeout.ms` 的值。
