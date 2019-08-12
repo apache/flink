@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.FileSystemValidator;
+import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.OldCsvValidator;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.TableFactory;
@@ -71,6 +72,7 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		// format
 		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_TYPE);
 		properties.add(FORMAT_FIELDS + ".#." + DescriptorProperties.TABLE_SCHEMA_NAME);
+		properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
 		properties.add(FORMAT_FIELD_DELIMITER);
 		properties.add(FORMAT_LINE_DELIMITER);
 		properties.add(FORMAT_QUOTE_CHARACTER);
@@ -99,22 +101,27 @@ public abstract class CsvTableSourceFactoryBase implements TableFactory {
 		// build
 		CsvTableSource.Builder csvTableSourceBuilder = new CsvTableSource.Builder();
 
-		TableSchema formatSchema = params.getTableSchema(FORMAT_FIELDS);
 		TableSchema tableSchema = params.getTableSchema(SCHEMA);
+		boolean isDerived = params
+			.getOptionalBoolean(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA)
+			.orElse(false);
 
-		// the CsvTableSource needs some rework first
-		// for now the schema must be equal to the encoding
-		if (!formatSchema.equals(tableSchema)) {
-			throw new TableException(
+		if (!isDerived) {
+			TableSchema formatSchema = params.getTableSchema(FORMAT_FIELDS);
+			// the CsvTableSource needs some rework first
+			// for now the schema must be equal to the encoding
+			if (!formatSchema.equals(tableSchema)) {
+				throw new TableException(
 					"Encodings that differ from the schema are not supported yet for CsvTableSources.");
+			}
 		}
 
 		params.getOptionalString(CONNECTOR_PATH).ifPresent(csvTableSourceBuilder::path);
 		params.getOptionalString(FORMAT_FIELD_DELIMITER).ifPresent(csvTableSourceBuilder::fieldDelimiter);
 		params.getOptionalString(FORMAT_LINE_DELIMITER).ifPresent(csvTableSourceBuilder::lineDelimiter);
 
-		for (int i = 0; i < formatSchema.getFieldCount(); ++i) {
-			csvTableSourceBuilder.field(formatSchema.getFieldNames()[i], formatSchema.getFieldTypes()[i]);
+		for (int i = 0; i < tableSchema.getFieldCount(); ++i) {
+			csvTableSourceBuilder.field(tableSchema.getFieldNames()[i], tableSchema.getFieldTypes()[i]);
 		}
 		params.getOptionalCharacter(FORMAT_QUOTE_CHARACTER).ifPresent(csvTableSourceBuilder::quoteCharacter);
 		params.getOptionalString(FORMAT_COMMENT_PREFIX).ifPresent(csvTableSourceBuilder::commentPrefix);

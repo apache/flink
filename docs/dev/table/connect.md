@@ -1857,6 +1857,7 @@ Use the old one for stream/batch filesystem operations for now.
   new OldCsv()
     .field("field1", Types.STRING)    // required: ordered format fields
     .field("field2", Types.TIMESTAMP)
+    .deriveSchema()                   // or use the table's schema
     .fieldDelimiter(",")              // optional: string delimiter "," by default
     .lineDelimiter("\n")              // optional: string delimiter "\n" by default
     .quoteCharacter('"')              // optional: single character for string values, empty by default
@@ -1892,6 +1893,7 @@ format:
       type: VARCHAR
     - name: field2
       type: TIMESTAMP
+  derive-schema: true        # or use the table's schema
   field-delimiter: ","       # optional: string delimiter "," by default
   line-delimiter: "\n"       # optional: string delimiter "\n" by default
   quote-character: '"'       # optional: single character for string values, empty by default
@@ -1912,7 +1914,9 @@ CREATE TABLE MyUserTable (
   'format.fields.0.type' = 'FLOAT',
   'format.fields.1.name' = 'rideTime',
   'format.fields.1.type' = 'TIMESTAMP',
-  
+
+  'format.derive-schema' = 'true',        -- or use the table's schema'
+
   'format.field-delimiter' = ',',         -- optional: string delimiter "," by default
   'format.line-delimiter' = '\n',         -- optional: string delimiter "\n" by default
   'format.quote-character' = '"',         -- optional: single character for string values, empty by default
