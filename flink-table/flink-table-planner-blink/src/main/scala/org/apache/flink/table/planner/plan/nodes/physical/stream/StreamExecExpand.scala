@@ -94,15 +94,15 @@ class StreamExecExpand(
       opName = "StreamExpand",
       retainHeader = true)
 
-    val operatorName = s"StreamExecExpand: ${getRowType.getFieldList.map(_.getName).mkString(", ")}"
     val transform = new OneInputTransformation(
       inputTransform,
-      operatorName,
+      getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
-      getResource.getParallelism)
-    if (getResource.getMaxParallelism > 0) {
-      transform.setMaxParallelism(getResource.getMaxParallelism)
+      inputTransform.getParallelism)
+    if (inputsContainSingleton()) {
+      transform.setParallelism(1)
+      transform.setMaxParallelism(1)
     }
     transform
   }

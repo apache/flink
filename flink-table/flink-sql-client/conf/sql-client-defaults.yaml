@@ -50,6 +50,7 @@ tables: [] # empty list
 #   time-attribute: ...
 #   primary-key: ...
 
+
 #==============================================================================
 # User-defined functions
 #==============================================================================
@@ -63,13 +64,31 @@ functions: [] # empty list
 #   class: ...
 #   constructor: ...
 
+
+#==============================================================================
+# Catalogs
+#==============================================================================
+
+# Define catalogs here.
+
+catalogs: [] # empty list
+# A typical catalog definition looks like:
+#  - name: myhive
+#    type: hive
+#    hive-conf-dir: /opt/hive_conf/
+#    default-database: ...
+
+
 #==============================================================================
 # Execution properties
 #==============================================================================
 
-# Execution properties allow for changing the behavior of a table program.
+# Properties that change the fundamental execution behavior of a table program.
 
 execution:
+  # select the implementation responsible for planning table programs
+  # possible values are 'old' (used by default) or 'blink'
+  planner: old
   # 'batch' or 'streaming' execution
   type: streaming
   # allow 'event-time' or only 'processing-time' in sources
@@ -88,23 +107,36 @@ execution:
   min-idle-state-retention: 0
   # maximum idle state retention in ms
   max-idle-state-retention: 0
+  # current catalog ('default_catalog' by default)
+  current-catalog: default_catalog
+  # current database of the current catalog (default database of the catalog by default)
+  current-database: default_database
   # controls how table programs are restarted in case of a failures
   restart-strategy:
     # strategy type
     # possible values are "fixed-delay", "failure-rate", "none", or "fallback" (default)
     type: fallback
-  # current catalog of SQL Client
-#  current-catalog: ...
-  # current database of the current catalog
-#  current-database: ...
 
+#==============================================================================
+# Configuration options
+#==============================================================================
+
+# Configuration options for adjusting and tuning table programs.
+
+# A full list of options and their default values can be found
+# on the dedicated "Configuration" web page.
+
+# A configuration can look like:
+# configuration:
+#   table.exec.spill-compression.enabled: true
+#   table.exec.spill-compression.block-size: 128kb
+#   table.optimizer.join-reorder-enabled: true
 
 #==============================================================================
 # Deployment properties
 #==============================================================================
 
-# Deployment properties allow for describing the cluster to which table
-# programs are submitted to.
+# Properties that describe the cluster to which table programs are submitted to.
 
 deployment:
   # general cluster communication timeout in ms
@@ -113,16 +145,3 @@ deployment:
   gateway-address: ""
   # (optional) port from cluster to gateway
   gateway-port: 0
-
-
-#==============================================================================
-# Catalogs
-#==============================================================================
-
-# Define catalogs here.
-
-catalogs: [] # empty list
-#  - name: myhive
-#    type: hive
-#    hive-conf-dir: /opt/hive_conf/
-#    default-database: ...

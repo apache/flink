@@ -19,7 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.common
 
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
-import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, JoinUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, JoinUtil}
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -78,8 +79,8 @@ abstract class CommonPhysicalJoin(
   override def explainTerms(pw: RelWriter): RelWriter = {
     pw.input("left", getLeft).input("right", getRight)
       .item("joinType", flinkJoinType.toString)
-      .item("where",
-        RelExplainUtil.expressionToString(getCondition, inputRowType, getExpressionString))
+      .item("where", getExpressionString(
+        getCondition, inputRowType.getFieldNames.toList, None, preferExpressionFormat(pw)))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 

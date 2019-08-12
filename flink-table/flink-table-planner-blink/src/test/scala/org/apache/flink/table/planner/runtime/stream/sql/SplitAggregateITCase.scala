@@ -111,8 +111,8 @@ class SplitAggregateITCase(
     t1.toRetractStream[Row].addSink(sink)
     env.execute()
 
-    val expected = List("1,3,2,1.5", "2,29,5,3.625",
-      "3,10,2,5.0", "4,21,3,5.25")
+    val expected = List("1,3,2,1", "2,29,5,3",
+      "3,10,2,5", "4,21,3,5")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
@@ -192,28 +192,6 @@ class SplitAggregateITCase(
     env.execute()
 
     val expected = List("2,2,2,1", "5,1,4,2", "6,2,2,1")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
-  @Test
-  def testFirstValueLastValueWithRetraction(): Unit = {
-    val t1 = tEnv.sqlQuery(
-      s"""
-         |SELECT
-         |  b, FIRST_VALUE(c, a), LAST_VALUE(c, a), COUNT(DISTINCT c)
-         |FROM(
-         |  SELECT
-         |    a, COUNT(DISTINCT b) as b, MAX(b) as c
-         |  FROM T
-         |  GROUP BY a
-         |) GROUP BY b
-       """.stripMargin)
-
-    val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = List("2,2,6,2", "4,5,5,1", "1,5,5,1")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 

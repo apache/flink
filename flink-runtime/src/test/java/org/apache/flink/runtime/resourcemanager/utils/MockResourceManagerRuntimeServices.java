@@ -52,19 +52,23 @@ public class MockResourceManagerRuntimeServices {
 	public final SlotManager slotManager;
 
 	public MockResourceManagerRuntimeServices(RpcService rpcService, Time timeout) {
+		this(rpcService, timeout, SlotManagerBuilder.newBuilder()
+			.setScheduledExecutor(new ScheduledExecutorServiceAdapter(new DirectScheduledExecutorService()))
+			.setTaskManagerRequestTimeout(Time.seconds(10))
+			.setSlotRequestTimeout(Time.seconds(10))
+			.setTaskManagerTimeout(Time.minutes(1))
+			.build());
+	}
+
+	public MockResourceManagerRuntimeServices(RpcService rpcService, Time timeout, SlotManager slotManager) {
 		this.rpcService = checkNotNull(rpcService);
 		this.timeout = checkNotNull(timeout);
+		this.slotManager = slotManager;
 		highAvailabilityServices = new TestingHighAvailabilityServices();
 		rmLeaderElectionService = new TestingLeaderElectionService();
 		highAvailabilityServices.setResourceManagerLeaderElectionService(rmLeaderElectionService);
 		heartbeatServices = new TestingHeartbeatServices();
 		metricRegistry = NoOpMetricRegistry.INSTANCE;
-		slotManager = SlotManagerBuilder.newBuilder()
-			.setScheduledExecutor(new ScheduledExecutorServiceAdapter(new DirectScheduledExecutorService()))
-			.setTaskManagerRequestTimeout(Time.seconds(10))
-			.setSlotRequestTimeout(Time.seconds(10))
-			.setTaskManagerTimeout(Time.minutes(1))
-			.build();
 		jobLeaderIdService = new JobLeaderIdService(
 			highAvailabilityServices,
 			rpcService.getScheduledExecutor(),
@@ -74,5 +78,9 @@ public class MockResourceManagerRuntimeServices {
 	public void grantLeadership() throws Exception {
 		UUID rmLeaderSessionId = UUID.randomUUID();
 		rmLeaderElectionService.isLeader(rmLeaderSessionId).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+	}
+
+	public void revokeLeadership() {
+		rmLeaderElectionService.notLeader();
 	}
 }

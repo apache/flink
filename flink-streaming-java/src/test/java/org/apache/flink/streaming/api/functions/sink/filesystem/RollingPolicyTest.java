@@ -190,7 +190,8 @@ public class RollingPolicyTest {
 				new DefaultBucketFactoryImpl<>(),
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
 				rollingPolicyToTest,
-				0
+				0,
+				new PartFileConfig()
 		);
 	}
 

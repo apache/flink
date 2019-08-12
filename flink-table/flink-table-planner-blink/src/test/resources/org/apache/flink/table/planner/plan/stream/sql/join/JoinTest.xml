@@ -1077,7 +1077,7 @@ Join(joinType=[LeftOuterJoin], where=[=(key, key0)], select=[key, v, key0, v0], 
 :  +- Calc(select=[CAST(0:BIGINT) AS key, v], where=[=(key, 0:BIGINT)], updateAsRetraction=[true], accMode=[Acc])
 :     +- TableSourceScan(table=[[default_catalog, default_database, src, source: [TestTableSource(key, v)]]], fields=[key, v], updateAsRetraction=[true], accMode=[Acc])
 +- Exchange(distribution=[hash[key]], updateAsRetraction=[true], accMode=[Acc])
-   +- Values(tuples=[[]], updateAsRetraction=[true], accMode=[Acc])
+   +- Values(type=[RecordType(BIGINT key, VARCHAR(2147483647) v)], tuples=[[]], updateAsRetraction=[true], accMode=[Acc])
 ]]>
     </Resource>
   </TestCase>

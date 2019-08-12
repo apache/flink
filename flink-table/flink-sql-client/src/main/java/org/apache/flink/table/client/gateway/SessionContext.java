@@ -79,23 +79,23 @@ public class SessionContext {
 	}
 
 	public Optional<String> getCurrentCatalog() {
-		return Optional.ofNullable(sessionProperties.get(ExecutionEntry.EXECUTION_CURRNET_CATALOG));
+		return Optional.ofNullable(sessionProperties.get(ExecutionEntry.EXECUTION_CURRENT_CATALOG));
 	}
 
 	public void setCurrentCatalog(String currentCatalog) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(currentCatalog));
 
-		sessionProperties.put(ExecutionEntry.EXECUTION_CURRNET_CATALOG, currentCatalog);
+		sessionProperties.put(ExecutionEntry.EXECUTION_CURRENT_CATALOG, currentCatalog);
 	}
 
 	public Optional<String> getCurrentDatabase() {
-		return Optional.ofNullable(sessionProperties.get(ExecutionEntry.EXECUTION_CURRNET_DATABASE));
+		return Optional.ofNullable(sessionProperties.get(ExecutionEntry.EXECUTION_CURRENT_DATABASE));
 	}
 
 	public void setCurrentDatabase(String currentDatabase) {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(currentDatabase));
 
-		sessionProperties.put(ExecutionEntry.EXECUTION_CURRNET_DATABASE, currentDatabase);
+		sessionProperties.put(ExecutionEntry.EXECUTION_CURRENT_DATABASE, currentDatabase);
 	}
 
 	public Environment getEnvironment() {

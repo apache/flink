@@ -72,7 +72,7 @@ to enable support for Scala projects and files:
 4. Leave the default options and successively click "Next" until you reach the SDK section.
 5. If there is no SDK listed, create one using the "+" sign on the top left.
    Select "JDK", choose the JDK home directory and click "OK".
-   Select the most suiting JDK version. NOTE: A good rule of thumb is to select 
+   Select the most suiting JDK version. NOTE: A good rule of thumb is to select
    the JDK version matching the active Maven profile.
 6. Continue by clicking "Next" until finishing the import.
 7. Right-click on the imported Flink project -> Maven -> Generate Sources and Update Folders.
@@ -88,7 +88,7 @@ IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
 1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository.
 2. Configure the plugin by going to Settings -> Other Settings -> Checkstyle.
 3. Set the "Scan Scope" to "Only Java sources (including tests)".
-4. Select _8.12_ in the "Checkstyle Version" dropdown and click apply. **This step is important,
+4. Select _8.14_ in the "Checkstyle Version" dropdown and click apply. **This step is important,
    don't skip it!**
 5. In the "Configuration File" pane, add a new configuration using the plus icon:
     1. Set the "Description" to "Flink".

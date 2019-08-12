@@ -140,13 +140,14 @@ class StreamExecTemporalJoin(
     val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       leftTransform,
       rightTransform,
-      getJoinOperatorName,
+      getRelDetailedDescription,
       joinOperator,
       BaseRowTypeInfo.of(returnType),
-      getResource.getParallelism)
+      leftTransform.getParallelism)
 
-    if (getResource.getMaxParallelism > 0) {
-      ret.setMaxParallelism(getResource.getMaxParallelism)
+    if (inputsContainSingleton()) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
     }
 
     // set KeyType and Selector for state
@@ -174,12 +175,6 @@ class StreamExecTemporalJoin(
         )
       }
     })
-  }
-
-  private def getJoinOperatorName: String = {
-    val where = RelExplainUtil.expressionToString(getCondition, inputRowType, getExpressionString)
-    val select = getRowType.getFieldNames.mkString(", ")
-    s"TemporalTableJoin(where: ($where), select: ($select)"
   }
 }
 

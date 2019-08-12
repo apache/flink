@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.plan.type.NumericExceptFirstOperandChecker
 import org.apache.flink.table.planner.plan.type.RepeatFamilyOperandTypeChecker;
 
 import org.apache.calcite.sql.SqlAggFunction;
-import org.apache.calcite.sql.SqlBinaryOperator;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlGroupedWindowFunction;
@@ -51,8 +50,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.ARG0_VARCHAR_FORCE_NULLABLE;
-import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.FLINK_DIV_NULLABLE;
-import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.FLINK_QUOTIENT_NULLABLE;
 import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.STR_MAP_NULLABLE;
 import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_2000_NULLABLE;
 
@@ -108,45 +105,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	// Flink specific built-in scalar SQL functions
 	// -----------------------------------------------------------------------------
 
-	// OPERATORS
-
-	/**
-	 * Arithmetic division operator, '/'. Return DOUBLE or DECIMAL with fractional part.
-	 */
-	public static final SqlBinaryOperator DIVIDE = new SqlBinaryOperator(
-		"/",
-		SqlKind.DIVIDE,
-		60,
-		true,
-		FLINK_QUOTIENT_NULLABLE,
-		InferTypes.FIRST_KNOWN,
-		OperandTypes.DIVISION_OPERATOR);
-
 	// FUNCTIONS
-
-	/**
-	 * DIV function. It corresponds to {@link #DIVIDE} operator but
-	 * returns without fractional part.
-	 */
-	public static final SqlFunction DIV = new SqlFunction(
-		"DIV",
-		SqlKind.OTHER_FUNCTION,
-		FLINK_DIV_NULLABLE,
-		null,
-		OperandTypes.EXACT_NUMERIC_EXACT_NUMERIC,
-		SqlFunctionCategory.NUMERIC);
-
-	/**
-	 * DIV_INT function. It corresponds to {@link #DIVIDE_INTEGER} operator but
-	 * returns without fractional part.
-	 */
-	public static final SqlFunction DIV_INT = new SqlFunction(
-		"DIV_INT",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.INTEGER_QUOTIENT_NULLABLE,
-		null,
-		OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
-		SqlFunctionCategory.NUMERIC);
 
 	/**
 	 * Function used to access a processing time attribute.
@@ -304,46 +263,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			OperandTypes.family(SqlTypeFamily.STRING)),
 		SqlFunctionCategory.NUMERIC);
 
-	public static final SqlFunction BITAND = new SqlFunction(
-		"BITAND",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.ARG0_NULLABLE,
-		null,
-		OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
-		SqlFunctionCategory.NUMERIC);
-
-	public static final SqlFunction BITOR = new SqlFunction(
-		"BITOR",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.ARG0_NULLABLE,
-		null,
-		OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
-		SqlFunctionCategory.NUMERIC);
-
-	public static final SqlFunction BITXOR = new SqlFunction(
-		"BITXOR",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.ARG0_NULLABLE,
-		null,
-		OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.NUMERIC),
-		SqlFunctionCategory.NUMERIC);
-
-	public static final SqlFunction BITNOT = new SqlFunction(
-		"BITNOT",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.ARG0_NULLABLE,
-		null,
-		OperandTypes.NUMERIC,
-		SqlFunctionCategory.NUMERIC);
-
-	public static final SqlFunction JSONVALUE = new SqlFunction(
-		"JSONVALUE",
-		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
-		null,
-		OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER),
-		SqlFunctionCategory.STRING);
-
 	public static final SqlFunction STR_TO_MAP = new SqlFunction(
 		"STR_TO_MAP",
 		SqlKind.OTHER_FUNCTION,
@@ -471,18 +390,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			OperandTypes.STRING_STRING),
 		SqlFunctionCategory.STRING);
 
-	public static final SqlFunction KEYVALUE = new SqlFunction(
-		"KEYVALUE",
-		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
-		null,
-		OperandTypes.family(
-			SqlTypeFamily.STRING,
-			SqlTypeFamily.STRING,
-			SqlTypeFamily.STRING,
-			SqlTypeFamily.STRING),
-		SqlFunctionCategory.STRING);
-
 	public static final SqlFunction HASH_CODE = new SqlFunction(
 		"HASH_CODE",
 		SqlKind.OTHER_FUNCTION,
@@ -502,9 +409,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction SHA1 = new SqlFunction(
@@ -512,9 +417,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction SHA224 = new SqlFunction(
@@ -522,9 +425,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction SHA256 = new SqlFunction(
@@ -532,9 +433,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction SHA384 = new SqlFunction(
@@ -542,9 +441,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction SHA512 = new SqlFunction(
@@ -552,9 +449,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction SHA2 = new SqlFunction(
@@ -562,9 +457,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		VARCHAR_2000_NULLABLE,
 		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.INTEGER)),
+		OperandTypes.sequence("'SHA2(DATA, HASH_LENGTH)'",
+			OperandTypes.STRING,  OperandTypes.NUMERIC_INTEGER),
 		SqlFunctionCategory.STRING);
 
 	public static final SqlFunction DATE_FORMAT = new SqlFunction(
@@ -573,9 +467,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.FORCE_NULLABLE),
 		InferTypes.RETURN_TYPE,
 		OperandTypes.or(
-			OperandTypes.sequence("'(TIMESTAMP, FORMAT)'",
-				OperandTypes.DATETIME, OperandTypes.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
+			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.STRING),
 			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
 		SqlFunctionCategory.TIMEDATE);
 
@@ -608,11 +500,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction NOW = new SqlFunction(
 		"NOW",
 		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.BIGINT,
+		ReturnTypes.explicit(SqlTypeName.TIMESTAMP, 0),
 		null,
-		OperandTypes.or(
-			OperandTypes.NILADIC,
-			OperandTypes.family(SqlTypeFamily.INTEGER)),
+		OperandTypes.NILADIC,
 		SqlFunctionCategory.TIMEDATE) {
 
 		@Override
@@ -634,8 +524,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		OperandTypes.or(
 			OperandTypes.NILADIC,
 			OperandTypes.family(SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP)),
+			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
 		SqlFunctionCategory.TIMEDATE) {
 
 		@Override
@@ -655,40 +544,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		VARCHAR_2000_NULLABLE,
 		null,
 		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.NUMERIC),
-			OperandTypes.family(SqlTypeFamily.NUMERIC, SqlTypeFamily.STRING)),
-		SqlFunctionCategory.TIMEDATE);
-
-	public static final SqlFunction DATEDIFF = new SqlFunction(
-		"DATEDIFF",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.INTEGER_NULLABLE,
-		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.TIMESTAMP),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.TIMESTAMP),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
-		SqlFunctionCategory.TIMEDATE);
-
-	public static final SqlFunction DATE_SUB = new SqlFunction(
-		"DATE_SUB",
-		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
-		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.INTEGER),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER)),
-		SqlFunctionCategory.TIMEDATE);
-
-	public static final SqlFunction DATE_ADD = new SqlFunction(
-		"DATE_ADD",
-		SqlKind.OTHER_FUNCTION,
-		VARCHAR_2000_NULLABLE,
-		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.INTEGER),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER)),
+			OperandTypes.family(SqlTypeFamily.INTEGER),
+			OperandTypes.family(SqlTypeFamily.INTEGER, SqlTypeFamily.STRING)),
 		SqlFunctionCategory.TIMEDATE);
 
 	public static final SqlFunction IF = new SqlFunction(
@@ -725,7 +582,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFunction FROM_BASE64 = new SqlFunction(
 		"FROM_BASE64",
 		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.BINARY), SqlTypeTransforms.TO_NULLABLE),
+		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
 		null,
 		OperandTypes.family(SqlTypeFamily.STRING),
 		SqlFunctionCategory.STRING);
@@ -735,9 +592,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		ReturnTypes.VARCHAR_2000,
 		null,
-		OperandTypes.or(
-			OperandTypes.NILADIC,
-			OperandTypes.ANY),
+		OperandTypes.NILADIC,
 		SqlFunctionCategory.STRING) {
 
 		@Override
@@ -757,19 +612,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		ARG0_VARCHAR_FORCE_NULLABLE,
 		null,
 		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER)
-		),
-		SqlFunctionCategory.STRING);
-
-	public static final SqlFunction SUBSTR = new SqlFunction(
-		"SUBSTR",
-		SqlKind.OTHER_FUNCTION,
-		ARG0_VARCHAR_FORCE_NULLABLE,
-		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER)
+			OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.INTEGER),
+			OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER)
 		),
 		SqlFunctionCategory.STRING);
 
@@ -795,17 +639,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.TIMESTAMP), SqlTypeTransforms.FORCE_NULLABLE),
 		null,
 		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.NUMERIC),
-			OperandTypes.family(SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
-		SqlFunctionCategory.TIMEDATE);
-
-	public static final SqlFunction FROM_TIMESTAMP = new SqlFunction(
-		"FROM_TIMESTAMP",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.BIGINT, SqlTypeTransforms.TO_NULLABLE),
-		null,
-		OperandTypes.family(SqlTypeFamily.TIMESTAMP),
+			OperandTypes.family(SqlTypeFamily.CHARACTER),
+			OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.CHARACTER)),
 		SqlFunctionCategory.TIMEDATE);
 
 	public static final SqlFunction TO_DATE = new SqlFunction(
@@ -814,29 +649,8 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.DATE), SqlTypeTransforms.FORCE_NULLABLE),
 		null,
 		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.NUMERIC),
 			OperandTypes.family(SqlTypeFamily.STRING),
 			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
-		SqlFunctionCategory.TIMEDATE);
-
-	public static final SqlFunction TO_TIMESTAMP_TZ = new SqlFunction(
-		"TO_TIMESTAMP_TZ",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.TIMESTAMP), SqlTypeTransforms.FORCE_NULLABLE),
-		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
-		SqlFunctionCategory.TIMEDATE);
-
-	public static final SqlFunction DATE_FORMAT_TZ = new SqlFunction(
-		"DATE_FORMAT_TZ",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.TO_NULLABLE),
-		InferTypes.RETURN_TYPE,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.TIMESTAMP, SqlTypeFamily.STRING)),
 		SqlFunctionCategory.TIMEDATE);
 
 	public static final SqlFunction CONVERT_TZ = new SqlFunction(
@@ -844,10 +658,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		SqlKind.OTHER_FUNCTION,
 		ReturnTypes.cascade(ReturnTypes.explicit(SqlTypeName.VARCHAR), SqlTypeTransforms.FORCE_NULLABLE),
 		null,
-		OperandTypes.or(
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
-			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING,
-				SqlTypeFamily.STRING, SqlTypeFamily.STRING)),
+		OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.STRING),
 		SqlFunctionCategory.TIMEDATE);
 
 	public static final SqlFunction LOCATE = new SqlFunction(
@@ -860,21 +671,12 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 			OperandTypes.family(SqlTypeFamily.STRING, SqlTypeFamily.STRING, SqlTypeFamily.INTEGER)),
 		SqlFunctionCategory.NUMERIC);
 
-	public static final SqlFunction LENGTH = new SqlFunction(
-		"LENGTH",
-		SqlKind.OTHER_FUNCTION,
-		ReturnTypes.INTEGER_NULLABLE,
-		null,
-		OperandTypes.family(SqlTypeFamily.STRING),
-		SqlFunctionCategory.NUMERIC);
-
-
 	public static final SqlFunction ASCII = new SqlFunction(
 		"ASCII",
 		SqlKind.OTHER_FUNCTION,
 		ReturnTypes.INTEGER_NULLABLE,
 		null,
-		OperandTypes.family(SqlTypeFamily.STRING),
+		OperandTypes.family(SqlTypeFamily.CHARACTER),
 		SqlFunctionCategory.NUMERIC);
 
 	public static final SqlFunction ENCODE = new SqlFunction(
@@ -946,14 +748,9 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlFirstLastValueAggFunction LAST_VALUE = new SqlFirstLastValueAggFunction(SqlKind.LAST_VALUE);
 
 	/**
-	 * <code>CONCAT_AGG</code> aggregate function.
+	 * <code>LISTAGG</code> aggregate function.
 	 */
-	public static final SqlConcatAggFunction CONCAT_AGG = new SqlConcatAggFunction();
-
-	/**
-	 * <code>INCR_SUM</code> aggregate function.
-	 */
-	public static final SqlIncrSumAggFunction INCR_SUM = new SqlIncrSumAggFunction();
+	public static final SqlListAggFunction LISTAGG = new SqlListAggFunction();
 
 	// -----------------------------------------------------------------------------
 	// Window SQL functions
@@ -1028,6 +825,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlOperator AND = SqlStdOperatorTable.AND;
 	public static final SqlOperator AS = SqlStdOperatorTable.AS;
 	public static final SqlOperator CONCAT = SqlStdOperatorTable.CONCAT;
+	public static final SqlOperator DIVIDE = SqlStdOperatorTable.DIVIDE;
 	public static final SqlOperator DIVIDE_INTEGER = SqlStdOperatorTable.DIVIDE_INTEGER;
 	public static final SqlOperator DOT = SqlStdOperatorTable.DOT;
 	public static final SqlOperator EQUALS = SqlStdOperatorTable.EQUALS;
@@ -1072,7 +870,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 	public static final SqlAggFunction SUM = SqlStdOperatorTable.SUM;
 	public static final SqlAggFunction SUM0 = SqlStdOperatorTable.SUM0;
 	public static final SqlAggFunction COUNT = SqlStdOperatorTable.COUNT;
-	public static final SqlAggFunction APPROX_COUNT_DISTINCT = SqlStdOperatorTable.APPROX_COUNT_DISTINCT;
 	public static final SqlAggFunction COLLECT = SqlStdOperatorTable.COLLECT;
 	public static final SqlAggFunction MIN = SqlStdOperatorTable.MIN;
 	public static final SqlAggFunction MAX = SqlStdOperatorTable.MAX;

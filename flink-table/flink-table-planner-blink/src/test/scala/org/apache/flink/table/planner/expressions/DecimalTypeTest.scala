@@ -18,101 +18,165 @@
 
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.api.common.typeinfo.Types
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.dataformat.Decimal
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.api.{DataTypes, Types}
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.valueLiteral
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
-import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
+import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
 import org.apache.flink.types.Row
 
-import org.junit.Test
+import org.junit.{Ignore, Test}
 
 class DecimalTypeTest extends ExpressionTestBase {
 
   @Test
   def testDecimalLiterals(): Unit = {
     // implicit double
-    testSqlApi(
+    testAllApis(
+      11.2,
+      "11.2",
       "11.2",
       "11.2")
 
     // implicit double
-    testSqlApi(
+    testAllApis(
+      0.7623533651719233,
+      "0.7623533651719233",
       "0.7623533651719233",
       "0.7623533651719233")
 
     // explicit decimal (with precision of 19)
-    testSqlApi(
+    testAllApis(
+      BigDecimal("1234567891234567891"),
+      "1234567891234567891p",
       "1234567891234567891",
       "1234567891234567891")
+
+    // explicit decimal (high precision, not SQL compliant)
+    testTableApi(
+      BigDecimal("123456789123456789123456789"),
+      "123456789123456789123456789p",
+      "123456789123456789123456789")
+
+    // explicit decimal (high precision, not SQL compliant)
+    testTableApi(
+      BigDecimal("12.3456789123456789123456789"),
+      "12.3456789123456789123456789p",
+      "12.3456789123456789123456789")
   }
 
   @Test
   def testDecimalBorders(): Unit = {
-    testSqlApi(
+    testAllApis(
+      Double.MaxValue,
+      Double.MaxValue.toString,
       Double.MaxValue.toString,
       Double.MaxValue.toString)
 
-    testSqlApi(
+    testAllApis(
+      Double.MinValue,
+      Double.MinValue.toString,
       Double.MinValue.toString,
       Double.MinValue.toString)
 
-    testSqlApi(
+    testAllApis(
+      Double.MinValue.cast(DataTypes.FLOAT),
+      s"${Double.MinValue}.cast(FLOAT)",
       s"CAST(${Double.MinValue} AS FLOAT)",
       Float.NegativeInfinity.toString)
 
-    testSqlApi(
+    testAllApis(
+      Byte.MinValue.cast(DataTypes.TINYINT),
+      s"(${Byte.MinValue}).cast(BYTE)",
       s"CAST(${Byte.MinValue} AS TINYINT)",
       Byte.MinValue.toString)
 
-    testSqlApi(
+    testAllApis(
+      Byte.MinValue.cast(DataTypes.TINYINT) - 1.cast(DataTypes.TINYINT),
+      s"(${Byte.MinValue}).cast(BYTE) - (1).cast(BYTE)",
       s"CAST(${Byte.MinValue} AS TINYINT) - CAST(1 AS TINYINT)",
       Byte.MaxValue.toString)
 
-    testSqlApi(
+    testAllApis(
+      Short.MinValue.cast(DataTypes.SMALLINT),
+      s"(${Short.MinValue}).cast(SHORT)",
       s"CAST(${Short.MinValue} AS SMALLINT)",
       Short.MinValue.toString)
 
-    testSqlApi(
+    testAllApis(
+      Int.MinValue.cast(DataTypes.INT) - 1,
+      s"(${Int.MinValue}).cast(INT) - 1",
       s"CAST(${Int.MinValue} AS INT) - 1",
       Int.MaxValue.toString)
 
-    testSqlApi(
+    testAllApis(
+      Long.MinValue.cast(DataTypes.BIGINT()),
+      s"(${Long.MinValue}L).cast(LONG)",
       s"CAST(${Long.MinValue} AS BIGINT)",
       Long.MinValue.toString)
   }
 
+  @Ignore
   @Test
-  def testDecimalCasting(): Unit = {
+  def testDefaultDecimalCasting(): Unit = {
     // from String
-    testSqlApi(
-      "CAST('123456789123456789123456789' AS DECIMAL(27, 0))",
+    testTableApi(
+      "123456789123456789123456789".cast(DataTypes.DECIMAL(38, 0)),
+      "'123456789123456789123456789'.cast(DECIMAL)",
       "123456789123456789123456789")
 
     // from double
-    testSqlApi(
+    testAllApis(
+      'f3.cast(DataTypes.DECIMAL(38, 0)),
+      "f3.cast(DECIMAL)",
       "CAST(f3 AS DECIMAL)",
       "4")
+  }
 
+  @Test
+  def testDecimalCasting(): Unit = {
     testSqlApi(
       "CAST(f3 AS DECIMAL(10,2))",
       "4.20"
     )
 
     // to double
-    testSqlApi(
+    testAllApis(
+      'f0.cast(DataTypes.DOUBLE),
+      "f0.cast(DOUBLE)",
       "CAST(f0 AS DOUBLE)",
       "1.2345678912345679E8")
 
     // to int
-    testSqlApi(
+    testAllApis(
+      'f4.cast(DataTypes.INT),
+      "f4.cast(INT)",
       "CAST(f4 AS INT)",
       "123456789")
 
     // to long
-    testSqlApi(
+    testAllApis(
+      'f4.cast(DataTypes.BIGINT()),
+      "f4.cast(LONG)",
       "CAST(f4 AS BIGINT)",
       "123456789")
+
+    // to boolean (not SQL compliant)
+    testTableApi(
+      'f1.cast(DataTypes.BOOLEAN),
+      "f1.cast(BOOLEAN)",
+      "true")
+
+    testTableApi(
+      'f5.cast(DataTypes.BOOLEAN),
+      "f5.cast(BOOLEAN)",
+      "false")
+
+    testTableApi(
+      BigDecimal("123456789.123456789123456789").cast(DataTypes.DOUBLE),
+      "(123456789.123456789123456789p).cast(DOUBLE)",
+      "1.2345678912345679E8")
   }
 
   @Test
@@ -123,72 +187,111 @@ class DecimalTypeTest extends ExpressionTestBase {
     // Decimal+Double => Double.
 
     // implicit cast to decimal
-    testSqlApi(
+    testAllApis(
+      'f1 + 12,
+      "f1 + 12",
       "f1 + 12",
       "123456789123456789123456801")
 
     // implicit cast to decimal
-    testSqlApi(
+    testAllApis(
+      valueLiteral(12) + 'f1,
+      "12 + f1",
       "12 + f1",
       "123456789123456789123456801")
 
-    testSqlApi(
+    testAllApis(
+      'f1 + BigDecimal("12.3"),
+      "f1 + 12.3p",
       "f1 + 12.3",
       "123456789123456789123456801.3"
     )
 
-    testSqlApi(
+    testAllApis(
+      valueLiteral(BigDecimal("12.3").bigDecimal) + 'f1,
+      "12.3p + f1",
       "12.3 + f1",
       "123456789123456789123456801.3")
 
-    testSqlApi(
+    testAllApis(
+      'f1 + 'f1,
+      "f1 + f1",
       "f1 + f1",
       "246913578246913578246913578")
 
-    testSqlApi(
+    testAllApis(
+      'f1 - 'f1,
+      "f1 - f1",
       "f1 - f1",
       "0")
 
-    testSqlApi(
+    // exceeds max precision 38.
+    //      'f1 * 'f1,
+    //      "f1 * f1",
+    //      "f1 * f1",
+    //      "15241578780673678546105778281054720515622620750190521")
+
+    testAllApis(
+      'f1 / 'f1,
+      "f1 / f1",
       "f1 / f1",
       "1.00000000")
+    // Decimal(30,0) / Decimal(30, 0) => Decimal(61,31) => Decimal(38,8)
 
-    testSqlApi(
+    testAllApis(
+      'f1 % 'f1,
+      "f1 % f1",
       "MOD(f1, f1)",
       "0")
 
-    testSqlApi(
+    testAllApis(
+      -'f0,
+      "-f0",
       "-f0",
       "-123456789.123456789123456789")
   }
 
   @Test
   def testDecimalComparison(): Unit = {
-    testSqlApi(
+    testAllApis(
+      'f1 < 12,
+      "f1 < 12",
       "f1 < 12",
       "false")
 
-    testSqlApi(
+    testAllApis(
+      'f1 > 12,
+      "f1 > 12",
       "f1 > 12",
       "true")
 
-    testSqlApi(
+    testAllApis(
+      'f1 === 12,
+      "f1 === 12",
       "f1 = 12",
       "false")
 
-    testSqlApi(
+    testAllApis(
+      'f5 === 0,
+      "f5 === 0",
       "f5 = 0",
       "true")
 
-    testSqlApi(
+    testAllApis(
+      'f1 === BigDecimal("123456789123456789123456789"),
+      "f1 === 123456789123456789123456789p",
       "f1 = CAST('123456789123456789123456789' AS DECIMAL(30, 0))",
       "true")
 
-    testSqlApi(
+    testAllApis(
+      'f1 !== BigDecimal("123456789123456789123456789"),
+      "f1 !== 123456789123456789123456789p",
       "f1 <> CAST('123456789123456789123456789' AS DECIMAL(30, 0))",
       "false")
 
-    testSqlApi(
+    testAllApis(
+      'f4 < 'f0,
+      "f4 < f0",
       "f4 < f0",
       "true")
 
@@ -202,22 +305,22 @@ class DecimalTypeTest extends ExpressionTestBase {
 
   override def testData: Row = {
     val testData = new Row(6)
-    testData.setField(0, Decimal.castFrom("123456789.123456789123456789", 30, 18))
-    testData.setField(1, Decimal.castFrom("123456789123456789123456789", 30, 0))
+    testData.setField(0, BigDecimal("123456789.123456789123456789").bigDecimal)
+    testData.setField(1, BigDecimal("123456789123456789123456789").bigDecimal)
     testData.setField(2, 42)
     testData.setField(3, 4.2)
-    testData.setField(4, Decimal.castFrom("123456789", 10, 0))
-    testData.setField(5, Decimal.castFrom("0.000", 10, 3))
+    testData.setField(4, BigDecimal("123456789").bigDecimal)
+    testData.setField(5, BigDecimal("0.000").bigDecimal)
     testData
   }
 
   override def typeInfo: RowTypeInfo = {
     new RowTypeInfo(
-      /* 0 */ DecimalTypeInfo.of(30, 18),
-      /* 1 */ DecimalTypeInfo.of(30, 0),
-      /* 2 */ Types.INT,
-      /* 3 */ Types.DOUBLE,
-      /* 4 */ DecimalTypeInfo.of(10, 0),
-      /* 5 */ DecimalTypeInfo.of(10, 3))
+      /* 1 */ BigDecimalTypeInfo.of(30, 18),
+      /* 2 */ BigDecimalTypeInfo.of(30, 0),
+      /* 3 */ Types.INT,
+      /* 4 */ Types.DOUBLE,
+      /* 5 */ BigDecimalTypeInfo.of(10, 0),
+      /* 6 */ BigDecimalTypeInfo.of(10, 3))
   }
 }

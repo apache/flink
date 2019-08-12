@@ -604,7 +604,9 @@ public class ExecutionVertex implements AccessExecutionVertex, Archiveable<Archi
 
 			if (oldState.isTerminal()) {
 				if (oldState == FINISHED) {
-					oldExecution.stopTrackingAndReleasePartitions();
+					// pipelined partitions are released in Execution#cancel(), covering both job failures and vertex resets
+					// do not release pipelined partitions here to save RPC calls
+					oldExecution.handlePartitionCleanup(false, true);
 					getExecutionGraph().getPartitionReleaseStrategy().vertexUnfinished(executionVertexId);
 				}
 

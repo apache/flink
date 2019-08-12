@@ -19,7 +19,6 @@
 package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.table.catalog.CatalogPartition;
-import org.apache.flink.table.catalog.CatalogTestBase;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -27,7 +26,7 @@ import org.junit.Test;
 /**
  * Test for HiveCatalog on generic metadata.
  */
-public class HiveCatalogGenericMetadataTest extends CatalogTestBase {
+public class HiveCatalogGenericMetadataTest extends HiveCatalogTestBase {
 
 	@BeforeClass
 	public static void init() {

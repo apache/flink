@@ -499,7 +499,7 @@ public class FakeKinesisBehavioursFactory {
 				String data = queue.take();
 				Record record = new Record()
 					.withData(
-						ByteBuffer.wrap(String.valueOf(data).getBytes(ConfigConstants.DEFAULT_CHARSET)))
+						ByteBuffer.wrap(data.getBytes(ConfigConstants.DEFAULT_CHARSET)))
 					.withPartitionKey(UUID.randomUUID().toString())
 					.withApproximateArrivalTimestamp(new Date(System.currentTimeMillis()))
 					.withSequenceNumber(String.valueOf(0));

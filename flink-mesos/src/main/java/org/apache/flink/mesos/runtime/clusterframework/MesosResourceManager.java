@@ -42,7 +42,6 @@ import org.apache.flink.mesos.util.MesosArtifactServer;
 import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
-import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -184,8 +183,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		this.mesosServices = Preconditions.checkNotNull(mesosServices);
 		this.actorSystem = Preconditions.checkNotNull(mesosServices.getLocalActorSystem());
 
-		// copy the config, because we might change it for the TaskManagers
-		this.flinkConfig = new Configuration(Preconditions.checkNotNull(flinkConfig));
+		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
 		this.mesosConfig = Preconditions.checkNotNull(mesosConfig);
 
 		this.artifactServer = Preconditions.checkNotNull(mesosServices.getArtifactServer());
@@ -198,10 +196,7 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 		this.workersInLaunch = new HashMap<>(8);
 		this.workersBeingReturned = new HashMap<>(8);
 
-		final ContaineredTaskManagerParameters containeredTaskManagerParameters = taskManagerParameters.containeredParameters();
-		this.slotsPerWorker = updateTaskManagerConfigAndCreateWorkerSlotProfiles(
-			flinkConfig, containeredTaskManagerParameters.taskManagerTotalMemoryMB(), containeredTaskManagerParameters.numSlots());
-		setFailUnfulfillableRequest(true);
+		this.slotsPerWorker = createWorkerSlotProfiles(flinkConfig);
 	}
 
 	protected ActorRef createSelfActor() {

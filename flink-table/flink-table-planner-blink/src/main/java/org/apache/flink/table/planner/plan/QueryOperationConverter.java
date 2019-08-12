@@ -120,6 +120,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 	private final LookupCallResolver callResolver;
 	private final RexNodeConverter rexNodeConverter;
 	private final AggregateVisitor aggregateVisitor = new AggregateVisitor();
+	private final TableAggregateVisitor tableAggregateVisitor = new TableAggregateVisitor();
 	private final JoinExpressionVisitor joinExpressionVisitor = new JoinExpressionVisitor();
 
 	public QueryOperationConverter(FlinkRelBuilder relBuilder, FunctionLookup functionCatalog) {
@@ -171,7 +172,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 					.map(expr -> convertToWindowProperty(expr.accept(callResolver), windowReference))
 					.collect(toList());
 			GroupKey groupKey = relBuilder.groupKey(groupings);
-			return relBuilder.aggregate(logicalWindow, groupKey, windowProperties, aggregations).build();
+			return relBuilder.windowAggregate(logicalWindow, groupKey, windowProperties, aggregations).build();
 		}
 
 		private FlinkRelBuilder.PlannerNamedWindowProperty convertToWindowProperty(Expression expression,
@@ -202,11 +203,11 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		}
 
 		/**
-		 * Get the {@link AggCall} correspond to the aggregate expression.
+		 * Get the {@link AggCall} correspond to the aggregate or table aggregate expression.
 		 */
 		private AggCall getAggCall(Expression aggregateExpression) {
 			if (isFunctionOfKind(aggregateExpression, TABLE_AGGREGATE)) {
-				throw new UnsupportedOperationException("TableAggFunction is not supported yet!");
+				return aggregateExpression.accept(tableAggregateVisitor);
 			} else {
 				return aggregateExpression.accept(aggregateVisitor);
 			}
@@ -279,7 +280,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 					tableFunction,
 					resultType,
 					typeFactory,
-					function);
+					function,
+					scala.Option.empty());
 
 			List<RexNode> parameters = convertToRexNodes(calculatedTable.getParameters());
 
@@ -501,48 +503,92 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		protected AggCall defaultMethod(Expression expression) {
 			throw new TableException("Unexpected expression: " + expression);
 		}
-	}
 
-	private class AggCallVisitor extends ExpressionDefaultVisitor<RelBuilder.AggCall> {
+		private class AggCallVisitor extends ExpressionDefaultVisitor<RelBuilder.AggCall> {
 
-		private final RelBuilder relBuilder;
-		private final SqlAggFunctionVisitor sqlAggFunctionVisitor;
-		private final RexNodeConverter rexNodeConverter;
-		private final String name;
-		private final boolean isDistinct;
+			private final RelBuilder relBuilder;
+			private final SqlAggFunctionVisitor sqlAggFunctionVisitor;
+			private final RexNodeConverter rexNodeConverter;
+			private final String name;
+			private final boolean isDistinct;
 
-		public AggCallVisitor(RelBuilder relBuilder, RexNodeConverter rexNodeConverter, String name,
-				boolean isDistinct) {
-			this.relBuilder = relBuilder;
-			this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor((FlinkTypeFactory) relBuilder.getTypeFactory());
-			this.rexNodeConverter = rexNodeConverter;
-			this.name = name;
-			this.isDistinct = isDistinct;
-		}
+			public AggCallVisitor(RelBuilder relBuilder, RexNodeConverter rexNodeConverter, String name,
+					boolean isDistinct) {
+				this.relBuilder = relBuilder;
+				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor((FlinkTypeFactory) relBuilder.getTypeFactory());
+				this.rexNodeConverter = rexNodeConverter;
+				this.name = name;
+				this.isDistinct = isDistinct;
+			}
 
-		@Override
-		public RelBuilder.AggCall visit(CallExpression call) {
-			FunctionDefinition def = call.getFunctionDefinition();
-			if (BuiltInFunctionDefinitions.DISTINCT == def) {
-				Expression innerAgg = call.getChildren().get(0);
-				return innerAgg.accept(new AggCallVisitor(relBuilder, rexNodeConverter, name, true));
-			} else {
-				SqlAggFunction sqlAggFunction = call.accept(sqlAggFunctionVisitor);
-				return relBuilder.aggregateCall(
+			@Override
+			public RelBuilder.AggCall visit(CallExpression call) {
+				FunctionDefinition def = call.getFunctionDefinition();
+				if (BuiltInFunctionDefinitions.DISTINCT == def) {
+					Expression innerAgg = call.getChildren().get(0);
+					return innerAgg.accept(new AggCallVisitor(relBuilder, rexNodeConverter, name, true));
+				} else {
+					SqlAggFunction sqlAggFunction = call.accept(sqlAggFunctionVisitor);
+					return relBuilder.aggregateCall(
 						sqlAggFunction,
 						isDistinct,
 						false,
 						null,
 						name,
 						call.getChildren().stream().map(expr -> expr.accept(rexNodeConverter))
-								.collect(Collectors.toList()));
+							.collect(Collectors.toList()));
+				}
 			}
 
+			@Override
+			protected RelBuilder.AggCall defaultMethod(Expression expression) {
+				throw new TableException("Unexpected expression: " + expression);
+			}
+		}
+	}
+
+	private class TableAggregateVisitor extends ExpressionDefaultVisitor<RelBuilder.AggCall> {
+		@Override
+		public AggCall visit(CallExpression call) {
+			if (isFunctionOfKind(call, TABLE_AGGREGATE)) {
+				return call.accept(new TableAggCallVisitor(relBuilder, rexNodeConverter));
+			}
+			return defaultMethod(call);
 		}
 
 		@Override
-		protected RelBuilder.AggCall defaultMethod(Expression expression) {
-			throw new TableException("Unexpected expression: " + expression);
+		protected AggCall defaultMethod(Expression expression) {
+			throw new TableException("Expected table aggregate. Got: " + expression);
+		}
+
+		private class TableAggCallVisitor extends ExpressionDefaultVisitor<RelBuilder.AggCall> {
+
+			private final RelBuilder relBuilder;
+			private final SqlAggFunctionVisitor sqlAggFunctionVisitor;
+			private final RexNodeConverter rexNodeConverter;
+
+			public TableAggCallVisitor(RelBuilder relBuilder, RexNodeConverter rexNodeConverter) {
+				this.relBuilder = relBuilder;
+				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor((FlinkTypeFactory) relBuilder.getTypeFactory());
+				this.rexNodeConverter = rexNodeConverter;
+			}
+
+			@Override
+			public RelBuilder.AggCall visit(CallExpression call) {
+				SqlAggFunction sqlAggFunction = call.accept(sqlAggFunctionVisitor);
+				return relBuilder.aggregateCall(
+					sqlAggFunction,
+					false,
+					false,
+					null,
+					sqlAggFunction.toString(),
+					call.getChildren().stream().map(expr -> expr.accept(rexNodeConverter)).collect(toList()));
+			}
+
+			@Override
+			protected RelBuilder.AggCall defaultMethod(Expression expression) {
+				throw new TableException("Expected table aggregate. Got: " + expression);
+			}
 		}
 	}
 

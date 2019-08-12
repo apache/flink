@@ -51,7 +51,7 @@ public class BatchExecutor extends ExecutorBase {
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
-		StreamGraph streamGraph = generateStreamGraph(transformations, jobName);
+		StreamGraph streamGraph = generateStreamGraph(jobName);
 		return execEnv.execute(streamGraph);
 	}
 
@@ -69,9 +69,7 @@ public class BatchExecutor extends ExecutorBase {
 		}
 	}
 
-	/**
-	 * Translates transformationList to streamGraph.
-	 */
+	@Override
 	public StreamGraph generateStreamGraph(List<Transformation<?>> transformations, String jobName) {
 		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
 		setBatchProperties(execEnv);

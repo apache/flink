@@ -18,8 +18,9 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.FilteredColumnInterval
+import org.apache.flink.table.planner.plan.nodes.calcite.TableAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchExecGroupAggregateBase
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecGlobalGroupAggregate, StreamExecGroupAggregate, StreamExecGroupWindowAggregate, StreamExecLocalGroupAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamExecGlobalGroupAggregate, StreamExecGroupAggregate, StreamExecGroupTableAggregate, StreamExecGroupWindowAggregate, StreamExecLocalGroupAggregate}
 import org.apache.flink.table.planner.plan.stats.ValueInterval
 import org.apache.flink.table.planner.plan.utils.ColumnIntervalUtil
 import org.apache.flink.util.Preconditions.checkArgument
@@ -167,6 +168,14 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
   }
 
   def getFilteredColumnInterval(
+    aggregate: TableAggregate,
+    mq: RelMetadataQuery,
+    columnIndex: Int,
+    filterArg: Int): ValueInterval = {
+    estimateFilteredColumnIntervalOfAggregate(aggregate, mq, columnIndex, filterArg)
+  }
+
+  def getFilteredColumnInterval(
       aggregate: BatchExecGroupAggregateBase,
       mq: RelMetadataQuery,
       columnIndex: Int,
@@ -179,6 +188,14 @@ class FlinkRelMdFilteredColumnInterval private extends MetadataHandler[FilteredC
       mq: RelMetadataQuery,
       columnIndex: Int,
       filterArg: Int): ValueInterval = {
+    estimateFilteredColumnIntervalOfAggregate(aggregate, mq, columnIndex, filterArg)
+  }
+
+  def getFilteredColumnInterval(
+    aggregate: StreamExecGroupTableAggregate,
+    mq: RelMetadataQuery,
+    columnIndex: Int,
+    filterArg: Int): ValueInterval = {
     estimateFilteredColumnIntervalOfAggregate(aggregate, mq, columnIndex, filterArg)
   }
 

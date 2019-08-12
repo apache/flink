@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.sinks.TableSink;
 
 import javax.annotation.Nullable;
 
@@ -44,8 +46,11 @@ import java.util.Map;
  */
 @PublicEvolving
 public class EnvironmentSettings {
+
 	public static final String STREAMING_MODE = "streaming-mode";
 	public static final String CLASS_NAME = "class-name";
+	public static final String DEFAULT_BUILTIN_CATALOG = "default_catalog";
+	public static final String DEFAULT_BUILTIN_DATABASE = "default_database";
 
 	/**
 	 * Canonical name of the {@link Planner} class to use.
@@ -156,8 +161,8 @@ public class EnvironmentSettings {
 
 		private String plannerClass = OLD_PLANNER_FACTORY;
 		private String executorClass = OLD_EXECUTOR_FACTORY;
-		private String builtInCatalogName = "default_catalog";
-		private String builtInDatabaseName = "default_database";
+		private String builtInCatalogName = DEFAULT_BUILTIN_CATALOG;
+		private String builtInDatabaseName = DEFAULT_BUILTIN_DATABASE;
 		private boolean isStreamingMode = true;
 
 		/**
@@ -212,7 +217,14 @@ public class EnvironmentSettings {
 
 		/**
 		 * Specifies the name of the initial catalog to be created when instantiating
-		 * a {@link TableEnvironment}. Default: "default_catalog".
+		 * a {@link TableEnvironment}. This catalog will be used to store all
+		 * non-serializable objects such as tables and functions registered via e.g.
+		 * {@link TableEnvironment#registerTableSink(String, TableSink)} or
+		 * {@link TableEnvironment#registerFunction(String, ScalarFunction)}. It will
+		 * also be the initial value for the current catalog which can be altered via
+		 * {@link TableEnvironment#useCatalog(String)}.
+		 *
+		 * <p>Default: "default_catalog".
 		 */
 		public Builder withBuiltInCatalogName(String builtInCatalogName) {
 			this.builtInCatalogName = builtInCatalogName;
@@ -220,8 +232,15 @@ public class EnvironmentSettings {
 		}
 
 		/**
-		 * Specifies the name of the default database in the initial catalog to be created when instantiating
-		 * a {@link TableEnvironment}. Default: "default_database".
+		 * Specifies the name of the default database in the initial catalog to be
+		 * created when instantiating a {@link TableEnvironment}. The database will be
+		 * used to store all non-serializable objects such as tables and functions registered
+		 * via e.g. {@link TableEnvironment#registerTableSink(String, TableSink)} or
+		 * {@link TableEnvironment#registerFunction(String, ScalarFunction)}. It will
+		 * also be the initial value for the current database which can be altered via
+		 * {@link TableEnvironment#useDatabase(String)}.
+		 *
+		 * <p>Default: "default_database".
 		 */
 		public Builder withBuiltInDatabaseName(String builtInDatabaseName) {
 			this.builtInDatabaseName = builtInDatabaseName;

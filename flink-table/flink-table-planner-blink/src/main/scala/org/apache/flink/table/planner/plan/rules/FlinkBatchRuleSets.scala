@@ -223,7 +223,7 @@ object FlinkBatchRuleSets {
 
   val JOIN_REORDER_PERPARE_RULES: RuleSet = RuleSets.ofList(
     // merge join to MultiJoin
-    JoinToMultiJoinRule.INSTANCE,
+    FlinkJoinToMultiJoinRule.INSTANCE,
     // merge project to MultiJoin
     ProjectMultiJoinMergeRule.INSTANCE,
     // merge filter to MultiJoin

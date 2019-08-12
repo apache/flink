@@ -515,10 +515,6 @@ public class ExecutionJobVertex implements AccessExecutionJobVertex, Archiveable
 
 		synchronized (stateMonitor) {
 			// check and reset the sharing groups with scheduler hints
-			if (slotSharingGroup != null) {
-				slotSharingGroup.clearTaskAssignment();
-			}
-
 			for (int i = 0; i < parallelism; i++) {
 				taskVertices[i].resetForNewExecution(timestamp, expectedGlobalModVersion);
 			}

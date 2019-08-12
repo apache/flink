@@ -365,7 +365,7 @@ LogicalProject(a4=[$0], b4=[$1], EXPR$2=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashWindowAggregate(groupBy=[a4], auxGrouping=[b4], window=[TumblingGroupWindow], select=[a4, b4 AS EXPR$2, COUNT(c4) AS EXPR$2])
+HashWindowAggregate(groupBy=[a4], auxGrouping=[b4], window=[TumblingGroupWindow('w$, d4, 900000)], select=[a4, b4 AS EXPR$2, COUNT(c4) AS EXPR$2])
 +- Exchange(distribution=[hash[a4]])
    +- TableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
 ]]>
@@ -385,7 +385,7 @@ LogicalProject(a4=[$0], c4=[$1], EXPR$2=[$3], EXPR$3=[$4])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashWindowAggregate(groupBy=[a4], auxGrouping=[c4], window=[TumblingGroupWindow], select=[a4, c4 AS EXPR$2, COUNT(b4) AS EXPR$2, AVG(b4) AS EXPR$3])
+HashWindowAggregate(groupBy=[a4], auxGrouping=[c4], window=[TumblingGroupWindow('w$, d4, 900000)], select=[a4, c4 AS EXPR$2, COUNT(b4) AS EXPR$2, AVG(b4) AS EXPR$3])
 +- Exchange(distribution=[hash[a4]])
    +- TableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
 ]]>
@@ -410,9 +410,9 @@ Calc(select=[a4, c4, s, EXPR$3])
 +- HashAggregate(isMerge=[true], groupBy=[a4, s], auxGrouping=[c4], select=[a4, s, c4, Final_COUNT(count$0) AS EXPR$3])
    +- Exchange(distribution=[hash[a4, s]])
       +- LocalHashAggregate(groupBy=[a4, s], auxGrouping=[c4], select=[a4, s, c4, Partial_COUNT(b4) AS count$0])
-         +- Calc(select=[a4, c4, w$start AS s, /(-($f2, /(*(CAST($f3), CAST($f3)), $f4)), $f4) AS b4])
-            +- HashWindowAggregate(groupBy=[a4], auxGrouping=[c4], window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime], select=[a4, c4 AS $f2, SUM($f4) AS $f2, SUM(b4) AS $f3, COUNT(b4) AS $f4])
-               +- Calc(select=[a4, c4, d4, b4, *(CAST(b4), CAST(b4)) AS $f4])
+         +- Calc(select=[a4, c4, w$start AS s, CAST(/(-($f2, /(*($f3, $f3), $f4)), $f4)) AS b4])
+            +- HashWindowAggregate(groupBy=[a4], auxGrouping=[c4], window=[TumblingGroupWindow('w$, d4, 900000)], properties=[w$start, w$end, w$rowtime], select=[a4, c4 AS $f2, SUM($f4) AS $f2, SUM(b4) AS $f3, COUNT(b4) AS $f4])
+               +- Calc(select=[a4, c4, d4, b4, *(b4, b4) AS $f4])
                   +- Exchange(distribution=[hash[a4]])
                      +- TableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
 ]]>
@@ -437,9 +437,9 @@ Calc(select=[a4, c4, e, EXPR$3])
 +- HashAggregate(isMerge=[true], groupBy=[a4, e], auxGrouping=[c4], select=[a4, e, c4, Final_COUNT(count$0) AS EXPR$3])
    +- Exchange(distribution=[hash[a4, e]])
       +- LocalHashAggregate(groupBy=[a4, e], auxGrouping=[c4], select=[a4, e, c4, Partial_COUNT(b4) AS count$0])
-         +- Calc(select=[a4, c4, w$end AS e, /(-($f2, /(*(CAST($f3), CAST($f3)), $f4)), $f4) AS b4])
-            +- HashWindowAggregate(groupBy=[a4], auxGrouping=[c4], window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime], select=[a4, c4 AS $f2, SUM($f4) AS $f2, SUM(b4) AS $f3, COUNT(b4) AS $f4])
-               +- Calc(select=[a4, c4, d4, b4, *(CAST(b4), CAST(b4)) AS $f4])
+         +- Calc(select=[a4, c4, w$end AS e, CAST(/(-($f2, /(*($f3, $f3), $f4)), $f4)) AS b4])
+            +- HashWindowAggregate(groupBy=[a4], auxGrouping=[c4], window=[TumblingGroupWindow('w$, d4, 900000)], properties=[w$start, w$end, w$rowtime], select=[a4, c4 AS $f2, SUM($f4) AS $f2, SUM(b4) AS $f3, COUNT(b4) AS $f4])
+               +- Calc(select=[a4, c4, d4, b4, *(b4, b4) AS $f4])
                   +- Exchange(distribution=[hash[a4]])
                      +- TableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
 ]]>
@@ -463,9 +463,9 @@ LogicalAggregate(group=[{0, 1, 2}], EXPR$3=[COUNT()])
 HashAggregate(isMerge=[true], groupBy=[a4, b4], auxGrouping=[c4], select=[a4, b4, c4, Final_COUNT(count1$0) AS EXPR$3])
 +- Exchange(distribution=[hash[a4, b4]])
    +- LocalHashAggregate(groupBy=[a4, b4], auxGrouping=[c4], select=[a4, b4, c4, Partial_COUNT(*) AS count1$0])
-      +- Calc(select=[a4, /(-($f2, /(*(CAST($f3), CAST($f3)), $f4)), $f4) AS b4, c4])
-         +- HashWindowAggregate(groupBy=[a4], auxGrouping=[c4], window=[TumblingGroupWindow], select=[a4, c4 AS $f2, SUM($f4) AS $f2, SUM(b4) AS $f3, COUNT(b4) AS $f4])
-            +- Calc(select=[a4, c4, d4, b4, *(CAST(b4), CAST(b4)) AS $f4])
+      +- Calc(select=[a4, CAST(/(-($f2, /(*($f3, $f3), $f4)), $f4)) AS b4, c4])
+         +- HashWindowAggregate(groupBy=[a4], auxGrouping=[c4], window=[TumblingGroupWindow('w$, d4, 900000)], select=[a4, c4 AS $f2, SUM($f4) AS $f2, SUM(b4) AS $f3, COUNT(b4) AS $f4])
+            +- Calc(select=[a4, c4, d4, b4, *(b4, b4) AS $f4])
                +- Exchange(distribution=[hash[a4]])
                   +- TableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
 ]]>

@@ -63,13 +63,13 @@ object StringCallGen {
       case NOT_LIKE =>
         generateNot(ctx, new LikeCallGen().generate(ctx, operands, new BooleanType()))
 
-      case SUBSTRING | SUBSTR => generateSubString(ctx, operands)
+      case SUBSTRING => generateSubString(ctx, operands)
 
       case LEFT => generateLeft(ctx, operands.head, operands(1))
 
       case RIGHT => generateRight(ctx, operands.head, operands(1))
 
-      case CHAR_LENGTH | CHARACTER_LENGTH | LENGTH => generateCharLength(ctx, operands)
+      case CHAR_LENGTH | CHARACTER_LENGTH => generateCharLength(ctx, operands)
 
       case SIMILAR_TO => generateSimilarTo(ctx, operands)
 
@@ -109,8 +109,6 @@ object StringCallGen {
 
       case SPLIT_INDEX => generateSplitIndex(ctx, operands)
 
-      case KEYVALUE => generateKeyValue(ctx, operands)
-
       case HASH_CODE if isCharacterString(operands.head.resultType) =>
         generateHashCode(ctx, operands)
 
@@ -137,8 +135,6 @@ object StringCallGen {
       case CHR => generateChr(ctx, operands)
 
       case REGEXP => generateRegExp(ctx, operands)
-
-      case JSONVALUE => generateJsonValue(ctx, operands)
 
       case BIN => generateBin(ctx, operands)
 
@@ -206,18 +202,6 @@ object StringCallGen {
           isCharacterString(operands(1).resultType) =>
         methodGen(BuiltInMethods.UNIX_TIMESTAMP_FORMAT)
 
-      case DATEDIFF if isTimestamp(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATEDIFF_T_S)
-
-      case DATEDIFF if isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATEDIFF_S_S)
-
-      case DATEDIFF if isCharacterString(operands.head.resultType) &&
-          isTimestamp(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATEDIFF_S_T)
-
       case DATE_FORMAT if operands.size == 2 &&
           isTimestamp(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) =>
@@ -233,46 +217,11 @@ object StringCallGen {
           isCharacterString(operands(1).resultType) =>
         methodGen(BuiltInMethods.DATE_FORMAT_STIRNG_STRING)
 
-      case DATE_FORMAT if operands.size == 3 &&
-          isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) &&
-          isCharacterString(operands(2).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_STRING_STRING_STRING)
-
-      case TO_TIMESTAMP_TZ if operands.size == 2 &&
-          isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.STRING_TO_TIMESTAMP_TZ)
-
-      case TO_TIMESTAMP_TZ if operands.size == 3 &&
-          isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) &&
-          isCharacterString(operands(2).resultType) =>
-        methodGen(BuiltInMethods.STRING_TO_TIMESTAMP_FORMAT_TZ)
-
-      case DATE_FORMAT_TZ if operands.size == 2 &&
-          isTimestamp(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_LONG_ZONE)
-
-      case DATE_FORMAT_TZ if operands.size == 3 &&
-          isTimestamp(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) &&
-          isCharacterString(operands(2).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_LONG_STRING_ZONE)
-
       case CONVERT_TZ if operands.size == 3 &&
           isCharacterString(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) &&
           isCharacterString(operands(2).resultType) =>
         methodGen(BuiltInMethods.CONVERT_TZ)
-
-      case CONVERT_TZ if operands.size == 4 &&
-          isCharacterString(operands.head.resultType) &&
-          isCharacterString(operands(1).resultType) &&
-          isCharacterString(operands(2).resultType) &&
-          isCharacterString(operands(3).resultType) =>
-        methodGen(BuiltInMethods.CONVERT_FORMAT_TZ)
 
       case _ => null
     }

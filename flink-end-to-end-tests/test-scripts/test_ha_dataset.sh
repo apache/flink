@@ -75,7 +75,6 @@ function setup_and_start_cluster() {
     create_ha_config
 
     set_config_key "jobmanager.execution.failover-strategy" "region"
-    set_config_key "jobmanager.scheduler.partition.force-release-on-consumption" "false"
     set_config_key "taskmanager.numberOfTaskSlots" "1"
 
     set_config_key "restart-strategy" "fixed-delay"

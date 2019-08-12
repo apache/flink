@@ -225,6 +225,11 @@ public class CancelPartitionRequestTest {
 		}
 
 		@Override
+		public int unsynchronizedGetNumberOfQueuedBuffers() {
+			return 0;
+		}
+
+		@Override
 		public Throwable getFailureCause() {
 			return null;
 		}

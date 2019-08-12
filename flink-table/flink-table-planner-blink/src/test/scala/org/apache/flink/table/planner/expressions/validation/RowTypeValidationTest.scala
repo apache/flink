@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.validation
 
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{SqlParserException, ValidationException}
 import org.apache.flink.table.planner.expressions.utils.RowTypeTestBase
 
@@ -32,11 +33,11 @@ class RowTypeValidationTest extends RowTypeTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testNullRowType(): Unit = {
-    testSqlApi("Row(NULL)", "FAIL")
+    testAllApis("FAIL", "row(null)", "Row(NULL)", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testSqlRowIllegalAccess(): Unit = {
-    testSqlApi("f5.f2", "FAIL")
+    testAllApis('f5.get("f2"), "f5.get('f2')", "f5.f2", "FAIL")
   }
 }

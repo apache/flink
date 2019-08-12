@@ -35,7 +35,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.util.TestLogger;
@@ -183,7 +183,7 @@ public class ExecutionGraphPartitionReleaseTest extends TestLogger {
 			new Configuration(),
 			scheduledExecutorService,
 			mainThreadExecutor.getMainThreadExecutor(),
-			new TestingSlotProvider(ignored -> CompletableFuture.completedFuture(new TestingLogicalSlot())),
+			new TestingSlotProvider(ignored -> CompletableFuture.completedFuture(new TestingLogicalSlotBuilder().createTestingLogicalSlot())),
 			ExecutionGraphPartitionReleaseTest.class.getClassLoader(),
 			new StandaloneCheckpointRecoveryFactory(),
 			AkkaUtils.getDefaultTimeout(),

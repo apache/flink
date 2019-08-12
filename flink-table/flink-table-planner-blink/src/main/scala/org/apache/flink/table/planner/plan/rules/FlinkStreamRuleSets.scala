@@ -210,7 +210,7 @@ object FlinkStreamRuleSets {
     // merge filter to MultiJoin
     FilterMultiJoinMergeRule.INSTANCE,
     // merge join to MultiJoin
-    JoinToMultiJoinRule.INSTANCE
+    FlinkJoinToMultiJoinRule.INSTANCE
   )
 
   val JOIN_REORDER_RULES: RuleSet = RuleSets.ofList(
@@ -290,6 +290,7 @@ object FlinkStreamRuleSets {
   private val LOGICAL_CONVERTERS: RuleSet = RuleSets.ofList(
     // translate to flink logical rel nodes
     FlinkLogicalAggregate.STREAM_CONVERTER,
+    FlinkLogicalTableAggregate.CONVERTER,
     FlinkLogicalOverAggregate.CONVERTER,
     FlinkLogicalCalc.CONVERTER,
     FlinkLogicalCorrelate.CONVERTER,
@@ -365,6 +366,7 @@ object FlinkStreamRuleSets {
     StreamExecExpandRule.INSTANCE,
     // group agg
     StreamExecGroupAggregateRule.INSTANCE,
+    StreamExecGroupTableAggregateRule.INSTANCE,
     // over agg
     StreamExecOverAggregateRule.INSTANCE,
     // window agg

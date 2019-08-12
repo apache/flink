@@ -34,9 +34,9 @@ import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.TableSourceUtil
 import org.apache.flink.table.runtime.operators.AbstractProcessStreamOperator
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.sources.wmstrategies.{PeriodicWatermarkAssigner, PreserveWatermarks, PunctuatedWatermarkAssigner}
 import org.apache.flink.table.sources.{RowtimeAttributeDescriptor, StreamTableSource}
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.types.{DataType, FieldsDataType}
 import org.apache.flink.types.Row
 
@@ -96,18 +96,17 @@ class StreamExecTableSourceScan(
       planner: StreamPlanner): Transformation[BaseRow] = {
     val config = planner.getTableConfig
     val inputTransform = getSourceTransformation(planner.getExecEnv)
-    inputTransform.setParallelism(getResource.getParallelism)
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
       isStreamTable = true,
       tableSourceTable.selectedFields)
 
-    val inputDataType = fromLegacyInfoToDataType(inputTransform.getOutputType)
+    val inputDataType = inputTransform.getOutputType
     val producedDataType = tableSource.getProducedDataType
 
     // check that declared and actual type of table source DataStream are identical
-    if (inputDataType != producedDataType) {
+    if (inputDataType != TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(producedDataType)) {
       throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
         s"returned a DataStream of data type $producedDataType that does not match with the " +
         s"data type $producedDataType declared by the TableSource.getProducedDataType() method. " +
@@ -143,7 +142,6 @@ class StreamExecTableSourceScan(
         rowtimeExpression,
         beforeConvert = extractElement,
         afterConvert = resetElement)
-      conversionTransform.setParallelism(getResource.getParallelism)
       conversionTransform
     } else {
       inputTransform.asInstanceOf[Transformation[BaseRow]]
@@ -174,7 +172,6 @@ class StreamExecTableSourceScan(
       // No need to generate watermarks if no rowtime attribute is specified.
       ingestedTable
     }
-    withWatermarks.getTransformation.setParallelism(getResource.getParallelism)
     withWatermarks.getTransformation
   }
 

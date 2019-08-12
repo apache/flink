@@ -436,7 +436,7 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
 NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[d, e, f, g, h, a, b, c], build=[right])
 :- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
 +- Exchange(distribution=[broadcast])
-   +- Values(tuples=[[]], values=[a, b, c])
+   +- Values(type=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)], tuples=[[]], values=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -551,7 +551,7 @@ LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
       <![CDATA[
 NestedLoopJoin(joinType=[RightOuterJoin], where=[true], select=[d, e, f, g, h, a, b, c], build=[left])
 :- Exchange(distribution=[broadcast])
-:  +- Values(tuples=[[]], values=[d, e, f, g, h])
+:  +- Values(type=[RecordType(INTEGER d, BIGINT e, INTEGER f, VARCHAR(2147483647) g, BIGINT h)], tuples=[[]], values=[d, e, f, g, h])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -697,7 +697,7 @@ NestedLoopJoin(joinType=[LeftOuterJoin], where=[=(k, k0)], select=[k, v, k0, v0]
 :- Calc(select=[CAST(0:BIGINT) AS k, v], where=[=(k, 0:BIGINT)])
 :  +- TableSourceScan(table=[[default_catalog, default_database, src, source: [TestTableSource(k, v)]]], fields=[k, v])
 +- Exchange(distribution=[broadcast])
-   +- Values(tuples=[[]], values=[k, v])
+   +- Values(type=[RecordType(BIGINT k, VARCHAR(2147483647) v)], tuples=[[]], values=[k, v])
 ]]>
     </Resource>
   </TestCase>

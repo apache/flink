@@ -231,13 +231,14 @@ class StreamExecMatch(
       val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
       val transformation = new OneInputTransformation[BaseRow, BaseRow](
         timestampedInput,
-        toString,
+        getRelDetailedDescription,
         operator,
         outputRowTypeInfo,
-        getResource.getParallelism
+        timestampedInput.getParallelism
       )
-      if (getResource.getMaxParallelism > 0) {
-        transformation.setMaxParallelism(getResource.getMaxParallelism)
+      if (inputsContainSingleton()) {
+        transformation.setParallelism(1)
+        transformation.setMaxParallelism(1)
       }
       setKeySelector(transformation, inputTypeInfo)
       transformation
@@ -293,9 +294,10 @@ class StreamExecMatch(
           s"rowtime field: ($timeOrderField)",
           new ProcessOperator(new RowtimeProcessFunction(timeIdx, inputTypeInfo)),
           inputTypeInfo,
-          getResource.getParallelism)
-        if (getResource.getMaxParallelism > 0) {
-          transformation.setMaxParallelism(getResource.getMaxParallelism)
+          inputTransform.getParallelism)
+        if (inputsContainSingleton()) {
+          transformation.setParallelism(1)
+          transformation.setMaxParallelism(1)
         }
         transformation
       } else {

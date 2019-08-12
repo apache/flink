@@ -42,7 +42,6 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
-import org.apache.flink.runtime.instance.SimpleSlot;
 import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
@@ -56,9 +55,8 @@ import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
-import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.BatchTask;
@@ -105,7 +103,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
 
 /**
  * Tests for {@link ExecutionGraph} deployment.
@@ -199,7 +196,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 				tdd.complete(taskDeploymentDescriptor);
 			}));
 
-			final LogicalSlot slot = new TestingLogicalSlot(taskManagerGateway);
+			final LogicalSlot slot = new TestingLogicalSlotBuilder().setTaskManagerGateway(taskManagerGateway).createTestingLogicalSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -382,7 +379,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		Execution execution1 = executions.values().iterator().next();
 		execution1.cancel();
-		execution1.completeCancelling(accumulators, ioMetrics);
+		execution1.completeCancelling(accumulators, ioMetrics, false);
 
 		assertEquals(ioMetrics, execution1.getIOMetrics());
 		assertEquals(accumulators, execution1.getUserAccumulators());
@@ -443,7 +440,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		final ArrayDeque<CompletableFuture<LogicalSlot>> slotFutures = new ArrayDeque<>();
 		for (int i = 0; i < dop1; i++) {
-			slotFutures.addLast(CompletableFuture.completedFuture(new TestingLogicalSlot()));
+			slotFutures.addLast(CompletableFuture.completedFuture(new TestingLogicalSlotBuilder().createTestingLogicalSlot()));
 		}
 
 		final SlotProvider slotProvider = new TestingSlotProvider(ignore -> slotFutures.removeFirst());
@@ -507,7 +504,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		final ArrayDeque<CompletableFuture<LogicalSlot>> slotFutures = new ArrayDeque<>();
 		for (int i = 0; i < dop1 + dop2; i++) {
-			slotFutures.addLast(CompletableFuture.completedFuture(new TestingLogicalSlot()));
+			slotFutures.addLast(CompletableFuture.completedFuture(new TestingLogicalSlotBuilder().createTestingLogicalSlot()));
 		}
 
 		final SlotProvider slotProvider = new TestingSlotProvider(ignore -> slotFutures.removeFirst());
@@ -630,13 +627,11 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 
 		final TaskManagerLocation localTaskManagerLocation = new LocalTaskManagerLocation();
 
-		final SimpleSlot sourceSlot1 = createSlot(localTaskManagerLocation, 0);
+		final LogicalSlot sourceSlot1 = createSlot(localTaskManagerLocation, 0);
+		final LogicalSlot sourceSlot2 = createSlot(localTaskManagerLocation, 1);
 
-		final SimpleSlot sourceSlot2 = createSlot(localTaskManagerLocation, 1);
-
-		final SimpleSlot sinkSlot1 = createSlot(localTaskManagerLocation, 0);
-
-		final SimpleSlot sinkSlot2 = createSlot(localTaskManagerLocation, 1);
+		final LogicalSlot sinkSlot1 = createSlot(localTaskManagerLocation, 0);
+		final LogicalSlot sinkSlot2 = createSlot(localTaskManagerLocation, 1);
 
 		slotFutures.get(sourceVertexId)[0].complete(sourceSlot1);
 		slotFutures.get(sourceVertexId)[1].complete(sourceSlot2);
@@ -706,7 +701,7 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		Collections.shuffle(shuffledFutures);
 
 		for (CompletableFuture<LogicalSlot> slotFuture : shuffledFutures) {
-			slotFuture.complete(new TestingLogicalSlot(taskManagerGateway));
+			slotFuture.complete(new TestingLogicalSlotBuilder().setTaskManagerGateway(taskManagerGateway).createTestingLogicalSlot());
 		}
 
 		final List<ExecutionAttemptID> submittedTasks = new ArrayList<>(numberTasks);
@@ -751,12 +746,11 @@ public class ExecutionGraphDeploymentTest extends TestLogger {
 		}
 	}
 
-	private SimpleSlot createSlot(TaskManagerLocation taskManagerLocation, int index) {
-		return new SimpleSlot(
-			mock(SlotOwner.class),
-			taskManagerLocation,
-			index,
-			new SimpleAckingTaskManagerGateway());
+	private LogicalSlot createSlot(TaskManagerLocation taskManagerLocation, int index) {
+		return new TestingLogicalSlotBuilder()
+			.setTaskManagerLocation(taskManagerLocation)
+			.setSlotNumber(index)
+			.createTestingLogicalSlot();
 	}
 
 	private ExecutionGraph createExecutionGraph(Configuration configuration) throws Exception {

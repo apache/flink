@@ -32,35 +32,6 @@ under the License.
 
 	<packaging>jar</packaging>
 
-	<repositories>
-		<repository>
-			<id>mapr-releases</id>
-			<url>https://repository.mapr.com/maven/</url>
-			<snapshots><enabled>false</enabled></snapshots>
-			<releases><enabled>true</enabled></releases>
-		</repository>
-	</repositories>
-
-	<profiles>
-		<profile>
-			<id>unsafe-mapr-repo</id>
-			<activation>
-				<property>
-					<name>unsafe-mapr-repo</name>
-				</property>
-			</activation>
-			<repositories>
-				<!-- MapR -->
-				<repository>
-					<id>mapr-releases</id>
-					<url>http://repository.mapr.com/maven/</url>
-					<snapshots><enabled>false</enabled></snapshots>
-					<releases><enabled>true</enabled></releases>
-				</repository>
-			</repositories>
-		</profile>
-	</profiles>
-
 	<dependencies>
 
 		<dependency>
@@ -75,13 +46,10 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 
-		<!-- MapR dependencies as optional dependency, so we can hard depend on this without -->
-		<!-- pulling in MapR libraries by default -->
-
 		<dependency>
-			<groupId>com.mapr.hadoop</groupId>
-			<artifactId>maprfs</artifactId>
-			<version>5.2.1-mapr</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-hadoop-2</artifactId>
+			<version>${hadoop.version}-${flink.shaded.version}</version>
 			<optional>true</optional>
 		</dependency>
 

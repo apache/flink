@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, PojoTypeInfo}
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.planner.validate._
+import org.apache.flink.table.runtime.typeutils.{BigDecimalTypeInfo, DecimalTypeInfo}
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo.{INTERVAL_MILLIS, INTERVAL_MONTHS}
 import org.apache.flink.table.typeutils.{TimeIndicatorTypeInfo, TimeIntervalTypeInfo}
 
@@ -48,7 +49,7 @@ object TypeInfoCheckUtils {
 
   def isNumeric(dataType: TypeInformation[_]): Boolean = dataType match {
     case _: NumericTypeInfo[_] => true
-    case BIG_DEC_TYPE_INFO => true
+    case BIG_DEC_TYPE_INFO | _: BigDecimalTypeInfo | _: DecimalTypeInfo => true
     case _ => false
   }
 
@@ -56,7 +57,7 @@ object TypeInfoCheckUtils {
     isTimePoint(dataType) || isTimeInterval(dataType)
 
   def isTimePoint(dataType: TypeInformation[_]): Boolean =
-    dataType.isInstanceOf[SqlTimeTypeInfo[_]]
+    dataType.isInstanceOf[SqlTimeTypeInfo[_]] || dataType.isInstanceOf[LocalTimeTypeInfo[_]]
 
   def isTimeInterval(dataType: TypeInformation[_]): Boolean =
     dataType.isInstanceOf[TimeIntervalTypeInfo[_]]
@@ -103,7 +104,7 @@ object TypeInfoCheckUtils {
   : ValidationResult = dataType match {
     case _: NumericTypeInfo[_] =>
       ValidationSuccess
-    case BIG_DEC_TYPE_INFO =>
+    case BIG_DEC_TYPE_INFO | _: BigDecimalTypeInfo | _: DecimalTypeInfo =>
       ValidationSuccess
     case _ =>
       ValidationFailure(s"$caller requires numeric types, get $dataType here")

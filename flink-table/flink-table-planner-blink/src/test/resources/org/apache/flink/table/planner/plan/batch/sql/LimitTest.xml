@@ -29,7 +29,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]], values=[a, c])
+Values(type=[RecordType(INTEGER a, VARCHAR(2147483647) c)], tuples=[[]], values=[a, c])
 ]]>
     </Resource>
   </TestCase>
@@ -88,7 +88,7 @@ LogicalSort(offset=[10], fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]], values=[a, c])
+Values(type=[RecordType(INTEGER a, VARCHAR(2147483647) c)], tuples=[[]], values=[a, c])
 ]]>
     </Resource>
   </TestCase>
@@ -126,7 +126,7 @@ LogicalSort(offset=[0], fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]], values=[a, c])
+Values(type=[RecordType(INTEGER a, VARCHAR(2147483647) c)], tuples=[[]], values=[a, c])
 ]]>
     </Resource>
   </TestCase>
@@ -143,7 +143,7 @@ LogicalSort(fetch=[0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]], values=[a, b, c])
+Values(type=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)], tuples=[[]], values=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

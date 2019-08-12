@@ -46,9 +46,8 @@ public class StreamExecutor extends ExecutorBase {
 		return execEnv.execute(generateStreamGraph(transformations, jobName));
 	}
 
-	public StreamGraph generateStreamGraph(
-			List<Transformation<?>> transformations,
-			String jobName) throws Exception {
+	@Override
+	public StreamGraph generateStreamGraph(List<Transformation<?>> transformations, String jobName) {
 		transformations.forEach(getExecutionEnvironment()::addOperator);
 		return getExecutionEnvironment().getStreamGraph(getNonEmptyJobName(jobName));
 	}

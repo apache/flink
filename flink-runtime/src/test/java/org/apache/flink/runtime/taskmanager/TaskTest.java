@@ -922,6 +922,13 @@ public class TaskTest extends TestLogger {
 		assertEquals(ExecutionState.FAILED, task.getTerminationFuture().getNow(null));
 	}
 
+	@Test
+	public void testReturnsEmptyStackTraceIfTaskNotStarted() throws Exception {
+		final Task task = createTaskBuilder().build();
+		final StackTraceElement[] actualStackTrace = task.getStackTraceOfExecutingThread();
+		assertEquals(0, actualStackTrace.length);
+	}
+
 	// ------------------------------------------------------------------------
 	//  customized TaskManagerActions
 	// ------------------------------------------------------------------------
@@ -1063,7 +1070,9 @@ public class TaskTest extends TestLogger {
 
 			// block forever
 			synchronized (this) {
-				wait();
+				while (true) {
+					wait();
+				}
 			}
 		}
 	}

@@ -19,8 +19,9 @@
 package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.batch.connectors.hive.HiveTableFactory;
+import org.apache.flink.connectors.hive.HiveTableFactory;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.AbstractCatalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -52,6 +53,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
+import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.catalog.hive.util.HiveStatsUtil;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
@@ -79,7 +81,9 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.io.StorageFormatDescriptor;
 import org.apache.hadoop.hive.ql.io.StorageFormatFactory;
+import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe;
+import org.apache.hive.common.util.HiveStringUtils;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,6 +138,8 @@ public class HiveCatalog extends AbstractCatalog {
 		this.hiveConf = hiveConf == null ? createHiveConf(null) : hiveConf;
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null or empty");
 		this.hiveVersion = hiveVersion;
+		// add this to hiveConf to make sure table factory and source/sink see the same Hive version as HiveCatalog
+		this.hiveConf.set(HiveCatalogValidator.CATALOG_HIVE_VERSION, hiveVersion);
 
 		LOG.info("Created HiveCatalog '{}'", catalogName);
 	}
@@ -150,7 +156,14 @@ public class HiveCatalog extends AbstractCatalog {
 				String.format("Failed to get hive-site.xml from %s", hiveConfDir), e);
 		}
 
-		return new HiveConf();
+		// create HiveConf from hadoop configuration
+		return new HiveConf(HadoopUtils.getHadoopConfiguration(new org.apache.flink.configuration.Configuration()),
+			HiveConf.class);
+	}
+
+	@VisibleForTesting
+	public HiveConf getHiveConf() {
+		return hiveConf;
 	}
 
 	@VisibleForTesting
@@ -311,7 +324,7 @@ public class HiveCatalog extends AbstractCatalog {
 		checkNotNull(tablePath, "tablePath cannot be null");
 
 		Table hiveTable = getHiveTable(tablePath);
-		return instantiateCatalogTable(hiveTable);
+		return instantiateCatalogTable(hiveTable, hiveConf);
 	}
 
 	@Override
@@ -382,7 +395,7 @@ public class HiveCatalog extends AbstractCatalog {
 			return;
 		}
 
-		CatalogBaseTable existingTable = instantiateCatalogTable(hiveTable);
+		CatalogBaseTable existingTable = instantiateCatalogTable(hiveTable, hiveConf);
 
 		if (existingTable.getClass() != newCatalogTable.getClass()) {
 			throw new CatalogException(
@@ -481,7 +494,7 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
-	private static CatalogBaseTable instantiateCatalogTable(Table hiveTable) {
+	private static CatalogBaseTable instantiateCatalogTable(Table hiveTable, HiveConf hiveConf) {
 		boolean isView = TableType.valueOf(hiveTable.getTableType()) == TableType.VIRTUAL_VIEW;
 
 		// Table properties
@@ -494,8 +507,22 @@ public class HiveCatalog extends AbstractCatalog {
 		String comment = properties.remove(HiveCatalogConfig.COMMENT);
 
 		// Table schema
+		List<FieldSchema> fields;
+		if (org.apache.hadoop.hive.ql.metadata.Table.hasMetastoreBasedSchema(hiveConf,
+				hiveTable.getSd().getSerdeInfo().getSerializationLib())) {
+			// get schema from metastore
+			fields = hiveTable.getSd().getCols();
+		} else {
+			// get schema from deserializer
+			try {
+				fields = MetaStoreUtils.getFieldsFromDeserializer(hiveTable.getTableName(),
+						MetaStoreUtils.getDeserializer(hiveConf, hiveTable, true));
+			} catch (SerDeException | MetaException e) {
+				throw new CatalogException("Failed to get Hive table schema from deserializer", e);
+			}
+		}
 		TableSchema tableSchema =
-			HiveTableUtil.createTableSchema(hiveTable.getSd().getCols(), hiveTable.getPartitionKeys());
+			HiveTableUtil.createTableSchema(fields, hiveTable.getPartitionKeys());
 
 		// Partition keys
 		List<String> partitionKeys = new ArrayList<>();
@@ -1059,7 +1086,8 @@ public class HiveCatalog extends AbstractCatalog {
 			function.getClassName();
 
 		return new Function(
-			functionPath.getObjectName(),
+			// due to https://issues.apache.org/jira/browse/HIVE-22053, we have to normalize function name ourselves
+			HiveStringUtils.normalizeIdentifier(functionPath.getObjectName()),
 			functionPath.getDatabaseName(),
 			functionClassName,
 			null,			// Owner name

@@ -300,6 +300,28 @@ class WindowAggregateTest(aggStrategy: AggregatePhaseStrategy) extends TableTest
       """.stripMargin
     util.verifyPlan(sql)
   }
+
+  @Test
+  def testReturnTypeInferenceForWindowAgg() = {
+
+    val sql =
+      """
+        |SELECT
+        |  SUM(correct) AS s,
+        |  AVG(correct) AS a,
+        |  TUMBLE_START(b, INTERVAL '15' MINUTE) AS wStart
+        |FROM (
+        |  SELECT CASE a
+        |      WHEN 1 THEN 1
+        |      ELSE 99
+        |    END AS correct, b
+        |  FROM MyTable
+        |)
+        |GROUP BY TUMBLE(b, INTERVAL '15' MINUTE)
+      """.stripMargin
+
+    util.verifyPlan(sql)
+  }
 }
 
 object WindowAggregateTest {

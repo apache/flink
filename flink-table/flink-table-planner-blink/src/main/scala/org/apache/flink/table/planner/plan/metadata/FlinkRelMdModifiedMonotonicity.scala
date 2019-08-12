@@ -19,11 +19,10 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.functions.sql.SqlIncrSumAggFunction
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.ModifiedMonotonicity
-import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
+import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, TableAggregate, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchExecCorrelate, BatchExecGroupAggregateBase}
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
@@ -227,6 +226,12 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   }
 
   def getRelModifiedMonotonicity(
+      rel: TableAggregate, mq: RelMetadataQuery): RelModifiedMonotonicity = {
+    getRelModifiedMonotonicityOnTableAggregate(
+      rel.getInput, rel.getGroupSet.toArray, rel.getRowType.getFieldCount, mq)
+  }
+
+  def getRelModifiedMonotonicity(
       rel: BatchExecGroupAggregateBase,
       mq: RelMetadataQuery): RelModifiedMonotonicity = null
 
@@ -234,6 +239,13 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
       rel: StreamExecGroupAggregate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = {
     getRelModifiedMonotonicityOnAggregate(rel.getInput, mq, rel.aggCalls.toList, rel.grouping)
+  }
+
+  def getRelModifiedMonotonicity(
+      rel: StreamExecGroupTableAggregate,
+      mq: RelMetadataQuery): RelModifiedMonotonicity = {
+    getRelModifiedMonotonicityOnTableAggregate(
+      rel.getInput, rel.grouping, rel.getRowType.getFieldCount, mq)
   }
 
   def getRelModifiedMonotonicity(
@@ -278,6 +290,27 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
   def getRelModifiedMonotonicity(
       rel: StreamExecOverAggregate,
       mq: RelMetadataQuery): RelModifiedMonotonicity = constants(rel.getRowType.getFieldCount)
+
+  def getRelModifiedMonotonicityOnTableAggregate(
+      input: RelNode,
+      grouping: Array[Int],
+      rowSize: Int,
+      mq: RelMetadataQuery): RelModifiedMonotonicity = {
+
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+    val inputMonotonicity = fmq.getRelModifiedMonotonicity(input)
+
+    // if group by an update field or group by a field mono is null, just return null
+    if (grouping.exists(e =>
+      inputMonotonicity == null || inputMonotonicity.fieldMonotonicities(e) != CONSTANT)) {
+      return null
+    }
+
+    val groupCnt = grouping.length
+    val fieldMonotonicity =
+      Array.fill(groupCnt)(CONSTANT) ++ Array.fill(rowSize - grouping.length)(NOT_MONOTONIC)
+    new RelModifiedMonotonicity(fieldMonotonicity)
+  }
 
   def getRelModifiedMonotonicityOnAggregate(
       input: RelNode,
@@ -337,7 +370,6 @@ class FlinkRelMdModifiedMonotonicity private extends MetadataHandler[ModifiedMon
         case SqlKind.MIN => DECREASING
         case _ => NOT_MONOTONIC
       }
-      case _: SqlIncrSumAggFunction => INCREASING
       case _: SqlSumAggFunction | _: SqlSumEmptyIsZeroAggFunction =>
         val valueInterval = fmq.getFilteredColumnInterval(
           input, aggCall.getArgList.head, aggCall.filterArg)

@@ -236,6 +236,65 @@ public class FutureUtilsTest extends TestLogger {
 	}
 
 	/**
+	 * Tests that the operation could be scheduled with expected delay.
+	 */
+	@Test
+	public void testScheduleWithDelay() throws Exception {
+		final ManuallyTriggeredScheduledExecutor scheduledExecutor = new ManuallyTriggeredScheduledExecutor();
+
+		final int expectedResult = 42;
+		CompletableFuture<Integer> completableFuture = FutureUtils.scheduleWithDelay(
+			() -> expectedResult,
+			Time.milliseconds(0),
+			scheduledExecutor);
+
+		scheduledExecutor.triggerScheduledTasks();
+		final int actualResult = completableFuture.get();
+
+		assertEquals(expectedResult, actualResult);
+	}
+
+	/**
+	 * Tests that a scheduled task is canceled if the scheduled future is being cancelled.
+	 */
+	@Test
+	public void testScheduleWithDelayCancellation() {
+		final ManuallyTriggeredScheduledExecutor scheduledExecutor = new ManuallyTriggeredScheduledExecutor();
+
+		final Runnable noOpRunnable = () -> {};
+		CompletableFuture<Void> completableFuture = FutureUtils.scheduleWithDelay(
+			noOpRunnable,
+			TestingUtils.infiniteTime(),
+			scheduledExecutor);
+
+		final ScheduledFuture<?> scheduledFuture = scheduledExecutor
+			.getScheduledTasks()
+			.iterator()
+			.next();
+
+		completableFuture.cancel(false);
+
+		assertTrue(completableFuture.isCancelled());
+		assertTrue(scheduledFuture.isCancelled());
+	}
+
+	/**
+	 * Tests that the operation is never scheduled if the delay is virtually infinite.
+	 */
+	@Test
+	public void testScheduleWithInfiniteDelayNeverSchedulesOperation() {
+		final Runnable noOpRunnable = () -> {};
+		final CompletableFuture<Void> completableFuture = FutureUtils.scheduleWithDelay(
+			noOpRunnable,
+			TestingUtils.infiniteTime(),
+			TestingUtils.defaultScheduledExecutor());
+
+		assertFalse(completableFuture.isDone());
+
+		completableFuture.cancel(false);
+	}
+
+	/**
 	 * Tests that a future is timed out after the specified timeout.
 	 */
 	@Test

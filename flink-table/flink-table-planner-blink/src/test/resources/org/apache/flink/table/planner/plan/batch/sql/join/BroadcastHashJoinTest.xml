@@ -358,7 +358,7 @@ HashJoin(joinType=[LeftOuterJoin], where=[=(k, k0)], select=[k, v, k0, v0], isBr
 :- Calc(select=[CAST(0:BIGINT) AS k, v], where=[=(k, 0:BIGINT)])
 :  +- TableSourceScan(table=[[default_catalog, default_database, src, source: [TestTableSource(k, v)]]], fields=[k, v])
 +- Exchange(distribution=[broadcast])
-   +- Values(tuples=[[]], values=[k, v])
+   +- Values(type=[RecordType(BIGINT k, VARCHAR(2147483647) v)], tuples=[[]], values=[k, v])
 ]]>
     </Resource>
   </TestCase>

@@ -18,9 +18,8 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.`trait`.RelModifiedMonotonicity
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
+import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalRank, FlinkLogicalTableAggregate}
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType}
 
 import org.apache.calcite.rel.RelCollations
@@ -31,6 +30,8 @@ import org.apache.calcite.sql.validate.SqlMonotonicity._
 import org.apache.calcite.util.ImmutableBitSet
 import org.junit.Assert._
 import org.junit.Test
+
+import scala.collection.JavaConversions._
 
 class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
 
@@ -120,6 +121,34 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
   }
 
   @Test
+  def testGetRelMonotonicityOnTableAggregateAfterScan(): Unit = {
+    assertEquals(
+      new RelModifiedMonotonicity(Array(CONSTANT, NOT_MONOTONIC, NOT_MONOTONIC)),
+      mq.getRelModifiedMonotonicity(logicalTableAgg))
+  }
+
+  @Test
+  def testGetRelMonotonicityOnTableAggregateAfterAggregate(): Unit = {
+    val projectWithMaxAgg = relBuilder.scan("MyTable4")
+      .aggregate(
+        relBuilder.groupKey(relBuilder.field("a"), relBuilder.field("b")),
+        relBuilder.max("max_c", relBuilder.field("c")),
+        relBuilder.sum(false, "sum_d", relBuilder.field("d")))
+      .project(relBuilder.field(2), relBuilder.field(1))
+      .build()
+
+    val tableAggregate = new FlinkLogicalTableAggregate(
+      cluster,
+      logicalTraits,
+      projectWithMaxAgg,
+      ImmutableBitSet.of(0),
+      null,
+      Seq(tableAggCall)
+    )
+    assertEquals(null, mq.getRelModifiedMonotonicity(tableAggregate))
+  }
+
+  @Test
   def testGetRelMonotonicityOnAggregate(): Unit = {
     // select b, sum(a) from (select a + 10 as a, b from MyTable3) t group by b
     val aggWithSum = relBuilder.scan("MyTable3")
@@ -169,16 +198,6 @@ class FlinkRelMdModifiedMonotonicityTest extends FlinkRelMdHandlerTestBase {
     assertEquals(
       new RelModifiedMonotonicity(Array(CONSTANT, NOT_MONOTONIC)),
       mq.getRelModifiedMonotonicity(aggWithAvg)
-    )
-
-    // incr_sum agg
-    val aggWithIncrSum = relBuilder.scan("MyTable3").aggregate(
-      relBuilder.groupKey(relBuilder.field("a")),
-      relBuilder.aggregateCall(FlinkSqlOperatorTable.INCR_SUM, false, null,
-        "incr_sum_b", relBuilder.field("b"))).build()
-    assertEquals(
-      new RelModifiedMonotonicity(Array(CONSTANT, INCREASING)),
-      mq.getRelModifiedMonotonicity(aggWithIncrSum)
     )
 
     // test monotonicity lost because group by a agg field

@@ -67,7 +67,9 @@ public class CheckpointStateRestoreTest {
 
 	@Before
 	public void setUp() throws Exception {
-		failureManager = new CheckpointFailureManager(0, () -> {});
+		failureManager = new CheckpointFailureManager(
+			0,
+			NoOpFailJobCall.INSTANCE);
 	}
 
 	/**

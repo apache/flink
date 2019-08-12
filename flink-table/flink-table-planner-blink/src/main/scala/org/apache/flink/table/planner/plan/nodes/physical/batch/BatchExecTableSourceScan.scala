@@ -29,8 +29,8 @@ import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceSca
 import org.apache.flink.table.planner.plan.schema.FlinkRelOptTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
 import org.apache.flink.table.planner.sources.TableSourceUtil
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.sources.StreamTableSource
-import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -84,18 +84,17 @@ class BatchExecTableSourceScan(
       planner: BatchPlanner): Transformation[BaseRow] = {
     val config = planner.getTableConfig
     val inputTransform = getSourceTransformation(planner.getExecEnv)
-    inputTransform.setParallelism(getResource.getParallelism)
 
     val fieldIndexes = TableSourceUtil.computeIndexMapping(
       tableSource,
       isStreamTable = false,
       tableSourceTable.selectedFields)
 
-    val inputDataType = fromLegacyInfoToDataType(inputTransform.getOutputType)
+    val inputDataType = inputTransform.getOutputType
     val producedDataType = tableSource.getProducedDataType
 
     // check that declared and actual type of table source DataStream are identical
-    if (inputDataType != producedDataType) {
+    if (inputDataType != TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(producedDataType)) {
       throw new TableException(s"TableSource of type ${tableSource.getClass.getCanonicalName} " +
         s"returned a DataStream of data type $producedDataType that does not match with the " +
         s"data type $producedDataType declared by the TableSource.getProducedDataType() method. " +
@@ -110,7 +109,7 @@ class BatchExecTableSourceScan(
       planner.getRelBuilder
     )
     if (needInternalConversion) {
-      val conversionTransform = ScanUtil.convertToInternalRow(
+      ScanUtil.convertToInternalRow(
         CodeGeneratorContext(config),
         inputTransform.asInstanceOf[Transformation[Any]],
         fieldIndexes,
@@ -119,8 +118,6 @@ class BatchExecTableSourceScan(
         getTable.getQualifiedName,
         config,
         rowtimeExpression)
-      conversionTransform.setParallelism(getResource.getParallelism)
-      conversionTransform
     } else {
       inputTransform.asInstanceOf[Transformation[BaseRow]]
     }

@@ -25,10 +25,13 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.resourcemanager.ActiveResourceManagerFactory;
 import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
@@ -187,6 +190,10 @@ public class YarnConfigurationITCase extends YarnTestBase {
 					assertThat(
 						(double) taskManagerInfo.getHardwareDescription().getSizeOfJvmHeap() / (double) expectedHeadSize,
 						is(closeTo(1.0, 0.15)));
+
+					final int expectedManagedMemoryMB = calculateManagedMemorySizeMB(configuration);
+
+					assertThat((int) (taskManagerInfo.getHardwareDescription().getSizeOfManagedMemory() >> 20), is(expectedManagedMemoryMB));
 				} finally {
 					restClient.shutdown(TIMEOUT);
 					clusterClient.shutdown();
@@ -207,5 +214,10 @@ public class YarnConfigurationITCase extends YarnTestBase {
 			final TaskManagerInfo taskManagerInfo = taskManagerInfos.iterator().next();
 			return taskManagerInfo.getNumberSlots() > 0;
 		}
+	}
+
+	private static int calculateManagedMemorySizeMB(Configuration configuration) {
+		Configuration resourceManagerConfig = ActiveResourceManagerFactory.createActiveResourceManagerConfiguration(configuration);
+		return MemorySize.parse(resourceManagerConfig.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE)).getMebiBytes();
 	}
 }

@@ -59,6 +59,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -395,7 +396,15 @@ public class CheckpointCoordinator {
 			@Nullable final String targetLocation) {
 
 		final CheckpointProperties properties = CheckpointProperties.forSyncSavepoint();
-		return triggerSavepointInternal(timestamp, properties, advanceToEndOfEventTime, targetLocation);
+
+		return triggerSavepointInternal(timestamp, properties, advanceToEndOfEventTime, targetLocation).handle(
+				(completedCheckpoint, throwable) -> {
+					if (throwable != null) {
+						failureManager.handleSynchronousSavepointFailure(throwable);
+						throw new CompletionException(throwable);
+					}
+					return completedCheckpoint;
+				});
 	}
 
 	private CompletableFuture<CompletedCheckpoint> triggerSavepointInternal(
@@ -439,7 +448,7 @@ public class CheckpointCoordinator {
 			long latestGeneratedCheckpointId = getCheckpointIdCounter().get();
 			// here we can not get the failed pending checkpoint's id,
 			// so we pass the negative latest generated checkpoint id as a special flag
-			failureManager.handleCheckpointException(e, -1 * latestGeneratedCheckpointId);
+			failureManager.handleJobLevelCheckpointException(e, -1 * latestGeneratedCheckpointId);
 			return false;
 		}
 	}
@@ -710,7 +719,7 @@ public class CheckpointCoordinator {
 					message.getTaskExecutionId(),
 					job,
 					taskManagerLocationInfo);
-				discardCheckpoint(checkpoint, message.getReason());
+				discardCheckpoint(checkpoint, message.getReason(), message.getTaskExecutionId());
 			}
 			else if (checkpoint != null) {
 				// this should not happen
@@ -937,7 +946,7 @@ public class CheckpointCoordinator {
 
 				if (!pendingCheckpoint.isAcknowledgedBy(executionAttemptId)) {
 					pendingCheckpointIterator.remove();
-					discardCheckpoint(pendingCheckpoint, cause);
+					discardCheckpoint(pendingCheckpoint, cause, executionAttemptId);
 				}
 			}
 		}
@@ -1324,8 +1333,12 @@ public class CheckpointCoordinator {
 	 *
 	 * @param pendingCheckpoint to discard
 	 * @param cause for discarding the checkpoint
+	 * @param executionAttemptID the execution attempt id of the failing task.
 	 */
-	private void discardCheckpoint(PendingCheckpoint pendingCheckpoint, @Nullable Throwable cause) {
+	private void discardCheckpoint(
+		PendingCheckpoint pendingCheckpoint,
+		@Nullable Throwable cause,
+		ExecutionAttemptID executionAttemptID) {
 		assert(Thread.holdsLock(lock));
 		Preconditions.checkNotNull(pendingCheckpoint);
 
@@ -1334,12 +1347,12 @@ public class CheckpointCoordinator {
 		LOG.info("Discarding checkpoint {} of job {}.", checkpointId, job, cause);
 
 		if (cause == null) {
-			failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED);
+			failPendingCheckpointDueToTaskFailure(pendingCheckpoint, CheckpointFailureReason.CHECKPOINT_DECLINED, executionAttemptID);
 		} else if (cause instanceof CheckpointException) {
 			CheckpointException exception = (CheckpointException) cause;
-			failPendingCheckpoint(pendingCheckpoint, exception.getCheckpointFailureReason(), cause);
+			failPendingCheckpointDueToTaskFailure(pendingCheckpoint, exception.getCheckpointFailureReason(), cause, executionAttemptID);
 		} else {
-			failPendingCheckpoint(pendingCheckpoint, CheckpointFailureReason.JOB_FAILURE, cause);
+			failPendingCheckpointDueToTaskFailure(pendingCheckpoint, CheckpointFailureReason.JOB_FAILURE, cause, executionAttemptID);
 		}
 
 		rememberRecentCheckpointId(checkpointId);
@@ -1393,21 +1406,46 @@ public class CheckpointCoordinator {
 	}
 
 	private void failPendingCheckpoint(
-		final PendingCheckpoint pendingCheckpoint,
-		final CheckpointFailureReason reason) {
+			final PendingCheckpoint pendingCheckpoint,
+			final CheckpointFailureReason reason) {
 
 		failPendingCheckpoint(pendingCheckpoint, reason, null);
 	}
 
 	private void failPendingCheckpoint(
-			final PendingCheckpoint pendingCheckpoint,
-			final CheckpointFailureReason reason,
-			final Throwable cause) {
+		final PendingCheckpoint pendingCheckpoint,
+		final CheckpointFailureReason reason,
+		@Nullable final Throwable cause) {
 
 		CheckpointException exception = new CheckpointException(reason, cause);
 		pendingCheckpoint.abort(reason, cause);
-		failureManager.handleCheckpointException(exception, pendingCheckpoint.getCheckpointId());
+		failureManager.handleJobLevelCheckpointException(exception, pendingCheckpoint.getCheckpointId());
 
+		checkAndResetCheckpointScheduler();
+	}
+
+	private void failPendingCheckpointDueToTaskFailure(
+		final PendingCheckpoint pendingCheckpoint,
+		final CheckpointFailureReason reason,
+		final ExecutionAttemptID executionAttemptID) {
+
+		failPendingCheckpointDueToTaskFailure(pendingCheckpoint, reason, null, executionAttemptID);
+	}
+
+	private void failPendingCheckpointDueToTaskFailure(
+			final PendingCheckpoint pendingCheckpoint,
+			final CheckpointFailureReason reason,
+			@Nullable final Throwable cause,
+			final ExecutionAttemptID executionAttemptID) {
+
+		CheckpointException exception = new CheckpointException(reason, cause);
+		pendingCheckpoint.abort(reason, cause);
+		failureManager.handleTaskLevelCheckpointException(exception, pendingCheckpoint.getCheckpointId(), executionAttemptID);
+
+		checkAndResetCheckpointScheduler();
+	}
+
+	private void checkAndResetCheckpointScheduler() {
 		if (!shutdown && periodicScheduling && currentPeriodicTrigger == null) {
 			synchronized (lock) {
 				if (pendingCheckpoints.isEmpty() || allPendingCheckpointsDiscarded()) {

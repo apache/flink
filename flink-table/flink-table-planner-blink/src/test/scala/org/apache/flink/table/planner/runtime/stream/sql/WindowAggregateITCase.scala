@@ -70,7 +70,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
     val sql =
       """
         |SELECT
-        |  string,
+        |  `string`,
         |  HOP_START(rowtime, INTERVAL '0.004' SECOND, INTERVAL '0.005' SECOND),
         |  HOP_ROWTIME(rowtime, INTERVAL '0.004' SECOND, INTERVAL '0.005' SECOND),
         |  COUNT(1),
@@ -79,7 +79,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
         |  COUNT(DISTINCT `float`),
         |  concat_distinct_agg(name)
         |FROM T1
-        |GROUP BY string, HOP(rowtime, INTERVAL '0.004' SECOND, INTERVAL '0.005' SECOND)
+        |GROUP BY `string`, HOP(rowtime, INTERVAL '0.004' SECOND, INTERVAL '0.005' SECOND)
       """.stripMargin
 
     val sink = new TestingAppendSink
@@ -122,7 +122,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
     val sql =
       """
         |SELECT
-        |  string,
+        |  `string`,
         |  SESSION_START(rowtime, INTERVAL '0.005' SECOND),
         |  SESSION_ROWTIME(rowtime, INTERVAL '0.005' SECOND),
         |  COUNT(1),
@@ -131,7 +131,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
         |  SUM(`int`),
         |  COUNT(DISTINCT name)
         |FROM T1
-        |GROUP BY string, SESSION(rowtime, INTERVAL '0.005' SECOND)
+        |GROUP BY `string`, SESSION(rowtime, INTERVAL '0.005' SECOND)
       """.stripMargin
 
     val sink = new TestingAppendSink
@@ -171,7 +171,7 @@ class WindowAggregateITCase(mode: StateBackendMode)
     val sql =
       """
         |SELECT
-        |  string,
+        |  `string`,
         |  TUMBLE_START(rowtime, INTERVAL '0.005' SECOND) as w_start,
         |  TUMBLE_END(rowtime, INTERVAL '0.005' SECOND),
         |  COUNT(DISTINCT `long`),
