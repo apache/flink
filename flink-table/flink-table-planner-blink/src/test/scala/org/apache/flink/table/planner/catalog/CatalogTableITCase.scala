@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.catalog
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, TableException}
+import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, TableException, ValidationException}
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.types.Row
 
@@ -488,7 +488,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
     assert(tableEnv.listTables().isEmpty)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testDropTableWithInvalidPath(): Unit = {
     val ddl1 =
       """
@@ -504,7 +504,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
     tableEnv.sqlUpdate(ddl1)
     assert(tableEnv.listTables().sameElements(Array[String]("t1")))
     tableEnv.sqlUpdate("DROP TABLE catalog1.database1.t1")
-    assert(tableEnv.listTables().isEmpty)
   }
 
   @Test

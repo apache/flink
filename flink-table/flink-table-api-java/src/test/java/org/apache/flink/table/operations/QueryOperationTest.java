@@ -20,13 +20,13 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.Collections;
 
 import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.intervalOfMillis;
@@ -44,7 +44,7 @@ public class QueryOperationTest {
 		ProjectQueryOperation tableOperation = new ProjectQueryOperation(
 			Collections.singletonList(new FieldReferenceExpression("a", DataTypes.INT(), 0, 0)),
 			new CatalogQueryOperation(
-				Arrays.asList("cat1", "db1", "tab1"),
+				ObjectIdentifier.of("cat1", "db1", "tab1"),
 				schema), schema);
 
 		SetQueryOperation unionQueryOperation = new SetQueryOperation(
@@ -55,9 +55,9 @@ public class QueryOperationTest {
 
 		assertEquals("Union: (all: [true])\n" +
 			"    Project: (projections: [a])\n" +
-			"        CatalogTable: (path: [cat1, db1, tab1], fields: [a])\n" +
+			"        CatalogTable: (identifier: [`cat1`.`db1`.`tab1`], fields: [a])\n" +
 			"    Project: (projections: [a])\n" +
-			"        CatalogTable: (path: [cat1, db1, tab1], fields: [a])",
+			"        CatalogTable: (identifier: [`cat1`.`db1`.`tab1`], fields: [a])",
 			unionQueryOperation.asSummaryString());
 	}
 
@@ -72,7 +72,7 @@ public class QueryOperationTest {
 			Collections.emptyList(),
 			WindowAggregateQueryOperation.ResolvedGroupWindow.sessionWindow("w", field, intervalOfMillis(10)),
 			new CatalogQueryOperation(
-				Arrays.asList("cat1", "db1", "tab1"),
+				ObjectIdentifier.of("cat1", "db1", "tab1"),
 				schema),
 			schema
 		);
@@ -83,7 +83,7 @@ public class QueryOperationTest {
 			"Distinct:\n" +
 			"    WindowAggregate: (group: [a], agg: [sum(a)], windowProperties: []," +
 				" window: [SessionWindow(field: [a], gap: [10])])\n" +
-				"        CatalogTable: (path: [cat1, db1, tab1], fields: [a])",
+				"        CatalogTable: (identifier: [`cat1`.`db1`.`tab1`], fields: [a])",
 			distinctQueryOperation.asSummaryString());
 	}
 

@@ -20,6 +20,7 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -32,16 +33,16 @@ import java.util.Map;
 @Internal
 public class CatalogQueryOperation implements QueryOperation {
 
-	private final List<String> tablePath;
+	private final ObjectIdentifier objectIdentifier;
 	private final TableSchema tableSchema;
 
-	public CatalogQueryOperation(List<String> tablePath, TableSchema tableSchema) {
-		this.tablePath = tablePath;
+	public CatalogQueryOperation(ObjectIdentifier objectIdentifier, TableSchema tableSchema) {
+		this.objectIdentifier = objectIdentifier;
 		this.tableSchema = tableSchema;
 	}
 
-	public List<String> getTablePath() {
-		return tablePath;
+	public ObjectIdentifier getObjectIdentifier() {
+		return objectIdentifier;
 	}
 
 	@Override
@@ -52,7 +53,7 @@ public class CatalogQueryOperation implements QueryOperation {
 	@Override
 	public String asSummaryString() {
 		Map<String, Object> args = new LinkedHashMap<>();
-		args.put("path", tablePath);
+		args.put("identifier", objectIdentifier);
 		args.put("fields", tableSchema.getFieldNames());
 
 		return OperationUtils.formatWithChildren("CatalogTable", args, getChildren(), Operation::asSummaryString);

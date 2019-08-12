@@ -20,8 +20,11 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CatalogNotExistException;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.util.StringUtils;
 
@@ -209,13 +212,15 @@ public class CatalogManager {
 	 * Retrieves a fully qualified table. If the path is not yet fully qualified use
 	 * {@link #qualifyIdentifier(String...)} first.
 	 *
-	 * @param identifier full path of the table to retrieve
+	 * @param objectIdentifier full path of the table to retrieve
 	 * @return table that the path points to.
 	 */
-	public Optional<CatalogBaseTable> getTable(ObjectIdentifier identifier) {
+	public Optional<CatalogBaseTable> getTable(ObjectIdentifier objectIdentifier) {
 		try {
-			Catalog currentCatalog = catalogs.get(identifier.getCatalogName());
-			ObjectPath objectPath = new ObjectPath(identifier.getDatabaseName(), identifier.getObjectName());
+			Catalog currentCatalog = catalogs.get(objectIdentifier.getCatalogName());
+			ObjectPath objectPath = new ObjectPath(
+				objectIdentifier.getDatabaseName(),
+				objectIdentifier.getObjectName());
 
 			if (currentCatalog != null && currentCatalog.tableExists(objectPath)) {
 				return Optional.of(currentCatalog.getTable(objectPath));
@@ -263,5 +268,84 @@ public class CatalogManager {
 		}
 
 		return ObjectIdentifier.of(catalogName, dbName, tableName);
+	}
+
+	/**
+	 * Creates a table in a given fully qualified path.
+	 *
+	 * @param table The table to put in the given path.
+	 * @param objectIdentifier The fully qualified path where to put the table.
+	 * @param ignoreIfExists If false exception will be thrown if a table exists in the given path.
+	 */
+	public void createTable(CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfExists) {
+		execute(
+			(catalog, path) -> catalog.createTable(path, table, ignoreIfExists),
+			objectIdentifier,
+			false,
+			"CreateTable");
+	}
+
+	/**
+	 * Alters a table in a given fully qualified path.
+	 *
+	 * @param table The table to put in the given path
+	 * @param objectIdentifier The fully qualified path where to alter the table.
+	 * @param ignoreIfNotExists If false exception will be thrown if the table or database or catalog to be altered
+	 * does not exist.
+	 */
+	public void alterTable(CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+		execute(
+			(catalog, path) -> catalog.alterTable(path, table, ignoreIfNotExists),
+			objectIdentifier,
+			ignoreIfNotExists,
+			"AlterTable");
+	}
+
+	/**
+	 * Drops a table in a given fully qualified path.
+	 *
+	 * @param objectIdentifier The fully qualified path of the table to drop.
+	 * @param ignoreIfNotExists If false exception will be thrown if the table or database or catalog to be altered
+	 * does not exist.
+	 */
+	public void dropTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+		execute(
+			(catalog, path) -> catalog.dropTable(path, ignoreIfNotExists),
+			objectIdentifier,
+			ignoreIfNotExists,
+			"DropTable");
+	}
+
+	/**
+	 * A command that modifies given {@link Catalog} in an {@link ObjectPath}. This unifies error handling
+	 * across different commands.
+	 */
+	private interface ModifyCatalog {
+		void execute(Catalog catalog, ObjectPath path) throws Exception;
+	}
+
+	private void execute(
+			ModifyCatalog command,
+			ObjectIdentifier objectIdentifier,
+			boolean ignoreNoCatalog,
+			String commandName) {
+		Optional<Catalog> catalog = getCatalog(objectIdentifier.getCatalogName());
+		if (catalog.isPresent()) {
+			try {
+				command.execute(catalog.get(), objectIdentifier.toObjectPath());
+			} catch (TableAlreadyExistException | TableNotExistException | DatabaseNotExistException e) {
+				throw new ValidationException(getErrorMessage(objectIdentifier, commandName), e);
+			} catch (Exception e) {
+				throw new TableException(getErrorMessage(objectIdentifier, commandName), e);
+			}
+		} else if (!ignoreNoCatalog) {
+			throw new ValidationException(String.format(
+				"Catalog %s does not exist.",
+				objectIdentifier.getCatalogName()));
+		}
+	}
+
+	private String getErrorMessage(ObjectIdentifier objectIdentifier, String commandName) {
+		return String.format("Could not execute %s in path %s", commandName, objectIdentifier);
 	}
 }
