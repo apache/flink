@@ -24,6 +24,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableBuilder;
@@ -96,6 +97,9 @@ public class HiveCatalogUseBlinkITCase {
 	public void testBlinkUdf() throws Exception {
 		TableEnvironment tEnv = TableEnvironment.create(
 				EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build());
+
+		tEnv.getConfig().getConfiguration().setInteger(
+				ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 3);
 
 		tEnv.registerCatalog("myhive", hiveCatalog);
 		tEnv.useCatalog("myhive");
