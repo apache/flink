@@ -37,9 +37,13 @@ import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.ParsedLine;
 import org.jline.reader.Parser;
 import org.jline.terminal.Terminal;
+import org.jline.terminal.impl.DumbTerminal;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -49,6 +53,10 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 /**
  * Tests for the {@link CliClient}.
@@ -82,6 +90,52 @@ public class CliClientTest extends TestLogger {
 		verifySqlCompletion("  qu", 2, Collections.singletonList("QUIT;"), Collections.singletonList("SELECT"));
 		verifySqlCompletion("set ", 3, Collections.emptyList(), Collections.singletonList("SET"));
 		verifySqlCompletion("show t ", 6, Collections.emptyList(), Collections.singletonList("SET"));
+	}
+
+	@Test
+	public void testUseNonExistingDB() throws Exception {
+		Executor executor = mock(Executor.class);
+		doThrow(new SqlExecutionException("mocked exception")).when(executor).useDatabase(any(), any());
+		InputStream inputStream = new ByteArrayInputStream("use db;\n".getBytes());
+		// don't care about the output
+		OutputStream outputStream = new OutputStream() {
+			@Override
+			public void write(int b) throws IOException {
+			}
+		};
+		CliClient cliClient = null;
+		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+			cliClient = new CliClient(terminal, new SessionContext("test-session", new Environment()), executor);
+			cliClient.open();
+			verify(executor).useDatabase(any(), any());
+		} finally {
+			if (cliClient != null) {
+				cliClient.close();
+			}
+		}
+	}
+
+	@Test
+	public void testUseNonExistingCatalog() throws Exception {
+		Executor executor = mock(Executor.class);
+		doThrow(new SqlExecutionException("mocked exception")).when(executor).useCatalog(any(), any());
+		InputStream inputStream = new ByteArrayInputStream("use catalog cat;\n".getBytes());
+		// don't care about the output
+		OutputStream outputStream = new OutputStream() {
+			@Override
+			public void write(int b) throws IOException {
+			}
+		};
+		CliClient cliClient = null;
+		try (Terminal terminal = new DumbTerminal(inputStream, outputStream)) {
+			cliClient = new CliClient(terminal, new SessionContext("test-session", new Environment()), executor);
+			cliClient.open();
+			verify(executor).useCatalog(any(), any());
+		} finally {
+			if (cliClient != null) {
+				cliClient.close();
+			}
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------
