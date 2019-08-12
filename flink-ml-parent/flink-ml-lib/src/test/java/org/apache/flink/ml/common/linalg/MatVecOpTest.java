@@ -73,13 +73,25 @@ public class MatVecOpTest {
 
 	@Test
 	public void testDot() throws Exception {
+		Assert.assertEquals(MatVecOp.dot(dv, sv), 4.0, TOL);
+		Assert.assertEquals(MatVecOp.dot(sv, dv), 4.0, TOL);
+		Assert.assertEquals(MatVecOp.dot(sv, sv), 2.0, TOL);
+		Assert.assertEquals(MatVecOp.dot(dv, dv), 30.0, TOL);
 	}
 
 	@Test
 	public void testSumAbsDiff() throws Exception {
+		Assert.assertEquals(MatVecOp.sumAbsDiff(dv, sv), 8.0, TOL);
+		Assert.assertEquals(MatVecOp.sumAbsDiff(sv, dv), 8.0, TOL);
+		Assert.assertEquals(MatVecOp.sumAbsDiff(sv, sv), 0.0, TOL);
+		Assert.assertEquals(MatVecOp.sumAbsDiff(dv, dv), 0.0, TOL);
 	}
 
 	@Test
 	public void testSumSquaredDiff() throws Exception {
+		Assert.assertEquals(MatVecOp.sumSquaredDiff(dv, sv), 24.0, TOL);
+		Assert.assertEquals(MatVecOp.sumSquaredDiff(sv, dv), 24.0, TOL);
+		Assert.assertEquals(MatVecOp.sumSquaredDiff(sv, sv), 0.0, TOL);
+		Assert.assertEquals(MatVecOp.sumSquaredDiff(dv, dv), 0.0, TOL);
 	}
 }
