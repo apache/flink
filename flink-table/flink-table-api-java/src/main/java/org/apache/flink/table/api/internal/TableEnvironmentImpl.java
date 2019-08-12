@@ -23,7 +23,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.table.api.CatalogNotExistException;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
@@ -34,9 +33,9 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
-import org.apache.flink.table.catalog.ExternalCatalog;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -156,16 +155,6 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
-	public void registerExternalCatalog(String name, ExternalCatalog externalCatalog) {
-		catalogManager.registerExternalCatalog(name, externalCatalog);
-	}
-
-	@Override
-	public ExternalCatalog getRegisteredExternalCatalog(String name) {
-		return catalogManager.getExternalCatalog(name).orElseThrow(() -> new CatalogNotExistException(name));
-	}
-
-	@Override
 	public void registerCatalog(String catalogName, Catalog catalog) {
 		catalogManager.registerCatalog(catalogName, catalog);
 	}
@@ -229,8 +218,14 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	private Optional<CatalogQueryOperation> scanInternal(String... tablePath) {
-		return catalogManager.resolveTable(tablePath)
-			.map(t -> new CatalogQueryOperation(t.getTablePath(), t.getTableSchema()));
+		ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(tablePath);
+		return catalogManager.getTable(objectIdentifier)
+			.map(t -> new CatalogQueryOperation(
+				Arrays.asList(
+					objectIdentifier.getCatalogName(),
+					objectIdentifier.getDatabaseName(),
+					objectIdentifier.getObjectName()),
+				t.getSchema()));
 	}
 
 	@Override
@@ -358,15 +353,18 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (operation instanceof DropTableOperation) {
 			String[] name = ((DropTableOperation) operation).getTableName();
 			boolean isIfExists = ((DropTableOperation) operation).isIfExists();
-			String[] paths = catalogManager.getFullTablePath(Arrays.asList(name));
-			Optional<Catalog> catalog = getCatalog(paths[0]);
+			ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(name);
+			Optional<Catalog> catalog = getCatalog(objectIdentifier.getCatalogName());
 			if (!catalog.isPresent()) {
 				if (!isIfExists) {
-					throw new TableException("Catalog " + paths[0] + " does not exist.");
+					throw new TableException("Catalog " + objectIdentifier.getCatalogName() + " does not exist.");
 				}
 			} else {
 				try {
-					catalog.get().dropTable(new ObjectPath(paths[1], paths[2]), isIfExists);
+					catalog.get()
+						.dropTable(
+							new ObjectPath(objectIdentifier.getDatabaseName(), objectIdentifier.getObjectName()),
+							isIfExists);
 				} catch (TableNotExistException e) {
 					throw new TableException(e.getMessage());
 				}
@@ -464,10 +462,10 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	private void registerCatalogTableInternal(String[] path,
 			CatalogBaseTable catalogTable,
 			boolean ignoreIfExists) {
-		String[] fullName = catalogManager.getFullTablePath(Arrays.asList(path));
-		Catalog catalog = getCatalog(fullName[0]).orElseThrow(() ->
-			new TableException("Catalog " + fullName[0] + " does not exist"));
-		ObjectPath objectPath = new ObjectPath(fullName[1], fullName[2]);
+		ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(path);
+		Catalog catalog = getCatalog(objectIdentifier.getCatalogName()).orElseThrow(() ->
+			new TableException("Catalog " + objectIdentifier.getCatalogName() + " does not exist"));
+		ObjectPath objectPath = new ObjectPath(objectIdentifier.getDatabaseName(), objectIdentifier.getObjectName());
 		try {
 			catalog.createTable(objectPath, catalogTable, ignoreIfExists);
 		} catch (Exception e) {
@@ -566,7 +564,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	private Optional<CatalogBaseTable> getCatalogTable(String... name) {
-		return catalogManager.resolveTable(name).flatMap(CatalogManager.ResolvedTable::getCatalogTable);
+		return catalogManager.getTable(catalogManager.qualifyIdentifier(name));
 	}
 
 	protected TableImpl createTable(QueryOperation tableOperation) {

@@ -30,6 +30,7 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,14 +40,13 @@ import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.BUILTIN_CATALOG_NAME;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.database;
-import static org.apache.flink.table.catalog.CatalogStructureBuilder.extCatalog;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.root;
 import static org.apache.flink.table.catalog.CatalogStructureBuilder.table;
 import static org.apache.flink.table.catalog.PathResolutionTest.TestSpec.testSpec;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for {@link CatalogManager#resolveTable(String...)}.
+ * Tests for path resolution in Table API & SQL.
  */
 @RunWith(Parameterized.class)
 public class PathResolutionTest {
@@ -86,18 +86,6 @@ public class PathResolutionTest {
 				.tableApiLookupPath("cat1", "db1", "tab1")
 				.sqlLookupPath("cat1.db1.tab1")
 				.expectPath("cat1", "db1", "tab1"),
-
-			testSpec("externalCatalogTopLevelTable")
-				.withCatalogManager(externalCatalog())
-				.tableApiLookupPath("extCat1", "tab1")
-				.sqlLookupPath("extCat1.tab1")
-				.expectPath("extCat1", "tab1"),
-
-			testSpec("externalCatalogMultiLevelNesting")
-				.withCatalogManager(externalCatalog())
-				.tableApiLookupPath("extCat1", "extCat2", "extCat3", "tab1")
-				.sqlLookupPath("extCat1.extCat2.extCat3.tab1")
-				.expectPath("extCat1", "extCat2", "extCat3", "tab1"),
 
 			testSpec("dotInUnqualifiedTableName")
 				.withCatalogManager(catalogWithSpecialCharacters())
@@ -151,27 +139,6 @@ public class PathResolutionTest {
 			).build();
 	}
 
-	private static CatalogManager externalCatalog() throws Exception {
-		return root()
-			.builtin(
-				database(
-					"default",
-					table("tab1"),
-					table("tab2")
-				)
-			)
-			.externalCatalog(
-				"extCat1",
-				table("tab1"),
-				extCatalog(
-					"extCat2",
-					extCatalog("extCat3",
-						table("tab1")
-					),
-					table("tab1"))
-			).build();
-	}
-
 	private static CatalogManager catalogWithSpecialCharacters() throws Exception {
 		return root()
 			.builtin(
@@ -201,8 +168,10 @@ public class PathResolutionTest {
 		testSpec.getDefaultCatalog().ifPresent(catalogManager::setCurrentCatalog);
 		testSpec.getDefaultDatabase().ifPresent(catalogManager::setCurrentDatabase);
 
-		CatalogManager.ResolvedTable tab = catalogManager.resolveTable(lookupPath.toArray(new String[0])).get();
-		assertThat(tab.getTablePath(), CoreMatchers.equalTo(testSpec.getExpectedPath()));
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(lookupPath.toArray(new String[0]));
+		assertThat(
+			Arrays.asList(identifier.getCatalogName(), identifier.getDatabaseName(), identifier.getObjectName()),
+			CoreMatchers.equalTo(testSpec.getExpectedPath()));
 	}
 
 	@Test
@@ -219,24 +188,6 @@ public class PathResolutionTest {
 				"StreamTableSourceScan(table=[[%s]], fields=[], source=[()])",
 				String.join(", ", testSpec.getExpectedPath()))
 		);
-	}
-
-	private static class DatabasePath {
-		private final String catalogName;
-		private final String databaseName;
-
-		DatabasePath(String catalogName, String databaseName) {
-			this.catalogName = catalogName;
-			this.databaseName = databaseName;
-		}
-
-		public String getCatalogName() {
-			return catalogName;
-		}
-
-		public String getDatabaseName() {
-			return databaseName;
-		}
 	}
 
 	static class TestSpec {

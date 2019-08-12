@@ -45,10 +45,10 @@ import org.apache.calcite.sql._
 import org.apache.calcite.sql.parser.SqlParser
 import org.apache.calcite.tools.FrameworkConfig
 
-import _root_.java.util.{Optional, Map => JMap, HashMap => JHashMap}
+import _root_.java.util.{Optional, HashMap => JHashMap, Map => JMap}
 
-import _root_.scala.collection.JavaConverters._
 import _root_.scala.collection.JavaConversions._
+import _root_.scala.collection.JavaConverters._
 
 /**
   * The abstract base class for the implementation of batch TableEnvironment.
@@ -99,17 +99,6 @@ abstract class TableEnvImpl(
   }
 
   private def isBatchTable: Boolean = !isStreamingMode
-
-  override def registerExternalCatalog(name: String, externalCatalog: ExternalCatalog): Unit = {
-    catalogManager.registerExternalCatalog(name, externalCatalog)
-  }
-
-  override def getRegisteredExternalCatalog(name: String): ExternalCatalog = {
-    JavaScalaConversionUtil.toScala(catalogManager.getExternalCatalog(name)) match {
-      case Some(catalog) => catalog
-      case None => throw new CatalogNotExistException(name)
-    }
-  }
 
   override def registerFunction(name: String, function: ScalarFunction): Unit = {
     functionCatalog.registerScalarFunction(
@@ -342,12 +331,15 @@ abstract class TableEnvImpl(
       path: Array[String],
       catalogTable: CatalogBaseTable,
       ignoreIfExists: Boolean): Unit = {
-    val fullName = catalogManager.getFullTablePath(path.toList)
-    val catalog = getCatalog(fullName(0)).orElseThrow(
+    val objectIdentifier = catalogManager.qualifyIdentifier(path: _*)
+    val catalog = getCatalog(objectIdentifier.getCatalogName).orElseThrow(
       new _root_.java.util.function.Supplier[TableException] {
-        override def get = new TableException(s"Catalog ${fullName(0)} does not exist")
+        override def get =
+          new TableException(s"Catalog ${objectIdentifier.getCatalogName} does not exist")
       })
-    val objectPath = new ObjectPath(fullName(1), fullName(2))
+    val objectPath = new ObjectPath(
+      objectIdentifier.getDatabaseName,
+      objectIdentifier.getObjectName)
     catalog.createTable(objectPath, catalogTable, ignoreIfExists)
   }
 
@@ -388,8 +380,15 @@ abstract class TableEnvImpl(
   }
 
   private[flink] def scanInternal(tablePath: Array[String]): Option[CatalogQueryOperation] = {
-    JavaScalaConversionUtil.toScala(catalogManager.resolveTable(tablePath: _*))
-      .map(t => new CatalogQueryOperation(t.getTablePath, t.getTableSchema))
+    val objectIdentifier = catalogManager.qualifyIdentifier(tablePath: _*)
+    JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
+      .map(t => new CatalogQueryOperation(
+        List(
+          objectIdentifier.getCatalogName,
+          objectIdentifier.getDatabaseName,
+          objectIdentifier.getObjectName
+        ).asJava,
+        t.getSchema))
   }
 
   override def listCatalogs(): Array[String] = {
@@ -471,15 +470,20 @@ abstract class TableEnvImpl(
       case dropTable: SqlDropTable =>
         val name = dropTable.fullTableName()
         val isIfExists = dropTable.getIfExists
-        val paths = catalogManager.getFullTablePath(name.toList)
-        val catalog = getCatalog(paths(0))
+        val objectIdentifier = catalogManager.qualifyIdentifier(name: _*)
+        val catalog = getCatalog(objectIdentifier.getCatalogName)
         if (!catalog.isPresent) {
           if (!isIfExists) {
-            throw new TableException(s"Catalog ${paths(0)} does not exist.")
+            throw new TableException(s"Catalog ${objectIdentifier.getCatalogName} does not exist.")
           }
         } else {
           try
-            catalog.get().dropTable(new ObjectPath(paths(1), paths(2)), isIfExists)
+            catalog.get()
+              .dropTable(
+                new ObjectPath(
+                  objectIdentifier.getDatabaseName,
+                  objectIdentifier.getObjectName),
+                isIfExists)
           catch {
             case e: TableNotExistException =>
               throw new TableException(e.getMessage)
@@ -566,25 +570,17 @@ abstract class TableEnvImpl(
   }
 
   private def getTableSink(name: String*): Option[TableSink[_]] = {
-    JavaScalaConversionUtil.toScala(catalogManager.resolveTable(name: _*)) match {
-      case Some(s) if s.getExternalCatalogTable.isPresent =>
+    val objectIdentifier = catalogManager.qualifyIdentifier(name: _*)
+    JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier)) match {
+      case Some(s) if s.isInstanceOf[ConnectorCatalogTable[_, _]] =>
+        JavaScalaConversionUtil.toScala(s.asInstanceOf[ConnectorCatalogTable[_, _]].getTableSink)
 
-        Option(TableFactoryUtil.findAndCreateTableSink(s.getExternalCatalogTable.get()))
-
-      case Some(s) if JavaScalaConversionUtil.toScala(s.getCatalogTable)
-        .exists(_.isInstanceOf[ConnectorCatalogTable[_, _]]) =>
-
-        JavaScalaConversionUtil
-          .toScala(s.getCatalogTable.get().asInstanceOf[ConnectorCatalogTable[_, _]].getTableSink)
-
-      case Some(s) if JavaScalaConversionUtil.toScala(s.getCatalogTable)
-        .exists(_.isInstanceOf[CatalogTable]) =>
-
-        val catalog = catalogManager.getCatalog(s.getTablePath.get(0))
-        val catalogTable = s.getCatalogTable.get().asInstanceOf[CatalogTable]
+      case Some(s) if s.isInstanceOf[CatalogTable] =>
+        val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
+        val catalogTable = s.asInstanceOf[CatalogTable]
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
-          val dbName = s.getTablePath.get(1)
-          val tableName = s.getTablePath.get(2)
+          val dbName = objectIdentifier.getDatabaseName
+          val tableName = objectIdentifier.getObjectName
           val sink = TableFactoryUtil.createTableSinkForCatalogTable(
             catalog.get(), catalogTable, new ObjectPath(dbName, tableName))
           if (sink.isPresent) {
@@ -600,8 +596,8 @@ abstract class TableEnvImpl(
   }
 
   protected def getCatalogTable(name: String*): Option[CatalogBaseTable] = {
-    JavaScalaConversionUtil.toScala(catalogManager.resolveTable(name: _*))
-      .flatMap(t => JavaScalaConversionUtil.toScala(t.getCatalogTable))
+    val objectIdentifier = catalogManager.qualifyIdentifier(name: _*)
+    JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier))
   }
 
   /** Returns the [[FlinkRelBuilder]] of this TableEnvironment. */
