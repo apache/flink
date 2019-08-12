@@ -100,6 +100,8 @@ public class HiveCatalogUseBlinkITCase {
 
 		tEnv.getConfig().getConfiguration().setInteger(
 				ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 3);
+		tEnv.getConfig().getConfiguration().setString(
+				ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY, "1 mb");
 
 		tEnv.registerCatalog("myhive", hiveCatalog);
 		tEnv.useCatalog("myhive");
