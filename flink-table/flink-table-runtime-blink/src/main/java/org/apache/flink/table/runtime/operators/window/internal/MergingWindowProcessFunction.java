@@ -22,7 +22,7 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
+import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.MergingWindowAssigner;
 
@@ -48,7 +48,7 @@ public class MergingWindowProcessFunction<K, W extends Window>
 
 	public MergingWindowProcessFunction(
 			MergingWindowAssigner<W> windowAssigner,
-			NamespaceAggsHandleFunctionBase<W> windowAggregator,
+			NamespaceAggsHandleFunction<W> windowAggregator,
 			TypeSerializer<W> windowSerializer,
 			long allowedLateness) {
 		super(windowAssigner, windowAggregator, allowedLateness);
@@ -100,13 +100,14 @@ public class MergingWindowProcessFunction<K, W extends Window>
 	}
 
 	@Override
-	public void prepareAggregateAccumulatorForEmit(W window) throws Exception {
+	public BaseRow getWindowAggregationResult(W window) throws Exception {
 		W stateWindow = mergingWindows.getStateWindow(window);
 		BaseRow acc = ctx.getWindowAccumulators(stateWindow);
 		if (acc == null) {
 			acc = windowAggregator.createAccumulators();
 		}
 		windowAggregator.setAccumulators(stateWindow, acc);
+		return windowAggregator.getValue(window);
 	}
 
 	@Override

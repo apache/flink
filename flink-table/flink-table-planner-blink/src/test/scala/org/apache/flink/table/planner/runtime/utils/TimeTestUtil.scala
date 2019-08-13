@@ -48,7 +48,7 @@ object TimeTestUtil {
     }
 
     override def extractTimestamp(element: T, previousElementTimestamp: Long): Long = {
-      element.productElement(0).asInstanceOf[Number].longValue()
+      element.productElement(0).asInstanceOf[Long]
     }
   }
 

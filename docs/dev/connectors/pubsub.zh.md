@@ -94,7 +94,7 @@ DataStream<SomeObject> dataStream = (...);
 
 SerializationSchema<SomeObject> serializationSchema = (...);
 SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder()
-                                                .withSerializationSchema(serializationSchema)
+                                                .withDeserializationSchema(deserializer)
                                                 .withProjectName("project")
                                                 .withSubscriptionName("subscription")
                                                 .build()
@@ -120,20 +120,18 @@ The following example shows how you would create a source to read messages from 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 {% highlight java %}
-String hostAndPort = "localhost:1234";
 DeserializationSchema<SomeObject> deserializationSchema = (...);
 SourceFunction<SomeObject> pubsubSource = PubSubSource.newBuilder()
                                                       .withDeserializationSchema(deserializationSchema)
                                                       .withProjectName("my-fake-project")
                                                       .withSubscriptionName("subscription")
-                                                      .withPubSubSubscriberFactory(new PubSubSubscriberFactoryForEmulator(hostAndPort, "my-fake-project", "subscription", 10, Duration.ofSeconds(15), 100))
+                                                      .withPubSubSubscriberFactory(new PubSubSubscriberFactoryForEmulator("localhost:1234", "my-fake-project", "subscription", 10, Duration.ofSeconds(15), 100))
                                                       .build();
-SerializationSchema<SomeObject> serializationSchema = (...);
 SinkFunction<SomeObject> pubsubSink = PubSubSink.newBuilder()
-                                                .withSerializationSchema(serializationSchema)
+                                                .withDeserializationSchema(deserializationSchema)
                                                 .withProjectName("my-fake-project")
                                                 .withSubscriptionName("subscription")
-                                                .withHostAndPortForEmulator(hostAndPort)
+                                                .withHostAndPortForEmulator(getPubSubHostPort())
                                                 .build()
 
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();

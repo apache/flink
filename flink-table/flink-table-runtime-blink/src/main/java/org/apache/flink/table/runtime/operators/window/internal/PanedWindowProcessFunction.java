@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.window.internal;
 
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
+import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.window.Window;
 import org.apache.flink.table.runtime.operators.window.assigners.PanedWindowAssigner;
 
@@ -41,7 +41,7 @@ public class PanedWindowProcessFunction<K, W extends Window>
 
 	public PanedWindowProcessFunction(
 			PanedWindowAssigner<W> windowAssigner,
-			NamespaceAggsHandleFunctionBase<W> windowAggregator,
+			NamespaceAggsHandleFunction<W> windowAggregator,
 			long allowedLateness) {
 		super(windowAssigner, windowAggregator, allowedLateness);
 		this.windowAssigner = windowAssigner;
@@ -70,7 +70,7 @@ public class PanedWindowProcessFunction<K, W extends Window>
 	}
 
 	@Override
-	public void prepareAggregateAccumulatorForEmit(W window) throws Exception {
+	public BaseRow getWindowAggregationResult(W window) throws Exception {
 		Iterable<W> panes = windowAssigner.splitIntoPanes(window);
 		BaseRow acc = windowAggregator.createAccumulators();
 		// null namespace means use heap data views
@@ -81,6 +81,7 @@ public class PanedWindowProcessFunction<K, W extends Window>
 				windowAggregator.merge(pane, paneAcc);
 			}
 		}
+		return windowAggregator.getValue(window);
 	}
 
 	@Override

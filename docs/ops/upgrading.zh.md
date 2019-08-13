@@ -214,7 +214,6 @@ Savepoints are compatible across Flink versions as indicated by the table below:
       <th class="text-center">1.6.x</th>
       <th class="text-center">1.7.x</th>
       <th class="text-center">1.8.x</th>
-      <th class="text-center">1.9.x</th>
       <th class="text-center">Limitations</th>
     </tr>
   </thead>
@@ -224,7 +223,6 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
-          <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
@@ -244,22 +242,14 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-left">
-          When migrating from Flink 1.2.x to Flink 1.3.x+, changing parallelism at the same
+          <td class="text-left">When migrating from Flink 1.2.x to Flink 1.3.x+, changing parallelism at the same
           time is not supported. Users have to first take a savepoint after migrating to Flink 1.3.x+, and then change
-          parallelism.
-          <br/><br/>Savepoints created for CEP applications cannot be restored in 1.4.x+.
-          <br/><br/>Savepoints from Flink 1.2 that contain a Scala TraversableSerializer are not compatible with Flink 1.8 anymore
-          because of an update in this serializer. You can get around this restriction by first upgrading to a version between Flink 1.3 and
-          Flink 1.7 and then updating to Flink 1.8.
-          </td>
+          parallelism. Savepoints created for CEP applications cannot be restored in 1.4.x+.</td>
     </tr>
     <tr>
           <td class="text-center"><strong>1.3.x</strong></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -278,7 +268,6 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -287,7 +276,6 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
@@ -307,7 +295,6 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
-          <td class="text-center">O</td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -318,7 +305,6 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
-          <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-left"></td>
@@ -333,21 +319,11 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center">O</td>
-          <td class="text-center">O</td>
-          <td class="text-left"></td>
-    </tr>
-    <tr>
-          <td class="text-center"><strong>1.9.x</strong></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center"></td>
-          <td class="text-center">O</td>
-          <td class="text-left"></td>
+          <td class="text-left">Savepoints from Flink 1.2 that contain a Scala
+          TraversableSerializer are not compatible with Flink 1.8 anymore
+          because of an update in this serializer. You can get around this
+          restriction by first upgrading to a version between Flink 1.3 and
+          Flink 1.7 and then updating to Flink 1.8.</td>
     </tr>
   </tbody>
 </table>

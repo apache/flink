@@ -26,12 +26,9 @@ import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.JoinedRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.runtime.dataview.StateDataViewStore;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
-import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
-import org.apache.flink.table.runtime.generated.NamespaceTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.window.assigners.SessionWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.TumblingWindowAssigner;
@@ -47,14 +44,10 @@ import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.util.Collector;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -68,43 +61,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * {@link WindowOperator} tests for {@link AggregateWindowOperator} or
- * {@link TableAggregateWindowOperator}.
- *
- * <p>To simplify the testing logic, the table aggregate outputs same value with the aggregate
- * except that the table aggregate outputs two same records each time.
+ * Tests for {@link WindowOperator}.
  */
-@RunWith(Parameterized.class)
 public class WindowOperatorTest {
-
-	@Parameterized.Parameters(name = "isTableAggregate = {0}")
-	public static Collection<Object[]> runMode() {
-		return Arrays.asList(
-			new Object[] { false },
-			new Object[] { true });
-	}
-
-	private final boolean isTableAggregate;
-	private static final SumAndCountAggTimeWindow sumAndCountAggTimeWindow =
-		new SumAndCountAggTimeWindow();
-	private static final SumAndCountTableAggTimeWindow sumAndCountTableAggTimeWindow =
-		new SumAndCountTableAggTimeWindow();
-	private static final SumAndCountAggCountWindow sumAndCountAggCountWindow =
-		new SumAndCountAggCountWindow();
-	private static final SumAndCountTableAggCountWindow sumAndCountTableAggCountWindow =
-		new SumAndCountTableAggCountWindow();
-
-	public WindowOperatorTest(boolean isTableAggregate) {
-		this.isTableAggregate = isTableAggregate;
-	}
-
-	private NamespaceAggsHandleFunctionBase getTimeWindowAggFunction() {
-		return isTableAggregate ? sumAndCountTableAggTimeWindow : sumAndCountAggTimeWindow;
-	}
-
-	private NamespaceAggsHandleFunctionBase getCountWindowAggFunction() {
-		return isTableAggregate ? sumAndCountTableAggCountWindow : sumAndCountAggCountWindow;
-	}
 
 	// For counting if close() is called the correct number of times on the SumReducer
 	private static AtomicInteger closeCalled = new AtomicInteger(0);
@@ -132,15 +91,6 @@ public class WindowOperatorTest {
 			outputType.getFieldTypes(),
 			new GenericRowRecordSortComparator(0, new VarCharType(VarCharType.MAX_LENGTH)));
 
-	private ConcurrentLinkedQueue<Object> doubleRecord(boolean isDouble, StreamRecord<BaseRow> record) {
-		ConcurrentLinkedQueue<Object> results = new ConcurrentLinkedQueue<>();
-		results.add(record);
-		if (isDouble) {
-			results.add(record);
-		}
-		return results;
-	}
-
 	@Test
 	public void testEventTimeSlidingWindows() throws Exception {
 		closeCalled.set(0);
@@ -150,7 +100,8 @@ public class WindowOperatorTest {
 				.withInputFields(inputFieldTypes)
 				.sliding(Duration.ofSeconds(3), Duration.ofSeconds(1))
 				.withEventTime(2)
-				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
+				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
+				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -172,19 +123,19 @@ public class WindowOperatorTest {
 		testHarness.processElement(record("key2", 1, 1000L));
 
 		testHarness.processWatermark(new Watermark(999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 3L, 3L, -2000L, 1000L, 999L)));
+		expectedOutput.add(record("key1", 3L, 3L, -2000L, 1000L, 999L));
 		expectedOutput.add(new Watermark(999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(1999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 3L, 3L, -1000L, 2000L, 1999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 3L, 3L, -1000L, 2000L, 1999L)));
+		expectedOutput.add(record("key1", 3L, 3L, -1000L, 2000L, 1999L));
+		expectedOutput.add(record("key2", 3L, 3L, -1000L, 2000L, 1999L));
 		expectedOutput.add(new Watermark(1999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(2999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 3L, 3L, 0L, 3000L, 2999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 3L, 3L, 0L, 3000L, 2999L)));
+		expectedOutput.add(record("key1", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
 		expectedOutput.add(new Watermark(2999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -199,17 +150,17 @@ public class WindowOperatorTest {
 		testHarness.open();
 
 		testHarness.processWatermark(new Watermark(3999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 5L, 5L, 1000L, 4000L, 3999L)));
+		expectedOutput.add(record("key2", 5L, 5L, 1000L, 4000L, 3999L));
 		expectedOutput.add(new Watermark(3999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(4999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 2L, 2L, 2000L, 5000L, 4999L)));
+		expectedOutput.add(record("key2", 2L, 2L, 2000L, 5000L, 4999L));
 		expectedOutput.add(new Watermark(4999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(5999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 2L, 2L, 3000L, 6000L, 5999L)));
+		expectedOutput.add(record("key2", 2L, 2L, 3000L, 6000L, 5999L));
 		expectedOutput.add(new Watermark(5999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -236,7 +187,8 @@ public class WindowOperatorTest {
 				.withInputFields(inputFieldTypes)
 				.sliding(Duration.ofSeconds(3), Duration.ofSeconds(1))
 				.withProcessingTime()
-				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
+				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
+				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -250,7 +202,7 @@ public class WindowOperatorTest {
 
 		testHarness.setProcessingTime(1000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 1L, 1L, -2000L, 1000L, 999L)));
+		expectedOutput.add(record("key2", 1L, 1L, -2000L, 1000L, 999L));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -259,7 +211,7 @@ public class WindowOperatorTest {
 
 		testHarness.setProcessingTime(2000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 3L, 3L, -1000L, 2000L, 1999L)));
+		expectedOutput.add(record("key2", 3L, 3L, -1000L, 2000L, 1999L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key1", 1, Long.MAX_VALUE));
@@ -267,8 +219,8 @@ public class WindowOperatorTest {
 
 		testHarness.setProcessingTime(3000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 3L, 3L, 0L, 3000L, 2999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 2L, 2L, 0L, 3000L, 2999L)));
+		expectedOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key1", 2L, 2L, 0L, 3000L, 2999L));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -278,10 +230,10 @@ public class WindowOperatorTest {
 
 		testHarness.setProcessingTime(7000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 2L, 2L, 1000L, 4000L, 3999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 5L, 5L, 1000L, 4000L, 3999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 5L, 5L, 2000L, 5000L, 4999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 3L, 3L, 3000L, 6000L, 5999L)));
+		expectedOutput.add(record("key2", 2L, 2L, 1000L, 4000L, 3999L));
+		expectedOutput.add(record("key1", 5L, 5L, 1000L, 4000L, 3999L));
+		expectedOutput.add(record("key1", 5L, 5L, 2000L, 5000L, 4999L));
+		expectedOutput.add(record("key1", 3L, 3L, 3000L, 6000L, 5999L));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -298,7 +250,8 @@ public class WindowOperatorTest {
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(3))
 				.withEventTime(2)
-				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
+				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
+				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -337,8 +290,8 @@ public class WindowOperatorTest {
 		testHarness.open();
 
 		testHarness.processWatermark(new Watermark(2999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 3L, 3L, 0L, 3000L, 2999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 3L, 3L, 0L, 3000L, 2999L)));
+		expectedOutput.add(record("key1", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
 		expectedOutput.add(new Watermark(2999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -351,7 +304,7 @@ public class WindowOperatorTest {
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processWatermark(new Watermark(5999));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 2L, 2L, 3000L, 6000L, 5999L)));
+		expectedOutput.add(record("key2", 2L, 2L, 3000L, 6000L, 5999L));
 		expectedOutput.add(new Watermark(5999));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -383,8 +336,8 @@ public class WindowOperatorTest {
 						EventTimeTriggers
 								.afterEndOfWindow()
 								.withEarlyFirings(ProcessingTimeTriggers.every(Duration.ofSeconds(1))))
-				.withSendRetraction()
 				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
+				.withSendRetraction()
 				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
@@ -502,9 +455,9 @@ public class WindowOperatorTest {
 								.afterEndOfWindow()
 								.withEarlyFirings(ProcessingTimeTriggers.every(Duration.ofSeconds(1)))
 								.withLateFirings(ElementTriggers.every()))
+				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.withAllowedLateness(Duration.ofSeconds(3))
 				.withSendRetraction()
-				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
@@ -618,11 +571,13 @@ public class WindowOperatorTest {
 	public void testProcessingTimeTumblingWindows() throws Exception {
 		closeCalled.set(0);
 
-		WindowOperator operator = WindowOperatorBuilder.builder()
+		WindowOperator operator = WindowOperatorBuilder
+				.builder()
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(3))
 				.withProcessingTime()
-				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
+				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
+				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -642,8 +597,8 @@ public class WindowOperatorTest {
 
 		testHarness.setProcessingTime(5000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 3L, 3L, 0L, 3000L, 2999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 2L, 2L, 0L, 3000L, 2999L)));
+		expectedOutput.add(record("key2", 3L, 3L, 0L, 3000L, 2999L));
+		expectedOutput.add(record("key1", 2L, 2L, 0L, 3000L, 2999L));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -653,7 +608,7 @@ public class WindowOperatorTest {
 
 		testHarness.setProcessingTime(7000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 3L, 3L, 3000L, 6000L, 5999L)));
+		expectedOutput.add(record("key1", 3L, 3L, 3000L, 6000L, 5999L));
 
 		assertEquals(0L, operator.getWatermarkLatency().getValue());
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -671,7 +626,8 @@ public class WindowOperatorTest {
 				.withInputFields(inputFieldTypes)
 				.session(Duration.ofSeconds(3))
 				.withEventTime(2)
-				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
+				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
+				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -708,10 +664,10 @@ public class WindowOperatorTest {
 
 		testHarness.processWatermark(new Watermark(12000));
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 6L, 3L, 10L, 5500L, 5499L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 6L, 3L, 0L, 5500L, 5499L)));
+		expectedOutput.add(record("key1", 6L, 3L, 10L, 5500L, 5499L));
+		expectedOutput.add(record("key2", 6L, 3L, 0L, 5500L, 5499L));
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 20L, 4L, 5501L, 9050L, 9049L)));
+		expectedOutput.add(record("key2", 20L, 4L, 5501L, 9050L, 9049L));
 		expectedOutput.add(new Watermark(12000));
 
 		// add a late data
@@ -721,7 +677,7 @@ public class WindowOperatorTest {
 
 		testHarness.processWatermark(new Watermark(17999));
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 30L, 2L, 15000L, 18000L, 17999L)));
+		expectedOutput.add(record("key2", 30L, 2L, 15000L, 18000L, 17999L));
 		expectedOutput.add(new Watermark(17999));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -745,7 +701,8 @@ public class WindowOperatorTest {
 				.withInputFields(inputFieldTypes)
 				.session(Duration.ofSeconds(3))
 				.withProcessingTime()
-				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
+				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
+				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -765,7 +722,7 @@ public class WindowOperatorTest {
 
 		testHarness.setProcessingTime(5000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 2L, 2L, 3L, 4000L, 3999L)));
+		expectedOutput.add(record("key2", 2L, 2L, 3L, 4000L, 3999L));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -777,8 +734,8 @@ public class WindowOperatorTest {
 
 		testHarness.setProcessingTime(10000);
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 2L, 2L, 5000L, 8000L, 7999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 3L, 3L, 5000L, 8000L, 7999L)));
+		expectedOutput.add(record("key2", 2L, 2L, 5000L, 8000L, 7999L));
+		expectedOutput.add(record("key1", 3L, 3L, 5000L, 8000L, 7999L));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -802,7 +759,8 @@ public class WindowOperatorTest {
 				.withInputFields(inputFieldTypes)
 				.assigner(new PointSessionWindowAssigner(3000))
 				.withEventTime(2)
-				.aggregateAndBuild(getTimeWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
+				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
+				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -831,8 +789,8 @@ public class WindowOperatorTest {
 
 		testHarness.processWatermark(new Watermark(12000));
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 36L, 3L, 10L, 4000L, 3999L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 67L, 3L, 0L, 3000L, 2999L)));
+		expectedOutput.add(record("key1", 36L, 3L, 10L, 4000L, 3999L));
+		expectedOutput.add(record("key2", 67L, 3L, 0L, 3000L, 2999L));
 		expectedOutput.add(new Watermark(12000));
 
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
@@ -850,9 +808,10 @@ public class WindowOperatorTest {
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(2))
 				.withEventTime(2)
+				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.withAllowedLateness(Duration.ofMillis(500))
 				.withSendRetraction()
-				.aggregateAndBuild(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes);
+				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -904,9 +863,10 @@ public class WindowOperatorTest {
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofMillis(windowSize))
 				.withEventTime(2)
+				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.withAllowedLateness(Duration.ofMillis(lateness))
 				.withSendRetraction()
-				.aggregateAndBuild(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes);
+				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
 				new KeyedOneInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow>(
@@ -959,9 +919,10 @@ public class WindowOperatorTest {
 				.withInputFields(inputFieldTypes)
 				.tumble(Duration.ofSeconds(windowSize))
 				.withEventTime(2)
+				.aggregate(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
 				.withAllowedLateness(Duration.ofMillis(lateness))
 				.withSendRetraction()
-				.aggregateAndBuild(new SumAndCountAggTimeWindow(), equaliser, accTypes, aggResultTypes, windowTypes);
+				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -992,11 +953,11 @@ public class WindowOperatorTest {
 		final int windowSize = 3;
 		LogicalType[] windowTypes = new LogicalType[] { new BigIntType() };
 
-		WindowOperator operator = WindowOperatorBuilder
-				.builder()
+		WindowOperator operator = WindowOperatorBuilder.builder()
 				.withInputFields(inputFieldTypes)
 				.countWindow(windowSize)
-				.aggregateAndBuild(getCountWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
+				.aggregate(new SumAndCountAggCountWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
+				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -1012,7 +973,7 @@ public class WindowOperatorTest {
 
 		testHarness.processWatermark(new Watermark(12000));
 		testHarness.setProcessingTime(12000L);
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 6L, 3L, 0L)));
+		expectedOutput.add(record("key2", 6L, 3L, 0L));
 		expectedOutput.add(new Watermark(12000));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -1027,7 +988,7 @@ public class WindowOperatorTest {
 		testHarness.open();
 
 		testHarness.processElement(record("key1", 2, 2500L));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 5L, 3L, 0L)));
+		expectedOutput.add(record("key1", 5L, 3L, 0L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key2", 4, 5501L));
@@ -1035,18 +996,18 @@ public class WindowOperatorTest {
 		testHarness.processElement(record("key2", 5, 6000L));
 		testHarness.processElement(record("key2", 6, 6050L));
 
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 14L, 3L, 1L)));
+		expectedOutput.add(record("key2", 14L, 3L, 1L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key1", 3, 4000L));
 		testHarness.processElement(record("key2", 10, 15000L));
 		testHarness.processElement(record("key2", 20, 15000L));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 36L, 3L, 2L)));
+		expectedOutput.add(record("key2", 36L, 3L, 2L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key1", 2, 2500L));
 		testHarness.processElement(record("key1", 2, 2500L));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 7L, 3L, 1L)));
+		expectedOutput.add(record("key1", 7L, 3L, 1L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
@@ -1062,11 +1023,11 @@ public class WindowOperatorTest {
 		final int windowSlide = 3;
 		LogicalType[] windowTypes = new LogicalType[] { new BigIntType() };
 
-		WindowOperator operator = WindowOperatorBuilder
-				.builder()
+		WindowOperator operator = WindowOperatorBuilder.builder()
 				.withInputFields(inputFieldTypes)
 				.countWindow(windowSize, windowSlide)
-				.aggregateAndBuild(getCountWindowAggFunction(), equaliser, accTypes, aggResultTypes, windowTypes);
+				.aggregate(new SumAndCountAggCountWindow(), equaliser, accTypes, aggResultTypes, windowTypes)
+				.build();
 
 		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(operator);
 
@@ -1084,7 +1045,7 @@ public class WindowOperatorTest {
 
 		testHarness.processWatermark(new Watermark(12000));
 		testHarness.setProcessingTime(12000L);
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 15L, 5L, 0L)));
+		expectedOutput.add(record("key2", 15L, 5L, 0L));
 		expectedOutput.add(new Watermark(12000));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
@@ -1101,14 +1062,14 @@ public class WindowOperatorTest {
 		testHarness.processElement(record("key1", 3, 2500L));
 		testHarness.processElement(record("key1", 4, 2500L));
 		testHarness.processElement(record("key1", 5, 2500L));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 15L, 5L, 0L)));
+		expectedOutput.add(record("key1", 15L, 5L, 0L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key2", 6, 6000L));
 		testHarness.processElement(record("key2", 7, 6000L));
 		testHarness.processElement(record("key2", 8, 6050L));
 		testHarness.processElement(record("key2", 9, 6050L));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 30L, 5L, 1L)));
+		expectedOutput.add(record("key2", 30L, 5L, 1L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.processElement(record("key1", 6, 4000L));
@@ -1116,8 +1077,8 @@ public class WindowOperatorTest {
 		testHarness.processElement(record("key1", 8, 4000L));
 		testHarness.processElement(record("key2", 10, 15000L));
 		testHarness.processElement(record("key2", 11, 15000L));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key1", 30L, 5L, 1L)));
-		expectedOutput.addAll(doubleRecord(isTableAggregate, record("key2", 45L, 5L, 2L)));
+		expectedOutput.add(record("key1", 30L, 5L, 1L));
+		expectedOutput.add(record("key2", 45L, 5L, 2L));
 		assertor.assertOutputEqualsSorted("Output was not correct.", expectedOutput, testHarness.getOutput());
 
 		testHarness.close();
@@ -1165,9 +1126,7 @@ public class WindowOperatorTest {
 	}
 
 	// sum, count, window_start, window_end
-	private static class SumAndCountAggTimeWindow
-		extends SumAndCountAggBase<TimeWindow>
-		implements NamespaceAggsHandleFunction<TimeWindow> {
+	private static class SumAndCountAggTimeWindow extends SumAndCountAgg<TimeWindow> {
 
 		private static final long serialVersionUID = 2062031590687738047L;
 
@@ -1191,9 +1150,7 @@ public class WindowOperatorTest {
 	}
 
 	// sum, count, window_id
-	private static class SumAndCountAggCountWindow
-		extends SumAndCountAggBase<CountWindow>
-		implements NamespaceAggsHandleFunction<CountWindow> {
+	private static class SumAndCountAggCountWindow extends SumAndCountAgg<CountWindow> {
 
 		private static final long serialVersionUID = -2634639678371135643L;
 
@@ -1214,80 +1171,23 @@ public class WindowOperatorTest {
 		}
 	}
 
-	// (table aggregate) sum, count, window_start, window_end
-	private static class SumAndCountTableAggTimeWindow
-		extends SumAndCountAggBase<TimeWindow>
-		implements NamespaceTableAggsHandleFunction<TimeWindow>  {
+	private static class SumAndCountAgg<W extends Window> implements NamespaceAggsHandleFunction<W> {
 
-		private static final long serialVersionUID = 2062031590687738047L;
+		private static final long serialVersionUID = 2822222597580664436L;
 
-		@Override
-		public void emitValue(TimeWindow namespace, BaseRow key, Collector<BaseRow> out) throws Exception {
-			if (!openCalled) {
-				fail("Open was not called");
-			}
-			GenericRow row = new GenericRow(5);
-			if (!sumIsNull) {
-				row.setField(0, sum);
-			}
-			if (!countIsNull) {
-				row.setField(1, count);
-			}
-			row.setField(2, namespace.getStart());
-			row.setField(3, namespace.getEnd());
-			row.setField(4, namespace.maxTimestamp());
-
-			result.replace(key, row);
-			// Simply output two lines
-			out.collect(result);
-			out.collect(result);
-		}
-	}
-
-	// (table aggregate) sum, count, window_id
-	private static class SumAndCountTableAggCountWindow
-		extends SumAndCountAggBase<CountWindow>
-		implements NamespaceTableAggsHandleFunction<CountWindow> {
-
-		private static final long serialVersionUID = -2634639678371135643L;
-
-		@Override
-		public void emitValue(CountWindow namespace, BaseRow key, Collector<BaseRow> out) throws Exception {
-			if (!openCalled) {
-				fail("Open was not called");
-			}
-			GenericRow row = new GenericRow(3);
-			if (!sumIsNull) {
-				row.setField(0, sum);
-			}
-			if (!countIsNull) {
-				row.setField(1, count);
-			}
-			row.setField(2, namespace.getId());
-
-			result.replace(key, row);
-			// Simply output two lines
-			out.collect(result);
-			out.collect(result);
-		}
-	}
-
-	private static class SumAndCountAggBase<W extends Window> {
-
-		boolean openCalled;
+		protected boolean openCalled = false;
 
 		long sum;
 		boolean sumIsNull;
 		long count;
 		boolean countIsNull;
 
-		protected transient JoinedRow result;
-
+		@Override
 		public void open(StateDataViewStore store) throws Exception {
 			openCalled = true;
-			result = new JoinedRow();
 		}
 
+		@Override
 		public void setAccumulators(W namespace, BaseRow acc) throws Exception {
 			if (!openCalled) {
 				fail("Open was not called");
@@ -1303,6 +1203,7 @@ public class WindowOperatorTest {
 			}
 		}
 
+		@Override
 		public void accumulate(BaseRow inputRow) throws Exception {
 			if (!openCalled) {
 				fail("Open was not called");
@@ -1314,6 +1215,7 @@ public class WindowOperatorTest {
 			}
 		}
 
+		@Override
 		public void retract(BaseRow inputRow) throws Exception {
 			if (!openCalled) {
 				fail("Open was not called");
@@ -1325,6 +1227,7 @@ public class WindowOperatorTest {
 			}
 		}
 
+		@Override
 		public void merge(W w, BaseRow otherAcc) throws Exception {
 			if (!openCalled) {
 				fail("Open was not called");
@@ -1339,6 +1242,7 @@ public class WindowOperatorTest {
 			}
 		}
 
+		@Override
 		public BaseRow createAccumulators() {
 			if (!openCalled) {
 				fail("Open was not called");
@@ -1349,6 +1253,7 @@ public class WindowOperatorTest {
 			return acc;
 		}
 
+		@Override
 		public BaseRow getAccumulators() throws Exception {
 			if (!openCalled) {
 				fail("Open was not called");
@@ -1363,10 +1268,27 @@ public class WindowOperatorTest {
 			return row;
 		}
 
+		@Override
+		public BaseRow getValue(W namespace) throws Exception {
+			if (!openCalled) {
+				fail("Open was not called");
+			}
+			GenericRow row = new GenericRow(2);
+			if (!sumIsNull) {
+				row.setField(0, sum);
+			}
+			if (!countIsNull) {
+				row.setField(1, count);
+			}
+			return row;
+		}
+
+		@Override
 		public void cleanup(W window) {
 
 		}
 
+		@Override
 		public void close() {
 			closeCalled.incrementAndGet();
 		}

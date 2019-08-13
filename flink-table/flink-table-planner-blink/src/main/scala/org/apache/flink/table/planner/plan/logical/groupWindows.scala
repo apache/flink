@@ -45,8 +45,6 @@ case class TumblingGroupWindow(
   extends LogicalWindow(
     alias,
     timeField) {
-
-  override def toString: String = s"TumblingGroupWindow($alias, $timeField, $size)"
 }
 
 // ------------------------------------------------------------------------------------------------

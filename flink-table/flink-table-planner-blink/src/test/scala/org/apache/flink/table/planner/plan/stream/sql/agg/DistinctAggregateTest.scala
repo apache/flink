@@ -103,11 +103,6 @@ class DistinctAggregateTest(
   }
 
   @Test
-  def testTwoDistinctAggregateWithNonDistinctAgg(): Unit = {
-    util.verifyPlan("SELECT c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) FROM MyTable GROUP BY c")
-  }
-
-  @Test
   def testSingleDistinctAggWithGroupBy(): Unit = {
     util.verifyPlan("SELECT a, COUNT(DISTINCT c) FROM MyTable GROUP BY a")
   }

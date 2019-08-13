@@ -25,8 +25,6 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
-import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
-import org.apache.flink.table.runtime.generated.NamespaceTableAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.window.assigners.MergingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
@@ -92,7 +90,7 @@ public class WindowOperatorContractTest {
 	}
 
 	@Test
-	public void testAssignerWithMultipleWindowsForAggregate() throws Exception {
+	public void testAssignerWithMultipleWindows() throws Exception {
 		WindowAssigner<TimeWindow> mockAssigner = mockTimeWindowAssigner();
 		Trigger<TimeWindow> mockTrigger = mockTrigger();
 		NamespaceAggsHandleFunction<TimeWindow> mockAggregate = mockAggsHandleFunction();
@@ -112,29 +110,6 @@ public class WindowOperatorContractTest {
 		verify(mockAggregate, times(2)).getValue(anyTimeWindow());
 		verify(mockAggregate, times(1)).getValue(eq(new TimeWindow(0, 2)));
 		verify(mockAggregate, times(1)).getValue(eq(new TimeWindow(2, 4)));
-	}
-
-	@Test
-	public void testAssignerWithMultipleWindowsForTableAggregate() throws Exception {
-		WindowAssigner<TimeWindow> mockAssigner = mockTimeWindowAssigner();
-		Trigger<TimeWindow> mockTrigger = mockTrigger();
-		NamespaceTableAggsHandleFunction<TimeWindow> mockAggregate = mockTableAggsHandleFunction();
-
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness =
-			createWindowOperator(mockAssigner, mockTrigger, mockAggregate, 0L);
-
-		testHarness.open();
-
-		when(mockAssigner.assignWindows(any(), anyLong()))
-			.thenReturn(Arrays.asList(new TimeWindow(2, 4), new TimeWindow(0, 2)));
-
-		shouldFireOnElement(mockTrigger);
-
-		testHarness.processElement(record("String", 1, 0L));
-
-		verify(mockAggregate, times(2)).emitValue(anyTimeWindow(), any(), any());
-		verify(mockAggregate, times(1)).emitValue(eq(new TimeWindow(0, 2)), any(), any());
-		verify(mockAggregate, times(1)).emitValue(eq(new TimeWindow(2, 4)), any(), any());
 	}
 
 	@Test
@@ -188,7 +163,7 @@ public class WindowOperatorContractTest {
 	private <W extends Window> KeyedOneInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow> createWindowOperator(
 			WindowAssigner<W> assigner,
 			Trigger<W> trigger,
-			NamespaceAggsHandleFunctionBase<W> aggregationsFunction,
+			NamespaceAggsHandleFunction<W> aggregationsFunction,
 			long allowedLateness) throws Exception {
 
 		LogicalType[] inputTypes = new LogicalType[]{new VarCharType(VarCharType.MAX_LENGTH), new IntType()};
@@ -201,47 +176,26 @@ public class WindowOperatorContractTest {
 
 		boolean sendRetraction = allowedLateness > 0;
 
-		if (aggregationsFunction instanceof NamespaceAggsHandleFunction) {
-			AggregateWindowOperator operator = new AggregateWindowOperator(
-					(NamespaceAggsHandleFunction) aggregationsFunction,
-					mock(RecordEqualiser.class),
-					assigner,
-					trigger,
-					assigner.getWindowSerializer(new ExecutionConfig()),
-					inputTypes,
-					outputTypeWithoutKeys,
-					accTypes,
-					windowTypes,
-					2,
-					sendRetraction,
-					allowedLateness);
-			return new KeyedOneInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow>(
-				operator, keySelector, keyType);
-		} else {
-			TableAggregateWindowOperator operator = new TableAggregateWindowOperator(
-					(NamespaceTableAggsHandleFunction) aggregationsFunction,
-					assigner,
-					trigger,
-					assigner.getWindowSerializer(new ExecutionConfig()),
-					inputTypes,
-					outputTypeWithoutKeys,
-					accTypes,
-					windowTypes,
-					2,
-					sendRetraction,
-					allowedLateness);
+		WindowOperator operator = new WindowOperator(
+				aggregationsFunction,
+				mock(RecordEqualiser.class),
+				assigner,
+				trigger,
+				assigner.getWindowSerializer(new ExecutionConfig()),
+				inputTypes,
+				outputTypeWithoutKeys,
+				accTypes,
+				windowTypes,
+				2,
+				sendRetraction,
+				allowedLateness);
 
-			return new KeyedOneInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow>(
+		return new KeyedOneInputStreamOperatorTestHarness<BaseRow, BaseRow, BaseRow>(
 				operator, keySelector, keyType);
-		}
 	}
 
 	private static <W extends Window> NamespaceAggsHandleFunction<W> mockAggsHandleFunction() throws Exception {
 		return mock(NamespaceAggsHandleFunction.class);
-	}
-
-	private static <W extends Window> NamespaceTableAggsHandleFunction<W> mockTableAggsHandleFunction() throws Exception {
-		return mock(NamespaceTableAggsHandleFunction.class);
 	}
 
 	private <W extends Window> Trigger<W> mockTrigger() throws Exception {

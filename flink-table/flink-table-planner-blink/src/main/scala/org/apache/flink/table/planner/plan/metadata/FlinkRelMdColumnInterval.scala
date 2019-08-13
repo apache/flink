@@ -482,19 +482,6 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
       mq: RelMetadataQuery,
       index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
 
-  /**
-    * Gets interval of the given column on stream window table aggregate.
-    *
-    * @param agg   stream window table aggregate RelNode
-    * @param mq    RelMetadataQuery instance
-    * @param index the index of the given column
-    * @return interval of the given column on stream window Aggregate
-    */
-  def getColumnInterval(
-    agg: StreamExecGroupWindowTableAggregate,
-    mq: RelMetadataQuery,
-    index: Int): ValueInterval = estimateColumnIntervalOfAggregate(agg, mq, index)
-
   private def estimateColumnIntervalOfAggregate(
       aggregate: SingleRel,
       mq: RelMetadataQuery,
@@ -518,7 +505,6 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
       case agg: BatchExecWindowAggregateBase => agg.getGrouping ++ agg.getAuxGrouping
       case agg: TableAggregate => agg.getGroupSet.toArray
       case agg: StreamExecGroupTableAggregate => agg.grouping
-      case agg: StreamExecGroupWindowTableAggregate => agg.getGrouping
     }
 
     if (index < groupSet.length) {
@@ -567,7 +553,7 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
           case agg: StreamExecGlobalGroupAggregate
             if agg.globalAggInfoList.getActualAggregateCalls.length > aggCallIndex =>
             val aggCallIndexInLocalAgg = getAggCallIndexInLocalAgg(
-              aggCallIndex, agg.globalAggInfoList.getActualAggregateCalls, agg.inputRowType)
+              aggCallIndex, agg.globalAggInfoList.getActualAggregateCalls, agg.getInput.getRowType)
             if (aggCallIndexInLocalAgg != null) {
               return fmq.getColumnInterval(agg.getInput, groupSet.length + aggCallIndexInLocalAgg)
             } else {
