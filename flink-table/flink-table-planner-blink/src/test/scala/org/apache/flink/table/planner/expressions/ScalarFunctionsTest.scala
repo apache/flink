@@ -938,7 +938,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
   @Test
   def testSubString(): Unit = {
-    Array("substring").foreach {
+    Array("substring", "substr").foreach {
       substr =>
         testSqlApi(s"$substr(f0, 2, 3)", "his")
         testSqlApi(s"$substr(f0, 2, 100)", "his is a test String.")
