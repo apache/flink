@@ -25,19 +25,19 @@ under the License.
 
 #### Flink Application Cluster
 
-Flink Application Cluster 是一个专用的 [Flink Cluster](#flink-cluster) ，它仅用于执行单个 [Flink Job](#flink-job) 。 [Flink Cluster](#flink-cluster) 的生命周期与 [Flink Job](#flink-job) 的生命周期绑定在一起。以前，在 *job mode* 中， Flink Application Cluster 也称为 Flink Clusters 。 和 [Flink Session Cluster](#flink-session-cluster) 作对比。
+Flink Application Cluster 是一个专用的 [Flink Cluster](#flink-cluster)，它仅用于执行单个 [Flink Job](#flink-job)。[Flink Cluster](#flink-cluster)的生命周期与 [Flink Job](#flink-job)的生命周期绑定在一起。以前，在*工作模式*中，Flink Application Cluster 也称为 Flink Clusters。和 [Flink Session Cluster](#flink-session-cluster) 作对比。
 
 #### Flink Cluster
 
-一般情况下，Flink 集群是由一个 [Flink Master](#flink-master)和一个或多个 [Flink TaskManager](#flink-taskmanager) 进程组成的分布式系统。
+一般情况下，Flink 集群是由一个 [Flink Master](#flink-master) 和一个或多个 [Flink TaskManager](#flink-taskmanager) 进程组成的分布式系统。
 
 #### Event
 
-Event 是对应用程序建模的域的状态更改的声明。它可以同时为流或批处理应用程序的 input 和 output ，也可以单独是 input 或者 output 中的一种 。 Event 是特殊类型的 [Record](#record) 。
+Event 是对应用程序建模的域的状态更改的声明。它可以同时为流或批处理应用程序的 input 和 output，也可以单独是 input 或者 output 中的一种。Event 是特殊类型的 [Record](#record)。
 
 #### ExecutionGraph
 
-见 [Physical Graph](#physical-graph) 。
+见 [Physical Graph](#physical-graph)。
 
 #### Function
 
@@ -53,63 +53,63 @@ Flink Job 代表运行时的 Flink 程序。Flink Job 可以提交到长时间�
 
 #### JobGraph
 
-见 [Logical Graph](#logical-graph) 。
+见 [Logical Graph](#logical-graph)。
 
 #### Flink JobManager
 
-JobManagers 是在 [Flink Master](#flink-master) 运行中的组件之一。 JobManager 负责监督单个作业 [Tasks](#task) 的执行。以前，整个 [Flink Master](#flink-master) 都叫做 JobManager 。
+JobManagers 是在 [Flink Master](#flink-master) 运行中的组件之一。JobManager 负责监督单个作业 [Tasks](#task) 的执行。以前，整个 [Flink Master](#flink-master) 都叫做 JobManager。
 
 #### Logical Graph
 
-Logical Graph 是一种描述流处理程序的高阶逻辑有向图。 节点是[Operator](#operator)，边代表输入/输出关系、数据流和数据集中的之一。
+Logical Graph 是一种描述流处理程序的高阶逻辑有向图。节点是[Operator](#operator)，边代表输入/输出关系、数据流和数据集中的之一。
 
 #### Managed State
 
-Managed State 描述了已在框架中注册的应用程序的状态。 对于状态托管， Apache Flink 重点关注持久性和重新调整等其他事项。
+Managed State 描述了已在框架中注册的应用程序的状态。对于状态托管，Apache Flink 重点关注持久性和重新调整等其他事项。
 
 #### Flink Master
 
-Flink Master 是 [Flink Cluster](#flink-cluster) 的宿主。它包含三个不同的组件： Flink Resource Manager 、 Flink Dispatcher 、运行每个 [Flink Job](#flink-job) 的 [Flink JobManager](#flink-jobmanager) 。
+Flink Master 是 [Flink Cluster](#flink-cluster) 的宿主。它包含三个不同的组件：Flink Resource Manager、Flink Dispatcher、运行每个 [Flink Job](#flink-job) 的 [Flink JobManager](#flink-jobmanager)。
 
 #### Operator
 
-[Logical Graph](#logical-graph) 的节点。 算子执行某种操作，该操作通常由 [Function](#function) 执行。Sources 和 Sinks 是数据输入和数据输出的特殊算子。
+[Logical Graph](#logical-graph) 的节点。算子执行某种操作，该操作通常由 [Function](#function) 执行。Sources 和 Sinks 是数据输入和数据输出的特殊算子。
 
 #### Operator Chain
 
-算子链由两个或多个连续的 [Operators](#operator) 组成，两者之间没有任何的重新分区。 同一算子链中的算子可以直接相互记录，而无需通过序列化或 Flink 的网络堆栈。
+算子链由两个或多个连续的 [Operators](#operator) 组成，两者之间没有任何的重新分区。同一算子链中的算子可以直接相互记录，而无需通过序列化或 Flink 的网络堆栈。
 
 #### Partition
 
-分区是整个数据流或数据集的独立子集。通过将每个 [Record](#record) 分配给一个或多个分区，来把数据流或数据集划分为多个分区。在运行期间， [Tasks](#task) 会使用数据流或数据集的分区。改变数据流或数据集分区方式的转换通常称为重分区。
+分区是整个数据流或数据集的独立子集。通过将每个 [Record](#record) 分配给一个或多个分区，来把数据流或数据集划分为多个分区。在运行期间，[Tasks](#task) 会使用数据流或数据集的分区。改变数据流或数据集分区方式的转换通常称为重分区。
 
 #### Physical Graph
 
-Physical graph 是一个在分布式运行时，把 [Logical Graph](#logical-graph) 转换为可执行的结果。 节点是 [Tasks](#task) ，边表示数据流或数据集的输入/输出关系或 [partitions](#partition) 。
+Physical graph 是一个在分布式运行时，把 [Logical Graph](#logical-graph) 转换为可执行的结果。节点是 [Tasks](#task)，边表示数据流或数据集的输入/输出关系或 [partitions](#partition)。
 
 #### Record
 
-Records 是数据集或数据流的组成元素。 [Operators](#operator) 和 [Functions](#Function)接收 records 作为输入，并将 records 作为输出发出。
+Records 是数据集或数据流的组成元素。[Operators](#operator) 和 [Functions](#Function)接收 records 作为输入，并将 records 作为输出发出。
 
 #### Flink Session Cluster
 
-长时间运行的 [Flink Cluster](#flink-cluster) ，它可以接受多个 [Flink Jobs](#flink-job) 的执行。 此 [Flink Cluster](#flink-cluster) 的生命周期不受任何 [Flink Jobs](#flink-job) 生命周期的约束限制。以前， Flink Session Cluster 在 *session mode* 中也称为 [Flink Cluster](#flink-cluster) 。 和 [Flink Application Cluster](#flink-application-cluster)  作对比。
+长时间运行的 [Flink Cluster](#flink-cluster)，它可以接受多个 [Flink Jobs](#flink-job) 的执行。此 [Flink Cluster](#flink-cluster) 的生命周期不受任何 [Flink Jobs](#flink-job) 生命周期的约束限制。以前，Flink Session Cluster 在 *session mode* 中也称为 [Flink Cluster](#flink-cluster)，和 [Flink Application Cluster](#flink-application-cluster) 作对比。
 
 #### State Backend
 
-对于流处理程序， [Flink Job](#flink-job) 的 State Backend 决定了其 [state](#managed-state) 是如何存储在每个 TaskManager（ TaskManager 或（嵌入式）RocksDB 的 Java 堆）上，以及它在 checkpoint 上的写入位置（ [Flink Master](#flink-master) 或 Filesystem 的 Java 堆）。
+对于流处理程序，[Flink Job](#flink-job) 的 State Backend 决定了其 [state](#managed-state) 是如何存储在每个 TaskManager（ TaskManager 或（嵌入式）RocksDB 的 Java 堆）上，以及它在 checkpoint 上的写入位置（ [Flink Master](#flink-master) 或 Filesystem 的 Java 堆）。
 
 #### Sub-Task
 
-Sub-Task 是负责处理数据流 [Partition](#partition) 的 [Task](#task) 。"Sub-Task"是一个强调相同的 [Operator](#operator) 或者 [Operator Chain](#operator-chain) 具有多个并行 Tasks 的术语。
+Sub-Task 是负责处理数据流 [Partition](#partition) 的 [Task](#task)。"Sub-Task"是一个强调相同的 [Operator](#operator) 或者 [Operator Chain](#operator-chain) 具有多个并行 Tasks 的术语。
 
 #### Task
 
-Task 是 [Physical Graph](#physical-graph) 的节点。 它是基本的工作单元，由 Flink 的 runtime 来执行。 Tasks 正好封装了一个 [Operator](#operator) 或者 [Operator Chain](#operator-chain) 的 *parallel instance* 。 
+Task 是 [Physical Graph](#physical-graph) 的节点。它是基本的工作单元，由 Flink 的 runtime 来执行。Tasks 正好封装了一个 [Operator](#operator) 或者 [Operator Chain](#operator-chain) 的 *parallel instance*。 
 
 #### Flink TaskManager
 
-TaskManagers 是 [Flink Cluster](#flink-cluster) 的工作进程。[Tasks](#task) 被调度到 TaskManagers 上执行。 TaskManagers 相互通信，只为在后续的 Tasks 之间交换数据。
+TaskManagers 是 [Flink Cluster](#flink-cluster) 的工作进程。[Tasks](#task) 被调度到 TaskManagers 上执行。TaskManagers 相互通信，只为在后续的 Tasks 之间交换数据。
 
 #### Transformation
 
