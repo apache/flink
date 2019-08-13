@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.SerializedListAccumulator;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.TypedResult;
 import org.apache.flink.table.client.gateway.local.CollectBatchTableSink;
@@ -54,12 +55,11 @@ public class MaterializedCollectBatchResult<C> extends BasicResult<C> implements
 
 	private volatile boolean snapshotted = false;
 
-	public MaterializedCollectBatchResult(RowTypeInfo outputType, ExecutionConfig config) {
+	public MaterializedCollectBatchResult(TableSchema tableSchema, RowTypeInfo outputType, ExecutionConfig config) {
 		this.outputType = outputType;
 
 		accumulatorName = new AbstractID().toString();
-		tableSink = new CollectBatchTableSink(accumulatorName, outputType.createSerializer(config))
-			.configure(outputType.getFieldNames(), outputType.getFieldTypes());
+		tableSink = new CollectBatchTableSink(accumulatorName, outputType.createSerializer(config), tableSchema);
 		resultLock = new Object();
 		retrievalThread = new ResultRetrievalThread();
 
