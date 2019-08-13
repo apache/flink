@@ -24,7 +24,6 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableBuilder;
@@ -35,6 +34,7 @@ import org.apache.flink.table.descriptors.OldCsv;
 import org.apache.flink.table.functions.hive.util.TestHiveGenericUDF;
 import org.apache.flink.table.functions.hive.util.TestHiveSimpleUDF;
 import org.apache.flink.table.functions.hive.util.TestHiveUDTF;
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.util.FileUtils;
 
 import com.klarna.hiverunner.HiveShell;
@@ -98,10 +98,7 @@ public class HiveCatalogUseBlinkITCase {
 		TableEnvironment tEnv = TableEnvironment.create(
 				EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build());
 
-		tEnv.getConfig().getConfiguration().setInteger(
-				ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 3);
-		tEnv.getConfig().getConfiguration().setString(
-				ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY, "1 mb");
+		BatchTestBase.configForMiniCluster(tEnv.getConfig());
 
 		tEnv.registerCatalog("myhive", hiveCatalog);
 		tEnv.useCatalog("myhive");
