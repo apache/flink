@@ -71,6 +71,26 @@ tables:
   - name: TestView2
     type: view
     query: SELECT * FROM default_catalog.default_database.TestView1
+  - name: TableNumber3
+    type: source-table
+    $VAR_UPDATE_MODE
+    schema:
+      - name: DecimalField
+        type: DECIMAL
+      - name: StringField
+        type: VARCHAR
+    connector:
+      type: filesystem
+      path: "$VAR_SOURCE_PATH2"
+    format:
+      type: csv
+      fields:
+        - name: DecimalField
+          type: DECIMAL
+        - name: StringField
+          type: VARCHAR
+      line-delimiter: "\n"
+      comment-prefix: "#"
 
 functions:
   - name: scalarUDF
@@ -98,6 +118,7 @@ functions:
         value: 5
 
 execution:
+  planner: "$VAR_PLANNER"
   type: "$VAR_EXECUTION_TYPE"
   time-characteristic: event-time
   periodic-watermarks-interval: 99
