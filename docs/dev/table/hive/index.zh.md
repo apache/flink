@@ -130,7 +130,7 @@ To integrate with Hive users need the following dependencies in their project.
 
 ## Connecting To Hive
 
-Connect to an existing Hive installation using the Hive [Catalog]({{ site.baseurl }}/dev/table/catalog.html) through the table environment or YAML configuration.
+Connect to an existing Hive installation using the Hive [Catalog]({{ site.baseurl }}/dev/table/catalogs.html) through the table environment or YAML configuration.
 
 <div class="codetabs" markdown="1">
 <div data-lang="Java" markdown="1">

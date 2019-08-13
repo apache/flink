@@ -464,7 +464,7 @@ execution:
    current-database: mydb1
 {% endhighlight %}
 
-For more information about catalog, see [Catalogs]({{ site.baseurl }}/dev/table/catalog.html).
+For more information about catalogs, see [Catalogs]({{ site.baseurl }}/dev/table/catalogs.html).
 
 Detached SQL Queries
 --------------------
