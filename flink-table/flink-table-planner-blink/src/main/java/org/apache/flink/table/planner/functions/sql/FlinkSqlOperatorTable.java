@@ -617,6 +617,17 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
 		),
 		SqlFunctionCategory.STRING);
 
+	public static final SqlFunction SUBSTR = new SqlFunction(
+			"SUBSTR",
+			SqlKind.OTHER_FUNCTION,
+			ARG0_VARCHAR_FORCE_NULLABLE,
+			null,
+			OperandTypes.or(
+					OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.INTEGER),
+					OperandTypes.family(SqlTypeFamily.CHARACTER, SqlTypeFamily.INTEGER, SqlTypeFamily.INTEGER)
+			),
+			SqlFunctionCategory.STRING);
+
 	public static final SqlFunction LEFT = new SqlFunction(
 		"LEFT",
 		SqlKind.OTHER_FUNCTION,

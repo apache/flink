@@ -63,7 +63,7 @@ object StringCallGen {
       case NOT_LIKE =>
         generateNot(ctx, new LikeCallGen().generate(ctx, operands, new BooleanType()))
 
-      case SUBSTRING => generateSubString(ctx, operands)
+      case SUBSTR | SUBSTRING => generateSubString(ctx, operands)
 
       case LEFT => generateLeft(ctx, operands.head, operands(1))
 
