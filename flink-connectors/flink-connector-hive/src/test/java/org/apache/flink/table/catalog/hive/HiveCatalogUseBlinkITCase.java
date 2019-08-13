@@ -35,6 +35,7 @@ import org.apache.flink.table.functions.hive.util.TestHiveGenericUDF;
 import org.apache.flink.table.functions.hive.util.TestHiveSimpleUDF;
 import org.apache.flink.table.functions.hive.util.TestHiveUDTF;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.FileUtils;
 
 import com.klarna.hiverunner.HiveShell;
@@ -66,7 +67,7 @@ import static java.lang.String.format;
  * TODO: move to flink-connector-hive-test end-to-end test module once it's setup
  */
 @RunWith(FlinkStandaloneHiveRunner.class)
-public class HiveCatalogUseBlinkITCase {
+public class HiveCatalogUseBlinkITCase extends AbstractTestBase {
 
 	@HiveSQL(files = {})
 	private static HiveShell hiveShell;
