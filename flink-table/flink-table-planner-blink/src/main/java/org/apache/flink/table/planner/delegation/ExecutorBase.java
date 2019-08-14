@@ -62,7 +62,11 @@ public abstract class ExecutorBase implements Executor {
 	 * Translates the applied transformations to a stream graph.
 	 */
 	public StreamGraph generateStreamGraph(String jobName) {
-		return generateStreamGraph(transformations, jobName);
+		try {
+			return generateStreamGraph(transformations, jobName);
+		} finally {
+			transformations.clear();
+		}
 	}
 
 	/**
