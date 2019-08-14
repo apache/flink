@@ -38,7 +38,7 @@ Upon query planning and execution, Hive's UDF and GenericUDF are automatically t
 Hive's GenericUDTF are automatically translated into Flink's TableFunction, 
 and Hive's UDAF and GenericUDAFResolver2 are translated into Flink's AggregateFunction.
 
-To use Hive User Defined Functions, user must set a HiveCatalog backed by Hive Metastore that contains that function as the current catalog.
+To use Hive User Defined Functions, user must set a HiveCatalog backed by Hive Metastore that contains that function as the current catalog, and have to use Blink planner.
 
 ## Using Hive User Defined Functions
 
@@ -145,7 +145,6 @@ Flink SQL> insert into mysinktable select a, s, sum(b), myudaf(b) from (%s) grou
 
 Hive built-in functions are currently not supported out of box in Flink. To use Hive built-in functions, users must register them manually in Hive Metastore first.
 
-Support for Hive functions have only been tested for Flink batch.
+Support for Hive functions have only been tested for Flink batch in Blink planner.
 
 Hive functions currently cannot be used across catalogs in Flink.
-
