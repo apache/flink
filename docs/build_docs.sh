@@ -59,7 +59,7 @@ while getopts "pi" opt; do
 		;;
 		i)
 		[[ `${RUBY} -v` =~ 'ruby 1' ]] && echo "Error: building the docs with the incremental option requires at least ruby 2.0" && exit 1
-		JEKYLL_CMD="liveserve --baseurl= --watch --incremental"
+		JEKYLL_CMD="serve --baseurl= --watch --incremental"
 		;;
 	esac
 done
