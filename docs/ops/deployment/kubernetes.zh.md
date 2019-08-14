@@ -28,72 +28,75 @@ This page describes how to deploy a Flink job and session cluster on [Kubernetes
 * This will be replaced by the TOC
 {:toc}
 
-## Setup Kubernetes
+## 安装Kubernetes
 
-Please follow [Kubernetes' setup guide](https://kubernetes.io/docs/setup/) in order to deploy a Kubernetes cluster.
-If you want to run Kubernetes locally, we recommend using [MiniKube](https://kubernetes.io/docs/setup/minikube/).
+请先参阅[Kubernetes安装教程](https://kubernetes.io/docs/setup/)来部署Kubernetes集群。
+
+如果想在本地运行Kubernetes ，这里建议使用[MiniKube](https://kubernetes.io/docs/setup/minikube/)。
 
 <div class="alert alert-info" markdown="span">
-  <strong>Note:</strong> If using MiniKube please make sure to execute `minikube ssh 'sudo ip link set docker0 promisc on'` before deploying a Flink cluster. 
-  Otherwise Flink components are not able to self reference themselves through a Kubernetes service. 
+  <strong>注意：</strong> 如果使用MiniKube 请确保在部署Flink集群之前先执行 `minikube ssh 'sudo ip link set docker0 promisc on'` ，否则Flink组件不能自动地将自己映射到Kubernetes Service中。
 </div>
 
-## Flink session cluster on Kubernetes
 
-A Flink session cluster is executed as a long-running Kubernetes Deployment. 
-Note that you can run multiple Flink jobs on a session cluster.
-Each job needs to be submitted to the cluster after the cluster has been deployed.
+## 部署在Kubernetes上的Flink session集群
 
-A basic Flink session cluster deployment in Kubernetes has three components:
+Flink session集群执行时是作为Kubernetes上长期运行的Deployment。这里值得注意的是，可以在一个session集群上运行多个Flink作业。当然，只有session集群部署好以后才可以在上面提交Flink作业。
 
-* a Deployment/Job which runs the JobManager
-* a Deployment for a pool of TaskManagers
-* a Service exposing the JobManager's REST and UI ports
+在Kubernetes上部署一个基本的Flink session集群时，一般包括下面三个组件：
 
-### Deploy Flink session cluster on Kubernetes
+* 运行JobManager的Deployment或者Job
+* 运行TaskManager池的Deployment
+* 暴露了JobManager上REST和UI端口的Service
 
-Using the resource definitions for a [session cluster](#session-cluster-resource-definitions), launch the cluster with the `kubectl` command:
+### 在Kubernetes上部署Flink session集群
+
+对于[session集群](#Session集群资源定义)，通过`kubectl`命令使用对应的资源定义文件来启动集群，如下所示：
 
     kubectl create -f jobmanager-service.yaml
     kubectl create -f jobmanager-deployment.yaml
     kubectl create -f taskmanager-deployment.yaml
 
-You can then access the Flink UI via `kubectl proxy`:
+接下来可以通过`kubectl proxy`命令来访问Flink UI，步骤如下：
 
-1. Run `kubectl proxy` in a terminal
-2. Navigate to [http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:ui/proxy](http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:ui/proxy) in your browser
+1. 在终端运行`kubectl proxy`命令
+2. 在浏览器中导航到http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:ui/proxy页面
 
-In order to terminate the Flink session cluster, use `kubectl`:
+关闭集群时，仍然使用`kubectl`命令，如下所示：
 
     kubectl delete -f jobmanager-deployment.yaml
     kubectl delete -f taskmanager-deployment.yaml
     kubectl delete -f jobmanager-service.yaml
 
-## Flink job cluster on Kubernetes
+## 部署在Kubernetes上的Flink job集群
 
-A Flink job cluster is a dedicated cluster which runs a single job. 
-The job is part of the image and, thus, there is no extra job submission needed. 
+Flink job集群是只运行单个flink job的专用集群。
 
-### Creating the job-specific image
+Job本身就是镜像的一部分，因此也无需再提交额外的job。
 
-The Flink job cluster image needs to contain the user code jars of the job for which the cluster is started.
-Therefore, one needs to build a dedicated container image for every job.
-Please follow these [instructions](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-container/docker/README.md) to build the Docker image.
-    
-### Deploy Flink job cluster on Kubernetes
+### 创建特定Job镜像
 
-In order to deploy the a job cluster on Kubernetes please follow these [instructions](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-container/kubernetes/README.md#deploy-flink-job-cluster).
+Flink job集群镜像需要包含作业的用户代码打成的jar包才能启动。
 
-## Advanced Cluster Deployment
+因此，需要为每个作业都构建一个该作业专用的容器镜像。
 
-An early version of a [Flink Helm chart](https://github.com/docker-flink/examples) is available on GitHub.
+Docker镜像构建请参考[Docker镜像构建](https://github.com/apache/flink/blob/master/flink-container/docker/README.md)。    
 
-## Appendix
+### 在Kubernetes上部署Flink job集群
 
-### Session cluster resource definitions
+在Kubernetes上部署job集群，请参考[Flink job集群部署](https://github.com/apache/flink/blob/master/flink-container/kubernetes/README.md#deploy-flink-job-cluster)。
 
-The Deployment definitions use the pre-built image `flink:latest` which can be found [on Docker Hub](https://hub.docker.com/r/_/flink/).
-The image is built from this [Github repository](https://github.com/docker-flink/docker-flink).
+## 高级集群部署
+
+GitHub上提供了[Flink Helm chart](https://github.com/docker-flink/examples) 的早期版本。
+
+## 附录
+
+### Session集群资源定义
+
+Session集群Deployment的资源定义可使用内置镜像：`flink:latest`。
+
+该镜像是从[docker-flink](https://github.com/docker-flink/docker-flink)这个GitHub项目中构建的，可以在[Docker Hub](https://hub.docker.com/r/_/flink/)上找到该镜像。
 
 `jobmanager-deployment.yaml`
 {% highlight yaml %}
@@ -175,7 +178,7 @@ spec:
     port: 6125
   - name: ui
     port: 8081
-  selector:
+    selector:
     app: flink
     component: jobmanager
 {% endhighlight %}
