@@ -154,7 +154,7 @@ Flink 的 Kafka consumer 称为 `FlinkKafkaConsumer08`（或者 Kafka 0.9.0.x �
   - "zookeeper.connect"（以逗号分割的 Zookeeper servers 列表) (**仅限 Kafka 0.8 使用**)
   - "group.id" 消费组 ID
 
-例：
+示例：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
