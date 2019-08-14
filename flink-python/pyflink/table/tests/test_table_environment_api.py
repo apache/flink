@@ -132,9 +132,8 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
         t_env.sql_update("insert into sink1 select * from %s where a > 100" % source)
         t_env.sql_update("insert into sink2 select * from %s where a < 100" % source)
 
-        actual = t_env.explain(extended=True)
-
-        assert isinstance(actual, str) or isinstance(actual, unicode)
+        with self.assertRaises(TableException):
+            t_env.explain(extended=True)
 
     def test_sql_query(self):
         t_env = self.t_env
@@ -363,3 +362,23 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
                         line = f.readline()
 
         self.assert_equals(results, ['2,hi,hello\n', '3,hello,hello\n'])
+
+    def test_explain_with_multi_sinks_with_blink_planner(self):
+        t_env = BatchTableEnvironment.create(
+            environment_settings=EnvironmentSettings.new_instance().in_batch_mode()
+            .use_blink_planner().build())
+        source = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello")], ["a", "b", "c"])
+        field_names = ["a", "b", "c"]
+        field_types = [DataTypes.BIGINT(), DataTypes.STRING(), DataTypes.STRING()]
+        t_env.register_table_sink(
+            "sink1",
+            CsvTableSink(field_names, field_types, "path1"))
+        t_env.register_table_sink(
+            "sink2",
+            CsvTableSink(field_names, field_types, "path2"))
+
+        t_env.sql_update("insert into sink1 select * from %s where a > 100" % source)
+        t_env.sql_update("insert into sink2 select * from %s where a < 100" % source)
+
+        actual = t_env.explain(extended=True)
+        self.assertIsInstance(actual, (str, unicode))

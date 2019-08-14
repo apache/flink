@@ -193,6 +193,12 @@ class StreamTableEnvironmentImpl (
 
   override protected def isEagerOperationTranslation(): Boolean = true
 
+  override def explain(extended: Boolean): String = {
+    // throw exception directly, because the operations to explain are always empty
+    throw new TableException(
+      "'explain' method without any tables is unsupported in StreamTableEnvironment.")
+  }
+
   private def toDataStream[T](
       table: Table,
       modifyOperation: OutputConversionModifyOperation)
