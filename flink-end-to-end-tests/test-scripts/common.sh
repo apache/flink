@@ -759,8 +759,6 @@ function retry_times() {
 #   $3 - action name for logs
 #   $4 - (default: 10) max number of retries to run action until passed and check done
 #   $5 - (default: 0) backoff delay in seconds between retry attempts
-# Returns:
-#   Done or failed message
 ###################################################################################
 function retry_until_passed_and_wait_condition {
     local action=${@:1}
@@ -770,12 +768,12 @@ function retry_until_passed_and_wait_condition {
     local backoff_delay="${5:-0}"
 
     local attempt=1
-    local action_passed=1
+    local action_exit_code=1
 
     while true; do
-        if [[ "${action_passed}" -ne 0 ]] && ! ${check_done}; then
+        if [[ "${action_exit_code}" -ne 0 ]] && ! ${check_done}; then
             ${action}
-            action_passed=$?
+            action_exit_code=$?
         fi
 
         if [[ "${attempt}" -lt "${max_retry}" ]] && ! ${check_done}; then
