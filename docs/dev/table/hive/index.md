@@ -2,7 +2,7 @@
 title: "Hive"
 nav-id: hive_tableapi
 nav-parent_id: tableapi
-nav-pos: 100
+nav-pos: 110
 is_beta: true
 nav-show_overview: true
 ---
@@ -139,9 +139,9 @@ Connect to an existing Hive installation using the Hive [Catalog]({{ site.baseur
 String name            = "myhive";
 String defaultDatabase = "mydatabase";
 String hiveConfDir     = "/opt/hive-conf";
-String version         = "2.3.2"; // or 1.2.1
+String version         = "2.3.4"; // or 1.2.1
 
-HiveCatalog hive new HiveCatalog(name, defaultDatabase, hiveConfDir, version);
+HiveCatalog hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version);
 tableEnv.registerCatalog(hive);
 {% endhighlight %}
 </div>
@@ -151,9 +151,9 @@ tableEnv.registerCatalog(hive);
 val name            = "myhive"
 val defaultDatabase = "mydatabase"
 val hiveConfDir     = "/opt/hive-conf"
-val version         = "2.3.2" // or 1.2.1
+val version         = "2.3.4" // or 1.2.1
 
-val hive new HiveCatalog(name, defaultDatabase, hiveConfDir, version)
+val hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version)
 tableEnv.registerCatalog(hive)
 {% endhighlight %}
 </div>
@@ -238,8 +238,8 @@ Currently `HiveCatalog` supports most Flink data types with the following mappin
         <td class="text-center">BINARY</td>
     </tr>
     <tr>
-        <td class="text-center">ARRAY\<T\></td>
-        <td class="text-center">LIST\<T\></td>
+        <td class="text-center">ARRAY&lt;T&gt;</td>
+        <td class="text-center">LIST&lt;T&gt;</td>
     </tr>
     <tr>
         <td class="text-center">MAP<K, V></td>
