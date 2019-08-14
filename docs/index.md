@@ -47,6 +47,7 @@ Before putting your Flink job into production, read the [Production Readiness Ch
 
 Release notes cover important changes between Flink versions. Please carefully read these notes if you plan to upgrade your Flink setup to a later version. 
 
+* [Release notes for Flink 1.9](release-notes/flink-1.9.html).
 * [Release notes for Flink 1.8](release-notes/flink-1.8.html).
 * [Release notes for Flink 1.7](release-notes/flink-1.7.html).
 * [Release notes for Flink 1.6](release-notes/flink-1.6.html).

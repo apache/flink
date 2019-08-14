@@ -44,6 +44,7 @@ Apache Flink 是一个分布式流批一体化的开源平台。Flink 的核心�
 
 发布日志包含了 Flink 版本之间的重大更新。请在你升级 Flink 之前仔细阅读相应的发布日志。
 
+* [Flink 1.9 的发布日志](release-notes/flink-1.9.html)。
 * [Flink 1.8 的发布日志](release-notes/flink-1.8.html)。
 * [Flink 1.7 的发布日志](release-notes/flink-1.7.html)。
 * [Flink 1.6 的发布日志](release-notes/flink-1.6.html)。
