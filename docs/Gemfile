@@ -25,6 +25,7 @@ gem 'addressable', '2.4.0'
 gem 'octokit', '~> 4.3.0'
 gem 'therubyracer', '0.12.2'
 gem 'json', '2.0.4'
+gem 'liquid-c', '4.0.0' # speed-up site generation
 
 group :jekyll_plugins do
   gem 'hawkins'
