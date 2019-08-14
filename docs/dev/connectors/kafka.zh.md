@@ -117,7 +117,7 @@ Flink 提供了专门的 Kafka 连接器，向 Kafka topic 中读取或者写入
 ### 兼容性
 
 通过 Kafka client API 和 broker 的兼容性保证，通用的 Kafka 连接器兼容较旧和较新的 Kafka broker。
-它兼容 Kafka broker 0.11.0 或者更高版本，具体兼容性取决于所使用的功能。有关 Kafka 兼容性的详细信息，请参考 [ Kafka 文档](https://kafka.apache.org/protocol.html#protocol_compatibility)。
+它兼容 Kafka broker 0.11.0 或者更高版本，具体兼容性取决于所使用的功能。有关 Kafka 兼容性的详细信息，请参考 [Kafka 文档](https://kafka.apache.org/protocol.html#protocol_compatibility)。
 
 ### 将 Kafka Connector 从 0.11 迁移到通用版本
 
