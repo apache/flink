@@ -82,7 +82,7 @@ level is determined by 'nav-pos'.
     {% else %}
       {% assign elementsPos = elementsPosStack | last %}
       {% assign pos = posStack | last %}
-</li></ul></div>
+</ul></div></li>
       {% assign elementsPosStack = elementsPosStack | pop %}
       {% assign posStack = posStack | pop %}
     {% endif %}
