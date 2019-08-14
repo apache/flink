@@ -38,16 +38,11 @@ function start_kinesalite {
         /usr/src/app/node_modules/kinesalite/cli.js --path /var/lib/kinesalite --ssl
 }
 
-function is_kinesalite_started {
-    if [[ "$(docker ps --format '{{.Names}}' | grep flink-test-kinesis)" = "flink-test-kinesis" ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-START_KINESALITE_MAX_RETRIES=10
-retry_until_passed_and_wait_condition start_kinesalite is_kinesalite_started "start kinesalite" ${START_KINESALITE_MAX_RETRIES}
+START_KINESALITE_MAX_RETRIES=50
+if ! retry_times ${START_KINESALITE_MAX_RETRIES} 0 start_kinesalite; then
+    echo "Failed to run kinesalite docker image"
+    exit 1
+fi
 
 # reveal potential issues with the container in the CI environment
 docker logs flink-test-kinesis
