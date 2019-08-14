@@ -41,11 +41,11 @@ Event 是对应用程序建模的域的状态更改的声明。它可以同时�
 
 #### Function
 
-Functions 是由用户实现的，并封装了 Flink 程序的应用程序逻辑。大多数 Functions 都由相应的 [Operator](#operator) 封装 。
+Function 是由用户实现的，并封装了 Flink 程序的应用程序逻辑。大多数 Function 都由相应的 [Operator](#operator) 封装 。
 
 #### Instance
 
-Instance 常用于描述运行时的特定类型(通常是 [Operator](#operator) 或者 [Function](#function) )。 由于 Apache Flink 主要是用 Java 编写的，所以，这与 Java 中的 Instance 或 Object 的定义相对应。 在 Apache Flink 的上下文中，*parallel instance* 也常用于强调同一 [Operator](#operator) 或者 [Function](#function) 的多个 instances 以并行的方式运行。
+Instance 常用于描述运行时的特定类型(通常是 [Operator](#operator) 或者 [Function](#function) )。 由于 Apache Flink 主要是用 Java 编写的，所以，这与 Java 中的 Instance 或 Object 的定义相对应。 在 Apache Flink 的上下文中，*parallel instance* 也常用于强调同一 [Operator](#operator) 或者 [Function](#function) 的多个 instance 以并行的方式运行。
 
 #### Flink Job
 
@@ -57,7 +57,7 @@ Flink Job 代表运行时的 Flink 程序。Flink Job 可以提交到长时间�
 
 #### Flink JobManager
 
-JobManagers 是在 [Flink Master](#flink-master) 运行中的组件之一。JobManager 负责监督单个作业 [Tasks](#task) 的执行。以前，整个 [Flink Master](#flink-master) 都叫做 JobManager。
+JobManager 是在 [Flink Master](#flink-master) 运行中的组件之一。JobManager 负责监督单个作业 [Task](#task) 的执行。以前，整个 [Flink Master](#flink-master) 都叫做 JobManager。
 
 #### Logical Graph
 
@@ -73,27 +73,27 @@ Flink Master 是 [Flink Cluster](#flink-cluster) 的宿主。它包含三个不�
 
 #### Operator
 
-[Logical Graph](#logical-graph) 的节点。算子执行某种操作，该操作通常由 [Function](#function) 执行。Sources 和 Sinks 是数据输入和数据输出的特殊算子。
+[Logical Graph](#logical-graph) 的节点。算子执行某种操作，该操作通常由 [Function](#function) 执行。Source 和 Sink 是数据输入和数据输出的特殊算子。
 
 #### Operator Chain
 
-算子链由两个或多个连续的 [Operators](#operator) 组成，两者之间没有任何的重新分区。同一算子链中的算子可以直接相互记录，而无需通过序列化或 Flink 的网络堆栈。
+算子链由两个或多个连续的 [Operator](#operator) 组成，两者之间没有任何的重新分区。同一算子链中的算子可以直接相互记录，而无需通过序列化或 Flink 的网络堆栈。
 
 #### Partition
 
-分区是整个数据流或数据集的独立子集。通过将每个 [Record](#record) 分配给一个或多个分区，来把数据流或数据集划分为多个分区。在运行期间，[Tasks](#task) 会使用数据流或数据集的分区。改变数据流或数据集分区方式的转换通常称为重分区。
+分区是整个数据流或数据集的独立子集。通过将每个 [Record](#record) 分配给一个或多个分区，来把数据流或数据集划分为多个分区。在运行期间，[Task](#task) 会使用数据流或数据集的分区。改变数据流或数据集分区方式的转换通常称为重分区。
 
 #### Physical Graph
 
-Physical graph 是一个在分布式运行时，把 [Logical Graph](#logical-graph) 转换为可执行的结果。节点是 [Tasks](#task)，边表示数据流或数据集的输入/输出关系或 [partitions](#partition)。
+Physical graph 是一个在分布式运行时，把 [Logical Graph](#logical-graph) 转换为可执行的结果。节点是 [Task](#task)，边表示数据流或数据集的输入/输出关系或 [partition](#partition)。
 
 #### Record
 
-Records 是数据集或数据流的组成元素。[Operators](#operator) 和 [Functions](#Function)接收 records 作为输入，并将 records 作为输出发出。
+Record 是数据集或数据流的组成元素。[Operator](#operator) 和 [Function](#Function)接收 record 作为输入，并将 record 作为输出发出。
 
 #### Flink Session Cluster
 
-长时间运行的 [Flink Cluster](#flink-cluster)，它可以接受多个 [Flink Jobs](#flink-job) 的执行。此 [Flink Cluster](#flink-cluster) 的生命周期不受任何 [Flink Jobs](#flink-job) 生命周期的约束限制。以前，Flink Session Cluster 在 *session mode* 中也称为 [Flink Cluster](#flink-cluster)，和 [Flink Application Cluster](#flink-application-cluster) 作对比。
+长时间运行的 [Flink Cluster](#flink-cluster)，它可以接受多个 [Flink Job](#flink-job) 的执行。此 [Flink Cluster](#flink-cluster) 的生命周期不受任何 [Flink Job](#flink-job) 生命周期的约束限制。以前，Flink Session Cluster 在 *session mode* 中也称为 [Flink Cluster](#flink-cluster)，和 [Flink Application Cluster](#flink-application-cluster) 作对比。
 
 #### State Backend
 
@@ -101,16 +101,16 @@ Records 是数据集或数据流的组成元素。[Operators](#operator) 和 [Fu
 
 #### Sub-Task
 
-Sub-Task 是负责处理数据流 [Partition](#partition) 的 [Task](#task)。"Sub-Task"是一个强调相同的 [Operator](#operator) 或者 [Operator Chain](#operator-chain) 具有多个并行 Tasks 的术语。
+Sub-Task 是负责处理数据流 [Partition](#partition) 的 [Task](#task)。"Sub-Task"是一个强调相同的 [Operator](#operator) 或者 [Operator Chain](#operator-chain) 具有多个并行 Task 的术语。
 
 #### Task
 
-Task 是 [Physical Graph](#physical-graph) 的节点。它是基本的工作单元，由 Flink 的 runtime 来执行。Tasks 正好封装了一个 [Operator](#operator) 或者 [Operator Chain](#operator-chain) 的 *parallel instance*。 
+Task 是 [Physical Graph](#physical-graph) 的节点。它是基本的工作单元，由 Flink 的 runtime 来执行。Task 正好封装了一个 [Operator](#operator) 或者 [Operator Chain](#operator-chain) 的 *parallel instance*。 
 
 #### Flink TaskManager
 
-TaskManagers 是 [Flink Cluster](#flink-cluster) 的工作进程。[Tasks](#task) 被调度到 TaskManagers 上执行。TaskManagers 相互通信，只为在后续的 Tasks 之间交换数据。
+TaskManager 是 [Flink Cluster](#flink-cluster) 的工作进程。[Task](#task) 被调度到 TaskManager 上执行。TaskManager 相互通信，只为在后续的 Task 之间交换数据。
 
 #### Transformation
 
-Transformation 应用于一个或多个数据流或数据集，并产生一个或多个输出数据流或数据集。Transformation 可能会在每个记录的基础上更改数据流或数据集，但也可以只更改其分区或执行聚合。虽然 [Operator](#operator) 和 [Functions](#function) 是 Flink API 的“物理”部分，但 Transformation 只是一个API概念。具体来说，大多数 - 但不是全部 - 转换是由某些 [Operator](#operator) 实现的。
+Transformation 应用于一个或多个数据流或数据集，并产生一个或多个输出数据流或数据集。Transformation 可能会在每个记录的基础上更改数据流或数据集，但也可以只更改其分区或执行聚合。虽然 [Operator](#operator) 和 [Function](#function) 是 Flink API 的“物理”部分，但 Transformation 只是一个API概念。具体来说，大多数 - 但不是全部 - 转换是由某些 [Operator](#operator) 实现的。
