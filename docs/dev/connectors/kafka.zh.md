@@ -187,7 +187,7 @@ stream = env
 Flink Kafka Consumer 需要知道如何将 Kafka 中的二进制数据转换为 Java 或者 Scala 对象。`DeserializationSchema` 允许用户指定这样的 schema，为每条 Kafka 消息调用 `T deserialize(byte[] message)` 方法，从 Kafka 中传递值。
 
 从 `AbstractDeserializationSchema` 开始通常很有帮助，它负责将生成的 Java 或 Scala 类型描述为 Flink 的类型系统。
-实现带有 vanilla `DeserializationSchema` 的用户需要自己实现 `getProducedType（...）` 方法。
+用户如果要自己去实现一个`DeserializationSchema`，需要自己去实现 `getProducedType(...)`方法。
 
 为了访问 Kafka 消息的 key 、 value 和元数据，`KafkaDeserializationSchema` 具有以下反序列化方法 `T deserialize(ConsumerRecord<byte[], byte[]> record)`。
 
