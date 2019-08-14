@@ -412,7 +412,7 @@ Flink Kafka Consumer 允许有配置如何将 offset 提交回 Kafka broker（�
 {% highlight java %}
 Properties properties = new Properties();
 properties.setProperty("bootstrap.servers", "localhost:9092");
-// 仅限于 Kafka 0.8 使用
+// 仅 Kafka 0.8 需要
 properties.setProperty("zookeeper.connect", "localhost:2181");
 properties.setProperty("group.id", "test");
 
