@@ -147,7 +147,7 @@ Flink 的 Kafka consumer 称为 `FlinkKafkaConsumer08`（或者 Kafka 0.9.0.x �
 
 构造函数接受以下参数：
 
-1. Topic 名称或者 Topics 的名称列表
+1. Topic 名称或者名称列表
 2. 用于反序列化 Kafka 数据的 DeserializationSchema 或者 KafkaDeserializationSchema
 3. Kafka consume 的属性。需要以下属性：
   - "bootstrap.servers"（以逗号分隔的 Kafka broker 列表）
