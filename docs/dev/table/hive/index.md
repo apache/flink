@@ -230,10 +230,6 @@ Currently `HiveCatalog` supports most Flink data types with the following mappin
         <td class="text-center">DATE</td>
     </tr>
     <tr>
-        <td class="text-center">TIMESTAMP_WITHOUT_TIME_ZONE</td>
-        <td class="text-center">TIMESTAMP</td>
-    </tr>
-    <tr>
         <td class="text-center">BYTES</td>
         <td class="text-center">BINARY</td>
     </tr>
@@ -263,3 +259,5 @@ The following limitations in Hive's data types impact the mapping between Flink 
 * Flink's `TIMESTAMP_WITH_TIME_ZONE` is not supported by Hive
 * Flink's `TIMESTAMP_WITH_LOCAL_TIME_ZONE` is not supported by Hive
 * Flink's `MULTISET` is not supported by Hive
+* Hive's `UNION` type is not supported
+* Flink's `TIMESTAMP_WITHOUT_TIME_ZONE` type cannot be mapped to Hive's `TIMESTAMP` type due to precision difference.
