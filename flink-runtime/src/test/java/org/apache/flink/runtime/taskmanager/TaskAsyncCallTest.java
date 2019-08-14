@@ -196,9 +196,9 @@ public class TaskAsyncCallTest extends TestLogger {
 			triggerLatch.await();
 
 			task.notifyCheckpointComplete(1);
-			task.cancelExecution();
-
 			notifyCheckpointCompleteLatch.await();
+
+			task.cancelExecution();
 			stopLatch.await();
 
 			assertThat(classLoaders, hasSize(greaterThanOrEqualTo(2)));
