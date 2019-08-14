@@ -30,6 +30,6 @@ gem 'jekyll-paginate', '1.1.0'
 gem 'liquid-c', '4.0.0' # speed-up site generation
 gem 'sassc', '2.0.1' # speed-up site generation
 
-group :jekyll_plugins do
-  gem 'hawkins'
-end
+# group :jekyll_plugins do
+#   gem 'hawkins'
+# end
