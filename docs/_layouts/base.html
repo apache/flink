@@ -76,9 +76,9 @@ under the License.
           {% include sidenav.html %}
         </div>
         <div class="col-lg-9 content" id="contentcol">
-          {% if page.mathjax %}
-          {% include latex_commands.html %}
-          {% endif %}
+          {%- if page.mathjax -%}
+          {%- include latex_commands.html -%}
+          {%- endif %}
 
           {{ content }}
         </div>
