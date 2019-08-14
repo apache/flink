@@ -14,27 +14,30 @@ GEM
     ffi (1.11.1)
     forwardable-extended (2.6.0)
     http_parser.rb (0.6.0)
-    i18n (0.9.5)
+    i18n (1.6.0)
       concurrent-ruby (~> 1.0)
-    jekyll (3.7.2)
+    jekyll (4.0.0.pre.beta1)
       addressable (~> 2.4)
       colorator (~> 1.0)
       em-websocket (~> 0.5)
-      i18n (~> 0.7)
+      i18n (>= 0.9.5, < 2)
       jekyll-sass-converter (~> 1.0)
       jekyll-watch (~> 2.0)
-      kramdown (~> 1.14)
+      kramdown (~> 2.1)
+      kramdown-parser-gfm (~> 1.0)
       liquid (~> 4.0)
       mercenary (~> 0.3.3)
       pathutil (~> 0.9)
-      rouge (>= 1.7, < 4)
+      rouge (~> 3.0)
       safe_yaml (~> 1.0)
     jekyll-sass-converter (1.5.2)
       sass (~> 3.4)
     jekyll-watch (2.2.1)
       listen (~> 3.0)
     json (2.2.0)
-    kramdown (1.17.0)
+    kramdown (2.1.0)
+    kramdown-parser-gfm (1.1.0)
+      kramdown (~> 2.0)
     libv8 (3.16.14.19)
     liquid (4.0.3)
     liquid-c (4.0.0)
@@ -78,7 +81,7 @@ PLATFORMS
 
 DEPENDENCIES
   addressable (= 2.6.0)
-  jekyll (= 3.7.2)
+  jekyll (= 4.0.0.pre.beta1)
   json (= 2.2.0)
   liquid-c (= 4.0.0)
   octokit (= 4.14.0)
@@ -86,7 +89,7 @@ DEPENDENCIES
   therubyracer (= 0.12.3)
 
 RUBY VERSION
-   ruby 2.3.1p112
+   ruby 2.6.3p62
 
 BUNDLED WITH
    1.17.2
