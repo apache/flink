@@ -149,7 +149,7 @@ Flink 的 Kafka consumer 称为 `FlinkKafkaConsumer08`（或者 Kafka 0.9.0.x �
 
 1. Topic 名称或者名称列表
 2. 用于反序列化 Kafka 数据的 DeserializationSchema 或者 KafkaDeserializationSchema
-3. Kafka consume 的属性。需要以下属性：
+3. Kafka 消费者的属性。需要以下属性：
   - "bootstrap.servers"（以逗号分隔的 Kafka broker 列表）
   - "zookeeper.connect"（以逗号分割的 Zookeeper servers 列表) (**仅限 Kafka 0.8 使用**)
   - "group.id" 消费组 ID
