@@ -429,7 +429,7 @@ DataStream<String> stream = env
 {% highlight scala %}
 val properties = new Properties()
 properties.setProperty("bootstrap.servers", "localhost:9092")
-// 仅限于 Kafka 0.8 使用
+// 仅 Kafka 0.8 需要
 properties.setProperty("zookeeper.connect", "localhost:2181")
 properties.setProperty("group.id", "test")
 
