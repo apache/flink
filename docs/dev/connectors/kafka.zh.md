@@ -161,7 +161,7 @@ Flink 的 Kafka consumer 称为 `FlinkKafkaConsumer08`（或者 Kafka 0.9.0.x �
 {% highlight java %}
 Properties properties = new Properties();
 properties.setProperty("bootstrap.servers", "localhost:9092");
-// 仅限 Kafka 0.8 使用
+// 仅 Kafka 0.8 需要
 properties.setProperty("zookeeper.connect", "localhost:2181");
 properties.setProperty("group.id", "test");
 DataStream<String> stream = env
