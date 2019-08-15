@@ -22,6 +22,7 @@ import org.apache.flink.table.dataformat.Decimal;
 import org.apache.flink.table.dataformat.vector.BytesColumnVector.Bytes;
 
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 
 /**
  * A VectorizedColumnBatch is a set of rows, organized with each column as a vector. It is the
@@ -114,7 +115,7 @@ public class VectorizedColumnBatch implements Serializable {
 
 	public String getString(int rowId, int colId) {
 		Bytes byteArray = getByteArray(rowId, colId);
-		return new String(byteArray.data, byteArray.offset, byteArray.len);
+		return new String(byteArray.data, byteArray.offset, byteArray.len, StandardCharsets.UTF_8);
 	}
 
 	public Decimal getDecimal(int rowId, int colId, int precision, int scale) {

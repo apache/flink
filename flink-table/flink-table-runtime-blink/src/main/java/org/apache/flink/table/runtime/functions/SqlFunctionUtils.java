@@ -486,7 +486,7 @@ public class SqlFunctionUtils {
 			}
 		}
 		if (byteArray == null) {
-			byteArray = str.getBytes();
+			byteArray = str.getBytes(StandardCharsets.UTF_8);
 		}
 		return byteArray;
 	}

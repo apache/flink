@@ -24,6 +24,7 @@ import org.apache.flink.table.functions.TableFunction;
 
 import org.apache.commons.lang3.StringUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Random;
 
 /**
@@ -108,7 +109,7 @@ public class JavaUserDefinedTableFunctions {
 
 		public void eval(byte[] varbinary) {
 			if (varbinary != null) {
-				this.eval(new String(varbinary));
+				this.eval(new String(varbinary, StandardCharsets.UTF_8));
 			}
 		}
 

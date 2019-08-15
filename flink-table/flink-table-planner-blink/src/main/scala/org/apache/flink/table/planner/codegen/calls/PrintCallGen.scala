@@ -23,6 +23,8 @@ import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedEx
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isBinaryString
 import org.apache.flink.table.types.logical.LogicalType
 
+import java.nio.charset.StandardCharsets
+
 /**
   * Generates PRINT function call.
   */
@@ -40,8 +42,9 @@ class PrintCallGen extends CallGenerator {
     val logTerm = "logger$"
     ctx.addReusableLogger(logTerm, "_Print$_")
 
+    val charsets = classOf[StandardCharsets].getCanonicalName
     val outputCode = if (isBinaryString(returnType)) {
-      s"new String($resultTerm, java.nio.charset.Charset.defaultCharset())"
+      s"new String($resultTerm, $charsets.UTF_8)"
     } else {
       s"String.valueOf(${operands(1).resultTerm})"
     }
