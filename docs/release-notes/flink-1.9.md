@@ -116,7 +116,9 @@ Related issues:
 
 Due to a bug in the `AsyncWaitOperator`, in 1.9.0 the default chaining behaviour of the operator is now changed so
 that it is never chained after another operator. This should not be problematic for migrating from older version
-snapshots as long as an uid was assigned to the operator.
+snapshots as long as an uid was assigned to the operator. If an uid was not assigned to the operator, please see
+the instructions [here](https://ci.apache.org/projects/flink/flink-docs-release-1.9/ops/upgrading.html#matching-operator-state)
+for a possible workaround.
 
 Related issues:
 - [FLINK-13063: AsyncWaitOperator shouldn't be releasing checkpointingLock](https://issues.apache.org/jira/browse/FLINK-13063)
