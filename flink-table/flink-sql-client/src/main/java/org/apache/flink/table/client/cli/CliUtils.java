@@ -96,6 +96,15 @@ public final class CliUtils {
 			final Object field = row.getField(i);
 			if (field == null) {
 				fields[i] = CliStrings.NULL_COLUMN;
+			} else if (field.getClass().isArray()) {
+				if (field.getClass().getComponentType().isPrimitive()) {
+					// wrap primitive array in an object array so as to use Arrays.deepToString
+					String nested = Arrays.deepToString(new Object[]{field});
+					// remove leading and trailing brackets
+					fields[i] = nested.substring(1, nested.length() - 1);
+				} else {
+					fields[i] = Arrays.deepToString((Object[]) field);
+				}
 			} else {
 				fields[i] = field.toString();
 			}
