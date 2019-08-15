@@ -19,51 +19,23 @@
 package org.apache.flink.table.descriptors
 
 import java.util
-
-import org.apache.flink.table.descriptors.StreamTableDescriptorValidator.{UPDATE_MODE, UPDATE_MODE_VALUE_APPEND, UPDATE_MODE_VALUE_RETRACT, UPDATE_MODE_VALUE_UPSERT}
+import java.util.Collections
 
 class TestTableDescriptor(connector: ConnectorDescriptor)
-  extends TableDescriptor
-  with SchematicDescriptor[TestTableDescriptor]
-  with StreamableDescriptor[TestTableDescriptor] {
+  extends TableDescriptor[TestTableDescriptor](connector)
+  with SchematicDescriptor[TestTableDescriptor] {
 
-  private var formatDescriptor: Option[FormatDescriptor] = None
   private var schemaDescriptor: Option[Schema] = None
-  private var updateMode: Option[String] = None
-
-  override def toProperties: util.Map[String, String] = {
-    val properties = new DescriptorProperties()
-
-    properties.putProperties(connector.toProperties)
-    formatDescriptor.foreach(d => properties.putProperties(d.toProperties))
-    schemaDescriptor.foreach(d => properties.putProperties(d.toProperties))
-    updateMode.foreach(mode => properties.putString(UPDATE_MODE, mode))
-
-    properties.asMap()
-  }
-
-  override def withFormat(format: FormatDescriptor): TestTableDescriptor = {
-    this.formatDescriptor = Some(format)
-    this
-  }
 
   override def withSchema(schema: Schema): TestTableDescriptor = {
     this.schemaDescriptor = Some(schema)
     this
   }
 
-  override def inAppendMode(): TestTableDescriptor = {
-    updateMode = Some(UPDATE_MODE_VALUE_APPEND)
-    this
-  }
-
-  override def inRetractMode(): TestTableDescriptor = {
-    updateMode = Some(UPDATE_MODE_VALUE_RETRACT)
-    this
-  }
-
-  override def inUpsertMode(): TestTableDescriptor = {
-    updateMode = Some(UPDATE_MODE_VALUE_UPSERT)
-    this
+  override protected def additionalProperties(): util.Map[String, String] = {
+    schemaDescriptor match {
+      case Some(d) => d.toProperties
+      case None => Collections.emptyMap()
+    }
   }
 }

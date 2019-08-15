@@ -51,6 +51,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -522,6 +523,61 @@ public class SlotSharingManagerTest extends TestLogger {
 		assertNotNull(resolvedRootSlot);
 		assertNotSame(Locality.LOCAL, (slotInfoAndLocality.getLocality()));
 		assertEquals(rootSlot1.getSlotRequestId(), resolvedRootSlot.getSlotRequestId());
+	}
+
+	/**
+	 * Tests that we cannot retrieve a slot when it's releasing children.
+	 */
+	@Test
+	public void testResolvedSlotInReleasingIsNotAvailable() throws Exception {
+		final TestingAllocatedSlotActions allocatedSlotActions = new TestingAllocatedSlotActions();
+
+		final SlotSharingManager slotSharingManager = new SlotSharingManager(
+			SLOT_SHARING_GROUP_ID,
+			allocatedSlotActions,
+			SLOT_OWNER);
+
+		final SlotSharingManager.MultiTaskSlot rootSlot = slotSharingManager.createRootSlot(
+			new SlotRequestId(),
+			CompletableFuture.completedFuture(
+				new SimpleSlotContext(
+					new AllocationID(),
+					new LocalTaskManagerLocation(),
+					0,
+					new SimpleAckingTaskManagerGateway())),
+			new SlotRequestId());
+
+		final AbstractID groupId1 = new AbstractID();
+		final SlotSharingManager.SingleTaskSlot singleTaskSlot = rootSlot.allocateSingleTaskSlot(
+			new SlotRequestId(),
+			ResourceProfile.UNKNOWN,
+			groupId1,
+			Locality.UNCONSTRAINED);
+
+		final AtomicBoolean verified = new AtomicBoolean(false);
+
+		final AbstractID groupId2 = new AbstractID();
+		// register a verification in MultiTaskSlot's children releasing loop
+		singleTaskSlot.getLogicalSlotFuture().get().tryAssignPayload(new LogicalSlot.Payload() {
+			@Override
+			public void fail(Throwable cause) {
+				assertEquals(0, slotSharingManager.listResolvedRootSlotInfo(groupId2).size());
+
+				verified.set(true);
+			}
+
+			@Override
+			public CompletableFuture<?> getTerminalStateFuture() {
+				return null;
+			}
+		});
+
+		assertEquals(1, slotSharingManager.listResolvedRootSlotInfo(groupId2).size());
+
+		rootSlot.release(new Exception("test exception"));
+
+		// ensure the verification in Payload#fail is passed
+		assertTrue(verified.get());
 	}
 
 	@Test

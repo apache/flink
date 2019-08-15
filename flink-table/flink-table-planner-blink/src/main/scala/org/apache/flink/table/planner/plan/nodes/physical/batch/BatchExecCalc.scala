@@ -28,7 +28,6 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef, TraitUtil}
 import org.apache.flink.table.planner.plan.nodes.common.CommonCalc
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
-import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 
 import org.apache.calcite.plan._
@@ -158,9 +157,9 @@ class BatchExecCalc(
 
     new OneInputTransformation(
       inputTransform,
-      RelExplainUtil.calcToString(calcProgram, getExpressionString),
+      getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
-      getResource.getParallelism)
+      inputTransform.getParallelism)
   }
 }

@@ -19,8 +19,6 @@
 package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
@@ -40,9 +38,8 @@ import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.TableEnvImpl;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
-import org.apache.flink.table.calcite.FlinkTypeFactory;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
@@ -55,6 +52,9 @@ import org.apache.flink.table.client.gateway.local.result.BasicResult;
 import org.apache.flink.table.client.gateway.local.result.ChangelogResult;
 import org.apache.flink.table.client.gateway.local.result.DynamicResult;
 import org.apache.flink.table.client.gateway.local.result.MaterializedResult;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.StringUtils;
 
@@ -188,6 +188,7 @@ public class LocalExecutor implements Executor {
 		final Map<String, String> properties = new HashMap<>();
 		properties.putAll(env.getExecution().asTopLevelMap());
 		properties.putAll(env.getDeployment().asTopLevelMap());
+		properties.putAll(env.getConfiguration().asMap());
 		return properties;
 	}
 
@@ -240,7 +241,11 @@ public class LocalExecutor implements Executor {
 
 		context.wrapClassLoader(() -> {
 			// Rely on TableEnvironment/CatalogManager to validate input
-			tableEnv.useCatalog(catalogName);
+			try {
+				tableEnv.useCatalog(catalogName);
+			} catch (CatalogException e) {
+				throw new SqlExecutionException("Failed to switch to catalog " + catalogName, e);
+			}
 			session.setCurrentCatalog(catalogName);
 			session.setCurrentDatabase(tableEnv.getCurrentDatabase());
 			return null;
@@ -256,7 +261,11 @@ public class LocalExecutor implements Executor {
 
 		context.wrapClassLoader(() -> {
 			// Rely on TableEnvironment/CatalogManager to validate input
-			tableEnv.useDatabase(databaseName);
+			try {
+				tableEnv.useDatabase(databaseName);
+			} catch (CatalogException e) {
+				throw new SqlExecutionException("Failed to switch to database " + databaseName, e);
+			}
 			session.setCurrentDatabase(databaseName);
 			return null;
 		});
@@ -302,7 +311,7 @@ public class LocalExecutor implements Executor {
 
 		try {
 			return context.wrapClassLoader(() ->
-				Arrays.asList(((TableEnvImpl) tableEnv).getCompletionHints(statement, position)));
+				Arrays.asList(tableEnv.getCompletionHints(statement, position)));
 		} catch (Throwable t) {
 			// catch everything such that the query does not crash the executor
 			if (LOG.isDebugEnabled()) {
@@ -612,13 +621,10 @@ public class LocalExecutor implements Executor {
 	private static TableSchema removeTimeAttributes(TableSchema schema) {
 		final TableSchema.Builder builder = TableSchema.builder();
 		for (int i = 0; i < schema.getFieldCount(); i++) {
-			final TypeInformation<?> type = schema.getFieldTypes()[i];
-			final TypeInformation<?> convertedType;
-			if (FlinkTypeFactory.isTimeIndicatorType(type)) {
-				convertedType = Types.SQL_TIMESTAMP;
-			} else {
-				convertedType = type;
-			}
+			final DataType dataType = schema.getFieldDataTypes()[i];
+			final DataType convertedType = DataTypeUtils.replaceLogicalType(
+				dataType,
+				LogicalTypeUtils.removeTimeAttributes(dataType.getLogicalType()));
 			builder.field(schema.getFieldNames()[i], convertedType);
 		}
 		return builder.build();

@@ -34,6 +34,7 @@ import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sinks.TableSink
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.areTypesCompatible
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import org.apache.flink.types.Row
@@ -108,11 +109,10 @@ object SinkCodeGenerator {
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     var afterIndexModify = inputTerm
     val fieldIndexProcessCode =
-      if (getCompositeTypes(convertOutputType).map(fromTypeInfoToLogicalType) sameElements
-          inputTypeInfo.getFieldTypes.map(fromTypeInfoToLogicalType)) {
+      if (!resultType.isInstanceOf[PojoTypeInfo[_]]) {
         ""
       } else {
-        // field index change (pojo)
+        // field index may change (pojo)
         val mapping = convertOutputType match {
           case ct: CompositeType[_] => ct.getFieldNames.map {
             name =>
@@ -223,9 +223,10 @@ object SinkCodeGenerator {
           case (fieldTypeInfo, i) =>
             val requestedTypeInfo = tt.getTypeAt(i)
             validateFieldType(requestedTypeInfo)
-            if (fromTypeInfoToLogicalType(fieldTypeInfo) !=
-                fromTypeInfoToLogicalType(requestedTypeInfo) &&
-                !requestedTypeInfo.isInstanceOf[GenericTypeInfo[Object]]) {
+            if (!areTypesCompatible(
+              fromTypeInfoToLogicalType(fieldTypeInfo),
+              fromTypeInfoToLogicalType(requestedTypeInfo)) &&
+              !requestedTypeInfo.isInstanceOf[GenericTypeInfo[Object]]) {
               val fieldNames = tt.getFieldNames
               throw new TableException(s"Result field '${fieldNames(i)}' does not match requested" +
                   s" type. Requested: $requestedTypeInfo; Actual: $fieldTypeInfo")

@@ -1079,12 +1079,10 @@ class CalcITCase extends BatchTestBase {
     //j 2015-05-20 10:00:00.887
     checkResult("SELECT j, " +
         " DATE_FORMAT(j, 'yyyy/MM/dd HH:mm:ss')," +
-        " DATE_FORMAT('2015-05-20 10:00:00.887', 'yyyy/MM/dd HH:mm:ss')," +
-        " DATE_FORMAT('2015-05-20 10:00:00.887', 'yyyy-MM-dd HH:mm:ss', 'yyyy/MM/dd HH:mm:ss')" +
+        " DATE_FORMAT('2015-05-20 10:00:00.887', 'yyyy/MM/dd HH:mm:ss')" +
         " FROM testTable WHERE a = TRUE",
       Seq(
         row(localDateTime("2015-05-20 10:00:00.887"),
-          "2015/05/20 10:00:00",
           "2015/05/20 10:00:00",
           "2015/05/20 10:00:00")
       ))
@@ -1148,52 +1146,6 @@ class CalcITCase extends BatchTestBase {
   def testSecond(): Unit = {
     checkResult("SELECT j, SECOND(j) FROM testTable WHERE a = TRUE",
       Seq(row(localDateTime("2015-05-20 10:00:00.887"), "0")))
-  }
-
-  @Test
-  def testUnixTimestamp(): Unit = {
-    checkResult("SELECT" +
-        " UNIX_TIMESTAMP('2017-12-13 19:25:30')," +
-        " UNIX_TIMESTAMP('2017-12-13 19:25:30', 'yyyy-MM-dd HH:mm:ss')" +
-        " FROM testTable WHERE a = TRUE",
-      Seq(row(1513193130, 1513193130)))
-  }
-
-  @Test
-  def testFromUnixTime(): Unit = {
-    checkResult("SELECT" +
-        " FROM_UNIXTIME(1513193130), FROM_UNIXTIME(1513193130, 'MM/dd/yyyy HH:mm:ss')" +
-        " FROM testTable WHERE a = TRUE",
-      Seq(row("2017-12-13 19:25:30", "12/13/2017 19:25:30")))
-  }
-
-  @Test
-  def testDateDiff(): Unit = {
-    checkResult("SELECT" +
-        " DATEDIFF('2017-12-14 01:00:34', '2016-12-14 12:00:00')," +
-        " DATEDIFF(TIMESTAMP '2017-12-14 01:00:23', '2016-08-14 12:00:00')," +
-        " DATEDIFF('2017-12-14 09:00:23', TIMESTAMP '2013-08-19 11:00:00')," +
-        " DATEDIFF(TIMESTAMP '2017-12-14 09:00:23', TIMESTAMP '2018-08-19 11:00:00')" +
-        " FROM testTable WHERE a = TRUE",
-      Seq(row(365, 487, 1578, -248)))
-  }
-
-  @Test
-  def testDateSub(): Unit = {
-    checkResult("SELECT" +
-        " DATE_SUB(TIMESTAMP '2017-12-14 09:00:23', 3)," +
-        " DATE_SUB('2017-12-14 09:00:23', -3)" +
-        " FROM testTable WHERE a = TRUE",
-      Seq(row("2017-12-11", "2017-12-17")))
-  }
-
-  @Test
-  def testDateAdd(): Unit = {
-    checkResult("SELECT" +
-        " DATE_ADD('2017-12-14', 4)," +
-        " DATE_ADD(TIMESTAMP '2017-12-14 09:10:20',-4)" +
-        " FROM testTable WHERE a = TRUE",
-      Seq(row("2017-12-18", "2017-12-10")))
   }
 
   @Test

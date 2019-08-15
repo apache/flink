@@ -21,6 +21,8 @@ package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 
+import java.util.concurrent.CompletableFuture;
+
 
 /**
  * A restart strategy that validates that it is not in use by throwing {@link IllegalStateException}
@@ -34,7 +36,7 @@ public class ThrowingRestartStrategy implements RestartStrategy {
 	}
 
 	@Override
-	public void restart(final RestartCallback restarter, final ScheduledExecutor executor) {
+	public CompletableFuture<Void> restart(final RestartCallback restarter, final ScheduledExecutor executor) {
 		throw new IllegalStateException("Unexpected restart() call");
 	}
 

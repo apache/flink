@@ -177,7 +177,8 @@ public class ConfigOptionsDocsCompletenessITCase {
 			.map(element -> element.getElementsByTag("tbody").get(0))
 			.flatMap(element -> element.getElementsByTag("tr").stream())
 			.map(tableRow -> {
-				String key = tableRow.child(0).text();
+				// Use split to exclude document key tag.
+				String key = tableRow.child(0).text().split(" ")[0];
 				String defaultValue = tableRow.child(1).text();
 				String description = tableRow.child(2)
 					.childNodes()

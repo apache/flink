@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
+import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
@@ -73,9 +74,9 @@ public interface SlotManager extends AutoCloseable {
 	 *
 	 * @param slotRequest specifying the requested slot specs
 	 * @return true if the slot request was registered; false if the request is a duplicate
-	 * @throws SlotManagerException if the slot request failed (e.g. not enough resources left)
+	 * @throws ResourceManagerException if the slot request failed (e.g. not enough resources left)
 	 */
-	boolean registerSlotRequest(SlotRequest slotRequest) throws SlotManagerException;
+	boolean registerSlotRequest(SlotRequest slotRequest) throws ResourceManagerException;
 
 	/**
 	 * Cancels and removes a pending slot request with the given allocation id. If there is no such

@@ -17,14 +17,13 @@
  */
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.planner.functions.aggfunctions.{ConcatWithRetractAggFunction, ConcatWsWithRetractAggFunction}
+import org.apache.flink.table.planner.functions.aggfunctions.{ListAggWithRetractAggFunction, ListAggWsWithRetractAggFunction}
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.VarSumAggFunction
 import org.apache.flink.table.planner.runtime.batch.sql.agg.{MyPojoAggFunction, VarArgsAggFunction}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithAggTestBase.AggMode
@@ -101,9 +100,9 @@ class AggregateITCase(
     t1.toRetractStream[Row].addSink(sink)
     env.execute()
     val expected = List(
-      "1,1.0,1,1,1",
-      "2,2.0,2,1,1",
-      "3,3.0,3,1,1")
+      "1,1,1,1,1",
+      "2,2,2,1,1",
+      "3,3,3,1,1")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
@@ -146,7 +145,7 @@ class AggregateITCase(
     val sink = new TestingRetractSink
     t1.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
-    val expected = List("6,2.0,1,3,3")
+    val expected = List("6,2,1,3,3")
     assertEquals(expected, sink.getRetractResults)
   }
 
@@ -262,7 +261,7 @@ class AggregateITCase(
     t1.toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
 
-    val expected = List("3,9,4,2,3.0,5")
+    val expected = List("3,9,4,2,3,5")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
@@ -399,42 +398,6 @@ class AggregateITCase(
   }
 
   @Test
-  def testIncrSum(): Unit = {
-    val data = new mutable.MutableList[(Int, Long, String)]
-    data.+=((1, 1L, "A"))
-    data.+=((-2, 2L, "B"))
-    data.+=((3, 2L, "B"))
-    data.+=((-4, 3L, "C"))
-    data.+=((5, 3L, "C"))
-    data.+=((6, 3L, "C"))
-    data.+=((-7, 4L, "B"))
-    data.+=((8, 4L, "A"))
-    data.+=((9, 4L, "D"))
-    data.+=((10, 4L, "E"))
-    data.+=((-11, 5L, "A"))
-    data.+=((12, 5L, "B"))
-
-    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c)
-    tEnv.registerTable("T", t)
-
-    val sql =
-      """
-        |SELECT b, incr_sum(a)
-        |FROM T
-        |GROUP BY b
-      """.stripMargin
-
-    val t1 = tEnv.sqlQuery(sql)
-    val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = List("1,1", "2,3", "3,11", "4,27", "5,12")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-
-  }
-
-  @Test
   def testNestedGroupByAgg(): Unit = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data.+=((1, 1L, "A"))
@@ -469,76 +432,6 @@ class AggregateITCase(
     env.execute()
 
     val expected = List("1,1,1,1,1", "3,1,15,15,3", "4,1,34,34,4", "7,2,23,5,2")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
-  @Test
-  def testFirstLastWithOrder(): Unit = {
-    // set all operator parallelism to 1 to make sure the processed input element is in order
-    env.setParallelism(1)
-    val data = new mutable.MutableList[(Long, String, String, Int, Long, String)]
-    data.+=((2L, "u1", "i1", 0, 0L, "b1"))
-    data.+=((-1L, "u1", "i1", 1, 1L, "b1"))
-    data.+=((3L, "u2", "i1", 1, 1L, "b1"))
-    data.+=((4L, "u2", null, 0, 0L, "b1"))
-
-    val t = failingDataSource(data).toTable(tEnv, 'o, 'u, 'i, 'v, 's, 'b)
-    tEnv.registerTable("T", t)
-    val t1 = tEnv.sqlQuery(
-      """
-        |SELECT first_value(u, lo) as f, last_value(u, lo) as l
-        |FROM (
-        |  SELECT b, u, i, last_value(o) as lo, last_value(v, o) as lv,
-        |    first_value(o) as fo, first_value(v, o) as fv
-        |  FROM T
-        |  GROUP BY u, i, b)
-        |GROUP BY i
-      """.stripMargin)
-
-    val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = List(
-      "u1,u2",
-      "u2,u2")
-    assertEquals(expected.sorted, sink.getRetractResults.sorted)
-  }
-
-  @Test
-  def testFirstValueWithInputContainingNull(): Unit = {
-    val data = List(
-      Row.of("blond", null, Long.box(23L)),
-      Row.of("slim", null, Long.box(21L)),
-      Row.of("slim", null, Long.box(17L)),
-      Row.of("blond", null, Long.box(19L))
-    )
-
-    implicit val tpe: TypeInformation[Row] = new RowTypeInfo(
-      BasicTypeInfo.STRING_TYPE_INFO,
-      BasicTypeInfo.LONG_TYPE_INFO,
-      BasicTypeInfo.LONG_TYPE_INFO) // tpe is automatically
-
-    val t = failingDataSource(data).toTable(tEnv, 't, 'name, 'age)
-    tEnv.registerTable("T", t)
-
-    /* use sql grammar to generate null input for firstValue,
-     * since fromCollection will throw exception when serializing null as Long
-     */
-    val t1 = tEnv.sqlQuery(
-      """
-        |SELECT t,
-        |first_value(name, age) as c,
-        |last_value(name, age) as d
-        |FROM T
-        |GROUP BY t
-      """.stripMargin)
-
-    val sink = new TestingRetractSink
-    t1.toRetractStream[Row].addSink(sink)
-    env.execute()
-
-    val expected = List("slim,null,null", "blond,null,null")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
@@ -605,7 +498,7 @@ class AggregateITCase(
 
     val sqlQuery =
       s"""
-         |SELECT len, concat_agg('#', content) FROM T GROUP BY len
+         |SELECT len, listagg(content, '#') FROM T GROUP BY len
        """.stripMargin
 
     val sink = new TestingRetractSink
@@ -629,7 +522,7 @@ class AggregateITCase(
 
     val sqlQuery =
       s"""
-         |SELECT len, concat_agg(content) FROM T GROUP BY len
+         |SELECT len, listagg(content) FROM T GROUP BY len
        """.stripMargin
 
     val sink = new TestingRetractSink
@@ -906,7 +799,7 @@ class AggregateITCase(
       """
         |SELECT b, min(c), max(c)
         |FROM (
-        | SELECT a, b, concat_agg(c) as c
+        | SELECT a, b, listagg(c) as c
         | FROM T
         | GROUP BY a, b)
         |GROUP BY b
@@ -1061,15 +954,15 @@ class AggregateITCase(
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
-  /** Test CONCAT_AGG **/
+  /** Test LISTAGG **/
   @Test
   def testConcatAgg(): Unit = {
-    tEnv.registerFunction("concat_agg_retract", new ConcatWithRetractAggFunction)
-    tEnv.registerFunction("concat_agg_ws_retract", new ConcatWsWithRetractAggFunction)
+    tEnv.registerFunction("listagg_retract", new ListAggWithRetractAggFunction)
+    tEnv.registerFunction("listagg_ws_retract", new ListAggWsWithRetractAggFunction)
     val sqlQuery =
       s"""
          |SELECT
-         |  concat_agg(c), concat_agg('-', c), concat_agg_retract(c), concat_agg_ws_retract('+', c)
+         |  listagg(c), listagg(c, '-'), listagg_retract(c), listagg_ws_retract(c, '+')
          |FROM MyTable
          |GROUP BY c
          |""".stripMargin
@@ -1085,8 +978,8 @@ class AggregateITCase(
     val sink = new TestingRetractSink
     tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink)
     env.execute()
-    val expected = List("Hi\nHi\nHi\nHi\nHi\nHi\nHi\nHi\nHi\nHi,Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi," +
-      "Hi\nHi\nHi\nHi\nHi\nHi\nHi\nHi\nHi\nHi,Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi")
+    val expected = List("Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi-Hi," +
+      "Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi,Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi+Hi")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 
@@ -1128,7 +1021,7 @@ class AggregateITCase(
     tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink)
     env.execute()
     // TODO: define precise behavior of VAR_POP()
-    val expected = List(15602500d.toString, 28888.8888888893d.toString)
+    val expected = List(15602500.toString, 28889.toString)
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 

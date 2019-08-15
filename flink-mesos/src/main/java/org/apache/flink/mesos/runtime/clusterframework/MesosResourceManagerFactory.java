@@ -28,6 +28,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.resourcemanager.ActiveResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerFactory;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerRuntimeServices;
@@ -41,7 +42,7 @@ import javax.annotation.Nullable;
 /**
  * {@link ResourceManagerFactory} which creates a {@link MesosResourceManager}.
  */
-public class MesosResourceManagerFactory implements ResourceManagerFactory<RegisteredMesosWorkerNode> {
+public class MesosResourceManagerFactory extends ActiveResourceManagerFactory<RegisteredMesosWorkerNode> {
 
 	@Nonnull
 	private final MesosServices mesosServices;
@@ -63,7 +64,7 @@ public class MesosResourceManagerFactory implements ResourceManagerFactory<Regis
 	}
 
 	@Override
-	public ResourceManager<RegisteredMesosWorkerNode> createResourceManager(
+	public ResourceManager<RegisteredMesosWorkerNode> createActiveResourceManager(
 			Configuration configuration,
 			ResourceID resourceId,
 			RpcService rpcService,

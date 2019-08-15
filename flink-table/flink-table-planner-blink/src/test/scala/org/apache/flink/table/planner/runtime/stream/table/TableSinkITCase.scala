@@ -23,13 +23,15 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.api.{TableException, Tumble, Types}
+import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, Tumble, Types}
 import org.apache.flink.table.planner.runtime.utils.TestData.{smallTupleData3, tupleData3, tupleData5}
 import org.apache.flink.table.planner.runtime.utils.{TestingAppendTableSink, TestingRetractTableSink, TestingUpsertTableSink}
+import org.apache.flink.table.planner.utils.MemoryTableSourceSinkUtil.{DataTypeAppendStreamTableSink, DataTypeOutputFormatTableSink}
 import org.apache.flink.table.planner.utils.{MemoryTableSourceSinkUtil, TableTestUtil}
 import org.apache.flink.table.sinks._
 import org.apache.flink.test.util.{AbstractTestBase, TestBaseUtils}
 import org.apache.flink.types.Row
+
 import org.junit.Assert._
 import org.junit.Test
 
@@ -148,6 +150,36 @@ class TableSinkITCase extends AbstractTestBase {
       "1970-01-01 00:00:00.020,5,29",
       "1970-01-01 00:00:00.025,2,12")
       .sorted
+    assertEquals(expected, result)
+  }
+
+
+  @Test
+  def testAppendSinkWithNestedRow(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    env.getConfig.enableObjectReuse()
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+
+    val t = env.fromCollection(smallTupleData3)
+      .toTable(tEnv, 'id, 'num, 'text)
+    tEnv.registerTable("src", t)
+
+    val sink = new TestingAppendTableSink()
+    tEnv.registerTableSink(
+      "appendSink",
+      sink.configure(
+        Array[String]("t", "item"),
+        Array[TypeInformation[_]](Types.INT(), Types.ROW(Types.LONG, Types.STRING()))))
+
+    tEnv.sqlUpdate("INSERT INTO appendSink SELECT id, ROW(num, text) FROM src")
+
+    env.execute()
+
+    val result = sink.getAppendResults.sorted
+    val expected = List(
+      "1,1,Hi",
+      "2,2,Hello",
+      "3,2,Hello world").sorted
     assertEquals(expected, result)
   }
 
@@ -519,5 +551,34 @@ class TableSinkITCase extends AbstractTestBase {
       .select('num, 'w.rowtime, 'w.rowtime as 'rowtime2)
 
     r.toRetractStream[Row]
+  }
+
+  @Test
+  def testDecimalAppendStreamTableSink(): Unit = {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val tEnv = StreamTableEnvironment.create(env, TableTestUtil.STREAM_SETTING)
+
+    MemoryTableSourceSinkUtil.clear()
+
+    val schema = TableSchema.builder()
+        .field("c", DataTypes.VARCHAR(5))
+        .field("b", DataTypes.DECIMAL(10, 0))
+        .field("d", DataTypes.CHAR(5))
+        .build()
+    val sink = new DataTypeAppendStreamTableSink(schema)
+    tEnv.registerTableSink("testSink", sink)
+
+    env.fromCollection(tupleData3)
+        .toTable(tEnv, 'a, 'b, 'c)
+        .where('a > 20)
+        .select("12345", 55.cast(DataTypes.DECIMAL(10, 0)), "12345".cast(DataTypes.CHAR(5)))
+        .insertInto("testSink")
+
+    tEnv.execute("")
+
+    val results = MemoryTableSourceSinkUtil.tableDataStrings.asJava
+    val expected = Seq("12345,55,12345").mkString("\n")
+
+    TestBaseUtils.compareResultAsText(results, expected)
   }
 }

@@ -38,7 +38,7 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFactory}
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.ComponentFactoryService
-import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserFunctionsTypeHelper}
+import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableAggregateFunction, TableFunction, UserDefinedAggregateFunction, UserFunctionsTypeHelper}
 import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, QueryOperation}
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.delegation.PlannerBase
@@ -241,7 +241,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def verifyPlan(sql: String): Unit = {
     doVerifyPlan(
       sql,
-      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      SqlExplainLevel.DIGEST_ATTRIBUTES,
       withRowType = false,
       printPlanBefore = true)
   }
@@ -249,7 +249,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def verifyPlan(table: Table): Unit = {
     doVerifyPlan(
       table,
-      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      SqlExplainLevel.DIGEST_ATTRIBUTES,
       withRowType = false,
       printPlanBefore = true)
   }
@@ -257,7 +257,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def verifyPlanWithType(sql: String): Unit = {
     doVerifyPlan(
       sql,
-      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      explainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
       withRowType = true,
       printPlanBefore = true)
   }
@@ -265,7 +265,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
   def verifyPlanWithType(table: Table): Unit = {
     doVerifyPlan(
       table,
-      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      explainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
       withRowType = true,
       printPlanBefore = true)
   }
@@ -279,7 +279,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val relNode = TableTestUtil.toRelNode(table)
     val optimizedPlan = getOptimizedPlan(
       Array(relNode),
-      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      explainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
       withRetractTraits = false,
       withRowType = false)
     val result = notExpected.forall(!optimizedPlan.contains(_))
@@ -337,7 +337,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       val planBefore = SystemUtils.LINE_SEPARATOR +
         FlinkRelOptUtil.toString(
           relNode,
-          SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+          SqlExplainLevel.DIGEST_ATTRIBUTES,
           withRowType = withRowType)
       assertEqualsOrExpand("planBefore", planBefore)
     }
@@ -351,7 +351,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     val table = getTableEnv.sqlQuery(sql)
     doVerifyPlan(
       table,
-      explainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      explainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
       withRowType = false,
       withRetractTraits = false,
       printResource = true,
@@ -390,7 +390,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       val planBefore = SystemUtils.LINE_SEPARATOR +
         FlinkRelOptUtil.toString(
           relNode,
-          SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+          SqlExplainLevel.DIGEST_ATTRIBUTES,
           withRowType = withRowType)
       assertEqualsOrExpand("planBefore", planBefore)
     }
@@ -549,9 +549,18 @@ abstract class TableTestUtil(
       name: String,
       function: AggregateFunction[T, ACC]): Unit = testingTableEnv.registerFunction(name, function)
 
+  /**
+    * Registers a [[TableAggregateFunction]] under given name into the TableEnvironment's catalog.
+    */
+  def addFunction[T: TypeInformation, ACC: TypeInformation](
+      name: String,
+      function: TableAggregateFunction[T, ACC]): Unit = {
+    testingTableEnv.registerFunction(name, function)
+  }
+
   def verifyPlan(): Unit = {
     doVerifyPlan(
-      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      SqlExplainLevel.DIGEST_ATTRIBUTES,
       withRowType = false,
       withRetractTraits = false,
       printPlanBefore = true)
@@ -581,7 +590,7 @@ abstract class TableTestUtil(
       val planBefore = new StringBuilder
       relNodes.foreach { sink =>
         planBefore.append(System.lineSeparator)
-        planBefore.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES))
+        planBefore.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.DIGEST_ATTRIBUTES))
       }
       assertEqualsOrExpand("planBefore", planBefore.toString())
     }
@@ -616,6 +625,13 @@ abstract class ScalaTableTestUtil(
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
+
+  /**
+    * Registers a [[TableAggregateFunction]] under given name into the TableEnvironment's catalog.
+    */
+  def addFunction[T: TypeInformation, ACC: TypeInformation](
+      name: String,
+      function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 }
 
 abstract class JavaTableTestUtil(
@@ -645,6 +661,13 @@ abstract class JavaTableTestUtil(
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
+
+  /**
+    * Registers a [[TableAggregateFunction]] under given name into the TableEnvironment's catalog.
+    */
+  def addFunction[T: TypeInformation, ACC: TypeInformation](
+      name: String,
+      function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 }
 
 /**
@@ -686,7 +709,7 @@ case class StreamTableTestUtil(
 
   def verifyPlanWithTrait(): Unit = {
     doVerifyPlan(
-      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      SqlExplainLevel.DIGEST_ATTRIBUTES,
       withRetractTraits = true,
       withRowType = false,
       printPlanBefore = true)
@@ -695,7 +718,7 @@ case class StreamTableTestUtil(
   def verifyPlanWithTrait(sql: String): Unit = {
     doVerifyPlan(
       sql,
-      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      SqlExplainLevel.DIGEST_ATTRIBUTES,
       withRetractTraits = true,
       withRowType = false,
       printPlanBefore = true)
@@ -704,7 +727,7 @@ case class StreamTableTestUtil(
   def verifyPlanWithTrait(table: Table): Unit = {
     doVerifyPlan(
       table,
-      SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      SqlExplainLevel.DIGEST_ATTRIBUTES,
       withRetractTraits = true,
       withRowType = false,
       printPlanBefore = true)
@@ -902,6 +925,21 @@ class TestingTableEnvironment private(
   def registerFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       f: AggregateFunction[T, ACC]): Unit = {
+    registerUserDefinedAggregateFunction(name, f)
+  }
+
+  // just for testing, remove this method while
+  // `<T, ACC> void registerFunction(String name, TableAggregateFunction<T, ACC> tableAggFunc);`
+  // is added into TableEnvironment
+  def registerFunction[T: TypeInformation, ACC: TypeInformation](
+      name: String,
+      f: TableAggregateFunction[T, ACC]): Unit = {
+    registerUserDefinedAggregateFunction(name, f)
+  }
+
+  private def registerUserDefinedAggregateFunction[T: TypeInformation, ACC: TypeInformation](
+      name: String,
+      f: UserDefinedAggregateFunction[T, ACC]): Unit = {
     val typeInfo = UserFunctionsTypeHelper
       .getReturnTypeOfAggregateFunction(f, implicitly[TypeInformation[T]])
     val accTypeInfo = UserFunctionsTypeHelper

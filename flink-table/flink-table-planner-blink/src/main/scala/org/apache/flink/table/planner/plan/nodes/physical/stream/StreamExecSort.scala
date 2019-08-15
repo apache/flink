@@ -132,12 +132,13 @@ class StreamExecSort(
     // as input node is singleton exchange, its parallelism is 1.
     val ret = new OneInputTransformation(
       input,
-      s"Sort(${RelExplainUtil.collationToString(sortCollation, getRowType)})",
+      getRelDetailedDescription,
       sortOperator,
       outputRowTypeInfo,
-      getResource.getParallelism)
-    if (getResource.getMaxParallelism > 0) {
-      ret.setMaxParallelism(getResource.getMaxParallelism)
+      input.getParallelism)
+    if (inputsContainSingleton()) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
     }
     ret
   }

@@ -108,14 +108,9 @@ class BatchExecLimit(
     val operator = new LimitOperator(isGlobal, limitStart, limitEnd)
     new OneInputTransformation(
       input,
-      getOperatorName,
+      getRelDetailedDescription,
       operator,
       inputType,
-      getResource.getParallelism)
-  }
-
-  private def getOperatorName = {
-    val prefix = if (isGlobal) "Global" else "Local"
-    s"${prefix}Limit(offset: $limitStart, fetch: ${fetchToString(fetch)})"
+      input.getParallelism)
   }
 }

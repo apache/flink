@@ -33,6 +33,7 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
@@ -64,7 +65,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 
 			final ExecutionJobVertex ejv = getExecutionVertex(jid);
 
-			final LogicalSlot slot = new TestingLogicalSlot();
+			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
@@ -98,7 +99,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 
 			final ExecutionJobVertex ejv = getExecutionVertex(jid, new DirectScheduledExecutorService());
 
-			final LogicalSlot slot = new TestingLogicalSlot();
+			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
@@ -137,7 +138,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
 
-			final LogicalSlot slot = new TestingLogicalSlot();
+			final LogicalSlot slot = new TestingLogicalSlotBuilder().createTestingLogicalSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -179,7 +180,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
 
-			final LogicalSlot slot = new TestingLogicalSlot(new SubmitFailingSimpleAckingTaskManagerGateway());
+			final LogicalSlot slot = new TestingLogicalSlotBuilder().setTaskManagerGateway(new SubmitFailingSimpleAckingTaskManagerGateway()).createTestingLogicalSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -206,7 +207,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
 
-			final LogicalSlot slot = new TestingLogicalSlot(new SubmitFailingSimpleAckingTaskManagerGateway());
+			final LogicalSlot slot = new TestingLogicalSlotBuilder().setTaskManagerGateway(new SubmitFailingSimpleAckingTaskManagerGateway()).createTestingLogicalSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 
@@ -244,7 +245,7 @@ public class ExecutionVertexDeploymentTest extends TestLogger {
 			final ExecutionVertex vertex = new ExecutionVertex(ejv, 0, new IntermediateResult[0],
 				AkkaUtils.getDefaultTimeout());
 
-			TestingLogicalSlot testingLogicalSlot = new TestingLogicalSlot(new SubmitBlockingSimpleAckingTaskManagerGateway());
+			TestingLogicalSlot testingLogicalSlot = new TestingLogicalSlotBuilder().setTaskManagerGateway(new SubmitBlockingSimpleAckingTaskManagerGateway()).createTestingLogicalSlot();
 
 			assertEquals(ExecutionState.CREATED, vertex.getExecutionState());
 			vertex.deployToSlot(testingLogicalSlot);

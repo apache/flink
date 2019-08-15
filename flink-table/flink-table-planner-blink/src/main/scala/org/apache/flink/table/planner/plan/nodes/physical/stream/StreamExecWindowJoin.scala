@@ -29,7 +29,8 @@ import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, KeySelectorUtil, RelExplainUtil, UpdatingPlanChecker, WindowJoinUtil}
+import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, KeySelectorUtil, UpdatingPlanChecker, WindowJoinUtil}
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.runtime.generated.GeneratedFunction
 import org.apache.flink.table.runtime.operators.join.{FlinkJoinType, KeyedCoProcessOperatorWithWatermarkDelay, OuterJoinPaddingUtil, ProcTimeBoundedStreamJoin, RowTimeBoundedStreamJoin}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
@@ -105,8 +106,8 @@ class StreamExecWindowJoin(
     super.explainTerms(pw)
       .item("joinType", flinkJoinType.toString)
       .item("windowBounds", windowBounds)
-      .item("where",
-        RelExplainUtil.expressionToString(joinCondition, outputRowType, getExpressionString))
+      .item("where", getExpressionString(
+        joinCondition, outputRowType.getFieldNames.toList, None, preferExpressionFormat(pw)))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 
@@ -294,7 +295,7 @@ class StreamExecWindowJoin(
     val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       leftPlan,
       rightPlan,
-      "Co-Process",
+      getRelDetailedDescription,
       new LegacyKeyedCoProcessOperator(procJoinFunc).
         asInstanceOf[TwoInputStreamOperator[BaseRow,BaseRow,BaseRow]],
       returnTypeInfo,
@@ -338,15 +339,16 @@ class StreamExecWindowJoin(
     val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       leftPlan,
       rightPlan,
-      "Co-Process",
+      getRelDetailedDescription,
       new KeyedCoProcessOperatorWithWatermarkDelay(rowJoinFunc, rowJoinFunc.getMaxOutputDelay)
         .asInstanceOf[TwoInputStreamOperator[BaseRow,BaseRow,BaseRow]],
       returnTypeInfo,
-      getResource.getParallelism
+      leftPlan.getParallelism
     )
 
-    if (getResource.getMaxParallelism > 0) {
-      ret.setMaxParallelism(getResource.getMaxParallelism)
+    if (inputsContainSingleton()) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
     }
 
     // set KeyType and Selector for state

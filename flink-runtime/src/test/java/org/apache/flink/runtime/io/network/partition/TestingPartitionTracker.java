@@ -36,6 +36,7 @@ public class TestingPartitionTracker implements PartitionTracker {
 	private Consumer<ResourceID> stopTrackingAndReleaseAllPartitionsConsumer = ignored -> {};
 	private BiConsumer<ResourceID, ResultPartitionDeploymentDescriptor> startTrackingPartitionsConsumer = (ignoredA, ignoredB) -> {};
 	private Consumer<Collection<ResultPartitionID>> stopTrackingAndReleasePartitionsConsumer = ignored -> {};
+	private Consumer<Collection<ResultPartitionID>> stopTrackingPartitionsConsumer = ignored -> {};
 
 	public void setStartTrackingPartitionsConsumer(BiConsumer<ResourceID, ResultPartitionDeploymentDescriptor> startTrackingPartitionsConsumer) {
 		this.startTrackingPartitionsConsumer = startTrackingPartitionsConsumer;
@@ -61,6 +62,10 @@ public class TestingPartitionTracker implements PartitionTracker {
 		this.stopTrackingAndReleasePartitionsConsumer = stopTrackingAndReleasePartitionsConsumer;
 	}
 
+	public void setStopTrackingPartitionsConsumer(Consumer<Collection<ResultPartitionID>> stopTrackingPartitionsConsumer) {
+		this.stopTrackingPartitionsConsumer = stopTrackingPartitionsConsumer;
+	}
+
 	@Override
 	public void startTrackingPartition(ResourceID producingTaskExecutorId, ResultPartitionDeploymentDescriptor resultPartitionDeploymentDescriptor) {
 		this.startTrackingPartitionsConsumer.accept(producingTaskExecutorId, resultPartitionDeploymentDescriptor);
@@ -74,6 +79,11 @@ public class TestingPartitionTracker implements PartitionTracker {
 	@Override
 	public void stopTrackingAndReleasePartitions(Collection<ResultPartitionID> resultPartitionIds) {
 		stopTrackingAndReleasePartitionsConsumer.accept(resultPartitionIds);
+	}
+
+	@Override
+	public void stopTrackingPartitions(Collection<ResultPartitionID> resultPartitionIds) {
+		stopTrackingPartitionsConsumer.accept(resultPartitionIds);
 	}
 
 	@Override

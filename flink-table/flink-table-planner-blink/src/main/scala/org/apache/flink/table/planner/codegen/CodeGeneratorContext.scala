@@ -519,17 +519,6 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   }
 
   /**
-    * Adds a reusable Time ZoneId to the member area of the generated class.
-    */
-  def addReusableTimeZoneID(): String = {
-    val zoneID = tableConfig.getLocalTimeZone.getId
-    val stmt =
-      s"""private static final java.time.ZoneId $DEFAULT_TIMEZONE_TERM =
-         |                 java.time.ZoneId.of("$zoneID");""".stripMargin
-    DEFAULT_TIMEZONE_ID_TERM
-  }
-
-  /**
     * Adds a reusable [[java.util.Random]] to the member area of the generated class.
     *
     * The seed parameter must be a literal/constant expression.
@@ -603,7 +592,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     val byteArray = InstantiationUtil.serializeObject(obj)
     val objCopy: AnyRef = InstantiationUtil.deserializeObject(
       byteArray,
-      obj.getClass.getClassLoader)
+      Thread.currentThread().getContextClassLoader)
     references += objCopy
 
     reusableMemberStatements.add(s"private transient $fieldTypeTerm $fieldTerm;")

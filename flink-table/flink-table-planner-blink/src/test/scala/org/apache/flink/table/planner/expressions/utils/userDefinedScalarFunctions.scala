@@ -342,6 +342,28 @@ object Func20 extends ScalarFunction {
 }
 
 @SerialVersionUID(1L)
+object Func21 extends ScalarFunction {
+  def eval(p: People): String = {
+    p.name
+  }
+
+  def eval(p: Student): String = {
+    "student#" + p.name
+  }
+}
+
+@SerialVersionUID(1L)
+object Func22 extends ScalarFunction {
+  def eval(a: Array[People]): String = {
+    a.head.name
+  }
+
+  def eval(a: Array[Student]): String = {
+    "student#" + a.head.name
+  }
+}
+
+@SerialVersionUID(1L)
 object Func23 extends ScalarFunction {
   def eval(a: Integer, b: JLong, c: String): Row = {
     Row.of("star", a, b, c)
@@ -410,3 +432,9 @@ class SplitUDF(deterministic: Boolean) extends ScalarFunction {
   override def isDeterministic: Boolean = deterministic
 
 }
+
+class People(val name: String)
+
+class Student(name: String) extends People(name)
+
+class GraduatedStudent(name: String) extends Student(name)

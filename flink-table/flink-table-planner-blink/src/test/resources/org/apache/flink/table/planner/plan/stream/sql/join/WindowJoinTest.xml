@@ -99,7 +99,7 @@ LogicalProject(a=[$5], c=[$7], c0=[$2])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a, BIGINT c, BIGINT c0)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -217,7 +217,7 @@ LogicalProject(b=[$1], aSum=[$2], bCnt=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow], select=[b, SUM(a0) AS aSum, COUNT(b0) AS bCnt])
+GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 21600000)], select=[b, SUM(a0) AS aSum, COUNT(b0) AS bCnt])
 +- Exchange(distribution=[hash[b]])
    +- Calc(select=[rowtime, b, a0, b0])
       +- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-600000, leftUpperBound=3600000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >=(CAST(rowtime), -(CAST(rowtime0), 600000:INTERVAL MINUTE)), <=(CAST(rowtime), +(CAST(rowtime0), 3600000:INTERVAL HOUR)))], select=[a, b, rowtime, a0, b0, rowtime0])
@@ -403,7 +403,7 @@ LogicalProject(b=[$1], aSum=[$2], bCnt=[$3])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(groupBy=[b0], window=[TumblingGroupWindow], select=[b0, SUM(a) AS aSum, COUNT(b) AS bCnt])
+GroupWindowAggregate(groupBy=[b0], window=[TumblingGroupWindow('w$, rowtime0, 21600000)], select=[b0, SUM(a) AS aSum, COUNT(b) AS bCnt])
 +- Exchange(distribution=[hash[b0]])
    +- Calc(select=[rowtime0, b0, a, b])
       +- WindowJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-600000, leftUpperBound=3600000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >=(CAST(rowtime), -(CAST(rowtime0), 600000:INTERVAL MINUTE)), <=(CAST(rowtime), +(CAST(rowtime0), 3600000:INTERVAL HOUR)))], select=[a, b, rowtime, a0, b0, rowtime0])

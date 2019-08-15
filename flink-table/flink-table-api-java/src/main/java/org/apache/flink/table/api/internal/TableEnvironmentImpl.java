@@ -45,9 +45,9 @@ import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.delegation.PlannerFactory;
+import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
-import org.apache.flink.table.descriptors.TableDescriptor;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.factories.ComponentFactoryService;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -234,7 +234,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
-	public TableDescriptor connect(ConnectorDescriptor connectorDescriptor) {
+	public ConnectTableDescriptor connect(ConnectorDescriptor connectorDescriptor) {
 		return new StreamTableDescriptor(this, connectorDescriptor);
 	}
 

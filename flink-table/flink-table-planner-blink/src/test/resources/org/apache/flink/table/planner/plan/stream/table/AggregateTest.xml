@@ -53,13 +53,13 @@ GroupAggregate(groupBy=[b], select=[b, COUNT(a) AS TMP_0])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
-+- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM($0)], window=[TumblingGroupWindow], properties=[])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM($0)], window=[TumblingGroupWindow('w, rowtime, 900000)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(window=[TumblingGroupWindow], select=[COUNT(DISTINCT a) AS EXPR$0, SUM(a) AS EXPR$1])
+GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 900000)], select=[COUNT(DISTINCT a) AS EXPR$0, SUM(a) AS EXPR$1])
 +- Exchange(distribution=[single])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
 ]]>

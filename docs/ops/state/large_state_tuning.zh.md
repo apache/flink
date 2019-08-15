@@ -108,7 +108,7 @@ impact.
 
 For state to be snapshotted asynchronsously, you need to use a state backend which supports asynchronous snapshotting.
 Starting from Flink 1.3, both RocksDB-based as well as heap-based state backends (`filesystem`) support asynchronous
-snapshotting and use it by default. This applies to to both managed operator state as well as managed keyed state (incl. timers state).
+snapshotting and use it by default. This applies to both managed operator state as well as managed keyed state (incl. timers state).
 
 <span class="label label-info">Note</span> *The combination RocksDB state backend with heap-based timers currently does NOT support asynchronous snapshots for the timers state.
 Other state like keyed state is still snapshotted asynchronously. Please note that this is not a regression from previous versions and will be resolved with `FLINK-10026`.*

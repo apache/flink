@@ -60,7 +60,8 @@ public class SpendReportTableSink implements AppendStreamTableSink<Row>, BatchTa
 	public void emitDataStream(DataStream<Row> dataStream) {
 		dataStream
 			.map(SpendReportTableSink::format)
-			.writeUsingOutputFormat(new LoggerOutputFormat());
+			.writeUsingOutputFormat(new LoggerOutputFormat())
+			.setParallelism(dataStream.getParallelism());
 	}
 
 	@Override

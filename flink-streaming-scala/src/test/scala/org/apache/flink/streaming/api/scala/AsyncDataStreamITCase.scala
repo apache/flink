@@ -18,13 +18,12 @@
 
 package org.apache.flink.streaming.api.scala
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.async.RichAsyncFunction.{RichAsyncFunctionIterationRuntimeContext, RichAsyncFunctionRuntimeContext}
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.AsyncDataStreamITCase._
-import org.apache.flink.streaming.api.scala.async.{AsyncFunction, ResultFuture, RichAsyncFunction}
+import org.apache.flink.streaming.api.scala.async.{ResultFuture, RichAsyncFunction}
 import org.apache.flink.test.util.AbstractTestBase
 import org.junit.Assert._
 import org.junit.Test
@@ -33,7 +32,6 @@ import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
 object AsyncDataStreamITCase {
-  val timeout = 1000L
   private var testResult: mutable.ArrayBuffer[Int] = _
 }
 
@@ -53,17 +51,18 @@ class AsyncDataStreamITCase extends AbstractTestBase {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setParallelism(1)
 
-    val source = env.fromElements(1, 2)
+    val source = env.fromElements(1)
 
+    val timeout = 1L
     val asyncMapped = if (ordered) {
       AsyncDataStream.orderedWait(
-        source, new MyAsyncFunction(), timeout, TimeUnit.MILLISECONDS)
+        source, new AsyncFunctionWithTimeoutExpired(), timeout, TimeUnit.MILLISECONDS)
     } else {
       AsyncDataStream.unorderedWait(
-        source, new MyAsyncFunction(), timeout, TimeUnit.MILLISECONDS)
+        source, new AsyncFunctionWithTimeoutExpired(), timeout, TimeUnit.MILLISECONDS)
     }
 
-    executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](2, 6))
+    executeAndValidate(ordered, env, asyncMapped, mutable.ArrayBuffer[Int](3))
   }
 
   private def executeAndValidate(ordered: Boolean,
@@ -104,7 +103,7 @@ class AsyncDataStreamITCase extends AbstractTestBase {
 
     val source = env.fromElements(1)
 
-
+    val timeout = 10000L
     val richAsyncFunction = new MyRichAsyncFunction
     val asyncMapped = AsyncDataStream
       .unorderedWait(source, richAsyncFunction, timeout, TimeUnit.MILLISECONDS)
@@ -122,6 +121,8 @@ class AsyncDataStreamITCase extends AbstractTestBase {
       (input, collector: ResultFuture[Int]) => Future {
           collector.complete(Seq(input * 2))
       }(ExecutionContext.global)
+
+    val timeout = 10000L
     val asyncMapped = if (ordered) {
       AsyncDataStream.orderedWait(source, timeout, TimeUnit.MILLISECONDS) {
         asyncFunction
@@ -137,19 +138,22 @@ class AsyncDataStreamITCase extends AbstractTestBase {
 
 }
 
-class MyAsyncFunction extends AsyncFunction[Int, Int] {
+class AsyncFunctionWithTimeoutExpired extends RichAsyncFunction[Int, Int] {
+  @transient var invokeLatch: CountDownLatch = _
+
+  override def open(parameters: Configuration): Unit = {
+    invokeLatch = new CountDownLatch(1)
+  }
+
   override def asyncInvoke(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     Future {
-      // trigger the timeout of the even input number
-      if (input % 2 == 0) {
-        Thread.sleep(AsyncDataStreamITCase.timeout + 1000)
-      }
-
+      invokeLatch.await()
       resultFuture.complete(Seq(input * 2))
     } (ExecutionContext.global)
   }
   override def timeout(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     resultFuture.complete(Seq(input * 3))
+    invokeLatch.countDown()
   }
 }
 
@@ -161,11 +165,6 @@ class MyRichAsyncFunction extends RichAsyncFunction[Int, Int] {
 
   override def asyncInvoke(input: Int, resultFuture: ResultFuture[Int]): Unit = {
     Future {
-      // trigger the timeout of the even input number
-      if (input % 2 == 0) {
-        Thread.sleep(AsyncDataStreamITCase.timeout + 1000)
-      }
-
       resultFuture.complete(Seq(input * 2))
     } (ExecutionContext.global)
   }

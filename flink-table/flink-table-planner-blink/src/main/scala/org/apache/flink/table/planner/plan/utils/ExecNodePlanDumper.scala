@@ -82,7 +82,7 @@ object ExecNodePlanDumper {
     */
   def dagToString(
       nodes: Seq[ExecNode[_, _]],
-      detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      detailLevel: SqlExplainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
       withExecNodeId: Boolean = false,
       withRetractTraits: Boolean = false,
       withOutputType: Boolean = false,
@@ -329,10 +329,6 @@ class NodeTreeWriterImpl(
       if (withExecNodeId) {
         // use RelNode's id now
         printValues.add(Pair.of("__id__", rel.getId.toString))
-      }
-
-      if (withResource) {
-        printValues.add(Pair.of("resource", node.getResource))
       }
 
       if (withRetractTraits) {

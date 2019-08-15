@@ -61,7 +61,7 @@ public class ResultStore {
 
 		final RowTypeInfo outputType = new RowTypeInfo(schema.getFieldTypes(), schema.getFieldNames());
 
-		if (env.getExecution().isStreamingExecution()) {
+		if (env.getExecution().inStreamingMode()) {
 			// determine gateway address (and port if possible)
 			final InetAddress gatewayAddress = getGatewayAddress(env.getDeployment());
 			final int gatewayPort = getGatewayPort(env.getDeployment());

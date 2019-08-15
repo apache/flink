@@ -49,6 +49,7 @@ import java.io.IOException;
 import java.time.Clock;
 import java.util.AbstractMap;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -210,7 +211,13 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 		abort(transaction);
 	}
 
-	protected void finishRecoveringContext() {
+	/**
+	 * Callback for subclasses which is called after restoring (each) user context.
+	 *
+	 * @param handledTransactions
+	 * 		transactions which were already committed or aborted and do not need further handling
+	 */
+	protected void finishRecoveringContext(Collection<TXN> handledTransactions) {
 	}
 
 	// ------ entry points for above methods implementing {@CheckPointedFunction} and {@CheckpointListener} ------
@@ -346,17 +353,23 @@ public abstract class TwoPhaseCommitSinkFunction<IN, TXN, CONTEXT>
 			for (State<TXN, CONTEXT> operatorState : state.get()) {
 				userContext = operatorState.getContext();
 				List<TransactionHolder<TXN>> recoveredTransactions = operatorState.getPendingCommitTransactions();
+				List<TXN> handledTransactions = new ArrayList<>(recoveredTransactions.size() + 1);
 				for (TransactionHolder<TXN> recoveredTransaction : recoveredTransactions) {
 					// If this fails to succeed eventually, there is actually data loss
 					recoverAndCommitInternal(recoveredTransaction);
+					handledTransactions.add(recoveredTransaction.handle);
 					LOG.info("{} committed recovered transaction {}", name(), recoveredTransaction);
 				}
 
-				recoverAndAbort(operatorState.getPendingTransaction().handle);
-				LOG.info("{} aborted recovered transaction {}", name(), operatorState.getPendingTransaction());
+				{
+					TXN transaction = operatorState.getPendingTransaction().handle;
+					recoverAndAbort(transaction);
+					handledTransactions.add(transaction);
+					LOG.info("{} aborted recovered transaction {}", name(), operatorState.getPendingTransaction());
+				}
 
 				if (userContext.isPresent()) {
-					finishRecoveringContext();
+					finishRecoveringContext(handledTransactions);
 					recoveredUserContext = true;
 				}
 			}

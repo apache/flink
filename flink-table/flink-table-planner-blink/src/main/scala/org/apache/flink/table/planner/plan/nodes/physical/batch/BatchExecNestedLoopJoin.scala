@@ -161,25 +161,15 @@ class BatchExecNestedLoopJoin(
     }
     val resourceSpec = NodeResourceUtil.fromManagedMem(externalBufferMemoryInMb)
 
+    val parallelism = if (leftIsBuild) rInput.getParallelism else lInput.getParallelism
     val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       lInput,
       rInput,
-      getOperatorName,
+      getRelDetailedDescription,
       op,
       BaseRowTypeInfo.of(outputType),
-      getResource.getParallelism)
+      parallelism)
     ret.setResources(resourceSpec, resourceSpec)
     ret
   }
-
-  private def getOperatorName: String = {
-    val joinExpressionStr = if (getCondition != null) {
-      val inFields = inputRowType.getFieldNames.toList
-      s"where: ${getExpressionString(getCondition, inFields, None, ExpressionFormat.Infix)}, "
-    } else {
-      ""
-    }
-    s"NestedLoopJoin($joinExpressionStr${if (leftIsBuild) "buildLeft" else "buildRight"})"
-  }
-
 }

@@ -68,7 +68,11 @@ public class BootstrapTransformation<T> {
 
 	/** Partitioner for the bootstrapping data set. Only relevant if this bootstraps partitioned state. */
 	@Nullable
-	private final HashSelector<T> keySelector;
+	private final KeySelector<T, ?> originalKeySelector;
+
+	/** Partitioner for distributing data by key group. Only relevant if this bootstraps partitioned state. */
+	@Nullable
+	private final HashSelector<T> hashKeySelector;
 
 	/** Type information for the key of the bootstrapped state. Only relevant if this bootstraps partitioned state. */
 	@Nullable
@@ -84,7 +88,8 @@ public class BootstrapTransformation<T> {
 		this.dataSet = dataSet;
 		this.operatorMaxParallelism = operatorMaxParallelism;
 		this.factory = factory;
-		this.keySelector = null;
+		this.originalKeySelector = null;
+		this.hashKeySelector = null;
 		this.keyType = null;
 	}
 
@@ -97,7 +102,8 @@ public class BootstrapTransformation<T> {
 		this.dataSet = dataSet;
 		this.operatorMaxParallelism = operatorMaxParallelism;
 		this.factory = factory;
-		this.keySelector = new HashSelector<>(keySelector);
+		this.originalKeySelector = keySelector;
+		this.hashKeySelector = new HashSelector<>(keySelector);
 		this.keyType = keyType;
 	}
 
@@ -135,16 +141,8 @@ public class BootstrapTransformation<T> {
 		int localMaxParallelism) {
 
 		DataSet<T> input = dataSet;
-		if (keySelector != null) {
-			input = dataSet.partitionCustom(new KeyGroupRangePartitioner(localMaxParallelism), keySelector);
-		}
-
-		final StreamConfig config;
-		if (keyType == null) {
-			config = new BoundedStreamConfig();
-		} else {
-			TypeSerializer<?> keySerializer = keyType.createSerializer(dataSet.getExecutionEnvironment().getConfig());
-			config = new BoundedStreamConfig(keySerializer, keySelector);
+		if (originalKeySelector != null) {
+			input = dataSet.partitionCustom(new KeyGroupRangePartitioner(localMaxParallelism), hashKeySelector);
 		}
 
 		StreamOperator<TaggedOperatorSubtaskState> operator = factory.createOperator(
@@ -152,11 +150,8 @@ public class BootstrapTransformation<T> {
 			savepointPath);
 
 		operator = dataSet.clean(operator);
-		config.setStreamOperator(operator);
 
-		config.setOperatorName(operatorID.toHexString());
-		config.setOperatorID(operatorID);
-		config.setStateBackend(stateBackend);
+		final StreamConfig config = getConfig(operatorID, stateBackend, operator);
 
 		BoundedOneInputStreamTaskRunner<T> operatorRunner = new BoundedOneInputStreamTaskRunner<>(
 			config,
@@ -176,6 +171,23 @@ public class BootstrapTransformation<T> {
 			}
 		}
 		return subtaskStates;
+	}
+
+	@VisibleForTesting
+	StreamConfig getConfig(OperatorID operatorID, StateBackend stateBackend, StreamOperator<TaggedOperatorSubtaskState> operator) {
+		final StreamConfig config;
+		if (keyType == null) {
+			config = new BoundedStreamConfig();
+		} else {
+			TypeSerializer<?> keySerializer = keyType.createSerializer(dataSet.getExecutionEnvironment().getConfig());
+			config = new BoundedStreamConfig(keySerializer, originalKeySelector);
+		}
+
+		config.setStreamOperator(operator);
+		config.setOperatorName(operatorID.toHexString());
+		config.setOperatorID(operatorID);
+		config.setStateBackend(stateBackend);
+		return config;
 	}
 
 	private static <T> int getParallelism(MapPartitionOperator<T, TaggedOperatorSubtaskState> subtaskStates) {

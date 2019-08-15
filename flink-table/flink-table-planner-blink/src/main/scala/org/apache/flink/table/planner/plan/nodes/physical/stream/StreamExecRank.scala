@@ -204,7 +204,6 @@ class StreamExecRank(
           generateRetraction,
           outputRankNumber)
     }
-    val rankOpName = getOperatorName
     val operator = new KeyedProcessOperator(processFunction)
     processFunction.setKeyContext(operator)
     val inputTransform = getInputNodes.get(0).translateToPlan(planner)
@@ -213,13 +212,14 @@ class StreamExecRank(
       FlinkTypeFactory.toLogicalRowType(getRowType))
     val ret = new OneInputTransformation(
       inputTransform,
-      rankOpName,
+      getRelDetailedDescription,
       operator,
       outputRowTypeInfo,
-      getResource.getParallelism)
+      inputTransform.getParallelism)
 
-    if (getResource.getMaxParallelism > 0) {
-      ret.setMaxParallelism(getResource.getMaxParallelism)
+    if (inputsContainSingleton()) {
+      ret.setParallelism(1)
+      ret.setMaxParallelism(1)
     }
 
     // set KeyType and Selector for state
@@ -227,19 +227,6 @@ class StreamExecRank(
     ret.setStateKeySelector(selector)
     ret.setStateKeyType(selector.getProducedType)
     ret
-  }
-
-  private def getOperatorName: String = {
-    val inputRowType = inputRel.getRowType
-    var result = getStrategy().toString
-    result += s"(orderBy: (${RelExplainUtil.collationToString(orderKey, inputRowType)})"
-    if (partitionKey.nonEmpty) {
-      val partitionKeys = partitionKey.toArray
-      result += s", partitionBy: (${RelExplainUtil.fieldToString(partitionKeys, inputRowType)})"
-    }
-    result += s", ${getRowType.getFieldNames.mkString(", ")}"
-    result += s", ${rankRange.toString(inputRowType.getFieldNames)})"
-    result
   }
 }
 object StreamExecRank {

@@ -22,14 +22,16 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.utils.{TableFunc0, TableTestBase}
+import org.apache.flink.types.Row
 
+import org.junit.Assert.{assertTrue, fail}
 import org.junit.Test
 
 class AggregateValidationTest extends TableTestBase {
+  private val util = scalaStreamTestUtil()
 
   @Test(expected = classOf[ValidationException])
   def testGroupingOnNonExistentField(): Unit = {
-    val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
     val ds = table
@@ -40,7 +42,6 @@ class AggregateValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testGroupingInvalidSelection(): Unit = {
-    val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
     table
@@ -51,7 +52,6 @@ class AggregateValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testInvalidAggregationInSelection(): Unit = {
-    val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
     table
@@ -63,7 +63,6 @@ class AggregateValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testInvalidWindowPropertiesInSelection(): Unit = {
-    val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
     table
@@ -75,7 +74,6 @@ class AggregateValidationTest extends TableTestBase {
 
   @Test(expected = classOf[RuntimeException])
   def testTableFunctionInSelection(): Unit = {
-    val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
     util.addFunction("func", new TableFunc0)
@@ -90,7 +88,6 @@ class AggregateValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testInvalidScalarFunctionInAggregate(): Unit = {
-    val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
     table
@@ -102,7 +99,6 @@ class AggregateValidationTest extends TableTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testInvalidTableFunctionInAggregate(): Unit = {
-    val util = streamTestUtil()
     val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
 
     util.addFunction("func", new TableFunc0)
@@ -115,13 +111,52 @@ class AggregateValidationTest extends TableTestBase {
 
   @Test(expected = classOf[RuntimeException])
   def testMultipleAggregateExpressionInAggregate(): Unit = {
-    val util = streamTestUtil()
-    val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
-
     util.addFunction("func", new TableFunc0)
+    val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
     table
       .groupBy('a)
       // must fail. Only one AggregateFunction can be used in aggregate
       .aggregate("sum(c), count(b)")
+  }
+
+  @Test
+  def testIllegalArgumentForListAgg(): Unit = {
+    util.addTableSource[(Long, Int, String, String)]("T", 'a, 'b, 'c, 'd)
+    // If there are two parameters, second one must be character literal.
+    expectExceptionThrown(
+      "SELECT listagg(c, d) FROM T GROUP BY a",
+    "Supported form(s): 'LISTAGG(<CHARACTER>)'\n'LISTAGG(<CHARACTER>, <CHARACTER_LITERAL>)",
+      classOf[ValidationException])
+  }
+
+  @Test
+  def testIllegalArgumentForListAgg1(): Unit = {
+    util.addTableSource[(Long, Int, String, String)]("T", 'a, 'b, 'c, 'd)
+    // If there are two parameters, second one must be character literal.
+    expectExceptionThrown(
+      "SELECT LISTAGG(c, 1) FROM T GROUP BY a",
+      "Supported form(s): 'LISTAGG(<CHARACTER>)'\n'LISTAGG(<CHARACTER>, <CHARACTER_LITERAL>)",
+      classOf[ValidationException])
+  }
+
+  // ----------------------------------------------------------------------------------------------
+
+  private def expectExceptionThrown(
+      sql: String,
+      keywords: String,
+      clazz: Class[_ <: Throwable] = classOf[ValidationException])
+  : Unit = {
+    try {
+      util.tableEnv.toAppendStream[Row](util.tableEnv.sqlQuery(sql))
+      fail(s"Expected a $clazz, but no exception is thrown.")
+    } catch {
+      case e if e.getClass == clazz =>
+        if (keywords != null) {
+          assertTrue(
+            s"The exception message '${e.getMessage}' doesn't contain keyword '$keywords'",
+            e.getMessage.contains(keywords))
+        }
+      case e: Throwable => fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
+    }
   }
 }

@@ -25,18 +25,10 @@ under the License.
 * TOC
 {:toc}
 
-## Reading from file systems
+## Reading from and writing to file systems
 
-Flink has built-in support for the following file systems:
-
-| Filesystem                            | Scheme       | Notes  |
-| ------------------------------------- |--------------| ------ |
-| Hadoop Distributed File System (HDFS) &nbsp; | `hdfs://`    | All HDFS versions are supported |
-| Amazon S3                             | `s3://`      | Support through Hadoop file system implementation (see below) |
-| MapR file system                      | `maprfs://`  | The user has to manually place the required jar files in the `lib/` dir |
-| Alluxio                               | `alluxio://` &nbsp; | Support through Hadoop file system implementation (see below) |
-
-
+The Apache Flink project supports multiple [file systems]({{ site.baseurl }}/ops/filesystems/index.html) that can be used as backing stores
+for input and output connectors. 
 
 ### Using Hadoop file system implementations
 
@@ -93,7 +85,7 @@ Also, the serialization framework of Flink is able to handle classes generated f
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-avro</artifactId>
-  <version>{{site.version }}</version>
+  <version>{{ site.version }}</version>
 </dependency>
 {% endhighlight %}
 

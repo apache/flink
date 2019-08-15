@@ -1,0 +1,23 @@
+tables:
+  - name: q22
+    type: sink-table
+    connector:
+      type: filesystem
+      path: "$RESULT_DIR/q22.csv"
+    format:
+      type: csv
+      fields:
+        - name: cntrycode
+          type: VARCHAR
+        - name: numcust
+          type: BIGINT
+        - name: totacctbal
+          type: DOUBLE
+      field-delimiter: "|"
+    schema:
+      - name: cntrycode
+        type: VARCHAR
+      - name: numcust
+        type: BIGINT
+      - name: totacctbal
+        type: DOUBLE

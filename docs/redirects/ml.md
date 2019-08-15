@@ -1,8 +1,8 @@
 ---
 title: "ML"
 layout: redirect
-redirect: /dev/libs/ml/index.html
-permalink: /apis/batch/libs/ml/index.html
+redirect: /index.html
+permalink: /dev/libs/ml/index.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

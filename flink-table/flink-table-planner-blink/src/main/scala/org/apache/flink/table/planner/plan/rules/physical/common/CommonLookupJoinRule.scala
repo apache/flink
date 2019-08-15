@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.common.CommonLookupJoin
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.PhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
+import org.apache.flink.table.planner.plan.utils.JoinUtil
 import org.apache.flink.table.sources.{LookupableTableSource, TableSource}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -29,6 +30,10 @@ import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rex.{RexCorrelVariable, RexFieldAccess, RexProgram}
+
+import java.util
+
+import scala.collection.JavaConversions._
 
 /**
   * Base implementation for both
@@ -86,6 +91,23 @@ trait CommonLookupJoinRule {
     }
   }
 
+  // TODO Support `IS NOT DISTINCT FROM` in the future: FLINK-13509
+  protected def validateJoin(join: FlinkLogicalJoin): Unit = {
+
+    val filterNulls: Array[Boolean] = {
+      val filterNulls = new util.ArrayList[java.lang.Boolean]
+      JoinUtil.createJoinInfo(join.getLeft, join.getRight, join.getCondition, filterNulls)
+      filterNulls.map(_.booleanValue()).toArray
+    }
+
+    if (filterNulls.contains(false)) {
+      throw new TableException(
+        s"LookupJoin doesn't support join condition contains 'a IS NOT DISTINCT FROM b' (or " +
+          s"alternative '(a = b) or (a IS NULL AND b IS NULL)'), the join condition is " +
+          s"'${join.getCondition}'")
+    }
+  }
+
   protected def transform(
     join: FlinkLogicalJoin,
     input: FlinkLogicalRel,
@@ -115,6 +137,7 @@ abstract class BaseSnapshotOnTableScanRule(description: String)
     val tableScan = call.rel[RelNode](3)
     val tableSource = findTableSource(tableScan).orNull
 
+    validateJoin(join)
     val temporalJoin = transform(join, input, tableSource, None)
     call.transformTo(temporalJoin)
   }
@@ -145,6 +168,7 @@ abstract class BaseSnapshotOnCalcTableScanRule(description: String)
     val tableScan = call.rel[RelNode](4)
     val tableSource = findTableSource(tableScan).orNull
 
+    validateJoin(join)
     val temporalJoin = transform(
       join, input, tableSource, Some(calc.getProgram))
     call.transformTo(temporalJoin)

@@ -27,10 +27,8 @@ import org.apache.flink.table.planner.codegen.agg.AggTestBase
 import org.apache.flink.table.planner.utils.BaseRowTestUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
-import org.apache.flink.table.types.logical.{DoubleType, LogicalType, RowType, VarCharType}
-
+import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
 import org.junit.Assert
-
 import java.util
 import java.util.function
 
@@ -44,9 +42,9 @@ abstract class BatchAggTestBase extends AggTestBase(isBatchMode = true) {
   val globalOutputType = RowType.of(
     Array[LogicalType](
       new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH),
+      new BigIntType(),
       new DoubleType(),
-      new DoubleType(),
-      new DoubleType()),
+      new BigIntType()),
     Array(
       "f0", "f4",
       "agg1Output",

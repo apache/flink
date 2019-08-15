@@ -59,7 +59,7 @@ class TableDescriptorTest extends TableTestBase {
     val connector = new FileSystem()
       .path("/path/to/csv")
 
-    val format = OldCsv()
+    val format = new OldCsv()
       .field("myfield", Types.STRING)
       .field("myfield2", Types.INT)
       .field("myfield3", Types.MAP(Types.STRING, Types.INT))
@@ -68,7 +68,7 @@ class TableDescriptorTest extends TableTestBase {
       .field("myfield6", Types.OBJECT_ARRAY(TypeExtractor.createTypeInfo(classOf[Person])))
       .fieldDelimiter("#")
 
-    val descriptor: RegistrableDescriptor = if (isStreaming) {
+    val descriptor = if (isStreaming) {
       streamTestUtil().tableEnv
         .connect(connector)
         .withFormat(format)

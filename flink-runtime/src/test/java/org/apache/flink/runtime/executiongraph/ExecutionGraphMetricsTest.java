@@ -30,7 +30,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.SerializedValue;
@@ -71,8 +71,8 @@ public class ExecutionGraphMetricsTest extends TestLogger {
 			Configuration jobConfig = new Configuration();
 			Time timeout = Time.seconds(10L);
 
-			CompletableFuture<LogicalSlot> slotFuture1 = CompletableFuture.completedFuture(new TestingLogicalSlot());
-			CompletableFuture<LogicalSlot> slotFuture2 = CompletableFuture.completedFuture(new TestingLogicalSlot());
+			CompletableFuture<LogicalSlot> slotFuture1 = CompletableFuture.completedFuture(new TestingLogicalSlotBuilder().createTestingLogicalSlot());
+			CompletableFuture<LogicalSlot> slotFuture2 = CompletableFuture.completedFuture(new TestingLogicalSlotBuilder().createTestingLogicalSlot());
 			ArrayDeque<CompletableFuture<LogicalSlot>> slotFutures = new ArrayDeque<>();
 			slotFutures.addLast(slotFuture1);
 			slotFutures.addLast(slotFuture2);

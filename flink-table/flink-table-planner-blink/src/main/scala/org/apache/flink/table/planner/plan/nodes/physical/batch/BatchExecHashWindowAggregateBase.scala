@@ -116,8 +116,6 @@ abstract class BatchExecHashWindowAggregateBase(
     replaceInput(ordinalInParent, newInputNode.asInstanceOf[RelNode])
   }
 
-  def getOperatorName: String
-
   override protected def translateToPlanInternal(
       planner: BatchPlanner): Transformation[BaseRow] = {
     val config = planner.getTableConfig
@@ -149,10 +147,10 @@ abstract class BatchExecHashWindowAggregateBase(
     val operator = new CodeGenOperatorFactory[BaseRow](generatedOperator)
     val ret = new OneInputTransformation(
       input,
-      getOperatorName,
+      getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outputType),
-      getResource.getParallelism)
+      input.getParallelism)
     val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
     ret.setResources(resource, resource)
     ret

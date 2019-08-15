@@ -20,11 +20,10 @@ package org.apache.flink.table.planner.codegen.agg.batch
 
 import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.dataformat.BaseRow
-import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction.IntegralAvgAggFunction
+import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction.LongAvgAggFunction
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
-
 import org.apache.calcite.rel.core.AggregateCall
 import org.junit.Test
 import org.powermock.api.mockito.PowerMockito.{mock, when}
@@ -52,7 +51,7 @@ class HashAggCodeGeneratorTest extends BatchAggTestBase {
     val call = mock(classOf[AggregateCall])
     when(aggInfo, "agg").thenReturn(call)
     when(call, "getName").thenReturn("avg3")
-    when(aggInfo, "function").thenReturn(new IntegralAvgAggFunction)
+    when(aggInfo, "function").thenReturn(new LongAvgAggFunction)
     when(aggInfo, "externalAccTypes").thenReturn(Array(DataTypes.BIGINT, DataTypes.BIGINT))
     when(aggInfo, "argIndexes").thenReturn(Array(3))
     when(aggInfo, "aggIndex").thenReturn(2)
@@ -89,8 +88,8 @@ class HashAggCodeGeneratorTest extends BatchAggTestBase {
         row("key2", "aux2", 8L, 2L, 8D, 2L, 8L, 2L)
       ),
       Array(
-        row("key1", "aux1", 3.0D, 3.0D, 3.0D),
-        row("key2", "aux2", 4.0D, 4.0D, 4.0D))
+        row("key1", "aux1", 3L, 3.0D, 3L),
+        row("key2", "aux2", 4L, 4.0D, 4L))
     )
   }
 
@@ -106,8 +105,8 @@ class HashAggCodeGeneratorTest extends BatchAggTestBase {
         row("key2", 3L, 3D, 3L, "aux2")
       ),
       Array(
-        row("key1", "aux1", 5.5D, 5.5D, 5.5D),
-        row("key2", "aux2", 3.0D, 3.0D, 3.0D))
+        row("key1", "aux1", 5L, 5.5D, 5L),
+        row("key2", "aux2", 3L, 3.0D, 3L))
     )
   }
 
