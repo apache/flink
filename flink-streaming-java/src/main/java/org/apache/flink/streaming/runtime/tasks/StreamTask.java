@@ -934,7 +934,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	public void handleAsyncException(String message, Throwable exception) {
 		if (isRunning) {
 			// only fail if the task is still running
-			getEnvironment().failExternally(exception);
+			getEnvironment().failExternally(new AsynchronousException(message, exception));
 		}
 	}
 
