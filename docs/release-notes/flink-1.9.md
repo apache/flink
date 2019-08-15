@@ -175,11 +175,16 @@ Existing users may continue to use these older APIs with future versions of Flin
 and `flink-python` jars into the `/lib` directory of the distribution and the corresponding start scripts `pyflink-stream.sh`
 and `pyflink.sh` into the `/bin` directory of the distribution.
 
+- The older machine learning libraries have been removed and will no longer receive new patches.
+This is due to efforts towards a new Table-based machine learning library ([FLIP-39](https://docs.google.com/document/d/1StObo1DLp8iiy0rbukx8kwAJb0BwDZrQrMWub3DzsEo/edit)).
+Users can still use the 1.8 version of the legacy library if their projects still rely on it.
+
 Related issues:
 - [FLINK-11693: Add KafkaSerializationSchema that directly uses ProducerRecord](https://issues.apache.org/jira/browse/FLINK-11693)
 - [FLINK-12151: Drop Elasticsearch 1 connector](https://issues.apache.org/jira/browse/FLINK-12151)
 - [FLINK-12903: Remove legacy flink-python APIs](https://issues.apache.org/jira/browse/FLINK-12903)
 - [FLINK-12308: Support python language in Flink Table API](https://issues.apache.org/jira/browse/FLINK-12308)
+- [FLINK-12597: Remove the legacy flink-libraries/flink-ml](https://issues.apache.org/jira/browse/FLINK-12597)
 
 ### MapR dependency removed
 
