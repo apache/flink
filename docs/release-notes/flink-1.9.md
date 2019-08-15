@@ -34,7 +34,37 @@ Please read these notes carefully if you are planning to upgrade your Flink vers
 
 ### New Table / SQL Blink planner
 
-TBD
+Flink 1.9.0 provides support for two planners for the Table API, namely Flink's original planner and the new Blink
+planner. The original planner maintains same behaviour as previous releases, while the new Blink planner is still
+considered experimental and has the following limitations:
+
+- The Blink planner can not be used with `BatchTableEnvironment`, and therefore Table programs ran with the planner can not 
+be transformed to `DataSet` programs. This is by design and will also not be supported in the future. Therefore, if
+you want to run a batch job with the Blink planner, please use the new `TableEnvironment`. For streaming jobs,
+both `StreamTableEnvironment` and `TableEnvironment` works.
+- Implementations of `StreamTableSink` should implement the `consumeDataStream` method instead of `emitDataStream`
+if it is used with the Blink planner. Both methods work with the original planner.
+This is by design to make the returned `DataStreamSink` accessible for the planner.
+- Due to a bug with how transformations are not being cleared on execution, `TableEnvironment` instances should not
+be reused across multiple SQL statements when using the Blink planner.
+- `Table.flatAggregate` is not supported
+- Session and count windows are not supported when running batch jobs.
+
+Related issues:
+- [FLINK-13708: Transformations should be cleared because a table environment could execute multiple job](https://issues.apache.org/jira/browse/FLINK-13708)
+- [FLINK-13473: Add GroupWindowed FlatAggregate support to stream Table API (Blink planner), i.e, align with Flink planner](https://issues.apache.org/jira/browse/FLINK-13473)
+- [FLINK-13735: Support session window with Blink planner in batch mode](https://issues.apache.org/jira/browse/FLINK-13735)
+- [FLINK-13736: Support count window with Blink planner in batch mode](https://issues.apache.org/jira/browse/FLINK-13736)
+
+### SQL DDL
+
+In Flink 1.9.0, the community also added a preview feature about SQL DDL, but only for batch style DDLs.
+Therefore, all streaming related concepts are not supported yet, for example watermarks.
+
+Related issues:
+- [FLINK-13661: Add a stream specific CREATE TABLE SQL DDL](https://issues.apache.org/jira/browse/FLINK-13661)
+- [FLINK-13568: DDL create table doesn't allow STRING data type](https://issues.apache.org/jira/browse/FLINK-13568)
+- [FLINK-13699: TableFactory doesn't work with DDL when containing TIMESTAMP/DATE/TIME types](https://issues.apache.org/jira/browse/FLINK-13699)
 
 ### Java 9 support
 
