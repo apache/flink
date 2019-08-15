@@ -23,11 +23,11 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Catalogs provide metadata, such as database, tables, partitions, views, and functions and information needed to access data stored in a database or other external systems.
+Catalogs provide metadata, such as databases, tables, partitions, views, and functions and information needed to access data stored in a database or other external systems.
 
 One of the most crucial aspects of data processing is managing metadata.
-It may be transient metadata like temporary tables, or UDF's registered against the table environment.
-Or permanent metadata, like a Hive Metastore. Catalogs provide a unified API for managing metadata and making it accessible from the Table API and SQL Queries. 
+It may be transient metadata like temporary tables, or UDFs registered against the table environment.
+Or permanent metadata, like that in a Hive Metastore. Catalogs provide a unified API for managing metadata and making it accessible from the Table API and SQL Queries. 
 
 * This will be replaced by the TOC
 {:toc}
