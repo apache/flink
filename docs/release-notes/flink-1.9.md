@@ -32,14 +32,14 @@ Please read these notes carefully if you are planning to upgrade your Flink vers
 
 ## Known shortcomings or limitations for new features
 
-### New Table / SQL Blink runner
+### New Table / SQL Blink planner
 
 TBD
 
 ### Java 9 support
 
 Since Flink 1.9.0, Flink can now be compiled and run on Java 9. Note that certain components interacting
-with eternal systems (connectors, filesystems, metric reporters, etc.) may not work since the respective projects may
+with external systems (connectors, filesystems, metric reporters, etc.) may not work since the respective projects may
 have skipped Java 9 support.
 
 Related issues:
@@ -49,7 +49,7 @@ Related issues:
 
 ### Failover strategies
 
-As a result of completion of fine-grained recovery ([FLIP-1](https://cwiki.apache.org/confluence/display/FLINK/FLIP-1+%3A+Fine+Grained+Recovery+from+Task+Failures)),
+As a result of completing fine-grained recovery ([FLIP-1](https://cwiki.apache.org/confluence/display/FLINK/FLIP-1+%3A+Fine+Grained+Recovery+from+Task+Failures)),
 Flink will now attempt to only restart tasks that are
 connected to failed tasks through a pipelined connection. By default, the `region` failover strategy is used.
 
@@ -97,12 +97,12 @@ increase the value of `taskmanager.network.request-backoff.max` in order to have
 request timeout as it was prior to 1.9.0.
 
 - To avoid a potential deadlock, a timeout has been added for how long a task will wait for assignment of exclusive
-memory segments. The default timeout is 30 seconds, and is configurable via `taskmanager.network.memory.exclusive-bubffers-request-timeout-ms`.
+memory segments. The default timeout is 30 seconds, and is configurable via `taskmanager.network.memory.exclusive-buffers-request-timeout-ms`.
 It is possible that for some previously working deployments this default timeout value is too low
 and might have to be increased.
 
-Please also notice that several network I/O metrics have had their scope changed. See the [1.9 metrics documentation]()
-for which metrics are affected. In 1.9., these metrics will still be available under their previous scopes, but this
+Please also notice that several network I/O metrics have had their scope changed. See the [1.9 metrics documentation](https://ci.apache.org/projects/flink/flink-docs-master/monitoring/metrics.html)
+for which metrics are affected. In 1.9.0, these metrics will still be available under their previous scopes, but this
 may no longer be the case in future versions.
 
 Related issues:
