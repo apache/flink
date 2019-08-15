@@ -497,7 +497,7 @@ public class ExecutionContext<ClusterID> {
 				// special case for Blink planner to apply batch optimizations
 				// note: it also modifies the ExecutionConfig!
 				if (executor instanceof ExecutorBase) {
-					return ((ExecutorBase) executor).generateStreamGraph(name);
+					return ((ExecutorBase) executor).getStreamGraph(name);
 				}
 				return streamExecEnv.getStreamGraph(name);
 			} else {

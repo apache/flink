@@ -88,7 +88,7 @@ class BatchPlanner(
     val transformations = translateToPlan(execNodes)
     val batchExecutor = new BatchExecutor(getExecEnv)
     batchExecutor.setTableConfig(getTableConfig)
-    val streamGraph = batchExecutor.generateStreamGraph(transformations, "")
+    val streamGraph = batchExecutor.getStreamGraph(transformations, "")
     val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
     val sb = new StringBuilder

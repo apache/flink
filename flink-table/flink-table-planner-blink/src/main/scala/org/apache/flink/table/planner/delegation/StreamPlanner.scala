@@ -79,7 +79,7 @@ class StreamPlanner(
     val transformations = translateToPlan(execNodes)
     val streamExecutor = new StreamExecutor(getExecEnv)
     streamExecutor.setTableConfig(getTableConfig)
-    val streamGraph = streamExecutor.generateStreamGraph(transformations, "")
+    val streamGraph = streamExecutor.getStreamGraph(transformations, "")
     val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
     val sb = new StringBuilder

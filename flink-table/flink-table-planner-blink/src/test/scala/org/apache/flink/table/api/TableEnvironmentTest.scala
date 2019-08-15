@@ -18,20 +18,13 @@
 
 package org.apache.flink.table.api
 
-import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeinfo.Types.STRING
-import org.apache.flink.api.common.typeutils.TypeSerializer
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
-import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
-import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.sinks.{CollectRowTableSink, CollectTableSink}
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSources}
-import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
-import org.apache.flink.types.Row
-import org.apache.flink.util.AbstractID
+import org.apache.flink.table.sinks.CsvTableSink
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
@@ -87,39 +80,22 @@ class TableEnvironmentTest {
   }
 
   @Test
-  def testExecuteTwiceUsingSameTableEnv(): Unit = {
-    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inBatchMode().build()
-    val tEnv = TableEnvironmentImpl.create(settings)
+  def testStreamTableEnvironmentExplain(): Unit = {
+    thrown.expect(classOf[TableException])
+    thrown.expectMessage("'explain' method is unsupported in StreamTableEnvironment.")
+
+    val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
+    val settings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
+
     tEnv.registerTableSource("MyTable", TestTableSources.getPersonCsvTableSource)
-    registerTableSink(tEnv, Array("first"), Array(STRING), "MySink1")
-    registerTableSink(tEnv, Array("last"), Array(STRING), "MySink2")
+    tEnv.registerTableSink("MySink",
+      new CsvTableSink("/tmp").configure(Array("first"), Array(STRING)))
 
     val table1 = tEnv.sqlQuery("select first from MyTable")
-    tEnv.insertInto(table1, "MySink1")
-    val res1 = tEnv.execute("test1")
-    assertEquals(1, res1.getAllAccumulatorResults.size())
+    tEnv.insertInto(table1, "MySink")
 
-    val table2 = tEnv.sqlQuery("select last from MyTable")
-    tEnv.insertInto(table2, "MySink2")
-    val res2 = tEnv.execute("test2")
-    assertEquals(1, res2.getAllAccumulatorResults.size())
-  }
-
-  private def registerTableSink(
-      tEnv: TableEnvironment,
-      fieldNames: Array[String],
-      fieldTypes: Array[TypeInformation[_]],
-      tableName: String): Unit = {
-    val sink = new CollectRowTableSink()
-      .configure(fieldNames, fieldTypes)
-      .asInstanceOf[CollectTableSink[Row]]
-    val id = new AbstractID().toString
-    val typeSerializer = fromDataTypeToLegacyInfo(sink.getConsumedDataType)
-      .asInstanceOf[TypeInformation[Row]]
-      .createSerializer(tEnv.asInstanceOf[TableEnvironmentImpl]
-        .getPlanner.asInstanceOf[PlannerBase].getExecEnv.getConfig)
-    sink.init(typeSerializer.asInstanceOf[TypeSerializer[Row]], id)
-    tEnv.registerTableSink(tableName, sink)
+    tEnv.explain(false)
   }
 
 }

@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InputDependencyConstraint;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
@@ -48,13 +47,6 @@ public class BatchExecutor extends ExecutorBase {
 		super(executionEnvironment);
 	}
 
-	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
-		StreamGraph streamGraph = generateStreamGraph(jobName);
-		return execEnv.execute(streamGraph);
-	}
-
 	/**
 	 * Sets batch configs.
 	 */
@@ -70,12 +62,10 @@ public class BatchExecutor extends ExecutorBase {
 	}
 
 	@Override
-	public StreamGraph generateStreamGraph(List<Transformation<?>> transformations, String jobName) {
+	public StreamGraph getStreamGraph(List<Transformation<?>> transformations, String jobName) {
 		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
 		setBatchProperties(execEnv);
-		transformations.forEach(execEnv::addOperator);
-		StreamGraph streamGraph;
-		streamGraph = execEnv.getStreamGraph(getNonEmptyJobName(jobName));
+		StreamGraph streamGraph = generateStreamGraph(transformations, getNonEmptyJobName(jobName));
 		// All transformations should set managed memory size.
 		ResourceSpec managedResourceSpec = NodeResourceUtil.fromManagedMem(0);
 		streamGraph.getStreamNodes().forEach(sn -> {
