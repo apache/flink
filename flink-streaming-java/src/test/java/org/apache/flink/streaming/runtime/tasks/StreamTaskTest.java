@@ -128,11 +128,7 @@ import org.mockito.stubbing.Answer;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -176,6 +172,50 @@ public class StreamTaskTest extends TestLogger {
 
 	@Rule
 	public final Timeout timeoutPerTest = Timeout.seconds(30);
+
+	/**
+	 * This test checks the async exceptions handling wraps the message and cause as an AsynchronousException
+	 * and propagates this to the environment.
+	 */
+	@Test
+	public void handleAsyncException() throws Throwable {
+		MockEnvironment e = MockEnvironment.builder().build();
+		RuntimeException expectedException = new RuntimeException("RUNTIME EXCEPTION");
+
+		BlockingCloseStreamOperator.resetLatches();
+		Configuration taskConfiguration = new Configuration();
+		StreamConfig streamConfig = new StreamConfig(taskConfiguration);
+		streamConfig.setStreamOperator(new BlockingCloseStreamOperator());
+		streamConfig.setOperatorID(new OperatorID());
+
+		try (MockEnvironment mockEnvironment =
+				 new MockEnvironmentBuilder()
+					 .setTaskName("Test Task")
+					 .setMemorySize(32L * 1024L)
+					 .setInputSplitProvider(new MockInputSplitProvider())
+					 .setBufferSize(1)
+					 .setTaskConfiguration(taskConfiguration)
+					 .build()) {
+
+			RunningTask<StreamTask<Void, BlockingCloseStreamOperator>> task = runTask(() -> new NoOpStreamTask<>(mockEnvironment));
+
+			BlockingCloseStreamOperator.inClose.await();
+
+			// check that the StreamTask is not yet in isRunning == false
+			assertTrue(task.streamTask.isRunning());
+
+
+			// generate an error report and expect it to be caught by the Environment
+			mockEnvironment.setExpectedExternalFailureCause(Throwable.class);
+			task.streamTask.handleAsyncException("EXPECTED_ERROR MESSAGE", expectedException);
+
+			// expect an AsynchronousException containing the supplied error details
+			Optional<Throwable> actualExternalFailureCause = mockEnvironment.getActualExternalFailureCause();
+			AsynchronousException cause = (AsynchronousException)actualExternalFailureCause.get();
+			assertEquals(cause.getMessage(), "EXPECTED_ERROR MESSAGE");
+			assertEquals(cause.getCause(), expectedException);
+		}
+	}
 
 	/**
 	 * This test checks that cancel calls that are issued before the operator is
