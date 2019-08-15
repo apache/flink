@@ -49,6 +49,7 @@ This is by design to make the returned `DataStreamSink` accessible for the plann
 be reused across multiple SQL statements when using the Blink planner.
 - `Table.flatAggregate` is not supported
 - Session and count windows are not supported when running batch jobs.
+- The Blink planner only supports the new `Catalog` API, and does not support `ExternalCatalog` which is now deprecated.
 
 Related issues:
 - [FLINK-13708: Transformations should be cleared because a table environment could execute multiple job](https://issues.apache.org/jira/browse/FLINK-13708)
