@@ -78,7 +78,9 @@ related to job termination has been made to the CLI.
 
 From now on, the `stop` command with no further arguments stops the job with a savepoint targeted at the
 default savepoint location (as configured via the `state.savepoints.dir` property in the job configuration),
-or a location explicitly specified using the `-p <savepoint-path>` option.
+or a location explicitly specified using the `-p <savepoint-path>` option. Please make sure to configure the
+savepoint path using either one of these options.
+
 Since job terminations are now always accompanied with a savepoint, stopping jobs is expected to take longer now.
 
 Related issues:
