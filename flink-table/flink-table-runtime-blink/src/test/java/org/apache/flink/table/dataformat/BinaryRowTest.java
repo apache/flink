@@ -48,6 +48,7 @@ import org.junit.Test;
 import java.io.EOFException;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -182,7 +183,7 @@ public class BinaryRowTest {
 			BinaryRow row = new BinaryRow(2);
 			BinaryRowWriter writer = new BinaryRowWriter(row);
 			writer.writeString(0, fromString(str));
-			writer.writeString(1, fromBytes(str.getBytes()));
+			writer.writeString(1, fromBytes(str.getBytes(StandardCharsets.UTF_8)));
 			writer.complete();
 
 			assertEquals(str, row.getString(0).toString());

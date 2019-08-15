@@ -26,6 +26,8 @@ import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.types.Row
 
+import java.nio.charset.StandardCharsets
+
 abstract class ScalarTypesTestBase extends ExpressionTestBase {
 
   override def testData: Row = {
@@ -83,8 +85,8 @@ abstract class ScalarTypesTestBase extends ExpressionTestBase {
     testData.setField(50, localDate("1997-11-11"))
     testData.setField(51, localTime("09:44:55"))
     testData.setField(52, localDateTime("1997-11-11 09:44:55.333"))
-    testData.setField(53, "hello world".getBytes)
-    testData.setField(54, "This is a testing string.".getBytes)
+    testData.setField(53, "hello world".getBytes(StandardCharsets.UTF_8))
+    testData.setField(54, "This is a testing string.".getBytes(StandardCharsets.UTF_8))
     testData
   }
 
