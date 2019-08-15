@@ -32,14 +32,44 @@ Please read these notes carefully if you are planning to upgrade your Flink vers
 
 ## Known shortcomings or limitations for new features
 
-### New Table / SQL Blink runner
+### New Table / SQL Blink planner
 
-TBD
+Flink 1.9.0 provides support for two planners for the Table API, namely Flink's original planner and the new Blink
+planner. The original planner maintains same behaviour as previous releases, while the new Blink planner is still
+considered experimental and has the following limitations:
+
+- The Blink planner can not be used with `BatchTableEnvironment`, and therefore Table programs ran with the planner can not 
+be transformed to `DataSet` programs. This is by design and will also not be supported in the future. Therefore, if
+you want to run a batch job with the Blink planner, please use the new `TableEnvironment`. For streaming jobs,
+both `StreamTableEnvironment` and `TableEnvironment` works.
+- Implementations of `StreamTableSink` should implement the `consumeDataStream` method instead of `emitDataStream`
+if it is used with the Blink planner. Both methods work with the original planner.
+This is by design to make the returned `DataStreamSink` accessible for the planner.
+- Due to a bug with how transformations are not being cleared on execution, `TableEnvironment` instances should not
+be reused across multiple SQL statements when using the Blink planner.
+- `Table.flatAggregate` is not supported
+- Session and count windows are not supported when running batch jobs.
+
+Related issues:
+- [FLINK-13708: Transformations should be cleared because a table environment could execute multiple job](https://issues.apache.org/jira/browse/FLINK-13708)
+- [FLINK-13473: Add GroupWindowed FlatAggregate support to stream Table API (Blink planner), i.e, align with Flink planner](https://issues.apache.org/jira/browse/FLINK-13473)
+- [FLINK-13735: Support session window with Blink planner in batch mode](https://issues.apache.org/jira/browse/FLINK-13735)
+- [FLINK-13736: Support count window with Blink planner in batch mode](https://issues.apache.org/jira/browse/FLINK-13736)
+
+### SQL DDL
+
+In Flink 1.9.0, the community also added a preview feature about SQL DDL, but only for batch style DDLs.
+Therefore, all streaming related concepts are not supported yet, for example watermarks.
+
+Related issues:
+- [FLINK-13661: Add a stream specific CREATE TABLE SQL DDL](https://issues.apache.org/jira/browse/FLINK-13661)
+- [FLINK-13568: DDL create table doesn't allow STRING data type](https://issues.apache.org/jira/browse/FLINK-13568)
+- [FLINK-13699: TableFactory doesn't work with DDL when containing TIMESTAMP/DATE/TIME types](https://issues.apache.org/jira/browse/FLINK-13699)
 
 ### Java 9 support
 
 Since Flink 1.9.0, Flink can now be compiled and run on Java 9. Note that certain components interacting
-with eternal systems (connectors, filesystems, metric reporters, etc.) may not work since the respective projects may
+with external systems (connectors, filesystems, metric reporters, etc.) may not work since the respective projects may
 have skipped Java 9 support.
 
 Related issues:
@@ -49,7 +79,7 @@ Related issues:
 
 ### Failover strategies
 
-As a result of completion of fine-grained recovery ([FLIP-1](https://cwiki.apache.org/confluence/display/FLINK/FLIP-1+%3A+Fine+Grained+Recovery+from+Task+Failures)),
+As a result of completing fine-grained recovery ([FLIP-1](https://cwiki.apache.org/confluence/display/FLINK/FLIP-1+%3A+Fine+Grained+Recovery+from+Task+Failures)),
 Flink will now attempt to only restart tasks that are
 connected to failed tasks through a pipelined connection. By default, the `region` failover strategy is used.
 
@@ -78,7 +108,9 @@ related to job termination has been made to the CLI.
 
 From now on, the `stop` command with no further arguments stops the job with a savepoint targeted at the
 default savepoint location (as configured via the `state.savepoints.dir` property in the job configuration),
-or a location explicitly specified using the `-p <savepoint-path>` option.
+or a location explicitly specified using the `-p <savepoint-path>` option. Please make sure to configure the
+savepoint path using either one of these options.
+
 Since job terminations are now always accompanied with a savepoint, stopping jobs is expected to take longer now.
 
 Related issues:
@@ -97,12 +129,12 @@ increase the value of `taskmanager.network.request-backoff.max` in order to have
 request timeout as it was prior to 1.9.0.
 
 - To avoid a potential deadlock, a timeout has been added for how long a task will wait for assignment of exclusive
-memory segments. The default timeout is 30 seconds, and is configurable via `taskmanager.network.memory.exclusive-bubffers-request-timeout-ms`.
+memory segments. The default timeout is 30 seconds, and is configurable via `taskmanager.network.memory.exclusive-buffers-request-timeout-ms`.
 It is possible that for some previously working deployments this default timeout value is too low
 and might have to be increased.
 
-Please also notice that several network I/O metrics have had their scope changed. See the [1.9 metrics documentation]()
-for which metrics are affected. In 1.9., these metrics will still be available under their previous scopes, but this
+Please also notice that several network I/O metrics have had their scope changed. See the [1.9 metrics documentation](https://ci.apache.org/projects/flink/flink-docs-master/monitoring/metrics.html)
+for which metrics are affected. In 1.9.0, these metrics will still be available under their previous scopes, but this
 may no longer be the case in future versions.
 
 Related issues:
@@ -114,7 +146,9 @@ Related issues:
 
 Due to a bug in the `AsyncWaitOperator`, in 1.9.0 the default chaining behaviour of the operator is now changed so
 that it is never chained after another operator. This should not be problematic for migrating from older version
-snapshots as long as an uid was assigned to the operator.
+snapshots as long as an uid was assigned to the operator. If an uid was not assigned to the operator, please see
+the instructions [here](https://ci.apache.org/projects/flink/flink-docs-release-1.9/ops/upgrading.html#matching-operator-state)
+for a possible workaround.
 
 Related issues:
 - [FLINK-13063: AsyncWaitOperator shouldn't be releasing checkpointingLock](https://issues.apache.org/jira/browse/FLINK-13063)
@@ -141,11 +175,16 @@ Existing users may continue to use these older APIs with future versions of Flin
 and `flink-python` jars into the `/lib` directory of the distribution and the corresponding start scripts `pyflink-stream.sh`
 and `pyflink.sh` into the `/bin` directory of the distribution.
 
+- The older machine learning libraries have been removed and will no longer receive new patches.
+This is due to efforts towards a new Table-based machine learning library ([FLIP-39](https://docs.google.com/document/d/1StObo1DLp8iiy0rbukx8kwAJb0BwDZrQrMWub3DzsEo/edit)).
+Users can still use the 1.8 version of the legacy library if their projects still rely on it.
+
 Related issues:
 - [FLINK-11693: Add KafkaSerializationSchema that directly uses ProducerRecord](https://issues.apache.org/jira/browse/FLINK-11693)
 - [FLINK-12151: Drop Elasticsearch 1 connector](https://issues.apache.org/jira/browse/FLINK-12151)
 - [FLINK-12903: Remove legacy flink-python APIs](https://issues.apache.org/jira/browse/FLINK-12903)
 - [FLINK-12308: Support python language in Flink Table API](https://issues.apache.org/jira/browse/FLINK-12308)
+- [FLINK-12597: Remove the legacy flink-libraries/flink-ml](https://issues.apache.org/jira/browse/FLINK-12597)
 
 ### MapR dependency removed
 
