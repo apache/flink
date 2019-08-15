@@ -19,7 +19,6 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.DataStatistics;
@@ -59,28 +58,11 @@ public class PackagedProgramUtils {
 			@Nullable JobID jobID) throws ProgramInvocationException {
 		Thread.currentThread().setContextClassLoader(packagedProgram.getUserCodeClassLoader());
 		final Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), configuration);
-		final FlinkPlan flinkPlan;
 
-		if (packagedProgram.isUsingProgramEntryPoint()) {
+		final OptimizerPlanEnvironment optimizerPlanEnvironment = new OptimizerPlanEnvironment(optimizer);
+		optimizerPlanEnvironment.setParallelism(defaultParallelism);
 
-			final JobWithJars jobWithJars = packagedProgram.getPlanWithJars();
-
-			final Plan plan = jobWithJars.getPlan();
-
-			if (plan.getDefaultParallelism() <= 0) {
-				plan.setDefaultParallelism(defaultParallelism);
-			}
-
-			flinkPlan = optimizer.compile(jobWithJars.getPlan());
-		} else if (packagedProgram.isUsingInteractiveMode()) {
-			final OptimizerPlanEnvironment optimizerPlanEnvironment = new OptimizerPlanEnvironment(optimizer);
-
-			optimizerPlanEnvironment.setParallelism(defaultParallelism);
-
-			flinkPlan = optimizerPlanEnvironment.getOptimizedPlan(packagedProgram);
-		} else {
-			throw new ProgramInvocationException("PackagedProgram does not have a valid invocation mode.");
-		}
+		final FlinkPlan flinkPlan = optimizerPlanEnvironment.getOptimizedPlan(packagedProgram);
 
 		final JobGraph jobGraph;
 
