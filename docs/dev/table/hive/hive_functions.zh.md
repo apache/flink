@@ -163,3 +163,5 @@ Hive built-in functions are currently not supported out of box in Flink. To use 
 Support for Hive functions has only been tested for Flink batch in Blink planner.
 
 Hive functions currently cannot be used across catalogs in Flink.
+
+Please reference to [Hive]({{ site.baseurl }}/dev/table/hive/index.html) for data type limitations.
