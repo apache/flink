@@ -202,7 +202,16 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
     SQL_DATE ^^ { e => DataTypes.DATE().bridgedTo(classOf[JDate]) } |
     SQL_TIMESTAMP ^^ { e => DataTypes.TIMESTAMP(3).bridgedTo(classOf[JTimestamp]) } |
     SQL_TIME ^^ { e => DataTypes.TIME(0).bridgedTo(classOf[JTime]) } |
-    DECIMAL ^^ { e => DataTypes.DECIMAL(DecimalType.DEFAULT_PRECISION, DecimalType.DEFAULT_SCALE) }
+    DECIMAL ~ "(" ~> wholeNumber ~ "," ~ wholeNumber <~ ")" ^^ {
+      e =>
+        val precision = e._1._1.toInt
+        val scale = e._2.toInt
+        DataTypes.DECIMAL(precision, scale)
+    } |
+    DECIMAL ^^ {
+      e =>
+        DataTypes.DECIMAL(DecimalType.DEFAULT_PRECISION, DecimalType.DEFAULT_SCALE)
+    }
 
   // literals
 

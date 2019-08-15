@@ -1380,19 +1380,17 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "truncate(cast(f28 as DOUBLE), 1)",
       "0.4")
 
-    // TODO: ignore TableApiTest for cast to DECIMAL(p, s) is not support now.
-    //  see https://issues.apache.org/jira/browse/FLINK-13651
-//    testAllApis(
-//      'f31.cast(DataTypes.DECIMAL(38, 18)).truncate(2),
-//      "f31.cast(DECIMAL(10, 10)).truncate(2)",
-//      "truncate(cast(f31 as decimal(38, 18)), 2)",
-//      "-0.12")
-//
-//    testAllApis(
-//      'f36.cast(DataTypes.DECIMAL(38, 18)).truncate(),
-//      "f36.cast(DECIMAL(10, 10)).truncate()",
-//      "truncate(42.324)",
-//      "42")
+    testAllApis(
+      'f31.cast(DataTypes.DECIMAL(38, 18)).truncate(2),
+      "f31.cast(DECIMAL(38, 18)).truncate(2)",
+      "truncate(cast(f31 as decimal(38, 18)), 2)",
+      "-0.12")
+
+    testAllApis(
+      'f49.cast(DataTypes.DECIMAL(38, 18)).truncate(),
+      "f49.cast(DECIMAL(38, 18)).truncate()",
+      "truncate(1345.1231231321321321111)",
+      "1345")
 
     testSqlApi("truncate(cast(f31 as decimal(38, 18)), 2)", "-0.12")
 
@@ -4110,5 +4108,21 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "IS_ALPHA(f33)",
       "false")
+  }
+
+  @Test
+  def testCastDecimal(): Unit = {
+    testAllApis(
+      'f31.cast(DataTypes.DECIMAL(10, 0)),
+      "f31.cast(DECIMAL)",
+      "cast(f31 as decimal)",
+      "0")
+
+    testAllApis(
+      'f49.cast(DataTypes.DECIMAL(10, 0)),
+      "f49.cast(DECIMAL)",
+      "cast(1345.1231231321321321111 as decimal)",
+      "1345")
+
   }
 }
