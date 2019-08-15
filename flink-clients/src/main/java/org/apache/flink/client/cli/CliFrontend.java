@@ -861,7 +861,7 @@ public class CliFrontend {
 
 		PackagedProgram program = entryPointClass == null ?
 				new PackagedProgram(jarFile, classpaths, programArgs) :
-				new PackagedProgram(jarFile, classpaths, entryPointClass, programArgs);
+				new PackagedProgram(jarFile, classpaths, entryPointClass, true, programArgs);
 
 		program.setSavepointRestoreSettings(options.getSavepointRestoreSettings());
 
