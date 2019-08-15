@@ -127,4 +127,5 @@ The following is a list of major limitations of the Hive connector. And we're ac
 3. ACID tables are not supported.
 4. Bucketed tables are not supported.
 5. Some data types are not supported. See the [limitations]({{ site.baseurl }}/dev/table/hive/#limitations) for details.
-6. Only a limited number of table storage formats have been tested, namely text, ORC, and Parquet.
+6. Only a limited number of table storage formats have been tested, namely text, SequenceFile, ORC, and Parquet.
+7. Views are not supported.
