@@ -515,6 +515,20 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "charLength(f0)",
       "CHARACTER_LENGTH(f0)",
       "22")
+
+    testAllApis(
+      "test".cast(DataTypes.CHAR(10)).charLength(),
+      "'test'.cast(CHAR(10)).charLength()",
+      "char_length(cast('test' AS CHAR(10)))",
+      "10"
+    )
+
+    testAllApis(
+      "".cast(DataTypes.CHAR(1)).charLength(),
+      "''.cast(CHAR).charLength()",
+      "char_length(cast('' AS CHAR))",
+      "1"
+    )
   }
 
   @Test
@@ -4123,6 +4137,5 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "f49.cast(DECIMAL)",
       "cast(1345.1231231321321321111 as decimal)",
       "1345")
-
   }
 }
