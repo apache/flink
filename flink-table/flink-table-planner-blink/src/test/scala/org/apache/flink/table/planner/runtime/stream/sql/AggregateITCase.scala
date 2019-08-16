@@ -1169,6 +1169,35 @@ class AggregateITCase(
   }
 
   @Test
+  def testDistinctWithMultiFilter(): Unit = {
+    val t = failingDataSource(TestData.tupleData3).toTable(tEnv).as('a, 'b, 'c)
+    tEnv.registerTable("MyTable", t)
+
+    val sqlQuery =
+      s"""
+         |SELECT
+         |  b,
+         |  SUM(DISTINCT (a * 3)),
+         |  COUNT(DISTINCT SUBSTRING(c FROM 1 FOR 2)),
+         |  COUNT(DISTINCT c),
+         |  COUNT(DISTINCT c) filter (where MOD(a, 3) = 0),
+         |  COUNT(DISTINCT c) filter (where MOD(a, 3) = 1)
+         |FROM MyTable
+         |GROUP BY b
+       """.stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery).toRetractStream[Row]
+    val sink = new TestingRetractSink
+    result.addSink(sink)
+    env.execute()
+    val expected = List(
+      "1,3,1,1,0,1", "2,15,1,2,1,0",
+      "3,45,3,3,1,1", "4,102,1,4,1,2",
+      "5,195,1,5,2,1", "6,333,1,6,2,2")
+    assertEquals(expected.sorted, sink.getRetractResults.sorted)
+  }
+
+  @Test
   def testPruneUselessAggCall(): Unit = {
     val data = new mutable.MutableList[(Int, Long, String)]
     data .+= ((1, 1L, "Hi"))
