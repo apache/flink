@@ -30,6 +30,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -305,6 +306,11 @@ public final class TypeInferenceUtil {
 				return Optional.empty();
 			}
 			return originalContext.getArgumentValue(pos, clazz);
+		}
+
+		@Override
+		public Set<ContextUsage> getUsages() {
+			return originalContext.getUsages();
 		}
 
 		@Override

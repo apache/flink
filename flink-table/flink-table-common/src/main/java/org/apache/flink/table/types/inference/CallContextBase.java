@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.functions.FunctionDefinition;
 
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Provides details about the function call for which type inference is performed.
@@ -54,6 +55,11 @@ public interface CallContextBase {
 	 * <p>Use {@link #isArgumentLiteral(int)} before to check if the argument is actually a literal.
 	 */
 	<T> Optional<T> getArgumentValue(int pos, Class<T> clazz);
+
+	/**
+	 * Returns the set of usages in this context.
+	 */
+	Set<ContextUsage> getUsages();
 
 	/**
 	 * Returns the function's name usually referencing the function in a catalog.
