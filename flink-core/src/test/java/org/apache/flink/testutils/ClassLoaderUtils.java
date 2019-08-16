@@ -34,6 +34,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -78,6 +79,23 @@ public class ClassLoaderUtils {
 	private static int compileClass(File sourceFile) {
 		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 		return compiler.run(null, null, null, "-proc:none", sourceFile.getPath());
+	}
+
+	public static URL[] getClasspathURLs() {
+		final String[] cp = System.getProperty("java.class.path").split(File.pathSeparator);
+
+		return Arrays.stream(cp)
+			.filter(str -> !str.isEmpty())
+			.map(ClassLoaderUtils::parse)
+			.toArray(URL[]::new);
+	}
+
+	private static URL parse(String fileName) {
+		try {
+			return new File(fileName).toURI().toURL();
+		} catch (MalformedURLException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	public static class ClassLoaderBuilder {
