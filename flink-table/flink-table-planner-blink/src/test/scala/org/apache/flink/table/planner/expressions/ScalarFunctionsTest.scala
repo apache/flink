@@ -529,6 +529,20 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "char_length(cast('' AS CHAR))",
       "1"
     )
+
+    testAllApis(
+      "test".cast(DataTypes.VARCHAR(10)).charLength(),
+      "'test'.cast(VARCHAR(10)).charLength()",
+      "char_length(cast('test' AS VARCHAR(10)))",
+      "4"
+    )
+
+    testAllApis(
+      "".cast(DataTypes.VARCHAR(1)).charLength(),
+      "''.cast(VARCHAR).charLength()",
+      "char_length(cast('' AS VARCHAR))",
+      "0"
+    )
   }
 
   @Test

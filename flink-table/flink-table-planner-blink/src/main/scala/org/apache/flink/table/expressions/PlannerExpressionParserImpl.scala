@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.JDouble
 import org.apache.flink.table.planner.JString
 import org.apache.flink.table.planner.JBigDecimal
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.logical.{CharType, DecimalType}
+import org.apache.flink.table.types.logical.{CharType, DecimalType, VarCharType}
 import _root_.java.sql.{Date => JDate, Time => JTime, Timestamp => JTimestamp}
 import _root_.java.util.{List => JList}
 
@@ -148,6 +148,7 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
   lazy val TRIM_MODE_BOTH: Keyword = Keyword("BOTH")
   lazy val TO: Keyword = Keyword("TO")
   lazy val CHAR: Keyword = Keyword("CHAR")
+  lazy val VARCHAR: Keyword = Keyword("VARCHAR")
 
   def functionIdent: PlannerExpressionParserImpl.Parser[String] = super.ident
 
@@ -217,7 +218,13 @@ object PlannerExpressionParserImpl extends JavaTokenParsers
         val length = e.toInt
         DataTypes.CHAR(length)
     } |
-    CHAR ^^ { e => DataTypes.CHAR(CharType.DEFAULT_LENGTH) }
+    CHAR ^^ { e => DataTypes.CHAR(CharType.DEFAULT_LENGTH) } |
+    VARCHAR ~ "(" ~> wholeNumber <~ ")" ^^ {
+      e =>
+        val length = e.toInt
+        DataTypes.VARCHAR(length)
+    } |
+    VARCHAR ^^ { e => DataTypes.VARCHAR(VarCharType.DEFAULT_LENGTH) }
 
   // literals
 
