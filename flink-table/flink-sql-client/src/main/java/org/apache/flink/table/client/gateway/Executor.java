@@ -61,6 +61,11 @@ public interface Executor {
 	List<String> listUserDefinedFunctions(SessionContext session) throws SqlExecutionException;
 
 	/**
+	 * Lists all functions known to the executor.
+	 */
+	List<String> listFunctions(SessionContext session) throws SqlExecutionException;
+
+	/**
 	 * Sets a catalog with given name as the current catalog.
 	 */
 	void useCatalog(SessionContext session, String catalogName) throws SqlExecutionException;

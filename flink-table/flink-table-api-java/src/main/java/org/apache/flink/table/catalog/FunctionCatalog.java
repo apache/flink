@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -39,11 +40,11 @@ import org.apache.flink.table.functions.UserDefinedAggregateFunction;
 import org.apache.flink.table.functions.UserFunctionsTypeHelper;
 import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -134,7 +135,25 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	public String[] getUserDefinedFunctions() {
-		List<String> result = new ArrayList<>();
+		return getUserDefinedFunctionNames().toArray(new String[0]);
+	}
+
+	public String[] getFunctions() {
+		Set<String> result = getUserDefinedFunctionNames();
+
+		// Get built-in functions
+		result.addAll(
+			BuiltInFunctionDefinitions.getDefinitions()
+				.stream()
+				.map(f -> normalizeName(f.getName()))
+				.collect(Collectors.toSet())
+		);
+
+		return result.toArray(new String[0]);
+	}
+
+	private Set<String> getUserDefinedFunctionNames() {
+		Set<String> result = new HashSet<>();
 
 		// Get functions in catalog
 		Catalog catalog = catalogManager.getCatalog(catalogManager.getCurrentCatalog()).get();
@@ -148,9 +167,9 @@ public class FunctionCatalog implements FunctionLookup {
 		result.addAll(
 			userFunctions.values().stream()
 				.map(FunctionDefinition::toString)
-				.collect(Collectors.toList()));
+				.collect(Collectors.toSet()));
 
-		return result.toArray(new String[0]);
+		return result;
 	}
 
 	@Override
@@ -226,7 +245,8 @@ public class FunctionCatalog implements FunctionLookup {
 		userFunctions.put(normalizeName(name), functionDefinition);
 	}
 
-	private String normalizeName(String name) {
+	@VisibleForTesting
+	static String normalizeName(String name) {
 		return name.toUpperCase();
 	}
 }

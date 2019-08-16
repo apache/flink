@@ -258,6 +258,11 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	@Override
+	public String[] listFunctions() {
+		return functionCatalog.getFunctions();
+	}
+
+	@Override
 	public String explain(Table table) {
 		return explain(table, false);
 	}

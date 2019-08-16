@@ -58,6 +58,8 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def listUserDefinedFunctions(): Array[String] = ???
 
+  override def listFunctions(): Array[String] = ???
+
   override def explain(table: Table): String = ???
 
   override def explain(table: Table, extended: Boolean): String = ???

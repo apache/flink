@@ -233,6 +233,15 @@ public class LocalExecutor implements Executor {
 	}
 
 	@Override
+	public List<String> listFunctions(SessionContext session) throws SqlExecutionException {
+		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
+		final TableEnvironment tableEnv = context
+			.createEnvironmentInstance()
+			.getTableEnvironment();
+		return context.wrapClassLoader(() -> Arrays.asList(tableEnv.listFunctions()));
+	}
+
+	@Override
 	public void useCatalog(SessionContext session, String catalogName) throws SqlExecutionException {
 		final ExecutionContext<?> context = getOrCreateExecutionContext(session);
 		final TableEnvironment tableEnv = context

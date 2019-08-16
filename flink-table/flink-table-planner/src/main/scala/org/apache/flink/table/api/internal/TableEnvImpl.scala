@@ -352,6 +352,8 @@ abstract class TableEnvImpl(
 
   override def listUserDefinedFunctions(): Array[String] = functionCatalog.getUserDefinedFunctions
 
+  override def listFunctions(): Array[String] = functionCatalog.getFunctions
+
   override def explain(table: Table): String
 
   override def getCompletionHints(statement: String, position: Int): Array[String] = {
