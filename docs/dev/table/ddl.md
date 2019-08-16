@@ -37,11 +37,7 @@ CREATE [OR REPLACE] TABLE [catalog_name.][db_name.]table_name
   [WITH (key1=val1, key2=val2, ...)]
 {% endhighlight %}
 
-Create a table with the given table properties. If a table with the same name already exists in the database, an exception is thrown except that *IF NOT EXIST* is declared.
-
-**OR REPLACE**
-
-If a table with the same name already exists in the database, replace it if this is declared. **Notes:** The OR REPLACE option is always false now.
+Create a table with the given table properties. If a table with the same name already exists in the database, an exception is thrown.
 
 **PARTITIONED BY**
 
@@ -81,10 +77,6 @@ select_statement
 {% endhighlight %}
 
 Define a logical view on a sql query which may be from multiple tables or views.
-
-**OR REPLACE**
-
-If the view does not exist, CREATE OR REPLACE VIEW is equivalent to CREATE VIEW. If the view does exist, CREATE OR REPLACE VIEW is equivalent to ALTER VIEW. **Notes:** The OR REPLACE option is always false now.
 
 **AS select_statement**
 
