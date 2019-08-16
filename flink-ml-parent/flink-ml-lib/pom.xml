@@ -34,5 +34,9 @@ under the License.
 			<artifactId>flink-ml-api</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-guava</artifactId>
+		</dependency>
 	</dependencies>
 </project>
