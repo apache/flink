@@ -19,15 +19,18 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -117,16 +120,37 @@ public final class TypeInferenceUtil {
 			callContext,
 			expectedTypes);
 
+		final AdaptedCallContext finalCallContext;
+		InputTypeStrategy inputTypeStrategy = typeInference.getInputTypeStrategy();
+		if (inputTypeStrategy != null) {
+			Optional<DataType> potential = typeInference.getOutputTypeStrategy().inferType(adaptedCallContext);
+			DataType[] inferTypes = new DataType[expectedTypes.size()];
+			inputTypeStrategy.inferTypes(adaptedCallContext, potential.orElseGet(DataTypes::NULL), inferTypes);
+
+			// we only replace NULL types.
+			for (int i = 0; i < inferTypes.length; i++) {
+				DataType expectedType = expectedTypes.get(i);
+				if (expectedType.getLogicalType().getTypeRoot() != LogicalTypeRoot.NULL) {
+					inferTypes[i] = expectedType;
+				}
+			}
+			finalCallContext = adaptArguments(
+					adaptedCallContext,
+					Arrays.asList(inferTypes));
+		} else {
+			finalCallContext = adaptedCallContext;
+		}
+
 		try {
 			validateInputTypes(
 				typeInference.getInputTypeValidator(),
-				adaptedCallContext);
+				finalCallContext);
 		} catch (ValidationException e) {
-			throw getInvalidInputException(typeInference.getInputTypeValidator(), adaptedCallContext);
+			throw getInvalidInputException(typeInference.getInputTypeValidator(), finalCallContext);
 		}
 
 		return inferTypes(
-			adaptedCallContext,
+			finalCallContext,
 			typeInference.getAccumulatorTypeStrategy().orElse(null),
 			typeInference.getOutputTypeStrategy());
 	}

@@ -44,6 +44,8 @@ public final class TypeInference {
 
 	private final InputTypeValidator inputTypeValidator;
 
+	private final @Nullable InputTypeStrategy inputTypeStrategy;
+
 	private final @Nullable TypeStrategy accumulatorTypeStrategy;
 
 	private final TypeStrategy outputTypeStrategy;
@@ -54,11 +56,13 @@ public final class TypeInference {
 
 	private TypeInference(
 			InputTypeValidator inputTypeValidator,
+			@Nullable InputTypeStrategy inputTypeStrategy,
 			@Nullable TypeStrategy accumulatorTypeStrategy,
 			TypeStrategy outputTypeStrategy,
 			@Nullable List<String> argumentNames,
 			@Nullable List<DataType> argumentTypes) {
 		this.inputTypeValidator = inputTypeValidator;
+		this.inputTypeStrategy = inputTypeStrategy;
 		this.accumulatorTypeStrategy = accumulatorTypeStrategy;
 		this.outputTypeStrategy = outputTypeStrategy;
 		if (argumentNames != null && argumentTypes != null && argumentNames.size() != argumentTypes.size()) {
@@ -74,6 +78,10 @@ public final class TypeInference {
 
 	public InputTypeValidator getInputTypeValidator() {
 		return inputTypeValidator;
+	}
+
+	public InputTypeStrategy getInputTypeStrategy() {
+		return inputTypeStrategy;
 	}
 
 	public Optional<TypeStrategy> getAccumulatorTypeStrategy() {
@@ -104,6 +112,8 @@ public final class TypeInference {
 		private @Nullable TypeStrategy accumulatorTypeStrategy;
 
 		private @Nullable TypeStrategy outputTypeStrategy;
+
+		private @Nullable InputTypeStrategy inputTypeStrategy;
 
 		private @Nullable List<String> argumentNames;
 
@@ -145,6 +155,17 @@ public final class TypeInference {
 		}
 
 		/**
+		 * Sets the strategy for inferring unknown types of the inputs of a function definition.
+		 *
+		 * <p>Required.
+		 */
+		public Builder inputTypeStrategy(InputTypeStrategy inputTypeStrategy) {
+			this.inputTypeStrategy =
+					Preconditions.checkNotNull(inputTypeStrategy, "Input type strategy must not be null.");
+			return this;
+		}
+
+		/**
 		 * Sets the list of argument names for specifying static input explicitly.
 		 *
 		 * <p>This information is useful for SQL's concept of named arguments using the assignment
@@ -170,6 +191,7 @@ public final class TypeInference {
 		public TypeInference build() {
 			return new TypeInference(
 				inputTypeValidator,
+				inputTypeStrategy,
 				accumulatorTypeStrategy,
 				Preconditions.checkNotNull(outputTypeStrategy, "Output type strategy must not be null."),
 				argumentNames,

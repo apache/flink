@@ -20,6 +20,7 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.InputTypeValidator;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeStrategy;
@@ -135,6 +136,11 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 
 		public Builder outputTypeStrategy(TypeStrategy outputTypeStrategy) {
 			this.typeInferenceBuilder.outputTypeStrategy(outputTypeStrategy);
+			return this;
+		}
+
+		public Builder inputTypeStrategy(InputTypeStrategy inputTypeStrategy) {
+			this.typeInferenceBuilder.inputTypeStrategy(inputTypeStrategy);
 			return this;
 		}
 
