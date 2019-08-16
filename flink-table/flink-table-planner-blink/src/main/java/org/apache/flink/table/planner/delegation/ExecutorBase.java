@@ -25,9 +25,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamGraphGenerator;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.util.StringUtils;
-import org.apache.flink.table.api.TableEnvironment;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -91,7 +91,7 @@ public abstract class ExecutorBase implements Executor {
 	 * the StreamGraph to executed will contain duplicated transformations,
 	 * one is from explain method, and another is from execute method.
 	 *
-	 * use {@link StreamGraphGenerator} directly instead of {@link StreamExecutionEnvironment#getStreamGraph}
+	 * <p>use {@link StreamGraphGenerator} directly instead of {@link StreamExecutionEnvironment#getStreamGraph}
 	 * to avoid above case.
 	 */
 	protected StreamGraph generateStreamGraph(List<Transformation<?>> transformations, String jobName) {
