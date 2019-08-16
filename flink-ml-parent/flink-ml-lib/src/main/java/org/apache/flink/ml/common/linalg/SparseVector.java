@@ -19,12 +19,11 @@
 
 package org.apache.flink.ml.common.linalg;
 
-import org.apache.commons.lang3.StringUtils;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 
 /**
@@ -107,97 +106,6 @@ public class SparseVector extends Vector {
 
 		if (!(kv instanceof TreeMap)) {
 			sortIndices();
-		}
-	}
-
-	/**
-	 * Delimiter between vector size and vector data.
-	 * Package private to allow access from {@link Vector#parse(String)}.
-	 */
-	static final char HEADER_DELIMITER = '$';
-
-	/**
-	 * Delimiter between index and value.
-	 * Package private to allow access from {@link Vector#parse(String)}.
-	 */
-	static final char INDEX_VALUE_DELIMITER = ':';
-
-	/**
-	 * Delimiter between elements.
-	 */
-	private static final char ELEMENT_DELIMITER = ' ';
-
-	@Override
-	public String serialize() {
-		StringBuilder sbd = new StringBuilder();
-		if (n > 0) {
-			sbd.append(HEADER_DELIMITER);
-			sbd.append(n);
-			sbd.append(HEADER_DELIMITER);
-		}
-		if (null != indices) {
-			for (int i = 0; i < indices.length; i++) {
-				sbd.append(indices[i]);
-				sbd.append(INDEX_VALUE_DELIMITER);
-				sbd.append(values[i]);
-				if (i < indices.length - 1) {
-					sbd.append(ELEMENT_DELIMITER);
-				}
-			}
-		}
-
-		return sbd.toString();
-	}
-
-	/**
-	 * Parse the sparse vector from a formatted string.
-	 *
-	 * <p>The format of a sparse vector is comma separated index-value pairs, such as "0:1 2:3 3:4".
-	 * If the sparse vector has determined vector size, the size is prepended to the head. For example,
-	 * the string "$4$0:1 2:3 3:4" represents a sparse vector with size 4.
-	 *
-	 * @throws IllegalArgumentException If the string is of invalid format.
-	 */
-	public static SparseVector deserialize(String str) {
-		try {
-			if (org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly(str)) {
-				return new SparseVector();
-			}
-
-			int n = -1;
-			int firstDollarPos = str.indexOf(HEADER_DELIMITER);
-			int lastDollarPos = -1;
-			if (firstDollarPos >= 0) {
-				lastDollarPos = StringUtils.lastIndexOf(str, HEADER_DELIMITER);
-				String sizeStr = StringUtils.substring(str, firstDollarPos + 1, lastDollarPos);
-				n = Integer.valueOf(sizeStr);
-				if (lastDollarPos == str.length() - 1) {
-					return new SparseVector(n);
-				}
-			}
-
-			int numValues = StringUtils.countMatches(str, String.valueOf(INDEX_VALUE_DELIMITER));
-			double[] data = new double[numValues];
-			int[] indices = new int[numValues];
-			int startPos = lastDollarPos + 1;
-			int endPos;
-			for (int i = 0; i < numValues; i++) {
-				int colonPos = StringUtils.indexOf(str, INDEX_VALUE_DELIMITER, startPos);
-				if (colonPos < 0) {
-					throw new IllegalArgumentException("Format error.");
-				}
-				endPos = StringUtils.indexOf(str, ELEMENT_DELIMITER, colonPos);
-				if (endPos == -1) {
-					endPos = str.length();
-				}
-				indices[i] = Integer.valueOf(str.substring(startPos, colonPos).trim());
-				data[i] = Double.valueOf(str.substring(colonPos + 1, endPos).trim());
-				startPos = endPos + 1;
-			}
-			return new SparseVector(n, indices, data);
-		} catch (Exception e) {
-			throw new IllegalArgumentException(String.format("Fail to parse sparse vector from string: \"%s\".", str),
-				e);
 		}
 	}
 
@@ -379,11 +287,7 @@ public class SparseVector extends Vector {
 
 	@Override
 	public String toString() {
-		return "Sparse Vector{" +
-			"indices=" + Arrays.toString(indices) +
-			"values=" + Arrays.toString(values) +
-			"vectorSize=" + n +
-			'}';
+		return VectorUtil.toString(this);
 	}
 
 	@Override
@@ -630,6 +534,28 @@ public class SparseVector extends Vector {
 		for (int i = 0; i < indices.length; i++) {
 			values[i] /= norm;
 		}
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		SparseVector that = (SparseVector) o;
+		return n == that.n &&
+			Arrays.equals(indices, that.indices) &&
+			Arrays.equals(values, that.values);
+	}
+
+	@Override
+	public int hashCode() {
+		int result = Objects.hash(n);
+		result = 31 * result + Arrays.hashCode(indices);
+		result = 31 * result + Arrays.hashCode(values);
+		return result;
 	}
 
 	@Override

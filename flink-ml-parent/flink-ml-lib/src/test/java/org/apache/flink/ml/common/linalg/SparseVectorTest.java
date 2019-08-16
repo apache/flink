@@ -201,26 +201,6 @@ public class SparseVectorTest {
 	}
 
 	@Test
-	public void testSerialize() throws Exception {
-		Assert.assertEquals(v1.serialize(), "$8$1:2.0 3:2.0 5:2.0 7:2.0");
-	}
-
-	@Test
-	public void testDeserialize() throws Exception {
-		SparseVector vec1 = SparseVector.deserialize("0:1 2:-3");
-		SparseVector vec3 = SparseVector.deserialize("$4$0:1 2:-3");
-		SparseVector vec4 = SparseVector.deserialize("$4$");
-		SparseVector vec5 = SparseVector.deserialize("");
-		Assert.assertEquals(vec1.get(0), 1., 0.);
-		Assert.assertEquals(vec1.get(2), -3., 0.);
-		Assert.assertArrayEquals(vec3.toDenseVector().getData(), new double[]{1, 0, -3, 0}, 0);
-		Assert.assertEquals(vec3.size(), 4);
-		Assert.assertArrayEquals(vec4.toDenseVector().getData(), new double[]{0, 0, 0, 0}, 0);
-		Assert.assertEquals(vec4.size(), 4);
-		Assert.assertEquals(vec5.size(), -1);
-	}
-
-	@Test
 	public void testIterator() throws Exception {
 		VectorIterator iterator = v1.iterator();
 		Assert.assertTrue(iterator.hasNext());

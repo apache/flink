@@ -19,8 +19,6 @@
 
 package org.apache.flink.ml.common.linalg;
 
-import org.apache.commons.lang3.StringUtils;
-
 import java.util.Arrays;
 import java.util.Random;
 
@@ -113,89 +111,6 @@ public class DenseVector extends Vector {
 		return v;
 	}
 
-	/**
-	 * Delimiter between elements.
-	 */
-	private static final char ELEMENT_DELIMITER = ' ';
-
-	@Override
-	public String serialize() {
-		StringBuilder sbd = new StringBuilder();
-
-		for (int i = 0; i < data.length; i++) {
-			sbd.append(data[i]);
-			if (i < data.length - 1) {
-				sbd.append(ELEMENT_DELIMITER);
-			}
-		}
-		return sbd.toString();
-	}
-
-	/**
-	 * Parse the dense vector from a formatted string.
-	 *
-	 * <p>The format of a dense vector is comma separated values such as "1 2 3 4".
-	 *
-	 * @param str A string of space separated values.
-	 * @return The parsed vector.
-	 */
-	public static DenseVector deserialize(String str) {
-		if (org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly(str)) {
-			return new DenseVector();
-		}
-
-		int len = str.length();
-
-		int inDataBuffPos = 0;
-		boolean isInBuff = false;
-
-		for (int i = 0; i < len; ++i) {
-			if (str.charAt(i) == ELEMENT_DELIMITER) {
-				if (isInBuff) {
-					inDataBuffPos++;
-				}
-
-				isInBuff = false;
-			} else {
-				isInBuff = true;
-			}
-		}
-
-		if (isInBuff) {
-			inDataBuffPos++;
-		}
-
-		double[] data = new double[inDataBuffPos];
-		int lastestInCharBuffPos = 0;
-
-		inDataBuffPos = 0;
-		isInBuff = false;
-
-		for (int i = 0; i < len; ++i) {
-			if (str.charAt(i) == ELEMENT_DELIMITER) {
-				if (isInBuff) {
-					data[inDataBuffPos++] = Double.parseDouble(
-						StringUtils.substring(str, lastestInCharBuffPos, i).trim()
-					);
-
-					lastestInCharBuffPos = i + 1;
-				}
-
-				isInBuff = false;
-			} else {
-				isInBuff = true;
-			}
-		}
-
-		if (isInBuff) {
-			data[inDataBuffPos] = Double.valueOf(
-				StringUtils.substring(str, lastestInCharBuffPos).trim()
-			);
-		}
-
-		return new DenseVector(data);
-	}
-
 	@Override
 	public DenseVector clone() {
 		return new DenseVector(this.data.clone());
@@ -203,7 +118,7 @@ public class DenseVector extends Vector {
 
 	@Override
 	public String toString() {
-		return this.serialize();
+		return VectorUtil.toString(this);
 	}
 
 	@Override
@@ -329,7 +244,7 @@ public class DenseVector extends Vector {
 		if (vec instanceof DenseVector) {
 			return BLAS.dot(this, (DenseVector) vec);
 		} else {
-			return ((SparseVector) vec).dot(this);
+			return vec.dot(this);
 		}
 	}
 
@@ -424,6 +339,23 @@ public class DenseVector extends Vector {
 			}
 		}
 		return new DenseMatrix(nrows, ncols, data, false);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		DenseVector that = (DenseVector) o;
+		return Arrays.equals(data, that.data);
+	}
+
+	@Override
+	public int hashCode() {
+		return Arrays.hashCode(data);
 	}
 
 	@Override

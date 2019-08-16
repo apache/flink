@@ -126,21 +126,6 @@ public class DenseVectorTest {
 	}
 
 	@Test
-	public void testSerialize() throws Exception {
-		DenseVector vec = new DenseVector(new double[]{1, 2, -3});
-		Assert.assertEquals(vec.serialize(), "1.0 2.0 -3.0");
-	}
-
-	@Test
-	public void testDeserialize() throws Exception {
-		DenseVector vec1 = DenseVector.deserialize("1 2 -3");
-		DenseVector vec2 = DenseVector.deserialize(" 1  2  -3 ");
-		DenseVector vec = new DenseVector(new double[]{1, 2, -3});
-		Assert.assertArrayEquals(vec1.getData(), vec.getData(), 0);
-		Assert.assertArrayEquals(vec2.getData(), vec.getData(), 0);
-	}
-
-	@Test
 	public void testNormalize() throws Exception {
 		DenseVector vec = new DenseVector(new double[]{1, 2, -3});
 		vec.normalizeEqual(1.0);
