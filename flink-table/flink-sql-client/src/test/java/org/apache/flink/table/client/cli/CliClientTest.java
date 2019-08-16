@@ -233,6 +233,11 @@ public class CliClientTest extends TestLogger {
 		}
 
 		@Override
+		public List<String> listFunctions(SessionContext session) throws SqlExecutionException {
+			return null;
+		}
+
+		@Override
 		public void useCatalog(SessionContext session, String catalogName) throws SqlExecutionException {
 
 		}

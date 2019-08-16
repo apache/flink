@@ -406,7 +406,7 @@ public class CliClient {
 	private void callShowFunctions() {
 		final List<String> functions;
 		try {
-			functions = executor.listUserDefinedFunctions(context);
+			functions = executor.listFunctions(context);
 		} catch (SqlExecutionException e) {
 			printExecutionException(e);
 			return;

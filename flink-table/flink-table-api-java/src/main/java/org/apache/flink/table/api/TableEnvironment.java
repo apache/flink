@@ -257,6 +257,11 @@ public interface TableEnvironment {
 	String[] listUserDefinedFunctions();
 
 	/**
+	 * Gets the names of all functions in this environment.
+	 */
+	String[] listFunctions();
+
+	/**
 	 * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
 	 * the result of the given {@link Table}.
 	 *
