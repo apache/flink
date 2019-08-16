@@ -20,6 +20,7 @@ package org.apache.flink.table.client.cli;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.flink.types.Row;
 
 import org.jline.utils.AttributedString;
@@ -97,14 +98,7 @@ public final class CliUtils {
 			if (field == null) {
 				fields[i] = CliStrings.NULL_COLUMN;
 			} else if (field.getClass().isArray()) {
-				if (field.getClass().getComponentType().isPrimitive()) {
-					// wrap primitive array in an object array so as to use Arrays.deepToString
-					String nested = Arrays.deepToString(new Object[]{field});
-					// remove leading and trailing brackets
-					fields[i] = nested.substring(1, nested.length() - 1);
-				} else {
-					fields[i] = Arrays.deepToString((Object[]) field);
-				}
+				fields[i] = EncodingUtils.objectToString(field);
 			} else {
 				fields[i] = field.toString();
 			}
