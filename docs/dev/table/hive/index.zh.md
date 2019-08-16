@@ -43,7 +43,9 @@ You do not need to modify your existing Hive Metastore or change the data placem
 Flink supports Hive `2.3.4` and `1.2.1` and relies on Hive's compatibility guarantee's for other minor versions.
 
 If you use a different minor Hive version such as `1.2.2` or `2.3.1`, it should also be ok to 
-chose the closest version `1.2.1` (for `1.2.2`) or `2.3.4` (for `2.3.1`) to workaround.
+chose the closest version `1.2.1` (for `1.2.2`) or `2.3.4` (for `2.3.1`) to workaround. For 
+example, you want to use Flink to integrate `2.3.1` hive version in sql client, just set the 
+hive-version to `2.3.4` in YAML config.
 
 ### Depedencies 
 
