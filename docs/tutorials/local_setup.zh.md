@@ -30,9 +30,9 @@ under the License.
 
 ## 安装：下载并启动 Flink 
 
-Flink 可以在 __Linux、 Mac OS X、 和 Windows__ 环境中运行。为了能够运行 Flink 唯一的要求是安装 __Java 8.x__ 。 Windows 用户， 请查阅[在  Windows 上运行 Flink]({{ site.baseurl }}/tutorials/flink_on_windows.html)  上面描述了如何在 windows 上以本地模式运行 Flink。
+Flink 可以在 __Linux、Mac OS X、和 Windows__ 环境中运行。为了能够运行 Flink 唯一要求是安装 __Java 8.x__ 。 Windows 用户，请查阅[在  Windows 上运行 Flink]({{ site.baseurl }}/tutorials/flink_on_windows.html)上面描述了如何在 windows 上以本地模式运行 Flink。
 
-你可以用下面的命令来检查一下是否正确的安装了 Java 程序：
+你可以用下面的命令来检查一下是否正确安装了 Java 程序：
 
 {% highlight bash %}
 java -version
@@ -49,7 +49,7 @@ Java HotSpot(TM) 64-Bit Server VM (build 25.111-b14, mixed mode)
 {% if site.is_stable %}
 <div class="codetabs" markdown="1">
 <div data-lang="Download and Unpack" markdown="1">
-1. 从[下载页](http://flink.apache.org/downloads.html)下载二进制文件。你可以选择任何喜欢的 Scala 版本。针对某些特性，你可能还需要下载预捆绑的 Hadoop jar 包并将它们放入 `/lib`  目录。
+1. 从[下载页](http://flink.apache.org/downloads.html)下载二进制文件。你可以选择任何喜欢的 Scala 版本。针对某些特性，你可能还需要下载预捆绑的 Hadoop jar 包并将它们放入 `/lib` 目录。
 2. 进入下载后的目录。
 3. 解压下载的文件。
 
@@ -114,7 +114,7 @@ INFO ... - Registering TaskManager ... under ... at the SlotManager.
 
 ## 阅读代码
 
-你可以在 Github 上看到分别用 [scala](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/scala/org/apache/flink/streaming/scala/examples/socket/SocketWindowWordCount.scala)和[java](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java) 书写的 SocketWindowWordCount 样例的完整源码。
+你可以在 Github 上看到分别用[scala](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/scala/org/apache/flink/streaming/scala/examples/socket/SocketWindowWordCount.scala)和[java](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java)编写的 SocketWindowWordCount 的完整代码。
 
 <div class="codetabs" markdown="1">
 <div data-lang="scala" markdown="1">
@@ -230,7 +230,7 @@ public class SocketWindowWordCount {
 
 ## 运行样例
 
-现在，我们将运行 Flink 程序。只要有单词输入，它就从一个套接字中读取文本，每 5 秒打印一次前 5 秒内每个不同单词的出现次数，5秒钟也就是处理时间的翻滚窗口。
+现在，我们将运行 Flink 程序。只要有单词输入，它就从一个套接字中读取文本，每 5 秒打印一次前 5 秒内每个不同单词的出现次数。这里的 5 秒钟就是处理时间的翻滚窗口。
 
 * 首先，我们用 **netcat** 来启动一个本地的服务：
 
@@ -257,7 +257,7 @@ Starting execution of program
     </div>
   </div>
 
-* 单词以5秒为时间窗口（处理时间，翻滚窗口）进行计数，并打印到 `stdout`。监视 TaskManager 的输出文件并在 `nc` 中输入一些文本（输入的内容被逐行发送到 Flink）：
+* 单词以 5 秒为时间窗口（处理时间，翻滚窗口）进行计数，并打印到 `stdout`。监视 TaskManager 的输出文件并在 `nc` 中输入一些文本（输入的内容被逐行发送到 Flink）：
 
 {% highlight bash %}
 $ nc -l 9000
@@ -266,7 +266,7 @@ ipsum ipsum ipsum
 bye
 {% endhighlight %}
 
-随着单词的输入，`.out`  文件会在每个时间窗口的末尾打印计数，比如：
+随着单词的输入，`.out` 文件会在每个时间窗口的末尾打印计数，比如：
 
 {% highlight bash %}
 $ tail -f log/flink-*-taskexecutor-*.out
@@ -283,6 +283,6 @@ $ ./bin/stop-cluster.sh
 
 ## 下一步
 
-查看更多的[示例]({{ site.baseurl }}/examples)以便更好的理解 Flink 的编程的 APIs。完成后, 请继续阅读[流处理指南]({{ site.baseurl }}/zh/dev/datastream_api.html)。
+查看更多的[示例]({{ site.baseurl }}/examples)以便更好的理解 Flink 的 API。完成后, 请继续阅读[流处理指南]({{ site.baseurl }}/zh/dev/datastream_api.html)。
 
 {% top %}
