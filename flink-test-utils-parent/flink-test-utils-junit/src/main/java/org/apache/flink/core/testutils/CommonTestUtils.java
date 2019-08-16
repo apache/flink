@@ -159,7 +159,8 @@ public class CommonTestUtils {
 
 	/**
 	 * A new object and the corresponding ClassLoader for that object, as returned by
-	 * {@link #createSerializableObjectFromNewClassLoader(ClassLoader)}.
+	 * {@link #createSerializableObjectFromNewClassLoader(ClassLoader)} or
+	 * {@link #createExceptionObjectFromNewClassLoader(ClassLoader)}.
 	 */
 	public static final class ObjectAndClassLoader<T> {
 
