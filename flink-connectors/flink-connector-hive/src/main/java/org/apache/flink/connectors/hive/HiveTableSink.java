@@ -76,7 +76,7 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 		this.jobConf = jobConf;
 		this.tablePath = tablePath;
 
-		this.catalogTable = HiveTableUtil.toHiveCatalogTable(table);
+		this.catalogTable = HiveTableUtil.convertTableSchemaForHive(table);
 
 		hiveVersion = Preconditions.checkNotNull(jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
 				"Hive version is not defined");

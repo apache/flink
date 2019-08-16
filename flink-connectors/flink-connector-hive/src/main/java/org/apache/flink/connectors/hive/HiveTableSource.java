@@ -73,7 +73,7 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 		this.tablePath = Preconditions.checkNotNull(tablePath);
 
 		Preconditions.checkNotNull(catalogTable);
-		this.catalogTable = HiveTableUtil.toHiveCatalogTable(catalogTable);
+		this.catalogTable = HiveTableUtil.convertTableSchemaForHive(catalogTable);
 
 		this.hiveVersion = Preconditions.checkNotNull(jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
 				"Hive version is not defined");

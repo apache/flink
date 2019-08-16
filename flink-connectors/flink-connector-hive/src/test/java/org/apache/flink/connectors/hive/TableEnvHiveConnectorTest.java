@@ -18,11 +18,8 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
@@ -43,10 +40,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.sql.Date;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
@@ -203,43 +198,17 @@ public class TableEnvHiveConnectorTest {
 			.commit();
 		hiveShell.execute("CREATE TABLE full_test_db.output_tbl (a INT, b STRING, c DOUBLE, d DATE)");
 
-		TableSchema schema = TableSchema.builder()
-			.field("a", DataTypes.INT())
-			.field("b", DataTypes.STRING())
-			.field("c", DataTypes.DOUBLE())
-			.field("d", DataTypes.DATE())
-			.build();
-
 		ObjectPath sourcePath = new ObjectPath("full_test_db", "input_tbl");
-		CatalogTable sourceTable1 = (CatalogTable) hiveCatalog.getTable(sourcePath);
-		HiveTableSource hiveTableSource1 = new HiveTableSource(new JobConf(hiveConf), sourcePath, sourceTable1);
-		CatalogTable sourceTable2 = new CatalogTableImpl(
-			schema,
-			new ArrayList<>(sourceTable1.getPartitionKeys()),
-			new HashMap<>(sourceTable1.getProperties()),
-			sourceTable1.getComment());
-		HiveTableSource hiveTableSource2 = new HiveTableSource(new JobConf(hiveConf), sourcePath, sourceTable2);
+		CatalogTable sourceTable = (CatalogTable) hiveCatalog.getTable(sourcePath);
+		HiveTableSource hiveTableSource = new HiveTableSource(new JobConf(hiveConf), sourcePath, sourceTable);
 
 		ObjectPath sinkPath = new ObjectPath("full_test_db", "output_tbl");
-		CatalogTable sinkTable1 = (CatalogTable) hiveCatalog.getTable(sinkPath);
-		HiveTableSink hiveTableSink1 = new HiveTableSink(new JobConf(hiveConf), sinkPath, sinkTable1);
-		CatalogTable sinkTable2 = new CatalogTableImpl(
-			schema,
-			new ArrayList<>(sinkTable1.getPartitionKeys()),
-			new HashMap<>(sinkTable1.getProperties()),
-			sinkTable1.getComment());
-		HiveTableSink hiveTableSink2 = new HiveTableSink(new JobConf(hiveConf), sinkPath, sinkTable2);
+		CatalogTable sinkTable = (CatalogTable) hiveCatalog.getTable(sinkPath);
+		HiveTableSink hiveTableSink = new HiveTableSink(new JobConf(hiveConf), sinkPath, sinkTable);
 
-		runSourceSinkTest(hiveTableSource1, hiveTableSink1);
-		runSourceSinkTest(hiveTableSource2, hiveTableSink2);
-
-		hiveShell.execute("drop database full_test_db cascade");
-	}
-
-	private void runSourceSinkTest(HiveTableSource source, HiveTableSink sink) throws Exception {
 		TableEnvironment tEnv = HiveTestUtils.createTableEnv();
-		tEnv.registerTableSource("input_tbl", source);
-		tEnv.registerTableSink("output_tbl", sink);
+		tEnv.registerTableSource("input_tbl", hiveTableSource);
+		tEnv.registerTableSink("output_tbl", hiveTableSink);
 		tEnv.sqlUpdate(
 			"INSERT INTO output_tbl SELECT a, b, c, d + interval '1' day FROM input_tbl");
 		tEnv.execute("hive_source_sink_test");
@@ -251,8 +220,7 @@ public class TableEnvHiveConnectorTest {
 		assertEquals("2\tbbb\t2.2\t2012-02-13", result.get(1));
 		assertEquals("3\tccc\t3.3\t2013-03-14", result.get(2));
 
-		hiveShell.execute("DROP TABLE full_test_db.output_tbl");
-		hiveShell.execute("CREATE TABLE full_test_db.output_tbl (a INT, b STRING, c DOUBLE, d DATE)");
+		hiveShell.execute("drop database full_test_db cascade");
 	}
 
 	private TableEnvironment getTableEnvWithHiveCatalog() {

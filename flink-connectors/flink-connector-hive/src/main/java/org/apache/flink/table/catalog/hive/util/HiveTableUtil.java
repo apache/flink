@@ -150,7 +150,7 @@ public class HiveTableUtil {
 	 * Can we just change the table schema of the given catalog table
 	 * without creating a new catalog table?
 	 */
-	public static CatalogTable toHiveCatalogTable(CatalogTable oldTable) {
+	public static CatalogTable convertTableSchemaForHive(CatalogTable oldTable) {
 		TableSchema oldSchema = oldTable.getSchema();
 		DataType[] fieldDataTypes = oldSchema.getFieldDataTypes();
 		String[] fieldNames = oldSchema.getFieldNames();
