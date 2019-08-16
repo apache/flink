@@ -332,8 +332,13 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 			if (event.getClass() != EndOfPartitionEvent.class) {
 				throw new IOException("Unexpected event: " + event);
 			}
+			int channelIndex = bufferOrEvent.getChannelIndex();
 
-			handleEndOfPartitionEvent(bufferOrEvent.getChannelIndex());
+			handleEndOfPartitionEvent(channelIndex);
+
+			// release the record deserializer immediately,
+			// which is very valuable in case of bounded stream
+			releaseDeserializer(channelIndex);
 		}
 	}
 
@@ -361,17 +366,27 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
 	@Override
 	public void close() throws IOException {
-		// clear the buffers first. this part should not ever fail
-		for (RecordDeserializer<?> deserializer : recordDeserializers) {
+		// release the deserializers first. this part should not ever fail
+		for (int channelIndex = 0; channelIndex < recordDeserializers.length; channelIndex++) {
+			releaseDeserializer(channelIndex);
+		}
+
+		// cleanup the barrier handler resources
+		barrierHandler.cleanup();
+	}
+
+	private void releaseDeserializer(int channelIndex) {
+		RecordDeserializer<?> deserializer = recordDeserializers[channelIndex];
+		if (deserializer != null) {
+			// recycle buffers and clear the deserializer.
 			Buffer buffer = deserializer.getCurrentBuffer();
 			if (buffer != null && !buffer.isRecycled()) {
 				buffer.recycleBuffer();
 			}
 			deserializer.clear();
-		}
 
-		// cleanup the barrier handler resources
-		barrierHandler.cleanup();
+			recordDeserializers[channelIndex] = null;
+		}
 	}
 
 	private class ForwardingValveOutputHandler1 implements StatusWatermarkValve.ValveOutputHandler {
