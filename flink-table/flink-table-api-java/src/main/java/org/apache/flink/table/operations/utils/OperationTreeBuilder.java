@@ -217,7 +217,7 @@ public final class OperationTreeBuilder {
 		ExpressionResolver resolver = getResolver(child);
 
 		List<ResolvedExpression> resolvedGroupings = resolver.resolve(groupingExpressions);
-		List<ResolvedExpression> resolvedAggregates = resolver.resolve(aggregates);
+		List<ResolvedExpression> resolvedAggregates = resolver.resolveAggregates(!groupingExpressions.isEmpty(), aggregates);
 
 		return aggregateOperationFactory.createAggregate(resolvedGroupings, resolvedAggregates, child);
 	}

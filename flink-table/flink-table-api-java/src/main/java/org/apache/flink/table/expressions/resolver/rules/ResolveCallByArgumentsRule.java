@@ -35,14 +35,17 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.ContextUsage;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeInferenceUtil;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -149,9 +152,13 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 				.map(ObjectIdentifier::toString)
 				.orElseGet(() -> unresolvedCall.getFunctionDefinition().toString());
 
+			TableApiCallContext callContext = new TableApiCallContext(
+				name, unresolvedCall.getFunctionDefinition(), resolvedArgs);
+			if (resolutionContext.hasGrouping()) {
+				callContext.getUsages().add(ContextUsage.GROUPING_AGGREGATION);
+			}
 			final TypeInferenceUtil.Result inferenceResult = TypeInferenceUtil.runTypeInference(
-				inference,
-				new TableApiCallContext(name, unresolvedCall.getFunctionDefinition(), resolvedArgs));
+				inference, callContext);
 
 			final List<ResolvedExpression> adaptedArguments = adaptArguments(inferenceResult, resolvedArgs);
 
@@ -206,6 +213,8 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 
 		private final List<ResolvedExpression> resolvedArgs;
 
+		private final Set<ContextUsage> usages;
+
 		public TableApiCallContext(
 				String name,
 				FunctionDefinition definition,
@@ -213,6 +222,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 			this.name = name;
 			this.definition = definition;
 			this.resolvedArgs = resolvedArgs;
+			this.usages = new HashSet<>();
 		}
 
 		@Override
@@ -244,6 +254,11 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
 			Preconditions.checkArgument(isArgumentLiteral(pos), "Argument at position %s is not a literal.", pos);
 			final ValueLiteralExpression literal = (ValueLiteralExpression) getArgument(pos);
 			return literal.getValueAs(clazz);
+		}
+
+		@Override
+		public Set<ContextUsage> getUsages() {
+			return usages;
 		}
 
 		@Override

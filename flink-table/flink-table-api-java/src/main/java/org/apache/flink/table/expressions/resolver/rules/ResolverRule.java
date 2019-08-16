@@ -48,6 +48,11 @@ public interface ResolverRule {
 	interface ResolutionContext {
 
 		/**
+		 * If this a aggregation query with grouping.
+		 */
+		boolean hasGrouping();
+
+		/**
 		 * Access to available {@link org.apache.flink.table.expressions.FieldReferenceExpression} in inputs.
 		 */
 		FieldReferenceLookup referenceLookup();
