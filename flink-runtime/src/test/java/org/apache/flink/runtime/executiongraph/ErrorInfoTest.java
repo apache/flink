@@ -49,7 +49,7 @@ public class ErrorInfoTest {
 		private static final long serialVersionUID = 42L;
 
 		@SuppressWarnings("unused")
-		private final Serializable outOfClassLoader = CommonTestUtils.createObjectFromNewClassLoader().getObject();
+		private final Serializable outOfClassLoader = CommonTestUtils.createSerializableObjectFromNewClassLoader().getObject();
 
 		public ExceptionWithCustomClassLoader() {
 			super("tada");

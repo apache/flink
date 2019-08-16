@@ -73,7 +73,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 
 	@Test
 	public void testDeserializationOfUserCodeWithUserClassLoader() throws Exception {
-		final CommonTestUtils.ObjectAndClassLoader outsideClassLoading = CommonTestUtils.createObjectFromNewClassLoader();
+		final CommonTestUtils.ObjectAndClassLoader<Serializable> outsideClassLoading = CommonTestUtils.createSerializableObjectFromNewClassLoader();
 		final ClassLoader classLoader = outsideClassLoading.getClassLoader();
 		final Serializable outOfClassPath = outsideClassLoading.getObject();
 

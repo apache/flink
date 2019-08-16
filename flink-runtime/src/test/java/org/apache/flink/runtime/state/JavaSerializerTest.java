@@ -38,8 +38,8 @@ import static org.junit.Assert.*;
 public class JavaSerializerTest extends SerializerTestBase<Serializable> {
 
 	/** Class loader and object that is not in the test class path. */
-	private static final CommonTestUtils.ObjectAndClassLoader OUTSIDE_CLASS_LOADING =
-		CommonTestUtils.createObjectFromNewClassLoader();
+	private static final CommonTestUtils.ObjectAndClassLoader<Serializable> OUTSIDE_CLASS_LOADING =
+		CommonTestUtils.createSerializableObjectFromNewClassLoader();
 
 	// ------------------------------------------------------------------------
 

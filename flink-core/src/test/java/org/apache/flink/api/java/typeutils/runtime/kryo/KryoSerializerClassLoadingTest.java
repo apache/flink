@@ -28,6 +28,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.Serializable;
+
 import static org.junit.Assert.fail;
 
 /**
@@ -37,8 +39,8 @@ import static org.junit.Assert.fail;
 public class KryoSerializerClassLoadingTest extends SerializerTestBase<Object> {
 
 	/** Class loader and object that is not in the test class path. */
-	private static final CommonTestUtils.ObjectAndClassLoader OUTSIDE_CLASS_LOADING =
-			CommonTestUtils.createObjectFromNewClassLoader();
+	private static final CommonTestUtils.ObjectAndClassLoader<Serializable> OUTSIDE_CLASS_LOADING =
+			CommonTestUtils.createSerializableObjectFromNewClassLoader();
 
 	// ------------------------------------------------------------------------
 
