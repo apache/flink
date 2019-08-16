@@ -135,6 +135,9 @@ class PyFlinkBatchTableTestCase(PyFlinkTestCase):
         self.env.set_parallelism(2)
         self.t_env = BatchTableEnvironment.create(self.env)
 
+        setting = EnvironmentSettings.new_instance().use_blink_planner().in_batch_mode().build()
+        self.bt_env = BatchTableEnvironment.create(environment_settings=setting)
+
     def collect(self, table):
         j_table = table._j_table
         gateway = get_gateway()

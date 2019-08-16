@@ -370,7 +370,7 @@ public final class StreamTableEnvironmentImpl extends TableEnvironmentImpl imple
 	@Override
 	public String explain(boolean extended) {
 		// throw exception directly, because the operations to explain are always empty
-		throw new TableException("This method is unsupported in StreamTableEnvironment.");
+		throw new TableException("'explain' method is unsupported in StreamTableEnvironment.");
 	}
 
 	private <T> TypeInformation<T> extractTypeInformation(Table table, Class<T> clazz) {
