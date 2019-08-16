@@ -33,10 +33,11 @@ public class CliUtilsTest {
 
 	@Test
 	public void testArrayToString() {
-		Row row = new Row(3);
+		Row row = new Row(4);
 		row.setField(0, new int[]{1, 2});
 		row.setField(1, new Integer[]{3, 4});
 		row.setField(2, new Object[]{new int[]{5, 6}, new int[]{7, 8}});
-		assertEquals("[[1, 2], [3, 4], [[5, 6], [7, 8]]]", Arrays.toString(CliUtils.rowToString(row)));
+		row.setField(3, new Integer[][]{new Integer[]{9, 10}, new Integer[]{11, 12}});
+		assertEquals("[[1, 2], [3, 4], [[5, 6], [7, 8]], [[9, 10], [11, 12]]]", Arrays.toString(CliUtils.rowToString(row)));
 	}
 }
