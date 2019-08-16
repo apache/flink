@@ -234,7 +234,9 @@ class DistinctAggCodeGen(
        """.stripMargin
     }
 
-    if (filterResults.exists(_.isDefined)) {
+    if (filterResults.forall(_.isDefined)) {
+      // using the `condition` below to filter data so as to reduce state cost
+      // if all distinct aggregations on same column have filter.
       val condition = filterResults.flatten.mkString(" || ")
       s"""
          |if ($condition) {
@@ -281,7 +283,9 @@ class DistinctAggCodeGen(
          |}
        """.stripMargin
 
-    if (filterResults.exists(_.isDefined)) {
+    if (filterResults.forall(_.isDefined)) {
+      // using the `condition` below to filter data so as to reduce state cost
+      // if all distinct aggregations on same column have filter.
       val condition = filterResults.flatten.mkString(" || ")
       s"""
          |if ($condition) {
