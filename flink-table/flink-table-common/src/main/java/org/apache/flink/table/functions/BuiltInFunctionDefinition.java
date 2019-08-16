@@ -20,6 +20,7 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeStrategy;
 import org.apache.flink.table.types.inference.InputTypeValidator;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -78,6 +79,17 @@ public final class BuiltInFunctionDefinition implements FunctionDefinition {
 	 */
 	public Optional<String> getStandardSql() {
 		return Optional.ofNullable(standardSql);
+	}
+
+	/**
+	 * Returns whether a function is monotonic.
+	 *
+	 * <p>Default implementation returns {@link FunctionMonotonicity#NOT_MONOTONIC}.
+	 *
+	 * @param context provides details about the function call.
+	 */
+	public FunctionMonotonicity getMonotonicity(CallContext context) {
+		return FunctionMonotonicity.NOT_MONOTONIC;
 	}
 
 	@Override
