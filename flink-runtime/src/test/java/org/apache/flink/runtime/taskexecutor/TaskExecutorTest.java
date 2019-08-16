@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -40,15 +39,11 @@ import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.NonOffloaded;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorBuilder;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.librarycache.ContextClassLoaderLibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
-import org.apache.flink.runtime.executiongraph.DummyJobInformation;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.JobInformation;
-import org.apache.flink.runtime.executiongraph.TaskInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatManagerImpl;
@@ -93,7 +88,6 @@ import org.apache.flink.runtime.taskexecutor.TaskSubmissionTestEnvironment.Build
 import org.apache.flink.runtime.taskexecutor.exceptions.RegistrationTimeoutException;
 import org.apache.flink.runtime.taskexecutor.exceptions.TaskManagerException;
 import org.apache.flink.runtime.taskexecutor.partition.PartitionTable;
-import org.apache.flink.runtime.taskexecutor.slot.SlotActions;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
@@ -113,7 +107,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.NetUtils;
-import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
 
@@ -146,7 +139,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -658,37 +650,10 @@ public class TaskExecutorTest extends TestLogger {
 		final JobMasterId jobMasterId = JobMasterId.generate();
 		final JobVertexID jobVertexId = new JobVertexID();
 
-		JobInformation jobInformation = new JobInformation(
-				jobId,
-				testName.getMethodName(),
-				new SerializedValue<>(new ExecutionConfig()),
-				new Configuration(),
-				Collections.emptyList(),
-				Collections.emptyList());
-
-		TaskInformation taskInformation = new TaskInformation(
-				jobVertexId,
-				"test task",
-				1,
-				1,
-				TestInvokable.class.getName(),
-				new Configuration());
-
-		SerializedValue<JobInformation> serializedJobInformation = new SerializedValue<>(jobInformation);
-		SerializedValue<TaskInformation> serializedJobVertexInformation = new SerializedValue<>(taskInformation);
-
-		final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
-				jobId,
-				new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobInformation),
-				new TaskDeploymentDescriptor.NonOffloaded<>(serializedJobVertexInformation),
-				new ExecutionAttemptID(),
-				allocationId,
-				0,
-				0,
-				0,
-				null,
-				Collections.emptyList(),
-				Collections.emptyList());
+		final TaskDeploymentDescriptor tdd = TaskDeploymentDescriptorBuilder
+			.newBuilder(jobId, TestInvokable.class)
+			.setAllocationId(allocationId)
+			.build();
 
 		final LibraryCacheManager libraryCacheManager = mock(LibraryCacheManager.class);
 		when(libraryCacheManager.getClassLoader(any(JobID.class))).thenReturn(ClassLoader.getSystemClassLoader());
@@ -772,8 +737,10 @@ public class TaskExecutorTest extends TestLogger {
 	public void testTaskInterruptionAndTerminationOnShutdown() throws Exception {
 		final JobMasterId jobMasterId = JobMasterId.generate();
 		final AllocationID allocationId = new AllocationID();
-		final TaskDeploymentDescriptor taskDeploymentDescriptor =
-			createTaskDeploymentDescriptor(TestInterruptableInvokable.class, allocationId);
+		final TaskDeploymentDescriptor taskDeploymentDescriptor = TaskDeploymentDescriptorBuilder
+			.newBuilder(jobId, TestInterruptableInvokable.class)
+			.setAllocationId(allocationId)
+			.build();
 
 		final JobManagerTable jobManagerTable = createJobManagerTableWithOneJob(jobMasterId);
 		final TaskExecutor taskExecutor = createTaskExecutorWithJobManagerTable(jobManagerTable);
@@ -876,31 +843,6 @@ public class TaskExecutorTest extends TestLogger {
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 		jobManagerTable.put(jobId, jobManagerConnection);
 		return jobManagerTable;
-	}
-
-	private TaskDeploymentDescriptor createTaskDeploymentDescriptor(
-		final Class<? extends AbstractInvokable> invokableClass,
-		final AllocationID allocationId) throws IOException {
-		final TaskInformation taskInformation = new TaskInformation(
-			new JobVertexID(),
-			"test task",
-			1,
-			1,
-			invokableClass.getName(),
-			new Configuration());
-
-		return new TaskDeploymentDescriptor(
-			jobId,
-			new NonOffloaded<>(new SerializedValue<>(new DummyJobInformation(jobId, testName.getMethodName()))),
-			new NonOffloaded<>(new SerializedValue<>(taskInformation)),
-			new ExecutionAttemptID(),
-			allocationId,
-			0,
-			0,
-			0,
-			null,
-			Collections.emptyList(),
-			Collections.emptyList());
 	}
 
 	/**
@@ -1137,39 +1079,10 @@ public class TaskExecutorTest extends TestLogger {
 			taskSlotTable.allocateSlot(0, jobId, allocationId1, Time.milliseconds(10000L));
 			taskSlotTable.allocateSlot(1, jobId, allocationId2, Time.milliseconds(10000L));
 
-			final JobVertexID jobVertexId = new JobVertexID();
-
-			JobInformation jobInformation = new JobInformation(
-				jobId,
-				testName.getMethodName(),
-				new SerializedValue<>(new ExecutionConfig()),
-				new Configuration(),
-				Collections.emptyList(),
-				Collections.emptyList());
-
-			TaskInformation taskInformation = new TaskInformation(
-				jobVertexId,
-				"test task",
-				1,
-				1,
-				NoOpInvokable.class.getName(),
-				new Configuration());
-
-			SerializedValue<JobInformation> serializedJobInformation = new SerializedValue<>(jobInformation);
-			SerializedValue<TaskInformation> serializedJobVertexInformation = new SerializedValue<>(taskInformation);
-
-			final TaskDeploymentDescriptor tdd = new TaskDeploymentDescriptor(
-				jobId,
-				new NonOffloaded<>(serializedJobInformation),
-				new NonOffloaded<>(serializedJobVertexInformation),
-				new ExecutionAttemptID(),
-				allocationId1,
-				0,
-				0,
-				0,
-				null,
-				Collections.emptyList(),
-				Collections.emptyList());
+			final TaskDeploymentDescriptor tdd = TaskDeploymentDescriptorBuilder
+				.newBuilder(jobId, NoOpInvokable.class)
+				.setAllocationId(allocationId1)
+				.build();
 
 			// we have to add the job after the TaskExecutor, because otherwise the service has not
 			// been properly started. This will also offer the slots to the job master
@@ -2211,26 +2124,6 @@ public class TaskExecutorTest extends TestLogger {
 			} catch (ExecutionException | InterruptedException e) {
 				ExceptionUtils.rethrow(e);
 			}
-		}
-	}
-
-	/**
-	 * {@link TaskSlotTable} which completes the given future when it is started.
-	 */
-	private static class TaskSlotTableWithStartFuture extends TaskSlotTable {
-		private final CompletableFuture<Void> taskSlotTableStarted;
-
-		private TaskSlotTableWithStartFuture(
-				CompletableFuture<Void> taskSlotTableStarted,
-				TimerService<AllocationID> timerService) {
-			super(Collections.singletonList(ResourceProfile.UNKNOWN), timerService);
-			this.taskSlotTableStarted = taskSlotTableStarted;
-		}
-
-		@Override
-		public void start(SlotActions initialSlotActions) {
-			super.start(initialSlotActions);
-			taskSlotTableStarted.complete(null);
 		}
 	}
 }
