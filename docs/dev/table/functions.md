@@ -1466,6 +1466,18 @@ TRUNCATE(numeric1, integer2)
         <p>E.g. <code>truncate(42.345, 2)</code> to 42.34. and <code>truncate(42.345)</code> to 42.0.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+PI()
+{% endhighlight %}
+      </td>
+      <td>
+      <p>Returns a value that is closer than any other values to pi.</p>
+      <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr> 
         
   </tbody>
 </table>
