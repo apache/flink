@@ -276,6 +276,40 @@ tables:
         type: VARCHAR
 {% endhighlight %}
 </div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+-- CREATE a 010 version Kafka table start from the earliest offset(as table source) and append mode(as table sink).
+create table MyUserTable (
+  user bigint,
+  message string,
+  ts string
+) with (
+  -- declare the external system to connect to
+  'connector.type' = 'kafka',
+  'connector.version' = '0.10',
+  'update-mode' = 'append',
+  'connector.topic' = 'topic_name',
+  'connector.startup-mode' = 'earliest-offset',
+  'connector.properties.0.key' = 'zookeeper.connect',
+  'connector.properties.0.value' = 'localhost:2181',
+  'connector.properties.0.key' = 'bootstrap.servers',
+  'connector.properties.0.value' = 'localhost:9092',
+  -- declare a format for this system
+  'format.type' = 'avro',
+  'format.avro-schema' = '{
+                            \"namespace\": \"org.myorganization\",
+                            \"type\": \"record\",
+                            \"name\": \"UserMessage\",
+                            \"fields\": [
+                                {\"name\": \"ts\", \"type\": \"string\"},
+                                {\"name\": \"user\", \"type\": \"long\"},
+                                {\"name\": \"message\", \"type\": [\"string\", \"null\"]}
+                            ]
+                         }'
+);
+{% endhighlight %}
+</div>
 </div>
 
 In both ways the desired connection properties are converted into normalized, string-based key-value pairs. So-called [table factories](sourceSinks.html#define-a-tablefactory) create configured table sources, table sinks, and corresponding formats from the key-value pairs. All table factories that can be found via Java's [Service Provider Interfaces (SPI)](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) are taken into account when searching for exactly-one matching table factory.
@@ -652,11 +686,37 @@ connector:
   path: "file:///path/to/whatever"    # required: path to a file or directory
 {% endhighlight %}
 </div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+-- CREATE a partitioned CSV table using the CREATE TABLE syntax.
+create table csv_table (
+  user bigint,
+  message string,
+  ts string
+) 
+COMMENT 'This is a csv table.' 
+PARTITIONED BY(user)
+WITH (
+  'connector.type' = 'filesystem',  -- required: specify to connector type
+  'format.type' = 'csv',            -- required: specify which format to deserialize(as table source)
+  'connector.path' = 'path1',       -- required: path to a file or directory
+
+  'format.derive-schema' = 'true',  -- optional: derive the format schema from table schema. 
+
+  'format.fields.0.name' = 'f0',    -- optional: specify the format schema, no need to specify if
+                                    -- "format.derive-schema" is true. 
+  'format.fields.0.type' = 'INT',
+  'format.fields.1.name' = 'f1',
+  'format.fields.1.type' = 'BIGINT',
+  'format.fields.2.name' = 'f2',
+  'format.fields.2.type' = 'STRING'
+);
+{% endhighlight %}
+</div>
 </div>
 
 The file system connector itself is included in Flink and does not require an additional dependency. A corresponding format needs to be specified for reading and writing rows from and to a file system.
-
-The file system connector can also be defined with a *CREATE TABLE DDL* statement, please see the dedicated page [DDL](ddl.html) examples.
 
 <span class="label label-danger">Attention</span> Make sure to include [Flink File System specific dependencies]({{ site.baseurl }}/internals/filesystems.html).
 
@@ -755,6 +815,70 @@ connector:
   sink-partitioner-class: org.mycompany.MyPartitioner  # optional: used in case of sink partitioner custom
 {% endhighlight %}
 </div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+-- CREATE a 011 version Kafka table start from the earliest offset(as table source)
+-- and append mode(as table sink).
+create table MyUserTable (
+  user bigint,
+  message string,
+  ts string
+) with (
+  'connector.type' = 'kafka',       
+
+  'connector.version' = '0.11',     -- required: valid connector versions are
+                                    -- "0.8", "0.9", "0.10", "0.11", and "universal"
+
+  'connector.topic' = 'topic_name', -- required: topic name from which the table is read
+
+  'update-mode' = 'append',         -- required: update mode when used as table sink, 
+                                    -- only support append mode now.
+
+  'format.type' = 'avro',           -- required: specify which format to deserialize(as table source) 
+                                    -- and serialize(as table sink). 
+                                    -- Valid format types are : "csv", "json", "avro".
+
+  'connector.properties.0.key' = 'zookeeper.connect', -- optional: connector specific properties
+  'connector.properties.0.value' = 'localhost:2181',
+  'connector.properties.0.key' = 'bootstrap.servers',
+  'connector.properties.0.value' = 'localhost:9092',
+  'connector.properties.0.key' = 'group.id',
+  'connector.properties.0.value' = 'testGroup',
+  'connector.startup-mode' = 'earliest-offset',  -- optional: valid modes are "earliest-offset", "latest-offset",
+                                                 -- "group-offsets", or "specific-offsets"
+
+  'connector.specific-offsets.partition' = '0',  -- optional: used in case of startup mode with specific offsets
+  'connector.specific-offsets.offset' = '42',
+  'connector.specific-offsets.partition' = '1',
+  'connector.specific-offsets.offset' = '300',
+
+  'connector.sink-partitioner' = '...',  -- optional: output partitioning from Flink's partitions 
+                                         -- into Kafka's partitions valid are "fixed" 
+                                         -- (each Flink partition ends up in at most one Kafka partition),
+                                         -- "round-robin" (a Flink partition is distributed to 
+                                         -- Kafka partitions round-robin)
+                                         -- "custom" (use a custom FlinkKafkaPartitioner subclass)
+
+  'format.derive-schema' = 'true',       -- optional: derive the serialize/deserialize format 
+                                         -- schema from the table schema.
+
+  'format.avro-schema' =                 -- optional: specify the serialize/deserialize format schema,
+                                         -- no need to specify if format.derive-schema is true.
+                         '{                      
+                                                 
+                            \"namespace\": \"org.myorganization\",
+                            \"type\": \"record\",
+                            \"name\": \"UserMessage\",
+                            \"fields\": [
+                                {\"name\": \"ts\", \"type\": \"string\"},
+                                {\"name\": \"user\", \"type\": \"long\"},
+                                {\"name\": \"message\", \"type\": [\"string\", \"null\"]}
+                            ]
+                         }'
+);
+{% endhighlight %}
+</div>
 </div>
 
 **Specify the start reading position:** By default, the Kafka source will start reading data from the committed group offsets in Zookeeper or Kafka brokers. You can specify other start positions, which correspond to the configurations in section [Kafka Consumers Start Position Configuration]({{ site.baseurl }}/dev/connectors/kafka.html#kafka-consumers-start-position-configuration).
@@ -768,8 +892,6 @@ connector:
 **Kafka 0.11+ Versioning:** Since Flink 1.7, the Kafka connector definition should be independent of a hard-coded Kafka version. Use the connector version `universal` as a wildcard for Flink's Kafka connector that is compatible with all Kafka versions starting from 0.11.
 
 Make sure to add the version-specific Kafka dependency. In addition, a corresponding format needs to be specified for reading and writing rows from and to Kafka.
-
-The kafka connector can also be defined with a *CREATE TABLE DDL* statement, please see the dedicated page [DDL](ddl.html) examples.
 
 {% top %}
 
@@ -904,6 +1026,78 @@ connector:
     connection-path-prefix: "/v1"     # optional: prefix string to be added to every REST communication
 {% endhighlight %}
 </div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+-- CREATE a version 6 Elasticsearch table.
+create table MyUserTable (
+  user bigint,
+  message string,
+  ts string
+) with (
+  'connector.type' = 'elasticsearch', -- required: specify this table type is elasticsearch
+  
+  'connector.version' = '6',          -- required: valid connector versions are "6"
+  
+  'format.type' = 'json',             -- required: specify which format to deserialize(as table source)
+
+  'connector.hosts.0.hostname' = 'host_name',  -- required: one or more Elasticsearch hosts to connect to
+  'connector.hosts.0.port' = '9092',
+  'connector.hosts.0.protocol' = 'http',
+
+  'connector.index' = 'MyUsers',       -- required: Elasticsearch index
+
+  'connector.document-type' = 'user',  -- required: Elasticsearch document type
+
+  'update-mode' = 'append',            -- optional: update mode when used as table sink, 
+                                       -- only support append mode now.            
+
+  'format.derive-schema' = 'true',     -- optional: derive the serialize/deserialize format
+                                       -- schema from the table schema.
+
+  'format.json-schema' = '...',        -- optional: specify the serialize/deserialize format schema,
+                                       -- no need to specify if format.derive-schema is true.
+
+  'connector.key-delimiter' = '$',     -- optional: delimiter for composite keys ("_" by default)
+                                       -- e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
+
+  'connector.key-null-literal' = 'n/a',  -- optional: representation for null fields in keys ("null" by default)
+
+  'connector.failure-handler' = '...',   -- optional: failure handling strategy in case a request to 
+                                         -- Elasticsearch fails ("fail" by default).
+                                         -- valid strategies are 
+                                         -- "fail" (throws an exception if a request fails and
+                                         -- thus causes a job failure), 
+                                         -- "ignore" (ignores failures and drops the request),
+                                         -- "retry-rejected" (re-adds requests that have failed due 
+                                         -- to queue capacity saturation), 
+                                         -- or "custom" for failure handling with a
+                                         -- ActionRequestFailureHandler subclass
+
+  -- optional: configure how to buffer elements before sending them in bulk to the cluster for efficiency
+  'connector.flush-on-checkpoint' = 'true',   -- optional: disables flushing on checkpoint (see notes below!)
+                                              -- ("true" by default)
+  'connector.bulk-flush.max-actions' = '42',  -- optional: maximum number of actions to buffer 
+                                              -- for each bulk request
+  'connector.bulk-flush.max-size' = '42 mb',  -- optional: maximum size of buffered actions in bytes
+                                              -- per bulk request
+                                              -- (only MB granularity is supported)
+  'connector.bulk-flush.interval' = '60000',  -- optional: bulk flush interval (in milliseconds)
+  'connector.bulk-flush.back-off.type' = '...',       -- optional: backoff strategy ("disabled" by default)
+                                                      -- valid strategies are "disabled", "constant",
+                                                      -- or "exponential"
+  'connector.bulk-flush.back-off.max-retries' = '3',  -- optional: maximum number of retries
+  'connector.bulk-flush.back-off.delay' = '30000',    -- optional: delay between each backoff attempt
+                                                      -- (in milliseconds)
+
+  -- optional: connection properties to be used during REST communication to Elasticsearch
+  'connector.connection-max-retry-timeout' = '3',     -- optional: maximum timeout (in milliseconds)
+                                                      -- between retries
+  'connector.connection-path-prefix' = '/v1'          -- optional: prefix string to be added to every
+                                                      -- REST communication
+);
+{% endhighlight %}
+</div>
 </div>
 
 **Bulk flushing:** For more information about characteristics of the optional flushing parameters see the [corresponding low-level documentation]({{ site.baseurl }}/dev/connectors/elasticsearch.html).
@@ -911,8 +1105,6 @@ connector:
 **Disabling flushing on checkpoint:** When disabled, a sink will not wait for all pending action requests to be acknowledged by Elasticsearch on checkpoints. Thus, a sink does NOT provide any strong guarantees for at-least-once delivery of action requests.
 
 **Key extraction:** Flink automatically extracts valid keys from a query. For example, a query `SELECT a, b, c FROM t GROUP BY a, b` defines a composite key of the fields `a` and `b`. The Elasticsearch connector generates a document ID string for every row by concatenating all key fields in the order defined in the query using a key delimiter. A custom representation of null literals for key fields can be defined.
-
-The Elasticsearch connector can also be defined with a *CREATE TABLE DDL* statement, please see the dedicated page [DDL](ddl.html) examples.
 
 <span class="label label-danger">Attention</span> A JSON format defines how to encode documents for the external system, therefore, it must be added as a [dependency](connect.html#formats).
 
