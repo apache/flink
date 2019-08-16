@@ -67,41 +67,6 @@ If the table does not exist, nothing happens.
 
 {% top %}
 
-Create View
----------------------------------------
-{% highlight sql %}
-CREATE [OR REPLACE] VIEW [catalog_name.][db_name.]view_name
-[COMMENT view_comment]
-AS
-select_statement
-{% endhighlight %}
-
-Define a logical view on a sql query which may be from multiple tables or views.
-
-**AS select_statement**
-
-A SELECT statement that defines the view. The statement can select from base tables or the other views.
-
-**Examples**:
-{% highlight sql %}
--- Create a view view_deptDetails in database1. The view definition is recorded in the specified catalog and database.
-CREATE VIEW catalog1.database1.view1
-  AS SELECT * FROM company JOIN dept ON company.dept_id = dept.id;
-
--- Create or replace a view from a persistent view with an extra filter
-CREATE OR REPLACE VIEW view2
-  AS SELECT * FROM catalog1.database1.view1 WHERE loc = 'Shanghai';
-
--- Access the base tables through the view
-SELECT * FROM view2;
-
--- Drop the view1, view2.
-DROP VIEW catalog1.database1.view1;
-DROP VIEW IF EXISTS view2;
-{% endhighlight %}
-
-{% top %}
-
 DDL Data Types
 ---------------------------------------
 For DDLs, we support full data types defined in page [Data Types]({{ site.baseurl }}/dev/table/types.html).

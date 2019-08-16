@@ -280,21 +280,21 @@ tables:
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
 -- CREATE a 010 version Kafka table start from the earliest offset(as table source) and append mode(as table sink).
-create table MyUserTable (
-  user bigint,
-  message string,
-  ts string
-) with (
+CREATE TABLE MyUserTable (
+  `user` bigint,
+  message varchar,
+  ts varchar
+) WITH (
   -- declare the external system to connect to
   'connector.type' = 'kafka',
   'connector.version' = '0.10',
-  'update-mode' = 'append',
   'connector.topic' = 'topic_name',
   'connector.startup-mode' = 'earliest-offset',
   'connector.properties.0.key' = 'zookeeper.connect',
   'connector.properties.0.value' = 'localhost:2181',
   'connector.properties.0.key' = 'bootstrap.servers',
   'connector.properties.0.value' = 'localhost:9092',
+  'update-mode' = 'append',
   -- declare a format for this system
   'format.type' = 'avro',
   'format.avro-schema' = '{
@@ -690,14 +690,11 @@ connector:
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
 -- CREATE a partitioned CSV table using the CREATE TABLE syntax.
-create table csv_table (
-  user bigint,
-  message string,
-  ts string
-) 
-COMMENT 'This is a csv table.' 
-PARTITIONED BY(user)
-WITH (
+CREATE TABLE csv_table (
+  `user` bigint,
+  message varchar,
+  ts varchar
+) WITH (
   'connector.type' = 'filesystem',  -- required: specify to connector type
   'format.type' = 'csv',            -- required: specify which format to deserialize(as table source)
   'connector.path' = 'path1',       -- required: path to a file or directory
@@ -820,11 +817,11 @@ connector:
 {% highlight sql %}
 -- CREATE a 011 version Kafka table start from the earliest offset(as table source)
 -- and append mode(as table sink).
-create table MyUserTable (
-  user bigint,
-  message string,
-  ts string
-) with (
+CREATE TABLE MyUserTable (
+  `user` bigint,
+  message varchar,
+  ts varchar
+) WITH (
   'connector.type' = 'kafka',       
 
   'connector.version' = '0.11',     -- required: valid connector versions are
@@ -1030,11 +1027,11 @@ connector:
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
 -- CREATE a version 6 Elasticsearch table.
-create table MyUserTable (
-  user bigint,
-  message string,
-  ts string
-) with (
+CREATE TABLE MyUserTable (
+  `user` bigint,
+  message varchar,
+  ts varchar
+) WITH (
   'connector.type' = 'elasticsearch', -- required: specify this table type is elasticsearch
   
   'connector.version' = '6',          -- required: valid connector versions are "6"
