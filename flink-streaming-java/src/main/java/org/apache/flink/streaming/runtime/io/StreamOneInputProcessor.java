@@ -143,10 +143,7 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 	public boolean processInput() throws Exception {
 		StreamElement recordOrMark = input.pollNextNullable();
 		if (recordOrMark != null) {
-			int channel = input.getLastChannel();
-			checkState(channel != StreamTaskInput.UNSPECIFIED);
-
-			processElement(recordOrMark, channel);
+			processElement(recordOrMark, input.getLastChannel());
 		}
 		checkFinished();
 

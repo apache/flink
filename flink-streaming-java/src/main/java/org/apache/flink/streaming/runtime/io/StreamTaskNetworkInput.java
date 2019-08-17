@@ -134,6 +134,7 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 	private void processBufferOrEvent(BufferOrEvent bufferOrEvent) throws IOException {
 		if (bufferOrEvent.isBuffer()) {
 			lastChannel = bufferOrEvent.getChannelIndex();
+			checkState(lastChannel != StreamTaskInput.UNSPECIFIED);
 			currentRecordDeserializer = recordDeserializers[lastChannel];
 			checkState(currentRecordDeserializer != null,
 				"currentRecordDeserializer has already been released");
