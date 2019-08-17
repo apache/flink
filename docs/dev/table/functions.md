@@ -767,7 +767,7 @@ boolean IS NOT TRUE
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>boolean</i> is FALSE or UNKNOWN; returns FALSE if <i>boolean</i> is FALSE.</p>
+        <p>Returns TRUE if <i>boolean</i> is FALSE or UNKNOWN; returns FALSE if <i>boolean</i> is TRUE.</p>
       </td>
     </tr>
 
