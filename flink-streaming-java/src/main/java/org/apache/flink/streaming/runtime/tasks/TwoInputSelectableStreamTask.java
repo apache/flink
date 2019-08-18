@@ -58,6 +58,7 @@ public class TwoInputSelectableStreamTask<IN1, IN2, OUT> extends AbstractTwoInpu
 			input1WatermarkGauge,
 			input2WatermarkGauge,
 			getTaskNameWithSubtaskAndId(),
-			operatorChain);
+			operatorChain,
+			setupNumRecordsInCounter(headOperator));
 	}
 }

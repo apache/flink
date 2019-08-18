@@ -22,10 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
@@ -94,7 +92,7 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 
 	private InputSelection inputSelection;
 
-	private Counter numRecordsIn;
+	private final Counter numRecordsIn;
 
 	private boolean isPrepared;
 
@@ -113,7 +111,8 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 		WatermarkGauge input1WatermarkGauge,
 		WatermarkGauge input2WatermarkGauge,
 		String taskName,
-		OperatorChain<?, ?> operatorChain) throws IOException {
+		OperatorChain<?, ?> operatorChain,
+		Counter numRecordsIn) throws IOException {
 
 		checkState(streamOperator instanceof InputSelectable);
 
@@ -146,6 +145,7 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 			new ForwardingValveOutputHandler(streamOperator, lock, streamStatusMaintainer, input2WatermarkGauge, 1));
 
 		this.operatorChain = checkNotNull(operatorChain);
+		this.numRecordsIn = checkNotNull(numRecordsIn);
 
 		this.firstStatus = StreamStatus.ACTIVE;
 		this.secondStatus = StreamStatus.ACTIVE;
@@ -328,14 +328,6 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 		// is opened to ensure that any changes about the input selection in its open()
 		// method take effect.
 		inputSelection = inputSelector.nextSelection();
-
-		try {
-			numRecordsIn = ((OperatorMetricGroup) streamOperator
-				.getMetricGroup()).getIOMetricGroup().getNumRecordsInCounter();
-		} catch (Exception e) {
-			LOG.warn("An exception occurred during the metrics setup.", e);
-			numRecordsIn = new SimpleCounter();
-		}
 
 		isPrepared = true;
 	}
