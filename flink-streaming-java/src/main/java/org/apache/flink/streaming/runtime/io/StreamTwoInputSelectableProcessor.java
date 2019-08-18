@@ -25,8 +25,6 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.CheckpointingMode;
-import org.apache.flink.streaming.api.operators.InputSelectable;
-import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
@@ -64,7 +62,8 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 	private static final CompletableFuture<?> UNAVAILABLE = new CompletableFuture<>();
 
 	private final TwoInputStreamOperator<IN1, IN2, ?> streamOperator;
-	private final InputSelectable inputSelector;
+
+	private final TwoInputSelectionHandler inputSelectionHandler;
 
 	private final Object lock;
 
@@ -86,11 +85,7 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 	private StreamStatus firstStatus;
 	private StreamStatus secondStatus;
 
-	private int availableInputsMask;
-
 	private int lastReadInputIndex;
-
-	private InputSelection inputSelection;
 
 	private final Counter numRecordsIn;
 
@@ -108,16 +103,15 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 		Configuration taskManagerConfig,
 		StreamStatusMaintainer streamStatusMaintainer,
 		TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
+		TwoInputSelectionHandler inputSelectionHandler,
 		WatermarkGauge input1WatermarkGauge,
 		WatermarkGauge input2WatermarkGauge,
 		String taskName,
 		OperatorChain<?, ?> operatorChain,
 		Counter numRecordsIn) throws IOException {
 
-		checkState(streamOperator instanceof InputSelectable);
-
 		this.streamOperator = checkNotNull(streamOperator);
-		this.inputSelector = (InputSelectable) streamOperator;
+		this.inputSelectionHandler = checkNotNull(inputSelectionHandler);
 
 		this.lock = checkNotNull(lock);
 
@@ -150,8 +144,6 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 		this.firstStatus = StreamStatus.ACTIVE;
 		this.secondStatus = StreamStatus.ACTIVE;
 
-		this.availableInputsMask = (int) new InputSelection.Builder().select(1).select(2).build().getInputMask();
-
 		this.lastReadInputIndex = 1; // always try to read from the first input
 
 		this.isPrepared = false;
@@ -164,10 +156,10 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 
 	@Override
 	public CompletableFuture<?> isAvailable() {
-		if (inputSelection.isALLMaskOf2()) {
+		if (inputSelectionHandler.areAllInputsSelected()) {
 			return isAnyInputAvailable();
 		} else {
-			StreamTaskInput input = (inputSelection.getInputMask() == InputSelection.FIRST.getInputMask()) ? input1 : input2;
+			StreamTaskInput input = (inputSelectionHandler.isFirstInputSelected()) ? input1 : input2;
 			return input.isAvailable();
 		}
 	}
@@ -202,7 +194,7 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 		}
 
 		if (recordOrMark == null) {
-			setUnavailableInput(readingInputIndex);
+			inputSelectionHandler.setUnavailableInput(readingInputIndex);
 		}
 
 		return recordOrMark != null;
@@ -212,7 +204,7 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 		if (input.isFinished()) {
 			synchronized (lock) {
 				operatorChain.endInput(getInputId(inputIndex));
-				inputSelection = inputSelector.nextSelection();
+				inputSelectionHandler.nextSelection();
 			}
 		}
 	}
@@ -240,7 +232,8 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 	private int selectNextReadingInputIndex() throws IOException {
 		updateAvailability();
 		checkInputSelectionAgainstIsFinished();
-		int readingInputIndex = inputSelection.fairSelectNextIndexOutOf2(availableInputsMask, lastReadInputIndex);
+
+		int readingInputIndex = inputSelectionHandler.selectNextInputIndex(lastReadInputIndex);
 		if (readingInputIndex == -1) {
 			return -1;
 		}
@@ -249,7 +242,7 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 		// always try to check and set the availability of another input
 		// TODO: because this can be a costly operation (checking volatile inside CompletableFuture`
 		//  this might be optimized to only check once per processed NetworkBuffer
-		if (availableInputsMask < 3 && inputSelection.isALLMaskOf2()) {
+		if (inputSelectionHandler.shouldSetAvailableForAnotherInput()) {
 			checkAndSetAvailable(1 - readingInputIndex);
 		}
 
@@ -257,23 +250,23 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 	}
 
 	private void checkInputSelectionAgainstIsFinished() throws IOException {
-		if (inputSelection.isALLMaskOf2()) {
+		if (inputSelectionHandler.areAllInputsSelected()) {
 			return;
 		}
-		if (inputSelection.isInputSelected(1) && input1.isFinished()) {
+		if (inputSelectionHandler.isFirstInputSelected() && input1.isFinished()) {
 			throw new IOException("Can not make a progress: only first input is selected but it is already finished");
 		}
-		if (inputSelection.isInputSelected(2) && input2.isFinished()) {
+		if (inputSelectionHandler.isSecondInputSelected() && input2.isFinished()) {
 			throw new IOException("Can not make a progress: only second input is selected but it is already finished");
 		}
 	}
 
 	private void updateAvailability() {
 		if (!input1.isFinished() && input1.isAvailable() == AVAILABLE) {
-			setAvailableInput(input1.getInputIndex());
+			inputSelectionHandler.setAvailableInput(input1.getInputIndex());
 		}
 		if (!input2.isFinished() && input2.isAvailable() == AVAILABLE) {
-			setAvailableInput(input2.getInputIndex());
+			inputSelectionHandler.setAvailableInput(input2.getInputIndex());
 		}
 	}
 
@@ -284,7 +277,7 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 				numRecordsIn.inc();
 				streamOperator.setKeyContextElement1(record);
 				streamOperator.processElement1(record);
-				inputSelection = inputSelector.nextSelection();
+				inputSelectionHandler.nextSelection();
 			}
 		}
 		else if (recordOrMark.isWatermark()) {
@@ -307,7 +300,7 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 				numRecordsIn.inc();
 				streamOperator.setKeyContextElement2(record);
 				streamOperator.processElement2(record);
-				inputSelection = inputSelector.nextSelection();
+				inputSelectionHandler.nextSelection();
 			}
 		}
 		else if (recordOrMark.isWatermark()) {
@@ -327,7 +320,7 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 		// Note: the first call to nextSelection () on the operator must be made after this operator
 		// is opened to ensure that any changes about the input selection in its open()
 		// method take effect.
-		inputSelection = inputSelector.nextSelection();
+		inputSelectionHandler.nextSelection();
 
 		isPrepared = true;
 	}
@@ -335,7 +328,7 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 	private void checkAndSetAvailable(int inputIndex) {
 		StreamTaskInput input = getInput(inputIndex);
 		if (!input.isFinished() && input.isAvailable().isDone()) {
-			setAvailableInput(inputIndex);
+			inputSelectionHandler.setAvailableInput(inputIndex);
 		}
 	}
 
@@ -353,14 +346,6 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 
 		return (input1Available == AVAILABLE || input2Available == AVAILABLE) ?
 			AVAILABLE : CompletableFuture.anyOf(input1Available, input2Available);
-	}
-
-	private void setAvailableInput(int inputIndex) {
-		availableInputsMask |= 1 << inputIndex;
-	}
-
-	private void setUnavailableInput(int inputIndex) {
-		availableInputsMask &= ~(1 << inputIndex);
 	}
 
 	private StreamTaskInput getInput(int inputIndex) {
