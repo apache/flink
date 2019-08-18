@@ -80,7 +80,7 @@ class StreamLogicalWindowAggregateRule
           rowType.getFieldList.get(v.getIndex).getName,
           fromLogicalTypeToDataType(toLogicalType(v.getType)),
           0, // only one input, should always be 0
-          v.getIndex)
+          windowExprIdx)
       case _ =>
         throw new ValidationException("Window can only be defined over a time attribute column.")
     }

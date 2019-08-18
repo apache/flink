@@ -73,7 +73,7 @@ class BatchLogicalWindowAggregateRule
           fieldName,
           fromLogicalTypeToDataType(toLogicalType(fieldType)),
           0, // only one input, should always be 0
-          ref.getIndex)
+          windowExprIdx)
     }
   }
 
