@@ -5685,6 +5685,116 @@ COLLECT([ ALL | DISTINCT ] expression)
           <p>By default or with keyword ALL, returns a multiset of <i>expression</i> across all input rows. NULL values will be ignored. Use DISTINCT for one unique instance of each value.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+VARIANCE([ ALL | DISTINCT ] expression)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>See VAR_SAMP.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+RANK()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the rank of each row within the partition of a result set. The rank of a row is one plus the number of ranks that come before the row in question.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+DENSE_RANK()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>This function returns the rank of each row within a result set partition, with no gaps in the ranking values. The rank of a specific row is one plus the number of distinct rank values that come before that specific row.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ROW_NUMBER()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Numbers the output of a result set.</p>
+        <p>ROW_NUMBER and RANK are similar. ROW_NUMBER numbers all rows sequentially (for example 1, 2, 3, 4, 5). RANK provides the same numeric value for ties (for example 1, 2, 2, 4, 5).</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LEAD(expression [, offset] [, default] )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the value of <i>expression</i> at the <i>offset</i>th row after the current row in the window. The default value of <i>offset</i> is 1 and the default value of <i>default</i> is NULL.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LAG(expression [, offset] [, default])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the value of <i>expression</i> at the <i>offset</i>th row after the current row in the window. The default value of <i>offset</i> is 1 and the default value of <i>default</i> is NULL.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+        
+    <tr>
+      <td>
+        {% highlight text %}
+FIRST_VALUE(expression)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the first value in an ordered set of values.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LAST_VALUE(expression)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the first value in an ordered set of values.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LISTAGG(expression [, separator])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Concatenates the values of string expressions and places separator values between them. The separator is not added at the end of string. The default value of <i>separator</i> is '\n'.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+           
   </tbody>
 </table>
 
