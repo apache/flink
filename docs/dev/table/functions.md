@@ -4449,6 +4449,56 @@ COALESCE(value1, value2 [, value3 ]* )
         <p>E.g., <code>COALESCE(NULL, 5)</code> returns 5.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+IF(condition, true_value, false_value)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the <i>true_value</i> if <i>condition</i> is met, otherwise <i>false_value</i>.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+        <p>E.g., <code>IF(5 > 3, 5, 3)</code> returns 5.</p>
+      </td>
+    </tr>    
+
+    <tr>
+      <td>
+        {% highlight text %}
+IS_ALPHA(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if all characters in <i>string</i> are letter, otherwise false.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>    
+
+    <tr>
+      <td>
+        {% highlight text %}
+IS_DECIMAL(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if <i>string</i> can be parsed to a valid numeric, otherwise false.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>    
+
+    <tr>
+      <td>
+        {% highlight text %}
+IS_DIGIT(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if all characters in <i>string</i> are digit, otherwise false.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+    
   </tbody>
 </table>
 </div>
