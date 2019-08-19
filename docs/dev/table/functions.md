@@ -2701,6 +2701,177 @@ TO_BASE64(string)
         <p>E.g., <code>TO_BASE64('hello world')</code> returns "aGVsbG8gd29ybGQ=".</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+ASCII(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the numeric value of the first character of <i>string</i>. Returns NULL if <i>string</i> is NULL.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+        <p>E.g., <code>ascii('abc')</code> returns 97, and <code>ascii(CAST(NULL AS VARCHAR))</code> returns NULL.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+CHR(integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the ASCII character having the binary equivalent to <i>integer</i>. If <i>integer</i> is larger than 255 the result is equivalent to chr(bitand(integer,256). Returns NULL if <i>integer</i> is NULL.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+        <p>E.g., <code>chr(97)</code> returns a, <code>chr(353)</code> returns a, and <code>ascii(CAST(NULL AS VARCHAR))</code> returns NULL.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+DECODE(binary, string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Decodes the first argument into a String using the provided character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+ENCODE(string, string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Encodes the first argument into a BINARY using the provided character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+INSTR(string1, string2[, integer1[, integer2]])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>INSTR searches a string(<i>string1</i>) for a substring(<i>string2</i>) using characters and returns the position in the string that is the first character of a specified occurrence of the substring. <i>integer1</i> indicating where in string the function begins the search. <i>integer2</i>  indicating which occurrence of string the function should search for. Returns NULL if any of arguments is NULL.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LEFT(string, integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the leftmost <i>integer</i> characters from the <i>string</i>. Returns EMPTY String if <i>integer</i> is negative. Returns NULL if any argument is NULL.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+RIGHT(string, integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the rightmost <i>integer</i> characters from the <i>string</i>. Returns EMPTY String if <i>integer</i> is negative. Returns NULL if any argument is NULL.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LOCATE(string1, string2[, integer])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the position of the first occurrence of <i>string1</i> in <i>string2</i> after position <i>integer</i>. Returns 0 if not found. Returns NULL if any of arguments is NULL.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+PARSE_URL(string1, string2[,string3])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the specified part from the URL. Valid values for <i>string2</i> include HOST, PATH, QUERY, REF, PROTOCOL, AUTHORITY, FILE, and USERINFO.For example, parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST') returns 'facebook.com'. Also a value of a particular key in QUERY can be extracted by providing the key as the third argument(<i>string3</i>), for example, parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1') returns 'v1'. Returns NULL if any of arguments is NULL.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+REGEXP(string1, string2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns TRUE if any (possibly empty) substring of <i>string1</i> matches the Java regular expression <i>string2</i>, otherwise FALSE. Returns NULL if any of arguments is NULL.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+REVERSE(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the reversed string. Returns NULL if <i>string</i> is NULL.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SPLIT_INDEX(string1, string2|integer1, integer2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Splits <i>string1</i> around the delimiter <i>string2</i> or character having the binary equivalent to <i>integer1</i>, and Returns the <i>integer2</i> part in a zero-based numbering. Returns NULL if <i>integer2</i> is negative. Returns NULL if any of arguments is NULL.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+STR_TO_MAP(string1[, string2, string3])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Splits <i>string1</i> into key-value pairs using two delimiters. <i>string2</i> separates text into K-V pairs, and <i>string3</i> splits each K-V pair. Default delimiters are ',' for <i>string2</i> and '=' for <i>string3</i>.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+SUBSTR(string[, integer1[, integer2]])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a substring of string starting from position integer1 with length integer2 (to the end by default).</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+        
   </tbody>
 </table>
 </div>
