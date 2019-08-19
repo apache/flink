@@ -568,6 +568,11 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	}
 
 	@VisibleForTesting
+	public TestProcessingTimeService getProcessingTimeService() {
+		return processingTimeService;
+	}
+
+	@VisibleForTesting
 	public StreamStatus getStreamStatus() {
 		return mockTask.getStreamStatusMaintainer().getStreamStatus();
 	}
