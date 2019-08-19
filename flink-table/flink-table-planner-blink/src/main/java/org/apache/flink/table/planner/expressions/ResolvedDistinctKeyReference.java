@@ -20,16 +20,20 @@ package org.apache.flink.table.planner.expressions;
 
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionVisitor;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType;
+
 /**
  * Resolved distinct key reference.
  */
-public class ResolvedDistinctKeyReference implements Expression {
+public class ResolvedDistinctKeyReference implements ResolvedExpression {
 
 	private final String name;
 	private final LogicalType resultType;
@@ -48,13 +52,23 @@ public class ResolvedDistinctKeyReference implements Expression {
 	}
 
 	@Override
-	public String asSummaryString() {
-		return name;
+	public DataType getOutputDataType() {
+		return fromLogicalTypeToDataType(resultType);
+	}
+
+	@Override
+	public List<ResolvedExpression> getResolvedChildren() {
+		return Collections.emptyList();
 	}
 
 	@Override
 	public List<Expression> getChildren() {
 		return Collections.emptyList();
+	}
+
+	@Override
+	public String asSummaryString() {
+		return name;
 	}
 
 	@Override
