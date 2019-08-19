@@ -18,9 +18,11 @@
 
 package org.apache.flink.client.program.rest;
 
+import java.nio.file.Files;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
 import org.apache.flink.client.deployment.StandaloneClusterId;
@@ -95,6 +97,7 @@ import org.apache.commons.cli.CommandLine;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -117,6 +120,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.rules.TemporaryFolder;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -137,6 +141,9 @@ import static org.junit.Assert.fail;
  */
 public class RestClusterClientTest extends TestLogger {
 
+	@ClassRule
+	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	private final DispatcherGateway mockRestfulGateway = new TestingDispatcherGateway.Builder().build();
 
 	private GatewayRetriever<DispatcherGateway> mockGatewayRetriever;
@@ -155,9 +162,10 @@ public class RestClusterClientTest extends TestLogger {
 	static {
 		final Configuration config = new Configuration();
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
-		config.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 10);
+		config.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 1);
 		config.setLong(RestOptions.RETRY_DELAY, 0);
 		config.setInteger(RestOptions.PORT, 0);
+		config.setLong(RestOptions.IDLENESS_TIMEOUT, 10_000L);
 
 		restConfig = config;
 	}
@@ -210,6 +218,59 @@ public class RestClusterClientTest extends TestLogger {
 				}
 			}
 		};
+	}
+
+	@Test
+	public void testJobSubmitWithDistributeCache() throws Exception {
+		JobGraph jobGraph = new JobGraph();
+		java.nio.file.Path tmpDir = temporaryFolder.newFolder().toPath();
+
+		Collection<DistributedCache.DistributedCacheEntry> localArtifacts = Arrays.asList(
+			new DistributedCache.DistributedCacheEntry(Files.createFile(tmpDir.resolve("art1")).toString(), true, true),
+			new DistributedCache.DistributedCacheEntry(Files.createFile(tmpDir.resolve("art2")).toString(), true, false)
+		);
+
+		Collection<DistributedCache.DistributedCacheEntry> distributedArtifacts = Arrays.asList(
+			new DistributedCache.DistributedCacheEntry("hdfs://localhost:1234/test", true, false)
+		);
+
+		for (DistributedCache.DistributedCacheEntry entry : localArtifacts) {
+			jobGraph.addUserArtifact(entry.filePath, entry);
+		}
+		for (DistributedCache.DistributedCacheEntry entry : distributedArtifacts) {
+			jobGraph.addUserArtifact(entry.filePath, entry);
+		}
+
+		TestJobSubmitHandler submitHandler = new TestJobSubmitHandler();
+		TestJobExecutionResultHandler testJobExecutionResultHandler =
+			new TestJobExecutionResultHandler(
+				JobExecutionResultResponseBody.created(new JobResult.Builder()
+					.applicationStatus(ApplicationStatus.SUCCEEDED)
+					.jobId(jobGraph.getJobID())
+					.netRuntime(Long.MAX_VALUE)
+					.build()));
+
+		Configuration config = new Configuration();
+		config.setString(JobManagerOptions.ADDRESS, "localhost");
+		config.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 1);
+		config.setLong(RestOptions.RETRY_DELAY, 0);
+		config.setLong(RestOptions.IDLENESS_TIMEOUT, 10_000);
+
+		try (TestRestServerEndpoint restServerEndpoint = createRestServerEndpoint(
+			submitHandler,
+			testJobExecutionResultHandler)) {
+			RestClusterClient<?> restClusterClient = createRestClusterClient(
+				restServerEndpoint.getServerAddress().getPort());
+			try {
+				Assert.assertFalse(submitHandler.jobSubmitted);
+				restClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
+				Assert.assertTrue(submitHandler.jobSubmitted);
+			} finally {
+				restClusterClient.shutdown();
+			}
+		} catch (Exception e) {
+			fail("failed to submit job graph");
+		}
 	}
 
 	@Test
