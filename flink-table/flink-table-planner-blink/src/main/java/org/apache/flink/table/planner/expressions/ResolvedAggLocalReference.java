@@ -20,10 +20,14 @@ package org.apache.flink.table.planner.expressions;
 
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionVisitor;
+import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import java.util.Collections;
 import java.util.List;
+
+import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType;
 
 /**
  * Special reference which represent a local filed, such as aggregate buffers or constants.
@@ -32,7 +36,7 @@ import java.util.List;
  *
  * <p>See {@link org.apache.flink.table.planner.codegen.ExprCodeGenerator#visitLocalRef}.
  */
-public class ResolvedAggLocalReference implements Expression {
+public class ResolvedAggLocalReference implements ResolvedExpression {
 
 	private final String fieldTerm;
 	private final String nullTerm;
@@ -57,13 +61,23 @@ public class ResolvedAggLocalReference implements Expression {
 	}
 
 	@Override
-	public String asSummaryString() {
-		return fieldTerm;
+	public DataType getOutputDataType() {
+		return fromLogicalTypeToDataType(resultType);
+	}
+
+	@Override
+	public List<ResolvedExpression> getResolvedChildren() {
+		return Collections.emptyList();
 	}
 
 	@Override
 	public List<Expression> getChildren() {
 		return Collections.emptyList();
+	}
+
+	@Override
+	public String asSummaryString() {
+		return fieldTerm;
 	}
 
 	@Override
