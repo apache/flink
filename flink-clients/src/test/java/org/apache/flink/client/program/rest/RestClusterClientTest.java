@@ -18,9 +18,11 @@
 
 package org.apache.flink.client.program.rest;
 
+import java.nio.file.Files;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
@@ -104,7 +106,9 @@ import org.apache.commons.cli.CommandLine;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -150,6 +154,9 @@ import static org.junit.Assert.fail;
  */
 public class RestClusterClientTest extends TestLogger {
 
+	@ClassRule
+	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+
 	@Mock
 	private Dispatcher mockRestfulGateway;
 
@@ -178,17 +185,24 @@ public class RestClusterClientTest extends TestLogger {
 
 		restServerEndpointConfiguration = RestServerEndpointConfiguration.fromConfiguration(config);
 		mockGatewayRetriever = () -> CompletableFuture.completedFuture(mockRestfulGateway);
-
 		executor = Executors.newSingleThreadExecutor(new ExecutorThreadFactory(RestClusterClientTest.class.getSimpleName()));
-		final RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(config), executor) {
+		restClusterClient = createRestClusterClient(config, executor);
+
+		jobGraph = new JobGraph("testjob");
+		jobId = jobGraph.getJobID();
+	}
+
+	private RestClusterClient<StandaloneClusterId> createRestClusterClient(Configuration config, ExecutorService executor) throws Exception {
+
+		 RestClient restClient = new RestClient(RestClientConfiguration.fromConfiguration(config), executor) {
 			@Override
 			public <M extends MessageHeaders<R, P, U>, U extends MessageParameters, R extends RequestBody, P extends ResponseBody> CompletableFuture<P>
 			sendRequest(
-					final String targetAddress,
-					final int targetPort,
-					final M messageHeaders,
-					final U messageParameters,
-					final R request) throws IOException {
+				final String targetAddress,
+				final int targetPort,
+				final M messageHeaders,
+				final U messageParameters,
+				final R request) throws IOException {
 				if (failHttpRequest.test(messageHeaders, messageParameters, request)) {
 					return FutureUtils.completedExceptionally(new IOException("expected"));
 				} else {
@@ -196,15 +210,13 @@ public class RestClusterClientTest extends TestLogger {
 				}
 			}
 		};
-		restClusterClient = new RestClusterClient<>(
+
+		return new RestClusterClient<>(
 			config,
 			restClient,
 			StandaloneClusterId.getInstance(),
 			(attempt) -> 0,
 			null);
-
-		jobGraph = new JobGraph("testjob");
-		jobId = jobGraph.getJobID();
 	}
 
 	@After
@@ -216,6 +228,72 @@ public class RestClusterClientTest extends TestLogger {
 		if (executor != null) {
 			executor.shutdown();
 		}
+	}
+
+	@Test
+	public void testJobSubmitWithDistributeCache() throws Exception {
+		JobGraph jobGraph = new JobGraph();
+		java.nio.file.Path tmpDir = temporaryFolder.newFolder().toPath();
+
+		Collection<DistributedCache.DistributedCacheEntry> localArtifacts = Arrays.asList(
+			new DistributedCache.DistributedCacheEntry(Files.createFile(tmpDir.resolve("art1")).toString(), true, true),
+			new DistributedCache.DistributedCacheEntry(Files.createFile(tmpDir.resolve("art2")).toString(), true, false)
+		);
+
+		Collection<DistributedCache.DistributedCacheEntry> distributedArtifacts = Arrays.asList(
+			new DistributedCache.DistributedCacheEntry("hdfs://localhost:1234/test", true, false)
+		);
+
+		for (DistributedCache.DistributedCacheEntry entry : localArtifacts) {
+			jobGraph.addUserArtifact(entry.filePath, entry);
+		}
+		for (DistributedCache.DistributedCacheEntry entry : distributedArtifacts) {
+			jobGraph.addUserArtifact(entry.filePath, entry);
+		}
+
+		TestJobSubmitHandler submitHandler = new TestJobSubmitHandler();
+		TestJobTerminationHandler terminationHandler = new TestJobTerminationHandler();
+		TestJobExecutionResultHandler testJobExecutionResultHandler =
+			new TestJobExecutionResultHandler(
+				JobExecutionResultResponseBody.created(new JobResult.Builder()
+					.applicationStatus(ApplicationStatus.SUCCEEDED)
+					.jobId(jobGraph.getJobID())
+					.netRuntime(Long.MAX_VALUE)
+					.build()));
+
+		Configuration config = new Configuration();
+		config.setString(JobManagerOptions.ADDRESS, "localhost");
+		config.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 1);
+		config.setLong(RestOptions.RETRY_DELAY, 0);
+		config.setLong(RestOptions.IDLENESS_TIMEOUT, 10_000);
+
+		RestClusterClient<StandaloneClusterId> restClusterClient = null;
+		TestRestServerEndpoint restServerEndpoint = null;
+		try  {
+			restClusterClient = createRestClusterClient(config, this.executor);
+			restServerEndpoint = createRestServerEndpoint(
+				restServerEndpointConfiguration,
+				submitHandler,
+				terminationHandler,
+				testJobExecutionResultHandler);
+
+			Assert.assertFalse(submitHandler.jobSubmitted);
+			restClusterClient.submitJob(jobGraph, ClassLoader.getSystemClassLoader());
+			Assert.assertTrue(submitHandler.jobSubmitted);
+		} catch (Exception e) {
+			fail("failed to submit job graph");
+		}
+		finally {
+			if (restServerEndpoint != null) {
+				restServerEndpoint.close();
+			}
+
+			if (restClusterClient != null) {
+				restClusterClient.shutdown();
+			}
+		}
+
+
 	}
 
 	@Test
@@ -860,11 +938,24 @@ public class RestClusterClientTest extends TestLogger {
 		return testRestServerEndpoint;
 	}
 
+	private TestRestServerEndpoint createRestServerEndpoint(
+		final RestServerEndpointConfiguration restServerEndpointConfiguration,
+		final AbstractRestHandler<?, ?, ?, ?>... abstractRestHandlers) throws Exception {
+		final TestRestServerEndpoint testRestServerEndpoint = new TestRestServerEndpoint(restServerEndpointConfiguration, abstractRestHandlers);
+		testRestServerEndpoint.start();
+		return testRestServerEndpoint;
+	}
+
 	private class TestRestServerEndpoint extends RestServerEndpoint implements AutoCloseable {
 
 		private final AbstractRestHandler<?, ?, ?, ?>[] abstractRestHandlers;
 
 		TestRestServerEndpoint(final AbstractRestHandler<?, ?, ?, ?>... abstractRestHandlers) throws IOException {
+			super(restServerEndpointConfiguration);
+			this.abstractRestHandlers = abstractRestHandlers;
+		}
+
+		TestRestServerEndpoint(final RestServerEndpointConfiguration restServerEndpointConfiguration, final AbstractRestHandler<?, ?, ?, ?>... abstractRestHandlers) throws IOException {
 			super(restServerEndpointConfiguration);
 			this.abstractRestHandlers = abstractRestHandlers;
 		}

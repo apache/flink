@@ -341,8 +341,20 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			}
 
 			for (Map.Entry<String, DistributedCache.DistributedCacheEntry> artifacts : jobGraph.getUserArtifacts().entrySet()) {
-				artifactFileNames.add(new JobSubmitRequestBody.DistributedCacheFile(artifacts.getKey(), new Path(artifacts.getValue().filePath).getName()));
-				filesToUpload.add(new FileUpload(Paths.get(artifacts.getValue().filePath), RestConstants.CONTENT_TYPE_BINARY));
+
+				Path path =  new Path(artifacts.getValue().filePath);
+				// only local files should be uploaded
+				boolean isLocalFile = false;
+				try {
+					isLocalFile = !path.getFileSystem().isDistributedFS();
+				} catch (IOException ioe) {
+					log.warn("Could not determine whether {} denotes a local path.", path, ioe);
+				}
+
+				if (isLocalFile) {
+					artifactFileNames.add(new JobSubmitRequestBody.DistributedCacheFile(artifacts.getKey(), path.getName()));
+					filesToUpload.add(new FileUpload(Paths.get(artifacts.getValue().filePath), RestConstants.CONTENT_TYPE_BINARY));
+				}
 			}
 
 			final JobSubmitRequestBody requestBody = new JobSubmitRequestBody(
