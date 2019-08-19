@@ -264,11 +264,11 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 		@Override
 		public RelNode visit(CatalogQueryOperation catalogTable) {
-			ObjectIdentifier tablePath = catalogTable.getTablePath();
+			ObjectIdentifier objectIdentifier = catalogTable.getObjectIdentifier();
 			return relBuilder.scan(
-				tablePath.getCatalogName(),
-				tablePath.getDatabaseName(),
-				tablePath.getObjectName()
+				objectIdentifier.getCatalogName(),
+				objectIdentifier.getDatabaseName(),
+				objectIdentifier.getObjectName()
 			).build();
 		}
 

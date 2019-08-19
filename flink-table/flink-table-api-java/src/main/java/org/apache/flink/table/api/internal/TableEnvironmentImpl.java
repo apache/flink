@@ -38,7 +38,6 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
-import org.apache.flink.table.catalog.manager.CatalogManagerCommands;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
@@ -177,8 +176,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		}
 
 		CatalogBaseTable tableTable = new QueryOperationCatalogView(table.getQueryOperation());
-		CatalogManagerCommands.createTable(tableTable, false)
-			.executeIn(catalogManager, getTemporaryTablePath(name));
+		catalogManager.createTable(tableTable, false)
+			.executeIn(getTemporaryObjectIdentifier(name));
 	}
 
 	@Override
@@ -216,7 +215,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 	}
 
 	private Optional<CatalogQueryOperation> scanInternal(String... tablePath) {
-		ObjectIdentifier identifier = catalogManager.qualifyPath(tablePath);
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(tablePath);
 		return catalogManager.getTable(identifier)
 			.map(t -> new CatalogQueryOperation(identifier, t.getSchema()));
 	}
@@ -339,14 +338,14 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			}
 		} else if (operation instanceof CreateTableOperation) {
 			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
-			ObjectIdentifier identifier = catalogManager.qualifyPath(createTableOperation.getTablePath());
-			CatalogManagerCommands.createTable(createTableOperation.getCatalogTable(), createTableOperation.isIgnoreIfExists())
-				.executeIn(catalogManager, identifier);
+			ObjectIdentifier identifier = catalogManager.qualifyIdentifier(createTableOperation.getTablePath());
+			catalogManager.createTable(createTableOperation.getCatalogTable(), createTableOperation.isIgnoreIfExists())
+				.executeIn(identifier);
 		} else if (operation instanceof DropTableOperation) {
 			DropTableOperation dropTableOperation = (DropTableOperation) operation;
-			ObjectIdentifier identifier = catalogManager.qualifyPath(dropTableOperation.getTableName());
-			CatalogManagerCommands.dropTable(dropTableOperation.isIfExists())
-				.executeIn(catalogManager, identifier);
+			ObjectIdentifier identifier = catalogManager.qualifyIdentifier(dropTableOperation.getTableName());
+			catalogManager.dropTable(dropTableOperation.isIfExists())
+				.executeIn(identifier);
 		} else {
 			throw new TableException(
 				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
@@ -421,8 +420,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		bufferedModifyOperations.addAll(modifyOperations);
 	}
 
-	private ObjectIdentifier getTemporaryTablePath(String name) {
-		return catalogManager.qualifyPath(
+	private ObjectIdentifier getTemporaryObjectIdentifier(String name) {
+		return catalogManager.qualifyIdentifier(
 			catalogManager.getBuiltInCatalogName(),
 			catalogManager.getBuiltInDatabaseName(),
 			name);
@@ -447,8 +446,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 						tableSource,
 						sourceSinkTable.getTableSink().get(),
 						!IS_STREAM_TABLE);
-					CatalogManagerCommands.alterTable(sourceAndSink, false)
-						.executeIn(catalogManager, getTemporaryTablePath(name));
+					catalogManager.alterTable(sourceAndSink, false)
+						.executeIn(getTemporaryObjectIdentifier(name));
 				}
 			} else {
 				throw new ValidationException(String.format(
@@ -456,8 +455,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			}
 		} else {
 			ConnectorCatalogTable source = ConnectorCatalogTable.source(tableSource, !IS_STREAM_TABLE);
-			CatalogManagerCommands.createTable(source, false)
-				.executeIn(catalogManager, getTemporaryTablePath(name));
+			catalogManager.createTable(source, false)
+				.executeIn(getTemporaryObjectIdentifier(name));
 		}
 	}
 
@@ -477,8 +476,8 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					// wrapper contains only sink (not source)
 					ConnectorCatalogTable sourceAndSink = ConnectorCatalogTable
 						.sourceAndSink(sourceSinkTable.getTableSource().get(), tableSink, !IS_STREAM_TABLE);
-					CatalogManagerCommands.alterTable(sourceAndSink, false)
-						.executeIn(catalogManager, getTemporaryTablePath(name));
+					catalogManager.alterTable(sourceAndSink, false)
+						.executeIn(getTemporaryObjectIdentifier(name));
 				}
 			} else {
 				throw new ValidationException(String.format(
@@ -486,13 +485,13 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			}
 		} else {
 			ConnectorCatalogTable sink = ConnectorCatalogTable.sink(tableSink, !IS_STREAM_TABLE);
-			CatalogManagerCommands.createTable(sink, false)
-				.executeIn(catalogManager, getTemporaryTablePath(name));
+			catalogManager.createTable(sink, false)
+				.executeIn(getTemporaryObjectIdentifier(name));
 		}
 	}
 
 	private Optional<CatalogBaseTable> getCatalogTable(String... name) {
-		return catalogManager.getTable(catalogManager.qualifyPath(name));
+		return catalogManager.getTable(catalogManager.qualifyIdentifier(name));
 	}
 
 	protected TableImpl createTable(QueryOperation tableOperation) {

@@ -168,7 +168,7 @@ public class PathResolutionTest {
 		testSpec.getDefaultCatalog().ifPresent(catalogManager::setCurrentCatalog);
 		testSpec.getDefaultDatabase().ifPresent(catalogManager::setCurrentDatabase);
 
-		ObjectIdentifier identifier = catalogManager.qualifyPath(lookupPath.toArray(new String[0]));
+		ObjectIdentifier identifier = catalogManager.qualifyIdentifier(lookupPath.toArray(new String[0]));
 		assertThat(
 			Arrays.asList(identifier.getCatalogName(), identifier.getDatabaseName(), identifier.getObjectName()),
 			CoreMatchers.equalTo(testSpec.getExpectedPath()));

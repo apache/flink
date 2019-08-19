@@ -151,7 +151,7 @@ class StreamPlanner(
         writeToSink(s.getChild, s.getSink, unwrapQueryConfig)
 
       case catalogSink: CatalogSinkModifyOperation =>
-        val identifier = catalogManager.qualifyPath(catalogSink.getTablePath: _*)
+        val identifier = catalogManager.qualifyIdentifier(catalogSink.getTablePath: _*)
         getTableSink(identifier)
           .map(sink => {
             TableSinkUtils.validateSink(
@@ -445,19 +445,19 @@ class StreamPlanner(
     TableSchema.builder().fields(originalNames, fieldTypes).build()
   }
 
-  private def getTableSink(identifier: ObjectIdentifier): Option[TableSink[_]] = {
-    JavaScalaConversionUtil.toScala(catalogManager.getTable(identifier)) match {
+  private def getTableSink(objectIdentifier: ObjectIdentifier): Option[TableSink[_]] = {
+    JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier)) match {
       case Some(s) if s.isInstanceOf[ConnectorCatalogTable[_, _]] =>
         JavaScalaConversionUtil.toScala(s.asInstanceOf[ConnectorCatalogTable[_, _]].getTableSink)
 
       case Some(s) if s.isInstanceOf[CatalogTable] =>
-        val catalog = catalogManager.getCatalog(identifier.getCatalogName)
+        val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val catalogTable = s.asInstanceOf[CatalogTable]
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
           val sink = TableFactoryUtil.createTableSinkForCatalogTable(
             catalog.get(),
             catalogTable,
-            identifier.toObjectPath)
+            objectIdentifier.toObjectPath)
           if (sink.isPresent) {
             return Option(sink.get())
           }

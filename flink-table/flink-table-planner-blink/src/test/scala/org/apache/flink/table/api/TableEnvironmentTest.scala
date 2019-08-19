@@ -59,7 +59,7 @@ class TableEnvironmentTest {
     assertEquals(expected, actual)
 
     // register on a conflict name
-    thrown.expect(classOf[org.apache.flink.table.api.TableException])
+    thrown.expect(classOf[ValidationException])
     thrown.expectMessage("Could not execute CreateTable in path")
     tableEnv.registerDataStream("MyTable", env.fromElements[(Int, Long)]())
   }

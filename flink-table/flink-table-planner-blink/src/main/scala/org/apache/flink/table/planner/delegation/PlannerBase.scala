@@ -174,7 +174,7 @@ abstract class PlannerBase(
 
       case catalogSink: CatalogSinkModifyOperation =>
         val input = getRelBuilder.queryOperation(modifyOperation.getChild).build()
-        val identifier = catalogManager.qualifyPath(catalogSink.getTablePath: _*)
+        val identifier = catalogManager.qualifyIdentifier(catalogSink.getTablePath: _*)
         getTableSink(identifier).map(sink => {
           TableSinkUtils.validateSink(catalogSink, identifier, sink)
           sink match {
@@ -246,18 +246,18 @@ abstract class PlannerBase(
     */
   protected def translateToPlan(execNodes: util.List[ExecNode[_, _]]): util.List[Transformation[_]]
 
-  private def getTableSink(identifier: ObjectIdentifier): Option[TableSink[_]] = {
-    JavaScalaConversionUtil.toScala(catalogManager.getTable(identifier)) match {
+  private def getTableSink(objectIdentifier: ObjectIdentifier): Option[TableSink[_]] = {
+    JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier)) match {
       case Some(s) if s.isInstanceOf[ConnectorCatalogTable[_, _]] =>
         JavaScalaConversionUtil
           .toScala(s.asInstanceOf[ConnectorCatalogTable[_, _]].getTableSink)
 
       case Some(s) if s.isInstanceOf[CatalogTable] =>
 
-        val catalog = catalogManager.getCatalog(identifier.getCatalogName)
+        val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val catalogTable = s.asInstanceOf[CatalogTable]
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
-          val objectPath = identifier.toObjectPath
+          val objectPath = objectIdentifier.toObjectPath
           val sink = TableFactoryUtil.createTableSinkForCatalogTable(
             catalog.get(),
             catalogTable,

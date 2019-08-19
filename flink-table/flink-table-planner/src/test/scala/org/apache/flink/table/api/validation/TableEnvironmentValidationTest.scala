@@ -111,7 +111,7 @@ class TableEnvironmentValidationTest extends TableTestBase {
     util.addTable('first)(genericRowType)
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testRegisterExistingDataSet(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)
@@ -131,7 +131,7 @@ class TableEnvironmentValidationTest extends TableTestBase {
     tEnv.scan("someTable")
   }
 
-  @Test(expected = classOf[TableException])
+  @Test(expected = classOf[ValidationException])
   def testRegisterExistingTable(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
     val tEnv = BatchTableEnvironment.create(env)

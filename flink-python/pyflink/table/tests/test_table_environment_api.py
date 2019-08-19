@@ -42,7 +42,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
 
         result = t_env.scan("Source")
         self.assertEqual(
-            'CatalogTable: (path: [`default_catalog`.`default_database`.`Source`]'
+            'CatalogTable: (identifier: [`default_catalog`.`default_database`.`Source`]'
             ', fields: [a, b, c])',
             result._j_table.getQueryOperation().asSummaryString())
 

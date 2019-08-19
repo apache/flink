@@ -137,7 +137,7 @@ public class JavaTableEnvironmentITCase extends TableProgramsCollectionTestBase 
 		compareResultAsText(results, expected);
 	}
 
-	@Test(expected = TableException.class)
+	@Test(expected = ValidationException.class)
 	public void testRegisterExistingDatasetTable() throws Exception {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		BatchTableEnvironment tableEnv = BatchTableEnvironment.create(env, config());

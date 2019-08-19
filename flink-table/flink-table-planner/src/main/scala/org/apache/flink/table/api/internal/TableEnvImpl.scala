@@ -25,7 +25,6 @@ import org.apache.flink.sql.parser.dml.RichSqlInsert
 import org.apache.flink.table.api._
 import org.apache.flink.table.calcite.{FlinkPlannerImpl, FlinkRelBuilder}
 import org.apache.flink.table.catalog._
-import org.apache.flink.table.catalog.manager.CatalogManagerCommands
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
@@ -182,8 +181,8 @@ abstract class TableEnvImpl(
     }
 
     val view = new QueryOperationCatalogView(table.getQueryOperation)
-    CatalogManagerCommands.createTable(view, false)
-      .executeIn(catalogManager, getTemporaryObjectPath(name))
+    catalogManager.createTable(view, false)
+      .executeIn(getTemporaryObjectIdentifier(name))
   }
 
   override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
@@ -267,15 +266,15 @@ abstract class TableEnvImpl(
             tableSource,
             table.getTableSink.get,
             isBatchTable)
-          CatalogManagerCommands.alterTable(sourceAndSink, false)
-            .executeIn(catalogManager, getTemporaryObjectPath(name))
+          catalogManager.alterTable(sourceAndSink, false)
+            .executeIn(getTemporaryObjectIdentifier(name))
         }
 
       // no table is registered
       case _ =>
         val source = ConnectorCatalogTable.source(tableSource, isBatchTable)
-        CatalogManagerCommands.createTable(source, false)
-          .executeIn(catalogManager, getTemporaryObjectPath(name))
+        catalogManager.createTable(source, false)
+          .executeIn(getTemporaryObjectIdentifier(name))
     }
   }
 
@@ -301,20 +300,20 @@ abstract class TableEnvImpl(
             table.getTableSource.get,
             tableSink,
             isBatchTable)
-          CatalogManagerCommands.alterTable(sourceAndSink, false)
-            .executeIn(catalogManager, getTemporaryObjectPath(name))
+          catalogManager.alterTable(sourceAndSink, false)
+            .executeIn(getTemporaryObjectIdentifier(name))
         }
 
       // no table is registered
       case _ =>
         val sink = ConnectorCatalogTable.sink(tableSink, isBatchTable)
-        CatalogManagerCommands.createTable(sink, false)
-          .executeIn(catalogManager, getTemporaryObjectPath(name))
+        catalogManager.createTable(sink, false)
+          .executeIn(getTemporaryObjectIdentifier(name))
     }
   }
 
-  private def getTemporaryObjectPath(name: String): ObjectIdentifier = {
-    catalogManager.qualifyPath(
+  private def getTemporaryObjectIdentifier(name: String): ObjectIdentifier = {
+    catalogManager.qualifyIdentifier(
       catalogManager.getBuiltInCatalogName,
       catalogManager.getBuiltInDatabaseName,
       name
@@ -330,7 +329,7 @@ abstract class TableEnvImpl(
   }
 
   private[flink] def scanInternal(tablePath: Array[String]): Option[CatalogQueryOperation] = {
-    val identifier = catalogManager.qualifyPath(tablePath: _*)
+    val identifier = catalogManager.qualifyIdentifier(tablePath: _*)
     JavaScalaConversionUtil.toScala(catalogManager.getTable(identifier))
       .map(t => new CatalogQueryOperation(identifier, t.getSchema))
   }
@@ -408,16 +407,15 @@ abstract class TableEnvImpl(
         val operation = SqlToOperationConverter
           .convert(planner, createTable)
           .asInstanceOf[CreateTableOperation]
-        val identifier = catalogManager.qualifyPath(operation.getTablePath: _*)
-        CatalogManagerCommands.createTable(
+        val identifier = catalogManager.qualifyIdentifier(operation.getTablePath: _*)
+        catalogManager.createTable(
           operation.getCatalogTable,
           operation.isIgnoreIfExists
-        ).executeIn(catalogManager, identifier)
+        ).executeIn(identifier)
       case dropTable: SqlDropTable =>
-        val identifier = catalogManager.qualifyPath(dropTable.fullTableName(): _*)
-        CatalogManagerCommands.dropTable(
-          dropTable.getIfExists
-        ).executeIn(catalogManager, identifier)
+        val identifier = catalogManager.qualifyIdentifier(dropTable.fullTableName(): _*)
+        catalogManager.dropTable(dropTable.getIfExists)
+          .executeIn(identifier)
       case _ =>
         throw new TableException(
           "Unsupported SQL query! sqlUpdate() only accepts SQL statements of " +
@@ -465,7 +463,7 @@ abstract class TableEnvImpl(
       insertOptions: InsertOptions,
       sinkTablePath: String*): Unit = {
 
-    val identifier = catalogManager.qualifyPath(sinkTablePath: _*)
+    val identifier = catalogManager.qualifyIdentifier(sinkTablePath: _*)
 
     getTableSink(identifier) match {
 
@@ -492,8 +490,8 @@ abstract class TableEnvImpl(
     }
   }
 
-  private def getTableSink(identifier: ObjectIdentifier): Option[TableSink[_]] = {
-    JavaScalaConversionUtil.toScala(catalogManager.getTable(identifier)) match {
+  private def getTableSink(objectIdentifier: ObjectIdentifier): Option[TableSink[_]] = {
+    JavaScalaConversionUtil.toScala(catalogManager.getTable(objectIdentifier)) match {
       case Some(s) if s.isInstanceOf[ConnectorCatalogTable[_, _]] =>
 
         JavaScalaConversionUtil
@@ -501,13 +499,13 @@ abstract class TableEnvImpl(
 
       case Some(s) if s.isInstanceOf[CatalogTable] =>
 
-        val catalog = catalogManager.getCatalog(identifier.getCatalogName)
+        val catalog = catalogManager.getCatalog(objectIdentifier.getCatalogName)
         val catalogTable = s.asInstanceOf[CatalogTable]
         if (catalog.isPresent && catalog.get().getTableFactory.isPresent) {
           val sink = TableFactoryUtil.createTableSinkForCatalogTable(
             catalog.get(),
             catalogTable,
-            identifier.toObjectPath)
+            objectIdentifier.toObjectPath)
           if (sink.isPresent) {
             return Option(sink.get())
           }
@@ -521,7 +519,7 @@ abstract class TableEnvImpl(
   }
 
   protected def getCatalogTable(name: String*): Option[CatalogBaseTable] = {
-    val identifier = catalogManager.qualifyPath(name: _*)
+    val identifier = catalogManager.qualifyIdentifier(name: _*)
     JavaScalaConversionUtil.toScala(catalogManager.getTable(identifier))
   }
 

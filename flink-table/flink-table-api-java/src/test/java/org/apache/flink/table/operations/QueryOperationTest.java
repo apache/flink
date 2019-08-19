@@ -55,9 +55,9 @@ public class QueryOperationTest {
 
 		assertEquals("Union: (all: [true])\n" +
 			"    Project: (projections: [a])\n" +
-			"        CatalogTable: (path: [`cat1`.`db1`.`tab1`], fields: [a])\n" +
+			"        CatalogTable: (identifier: [`cat1`.`db1`.`tab1`], fields: [a])\n" +
 			"    Project: (projections: [a])\n" +
-			"        CatalogTable: (path: [`cat1`.`db1`.`tab1`], fields: [a])",
+			"        CatalogTable: (identifier: [`cat1`.`db1`.`tab1`], fields: [a])",
 			unionQueryOperation.asSummaryString());
 	}
 
@@ -83,7 +83,7 @@ public class QueryOperationTest {
 			"Distinct:\n" +
 			"    WindowAggregate: (group: [a], agg: [sum(a)], windowProperties: []," +
 				" window: [SessionWindow(field: [a], gap: [10])])\n" +
-				"        CatalogTable: (path: [`cat1`.`db1`.`tab1`], fields: [a])",
+				"        CatalogTable: (identifier: [`cat1`.`db1`.`tab1`], fields: [a])",
 			distinctQueryOperation.asSummaryString());
 	}
 

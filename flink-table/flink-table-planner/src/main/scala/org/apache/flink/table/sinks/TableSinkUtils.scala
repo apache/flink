@@ -35,14 +35,14 @@ object TableSinkUtils {
     *
     * @param staticPartitions Static partitions of the sink if there exists any.
     * @param query            The query that is supposed to be written.
-    * @param sinkPath         Tha path of the sink. It is needed just for logging. It does not
+    * @param objectIdentifier The path of the sink. It is needed just for logging. It does not
     *                         participate in the validation.
     * @param sink             The sink that we want to write to.
     */
   def validateSink(
       staticPartitions: JMap[String, String],
       query: QueryOperation,
-      sinkPath: ObjectIdentifier,
+      objectIdentifier: ObjectIdentifier,
       sink: TableSink[_])
     : Unit = {
     // validate schema of source table and table sink
@@ -65,7 +65,7 @@ object TableSinkUtils {
 
       throw new ValidationException(
         s"Field types of query result and registered TableSink " +
-          s"$sinkPath do not match.\n" +
+          s"$objectIdentifier do not match.\n" +
           s"Query result schema: $srcSchema\n" +
           s"TableSink schema:    $sinkSchema")
     }

@@ -20,8 +20,11 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CatalogNotExistException;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
+import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.util.StringUtils;
 
@@ -113,7 +116,7 @@ public class CatalogManager {
 	 * Gets the current catalog that will be used when resolving table path.
 	 *
 	 * @return the current catalog
-	 * @see CatalogManager#qualifyPath(String...)
+	 * @see CatalogManager#qualifyIdentifier(String...)
 	 */
 	public String getCurrentCatalog() {
 		return currentCatalogName;
@@ -124,7 +127,7 @@ public class CatalogManager {
 	 *
 	 * @param catalogName catalog name to set as current catalog
 	 * @throws CatalogNotExistException thrown if the catalog doesn't exist
-	 * @see CatalogManager#qualifyPath(String...)
+	 * @see CatalogManager#qualifyIdentifier(String...)
 	 */
 	public void setCurrentCatalog(String catalogName) throws CatalogNotExistException {
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(catalogName), "Catalog name cannot be null or empty.");
@@ -149,7 +152,7 @@ public class CatalogManager {
 	 * Gets the current database name that will be used when resolving table path.
 	 *
 	 * @return the current database
-	 * @see CatalogManager#qualifyPath(String...)
+	 * @see CatalogManager#qualifyIdentifier(String...)
 	 */
 	public String getCurrentDatabase() {
 		return currentDatabaseName;
@@ -161,7 +164,7 @@ public class CatalogManager {
 	 *
 	 * @param databaseName database name to set as current database name
 	 * @throws CatalogException thrown if the database doesn't exist in the current catalog
-	 * @see CatalogManager#qualifyPath(String...)
+	 * @see CatalogManager#qualifyIdentifier(String...)
 	 * @see CatalogManager#setCurrentCatalog(String)
 	 */
 	public void setCurrentDatabase(String databaseName) {
@@ -207,15 +210,17 @@ public class CatalogManager {
 
 	/**
 	 * Retrieves a fully qualified table. If the path is not yet fully qualified use
-	 * {@link #qualifyPath(String...)} first.
+	 * {@link #qualifyIdentifier(String...)} first.
 	 *
-	 * @param identifier full path of the table to retrieve
+	 * @param objectIdentifier full path of the table to retrieve
 	 * @return table that the path points to.
 	 */
-	public Optional<CatalogBaseTable> getTable(ObjectIdentifier identifier) {
+	public Optional<CatalogBaseTable> getTable(ObjectIdentifier objectIdentifier) {
 		try {
-			Catalog currentCatalog = catalogs.get(identifier.getCatalogName());
-			ObjectPath objectPath = new ObjectPath(identifier.getDatabaseName(), identifier.getObjectName());
+			Catalog currentCatalog = catalogs.get(objectIdentifier.getCatalogName());
+			ObjectPath objectPath = new ObjectPath(
+				objectIdentifier.getDatabaseName(),
+				objectIdentifier.getObjectName());
 
 			if (currentCatalog != null && currentCatalog.tableExists(objectPath)) {
 				return Optional.of(currentCatalog.getTable(objectPath));
@@ -232,7 +237,7 @@ public class CatalogManager {
 	 * @param path Table path whose format can be "catalog.db.table", "db.table" or "table"
 	 * @return An array of complete table path
 	 */
-	public ObjectIdentifier qualifyPath(String... path) {
+	public ObjectIdentifier qualifyIdentifier(String... path) {
 		if (path == null) {
 			throw new ValidationException("Table paths can not be null!");
 		}
@@ -263,5 +268,145 @@ public class CatalogManager {
 		}
 
 		return ObjectIdentifier.of(catalogName, dbName, tableName);
+	}
+
+	/**
+	 * Creates a command that will create a table in a given fully qualified path.
+	 *
+	 * @param table table to put in the given path
+	 * @param ignoreIfExists if true exception will be thrown if a table exists in the given path
+	 * @return pre configured catalog command
+	 */
+	public ModifyCatalog createTable(CatalogBaseTable table, boolean ignoreIfExists) {
+		return new CreateTable(table, ignoreIfExists);
+	}
+
+	/**
+	 * Creates a command that will alter a table in a given fully qualified path.
+	 *
+	 * @param table table to put in the given path
+	 * @param ignoreIfNotExists if true exception will be thrown if the table to be altered does not exist in
+	 * the catalog
+	 * @return pre configured catalog command
+	 */
+	public ModifyCatalog alterTable(CatalogBaseTable table, boolean ignoreIfNotExists) {
+		return new AlterTable(table, ignoreIfNotExists);
+	}
+
+	/**
+	 * Creates a command that will drop a table in a given fully qualified path.
+	 *
+	 * @param ignoreIfNotExists if true exception will be thrown if the table to be dropped does not exist in
+	 * the catalog
+	 * @return pre configured catalog command
+	 */
+	public ModifyCatalog dropTable(boolean ignoreIfNotExists) {
+		return new DropTable(ignoreIfNotExists);
+	}
+
+	/**
+	 * A command that modifies given {@link CatalogManager} in a {@link ObjectIdentifier}. This unifies error handling
+	 * across different commands.
+	 */
+	public interface ModifyCatalog {
+		void executeIn(ObjectIdentifier objectIdentifier);
+	}
+
+	private abstract class AbstractModifyCatalog implements ModifyCatalog {
+		@Override
+		public final void executeIn(ObjectIdentifier objectIdentifier) {
+			Optional<Catalog> catalog = getCatalog(objectIdentifier.getCatalogName());
+			if (catalog.isPresent()) {
+				try {
+					execute(catalog.get(), objectIdentifier.toObjectPath());
+				} catch (TableAlreadyExistException | TableNotExistException | DatabaseNotExistException e) {
+					throw new ValidationException(getErrorMessage(objectIdentifier), e);
+				} catch (Exception e) {
+					throw new TableException(getErrorMessage(objectIdentifier), e);
+				}
+			} else if (!ignoreNoCatalog()) {
+				throw new ValidationException(String.format(
+					"Catalog %s does not exist.",
+					objectIdentifier.getCatalogName()));
+			}
+		}
+
+		private String getErrorMessage(ObjectIdentifier objectIdentifier) {
+			return String.format("Could not execute %s in path %s", toString(), objectIdentifier);
+		}
+
+		protected boolean ignoreNoCatalog() {
+			return false;
+		}
+
+		protected abstract void execute(Catalog catalog, ObjectPath path) throws Exception;
+	}
+
+	private final class DropTable extends AbstractModifyCatalog {
+		private final boolean ignoreIfNotExists;
+
+		private DropTable(boolean ignoreIfNotExists) {
+			this.ignoreIfNotExists = ignoreIfNotExists;
+		}
+
+		@Override
+		protected void execute(Catalog catalog, ObjectPath path) throws Exception {
+			catalog.dropTable(path, ignoreIfNotExists);
+		}
+
+		@Override
+		protected boolean ignoreNoCatalog() {
+			return ignoreIfNotExists;
+		}
+
+		@Override
+		public String toString() {
+			return "DropTable";
+		}
+	}
+
+	private final class AlterTable extends AbstractModifyCatalog {
+		private final CatalogBaseTable table;
+		private final boolean ignoreIfNotExists;
+
+		private AlterTable(CatalogBaseTable table, boolean ignoreIfNotExists) {
+			this.table = table;
+			this.ignoreIfNotExists = ignoreIfNotExists;
+		}
+
+		@Override
+		protected void execute(Catalog catalog, ObjectPath path) throws Exception {
+			catalog.alterTable(path, table, ignoreIfNotExists);
+		}
+
+		@Override
+		protected boolean ignoreNoCatalog() {
+			return ignoreIfNotExists;
+		}
+
+		@Override
+		public String toString() {
+			return "AlterTable";
+		}
+	}
+
+	private final class CreateTable extends AbstractModifyCatalog {
+		private final CatalogBaseTable table;
+		private final boolean ignoreIfExists;
+
+		private CreateTable(CatalogBaseTable table, boolean ignoreIfExists) {
+			this.table = table;
+			this.ignoreIfExists = ignoreIfExists;
+		}
+
+		@Override
+		protected void execute(Catalog catalog, ObjectPath path) throws Exception {
+			catalog.createTable(path, table, ignoreIfExists);
+		}
+
+		@Override
+		public String toString() {
+			return "CreateTable";
+		}
 	}
 }
