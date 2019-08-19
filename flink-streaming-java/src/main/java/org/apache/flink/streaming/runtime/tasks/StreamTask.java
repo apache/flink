@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.accumulators.Accumulator;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
@@ -349,6 +350,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			operatorChain = new OperatorChain<>(this, recordWriters);
 			headOperator = operatorChain.getHeadOperator();
 
+			// check environment for selective reading
+			checkSelectiveReadingEnv();
+
 			// task specific initialization
 			init();
 
@@ -603,6 +607,19 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	boolean isSerializingTimestamps() {
 		TimeCharacteristic tc = configuration.getTimeCharacteristic();
 		return tc == TimeCharacteristic.EventTime | tc == TimeCharacteristic.IngestionTime;
+	}
+
+	private void checkSelectiveReadingEnv() {
+		boolean isCreditBased = getEnvironment()
+			.getTaskManagerInfo()
+			.getConfiguration()
+			.getBoolean(NettyShuffleEnvironmentOptions.NETWORK_CREDIT_MODEL);
+
+		if (!isCreditBased && operatorChain.hasSelectiveReadingOperator()) {
+			throw new UnsupportedOperationException(
+				"The operator that implements the InputSelectable interface is not supported in the non-credited" +
+					" network mode. (please set 'taskmanager.network.credit-model' to 'true')");
+		}
 	}
 
 	// ------------------------------------------------------------------------

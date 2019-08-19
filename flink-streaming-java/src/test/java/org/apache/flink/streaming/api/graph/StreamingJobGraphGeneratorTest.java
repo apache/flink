@@ -25,6 +25,7 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
@@ -43,6 +44,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.util.TaskConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.IterativeStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -53,6 +55,7 @@ import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
+import org.apache.flink.streaming.util.TestAnyModeReadingStreamOperator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
@@ -672,5 +675,21 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 		// the edge with PIPELINED shuffle mode is translated into PIPELINED_BOUNDED
 		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, filterAndMapVertex.getProducedDataSets().get(0).getResultType());
 		assertEquals(ResultPartitionType.PIPELINED_BOUNDED, printVertex.getInputs().get(0).getSource().getResultType());
+	}
+
+	@Test(expected = UnsupportedOperationException.class)
+	public void testNotSupportInputSelectableOperatorIfCheckpointing() {
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.enableCheckpointing(60_000L);
+
+		DataStreamSource<String> source1 = env.fromElements("1");
+		DataStreamSource<Integer> source2 = env.fromElements(1);
+		source1.connect(source2)
+			.transform("test",
+				BasicTypeInfo.STRING_TYPE_INFO,
+				new TestAnyModeReadingStreamOperator("test operator"))
+			.print();
+
+		StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
 	}
 }

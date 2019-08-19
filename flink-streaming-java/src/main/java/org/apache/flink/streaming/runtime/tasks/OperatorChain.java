@@ -40,6 +40,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
+import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -323,6 +324,15 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 
 	public int getChainLength() {
 		return allOperators == null ? 0 : allOperators.length;
+	}
+
+	public boolean hasSelectiveReadingOperator() {
+		for (StreamOperator operator : allOperators) {
+			if (operator instanceof InputSelectable) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	// ------------------------------------------------------------------------
