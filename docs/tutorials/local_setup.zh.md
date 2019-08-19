@@ -30,7 +30,7 @@ under the License.
 
 ## 安装：下载并启动 Flink 
 
-Flink 可以在 __Linux、Mac OS X、和 Windows__ 环境中运行。为了能够运行 Flink 唯一要求是安装 __Java 8.x__ 。 Windows 用户，请查阅[在  Windows 上运行 Flink]({{ site.baseurl }}/tutorials/flink_on_windows.html)上面描述了如何在 windows 上以本地模式运行 Flink。
+Flink 可以在 __Linux、Mac OS X 和 Windows__ 环境中运行。运行 Flink 的唯一要求是安装 __Java 8.x__ 。 Windows 用户请查阅[在 Windows 上运行 Flink]({{ site.baseurl }}/tutorials/flink_on_windows.html) 上面描述了如何在 windows 上以本地模式运行 Flink。
 
 你可以用下面的命令来检查一下是否正确安装了 Java 程序：
 
@@ -62,7 +62,7 @@ $ cd flink-{{site.version}}
 </div>
 
 <div data-lang="MacOS X" markdown="1">
-对于 MacOS X 用户，Flink 可以通过[Homebrew](https://brew.sh/)进行安装。
+对于 MacOS X 用户，Flink 可以通过 [Homebrew](https://brew.sh/) 进行安装。
 
 {% highlight bash %}
 $ brew install apache-flink
@@ -92,7 +92,7 @@ $ cd build-target               # this is where Flink is installed to
 $ ./bin/start-cluster.sh  # Start Flink
 {% endhighlight %}
 
-检查位于[http://localhost:8081](http://localhost:8081)的 __web 调度界面__以确保一切正常运行。Web 界面上会仅显示一个可用的 TaskManager 实例。
+检查位于 [http://localhost:8081](http://localhost:8081) 的 web 调度界面以确保一切正常运行。Web 界面上会仅显示一个可用的 TaskManager 实例。
 
 <a href="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-1.png" ><img class="img-responsive" src="{{ site.baseurl }}/page/img/quickstart-setup/jobmanager-1.png" alt="Dispatcher: Overview"/></a>
 
@@ -114,7 +114,7 @@ INFO ... - Registering TaskManager ... under ... at the SlotManager.
 
 ## 阅读代码
 
-你可以在 Github 上看到分别用[scala](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/scala/org/apache/flink/streaming/scala/examples/socket/SocketWindowWordCount.scala)和[java](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java)编写的 SocketWindowWordCount 的完整代码。
+你可以在 Github 上看到分别用 [scala](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/scala/org/apache/flink/streaming/scala/examples/socket/SocketWindowWordCount.scala) 和 [java](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/socket/SocketWindowWordCount.java) 编写的 SocketWindowWordCount 的完整代码。
 
 <div class="codetabs" markdown="1">
 <div data-lang="scala" markdown="1">
@@ -283,6 +283,6 @@ $ ./bin/stop-cluster.sh
 
 ## 下一步
 
-查看更多的[示例]({{ site.baseurl }}/examples)以便更好的理解 Flink 的 API。完成后, 请继续阅读[流处理指南]({{ site.baseurl }}/zh/dev/datastream_api.html)。
+查看更多的[示例]({{ site.baseurl }}/examples)以便更好地理解 Flink 的 API。完成后, 请继续阅读[流处理指南]({{ site.baseurl }}/zh/dev/datastream_api.html)。
 
 {% top %}
