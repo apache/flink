@@ -351,7 +351,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			"    family1 ROW<col1 INT>,\n" +
 			"    family2 ROW<col1 VARCHAR, col2 BIGINT>,\n" +
 			"    family3 ROW<col1 DOUBLE, col2 BOOLEAN, col3 VARCHAR>,\n" +
-			"    family4 ROW<col1 TIMESTAMP, col2 DATE, col3 TIME>\n" +
+			"    family4 ROW<col1 TIMESTAMP(3), col2 DATE, col3 TIME(3)>\n" +
 			") WITH (\n" +
 			"    'connector.type' = 'hbase',\n" +
 			"    'connector.version' = '1.4.3',\n" +
