@@ -97,10 +97,8 @@ public final class CliUtils {
 			final Object field = row.getField(i);
 			if (field == null) {
 				fields[i] = CliStrings.NULL_COLUMN;
-			} else if (field.getClass().isArray()) {
-				fields[i] = EncodingUtils.objectToString(field);
 			} else {
-				fields[i] = field.toString();
+				fields[i] = EncodingUtils.objectToString(field);
 			}
 		}
 		return fields;
