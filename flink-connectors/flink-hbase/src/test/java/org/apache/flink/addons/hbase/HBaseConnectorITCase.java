@@ -562,7 +562,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			CollectTableSink<Row> configuredSink = (CollectTableSink<Row>) sink.configure(
 				schema.getFieldNames(), types.toArray(new TypeInformation[0]));
 			return JavaScalaConversionUtil.toJava(
-				BatchTableEnvUtil.collect(t.getTableEnvironment(), table, configuredSink, Option.apply("JOB")));
+				BatchTableEnvUtil.collect(t.getTableEnvironment(), table, configuredSink, Option.apply("JOB"), "catalog", "database"));
 		}
 	}
 
