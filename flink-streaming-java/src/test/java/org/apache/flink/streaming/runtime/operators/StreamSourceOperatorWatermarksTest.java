@@ -33,13 +33,13 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamSourceContexts;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutputWrapper;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.streaming.util.MockStreamTask;
@@ -71,11 +71,12 @@ public class StreamSourceOperatorWatermarksTest {
 		final List<StreamElement> output = new ArrayList<>();
 
 		setupSourceOperator(operator, TimeCharacteristic.EventTime, 0);
-		OperatorChain<?, ?> operatorChain = createOperatorChain(operator);
+		RecordWriterOutputWrapper outputWrapper = getOutputWrapper(operator);
+		OperatorChain<?, ?> operatorChain = new OperatorChain<>(operator.getContainingTask(), outputWrapper.getRecordWriterOutputs());
 		try {
 			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output), operatorChain);
 		} finally {
-			operatorChain.releaseOutputs();
+			outputWrapper.releaseOutputs();
 		}
 
 		assertEquals(1, output.size());
@@ -95,11 +96,13 @@ public class StreamSourceOperatorWatermarksTest {
 		operator.cancel();
 
 		// run and exit
-		OperatorChain<?, ?> operatorChain = createOperatorChain(operator);
+		RecordWriterOutputWrapper outputWrapper = getOutputWrapper(operator);
+		OperatorChain<?, ?> operatorChain = new OperatorChain<>(
+			operator.getContainingTask(), outputWrapper.getRecordWriterOutputs());
 		try {
 			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output), operatorChain);
 		} finally {
-			operatorChain.releaseOutputs();
+			outputWrapper.releaseOutputs();
 		}
 
 		assertTrue(output.isEmpty());
@@ -128,13 +131,14 @@ public class StreamSourceOperatorWatermarksTest {
 		}.start();
 
 		// run and wait to be canceled
-		OperatorChain<?, ?> operatorChain = createOperatorChain(operator);
+		RecordWriterOutputWrapper outputWrapper = getOutputWrapper(operator);
+		OperatorChain<?, ?> operatorChain = new OperatorChain<>(operator.getContainingTask(), outputWrapper.getRecordWriterOutputs());
 		try {
 			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<String>(output), operatorChain);
 		}
 		catch (InterruptedException ignored) {}
 		finally {
-			operatorChain.releaseOutputs();
+			outputWrapper.releaseOutputs();
 		}
 
 		assertTrue(output.isEmpty());
@@ -220,10 +224,10 @@ public class StreamSourceOperatorWatermarksTest {
 		operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
 	}
 
-	private static OperatorChain<?, ?> createOperatorChain(AbstractStreamOperator<?> operator) {
-		return new OperatorChain<>(
-			operator.getContainingTask(),
-			StreamTask.createRecordWriters(operator.getOperatorConfig(), new MockEnvironmentBuilder().build()));
+	private static RecordWriterOutputWrapper getOutputWrapper(AbstractStreamOperator<?> operator) {
+		return RecordWriterOutputWrapper.build(
+			operator.getOperatorConfig(),
+			new MockEnvironmentBuilder().build());
 	}
 
 	// ------------------------------------------------------------------------

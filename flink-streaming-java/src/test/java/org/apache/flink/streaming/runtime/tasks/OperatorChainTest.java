@@ -27,7 +27,6 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SetupableStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.operators.StreamOperatorChainingTest;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
@@ -106,7 +105,6 @@ public class OperatorChainTest {
 
 			return new OperatorChain<>(
 					ops,
-					new RecordWriterOutput<?>[0],
 					lastWriter,
 					head);
 		}

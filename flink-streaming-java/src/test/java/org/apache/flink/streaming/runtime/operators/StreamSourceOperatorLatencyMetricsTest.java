@@ -32,12 +32,12 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutputWrapper;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.streaming.util.MockStreamTask;
@@ -166,13 +166,14 @@ public class StreamSourceOperatorLatencyMetricsTest extends TestLogger {
 		operatorSetup.setupSourceOperator(operator, testProcessingTimeService);
 
 		// run and wait to be stopped
+		RecordWriterOutputWrapper outputWrapper = RecordWriterOutputWrapper.build(
+			operator.getOperatorConfig(), new MockEnvironmentBuilder().build());
 		OperatorChain<?, ?> operatorChain = new OperatorChain<>(
-			operator.getContainingTask(),
-			StreamTask.createRecordWriters(operator.getOperatorConfig(), new MockEnvironmentBuilder().build()));
+			operator.getContainingTask(), outputWrapper.getRecordWriterOutputs());
 		try {
 			operator.run(new Object(), mock(StreamStatusMaintainer.class), new CollectorOutput<Long>(output), operatorChain);
 		} finally {
-			operatorChain.releaseOutputs();
+			outputWrapper.releaseOutputs();
 		}
 
 		assertEquals(

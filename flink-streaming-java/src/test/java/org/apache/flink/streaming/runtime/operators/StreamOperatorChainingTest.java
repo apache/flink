@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutputWrapper;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
@@ -274,7 +275,8 @@ public class StreamOperatorChainingTest {
 			StreamConfig streamConfig,
 			Environment environment,
 			StreamTask<IN, OT> task) {
-		return new OperatorChain<>(task, StreamTask.createRecordWriters(streamConfig, environment));
+		RecordWriterOutputWrapper outputWrapper = RecordWriterOutputWrapper.build(streamConfig, environment);
+		return new OperatorChain<>(task, outputWrapper.getRecordWriterOutputs());
 	}
 
 	private <IN, OT extends StreamOperator<IN>> StreamTask<IN, OT> createMockTask(
