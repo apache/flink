@@ -40,7 +40,7 @@ public class FunctionCatalogTest {
 			new CatalogManager("test", new GenericInMemoryCatalog("test")));
 
 		Set<String> actual = new HashSet<>();
-		Collections.addAll(actual, functionCatalog.getUserDefinedFunctions());
+		Collections.addAll(actual, functionCatalog.getFunctions());
 
 		Set<String> expected = BuiltInFunctionDefinitions.getDefinitions()
 			.stream()
