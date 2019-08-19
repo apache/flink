@@ -60,7 +60,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
       case REINTERPRET_CAST =>
         assert(children.size == 3)
-        Reinterpret(
+        return Reinterpret(
           children.head.accept(this),
           fromDataTypeToTypeInfo(
             children(1).asInstanceOf[TypeLiteralExpression].getOutputDataType),
