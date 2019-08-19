@@ -3723,6 +3723,91 @@ TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
         <p>E.g., <code>TIMESTAMPDIFF(DAY, TIMESTAMP '2003-01-02 10:00:00', TIMESTAMP '2003-01-03 10:00:00')</code> leads to <code>1</code>.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+      {% highlight text %}
+CONVERT_TZ(string1, string2, string3)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts a datetime <i>string1</i> (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone <i>string2</i> to time zone <i>string3</i>. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-8:00".</p>
+        <p>E.g., <code>CONVERT('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles')</code> returns '1969-12-31 16:00:00'.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+        
+    <tr>
+      <td>
+      {% highlight text %}
+FROM_UNIXTIME(numeric[, string])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts the number of seconds from unix epoch (1970-01-01 00:00:00 UTC) specified by <i>numeric</i> to a string representing the timestamp of that moment in the time zone specified in TableConfig (by default UTC) in the format of <i>string</i> (by default: yyyy-MM-dd HH:mm:ss).</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+      {% highlight text %}
+UNIX_TIMESTAMP()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Gets current Unix timestamp in seconds. This function is not deterministic.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+      {% highlight text %}
+UNIX_TIMESTAMP(string1[, string2])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts date time string <i>string1</i> in format <i>string2</i> (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+        
+    <tr>
+      <td>
+      {% highlight text %}
+TO_DATE(string1[, string2])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts date time string <i>string1</i> with format <i>string2</i> (by default 'yyyy-MM-dd HH:mm:ss') to a date.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr> 
+       
+    <tr>
+      <td>
+      {% highlight text %}
+TO_TIMESTAMP(string1[, string2])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts date time string <i>string1</i> with format <i>string2</i> (by default: 'yyyy-MM-dd HH:mm:ss') and time zone (specified by table config, by default: UTC) to a timestamp.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
+        
+    <tr>
+      <td>
+      {% highlight text %}
+NOW()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the current SQL timestamp in the UTC time zone. This function is not deterministic.</p>
+        <p>Only supported in blink planner. Only supported in SQL api.</p>
+      </td>
+    </tr>
 
   </tbody>
 </table>
