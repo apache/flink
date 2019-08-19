@@ -54,21 +54,21 @@ A basic Flink session cluster deployment in Kubernetes has three components:
 
 Using the resource definitions for a [session cluster](#session-cluster-resource-definitions), launch the cluster with the `kubectl` command:
 
-    kubectl create -f configmap.yaml
+    kubectl create -f flink-configuration-configmap.yaml
     kubectl create -f jobmanager-service.yaml
     kubectl create -f jobmanager-deployment.yaml
     kubectl create -f taskmanager-deployment.yaml
 
-Note that you could define your own customized options of `flink-conf.yaml` within `configmap.yaml`.
+Note that you could define your own customized options of `flink-conf.yaml` within `flink-configuration-configmap.yaml`.
 
 You can then access the Flink UI via `kubectl proxy`:
 
 1. Run `kubectl proxy` in a terminal
 2. Navigate to [http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:ui/proxy](http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:ui/proxy) in your browser
 
-Another way to view the Flink UI is via [service with NodePort](https://kubernetes.io/docs/tasks/access-application-cluster/service-access-application-cluster/#creating-a-service-for-an-application-running-in-two-pods) 
-(which has been defined as `flink-jobmanager-svc` in our template) of address `http://<public-node-ip>:<node-port>`. 
-What's more，your could use command below to submit your jobs:
+In order to view the Flink's web UI, it needs to be exposed via a Kubernetes service which exposes the port on the node's public ip. 
+The service `flink-rest-service` exactly achieves this. Using this service, the web ui can be accessed via `http://<public-node-ip>:<node-port>`.
+What's more, you could use the following command below to submit jobs to the cluster:
 {% highlight bash %}
 ./bin/flink run -m <public-node-ip>:<node-port> ./examples/streaming/WordCount.jar
 {% endhighlight %}
@@ -78,7 +78,7 @@ In order to terminate the Flink session cluster, use `kubectl`:
     kubectl delete -f jobmanager-deployment.yaml
     kubectl delete -f taskmanager-deployment.yaml
     kubectl delete -f jobmanager-service.yaml
-    kubectl delete -f configmap.yaml
+    kubectl delete -f flink-configuration-configmap.yaml
 
 ## Flink job cluster on Kubernetes
 
@@ -106,7 +106,7 @@ An early version of a [Flink Helm chart](https://github.com/docker-flink/example
 The Deployment definitions use the pre-built image `flink:latest` which can be found [on Docker Hub](https://hub.docker.com/r/_/flink/).
 The image is built from this [Github repository](https://github.com/docker-flink/docker-flink).
 
-`configmap.yaml`
+`flink-configuration-configmap.yaml`
 {% highlight yaml %}
 apiVersion: v1
 kind: ConfigMap
@@ -257,7 +257,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: flink-jobmanager-svc
+  name: flink-rest-service
 spec:
   type: NodePort
   ports:

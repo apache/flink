@@ -54,20 +54,31 @@ A basic Flink session cluster deployment in Kubernetes has three components:
 
 Using the resource definitions for a [session cluster](#session-cluster-resource-definitions), launch the cluster with the `kubectl` command:
 
+    kubectl create -f flink-configuration-configmap.yaml
     kubectl create -f jobmanager-service.yaml
     kubectl create -f jobmanager-deployment.yaml
     kubectl create -f taskmanager-deployment.yaml
+
+Note that you could define your own customized options of `flink-conf.yaml` within `flink-configuration-configmap.yaml`.
 
 You can then access the Flink UI via `kubectl proxy`:
 
 1. Run `kubectl proxy` in a terminal
 2. Navigate to [http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:ui/proxy](http://localhost:8001/api/v1/namespaces/default/services/flink-jobmanager:ui/proxy) in your browser
 
+In order to view the Flink's web UI, it needs to be exposed via a Kubernetes service which exposes the port on the node's public ip. 
+The service `flink-rest-service` exactly achieves this. Using this service, the web ui can be accessed via `http://<public-node-ip>:<node-port>`.
+What's more, you could use the following command below to submit jobs to the cluster:
+{% highlight bash %}
+./bin/flink run -m <public-node-ip>:<node-port> ./examples/streaming/WordCount.jar
+{% endhighlight %}
+
 In order to terminate the Flink session cluster, use `kubectl`:
 
     kubectl delete -f jobmanager-deployment.yaml
     kubectl delete -f taskmanager-deployment.yaml
     kubectl delete -f jobmanager-service.yaml
+    kubectl delete -f flink-configuration-configmap.yaml
 
 ## Flink job cluster on Kubernetes
 
@@ -95,6 +106,36 @@ An early version of a [Flink Helm chart](https://github.com/docker-flink/example
 The Deployment definitions use the pre-built image `flink:latest` which can be found [on Docker Hub](https://hub.docker.com/r/_/flink/).
 The image is built from this [Github repository](https://github.com/docker-flink/docker-flink).
 
+`flink-configuration-configmap.yaml`
+{% highlight yaml %}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flink-config
+  labels:
+    app: flink
+data:
+  flink-conf.yaml: |+
+    jobmanager.rpc.address: flink-jobmanager
+    taskmanager.numberOfTaskSlots: 1
+    blob.server.port: 6124
+    jobmanager.rpc.port: 6123
+    taskmanager.rpc.port: 6122
+    jobmanager.heap.size: 1024m
+    taskmanager.heap.size: 1024m
+  log4j.properties: |+
+    log4j.rootLogger=INFO, file
+    log4j.logger.akka=INFO
+    log4j.logger.org.apache.kafka=INFO
+    log4j.logger.org.apache.hadoop=INFO
+    log4j.logger.org.apache.zookeeper=INFO
+    log4j.appender.file=org.apache.log4j.FileAppender
+    log4j.appender.file.file=${log.file}
+    log4j.appender.file.layout=org.apache.log4j.PatternLayout
+    log4j.appender.file.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    log4j.logger.org.apache.flink.shaded.akka.org.jboss.netty.channel.DefaultChannelPipeline=ERROR, file
+{% endhighlight %}
+
 `jobmanager-deployment.yaml`
 {% highlight yaml %}
 apiVersion: extensions/v1beta1
@@ -112,20 +153,38 @@ spec:
       containers:
       - name: jobmanager
         image: flink:latest
-        args:
-        - jobmanager
+        workingDir: /opt/flink
+        command: ["/bin/bash", "-c", "$FLINK_HOME/bin/jobmanager.sh start;\
+          while :;
+          do
+            if [[ -f $(find log -name '*jobmanager*.log' -print -quit) ]];
+              then tail -f -n +1 log/*jobmanager*.log;
+            fi;
+          done"]
         ports:
         - containerPort: 6123
           name: rpc
         - containerPort: 6124
           name: blob
-        - containerPort: 6125
-          name: query
         - containerPort: 8081
           name: ui
-        env:
-        - name: JOB_MANAGER_RPC_ADDRESS
-          value: flink-jobmanager
+        livenessProbe:
+          tcpSocket:
+            port: 6123
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        volumeMounts:
+        - name: flink-config-volume
+          mountPath: /opt/flink/conf
+      volumes:
+      - name: flink-config-volume
+        configMap:
+          name: flink-config
+          items:
+          - key: flink-conf.yaml
+            path: flink-conf.yaml
+          - key: log4j.properties
+            path: log4j.properties
 {% endhighlight %}
 
 `taskmanager-deployment.yaml`
@@ -145,18 +204,35 @@ spec:
       containers:
       - name: taskmanager
         image: flink:latest
-        args:
-        - taskmanager
+        workingDir: /opt/flink
+        command: ["/bin/bash", "-c", "$FLINK_HOME/bin/taskmanager.sh start; \
+          while :;
+          do
+            if [[ -f $(find log -name '*taskmanager*.log' -print -quit) ]];
+              then tail -f -n +1 log/*taskmanager*.log;
+            fi;
+          done"]
         ports:
-        - containerPort: 6121
-          name: data
         - containerPort: 6122
           name: rpc
-        - containerPort: 6125
-          name: query
-        env:
-        - name: JOB_MANAGER_RPC_ADDRESS
-          value: flink-jobmanager
+        livenessProbe:
+          tcpSocket:
+            port: 6122
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        volumeMounts:
+        - name: flink-config-volume
+          mountPath: /opt/flink/conf/
+      volumes:
+      - name: flink-config-volume
+        configMap:
+          name: flink-config
+          items:
+          - key: flink-conf.yaml
+            path: flink-conf.yaml
+          - key: log4j.properties
+            path: log4j.properties
+
 {% endhighlight %}
 
 `jobmanager-service.yaml`
@@ -166,15 +242,28 @@ kind: Service
 metadata:
   name: flink-jobmanager
 spec:
+  type: ClusterIP
   ports:
   - name: rpc
     port: 6123
   - name: blob
     port: 6124
-  - name: query
-    port: 6125
   - name: ui
     port: 8081
+  selector:
+    app: flink
+    component: jobmanager
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-rest-service
+spec:
+  type: NodePort
+  ports:
+  - name: ui
+    port: 8081
+    targetPort: 8081
   selector:
     app: flink
     component: jobmanager
