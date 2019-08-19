@@ -724,7 +724,7 @@ public class BinaryStringTest {
 		byte[] bytes = new byte[] {(byte) 20122, (byte) 40635, 124, (byte) 38271, (byte) 34966,
 			124, (byte) 36830, (byte) 34915, (byte) 35033, 124, (byte) 55357, 124, (byte) 56407 };
 
-		String str = new String(bytes);
+		String str = new String(bytes, StandardCharsets.UTF_8);
 		assertEquals(str, StringUtf8Utils.decodeUTF8(bytes, 0, bytes.length));
 		assertEquals(str, StringUtf8Utils.decodeUTF8(MemorySegmentFactory.wrap(bytes), 0, bytes.length));
 

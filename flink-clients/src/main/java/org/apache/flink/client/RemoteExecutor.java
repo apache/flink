@@ -32,6 +32,7 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
+import org.apache.flink.util.NetUtils;
 
 import java.net.InetSocketAddress;
 import java.net.URL;
@@ -73,7 +74,7 @@ public class RemoteExecutor extends PlanExecutor {
 	}
 
 	public RemoteExecutor(String hostport, URL jarFile) {
-		this(ClientUtils.parseHostPortAddress(hostport), new Configuration(), Collections.singletonList(jarFile),
+		this(NetUtils.parseHostPortAddress(hostport), new Configuration(), Collections.singletonList(jarFile),
 				Collections.<URL>emptyList());
 	}
 
@@ -93,7 +94,7 @@ public class RemoteExecutor extends PlanExecutor {
 	}
 
 	public RemoteExecutor(String hostport, Configuration clientConfiguration, URL jarFile) {
-		this(ClientUtils.parseHostPortAddress(hostport), clientConfiguration,
+		this(NetUtils.parseHostPortAddress(hostport), clientConfiguration,
 				Collections.singletonList(jarFile), Collections.<URL>emptyList());
 	}
 

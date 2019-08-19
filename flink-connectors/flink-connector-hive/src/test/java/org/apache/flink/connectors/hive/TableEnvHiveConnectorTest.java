@@ -19,11 +19,14 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.planner.runtime.utils.TableUtil;
+import org.apache.flink.types.Row;
 
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
@@ -38,6 +41,8 @@ import org.junit.runner.RunWith;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+
+import scala.collection.JavaConverters;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -81,8 +86,9 @@ public class TableEnvHiveConnectorTest {
 		FileSystem fs = defaultPartPath.getFileSystem(hiveConf);
 		assertTrue(fs.exists(defaultPartPath));
 
-		// TODO: test reading from flink when https://issues.apache.org/jira/browse/FLINK-13279 is fixed
-		assertEquals(Arrays.asList("1\t1", "2\tNULL"), hiveShell.executeQuery("select * from db1.part"));
+		TableImpl flinkTable = (TableImpl) tableEnv.sqlQuery("select * from db1.part order by x");
+		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect(flinkTable)).asJava();
+		assertEquals(Arrays.toString(new String[]{"1,1", "2,null"}), rows.toString());
 
 		hiveShell.execute("drop database db1 cascade");
 	}

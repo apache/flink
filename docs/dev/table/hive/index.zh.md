@@ -26,7 +26,7 @@ under the License.
 -->
 
 [Apache Hive](https://hive.apache.org/) has established itself as a focal point of the data warehousing ecosystem.
-It serves only not only a SQL engine for big data analytics and ETL, but also a data management platform, where data is discovered, defined, and evolved.
+It serves as not only a SQL engine for big data analytics and ETL, but also a data management platform, where data is discovered, defined, and evolved.
 
 Flink offers a two-fold integration with Hive.
 The first is to leverage Hive's Metastore as a persistent catalog for storing Flink specific metadata across sessions.
@@ -44,7 +44,7 @@ Flink supports Hive `2.3.4` and `1.2.1` and relies on Hive's compatibility guara
 
 ### Depedencies 
 
-To integrate with Hive users need the following dependencies in their project.
+To integrate with Hive, users need the following dependencies in their project.
 
 <div class="codetabs" markdown="1">
 <div data-lang="Hive 2.3.4" markdown="1">
@@ -64,6 +64,8 @@ To integrate with Hive users need the following dependencies in their project.
   <version>{{site.version}}</version>
   <scope>provided</scope>
 </dependency>
+
+<!-- Hive 2.3.4 is built with Hadoop 2.7.2. We pick 2.7.5 which flink-shaded-hadoop is pre-built with, but users can pick their own hadoop version, as long as it's compatible with Hadoop 2.7.2 -->
 
 <dependency>
   <groupId>org.apache.flink</groupId>
@@ -99,9 +101,11 @@ To integrate with Hive users need the following dependencies in their project.
   <scope>provided</scope>
 </dependency>
 
+<!-- Hive 1.2.1 is built with Hadoop 2.6.0. We pick 2.6.5 which flink-shaded-hadoop is pre-built with, but users can pick their own hadoop version, as long as it's compatible with Hadoop 2.6.0 -->
+
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-shaded-hadoop-2-uber-2.7.5-{{site.version}}</artifactId>
+  <artifactId>flink-shaded-hadoop-2-uber-2.6.5-{{site.version}}</artifactId>
   <version>{{site.version}}</version>
   <scope>provided</scope>
 </dependency>
@@ -230,10 +234,6 @@ Currently `HiveCatalog` supports most Flink data types with the following mappin
         <td class="text-center">DATE</td>
     </tr>
     <tr>
-        <td class="text-center">TIMESTAMP_WITHOUT_TIME_ZONE</td>
-        <td class="text-center">TIMESTAMP</td>
-    </tr>
-    <tr>
         <td class="text-center">BYTES</td>
         <td class="text-center">BINARY</td>
     </tr>
@@ -259,7 +259,8 @@ The following limitations in Hive's data types impact the mapping between Flink 
 * `CHAR(p)` has a maximum length of 255
 * `VARCHAR(p)` has a maximum length of 65535
 * Hive's `MAP` only supports primitive key types while Flink's `MAP` can be any data type
+* Hive's `UNION` type is not supported
 * Flink's `INTERVAL` type cannot be mapped to Hive `INTERVAL` type
-* Flink's `TIMESTAMP_WITH_TIME_ZONE` is not supported by Hive
-* Flink's `TIMESTAMP_WITH_LOCAL_TIME_ZONE` is not supported by Hive
+* Flink's `TIMESTAMP_WITH_TIME_ZONE` and `TIMESTAMP_WITH_LOCAL_TIME_ZONE` are not supported by Hive
+* Flink's `TIMESTAMP_WITHOUT_TIME_ZONE` type cannot be mapped to Hive's `TIMESTAMP` type due to precision difference.
 * Flink's `MULTISET` is not supported by Hive

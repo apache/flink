@@ -30,6 +30,8 @@ import org.apache.flink.table.dataformat.vector.heap.HeapShortVector;
 
 import org.junit.Test;
 
+import java.nio.charset.StandardCharsets;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -49,7 +51,7 @@ public class VectorizedColumnBatchTest {
 
 		HeapBytesVector col1 = new HeapBytesVector(VECTOR_SIZE);
 		for (int i = 0; i < VECTOR_SIZE; i++) {
-			byte[] bytes = String.valueOf(i).getBytes();
+			byte[] bytes = String.valueOf(i).getBytes(StandardCharsets.UTF_8);
 			col1.setVal(i, bytes, 0, bytes.length);
 		}
 

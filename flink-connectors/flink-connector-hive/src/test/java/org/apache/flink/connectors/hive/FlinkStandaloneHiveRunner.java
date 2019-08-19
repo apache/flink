@@ -355,7 +355,6 @@ public class FlinkStandaloneHiveRunner extends BlockJUnit4ClassRunner {
 		args.add(System.getProperty("java.class.path"));
 
 		// set sys properties
-		// TODO: generate hive-site.xml at runtime?
 		args.add(hiveCmdLineConfig(METASTOREWAREHOUSE.varname, outsideConf.getVar(METASTOREWAREHOUSE)));
 		args.add(hiveCmdLineConfig(SCRATCHDIR.varname, outsideConf.getVar(SCRATCHDIR)));
 		args.add(hiveCmdLineConfig(LOCALSCRATCHDIR.varname, outsideConf.getVar(LOCALSCRATCHDIR)));
