@@ -78,7 +78,7 @@ public class PythonGatewayServer {
 			}
 			gatewayServer.shutdown();
 			System.exit(0);
-		} catch (IOException e) {
+		} finally {
 			System.exit(1);
 		}
 	}
