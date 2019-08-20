@@ -28,7 +28,6 @@ import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
@@ -563,9 +562,7 @@ public class HBaseConnectorITCase extends HBaseTestBase {
 			CollectTableSink<Row> configuredSink = (CollectTableSink<Row>) sink.configure(
 				schema.getFieldNames(), types.toArray(new TypeInformation[0]));
 			return JavaScalaConversionUtil.toJava(
-				BatchTableEnvUtil.collect(
-					t.getTableEnvironment(), table, configuredSink, Option.apply("JOB"),
-					EnvironmentSettings.DEFAULT_BUILTIN_CATALOG, EnvironmentSettings.DEFAULT_BUILTIN_DATABASE));
+				BatchTableEnvUtil.collect(t.getTableEnvironment(), table, configuredSink, Option.apply("JOB")));
 		}
 	}
 
