@@ -17,3 +17,6 @@
 
 exclude:
   - "*.zh.md"
+  - "content"
+  - "content_en"
+  - "content_zh"
