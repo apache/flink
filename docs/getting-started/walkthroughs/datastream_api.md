@@ -147,7 +147,7 @@ public class FraudDetectionJob {
 {% highlight java %}
 public class FraudDetector extends KeyedProcessFunction<Long, Transaction, Alert> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
     public static final double SMALL_AMOUNT = 1.00;
 
@@ -316,7 +316,7 @@ val alerts = transactions
 
 #### Outputting Results
  
-Sink's connect Flink Jobs to external systems to send events to; such as Apache Kafka, Casandra, and AWS Kinesis.
+Sinks connect Flink Jobs to external systems to send events to; such as Apache Kafka, Casandra, and AWS Kinesis.
 The `AlertSink` logs each alert with log level **INFO**, instead of writing to persistent storage, so you can easily see your results.
 
 <div class="codetabs" markdown="1">
@@ -362,8 +362,8 @@ It also includes several constants that you may find helpful as you work through
 <div data-lang="java" markdown="1">
 {% highlight java %}
 public class FraudDetector extends KeyedProcessFunction<Long, Transaction, Alert> {
-	
-	private static final long serialVersionUID = 1L;
+    
+    private static final long serialVersionUID = 1L;
 
     public static final double SMALL_AMOUNT = 1.00;
 
@@ -401,9 +401,9 @@ object FraudDetector {
 class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 
     override def processElement(
-        transaction: Transaction,
-        context: Context,
-        collector: Collector[Alert]): Unit = {
+            transaction: Transaction,
+            context: Context,
+            collector: Collector[Alert]): Unit = {
 
         Alert alert = new Alert
         alert.setId(transaction.getAccountId)
@@ -428,7 +428,8 @@ Transactions 3 and 4 should be marked as fraudulent because it is a small transa
 Alternatively, transactions 7, 8, and 9 are not fraud because the small amount of $0.02 is not immediately followed by the large one; instead, there is an intermediate transaction that breaks the pattern.
 
 To do this, the fraud detector must _remember_ information across events; a large transaction is only fraudulent if the previous one was small.
-Remembering information across events requires [state]({{ site.baseurl }}/concepts/glossary.html#managed-state) and we decided to use a [KeyedProcessFunction]({{ site.baseurl }}/dev/stream/operators/process_function.html), which provides fine-grained control over both state and time.
+Remembering information across events requires [state]({{ site.baseurl }}/concepts/glossary.html#managed-state),  and that is why we decided to use a [KeyedProcessFunction]({{ site.baseurl }}/dev/stream/operators/process_function.html). 
+It provides fine-grained control over both state and time, which will allow us to evolve our algorithm with more complex requirements throughout this walkthrough.
 
 The most straightforward implementation would be to set a flag whenever a small transaction is processed.
 This way, when a large transaction comes through, you can check if the flag is set for that account.
@@ -446,18 +447,18 @@ In this example, the key is the account id for the current transaction, and each
 {% highlight java %}
 public class FraudDetector extends KeyedProcessFunction<Long, Transaction, Alert> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private transient ValueState<Boolean> flagState;
+    private transient ValueState<Boolean> flagState;
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		ValueStateDescriptor<Boolean> flagDescriptor = new ValueStateDescriptor<>(
-				"flag",
-				Types.BOOLEAN);
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        ValueStateDescriptor<Boolean> flagDescriptor = new ValueStateDescriptor<>(
+                "flag",
+                Types.BOOLEAN);
 
-		flagState = getRuntimeContext().getState(flagDescriptor);
-	}
+        flagState = getRuntimeContext().getState(flagDescriptor);
+    }
 {% endhighlight %}
 </div>
 
@@ -477,9 +478,10 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 </div>
 </div>
 
-`ValueState` is a wrapper class, similar to `AtomicReference` in the Java standard library.
+`ValueState` is a wrapper class, similar to `AtomicReference` or `AtomicLong` in the Java standard library.
 It provides three methods for interacting with its contents; `update` sets the state, `value` gets the current value, and `clear` to delete its contents.
-If the state for a particular key is empty, such as at the beginning of an application or after calling `ValueState#clear`, then `ValueState#update` will return `null`.
+If the state for a particular key is empty, such as at the beginning of an application or after calling `ValueState#clear`, then `ValueState#value` will return `null`.
+Modifications to the object returned by `ValueState#value` are not guaranteed to be recognized by the system, and so all changes must be committed by re-setting the state using `ValueState#update`.
 Otherwise, fault tolerance is managed automatically under the hood, and so you can interact with it like with any standard variable.
 
 Below, you can see an example of how you can use a flag state to track potential fraudulent transactions.
@@ -489,9 +491,9 @@ Below, you can see an example of how you can use a flag state to track potential
 {% highlight java %}
     @Override
     public void processElement(
-        Transaction transaction,
-        Context context,
-        Collector<Alert> collector) throws Exception {
+            Transaction transaction,
+            Context context,
+            Collector<Alert> collector) throws Exception {
 
         // Get the current state for the current key
         Boolean lastTransactionWasSmall = flagState.value();
@@ -522,9 +524,9 @@ Below, you can see an example of how you can use a flag state to track potential
 <div data-lang="scala" markdown="1">
 {% highlight scala %}
     override def processElement(
-        transaction: Transaction,
-        context: Context,
-        collector: Collector[Alert]): Unit = {
+            transaction: Transaction,
+            context: Context,
+            collector: Collector[Alert]): Unit = {
 
         // Get the current state for the current key
         val lastTransactionWasSmall = flagState.value
@@ -542,8 +544,6 @@ Below, you can see an example of how you can use a flag state to track potential
             // Clean up our state
             flagState.clear()
         }
-        
-
 
         if (transaction.getAmount() < SMALL_AMOUNT) {
             // set the flag to true
@@ -564,6 +564,8 @@ Either the current transaction caused a fraud alert, and the pattern is over, or
 
 Finally, the transaction amount is checked to see if it is small.
 If so, then the flag is set so that it can be checked by the next event.
+Notice that `ValueState<Boolean>` actually has three states, unset ( `null`), `true`, and `false`, because all `ValueState`'s are nullable.
+This job only makes use of unset ( `null`) and `true` to check whether the flag is set or not.
 
 ## Fraud Detector v2: State + Time = &#10084;&#65039;
 
@@ -573,7 +575,7 @@ Flink allows setting timers which serve as callbacks at some point in time in th
 
 Along with the previous requirements:
 
-* Whenever the flag is set to true, also set a timer for 24 hours in the future.
+* Whenever the flag is set to `true`, also set a timer for 24 hours in the future.
 * When the timer fires, reset the flag by clearing its state.
 * If the flag is ever cleared the timer should be canceled.
 
@@ -584,26 +586,26 @@ To cancel a timer, you have to remember what time it is set for, and remembering
 {% highlight java %}
 public class FraudDetector extends KeyedProcessFunction<Long, Transaction, Alert> {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	private transient ValueState<Boolean> flagState;
+    private transient ValueState<Boolean> flagState;
 
-	private transient ValueState<Long> timerState;
+    private transient ValueState<Long> timerState;
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		ValueStateDescriptor<Boolean> flagDescriptor = new ValueStateDescriptor<>(
-				"flag",
-				Types.BOOLEAN);
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        ValueStateDescriptor<Boolean> flagDescriptor = new ValueStateDescriptor<>(
+                "flag",
+                Types.BOOLEAN);
 
-		flagState = getRuntimeContext().getState(flagDescriptor);
+        flagState = getRuntimeContext().getState(flagDescriptor);
 
-		ValueStateDescriptor<Long> timerDescriptor = new ValueStateDescriptor<>(
-				"timer-state",
-				Types.LONG);
+        ValueStateDescriptor<Long> timerDescriptor = new ValueStateDescriptor<>(
+                "timer-state",
+                Types.LONG);
 
-		timerState = getRuntimeContext().getState(timerDescriptor);
-	}
+        timerState = getRuntimeContext().getState(timerDescriptor);
+    }
 {% endhighlight %}
 </div>
 
@@ -686,7 +688,7 @@ override def onTimer(timestamp: Long, ctx: OnTimerContext, out: Collector[Alert]
 </div>
 
 Finally, to cancel the timer, you need to delete the registered timer and delete the timer state.
-You can wrap this in a helper method that's called every time a new element is processed.
+You can wrap this in a helper method that is called every time a new element is processed.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -740,40 +742,40 @@ import org.apache.flink.walkthrough.common.entity.Alert;
 import org.apache.flink.walkthrough.common.entity.Transaction;
 
 public class FraudDetector extends KeyedProcessFunction<Long, Transaction, Alert> {
-	
-	private static final long serialVersionUID = 1L;
+    
+    private static final long serialVersionUID = 1L;
 
-	public static final double SMALL_AMOUNT = 1.00;
+    public static final double SMALL_AMOUNT = 1.00;
 
-	public static final double LARGE_AMOUNT = 500.00;
+    public static final double LARGE_AMOUNT = 500.00;
 
-	public static final long ONE_DAY = 24 * 60 * 60 * 1000;
+    public static final long ONE_DAY = 24 * 60 * 60 * 1000;
 
-	private transient ValueState<Boolean> flagState;
+    private transient ValueState<Boolean> flagState;
 
-	private transient ValueState<Long> timerState;
+    private transient ValueState<Long> timerState;
 
-	@Override
-	public void open(Configuration parameters) throws Exception {
-		ValueStateDescriptor<Boolean> flagDescriptor = new ValueStateDescriptor<>(
-				"flag",
-				Types.BOOLEAN);
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        ValueStateDescriptor<Boolean> flagDescriptor = new ValueStateDescriptor<>(
+                "flag",
+                Types.BOOLEAN);
 
-		flagState = getRuntimeContext().getState(flagDescriptor);
+        flagState = getRuntimeContext().getState(flagDescriptor);
 
-		ValueStateDescriptor<Long> timerDescriptor = new ValueStateDescriptor<>(
-				"timer-state",
-				Types.LONG);
+        ValueStateDescriptor<Long> timerDescriptor = new ValueStateDescriptor<>(
+                "timer-state",
+                Types.LONG);
 
-		timerState = getRuntimeContext().getState(timerDescriptor);
-	}
+        timerState = getRuntimeContext().getState(timerDescriptor);
+    }
 
-	@Override
-	public void processElement(
-		Transaction transaction,
-		Context context,
-		Collector<Alert> collector) throws Exception {
-	    
+    @Override
+    public void processElement(
+            Transaction transaction,
+            Context context,
+            Collector<Alert> collector) throws Exception {
+        
         // Get the current state for the current key
         Boolean lastTransactionWasSmall = flagState.value();
 
@@ -856,9 +858,9 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 
     @throws[Exception]
     override def processElement(
-        transaction: Transaction,
-        context: KeyedProcessFunction[Long, Transaction, Alert]#Context,
-        collector: Collector[Alert]): Unit = {
+            transaction: Transaction,
+            context: KeyedProcessFunction[Long, Transaction, Alert]#Context,
+            collector: Collector[Alert]): Unit = {
 
         val lastTransactionWasSmall = flagState.value
 
@@ -885,9 +887,9 @@ class FraudDetector extends KeyedProcessFunction[Long, Transaction, Alert] {
 
     @throws[Exception]
     override def onTimer(
-        timestamp: Long,
-        ctx: KeyedProcessFunction[Long, Transaction, Alert]#OnTimerContext,
-        out: Collector[Alert]): Unit = {
+            timestamp: Long,
+            ctx: KeyedProcessFunction[Long, Transaction, Alert]#OnTimerContext,
+            out: Collector[Alert]): Unit = {
 
         timerState.clear()
         flagState.clear()
