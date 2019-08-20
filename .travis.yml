@@ -61,6 +61,11 @@ notifications:
       - secure: ikPQn5JTpkyzxVyOPm/jIl3FPm6hY8xAdG4pSwxGWjBqF+NmmNTp9YZsJ6fD8xPql6T5n1hNDbZSC14jVUw/vvXGvibDXLN+06f25ZQl+4LJBXaiR7gTG6y3nO8G90Vw7XpvCme6n5Md9tvjygb17a4FEgRJFfwzWnnyPA1yvK0=
     on_success: never
     on_pull_requests: false
+  webhooks:
+    urls:
+      secure: gOR0ayYgTHvx2QsFxxH07KzI8fgrDk2vqp/6q2eN/RuWHJa6kHecXz/9F0JOXNI1siXrSJ1FwCKOxiMmTbnImJP4015L9VGMS++us6AYtnFp6SIRorRqA1QS5tHNrpBIM38ANxQvuPhFj8S6216BsonQOqBu9sp0jQCOZGKwBLg=
+    on_success: change
+    on_pull_requests: false
 
 stages:
   - name: compile
