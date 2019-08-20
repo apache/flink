@@ -72,6 +72,8 @@ while getopts "piez" opt; do
 		z)
 		JEKYLL_CONFIG="--config _config.yml,_config_dev_zh.yml"
 		;;
+    *) echo "usage: $0 [-e|-z] [-i|-p]" >&2
+       exit 1 ;;
 	esac
 done
 
