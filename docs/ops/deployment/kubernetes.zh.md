@@ -69,9 +69,9 @@ You can then access the Flink UI via different ways:
 
 *  `kubectl port-forward`:
     1. Run `kubectl port-forward ${flink-jobmanager-pod} 8081:8081` to forward your jobmanager's web ui port to local 8081.
-    2. Navigate to [http://localhost:8001](http://localhost:8001) in your browser.
+    2. Navigate to [http://localhost:8081](http://localhost:8081) in your browser.
     3. Moreover, you could use the following command below to submit jobs to the cluster:
-    {% highlight bash %}./bin/flink run -m localhost:8001 ./examples/streaming/WordCount.jar{% endhighlight %}
+    {% highlight bash %}./bin/flink run -m localhost:8081 ./examples/streaming/WordCount.jar{% endhighlight %}
 
 *  Create a `NodePort` service on the rest service of jobmanager:
     1. Run `kubectl create -f jobmanager-rest-service.yaml` to create the `NodePort` service on jobmanager. The example of `jobmanager-rest-service.yaml` can be found in [appendix](#session-cluster-resource-definitions).
@@ -262,7 +262,7 @@ spec:
     component: jobmanager
 {% endhighlight %}
 
-`jobmanager-rest-service.yaml`. Optional service, which is used to add a `NodePort` on the jobmanager rest service so that user could submit job via `<public-node-ip>:<node-port>`.
+`jobmanager-rest-service.yaml`. Optional service, that exposes the jobmanager `rest` port as public Kubernetes node's port.
 {% highlight yaml %}
 apiVersion: v1
 kind: Service
