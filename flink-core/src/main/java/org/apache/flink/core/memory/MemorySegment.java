@@ -1357,6 +1357,23 @@ public abstract class MemorySegment {
 	}
 
 	/**
+	 * Compares two memory segment regions with different length.
+	 *
+	 * @param seg2 Segment to compare this segment with
+	 * @param offset1 Offset of this segment to start comparing
+	 * @param offset2 Offset of seg2 to start comparing
+	 * @param len1 Length of this memory region to compare
+	 * @param len2 Length of seg2 to compare
+	 *
+	 * @return 0 if equal, -1 if seg1 &lt; seg2, 1 otherwise
+	 */
+	public final int compare(MemorySegment seg2, int offset1, int offset2, int len1, int len2) {
+		final int minLength = Math.min(len1, len2);
+		int c = compare(seg2, offset1, offset2, minLength);
+		return c == 0 ? (len1 - len2) : c;
+	}
+
+	/**
 	 * Swaps bytes between two memory segments, using the given auxiliary buffer.
 	 *
 	 * @param tempBuffer The auxiliary buffer in which to put data during triangle swap.

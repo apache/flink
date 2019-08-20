@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,31 +16,33 @@
  * limitations under the License.
  */
 
-package org.apache.flink.core.memory;
-
-import org.apache.flink.annotation.Internal;
+package org.apache.flink.runtime.state.heap;
 
 /**
- * Un-synchronized stream similar to Java's ByteArrayInputStream that also exposes the current position.
+ * Status of the node.
  */
-@Internal
-public class ByteArrayInputStreamWithPos extends MemorySegmentInputStreamWithPos {
+public enum NodeStatus {
 
-	private static final byte[] EMPTY = new byte[0];
+	PUT((byte) 0), REMOVE((byte) 1);
 
-	public ByteArrayInputStreamWithPos() {
-		this(EMPTY);
+	private final byte value;
+
+	NodeStatus(byte value) {
+		this.value = value;
 	}
 
-	public ByteArrayInputStreamWithPos(byte[] buffer) {
-		this(buffer, 0, buffer.length);
+	public byte getValue() {
+		return value;
 	}
 
-	public ByteArrayInputStreamWithPos(byte[] buffer, int offset, int length) {
-		super(MemorySegmentFactory.wrap(buffer), offset, length);
-	}
-
-	public void setBuffer(byte[] buffer, int off, int len) {
-		setSegment(MemorySegmentFactory.wrap(buffer), off, len);
+	public static NodeStatus valueOf(byte value) {
+		switch (value) {
+			case 0:
+				return PUT;
+			case 1:
+				return REMOVE;
+			default:
+				throw new IllegalArgumentException("Unknown type: " + value);
+		}
 	}
 }
