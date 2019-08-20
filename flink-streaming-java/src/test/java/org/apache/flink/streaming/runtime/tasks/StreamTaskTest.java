@@ -189,44 +189,25 @@ public class StreamTaskTest extends TestLogger {
 	 * and propagates this to the environment.
 	 */
 	@Test
-	public void handleAsyncException() throws Throwable {
-		MockEnvironment e = MockEnvironment.builder().build();
+	public void streamTaskAsyncExceptionHandler_handleException_forwardsMessageProperly() {
+		MockEnvironment mockEnvironment = MockEnvironment.builder().build();
 		RuntimeException expectedException = new RuntimeException("RUNTIME EXCEPTION");
 
-		BlockingCloseStreamOperator.resetLatches();
-		Configuration taskConfiguration = new Configuration();
-		StreamConfig streamConfig = new StreamConfig(taskConfiguration);
-		streamConfig.setStreamOperator(new BlockingCloseStreamOperator());
-		streamConfig.setOperatorID(new OperatorID());
+		final StreamTask.StreamTaskAsyncExceptionHandler asyncExceptionHandler = new StreamTask.StreamTaskAsyncExceptionHandler(mockEnvironment);
 
-		try (MockEnvironment mockEnvironment =
-				new MockEnvironmentBuilder()
-					.setTaskName("Test Task")
-					.setMemorySize(32L * 1024L)
-					.setBufferSize(1)
-					.setTaskConfiguration(taskConfiguration)
-					.build()) {
+		mockEnvironment.setExpectedExternalFailureCause(AsynchronousException.class);
+		final String expectedErrorMessage = "EXPECTED_ERROR MESSAGE";
 
-			RunningTask<StreamTask<Void, BlockingCloseStreamOperator>> task = runTask(() -> new NoOpStreamTask<>(mockEnvironment));
+		asyncExceptionHandler.handleAsyncException(expectedErrorMessage, expectedException);
 
-			BlockingCloseStreamOperator.inClose.await();
+		// expect an AsynchronousException containing the supplied error details
+		Optional<? extends Throwable> actualExternalFailureCause = mockEnvironment.getActualExternalFailureCause();
+		final Throwable actualException = actualExternalFailureCause
+			.orElseThrow(() -> new AssertionError("Expected exceptional completion"));
 
-			// check that the StreamTask is not yet in isRunning == false
-			assertTrue(task.streamTask.isRunning());
-
-			// generate an error report and expect it to be caught by the Environment
-			mockEnvironment.setExpectedExternalFailureCause(AsynchronousException.class);
-			task.streamTask.handleAsyncException("EXPECTED_ERROR MESSAGE", expectedException);
-
-			// expect an AsynchronousException containing the supplied error details
-			Optional<? extends Throwable> actualExternalFailureCause = mockEnvironment.getActualExternalFailureCause();
-			final Throwable actualException = actualExternalFailureCause
-				.orElseThrow(() -> new AssertionError("Expected exceptional completion"));
-
-			assertThat(actualException, instanceOf(AsynchronousException.class));
-			assertThat(actualException.getMessage(), is("EXPECTED_ERROR MESSAGE"));
-			assertThat(actualException.getCause(), is(expectedException));
-		}
+		assertThat(actualException, instanceOf(AsynchronousException.class));
+		assertThat(actualException.getMessage(), is("EXPECTED_ERROR MESSAGE"));
+		assertThat(actualException.getCause(), is(expectedException));
 	}
 
 	/**
