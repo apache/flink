@@ -30,8 +30,8 @@ under the License.
 
 另请参阅 Streaming API 指南中的 [状态部分]({{ site.baseurl }}/zh/dev/stream/state/index.html) 。
 
-CheckPoint 开启时，CheckPoint 持续地进行来防止数据丢失，并且能够完整地恢复。
-在 Flink 内部以及 CheckPoint 上，状态如何存储以及存储在哪里取决于选择的 **State Backend**。
+在启动 CheckPoint 机制时，状态会随着 CheckPoint 而持久化，以防止数据丢失、保障恢复时的一致性。
+状态内部的存储格式、状态在 CheckPoint 时如何持久化以及持久化在哪里均取决于选择的 **State Backend**。
 
 * ToC
 {:toc}
@@ -49,7 +49,7 @@ Flink 内置了以下这些开箱即用的 state backends ：
 
 ### MemoryStateBackend
 
-*MemoryStateBackend* 将数据存储在 Java 堆中。 Key/value 的状态值和窗口算子的触发器都是通过 hash table 来存储。
+在 *MemoryStateBackend* 内部，数据以 Java 对象的形式存储在堆中。 Key/value 形式的状态和窗口算子持有存储着状态值、触发器的 hash table。
 
 在 CheckPoint 时，State Backend 对状态进行快照，并将快照信息作为 CheckPoint 应答消息的一部分发送给 JobManager(master)，同时 JobManager 也将快照信息存储在堆内存中。
 
@@ -63,8 +63,8 @@ MemoryStateBackend 能配置异步快照。强烈建议使用异步快照来防�
 MemoryStateBackend 的限制：
 
   - 默认情况下，每个独立的状态大小限制是 5 MB。在 MemoryStateBackend 的构造器中可以增加其大小。
-  - 无论配置的 `MAX_MEM_STATE_SIZE` 有多大，都不能大于 akka frame 大小（看[配置参数]({{ site.baseurl }}/zh/ops/config.html)）。
-  - 聚合后的状态大小必须小于 JobManager 的内存。
+  - 无论配置的最大状态内存大小（MAX_MEM_STATE_SIZE）有多大，都不能大于 akka frame 大小（看[配置参数]({{ site.baseurl }}/zh/ops/config.html)）。
+  - 聚合后的状态必须能够放进 JobManager 的内存中。
 
 MemoryStateBackend 适用场景：
 
@@ -104,7 +104,7 @@ RocksDBStateBackend 只支持异步快照。
 RocksDBStateBackend 的限制：
 
   - 由于 RocksDB 的 JNI API 构建在 byte[] 数据结构之上, 所以每个 key 和 value 最大支持 2^31 字节。
-    重要信息: RocksDB 合并操作的状态（例如：ListState）累积数据量大小可以超过 2^31 字节，但是会在下一次恢复任务时失败。这是当前 RocksDB JNI 的限制。
+    重要信息: RocksDB 合并操作的状态（例如：ListState）累积数据量大小可以超过 2^31 字节，但是会在下一次获取数据时失败。这是当前 RocksDB JNI 的限制。
 
 RocksDBStateBackend 的适用场景：
 
