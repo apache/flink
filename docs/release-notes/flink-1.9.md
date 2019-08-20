@@ -77,6 +77,31 @@ Related issues:
 
 ## Deprecations and breaking changes
 
+### Scala expression DSL for Table API moved to `flink-table-api-scala`
+
+Since 1.9.0, the implicit conversions for the Scala expression DSL for the Table API has been moved to
+`flink-table-api-scala`. This requires users to update the imports in their Table programs.
+
+Users of pure Table programs should define their imports like:
+
+```
+import org.apache.flink.table.api._
+
+TableEnvironment.create(...)
+```
+
+Users of the DataStream API should define their imports like:
+
+```
+import org.apache.flink.table.api._
+import org.apache.flink.table.api.scala._
+
+StreamTableEnvironment.create(...)
+```
+
+Related issues:
+- [FLINK-13045: Move Scala expression DSL to flink-table-api-scala](https://issues.apache.org/jira/browse/FLINK-13045)
+
 ### Failover strategies
 
 As a result of completing fine-grained recovery ([FLIP-1](https://cwiki.apache.org/confluence/display/FLINK/FLIP-1+%3A+Fine+Grained+Recovery+from+Task+Failures)),
