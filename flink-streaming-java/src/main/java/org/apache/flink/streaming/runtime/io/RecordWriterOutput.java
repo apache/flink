@@ -31,7 +31,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.util.OutputTag;
 
@@ -49,8 +48,6 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 
 	private SerializationDelegate<StreamElement> serializationDelegate;
 
-	private final StreamStatusProvider streamStatusProvider;
-
 	private final OutputTag outputTag;
 
 	private final WatermarkGauge watermarkGauge = new WatermarkGauge();
@@ -59,8 +56,7 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 	public RecordWriterOutput(
 			RecordWriter<SerializationDelegate<StreamRecord<OUT>>> recordWriter,
 			TypeSerializer<OUT> outSerializer,
-			OutputTag outputTag,
-			StreamStatusProvider streamStatusProvider) {
+			OutputTag outputTag) {
 
 		checkNotNull(recordWriter);
 		this.outputTag = outputTag;
@@ -75,8 +71,6 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 		if (outSerializer != null) {
 			serializationDelegate = new SerializationDelegate<StreamElement>(outRecordSerializer);
 		}
-
-		this.streamStatusProvider = checkNotNull(streamStatusProvider);
 	}
 
 	@Override
@@ -116,12 +110,10 @@ public class RecordWriterOutput<OUT> implements OperatorChain.WatermarkGaugeExpo
 		watermarkGauge.setCurrentWatermark(mark.getTimestamp());
 		serializationDelegate.setInstance(mark);
 
-		if (streamStatusProvider.getStreamStatus().isActive()) {
-			try {
-				recordWriter.broadcastEmit(serializationDelegate);
-			} catch (Exception e) {
-				throw new RuntimeException(e.getMessage(), e);
-			}
+		try {
+			recordWriter.broadcastEmit(serializationDelegate);
+		} catch (Exception e) {
+			throw new RuntimeException(e.getMessage(), e);
 		}
 	}
 

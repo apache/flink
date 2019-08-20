@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 
 /**
@@ -41,6 +42,8 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 
 	private transient long currentWatermark;
 
+	private StreamStatusProvider streamStatusProvider;
+
 	public TimestampsAndPeriodicWatermarksOperator(AssignerWithPeriodicWatermarks<T> assigner) {
 		super(assigner);
 		this.chainingStrategy = ChainingStrategy.ALWAYS;
@@ -57,6 +60,8 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 			long now = getProcessingTimeService().getCurrentProcessingTime();
 			getProcessingTimeService().registerTimer(now + watermarkInterval, this);
 		}
+
+		streamStatusProvider = getContainingTask().getStreamStatusMaintainer();
 	}
 
 	@Override
@@ -71,7 +76,7 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 	public void onProcessingTime(long timestamp) throws Exception {
 		// register next timer
 		Watermark newWatermark = userFunction.getCurrentWatermark();
-		if (newWatermark != null && newWatermark.getTimestamp() > currentWatermark) {
+		if (isActive() && newWatermark != null && newWatermark.getTimestamp() > currentWatermark) {
 			currentWatermark = newWatermark.getTimestamp();
 			// emit watermark
 			output.emitWatermark(newWatermark);
@@ -90,7 +95,7 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 	public void processWatermark(Watermark mark) throws Exception {
 		// if we receive a Long.MAX_VALUE watermark we forward it since it is used
 		// to signal the end of input and to not block watermark progress downstream
-		if (mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
+		if (isActive() && mark.getTimestamp() == Long.MAX_VALUE && currentWatermark != Long.MAX_VALUE) {
 			currentWatermark = Long.MAX_VALUE;
 			output.emitWatermark(mark);
 		}
@@ -102,10 +107,14 @@ public class TimestampsAndPeriodicWatermarksOperator<T>
 
 		// emit a final watermark
 		Watermark newWatermark = userFunction.getCurrentWatermark();
-		if (newWatermark != null && newWatermark.getTimestamp() > currentWatermark) {
+		if (isActive() && newWatermark != null && newWatermark.getTimestamp() > currentWatermark) {
 			currentWatermark = newWatermark.getTimestamp();
 			// emit watermark
 			output.emitWatermark(newWatermark);
 		}
+	}
+
+	private boolean isActive() {
+		return streamStatusProvider.getStreamStatus().isActive();
 	}
 }

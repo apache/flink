@@ -474,7 +474,7 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			outSerializer = upStreamConfig.getTypeSerializerOut(taskEnvironment.getUserClassLoader());
 		}
 
-		return new RecordWriterOutput<>(recordWriter, outSerializer, sideOutputTag, this);
+		return new RecordWriterOutput<>(recordWriter, outSerializer, sideOutputTag);
 	}
 
 	// ------------------------------------------------------------------------

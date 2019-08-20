@@ -383,8 +383,6 @@ public class StreamSourceContexts {
 		@Override
 		public void collect(T element) {
 			synchronized (checkpointLock) {
-				streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
-
 				if (nextCheck != null) {
 					this.failOnNextCheck = false;
 				} else {
@@ -398,8 +396,6 @@ public class StreamSourceContexts {
 		@Override
 		public void collectWithTimestamp(T element, long timestamp) {
 			synchronized (checkpointLock) {
-				streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
-
 				if (nextCheck != null) {
 					this.failOnNextCheck = false;
 				} else {
@@ -414,8 +410,6 @@ public class StreamSourceContexts {
 		public void emitWatermark(Watermark mark) {
 			if (allowWatermark(mark)) {
 				synchronized (checkpointLock) {
-					streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
-
 					if (nextCheck != null) {
 						this.failOnNextCheck = false;
 					} else {
