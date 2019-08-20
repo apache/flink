@@ -164,11 +164,9 @@ public class RestClusterClientTest extends TestLogger {
 	static {
 		final Configuration config = new Configuration();
 		config.setString(JobManagerOptions.ADDRESS, "localhost");
-		config.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 1);
+		config.setInteger(RestOptions.RETRY_MAX_ATTEMPTS, 10);
 		config.setLong(RestOptions.RETRY_DELAY, 0);
 		config.setInteger(RestOptions.PORT, 0);
-		config.setLong(RestOptions.IDLENESS_TIMEOUT, 10_000L);
-
 		restConfig = config;
 	}
 
