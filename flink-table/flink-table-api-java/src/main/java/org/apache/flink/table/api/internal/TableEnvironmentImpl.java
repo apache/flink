@@ -176,8 +176,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		}
 
 		CatalogBaseTable tableTable = new QueryOperationCatalogView(table.getQueryOperation());
-		catalogManager.createTable(tableTable, false)
-			.executeIn(getTemporaryObjectIdentifier(name));
+		catalogManager.createTable(tableTable, getTemporaryObjectIdentifier(name), false);
 	}
 
 	@Override
@@ -339,13 +338,14 @@ public class TableEnvironmentImpl implements TableEnvironment {
 		} else if (operation instanceof CreateTableOperation) {
 			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
 			ObjectIdentifier identifier = catalogManager.qualifyIdentifier(createTableOperation.getTablePath());
-			catalogManager.createTable(createTableOperation.getCatalogTable(), createTableOperation.isIgnoreIfExists())
-				.executeIn(identifier);
+			catalogManager.createTable(
+				createTableOperation.getCatalogTable(),
+				identifier,
+				createTableOperation.isIgnoreIfExists());
 		} else if (operation instanceof DropTableOperation) {
 			DropTableOperation dropTableOperation = (DropTableOperation) operation;
 			ObjectIdentifier identifier = catalogManager.qualifyIdentifier(dropTableOperation.getTableName());
-			catalogManager.dropTable(dropTableOperation.isIfExists())
-				.executeIn(identifier);
+			catalogManager.dropTable(identifier, dropTableOperation.isIfExists());
 		} else {
 			throw new TableException(
 				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
@@ -446,8 +446,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 						tableSource,
 						sourceSinkTable.getTableSink().get(),
 						!IS_STREAM_TABLE);
-					catalogManager.alterTable(sourceAndSink, false)
-						.executeIn(getTemporaryObjectIdentifier(name));
+					catalogManager.alterTable(sourceAndSink, getTemporaryObjectIdentifier(name), false);
 				}
 			} else {
 				throw new ValidationException(String.format(
@@ -455,8 +454,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			}
 		} else {
 			ConnectorCatalogTable source = ConnectorCatalogTable.source(tableSource, !IS_STREAM_TABLE);
-			catalogManager.createTable(source, false)
-				.executeIn(getTemporaryObjectIdentifier(name));
+			catalogManager.createTable(source, getTemporaryObjectIdentifier(name), false);
 		}
 	}
 
@@ -476,8 +474,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 					// wrapper contains only sink (not source)
 					ConnectorCatalogTable sourceAndSink = ConnectorCatalogTable
 						.sourceAndSink(sourceSinkTable.getTableSource().get(), tableSink, !IS_STREAM_TABLE);
-					catalogManager.alterTable(sourceAndSink, false)
-						.executeIn(getTemporaryObjectIdentifier(name));
+					catalogManager.alterTable(sourceAndSink, getTemporaryObjectIdentifier(name), false);
 				}
 			} else {
 				throw new ValidationException(String.format(
@@ -485,8 +482,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			}
 		} else {
 			ConnectorCatalogTable sink = ConnectorCatalogTable.sink(tableSink, !IS_STREAM_TABLE);
-			catalogManager.createTable(sink, false)
-				.executeIn(getTemporaryObjectIdentifier(name));
+			catalogManager.createTable(sink, getTemporaryObjectIdentifier(name), false);
 		}
 	}
 

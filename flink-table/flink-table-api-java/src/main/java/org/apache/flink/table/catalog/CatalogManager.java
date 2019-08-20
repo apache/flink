@@ -271,142 +271,81 @@ public class CatalogManager {
 	}
 
 	/**
-	 * Creates a command that will create a table in a given fully qualified path.
+	 * Creates a table in a given fully qualified path.
 	 *
-	 * @param table table to put in the given path
-	 * @param ignoreIfExists if true exception will be thrown if a table exists in the given path
-	 * @return pre configured catalog command
+	 * @param table The table to put in the given path.
+	 * @param objectIdentifier The fully qualified path where to put the table.
+	 * @param ignoreIfExists If false exception will be thrown if a table exists in the given path.
 	 */
-	public ModifyCatalog createTable(CatalogBaseTable table, boolean ignoreIfExists) {
-		return new CreateTable(table, ignoreIfExists);
+	public void createTable(CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfExists) {
+		execute(
+			(catalog, path) -> catalog.createTable(path, table, ignoreIfExists),
+			objectIdentifier,
+			false,
+			"CreateTable");
 	}
 
 	/**
-	 * Creates a command that will alter a table in a given fully qualified path.
+	 * Alters a table in a given fully qualified path.
 	 *
-	 * @param table table to put in the given path
-	 * @param ignoreIfNotExists if true exception will be thrown if the table to be altered does not exist in
-	 * the catalog
-	 * @return pre configured catalog command
+	 * @param table The table to put in the given path
+	 * @param objectIdentifier The fully qualified path where to alter the table.
+	 * @param ignoreIfNotExists If false exception will be thrown if the table or database or catalog to be altered
+	 * does not exist.
 	 */
-	public ModifyCatalog alterTable(CatalogBaseTable table, boolean ignoreIfNotExists) {
-		return new AlterTable(table, ignoreIfNotExists);
+	public void alterTable(CatalogBaseTable table, ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+		execute(
+			(catalog, path) -> catalog.alterTable(path, table, ignoreIfNotExists),
+			objectIdentifier,
+			ignoreIfNotExists,
+			"AlterTable");
 	}
 
 	/**
-	 * Creates a command that will drop a table in a given fully qualified path.
+	 * Drops a table in a given fully qualified path.
 	 *
-	 * @param ignoreIfNotExists if true exception will be thrown if the table to be dropped does not exist in
-	 * the catalog
-	 * @return pre configured catalog command
+	 * @param objectIdentifier The fully qualified path of the table to drop.
+	 * @param ignoreIfNotExists If false exception will be thrown if the table or database or catalog to be altered
+	 * does not exist.
 	 */
-	public ModifyCatalog dropTable(boolean ignoreIfNotExists) {
-		return new DropTable(ignoreIfNotExists);
+	public void dropTable(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+		execute(
+			(catalog, path) -> catalog.dropTable(path, ignoreIfNotExists),
+			objectIdentifier,
+			ignoreIfNotExists,
+			"DropTable");
 	}
 
 	/**
-	 * A command that modifies given {@link CatalogManager} in a {@link ObjectIdentifier}. This unifies error handling
+	 * A command that modifies given {@link Catalog} in an {@link ObjectPath}. This unifies error handling
 	 * across different commands.
 	 */
-	public interface ModifyCatalog {
-		void executeIn(ObjectIdentifier objectIdentifier);
+	private interface ModifyCatalog {
+		void execute(Catalog catalog, ObjectPath path) throws Exception;
 	}
 
-	private abstract class AbstractModifyCatalog implements ModifyCatalog {
-		@Override
-		public final void executeIn(ObjectIdentifier objectIdentifier) {
-			Optional<Catalog> catalog = getCatalog(objectIdentifier.getCatalogName());
-			if (catalog.isPresent()) {
-				try {
-					execute(catalog.get(), objectIdentifier.toObjectPath());
-				} catch (TableAlreadyExistException | TableNotExistException | DatabaseNotExistException e) {
-					throw new ValidationException(getErrorMessage(objectIdentifier), e);
-				} catch (Exception e) {
-					throw new TableException(getErrorMessage(objectIdentifier), e);
-				}
-			} else if (!ignoreNoCatalog()) {
-				throw new ValidationException(String.format(
-					"Catalog %s does not exist.",
-					objectIdentifier.getCatalogName()));
+	private void execute(
+			ModifyCatalog command,
+			ObjectIdentifier objectIdentifier,
+			boolean ignoreNoCatalog,
+			String commandName) {
+		Optional<Catalog> catalog = getCatalog(objectIdentifier.getCatalogName());
+		if (catalog.isPresent()) {
+			try {
+				command.execute(catalog.get(), objectIdentifier.toObjectPath());
+			} catch (TableAlreadyExistException | TableNotExistException | DatabaseNotExistException e) {
+				throw new ValidationException(getErrorMessage(objectIdentifier, commandName), e);
+			} catch (Exception e) {
+				throw new TableException(getErrorMessage(objectIdentifier, commandName), e);
 			}
-		}
-
-		private String getErrorMessage(ObjectIdentifier objectIdentifier) {
-			return String.format("Could not execute %s in path %s", toString(), objectIdentifier);
-		}
-
-		protected boolean ignoreNoCatalog() {
-			return false;
-		}
-
-		protected abstract void execute(Catalog catalog, ObjectPath path) throws Exception;
-	}
-
-	private final class DropTable extends AbstractModifyCatalog {
-		private final boolean ignoreIfNotExists;
-
-		private DropTable(boolean ignoreIfNotExists) {
-			this.ignoreIfNotExists = ignoreIfNotExists;
-		}
-
-		@Override
-		protected void execute(Catalog catalog, ObjectPath path) throws Exception {
-			catalog.dropTable(path, ignoreIfNotExists);
-		}
-
-		@Override
-		protected boolean ignoreNoCatalog() {
-			return ignoreIfNotExists;
-		}
-
-		@Override
-		public String toString() {
-			return "DropTable";
+		} else if (!ignoreNoCatalog) {
+			throw new ValidationException(String.format(
+				"Catalog %s does not exist.",
+				objectIdentifier.getCatalogName()));
 		}
 	}
 
-	private final class AlterTable extends AbstractModifyCatalog {
-		private final CatalogBaseTable table;
-		private final boolean ignoreIfNotExists;
-
-		private AlterTable(CatalogBaseTable table, boolean ignoreIfNotExists) {
-			this.table = table;
-			this.ignoreIfNotExists = ignoreIfNotExists;
-		}
-
-		@Override
-		protected void execute(Catalog catalog, ObjectPath path) throws Exception {
-			catalog.alterTable(path, table, ignoreIfNotExists);
-		}
-
-		@Override
-		protected boolean ignoreNoCatalog() {
-			return ignoreIfNotExists;
-		}
-
-		@Override
-		public String toString() {
-			return "AlterTable";
-		}
-	}
-
-	private final class CreateTable extends AbstractModifyCatalog {
-		private final CatalogBaseTable table;
-		private final boolean ignoreIfExists;
-
-		private CreateTable(CatalogBaseTable table, boolean ignoreIfExists) {
-			this.table = table;
-			this.ignoreIfExists = ignoreIfExists;
-		}
-
-		@Override
-		protected void execute(Catalog catalog, ObjectPath path) throws Exception {
-			catalog.createTable(path, table, ignoreIfExists);
-		}
-
-		@Override
-		public String toString() {
-			return "CreateTable";
-		}
+	private String getErrorMessage(ObjectIdentifier objectIdentifier, String commandName) {
+		return String.format("Could not execute %s in path %s", commandName, objectIdentifier);
 	}
 }

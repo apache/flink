@@ -181,8 +181,7 @@ abstract class TableEnvImpl(
     }
 
     val view = new QueryOperationCatalogView(table.getQueryOperation)
-    catalogManager.createTable(view, false)
-      .executeIn(getTemporaryObjectIdentifier(name))
+    catalogManager.createTable(view, getTemporaryObjectIdentifier(name), false)
   }
 
   override def registerTableSource(name: String, tableSource: TableSource[_]): Unit = {
@@ -266,15 +265,13 @@ abstract class TableEnvImpl(
             tableSource,
             table.getTableSink.get,
             isBatchTable)
-          catalogManager.alterTable(sourceAndSink, false)
-            .executeIn(getTemporaryObjectIdentifier(name))
+          catalogManager.alterTable(sourceAndSink, getTemporaryObjectIdentifier(name), false)
         }
 
       // no table is registered
       case _ =>
         val source = ConnectorCatalogTable.source(tableSource, isBatchTable)
-        catalogManager.createTable(source, false)
-          .executeIn(getTemporaryObjectIdentifier(name))
+        catalogManager.createTable(source, getTemporaryObjectIdentifier(name), false)
     }
   }
 
@@ -300,15 +297,13 @@ abstract class TableEnvImpl(
             table.getTableSource.get,
             tableSink,
             isBatchTable)
-          catalogManager.alterTable(sourceAndSink, false)
-            .executeIn(getTemporaryObjectIdentifier(name))
+          catalogManager.alterTable(sourceAndSink, getTemporaryObjectIdentifier(name), false)
         }
 
       // no table is registered
       case _ =>
         val sink = ConnectorCatalogTable.sink(tableSink, isBatchTable)
-        catalogManager.createTable(sink, false)
-          .executeIn(getTemporaryObjectIdentifier(name))
+        catalogManager.createTable(sink, getTemporaryObjectIdentifier(name), false)
     }
   }
 
@@ -410,12 +405,11 @@ abstract class TableEnvImpl(
         val identifier = catalogManager.qualifyIdentifier(operation.getTablePath: _*)
         catalogManager.createTable(
           operation.getCatalogTable,
-          operation.isIgnoreIfExists
-        ).executeIn(identifier)
+          identifier,
+          operation.isIgnoreIfExists)
       case dropTable: SqlDropTable =>
         val identifier = catalogManager.qualifyIdentifier(dropTable.fullTableName(): _*)
-        catalogManager.dropTable(dropTable.getIfExists)
-          .executeIn(identifier)
+        catalogManager.dropTable(identifier, dropTable.getIfExists)
       case _ =>
         throw new TableException(
           "Unsupported SQL query! sqlUpdate() only accepts SQL statements of " +
