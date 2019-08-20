@@ -65,7 +65,6 @@ Therefore, all streaming related concepts are not supported yet, for example wat
 Related issues:
 - [FLINK-13661: Add a stream specific CREATE TABLE SQL DDL](https://issues.apache.org/jira/browse/FLINK-13661)
 - [FLINK-13568: DDL create table doesn't allow STRING data type](https://issues.apache.org/jira/browse/FLINK-13568)
-- [FLINK-13699: TableFactory doesn't work with DDL when containing TIMESTAMP/DATE/TIME types](https://issues.apache.org/jira/browse/FLINK-13699)
 
 ### Java 9 support
 
