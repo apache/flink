@@ -17,6 +17,9 @@
 
 exclude:
   - "*.md"
+  - "content"
+  - "content_en"
+  - "content_zh"
 
 include:
   - "*.zh.md"
