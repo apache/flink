@@ -3408,7 +3408,7 @@ Copyright 2014-2018 The Apache Software Foundation
 This project includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
-- io.netty:netty-all:4.1.32.Final
+- io.netty:netty-all:4.1.39.Final
 
 flink-shaded-jackson
 Copyright 2014-2018 The Apache Software Foundation
