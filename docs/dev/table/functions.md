@@ -1474,7 +1474,7 @@ PI()
 {% endhighlight %}
       </td>
       <td>
-      <p>Returns a value that is closer than any other values to pi.</p>
+      <p>Returns the value of π (pi).</p>
       <p>Only supported in blink planner.</p>
       </td>
     </tr> 
@@ -2743,11 +2743,11 @@ DECODE(binary, string)
     <tr>
       <td>
         {% highlight text %}
-ENCODE(string, string)
+ENCODE(string1, string2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Encodes the first argument into a BINARY using the provided character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.</p>
+        <p>Encodes the <i>string1</i> into a BINARY using the provided <i>string2</i> character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
@@ -2755,11 +2755,11 @@ ENCODE(string, string)
     <tr>
       <td>
         {% highlight text %}
-INSTR(string1, string2[, integer1[, integer2]])
+INSTR(string1, string2)
 {% endhighlight %}
       </td>
       <td>
-        <p>INSTR searches a string(<i>string1</i>) for a substring(<i>string2</i>) using characters and returns the position in the string that is the first character of a specified occurrence of the substring. <i>integer1</i> indicating where in string the function begins the search. <i>integer2</i>  indicating which occurrence of string the function should search for. Returns NULL if any of arguments is NULL.</p>
+        Returns the position of the first occurrence of <i>string2</i> in <i>string1</i>. Returns NULL if any of arguments is NULL.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
@@ -2803,11 +2803,14 @@ LOCATE(string1, string2[, integer])
     <tr>
       <td>
         {% highlight text %}
-PARSE_URL(string1, string2[,string3])
+PARSE_URL(string1, string2[, string3])
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the specified part from the URL. Valid values for <i>string2</i> include HOST, PATH, QUERY, REF, PROTOCOL, AUTHORITY, FILE, and USERINFO.For example, parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST') returns 'facebook.com'. Also a value of a particular key in QUERY can be extracted by providing the key as the third argument(<i>string3</i>), for example, parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1') returns 'v1'. Returns NULL if any of arguments is NULL.</p>
+        <p>Returns the specified part from the URL. Valid values for <i>string2</i> include 'HOST', 'PATH', 'QUERY', 'REF', 'PROTOCOL', 'AUTHORITY', 'FILE', and 'USERINFO'. Returns NULL if any of arguments is NULL.</p>
+        <p>E.g., <code>parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST')</code>, returns 'facebook.com'.</p>
+        <p>Also a value of a particular key in QUERY can be extracted by providing the key as the third argument <i>string3</i>.</p>
+        <p>E.g., <code>parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1')</code> returns 'v1'. </p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
@@ -2839,11 +2842,11 @@ REVERSE(string)
     <tr>
       <td>
         {% highlight text %}
-SPLIT_INDEX(string1, string2|integer1, integer2)
+SPLIT_INDEX(string1, string2, integer1)
 {% endhighlight %}
       </td>
       <td>
-        <p>Splits <i>string1</i> around the delimiter <i>string2</i> or character having the binary equivalent to <i>integer1</i>, and Returns the <i>integer2</i> part in a zero-based numbering. Returns NULL if <i>integer2</i> is negative. Returns NULL if any of arguments is NULL.</p>
+        <p>Splits <i>string1</i> by the delimiter <i>string2</i>, returns the <i>integer</i>th (zero-based) string of the split strings. Returns NULL if <i>integer</i> is negative. Returns NULL if any of arguments is NULL.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
@@ -2851,11 +2854,11 @@ SPLIT_INDEX(string1, string2|integer1, integer2)
     <tr>
       <td>
         {% highlight text %}
-STR_TO_MAP(string1[, string2, string3])
+STR_TO_MAP(string1[, string2[, string3]])
 {% endhighlight %}
       </td>
       <td>
-        <p>Splits <i>string1</i> into key-value pairs using two delimiters. <i>string2</i> separates text into K-V pairs, and <i>string3</i> splits each K-V pair. Default delimiters are ',' for <i>string2</i> and '=' for <i>string3</i>.</p>
+        <p>Returns a map after splitting the <i>string1</i> into key/value pairs using delimiters. <i>string2</i> is the pair delimiter, default is ','. And <i>string3</i> is the key-value delimiter, default is '='.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
@@ -3744,7 +3747,8 @@ FROM_UNIXTIME(numeric[, string])
 {% endhighlight %}
       </td>
       <td>
-        <p>Converts the number of seconds from unix epoch (1970-01-01 00:00:00 UTC) specified by <i>numeric</i> to a string representing the timestamp of that moment in the time zone specified in TableConfig (by default UTC) in the format of <i>string</i> (by default: yyyy-MM-dd HH:mm:ss).</p>
+        <p>Returns a representation of the <i>numeric</i> argument as a value in <i>string</i> format (default is 'YYYY-MM-DD hh:mm:ss'). <i>numeric</i> is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig).</p>
+        <p>E.g., <code>FROM_UNIXTIME(44)</code> returns '1970-01-01 09:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
@@ -3780,7 +3784,7 @@ TO_DATE(string1[, string2])
 {% endhighlight %}
       </td>
       <td>
-        <p>Converts date time string <i>string1</i> with format <i>string2</i> (by default 'yyyy-MM-dd HH:mm:ss') to a date.</p>
+        <p>Converts a date string <i>string1</i> with format <i>string2</i> (by default 'yyyy-MM-dd') to a date.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr> 
@@ -3792,7 +3796,7 @@ TO_TIMESTAMP(string1[, string2])
 {% endhighlight %}
       </td>
       <td>
-        <p>Converts date time string <i>string1</i> with format <i>string2</i> (by default: 'yyyy-MM-dd HH:mm:ss') and time zone (specified by table config, by default: UTC) to a timestamp.</p>
+        <p>Converts date time string <i>string1</i> with format <i>string2</i> (by default: 'yyyy-MM-dd HH:mm:ss') under the session time zone (specified by TableConfig) to a timestamp.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
@@ -5693,7 +5697,7 @@ VARIANCE([ ALL | DISTINCT ] expression)
 {% endhighlight %}
       </td>
       <td>
-        <p>See VAR_SAMP.</p>
+        <p>Synonyms for VAR_SAMP().</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
@@ -5705,7 +5709,7 @@ RANK()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the rank of each row within the partition of a result set. The rank of a row is one plus the number of ranks that come before the row in question.</p>
+        <p>Returns the rank of a value in a group of values. The result is one plus the number of rows preceding or equal to the current row in the ordering of the partition. The values will produce gaps in the sequence.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
@@ -5717,7 +5721,7 @@ DENSE_RANK()
 {% endhighlight %}
       </td>
       <td>
-        <p>This function returns the rank of each row within a result set partition, with no gaps in the ranking values. The rank of a specific row is one plus the number of distinct rank values that come before that specific row.</p>
+        <p>Returns the rank of a value in a group of values. The result is one plus the previously assigned rank value. Unlike the function rank, dense_rank will not produce gaps in the ranking sequence.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
@@ -5729,7 +5733,7 @@ ROW_NUMBER()
 {% endhighlight %}
       </td>
       <td>
-        <p>Numbers the output of a result set.</p>
+        <p>Assigns a unique, sequential number to each row, starting with one, according to the ordering of rows within the window partition.</p>
         <p>ROW_NUMBER and RANK are similar. ROW_NUMBER numbers all rows sequentially (for example 1, 2, 3, 4, 5). RANK provides the same numeric value for ties (for example 1, 2, 2, 4, 5).</p>
         <p>Only supported in blink planner.</p>
       </td>
@@ -5778,7 +5782,7 @@ LAST_VALUE(expression)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the first value in an ordered set of values.</p>
+        <p>Returns the last value in an ordered set of values.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
@@ -5790,7 +5794,7 @@ LISTAGG(expression [, separator])
 {% endhighlight %}
       </td>
       <td>
-        <p>Concatenates the values of string expressions and places separator values between them. The separator is not added at the end of string. The default value of <i>separator</i> is '\n'.</p>
+        <p>Concatenates the values of string expressions and places separator values between them. The separator is not added at the end of string. The default value of <i>separator</i> is ','.</p>
         <p>Only supported in blink planner.</p>
       </td>
     </tr>
