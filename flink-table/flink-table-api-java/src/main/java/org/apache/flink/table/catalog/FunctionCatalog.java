@@ -40,7 +40,6 @@ import org.apache.flink.table.functions.UserDefinedAggregateFunction;
 import org.apache.flink.table.functions.UserFunctionsTypeHelper;
 import org.apache.flink.util.Preconditions;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -136,10 +135,7 @@ public class FunctionCatalog implements FunctionLookup {
 	}
 
 	public String[] getUserDefinedFunctions() {
-		String[] names = getUserDefinedFunctionNames().toArray(new String[0]);
-		Arrays.sort(names);
-
-		return names;
+		return getUserDefinedFunctionNames().toArray(new String[0]);
 	}
 
 	public String[] getFunctions() {
@@ -153,10 +149,7 @@ public class FunctionCatalog implements FunctionLookup {
 				.collect(Collectors.toSet())
 		);
 
-		String[] names = result.toArray(new String[0]);
-		Arrays.sort(names);
-
-		return names;
+		return result.toArray(new String[0]);
 	}
 
 	private Set<String> getUserDefinedFunctionNames() {
