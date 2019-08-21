@@ -279,11 +279,8 @@ tables:
 
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
--- CREATE a 010 version Kafka table start from the earliest offset(as table source) and append mode(as table sink).
 CREATE TABLE MyUserTable (
-  `user` bigint,
-  message varchar,
-  ts varchar
+  ...
 ) WITH (
   -- declare the external system to connect to
   'connector.type' = 'kafka',
@@ -689,25 +686,11 @@ connector:
 
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
--- CREATE a CSV table using the CREATE TABLE syntax.
-CREATE TABLE csv_table (
-  `user` bigint,
-  message varchar,
-  ts varchar
+CREATE TABLE MyUserTable (
+  ...
 ) WITH (
   'connector.type' = 'filesystem',  -- required: specify to connector type
-  'format.type' = 'csv',            -- required: specify which format to deserialize(as table source)
-  'connector.path' = 'path1',       -- required: path to a file or directory
-
-  'format.derive-schema' = 'true',  -- optional: derive the format schema from table schema. 
-
-  'format.fields.0.name' = 'f0',    -- optional: specify the format schema, no need to specify if
-                                    -- "format.derive-schema" is true. 
-  'format.fields.0.type' = 'INT',
-  'format.fields.1.name' = 'f1',
-  'format.fields.1.type' = 'BIGINT',
-  'format.fields.2.name' = 'f2',
-  'format.fields.2.type' = 'STRING'
+  'connector.path' = 'path1'        -- required: path to a file or directory
 );
 {% endhighlight %}
 </div>
@@ -815,12 +798,8 @@ connector:
 
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
--- CREATE a 011 version Kafka table start from the earliest offset(as table source)
--- and append mode(as table sink).
 CREATE TABLE MyUserTable (
-  `user` bigint,
-  message varchar,
-  ts varchar
+  ...
 ) WITH (
   'connector.type' = 'kafka',       
 
@@ -832,23 +811,21 @@ CREATE TABLE MyUserTable (
   'update-mode' = 'append',         -- required: update mode when used as table sink, 
                                     -- only support append mode now.
 
-  'format.type' = 'avro',           -- required: specify which format to deserialize(as table source) 
-                                    -- and serialize(as table sink). 
-                                    -- Valid format types are : "csv", "json", "avro".
-
   'connector.properties.0.key' = 'zookeeper.connect', -- optional: connector specific properties
   'connector.properties.0.value' = 'localhost:2181',
-  'connector.properties.0.key' = 'bootstrap.servers',
-  'connector.properties.0.value' = 'localhost:9092',
-  'connector.properties.0.key' = 'group.id',
-  'connector.properties.0.value' = 'testGroup',
-  'connector.startup-mode' = 'earliest-offset',  -- optional: valid modes are "earliest-offset", "latest-offset",
-                                                 -- "group-offsets", or "specific-offsets"
+  'connector.properties.1.key' = 'bootstrap.servers',
+  'connector.properties.1.value' = 'localhost:9092',
+  'connector.properties.2.key' = 'group.id',
+  'connector.properties.2.value' = 'testGroup',
+  'connector.startup-mode' = 'earliest-offset',    -- optional: valid modes are "earliest-offset", 
+                                                   -- "latest-offset", "group-offsets", 
+                                                   -- or "specific-offsets"
 
-  'connector.specific-offsets.partition' = '0',  -- optional: used in case of startup mode with specific offsets
-  'connector.specific-offsets.offset' = '42',
-  'connector.specific-offsets.partition' = '1',
-  'connector.specific-offsets.offset' = '300',
+  -- optional: used in case of startup mode with specific offsets
+  'connector.specific-offsets.0.partition' = '0',
+  'connector.specific-offsets.0.offset' = '42',
+  'connector.specific-offsets.1.partition' = '1',
+  'connector.specific-offsets.1.offset' = '300',
 
   'connector.sink-partitioner' = '...',  -- optional: output partitioning from Flink's partitions 
                                          -- into Kafka's partitions valid are "fixed" 
@@ -856,23 +833,8 @@ CREATE TABLE MyUserTable (
                                          -- "round-robin" (a Flink partition is distributed to 
                                          -- Kafka partitions round-robin)
                                          -- "custom" (use a custom FlinkKafkaPartitioner subclass)
-
-  'format.derive-schema' = 'true',       -- optional: derive the serialize/deserialize format 
-                                         -- schema from the table schema.
-
-  'format.avro-schema' =                 -- optional: specify the serialize/deserialize format schema,
-                                         -- no need to specify if format.derive-schema is true.
-                         '{                      
-                                                 
-                            \"namespace\": \"org.myorganization\",
-                            \"type\": \"record\",
-                            \"name\": \"UserMessage\",
-                            \"fields\": [
-                                {\"name\": \"ts\", \"type\": \"string\"},
-                                {\"name\": \"user\", \"type\": \"long\"},
-                                {\"name\": \"message\", \"type\": [\"string\", \"null\"]}
-                            ]
-                         }'
+  -- optional: used in case of sink partitioner custom
+  'connector.sink-partitioner-class' = 'org.mycompany.MyPartitioner'
 );
 {% endhighlight %}
 </div>
@@ -1026,18 +988,13 @@ connector:
 
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
--- CREATE a version 6 Elasticsearch table.
 CREATE TABLE MyUserTable (
-  `user` bigint,
-  message varchar,
-  ts varchar
+  ...
 ) WITH (
   'connector.type' = 'elasticsearch', -- required: specify this table type is elasticsearch
   
   'connector.version' = '6',          -- required: valid connector versions are "6"
   
-  'format.type' = 'json',             -- required: specify which format to deserialize(as table source)
-
   'connector.hosts.0.hostname' = 'host_name',  -- required: one or more Elasticsearch hosts to connect to
   'connector.hosts.0.port' = '9092',
   'connector.hosts.0.protocol' = 'http',
@@ -1048,12 +1005,6 @@ CREATE TABLE MyUserTable (
 
   'update-mode' = 'append',            -- optional: update mode when used as table sink, 
                                        -- only support append mode now.            
-
-  'format.derive-schema' = 'true',     -- optional: derive the serialize/deserialize format
-                                       -- schema from the table schema.
-
-  'format.json-schema' = '...',        -- optional: specify the serialize/deserialize format schema,
-                                       -- no need to specify if format.derive-schema is true.
 
   'connector.key-delimiter' = '$',     -- optional: delimiter for composite keys ("_" by default)
                                        -- e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
@@ -1214,6 +1165,38 @@ format:
                                #   null value (disabled by default)
 {% endhighlight %}
 </div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'format.type' = 'csv',                  -- required: specify the schema type
+
+  'format.fields.0.name' = 'lon',         -- required: define the schema either by using type information
+  'format.fields.0.type' = 'FLOAT',
+  'format.fields.1.name' = 'rideTime',
+  'format.fields.1.type' = 'TIMESTAMP',
+
+  'format.derive-schema' = 'true',        -- or use the table's schema
+
+  'format.field-delimiter' = ';',         -- optional: field delimiter character (',' by default)
+  'format.line-delimiter' = '\r\n',       -- optional: line delimiter ("\n" by default; otherwise
+                                          -- "\r" or "\r\n" are allowed)
+  'format.quote-character' = '''',         -- optional: quote character for enclosing field values ('"' by default)
+  'format.allow-comments' = true,         -- optional: ignores comment lines that start with "#" 
+                                          -- (disabled by default);
+                                          -- if enabled, make sure to also ignore parse errors to allow empty rows
+  'format.ignore-parse-errors' = 'true',  -- optional: skip fields and rows with parse errors instead of failing;
+                                          -- fields are set to null in case of errors
+  'format.array-element-delimiter' = '|', -- optional: the array element delimiter string for separating
+                                          -- array and row element values (";" by default)
+  'format.escape-character' = '\\',       -- optional: escape character for escaping values (disabled by default)
+  'format.null-literal' = 'n/a'           -- optional: null literal string that is interpreted as a
+                                          -- null value (disabled by default)
+);
+{% endhighlight %}
+</div>
 </div>
 
 The following table lists supported types that can be read and written:
@@ -1366,6 +1349,38 @@ format:
   derive-schema: true
 {% endhighlight %}
 </div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'format.type' = 'json',                   -- required: specify the format type
+  'format.fail-on-missing-field' = 'true'   -- optional: flag whether to fail if a field is missing or not, false by default
+
+  'format.fields.0.name' = 'lon',           -- required: define the schema either by using a type string which parses numbers to corresponding types
+  'format.fields.0.type' = 'FLOAT',
+  'format.fields.1.name' = 'rideTime',
+  'format.fields.1.type' = 'TIMESTAMP',
+
+  'format.json-schema' = '                  -- or by using a JSON schema which parses to DECIMAL and TIMESTAMP
+    {                           
+      \"type\": \"object\",
+      \"properties\": {
+        \"lon\": {
+          \"type\": \"number\"
+        },
+        \"rideTime\": {
+          \"type\": \"string\",
+          \"format\": \"date-time\"
+        }
+      }
+    }',
+
+  'format.derive-schema' = 'true'          -- or use the table's schema
+);
+{% endhighlight %}
+</div>
 </div>
 
 The following table shows the mapping of JSON schema types to Flink SQL types:
@@ -1513,6 +1528,28 @@ format:
     }
 {% endhighlight %}
 </div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'format.type' = 'avro',                                 -- required: specify the schema type
+  'format.record-class' = 'org.organization.types.User',  -- required: define the schema either by using an Avro specific record class
+
+  'format.avro-schema' = '                                -- or by using an Avro schema
+    {
+      \"type\": \"record\",
+      \"name\": \"test\",
+      \"fields\" : [
+        {\"name\": \"a\", \"type\": \"long\"},
+        {\"name\": \"b\", \"type\": \"string\"}
+      ]
+    }',
+  'format.derive-schema' = 'true'                         -- or use the table's schema
+);
+{% endhighlight %}
+</div>
 </div>
 
 Avro types are mapped to the corresponding SQL data types. Union types are only supported for specifying nullability otherwise they are converted to an `ANY` type. The following table shows the mapping:
@@ -1603,6 +1640,28 @@ format:
   comment-prefix: '#'        # optional: string to indicate comments, empty by default
   ignore-first-line: false   # optional: boolean flag to ignore the first line, by default it is not skipped
   ignore-parse-errors: true  # optional: skip records with parse error instead of failing by default
+{% endhighlight %}
+</div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'format.type' = 'csv',                  -- required: specify the schema type
+
+  'format.fields.0.name' = 'lon',         -- required: define the schema either by using type information
+  'format.fields.0.type' = 'FLOAT',
+  'format.fields.1.name' = 'rideTime',
+  'format.fields.1.type' = 'TIMESTAMP',
+  
+  'format.field-delimiter' = ',',         -- optional: string delimiter "," by default
+  'format.line-delimiter' = '\n',         -- optional: string delimiter "\n" by default
+  'format.quote-character' = '"',         -- optional: single character for string values, empty by default
+  'format.comment-prefix' = '#',          -- optional: string to indicate comments, empty by default
+  'format.ignore-first-line' = 'false',   -- optional: boolean flag to ignore the first line, by default it is not skipped
+  'format.ignore-parse-errors' = 'true'   -- optional: skip records with parse error instead of failing by default
+);
 {% endhighlight %}
 </div>
 </div>
