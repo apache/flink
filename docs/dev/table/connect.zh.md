@@ -122,6 +122,12 @@ format: ...
 schema: ...
 {% endhighlight %}
 </div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+tableEnvironment.sqlUpdate("CREATE TABLE MyTable (...) WITH (...)")
+{% endhighlight %}
+</div>
 </div>
 
 The table's type (`source`, `sink`, or `both`) determines how a table is registered. In case of table type `both`, both a table source and table sink are registered under the same name. Logically, this means that we can both read and write to such a table similarly to a table in a regular DBMS.
