@@ -870,7 +870,7 @@ BOOLEAN.isNotTrue
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>BOOLEAN</i> is FALSE or UNKNOWN; returns FALSE if <i>BOOLEAN</i> is FALSE.</p>
+        <p>Returns TRUE if <i>BOOLEAN</i> is FALSE or UNKNOWN; returns FALSE if <i>BOOLEAN</i> is TRUE.</p>
       </td>
     </tr>
 
@@ -962,7 +962,7 @@ BOOLEAN.isNotTrue
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>BOOLEAN</i> is FALSE or UNKNOWN; returns FALSE if <i>BOOLEAN</i> is FALSE.</p>
+        <p>Returns TRUE if <i>BOOLEAN</i> is FALSE or UNKNOWN; returns FALSE if <i>BOOLEAN</i> is TRUE.</p>
       </td>
     </tr>
 
