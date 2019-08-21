@@ -352,7 +352,7 @@ under the License.
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-surefire-plugin</artifactId>
 						<configuration>
-							<!-- hive does not support Java 11 -->
+							<!-- hbase currently does not support Java 11, see HBASE-21110 -->
 							<skip>true</skip>
 						</configuration>
 					</plugin>
