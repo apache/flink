@@ -68,7 +68,7 @@ rsync -a \
   --exclude "docs/content" --exclude ".rubydeps" \
   --exclude "flink-python/lib/pyflink.zip"  --exclude "flink-python/build" \
   --exclude "flink-python/dist" --exclude "flink-python/apache_flink.egg-info" \
-  --exclude "flink-python/.tox" --exclude ".flink-python/.cache" \
+  --exclude "flink-python/.tox" --exclude "flink-python/.cache" \
   --exclude "flink-python/.pytest_cache" \
   . flink-$RELEASE_VERSION
 
