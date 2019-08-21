@@ -771,7 +771,7 @@ Make sure to add the version-specific Kafka dependency. In addition, a correspon
 
 ### Elasticsearch Connector
 
-<span class="label label-primary">Sink: Streaming Append Mode</span>
+<span class="label label-primary">Source: Streaming Append Mode</span>
 <span class="label label-primary">Sink: Streaming Upsert Mode</span>
 <span class="label label-info">Format: JSON-only</span>
 
