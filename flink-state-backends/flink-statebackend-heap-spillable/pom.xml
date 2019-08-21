@@ -31,7 +31,7 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-statebackend-heap-spillable_${scala.binary.version}</artifactId>
+	<artifactId>flink-statebackend-heap-spillable</artifactId>
 	<name>flink-statebackend-heap-spillable</name>
 
 	<packaging>jar</packaging>
