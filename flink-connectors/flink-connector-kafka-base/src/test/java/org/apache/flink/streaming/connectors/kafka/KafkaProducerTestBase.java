@@ -120,7 +120,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 
 			StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 			env.setRestartStrategy(RestartStrategies.noRestart());
-			env.getConfig().disableSysoutLogging();
 
 			TypeInformationSerializationSchema<Tuple2<Long, String>> serSchema =
 				new TypeInformationSerializationSchema<>(longStringInfo, env.getConfig());
@@ -238,7 +237,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 		env.enableCheckpointing(500);
 		env.setParallelism(1);
 		env.setRestartStrategy(RestartStrategies.noRestart());
-		env.getConfig().disableSysoutLogging();
 
 		Properties properties = new Properties();
 		properties.putAll(standardProps);
@@ -335,7 +333,6 @@ public abstract class KafkaProducerTestBase extends KafkaTestBaseWithFlink {
 		env.enableCheckpointing(500);
 		env.setParallelism(1);
 		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-		env.getConfig().disableSysoutLogging();
 
 		Properties properties = new Properties();
 		properties.putAll(standardProps);

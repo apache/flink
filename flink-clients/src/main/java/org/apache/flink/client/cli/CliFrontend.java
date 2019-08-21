@@ -259,7 +259,6 @@ public class CliFrontend {
 				}
 
 				try {
-					client.setPrintStatusDuringExecution(runOptions.getStdoutLogging());
 					client.setDetached(runOptions.getDetachedMode());
 
 					LOG.debug("{}", runOptions.getSavepointRestoreSettings());

@@ -87,7 +87,6 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 	private static void runConnectedComponents(ExecutionEnvironment env) throws Exception {
 
 		env.setParallelism(PARALLELISM);
-		env.getConfig().disableSysoutLogging();
 
 		// read vertex and edge data
 		DataSet<Long> vertices = ConnectedComponentsData.getDefaultVertexDataSet(env)
@@ -128,7 +127,6 @@ public class SuccessAfterNetworkBuffersFailureITCase extends TestLogger {
 	private static void runKMeans(ExecutionEnvironment env) throws Exception {
 
 		env.setParallelism(PARALLELISM);
-		env.getConfig().disableSysoutLogging();
 
 		// get input data
 		DataSet<KMeans.Point> points =  KMeansData.getDefaultPointDataSet(env).rebalance();

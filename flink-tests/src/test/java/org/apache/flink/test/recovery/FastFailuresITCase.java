@@ -49,8 +49,7 @@ public class FastFailuresITCase extends AbstractTestBase {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-		env.getConfig().disableSysoutLogging();
-		env.setParallelism(parallelism);
+				env.setParallelism(parallelism);
 		env.enableCheckpointing(1000);
 		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(210, 0));
 

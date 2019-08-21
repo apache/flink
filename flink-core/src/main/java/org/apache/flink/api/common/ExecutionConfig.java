@@ -122,9 +122,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	private CodeAnalysisMode codeAnalysisMode = CodeAnalysisMode.DISABLE;
 
-	/** If set to true, progress updates are printed to System.out during execution */
-	private boolean printProgressDuringExecution = true;
-
 	private long autoWatermarkInterval = 0;
 
 	/**
@@ -732,32 +729,27 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
-	 * Enables the printing of progress update messages to {@code System.out}
-	 * 
-	 * @return The ExecutionConfig object, to allow for function chaining.
+	 * @deprecated Ineffective. Will be removed at 2.0.
 	 */
+	@Deprecated
 	public ExecutionConfig enableSysoutLogging() {
-		this.printProgressDuringExecution = true;
 		return this;
 	}
 
 	/**
-	 * Disables the printing of progress update messages to {@code System.out}
-	 *
-	 * @return The ExecutionConfig object, to allow for function chaining.
+	 * @deprecated Ineffective. Will be removed at 2.0.
 	 */
+	@Deprecated
 	public ExecutionConfig disableSysoutLogging() {
-		this.printProgressDuringExecution = false;
 		return this;
 	}
 
 	/**
-	 * Gets whether progress update messages should be printed to {@code System.out}
-	 * 
-	 * @return True, if progress update messages should be printed, false otherwise.
+	 * @deprecated Ineffective. Will be removed at 2.0.
 	 */
+	@Deprecated
 	public boolean isSysoutLoggingEnabled() {
-		return this.printProgressDuringExecution;
+		return false;
 	}
 
 	public GlobalJobParameters getGlobalJobParameters() {
@@ -989,7 +981,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				autoTypeRegistrationEnabled == other.autoTypeRegistrationEnabled &&
 				forceAvro == other.forceAvro &&
 				Objects.equals(codeAnalysisMode, other.codeAnalysisMode) &&
-				printProgressDuringExecution == other.printProgressDuringExecution &&
 				Objects.equals(globalJobParameters, other.globalJobParameters) &&
 				autoWatermarkInterval == other.autoWatermarkInterval &&
 				registeredTypesWithKryoSerializerClasses.equals(other.registeredTypesWithKryoSerializerClasses) &&
@@ -1018,7 +1009,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			autoTypeRegistrationEnabled,
 			forceAvro,
 			codeAnalysisMode,
-			printProgressDuringExecution,
 			globalJobParameters,
 			autoWatermarkInterval,
 			registeredTypesWithKryoSerializerClasses,

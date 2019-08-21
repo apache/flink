@@ -260,8 +260,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
-			env.setStateBackend(this.stateBackend);
+						env.setStateBackend(this.stateBackend);
 			env.getConfig().setUseSnapshotCompression(true);
 
 			env
@@ -336,8 +335,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
-			env.setStateBackend(this.stateBackend);
+						env.setStateBackend(this.stateBackend);
 			env.getConfig().setUseSnapshotCompression(true);
 
 			env
@@ -405,8 +403,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
-			env.setStateBackend(this.stateBackend);
+						env.setStateBackend(this.stateBackend);
 			env.getConfig().setUseSnapshotCompression(true);
 
 			env
@@ -470,8 +467,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
-			env.setStateBackend(this.stateBackend);
+						env.setStateBackend(this.stateBackend);
 			env.getConfig().setUseSnapshotCompression(true);
 
 			env
@@ -543,8 +539,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
-			env.setStateBackend(this.stateBackend);
+						env.setStateBackend(this.stateBackend);
 			env.getConfig().setUseSnapshotCompression(true);
 
 			env

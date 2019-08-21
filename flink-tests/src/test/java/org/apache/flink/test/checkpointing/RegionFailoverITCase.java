@@ -167,7 +167,6 @@ public class RegionFailoverITCase extends TestLogger {
 		env.enableCheckpointing(200, CheckpointingMode.EXACTLY_ONCE);
 		env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 		env.disableOperatorChaining();
-		env.getConfig().disableSysoutLogging();
 
 		// Use DataStreamUtils#reinterpretAsKeyed to avoid merge regions and this stream graph would exist num of 'NUM_OF_REGIONS' individual regions.
 		DataStreamUtils.reinterpretAsKeyedStream(
