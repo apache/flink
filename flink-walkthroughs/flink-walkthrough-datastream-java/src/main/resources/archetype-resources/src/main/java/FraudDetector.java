@@ -34,7 +34,7 @@ public class FraudDetector extends KeyedProcessFunction<Long, Transaction, Alert
 
 	public static final double LARGE_AMOUNT = 500.00;
 
-	public static final long ONE_DAY = 24 * 60 * 60 * 1000;
+	public static final long ONE_MINUTE = 60 * 1000;
 
 	@Override
 	public void processElement(

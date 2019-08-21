@@ -30,7 +30,7 @@ import org.apache.flink.walkthrough.common.entity.Transaction
 object FraudDetector {
   val SMALL_AMOUNT = 1.00
   val LARGE_AMOUNT = 500.00
-  val ONE_DAY      = 24 * 60 * 60 * 1000L
+  val ONE_MINUTE   = 60 * 1000L
 }
 
 @SerialVersionUID(1L)

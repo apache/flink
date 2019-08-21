@@ -41,8 +41,6 @@ mvn archetype:generate                                          \
     -Dpackage=org.apache.flink.walkthrough                      \
     -DinteractiveMode=false
 
-exit 1;
-
 cd "${ARTIFACT_ID}"
 
 mvn clean package -nsu > compile-output.txt

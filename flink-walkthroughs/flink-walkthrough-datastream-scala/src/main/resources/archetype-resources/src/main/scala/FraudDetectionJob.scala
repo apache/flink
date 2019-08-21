@@ -32,13 +32,13 @@ object FraudDetectionJob {
 
   @throws[Exception]
   def main(args: Array[String]): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
+    val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
 
-    val transactions = env
+    val transactions: DataStream[Transaction] = env
       .addSource(new TransactionSource)
       .name("transactions")
 
-    val alerts = transactions
+    val alerts: DataStream[Alert] = transactions
       .keyBy(transaction => transaction.getAccountId)
       .process(new FraudDetector)
       .name("fraud-detector")
