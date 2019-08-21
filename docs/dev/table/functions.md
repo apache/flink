@@ -2722,7 +2722,7 @@ CHR(integer)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the ASCII character having the binary equivalent to <i>integer</i>. If <i>integer</i> is larger than 255 the result is equivalent to chr(bitand(integer,256). Returns NULL if <i>integer</i> is NULL.</p>
+        <p>Returns the ASCII character having the binary equivalent to <i>integer</i>. If <i>integer</i> is larger than 255, we will get the modulus of <i>integer</i> divided by 255 first, and returns <i>CHR</i> of the modulus. Returns NULL if <i>integer</i> is NULL.</p>
         <p>Only supported in blink planner. Only supported in SQL api.</p>
         <p>E.g., <code>chr(97)</code> returns a, <code>chr(353)</code> returns a, and <code>ascii(CAST(NULL AS VARCHAR))</code> returns NULL.</p>
       </td>
