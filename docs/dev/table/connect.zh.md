@@ -286,7 +286,9 @@ tables:
 <div data-lang="DDL" markdown="1">
 {% highlight sql %}
 CREATE TABLE MyUserTable (
-  ...
+  `user` BIGINT,
+  message VARCHAR,
+  ts VARCHAR
 ) WITH (
   -- declare the external system to connect to
   'connector.type' = 'kafka',
@@ -295,8 +297,8 @@ CREATE TABLE MyUserTable (
   'connector.startup-mode' = 'earliest-offset',
   'connector.properties.0.key' = 'zookeeper.connect',
   'connector.properties.0.value' = 'localhost:2181',
-  'connector.properties.0.key' = 'bootstrap.servers',
-  'connector.properties.0.value' = 'localhost:9092',
+  'connector.properties.1.key' = 'bootstrap.servers',
+  'connector.properties.1.value' = 'localhost:9092',
   'update-mode' = 'append',
   -- declare a format for this system
   'format.type' = 'avro',
@@ -695,8 +697,8 @@ connector:
 CREATE TABLE MyUserTable (
   ...
 ) WITH (
-  'connector.type' = 'filesystem',  -- required: specify to connector type
-  'connector.path' = 'path1'        -- required: path to a file or directory
+  'connector.type' = 'filesystem',               -- required: specify to connector type
+  'connector.path' = 'file:///path/to/whatever'  -- required: path to a file or directory
 );
 {% endhighlight %}
 </div>
@@ -1009,8 +1011,7 @@ CREATE TABLE MyUserTable (
 
   'connector.document-type' = 'user',  -- required: Elasticsearch document type
 
-  'update-mode' = 'append',            -- optional: update mode when used as table sink, 
-                                       -- only support append mode now.            
+  'update-mode' = 'append',            -- optional: update mode when used as table sink.           
 
   'connector.key-delimiter' = '$',     -- optional: delimiter for composite keys ("_" by default)
                                        -- e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
@@ -1189,7 +1190,7 @@ CREATE TABLE MyUserTable (
   'format.field-delimiter' = ';',         -- optional: field delimiter character (',' by default)
   'format.line-delimiter' = '\r\n',       -- optional: line delimiter ("\n" by default; otherwise
                                           -- "\r" or "\r\n" are allowed)
-  'format.quote-character' = '''',         -- optional: quote character for enclosing field values ('"' by default)
+  'format.quote-character' = '''',        -- optional: quote character for enclosing field values ('"' by default)
   'format.allow-comments' = true,         -- optional: ignores comment lines that start with "#" 
                                           -- (disabled by default);
                                           -- if enabled, make sure to also ignore parse errors to allow empty rows
@@ -1551,8 +1552,7 @@ CREATE TABLE MyUserTable (
         {\"name\": \"a\", \"type\": \"long\"},
         {\"name\": \"b\", \"type\": \"string\"}
       ]
-    }',
-  'format.derive-schema' = 'true'                         -- or use the table's schema
+    }'
 );
 {% endhighlight %}
 </div>
