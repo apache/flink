@@ -38,13 +38,13 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
 import org.apache.flink.runtime.executiongraph.restart.FailingRestartStrategy;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtilsTest;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -111,13 +111,9 @@ public class RegionFailoverITCase extends TestLogger {
 
 	@Before
 	public void setup() throws Exception {
-		HighAvailabilityServicesUtilsTest.TestHAFactory.haServices = new TestingHaServices(
-			new TestingCheckpointRecoveryFactory(
-				new TestingCompletedCheckpointStore(), new StandaloneCheckpointIDCounter()), TestingUtils.defaultExecutor());
-
 		Configuration configuration = new Configuration();
 		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
-		configuration.setString(HighAvailabilityOptions.HA_MODE, HighAvailabilityServicesUtilsTest.TestHAFactory.class.getName());
+		configuration.setString(HighAvailabilityOptions.HA_MODE, TestingHAFactory.class.getName());
 
 		// global failover times: 3, region failover times: NUM_OF_RESTARTS
 		configuration.setInteger(FailingRestartStrategy.NUM_FAILURES_CONFIG_OPTION, 3);
@@ -443,6 +439,16 @@ public class RegionFailoverITCase extends TestLogger {
 			// on task side to avoid race condition. See FLINK-13601.
 			lastCompletedCheckpointId.set(checkpoint.getCheckpointID());
 			numCompletedCheckpoints.incrementAndGet();
+		}
+	}
+
+	public static class TestingHAFactory implements HighAvailabilityServicesFactory {
+
+		@Override
+		public HighAvailabilityServices createHAServices(Configuration configuration, Executor executor) {
+			return new TestingHaServices(
+				new TestingCheckpointRecoveryFactory(new TestingCompletedCheckpointStore(), new StandaloneCheckpointIDCounter()),
+				executor);
 		}
 	}
 }
