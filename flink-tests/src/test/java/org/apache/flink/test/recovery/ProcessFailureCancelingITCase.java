@@ -169,7 +169,6 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 						ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", 1337, config);
 						env.setParallelism(2);
 						env.setRestartStrategy(RestartStrategies.noRestart());
-						env.getConfig().disableSysoutLogging();
 
 						env.generateSequence(0, Long.MAX_VALUE)
 

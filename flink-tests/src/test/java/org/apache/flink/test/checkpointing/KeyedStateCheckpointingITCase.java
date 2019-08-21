@@ -145,8 +145,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(PARALLELISM);
 		env.enableCheckpointing(500);
-		env.getConfig().disableSysoutLogging();
-		env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
+				env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
 
 		env.setStateBackend(stateBackend);
 

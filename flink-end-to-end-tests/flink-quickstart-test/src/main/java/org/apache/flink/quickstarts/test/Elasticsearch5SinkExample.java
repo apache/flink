@@ -52,8 +52,7 @@ public class Elasticsearch5SinkExample {
 		}
 
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().disableSysoutLogging();
-		env.enableCheckpointing(5000);
+				env.enableCheckpointing(5000);
 
 		DataStream<String> source = env.generateSequence(0, parameterTool.getInt("numRecords") - 1)
 			.map(new MapFunction<Long, String>() {

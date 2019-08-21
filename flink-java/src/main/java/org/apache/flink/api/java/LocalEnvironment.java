@@ -121,7 +121,6 @@ public class LocalEnvironment extends ExecutionEnvironment {
 
 		// create a new local executor
 		executor = PlanExecutor.createLocalExecutor(configuration);
-		executor.setPrintStatusDuringExecution(getConfig().isSysoutLoggingEnabled());
 
 		// if we have a session, start the mini cluster eagerly to have it available across sessions
 		if (getSessionTimeout() > 0) {

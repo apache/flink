@@ -68,7 +68,6 @@ public class CustomSerializationITCase extends TestLogger {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARLLELISM);
-			env.getConfig().disableSysoutLogging();
 
 			env
 				.generateSequence(1, 10 * PARLLELISM)
@@ -99,7 +98,6 @@ public class CustomSerializationITCase extends TestLogger {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARLLELISM);
-			env.getConfig().disableSysoutLogging();
 
 			env
 					.generateSequence(1, 10 * PARLLELISM)
@@ -130,7 +128,6 @@ public class CustomSerializationITCase extends TestLogger {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARLLELISM);
-			env.getConfig().disableSysoutLogging();
 
 			env
 					.generateSequence(1, 10 * PARLLELISM)
@@ -161,7 +158,6 @@ public class CustomSerializationITCase extends TestLogger {
 		try {
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(PARLLELISM);
-			env.getConfig().disableSysoutLogging();
 
 			env
 					.generateSequence(1, 10 * PARLLELISM)

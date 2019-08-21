@@ -119,7 +119,6 @@ public class TimestampITCase extends TestLogger {
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(initialTime, numWatermarks));
 		DataStream<Integer> source2 = env.addSource(new MyTimestampSource(initialTime, numWatermarks / 2));
@@ -169,7 +168,6 @@ public class TimestampITCase extends TestLogger {
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new MyTimestampSourceInfinite(initialTime, numWatermarks));
 		DataStream<Integer> source2 = env.addSource(new MyTimestampSourceInfinite(initialTime, numWatermarks / 2));
@@ -257,7 +255,6 @@ public class TimestampITCase extends TestLogger {
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.setParallelism(PARALLELISM);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(0L, numElements));
 		DataStream<Integer> source2 = env.addSource(new MyTimestampSource(0L, numElements));
@@ -282,7 +279,6 @@ public class TimestampITCase extends TestLogger {
 
 		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 		env.setParallelism(PARALLELISM);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new MyNonWatermarkingSource(numElements));
 		DataStream<Integer> source2 = env.addSource(new MyNonWatermarkingSource(numElements));
@@ -310,7 +306,6 @@ public class TimestampITCase extends TestLogger {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(10);
 		env.setParallelism(1);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
@@ -373,7 +368,6 @@ public class TimestampITCase extends TestLogger {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(10);
 		env.setParallelism(1);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
@@ -432,7 +426,6 @@ public class TimestampITCase extends TestLogger {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(1);
 		env.setParallelism(1);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
@@ -492,7 +485,6 @@ public class TimestampITCase extends TestLogger {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(1);
 		env.setParallelism(2);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
@@ -551,7 +543,6 @@ public class TimestampITCase extends TestLogger {
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 		env.getConfig().setAutoWatermarkInterval(10);
 		env.setParallelism(2);
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> source1 = env.addSource(new SourceFunction<Integer>() {
 			@Override
@@ -605,8 +596,7 @@ public class TimestampITCase extends TestLogger {
 				StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(2);
-		env.getConfig().disableSysoutLogging();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+				env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Integer> source1 = env.addSource(new MyTimestampSource(0, 10));
 
@@ -626,8 +616,7 @@ public class TimestampITCase extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(2);
-		env.getConfig().disableSysoutLogging();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+				env.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
 
 		DataStream<Tuple2<String, Integer>> source1 =
 				env.fromElements(new Tuple2<>("a", 1), new Tuple2<>("b", 2));
@@ -656,8 +645,7 @@ public class TimestampITCase extends TestLogger {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		env.setParallelism(2);
-		env.getConfig().disableSysoutLogging();
-		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+				env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
 		DataStream<Tuple2<String, Integer>> source1 =
 				env.fromElements(new Tuple2<>("a", 1), new Tuple2<>("b", 2));

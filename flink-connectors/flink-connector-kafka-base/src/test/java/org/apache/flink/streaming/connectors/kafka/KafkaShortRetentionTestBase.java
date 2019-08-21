@@ -143,7 +143,6 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
-		env.getConfig().disableSysoutLogging();
 
 		// ----------- add producer dataflow ----------
 
@@ -236,7 +235,6 @@ public class KafkaShortRetentionTestBase implements Serializable {
 		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
 		env.setRestartStrategy(RestartStrategies.noRestart()); // fail immediately
-		env.getConfig().disableSysoutLogging();
 
 		// ----------- add consumer ----------
 
