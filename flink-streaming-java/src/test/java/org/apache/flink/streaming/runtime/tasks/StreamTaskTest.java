@@ -760,6 +760,26 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testExecuteMailboxActionsAfterLeavingInputProcessorMailboxLoop() throws Exception {
+		OneShotLatch latch = new OneShotLatch();
+		try (MockEnvironment mockEnvironment = new MockEnvironmentBuilder().build()) {
+			RunningTask<StreamTask<?, ?>> task = runTask(() -> new StreamTask<Object, StreamOperator<Object>>(mockEnvironment) {
+				@Override
+				protected void init() throws Exception {
+				}
+
+				@Override
+				protected void processInput(DefaultActionContext context) throws Exception {
+					mailboxProcessor.getMailboxExecutor(0).execute(latch::trigger);
+					context.allActionsCompleted();
+				}
+			});
+			latch.await();
+			task.waitForTaskCompletion(false);
+		}
+	}
+
 	/**
 	 * Test set user code ClassLoader before calling ProcessingTimeCallback.
 	 */

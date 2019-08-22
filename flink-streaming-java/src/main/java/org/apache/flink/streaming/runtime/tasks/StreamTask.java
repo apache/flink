@@ -63,6 +63,7 @@ import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutorFactory;
 import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxProcessor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.execution.SuspendedMailboxDefaultAction;
@@ -426,6 +427,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				// only set the StreamTask to not running after all operators have been closed!
 				// See FLINK-7430
 				isRunning = false;
+			}
+			MailboxExecutor mainMailboxExecutor = mailboxProcessor.getMainMailboxExecutor();
+			while (mainMailboxExecutor.tryYield()) {
+				// Run until we have processed all remaining letters.
 			}
 
 			// make sure all timers finish
