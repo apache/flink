@@ -51,7 +51,9 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -125,6 +127,9 @@ public class LocalExecutorITCase extends TestLogger {
 
 	@Parameter
 	public String planner;
+
+	@Rule
+	public ExpectedException exception = ExpectedException.none();
 
 	@Test
 	public void testValidateSession() throws Exception {
@@ -250,6 +255,7 @@ public class LocalExecutorITCase extends TestLogger {
 		expectedProperties.put("execution.restart-strategy.max-failures-per-interval", "10");
 		expectedProperties.put("execution.restart-strategy.failure-rate-interval", "99000");
 		expectedProperties.put("execution.restart-strategy.delay", "1000");
+		expectedProperties.put("table.optimizer.join-reorder-enabled", "false");
 		expectedProperties.put("deployment.response-timeout", "5000");
 
 		assertEquals(expectedProperties, actualProperties);
@@ -503,6 +509,24 @@ public class LocalExecutorITCase extends TestLogger {
 		} finally {
 			executor.stop(session);
 		}
+	}
+
+	@Test
+	public void testUseNonExistingDatabase() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		exception.expect(SqlExecutionException.class);
+		executor.useDatabase(session, "nonexistingdb");
+	}
+
+	@Test
+	public void testUseNonExistingCatalog() throws Exception {
+		final Executor executor = createDefaultExecutor(clusterClient);
+		final SessionContext session = new SessionContext("test-session", new Environment());
+
+		exception.expect(SqlExecutionException.class);
+		executor.useCatalog(session, "nonexistingcatalog");
 	}
 
 	private void executeStreamQueryTable(

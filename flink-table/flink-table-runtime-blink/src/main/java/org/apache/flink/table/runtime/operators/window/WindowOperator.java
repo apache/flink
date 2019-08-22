@@ -41,13 +41,9 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.JoinedRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.runtime.dataview.PerWindowStateDataViewStore;
-import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
-import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
-import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction;
-import org.apache.flink.table.runtime.generated.RecordEqualiser;
+import org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase;
 import org.apache.flink.table.runtime.operators.window.assigners.MergingWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.PanedWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
@@ -71,16 +67,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * An operator that implements the logic for windowing based on a {@link WindowAssigner} and
  * {@link Trigger}.
  *
+ * <p>This is the base class for {@link AggregateWindowOperator} and
+ * {@link TableAggregateWindowOperator}. The big difference between {@link AggregateWindowOperator}
+ * and {@link TableAggregateWindowOperator} is {@link AggregateWindowOperator} emits only one
+ * result for each aggregate group, while {@link TableAggregateWindowOperator} can emit multi
+ * results for each aggregate group.
+ *
  * <p>When an element arrives it gets assigned a key using a {@link KeySelector} and it gets
  * assigned to zero or more windows using a {@link WindowAssigner}. Based on this, the element
  * is put into panes. A pane is the bucket of elements that have the same key and same
  * {@code Window}. An element can be in multiple panes if it was assigned to multiple windows by
- * the
- * {@code WindowAssigner}.
+ * the {@code WindowAssigner}.
  *
  * <p>Each pane gets its own instance of the provided {@code Trigger}. This trigger determines when
  * the contents of the pane should be processed to emit results. When a trigger fires,
- * the given {@link org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunction}
+ * the given {@link org.apache.flink.table.runtime.generated.NamespaceAggsHandleFunctionBase}
  * is invoked to produce the results that are emitted for the pane to which the {@code Trigger}
  * belongs.
  *
@@ -94,7 +95,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <K> The type of key returned by the {@code KeySelector}.
  * @param <W> The type of {@code Window} that the {@code WindowAssigner} assigns.
  */
-public class WindowOperator<K, W extends Window>
+public abstract class WindowOperator<K, W extends Window>
 		extends AbstractStreamOperator<BaseRow>
 		implements OneInputStreamOperator<BaseRow, BaseRow>, Triggerable<K, W> {
 
@@ -123,7 +124,7 @@ public class WindowOperator<K, W extends Window>
 
 	private final LogicalType[] windowPropertyTypes;
 
-	private final boolean sendRetraction;
+	protected final boolean sendRetraction;
 
 	private final int rowtimeIndex;
 
@@ -139,22 +140,14 @@ public class WindowOperator<K, W extends Window>
 
 	// --------------------------------------------------------------------------------
 
-	private NamespaceAggsHandleFunction<W> windowAggregator;
-	private GeneratedNamespaceAggsHandleFunction<W> generatedWindowAggregator;
-
-	/**
-	 * The util to compare two BaseRow equals to each other.
-	 * As different BaseRow can't be equals directly, we use a code generated util to handle this.
-	 */
-	private RecordEqualiser equaliser;
-	private GeneratedRecordEqualiser generatedEqualiser;
+	protected NamespaceAggsHandleFunctionBase<W> windowAggregator;
 
 	// --------------------------------------------------------------------------------
 
-	private transient InternalWindowProcessFunction<K, W> windowFunction;
+	protected transient InternalWindowProcessFunction<K, W> windowFunction;
 
 	/** This is used for emitting elements with a given timestamp. */
-	private transient TimestampedCollector<BaseRow> collector;
+	protected transient TimestampedCollector<BaseRow> collector;
 
 	/** Flag to prevent duplicate function.close() calls in close() and dispose(). */
 	private transient boolean functionsClosed = false;
@@ -163,11 +156,9 @@ public class WindowOperator<K, W extends Window>
 
 	private transient InternalValueState<K, W, BaseRow> windowState;
 
-	private transient InternalValueState<K, W, BaseRow> previousState;
+	protected transient InternalValueState<K, W, BaseRow> previousState;
 
 	private transient TriggerContext triggerContext;
-
-	private transient JoinedRow reuseOutput;
 
 	// ------------------------------------------------------------------------
 	// Metrics
@@ -178,8 +169,7 @@ public class WindowOperator<K, W extends Window>
 	private transient Gauge<Long> watermarkLatency;
 
 	WindowOperator(
-			NamespaceAggsHandleFunction<W> windowAggregator,
-			RecordEqualiser equaliser,
+			NamespaceAggsHandleFunctionBase<W> windowAggregator,
 			WindowAssigner<W> windowAssigner,
 			Trigger<W> trigger,
 			TypeSerializer<W> windowSerializer,
@@ -192,7 +182,6 @@ public class WindowOperator<K, W extends Window>
 			long allowedLateness) {
 		checkArgument(allowedLateness >= 0);
 		this.windowAggregator = checkNotNull(windowAggregator);
-		this.equaliser = checkNotNull(equaliser);
 		this.windowAssigner = checkNotNull(windowAssigner);
 		this.trigger = checkNotNull(trigger);
 		this.windowSerializer = checkNotNull(windowSerializer);
@@ -211,8 +200,6 @@ public class WindowOperator<K, W extends Window>
 	}
 
 	WindowOperator(
-			GeneratedNamespaceAggsHandleFunction<W> generatedWindowAggregator,
-			GeneratedRecordEqualiser generatedEqualiser,
 			WindowAssigner<W> windowAssigner,
 			Trigger<W> trigger,
 			TypeSerializer<W> windowSerializer,
@@ -224,8 +211,6 @@ public class WindowOperator<K, W extends Window>
 			boolean sendRetraction,
 			long allowedLateness) {
 		checkArgument(allowedLateness >= 0);
-		this.generatedWindowAggregator = checkNotNull(generatedWindowAggregator);
-		this.generatedEqualiser = checkNotNull(generatedEqualiser);
 		this.windowAssigner = checkNotNull(windowAssigner);
 		this.trigger = checkNotNull(trigger);
 		this.windowSerializer = checkNotNull(windowSerializer);
@@ -242,6 +227,8 @@ public class WindowOperator<K, W extends Window>
 
 		setChainingStrategy(ChainingStrategy.ALWAYS);
 	}
+
+	protected abstract void compileGeneratedCode();
 
 	@Override
 	public void open() throws Exception {
@@ -268,15 +255,7 @@ public class WindowOperator<K, W extends Window>
 			this.previousState = (InternalValueState<K, W, BaseRow>) getOrCreateKeyedState(windowSerializer, previousStateDescriptor);
 		}
 
-		// compile aggregator
-		if (generatedWindowAggregator != null) {
-			this.windowAggregator = generatedWindowAggregator.newInstance(getRuntimeContext().getUserCodeClassLoader());
-
-		}
-		// compile equaliser
-		if (generatedEqualiser != null) {
-			this.equaliser = generatedEqualiser.newInstance(getRuntimeContext().getUserCodeClassLoader());
-		}
+		compileGeneratedCode();
 
 		WindowContext windowContext = new WindowContext();
 		windowAggregator.open(new PerWindowStateDataViewStore(
@@ -302,8 +281,6 @@ public class WindowOperator<K, W extends Window>
 					allowedLateness);
 		}
 		windowFunction.open(windowContext);
-
-		reuseOutput = new JoinedRow();
 
 		// metrics
 		this.numLateRecordsDropped = metrics.counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
@@ -424,44 +401,7 @@ public class WindowOperator<K, W extends Window>
 	/**
 	 * Emits the window result of the given window.
 	 */
-	private void emitWindowResult(W window) throws Exception {
-		BaseRow aggResult = windowFunction.getWindowAggregationResult(window);
-		if (sendRetraction) {
-			previousState.setCurrentNamespace(window);
-			BaseRow previousAggResult = previousState.value();
-
-			// has emitted result for the window
-			if (previousAggResult != null) {
-				// current agg is not equal to the previous emitted, should emit retract
-				if (!equaliser.equalsWithoutHeader(aggResult, previousAggResult)) {
-					reuseOutput.replace((BaseRow) getCurrentKey(), previousAggResult);
-					BaseRowUtil.setRetract(reuseOutput);
-					// send retraction
-					collector.collect(reuseOutput);
-					// send accumulate
-					reuseOutput.replace((BaseRow) getCurrentKey(), aggResult);
-					BaseRowUtil.setAccumulate(reuseOutput);
-					collector.collect(reuseOutput);
-					// update previousState
-					previousState.update(aggResult);
-				}
-				// if the previous agg equals to the current agg, no need to send retract and accumulate
-			}
-			// the first fire for the window, only send accumulate
-			else {
-				// send accumulate
-				reuseOutput.replace((BaseRow) getCurrentKey(), aggResult);
-				BaseRowUtil.setAccumulate(reuseOutput);
-				collector.collect(reuseOutput);
-				// update previousState
-				previousState.update(aggResult);
-			}
-		} else {
-			reuseOutput.replace((BaseRow) getCurrentKey(), aggResult);
-			// no need to set header
-			collector.collect(reuseOutput);
-		}
-	}
+	protected abstract void emitWindowResult(W window) throws Exception;
 
 	/**
 	 * Registers a timer to cleanup the content of the window.

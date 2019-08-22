@@ -167,6 +167,11 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	}
 
 	@Override
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
+		return parent.unsynchronizedGetNumberOfQueuedBuffers();
+	}
+
+	@Override
 	public String toString() {
 		return String.format("Blocking Subpartition Reader: ID=%s, index=%d",
 				parent.parent.getPartitionId(),

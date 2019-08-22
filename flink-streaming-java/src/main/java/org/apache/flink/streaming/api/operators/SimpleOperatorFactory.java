@@ -93,7 +93,7 @@ public class SimpleOperatorFactory<OUT> implements StreamOperatorFactory<OUT> {
 	}
 
 	@Override
-	public boolean isOperatorSelectiveReading() {
+	public boolean isOperatorSelectiveReading(ClassLoader classLoader) {
 		return operator instanceof InputSelectable;
 	}
 
@@ -116,5 +116,10 @@ public class SimpleOperatorFactory<OUT> implements StreamOperatorFactory<OUT> {
 	@Override
 	public void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {
 		((InputTypeConfigurable) operator).setInputType(type, executionConfig);
+	}
+
+	@Override
+	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+		return operator.getClass();
 	}
 }

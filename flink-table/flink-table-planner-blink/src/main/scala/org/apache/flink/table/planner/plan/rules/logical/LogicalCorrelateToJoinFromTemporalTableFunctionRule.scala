@@ -182,11 +182,11 @@ class GetTemporalTableFunctionCall(
     }
     val tableFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
 
-    if (!tableFunction.getTableFunction.isInstanceOf[TemporalTableFunction]) {
+    if (!tableFunction.udtf.isInstanceOf[TemporalTableFunction]) {
       return null
     }
     val temporalTableFunction =
-      tableFunction.getTableFunction.asInstanceOf[TemporalTableFunctionImpl]
+      tableFunction.udtf.asInstanceOf[TemporalTableFunctionImpl]
 
     checkState(
       rexCall.getOperands.size().equals(1),

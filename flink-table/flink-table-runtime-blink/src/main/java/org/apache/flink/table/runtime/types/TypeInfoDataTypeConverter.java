@@ -44,6 +44,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
@@ -110,6 +111,10 @@ public class TypeInfoDataTypeConverter {
 			case BINARY:
 			case VARBINARY: // ignore precision
 				return PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
+			case INTERVAL_YEAR_MONTH:
+				return TimeIntervalTypeInfo.INTERVAL_MONTHS;
+			case INTERVAL_DAY_TIME:
+				return TimeIntervalTypeInfo.INTERVAL_MILLIS;
 			case ARRAY:
 				if (dataType instanceof CollectionDataType &&
 						!isPrimitive(((CollectionDataType) dataType).getElementDataType().getLogicalType())) {

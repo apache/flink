@@ -76,6 +76,8 @@ import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIME;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.TIMESTAMP;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ANY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ARRAY;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.BINARY;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.CHAR;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DATE;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.DOUBLE;
@@ -266,10 +268,19 @@ public final class LogicalTypeGeneralization {
 				final int length = combineLength(resultType, type);
 
 				if (hasRoot(resultType, VARCHAR) || hasRoot(resultType, VARBINARY)) {
-					// for variable length type we are done here
+					// variable length types remain variable length types
 					resultType = createStringType(resultType.getTypeRoot(), length);
+				} else if (getLength(resultType) != getLength(type)) {
+					// for different fixed lengths
+					// this is different from the SQL standard but prevents whitespace
+					// padding/modification of strings
+					if (hasRoot(resultType, CHAR)) {
+						resultType = createStringType(VARCHAR, length);
+					} else if (hasRoot(resultType, BINARY)) {
+						resultType = createStringType(VARBINARY, length);
+					}
 				} else {
-					// for mixed fixed/variable or fixed/fixed lengths
+					// for same type with same length
 					resultType = createStringType(typeRoot, length);
 				}
 			}

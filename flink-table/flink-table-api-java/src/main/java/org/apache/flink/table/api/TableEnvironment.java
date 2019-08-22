@@ -24,9 +24,8 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.ExternalCatalog;
+import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.TableDescriptor;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -86,31 +85,6 @@ public interface TableEnvironment {
 	 * @param source table source used as table
 	 */
 	Table fromTableSource(TableSource<?> source);
-
-	/**
-	 * Registers an {@link ExternalCatalog} under a unique name in the TableEnvironment's schema.
-	 * All tables registered in the {@link ExternalCatalog} can be accessed.
-	 *
-	 * @param name The name under which the externalCatalog will be registered.
-	 * @param externalCatalog The externalCatalog to register.
-	 * @see TableEnvironment#getCatalog(String)
-	 * @see TableEnvironment#registerCatalog(String, Catalog)
-	 * @deprecated the {@link ExternalCatalog} API is deprecated. Use the corresponding {@link Catalog} API.
-	 */
-	@Deprecated
-	void registerExternalCatalog(String name, ExternalCatalog externalCatalog);
-
-	/**
-	 * Gets a registered {@link ExternalCatalog} by name.
-	 *
-	 * @param name The name to look up the {@link ExternalCatalog}.
-	 * @return The {@link ExternalCatalog}.
-	 * @see TableEnvironment#getCatalog(String)
-	 * @see TableEnvironment#registerCatalog(String, Catalog)
-	 * @deprecated the {@link ExternalCatalog} API is deprecated. Use the corresponding {@link Catalog} API.
-	 */
-	@Deprecated
-	ExternalCatalog getRegisteredExternalCatalog(String name);
 
 	/**
 	 * Registers a {@link Catalog} under a unique name.
@@ -254,7 +228,7 @@ public interface TableEnvironment {
 	 *
 	 * @param connectorDescriptor connector descriptor describing the external system
 	 */
-	TableDescriptor connect(ConnectorDescriptor connectorDescriptor);
+	ConnectTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
 
 	/**
 	 * Gets the names of all catalogs registered in this environment.
@@ -281,6 +255,11 @@ public interface TableEnvironment {
 	 * Gets the names of all user defined functions registered in this environment.
 	 */
 	String[] listUserDefinedFunctions();
+
+	/**
+	 * Gets the names of all functions in this environment.
+	 */
+	String[] listFunctions();
 
 	/**
 	 * Returns the AST of the specified Table API and SQL queries and the execution plan to compute
@@ -372,9 +351,9 @@ public interface TableEnvironment {
 	 *      b bigint,
 	 *      c varchar
 	 *    ) with (
-	 *      connector.type = 'filesystem',
-	 *      format.type = 'csv',
-	 *      connector.path = 'xxx'
+	 *      'connector.type' = 'filesystem',
+	 *      'format.type' = 'csv',
+	 *      'connector.path' = 'xxx'
 	 *    )
 	 * </pre></blockquote>
 	 *
@@ -385,20 +364,20 @@ public interface TableEnvironment {
 	 *                        a int,
 	 *                        b varchar
 	 *                      ) with (
-	 *                        connector.type = 'filesystem',
-	 *                        format.type = 'csv',
-	 *                        connector.path = 'xxx'
+	 *                        'connector.type' = 'filesystem',
+	 *                        'format.type' = 'csv',
+	 *                        'connector.path' = 'xxx'
 	 *                      )";
 	 *
 	 *    String sourceDDL ="create table sourceTable(
 	 *                        a int,
 	 *                        b varchar
 	 *                      ) with (
-	 *                        connector.type = 'kafka',
-	 *                        `update-mode` = 'append',
-	 *                        connector.topic = 'xxx',
-	 *                        connector.properties.0.key = 'k0',
-	 *                        connector.properties.0.value = 'v0',
+	 *                        'connector.type' = 'kafka',
+	 *                        'update-mode' = 'append',
+	 *                        'connector.topic' = 'xxx',
+	 *                        'connector.properties.0.key' = 'k0',
+	 *                        'connector.properties.0.value' = 'v0',
 	 *                        ...
 	 *                      )";
 	 *

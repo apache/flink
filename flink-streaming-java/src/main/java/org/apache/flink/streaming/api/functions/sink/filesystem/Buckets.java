@@ -77,6 +77,8 @@ public class Buckets<IN, BucketID> {
 
 	private final RecoverableWriter fsWriter;
 
+	private final PartFileConfig partFileConfig;
+
 	// --------------------------- State Related Fields -----------------------------
 
 	private final BucketStateSerializer<BucketID> bucketStateSerializer;
@@ -96,7 +98,8 @@ public class Buckets<IN, BucketID> {
 			final BucketFactory<IN, BucketID> bucketFactory,
 			final PartFileWriter.PartFileFactory<IN, BucketID> partFileWriterFactory,
 			final RollingPolicy<IN, BucketID> rollingPolicy,
-			final int subtaskIndex) throws IOException {
+			final int subtaskIndex,
+			final PartFileConfig partFileConfig) throws IOException {
 
 		this.basePath = Preconditions.checkNotNull(basePath);
 		this.bucketAssigner = Preconditions.checkNotNull(bucketAssigner);
@@ -104,6 +107,8 @@ public class Buckets<IN, BucketID> {
 		this.partFileWriterFactory = Preconditions.checkNotNull(partFileWriterFactory);
 		this.rollingPolicy = Preconditions.checkNotNull(rollingPolicy);
 		this.subtaskIndex = subtaskIndex;
+
+		this.partFileConfig = Preconditions.checkNotNull(partFileConfig);
 
 		this.activeBuckets = new HashMap<>();
 		this.bucketerContext = new Buckets.BucketerContext();
@@ -180,7 +185,8 @@ public class Buckets<IN, BucketID> {
 						maxPartCounter,
 						partFileWriterFactory,
 						rollingPolicy,
-						recoveredState
+						recoveredState,
+						partFileConfig
 				);
 
 		updateActiveBucketId(bucketId, restoredBucket);
@@ -286,7 +292,8 @@ public class Buckets<IN, BucketID> {
 					bucketPath,
 					maxPartCounter,
 					partFileWriterFactory,
-					rollingPolicy);
+					rollingPolicy,
+					partFileConfig);
 			activeBuckets.put(bucketId, bucket);
 		}
 		return bucket;

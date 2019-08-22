@@ -27,7 +27,7 @@ import org.apache.flink.table.functions.AggregateFunction;
 /**
  * Test avg agg function.
  */
-public class TestLongAvgFunc extends AggregateFunction<Double, Tuple2<Long, Long>> {
+public class TestLongAvgFunc extends AggregateFunction<Long, Tuple2<Long, Long>> {
 
 	@Override
 	public Tuple2<Long, Long> createAccumulator() {
@@ -56,11 +56,11 @@ public class TestLongAvgFunc extends AggregateFunction<Double, Tuple2<Long, Long
 	}
 
 	@Override
-	public Double getValue(Tuple2<Long, Long> acc) {
+	public Long getValue(Tuple2<Long, Long> acc) {
 		if (acc.f1 == 0) {
 			return null;
 		} else {
-			return ((double) acc.f0 / acc.f1);
+			return acc.f0 / acc.f1;
 		}
 	}
 

@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.{
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getDefaultExternalClassForType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.types.logical.LogicalType
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
@@ -47,16 +48,18 @@ class ScalarSqlFunction(
     name: String,
     displayName: String,
     scalarFunction: ScalarFunction,
-    typeFactory: FlinkTypeFactory)
+    typeFactory: FlinkTypeFactory,
+    returnTypeInfer: Option[SqlReturnTypeInference] = None)
   extends SqlFunction(
     new SqlIdentifier(name, SqlParserPos.ZERO),
-    createReturnTypeInference(name, scalarFunction, typeFactory),
+    returnTypeInfer.getOrElse(createReturnTypeInference(name, scalarFunction, typeFactory)),
     createOperandTypeInference(name, scalarFunction, typeFactory),
     createOperandTypeChecker(name, scalarFunction),
     null,
     SqlFunctionCategory.USER_DEFINED_FUNCTION) {
 
-  def getScalarFunction: ScalarFunction = scalarFunction
+  def makeFunction(constants: Array[AnyRef], argTypes: Array[LogicalType]): ScalarFunction =
+    scalarFunction
 
   override def isDeterministic: Boolean = scalarFunction.isDeterministic
 

@@ -203,7 +203,7 @@ public class HiveInspectors {
 			} else if (inspector instanceof HiveVarcharObjectInspector) {
 				return o -> new HiveVarchar((String) o, ((VarCharType) dataType).getLength());
 			} else if (inspector instanceof HiveDecimalObjectInspector) {
-				return o -> HiveDecimal.create((BigDecimal) o);
+				return o -> o == null ? null : HiveDecimal.create((BigDecimal) o);
 			}
 		}
 

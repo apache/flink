@@ -60,4 +60,6 @@ public interface ResultSubpartitionView {
 	boolean nextBufferIsEvent();
 
 	boolean isAvailable();
+
+	int unsynchronizedGetNumberOfQueuedBuffers();
 }

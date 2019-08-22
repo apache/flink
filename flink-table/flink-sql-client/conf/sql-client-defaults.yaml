@@ -83,7 +83,7 @@ catalogs: [] # empty list
 # Execution properties
 #==============================================================================
 
-# Execution properties allow for changing the behavior of a table program.
+# Properties that change the fundamental execution behavior of a table program.
 
 execution:
   # select the implementation responsible for planning table programs
@@ -117,13 +117,26 @@ execution:
     # possible values are "fixed-delay", "failure-rate", "none", or "fallback" (default)
     type: fallback
 
+#==============================================================================
+# Configuration options
+#==============================================================================
+
+# Configuration options for adjusting and tuning table programs.
+
+# A full list of options and their default values can be found
+# on the dedicated "Configuration" web page.
+
+# A configuration can look like:
+# configuration:
+#   table.exec.spill-compression.enabled: true
+#   table.exec.spill-compression.block-size: 128kb
+#   table.optimizer.join-reorder-enabled: true
 
 #==============================================================================
 # Deployment properties
 #==============================================================================
 
-# Deployment properties allow for describing the cluster to which table
-# programs are submitted to.
+# Properties that describe the cluster to which table programs are submitted to.
 
 deployment:
   # general cluster communication timeout in ms

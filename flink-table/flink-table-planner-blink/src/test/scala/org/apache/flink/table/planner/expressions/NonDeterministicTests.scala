@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
 
@@ -27,47 +28,64 @@ import org.junit.{Ignore, Test}
 /**
   * Tests that can only be checked manually as they are non-deterministic.
   */
-@Ignore
 class NonDeterministicTests extends ExpressionTestBase {
 
+  @Ignore
   @Test
   def testCurrentDate(): Unit = {
-    testSqlApi(
+    testAllApis(
+      currentDate(),
+      "currentDate()",
       "CURRENT_DATE",
       "PLEASE CHECK MANUALLY")
   }
 
+  @Ignore
   @Test
   def testCurrentTime(): Unit = {
-    testSqlApi(
+    testAllApis(
+      currentTime(),
+      "currentTime()",
       "CURRENT_TIME",
       "PLEASE CHECK MANUALLY")
   }
 
+  @Ignore
   @Test
   def testCurrentTimestamp(): Unit = {
-    testSqlApi(
+    testAllApis(
+      currentTimestamp(),
+      "currentTimestamp()",
       "CURRENT_TIMESTAMP",
       "PLEASE CHECK MANUALLY")
   }
 
+  @Ignore
   @Test
   def testLocalTimestamp(): Unit = {
-    testSqlApi(
+    testAllApis(
+      localTimestamp(),
+      "localTimestamp()",
       "LOCALTIMESTAMP",
       "PLEASE CHECK MANUALLY")
   }
 
+  @Ignore
   @Test
   def testLocalTime(): Unit = {
-    testSqlApi(
+    testAllApis(
+      localTime(),
+      "localTime()",
       "LOCALTIME",
       "PLEASE CHECK MANUALLY")
   }
 
+  @Ignore
   @Test
   def testUUID(): Unit = {
-    testSqlApi(
+    testAllApis(
+      uuid(),
+      "uuid()",
       "UUID()",
       "PLEASE CHECK MANUALLY")
   }

@@ -386,7 +386,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 	 */
 	@Test
 	public void testScaleUpAfterScalingDown() throws Exception {
-		String topic = "scale-down-before-first-checkpoint";
+		String topic = "scale-up-after-scaling-down";
 
 		final int parallelism1 = 4;
 		final int parallelism2 = 2;

@@ -21,7 +21,10 @@ import ctypes
 import datetime
 import pickle
 import sys
+import tempfile
 import unittest
+
+from pyflink.serializers import BatchedSerializer, PickleSerializer
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import (_infer_schema_from_data, _infer_type,
@@ -825,10 +828,26 @@ class DataTypeConvertTests(unittest.TestCase):
                     DataTypes.DECIMAL(20, 10, False)]
         self.assertEqual(converted_python_types, expected)
 
+        # Legacy type tests
+        Types = gateway.jvm.org.apache.flink.table.api.Types
+        BlinkBigDecimalTypeInfo = \
+            gateway.jvm.org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo
+
+        java_types = [Types.STRING(),
+                      Types.DECIMAL(),
+                      BlinkBigDecimalTypeInfo(12, 5)]
+
+        converted_python_types = [_from_java_type(item) for item in java_types]
+
+        expected = [DataTypes.VARCHAR(2147483647),
+                    DataTypes.DECIMAL(10, 0),
+                    DataTypes.DECIMAL(12, 5)]
+        self.assertEqual(converted_python_types, expected)
+
     def test_array_type(self):
+        # nullable/not_null flag will be lost during the conversion.
         test_types = [DataTypes.ARRAY(DataTypes.BIGINT()),
-                      # array type with not null basic data type means primitive array
-                      DataTypes.ARRAY(DataTypes.BIGINT().not_null()),
+                      DataTypes.ARRAY(DataTypes.BIGINT()),
                       DataTypes.ARRAY(DataTypes.STRING()),
                       DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.BIGINT())),
                       DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))]
@@ -877,6 +896,41 @@ class DataTypeConvertTests(unittest.TestCase):
         converted_python_types = [_from_java_type(item) for item in java_types]
 
         self.assertEqual(test_types, converted_python_types)
+
+
+class DataSerializerTests(unittest.TestCase):
+
+    def test_java_pickle_deserializer(self):
+        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
+        serializer = PickleSerializer()
+        data = [(1, 2), (3, 4), (5, 6), (7, 8)]
+
+        try:
+            serializer.dump_to_stream(data, temp_file)
+        finally:
+            temp_file.close()
+
+        gateway = get_gateway()
+        result = [tuple(int_pair) for int_pair in
+                  list(gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, False))]
+
+        self.assertEqual(result, [(1, 2), (3, 4), (5, 6), (7, 8)])
+
+    def test_java_batch_deserializer(self):
+        temp_file = tempfile.NamedTemporaryFile(delete=False, dir=tempfile.mkdtemp())
+        serializer = BatchedSerializer(PickleSerializer(), 2)
+        data = [(1, 2), (3, 4), (5, 6), (7, 8)]
+
+        try:
+            serializer.dump_to_stream(data, temp_file)
+        finally:
+            temp_file.close()
+
+        gateway = get_gateway()
+        result = [tuple(int_pair) for int_pair in
+                  list(gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, True))]
+
+        self.assertEqual(result, [(1, 2), (3, 4), (5, 6), (7, 8)])
 
 
 if __name__ == "__main__":

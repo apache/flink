@@ -28,12 +28,11 @@ import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.dataview.DataViewSpec
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction.{DoubleAvgAggFunction, IntegralAvgAggFunction}
+import org.apache.flink.table.planner.functions.aggfunctions.AvgAggFunction.{DoubleAvgAggFunction, LongAvgAggFunction}
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList}
 import org.apache.flink.table.runtime.context.ExecutionContext
 import org.apache.flink.table.types.logical.{BigIntType, DoubleType, LogicalType, RowType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
-
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
 import org.powermock.api.mockito.PowerMockito.{mock, when}
@@ -68,10 +67,11 @@ abstract class AggTestBase(isBatchMode: Boolean) {
     val call = mock(classOf[AggregateCall])
     when(aggInfo, "agg").thenReturn(call)
     when(call, "getName").thenReturn("avg1")
-    when(aggInfo, "function").thenReturn(new IntegralAvgAggFunction)
+    when(aggInfo, "function").thenReturn(new LongAvgAggFunction)
     when(aggInfo, "externalAccTypes").thenReturn(Array(DataTypes.BIGINT, DataTypes.BIGINT))
     when(aggInfo, "argIndexes").thenReturn(Array(1))
     when(aggInfo, "aggIndex").thenReturn(0)
+    when(aggInfo, "externalResultType").thenReturn(DataTypes.BIGINT)
     aggInfo
   }
 
@@ -84,6 +84,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
     when(aggInfo, "externalAccTypes").thenReturn(Array(DataTypes.DOUBLE, DataTypes.BIGINT))
     when(aggInfo, "argIndexes").thenReturn(Array(2))
     when(aggInfo, "aggIndex").thenReturn(1)
+    when(aggInfo, "externalResultType").thenReturn(DataTypes.DOUBLE)
     aggInfo
   }
 
@@ -96,7 +97,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
     when(aggInfo, "function").thenReturn(imperativeAggFunc)
     when(aggInfo, "externalAccTypes").thenReturn(
       Array(fromLegacyInfoToDataType(imperativeAggFunc.getAccumulatorType)))
-    when(aggInfo, "externalResultType").thenReturn(DataTypes.DOUBLE)
+    when(aggInfo, "externalResultType").thenReturn(DataTypes.BIGINT)
     when(aggInfo, "viewSpecs").thenReturn(Array[DataViewSpec]())
     when(aggInfo, "argIndexes").thenReturn(Array(3))
     when(aggInfo, "aggIndex").thenReturn(2)

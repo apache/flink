@@ -842,7 +842,7 @@ public class SlotManagerTest extends TestLogger {
 				(Object value) -> {
 					try {
 						slotManager.registerSlotRequest(slotRequest);
-					} catch (SlotManagerException e) {
+					} catch (ResourceManagerException e) {
 						throw new RuntimeException("Could not register slots.", e);
 					}
 				});
@@ -953,7 +953,7 @@ public class SlotManagerTest extends TestLogger {
 				() -> {
 					try {
 						return slotManager.registerSlotRequest(slotRequest);
-					} catch (SlotManagerException e) {
+					} catch (ResourceManagerException e) {
 						throw new CompletionException(e);
 					}
 				},

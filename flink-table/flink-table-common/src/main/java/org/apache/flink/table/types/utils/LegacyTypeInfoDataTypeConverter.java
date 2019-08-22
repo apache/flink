@@ -197,7 +197,7 @@ public final class LegacyTypeInfoDataTypeConverter {
 			return foundTypeInfo;
 		}
 
-		// we are relaxing the constraint for DECIMAL, CHAR, TIMESTAMP_WITHOUT_TIME_ZONE to
+		// we are relaxing the constraint for DECIMAL, CHAR, VARCHAR, TIMESTAMP_WITHOUT_TIME_ZONE to
 		// support value literals in legacy planner
 		LogicalType logicalType = dataType.getLogicalType();
 		if (hasRoot(logicalType, LogicalTypeRoot.DECIMAL)) {
@@ -205,6 +205,10 @@ public final class LegacyTypeInfoDataTypeConverter {
 		}
 
 		else if (hasRoot(logicalType, LogicalTypeRoot.CHAR)) {
+			return Types.STRING;
+		}
+
+		else if (hasRoot(logicalType, LogicalTypeRoot.VARCHAR)) {
 			return Types.STRING;
 		}
 

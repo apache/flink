@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMergeAndReset
 import org.apache.flink.table.planner.utils.{CountAggFunction, IntSumAggFunction}
 
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
 import scala.collection.Seq
 
@@ -86,12 +86,4 @@ class SortDistinctAggregateITCase extends DistinctAggregateITCaseBase {
     )
   }
 
-  @Ignore
-  @Test
-  def testApproximateCountDistinct(): Unit = {
-    checkResult(
-      "SELECT APPROX_COUNT_DISTINCT(b) FROM Table3",
-      Seq(row(6))
-    )
-  }
 }

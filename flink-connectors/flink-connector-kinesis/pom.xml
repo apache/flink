@@ -182,6 +182,8 @@ under the License.
 									<include>com.amazonaws:*</include>
 									<include>com.google.protobuf:*</include>
 									<include>org.apache.httpcomponents:*</include>
+									<!-- Java 11 specific inclusion; should be a no-op for other versions -->
+									<include>javax.xml.bind:jaxb-api</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="override">
@@ -205,4 +207,21 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>java11</id>
+			<activation>
+				<jdk>11</jdk>
+			</activation>
+			<dependencies>
+				<dependency>
+					<!-- KPL requires jaxb-api for javax.xml.bind.DatatypeConverter -->
+					<groupId>javax.xml.bind</groupId>
+					<artifactId>jaxb-api</artifactId>
+					<version>2.3.0</version>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 </project>

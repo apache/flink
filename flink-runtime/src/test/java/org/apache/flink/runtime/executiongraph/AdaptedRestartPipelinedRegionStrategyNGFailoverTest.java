@@ -19,20 +19,17 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.AdaptedRestartPipelinedRegionStrategyNG;
+import org.apache.flink.runtime.executiongraph.restart.FailingRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.FixedDelayRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartCallback;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
-import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.io.network.partition.PartitionTracker;
 import org.apache.flink.runtime.io.network.partition.PartitionTrackerImpl;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -44,10 +41,6 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
-import org.apache.flink.runtime.jobmaster.LogicalSlot;
-import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.util.TestLogger;
@@ -55,17 +48,13 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Before;
 import org.junit.Test;
 
-import javax.annotation.Nullable;
-
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeoutException;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -80,15 +69,12 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 
 	private ComponentMainThreadExecutor componentMainThreadExecutor;
 
-	private FailingSlotProviderDecorator slotProvider;
-
 	private ManuallyTriggeredScheduledExecutor manualMainThreadExecutor;
 
 	@Before
 	public void setUp() {
 		manualMainThreadExecutor = new ManuallyTriggeredScheduledExecutor();
 		componentMainThreadExecutor = new ComponentMainThreadExecutorServiceAdapter(manualMainThreadExecutor, Thread.currentThread());
-		slotProvider = new FailingSlotProviderDecorator(new SimpleSlotProvider(TEST_JOB_ID, 14));
 	}
 
 	/**
@@ -285,9 +271,9 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 	}
 
 	@Test
-	public void testFailGlobalIfErrorOnRestartingTasks() throws Exception {
+	public void testFailGlobalIfErrorOnRestartTasks() throws Exception {
 		final JobGraph jobGraph = createStreamingJobGraph();
-		final ExecutionGraph eg = createExecutionGraph(jobGraph);
+		final ExecutionGraph eg = createExecutionGraph(jobGraph, new FailingRestartStrategy(1));
 
 		final Iterator<ExecutionVertex> vertexIterator = eg.getAllExecutionVertices().iterator();
 		final ExecutionVertex ev11 = vertexIterator.next();
@@ -297,7 +283,6 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 
 		final long globalModVersionBeforeFailure = eg.getGlobalModVersion();
 
-		slotProvider.setFailSlotAllocation(true);
 		ev11.fail(new Exception("Test Exception"));
 		completeCancelling(ev11, ev12, ev21, ev22);
 
@@ -391,7 +376,6 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 		final ExecutionGraph eg = new ExecutionGraphTestUtils.TestingExecutionGraphBuilder(jobGraph)
 			.setRestartStrategy(restartStrategy)
 			.setFailoverStrategyFactory(TestAdaptedRestartPipelinedRegionStrategyNG::new)
-			.setSlotProvider(slotProvider)
 			.setPartitionTracker(partitionTracker)
 			.build();
 
@@ -452,51 +436,6 @@ public class AdaptedRestartPipelinedRegionStrategyNGFailoverTest extends TestLog
 
 		Set<ExecutionVertexID> getLastTasksToCancel() {
 			return lastTasksToRestart;
-		}
-	}
-
-	private static class FailingSlotProviderDecorator implements SlotProvider {
-
-		private final SlotProvider delegate;
-
-		private boolean failSlotAllocation = false;
-
-		FailingSlotProviderDecorator(final SlotProvider delegate) {
-			this.delegate = checkNotNull(delegate);
-		}
-
-		@Override
-		public CompletableFuture<LogicalSlot> allocateBatchSlot(
-			final SlotRequestId slotRequestId,
-			final ScheduledUnit scheduledUnit,
-			final SlotProfile slotProfile,
-			final boolean allowQueuedScheduling) {
-			return allocateSlot(slotRequestId, scheduledUnit, slotProfile, allowQueuedScheduling, null);
-		}
-
-		@Override
-		public CompletableFuture<LogicalSlot> allocateSlot(
-				final SlotRequestId slotRequestId,
-				final ScheduledUnit scheduledUnit,
-				final SlotProfile slotProfile,
-				final boolean allowQueuedScheduling,
-				final Time allocationTimeout) {
-			if (failSlotAllocation) {
-				return FutureUtils.completedExceptionally(new TimeoutException("Expected"));
-			}
-			return delegate.allocateSlot(slotRequestId, scheduledUnit, slotProfile, allowQueuedScheduling, allocationTimeout);
-		}
-
-		@Override
-		public void cancelSlotRequest(
-				final SlotRequestId slotRequestId,
-				@Nullable final SlotSharingGroupId slotSharingGroupId,
-				final Throwable cause) {
-			delegate.cancelSlotRequest(slotRequestId, slotSharingGroupId, cause);
-		}
-
-		public void setFailSlotAllocation(final boolean failSlotAllocation) {
-			this.failSlotAllocation = failSlotAllocation;
 		}
 	}
 }

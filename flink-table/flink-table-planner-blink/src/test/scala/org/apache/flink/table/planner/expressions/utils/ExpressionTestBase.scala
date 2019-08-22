@@ -26,10 +26,14 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{EnvironmentSettings, TableConfig}
 import org.apache.flink.table.dataformat.{BaseRow, BinaryRow, DataFormatConverters}
+import org.apache.flink.table.expressions.{Expression, ExpressionParser}
+import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.planner.delegation.PlannerBase
+import org.apache.flink.table.planner.expressions.ExpressionBuilder
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.{RowType, VarCharType}
@@ -77,10 +81,13 @@ abstract class ExpressionTestBase {
   @Rule
   def thrown: ExpectedException = expectedException
 
+  def functions: Map[String, ScalarFunction] = Map()
+
   @Before
   def prepare(): Unit = {
     val ds = env.fromCollection(Collections.emptyList[Row](), typeInfo)
     tEnv.registerDataStream(tableName, ds)
+    functions.foreach(f => tEnv.registerFunction(f._1, f._2))
 
     // prepare RelBuilder
     relBuilder.scan(tableName)
@@ -161,12 +168,13 @@ abstract class ExpressionTestBase {
             null
           }
 
+          val original = if (originalExpr == null) "" else s"for: [$originalExpr]"
+
           assertEquals(
-            s"Wrong result for: [$originalExpr] optimized to: [$optimizedExpr]",
+            s"Wrong result $original optimized to: [$optimizedExpr]",
             expected,
             if (actual == null) "null" else actual)
       }
-
   }
 
   private def addSqlTestExpr(sqlExpr: String, expected: String): Unit = {
@@ -174,11 +182,14 @@ abstract class ExpressionTestBase {
     val parsed = calcitePlanner.parse(s"SELECT $sqlExpr FROM $tableName")
     val validated = calcitePlanner.validate(parsed)
     val converted = calcitePlanner.rel(validated).rel
+    addTestExpr(converted, expected, sqlExpr)
+  }
 
+  private def addTestExpr(relNode: RelNode, expected: String, summaryString: String): Unit = {
     val builder = new HepProgramBuilder()
     builder.addRuleInstance(ProjectToCalcRule.INSTANCE)
     val hep = new HepPlanner(builder.build())
-    hep.setRoot(converted)
+    hep.setRoot(relNode)
     val optimized = hep.findBestExp()
 
     // throw exception if plan contains more than a calc
@@ -186,7 +197,7 @@ abstract class ExpressionTestBase {
       fail("Expression is converted into more than a Calc operation. Use a different test method.")
     }
 
-    testExprs += ((sqlExpr, extractRexNode(optimized), expected))
+    testExprs += ((summaryString, extractRexNode(optimized), expected))
   }
 
   private def extractRexNode(node: RelNode): RexNode = {
@@ -196,10 +207,62 @@ abstract class ExpressionTestBase {
     calcProgram.expandLocalRef(calcProgram.getProjectList.get(0))
   }
 
+  def testAllApis(
+      expr: Expression,
+      exprString: String,
+      sqlExpr: String,
+      expected: String): Unit = {
+    addTableApiTestExpr(expr, expected)
+    addTableApiTestExpr(exprString, expected)
+    addSqlTestExpr(sqlExpr, expected)
+    if (expected == nullable) {
+      testTableNullable(expr, exprString)
+      testSqlNullable(sqlExpr)
+    }
+  }
+
+  def testTableApi(
+      expr: Expression,
+      exprString: String,
+      expected: String): Unit = {
+    addTableApiTestExpr(expr, expected)
+    addTableApiTestExpr(exprString, expected)
+    if (expected == nullable) {
+      testTableNullable(expr, exprString)
+    }
+  }
+
+  private def addTableApiTestExpr(tableApiString: String, expected: String): Unit = {
+    addTableApiTestExpr(ExpressionParser.parseExpression(tableApiString), expected)
+  }
+
+  private def addTableApiTestExpr(tableApiExpr: Expression, expected: String): Unit = {
+    // create RelNode from Table API expression
+    val relNode = relBuilder
+        .queryOperation(tEnv.scan(tableName).select(tableApiExpr).getQueryOperation).build()
+    addTestExpr(relNode, expected, tableApiExpr.asSummaryString())
+  }
+
+  def testSqlNullable(nullUdf: String): Unit = {
+    addSqlTestExpr(
+      s"CASE WHEN ($nullUdf) is null THEN '$nullable' ELSE '$notNullable' END", nullable)
+  }
+
   def testSqlApi(
       sqlExpr: String,
       expected: String): Unit = {
     addSqlTestExpr(sqlExpr, expected)
+    if (expected == nullable) {
+      testSqlNullable(sqlExpr)
+    }
+  }
+
+  def testTableNullable(nullExpr: Expression, nullExprString: String): Unit = {
+    val retExpr = ExpressionBuilder.ifThenElse(nullExpr.isNull, nullable, notNullable)
+    addTableApiTestExpr(retExpr, nullable)
+    val retStrExpr = ifThenElse(
+      ExpressionParser.parseExpression(nullExprString).isNull, nullable, notNullable)
+    addTableApiTestExpr(retStrExpr, nullable)
   }
 
   def testData: Row

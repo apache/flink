@@ -38,5 +38,6 @@ under the License.
 
 	<modules>
 		<module>flink-statebackend-rocksdb</module>
+		<module>flink-statebackend-heap-spillable</module>
 	</modules>
 </project>

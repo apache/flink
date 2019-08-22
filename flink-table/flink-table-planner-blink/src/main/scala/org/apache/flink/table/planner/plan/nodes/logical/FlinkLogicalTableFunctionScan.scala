@@ -100,7 +100,7 @@ class FlinkLogicalTableFunctionScanConverter
       return false
     }
     val tableFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
-    tableFunction.getTableFunction.isInstanceOf[TemporalTableFunction]
+    tableFunction.udtf.isInstanceOf[TemporalTableFunction]
   }
 
   def convert(rel: RelNode): RelNode = {

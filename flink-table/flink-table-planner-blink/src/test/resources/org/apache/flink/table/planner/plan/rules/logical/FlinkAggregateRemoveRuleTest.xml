@@ -465,13 +465,13 @@ FlinkLogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[SUM($1)], EXPR$2=[MI
     <Resource name="planBefore">
       <![CDATA[
 LogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[SUM($1)], EXPR$2=[MIN($2)])
-+- LogicalValues(tuples=[[{ 1, 2, 3 }]])
++- LogicalValues(type=[RecordType(INTEGER a, INTEGER b, INTEGER c)], tuples=[[{ 1, 2, 3 }]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 FlinkLogicalAggregate(group=[{}], EXPR$0=[MAX($0)], EXPR$1=[SUM($1)], EXPR$2=[MIN($2)])
-+- FlinkLogicalValues(tuples=[[{ 1, 2, 3 }]])
++- FlinkLogicalValues(type=[RecordType(INTEGER a, INTEGER b, INTEGER c)], tuples=[[{ 1, 2, 3 }]])
 ]]>
     </Resource>
   </TestCase>
@@ -501,7 +501,7 @@ FlinkLogicalCalc(select=[a, b, c])
          +- FlinkLogicalCalc(select=[true AS i])
             +- FlinkLogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
                +- FlinkLogicalCalc(select=[a])
-                  +- FlinkLogicalValues(tuples=[[]])
+                  +- FlinkLogicalValues(type=[RecordType(INTEGER a, INTEGER b, VARCHAR(2147483647) c)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -521,7 +521,7 @@ LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
       <![CDATA[
 FlinkLogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
 +- FlinkLogicalCalc(select=[a])
-   +- FlinkLogicalValues(tuples=[[]])
+   +- FlinkLogicalValues(type=[RecordType(INTEGER a, INTEGER b, VARCHAR(2147483647) c)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>

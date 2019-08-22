@@ -18,7 +18,11 @@
 
 package org.apache.flink.table.planner.expressions
 
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.api.scala._
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.valueLiteral
 import org.apache.flink.table.planner.expressions.utils.MapTypeTestBase
+import org.apache.flink.table.planner.utils.DateTimeTestUtil.{localDate, localDateTime, localTime => gLocalTime}
 
 import org.junit.Test
 
@@ -36,85 +40,121 @@ class MapTypeTest extends MapTypeTestBase {
   @Test
   def testMapLiteral(): Unit = {
     // primitive literals
-    testSqlApi(
-      "MAP[1, 1]",
-      "{1=1}")
+    testAllApis(map(1, 1), "map(1, 1)", "MAP[1, 1]", "{1=1}")
 
-    testSqlApi(
+    testAllApis(
+      map(true, true),
+      "map(true, true)",
       "map[TRUE, TRUE]",
       "{true=true}")
 
-    testSqlApi(
+    // object literals
+    testTableApi(map(BigDecimal(1), BigDecimal(1)), "map(1p, 1p)", "{1=1}")
+
+    testAllApis(
+      map(map(1, 2), map(3, 4)),
+      "map(map(1, 2), map(3, 4))",
       "MAP[MAP[1, 2], MAP[3, 4]]",
       "{{1=2}={3=4}}")
 
-    testSqlApi(
+    testAllApis(
+      map(1 + 2, 3 * 3, 3 - 6, 4 - 2),
+      "map(1 + 2, 3 * 3, 3 - 6, 4 - 2)",
       "map[1 + 2, 3 * 3, 3 - 6, 4 - 2]",
       "{3=9, -3=2}")
 
-    testSqlApi(
+    testAllApis(
+      map(1, nullOf(DataTypes.INT)),
+      "map(1, Null(INT))",
       "map[1, NULLIF(1,1)]",
       "{1=null}")
 
     // explicit conversion
-    testSqlApi(
+    testAllApis(
+      map(1, 2L , 3, 4L),
+      "map(1, 2L, 3, 4L)",
       "MAP[1, CAST(2 AS BIGINT), 3, CAST(4 AS BIGINT)]",
       "{1=2, 3=4}")
 
-    testSqlApi(
+    testAllApis(
+      map(valueLiteral(localDate("1985-04-11")), valueLiteral(gLocalTime("14:15:16")),
+        valueLiteral(localDate("2018-07-26")), valueLiteral(gLocalTime("17:18:19"))),
+      "map('1985-04-11'.toDate, '14:15:16'.toTime, '2018-07-26'.toDate, '17:18:19'.toTime)",
       "MAP[DATE '1985-04-11', TIME '14:15:16', DATE '2018-07-26', TIME '17:18:19']",
       "{1985-04-11=14:15:16, 2018-07-26=17:18:19}")
 
-    testSqlApi(
+    testAllApis(
+      map(valueLiteral(gLocalTime("14:15:16")), valueLiteral(localDateTime("1985-04-11 14:15:16")),
+        valueLiteral(gLocalTime("17:18:19")), valueLiteral(localDateTime("2018-07-26 17:18:19"))),
+      "map('14:15:16'.toTime, '1985-04-11 14:15:16'.toTimestamp, " +
+          "'17:18:19'.toTime, '2018-07-26 17:18:19'.toTimestamp)",
       "MAP[TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16', " +
-        "TIME '17:18:19', TIMESTAMP '2018-07-26 17:18:19']",
+          "TIME '17:18:19', TIMESTAMP '2018-07-26 17:18:19']",
       "{14:15:16=1985-04-11 14:15:16.000, 17:18:19=2018-07-26 17:18:19.000}")
 
-    testSqlApi(
+    testAllApis(
+      map(BigDecimal(2.0002), BigDecimal(2.0003)),
+      "map(2.0002p, 2.0003p)",
       "MAP[CAST(2.0002 AS DECIMAL(5, 4)), CAST(2.0003 AS DECIMAL(5, 4))]",
       "{2.0002=2.0003}")
 
     // implicit type cast only works on SQL API
-    testSqlApi(
-      "MAP['k1', CAST(1 AS DOUBLE), 'k2', CAST(2 AS FLOAT)]",
-      "{k1=1.0, k2=2.0}")
+    testSqlApi("MAP['k1', CAST(1 AS DOUBLE), 'k2', CAST(2 AS FLOAT)]", "{k1=1.0, k2=2.0}")
   }
 
   @Test
   def testMapField(): Unit = {
-    testSqlApi(
+    testAllApis(
+      map('f4, 'f5),
+      "map(f4, f5)",
       "MAP[f4, f5]",
       "{foo=12}")
 
-    testSqlApi(
+    testAllApis(
+      map('f4, 'f1),
+      "map(f4, f1)",
       "MAP[f4, f1]",
       "{foo={}}")
 
-    testSqlApi(
+    testAllApis(
+      map('f2, 'f3),
+      "map(f2, f3)",
       "MAP[f2, f3]",
       "{{a=12, b=13}={12=a, 13=b}}")
 
-    testSqlApi(
+    testAllApis(
+      map('f1.at("a"), 'f5),
+      "map(f1.at('a'), f5)",
       "MAP[f1['a'], f5]",
       "{null=12}")
 
-    testSqlApi(
+    testAllApis(
+      'f1,
+      "f1",
       "f1",
       "{}")
 
-    testSqlApi(
+    testAllApis(
+      'f2,
+      "f2",
       "f2",
       "{a=12, b=13}")
 
-    testSqlApi(
+    testAllApis(
+      'f2.at("a"),
+      "f2.at('a')",
       "f2['a']",
       "12")
 
-    testSqlApi(
+    testAllApis(
+      'f3.at(12),
+      "f3.at(12)",
       "f3[12]",
       "a")
 
-    testSqlApi(
+    testAllApis(
+      map('f4, 'f3).at("foo").at(13),
+      "map(f4, f3).at('foo').at(13)",
       "MAP[f4, f3]['foo'][13]",
       "b")
   }
@@ -123,72 +163,115 @@ class MapTypeTest extends MapTypeTestBase {
   def testMapOperations(): Unit = {
 
     // comparison
-    testSqlApi(
+    testAllApis(
+      'f1 === 'f2,
+      "f1 === f2",
       "f1 = f2",
       "false")
 
-    testSqlApi(
+    testAllApis(
+      'f3 === 'f7,
+      "f3 === f7",
       "f3 = f7",
       "true")
 
-    testSqlApi(
+    testAllApis(
+      'f5 === 'f2.at("a"),
+      "f5 === f2.at('a')",
       "f5 = f2['a']",
       "true")
 
-    testSqlApi(
+    testAllApis(
+      'f8 === 'f9,
+      "f8 === f9",
       "f8 = f9",
       "true")
 
-    testSqlApi(
+    testAllApis(
+      'f10 === 'f11,
+      "f10 === f11",
       "f10 = f11",
       "true")
 
-    testSqlApi(
+    testAllApis(
+      'f8 !== 'f9,
+      "f8 !== f9",
       "f8 <> f9",
       "false")
 
-    testSqlApi(
+    testAllApis(
+      'f10 !== 'f11,
+      "f10 !== f11",
       "f10 <> f11",
       "false")
 
-    testSqlApi(
+    testAllApis(
+      'f0.at("map is null"),
+      "f0.at('map is null')",
       "f0['map is null']",
       "null")
 
-    testSqlApi(
+    testAllApis(
+      'f1.at("map is empty"),
+      "f1.at('map is empty')",
       "f1['map is empty']",
       "null")
 
-    testSqlApi(
+    testAllApis(
+      'f2.at("b"),
+      "f2.at('b')",
       "f2['b']",
       "13")
 
-    testSqlApi(
+    testAllApis(
+      'f3.at(1),
+      "f3.at(1)",
       "f3[1]",
       "null")
 
-    testSqlApi(
+    testAllApis(
+      'f3.at(12),
+      "f3.at(12)",
       "f3[12]",
       "a")
 
-    testSqlApi(
+    testAllApis(
+      'f3.cardinality(),
+      "f3.cardinality()",
       "CARDINALITY(f3)",
       "2")
 
-    testSqlApi(
+    testAllApis(
+      'f2.at("a").isNotNull,
+      "f2.at('a').isNotNull",
       "f2['a'] IS NOT NULL",
       "true")
 
-    testSqlApi(
+    testAllApis(
+      'f2.at("a").isNull,
+      "f2.at('a').isNull",
       "f2['a'] IS NULL",
       "false")
 
-    testSqlApi(
+    testAllApis(
+      'f2.at("c").isNotNull,
+      "f2.at('c').isNotNull",
       "f2['c'] IS NOT NULL",
       "false")
 
-    testSqlApi(
+    testAllApis(
+      'f2.at("c").isNull,
+      "f2.at('c').isNull",
       "f2['c'] IS NULL",
       "true")
+  }
+
+  @Test
+  def testMapTypeCasting(): Unit = {
+    testTableApi(
+      'f2.cast(DataTypes.MAP(DataTypes.STRING, DataTypes.INT)),
+      "f2.cast(MAP(STRING, INT))",
+      "{a=12, b=13}"
+    )
   }
 }

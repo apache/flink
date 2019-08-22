@@ -68,6 +68,12 @@ function s3_setup {
   set_config_key "s3.secret-key" "$IT_CASE_S3_SECRET_KEY"
 }
 
+function s3_setup_with_provider {
+  add_optional_plugin "s3-fs-$1"
+  # reads (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+  set_config_key "$2" "com.amazonaws.auth.EnvironmentVariableCredentialsProvider"
+}
+
 ###################################
 # List s3 objects by full path prefix.
 #

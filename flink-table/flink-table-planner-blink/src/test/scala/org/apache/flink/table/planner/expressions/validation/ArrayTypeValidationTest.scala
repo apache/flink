@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.expressions.validation
 
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.expressions.utils.ArrayTypeTestBase
 
 import org.junit.Test
@@ -26,13 +27,28 @@ import org.junit.Test
 class ArrayTypeValidationTest extends ArrayTypeTestBase {
 
   @Test(expected = classOf[ValidationException])
+  def testImplicitTypeCastTableApi(): Unit = {
+    testTableApi(array(1.0, 2.0f), "FAIL", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
   def testImplicitTypeCastArraySql(): Unit = {
     testSqlApi("ARRAY['string', 12]", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
+  def testObviousInvalidIndexTableApi(): Unit = {
+    testTableApi('f2.at(0), "FAIL", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
   def testEmptyArraySql(): Unit = {
     testSqlApi("ARRAY[]", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testEmptyArrayTableApi(): Unit = {
+    testTableApi("FAIL", "array()", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
@@ -46,10 +62,37 @@ class ArrayTypeValidationTest extends ArrayTypeTestBase {
   }
 
   @Test(expected = classOf[ValidationException])
+  def testDifferentTypesArrayTableApi(): Unit = {
+    testTableApi("FAIL", "array(1, true)", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testUnsupportedComparison(): Unit = {
+    testAllApis(
+      'f2 <= 'f5.at(1),
+      "f2 <= f5.at(1)",
+      "f2 <= f5[1]",
+      "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testElementNonArray(): Unit = {
+    testTableApi(
+      'f0.element(),
+      "FAIL",
+      "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
   def testElementNonArraySql(): Unit = {
     testSqlApi(
       "ELEMENT(f0)",
       "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testCardinalityOnNonArray(): Unit = {
+    testTableApi('f0.cardinality(), "FAIL", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])

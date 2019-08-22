@@ -143,16 +143,9 @@ class BatchExecSortLimit(
 
     new OneInputTransformation(
       input,
-      getOperatorName,
+      getRelDetailedDescription,
       operator,
       inputType,
       input.getParallelism)
-  }
-
-  private def getOperatorName = {
-    s"${if (isGlobal) "Global" else "Local"}SortLimit(" +
-        s"orderBy: [${RelExplainUtil.collationToString(sortCollation, getRowType)}], " +
-        s"offset: $limitStart, " +
-        s"fetch: ${RelExplainUtil.fetchToString(fetch)})"
   }
 }

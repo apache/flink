@@ -368,6 +368,10 @@ public class ExecutionContext<T> {
 				throw new SqlExecutionException("Unsupported execution type specified.");
 			}
 
+			// set table configuration
+			mergedEnv.getConfiguration().asMap().forEach((k, v) ->
+				tableEnv.getConfig().getConfiguration().setString(k, v));
+
 			// register catalogs
 			catalogs.forEach(tableEnv::registerCatalog);
 

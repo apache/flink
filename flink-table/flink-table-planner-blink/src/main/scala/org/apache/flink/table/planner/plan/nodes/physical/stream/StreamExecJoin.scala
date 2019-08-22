@@ -194,7 +194,7 @@ class StreamExecJoin(
     val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       leftTransform,
       rightTransform,
-      getJoinOperatorName(),
+      getRelDetailedDescription,
       operator,
       returnType,
       leftTransform.getParallelism)
@@ -248,12 +248,5 @@ class StreamExecJoin(
       }
     }
     smallest
-  }
-
-  private def getJoinOperatorName(): String = {
-    val where = RelExplainUtil.expressionToString(getCondition, inputRowType, getExpressionString)
-    val select = getRowType.getFieldNames.mkString(", ")
-    s"${flinkJoinType.toString}(where: ($where), select: ($select), " +
-      s"leftInputSpec: ${analyzeJoinInput(left)}, rightInputSpec: ${analyzeJoinInput(right)})"
   }
 }

@@ -131,7 +131,7 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
 
     val table1 = util.tableEnv.sqlQuery(
       """
-        |SELECT id1, CONCAT_AGG('#', text)
+        |SELECT id1, LISTAGG(text, '#')
         |FROM TempTable
         |GROUP BY id1, TUMBLE(ts, INTERVAL '8' SECOND)
       """.stripMargin)
@@ -140,7 +140,7 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
 
     val table2 = util.tableEnv.sqlQuery(
       """
-        |SELECT id1, CONCAT_AGG('*', text)
+        |SELECT id1, LISTAGG(text, '*')
         |FROM TempTable
         |GROUP BY id1, HOP(ts, INTERVAL '12' SECOND, INTERVAL '6' SECOND)
       """.stripMargin)

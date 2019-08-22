@@ -20,7 +20,6 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -32,6 +31,7 @@ import org.apache.flink.table.sinks.OutputFormatTableSink;
 import org.apache.flink.table.sinks.OverwritableTableSink;
 import org.apache.flink.table.sinks.PartitionableTableSink;
 import org.apache.flink.table.sinks.TableSink;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -64,7 +64,7 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 	private final JobConf jobConf;
 	private final CatalogTable catalogTable;
 	private final ObjectPath tablePath;
-	private final RowTypeInfo rowTypeInfo;
+	private final TableSchema tableSchema;
 	private final String hiveVersion;
 
 	private Map<String, String> staticPartitionSpec = Collections.emptyMap();
@@ -77,8 +77,7 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 		this.catalogTable = table;
 		hiveVersion = Preconditions.checkNotNull(jobConf.get(HiveCatalogValidator.CATALOG_HIVE_VERSION),
 				"Hive version is not defined");
-		TableSchema tableSchema = table.getSchema();
-		rowTypeInfo = new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
+		tableSchema = table.getSchema();
 	}
 
 	@Override
@@ -136,18 +135,13 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 	}
 
 	@Override
-	public String[] getFieldNames() {
-		return rowTypeInfo.getFieldNames();
+	public DataType getConsumedDataType() {
+		return getTableSchema().toRowDataType();
 	}
 
 	@Override
-	public TypeInformation<?>[] getFieldTypes() {
-		return rowTypeInfo.getFieldTypes();
-	}
-
-	@Override
-	public TypeInformation<Row> getOutputType() {
-		return rowTypeInfo;
+	public TableSchema getTableSchema() {
+		return tableSchema;
 	}
 
 	// get a staging dir associated with a final dir

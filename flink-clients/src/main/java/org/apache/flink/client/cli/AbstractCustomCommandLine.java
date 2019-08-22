@@ -18,11 +18,11 @@
 
 package org.apache.flink.client.cli;
 
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.commons.cli.CommandLine;
@@ -80,7 +80,7 @@ public abstract class AbstractCustomCommandLine<T> implements CustomCommandLine<
 
 		if (commandLine.hasOption(addressOption.getOpt())) {
 			String addressWithPort = commandLine.getOptionValue(addressOption.getOpt());
-			InetSocketAddress jobManagerAddress = ClientUtils.parseHostPortAddress(addressWithPort);
+			InetSocketAddress jobManagerAddress = NetUtils.parseHostPortAddress(addressWithPort);
 			setJobManagerAddressInConfig(resultingConfiguration, jobManagerAddress);
 		}
 

@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -50,7 +51,7 @@ public class CheckpointFailureManager {
 	}
 
 	/**
-	 * Handle checkpoint exception with a handler callback.
+	 * Handle job level checkpoint exception with a handler callback.
 	 *
 	 * @param exception the checkpoint exception.
 	 * @param checkpointId the failed checkpoint id used to count the continuous failure number based on
@@ -58,7 +59,38 @@ public class CheckpointFailureManager {
 	 *                     happens before the checkpoint id generation. In this case, it will be specified a negative
 	 *                      latest generated checkpoint id as a special flag.
 	 */
-	public void handleCheckpointException(CheckpointException exception, long checkpointId) {
+	public void handleJobLevelCheckpointException(CheckpointException exception, long checkpointId) {
+		checkFailureCounter(exception, checkpointId);
+		if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
+			clearCount();
+			failureCallback.failJob(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."));
+		}
+	}
+
+	/**
+	 * Handle task level checkpoint exception with a handler callback.
+	 *
+	 * @param exception the checkpoint exception.
+	 * @param checkpointId the failed checkpoint id used to count the continuous failure number based on
+	 *                     checkpoint id sequence. In trigger phase, we may not get the checkpoint id when the failure
+	 *                     happens before the checkpoint id generation. In this case, it will be specified a negative
+	 *                      latest generated checkpoint id as a special flag.
+	 * @param executionAttemptID the execution attempt id, as a safe guard.
+	 */
+	public void handleTaskLevelCheckpointException(
+			CheckpointException exception,
+			long checkpointId,
+			ExecutionAttemptID executionAttemptID) {
+		checkFailureCounter(exception, checkpointId);
+		if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
+			clearCount();
+			failureCallback.failJobDueToTaskFailure(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."), executionAttemptID);
+		}
+	}
+
+	public void checkFailureCounter(
+			CheckpointException exception,
+			long checkpointId) {
 		if (tolerableCpFailureNumber == UNLIMITED_TOLERABLE_FAILURE_NUMBER) {
 			return;
 		}
@@ -101,11 +133,6 @@ public class CheckpointFailureManager {
 
 			default:
 				throw new FlinkRuntimeException("Unknown checkpoint failure reason : " + reason.name());
-		}
-
-		if (continuousFailureCounter.get() > tolerableCpFailureNumber) {
-			clearCount();
-			failureCallback.failJob(new FlinkRuntimeException("Exceeded checkpoint tolerable failure threshold."));
 		}
 	}
 
@@ -151,7 +178,20 @@ public class CheckpointFailureManager {
 	 */
 	public interface FailJobCallback {
 
+		/**
+		 * Fails the whole job graph.
+		 *
+		 * @param cause The reason why the synchronous savepoint fails.
+		 */
 		void failJob(final Throwable cause);
+
+		/**
+		 * Fails the whole job graph due to task failure.
+		 *
+		 * @param cause The reason why the job is cancelled.
+		 * @param failingTask The id of the failing task attempt to prevent failing the job multiple times.
+		 */
+		void failJobDueToTaskFailure(final Throwable cause, final ExecutionAttemptID failingTask);
 
 	}
 

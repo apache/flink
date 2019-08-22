@@ -214,7 +214,7 @@ class StreamExecSortLimit(
 
     val ret = new OneInputTransformation(
       inputTransform,
-      getOperatorName,
+      getRelDetailedDescription,
       operator,
       outputRowTypeInfo,
       inputTransform.getParallelism)
@@ -228,12 +228,5 @@ class StreamExecSortLimit(
     ret.setStateKeySelector(selector)
     ret.setStateKeyType(selector.getProducedType)
     ret
-  }
-
-  private def getOperatorName = {
-    s"SortLimit(" +
-      s"orderBy: [${RelExplainUtil.collationToString(sortCollation, getRowType)}], " +
-      s"offset: $limitStart, " +
-      s"fetch: ${RelExplainUtil.fetchToString(fetch)})"
   }
 }

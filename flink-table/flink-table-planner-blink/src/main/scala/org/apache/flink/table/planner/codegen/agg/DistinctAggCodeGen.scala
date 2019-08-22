@@ -234,7 +234,9 @@ class DistinctAggCodeGen(
        """.stripMargin
     }
 
-    if (filterResults.exists(_.isDefined)) {
+    if (filterResults.forall(_.isDefined)) {
+      // using the `condition` below to filter data so as to reduce state cost
+      // if all distinct aggregations on same column have filter.
       val condition = filterResults.flatten.mkString(" || ")
       s"""
          |if ($condition) {
@@ -281,7 +283,9 @@ class DistinctAggCodeGen(
          |}
        """.stripMargin
 
-    if (filterResults.exists(_.isDefined)) {
+    if (filterResults.forall(_.isDefined)) {
+      // using the `condition` below to filter data so as to reduce state cost
+      // if all distinct aggregations on same column have filter.
       val condition = filterResults.flatten.mkString(" || ")
       s"""
          |if ($condition) {
@@ -354,14 +358,15 @@ class DistinctAggCodeGen(
       needAccumulate: Boolean,
       needRetract: Boolean,
       needMerge: Boolean,
-      needReset: Boolean): Unit = {
+      needReset: Boolean,
+      needEmitValue: Boolean): Unit = {
     if (needMerge) {
       // see merge method for more information
       innerAggCodeGens
       .foreach(_.checkNeededMethods(needAccumulate = true, needRetract = consumeRetraction))
     } else {
-      innerAggCodeGens
-      .foreach(_.checkNeededMethods(needAccumulate, needRetract, needMerge, needReset))
+      innerAggCodeGens.foreach(
+        _.checkNeededMethods(needAccumulate, needRetract, needMerge, needReset, needEmitValue))
     }
   }
 

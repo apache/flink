@@ -28,6 +28,7 @@ import org.apache.flink.table.types.logical.DecimalType;
 import java.math.BigDecimal;
 
 import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.div;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
@@ -36,6 +37,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.liter
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.minus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeLiteral;
 
 /**
  * built-in avg aggregate function.
@@ -103,24 +105,93 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 	 */
 	@Override
 	public Expression getValueExpression() {
-		return ifThenElse(equalTo(count, literal(0L)), nullOf(getResultType()), div(sum, count));
+		Expression ifTrue = nullOf(getResultType());
+		Expression ifFalse = cast(div(sum, count), typeLiteral(getResultType()));
+		return ifThenElse(equalTo(count, literal(0L)), ifTrue, ifFalse);
 	}
 
 	/**
-	 * Built-in Int Avg aggregate function for integral arguments,
-	 * including BYTE, SHORT, INT, LONG.
-	 * The result type is DOUBLE.
+	 * Built-in Byte Avg aggregate function.
 	 */
-	public static class IntegralAvgAggFunction extends AvgAggFunction {
+	public static class ByteAvgAggFunction extends AvgAggFunction {
 
 		@Override
 		public DataType getResultType() {
-			return DataTypes.DOUBLE();
+			return DataTypes.TINYINT();
 		}
 
 		@Override
 		public DataType getSumType() {
 			return DataTypes.BIGINT();
+		}
+	}
+
+	/**
+	 * Built-in Short Avg aggregate function.
+	 */
+	public static class ShortAvgAggFunction extends AvgAggFunction {
+
+		@Override
+		public DataType getResultType() {
+			return DataTypes.SMALLINT();
+		}
+
+		@Override
+		public DataType getSumType() {
+			return DataTypes.BIGINT();
+		}
+	}
+
+	/**
+	 * Built-in Integer Avg aggregate function.
+	 */
+	public static class IntAvgAggFunction extends AvgAggFunction {
+
+		@Override
+		public DataType getResultType() {
+			return DataTypes.INT();
+		}
+
+		@Override
+		public DataType getSumType() {
+			return DataTypes.BIGINT();
+		}
+	}
+
+	/**
+	 * Built-in Long Avg aggregate function.
+	 */
+	public static class LongAvgAggFunction extends AvgAggFunction {
+
+		@Override
+		public DataType getResultType() {
+			return DataTypes.BIGINT();
+		}
+
+		@Override
+		public DataType getSumType() {
+			return DataTypes.BIGINT();
+		}
+	}
+
+	/**
+	 * Built-in Float Avg aggregate function.
+	 */
+	public static class FloatAvgAggFunction extends AvgAggFunction {
+
+		@Override
+		public DataType getResultType() {
+			return DataTypes.FLOAT();
+		}
+
+		@Override
+		public DataType getSumType() {
+			return DataTypes.DOUBLE();
+		}
+
+		@Override
+		public Expression[] initialValuesExpressions() {
+			return new Expression[] {literal(0D), literal(0L)};
 		}
 	}
 

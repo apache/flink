@@ -34,7 +34,7 @@ LogicalProject(d=[$0])
     <Resource name="planAfter">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalValues(tuples=[[]])
++- LogicalValues(type=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>

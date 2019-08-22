@@ -81,29 +81,14 @@ class DistinctAggregateTest(
   }
 
   @Test
-  def testSingleFirstValueWithOrderWithDistinctAgg(): Unit = {
-    // FIRST_VALUE is not mergeable, so the final plan does not contain local agg
-    // FIRST_VALUE with order is not splittable,
-    // so SplitAggregateRule can not be applied to the plan
-    util.verifyPlan("SELECT a, FIRST_VALUE(c, b), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
-  }
-
-  @Test
   def testSingleLastValueWithDistinctAgg(): Unit = {
     // LAST_VALUE is not mergeable, so the final plan does not contain local agg
     util.verifyPlan("SELECT a, LAST_VALUE(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 
   @Test
-  def testSingleLastValueWithOrderWithDistinctAgg(): Unit = {
-    // LAST_VALUE is not mergeable, so the final plan does not contain local agg
-    // LAST_VALUE with order is not splittable, so SplitAggregateRule can not be applied to the plan
-    util.verifyPlan("SELECT a, LAST_VALUE(c, b), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
-  }
-
-  @Test
   def testSingleConcatAggWithDistinctAgg(): Unit = {
-    util.verifyPlan("SELECT a, CONCAT_AGG(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
+    util.verifyPlan("SELECT a, LISTAGG(c), COUNT(DISTINCT b) FROM MyTable GROUP BY a")
   }
 
   @Test
@@ -115,6 +100,11 @@ class DistinctAggregateTest(
         |GROUP BY a
       """.stripMargin
     util.verifyPlan(sqlQuery)
+  }
+
+  @Test
+  def testTwoDistinctAggregateWithNonDistinctAgg(): Unit = {
+    util.verifyPlan("SELECT c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) FROM MyTable GROUP BY c")
   }
 
   @Test

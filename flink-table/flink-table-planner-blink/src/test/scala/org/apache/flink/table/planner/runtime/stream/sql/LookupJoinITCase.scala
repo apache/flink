@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils
 import org.apache.flink.table.planner.runtime.utils.{InMemoryLookupableTableSource, StreamingTestBase, TestingAppendSink}
 import org.apache.flink.types.Row
 
-import org.junit.Assert.assertEquals
+import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
 
 import java.lang.{Integer => JInt, Long => JLong}
@@ -46,6 +46,11 @@ class LookupJoinITCase extends StreamingTestBase {
     Row.of(null, new JInt(11), "Hello world"),
     Row.of(new JLong(9), new JInt(12), "Hello world!"))
 
+  val dataRowType:TypeInformation[Row] = new RowTypeInfo(
+    BasicTypeInfo.LONG_TYPE_INFO,
+    BasicTypeInfo.INT_TYPE_INFO,
+    BasicTypeInfo.STRING_TYPE_INFO)
+
   val userData = List(
     (11, 1L, "Julian"),
     (22, 2L, "Jark"),
@@ -60,6 +65,20 @@ class LookupJoinITCase extends StreamingTestBase {
 
   val userTableSourceWith2Keys = InMemoryLookupableTableSource.builder()
     .data(userData)
+    .field("age", Types.INT)
+    .field("id", Types.LONG)
+    .field("name", Types.STRING)
+    .build()
+
+  val userDataWithNull = List(
+    (11, 1L, "Julian"),
+    (22, null, "Hello"),
+    (33, 3L, "Fabian"),
+    (44, null, "Hello world")
+  )
+
+  val userWithNullDataTableSourceWith2Keys = InMemoryLookupableTableSource.builder()
+    .data(userDataWithNull)
     .field("age", Types.INT)
     .field("id", Types.LONG)
     .field("name", Types.STRING)
@@ -137,11 +156,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testJoinTemporalTableOnNullableKey(): Unit = {
-
-    implicit val tpe: TypeInformation[Row] = new RowTypeInfo(
-      BasicTypeInfo.LONG_TYPE_INFO,
-      BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO)
+    implicit val tpe: TypeInformation[Row] = dataRowType
     val streamTable = env.fromCollection(dataWithNull)
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
@@ -366,11 +381,7 @@ class LookupJoinITCase extends StreamingTestBase {
 
   @Test
   def testLeftJoinTemporalTableOnNullableKey(): Unit = {
-
-    implicit val tpe: TypeInformation[Row] = new RowTypeInfo(
-      BasicTypeInfo.LONG_TYPE_INFO,
-      BasicTypeInfo.INT_TYPE_INFO,
-      BasicTypeInfo.STRING_TYPE_INFO)
+    implicit val tpe: TypeInformation[Row] = dataRowType
     val streamTable = env.fromCollection(dataWithNull)
       .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
     tEnv.registerTable("T", streamTable)
@@ -416,6 +427,92 @@ class LookupJoinITCase extends StreamingTestBase {
       "9,12,null,null")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
     assertEquals(0, userTableSource.getResourceCounter)
+  }
+
+  @Test
+  def testJoinTemporalTableOnMultiKeyFieldsWithNullData(): Unit = {
+    implicit val tpe: TypeInformation[Row] = dataRowType
+    val streamTable = env.fromCollection(dataWithNull)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
+    tEnv.registerTable("T", streamTable)
+
+    tEnv.registerTableSource("userTable", userWithNullDataTableSourceWith2Keys)
+
+    val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
+      "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "3,15,Fabian")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertEquals(0, userTableSourceWith2Keys.getResourceCounter)
+  }
+
+  @Test
+  def testLeftJoinTemporalTableOnMultiKeyFieldsWithNullData(): Unit = {
+    implicit val tpe: TypeInformation[Row] = dataRowType
+    val streamTable = env.fromCollection(dataWithNull)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
+    tEnv.registerTable("T", streamTable)
+
+    tEnv.registerTableSource("userTable", userWithNullDataTableSourceWith2Keys)
+
+    val sql = "SELECT D.id, T.len, D.name FROM T LEFT JOIN userTable " +
+      "for system_time as of T.proctime AS D ON T.content = D.name AND T.id = D.id"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    val expected = Seq(
+      "null,15,null",
+      "3,15,Fabian",
+      "null,11,null",
+      "null,12,null")
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+    assertEquals(0, userTableSourceWith2Keys.getResourceCounter)
+  }
+
+  @Test
+  def testJoinTemporalTableOnNullConstantKey(): Unit = {
+    implicit val tpe: TypeInformation[Row] = dataRowType
+    val streamTable = env.fromCollection(dataWithNull)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
+    tEnv.registerTable("T", streamTable)
+
+    tEnv.registerTableSource("userTable", userWithNullDataTableSourceWith2Keys)
+
+    val sql = "SELECT T.id, T.len, T.content FROM T JOIN userTable " +
+      "for system_time as of T.proctime AS D ON D.id = null"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertTrue(sink.getAppendResults.isEmpty)
+    assertEquals(0, userTableSource.getResourceCounter)
+  }
+
+  @Test
+  def testJoinTemporalTableOnMultiKeyFieldsWithNullConstantKey(): Unit = {
+    val streamTable = env.fromCollection(data)
+      .toTable(tEnv, 'id, 'len, 'content, 'proctime.proctime)
+    tEnv.registerTable("T", streamTable)
+
+    tEnv.registerTableSource("userTable", userTableSourceWith2Keys)
+
+    val sql = "SELECT T.id, T.len, D.name FROM T JOIN userTable " +
+      "for system_time as of T.proctime AS D ON T.content = D.name AND null = D.id"
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(sql).toAppendStream[Row].addSink(sink)
+    env.execute()
+
+    assertTrue(sink.getAppendResults.isEmpty)
+    assertEquals(0, userTableSourceWith2Keys.getResourceCounter)
   }
 
 }

@@ -36,6 +36,7 @@ import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.{
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.{JoinTypeUtil, RelExplainUtil}
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 import org.apache.flink.table.planner.utils.TableConfigUtils.getMillisecondFromConfigDuration
 import org.apache.flink.table.runtime.operators.join.lookup.{AsyncLookupJoinRunner, AsyncLookupJoinWithCalcRunner, LookupJoinRunner, LookupJoinWithCalcRunner}
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
@@ -126,7 +127,8 @@ abstract class CommonLookupJoin(
     val resultFieldNames = getRowType.getFieldNames.asScala.toArray
     val lookupableSource = tableSource.asInstanceOf[LookupableTableSource[_]]
     val whereString = calcOnTemporalTable match {
-      case Some(calc) => RelExplainUtil.conditionToString(calc, getExpressionString)
+      case Some(calc) => RelExplainUtil.conditionToString(
+        calc, getExpressionString, preferExpressionFormat(pw))
       case None => "N/A"
     }
 
@@ -343,7 +345,7 @@ abstract class CommonLookupJoin(
 
     new OneInputTransformation(
       inputTransformation,
-      "LookupJoin",
+      getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(resultRowType),
       inputTransformation.getParallelism)
@@ -560,7 +562,7 @@ abstract class CommonLookupJoin(
       joinType: JoinRelType): Unit = {
 
     // check join on all fields of PRIMARY KEY or (UNIQUE) INDEX
-    if (allLookupKeys.isEmpty || allLookupKeys.isEmpty) {
+    if (allLookupKeys.isEmpty) {
       throw new TableException(
         "Temporal table join requires an equality condition on fields of " +
           s"table [${tableSource.explainSource()}].")

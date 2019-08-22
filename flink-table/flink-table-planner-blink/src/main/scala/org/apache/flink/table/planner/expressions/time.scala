@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo._
-import org.apache.flink.api.common.typeinfo.{SqlTimeTypeInfo, TypeInformation}
+import org.apache.flink.api.common.typeinfo.{LocalTimeTypeInfo, SqlTimeTypeInfo, TypeInformation}
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder
 import org.apache.flink.table.planner.expressions.PlannerTimeIntervalUnit.PlannerTimeIntervalUnit
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
@@ -51,6 +51,8 @@ case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpress
            | SymbolPlannerExpression(PlannerTimeIntervalUnit.DAY)
         if temporal.resultType == SqlTimeTypeInfo.DATE
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
+          || temporal.resultType == LocalTimeTypeInfo.LOCAL_DATE
+          || temporal.resultType == LocalTimeTypeInfo.LOCAL_DATE_TIME
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MILLIS
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MONTHS =>
         ValidationSuccess
@@ -60,6 +62,8 @@ case class Extract(timeIntervalUnit: PlannerExpression, temporal: PlannerExpress
            | SymbolPlannerExpression(PlannerTimeIntervalUnit.SECOND)
         if temporal.resultType == SqlTimeTypeInfo.TIME
           || temporal.resultType == SqlTimeTypeInfo.TIMESTAMP
+          || temporal.resultType == LocalTimeTypeInfo.LOCAL_TIME
+          || temporal.resultType == LocalTimeTypeInfo.LOCAL_DATE_TIME
           || temporal.resultType == TimeIntervalTypeInfo.INTERVAL_MILLIS =>
         ValidationSuccess
 
@@ -97,12 +101,15 @@ abstract class TemporalCeilFloor(
 
     (unit.get, temporal.resultType) match {
       case (PlannerTimeIntervalUnit.YEAR | PlannerTimeIntervalUnit.MONTH,
-          SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIMESTAMP) =>
+          SqlTimeTypeInfo.DATE | SqlTimeTypeInfo.TIMESTAMP |
+          LocalTimeTypeInfo.LOCAL_DATE | LocalTimeTypeInfo.LOCAL_DATE_TIME) =>
         ValidationSuccess
-      case (PlannerTimeIntervalUnit.DAY, SqlTimeTypeInfo.TIMESTAMP) =>
+      case (PlannerTimeIntervalUnit.DAY, SqlTimeTypeInfo.TIMESTAMP |
+            LocalTimeTypeInfo.LOCAL_DATE_TIME) =>
         ValidationSuccess
       case (PlannerTimeIntervalUnit.HOUR | PlannerTimeIntervalUnit.MINUTE |
-          PlannerTimeIntervalUnit.SECOND, SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP) =>
+          PlannerTimeIntervalUnit.SECOND, SqlTimeTypeInfo.TIME | SqlTimeTypeInfo.TIMESTAMP |
+          LocalTimeTypeInfo.LOCAL_TIME | LocalTimeTypeInfo.LOCAL_DATE_TIME) =>
         ValidationSuccess
       case _ =>
         ValidationFailure(s"Temporal ceil/floor operator does not support " +
@@ -308,7 +315,11 @@ case class TimestampDiff(
         if timePoint1.resultType == SqlTimeTypeInfo.DATE
           || timePoint1.resultType == SqlTimeTypeInfo.TIMESTAMP
           || timePoint2.resultType == SqlTimeTypeInfo.DATE
-          || timePoint2.resultType == SqlTimeTypeInfo.TIMESTAMP =>
+          || timePoint2.resultType == SqlTimeTypeInfo.TIMESTAMP
+          || timePoint1.resultType == LocalTimeTypeInfo.LOCAL_DATE
+          || timePoint1.resultType == LocalTimeTypeInfo.LOCAL_DATE_TIME
+          || timePoint2.resultType == LocalTimeTypeInfo.LOCAL_DATE
+          || timePoint2.resultType == LocalTimeTypeInfo.LOCAL_DATE_TIME =>
         ValidationSuccess
 
       case _ =>

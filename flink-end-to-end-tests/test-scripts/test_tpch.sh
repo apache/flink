@@ -31,7 +31,7 @@ echo "Generating test data..."
 
 TARGET_DIR="$END_TO_END_DIR/flink-tpch-test/target"
 TPCH_DATA_DIR="$END_TO_END_DIR/test-scripts/test-data/tpch"
-java -cp "$TARGET_DIR/flink-tpch-test-1.10-SNAPSHOT.jar:$TARGET_DIR/lib/*" org.apache.flink.table.tpch.TpchDataGenerator "$SCALE" "$TARGET_DIR"
+java -cp "$TARGET_DIR/TpchTestProgram.jar:$TARGET_DIR/lib/*" org.apache.flink.table.tpch.TpchDataGenerator "$SCALE" "$TARGET_DIR"
 
 ################################################################################
 # Prepare Flink
@@ -72,6 +72,7 @@ execution:
   planner: blink
   type: batch
   result-mode: table
+  parallelism: 2
 EOF
 
     if [[ -e "$MODIFIED_QUERY_DIR/q$i.sql" ]]
@@ -87,5 +88,5 @@ EOF
 
     wait_job_terminal_state "$JOB_ID" "FINISHED"
 
-    java -cp "$TARGET_DIR/flink-tpch-test-1.10-SNAPSHOT.jar" org.apache.flink.table.tpch.TpchResultComparator "$EXPECTED_DIR/q$i.csv" "$RESULT_DIR/q$i.csv"
+    java -cp "$TARGET_DIR/TpchTestProgram.jar" org.apache.flink.table.tpch.TpchResultComparator "$EXPECTED_DIR/q$i.csv" "$RESULT_DIR/q$i.csv"
 done

@@ -58,7 +58,7 @@ mvn clean install -DskipTests -Dfast
 
 ## Build PyFlink
 
-If you want to build a PyFlink package that can be used for pip installation, you need to build Flink jars first, as described in [Build Flink](##Build Flink).
+If you want to build a PyFlink package that can be used for pip installation, you need to build Flink jars first, as described in [Build Flink](#build-flink).
 Then go to the root directory of flink source code and run this command to build the sdist package and wheel package:
 
 {% highlight bash %}

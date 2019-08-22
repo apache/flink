@@ -128,7 +128,7 @@ class BatchExecSort(
 
     val ret = new OneInputTransformation(
       input,
-      s"Sort(${RelExplainUtil.collationToString(sortCollation, getRowType)})",
+      getRelDetailedDescription,
       operator.asInstanceOf[OneInputStreamOperator[BaseRow, BaseRow]],
       BaseRowTypeInfo.of(outputType),
       input.getParallelism)

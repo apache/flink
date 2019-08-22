@@ -69,15 +69,19 @@ object CorrelateCodeGenerator {
     val sqlFunction = rexCall.getOperator.asInstanceOf[TableSqlFunction]
     // we need result Type to do code generation
     val arguments = UserDefinedFunctionUtils.transformRexNodes(rexCall.operands)
+    val operandTypes = rexCall.operands
+        .map(_.getType)
+        .map(FlinkTypeFactory.toLogicalType).toArray
+    val func = sqlFunction.makeFunction(arguments, operandTypes)
     val argTypes = getEvalMethodSignature(
-      sqlFunction.getTableFunction,
+      func,
       rexCall.operands
         .map(_.getType)
         .map(FlinkTypeFactory.toLogicalType).toArray)
     val udtfExternalType = sqlFunction
         .getFunction
         .asInstanceOf[FlinkTableFunction]
-        .getExternalResultType(arguments, argTypes)
+        .getExternalResultType(func, arguments, argTypes)
     val pojoFieldMapping = Some(UserDefinedFunctionUtils.getFieldInfo(udtfExternalType)._2)
     val inputType = FlinkTypeFactory.toLogicalRowType(inputRelType)
     val (returnType, swallowInputOnly ) = if (projectProgram.isDefined) {
@@ -131,12 +135,7 @@ object CorrelateCodeGenerator {
 
     new OneInputTransformation(
       inputTransformation,
-      RelExplainUtil.correlateOpName(
-        inputRelType,
-        rexCall,
-        sqlFunction,
-        outDataType,
-        expression),
+      ruleDescription,
       substituteStreamOperator,
       BaseRowTypeInfo.of(returnType),
       parallelism)

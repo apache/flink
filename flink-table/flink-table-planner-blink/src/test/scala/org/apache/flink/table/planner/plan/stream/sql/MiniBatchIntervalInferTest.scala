@@ -297,7 +297,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     val table2 = util.tableEnv.sqlQuery(
       """
         |SELECT id1,
-        |    CONCAT_AGG('#', text) as text,
+        |    LISTAGG(text, '#') as text,
         |    TUMBLE_ROWTIME(ts, INTERVAL '6' SECOND) as ts
         |FROM TempTable1
         |GROUP BY TUMBLE(ts, INTERVAL '6' SECOND), id1
@@ -307,7 +307,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
   val table3 = util.tableEnv.sqlQuery(
       """
         |SELECT id1,
-        |    CONCAT_AGG('*', text)
+        |    LISTAGG(text, '*')
         |FROM TempTable2
         |GROUP BY HOP(ts, INTERVAL '12' SECOND, INTERVAL '4' SECOND), id1
       """.stripMargin)
@@ -317,7 +317,7 @@ class MiniBatchIntervalInferTest extends TableTestBase {
     val table4 = util.tableEnv.sqlQuery(
       """
         |SELECT id1,
-        |    CONCAT_AGG('-', text)
+        |    LISTAGG(text, '-')
         |FROM TempTable1
         |GROUP BY TUMBLE(ts, INTERVAL '9' SECOND), id1
       """.stripMargin)

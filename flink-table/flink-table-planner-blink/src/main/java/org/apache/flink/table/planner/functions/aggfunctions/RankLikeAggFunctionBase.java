@@ -18,6 +18,9 @@
 
 package org.apache.flink.table.planner.functions.aggfunctions;
 
+import org.apache.flink.api.common.typeutils.base.LocalDateSerializer;
+import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
+import org.apache.flink.api.common.typeutils.base.LocalTimeSerializer;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.Expression;
@@ -26,17 +29,17 @@ import org.apache.flink.table.planner.expressions.ExpressionBuilder;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Optional;
 
 import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.equalTo;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.ifThenElse;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.isNull;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.literal;
+import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType;
 
 /**
  * built-in rank like aggregate function, e.g. rank, dense_rank
@@ -98,34 +101,48 @@ public abstract class RankLikeAggFunctionBase extends DeclarativeAggregateFuncti
 	}
 
 	protected Expression generateInitLiteral(LogicalType orderType) {
+		Object value;
 		switch (orderType.getTypeRoot()) {
 			case BOOLEAN:
-				return literal(false);
+				value = false;
+				break;
 			case TINYINT:
-				return literal((byte) 0);
+				value = (byte) 0;
+				break;
 			case SMALLINT:
-				return literal((short) 0);
+				value = (short) 0;
+				break;
 			case INTEGER:
-				return literal(0);
+				value = 0;
+				break;
 			case BIGINT:
-				return literal(0L);
+				value = 0L;
+				break;
 			case FLOAT:
-				return literal(0.0f);
+				value = 0.0f;
+				break;
 			case DOUBLE:
-				return literal(0.0d);
+				value = 0.0d;
+				break;
 			case DECIMAL:
-				return literal(java.math.BigDecimal.ZERO);
+				value = BigDecimal.ZERO;
+				break;
 			case CHAR:
 			case VARCHAR:
-				return literal("");
+				value = "";
+				break;
 			case DATE:
-				return literal(new Date(0));
+				value = LocalDateSerializer.INSTANCE.createInstance();
+				break;
 			case TIME_WITHOUT_TIME_ZONE:
-				return literal(new Time(0));
+				value = LocalTimeSerializer.INSTANCE.createInstance();
+				break;
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
-				return literal(new Timestamp(0));
+				value = LocalDateTimeSerializer.INSTANCE.createInstance();
+				break;
 			default:
 				throw new TableException("Unsupported type: " + orderType);
 		}
+		return valueLiteral(value, fromLogicalTypeToDataType(orderType));
 	}
 }

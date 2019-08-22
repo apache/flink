@@ -39,11 +39,13 @@ import java.util.Set;
  */
 public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 
-	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE = Collections.singleton("com.amazonaws.");
+	// intentionally obfuscated to prevent relocations by the shade-plugin
+	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE = Collections.singleton("com.UNSHADE.".replace("UNSHADE", "amazonaws"));
 
 	private static final Set<String> CONFIG_KEYS_TO_SHADE = Collections.singleton("presto.s3.credentials-provider");
 
-	private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.s3presto.shaded.";
+	// keep this in sync with the relocation pattern applied to com.amazon in the shade-plugin configuration
+	private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.s3base.shaded.";
 
 	private static final String[] FLINK_CONFIG_PREFIXES = { "s3.", "presto.s3." };
 

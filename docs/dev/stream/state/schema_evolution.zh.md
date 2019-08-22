@@ -95,4 +95,12 @@ Flink 完全支持 Avro 状态类型的升级，只要数据结构的修改是�
 
 一个例外是如果新的 Avro 数据 schema 生成的类无法被重定位或者使用了不同的命名空间，在作业恢复时状态数据会被认为是不兼容的。
 
+{% warn Attention %} Schema evolution of keys is not supported.
+
+Example: RocksDB state backend relies on binary objects identity, rather than `hashCode` method implementation. Any changes to the keys object structure could lead to non deterministic behaviour.
+
+{% warn Attention %} **Kryo** cannot be used for schema evolution.
+
+When Kryo is used, there is no possibility for the framework to verify if any incompatible changes have been made.
+
 {% top %}

@@ -20,7 +20,6 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -29,8 +28,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.runtime.executiongraph.restart.FailingRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
@@ -78,9 +79,13 @@ public class RegionFailoverITCase extends TestLogger {
 	private static final int FAIL_BASE = 1000;
 	private static final int NUM_OF_REGIONS = 3;
 	private static final int MAX_PARALLELISM = 2 * NUM_OF_REGIONS;
-	private static final Set<Integer> EXPECTED_INDICES = IntStream.range(0, NUM_OF_REGIONS).boxed().collect(Collectors.toSet());
+	private static final Set<Integer> EXPECTED_INDICES_MULTI_REGION = IntStream.range(0, NUM_OF_REGIONS).boxed().collect(Collectors.toSet());
+	private static final Set<Integer> EXPECTED_INDICES_SINGLE_REGION = Collections.singleton(0);
 	private static final int NUM_OF_RESTARTS = 3;
 	private static final int NUM_ELEMENTS = FAIL_BASE * 10;
+
+	private static final String SINGLE_REGION_SOURCE_NAME = "single-source";
+	private static final String MULTI_REGION_SOURCE_NAME = "multi-source";
 
 	private static AtomicLong lastCompletedCheckpointId = new AtomicLong(0);
 	private static AtomicInteger numCompletedCheckpoints = new AtomicInteger(0);
@@ -99,6 +104,9 @@ public class RegionFailoverITCase extends TestLogger {
 	public void setup() throws Exception {
 		Configuration configuration = new Configuration();
 		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
+		// global failover times: 3, region failover times: NUM_OF_RESTARTS
+		configuration.setInteger(FailingRestartStrategy.NUM_FAILURES_CONFIG_OPTION, 3);
+		configuration.setString(ConfigConstants.RESTART_STRATEGY, FailingRestartStrategy.class.getName());
 
 		cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
@@ -159,12 +167,12 @@ public class RegionFailoverITCase extends TestLogger {
 		env.enableCheckpointing(200, CheckpointingMode.EXACTLY_ONCE);
 		env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 		env.disableOperatorChaining();
-		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(NUM_OF_RESTARTS, 0L));
 		env.getConfig().disableSysoutLogging();
 
 		// Use DataStreamUtils#reinterpretAsKeyed to avoid merge regions and this stream graph would exist num of 'NUM_OF_REGIONS' individual regions.
 		DataStreamUtils.reinterpretAsKeyedStream(
 			env.addSource(new StringGeneratingSourceFunction(NUM_ELEMENTS, NUM_ELEMENTS / NUM_OF_RESTARTS))
+				.name(MULTI_REGION_SOURCE_NAME)
 				.setParallelism(NUM_OF_REGIONS),
 			(KeySelector<Tuple2<Integer, Integer>, Integer>) value -> value.f0,
 			TypeInformation.of(Integer.class))
@@ -174,7 +182,8 @@ public class RegionFailoverITCase extends TestLogger {
 			.setParallelism(NUM_OF_REGIONS);
 
 		// another stream graph totally disconnected with the above one.
-		env.addSource(new StringGeneratingSourceFunction(NUM_ELEMENTS, NUM_ELEMENTS / NUM_OF_RESTARTS)).setParallelism(1)
+		env.addSource(new StringGeneratingSourceFunction(NUM_ELEMENTS, NUM_ELEMENTS / NUM_OF_RESTARTS)).
+			name(SINGLE_REGION_SOURCE_NAME).setParallelism(1)
 			.map((MapFunction<Tuple2<Integer, Integer>, Object>) value -> value).setParallelism(1);
 
 		return env.getStreamGraph().getJobGraph();
@@ -282,7 +291,11 @@ public class RegionFailoverITCase extends TestLogger {
 
 				unionListState = context.getOperatorStateStore().getUnionListState(unionStateDescriptor);
 				Set<Integer> actualIndices = StreamSupport.stream(unionListState.get().spliterator(), false).collect(Collectors.toSet());
-				Assert.assertTrue(CollectionUtils.isEqualCollection(EXPECTED_INDICES, actualIndices));
+				if (getRuntimeContext().getTaskName().contains(SINGLE_REGION_SOURCE_NAME)) {
+					Assert.assertTrue(CollectionUtils.isEqualCollection(EXPECTED_INDICES_SINGLE_REGION, actualIndices));
+				} else {
+					Assert.assertTrue(CollectionUtils.isEqualCollection(EXPECTED_INDICES_MULTI_REGION, actualIndices));
+				}
 
 				if (indexOfThisSubtask == 0) {
 					listState = context.getOperatorStateStore().getListState(stateDescriptor);

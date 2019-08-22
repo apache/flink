@@ -35,8 +35,8 @@ import org.apache.flink.table.functions.utils.AggSqlFunction.{createOperandTypeC
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 
 /**
-  * Calcite wrapper for user-defined aggregate functions. Current, the aggregate function can be an
-  * [[AggregateFunction]] or a [[TableAggregateFunction]]
+  * Calcite wrapper for user-defined aggregate functions. Currently, the aggregate function can be
+  * an [[AggregateFunction]] or a [[TableAggregateFunction]]
   *
   * @param name function name (used by SQL parser)
   * @param displayName name to be displayed in operator name

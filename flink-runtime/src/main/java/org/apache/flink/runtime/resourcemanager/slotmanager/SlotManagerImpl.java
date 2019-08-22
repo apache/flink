@@ -31,6 +31,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.SlotRequest;
 import org.apache.flink.runtime.resourcemanager.exceptions.ResourceManagerException;
+import org.apache.flink.runtime.resourcemanager.exceptions.UnfulfillableSlotRequestException;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
@@ -117,7 +118,6 @@ public class SlotManagerImpl implements SlotManager {
 
 	/**
 	 * If true, fail unfulfillable slot requests immediately. Otherwise, allow unfulfillable request to pend.
-	 *
 	 * A slot request is considered unfulfillable if it cannot be fulfilled by neither a slot that is already registered
 	 * (including allocated ones) nor a pending slot that the {@link ResourceActions} can allocate.
 	 * */
@@ -211,8 +211,7 @@ public class SlotManagerImpl implements SlotManager {
 	 * @param newResourceActions to use for resource (de-)allocations
 	 */
 	@Override
-	public void start(ResourceManagerId newResourceManagerId, Executor newMainThreadExecutor,
-					  ResourceActions newResourceActions) {
+	public void start(ResourceManagerId newResourceManagerId, Executor newMainThreadExecutor, ResourceActions newResourceActions) {
 		LOG.info("Starting the SlotManager.");
 
 		this.resourceManagerId = Preconditions.checkNotNull(newResourceManagerId);
@@ -292,10 +291,10 @@ public class SlotManagerImpl implements SlotManager {
 	 *
 	 * @param slotRequest specifying the requested slot specs
 	 * @return true if the slot request was registered; false if the request is a duplicate
-	 * @throws SlotManagerException if the slot request failed (e.g. not enough resources left)
+	 * @throws ResourceManagerException if the slot request failed (e.g. not enough resources left)
 	 */
 	@Override
-	public boolean registerSlotRequest(SlotRequest slotRequest) throws SlotManagerException {
+	public boolean registerSlotRequest(SlotRequest slotRequest) throws ResourceManagerException {
 		checkInit();
 
 		if (checkDuplicateRequest(slotRequest.getAllocationId())) {
@@ -313,7 +312,7 @@ public class SlotManagerImpl implements SlotManager {
 				// requesting the slot failed --> remove pending slot request
 				pendingSlotRequests.remove(slotRequest.getAllocationId());
 
-				throw new SlotManagerException("Could not fulfill slot request " + slotRequest.getAllocationId() + '.', e);
+				throw new ResourceManagerException("Could not fulfill slot request " + slotRequest.getAllocationId() + '.', e);
 			}
 
 			return true;
@@ -496,8 +495,7 @@ public class SlotManagerImpl implements SlotManager {
 					resourceActions.notifyAllocationFailure(
 						pendingSlotRequest.getJobId(),
 						pendingSlotRequest.getAllocationId(),
-						new ResourceManagerException("Could not fulfill slot request " + pendingSlotRequest.getAllocationId() + ". "
-							+ "Requested resource profile (" + pendingSlotRequest.getResourceProfile() + ") is unfulfillable.")
+						new UnfulfillableSlotRequestException(pendingSlotRequest.getAllocationId(), pendingSlotRequest.getResourceProfile())
 					);
 				}
 			}
@@ -747,7 +745,7 @@ public class SlotManagerImpl implements SlotManager {
 	 * registered.
 	 *
 	 * @param pendingSlotRequest to allocate a slot for
-	 * @throws ResourceManagerException if the resource manager cannot allocate more resource
+	 * @throws ResourceManagerException if the slot request failed or is unfulfillable
 	 */
 	private void internalRequestSlot(PendingSlotRequest pendingSlotRequest) throws ResourceManagerException {
 		final ResourceProfile resourceProfile = pendingSlotRequest.getResourceProfile();
@@ -769,8 +767,7 @@ public class SlotManagerImpl implements SlotManager {
 				// request can not be fulfilled by any free slot or pending slot that can be allocated,
 				// check whether it can be fulfilled by allocated slots
 				if (failUnfulfillableRequest && !isFulfillableByRegisteredSlots(pendingSlotRequest.getResourceProfile())) {
-					throw new ResourceManagerException("Requested resource profile (" +
-						pendingSlotRequest.getResourceProfile() + ") is unfulfillable.");
+					throw new UnfulfillableSlotRequestException(pendingSlotRequest.getAllocationId(), pendingSlotRequest.getResourceProfile());
 				}
 			}
 		}

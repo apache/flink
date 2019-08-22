@@ -21,12 +21,16 @@ package org.apache.flink.streaming.runtime.io;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
+import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
+import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
+import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
@@ -36,11 +40,13 @@ import org.junit.After;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -81,6 +87,39 @@ public class StreamTaskNetworkInputTest {
 		assertHasNextElement(input);
 	}
 
+	@Test
+	public void testReleasingDeserializerTimely()
+		throws Exception {
+
+		int numInputChannels = 2;
+		LongSerializer inSerializer = LongSerializer.INSTANCE;
+		StreamTestSingleInputGate inputGate = new StreamTestSingleInputGate<>(numInputChannels, 1024, inSerializer);
+
+		TestRecordDeserializer[] deserializers = new TestRecordDeserializer[numInputChannels];
+		for (int i = 0; i < deserializers.length; i++) {
+			deserializers[i] = new TestRecordDeserializer(ioManager.getSpillingDirectoriesPaths());
+		}
+
+		TestRecordDeserializer[] copiedDeserializers = Arrays.copyOf(deserializers, deserializers.length);
+		StreamTaskNetworkInput input = new StreamTaskNetworkInput(
+			new CheckpointedInputGate(
+				inputGate.getInputGate(),
+				new EmptyBufferStorage(),
+				new CheckpointBarrierTracker(1)),
+			inSerializer,
+			ioManager,
+			0,
+			deserializers);
+
+		for (int i = 0; i < numInputChannels; i++) {
+			assertNotNull(deserializers[i]);
+			inputGate.sendEvent(EndOfPartitionEvent.INSTANCE, i);
+			input.pollNextNullable();
+			assertNull(deserializers[i]);
+			assertTrue(copiedDeserializers[i].isCleared());
+		}
+	}
+
 	private void serializeRecord(long value, BufferBuilder bufferBuilder) throws IOException {
 		RecordSerializer<SerializationDelegate<StreamElement>> serializer = new SpanningRecordSerializer<>();
 		SerializationDelegate<StreamElement> serializationDelegate =
@@ -97,5 +136,24 @@ public class StreamTaskNetworkInputTest {
 		StreamElement element = input.pollNextNullable();
 		assertNotNull(element);
 		assertTrue(element.isRecord());
+	}
+
+	private static class TestRecordDeserializer
+		extends SpillingAdaptiveSpanningRecordDeserializer<DeserializationDelegate<StreamElement>> {
+
+		private boolean cleared = false;
+
+		public TestRecordDeserializer(String[] tmpDirectories) {
+			super(tmpDirectories);
+		}
+
+		@Override
+		public void clear() {
+			cleared = true;
+		}
+
+		public boolean isCleared() {
+			return cleared;
+		}
 	}
 }

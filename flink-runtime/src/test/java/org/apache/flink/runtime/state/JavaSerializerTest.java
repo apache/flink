@@ -21,7 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.api.common.typeutils.SerializerTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.testutils.ClassLoaderUtils;
 
 import org.junit.After;
 import org.junit.Before;
@@ -38,8 +38,8 @@ import static org.junit.Assert.*;
 public class JavaSerializerTest extends SerializerTestBase<Serializable> {
 
 	/** Class loader and object that is not in the test class path. */
-	private static final CommonTestUtils.ObjectAndClassLoader OUTSIDE_CLASS_LOADING =
-		CommonTestUtils.createObjectFromNewClassLoader();
+	private static final ClassLoaderUtils.ObjectAndClassLoader<Serializable> OUTSIDE_CLASS_LOADING =
+		ClassLoaderUtils.createSerializableObjectFromNewClassLoader();
 
 	// ------------------------------------------------------------------------
 

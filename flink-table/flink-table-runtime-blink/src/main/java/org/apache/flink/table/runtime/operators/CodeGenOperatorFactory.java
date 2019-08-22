@@ -59,8 +59,13 @@ public class CodeGenOperatorFactory<OUT> implements StreamOperatorFactory<OUT> {
 	}
 
 	@Override
-	public boolean isOperatorSelectiveReading() {
-		return InputSelectable.class.isAssignableFrom(generatedClass.getClass(Thread.currentThread().getContextClassLoader()));
+	public boolean isOperatorSelectiveReading(ClassLoader classLoader) {
+		return InputSelectable.class.isAssignableFrom(getStreamOperatorClass(classLoader));
+	}
+
+	@Override
+	public Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader) {
+		return generatedClass.getClass(classLoader);
 	}
 
 	public GeneratedClass<? extends StreamOperator<OUT>> getGeneratedClass() {

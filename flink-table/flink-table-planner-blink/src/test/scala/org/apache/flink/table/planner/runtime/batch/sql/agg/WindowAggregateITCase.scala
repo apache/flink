@@ -316,17 +316,17 @@ class WindowAggregateITCase extends BatchTestBase {
           "FROM Table3WithTimestamp " +
           "GROUP BY HOP(ts, INTERVAL '2' SECOND, INTERVAL '3' SECOND)",
       Seq(
-        row(1.5, 3, localDateTime("1970-01-01 00:00:00.0")),
-        row(11.0, 33, localDateTime("1970-01-01 00:00:10.0")),
-        row(13.0, 39, localDateTime("1970-01-01 00:00:12.0")),
-        row(15.0, 45, localDateTime("1970-01-01 00:00:14.0")),
-        row(17.0, 51, localDateTime("1970-01-01 00:00:16.0")),
-        row(19.0, 57, localDateTime("1970-01-01 00:00:18.0")),
-        row(20.5, 41, localDateTime("1970-01-01 00:00:20.0")),
-        row(3.0, 9, localDateTime("1970-01-01 00:00:02.0")),
-        row(5.0, 15, localDateTime("1970-01-01 00:00:04.0")),
-        row(7.0, 21, localDateTime("1970-01-01 00:00:06.0")),
-        row(9.0, 27, localDateTime("1970-01-01 00:00:08.0"))
+        row(1, 3, localDateTime("1970-01-01 00:00:00.0")),
+        row(11, 33, localDateTime("1970-01-01 00:00:10.0")),
+        row(13, 39, localDateTime("1970-01-01 00:00:12.0")),
+        row(15, 45, localDateTime("1970-01-01 00:00:14.0")),
+        row(17, 51, localDateTime("1970-01-01 00:00:16.0")),
+        row(19, 57, localDateTime("1970-01-01 00:00:18.0")),
+        row(20, 41, localDateTime("1970-01-01 00:00:20.0")),
+        row(3, 9, localDateTime("1970-01-01 00:00:02.0")),
+        row(5, 15, localDateTime("1970-01-01 00:00:04.0")),
+        row(7, 21, localDateTime("1970-01-01 00:00:06.0")),
+        row(9, 27, localDateTime("1970-01-01 00:00:08.0"))
       )
     )
 
@@ -335,17 +335,17 @@ class WindowAggregateITCase extends BatchTestBase {
           "FROM Table3WithTimestamp " +
           "GROUP BY HOP(ts, INTERVAL '2' SECOND, INTERVAL '3' SECOND)",
       Seq(
-        row(1.5, 3, localDateTime("1970-01-01 00:00:00.0")),
-        row(11.0, 33, localDateTime("1970-01-01 00:00:10.0")),
-        row(13.0, 39, localDateTime("1970-01-01 00:00:12.0")),
-        row(15.0, 45, localDateTime("1970-01-01 00:00:14.0")),
-        row(17.0, 51, localDateTime("1970-01-01 00:00:16.0")),
-        row(19.0, 57, localDateTime("1970-01-01 00:00:18.0")),
-        row(20.5, 41, localDateTime("1970-01-01 00:00:20.0")),
-        row(3.0, 9, localDateTime("1970-01-01 00:00:02.0")),
-        row(5.0, 15, localDateTime("1970-01-01 00:00:04.0")),
-        row(7.0, 21, localDateTime("1970-01-01 00:00:06.0")),
-        row(9.0, 27, localDateTime("1970-01-01 00:00:08.0"))
+        row(1, 3, localDateTime("1970-01-01 00:00:00.0")),
+        row(11, 33, localDateTime("1970-01-01 00:00:10.0")),
+        row(13, 39, localDateTime("1970-01-01 00:00:12.0")),
+        row(15, 45, localDateTime("1970-01-01 00:00:14.0")),
+        row(17, 51, localDateTime("1970-01-01 00:00:16.0")),
+        row(19, 57, localDateTime("1970-01-01 00:00:18.0")),
+        row(20, 41, localDateTime("1970-01-01 00:00:20.0")),
+        row(3, 9, localDateTime("1970-01-01 00:00:02.0")),
+        row(5, 15, localDateTime("1970-01-01 00:00:04.0")),
+        row(7, 21, localDateTime("1970-01-01 00:00:06.0")),
+        row(9, 27, localDateTime("1970-01-01 00:00:08.0"))
       )
     )
 

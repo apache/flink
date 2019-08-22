@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.resourcemanager.exceptions.UnfulfillableSlotRequestException;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.util.clock.ManualClock;
 import org.apache.flink.util.ExceptionUtils;
@@ -129,7 +130,7 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 
 	/**
 	 * Tests that a batch slot request does not react to {@link SlotPool#failAllocation(AllocationID, Exception)}
-	 * signals.
+	 * signals whose exception is not {@link UnfulfillableSlotRequestException}.
 	 */
 	@Test
 	public void testPendingBatchSlotRequestDoesNotFailIfAllocationFails() throws Exception {
@@ -147,14 +148,40 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 
 			final CompletableFuture<PhysicalSlot> slotFuture = SlotPoolUtils.requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, resourceProfile);
 
-			SlotPoolUtils.failAllocation(slotPool, directMainThreadExecutor, allocationIdFuture.get());
+			SlotPoolUtils.failAllocation(slotPool, directMainThreadExecutor, allocationIdFuture.get(), new FlinkException("Failed request"));
 
 			assertThat(slotFuture.isDone(), is(false));
 		}
 	}
 
 	/**
-	 * Tests that a batch slot request won't fail if its resource manager request fails.
+	 * Tests that a batch slot request does react to {@link SlotPool#failAllocation(AllocationID, Exception)}
+	 * signals whose exception is {@link UnfulfillableSlotRequestException}.
+	 */
+	@Test
+	public void testPendingBatchSlotRequestFailsIfAllocationFailsUnfulfillably() throws Exception {
+		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+		final CompletableFuture<AllocationID> allocationIdFuture = new CompletableFuture<>();
+		testingResourceManagerGateway.setRequestSlotConsumer(slotRequest -> allocationIdFuture.complete(slotRequest.getAllocationId()));
+
+		final ComponentMainThreadExecutor directMainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
+
+		try (final SlotPoolImpl slotPool = new SlotPoolBuilder(directMainThreadExecutor)
+			.setResourceManagerGateway(testingResourceManagerGateway)
+			.build()) {
+
+			final CompletableFuture<PhysicalSlot> slotFuture = SlotPoolUtils.requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, resourceProfile);
+
+			SlotPoolUtils.failAllocation(slotPool, directMainThreadExecutor, allocationIdFuture.get(),
+				new UnfulfillableSlotRequestException(new AllocationID(), ResourceProfile.UNKNOWN));
+
+			assertThat(slotFuture.isCompletedExceptionally(), is(true));
+		}
+	}
+
+	/**
+	 * Tests that a batch slot request won't fail if its resource manager request fails with exceptions other than
+	 * {@link UnfulfillableSlotRequestException}.
 	 */
 	@Test
 	public void testPendingBatchSlotRequestDoesNotFailIfRMRequestFails() throws Exception {
@@ -172,6 +199,27 @@ public class SlotPoolBatchSlotRequestTest extends TestLogger {
 			final CompletableFuture<PhysicalSlot> slotFuture = SlotPoolUtils.requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, resourceProfile);
 
 			assertThat(slotFuture.isDone(), is(false));
+		}
+	}
+
+	/**
+	 * Tests that a batch slot request fails if its resource manager request fails with {@link UnfulfillableSlotRequestException}.
+	 */
+	@Test
+	public void testPendingBatchSlotRequestFailsIfRMRequestFailsUnfulfillably() throws Exception {
+		final TestingResourceManagerGateway testingResourceManagerGateway = new TestingResourceManagerGateway();
+		testingResourceManagerGateway.setRequestSlotFuture(FutureUtils.completedExceptionally(
+			new UnfulfillableSlotRequestException(new AllocationID(), ResourceProfile.UNKNOWN)));
+
+		final ComponentMainThreadExecutor directMainThreadExecutor = ComponentMainThreadExecutorServiceAdapter.forMainThread();
+
+		try (final SlotPoolImpl slotPool = new SlotPoolBuilder(directMainThreadExecutor)
+			.setResourceManagerGateway(testingResourceManagerGateway)
+			.build()) {
+
+			final CompletableFuture<PhysicalSlot> slotFuture = SlotPoolUtils.requestNewAllocatedBatchSlot(slotPool, directMainThreadExecutor, resourceProfile);
+
+			assertThat(slotFuture.isCompletedExceptionally(), is(true));
 		}
 	}
 

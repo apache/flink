@@ -127,7 +127,7 @@ class GroupingSetsITCase extends BatchTestBase {
       "select deptno, avg(age) as a, group_id() as g," +
         " grouping(deptno) as gb, grouping_id(deptno)as gib" +
         " from emps group by grouping sets (deptno)",
-      Seq(row(10, 25.0, 0, 0, 0), row(20, 42.5, 0, 0, 0), row(40, null, 0, 0, 0))
+      Seq(row(10, 25, 0, 0, 0), row(20, 42, 0, 0, 0), row(40, null, 0, 0, 0))
     )
   }
 
@@ -208,11 +208,11 @@ class GroupingSetsITCase extends BatchTestBase {
     checkResult(
       "select deptno / 2 + 1 as half1, count(*) as c from emp " +
         "group by rollup(deptno / 2, gender), rollup(substring(ename FROM 1 FOR 1))",
-      Seq(row(11.0, 1), row(11.0, 1), row(11.0, 1), row(11.0, 1), row(16.0, 1), row(16.0, 1),
-        row(16.0, 1), row(16.0, 1), row(16.0, 2), row(16.0, 2), row(26.0, 1), row(26.0, 1),
-        row(26.0, 1), row(26.0, 1), row(26.0, 1), row(26.0, 1), row(26.0, 2), row(31.0, 1),
-        row(31.0, 1), row(31.0, 1), row(31.0, 1), row(6.0, 1), row(6.0, 1), row(6.0, 1),
-        row(6.0, 1), row(6.0, 1), row(6.0, 1), row(6.0, 2), row(null, 1), row(null, 1),
+      Seq(row(11, 1), row(11, 1), row(11, 1), row(11, 1), row(16, 1), row(16, 1),
+        row(16, 1), row(16, 1), row(16, 2), row(16, 2), row(26, 1), row(26, 1),
+        row(26, 1), row(26, 1), row(26, 1), row(26, 1), row(26, 2), row(31, 1),
+        row(31, 1), row(31, 1), row(31, 1), row(6, 1), row(6, 1), row(6, 1),
+        row(6, 1), row(6, 1), row(6, 1), row(6, 2), row(null, 1), row(null, 1),
         row(null, 1), row(null, 1), row(null, 1), row(null, 1), row(null, 1),
         row(null, 1), row(null, 1), row(null, 2), row(null, 2), row(null, 9))
     )
@@ -460,34 +460,34 @@ class GroupingSetsITCase extends BatchTestBase {
         " GROUPING SETS (f1, f2, ())"
 
     val expected = Seq(
-      row(1, null, 1.0, 0, 0, 1, 0, 1, 1, 1),
-      row(6, null, 18.5, 0, 0, 1, 0, 1, 1, 6),
-      row(2, null, 2.5, 0, 0, 1, 0, 1, 1, 2),
-      row(4, null, 8.5, 0, 0, 1, 0, 1, 1, 4),
-      row(5, null, 13.0, 0, 0, 1, 0, 1, 1, 5),
-      row(3, null, 5.0, 0, 0, 1, 0, 1, 1, 3),
-      row(null, "Comment#11", 17.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#8", 14.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#2", 8.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#1", 7.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#14", 20.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#7", 13.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#6", 12.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#3", 9.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#12", 18.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#5", 11.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#15", 21.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#4", 10.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Hi", 1.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#10", 16.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Hello world", 3.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "I am fine.", 5.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Hello world, how are you?", 4.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#9", 15.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Comment#13", 19.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Luke Skywalker", 6.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, "Hello", 2.0, 0, 1, 0, 1, 0, 2, 1),
-      row(null, null, 11.0, 0, 1, 1, 1, 1, 3, 21))
+      row(1, null, 1, 0, 0, 1, 0, 1, 1, 1),
+      row(6, null, 18, 0, 0, 1, 0, 1, 1, 6),
+      row(2, null, 2, 0, 0, 1, 0, 1, 1, 2),
+      row(4, null, 8, 0, 0, 1, 0, 1, 1, 4),
+      row(5, null, 13, 0, 0, 1, 0, 1, 1, 5),
+      row(3, null, 5, 0, 0, 1, 0, 1, 1, 3),
+      row(null, "Comment#11", 17, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#8", 14, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#2", 8, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#1", 7, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#14", 20, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#7", 13, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#6", 12, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#3", 9, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#12", 18, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#5", 11, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#15", 21, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#4", 10, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Hi", 1, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#10", 16, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Hello world", 3, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "I am fine.", 5, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Hello world, how are you?", 4, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#9", 15, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Comment#13", 19, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Luke Skywalker", 6, 0, 1, 0, 1, 0, 2, 1),
+      row(null, "Hello", 2, 0, 1, 0, 1, 0, 2, 1),
+      row(null, null, 11, 0, 1, 1, 1, 1, 3, 21))
     checkResult(query, expected)
   }
 
@@ -496,32 +496,32 @@ class GroupingSetsITCase extends BatchTestBase {
     val query = "SELECT f1, f2, avg(f0) as a, GROUP_ID() as g FROM " +
       TABLE_WITH_NULLS_NAME + " GROUP BY GROUPING SETS (f1, f2)"
     val expected = Seq(
-      row(6, null, 18.5, 0),
-      row(5, null, 13.0, 0),
-      row(4, null, 8.5, 0),
-      row(3, null, 5.0, 0),
-      row(2, null, 2.5, 0),
-      row(1, null, 1.0, 0),
-      row(null, "Luke Skywalker", 6.0, 0),
-      row(null, "I am fine.", 5.0, 0),
-      row(null, "Hi", 1.0, 0),
-      row(null, null, 3.5, 0),
-      row(null, "Hello", 2.0, 0),
-      row(null, "Comment#9", 15.0, 0),
-      row(null, "Comment#8", 14.0, 0),
-      row(null, "Comment#7", 13.0, 0),
-      row(null, "Comment#6", 12.0, 0),
-      row(null, "Comment#5", 11.0, 0),
-      row(null, "Comment#4", 10.0, 0),
-      row(null, "Comment#3", 9.0, 0),
-      row(null, "Comment#2", 8.0, 0),
-      row(null, "Comment#15", 21.0, 0),
-      row(null, "Comment#14", 20.0, 0),
-      row(null, "Comment#13", 19.0, 0),
-      row(null, "Comment#12", 18.0, 0),
-      row(null, "Comment#11", 17.0, 0),
-      row(null, "Comment#10", 16.0, 0),
-      row(null, "Comment#1", 7.0, 0))
+      row(6, null, 18, 0),
+      row(5, null, 13, 0),
+      row(4, null, 8, 0),
+      row(3, null, 5, 0),
+      row(2, null, 2, 0),
+      row(1, null, 1, 0),
+      row(null, "Luke Skywalker", 6, 0),
+      row(null, "I am fine.", 5, 0),
+      row(null, "Hi", 1, 0),
+      row(null, null, 3, 0),
+      row(null, "Hello", 2, 0),
+      row(null, "Comment#9", 15, 0),
+      row(null, "Comment#8", 14, 0),
+      row(null, "Comment#7", 13, 0),
+      row(null, "Comment#6", 12, 0),
+      row(null, "Comment#5", 11, 0),
+      row(null, "Comment#4", 10, 0),
+      row(null, "Comment#3", 9, 0),
+      row(null, "Comment#2", 8, 0),
+      row(null, "Comment#15", 21, 0),
+      row(null, "Comment#14", 20, 0),
+      row(null, "Comment#13", 19, 0),
+      row(null, "Comment#12", 18, 0),
+      row(null, "Comment#11", 17, 0),
+      row(null, "Comment#10", 16, 0),
+      row(null, "Comment#1", 7, 0))
     checkResult(query, expected)
   }
 

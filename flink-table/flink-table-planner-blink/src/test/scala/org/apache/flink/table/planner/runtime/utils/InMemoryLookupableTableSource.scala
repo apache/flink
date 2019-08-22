@@ -205,6 +205,8 @@ object InMemoryLookupableTableSource {
     @varargs
     def eval(inputs: AnyRef*): Unit = {
       val key = Row.of(inputs: _*)
+      Preconditions.checkArgument(!inputs.contains(null),
+        s"Lookup key %s contains null value, which would not happen.", key)
       data.get(key) match {
         case Some(list) => list.foreach(result => collect(result))
         case None => // do nothing
@@ -236,8 +238,11 @@ object InMemoryLookupableTableSource {
 
     @varargs
     def eval(resultFuture: CompletableFuture[util.Collection[Row]], inputs: AnyRef*): Unit = {
+      val key = Row.of(inputs: _*)
+      Preconditions.checkArgument(!inputs.contains(null),
+        s"Lookup key %s contains null value, which would not happen.", key)
       CompletableFuture
-        .supplyAsync(new CollectionSupplier(data, Row.of(inputs: _*)), executor)
+        .supplyAsync(new CollectionSupplier(data, key), executor)
         .thenAccept(new CollectionConsumer(resultFuture))
     }
 

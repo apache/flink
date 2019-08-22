@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.expressions.validation
 
 import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.scala._
 import org.apache.flink.table.planner.expressions.utils.MapTypeTestBase
 
 import org.junit.Test
@@ -27,16 +28,23 @@ class MapTypeValidationTest extends MapTypeTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testWrongKeyType(): Unit = {
-    testSqlApi("f2[12]", "FAIL")
+    testAllApis('f2.at(12), "f2.at(12)", "f2[12]", "FAIL")
+  }
+
+  @Test(expected = classOf[ValidationException])
+  def testIncorrectMapTypeComparison(): Unit = {
+    testAllApis('f1 === 'f3, "f1 === f3", "f1 = f3", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testUnsupportedComparisonType(): Unit = {
+    testAllApis('f6 !== 'f2, "f6 !== f2", "f6 != f2", "FAIL")
     testSqlApi("f6 <> f2", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testEmptyMap(): Unit = {
+    testAllApis("FAIL", "map()", "MAP[]", "FAIL")
     testSqlApi("MAP[]", "FAIL")
   }
 

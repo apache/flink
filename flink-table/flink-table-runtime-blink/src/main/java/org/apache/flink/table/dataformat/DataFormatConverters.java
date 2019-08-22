@@ -65,7 +65,7 @@ import java.util.stream.Stream;
 
 import scala.Product;
 
-import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
+import static org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
@@ -209,7 +209,7 @@ public class DataFormatConverters {
 						DataTypes.INT().bridgedTo(Integer.class));
 			case ROW:
 			case STRUCTURED_TYPE:
-				CompositeType compositeType = (CompositeType) fromDataTypeToLegacyInfo(dataType);
+				CompositeType compositeType = (CompositeType) fromDataTypeToTypeInfo(dataType);
 				DataType[] fieldTypes = Stream.iterate(0, x -> x + 1).limit(compositeType.getArity())
 						.map((Function<Integer, TypeInformation>) compositeType::getTypeAt)
 						.map(TypeConversions::fromLegacyInfoToDataType).toArray(DataType[]::new);

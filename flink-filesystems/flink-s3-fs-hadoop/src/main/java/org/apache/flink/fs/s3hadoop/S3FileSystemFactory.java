@@ -41,11 +41,13 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
 
 	private static final Logger LOG = LoggerFactory.getLogger(S3FileSystemFactory.class);
 
-	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE = Collections.singleton("com.amazonaws.");
+	// intentionally obfuscated to prevent relocations by the shade-plugin
+	private static final Set<String> PACKAGE_PREFIXES_TO_SHADE = Collections.singleton("com.UNSHADE.".replace("UNSHADE", "amazonaws"));
 
 	private static final Set<String> CONFIG_KEYS_TO_SHADE = Collections.singleton("fs.s3a.aws.credentials.provider");
 
-	private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.s3hadoop.shaded.";
+	// keep this in sync with the relocation pattern applied to com.amazon in the shade-plugin configuration
+	private static final String FLINK_SHADING_PREFIX = "org.apache.flink.fs.s3base.shaded.";
 
 	private static final String[] FLINK_CONFIG_PREFIXES = { "s3.", "s3a.", "fs.s3a." };
 

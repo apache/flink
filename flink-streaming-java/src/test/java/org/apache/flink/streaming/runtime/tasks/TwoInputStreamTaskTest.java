@@ -40,7 +40,6 @@ import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoMapFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -48,6 +47,7 @@ import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.util.TestBoundedTwoInputOperator;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
 import org.junit.Assert;
@@ -737,38 +737,8 @@ public class TwoInputStreamTaskTest {
 		}
 	}
 
-	/**
-	 * Uses to test handling the EndOfInput notification.
-	 */
-	private static class TestBoundedTwoInputOperator extends AbstractStreamOperator<String>
-		implements TwoInputStreamOperator<String, String, String>, BoundedMultiInput {
-
-		private static final long serialVersionUID = 1L;
-
-		private final String name;
-
-		public TestBoundedTwoInputOperator(String name) {
-			this.name = name;
-		}
-
-		@Override
-		public void processElement1(StreamRecord<String> element) {
-			output.collect(element.replace("[" + name + "-1]: " + element.getValue()));
-		}
-
-		@Override
-		public void processElement2(StreamRecord<String> element) {
-			output.collect(element.replace("[" + name + "-2]: " + element.getValue()));
-		}
-
-		@Override
-		public void endInput(int inputId) {
-			output.collect(new StreamRecord<>("[" + name + "-" + inputId + "]: Bye"));
-		}
-	}
-
 	private static class TestBoundedAndSelectableTwoInputOperator
-		extends TestBoundedTwoInputOperator	implements InputSelectable {
+		extends TestBoundedTwoInputOperator implements InputSelectable {
 
 		public TestBoundedAndSelectableTwoInputOperator(String name) {
 			super(name);

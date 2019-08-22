@@ -119,7 +119,7 @@ class StreamExecCalc(
     )
     val ret = new OneInputTransformation(
       inputTransform,
-      RelExplainUtil.calcToString(calcProgram, getExpressionString),
+      getRelDetailedDescription,
       substituteStreamOperator,
       BaseRowTypeInfo.of(outputType),
       inputTransform.getParallelism)

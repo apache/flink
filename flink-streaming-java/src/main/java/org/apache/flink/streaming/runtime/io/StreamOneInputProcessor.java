@@ -43,6 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -129,29 +130,29 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 	}
 
 	@Override
+	public boolean isFinished() {
+		return input.isFinished();
+	}
+
+	@Override
+	public CompletableFuture<?> isAvailable() {
+		return input.isAvailable();
+	}
+
+	@Override
 	public boolean processInput() throws Exception {
 		initializeNumRecordsIn();
 
 		StreamElement recordOrMark = input.pollNextNullable();
-		if (recordOrMark == null) {
-			input.isAvailable().get();
-			return !checkFinished();
-		}
-		int channel = input.getLastChannel();
-		checkState(channel != StreamTaskInput.UNSPECIFIED);
+		if (recordOrMark != null) {
+			int channel = input.getLastChannel();
+			checkState(channel != StreamTaskInput.UNSPECIFIED);
 
-		processElement(recordOrMark, channel);
-		return true;
-	}
-
-	private boolean checkFinished() throws Exception {
-		boolean isFinished = input.isFinished();
-		if (isFinished) {
-			synchronized (lock) {
-				operatorChain.endInput(1);
-			}
+			processElement(recordOrMark, channel);
 		}
-		return isFinished;
+		checkFinished();
+
+		return recordOrMark != null;
 	}
 
 	private void processElement(StreamElement recordOrMark, int channel) throws Exception {
@@ -177,6 +178,14 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 			}
 		} else {
 			throw new UnsupportedOperationException("Unknown type of StreamElement");
+		}
+	}
+
+	private void checkFinished() throws Exception {
+		if (input.isFinished()) {
+			synchronized (lock) {
+				operatorChain.endInput(1);
+			}
 		}
 	}
 

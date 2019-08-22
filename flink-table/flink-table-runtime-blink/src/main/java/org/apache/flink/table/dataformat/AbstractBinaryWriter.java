@@ -27,6 +27,7 @@ import org.apache.flink.table.runtime.util.SegmentsUtil;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import static org.apache.flink.table.dataformat.BinaryFormat.MAX_FIX_PART_DATA_SIZE;
@@ -75,7 +76,7 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 	public void writeString(int pos, BinaryString input) {
 		if (input.getSegments() == null) {
 			String javaObject = input.getJavaObject();
-			writeBytes(pos, javaObject.getBytes());
+			writeBytes(pos, javaObject.getBytes(StandardCharsets.UTF_8));
 		} else {
 			int len = input.getSizeInBytes();
 			if (len <= 7) {

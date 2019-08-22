@@ -117,7 +117,7 @@ class MiscITCase extends BatchTestBase {
     checkQuery(
       testData,
       "select sum(f0), avg(f0), count(1) from Table1",
-      Seq((5050, 50.5, 100L))
+      Seq((5050, 50, 100L))
     )
     val testData2 = Seq((1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2))
     checkQuery(

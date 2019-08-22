@@ -88,9 +88,4 @@ class BatchExecSortWindowAggregate(
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getDamBehavior: DamBehavior = DamBehavior.PIPELINED
-
-  override def getOperatorName: String = {
-    val aggregateNamePrefix = if (isMerge) "Global" else "Complete"
-    aggregateNamePrefix + "WindowSortAggregateBatchExec"
-  }
 }

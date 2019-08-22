@@ -125,7 +125,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
 //  @Test
 //  def testSimpleLogical(): Unit = {
 //    val t = failingDataSource(smallTupleData3).toTable(tEnv, 'a, 'b, 'c)
-//      .select('c.firstValue, 'c.lastValue, 'c.concat_agg("#"))
+//      .select('c.firstValue, 'c.lastValue, 'c.LISTAGG("#"))
 //
 //    val sink = new TestingRetractSink()
 //    t.toRetractStream[Row].addSink(sink)
@@ -231,9 +231,9 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     env.execute()
 
     val expected = mutable.MutableList(
-      s"0,1,${1.0/1},1", s"7,1,${9.0/2},2", s"2,1,${6.0/2},2",
-      s"3,2,${11.0/3},3", s"1,2,${10.0/3},3", s"14,2,${5.0/1},1",
-      s"12,3,${5.0/1},1", s"5,3,${8.0/2},2")
+      s"0,1,1,1", s"7,1,4,2", s"2,1,3,2",
+      s"3,2,3,3", s"1,2,3,3", s"14,2,5,1",
+      s"12,3,5,1", s"5,3,4,2")
     assertEquals(expected.sorted, sink.getRetractResults.sorted)
   }
 

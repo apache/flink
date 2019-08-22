@@ -217,7 +217,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -256,7 +256,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -295,7 +295,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -418,7 +418,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -562,7 +562,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -601,7 +601,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -640,7 +640,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -763,7 +763,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -802,7 +802,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -841,7 +841,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -880,7 +880,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -919,7 +919,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -958,7 +958,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -997,7 +997,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -1036,7 +1036,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -1180,7 +1180,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Values(tuples=[[]])
+Values(type=[RecordType(INTEGER a)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>

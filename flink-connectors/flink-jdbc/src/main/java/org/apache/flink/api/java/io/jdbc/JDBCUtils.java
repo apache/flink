@@ -152,53 +152,64 @@ public class JDBCUtils {
 	}
 
 	public static Object getFieldFromResultSet(int index, int type, ResultSet set) throws SQLException {
-		if (set.wasNull()) {
-			return null;
-		}
-
+		Object ret;
 		switch (type) {
 			case java.sql.Types.NULL:
-				return null;
+				ret = null;
+				break;
 			case java.sql.Types.BOOLEAN:
 			case java.sql.Types.BIT:
-				return set.getBoolean(index + 1);
+				ret = set.getBoolean(index + 1);
+				break;
 			case java.sql.Types.CHAR:
 			case java.sql.Types.NCHAR:
 			case java.sql.Types.VARCHAR:
 			case java.sql.Types.LONGVARCHAR:
 			case java.sql.Types.LONGNVARCHAR:
-				return set.getString(index + 1);
+				ret = set.getString(index + 1);
+				break;
 			case java.sql.Types.TINYINT:
-				return set.getByte(index + 1);
+				ret = set.getByte(index + 1);
+				break;
 			case java.sql.Types.SMALLINT:
-				return set.getShort(index + 1);
+				ret = set.getShort(index + 1);
+				break;
 			case java.sql.Types.INTEGER:
-				return set.getInt(index + 1);
+				ret = set.getInt(index + 1);
+				break;
 			case java.sql.Types.BIGINT:
-				return set.getLong(index + 1);
+				ret = set.getLong(index + 1);
+				break;
 			case java.sql.Types.REAL:
-				return set.getFloat(index + 1);
+				ret = set.getFloat(index + 1);
+				break;
 			case java.sql.Types.FLOAT:
 			case java.sql.Types.DOUBLE:
-				return set.getDouble(index + 1);
+				ret = set.getDouble(index + 1);
+				break;
 			case java.sql.Types.DECIMAL:
 			case java.sql.Types.NUMERIC:
-				return set.getBigDecimal(index + 1);
+				ret = set.getBigDecimal(index + 1);
+				break;
 			case java.sql.Types.DATE:
-				return set.getDate(index + 1);
+				ret = set.getDate(index + 1);
+				break;
 			case java.sql.Types.TIME:
-				return set.getTime(index + 1);
+				ret = set.getTime(index + 1);
+				break;
 			case java.sql.Types.TIMESTAMP:
-				return set.getTimestamp(index + 1);
+				ret = set.getTimestamp(index + 1);
+				break;
 			case java.sql.Types.BINARY:
 			case java.sql.Types.VARBINARY:
 			case java.sql.Types.LONGVARBINARY:
-				return set.getBytes(index + 1);
+				ret = set.getBytes(index + 1);
+				break;
 			default:
-				Object value = set.getObject(index + 1);
+				ret = set.getObject(index + 1);
 				LOG.warn("Unmanaged sql type ({}) for column {}. Best effort approach to get its value: {}.",
-						type, index + 1, value);
-				return value;
+					type, index + 1, ret);
+				break;
 
 			// case java.sql.Types.SQLXML
 			// case java.sql.Types.ARRAY:
@@ -212,6 +223,12 @@ public class JDBCUtils {
 			// case java.sql.Types.REF:
 			// case java.sql.Types.ROWID:
 			// case java.sql.Types.STRUC
+		}
+
+		if (set.wasNull()) {
+			return null;
+		} else {
+			return ret;
 		}
 	}
 }

@@ -23,7 +23,6 @@ import org.apache.flink.api.common.io.InitializeOnMaster;
 import org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase;
 import org.apache.flink.api.java.hadoop.common.HadoopOutputFormatCommonBase;
 import org.apache.flink.api.java.hadoop.mapreduce.utils.HadoopUtils;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogTable;
@@ -38,7 +37,6 @@ import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.functions.hive.conversion.HiveObjectConversion;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -58,9 +56,10 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.ql.io.HiveFileFormatUtils;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
-import org.apache.hadoop.hive.serde2.AbstractSerDe;
+import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
+import org.apache.hadoop.hive.serde2.Serializer;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
@@ -113,7 +112,9 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	private transient JobConf jobConf;
 	private transient ObjectPath tablePath;
 	private transient List<String> partitionColumns;
-	private transient RowTypeInfo rowTypeInfo;
+	// Ideally we should maintain a TableSchema here, but it's not Serializable
+	private transient String[] fieldNames;
+	private transient DataType[] fieldTypes;
 	private transient HiveTablePartition hiveTablePartition;
 	private transient Properties tableProperties;
 	private transient boolean overwrite;
@@ -122,7 +123,8 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	// number of non-partitioning columns
 	private transient int numNonPartitionColumns;
 
-	private transient AbstractSerDe serializer;
+	// SerDe in Hive-1.2.1 and Hive-2.3.4 can be of different classes, make sure to use a common base class
+	private transient Serializer recordSerDe;
 	//StructObjectInspector represents the hive row structure.
 	private transient StructObjectInspector rowObjectInspector;
 	private transient Class<? extends Writable> outputClass;
@@ -157,7 +159,8 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		this.tablePath = tablePath;
 		this.partitionColumns = table.getPartitionKeys();
 		TableSchema tableSchema = table.getSchema();
-		this.rowTypeInfo = new RowTypeInfo(tableSchema.getFieldTypes(), tableSchema.getFieldNames());
+		this.fieldNames = tableSchema.getFieldNames();
+		this.fieldTypes = tableSchema.getFieldDataTypes();
 		this.hiveTablePartition = hiveTablePartition;
 		this.tableProperties = tableProperties;
 		this.overwrite = overwrite;
@@ -175,7 +178,8 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		out.writeObject(isPartitioned);
 		out.writeObject(isDynamicPartition);
 		out.writeObject(overwrite);
-		out.writeObject(rowTypeInfo);
+		out.writeObject(fieldNames);
+		out.writeObject(fieldTypes);
 		out.writeObject(hiveTablePartition);
 		out.writeObject(partitionColumns);
 		out.writeObject(tablePath);
@@ -198,7 +202,8 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		isPartitioned = (boolean) in.readObject();
 		isDynamicPartition = (boolean) in.readObject();
 		overwrite = (boolean) in.readObject();
-		rowTypeInfo = (RowTypeInfo) in.readObject();
+		fieldNames = (String[]) in.readObject();
+		fieldTypes = (DataType[]) in.readObject();
 		hiveTablePartition = (HiveTablePartition) in.readObject();
 		partitionColumns = (List<String>) in.readObject();
 		tablePath = (ObjectPath) in.readObject();
@@ -257,11 +262,14 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 	public void open(int taskNumber, int numTasks) throws IOException {
 		try {
 			StorageDescriptor sd = hiveTablePartition.getStorageDescriptor();
-			serializer = (AbstractSerDe) Class.forName(sd.getSerdeInfo().getSerializationLib()).newInstance();
-			ReflectionUtils.setConf(serializer, jobConf);
+			Object serdeLib = Class.forName(sd.getSerdeInfo().getSerializationLib()).newInstance();
+			Preconditions.checkArgument(serdeLib instanceof Serializer && serdeLib instanceof Deserializer,
+					"Expect a SerDe lib implementing both Serializer and Deserializer, but actually got " + serdeLib.getClass().getName());
+			recordSerDe = (Serializer) serdeLib;
+			ReflectionUtils.setConf(recordSerDe, jobConf);
 			// TODO: support partition properties, for now assume they're same as table properties
-			SerDeUtils.initializeSerDe(serializer, jobConf, tableProperties, null);
-			outputClass = serializer.getSerializedClass();
+			SerDeUtils.initializeSerDe((Deserializer) recordSerDe, jobConf, tableProperties, null);
+			outputClass = recordSerDe.getSerializedClass();
 		} catch (IllegalAccessException | SerDeException | InstantiationException | ClassNotFoundException e) {
 			throw new FlinkRuntimeException("Error initializing Hive serializer", e);
 		}
@@ -281,26 +289,25 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 		if (!isDynamicPartition) {
 			staticWriter = writerForLocation(hiveTablePartition.getStorageDescriptor().getLocation());
 		} else {
-			dynamicPartitionOffset = rowTypeInfo.getArity() - partitionColumns.size() + hiveTablePartition.getPartitionSpec().size();
+			dynamicPartitionOffset = fieldNames.length - partitionColumns.size() + hiveTablePartition.getPartitionSpec().size();
 		}
 
-		numNonPartitionColumns = isPartitioned ? rowTypeInfo.getArity() - partitionColumns.size() : rowTypeInfo.getArity();
+		numNonPartitionColumns = isPartitioned ? fieldNames.length - partitionColumns.size() : fieldNames.length;
 		hiveConversions = new HiveObjectConversion[numNonPartitionColumns];
 		List<ObjectInspector> objectInspectors = new ArrayList<>(hiveConversions.length);
 		for (int i = 0; i < numNonPartitionColumns; i++) {
-			DataType dataType = LegacyTypeInfoDataTypeConverter.toDataType(rowTypeInfo.getTypeAt(i));
-			ObjectInspector objectInspector = HiveInspectors.getObjectInspector(dataType);
+			ObjectInspector objectInspector = HiveInspectors.getObjectInspector(fieldTypes[i]);
 			objectInspectors.add(objectInspector);
-			hiveConversions[i] = HiveInspectors.getConversion(objectInspector, dataType.getLogicalType());
+			hiveConversions[i] = HiveInspectors.getConversion(objectInspector, fieldTypes[i].getLogicalType());
 		}
 
 		if (!isPartitioned) {
 			rowObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(
-				Arrays.asList(rowTypeInfo.getFieldNames()),
+				Arrays.asList(fieldNames),
 				objectInspectors);
 		} else {
 			rowObjectInspector = ObjectInspectorFactory.getStandardStructObjectInspector(
-				Arrays.asList(rowTypeInfo.getFieldNames()).subList(0, rowTypeInfo.getArity() - partitionColumns.size()),
+				Arrays.asList(fieldNames).subList(0, fieldNames.length - partitionColumns.size()),
 				objectInspectors);
 			defaultPartitionName = jobConf.get(HiveConf.ConfVars.DEFAULTPARTITIONNAME.varname,
 					HiveConf.ConfVars.DEFAULTPARTITIONNAME.defaultStrVal);
@@ -331,7 +338,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 					partitionToWriter.put(partName, partitionWriter);
 				}
 			}
-			partitionWriter.recordWriter.write(serializer.serialize(getConvertedRow(record), rowObjectInspector));
+			partitionWriter.recordWriter.write(recordSerDe.serialize(getConvertedRow(record), rowObjectInspector));
 		} catch (IOException | SerDeException e) {
 			throw new IOException("Could not write Record.", e);
 		} catch (MetaException e) {

@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -81,6 +82,21 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 		this.inputIndex = inputIndex;
 	}
 
+	@VisibleForTesting
+	StreamTaskNetworkInput(
+		CheckpointedInputGate checkpointedInputGate,
+		TypeSerializer<?> inputSerializer,
+		IOManager ioManager,
+		int inputIndex,
+		RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers) {
+
+		this.checkpointedInputGate = checkpointedInputGate;
+		this.deserializationDelegate = new NonReusingDeserializationDelegate<>(
+			new StreamElementSerializer<>(inputSerializer));
+		this.recordDeserializers = recordDeserializers;
+		this.inputIndex = inputIndex;
+	}
+
 	@Override
 	@Nullable
 	public StreamElement pollNextNullable() throws Exception {
@@ -119,6 +135,9 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 		if (bufferOrEvent.isBuffer()) {
 			lastChannel = bufferOrEvent.getChannelIndex();
 			currentRecordDeserializer = recordDeserializers[lastChannel];
+			checkState(currentRecordDeserializer != null,
+				"currentRecordDeserializer has already been released");
+
 			currentRecordDeserializer.setNextBuffer(bufferOrEvent.getBuffer());
 		}
 		else {
@@ -128,6 +147,10 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 			if (event.getClass() != EndOfPartitionEvent.class) {
 				throw new IOException("Unexpected event: " + event);
 			}
+
+			// release the record deserializer immediately,
+			// which is very valuable in case of bounded stream
+			releaseDeserializer(bufferOrEvent.getChannelIndex());
 		}
 	}
 
@@ -156,15 +179,26 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 
 	@Override
 	public void close() throws IOException {
-		// clear the buffers. this part should not ever fail
-		for (RecordDeserializer<?> deserializer : recordDeserializers) {
+		// release the deserializers . this part should not ever fail
+		for (int channelIndex = 0; channelIndex < recordDeserializers.length; channelIndex++) {
+			releaseDeserializer(channelIndex);
+		}
+
+		// cleanup the resources of the checkpointed input gate
+		checkpointedInputGate.cleanup();
+	}
+
+	private void releaseDeserializer(int channelIndex) {
+		RecordDeserializer<?> deserializer = recordDeserializers[channelIndex];
+		if (deserializer != null) {
+			// recycle buffers and clear the deserializer.
 			Buffer buffer = deserializer.getCurrentBuffer();
 			if (buffer != null && !buffer.isRecycled()) {
 				buffer.recycleBuffer();
 			}
 			deserializer.clear();
-		}
 
-		checkpointedInputGate.cleanup();
+			recordDeserializers[channelIndex] = null;
+		}
 	}
 }

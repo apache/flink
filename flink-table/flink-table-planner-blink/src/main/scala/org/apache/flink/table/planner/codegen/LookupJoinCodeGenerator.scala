@@ -65,7 +65,7 @@ object LookupJoinCodeGenerator {
     : GeneratedFunction[FlatMapFunction[BaseRow, BaseRow]] = {
 
     val ctx = CodeGeneratorContext(config)
-    val (prepareCode, parameters) = prepareParameters(
+    val (prepareCode, parameters, nullInParameters) = prepareParameters(
       ctx,
       typeFactory,
       inputType,
@@ -87,11 +87,17 @@ object LookupJoinCodeGenerator {
         s"$lookupFunctionTerm.setCollector($DEFAULT_COLLECTOR_TERM);"
     }
 
+    // TODO: filter all records when there is any nulls on the join key, because
+    //  "IS NOT DISTINCT FROM" is not supported yet.
     val body =
       s"""
          |$prepareCode
          |$setCollectorCode
-         |$lookupFunctionTerm.eval($parameters);
+         |if ($nullInParameters) {
+         |  return;
+         |} else {
+         |  $lookupFunctionTerm.eval($parameters);
+         | }
       """.stripMargin
 
     FunctionCodeGenerator.generateFunction(
@@ -118,7 +124,7 @@ object LookupJoinCodeGenerator {
     : GeneratedFunction[AsyncFunction[BaseRow, AnyRef]] = {
 
     val ctx = CodeGeneratorContext(config)
-    val (prepareCode, parameters) = prepareParameters(
+    val (prepareCode, parameters, nullInParameters) = prepareParameters(
       ctx,
       typeFactory,
       inputType,
@@ -130,11 +136,18 @@ object LookupJoinCodeGenerator {
     val lookupFunctionTerm = ctx.addReusableFunction(asyncLookupFunction)
     val DELEGATE = className[DelegatingResultFuture[_]]
 
+    // TODO: filter all records when there is any nulls on the join key, because
+    //  "IS NOT DISTINCT FROM" is not supported yet.
     val body =
       s"""
          |$prepareCode
-         |$DELEGATE delegates = new $DELEGATE($DEFAULT_COLLECTOR_TERM);
-         |$lookupFunctionTerm.eval(delegates.getCompletableFuture(), $parameters);
+         |if ($nullInParameters) {
+         |  $DEFAULT_COLLECTOR_TERM.complete(java.util.Collections.emptyList());
+         |  return;
+         |} else {
+         |  $DELEGATE delegates = new $DELEGATE($DEFAULT_COLLECTOR_TERM);
+         |  $lookupFunctionTerm.eval(delegates.getCompletableFuture(), $parameters);
+         |}
       """.stripMargin
 
     FunctionCodeGenerator.generateFunction(
@@ -156,7 +169,7 @@ object LookupJoinCodeGenerator {
       lookupKeyInOrder: Array[Int],
       allLookupFields: Map[Int, LookupKey],
       isExternalArgs: Boolean,
-      fieldCopy: Boolean): (String, String) = {
+      fieldCopy: Boolean): (String, String, String) = {
 
     val inputFieldExprs = for (i <- lookupKeyInOrder) yield {
       allLookupFields.get(i) match {
@@ -195,9 +208,12 @@ object LookupJoinCodeGenerator {
              |  $newTerm = $assign;
              |}
              """.stripMargin
-        (code, newTerm)
+        (code, newTerm, e.nullTerm)
       }
-    (codeAndArg.map(_._1).mkString("\n"), codeAndArg.map(_._2).mkString(", "))
+    (
+      codeAndArg.map(_._1).mkString("\n"),
+      codeAndArg.map(_._2).mkString(", "),
+      codeAndArg.map(_._3).mkString("|| "))
   }
 
   /**
