@@ -814,10 +814,8 @@ LIMIT 3
 
 ### Top-N
 
-TopN is used to calculate the maximum/minimum N records in a stream. It can be flexibly completed based on OVER window aggregation. The grammar is shown as below:
-
 Top-N queries ask for the N smallest or largest values ordered by columns. Both smallest and largest values sets are considered Top-N queries. Top-N queries are useful in cases where the need is to display only the N bottom-most or the N top-
-most records from batch/stream table on a condition. This result set can be used for further analysis.
+most records from batch/streaming table on a condition. This result set can be used for further analysis.
 
 Flink uses the combination of a OVER window clause and a filter condition to express a Top-N query. With the power of OVER window `PARTITION BY` clause, Flink also supports per group Top-N. For example, the top five products per category that have the maximum sales in realtime. Top-N queries are supported for SQL on batch and streaming tables.
 
@@ -841,7 +839,7 @@ WHERE rownum <= N [AND conditions]
 - `WHERE rownum <= N`: The `rownum <= N` is required for Flink to recognize this query is a Top-N query. The N represents the N smallest or largest records will be retained.
 - `[AND conditions]`: It is free to add other conditions in the where clause, but the other conditions can only be combined with `rownum <= N` using `AND` conjunction.
 
-<span class="label label-danger">Attention</span> Flink SQL will sort the input data stream according to the order key, so if the top N records have been changed, the changed ones will be sent as retraction/update records to downstream. In addition, if the top N records need to be stored in external storage, the result table must have the same primary key with the Top-N query. By default, the primary key of Top-N query is the combination of partition columns + rownum column.
+<span class="label label-danger">Attention in Streaming Mode</span> Flink SQL will sort the input data stream according to the order key, so if the top N records have been changed, the changed ones will be sent as retraction/update records to downstream. In addition, if the top N records need to be stored in external storage, the result table must have the same primary key with the Top-N query. By default, the primary key of Top-N query is the combination of partition columns + rownum column.
 
 The following examples show how to specify SQL queries with Top-N on streaming tables. This is an example to get "the top five products per category that have the maximum sales in realtime" we mentioned above.
 
@@ -947,7 +945,7 @@ val result1 = tableEnv.sqlQuery(
 </div>
 </div>
 
-<span class="label label-danger">Attention</span> In order to output the above query to an external storage and have a correct result, the external storage must have the same primary key with the Top-N query. In the above example query, if the `product_id` is the primary key of the query, then the external table should also has `product_id` as the primary key.
+<span class="label label-danger">Attention in Streaming Mode</span> In order to output the above query to an external storage and have a correct result, the external storage must have the same primary key with the Top-N query. In the above example query, if the `product_id` is the primary key of the query, then the external table should also has `product_id` as the primary key.
 
 {% top %}
 
