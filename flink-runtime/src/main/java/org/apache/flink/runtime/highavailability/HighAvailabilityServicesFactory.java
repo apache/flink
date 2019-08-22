@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 import java.util.concurrent.Executor;
 
@@ -36,4 +38,19 @@ public interface HighAvailabilityServicesFactory {
 	 * @throws Exception when HAServices cannot be created
 	 */
 	HighAvailabilityServices createHAServices(Configuration configuration, Executor executor) throws Exception;
+
+	default ClientHaServices createClientHaService(Configuration configuration) throws Exception {
+		return new ClientHaServices() {
+			private HighAvailabilityServices haServices = createHAServices(configuration, Executors.directExecutor());
+			@Override
+			public LeaderRetrievalService getWebMonitorLeaderRetriever() {
+				return haServices.getWebMonitorLeaderRetriever();
+			}
+
+			@Override
+			public void close() throws Exception {
+				haServices.close();
+			}
+		};
+	}
 }

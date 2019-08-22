@@ -298,7 +298,6 @@ public class RestClusterClientSavepointTriggerTest extends TestLogger {
 			clientConfig,
 			new RestClient(RestClientConfiguration.fromConfiguration(REST_CONFIG), executor),
 			StandaloneClusterId.getInstance(),
-			(attempt) -> 0,
-			null);
+			(attempt) -> 0);
 	}
 }

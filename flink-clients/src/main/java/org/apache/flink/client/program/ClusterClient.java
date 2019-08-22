@@ -35,16 +35,12 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.util.LeaderConnectionInfo;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
@@ -81,11 +77,6 @@ public abstract class ClusterClient<T> {
 	/** Timeout for futures. */
 	protected final FiniteDuration timeout;
 
-	/** Service factory for high available. */
-	protected final HighAvailabilityServices highAvailabilityServices;
-
-	private final boolean sharedHaServices;
-
 	/** Flag indicating whether to sysout print execution updates. */
 	private boolean printStatusDuringExecution = true;
 
@@ -109,39 +100,11 @@ public abstract class ClusterClient<T> {
 	 * if that is not possible.
 	 *
 	 * @param flinkConfig The config used to obtain the job-manager's address, and used to configure the optimizer.
-	 *
-	 * @throws Exception we cannot create the high availability services
 	 */
-	public ClusterClient(Configuration flinkConfig) throws Exception {
-		this(
-			flinkConfig,
-			HighAvailabilityServicesUtils.createHighAvailabilityServices(
-				flinkConfig,
-				Executors.directExecutor(),
-				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION),
-			false);
-	}
-
-	/**
-	 * Creates a instance that submits the programs to the JobManager defined in the
-	 * configuration. This method will try to resolve the JobManager hostname and throw an exception
-	 * if that is not possible.
-	 *
-	 * @param flinkConfig The config used to obtain the job-manager's address, and used to configure the optimizer.
-	 * @param highAvailabilityServices HighAvailabilityServices to use for leader retrieval
-	 * @param sharedHaServices true if the HighAvailabilityServices are shared and must not be shut down
-	 */
-	public ClusterClient(
-			Configuration flinkConfig,
-			HighAvailabilityServices highAvailabilityServices,
-			boolean sharedHaServices) {
+	public ClusterClient(Configuration flinkConfig) {
 		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), flinkConfig);
-
 		this.timeout = AkkaUtils.getClientTimeout(flinkConfig);
-
-		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
-		this.sharedHaServices = sharedHaServices;
 	}
 
 	// ------------------------------------------------------------------------
@@ -151,13 +114,7 @@ public abstract class ClusterClient<T> {
 	/**
 	 * Shuts down the client. This stops the internal actor system and actors.
 	 */
-	public void shutdown() throws Exception {
-		synchronized (this) {
-			if (!sharedHaServices && highAvailabilityServices != null) {
-				highAvailabilityServices.close();
-			}
-		}
-	}
+	public abstract void shutdown() throws Exception;
 
 	// ------------------------------------------------------------------------
 	//  Configuration
@@ -186,11 +143,7 @@ public abstract class ClusterClient<T> {
 	 * @return The the connection info to the leader component of the cluster
 	 * @throws LeaderRetrievalException if the leader could not be retrieved
 	 */
-	public LeaderConnectionInfo getClusterConnectionInfo() throws LeaderRetrievalException {
-		return LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
-			highAvailabilityServices.getDispatcherLeaderRetriever(),
-			timeout);
-	}
+	public abstract LeaderConnectionInfo getClusterConnectionInfo() throws Exception;
 
 	// ------------------------------------------------------------------------
 	//  Access to the Program's Plan

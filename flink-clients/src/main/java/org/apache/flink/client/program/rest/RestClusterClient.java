@@ -37,6 +37,8 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
+import org.apache.flink.runtime.highavailability.ClientHaServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -56,12 +58,14 @@ import org.apache.flink.runtime.rest.messages.JobCancellationHeaders;
 import org.apache.flink.runtime.rest.messages.JobCancellationMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
+import org.apache.flink.runtime.rest.messages.LeaderInfo;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.TriggerId;
+import org.apache.flink.runtime.rest.messages.cluster.LeaderInfoHeaders;
 import org.apache.flink.runtime.rest.messages.cluster.ShutdownHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
@@ -86,10 +90,12 @@ import org.apache.flink.runtime.rest.messages.queue.QueueStatus;
 import org.apache.flink.runtime.rest.util.RestClientException;
 import org.apache.flink.runtime.rest.util.RestConstants;
 import org.apache.flink.runtime.util.ExecutorThreadFactory;
+import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.CheckedSupplier;
@@ -111,6 +117,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -149,20 +156,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			config,
 			null,
 			clusterId,
-			new ExponentialWaitStrategy(10L, 2000L),
-			null);
-	}
-
-	public RestClusterClient(
-			Configuration config,
-			T clusterId,
-			LeaderRetrievalService webMonitorRetrievalService) throws Exception {
-		this(
-			config,
-			null,
-			clusterId,
-			new ExponentialWaitStrategy(10L, 2000L),
-			webMonitorRetrievalService);
+			new ExponentialWaitStrategy(10L, 2000L));
 	}
 
 	@VisibleForTesting
@@ -170,8 +164,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			Configuration configuration,
 			@Nullable RestClient restClient,
 			T clusterId,
-			WaitStrategy waitStrategy,
-			@Nullable LeaderRetrievalService webMonitorRetrievalService) throws Exception {
+			WaitStrategy waitStrategy) throws Exception {
 		super(configuration);
 		this.restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(configuration);
 
@@ -184,17 +177,35 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 		this.waitStrategy = Preconditions.checkNotNull(waitStrategy);
 		this.clusterId = Preconditions.checkNotNull(clusterId);
 
-		if (webMonitorRetrievalService == null) {
-			this.webMonitorRetrievalService = highAvailabilityServices.getWebMonitorLeaderRetriever();
-		} else {
-			this.webMonitorRetrievalService = webMonitorRetrievalService;
-		}
+		ClientHaServices clientHaServices = HighAvailabilityServicesUtils.createClientHaService(configuration);
+		this.webMonitorRetrievalService = clientHaServices.getWebMonitorLeaderRetriever();
+
 		this.retryExecutorService = Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("Flink-RestClusterClient-Retry"));
 		startLeaderRetrievers();
 	}
 
 	private void startLeaderRetrievers() throws Exception {
 		this.webMonitorRetrievalService.start(webMonitorLeaderRetriever);
+	}
+
+	@Override
+	public LeaderConnectionInfo getClusterConnectionInfo() throws Exception {
+		LeaderInfoHeaders leaderInfoHeaders = LeaderInfoHeaders.getInstance();
+		CompletableFuture<LeaderInfo> leaderInfoFuture = FutureUtils.retryWithDelay(
+			() -> sendRequest(leaderInfoHeaders),
+			2,
+			Time.milliseconds(timeout.toMillis()),
+			new ScheduledExecutorServiceAdapter(retryExecutorService));
+
+		return leaderInfoFuture.thenApply(leaderInfo -> {
+			String address = leaderInfo.getAddress();
+			UUID uuid = UUID.fromString(leaderInfo.getDispatcherId());
+			try {
+				return new LeaderConnectionInfo(address, uuid);
+			} catch (Exception e) {
+				throw new FlinkRuntimeException(e);
+			}
+		}).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
 	}
 
 	@Override
@@ -208,13 +219,6 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			webMonitorRetrievalService.stop();
 		} catch (Exception e) {
 			log.error("An error occurred during stopping the webMonitorRetrievalService", e);
-		}
-
-		try {
-			// we only call this for legacy reasons to shutdown components that are started in the ClusterClient constructor
-			super.shutdown();
-		} catch (Exception e) {
-			log.error("An error occurred during the client shutdown.", e);
 		}
 	}
 

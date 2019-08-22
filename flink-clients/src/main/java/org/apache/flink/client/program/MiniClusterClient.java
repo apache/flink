@@ -29,6 +29,8 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.util.LeaderConnectionInfo;
+import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
@@ -51,14 +53,14 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	private final MiniCluster miniCluster;
 
 	public MiniClusterClient(@Nonnull Configuration configuration, @Nonnull MiniCluster miniCluster) {
-		super(configuration, miniCluster.getHighAvailabilityServices(), true);
+		super(configuration);
 
 		this.miniCluster = miniCluster;
 	}
 
 	@Override
 	public void shutdown() throws Exception {
-		super.shutdown();
+		// no op
 	}
 
 	@Override
@@ -94,6 +96,13 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
 			}
 		}
+	}
+
+	@Override
+	public LeaderConnectionInfo getClusterConnectionInfo() throws Exception {
+		return LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
+			miniCluster.getHighAvailabilityServices().getDispatcherLeaderRetriever(),
+			timeout);
 	}
 
 	@Override

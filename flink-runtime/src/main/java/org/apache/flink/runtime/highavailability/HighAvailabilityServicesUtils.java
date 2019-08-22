@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.highavailability;
 
+import org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
@@ -27,7 +28,9 @@ import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
+import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneClientHaService;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
+import org.apache.flink.runtime.highavailability.zookeeper.ZKClientHaService;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobMaster;
@@ -133,6 +136,28 @@ public class HighAvailabilityServicesUtils {
 		}
 	}
 
+	public static ClientHaServices createClientHaService(Configuration configuration) throws Exception {
+		HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(configuration);
+
+		switch (highAvailabilityMode) {
+			case NONE:
+				final String address = checkNotNull(configuration.getString(RestOptions.ADDRESS),
+					"%s must be set", RestOptions.ADDRESS.key());
+				final int port = configuration.getInteger(RestOptions.PORT);
+				final boolean enableSSL = SSLUtils.isRestSSLEnabled(configuration);
+				final String protocol = enableSSL ? "https://" : "http://";
+				final String webMonitorAddress = String.format("%s%s:%s", protocol, address, port);
+				return new StandaloneClientHaService(webMonitorAddress);
+			case ZOOKEEPER:
+				final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
+				return new ZKClientHaService(client, configuration);
+			case FACTORY_CLASS:
+				return createCustomClientHaServices(configuration);
+			default:
+				throw new Exception("Recovery mode " + highAvailabilityMode + " is not supported.");
+		}
+	}
+
 	/**
 	 * Returns the JobManager's hostname and port extracted from the given
 	 * {@link Configuration}.
@@ -175,6 +200,26 @@ public class HighAvailabilityServicesUtils {
 			throw new FlinkException(
 				String.format(
 					"Could not create the ha services from the instantiated HighAvailabilityServicesFactory %s.",
+					haServicesClassName),
+				e);
+		}
+	}
+
+	private static ClientHaServices createCustomClientHaServices(Configuration config) throws FlinkException {
+		final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+		final String haServicesClassName = config.getString(HighAvailabilityOptions.HA_MODE);
+
+		final HighAvailabilityServicesFactory highAvailabilityServicesFactory = InstantiationUtil.instantiate(
+			haServicesClassName,
+			HighAvailabilityServicesFactory.class,
+			classLoader);
+
+		try {
+			return highAvailabilityServicesFactory.createClientHaService(config);
+		} catch (Exception e) {
+			throw new FlinkException(
+				String.format(
+					"Could not create the client ha services from the instantiated HighAvailabilityServicesFactory %s.",
 					haServicesClassName),
 				e);
 		}
