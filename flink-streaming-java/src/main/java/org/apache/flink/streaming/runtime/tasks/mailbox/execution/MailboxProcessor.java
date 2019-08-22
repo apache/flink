@@ -99,13 +99,6 @@ public class MailboxProcessor {
 	}
 
 	/**
-	 * Lifecycle method to open the mailbox for action submission.
-	 */
-	public void open() {
-		mailbox.open();
-	}
-
-	/**
 	 * Lifecycle method to close the mailbox for action submission.
 	 */
 	public void prepareClose() {
