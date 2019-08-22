@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.sources
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.table.api.{DataTypes, ValidationException}
-import org.apache.flink.table.expressions.ResolvedFieldReference
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{typeLiteral, unresolvedCall, valueLiteral}
+import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{typeLiteral, valueLiteral}
+import org.apache.flink.table.expressions.{CallExpression, ResolvedExpression, ResolvedFieldReference}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.expressions.RexNodeConverter
@@ -285,11 +285,14 @@ object TableSourceUtil {
       // add cast to requested type and convert expression to RexNode
       // blink runner treats numeric types as seconds in the cast of timestamp and numerical types.
       // So we use REINTERPRET_CAST to keep the mills of numeric types.
-      val castExpression = unresolvedCall(
+      val outputType = DataTypes.TIMESTAMP(3).bridgedTo(classOf[Timestamp])
+      val castExpression = new CallExpression(
         BuiltInFunctionDefinitions.REINTERPRET_CAST,
-        expression,
-        typeLiteral(DataTypes.TIMESTAMP(3).bridgedTo(classOf[Timestamp])),
-        valueLiteral(false))
+        Seq(
+          expression.asInstanceOf[ResolvedExpression],
+          typeLiteral(outputType),
+          valueLiteral(false)),
+        outputType)
       val rexExpression = castExpression.accept(new RexNodeConverter(relBuilder))
       relBuilder.clear()
       rexExpression
