@@ -39,7 +39,7 @@ import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketV
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
 
 /**
- *
+ * Factory for creating configured instances of {@link ParquetFileSystemTableSink}.
  */
 public class ParquetFileSystemTableSinkFactory extends BultFileSystemTableSinkFactory {
 

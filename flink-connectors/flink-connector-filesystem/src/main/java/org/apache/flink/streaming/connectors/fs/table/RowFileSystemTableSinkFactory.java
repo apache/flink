@@ -1,19 +1,16 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
+ * agreements.  See the NOTICE file distributed with this work for additional information regarding
+ * copyright ownership.  The ASF licenses this file to you under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with the License.  You may obtain
+ * a copy of the License at
  * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
  * <p>
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 
 package org.apache.flink.streaming.connectors.fs.table;
@@ -25,6 +22,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSin
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.DateTimeBucketAssigner;
 import org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.descriptors.CsvValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.descriptors.SchemaValidator;
 import org.apache.flink.table.factories.SerializationSchemaFactory;
@@ -45,11 +43,10 @@ import static org.apache.flink.table.descriptors.Schema.SCHEMA_FROM;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_NAME;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA_TYPE;
 
-
-
 /**
+ * Factory for creating configured instances of {@link RowFileSystemTableSink}.
  */
-public class RawFileSystemTableSinkFactory extends FileSystemTableSinkFactoryBase {
+public class RowFileSystemTableSinkFactory extends FileSystemTableSinkFactoryBase {
 
 	@Override
 	public StreamTableSink<Row> createStreamTableSink(Map<String, String> properties) {
@@ -59,6 +56,7 @@ public class RawFileSystemTableSinkFactory extends FileSystemTableSinkFactoryBas
 		final String path = descriptorProperties.getString(CONNECTOR_BASEPATH);
 
 		SerializationSchema<Row> serializationSchema = getSerializationSchema(properties);
+
 		StreamingFileSink.RowFormatBuilder builder = StreamingFileSink.forRowFormat(
 			new Path(path),
 			new SerializationEncoder<Row>(
@@ -70,7 +68,7 @@ public class RawFileSystemTableSinkFactory extends FileSystemTableSinkFactoryBas
 		}
 
 		StreamingFileSink<Row> sink = builder.build();
-		return new RawFileSystemTableSink(schema, sink);
+		return new RowFileSystemTableSink(schema, sink);
 	}
 
 	@Override
@@ -82,9 +80,6 @@ public class RawFileSystemTableSinkFactory extends FileSystemTableSinkFactoryBas
 		properties.add(CONNECTOR_BASEPATH);
 		properties.add(CONNECTOR_TYPE);
 		properties.add(CONNECTOR_DATE_FORMAT);
-//		properties.add("connector.property-version");
-//		properties.add("format.property-version");
-//		properties.add("format.derive-schema");
 
 		// schema
 		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
@@ -114,6 +109,6 @@ public class RawFileSystemTableSinkFactory extends FileSystemTableSinkFactoryBas
 
 	@Override
 	protected String formatType() {
-		return BucketValidator.CONNECTOR_DATA_TYPE_RAW_VALUE;
+		return BucketValidator.CONNECTOR_DATA_TYPE_ROW_VALUE;
 	}
 }

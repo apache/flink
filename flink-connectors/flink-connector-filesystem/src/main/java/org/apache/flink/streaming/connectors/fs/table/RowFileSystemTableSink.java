@@ -24,12 +24,12 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSin
 import org.apache.flink.table.api.TableSchema;
 
 /**
- *
+ * File system table sink for write row-wise data .
  */
 @Internal
-public class RawFileSystemTableSink extends FileSystemTableSinkBase {
+public class RowFileSystemTableSink extends FileSystemTableSinkBase {
 
-	public RawFileSystemTableSink(TableSchema schema, StreamingFileSink sink) {
+	public RowFileSystemTableSink(TableSchema schema, StreamingFileSink sink) {
 		super(schema, sink);
 	}
 

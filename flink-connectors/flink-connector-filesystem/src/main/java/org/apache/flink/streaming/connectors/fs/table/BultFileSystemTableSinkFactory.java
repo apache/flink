@@ -29,7 +29,7 @@ import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CO
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 
 /**
- *
+ * Factory for creating configured instances of BultFileSystemTableSink .
  */
 public abstract class BultFileSystemTableSinkFactory extends FileSystemTableSinkFactoryBase {
 
@@ -41,14 +41,6 @@ public abstract class BultFileSystemTableSinkFactory extends FileSystemTableSink
 		properties.add(CONNECTOR_BASEPATH);
 		properties.add(CONNECTOR_TYPE);
 		properties.add(CONNECTOR_DATE_FORMAT);
-//		properties.add("connector.property-version");
-//		properties.add("format.property-version");
-//		properties.add("format.derive-schema");
-
-		// schema
-//		properties.add(SCHEMA + ".#." + SCHEMA_TYPE);
-//		properties.add(SCHEMA + ".#." + SCHEMA_NAME);
-//		properties.add(SCHEMA + ".#." + SCHEMA_FROM);
 
 		properties.add(FORMAT + ".*");
 

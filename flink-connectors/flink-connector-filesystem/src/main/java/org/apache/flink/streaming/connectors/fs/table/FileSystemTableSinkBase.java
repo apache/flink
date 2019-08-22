@@ -32,7 +32,7 @@ import org.apache.flink.types.Row;
 import java.util.Arrays;
 
 /**
- *
+ * a base file system table sink .
  */
 @Internal
 public abstract class FileSystemTableSinkBase implements AppendStreamTableSink<Row> {

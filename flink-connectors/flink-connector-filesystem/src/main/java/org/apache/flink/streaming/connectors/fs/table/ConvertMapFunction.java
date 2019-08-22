@@ -36,7 +36,7 @@ import java.util.Map;
 import java.util.TimeZone;
 
 /**
- *
+ * a map function to Convert Row to GenericRecord .
  */
 public class ConvertMapFunction implements MapFunction<Row, GenericRecord> {
 

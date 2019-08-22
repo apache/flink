@@ -24,7 +24,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSin
 import org.apache.flink.table.api.TableSchema;
 
 /**
- *
+ * File system table sink for write avro data .
  */
 @Internal
 public class AvroFileSystemTableSink extends FileSystemTableSinkBase {

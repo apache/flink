@@ -33,7 +33,7 @@ import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.
 import static org.apache.flink.table.descriptors.StreamTableDescriptorValidator.UPDATE_MODE_VALUE_APPEND;
 
 /**
- *
+ * a base Factory for creating FileSystemTableSink .
  */
 public abstract class FileSystemTableSinkFactoryBase implements StreamTableSinkFactory<Row> {
 
