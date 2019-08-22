@@ -442,6 +442,9 @@ public class RegionFailoverITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * Testing HA factory which needs to be public in order to be instantiatable.
+	 */
 	public static class TestingHAFactory implements HighAvailabilityServicesFactory {
 
 		@Override
