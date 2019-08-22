@@ -23,7 +23,7 @@ import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
@@ -59,7 +59,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	private volatile CheckpointRecoveryFactory checkpointRecoveryFactory;
 
-	private volatile SubmittedJobGraphStore submittedJobGraphStore;
+	private volatile JobGraphStore jobGraphStore;
 
 	private volatile RunningJobsRegistry runningJobsRegistry = new StandaloneRunningJobsRegistry();
 
@@ -103,8 +103,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 		this.checkpointRecoveryFactory = checkpointRecoveryFactory;
 	}
 
-	public void setSubmittedJobGraphStore(SubmittedJobGraphStore submittedJobGraphStore) {
-		this.submittedJobGraphStore = submittedJobGraphStore;
+	public void setJobGraphStore(JobGraphStore jobGraphStore) {
+		this.jobGraphStore = jobGraphStore;
 	}
 
 	public void setRunningJobsRegistry(RunningJobsRegistry runningJobsRegistry) {
@@ -213,13 +213,13 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	}
 
 	@Override
-	public SubmittedJobGraphStore getSubmittedJobGraphStore() {
-		SubmittedJobGraphStore store = submittedJobGraphStore;
+	public JobGraphStore getJobGraphStore() {
+		JobGraphStore store = jobGraphStore;
 
 		if (store != null) {
 			return store;
 		} else {
-			throw new IllegalStateException("SubmittedJobGraphStore has not been set");
+			throw new IllegalStateException("JobGraphStore has not been set");
 
 		}
 	}

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.zookeeper.ZooKeeperStateHandleStore;
 import org.apache.flink.util.ExceptionUtils;
@@ -46,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * {@link SubmittedJobGraph} instances for JobManagers running in {@link HighAvailabilityMode#ZOOKEEPER}.
+ * {@link JobGraph} instances for JobManagers running in {@link HighAvailabilityMode#ZOOKEEPER}.
  *
  * <p>Each job graph creates ZNode:
  * <pre>
@@ -58,21 +59,21 @@ import static org.apache.flink.util.Preconditions.checkState;
  * </pre>
  *
  * <p>The root path is watched to detect concurrent modifications in corner situations where
- * multiple instances operate concurrently. The job manager acts as a {@link SubmittedJobGraphListener}
+ * multiple instances operate concurrently. The job manager acts as a {@link JobGraphListener}
  * to react to such situations.
  */
-public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
+public class ZooKeeperJobGraphStore implements JobGraphStore {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperSubmittedJobGraphStore.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperJobGraphStore.class);
 
-	/** Lock to synchronize with the {@link SubmittedJobGraphListener}. */
+	/** Lock to synchronize with the {@link JobGraphListener}. */
 	private final Object cacheLock = new Object();
 
 	/** The set of IDs of all added job graphs. */
 	private final Set<JobID> addedJobGraphs = new HashSet<>();
 
 	/** Submitted job graphs in ZooKeeper. */
-	private final ZooKeeperStateHandleStore<SubmittedJobGraph> jobGraphsInZooKeeper;
+	private final ZooKeeperStateHandleStore<JobGraph> jobGraphsInZooKeeper;
 
 	/**
 	 * Cache to monitor all children. This is used to detect races with other instances working
@@ -84,7 +85,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	private final String zooKeeperFullBasePath;
 
 	/** The external listener to be notified on races. */
-	private SubmittedJobGraphListener jobGraphListener;
+	private JobGraphListener jobGraphListener;
 
 	/** Flag indicating whether this instance is running. */
 	private boolean isRunning;
@@ -95,9 +96,9 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	 * @param zooKeeperFullBasePath ZooKeeper path for current job graphs
 	 * @param zooKeeperStateHandleStore State storage used to persist the submitted jobs
 	 */
-	public ZooKeeperSubmittedJobGraphStore(
+	public ZooKeeperJobGraphStore(
 			String zooKeeperFullBasePath,
-			ZooKeeperStateHandleStore<SubmittedJobGraph> zooKeeperStateHandleStore,
+			ZooKeeperStateHandleStore<JobGraph> zooKeeperStateHandleStore,
 			PathChildrenCache pathCache) {
 
 		checkNotNull(zooKeeperFullBasePath, "Current jobs path");
@@ -106,11 +107,11 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 		this.jobGraphsInZooKeeper = checkNotNull(zooKeeperStateHandleStore);
 
 		this.pathCache = checkNotNull(pathCache);
-		pathCache.getListenable().addListener(new SubmittedJobGraphsPathCacheListener());
+		pathCache.getListenable().addListener(new JobGraphsPathCacheListener());
 	}
 
 	@Override
-	public void start(SubmittedJobGraphListener jobGraphListener) throws Exception {
+	public void start(JobGraphListener jobGraphListener) throws Exception {
 		synchronized (cacheLock) {
 			if (!isRunning) {
 				this.jobGraphListener = jobGraphListener;
@@ -144,7 +145,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 					}
 
 					if (exception != null) {
-						throw new FlinkException("Could not properly stop the ZooKeeperSubmittedJobGraphStore.", exception);
+						throw new FlinkException("Could not properly stop the ZooKeeperJobGraphStore.", exception);
 					}
 				} finally {
 					isRunning = false;
@@ -155,7 +156,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 
 	@Override
 	@Nullable
-	public SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception {
+	public JobGraph recoverJobGraph(JobID jobId) throws Exception {
 		checkNotNull(jobId, "Job ID");
 		final String path = getPathForJob(jobId);
 
@@ -167,7 +168,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 			boolean success = false;
 
 			try {
-				RetrievableStateHandle<SubmittedJobGraph> jobGraphRetrievableStateHandle;
+				RetrievableStateHandle<JobGraph> jobGraphRetrievableStateHandle;
 
 				try {
 					jobGraphRetrievableStateHandle = jobGraphsInZooKeeper.getAndLock(path);
@@ -178,7 +179,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 					throw new FlinkException("Could not retrieve the submitted job graph state handle " +
 						"for " + path + " from the submitted job graph store.", e);
 				}
-				SubmittedJobGraph jobGraph;
+				JobGraph jobGraph;
 
 				try {
 					jobGraph = jobGraphRetrievableStateHandle.retrieveState();
@@ -192,7 +193,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 						"store.", ioe);
 				}
 
-				addedJobGraphs.add(jobGraph.getJobId());
+				addedJobGraphs.add(jobGraph.getJobID());
 
 				LOG.info("Recovered {}.", jobGraph);
 
@@ -207,11 +208,11 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	}
 
 	@Override
-	public void putJobGraph(SubmittedJobGraph jobGraph) throws Exception {
+	public void putJobGraph(JobGraph jobGraph) throws Exception {
 		checkNotNull(jobGraph, "Job graph");
-		String path = getPathForJob(jobGraph.getJobId());
+		String path = getPathForJob(jobGraph.getJobID());
 
-		LOG.debug("Adding job graph {} to {}{}.", jobGraph.getJobId(), zooKeeperFullBasePath, path);
+		LOG.debug("Adding job graph {} to {}{}.", jobGraph.getJobID(), zooKeeperFullBasePath, path);
 
 		boolean success = false;
 
@@ -225,14 +226,14 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 					try {
 						jobGraphsInZooKeeper.addAndLock(path, jobGraph);
 
-						addedJobGraphs.add(jobGraph.getJobId());
+						addedJobGraphs.add(jobGraph.getJobID());
 
 						success = true;
 					}
 					catch (KeeperException.NodeExistsException ignored) {
 					}
 				}
-				else if (addedJobGraphs.contains(jobGraph.getJobId())) {
+				else if (addedJobGraphs.contains(jobGraph.getJobID())) {
 					try {
 						jobGraphsInZooKeeper.replace(path, currentVersion, jobGraph);
 						LOG.info("Updated {} in ZooKeeper.", jobGraph);
@@ -321,7 +322,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	 * <p>Detects modifications from other job managers in corner situations. The event
 	 * notifications fire for changes from this job manager as well.
 	 */
-	private final class SubmittedJobGraphsPathCacheListener implements PathChildrenCacheListener {
+	private final class JobGraphsPathCacheListener implements PathChildrenCacheListener {
 
 		@Override
 		public void childEvent(CuratorFramework client, PathChildrenCacheEvent event)
@@ -354,7 +355,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 								}
 							}
 						} catch (Exception e) {
-							LOG.error("Error in SubmittedJobGraphsPathCacheListener", e);
+							LOG.error("Error in JobGraphsPathCacheListener", e);
 						}
 					}
 				}
@@ -383,7 +384,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 
 							break;
 						} catch (Exception e) {
-							LOG.error("Error in SubmittedJobGraphsPathCacheListener", e);
+							LOG.error("Error in JobGraphsPathCacheListener", e);
 						}
 					}
 				}
@@ -408,7 +409,7 @@ public class ZooKeeperSubmittedJobGraphStore implements SubmittedJobGraphStore {
 				break;
 
 				case INITIALIZED: {
-					LOG.info("SubmittedJobGraphsPathCacheListener initialized");
+					LOG.info("JobGraphsPathCacheListener initialized");
 				}
 				break;
 			}

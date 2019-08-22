@@ -31,8 +31,7 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
-import org.apache.flink.runtime.jobmanager.ZooKeeperSubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -132,22 +131,22 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 	}
 
 	/**
-	 * Tests that the {@link Dispatcher} releases a locked {@link SubmittedJobGraph} if it
+	 * Tests that the {@link Dispatcher} releases a locked {@link JobGraph} if it
 	 * lost the leadership.
 	 */
 	@Test
-	public void testSubmittedJobGraphRelease() throws Exception {
+	public void testJobGraphRelease() throws Exception {
 		final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
 		final CuratorFramework otherClient = ZooKeeperUtils.startCuratorFramework(configuration);
 
 		try (final TestingHighAvailabilityServices testingHighAvailabilityServices = new TestingHighAvailabilityServices()) {
-			testingHighAvailabilityServices.setSubmittedJobGraphStore(ZooKeeperUtils.createSubmittedJobGraphs(client, configuration));
+			testingHighAvailabilityServices.setJobGraphStore(ZooKeeperUtils.createJobGraphs(client, configuration));
 
-			final ZooKeeperSubmittedJobGraphStore otherSubmittedJobGraphStore = ZooKeeperUtils.createSubmittedJobGraphs(
+			final ZooKeeperJobGraphStore otherJobGraphStore = ZooKeeperUtils.createJobGraphs(
 				otherClient,
 				configuration);
 
-			otherSubmittedJobGraphStore.start(NoOpSubmittedJobGraphListener.INSTANCE);
+			otherJobGraphStore.start(NoOpJobGraphListener.INSTANCE);
 
 			final TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
 			testingHighAvailabilityServices.setDispatcherLeaderElectionService(leaderElectionService);
@@ -168,7 +167,7 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 				final CompletableFuture<Acknowledge> submissionFuture = dispatcherGateway.submitJob(nonEmptyJobGraph, TIMEOUT);
 				submissionFuture.get();
 
-				Collection<JobID> jobIds = otherSubmittedJobGraphStore.getJobIds();
+				Collection<JobID> jobIds = otherJobGraphStore.getJobIds();
 
 				final JobID jobId = nonEmptyJobGraph.getJobID();
 				assertThat(jobIds, Matchers.contains(jobId));
@@ -180,15 +179,15 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 				jobTerminationFuture.get();
 
 				// recover the job
-				final SubmittedJobGraph submittedJobGraph = otherSubmittedJobGraphStore.recoverJobGraph(jobId);
+				final JobGraph jobGraph = otherJobGraphStore.recoverJobGraph(jobId);
 
-				assertThat(submittedJobGraph, is(notNullValue()));
+				assertThat(jobGraph, is(notNullValue()));
 
-				// check that the other submitted job graph store can remove the job graph after the original leader
+				// check that the other job graph store can remove the job graph after the original leader
 				// has lost its leadership
-				otherSubmittedJobGraphStore.removeJobGraph(jobId);
+				otherJobGraphStore.removeJobGraph(jobId);
 
-				jobIds = otherSubmittedJobGraphStore.getJobIds();
+				jobIds = otherJobGraphStore.getJobIds();
 
 				assertThat(jobIds, Matchers.not(Matchers.contains(jobId)));
 			} finally {
@@ -209,13 +208,13 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 			final TestingHighAvailabilityServices haServices2 = new TestingHighAvailabilityServices();
 			final CuratorFramework curatorFramework = ZooKeeperUtils.startCuratorFramework(configuration)) {
 
-			final ZooKeeperSubmittedJobGraphStore submittedJobGraphStore1 = ZooKeeperUtils.createSubmittedJobGraphs(curatorFramework, configuration);
-			haServices1.setSubmittedJobGraphStore(submittedJobGraphStore1);
+			final ZooKeeperJobGraphStore jobGraphStore1 = ZooKeeperUtils.createJobGraphs(curatorFramework, configuration);
+			haServices1.setJobGraphStore(jobGraphStore1);
 			final TestingLeaderElectionService leaderElectionService1 = new TestingLeaderElectionService();
 			haServices1.setDispatcherLeaderElectionService(leaderElectionService1);
 
-			final ZooKeeperSubmittedJobGraphStore submittedJobGraphStore2 = ZooKeeperUtils.createSubmittedJobGraphs(curatorFramework, configuration);
-			haServices2.setSubmittedJobGraphStore(submittedJobGraphStore2);
+			final ZooKeeperJobGraphStore jobGraphStore2 = ZooKeeperUtils.createJobGraphs(curatorFramework, configuration);
+			haServices2.setJobGraphStore(jobGraphStore2);
 			final TestingLeaderElectionService leaderElectionService2 = new TestingLeaderElectionService();
 			haServices2.setDispatcherLeaderElectionService(leaderElectionService2);
 

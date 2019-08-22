@@ -79,7 +79,7 @@ public class MiniDispatcher extends Dispatcher {
 			endpointId,
 			configuration,
 			highAvailabilityServices,
-			new SingleJobSubmittedJobGraphStore(jobGraph),
+			new SingleJobJobGraphStore(jobGraph),
 			resourceManagerGatewayRetriever,
 			blobServer,
 			heartbeatServices,
