@@ -72,7 +72,7 @@ public class TaskMailboxImpl implements TaskMailbox {
 	public TaskMailboxImpl() {
 		this.lock = new ReentrantLock();
 		this.notEmpty = lock.newCondition();
-		this.state = State.CLOSED;
+		this.state = State.OPEN;
 		this.queue = new LinkedList<>();
 		this.count = 0;
 	}
@@ -206,18 +206,6 @@ public class TaskMailboxImpl implements TaskMailbox {
 		if (!isTakeAbleState()) {
 			throw new MailboxStateException("Mailbox is in state " + state + ", but is required to be in state " +
 				State.OPEN + " or " + State.QUIESCED + " for take operations.");
-		}
-	}
-
-	@Override
-	public void open() {
-		lock.lock();
-		try {
-			if (state == State.CLOSED) {
-				state = State.OPEN;
-			}
-		} finally {
-			lock.unlock();
 		}
 	}
 

@@ -50,7 +50,6 @@ public class TaskMailboxImplTest {
 	@Before
 	public void setUp() {
 		taskMailbox = new TaskMailboxImpl();
-		taskMailbox.open();
 	}
 
 	@After
@@ -279,7 +278,6 @@ public class TaskMailboxImplTest {
 		@Before
 		public void setUp() {
 			taskMailbox = new TaskMailboxImpl();
-			taskMailbox.open();
 		}
 
 		@After
