@@ -29,6 +29,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
 
 import java.net.MalformedURLException;

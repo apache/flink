@@ -40,7 +40,6 @@ public class LeaderInfo implements ResponseBody {
 	@JsonProperty(FIELD_DISPATCHER_ID)
 	private String dispatcherId;
 
-
 	@JsonCreator
 	public LeaderInfo(
 		@JsonProperty(FIELD_ADDRESS) String address,
@@ -62,8 +61,13 @@ public class LeaderInfo implements ResponseBody {
 
 	@Override
 	public boolean equals(Object o) {
-		if (this == o) return true;
-		if (o == null || getClass() != o.getClass()) return false;
+		if (this == o) {
+			return true;
+		}
+
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
 		LeaderInfo that = (LeaderInfo) o;
 		return Objects.equals(address, that.address) &&
 			Objects.equals(dispatcherId, that.dispatcherId);

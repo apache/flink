@@ -18,11 +18,12 @@
 
 package org.apache.flink.runtime.highavailability.zookeeper;
 
-import org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.highavailability.ClientHaServices;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
+
+import org.apache.curator.framework.CuratorFramework;
 
 import javax.annotation.Nonnull;
 
