@@ -19,11 +19,14 @@
 package org.apache.flink.table.planner.functions.aggfunctions;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.TimeType;
+
+import java.util.Arrays;
 
 import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedRef;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.equalTo;
@@ -34,7 +37,8 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.minus
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.nullOf;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.or;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
-import static org.apache.flink.table.planner.expressions.ExpressionBuilder.throwException;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeLiteral;
+import static org.apache.flink.table.planner.functions.InternalFunctionDefinitions.THROW_EXCEPTION;
 
 /**
  * Base class for built-in single value aggregate function.
@@ -116,6 +120,12 @@ public abstract class SingleValueAggFunction extends DeclarativeAggregateFunctio
 	@Override
 	public Expression getValueExpression() {
 		return value;
+	}
+
+	private static Expression throwException(String msg, DataType type) {
+		// it is the internal function without catalog.
+		// so it can not be find in any catalog or built-in functions.
+		return new CallExpression(THROW_EXCEPTION, Arrays.asList(literal(msg), typeLiteral(type)), type);
 	}
 
 	/**

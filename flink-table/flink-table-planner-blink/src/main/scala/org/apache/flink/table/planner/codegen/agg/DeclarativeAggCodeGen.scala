@@ -18,19 +18,16 @@
 package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils
 import org.apache.flink.table.planner.codegen.CodeGenUtils.primitiveTypeTermForType
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator.DISTINCT_KEY_TERM
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
-import org.apache.flink.table.planner.expressions.{ResolvedAggInputReference, ResolvedAggLocalReference, ResolvedDistinctKeyReference, RexNodeConverter}
+import org.apache.flink.table.planner.expressions.{DeclarativeExpressionResolver, ResolvedAggInputReference, ResolvedAggLocalReference, ResolvedDistinctKeyReference, RexNodeConverter}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.LogicalType
-import org.apache.calcite.tools.RelBuilder
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 
-import scala.collection.JavaConverters._
+import org.apache.calcite.tools.RelBuilder
 
 /**
   * It is for code generate aggregation functions that are specified using expressions.
@@ -216,87 +213,52 @@ class DeclarativeAggCodeGen(
     */
   private case class ResolveReference(
       isMerge: Boolean = false,
-      isDistinctMerge: Boolean = false) extends ExpressionVisitor[Expression] {
+      isDistinctMerge: Boolean = false)
+    extends DeclarativeExpressionResolver(relBuilder, function, isMerge) {
 
-    override def visit(call: CallExpression): Expression = ???
-
-    override def visit(valueLiteralExpression: ValueLiteralExpression): Expression = {
-      valueLiteralExpression
+    override def toMergeInputExpr(name: String, localIndex: Int): ResolvedExpression = {
+      // in merge case, the input1 is mergedAcc
+      new ResolvedAggInputReference(
+        name,
+        mergedAccOffset + bufferIndexes(localIndex),
+        bufferTypes(localIndex))
     }
 
-    override def visit(input: FieldReferenceExpression): Expression = {
-      input
-    }
-
-    override def visit(typeLiteral: TypeLiteralExpression): Expression = {
-      typeLiteral
-    }
-
-    private def visitUnresolvedCallExpression(
-        unresolvedCall: UnresolvedCallExpression): Expression = {
-      ApiExpressionUtils.unresolvedCall(
-        unresolvedCall.getFunctionDefinition,
-        unresolvedCall.getChildren.asScala.map(_.accept(this)): _*)
-    }
-
-    private def visitUnresolvedReference(input: UnresolvedReferenceExpression)
-      : Expression = {
-      function.aggBufferAttributes.indexOf(input) match {
-        case -1 =>
-          // Not find in agg buffers, it is a operand, represent reference of input field.
-          // In non-merge case, the input is the operand of the aggregate function.
-          // In merge case, the input is the aggregate buffers sent by local aggregate.
-          if (isMerge) {
-            val localIndex = function.mergeOperands.indexOf(input)
-            // in merge case, the input1 is mergedAcc
-            new ResolvedAggInputReference(
-              input.getName,
-              mergedAccOffset + bufferIndexes(localIndex),
-              bufferTypes(localIndex))
+    override def toAccInputExpr(name: String, localIndex: Int): ResolvedExpression = {
+      val inputIndex = argIndexes(localIndex)
+      if (inputIndex >= inputTypes.length) { // it is a constant
+        val constantIndex = inputIndex - inputTypes.length
+        val constantTerm = constantExprs(constantIndex).resultTerm
+        val nullTerm = constantExprs(constantIndex).nullTerm
+        val constantType = constantExprs(constantIndex).resultType
+        // constant is reused as member variable
+        new ResolvedAggLocalReference(
+          constantTerm,
+          nullTerm,
+          constantType)
+      } else { // it is a input field
+        if (isDistinctMerge) { // this is called from distinct merge
+          if (function.operandCount == 1) {
+            // the distinct key is a BoxedValue
+            new ResolvedDistinctKeyReference(name, argTypes(localIndex))
           } else {
-            val localIndex = function.operands.indexOf(input)
-            val inputIndex = argIndexes(localIndex)
-            if (inputIndex >= inputTypes.length) { // it is a constant
-              val constantIndex = inputIndex - inputTypes.length
-              val constantTerm = constantExprs(constantIndex).resultTerm
-              val nullTerm = constantExprs(constantIndex).nullTerm
-              val constantType = constantExprs(constantIndex).resultType
-              // constant is reused as member variable
-              new ResolvedAggLocalReference(
-                constantTerm,
-                nullTerm,
-                constantType)
-            } else { // it is a input field
-              if (isDistinctMerge) {  // this is called from distinct merge
-                if (function.operandCount == 1) {
-                  // the distinct key is a BoxedValue
-                  new ResolvedDistinctKeyReference(input.getName, argTypes(localIndex))
-                } else {
-                  // the distinct key is a BaseRow
-                  new ResolvedAggInputReference(input.getName, localIndex, argTypes(localIndex))
-                }
-              } else {
-                // the input is the inputRow
-                new ResolvedAggInputReference(
-                  input.getName, argIndexes(localIndex), argTypes(localIndex))
-              }
-            }
+            // the distinct key is a BaseRow
+            new ResolvedAggInputReference(name, localIndex, argTypes(localIndex))
           }
-        case localIndex =>
-          // it is a agg buffer.
-          val name = bufferTerms(localIndex)
-          val nullTerm = bufferNullTerms(localIndex)
-          // buffer access is reused as member variable
-          new ResolvedAggLocalReference(name, nullTerm, bufferTypes(localIndex))
+        } else {
+          // the input is the inputRow
+          new ResolvedAggInputReference(
+            name, argIndexes(localIndex), argTypes(localIndex))
+        }
       }
     }
 
-    override def visit(other: Expression): Expression = {
-      other match {
-        case u : UnresolvedReferenceExpression => visitUnresolvedReference(u)
-        case u : UnresolvedCallExpression => visitUnresolvedCallExpression(u)
-        case _ => other
-      }
+    override def toAggBufferExpr(name: String, localIndex: Int): ResolvedExpression = {
+        // it is a agg buffer.
+        val name = bufferTerms(localIndex)
+        val nullTerm = bufferNullTerms(localIndex)
+        // buffer access is reused as member variable
+        new ResolvedAggLocalReference(name, nullTerm, bufferTypes(localIndex))
     }
   }
 
