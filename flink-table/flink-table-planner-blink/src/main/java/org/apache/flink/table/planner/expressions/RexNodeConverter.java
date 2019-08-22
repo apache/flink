@@ -31,8 +31,6 @@ import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
-import org.apache.flink.table.expressions.UnresolvedCallExpression;
-import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils;
 import org.apache.flink.table.functions.AggregateFunction;
@@ -121,8 +119,8 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
 /**
  * Visit expression to generator {@link RexNode}.
  *
- * <p>TODO actually we should use {@link ResolvedExpressionVisitor} here as it is the output of the API.
- * we will update it after introduce Expression resolve in AggCodeGen.
+ * <p>TODO remove blink expressions(like {@link ResolvedAggInputReference}) and use
+ * {@link ResolvedExpressionVisitor}.
  */
 public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
@@ -356,7 +354,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			FunctionDefinition def = call.getFunctionDefinition();
 			if (conversionsOfBuiltInFunc.containsKey(def)) {
 				RexNodeConversion conversion = conversionsOfBuiltInFunc.get(def);
-				return conversion.convert(call);
+				return conversion.convert(call.getChildren());
 			} else {
 				throw new UnsupportedOperationException(def.toString());
 			}
@@ -877,25 +875,17 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
 	@Override
 	public RexNode visit(Expression other) {
-		if (other instanceof UnresolvedReferenceExpression) {
-			return visitUnresolvedReferenceExpression((UnresolvedReferenceExpression) other);
-		} else if (other instanceof ResolvedAggInputReference) {
+		if (other instanceof ResolvedAggInputReference) {
 			return visitResolvedAggInputReference((ResolvedAggInputReference) other);
 		} else if (other instanceof ResolvedAggLocalReference) {
 			return visitResolvedAggLocalReference((ResolvedAggLocalReference) other);
 		} else if (other instanceof ResolvedDistinctKeyReference) {
 			return visitResolvedDistinctKeyReference((ResolvedDistinctKeyReference) other);
-		} else if (other instanceof UnresolvedCallExpression) {
-			return visit((UnresolvedCallExpression) other);
 		} else if (other instanceof RexNodeExpression) {
 			return ((RexNodeExpression) other).getRexNode();
 		} else {
 			throw new UnsupportedOperationException(other.getClass().getSimpleName() + ":" + other.toString());
 		}
-	}
-
-	private RexNode visitUnresolvedReferenceExpression(UnresolvedReferenceExpression field) {
-		return relBuilder.field(field.getName());
 	}
 
 	private RexNode visitResolvedAggInputReference(ResolvedAggInputReference reference) {
@@ -920,34 +910,6 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 				reference.getName(),
 				typeFactory.createFieldTypeFromLogicalType(type),
 				type);
-	}
-
-	private RexNode visit(UnresolvedCallExpression call) {
-		FunctionDefinition func = call.getFunctionDefinition();
-		switch (func.getKind()) {
-			case SCALAR:
-				if (func instanceof ScalarFunctionDefinition) {
-					ScalarFunction scalaFunc = ((ScalarFunctionDefinition) func).getScalarFunction();
-					List<RexNode> child = convertCallChildren(call.getChildren());
-					SqlFunction sqlFunction = UserDefinedFunctionUtils.createScalarSqlFunction(
-							scalaFunc.functionIdentifier(),
-							scalaFunc.toString(),
-							scalaFunc,
-							typeFactory);
-					return relBuilder.call(sqlFunction, child);
-				} else {
-					FunctionDefinition def = call.getFunctionDefinition();
-					if (conversionsOfBuiltInFunc.containsKey(def)) {
-						RexNodeConversion conversion = conversionsOfBuiltInFunc.get(def);
-						return conversion.convert(call);
-					} else {
-						throw new UnsupportedOperationException(def.toString());
-					}
-				}
-
-			default:
-				throw new UnsupportedOperationException();
-		}
 	}
 
 	private RexNode createCollation(RexNode node, RelFieldCollation.Direction direction,
@@ -1025,20 +987,10 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 	}
 
 	/**
-	 * RexNodeConversion to define how to convert a {@link CallExpression} or a {@link UnresolvedCallExpression} which
+	 * RexNodeConversion to define how to convert a {@link CallExpression} which
 	 * has built-in FunctionDefinition to RexNode.
 	 */
 	private interface RexNodeConversion {
-
 		RexNode convert(List<Expression> children);
-
-		default RexNode convert(CallExpression expression) {
-			return convert(expression.getChildren());
-		}
-
-		default RexNode convert(UnresolvedCallExpression unresolvedCallExpression) {
-			return convert(unresolvedCallExpression.getChildren());
-		}
 	}
-
 }
