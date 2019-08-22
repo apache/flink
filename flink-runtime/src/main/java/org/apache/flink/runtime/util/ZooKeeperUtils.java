@@ -27,9 +27,9 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCompletedCheckpointStore;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
-import org.apache.flink.runtime.jobmanager.ZooKeeperSubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStore;
 import org.apache.flink.runtime.leaderelection.ZooKeeperLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.ZooKeeperLeaderRetrievalService;
 import org.apache.flink.runtime.zookeeper.RetrievableStateStorageHelper;
@@ -227,39 +227,39 @@ public class ZooKeeperUtils {
 	}
 
 	/**
-	 * Creates a {@link ZooKeeperSubmittedJobGraphStore} instance.
+	 * Creates a {@link ZooKeeperJobGraphStore} instance.
 	 *
 	 * @param client        The {@link CuratorFramework} ZooKeeper client to use
 	 * @param configuration {@link Configuration} object
-	 * @return {@link ZooKeeperSubmittedJobGraphStore} instance
+	 * @return {@link ZooKeeperJobGraphStore} instance
 	 * @throws Exception if the submitted job graph store cannot be created
 	 */
-	public static ZooKeeperSubmittedJobGraphStore createSubmittedJobGraphs(
+	public static ZooKeeperJobGraphStore createJobGraphs(
 			CuratorFramework client,
 			Configuration configuration) throws Exception {
 
 		checkNotNull(configuration, "Configuration");
 
-		RetrievableStateStorageHelper<SubmittedJobGraph> stateStorage = createFileSystemStateStorage(configuration, "submittedJobGraph");
+		RetrievableStateStorageHelper<JobGraph> stateStorage = createFileSystemStateStorage(configuration, "submittedJobGraph");
 
 		// ZooKeeper submitted jobs root dir
-		String zooKeeperSubmittedJobsPath = configuration.getString(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
+		String zooKeeperJobsPath = configuration.getString(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
 
 		// Ensure that the job graphs path exists
-		client.newNamespaceAwareEnsurePath(zooKeeperSubmittedJobsPath)
+		client.newNamespaceAwareEnsurePath(zooKeeperJobsPath)
 			.ensure(client.getZookeeperClient());
 
 		// All operations will have the path as root
-		CuratorFramework facade = client.usingNamespace(client.getNamespace() + zooKeeperSubmittedJobsPath);
+		CuratorFramework facade = client.usingNamespace(client.getNamespace() + zooKeeperJobsPath);
 
-		final String zooKeeperFullSubmittedJobsPath = client.getNamespace() + zooKeeperSubmittedJobsPath;
+		final String zooKeeperFullJobsPath = client.getNamespace() + zooKeeperJobsPath;
 
-		final ZooKeeperStateHandleStore<SubmittedJobGraph> zooKeeperStateHandleStore = new ZooKeeperStateHandleStore<>(facade, stateStorage);
+		final ZooKeeperStateHandleStore<JobGraph> zooKeeperStateHandleStore = new ZooKeeperStateHandleStore<>(facade, stateStorage);
 
 		final PathChildrenCache pathCache = new PathChildrenCache(facade, "/", false);
 
-		return new ZooKeeperSubmittedJobGraphStore(
-			zooKeeperFullSubmittedJobsPath,
+		return new ZooKeeperJobGraphStore(
+			zooKeeperFullJobsPath,
 			zooKeeperStateHandleStore,
 			pathCache);
 	}
@@ -291,7 +291,7 @@ public class ZooKeeperUtils {
 			configuration,
 			"completedCheckpoint");
 
-		checkpointsPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
+		checkpointsPath += ZooKeeperJobGraphStore.getPathForJob(jobId);
 
 		final ZooKeeperCompletedCheckpointStore zooKeeperCompletedCheckpointStore = new ZooKeeperCompletedCheckpointStore(
 			maxNumberOfCheckpointsToRetain,
@@ -336,7 +336,7 @@ public class ZooKeeperUtils {
 		String checkpointIdCounterPath = configuration.getString(
 				HighAvailabilityOptions.HA_ZOOKEEPER_CHECKPOINT_COUNTER_PATH);
 
-		checkpointIdCounterPath += ZooKeeperSubmittedJobGraphStore.getPathForJob(jobId);
+		checkpointIdCounterPath += ZooKeeperJobGraphStore.getPathForJob(jobId);
 
 		return new ZooKeeperCheckpointIDCounter(client, checkpointIdCounterPath);
 	}

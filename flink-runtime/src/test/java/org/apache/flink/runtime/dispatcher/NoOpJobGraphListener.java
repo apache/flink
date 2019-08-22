@@ -16,34 +16,25 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.junit.Test;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+/**
+ * No operation {@link JobGraphStore.JobGraphListener}
+ * implemetation for testing purposes.
+ */
+public enum NoOpJobGraphListener implements JobGraphStore.JobGraphListener {
+	INSTANCE;
 
-public class StandaloneSubmittedJobGraphStoreTest {
+	@Override
+	public void onAddedJobGraph(JobID jobId) {
+		// No op
+	}
 
-	/**
-	 * Tests that all operations work and don't change the state.
-	 */
-	@Test
-	public void testNoOps() {
-		StandaloneSubmittedJobGraphStore jobGraphs = new StandaloneSubmittedJobGraphStore();
-
-		SubmittedJobGraph jobGraph = new SubmittedJobGraph(new JobGraph("testNoOps"));
-
-		assertEquals(0, jobGraphs.getJobIds().size());
-
-		jobGraphs.putJobGraph(jobGraph);
-		assertEquals(0, jobGraphs.getJobIds().size());
-
-		jobGraphs.removeJobGraph(jobGraph.getJobGraph().getJobID());
-		assertEquals(0, jobGraphs.getJobIds().size());
-
-		assertNull(jobGraphs.recoverJobGraph(new JobID()));
+	@Override
+	public void onRemovedJobGraph(JobID jobId) {
+		// No op
 	}
 }

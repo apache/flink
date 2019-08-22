@@ -126,7 +126,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	private CompletableFuture<ArchivedExecutionGraph> resultFuture;
 	private CompletableFuture<JobID> cleanupJobFuture;
 	private CompletableFuture<Void> terminationFuture;
-	private FaultySubmittedJobGraphStore submittedJobGraphStore;
+	private FaultyJobGraphStore submittedJobGraphStore;
 
 	@BeforeClass
 	public static void setupClass() {
@@ -150,8 +150,8 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		clearedJobLatch = new OneShotLatch();
 		runningJobsRegistry = new SingleRunningJobsRegistry(jobId, clearedJobLatch);
 		highAvailabilityServices.setRunningJobsRegistry(runningJobsRegistry);
-		submittedJobGraphStore = new FaultySubmittedJobGraphStore();
-		highAvailabilityServices.setSubmittedJobGraphStore(submittedJobGraphStore);
+		submittedJobGraphStore = new FaultyJobGraphStore();
+		highAvailabilityServices.setJobGraphStore(submittedJobGraphStore);
 
 		storedHABlobFuture = new CompletableFuture<>();
 		deleteAllHABlobsFuture = new CompletableFuture<>();
