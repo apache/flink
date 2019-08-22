@@ -45,6 +45,7 @@ import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.plan.PlanUtils;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.thrift.TException;
 
@@ -170,7 +171,7 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 		staticPartitionSpec = new LinkedHashMap<>();
 		for (String partitionCol : getPartitionFieldNames()) {
 			if (partitionSpec.containsKey(partitionCol)) {
-				staticPartitionSpec.put(partitionCol, partitionSpec.get(partitionCol));
+				staticPartitionSpec.put(partitionCol, PlanUtils.stripQuotes(partitionSpec.get(partitionCol)));
 			}
 		}
 	}
