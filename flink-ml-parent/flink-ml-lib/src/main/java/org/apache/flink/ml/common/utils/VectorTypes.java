@@ -25,7 +25,7 @@ import org.apache.flink.ml.common.linalg.SparseVector;
 import org.apache.flink.ml.common.linalg.Vector;
 
 /**
- * Built-in vector types. <br/>
+ * Built-in vector types.
  */
 public class VectorTypes {
 	/**
