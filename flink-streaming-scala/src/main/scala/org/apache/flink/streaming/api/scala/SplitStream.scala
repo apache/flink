@@ -28,7 +28,7 @@ import org.apache.flink.streaming.api.datastream.{ SplitStream => SplitJavaStrea
  * To apply a transformation on the whole output simply call
  * the appropriate method on this stream.
  */
-@Deprecated
+@deprecated("reason", "deprecated since 1.8.2, please use side ouput instead.")
 @Public
 class SplitStream[T](javaStream: SplitJavaStream[T]) extends DataStream[T](javaStream){
 
