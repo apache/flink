@@ -139,15 +139,6 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-common</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
-
 	</dependencies>
 
 	<build>
@@ -189,4 +180,35 @@ under the License.
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<!-- Create SQL Client uber jars by default -->
+		<profile>
+			<id>sql-jars</id>
+			<activation>
+				<property>
+					<name>!skipSqlJars</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-jar-plugin</artifactId>
+						<executions>
+							<execution>
+								<phase>package</phase>
+								<goals>
+									<goal>jar</goal>
+								</goals>
+								<configuration>
+									<classifier>sql-jar</classifier>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>

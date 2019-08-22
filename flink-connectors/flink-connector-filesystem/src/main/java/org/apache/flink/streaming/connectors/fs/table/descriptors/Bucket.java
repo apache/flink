@@ -55,8 +55,8 @@ public class Bucket extends ConnectorDescriptor {
 		return this;
 	}
 
-	public Bucket rawFormat() {
-		this.formatType = FormatType.RAW;
+	public Bucket rowFormat() {
+		this.formatType = FormatType.ROW;
 		return this;
 	}
 

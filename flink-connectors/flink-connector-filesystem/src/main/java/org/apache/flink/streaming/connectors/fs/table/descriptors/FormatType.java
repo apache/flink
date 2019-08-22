@@ -21,11 +21,13 @@ package org.apache.flink.streaming.connectors.fs.table.descriptors;
 import org.apache.flink.annotation.Internal;
 
 /**
- *
+ * the format type for bucket file system ,
+ * the row type is used to write  row-wise data,e.g. json or csv.
+ * the bult type is used to write bulk-encoding data,e.g. Parquet or orc
  */
 @Internal
 public enum FormatType {
-	RAW(BucketValidator.CONNECTOR_DATA_TYPE_RAW_VALUE),
+	ROW(BucketValidator.CONNECTOR_DATA_TYPE_ROW_VALUE),
 	BULT(BucketValidator.CONNECTOR_DATA_TYPE_BULT_VALUE);
 
 	private String type;

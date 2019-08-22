@@ -83,7 +83,6 @@ public final class CsvRowSchemaConverter {
 	 */
 	public static CsvSchema convert(RowTypeInfo rowType) {
 		final Builder builder = new CsvSchema.Builder();
-		builder.setLineSeparator("");
 		final String[] fields = rowType.getFieldNames();
 		final TypeInformation<?>[] types = rowType.getFieldTypes();
 		for (int i = 0; i < rowType.getArity(); i++) {

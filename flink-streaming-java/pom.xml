@@ -89,12 +89,6 @@ under the License.
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
-
-		<dependency>
-			<groupId>org.apache.parquet</groupId>
-			<artifactId>parquet-avro</artifactId>
-			<version>1.10.1</version>
-		</dependency>
 	</dependencies>
 
 	<build>

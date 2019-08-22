@@ -49,6 +49,7 @@ The following tables list all available connectors and formats. Their mutual com
 | Apache Kafka      | 0.10                | `flink-connector-kafka-0.10` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.11                | `flink-connector-kafka-0.11` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.11+ (`universal`) | `flink-connector-kafka`      | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) |
+| Parquet           |                     | `flink-connector-filesystem` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-bucket{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-bucket{{site.scala_version_suffix}}-{{site.version}}.jar) |
 
 ### Formats
 
@@ -58,6 +59,7 @@ The following tables list all available connectors and formats. Their mutual com
 | CSV (for Kafka)            | `flink-csv`                  | [Download](http://central.maven.org/maven2/org/apache/flink/flink-csv/{{site.version}}/flink-csv-{{site.version}}-sql-jar.jar) |
 | JSON                       | `flink-json`                 | [Download](http://central.maven.org/maven2/org/apache/flink/flink-json/{{site.version}}/flink-json-{{site.version}}-sql-jar.jar) |
 | Apache Avro                | `flink-avro`                 | [Download](http://central.maven.org/maven2/org/apache/flink/flink-avro/{{site.version}}/flink-avro-{{site.version}}-sql-jar.jar) |
+| Parquet                    | `flink-parquet`              | [Download](http://central.maven.org/maven2/org/apache/flink/flink-parquet/{{site.version}}/flink-parquet{{site.scala_version_suffix}}-{{site.version}}-sql-jar.jar) |
 
 {% else %}
 
@@ -909,6 +911,50 @@ connector:
 **Key extraction:** Flink automatically extracts valid keys from a query. For example, a query `SELECT a, b, c FROM t GROUP BY a, b` defines a composite key of the fields `a` and `b`. The Elasticsearch connector generates a document ID string for every row by concatenating all key fields in the order defined in the query using a key delimiter. A custom representation of null literals for key fields can be defined.
 
 <span class="label label-danger">Attention</span> A JSON format defines how to encode documents for the external system, therefore, it must be added as a [dependency](connect.html#formats).
+
+{% top %}
+
+
+### Bucket File System Connector
+
+<span class="label label-primary">Sink: Streaming Append Mode</span>
+<span class="label label-info">Format: JSON,CSV,PARQUET,AVRO</span>
+
+The Bucket File System Connector allows for writing into a file system.
+
+The connector can operate in append-onlyw mode
+The connector can be defined as follows:
+
+<div class="codetabs" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
+{% highlight java %}
+.connect(
+  new Bucket()
+    .basePath("file:///tmp/flink-data/csv")   # required: the file system path where data write to
+    
+     # required ,the data type ,the rowFormat is used to write row-wise data,e.g. json or csv
+     # the bultFormat is used to write bulk-encoding data,e.g. Parquet
+    .rowFormat() 
+    .bultFormat()
+    
+     # optional ,date partition of the data, default is yyyy-MM-dd--HH
+    .dateFormat("yyyy-MM-dd-HHmm")             
+)
+{% endhighlight %}
+</div>
+
+<div data-lang="YAML" markdown="1">
+{% highlight yaml %}
+connector:
+  type: bucket
+  basepath: /tmp/json   # required: the file system path where data write to
+  format.type: row      # required ,the data type ,the rowFormat is used to write row-wise data,e.g. json or csv
+                        # the bultFormat is used to write bulk-encoding data,e.g. Parquet
+  date.format: yyyyMMddHH  # optional ,date partition of the data, default is yyyy-MM-dd--HH
+{% endhighlight %}
+</div>
+
+</div>
 
 {% top %}
 
