@@ -18,31 +18,18 @@
 
 package org.apache.flink.runtime.state.heap.space;
 
-import static org.apache.flink.runtime.state.heap.space.SpaceConstants.FOUR_BYTES_BITS;
-import static org.apache.flink.runtime.state.heap.space.SpaceConstants.FOUR_BYTES_MARK;
-
 /**
- * Utilities for space.
+ * The strategy for space allocation.
  */
-public class SpaceUtils {
+public enum AllocateStrategy {
 
 	/**
-	 * Returns the id of chunk used by the space with the given space.
-	 *
-	 * @param address address of the space.
-	 * @return id of chunk used by space.
+	 * This strategy implements a simple buddy-like allocator used for small space.
 	 */
-	public static int getChunkIdByAddress(long address) {
-		return (int) ((address >>> FOUR_BYTES_BITS) & FOUR_BYTES_MARK);
-	}
+	SmallBucket,
 
 	/**
-	 * Returns the offset of space in the chunk.
-	 *
-	 * @param address address of the space.
-	 * @return id of chunk used by space.
+	 * This strategy is used to allocate large space, and reduce fragments.
 	 */
-	public static int getChunkOffsetByAddress(long address) {
-		return (int) (address & FOUR_BYTES_MARK);
-	}
+	HugeBucket
 }

@@ -18,31 +18,20 @@
 
 package org.apache.flink.runtime.state.heap.space;
 
-import static org.apache.flink.runtime.state.heap.space.SpaceConstants.FOUR_BYTES_BITS;
-import static org.apache.flink.runtime.state.heap.space.SpaceConstants.FOUR_BYTES_MARK;
+import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 
 /**
- * Utilities for space.
+ * Manages chunks allocated from direct buffer.
  */
-public class SpaceUtils {
+class DirectBufferChunkAllocator extends AbstractChunkAllocator {
 
-	/**
-	 * Returns the id of chunk used by the space with the given space.
-	 *
-	 * @param address address of the space.
-	 * @return id of chunk used by space.
-	 */
-	public static int getChunkIdByAddress(long address) {
-		return (int) ((address >>> FOUR_BYTES_BITS) & FOUR_BYTES_MARK);
+	DirectBufferChunkAllocator(SpaceConfiguration spaceConfiguration) {
+		super(spaceConfiguration);
 	}
 
-	/**
-	 * Returns the offset of space in the chunk.
-	 *
-	 * @param address address of the space.
-	 * @return id of chunk used by space.
-	 */
-	public static int getChunkOffsetByAddress(long address) {
-		return (int) (address & FOUR_BYTES_MARK);
+	@Override
+	MemorySegment allocate(int chunkSize) {
+		return MemorySegmentFactory.allocateUnpooledOffHeapMemory(chunkSize);
 	}
 }

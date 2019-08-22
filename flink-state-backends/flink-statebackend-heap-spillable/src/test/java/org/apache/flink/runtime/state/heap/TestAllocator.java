@@ -119,7 +119,7 @@ public class TestAllocator extends TestLogger implements Allocator {
 
 		private final int chunkId;
 		private final int size;
-		private final MemorySegment segment;
+		private final MemorySegment memorySegment;
 		private final int offset;
 		private volatile boolean used;
 
@@ -127,7 +127,7 @@ public class TestAllocator extends TestLogger implements Allocator {
 			this.offset = 14;
 			this.chunkId = chunkId;
 			this.size = size + offset;
-			this.segment = MemorySegmentFactory.allocateUnpooledSegment(size);
+			this.memorySegment = MemorySegmentFactory.allocateUnpooledSegment(size);
 		}
 
 		@Override
@@ -155,7 +155,7 @@ public class TestAllocator extends TestLogger implements Allocator {
 
 		@Override
 		public MemorySegment getMemorySegment(int chunkOffset) {
-			return segment;
+			return memorySegment;
 		}
 
 		@Override

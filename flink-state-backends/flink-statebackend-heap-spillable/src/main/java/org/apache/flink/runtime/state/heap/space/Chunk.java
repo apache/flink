@@ -20,13 +20,11 @@ package org.apache.flink.runtime.state.heap.space;
 
 import org.apache.flink.core.memory.MemorySegment;
 
-import java.nio.ByteBuffer;
-
 /**
- * Chunk is a logically contiguous space backed by one or multiple {@link ByteBuffer}.
+ * Chunk is a logically contiguous space backed by one or multiple {@link MemorySegment}.
  * <p/>
- * For example: a Chunk of 1G size may be backed by one {@link java.nio.MappedByteBuffer} from a memory-mapped 1G file,
- * or multiple {@link java.nio.HeapByteBuffer}/{@link java.nio.DirectByteBuffer}.
+ * The backing MemorySegment may wrap an on-heap byte array, an off-heap {@link java.nio.DirectByteBuffer},
+ * or a {@link java.nio.MappedByteBuffer} from a memory-mapped file.
  */
 public interface Chunk {
 	/**
@@ -52,13 +50,18 @@ public interface Chunk {
 	int getChunkCapacity();
 
 	/**
-	 * @return This chunk's backing MemorySegment described by chunkOffset.
+	 * Returns the backed {@link MemorySegment} for the space with the offset.
+	 *
+	 * @param offsetInChunk offset of space in the chunk.
+	 * @return memory segment backed the space.
 	 */
-	MemorySegment getMemorySegment(int chunkOffset);
+	MemorySegment getMemorySegment(int offsetInChunk);
 
 	/**
-	 * @param offsetInChunk virtual and global address in chunk
-	 * @return chunk maybe compose of multi {@link MemorySegment}s, return the offset in certain one.
+	 * Returns the offset of the space in the backed {@link MemorySegment}.
+	 *
+	 * @param offsetInChunk offset of space in the chunk.
+	 * @return offset of space in the memory segment.
 	 */
 	int getOffsetInSegment(int offsetInChunk);
 }
