@@ -30,8 +30,8 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.flink.runtime.state.heap.space.Constants.FOUR_BYTES_BITS;
-import static org.apache.flink.runtime.state.heap.space.Constants.FOUR_BYTES_MARK;
+import static org.apache.flink.runtime.state.heap.space.SpaceConstants.FOUR_BYTES_BITS;
+import static org.apache.flink.runtime.state.heap.space.SpaceConstants.FOUR_BYTES_MARK;
 
 /**
  * Implementation of {@link Allocator} used for test. This allocator
@@ -160,11 +160,6 @@ public class TestAllocator extends TestLogger implements Allocator {
 		@Override
 		public int getOffsetInByteBuffer(int offsetInChunk) {
 			return offsetInChunk;
-		}
-
-		@Override
-		public long usedSize() {
-			return used ? size : 0;
 		}
 	}
 }

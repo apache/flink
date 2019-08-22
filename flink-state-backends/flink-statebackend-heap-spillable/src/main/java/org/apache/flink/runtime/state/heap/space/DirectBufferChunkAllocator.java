@@ -18,31 +18,34 @@
 
 package org.apache.flink.runtime.state.heap.space;
 
-import static org.apache.flink.runtime.state.heap.space.SpaceConstants.FOUR_BYTES_BITS;
-import static org.apache.flink.runtime.state.heap.space.SpaceConstants.FOUR_BYTES_MARK;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /**
- * Utilities for space.
+ * Manages chunks allocated from direct buffer.
  */
-public class SpaceUtils {
+class DirectBufferChunkAllocator extends AbstractChunkAllocator {
 
-	/**
-	 * Returns the id of chunk used by the space with the given space.
-	 *
-	 * @param address address of the space.
-	 * @return id of chunk used by space.
-	 */
-	public static int getChunkIdByAddress(long address) {
-		return (int) ((address >>> FOUR_BYTES_BITS) & FOUR_BYTES_MARK);
+	private static final Logger LOG = LoggerFactory.getLogger(DirectBufferChunkAllocator.class);
+
+	DirectBufferChunkAllocator(SpaceConfiguration spaceConfiguration) {
+		super(spaceConfiguration);
 	}
 
-	/**
-	 * Returns the offset of space in the chunk.
-	 *
-	 * @param address address of the space.
-	 * @return id of chunk used by space.
-	 */
-	public static int getChunkOffsetByAddress(long address) {
-		return (int) (address & FOUR_BYTES_MARK);
+	@Override
+	ByteBuffer allocate(int chunkSize) {
+		return ByteBuffer.allocateDirect(chunkSize);
+	}
+
+	@Override
+	void release(ByteBuffer buffer) {
+		try {
+			CleanerUtil.getCleaner().freeBuffer(buffer);
+		} catch (IOException e) {
+			LOG.warn("Failed to clean the buffer", e);
+		}
 	}
 }

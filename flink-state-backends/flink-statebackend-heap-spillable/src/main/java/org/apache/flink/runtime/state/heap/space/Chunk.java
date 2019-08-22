@@ -59,7 +59,4 @@ public interface Chunk {
 	 * @return chunk maybe compose of multi ByteBuffers, return the offset in certain ByteBuffer.
 	 */
 	int getOffsetInByteBuffer(int offsetInChunk);
-
-	@SuppressWarnings("unused")
-	long usedSize();
 }

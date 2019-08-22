@@ -18,31 +18,33 @@
 
 package org.apache.flink.runtime.state.heap.space;
 
-import static org.apache.flink.runtime.state.heap.space.SpaceConstants.FOUR_BYTES_BITS;
-import static org.apache.flink.runtime.state.heap.space.SpaceConstants.FOUR_BYTES_MARK;
+import org.apache.flink.util.Preconditions;
 
 /**
- * Utilities for space.
+ * Base implementation of {@link Chunk}.
  */
-public class SpaceUtils {
+public abstract class AbstractChunk implements Chunk {
 
-	/**
-	 * Returns the id of chunk used by the space with the given space.
-	 *
-	 * @param address address of the space.
-	 * @return id of chunk used by space.
-	 */
-	public static int getChunkIdByAddress(long address) {
-		return (int) ((address >>> FOUR_BYTES_BITS) & FOUR_BYTES_MARK);
+	/** Id of the chunk. */
+	private final int chunkId;
+
+	/** Capacity of the chunk. */
+	final int capacity;
+
+	AbstractChunk(int chunkId, int capacity) {
+		this.chunkId = chunkId;
+		Preconditions.checkArgument((capacity & capacity - 1) == 0,
+			"Capacity of chunk should be a power of 2, but the actual is " + capacity);
+		this.capacity = capacity;
 	}
 
-	/**
-	 * Returns the offset of space in the chunk.
-	 *
-	 * @param address address of the space.
-	 * @return id of chunk used by space.
-	 */
-	public static int getChunkOffsetByAddress(long address) {
-		return (int) (address & FOUR_BYTES_MARK);
+	@Override
+	public int getChunkId() {
+		return chunkId;
+	}
+
+	@Override
+	public int getChunkCapacity() {
+		return capacity;
 	}
 }
