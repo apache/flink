@@ -821,6 +821,14 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     other match {
       // already converted planner expressions will pass this visitor without modification
       case plannerExpression: PlannerExpression => plannerExpression
+      case aggInput: ResolvedAggInputReference => PlannerResolvedAggInputReference(
+        aggInput.getName, aggInput.getIndex, fromDataTypeToTypeInfo(aggInput.getOutputDataType))
+      case aggLocal: ResolvedAggLocalReference => PlannerResolvedAggLocalReference(
+        aggLocal.getFieldTerm,
+        aggLocal.getNullTerm,
+        fromDataTypeToTypeInfo(aggLocal.getOutputDataType))
+      case key: ResolvedDistinctKeyReference => PlannerResolvedDistinctKeyReference(
+        key.getName, fromDataTypeToTypeInfo(key.getOutputDataType))
 
       case _ =>
         throw new TableException("Unrecognized expression: " + other)

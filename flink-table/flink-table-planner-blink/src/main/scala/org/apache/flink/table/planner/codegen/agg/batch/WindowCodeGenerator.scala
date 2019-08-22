@@ -34,7 +34,7 @@ import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.agg.batch.AggCodeGenHelper.{buildAggregateArgsMapping, genAggregateByFlatAggregateBuffer, genFlatAggBufferExprs, genInitFlatAggregateBuffer}
 import org.apache.flink.table.planner.codegen.agg.batch.WindowCodeGenerator.{asLong, isTimeIntervalLiteral}
 import org.apache.flink.table.planner.expressions.ExpressionBuilder._
-import org.apache.flink.table.planner.expressions.RexNodeConverter
+import org.apache.flink.table.planner.expressions.{CallExpressionResolver, RexNodeConverter}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
@@ -695,7 +695,7 @@ abstract class WindowCodeGenerator(
         plus(remainder, literal(slideSize)),
         remainder)),
       literal(index * slideSize))
-    exprCodegen.generateExpression(expr.accept(
+    exprCodegen.generateExpression(new CallExpressionResolver(relBuilder).resolve(expr).accept(
       new RexNodeConverter(relBuilder.values(inputRowType))))
   }
 
