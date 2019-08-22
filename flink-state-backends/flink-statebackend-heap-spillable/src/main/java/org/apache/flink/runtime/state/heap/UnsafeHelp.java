@@ -21,7 +21,6 @@ package org.apache.flink.runtime.state.heap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.misc.Unsafe;
-import sun.nio.ch.DirectBuffer;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -125,7 +124,7 @@ public class UnsafeHelp {
 	 */
 	static int getAsInt(ByteBuffer buf, int offset) {
 		if (buf.isDirect()) {
-			return UNSAFE.getInt(((DirectBuffer) buf).address() + offset);
+			return UNSAFE.getInt(ByteBufferUtils.getBufferAddress(buf) + offset);
 		}
 		return UNSAFE.getInt(buf.array(), BYTE_ARRAY_BASE_OFFSET + buf.arrayOffset() + offset);
 	}
@@ -154,7 +153,7 @@ public class UnsafeHelp {
 	 */
 	static long getAsLong(ByteBuffer buf, int offset) {
 		if (buf.isDirect()) {
-			return UNSAFE.getLong(((DirectBuffer) buf).address() + offset);
+			return UNSAFE.getLong(ByteBufferUtils.getBufferAddress(buf) + offset);
 		}
 		return UNSAFE.getLong(buf.array(), BYTE_ARRAY_BASE_OFFSET + buf.arrayOffset() + offset);
 	}
@@ -183,7 +182,7 @@ public class UnsafeHelp {
 	 */
 	static short getAsShort(ByteBuffer buf, int offset) {
 		if (buf.isDirect()) {
-			return UNSAFE.getShort(((DirectBuffer) buf).address() + offset);
+			return UNSAFE.getShort(ByteBufferUtils.getBufferAddress(buf) + offset);
 		}
 		return UNSAFE.getShort(buf.array(), BYTE_ARRAY_BASE_OFFSET + buf.arrayOffset() + offset);
 	}
@@ -197,7 +196,7 @@ public class UnsafeHelp {
 	 */
 	public static byte toByte(ByteBuffer buf, int offset) {
 		if (buf.isDirect()) {
-			return UNSAFE.getByte(((DirectBuffer) buf).address() + offset);
+			return UNSAFE.getByte(ByteBufferUtils.getBufferAddress(buf) + offset);
 		} else {
 			return UNSAFE.getByte(buf.array(), BYTE_ARRAY_BASE_OFFSET + buf.arrayOffset() + offset);
 		}
@@ -216,7 +215,7 @@ public class UnsafeHelp {
 			val = Integer.reverseBytes(val);
 		}
 		if (buf.isDirect()) {
-			UNSAFE.putInt(((DirectBuffer) buf).address() + offset, val);
+			UNSAFE.putInt(ByteBufferUtils.getBufferAddress(buf) + offset, val);
 		} else {
 			UNSAFE.putInt(buf.array(), offset + buf.arrayOffset() + BYTE_ARRAY_BASE_OFFSET, val);
 		}
@@ -236,7 +235,7 @@ public class UnsafeHelp {
 			val = Long.reverseBytes(val);
 		}
 		if (buf.isDirect()) {
-			UNSAFE.putLong(((DirectBuffer) buf).address() + offset, val);
+			UNSAFE.putLong(ByteBufferUtils.getBufferAddress(buf) + offset, val);
 		} else {
 			UNSAFE.putLong(buf.array(), BYTE_ARRAY_BASE_OFFSET + buf.arrayOffset() + offset, val);
 		}
@@ -257,13 +256,13 @@ public class UnsafeHelp {
 		long srcAddress, destAddress;
 		Object srcBase = null, destBase = null;
 		if (src.isDirect()) {
-			srcAddress = srcOffset + ((DirectBuffer) src).address();
+			srcAddress = srcOffset + ByteBufferUtils.getBufferAddress(src);
 		} else {
 			srcAddress = srcOffset + src.arrayOffset() + BYTE_ARRAY_BASE_OFFSET;
 			srcBase = src.array();
 		}
 		if (dest.isDirect()) {
-			destAddress = destOffset + ((DirectBuffer) dest).address();
+			destAddress = destOffset + ByteBufferUtils.getBufferAddress(dest);
 		} else {
 			destAddress = destOffset + BYTE_ARRAY_BASE_OFFSET + dest.arrayOffset();
 			destBase = dest.array();
@@ -285,7 +284,7 @@ public class UnsafeHelp {
 		long srcAddress = srcOffset;
 		Object srcBase = null;
 		if (src.isDirect()) {
-			srcAddress = srcAddress + ((DirectBuffer) src).address();
+			srcAddress = srcAddress + ByteBufferUtils.getBufferAddress(src);
 		} else {
 			srcAddress = srcAddress + BYTE_ARRAY_BASE_OFFSET + src.arrayOffset();
 			srcBase = src.array();
@@ -307,7 +306,7 @@ public class UnsafeHelp {
 		long destAddress = destOffset;
 		Object destBase = null;
 		if (dest.isDirect()) {
-			destAddress = destAddress + ((DirectBuffer) dest).address();
+			destAddress = destAddress + ByteBufferUtils.getBufferAddress(dest);
 		} else {
 			destAddress = destAddress + BYTE_ARRAY_BASE_OFFSET + dest.arrayOffset();
 			destBase = dest.array();

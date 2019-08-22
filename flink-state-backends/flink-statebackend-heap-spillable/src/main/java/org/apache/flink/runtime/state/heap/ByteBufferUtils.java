@@ -37,6 +37,7 @@ public class ByteBufferUtils {
 	static {
 		try {
 			ACCESS_FIELD = java.nio.Buffer.class.getDeclaredField("address");
+			ACCESS_FIELD.setAccessible(true);
 		} catch (NoSuchFieldException e) {
 			throw new RuntimeException("Failed to get address method from java.nio.Buffer", e);
 		}
@@ -319,12 +320,12 @@ public class ByteBufferUtils {
 	 * @param byteBuffer the ByteBuffer instance.
 	 * @return the address of the buffer.
 	 */
-	private static long getBufferAddress(ByteBuffer byteBuffer) {
+	static long getBufferAddress(ByteBuffer byteBuffer) {
 		long address;
 		try {
 			address = (long) ACCESS_FIELD.get(byteBuffer);
 		} catch (IllegalAccessException e) {
-			throw new RuntimeException("Failed to access address method", e);
+			throw new RuntimeException("Failed to access address field", e);
 		}
 		return address;
 	}
