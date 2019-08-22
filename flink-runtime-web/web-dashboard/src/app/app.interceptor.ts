@@ -32,7 +32,7 @@ export class AppInterceptor implements HttpInterceptor {
      * Error response from below url should be ignored
      */
     const ignoreErrorUrlEndsList = ['checkpoints/config', 'checkpoints'];
-    const ignoreErrorMessage = ['File not found.'];
+    const ignoreErrorMessage = ['File not found.', 'Unable to load requested file /jars.'];
     return next.handle(req).pipe(
       catchError(res => {
         const errorMessage = res && res.error && res.error.errors && res.error.errors[0];
