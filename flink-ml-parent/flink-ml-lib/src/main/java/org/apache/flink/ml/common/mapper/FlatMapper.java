@@ -74,7 +74,7 @@ public abstract class FlatMapper implements Serializable {
 	}
 
 	/**
-	 * Get the table schema(includs column names and types) of the calculation result.
+	 * Get the table schema(includes column names and types) of the calculation result.
 	 *
 	 * @return the table schema of output Row type data
 	 */

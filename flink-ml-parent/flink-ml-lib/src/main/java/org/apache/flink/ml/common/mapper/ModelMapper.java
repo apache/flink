@@ -26,7 +26,7 @@ import org.apache.flink.util.Collector;
 
 /**
  * Abstract class for mappers with model.
- * ModelMapper transform one Row type data into one Row type result data.
+ * ModelMapper transforms one Row type data into one Row type result data.
  * Operations that produce zero, one or more Row type result data per Row type data
  * can also use the {@link FlatModelMapper}.
  */
