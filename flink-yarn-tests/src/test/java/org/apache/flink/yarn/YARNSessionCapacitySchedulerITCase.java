@@ -273,7 +273,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				final HostAndPort hostAndPort = parseJobManagerHostname(logs);
 				final String host = hostAndPort.getHostText();
 				final int port = hostAndPort.getPort();
-				LOG.info("Extracted hostname:port: {}", host, port);
+				LOG.info("Extracted hostname:port: {}:{}", host, port);
 
 				submitJob("WindowJoin.jar");
 
@@ -314,7 +314,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	}
 
 	private static HostAndPort parseJobManagerHostname(final String logs) {
-		final Pattern p = Pattern.compile("Flink JobManager is now running on ([a-zA-Z0-9.-]+):([0-9]+)");
+		final Pattern p = Pattern.compile("JobManager Web Interface: http://([a-zA-Z0-9.-]+):([0-9]+)");
 		final Matcher matches = p.matcher(logs);
 		String hostname = null;
 		String port = null;
