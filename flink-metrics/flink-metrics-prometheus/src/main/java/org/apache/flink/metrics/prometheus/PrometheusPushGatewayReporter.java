@@ -19,6 +19,7 @@
 package org.apache.flink.metrics.prometheus;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
@@ -28,13 +29,16 @@ import org.apache.flink.util.AbstractID;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.PushGateway;
 
-import java.io.IOException;
-
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.DELETE_ON_SHUTDOWN;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.GROUPING_KEY;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.JOB_NAME;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.PORT;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.RANDOM_JOB_NAME_SUFFIX;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * {@link MetricReporter} that exports {@link Metric Metrics} via Prometheus {@link PushGateway}.
@@ -45,6 +49,7 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
 	private PushGateway pushGateway;
 	private String jobName;
 	private boolean deleteOnShutdown;
+	private Map<String, String> groupingKey;
 
 	@Override
 	public void open(MetricConfig config) {
@@ -55,6 +60,10 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
 		String configuredJobName = config.getString(JOB_NAME.key(), JOB_NAME.defaultValue());
 		boolean randomSuffix = config.getBoolean(RANDOM_JOB_NAME_SUFFIX.key(), RANDOM_JOB_NAME_SUFFIX.defaultValue());
 		deleteOnShutdown = config.getBoolean(DELETE_ON_SHUTDOWN.key(), DELETE_ON_SHUTDOWN.defaultValue());
+		groupingKey = parserGroupingKey(config.getString(GROUPING_KEY.key(), GROUPING_KEY.defaultValue()));
+		if (groupingKey != null) {
+			log.info("PrometheusPushGatewayReporter groupingKey: {}", groupingKey);
+		}
 
 		if (host == null || host.isEmpty() || port < 1) {
 			throw new IllegalArgumentException("Invalid host/port configuration. Host: " + host + " Port: " + port);
@@ -70,12 +79,30 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
 		log.info("Configured PrometheusPushGatewayReporter with {host:{}, port:{}, jobName: {}, randomJobNameSuffix:{}, deleteOnShutdown:{}}", host, port, jobName, randomSuffix, deleteOnShutdown);
 	}
 
+	@VisibleForTesting
+	static Map<String, String> parserGroupingKey(final String groupingKeyConfig) {
+		if (!groupingKeyConfig.isEmpty()) {
+			Map<String, String> groupingKey = new HashMap<>();
+			String[] kvs = groupingKeyConfig.split(",");
+			for (String kv : kvs) {
+				int idx = kv.indexOf("=");
+				if (idx < 0) {
+					continue;
+				}
+				groupingKey.put(kv.substring(0, idx), kv.substring(idx + 1));
+			}
+
+			return groupingKey;
+		}
+		return null;
+	}
+
 	@Override
 	public void report() {
 		try {
-			pushGateway.push(CollectorRegistry.defaultRegistry, jobName);
+			pushGateway.push(CollectorRegistry.defaultRegistry, jobName, groupingKey);
 		} catch (Exception e) {
-			log.warn("Failed to push metrics to PushGateway with jobName {}.", jobName, e);
+			log.warn("Failed to push metrics to PushGateway with jobName {}, groupingKey {}.", jobName, groupingKey, e);
 		}
 	}
 
@@ -83,9 +110,9 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
 	public void close() {
 		if (deleteOnShutdown && pushGateway != null) {
 			try {
-				pushGateway.delete(jobName);
+				pushGateway.delete(jobName, groupingKey);
 			} catch (IOException e) {
-				log.warn("Failed to delete metrics from PushGateway with jobName {}.", jobName, e);
+				log.warn("Failed to delete metrics from PushGateway with jobName {}, groupingKey {}.", jobName, groupingKey, e);
 			}
 		}
 		super.close();

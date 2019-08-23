@@ -63,4 +63,9 @@ public class PrometheusPushGatewayReporterOptions {
 				" Before disabling this option please ensure that your" +
 				" label values meet the %s.", LinkElement.link("https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels", "Prometheus requirements"))
 			.build());
+
+	public static final ConfigOption<String> GROUPING_KEY = ConfigOptions
+		.key("groupingKey")
+		.defaultValue("")
+		.withDescription("The grouping key which metrics will be pushed e.g. k1=v1,k2=v2");
 }
