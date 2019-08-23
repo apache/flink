@@ -215,26 +215,18 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 		}
 
 		@Override
-		public void handleWatermark(Watermark watermark) {
-			try {
-				synchronized (lock) {
-					watermarkGauge.setCurrentWatermark(watermark.getTimestamp());
-					operator.processWatermark(watermark);
-				}
-			} catch (Exception e) {
-				throw new RuntimeException("Exception occurred while processing valve output watermark: ", e);
+		public void handleWatermark(Watermark watermark) throws Exception {
+			synchronized (lock) {
+				watermarkGauge.setCurrentWatermark(watermark.getTimestamp());
+				operator.processWatermark(watermark);
 			}
 		}
 
 		@SuppressWarnings("unchecked")
 		@Override
 		public void handleStreamStatus(StreamStatus streamStatus) {
-			try {
-				synchronized (lock) {
-					streamStatusMaintainer.toggleStreamStatus(streamStatus);
-				}
-			} catch (Exception e) {
-				throw new RuntimeException("Exception occurred while processing valve output stream status: ", e);
+			synchronized (lock) {
+				streamStatusMaintainer.toggleStreamStatus(streamStatus);
 			}
 		}
 	}

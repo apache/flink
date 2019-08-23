@@ -409,49 +409,39 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 		}
 
 		@Override
-		public void handleWatermark(Watermark watermark) {
-			try {
-				synchronized (lock) {
-					inputWatermarkGauge.setCurrentWatermark(watermark.getTimestamp());
-					if (inputIndex == 0) {
-						operator.processWatermark1(watermark);
-					} else {
-						operator.processWatermark2(watermark);
-					}
+		public void handleWatermark(Watermark watermark) throws Exception {
+			synchronized (lock) {
+				inputWatermarkGauge.setCurrentWatermark(watermark.getTimestamp());
+				if (inputIndex == 0) {
+					operator.processWatermark1(watermark);
+				} else {
+					operator.processWatermark2(watermark);
 				}
-			} catch (Exception e) {
-				throw new RuntimeException("Exception occurred while processing valve output watermark of input"
-					+ (inputIndex + 1) + ": ", e);
 			}
 		}
 
 		@Override
 		public void handleStreamStatus(StreamStatus streamStatus) {
-			try {
-				synchronized (lock) {
-					final StreamStatus anotherStreamStatus;
-					if (inputIndex == 0) {
-						firstStatus = streamStatus;
-						anotherStreamStatus = secondStatus;
-					} else {
-						secondStatus = streamStatus;
-						anotherStreamStatus = firstStatus;
-					}
+			synchronized (lock) {
+				final StreamStatus anotherStreamStatus;
+				if (inputIndex == 0) {
+					firstStatus = streamStatus;
+					anotherStreamStatus = secondStatus;
+				} else {
+					secondStatus = streamStatus;
+					anotherStreamStatus = firstStatus;
+				}
 
-					// check if we need to toggle the task's stream status
-					if (!streamStatus.equals(streamStatusMaintainer.getStreamStatus())) {
-						if (streamStatus.isActive()) {
-							// we're no longer idle if at least one input has become active
-							streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
-						} else if (anotherStreamStatus.isIdle()) {
-							// we're idle once both inputs are idle
-							streamStatusMaintainer.toggleStreamStatus(StreamStatus.IDLE);
-						}
+				// check if we need to toggle the task's stream status
+				if (!streamStatus.equals(streamStatusMaintainer.getStreamStatus())) {
+					if (streamStatus.isActive()) {
+						// we're no longer idle if at least one input has become active
+						streamStatusMaintainer.toggleStreamStatus(StreamStatus.ACTIVE);
+					} else if (anotherStreamStatus.isIdle()) {
+						// we're idle once both inputs are idle
+						streamStatusMaintainer.toggleStreamStatus(StreamStatus.IDLE);
 					}
 				}
-			} catch (Exception e) {
-				throw new RuntimeException("Exception occurred while processing valve output stream status of input"
-					+ (inputIndex + 1) + ": ", e);
 			}
 		}
 	}
