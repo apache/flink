@@ -25,6 +25,9 @@ import org.junit.Test;
 
 import java.util.Map;
 
+/**
+ * Test for {@link PrometheusPushGatewayReporter}.
+ */
 public class PrometheusPushGatewayReporterTest extends TestLogger {
 
 	@Test
