@@ -28,10 +28,12 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.TableType;
+import org.apache.hadoop.hive.metastore.api.EnvironmentContext;
 import org.apache.hadoop.hive.metastore.api.Function;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
@@ -45,9 +47,9 @@ import java.lang.reflect.Method;
 import java.util.List;
 
 /**
- * Shim for Hive version 2.x.
+ * Shim for Hive version 2.3.0.
  */
-public class HiveShimV2 implements HiveShim {
+public class HiveShimV230 extends HiveShimV122 {
 
 	@Override
 	public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
@@ -86,7 +88,7 @@ public class HiveShimV2 implements HiveShim {
 	public boolean moveToTrash(FileSystem fs, Path path, Configuration conf, boolean purge) throws IOException {
 		try {
 			Method method = FileUtils.class.getDeclaredMethod("moveToTrash", FileSystem.class, Path.class,
-					Configuration.class, boolean.class);
+				Configuration.class, boolean.class);
 			return (boolean) method.invoke(null, fs, path, conf, purge);
 		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
 			throw new IOException("Failed to move " + path + " to trash", e);
@@ -100,13 +102,37 @@ public class HiveShimV2 implements HiveShim {
 	}
 
 	@Override
+	public void alterPartition(IMetaStoreClient client, String databaseName, String tableName, Partition partition)
+		throws InvalidOperationException, MetaException, TException {
+		try {
+			Method method = client.getClass().getMethod("alter_partition", String.class, String.class,
+				Partition.class, EnvironmentContext.class);
+			method.invoke(client, databaseName, tableName, partition, null);
+		} catch (InvocationTargetException ite) {
+			Throwable targetEx = ite.getTargetException();
+			if (targetEx instanceof TException) {
+				throw (TException) targetEx;
+			} else {
+				throw new CatalogException(
+					String.format("Failed to alter partition for table %s in database %s", tableName, databaseName),
+					targetEx);
+			}
+		} catch (NoSuchMethodException | IllegalAccessException e) {
+			throw new CatalogException(
+				String.format("Failed to alter partition for table %s in database %s", tableName, databaseName),
+				e);
+		}
+	}
+
+	@Override
 	public SimpleGenericUDAFParameterInfo createUDAFParameterInfo(ObjectInspector[] params, boolean isWindowing, boolean distinct, boolean allColumns) {
 		try {
 			Constructor constructor = SimpleGenericUDAFParameterInfo.class.getConstructor(ObjectInspector[].class,
-					boolean.class, boolean.class, boolean.class);
+				boolean.class, boolean.class, boolean.class);
 			return (SimpleGenericUDAFParameterInfo) constructor.newInstance(params, isWindowing, distinct, allColumns);
 		} catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
 			throw new CatalogException("Failed to create SimpleGenericUDAFParameterInfo", e);
 		}
 	}
+
 }

@@ -27,6 +27,7 @@ import org.apache.hadoop.hive.metastore.api.Function;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
@@ -98,6 +99,9 @@ public interface HiveShim {
 	 * @param table        the new Hive table
 	 */
 	void alterTable(IMetaStoreClient client, String databaseName, String tableName, Table table)
+			throws InvalidOperationException, MetaException, TException;
+
+	void alterPartition(IMetaStoreClient client, String databaseName, String tableName, Partition partition)
 			throws InvalidOperationException, MetaException, TException;
 
 	/**
