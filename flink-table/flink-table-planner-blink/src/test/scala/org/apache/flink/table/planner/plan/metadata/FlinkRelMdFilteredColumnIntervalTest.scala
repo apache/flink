@@ -17,13 +17,12 @@
  */
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.stats.ValueInterval
 import org.apache.flink.table.types.logical._
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.RexNode
-import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, GREATER_THAN, IS_FALSE, IS_TRUE, LESS_THAN, LESS_THAN_OR_EQUAL}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable.{EQUALS, GREATER_THAN, IS_FALSE, IS_TRUE, LESS_THAN, LESS_THAN_OR_EQUAL, DIVIDE}
 import org.junit.Assert.{assertEquals, assertNull}
 import org.junit.{Before, Test}
 
@@ -44,7 +43,7 @@ class FlinkRelMdFilteredColumnIntervalTest extends FlinkRelMdHandlerTestBase {
     expr2 = relBuilder.call(GREATER_THAN, relBuilder.field(0), relBuilder.literal(-1))
     // a / 2 > 3
     expr3 = relBuilder.call(GREATER_THAN,
-      relBuilder.call(FlinkSqlOperatorTable.DIV, relBuilder.field(0), relBuilder.literal(2)),
+      relBuilder.call(DIVIDE, relBuilder.field(0), relBuilder.literal(2)),
       relBuilder.literal(3))
     // b < 1.1
     expr4 = relBuilder.call(LESS_THAN, relBuilder.field(1), relBuilder.literal(1.1D))

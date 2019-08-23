@@ -265,22 +265,12 @@ class BatchExecHashJoin(
     val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       build,
       probe,
-      getOperatorName,
+      getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
       probe.getParallelism)
     val resource = NodeResourceUtil.fromManagedMem(managedMemoryInMB)
     ret.setResources(resource, resource)
     ret
-  }
-
-  private def getOperatorName: String = {
-    val joinExpressionStr = if (getCondition != null) {
-      val inFields = inputRowType.getFieldNames.toList
-      s"where: ${getExpressionString(getCondition, inFields, None, ExpressionFormat.Infix)}, "
-    } else {
-      ""
-    }
-    s"HashJoin($joinExpressionStr${if (leftIsBuild) "buildLeft" else "buildRight"})"
   }
 }

@@ -68,7 +68,7 @@ class TableDescriptorTest extends TableTestBase {
       .field("myfield6", Types.OBJECT_ARRAY(TypeExtractor.createTypeInfo(classOf[Person])))
       .fieldDelimiter("#")
 
-    val descriptor: RegistrableDescriptor = if (isStreaming) {
+    val descriptor = if (isStreaming) {
       streamTestUtil().tableEnv
         .connect(connector)
         .withFormat(format)

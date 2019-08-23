@@ -265,7 +265,7 @@ class BatchExecSortMergeJoin(
     val ret = new TwoInputTransformation[BaseRow, BaseRow, BaseRow](
       leftInput,
       rightInput,
-      getOperatorName,
+      getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType)),
       rightInput.getParallelism)
@@ -277,13 +277,5 @@ class BatchExecSortMergeJoin(
   private def estimateOutputSize(relNode: RelNode): Double = {
     val mq = relNode.getCluster.getMetadataQuery
     mq.getAverageRowSize(relNode) * mq.getRowCount(relNode)
-  }
-
-  private def getOperatorName: String = if (getCondition != null) {
-    val inFields = inputRowType.getFieldNames.toList
-    s"SortMergeJoin(where: ${
-      getExpressionString(getCondition, inFields, None, ExpressionFormat.Infix)})"
-  } else {
-    "SortMergeJoin"
   }
 }

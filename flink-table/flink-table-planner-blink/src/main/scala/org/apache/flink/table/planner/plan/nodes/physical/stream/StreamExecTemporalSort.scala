@@ -147,7 +147,7 @@ class StreamExecTemporalSort(
       // as input node is singleton exchange, its parallelism is 1.
       val ret = new OneInputTransformation(
         input,
-        "ProcTimeSortOperator",
+        getRelDetailedDescription,
         sortOperator,
         outputRowTypeInfo,
         input.getParallelism)
@@ -187,7 +187,7 @@ class StreamExecTemporalSort(
 
     val ret = new OneInputTransformation(
       input,
-      "RowTimeSortOperator",
+      getRelDetailedDescription,
       sortOperator,
       outputRowTypeInfo,
       input.getParallelism)

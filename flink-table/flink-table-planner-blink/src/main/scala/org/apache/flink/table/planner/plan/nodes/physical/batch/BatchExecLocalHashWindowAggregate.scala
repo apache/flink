@@ -86,8 +86,4 @@ class BatchExecLocalHashWindowAggregate(
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getDamBehavior: DamBehavior = DamBehavior.MATERIALIZING
-
-  override def getOperatorName: String = {
-    "LocalWindowHashAggregateBatchExec"
-  }
 }

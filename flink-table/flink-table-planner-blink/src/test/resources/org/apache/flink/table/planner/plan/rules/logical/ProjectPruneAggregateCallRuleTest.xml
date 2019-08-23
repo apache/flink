@@ -89,7 +89,7 @@ LogicalJoin(condition=[$4], joinType=[semi])
    +- LogicalAggregate(group=[{}], m=[MIN($0)])
       +- LogicalProject(i=[true])
          +- LogicalAggregate(group=[{}], EXPR$0=[SUM($0)])
-            +- LogicalValues(tuples=[[]])
+            +- LogicalValues(type=[RecordType(INTEGER a1)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -166,7 +166,7 @@ LogicalJoin(condition=[$4], joinType=[semi])
    +- LogicalAggregate(group=[{}], m=[MIN($0)])
       +- LogicalProject(i=[true])
          +- LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-            +- LogicalValues(tuples=[[]])
+            +- LogicalValues(type=[RecordType(INTEGER $f0)], tuples=[[]])
 ]]>
     </Resource>
   </TestCase>

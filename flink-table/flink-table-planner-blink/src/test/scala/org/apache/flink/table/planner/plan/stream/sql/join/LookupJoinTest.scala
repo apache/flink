@@ -101,6 +101,28 @@ class LookupJoinTest extends TableTestBase with Serializable {
   }
 
   @Test
+  def testNotDistinctFromInJoinCondition(): Unit = {
+
+    // does not support join condition contains `IS NOT DISTINCT`
+    expectExceptionThrown(
+      "SELECT * FROM MyTable AS T LEFT JOIN temporalTest " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a IS NOT  DISTINCT FROM D.id",
+      "LookupJoin doesn't support join condition contains 'a IS NOT DISTINCT FROM b' (or " +
+        "alternative '(a = b) or (a IS NULL AND b IS NULL)')",
+      classOf[TableException]
+    )
+
+    // does not support join condition contains `IS NOT  DISTINCT` and similar syntax
+    expectExceptionThrown(
+      "SELECT * FROM MyTable AS T LEFT JOIN temporalTest " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id OR (T.a IS NULL AND D.id IS NULL)",
+      "LookupJoin doesn't support join condition contains 'a IS NOT DISTINCT FROM b' (or " +
+        "alternative '(a = b) or (a IS NULL AND b IS NULL)')",
+      classOf[TableException]
+    )
+  }
+
+  @Test
   def testInvalidLookupTableFunction(): Unit = {
     streamUtil.addDataStream[(Int, String, Long, Timestamp)](
       "T", 'a, 'b, 'c, 'ts, 'proctime.proctime)

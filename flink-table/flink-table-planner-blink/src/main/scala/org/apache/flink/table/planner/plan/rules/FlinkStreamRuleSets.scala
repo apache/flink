@@ -210,7 +210,7 @@ object FlinkStreamRuleSets {
     // merge filter to MultiJoin
     FilterMultiJoinMergeRule.INSTANCE,
     // merge join to MultiJoin
-    JoinToMultiJoinRule.INSTANCE
+    FlinkJoinToMultiJoinRule.INSTANCE
   )
 
   val JOIN_REORDER_RULES: RuleSet = RuleSets.ofList(

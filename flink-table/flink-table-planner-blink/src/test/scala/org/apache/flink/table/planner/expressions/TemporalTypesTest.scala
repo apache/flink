@@ -28,13 +28,12 @@ import org.apache.flink.table.planner.utils.DateTimeTestUtil
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo
 import org.apache.flink.types.Row
-
 import org.junit.Test
 
 import java.sql.Timestamp
 import java.text.SimpleDateFormat
 import java.time.{Instant, ZoneId}
-import java.util.TimeZone
+import java.util.{Locale, TimeZone}
 
 class TemporalTypesTest extends ExpressionTestBase {
 
@@ -590,12 +589,7 @@ class TemporalTypesTest extends ExpressionTestBase {
     )
 
     testSqlApi(
-      "FROM_TIMESTAMP(f13)",
-      "null"
-    )
-
-    testSqlApi(
-      "TO_TIMESTAMP(SUBSTR('', 2, -1))",
+      "TO_TIMESTAMP(SUBSTRING('', 2, -1))",
       "null"
     )
 
@@ -606,11 +600,14 @@ class TemporalTypesTest extends ExpressionTestBase {
   }
 
   @Test
-  def testdebug() = {
-    testSqlApi("DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
+  def testDateFormat(): Unit = {
+    testSqlApi(
+      "DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
       "2018/03/14 01:02:03")
-    testSqlApi("DATE_FORMAT('2018-03-14 01:02:03', 'yyyy-MM-dd HH:mm:ss', " +
-        "'yyyy/MM/dd HH:mm:ss')", "2018/03/14 01:02:03")
+
+    testSqlApi(
+      s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03")}, 'yyyy-MM-dd HH:mm:ss')",
+      "2018-03-14 01:02:03")
   }
 
   @Test
@@ -659,12 +656,12 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(timestampTz("2018-03-14 19:00:00.010"), "2018-03-14 19:00:00.010")
 
     // DATE_FORMAT
-    testSqlApi("DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
+    testSqlApi(
+      "DATE_FORMAT('2018-03-14 01:02:03', 'yyyy/MM/dd HH:mm:ss')",
       "2018/03/14 01:02:03")
-    testSqlApi("DATE_FORMAT('2018-03-14 01:02:03', 'yyyy-MM-dd HH:mm:ss', " +
-      "'yyyy/MM/dd HH:mm:ss')", "2018/03/14 01:02:03")
-    testSqlApi(s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03")}," +
-        " 'yyyy-MM-dd HH:mm:ss')",
+
+    testSqlApi(
+      s"DATE_FORMAT(${timestampTz("2018-03-14 01:02:03")}, 'yyyy-MM-dd HH:mm:ss')",
       "2018-03-14 01:02:03")
 
     // EXTRACT
@@ -744,82 +741,17 @@ class TemporalTypesTest extends ExpressionTestBase {
   }
 
   @Test
-  def testUTCTimeZone(): Unit = {
-    config.setLocalTimeZone(ZoneId.of("UTC"))
-
-    // Test Calcite's RexLiteral
-    // 1521025200000  =  UTC: 2018-03-14 11:00:00
-    testSqlApi("TIMESTAMP '2018-03-14 11:00:00'", "2018-03-14 11:00:00.000")
-
-    testSqlApi("DATE '2018-03-14'", "2018-03-14")
-    testSqlApi("TIME '19:20:21'", "19:20:21")
-
-    testSqlApi("TO_TIMESTAMP('2018-03-14 11:00:00', 'yyyy-MM-dd HH:mm:ss')",
-      "2018-03-14 11:00:00.000")
-    testSqlApi("TO_TIMESTAMP('2018-03-14 11:00:00')",
-      "2018-03-14 11:00:00.000")
-    testSqlApi("TO_TIMESTAMP(1521025200000)", "2018-03-14 11:00:00.000")
-
-    // 1521025200000  "2018-03-14T11:00:00+0000"
-    testSqlApi("FROM_UNIXTIME(1521025200)",
-      "2018-03-14 11:00:00")
-    testSqlApi("FROM_UNIXTIME(1521025200, 'yyyy-MM-dd HH:mm:ss')",
-      "2018-03-14 11:00:00")
-    testSqlApi("FROM_UNIXTIME(UNIX_TIMESTAMP(TO_TIMESTAMP('2018-03-14 11:00:00.0')))",
-      "2018-03-14 11:00:00")
-    testSqlApi("FROM_UNIXTIME(UNIX_TIMESTAMP('2018-03-14 11:00:00.0'))",
-      "2018-03-14 11:00:00")
-
-    // 1520960523000  "2018-03-13T17:02:03+0000"
-    testSqlApi("Date_ADD(TO_TIMESTAMP(1520960523000), 2)", "2018-03-15")
-    testSqlApi("Date_ADD(TO_TIMESTAMP('2018-03-13 17:02:03'), 2)", "2018-03-15")
-    testSqlApi("Date_ADD('2018-03-13 17:02:03', 2)", "2018-03-15")
-    testSqlApi("Date_SUB(TO_TIMESTAMP(1520960523000), 2)", "2018-03-11")
-    testSqlApi("Date_SUB(TO_TIMESTAMP('2018-03-13 17:02:03'), 2)", "2018-03-11")
-    testSqlApi("Date_SUB('2018-03-13 17:02:03', 2)", "2018-03-11")
-    testSqlApi("date_add('2017--10-11', 30)", "null")
-    testSqlApi("date_sub('2017--10-11', 30)", "null")
-
-    // DATE_DIFF
-    testSqlApi("DATEDIFF(TO_TIMESTAMP(1520960523000), '2018-03-13 17:02:03')", "0")
-    testSqlApi("DATEDIFF(TO_TIMESTAMP(1520827201000), TO_TIMESTAMP(1520740801000))", "1")
-
-    // DATE_FORMAT
-    // 1520960523000  "2018-03-13 17:02:03+0000"
-    testSqlApi("DATE_FORMAT('2018-03-13 17:02:03', 'yyyy-MM-dd HH:mm:ss', " +
-      "'yyyy/MM/dd HH:mm:ss')", "2018/03/13 17:02:03")
-    testSqlApi("DATE_FORMAT(TO_TIMESTAMP(1520960523000), 'yyyy-MM-dd HH:mm:ss')",
-      "2018-03-13 17:02:03")
-  }
-
-  @Test
   def testDaylightSavingTimeZone(): Unit = {
-    config.setLocalTimeZone(ZoneId.of("America/New_York"))
+    // test from MySQL
+    // https://dev.mysql.com/doc/refman/8.0/en/date-and-time-functions.html#function_unix-timestamp
+    // due to conventions for local time zone changes such as Daylight Saving Time (DST),
+    // it is possible for UNIX_TIMESTAMP() to map two values that are distinct in a non-UTC
+    // time zone to the same Unix timestamp value
+    config.setLocalTimeZone(ZoneId.of("MET")) // Europe/Amsterdam
 
-    // TODO: add more testcases & fully support DST
-    // Daylight Saving
-    // America/New_York:  -5:00,  -4:00(DST)
-    // 2018-03-11 02:00:00 -> 2018:-3-11 03:00:00
-    // 2018-11-04 02:00:00 -> 2018-11-04 01:00:00
-
-    // Test Calcite's RexLiteral
-    testSqlApi("TIMESTAMP '2018-03-14 07:00:00'", "2018-03-14 07:00:00.000")
-
-    testSqlApi("TO_TIMESTAMP('2018-03-14 07:00:00', 'yyyy-MM-dd HH:mm:ss')",
-      "2018-03-14 07:00:00.000")
-    testSqlApi("TO_TIMESTAMP('2018-03-14 07:00:00')",
-      "2018-03-14 07:00:00.000")
-    testSqlApi("f18", "2018-03-14 07:00:00.000")
-
-    testSqlApi("FROM_UNIXTIME(UNIX_TIMESTAMP(TO_TIMESTAMP('2018-03-14 07:00:00.0')))",
-      "2018-03-14 07:00:00")
-    testSqlApi("FROM_UNIXTIME(UNIX_TIMESTAMP('2018-03-14 07:00:00.0'))",
-      "2018-03-14 07:00:00")
-
-    // DATE_FORMAT
-    testSqlApi("DATE_FORMAT('2018-03-13 13:02:03', 'yyyy-MM-dd HH:mm:ss', " +
-      "'yyyy/MM/dd HH:mm:ss')", "2018/03/13 13:02:03")
-    testSqlApi("DATE_FORMAT(f19, 'yyyy-MM-dd HH:mm:ss')", "2018-03-13 13:02:03")
+    testSqlApi("UNIX_TIMESTAMP('2005-03-27 03:00:00')", "1111885200")
+    testSqlApi("UNIX_TIMESTAMP('2005-03-27 02:00:00')", "1111885200")
+    testSqlApi("FROM_UNIXTIME(1111885200)", "2005-03-27 03:00:00")
   }
 
   @Test
@@ -839,28 +771,14 @@ class TemporalTypesTest extends ExpressionTestBase {
 
   @Test
   def testNullableCases(): Unit = {
-    testSqlApi(
-      "DATE_FORMAT_TZ(TO_TIMESTAMP(cast(NUll as bigInt)), 'yyyy/MM/dd HH:mm:ss', 'Asia/Shanghai')",
+    testSqlApi("CONVERT_TZ(cast(NULL as varchar), 'UTC', 'Asia/Shanghai')",
       nullable)
 
-    testSqlApi("CONVERT_TZ(cast(NUll as varchar), 'yyyy-MM-dd HH:mm:ss', 'UTC', 'Asia/Shanghai')",
-      nullable)
+    testSqlApi("DATE_FORMAT(cast(NULL as varchar), 'yyyy/MM/dd HH:mm:ss')", nullable)
 
-    testSqlApi("FROM_TIMESTAMP(f13)", nullable)
+    testSqlApi("FROM_UNIXTIME(cast(NULL as bigInt))", nullable)
 
-    testSqlApi("DATE_FORMAT(cast(NUll as varchar), 'yyyy/MM/dd HH:mm:ss')", nullable)
-
-    testSqlApi("UNIX_TIMESTAMP(TO_TIMESTAMP(cast(NUll as bigInt)))", nullable)
-
-    testSqlApi("FROM_UNIXTIME(cast(NUll as bigInt))", nullable)
-
-    testSqlApi("TO_DATE(cast(NUll as varchar))", nullable)
-
-    testSqlApi("TO_TIMESTAMP_TZ(cast(NUll as varchar), 'Asia/Shanghai')", nullable)
-
-    testSqlApi(
-      "DATE_FORMAT_TZ(cast(NUll as timestamp), 'yyyy/MM/dd HH:mm:ss', 'Asia/Shanghai')",
-      nullable)
+    testSqlApi("TO_DATE(cast(NULL as varchar))", nullable)
   }
 
   @Test
@@ -869,9 +787,8 @@ class TemporalTypesTest extends ExpressionTestBase {
     testSqlApi(s"DATE_FORMAT('$invalidStr', 'yyyy/MM/dd HH:mm:ss')", nullable)
     testSqlApi(s"TO_TIMESTAMP('$invalidStr', 'yyyy-mm-dd')", nullable)
     testSqlApi(s"TO_DATE('$invalidStr')", nullable)
-    testSqlApi(s"TO_TIMESTAMP_TZ('$invalidStr', 'Asia/Shanghai')", nullable)
     testSqlApi(
-      s"CONVERT_TZ('$invalidStr', 'yyyy-MM-dd HH:mm:ss', 'UTC', 'Asia/Shanghai')",
+      s"CONVERT_TZ('$invalidStr', 'UTC', 'Asia/Shanghai')",
       nullable)
   }
 
@@ -882,8 +799,7 @@ class TemporalTypesTest extends ExpressionTestBase {
       s"DATE_FORMAT('$invalidStr', 'yyyy/MM/dd HH:mm:ss')",
       s"TO_TIMESTAMP('$invalidStr', 'yyyy-mm-dd')",
       s"TO_DATE('$invalidStr')",
-      s"TO_TIMESTAMP_TZ('$invalidStr', 'Asia/Shanghai')",
-      s"CONVERT_TZ('$invalidStr', 'yyyy-MM-dd HH:mm:ss', 'UTC', 'Asia/Shanghai')")
+      s"CONVERT_TZ('$invalidStr', 'UTC', 'Asia/Shanghai')")
 
     cases.foreach {
       caseExpr =>
@@ -892,26 +808,95 @@ class TemporalTypesTest extends ExpressionTestBase {
   }
 
   @Test
-  def testTimeZoneFunction(): Unit = {
-    testSqlApi("TO_TIMESTAMP_TZ('2018-03-14 11:00:00', 'Asia/Shanghai')", "2018-03-14 03:00:00.000")
-    testSqlApi("TO_TIMESTAMP_TZ('2018-03-14 11:00:00', 'yyyy-MM-dd HH:mm:ss', 'Asia/Shanghai')",
-               "2018-03-14 03:00:00.000")
-
-    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'yyyy-MM-dd HH:mm:ss', 'UTC', 'Asia/Shanghai')",
+  def testConvertTZ(): Unit = {
+    testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'Asia/Shanghai')",
                "2018-03-14 19:00:00")
+  }
 
-    testSqlApi("TO_TIMESTAMP_TZ(f14, 'UTC')", "null")
+  @Test
+  def testFromUnixTime(): Unit = {
+    val sdf1 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+    val fmt2 = "yyyy-MM-dd HH:mm:ss.SSS"
+    val sdf2 = new SimpleDateFormat(fmt2, Locale.US)
+    val fmt3 = "yy-MM-dd HH-mm-ss"
+    val sdf3 = new SimpleDateFormat(fmt3, Locale.US)
 
-    // Note that, if timezone is invalid, here we follow the default behavior of JDK's getTimeZone()
-    // It will use UTC timezone by default.
-    // TODO: it is would be better to report the error at compiling stage. timezone/format codegen
-    testSqlApi("TO_TIMESTAMP_TZ('2018-03-14 11:00:00', 'invalid_tz')", "2018-03-14 11:00:00.000")
+    testSqlApi(
+      "from_unixtime(f21)",
+      sdf1.format(new Timestamp(44000)))
+    testSqlApi(
+      s"from_unixtime(f21, '$fmt2')",
+      sdf2.format(new Timestamp(44000)))
+    testSqlApi(
+      s"from_unixtime(f21, '$fmt3')",
+      sdf3.format(new Timestamp(44000)))
+
+    testSqlApi(
+      "from_unixtime(f22)",
+      sdf1.format(new Timestamp(3000)))
+    testSqlApi(
+      s"from_unixtime(f22, '$fmt2')",
+      sdf2.format(new Timestamp(3000)))
+    testSqlApi(
+      s"from_unixtime(f22, '$fmt3')",
+      sdf3.format(new Timestamp(3000)))
+
+    // test with null input
+    testSqlApi(
+      "from_unixtime(cast(null as int))",
+      "null")
+  }
+
+  @Test
+  def testFromUnixTimeInTokyo(): Unit = {
+    config.setLocalTimeZone(ZoneId.of("Asia/Tokyo"))
+    val fmt = "yy-MM-dd HH-mm-ss"
+    testSqlApi(
+      "from_unixtime(f21)",
+      "1970-01-01 09:00:44")
+    testSqlApi(
+      s"from_unixtime(f21, '$fmt')",
+      "70-01-01 09-00-44")
+
+    testSqlApi(
+      "from_unixtime(f22)",
+      "1970-01-01 09:00:03")
+    testSqlApi(
+      s"from_unixtime(f22, '$fmt')",
+      "70-01-01 09-00-03")
+  }
+
+  @Test
+  def testUnixTimestamp(): Unit = {
+    val ts1 = Timestamp.valueOf("2015-07-24 10:00:00.3")
+    val ts2 = Timestamp.valueOf("2015-07-25 02:02:02.2")
+    val s1 = "2015/07/24 10:00:00.5"
+    val s2 = "2015/07/25 02:02:02.6"
+    val ss1 = "2015-07-24 10:00:00"
+    val ss2 = "2015-07-25 02:02:02"
+    val fmt = "yyyy/MM/dd HH:mm:ss.S"
+
+    testSqlApi(s"UNIX_TIMESTAMP('$ss1')", (ts1.getTime / 1000L).toString)
+    testSqlApi(s"UNIX_TIMESTAMP('$ss2')", (ts2.getTime / 1000L).toString)
+    testSqlApi(s"UNIX_TIMESTAMP('$s1', '$fmt')", (ts1.getTime / 1000L).toString)
+    testSqlApi(s"UNIX_TIMESTAMP('$s2', '$fmt')", (ts2.getTime / 1000L).toString)
+  }
+
+  @Test
+  def testUnixTimestampInTokyo(): Unit = {
+    config.setLocalTimeZone(ZoneId.of("Asia/Tokyo"))
+    testSqlApi(
+      "UNIX_TIMESTAMP('2015-07-24 10:00:00')",
+      "1437699600")
+    testSqlApi(
+      "UNIX_TIMESTAMP('2015/07/24 10:00:00.5', 'yyyy/MM/dd HH:mm:ss.S')",
+      "1437699600")
   }
 
   // ----------------------------------------------------------------------------------------------
 
   override def testData: Row = {
-    val testData = new Row(21)
+    val testData = new Row(23)
     testData.setField(0, localDate("1990-10-14"))
     testData.setField(1, DateTimeTestUtil.localTime("10:20:45"))
     testData.setField(2, localDateTime("1990-10-14 10:20:45.123"))
@@ -937,6 +922,8 @@ class TemporalTypesTest extends ExpressionTestBase {
     testData.setField(18, Instant.ofEpochMilli(1521025200000L))
     testData.setField(19, Instant.ofEpochMilli(1520960523000L))
     testData.setField(20, Instant.ofEpochMilli(1520827201000L))
+    testData.setField(21, 44L)
+    testData.setField(22, 3)
     testData
   }
 
@@ -962,6 +949,8 @@ class TemporalTypesTest extends ExpressionTestBase {
       /* 17 */ Types.INSTANT,
       /* 18 */ Types.INSTANT,
       /* 19 */ Types.INSTANT,
-      /* 20 */ Types.INSTANT)
+      /* 20 */ Types.INSTANT,
+      /* 21 */ Types.LONG,
+      /* 22 */ Types.INT)
   }
 }

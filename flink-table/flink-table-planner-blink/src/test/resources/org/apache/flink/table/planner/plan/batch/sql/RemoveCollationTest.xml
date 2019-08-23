@@ -310,7 +310,7 @@ v2 as (
 ),
 
 join_tb2 as (
- select tb1_id, concat_agg(tb2_name, ',') as tb2_names
+ select tb1_id, LISTAGG(tb2_name, ',') as tb2_names
  from (
   select v1.id as tb1_id, tb2.name as tb2_name
    from v1 left outer join tb2 on tb2_id = tb2.id
@@ -318,7 +318,7 @@ join_tb2 as (
 ),
 
 join_tb3 as (
- select tb1_id, concat_agg(tb3_name, ',') as tb3_names
+ select tb1_id, LISTAGG(tb3_name, ',') as tb3_names
  from (
   select v2.id as tb1_id, tb3.name as tb3_name
    from v2 left outer join tb3 on tb3_id = tb3.id
@@ -349,7 +349,7 @@ LogicalProject(id=[$0], tb2_ids=[$2], tb3_ids=[$3], name=[$4], tb2_names=[$6], t
    :  :- LogicalJoin(condition=[=($0, $7)], joinType=[left])
    :  :  :- LogicalJoin(condition=[=($0, $5)], joinType=[left])
    :  :  :  :- LogicalTableScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]])
-   :  :  :  +- LogicalAggregate(group=[{0}], tb2_names=[CONCAT_AGG($1, $2)])
+   :  :  :  +- LogicalAggregate(group=[{0}], tb2_names=[LISTAGG($1, $2)])
    :  :  :     +- LogicalProject(tb1_id=[$0], tb2_name=[$3], $f2=[_UTF-16LE','])
    :  :  :        +- LogicalJoin(condition=[=($1, $2)], joinType=[left])
    :  :  :           :- LogicalProject(id=[$0], tb2_id=[$5])
@@ -357,7 +357,7 @@ LogicalProject(id=[$0], tb2_ids=[$2], tb3_ids=[$3], name=[$4], tb2_names=[$6], t
    :  :  :           :     :- LogicalTableScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]])
    :  :  :           :     +- LogicalTableFunctionScan(invocation=[split($cor0.tb2_ids)], rowType=[RecordType(VARCHAR(2147483647) f0)], elementType=[class [Ljava.lang.Object;])
    :  :  :           +- LogicalTableScan(table=[[default_catalog, default_database, tb2, source: [TestTableSource(id, name)]]])
-   :  :  +- LogicalAggregate(group=[{0}], tb3_names=[CONCAT_AGG($1, $2)])
+   :  :  +- LogicalAggregate(group=[{0}], tb3_names=[LISTAGG($1, $2)])
    :  :     +- LogicalProject(tb1_id=[$0], tb3_name=[$3], $f2=[_UTF-16LE','])
    :  :        +- LogicalJoin(condition=[=($1, $2)], joinType=[left])
    :  :           :- LogicalProject(id=[$0], tb3_id=[$5])
@@ -382,10 +382,10 @@ Calc(select=[id, tb2_ids, tb3_ids, name, tb2_names, tb3_names, name0, name1])
    :     :        :  +- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(id, tb1_id)], select=[id, key, tb2_ids, tb3_ids, name, tb1_id, tb2_names], rightSorted=[true])
    :     :        :     :- Exchange(distribution=[hash[id]])
    :     :        :     :  +- TableSourceScan(table=[[default_catalog, default_database, tb1, source: [TestTableSource(id, key, tb2_ids, tb3_ids, name)]]], fields=[id, key, tb2_ids, tb3_ids, name], reuse_id=[1])
-   :     :        :     +- SortAggregate(isMerge=[true], groupBy=[tb1_id], select=[tb1_id, Final_CONCAT_AGG(accDelimiter$0, concatAcc$1) AS tb2_names])
+   :     :        :     +- SortAggregate(isMerge=[true], groupBy=[tb1_id], select=[tb1_id, Final_LISTAGG(accDelimiter$0, concatAcc$1) AS tb2_names])
    :     :        :        +- Sort(orderBy=[tb1_id ASC])
    :     :        :           +- Exchange(distribution=[hash[tb1_id]])
-   :     :        :              +- LocalSortAggregate(groupBy=[tb1_id], select=[tb1_id, Partial_CONCAT_AGG(tb2_name, $f2) AS (accDelimiter$0, concatAcc$1)])
+   :     :        :              +- LocalSortAggregate(groupBy=[tb1_id], select=[tb1_id, Partial_LISTAGG(tb2_name, $f2) AS (accDelimiter$0, concatAcc$1)])
    :     :        :                 +- Sort(orderBy=[tb1_id ASC])
    :     :        :                    +- Calc(select=[id AS tb1_id, name AS tb2_name, _UTF-16LE',' AS $f2])
    :     :        :                       +- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(tb2_id, id0)], select=[id, tb2_id, id0, name])
@@ -395,10 +395,10 @@ Calc(select=[id, tb2_ids, tb3_ids, name, tb2_names, tb3_names, name0, name1])
    :     :        :                          :        +- Reused(reference_id=[1])
    :     :        :                          +- Exchange(distribution=[hash[id]])
    :     :        :                             +- TableSourceScan(table=[[default_catalog, default_database, tb2, source: [TestTableSource(id, name)]]], fields=[id, name])
-   :     :        +- SortAggregate(isMerge=[true], groupBy=[tb1_id], select=[tb1_id, Final_CONCAT_AGG(accDelimiter$0, concatAcc$1) AS tb3_names])
+   :     :        +- SortAggregate(isMerge=[true], groupBy=[tb1_id], select=[tb1_id, Final_LISTAGG(accDelimiter$0, concatAcc$1) AS tb3_names])
    :     :           +- Sort(orderBy=[tb1_id ASC])
    :     :              +- Exchange(distribution=[hash[tb1_id]])
-   :     :                 +- LocalSortAggregate(groupBy=[tb1_id], select=[tb1_id, Partial_CONCAT_AGG(tb3_name, $f2) AS (accDelimiter$0, concatAcc$1)])
+   :     :                 +- LocalSortAggregate(groupBy=[tb1_id], select=[tb1_id, Partial_LISTAGG(tb3_name, $f2) AS (accDelimiter$0, concatAcc$1)])
    :     :                    +- Sort(orderBy=[tb1_id ASC])
    :     :                       +- Calc(select=[id AS tb1_id, name AS tb3_name, _UTF-16LE',' AS $f2])
    :     :                          +- SortMergeJoin(joinType=[LeftOuterJoin], where=[=(tb3_id, id0)], select=[id, tb3_id, id0, name])
@@ -502,7 +502,7 @@ SortMergeJoin(joinType=[LeftOuterJoin], where=[AND(=(a1, d1), =(b1, e1))], selec
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(sum_b=[$1], avg_b=[/(CAST(CASE(>(COUNT($1) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($1) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:BIGINT)):DOUBLE, COUNT($1) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW))], rn=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
+LogicalProject(sum_b=[$1], avg_b=[/(CASE(>(COUNT($1) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), 0), $SUM0($1) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW), null:BIGINT), COUNT($1) OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW))], rn=[RANK() OVER (PARTITION BY $0 ORDER BY $0 NULLS FIRST RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)])
 +- LogicalAggregate(group=[{0}], sum_b=[SUM($1)])
    +- LogicalProject(a=[$0], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
@@ -510,7 +510,7 @@ LogicalProject(sum_b=[$1], avg_b=[/(CAST(CASE(>(COUNT($1) OVER (PARTITION BY $0 
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[sum_b, /(CAST(CASE(>(w0$o0, 0:BIGINT), w0$o1, null:BIGINT)), w0$o0) AS avg_b, w0$o2 AS rn])
+Calc(select=[sum_b, /(CASE(>(w0$o0, 0:BIGINT), w0$o1, null:BIGINT), w0$o0) AS avg_b, w0$o2 AS rn])
 +- OverAggregate(partitionBy=[a], orderBy=[a ASC], window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1, RANK(*) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, sum_b, w0$o0, w0$o1, w0$o2])
    +- SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS sum_b])
       +- Sort(orderBy=[a ASC])

@@ -754,6 +754,10 @@ object UserDefinedFunctionUtils {
     }
   }
 
+  def getOperandTypeArray(callBinding: SqlOperatorBinding): Array[LogicalType] = {
+    getOperandType(callBinding).toArray
+  }
+
   def getOperandType(callBinding: SqlOperatorBinding): Seq[LogicalType] = {
     val operandTypes = for (i <- 0 until callBinding.getOperandCount)
       yield callBinding.getOperandType(i)
@@ -798,7 +802,7 @@ object UserDefinedFunctionUtils {
     }.toArray
   }
 
-  private[table] def buildRelDataType(
+  def buildRelDataType(
       typeFactory: RelDataTypeFactory,
       resultType: LogicalType,
       fieldNames: Array[String],

@@ -69,8 +69,8 @@ class SortAggCodeGeneratorTest extends BatchAggTestBase {
         row("key2", "aux2", 8L, 2L, 8D, 2L, row(8L, 2L))
       ),
       Array(
-        row("key1", "aux1", 3.0D, 3.0D, 3.0D),
-        row("key2", "aux2", 4.0D, 4.0D, 4.0D))
+        row("key1", "aux1", 3L, 3.0D, 3L),
+        row("key2", "aux2", 4L, 4.0D, 4L))
     )
   }
 
@@ -86,8 +86,8 @@ class SortAggCodeGeneratorTest extends BatchAggTestBase {
         row("key2", 3L, 3D, 3L, "aux2")
       ),
       Array(
-        row("key1", "aux1", 5.5D, 5.5D, 5.5D),
-        row("key2", "aux2", 3.0D, 3.0D, 3.0D))
+        row("key1", "aux1", 5L, 5.5D, 5L),
+        row("key2", "aux2", 3L, 3.0D, 3L))
     )
   }
 

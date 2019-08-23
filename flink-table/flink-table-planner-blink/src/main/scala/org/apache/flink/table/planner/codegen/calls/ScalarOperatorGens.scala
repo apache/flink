@@ -168,8 +168,15 @@ object ScalarOperatorGens {
         generateBinaryArithmeticOperator(ctx, op, left.resultType, left, right)
 
       case (DATE, INTERVAL_DAY_TIME) =>
-        generateOperatorIfNotNull(ctx, new DateType(), left, right) {
-          (l, r) => s"$l $op ((int) ($r / ${MILLIS_PER_DAY}L))"
+        resultType.getTypeRoot match {
+          case DATE =>
+            generateOperatorIfNotNull(ctx, new DateType(), left, right) {
+              (l, r) => s"$l $op ((int) ($r / ${MILLIS_PER_DAY}L))"
+            }
+          case TIMESTAMP_WITHOUT_TIME_ZONE =>
+            generateOperatorIfNotNull(ctx, new TimestampType(), left, right) {
+              (l, r) => s"($l * ${MILLIS_PER_DAY}L) $op $r"
+            }
         }
 
       case (DATE, INTERVAL_YEAR_MONTH) =>

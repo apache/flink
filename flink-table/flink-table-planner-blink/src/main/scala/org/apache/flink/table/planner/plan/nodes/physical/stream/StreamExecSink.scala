@@ -30,13 +30,12 @@ import org.apache.flink.table.planner.delegation.StreamPlanner
 import org.apache.flink.table.planner.plan.`trait`.{AccMode, AccModeTraitDef}
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, StreamExecNode}
-import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil
 import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter
 import org.apache.flink.table.runtime.typeutils.{BaseRowTypeInfo, TypeCheckUtils}
 import org.apache.flink.table.sinks._
 import org.apache.flink.table.types.logical.TimestampType
-import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -212,7 +211,7 @@ class StreamExecSink[T](
       parTransformation.getOutputType
     }
     val resultDataType = sink.getConsumedDataType
-    val resultType = fromDataTypeToLegacyInfo(resultDataType)
+    val resultType = TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(resultDataType)
     if (CodeGenUtils.isInternalClass(resultDataType)) {
       parTransformation.asInstanceOf[Transformation[T]]
     } else {

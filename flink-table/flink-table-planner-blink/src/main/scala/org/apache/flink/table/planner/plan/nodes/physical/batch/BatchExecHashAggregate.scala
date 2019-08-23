@@ -147,9 +147,4 @@ class BatchExecHashAggregate(
   //~ ExecNode methods -----------------------------------------------------------
 
   override def getDamBehavior = DamBehavior.FULL_DAM
-
-  override def getOperatorName: String = {
-    val aggregateNamePrefix = if (isMerge) "Global" else "Complete"
-    aggOperatorName(aggregateNamePrefix + "HashAggregate")
-  }
 }

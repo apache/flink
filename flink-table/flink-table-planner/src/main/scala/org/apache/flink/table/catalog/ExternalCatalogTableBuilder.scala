@@ -20,7 +20,6 @@ package org.apache.flink.table.catalog
 
 import java.util
 
-import org.apache.flink.table.descriptors.StreamTableDescriptorValidator.{UPDATE_MODE, UPDATE_MODE_VALUE_APPEND, UPDATE_MODE_VALUE_RETRACT, UPDATE_MODE_VALUE_UPSERT}
 import org.apache.flink.table.descriptors._
 
 /**
@@ -57,84 +56,22 @@ import org.apache.flink.table.descriptors._
   */
 @Deprecated
 @deprecated
-class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDescriptor)
-  extends TableDescriptor
-  with SchematicDescriptor[ExternalCatalogTableBuilder]
-  with StreamableDescriptor[ExternalCatalogTableBuilder] {
+class ExternalCatalogTableBuilder(connectorDescriptor: ConnectorDescriptor)
+  extends TableDescriptor[ExternalCatalogTableBuilder](connectorDescriptor)
+  with SchematicDescriptor[ExternalCatalogTableBuilder] {
 
   private var isBatch: Boolean = true
   private var isStreaming: Boolean = true
 
-  private var formatDescriptor: Option[FormatDescriptor] = None
   private var schemaDescriptor: Option[Schema] = None
   private var statisticsDescriptor: Option[Statistics] = None
   private var metadataDescriptor: Option[Metadata] = None
-  private var updateMode: Option[String] = None
-
-  /**
-    * Specifies the format that defines how to read data from a connector.
-    */
-  override def withFormat(format: FormatDescriptor): ExternalCatalogTableBuilder = {
-    formatDescriptor = Some(format)
-    this
-  }
 
   /**
     * Specifies the resulting table schema.
     */
   override def withSchema(schema: Schema): ExternalCatalogTableBuilder = {
     schemaDescriptor = Some(schema)
-    this
-  }
-
-  /**
-    * Declares how to perform the conversion between a dynamic table and an external connector.
-    *
-    * In append mode, a dynamic table and an external connector only exchange INSERT messages.
-    *
-    * @see See also [[inRetractMode()]] and [[inUpsertMode()]].
-    */
-  override def inAppendMode(): ExternalCatalogTableBuilder = {
-    updateMode = Some(UPDATE_MODE_VALUE_APPEND)
-    this
-  }
-
-  /**
-    * Declares how to perform the conversion between a dynamic table and an external connector.
-    *
-    * In retract mode, a dynamic table and an external connector exchange ADD and RETRACT messages.
-    *
-    * An INSERT change is encoded as an ADD message, a DELETE change as a RETRACT message, and an
-    * UPDATE change as a RETRACT message for the updated (previous) row and an ADD message for
-    * the updating (new) row.
-    *
-    * In this mode, a key must not be defined as opposed to upsert mode. However, every update
-    * consists of two messages which is less efficient.
-    *
-    * @see See also [[inAppendMode()]] and [[inUpsertMode()]].
-    */
-  override def inRetractMode(): ExternalCatalogTableBuilder = {
-    updateMode = Some(UPDATE_MODE_VALUE_RETRACT)
-    this
-  }
-
-  /**
-    * Declares how to perform the conversion between a dynamic table and an external connector.
-    *
-    * In upsert mode, a dynamic table and an external connector exchange UPSERT and DELETE messages.
-    *
-    * This mode requires a (possibly composite) unique key by which updates can be propagated. The
-    * external connector needs to be aware of the unique key attribute in order to apply messages
-    * correctly. INSERT and UPDATE changes are encoded as UPSERT messages. DELETE changes as
-    * DELETE messages.
-    *
-    * The main difference to a retract stream is that UPDATE changes are encoded with a single
-    * message and are therefore more efficient.
-    *
-    * @see See also [[inAppendMode()]] and [[inRetractMode()]].
-    */
-  override def inUpsertMode(): ExternalCatalogTableBuilder = {
-    updateMode = Some(UPDATE_MODE_VALUE_UPSERT)
     this
   }
 
@@ -228,17 +165,11 @@ class ExternalCatalogTableBuilder(private val connectorDescriptor: ConnectorDesc
 
   // ----------------------------------------------------------------------------------------------
 
-  /**
-    * Converts this descriptor into a set of properties.
-    */
-  override def toProperties: util.Map[String, String] = {
+  override protected def additionalProperties(): util.Map[String, String] = {
     val properties = new DescriptorProperties()
-    properties.putProperties(connectorDescriptor.toProperties)
-    formatDescriptor.foreach(d => properties.putProperties(d.toProperties))
     schemaDescriptor.foreach(d => properties.putProperties(d.toProperties))
     statisticsDescriptor.foreach(d => properties.putProperties(d.toProperties))
     metadataDescriptor.foreach(d => properties.putProperties(d.toProperties))
-    updateMode.foreach(mode => properties.putString(UPDATE_MODE, mode))
     properties.asMap()
   }
 }

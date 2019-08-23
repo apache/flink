@@ -39,6 +39,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.client.SqlClientException;
 import org.apache.flink.table.client.config.Environment;
 import org.apache.flink.table.client.gateway.Executor;
@@ -187,6 +188,7 @@ public class LocalExecutor implements Executor {
 		final Map<String, String> properties = new HashMap<>();
 		properties.putAll(env.getExecution().asTopLevelMap());
 		properties.putAll(env.getDeployment().asTopLevelMap());
+		properties.putAll(env.getConfiguration().asMap());
 		return properties;
 	}
 
@@ -239,7 +241,11 @@ public class LocalExecutor implements Executor {
 
 		context.wrapClassLoader(() -> {
 			// Rely on TableEnvironment/CatalogManager to validate input
-			tableEnv.useCatalog(catalogName);
+			try {
+				tableEnv.useCatalog(catalogName);
+			} catch (CatalogException e) {
+				throw new SqlExecutionException("Failed to switch to catalog " + catalogName, e);
+			}
 			session.setCurrentCatalog(catalogName);
 			session.setCurrentDatabase(tableEnv.getCurrentDatabase());
 			return null;
@@ -255,7 +261,11 @@ public class LocalExecutor implements Executor {
 
 		context.wrapClassLoader(() -> {
 			// Rely on TableEnvironment/CatalogManager to validate input
-			tableEnv.useDatabase(databaseName);
+			try {
+				tableEnv.useDatabase(databaseName);
+			} catch (CatalogException e) {
+				throw new SqlExecutionException("Failed to switch to database " + databaseName, e);
+			}
 			session.setCurrentDatabase(databaseName);
 			return null;
 		});

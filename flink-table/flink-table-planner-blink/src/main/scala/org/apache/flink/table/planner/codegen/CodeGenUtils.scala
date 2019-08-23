@@ -47,8 +47,6 @@ object CodeGenUtils {
 
   val DEFAULT_TIMEZONE_TERM = "timeZone"
 
-  val DEFAULT_TIMEZONE_ID_TERM = "zoneId"
-
   val DEFAULT_INPUT1_TERM = "in1"
 
   val DEFAULT_INPUT2_TERM = "in2"

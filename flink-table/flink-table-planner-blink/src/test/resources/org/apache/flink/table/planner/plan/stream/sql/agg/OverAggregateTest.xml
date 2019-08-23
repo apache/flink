@@ -134,13 +134,13 @@ FROM MyTable
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(a=[$0], avgA=[/(CAST(CASE(>(COUNT($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE BETWEEN 7200000:INTERVAL HOUR PRECEDING AND CURRENT ROW), 0), $SUM0($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE BETWEEN 7200000:INTERVAL HOUR PRECEDING AND CURRENT ROW), null:BIGINT)):DOUBLE, COUNT($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE BETWEEN 7200000:INTERVAL HOUR PRECEDING AND CURRENT ROW))])
+LogicalProject(a=[$0], avgA=[/(CASE(>(COUNT($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE BETWEEN 7200000:INTERVAL HOUR PRECEDING AND CURRENT ROW), 0), $SUM0($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE BETWEEN 7200000:INTERVAL HOUR PRECEDING AND CURRENT ROW), null:BIGINT), COUNT($2) OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST RANGE BETWEEN 7200000:INTERVAL HOUR PRECEDING AND CURRENT ROW))])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[a, /(CAST(CASE(>(w0$o0, 0:BIGINT), w0$o1, null:BIGINT)), w0$o0) AS avgA])
+Calc(select=[a, /(CASE(>(w0$o0, 0:BIGINT), w0$o1, null:BIGINT), w0$o0) AS avgA])
 +- OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window=[ RANG BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(c) AS w0$o0, $SUM0(c) AS w0$o1])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, c, proctime])

@@ -25,8 +25,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ExternalCatalog;
+import org.apache.flink.table.descriptors.ConnectTableDescriptor;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.TableDescriptor;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
@@ -254,7 +254,7 @@ public interface TableEnvironment {
 	 *
 	 * @param connectorDescriptor connector descriptor describing the external system
 	 */
-	TableDescriptor connect(ConnectorDescriptor connectorDescriptor);
+	ConnectTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
 
 	/**
 	 * Gets the names of all catalogs registered in this environment.

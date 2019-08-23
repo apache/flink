@@ -82,6 +82,7 @@ class StreamExecValues(
       getRelTypeName)
     val transformation = planner.getExecEnv.createInput(inputFormat,
       inputFormat.getProducedType).getTransformation
+    transformation.setName(getRelDetailedDescription)
     transformation.setParallelism(1)
     transformation.setMaxParallelism(1)
     transformation

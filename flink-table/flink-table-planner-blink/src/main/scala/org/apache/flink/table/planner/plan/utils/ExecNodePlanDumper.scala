@@ -82,7 +82,7 @@ object ExecNodePlanDumper {
     */
   def dagToString(
       nodes: Seq[ExecNode[_, _]],
-      detailLevel: SqlExplainLevel = SqlExplainLevel.EXPPLAN_ATTRIBUTES,
+      detailLevel: SqlExplainLevel = SqlExplainLevel.DIGEST_ATTRIBUTES,
       withExecNodeId: Boolean = false,
       withRetractTraits: Boolean = false,
       withOutputType: Boolean = false,

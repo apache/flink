@@ -596,9 +596,9 @@ LogicalSink(name=[sink2], fields=[a, sum_c, time])
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-HashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime], select=[a, Final_SUM(sum$0) AS sum_c], reuse_id=[1])
+HashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 15000)], properties=[w$start, w$end, w$rowtime], select=[a, Final_SUM(sum$0) AS sum_c], reuse_id=[1])
 +- Exchange(distribution=[hash[a]])
-   +- LocalHashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow], properties=[w$start, w$end, w$rowtime], select=[a, Partial_SUM(c) AS sum$0])
+   +- LocalHashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 15000)], properties=[w$start, w$end, w$rowtime], select=[a, Partial_SUM(c) AS sum$0])
       +- Calc(select=[ts, a, CAST(c) AS c])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c, ts)]]], fields=[a, b, c, ts])
 

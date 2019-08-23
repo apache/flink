@@ -1665,17 +1665,7 @@ def _to_java_type(data_type):
 
     # ArrayType
     elif isinstance(data_type, ArrayType):
-        if type(data_type.element_type) in _primitive_array_element_types:
-            if data_type.element_type._nullable is False:
-                return Types.PRIMITIVE_ARRAY(_to_java_type(data_type.element_type))
-            else:
-                return Types.OBJECT_ARRAY(_to_java_type(data_type.element_type))
-        elif isinstance(data_type.element_type, VarCharType) or isinstance(
-                data_type.element_type, CharType):
-            return gateway.jvm.org.apache.flink.api.common.typeinfo.\
-                BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO
-        else:
-            return Types.OBJECT_ARRAY(_to_java_type(data_type.element_type))
+        return Types.OBJECT_ARRAY(_to_java_type(data_type.element_type))
 
     # MapType
     elif isinstance(data_type, MapType):
@@ -1783,8 +1773,15 @@ def _from_java_type(j_data_type):
             type_info = logical_type.getTypeInformation()
             BasicArrayTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.\
                 BasicArrayTypeInfo
+            BasicTypeInfo = gateway.jvm.org.apache.flink.api.common.typeinfo.BasicTypeInfo
             if type_info == BasicArrayTypeInfo.STRING_ARRAY_TYPE_INFO:
                 data_type = DataTypes.ARRAY(DataTypes.STRING())
+            elif type_info == BasicTypeInfo.BIG_DEC_TYPE_INFO:
+                data_type = DataTypes.DECIMAL(10, 0)
+            elif type_info.getClass() == \
+                get_java_class(gateway.jvm.org.apache.flink.table.runtime.typeutils
+                               .BigDecimalTypeInfo):
+                data_type = DataTypes.DECIMAL(type_info.precision(), type_info.scale())
             else:
                 raise TypeError("Unsupported type: %s, it is recognized as a legacy type."
                                 % type_info)

@@ -68,13 +68,13 @@ GroupWindowAggregate(window=[SlidingGroupWindow('w, rowtime, 8, 10)], select=[CO
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
-+- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow], properties=[])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(window=[TumblingGroupWindow], select=[COUNT(int) AS EXPR$0])
+GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 5)], select=[COUNT(int) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, int, string])
 ]]>
@@ -100,13 +100,13 @@ GroupWindowAggregate(window=[SlidingGroupWindow('w, proctime, 2, 1)], select=[CO
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
-+- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow], properties=[])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(window=[TumblingGroupWindow], select=[COUNT(int) AS EXPR$0])
+GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 5)], select=[COUNT(int) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
 ]]>
@@ -132,13 +132,13 @@ GroupWindowAggregate(window=[SlidingGroupWindow('w, proctime, 50, 50)], select=[
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
-+- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow], properties=[])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, proctime, 2)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(window=[TumblingGroupWindow], select=[COUNT(int) AS EXPR$0])
+GroupWindowAggregate(window=[TumblingGroupWindow('w, proctime, 2)], select=[COUNT(int) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
 ]]>
@@ -148,13 +148,13 @@ GroupWindowAggregate(window=[TumblingGroupWindow], select=[COUNT(int) AS EXPR$0]
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow], properties=[])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, proctime, 50)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], select=[string, COUNT(int) AS EXPR$0])
+GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, proctime, 50)], select=[string, COUNT(int) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
    +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
 ]]>
@@ -164,16 +164,16 @@ GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], select=[str
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2], EXPR$3=[$3], EXPR$4=[$4], EXPR$5=[$5])
-+- LogicalWindowAggregate(group=[{}], EXPR$0=[VAR_POP($3)], EXPR$1=[VAR_SAMP($3)], EXPR$2=[STDDEV_POP($3)], EXPR$3=[STDDEV_SAMP($3)], window=[TumblingGroupWindow], properties=[EXPR$4, EXPR$5])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[VAR_POP($3)], EXPR$1=[VAR_SAMP($3)], EXPR$2=[STDDEV_POP($3)], EXPR$3=[STDDEV_SAMP($3)], window=[TumblingGroupWindow('w, rowtime, 900000)], properties=[EXPR$4, EXPR$5])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[/(-($f0, /(*(CAST($f1), CAST($f1)), $f2)), $f2) AS EXPR$0, /(-($f0, /(*(CAST($f1), CAST($f1)), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))) AS EXPR$1, POWER(/(-($f0, /(*(CAST($f1), CAST($f1)), $f2)), $f2), 0.5:DECIMAL(2, 1)) AS EXPR$2, POWER(/(-($f0, /(*(CAST($f1), CAST($f1)), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))), 0.5:DECIMAL(2, 1)) AS EXPR$3, EXPR$4, EXPR$5])
-+- GroupWindowAggregate(window=[TumblingGroupWindow], properties=[EXPR$4, EXPR$5], select=[SUM($f4) AS $f0, SUM(c) AS $f1, COUNT(c) AS $f2, start('w) AS EXPR$4, end('w) AS EXPR$5])
+Calc(select=[/(-($f0, /(*($f1, $f1), $f2)), $f2) AS EXPR$0, /(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))) AS EXPR$1, CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2, CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3, EXPR$4, EXPR$5])
++- GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 900000)], properties=[EXPR$4, EXPR$5], select=[SUM($f4) AS $f0, SUM(c) AS $f1, COUNT(c) AS $f2, start('w) AS EXPR$4, end('w) AS EXPR$5])
    +- Exchange(distribution=[single])
-      +- Calc(select=[rowtime, a, b, c, *(CAST(c), CAST(c)) AS $f4])
+      +- Calc(select=[rowtime, a, b, c, *(c, c) AS $f4])
          +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, a, b, c])
 ]]>
     </Resource>
@@ -278,13 +278,13 @@ GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, rowtime, 8
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow], properties=[])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], select=[string, COUNT(int) AS EXPR$0])
+GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 5)], select=[string, COUNT(int) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
    +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, int, string])
 ]]>
@@ -294,13 +294,13 @@ GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], select=[str
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[myWeightedAvg($0, $1)], window=[TumblingGroupWindow], properties=[])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[myWeightedAvg($0, $1)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], select=[string, myWeightedAvg(long, int) AS EXPR$0])
+GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 5)], select=[string, myWeightedAvg(long, int) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
    +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
 ]]>
@@ -328,7 +328,7 @@ GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, rowtime, 1
 LogicalProject(EXPR$0=[$0])
 +- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w2, proctime, 20, 10)], properties=[])
    +- LogicalProject(proctime=[AS($2, _UTF-16LE'proctime')], string=[$0], EXPR$1=[$1])
-      +- LogicalWindowAggregate(group=[{2}], EXPR$1=[COUNT($1)], window=[TumblingGroupWindow], properties=[EXPR$0])
+      +- LogicalWindowAggregate(group=[{2}], EXPR$1=[COUNT($1)], window=[TumblingGroupWindow('w1, proctime, 50)], properties=[EXPR$0])
          +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
@@ -336,7 +336,7 @@ LogicalProject(EXPR$0=[$0])
       <![CDATA[
 GroupWindowAggregate(window=[SlidingGroupWindow('w2, proctime, 20, 10)], select=[COUNT(string) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], properties=[EXPR$0], select=[string, COUNT(int) AS EXPR$1, proctime('w1) AS EXPR$0])
+   +- GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w1, proctime, 50)], properties=[EXPR$0], select=[string, COUNT(int) AS EXPR$1, proctime('w1) AS EXPR$0])
       +- Exchange(distribution=[hash[string]])
          +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
 ]]>
@@ -362,13 +362,13 @@ GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, proctime, 
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow], properties=[])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, proctime, 2)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], select=[string, COUNT(int) AS EXPR$0])
+GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, proctime, 2)], select=[string, COUNT(int) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
    +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
 ]]>
@@ -378,13 +378,13 @@ GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], select=[str
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow], properties=[])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, proctime, 50)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], select=[string, COUNT(int) AS EXPR$0])
+GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, proctime, 50)], select=[string, COUNT(int) AS EXPR$0])
 +- Exchange(distribution=[hash[string]])
    +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
 ]]>
@@ -428,13 +428,13 @@ Calc(select=[EXPR$0])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow], properties=[EXPR$1, EXPR$2])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$1, EXPR$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], properties=[EXPR$1, EXPR$2], select=[string, COUNT(int) AS EXPR$0, start('w) AS EXPR$1, end('w) AS EXPR$2])
+GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$1, EXPR$2], select=[string, COUNT(int) AS EXPR$0, start('w) AS EXPR$1, end('w) AS EXPR$2])
 +- Exchange(distribution=[hash[string]])
    +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
 ]]>
@@ -444,14 +444,14 @@ GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], properties=
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(string=[$0], s1=[AS(+($1, 1), _UTF-16LE's1')], s2=[AS(+($1, 3), _UTF-16LE's2')], x=[AS($2, _UTF-16LE'x')], x2=[AS($2, _UTF-16LE'x2')], x3=[AS($3, _UTF-16LE'x3')], EXPR$2=[$3])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[SUM($1)], window=[TumblingGroupWindow], properties=[EXPR$1, EXPR$2])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[SUM($1)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$1, EXPR$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[string, +(EXPR$0, 1) AS s1, +(EXPR$0, 3) AS s2, EXPR$1 AS x, EXPR$1 AS x2, EXPR$2 AS x3, EXPR$2])
-+- GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow], properties=[EXPR$1, EXPR$2], select=[string, SUM(int) AS EXPR$0, start('w) AS EXPR$1, end('w) AS EXPR$2])
++- GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$1, EXPR$2], select=[string, SUM(int) AS EXPR$0, start('w) AS EXPR$1, end('w) AS EXPR$2])
    +- Exchange(distribution=[hash[string]])
       +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, int, string])
 ]]>

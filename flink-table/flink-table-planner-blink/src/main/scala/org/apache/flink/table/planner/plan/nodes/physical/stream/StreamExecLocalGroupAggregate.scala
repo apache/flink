@@ -146,7 +146,7 @@ class StreamExecLocalGroupAggregate(
 
     val transformation = new OneInputTransformation(
       inputTransformation,
-      "LocalGroupAggregate",
+      getRelDetailedDescription,
       operator,
       BaseRowTypeInfo.of(outRowType),
       inputTransformation.getParallelism)

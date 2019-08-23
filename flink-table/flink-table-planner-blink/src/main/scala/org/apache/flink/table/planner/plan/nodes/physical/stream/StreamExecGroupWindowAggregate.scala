@@ -218,17 +218,9 @@ class StreamExecGroupWindowAggregate(
       inputRowTypeInfo.getLogicalTypes,
       timeIdx)
 
-    val operatorName = if (grouping.nonEmpty) {
-      s"window: ($window), " +
-        s"groupBy: (${RelExplainUtil.fieldToString(grouping, inputRowType)}), " +
-        s"select: ($aggString)"
-    } else {
-      s"window: ($window), select: ($aggString)"
-    }
-
     val transformation = new OneInputTransformation(
       inputTransform,
-      operatorName,
+      getRelDetailedDescription,
       operator,
       outRowType,
       inputTransform.getParallelism)

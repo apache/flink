@@ -220,7 +220,9 @@ public class SqlDateTimeUtils {
 	public static Long toTimestamp(String dateStr, TimeZone tz) {
 		int length = dateStr.length();
 		String format;
-		if (length == 21) {
+		if (length == 10) {
+			format = DATE_FORMAT_STRING;
+		} else if (length == 21) {
 			format = DEFAULT_DATETIME_FORMATS[1];
 		} else if (length == 22) {
 			format = DEFAULT_DATETIME_FORMATS[2];

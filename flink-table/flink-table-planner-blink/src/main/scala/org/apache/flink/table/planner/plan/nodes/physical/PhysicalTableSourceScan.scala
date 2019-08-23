@@ -18,11 +18,15 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical
 
+import org.apache.flink.api.common.io.InputFormat
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.core.io.InputSplit
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
-import org.apache.flink.table.sources.{StreamTableSource, TableSource}
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
+import org.apache.flink.table.sources.{InputFormatTableSource, StreamTableSource, TableSource}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelWriter
@@ -60,8 +64,16 @@ abstract class PhysicalTableSourceScan(
   def getSourceTransformation(
       streamEnv: StreamExecutionEnvironment): Transformation[_] = {
     if (sourceTransform == null) {
-      sourceTransform = tableSource.asInstanceOf[StreamTableSource[_]].
-        getDataStream(streamEnv).getTransformation
+      sourceTransform = tableSource match {
+        case format: InputFormatTableSource[_] =>
+          // we don't use InputFormatTableSource.getDataStream, because in here we use planner
+          // type conversion to support precision of Varchar and something else.
+          streamEnv.createInput(
+            format.getInputFormat.asInstanceOf[InputFormat[Any, _ <: InputSplit]],
+            fromDataTypeToTypeInfo(format.getProducedDataType).asInstanceOf[TypeInformation[Any]]
+          ).name(format.explainSource()).getTransformation
+        case s: StreamTableSource[_] => s.getDataStream(streamEnv).getTransformation
+      }
     }
     sourceTransform
   }

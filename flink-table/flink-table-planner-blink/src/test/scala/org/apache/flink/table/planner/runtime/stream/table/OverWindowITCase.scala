@@ -154,7 +154,7 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
         countFun('b) over 'w,
         (countFun('b) over 'w) + 1,
         plusOne(countFun('b) over 'w),
-        array('b.avg over 'w, 'b.cast(DataTypes.DOUBLE()).max over 'w),
+        array('b.avg over 'w, 'b.max over 'w),
         'b.avg over 'w,
         'b.max over 'w,
         'b.min over 'w,
@@ -167,19 +167,19 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     env.execute()
 
     val expected = mutable.MutableList(
-      "1,1,Hello,6,SUM:6,3,4,4,[2.0, 3.0],2.0,3,1,1,2,2",
-      "1,2,Hello,6,SUM:6,3,4,4,[2.0, 3.0],2.0,3,1,1,2,2",
-      "1,3,Hello world,6,SUM:6,3,4,4,[2.0, 3.0],2.0,3,1,1,2,2",
-      "1,1,Hi,7,SUM:7,4,5,5,[1.75, 3.0],1.75,3,1,1,1,3",
-      "2,1,Hello,1,SUM:1,1,2,2,[1.0, 1.0],1.0,1,1,1,1,1",
-      "2,2,Hello world,6,SUM:6,3,4,4,[2.0, 3.0],2.0,3,1,1,2,2",
-      "2,3,Hello world,6,SUM:6,3,4,4,[2.0, 3.0],2.0,3,1,1,2,2",
-      "1,4,Hello world,11,SUM:11,5,6,6,[2.2, 4.0],2.2,4,1,1,2,3",
-      "1,5,Hello world,29,SUM:29,8,9,9,[3.625, 7.0],3.625,7,1,1,3,3",
-      "1,6,Hello world,29,SUM:29,8,9,9,[3.625, 7.0],3.625,7,1,1,3,3",
-      "1,7,Hello world,29,SUM:29,8,9,9,[3.625, 7.0],3.625,7,1,1,3,3",
-      "2,4,Hello world,15,SUM:15,5,6,6,[3.0, 5.0],3.0,5,1,1,3,2",
-      "2,5,Hello world,15,SUM:15,5,6,6,[3.0, 5.0],3.0,5,1,1,3,2"
+      "1,1,Hello,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2,2",
+      "1,2,Hello,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2,2",
+      "1,3,Hello world,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2,2",
+      "1,1,Hi,7,SUM:7,4,5,5,[1, 3],1,3,1,1,1,3",
+      "2,1,Hello,1,SUM:1,1,2,2,[1, 1],1,1,1,1,1,1",
+      "2,2,Hello world,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2,2",
+      "2,3,Hello world,6,SUM:6,3,4,4,[2, 3],2,3,1,1,2,2",
+      "1,4,Hello world,11,SUM:11,5,6,6,[2, 4],2,4,1,1,2,3",
+      "1,5,Hello world,29,SUM:29,8,9,9,[3, 7],3,7,1,1,3,3",
+      "1,6,Hello world,29,SUM:29,8,9,9,[3, 7],3,7,1,1,3,3",
+      "1,7,Hello world,29,SUM:29,8,9,9,[3, 7],3,7,1,1,3,3",
+      "2,4,Hello world,15,SUM:15,5,6,6,[3, 5],3,5,1,1,3,2",
+      "2,5,Hello world,15,SUM:15,5,6,6,[3, 5],3,5,1,1,3,2"
     )
 
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
@@ -431,8 +431,8 @@ class OverWindowITCase(mode: StateBackendMode) extends StreamingWithStateTestBas
     env.execute()
 
     val expected = mutable.MutableList(
-      "Hello World,20,2,2.0", "Hello World,7,1,1.0", "Hello,1,1,1.0",
-      "Hello,2,2,2.0", "Hello,6,3,3.0")
+      "Hello World,20,2,2", "Hello World,7,1,1", "Hello,1,1,1",
+      "Hello,2,2,2", "Hello,6,3,3")
 
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }

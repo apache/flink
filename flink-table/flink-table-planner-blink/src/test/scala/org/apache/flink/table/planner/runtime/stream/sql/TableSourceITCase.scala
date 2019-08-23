@@ -23,8 +23,9 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableSchema, Types}
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.{StreamingTestBase, TestData, TestingAppendSink}
-import org.apache.flink.table.planner.utils.{TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableTableSource, TestProjectableTableSource, TestTableSources}
+import org.apache.flink.table.planner.utils.{TestDataTypeTableSource, TestFilterableTableSource, TestInputFormatTableSource, TestNestedProjectableTableSource, TestPartitionableTableSource, TestProjectableTableSource, TestStreamTableSource, TestTableSources}
 import org.apache.flink.types.Row
 
 import org.junit.Assert._
@@ -399,6 +400,72 @@ class TableSourceITCase extends StreamingTestBase {
       "1,Hi",
       "2,Hello",
       "3,Hello world"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testDecimalSource(): Unit = {
+    val tableSchema = TableSchema.builder().fields(
+      Array("a", "b", "c", "d"),
+      Array(
+        DataTypes.INT(),
+        DataTypes.DECIMAL(5, 2),
+        DataTypes.VARCHAR(5),
+        DataTypes.CHAR(5))).build()
+    val tableSource = new TestDataTypeTableSource(
+      tableSchema,
+      Seq(
+        row(1, new java.math.BigDecimal(5.1), "1", "1"),
+        row(2, new java.math.BigDecimal(6.1), "12", "12"),
+        row(3, new java.math.BigDecimal(7.1), "123", "123")
+      ))
+    tEnv.registerTableSource("MyInputFormatTable", tableSource)
+
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery("SELECT a, b, c, d FROM MyInputFormatTable").toAppendStream[Row].addSink(sink)
+
+    env.execute()
+
+    val expected = Seq(
+      "1,5.10,1,1",
+      "2,6.10,12,12",
+      "3,7.10,123,123"
+    )
+    assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  /**
+    * StreamTableSource must use type info in DataStream, so it will loose precision.
+    * Just support default precision decimal.
+    */
+  @Test
+  def testLegacyDecimalSourceUsingStreamTableSource(): Unit = {
+    val tableSchema = new TableSchema(
+      Array("a", "b", "c"),
+      Array(
+        Types.INT(),
+        Types.DECIMAL(),
+        Types.STRING()
+      ))
+    val tableSource = new TestStreamTableSource(
+      tableSchema,
+      Seq(
+        row(1, new java.math.BigDecimal(5.1), "1"),
+        row(2, new java.math.BigDecimal(6.1), "12"),
+        row(3, new java.math.BigDecimal(7.1), "123")
+      ))
+    tEnv.registerTableSource("MyInputFormatTable", tableSource)
+
+    val sink = new TestingAppendSink()
+    tEnv.sqlQuery("SELECT a, b, c FROM MyInputFormatTable").toAppendStream[Row].addSink(sink)
+
+    env.execute()
+
+    val expected = Seq(
+      "1,5.099999999999999645,1",
+      "2,6.099999999999999645,12",
+      "3,7.099999999999999645,123"
     )
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
   }

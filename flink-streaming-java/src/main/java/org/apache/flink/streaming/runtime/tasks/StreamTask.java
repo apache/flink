@@ -181,6 +181,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	/** The currently active background materialization threads. */
 	private final CloseableRegistry cancelables = new CloseableRegistry();
 
+	private final StreamTaskAsyncExceptionHandler asyncExceptionHandler;
+
 	/**
 	 * Flag to mark the task "in operation", in which case check needs to be initialized to true,
 	 * so that early cancel() before invoke() behaves correctly.
@@ -248,6 +250,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.recordWriters = createRecordWriters(configuration, environment);
 		this.syncSavepointLatch = new SynchronousSavepointLatch();
 		this.mailbox = new MailboxImpl();
+		this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
 	}
 
 	// ------------------------------------------------------------------------
@@ -926,7 +929,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	public void handleAsyncException(String message, Throwable exception) {
 		if (isRunning) {
 			// only fail if the task is still running
-			getEnvironment().failExternally(exception);
+			asyncExceptionHandler.handleAsyncException(message, exception);
 		}
 	}
 
@@ -940,6 +943,21 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Utility class to encapsulate the handling of asynchronous exceptions.
+	 */
+	static class StreamTaskAsyncExceptionHandler {
+		private final Environment environment;
+
+		StreamTaskAsyncExceptionHandler(Environment environment) {
+			this.environment = environment;
+		}
+
+		void handleAsyncException(String message, Throwable exception) {
+			environment.failExternally(new AsynchronousException(message, exception));
+		}
+	}
 
 	/**
 	 * This runnable executes the asynchronous parts of all involved backend snapshots for the subtask.

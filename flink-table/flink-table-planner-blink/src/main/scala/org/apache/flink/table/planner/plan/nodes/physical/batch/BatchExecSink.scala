@@ -30,7 +30,8 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.{BatchExecNode, ExecNode}
 import org.apache.flink.table.planner.sinks.DataStreamTableSink
-import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
+import org.apache.flink.table.runtime.types.{ClassLogicalTypeConverter, TypeInfoDataTypeConverter}
 import org.apache.flink.table.runtime.typeutils.BaseRowTypeInfo
 import org.apache.flink.table.sinks.{RetractStreamTableSink, StreamTableSink, TableSink, UpsertStreamTableSink}
 import org.apache.flink.table.types.DataType
@@ -118,7 +119,7 @@ class BatchExecSink[T](
       planner: BatchPlanner): Transformation[T] = {
     val config = planner.getTableConfig
     val resultDataType = sink.getConsumedDataType
-    val resultType = fromDataTypeToLegacyInfo(resultDataType)
+    val resultType = fromDataTypeToTypeInfo(resultDataType)
     validateType(resultDataType)
     val inputNode = getInputNodes.get(0)
     inputNode match {

@@ -22,9 +22,9 @@ import java.util.Optional
 
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.table.api.{QueryConfig, Table, TableConfig, TableEnvironment}
+import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.catalog.{Catalog, ExternalCatalog}
-import org.apache.flink.table.descriptors.{ConnectorDescriptor, TableDescriptor}
+import org.apache.flink.table.descriptors.{ConnectTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
@@ -52,7 +52,7 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def scan(tablePath: String*): Table = ???
 
-  override def connect(connectorDescriptor: ConnectorDescriptor): TableDescriptor = ???
+  override def connect(connectorDescriptor: ConnectorDescriptor): ConnectTableDescriptor = ???
 
   override def listCatalogs(): Array[String] = ???
 

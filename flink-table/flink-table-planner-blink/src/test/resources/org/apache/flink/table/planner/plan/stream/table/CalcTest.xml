@@ -151,7 +151,7 @@ Calc(select=[a AS a2, b AS b2])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[$1], EXPR$1=[$2], b=[$0])
-+- LogicalWindowAggregate(group=[{1}], EXPR$0=[COUNT($5)], EXPR$1=[SUM($0)], window=[TumblingGroupWindow], properties=[])
++- LogicalWindowAggregate(group=[{1}], EXPR$0=[COUNT($5)], EXPR$1=[SUM($0)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], $f5=[UPPER($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -159,7 +159,7 @@ LogicalProject(EXPR$0=[$1], EXPR$1=[$2], b=[$0])
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[EXPR$0, EXPR$1, b])
-+- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow], select=[b, COUNT($f5) AS EXPR$0, SUM(a) AS EXPR$1])
++- GroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w, rowtime, 5)], select=[b, COUNT($f5) AS EXPR$0, SUM(a) AS EXPR$1])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b, c, d, rowtime, UPPER(c) AS $f5])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
@@ -170,14 +170,14 @@ Calc(select=[EXPR$0, EXPR$1, b])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[$0], EXPR$1=[$1])
-+- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($5)], EXPR$1=[SUM($0)], window=[TumblingGroupWindow], properties=[])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($5)], EXPR$1=[SUM($0)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], $f5=[UPPER($2)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(window=[TumblingGroupWindow], select=[COUNT($f5) AS EXPR$0, SUM(a) AS EXPR$1])
+GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 5)], select=[COUNT($f5) AS EXPR$0, SUM(a) AS EXPR$1])
 +- Exchange(distribution=[single])
    +- Calc(select=[a, b, c, d, rowtime, UPPER(c) AS $f5])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])

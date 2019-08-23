@@ -133,6 +133,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -176,6 +177,32 @@ public class StreamTaskTest extends TestLogger {
 
 	@Rule
 	public final Timeout timeoutPerTest = Timeout.seconds(30);
+
+	/**
+	 * This test checks the async exceptions handling wraps the message and cause as an AsynchronousException
+	 * and propagates this to the environment.
+	 */
+	@Test
+	public void streamTaskAsyncExceptionHandler_handleException_forwardsMessageProperly() {
+		MockEnvironment mockEnvironment = MockEnvironment.builder().build();
+		RuntimeException expectedException = new RuntimeException("RUNTIME EXCEPTION");
+
+		final StreamTask.StreamTaskAsyncExceptionHandler asyncExceptionHandler = new StreamTask.StreamTaskAsyncExceptionHandler(mockEnvironment);
+
+		mockEnvironment.setExpectedExternalFailureCause(AsynchronousException.class);
+		final String expectedErrorMessage = "EXPECTED_ERROR MESSAGE";
+
+		asyncExceptionHandler.handleAsyncException(expectedErrorMessage, expectedException);
+
+		// expect an AsynchronousException containing the supplied error details
+		Optional<? extends Throwable> actualExternalFailureCause = mockEnvironment.getActualExternalFailureCause();
+		final Throwable actualException = actualExternalFailureCause
+			.orElseThrow(() -> new AssertionError("Expected exceptional completion"));
+
+		assertThat(actualException, instanceOf(AsynchronousException.class));
+		assertThat(actualException.getMessage(), is("EXPECTED_ERROR MESSAGE"));
+		assertThat(actualException.getCause(), is(expectedException));
+	}
 
 	/**
 	 * This test checks that cancel calls that are issued before the operator is

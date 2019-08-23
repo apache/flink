@@ -82,8 +82,9 @@ class StreamExecDeduplicate(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val fieldNames = getRowType.getFieldNames
+    val keep = if (keepLastRow) "LastRow" else "FirstRow"
     super.explainTerms(pw)
-      .item("keepLastRow", keepLastRow)
+      .item("keep", keep)
       .item("key", uniqueKeys.map(fieldNames.get).mkString(", "))
       .item("order", "PROCTIME")
   }
@@ -141,7 +142,7 @@ class StreamExecDeduplicate(
     }
     val ret = new OneInputTransformation(
       inputTransform,
-      getOperatorName,
+      getRelDetailedDescription,
       operator,
       rowTypeInfo,
       inputTransform.getParallelism)
@@ -156,12 +157,4 @@ class StreamExecDeduplicate(
     ret.setStateKeyType(selector.getProducedType)
     ret
   }
-
-  private def getOperatorName: String = {
-    val fieldNames = getRowType.getFieldNames
-    val keyNames = uniqueKeys.map(fieldNames.get).mkString(", ")
-    s"${if (keepLastRow) "keepLastRow" else "KeepFirstRow"}" +
-      s": (key: ($keyNames), select: (${fieldNames.mkString(", ")}), order: (PROCTIME)"
-  }
-
 }

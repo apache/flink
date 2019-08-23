@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.schema
 
+import org.apache.flink.table.functions
 import org.apache.flink.table.functions.TableFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
@@ -39,6 +40,7 @@ class DeferredTypeFlinkTableFunction(
   extends FlinkTableFunction(tableFunction) {
 
   override def getExternalResultType(
+      tableFunction: functions.TableFunction[_],
       arguments: Array[AnyRef],
       argTypes: Array[Class[_]]): DataType = {
     // TODO
@@ -56,7 +58,7 @@ class DeferredTypeFlinkTableFunction(
       typeFactory: RelDataTypeFactory,
       arguments: Array[AnyRef],
       argTypes: Array[Class[_]]): RelDataType = {
-    val resultType = getExternalResultType(arguments, argTypes)
+    val resultType = getExternalResultType(tableFunction, arguments, argTypes)
     val (fieldNames, fieldIndexes, _) = UserDefinedFunctionUtils.getFieldInfo(resultType)
     UserDefinedFunctionUtils.buildRelDataType(
       typeFactory, fromDataTypeToLogicalType(resultType), fieldNames, fieldIndexes)

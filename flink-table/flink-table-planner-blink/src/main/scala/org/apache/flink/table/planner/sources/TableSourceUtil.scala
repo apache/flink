@@ -27,10 +27,11 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.expressions.RexNodeConverter
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
+import org.apache.flink.table.runtime.types.PlannerTypeUtils.isAssignable
+import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.sources.{DefinedFieldMapping, DefinedProctimeAttribute, DefinedRowtimeAttributes, RowtimeAttributeDescriptor, TableSource}
 import org.apache.flink.table.types.logical.{LogicalType, TimestampKind, TimestampType, TinyIntType}
-import org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 
 import com.google.common.collect.ImmutableList
@@ -116,13 +117,13 @@ object TableSourceUtil {
 
         val (physicalName, idx, tpe) = resolveInputField(name, tableSource)
         // validate that mapped fields are are same type
-        if (fromTypeInfoToLogicalType(tpe) != t) {
+        if (!isAssignable(fromTypeInfoToLogicalType(tpe), t)) {
           throw new ValidationException(s"Type $t of table field '$name' does not " +
             s"match with type $tpe of the field '$physicalName' of the TableSource return type.")
         }
         idx
     }
-    val inputType = fromDataTypeToLegacyInfo(tableSource.getProducedDataType)
+    val inputType = fromDataTypeToTypeInfo(tableSource.getProducedDataType)
 
     // ensure that only one field is mapped to an atomic type
     if (!inputType.isInstanceOf[CompositeType[_]] && mapping.count(_ >= 0) > 1) {
@@ -327,7 +328,7 @@ object TableSourceUtil {
       fieldName: String,
       tableSource: TableSource[_]): (String, Int, TypeInformation[_]) = {
 
-    val returnType = fromDataTypeToLegacyInfo(tableSource.getProducedDataType)
+    val returnType = fromDataTypeToTypeInfo(tableSource.getProducedDataType)
 
     /** Look up a field by name in a type information */
     def lookupField(fieldName: String, failMsg: String): (String, Int, TypeInformation[_]) = {

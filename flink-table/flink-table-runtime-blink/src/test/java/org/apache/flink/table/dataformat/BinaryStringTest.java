@@ -247,22 +247,22 @@ public class BinaryStringTest {
 	@Test
 	public void concatTest() {
 		assertEquals(empty, concat());
-		assertEquals(empty, concat((BinaryString) null));
+		assertEquals(null, concat((BinaryString) null));
 		assertEquals(empty, concat(empty));
 		assertEquals(fromString("ab"), concat(fromString("ab")));
 		assertEquals(fromString("ab"), concat(fromString("a"), fromString("b")));
 		assertEquals(fromString("abc"), concat(fromString("a"), fromString("b"), fromString("c")));
-		assertEquals(fromString("ac"), concat(fromString("a"), null, fromString("c")));
-		assertEquals(fromString("a"), concat(fromString("a"), null, null));
-		assertEquals(empty, concat(null, null, null));
+		assertEquals(null, concat(fromString("a"), null, fromString("c")));
+		assertEquals(null, concat(fromString("a"), null, null));
+		assertEquals(null, concat(null, null, null));
 		assertEquals(fromString("数据砖头"), concat(fromString("数据"), fromString("砖头")));
 	}
 
 	@Test
 	public void concatWsTest() {
 		// Returns empty if the separator is null
-		assertEquals(empty, concatWs(null, (BinaryString) null));
-		assertEquals(fromString("a"), concatWs(null, fromString("a")));
+		assertEquals(null, concatWs(null, (BinaryString) null));
+		assertEquals(null, concatWs(null, fromString("a")));
 
 		// If separator is null, concatWs should skip all null inputs and never return null.
 		BinaryString sep = fromString("哈哈");
@@ -724,7 +724,7 @@ public class BinaryStringTest {
 		byte[] bytes = new byte[] {(byte) 20122, (byte) 40635, 124, (byte) 38271, (byte) 34966,
 			124, (byte) 36830, (byte) 34915, (byte) 35033, 124, (byte) 55357, 124, (byte) 56407 };
 
-		String str = new String(bytes);
+		String str = new String(bytes, StandardCharsets.UTF_8);
 		assertEquals(str, StringUtf8Utils.decodeUTF8(bytes, 0, bytes.length));
 		assertEquals(str, StringUtf8Utils.decodeUTF8(MemorySegmentFactory.wrap(bytes), 0, bytes.length));
 

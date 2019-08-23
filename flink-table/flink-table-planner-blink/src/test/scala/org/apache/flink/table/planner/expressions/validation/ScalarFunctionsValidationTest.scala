@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.expressions.validation
 import org.apache.flink.table.api.scala._
 import org.apache.flink.table.api.{SqlParserException, ValidationException}
 import org.apache.flink.table.expressions.TimePointUnit
+import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
-
 import org.apache.calcite.avatica.util.TimeUnit
 import org.junit.{Ignore, Test}
 
@@ -67,6 +67,44 @@ class ScalarFunctionsValidationTest extends ScalarTypesTestBase {
   @Test(expected = classOf[ValidationException])
   def testInvalidBin3(): Unit = {
     testSqlApi("BIN(f16)", "101010") // Date type
+  }
+
+
+  @Test(expected = classOf[ValidationException])
+  def testInvalidTruncate1(): Unit = {
+    // All arguments are string type
+    testSqlApi(
+      "TRUNCATE('abc', 'def')",
+      "FAIL")
+
+    // The second argument is of type String
+    testSqlApi(
+      "TRUNCATE(f12, f0)",
+      "FAIL")
+
+    // The second argument is of type Float
+    testSqlApi(
+      "TRUNCATE(f12,f12)",
+      "FAIL")
+
+    // The second argument is of type Double
+    testSqlApi(
+      "TRUNCATE(f12, cast(f28 as DOUBLE))",
+      "FAIL")
+
+    // The second argument is of type BigDecimal
+    testSqlApi(
+      "TRUNCATE(f12,f15)",
+      "FAIL")
+  }
+
+  @Test
+  def testInvalidTruncate2(): Unit = {
+    thrown.expect(classOf[CodeGenException])
+    // The one argument is of type String
+    testSqlApi(
+      "TRUNCATE('abc')",
+      "FAIL")
   }
 
   // ----------------------------------------------------------------------------------------------

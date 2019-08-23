@@ -307,7 +307,7 @@ class RemoveCollationTest extends TableTestBase {
         |),
         |
         |join_tb2 as (
-        | select tb1_id, concat_agg(tb2_name, ',') as tb2_names
+        | select tb1_id, LISTAGG(tb2_name, ',') as tb2_names
         | from (
         |  select v1.id as tb1_id, tb2.name as tb2_name
         |   from v1 left outer join tb2 on tb2_id = tb2.id
@@ -315,7 +315,7 @@ class RemoveCollationTest extends TableTestBase {
         |),
         |
         |join_tb3 as (
-        | select tb1_id, concat_agg(tb3_name, ',') as tb3_names
+        | select tb1_id, LISTAGG(tb3_name, ',') as tb3_names
         | from (
         |  select v2.id as tb1_id, tb3.name as tb3_name
         |   from v2 left outer join tb3 on tb3_id = tb3.id

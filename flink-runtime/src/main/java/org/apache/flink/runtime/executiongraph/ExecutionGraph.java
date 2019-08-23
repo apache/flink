@@ -575,8 +575,18 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		checkpointStatsTracker = checkNotNull(statsTracker, "CheckpointStatsTracker");
 
 		CheckpointFailureManager failureManager = new CheckpointFailureManager(
-				chkConfig.getTolerableCheckpointFailureNumber(),
-				cause -> getJobMasterMainThreadExecutor().execute(() -> failGlobal(cause))
+			chkConfig.getTolerableCheckpointFailureNumber(),
+			new CheckpointFailureManager.FailJobCallback() {
+				@Override
+				public void failJob(Throwable cause) {
+					getJobMasterMainThreadExecutor().execute(() -> failGlobal(cause));
+				}
+
+				@Override
+				public void failJobDueToTaskFailure(Throwable cause, ExecutionAttemptID failingTask) {
+					getJobMasterMainThreadExecutor().execute(() -> failGlobalIfExecutionIsStillRunning(cause, failingTask));
+				}
+			}
 		);
 
 		// create the coordinator that triggers and commits checkpoints and holds the state
@@ -1097,6 +1107,16 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 	}
 
+	void failGlobalIfExecutionIsStillRunning(Throwable cause, ExecutionAttemptID failingAttempt) {
+		final Execution failedExecution = currentExecutions.get(failingAttempt);
+		if (failedExecution != null && failedExecution.getState() == ExecutionState.RUNNING) {
+			failGlobal(cause);
+		} else {
+			LOG.debug("The failing attempt {} belongs to an already not" +
+				" running task thus won't fail the job", failingAttempt);
+		}
+	}
+
 	/**
 	 * Fails the execution graph globally. This failure will not be recovered by a specific
 	 * failover strategy, but results in a full restart of all tasks.
@@ -1215,6 +1235,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 
 			scheduleForExecution();
 		}
+		// TODO remove the catch block if we align the schematics to not fail global within the restarter.
 		catch (Throwable t) {
 			LOG.warn("Failed to restart the job.", t);
 			failGlobal(t);
@@ -1433,8 +1454,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 					LOG.info("Restarting the job {} ({}).", getJobName(), getJobID());
 
 					RestartCallback restarter = new ExecutionGraphRestartCallback(this, globalModVersionForRestart);
-					restartStrategy.restart(restarter, getJobMasterMainThreadExecutor());
-
+					FutureUtils.assertNoException(
+						restartStrategy
+							.restart(restarter, getJobMasterMainThreadExecutor())
+							.exceptionally((throwable) -> {
+								failGlobal(throwable);
+								return null;
+							}));
 					return true;
 				}
 				else if (!isRestartable && transitionState(currentState, JobStatus.FAILED, failureCause)) {

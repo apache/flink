@@ -231,7 +231,7 @@ class StreamExecMatch(
       val outputRowTypeInfo = BaseRowTypeInfo.of(FlinkTypeFactory.toLogicalRowType(getRowType))
       val transformation = new OneInputTransformation[BaseRow, BaseRow](
         timestampedInput,
-        toString,
+        getRelDetailedDescription,
         operator,
         outputRowTypeInfo,
         timestampedInput.getParallelism

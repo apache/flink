@@ -22,7 +22,6 @@ import org.apache.flink.table.api.scala.{currentDate, currentTime, currentTimest
 import org.apache.flink.table.api.{DataTypes, Types}
 import org.apache.flink.table.expressions.{Expression, ExpressionParser, TimeIntervalUnit, TimePointUnit}
 import org.apache.flink.table.planner.expressions.utils.ScalarTypesTestBase
-
 import org.junit.Test
 
 class ScalarFunctionsTest extends ScalarTypesTestBase {
@@ -519,21 +518,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
-  def testLength(): Unit = {
-    testSqlApi(
-      "LENGTH(f0)",
-      "22")
-
-    testSqlApi(
-      "LENGTH(f0)",
-      "22")
-
-    testSqlApi(
-      "length(uuid())",
-      "36")
-  }
-
-  @Test
   def testUpperCase(): Unit = {
     testAllApis(
       'f0.upperCase(),
@@ -732,7 +716,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       concat("xx", 'f33),
       "concat('xx', f33)",
       "CONCAT('xx', f33)",
-      "xx")
+      "null")
     testAllApis(
       concat("AA", "BB", "CC", "---"),
       "concat('AA','BB','CC','---')",
@@ -746,7 +730,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
 
     testSqlApi("concat(f35)", "a")
     testSqlApi("concat(f35,f36)", "ab")
-    testSqlApi("concat(f35,f36,f33)", "ab")
+    testSqlApi("concat(f35,f36,f33)", "null")
   }
 
   @Test
@@ -755,7 +739,7 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       concat_ws('f33, "AA"),
       "concat_ws(f33, 'AA')",
       "CONCAT_WS(f33, 'AA')",
-      "AA")
+      "null")
     testAllApis(
       concat_ws("~~~~", "AA"),
       "concat_ws('~~~~','AA')",
@@ -1161,21 +1145,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
-  def testKeyValue(): Unit = {
-    // NOTE: Spark has str_to_map
-    testSqlApi("keyValue('a=1,b=2,c=3', ',', '=', 'a')", "1")
-    testSqlApi("keyValue('a=1,b=2,c=3', ',', '=', 'b')", "2")
-    testSqlApi("keyValue('a=1,b=2,c=3', ',', '=', 'c')", "3")
-    testSqlApi("keyValue('', ',', '=', 'c')", "null")
-    testSqlApi("keyValue(f40, ',', '=', 'c')", "null")
-    testSqlApi("keyValue(CAST(null as VARCHAR), ',', '=', 'c')", "null")
-    testSqlApi("keyValue('a=1,b=2,c=3', ',', '=', 'd')", "null")
-    testSqlApi("keyValue('a=1,b=2,c=3', CAST(null as VARCHAR), '=', 'a')", "null")
-    testSqlApi("keyValue('a=1,b=2,c=3', ',', CAST(null as VARCHAR), 'a')", "null")
-    testSqlApi("keyValue('a=1,b=2,c=3', ',', '=', CAST(null as VARCHAR))", "null")
-  }
-
-  @Test
   def testHashCode(): Unit = {
     testSqlApi("hash_code('abc')", "96354")
     testSqlApi("hash_code(f35)", "97")
@@ -1200,17 +1169,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("regexp(f40, '(\\d+)')", "null")
     testSqlApi("regexp(CAST(null as VARCHAR), '(\\d+)')", "null")
     testSqlApi("regexp('100-200', CAST(null as VARCHAR))", "null")
-  }
-
-  @Test
-  def testJsonValue(): Unit = {
-    testSqlApi("jsonValue('[10, 20, [30, 40]]', '$[2][*]')", "[30,40]")
-    testSqlApi("jsonValue('[10, 20, [30, [40, 50, 60]]]', '$[2][*][1][*]')", "[30,[40,50,60]]")
-    testSqlApi("jsonValue(f40, '$[2][*][1][*]')", "null")
-    testSqlApi("jsonValue('[10, 20, [30, [40, 50, 60]]]', '')", "null")
-    testSqlApi("jsonValue('', '$[2][*][1][*]')", "null")
-    testSqlApi("jsonValue(CAST(null as VARCHAR), '$[2][*][1][*]')", "null")
-    testSqlApi("jsonValue('[10, 20, [30, [40, 50, 60]]]', CAST(null as VARCHAR))", "null")
   }
 
   @Test
@@ -1396,6 +1354,98 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "-")
   }
 
+  @Test
+  def testTruncate(): Unit = {
+    testAllApis(
+      'f29.truncate('f30),
+      "f29.truncate(f30)",
+      "truncate(f29, f30)",
+      "0.4")
+
+    testAllApis(
+      'f31.truncate('f7),
+      "f31.truncate(f7)",
+      "truncate(f31, f7)",
+      "-0.123")
+
+    testAllApis(
+      'f4.truncate('f32),
+      "f4.truncate(f32)",
+      "truncate(f4, f32)",
+      "40")
+
+    testAllApis(
+      'f28.cast(DataTypes.DOUBLE).truncate(1),
+      "f28.cast(DOUBLE).truncate(1)",
+      "truncate(cast(f28 as DOUBLE), 1)",
+      "0.4")
+
+    // TODO: ignore TableApiTest for cast to DECIMAL(p, s) is not support now.
+    //  see https://issues.apache.org/jira/browse/FLINK-13651
+//    testAllApis(
+//      'f31.cast(DataTypes.DECIMAL(38, 18)).truncate(2),
+//      "f31.cast(DECIMAL(10, 10)).truncate(2)",
+//      "truncate(cast(f31 as decimal(38, 18)), 2)",
+//      "-0.12")
+//
+//    testAllApis(
+//      'f36.cast(DataTypes.DECIMAL(38, 18)).truncate(),
+//      "f36.cast(DECIMAL(10, 10)).truncate()",
+//      "truncate(42.324)",
+//      "42")
+
+    testSqlApi("truncate(cast(f31 as decimal(38, 18)), 2)", "-0.12")
+
+    testAllApis(
+      'f5.cast(DataTypes.FLOAT).truncate(),
+      "f5.cast(FLOAT).truncate()",
+      "truncate(cast(f5 as float))",
+      "4.0")
+
+    testAllApis(
+      42.truncate(-1),
+      "42.truncate(-1)",
+      "truncate(42, -1)",
+      "40")
+
+    testAllApis(
+      42.truncate(-3),
+      "42.truncate(-3)",
+      "truncate(42, -3)",
+      "0")
+
+    //    The validation parameter is null
+    testAllApis(
+      'f33.cast(DataTypes.INT).truncate(1),
+      "f33.cast(INT).truncate(1)",
+      "truncate(cast(null as integer), 1)",
+      "null")
+
+    testAllApis(
+      43.21.truncate('f33.cast(DataTypes.INT)),
+      "43.21.truncate(f33.cast(INT))",
+      "truncate(43.21, cast(null as integer))",
+      "null")
+
+    testAllApis(
+      'f33.cast(DataTypes.DOUBLE).truncate(1),
+      "f33.cast(DOUBLE).truncate(1)",
+      "truncate(cast(null as double), 1)",
+      "null")
+
+    testAllApis(
+      'f33.cast(DataTypes.INT).truncate(1),
+      "f33.cast(INT).truncate(1)",
+      "truncate(cast(null as integer))",
+      "null")
+
+    testAllApis(
+      'f33.cast(DataTypes.DOUBLE).truncate(),
+      "f33.cast(DOUBLE).truncate()",
+      "truncate(cast(null as double))",
+      "null")
+  }
+
   // ----------------------------------------------------------------------------------------------
   // Math functions
   // ----------------------------------------------------------------------------------------------
@@ -1471,16 +1521,16 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   def testDivide(): Unit = {
 
     testAllApis(
-      1514356320000L / 60000.0, // the `/` is Scala operator, not Flink TableApi operator
+      1514356320000L / 60000, // the `/` is Scala operator, not Flink TableApi operator
       "1514356320000L / 60000",
       "1514356320000 / 60000",
-      "2.5239272E7")
+      "25239272")
 
     testAllApis(
       'f7 / 2,
       "f7 / 2",
       "f7 / 2",
-      "1.5")
+      "1")
 
     // f34 => Decimal(19,0)
     // 6 => Integer => Decimal(10,0)
@@ -3472,26 +3522,25 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
       "timestampadd(DAY, 1, date '2016-06-15')",
       "2016-06-16")
 
-    // TODO support '2016-06-15'.toTimestamp
-//    testAllApis("2016-06-15".toTimestamp - 1.hour,
-//      "'2016-06-15'.toTimestamp - 1.hour",
-//      "timestampadd(HOUR, -1, date '2016-06-15')",
-//      "2016-06-14 23:00:00.0")
+    testAllApis("2016-06-15".toTimestamp - 1.hour,
+      "'2016-06-15'.toTimestamp - 1.hour",
+      "timestampadd(HOUR, -1, date '2016-06-15')",
+      "2016-06-14 23:00:00.000")
 
-//    testAllApis("2016-06-15".toTimestamp + 1.minute,
-//      "'2016-06-15'.toTimestamp + 1.minute",
-//      "timestampadd(MINUTE, 1, date '2016-06-15')",
-//      "2016-06-15 00:01:00.0")
+    testAllApis("2016-06-15".toTimestamp + 1.minute,
+      "'2016-06-15'.toTimestamp + 1.minute",
+      "timestampadd(MINUTE, 1, date '2016-06-15')",
+      "2016-06-15 00:01:00.000")
 
-//    testAllApis("2016-06-15".toTimestamp - 1.second,
-//      "'2016-06-15'.toTimestamp - 1.second",
-//      "timestampadd(SQL_TSI_SECOND, -1, date '2016-06-15')",
-//      "2016-06-14 23:59:59.0")
+    testAllApis("2016-06-15".toTimestamp - 1.second,
+      "'2016-06-15'.toTimestamp - 1.second",
+      "timestampadd(SQL_TSI_SECOND, -1, date '2016-06-15')",
+      "2016-06-14 23:59:59.000")
 
-//    testAllApis("2016-06-15".toTimestamp + 1.second,
-//      "'2016-06-15'.toTimestamp + 1.second",
-//      "timestampadd(SECOND, 1, date '2016-06-15')",
-//      "2016-06-15 00:00:01.0")
+    testAllApis("2016-06-15".toTimestamp + 1.second,
+      "'2016-06-15'.toTimestamp + 1.second",
+      "timestampadd(SECOND, 1, date '2016-06-15')",
+      "2016-06-15 00:00:01.000")
 
     testAllApis(nullOf(Types.SQL_TIMESTAMP) + 1.second,
       "nullOf(SQL_TIMESTAMP) + 1.second",
@@ -3528,38 +3577,16 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   @Test
   def testToTimestamp(): Unit = {
     testSqlApi("to_timestamp('abc')", "null")
-    testSqlApi("to_timestamp(1513135677000)", "2017-12-13 03:27:57.000")
     testSqlApi("to_timestamp('2017-09-15 00:00:00')", "2017-09-15 00:00:00.000")
     testSqlApi("to_timestamp('20170915000000', 'yyyyMMddHHmmss')", "2017-09-15 00:00:00.000")
+    testSqlApi("to_timestamp('2017-09-15', 'yyyy-MM-dd')", "2017-09-15 00:00:00.000")
+    // test with null input
+    testSqlApi("to_timestamp(cast(null as varchar))", "null")
   }
 
   @Test
   def testToDate(): Unit = {
     testSqlApi("to_date('2017-09-15 00:00:00')", "2017-09-15")
-  }
-
-  @Test
-  def testDateSub(): Unit = {
-    testSqlApi("date_sub(f18, 10)", "1996-10-31")
-    testSqlApi("date_sub(f18, -10)", "1996-11-20")
-    testSqlApi("date_sub(TIMESTAMP '2017-10-15 23:00:00', 30)", "2017-09-15")
-    testSqlApi("date_sub(f40, 30)", "null")
-    testSqlApi("date_sub(CAST(NULL AS TIMESTAMP), 30)", "null")
-    testSqlApi("date_sub(CAST(NULL AS VARCHAR), 30)", "null")
-    testSqlApi("date_sub('2017-10--11', 30)", "null")
-    testSqlApi("date_sub('2017--10-11', 30)", "null")
-  }
-
-  @Test
-  def testDateAdd(): Unit = {
-    testSqlApi("date_add(f18, 10)", "1996-11-20")
-    testSqlApi("date_add(f18, -10)", "1996-10-31")
-    testSqlApi("date_add(TIMESTAMP '2017-10-15 23:00:00', 30)", "2017-11-14")
-    testSqlApi("date_add(f40, 30)", "null")
-    testSqlApi("date_add(CAST(NULL AS TIMESTAMP), 30)", "null")
-    testSqlApi("date_add(CAST(NULL AS VARCHAR), 30)", "null")
-    testSqlApi("date_add('2017-10--11', 30)", "null")
-    testSqlApi("date_add('2017--10-11', 30)", "null")
   }
 
   // ----------------------------------------------------------------------------------------------
@@ -3989,68 +4016,6 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
-  def testToTimestampWithNumeric(): Unit = {
-    // Test integral and fractional numeric to timestamp.
-    testSqlApi(
-      "to_timestamp(f2)",
-      "1970-01-01 00:00:00.042")
-    testSqlApi(
-      "to_timestamp(f3)",
-      "1970-01-01 00:00:00.043")
-    testSqlApi(
-      "to_timestamp(f4)",
-      "1970-01-01 00:00:00.044")
-    testSqlApi(
-      "to_timestamp(f5)",
-      "1970-01-01 00:00:00.004")
-    testSqlApi(
-      "to_timestamp(f6)",
-      "1970-01-01 00:00:00.004")
-    testSqlApi(
-      "to_timestamp(f7)",
-      "1970-01-01 00:00:00.003")
-    // Test decimal to timestamp.
-    testSqlApi(
-      "to_timestamp(f15)",
-      "1969-12-31 23:59:58.769")
-    // test with null input
-    testSqlApi(
-      "to_timestamp(cast(null as varchar))",
-      "null")
-  }
-
-  @Test
-  def testFromUnixTimeWithNumeric(): Unit = {
-    // Test integral and fractional numeric from_unixtime.
-    testSqlApi(
-      "from_unixtime(f2)",
-      "1970-01-01 00:00:42")
-    testSqlApi(
-      "from_unixtime(f3)",
-      "1970-01-01 00:00:43")
-    testSqlApi(
-      "from_unixtime(f4)",
-      "1970-01-01 00:00:44")
-    testSqlApi(
-      "from_unixtime(f5)",
-      "1970-01-01 00:00:04")
-    testSqlApi(
-      "from_unixtime(f6)",
-      "1970-01-01 00:00:04")
-    testSqlApi(
-      "from_unixtime(f7)",
-      "1970-01-01 00:00:03")
-    // Test decimal to from_unixtime.
-    testSqlApi(
-      "from_unixtime(f15)",
-      "1969-12-31 23:39:29")
-    // test with null input
-    testSqlApi(
-      "from_unixtime(cast(null as int))",
-      "null")
-  }
-
-  @Test
   def testIsDecimal(): Unit = {
     testSqlApi(
       "IS_DECIMAL('1')",
@@ -4145,64 +4110,5 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi(
       "IS_ALPHA(f33)",
       "false")
-  }
-
-  @Test
-  def testBit(): Unit = {
-    testSqlApi(
-      "BITAND(1, 1)",
-      s"${1 & 1}")
-
-    testSqlApi(
-      "BITAND(2, 2)",
-      s"${2 & 2}")
-
-    testSqlApi(
-      "BITAND(-3, -2)",
-      "-4")
-
-    testSqlApi(
-      "BITOR(1, 2)",
-      s"${1 | 2}")
-
-    testSqlApi(
-      "BITOR(3, 0)",
-      s"${3 | 0}")
-
-    testSqlApi(
-      "BITOR(3, 4)",
-      "7")
-
-    testSqlApi(
-      "BITOR(-3, 2)",
-      "-1")
-
-    testSqlApi(
-      "BITXOR(1, 1)",
-      s"${1 ^ 1}")
-
-    testSqlApi(
-      "BITXOR(3, 1)",
-      s"${3 ^ 1}")
-
-    testSqlApi(
-      "BITXOR(-3, 2)",
-      "-1")
-
-    testSqlApi(
-      "BITNOT(1)",
-      s"${~1}")
-
-    testSqlApi(
-      "BITNOT(2)",
-      s"${~2}")
-
-    testSqlApi(
-      "BITNOT(3)",
-      s"${~3}")
-
-    testSqlApi(
-      "BITNOT(-3)",
-      "2")
   }
 }

@@ -410,6 +410,34 @@ This process can be recursively performed until all the constructor parameters a
 
 {% top %}
 
+Catalogs
+--------
+
+Catalogs can be defined as a set of YAML properties and are automatically registered to the environment upon starting SQL Client.
+
+Users can specify which catalog they want to use as the current catalog in SQL CLI, and which database of the catalog they want to use as the current database.
+
+{% highlight yaml %}
+catalogs:
+   - name: catalog_1
+     type: hive
+     property-version: 1
+     default-database: mydb2
+     hive-version: 1.2.1
+     hive-conf-dir: <path of Hive conf directory>
+   - name: catalog_2
+     type: hive
+     property-version: 1
+     hive-conf-dir: <path of Hive conf directory>
+
+execution:
+   ...
+   current-catalog: catalog_1
+   current-database: mydb1
+{% endhighlight %}
+
+For more information about catalogs, see [Catalogs]({{ site.baseurl }}/dev/table/catalogs.html).
+
 Detached SQL Queries
 --------------------
 
