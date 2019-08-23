@@ -197,10 +197,10 @@ public class TableEnvHiveConnectorTest {
 			hiveShell.insertInto("db1", "src").addRow(1).addRow(2).commit();
 			hiveShell.execute("create table db1.dest (x int) partitioned by (p1 string, p2 double)");
 			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
-			tableEnv.sqlUpdate("insert into db1.dest partition (p1='1', p2=1.1) select x from db1.src");
+			tableEnv.sqlUpdate("insert into db1.dest partition (p1='1''1', p2=1.1) select x from db1.src");
 			tableEnv.execute("static partitioning");
 			assertEquals(1, hiveCatalog.listPartitions(new ObjectPath("db1", "dest")).size());
-			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\t1\t1.1", "2\t1\t1.1"));
+			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\t1'1\t1.1", "2\t1'1\t1.1"));
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}
