@@ -209,7 +209,7 @@ public abstract class MessageAcknowledgingSourceBase<Type, UId>
 			"The " + getClass().getSimpleName() + " has not been properly initialized.");
 
 		if (LOG.isDebugEnabled()) {
-			LOG.debug("{} checkpointing: Messages: {}, checkpoint id: {}, timestamp: {}",
+			LOG.debug("Checkpointing: Messages: {}, checkpoint id: {}, timestamp: {}",
 				idsForCurrentCheckpoint, context.getCheckpointId(), context.getCheckpointTimestamp());
 		}
 

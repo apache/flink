@@ -18,11 +18,8 @@
 
 package org.apache.flink.client.program;
 
-import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.Program;
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -83,8 +80,6 @@ public class PackagedProgram {
 
 	private final String[] args;
 
-	private final Program program;
-
 	private final Class<?> mainClass;
 
 	private final List<File> extractedTempLibraries;
@@ -92,8 +87,6 @@ public class PackagedProgram {
 	private final List<URL> classpaths;
 
 	private ClassLoader userCodeClassLoader;
-
-	private Plan plan;
 
 	private SavepointRestoreSettings savepointSettings = SavepointRestoreSettings.none();
 
@@ -214,28 +207,8 @@ public class PackagedProgram {
 		// load the entry point class
 		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);
 
-		// if the entry point is a program, instantiate the class and get the plan
-		if (Program.class.isAssignableFrom(this.mainClass)) {
-			Program prg = null;
-			try {
-				prg = InstantiationUtil.instantiate(this.mainClass.asSubclass(Program.class), Program.class);
-			} catch (Exception e) {
-				// validate that the class has a main method at least.
-				// the main method possibly instantiates the program properly
-				if (!hasMainMethod(mainClass)) {
-					throw new ProgramInvocationException("The given program class implements the " +
-							Program.class.getName() + " interface, but cannot be instantiated. " +
-							"It also declares no main(String[]) method as alternative entry point", e);
-				}
-			} catch (Throwable t) {
-				throw new ProgramInvocationException("Error while trying to instantiate program class.", t);
-			}
-			this.program = prg;
-		} else if (hasMainMethod(mainClass)) {
-			this.program = null;
-		} else {
-			throw new ProgramInvocationException("The given program class neither has a main(String[]) method, nor does it implement the " +
-					Program.class.getName() + " interface.");
+		if (!hasMainMethod(mainClass)) {
+			throw new ProgramInvocationException("The given program class does not have a main(String[]) method.");
 		}
 	}
 
@@ -251,28 +224,8 @@ public class PackagedProgram {
 		this.mainClass = entryPointClass;
 		isPython = entryPointClass.getCanonicalName().equals("org.apache.flink.client.python.PythonDriver");
 
-		// if the entry point is a program, instantiate the class and get the plan
-		if (Program.class.isAssignableFrom(this.mainClass)) {
-			Program prg = null;
-			try {
-				prg = InstantiationUtil.instantiate(this.mainClass.asSubclass(Program.class), Program.class);
-			} catch (Exception e) {
-				// validate that the class has a main method at least.
-				// the main method possibly instantiates the program properly
-				if (!hasMainMethod(mainClass)) {
-					throw new ProgramInvocationException("The given program class implements the " +
-							Program.class.getName() + " interface, but cannot be instantiated. " +
-							"It also declares no main(String[]) method as alternative entry point", e);
-				}
-			} catch (Throwable t) {
-				throw new ProgramInvocationException("Error while trying to instantiate program class.", t);
-			}
-			this.program = prg;
-		} else if (hasMainMethod(mainClass)) {
-			this.program = null;
-		} else {
-			throw new ProgramInvocationException("The given program class neither has a main(String[]) method, nor does it implement the " +
-					Program.class.getName() + " interface.");
+		if (!hasMainMethod(mainClass)) {
+			throw new ProgramInvocationException("The given program class does not have a main(String[]) method.");
 		}
 	}
 
@@ -292,44 +245,6 @@ public class PackagedProgram {
 		return this.mainClass.getName();
 	}
 
-	public boolean isUsingInteractiveMode() {
-		return this.program == null;
-	}
-
-	public boolean isUsingProgramEntryPoint() {
-		return this.program != null;
-	}
-
-	/**
-	 * Returns the plan without the required jars when the files are already provided by the cluster.
-	 *
-	 * @return The plan without attached jar files.
-	 * @throws ProgramInvocationException
-	 */
-	public JobWithJars getPlanWithoutJars() throws ProgramInvocationException {
-		if (isUsingProgramEntryPoint()) {
-			return new JobWithJars(getPlan(), Collections.<URL>emptyList(), classpaths, userCodeClassLoader);
-		} else {
-			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() +
-				" for a program that is using the interactive mode.", getPlan().getJobId());
-		}
-	}
-
-	/**
-	 * Returns the plan with all required jars.
-	 *
-	 * @return The plan with attached jar files.
-	 * @throws ProgramInvocationException
-	 */
-	public JobWithJars getPlanWithJars() throws ProgramInvocationException {
-		if (isUsingProgramEntryPoint()) {
-			return new JobWithJars(getPlan(), getAllLibraries(), classpaths, userCodeClassLoader);
-		} else {
-			throw new ProgramInvocationException("Cannot create a " + JobWithJars.class.getSimpleName() +
-					" for a program that is using the interactive mode.", getPlan().getJobId());
-		}
-	}
-
 	/**
 	 * Returns the analyzed plan without any optimizations.
 	 *
@@ -343,43 +258,31 @@ public class PackagedProgram {
 		Thread.currentThread().setContextClassLoader(this.getUserCodeClassLoader());
 		List<DataSinkNode> previewPlan;
 
-		if (isUsingProgramEntryPoint()) {
-			previewPlan = Optimizer.createPreOptimizedPlan(getPlan());
-		}
-		else if (isUsingInteractiveMode()) {
-			// temporary hack to support the web client
-			PreviewPlanEnvironment env = new PreviewPlanEnvironment();
-			env.setAsContext();
-			try {
-				invokeInteractiveModeForExecution();
-			}
-			catch (ProgramInvocationException e) {
-				throw e;
-			}
-			catch (Throwable t) {
-				// the invocation gets aborted with the preview plan
-				if (env.previewPlan == null) {
-					if (env.preview != null) {
-						return env.preview;
-					} else {
-						throw new ProgramInvocationException("The program caused an error: ", getPlan().getJobId(), t);
-					}
+		// temporary hack to support the web client
+		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
+		env.setAsContext();
+		try {
+			invokeInteractiveModeForExecution();
+		} catch (ProgramInvocationException e) {
+			throw e;
+		} catch (Throwable t) {
+			// the invocation gets aborted with the preview plan
+			if (env.previewPlan == null) {
+				if (env.preview != null) {
+					return env.preview;
+				} else {
+					throw new ProgramInvocationException("The program caused an error:", t);
 				}
 			}
-			finally {
-				env.unsetAsContext();
-			}
-
-			if (env.previewPlan != null) {
-				previewPlan =  env.previewPlan;
-			} else {
-				throw new ProgramInvocationException(
-					"The program plan could not be fetched. The program silently swallowed the control flow exceptions.",
-					getPlan().getJobId());
-			}
+		} finally {
+			env.unsetAsContext();
 		}
-		else {
-			throw new RuntimeException();
+
+		if (env.previewPlan != null) {
+			previewPlan = env.previewPlan;
+		} else {
+			throw new ProgramInvocationException(
+					"The program plan could not be fetched. The program silently swallowed the control flow exceptions.");
 		}
 
 		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
@@ -388,7 +291,6 @@ public class PackagedProgram {
 			jsonGen.dumpPactPlanAsJSON(previewPlan, pw);
 		}
 		return string.toString();
-
 	}
 
 	/**
@@ -405,15 +307,11 @@ public class PackagedProgram {
 		if (ProgramDescription.class.isAssignableFrom(this.mainClass)) {
 
 			ProgramDescription descr;
-			if (this.program != null) {
-				descr = (ProgramDescription) this.program;
-			} else {
-				try {
-					descr =  InstantiationUtil.instantiate(
+			try {
+				descr = InstantiationUtil.instantiate(
 						this.mainClass.asSubclass(ProgramDescription.class), ProgramDescription.class);
-				} catch (Throwable t) {
-					return null;
-				}
+			} catch (Throwable t) {
+				return null;
 			}
 
 			try {
@@ -434,11 +332,7 @@ public class PackagedProgram {
 	 * will be a local execution by default.
 	 */
 	public void invokeInteractiveModeForExecution() throws ProgramInvocationException{
-		if (isUsingInteractiveMode()) {
-			callMainMethod(mainClass, args);
-		} else {
-			throw new ProgramInvocationException("Cannot invoke a plan-based program directly.");
-		}
+		callMainMethod(mainClass, args);
 	}
 
 	/**
@@ -516,22 +410,6 @@ public class PackagedProgram {
 	public void deleteExtractedLibraries() {
 		deleteExtractedLibraries(this.extractedTempLibraries);
 		this.extractedTempLibraries.clear();
-	}
-
-	/**
-	 * Returns the plan as generated from the Pact Assembler.
-	 *
-	 * @return The program's plan.
-	 * @throws ProgramInvocationException Thrown, if an error occurred in the program while
-	 *         creating the program's {@link Plan}.
-	 */
-	private Plan getPlan() throws ProgramInvocationException {
-		if (this.plan == null) {
-			Thread.currentThread().setContextClassLoader(this.userCodeClassLoader);
-			this.plan = createPlanFromProgram(this.program, this.args);
-		}
-
-		return this.plan;
 	}
 
 	private static boolean hasMainMethod(Class<?> entryClass) {
@@ -679,27 +557,6 @@ public class PackagedProgram {
 			if (contextCl != null) {
 				Thread.currentThread().setContextClassLoader(contextCl);
 			}
-		}
-	}
-
-	/**
-	 * Takes the jar described by the given file and invokes its pact assembler class to
-	 * assemble a plan. The assembler class name is either passed through a parameter,
-	 * or it is read from the manifest of the jar. The assembler is handed the given options
-	 * for its assembly.
-	 *
-	 * @param program The program to create the plan for.
-	 * @param options
-	 *        The options for the assembler.
-	 * @return The plan created by the program.
-	 * @throws ProgramInvocationException
-	 *         Thrown, if an error occurred in the user-provided pact assembler.
-	 */
-	private static Plan createPlanFromProgram(Program program, String[] options) throws ProgramInvocationException {
-		try {
-			return program.getPlan(options);
-		} catch (Throwable t) {
-			throw new ProgramInvocationException("Error while calling the program: " + t.getMessage(), t);
 		}
 	}
 

@@ -56,7 +56,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Simple and maybe stupid test to check the {@link ClusterClient} class.
@@ -67,7 +66,7 @@ public class ClientTest extends TestLogger {
 	public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
 		new MiniClusterResource(new MiniClusterResourceConfiguration.Builder().build());
 
-	private PackagedProgram program;
+	private JobWithJars jobWithJars;
 
 	private Configuration config;
 
@@ -82,10 +81,7 @@ public class ClientTest extends TestLogger {
 		env.generateSequence(1, 1000).output(new DiscardingOutputFormat<Long>());
 
 		Plan plan = env.createProgramPlan();
-		JobWithJars jobWithJars = new JobWithJars(plan, Collections.<URL>emptyList(),  Collections.<URL>emptyList());
-
-		program = mock(PackagedProgram.class);
-		when(program.getPlanWithJars()).thenReturn(jobWithJars);
+		jobWithJars = new JobWithJars(plan, Collections.<URL>emptyList(),  Collections.<URL>emptyList());
 
 		final int freePort = NetUtils.getAvailablePort();
 		config = new Configuration();
@@ -170,11 +166,9 @@ public class ClientTest extends TestLogger {
 	public void shouldSubmitToJobClient() throws Exception {
 		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 		clusterClient.setDetached(true);
-		JobSubmissionResult result = clusterClient.run(program.getPlanWithJars(), 1);
+		JobSubmissionResult result = clusterClient.run(jobWithJars, 1);
 
 		assertNotNull(result);
-
-		program.deleteExtractedLibraries();
 	}
 
 	/**
@@ -184,7 +178,6 @@ public class ClientTest extends TestLogger {
 	@Test
 	public void tryLocalExecution() throws ProgramInvocationException, ProgramMissingJobException {
 		PackagedProgram packagedProgramMock = mock(PackagedProgram.class);
-		when(packagedProgramMock.isUsingInteractiveMode()).thenReturn(true);
 		doAnswer(new Answer<Void>() {
 			@Override
 			public Void answer(InvocationOnMock invocation) throws Throwable {
