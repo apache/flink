@@ -156,11 +156,6 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		return client.dropPartition(databaseName, tableName, partitionValues, deleteData);
 	}
 
-	public void alter_partition(String databaseName, String tableName, Partition partition)
-			throws InvalidOperationException, MetaException, TException {
-		client.alter_partition(databaseName, tableName, partition);
-	}
-
 	public void renamePartition(String databaseName, String tableName, List<String> partitionValues, Partition partition)
 			throws InvalidOperationException, MetaException, TException {
 		client.renamePartition(databaseName, tableName, partitionValues, partition);
@@ -235,4 +230,11 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		hiveShim.alterTable(client, databaseName, tableName, table);
 	}
+
+	public void alter_partition(String databaseName, String tableName, Partition partition)
+			throws InvalidOperationException, MetaException, TException {
+		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
+		hiveShim.alterPartition(client, databaseName, tableName, partition);
+	}
+
 }
