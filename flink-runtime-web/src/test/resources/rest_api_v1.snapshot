@@ -2300,6 +2300,32 @@
       }
     }
   }, {
+    "url" : "/leader-info",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:LeaderInfo",
+      "properties" : {
+        "address" : {
+          "type" : "string"
+        },
+        "dispatcher-id" : {
+          "type" : "string"
+        }
+      }
+    }
+  }, {
     "url" : "/overview",
     "method" : "GET",
     "status-code" : "200 OK",
