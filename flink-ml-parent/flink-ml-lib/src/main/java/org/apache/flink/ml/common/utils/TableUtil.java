@@ -24,17 +24,18 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.util.Preconditions;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 /**
- * Utility class for the operations on Table, such as
- * the operations on column name, the operations on column
- * type and so on.
+ * Utility class for the operations on Table, such as the operations on column name, the operations on column type and
+ * so on.
  */
 public class TableUtil {
 	/**
-	 * return a lower temp table name in lower case and
-	 * use "-" as connector character.
+	 * Return a lower temp table name in lower case and use "-" as connector character.
 	 *
 	 * @return tableName
 	 */
@@ -44,15 +45,12 @@ public class TableUtil {
 	}
 
 	/**
-	 * Find the index of <code>targetCol</code> in string
-	 * array <code>tableCols</code>. It will ignore the
-	 * case of the tableCols.
+	 * Find the index of <code>targetCol</code> in string array <code>tableCols</code>. It will ignore the case of the
+	 * tableCols.
 	 *
-	 * @param tableCols a string array among which to find
-	 *                  the targetCol.
+	 * @param tableCols a string array among which to find the targetCol.
 	 * @param targetCol the targetCol to find.
-	 * @return the index of the targetCol, if not found,
-	 * returns -1.
+	 * @return the index of the targetCol, if not found, returns -1.
 	 */
 	public static int findColIndex(String[] tableCols, String targetCol) {
 		Preconditions.checkNotNull(targetCol, "targetCol is null!");
@@ -65,12 +63,11 @@ public class TableUtil {
 	}
 
 	/**
-	 * Find the indices of <code>targetCols</code> in string
-	 * array <code>tableCols</code>. If <code>targetCols</code>
-	 * is null, it will be replaced by the <code>tableCols</code>
+	 * Find the indices of <code>targetCols</code> in string array <code>tableCols</code>. If
+	 * <code>targetCols</code> is
+	 * null, it will be replaced by the <code>tableCols</code>
 	 *
-	 * @param tableCols  a string array among which to
-	 *                   find the targetCols.
+	 * @param tableCols  a string array among which to find the targetCols.
 	 * @param targetCols the targetCols to find.
 	 * @return the indices of the targetCols.
 	 */
@@ -90,11 +87,9 @@ public class TableUtil {
 	}
 
 	/**
-	 * Find the index of <code>targetCol</code> from
-	 * the <code>tableSchema</code>.
+	 * Find the index of <code>targetCol</code> from the <code>tableSchema</code>.
 	 *
-	 * @param tableSchema the TableSchema among which
-	 *                    to find the targetCol.
+	 * @param tableSchema the TableSchema among which to find the targetCol.
 	 * @param targetCol   the targetCols to find.
 	 * @return the index of the targetCol.
 	 */
@@ -103,11 +98,9 @@ public class TableUtil {
 	}
 
 	/**
-	 * Find the indices of <code>targetCols</code> from
-	 * the <code>tableSchema</code>.
+	 * Find the indices of <code>targetCols</code> from the <code>tableSchema</code>.
 	 *
-	 * @param tableSchema the TableSchema among which to
-	 *                    find the targetCols.
+	 * @param tableSchema the TableSchema among which to find the targetCols.
 	 * @param targetCols  the targetCols to find.
 	 * @return the indices of the targetCols.
 	 */
@@ -116,8 +109,7 @@ public class TableUtil {
 	}
 
 	/**
-	 * Find the types of the <code>targetCols</code>.
-	 * If the targetCol not exist, return null.
+	 * Find the types of the <code>targetCols</code>. If the targetCol not exist, return null.
 	 *
 	 * @param tableSchema TableSchema.
 	 * @param targetCols  the targetCols to find.
@@ -132,8 +124,7 @@ public class TableUtil {
 	}
 
 	/**
-	 * Find the type of the <code>targetCol</code>.
-	 * If the targetCol not exist, return null.
+	 * Find the type of the <code>targetCol</code>. If the targetCol not exist, return null.
 	 *
 	 * @param tableSchema TableSchema
 	 * @param targetCol   the targetCol to find.
@@ -146,9 +137,7 @@ public class TableUtil {
 	}
 
 	/**
-	 * determine whether it is number type, number
-	 * type includes double, long, byte, int, float
-	 * and short.
+	 * Determine whether it is number type, number type includes double, long, byte, int, float and short.
 	 *
 	 * @param dataType the dataType to determine.
 	 * @return whether it is number type
@@ -163,7 +152,7 @@ public class TableUtil {
 	}
 
 	/**
-	 * determine whether it is a string type.
+	 * Determine whether it is a string type.
 	 *
 	 * @param dataType the dataType to determine.
 	 * @return whether it is string type
@@ -173,26 +162,38 @@ public class TableUtil {
 	}
 
 	/**
-	 * check whether <code>selectedCols</code>
-	 * exist or not, if not exist, throw exception.
+	 * Determine whether it is a vector type.
 	 *
-	 * @param tableCols    a string array among which
-	 *                     to find the target selectedCols.
+	 * @param dataType the dataType to determine.
+	 * @return whether it is vector type
+	 */
+	public static boolean isVector(TypeInformation dataType) {
+		return VectorTypes.VECTOR == dataType
+			|| VectorTypes.DENSE_VECTOR == dataType
+			|| VectorTypes.SPARSE_VECTOR == dataType
+			;
+	}
+
+	/**
+	 * Check whether <code>selectedCols</code> exist or not, if not exist, throw exception.
+	 *
+	 * @param tableCols    a string array among which to find the target selectedCols.
 	 * @param selectedCols the selectedCols to assert.
 	 */
 	public static void assertSelectedColExist(String[] tableCols, String... selectedCols) {
-		if (selectedCols != null) {
+		if (null != selectedCols) {
 			for (String selectedCol : selectedCols) {
-				if (-1 == findColIndex(tableCols, selectedCol)) {
-					throw new IllegalArgumentException(" col is not exist " + selectedCol);
+				if (null != selectedCol) {
+					if (-1 == findColIndex(tableCols, selectedCol)) {
+						throw new IllegalArgumentException(" col is not exist " + selectedCol);
+					}
 				}
 			}
 		}
 	}
 
 	/**
-	 * check whether colTypes of the <code>selectedCols</code>
-	 * is numerical, if not, throw exception.
+	 * Check whether colTypes of the <code>selectedCols</code> is numerical, if not, throw exception.
 	 *
 	 * @param tableSchema  TableSchema
 	 * @param selectedCols the selectedCols to assert.
@@ -200,16 +201,17 @@ public class TableUtil {
 	public static void assertNumericalCols(TableSchema tableSchema, String... selectedCols) {
 		if (selectedCols != null && selectedCols.length != 0) {
 			for (String selectedCol : selectedCols) {
-				if (!isNumber(findColType(tableSchema, selectedCol))) {
-					throw new IllegalArgumentException("col type must be number " + selectedCol);
+				if (null != selectedCol) {
+					if (!isNumber(findColType(tableSchema, selectedCol))) {
+						throw new IllegalArgumentException("col type must be number " + selectedCol);
+					}
 				}
 			}
 		}
 	}
 
 	/**
-	 * check whether colTypes of the <code>selectedCols</code>
-	 * is string, if not, throw exception.
+	 * Check whether colTypes of the <code>selectedCols</code> is string, if not, throw exception.
 	 *
 	 * @param tableSchema  TableSchema
 	 * @param selectedCols the selectedCol to assert.
@@ -217,10 +219,138 @@ public class TableUtil {
 	public static void assertStringCols(TableSchema tableSchema, String... selectedCols) {
 		if (selectedCols != null && selectedCols.length != 0) {
 			for (String selectedCol : selectedCols) {
-				if (!isString(findColType(tableSchema, selectedCol))) {
-					throw new IllegalArgumentException("col type must be string " + selectedCol);
+				if (null != selectedCol) {
+					if (!isString(findColType(tableSchema, selectedCol))) {
+						throw new IllegalArgumentException("col type must be string " + selectedCol);
+					}
 				}
 			}
 		}
+	}
+
+	/**
+	 * Check whether colTypes of the <code>selectedCols</code> is vector, if not, throw exception.
+	 *
+	 * @param tableSchema  TableSchema
+	 * @param selectedCols the selectedCol to assert.
+	 * @see #isVector(TypeInformation)
+	 */
+	public static void assertVectorCols(TableSchema tableSchema, String... selectedCols) {
+		if (selectedCols != null && selectedCols.length != 0) {
+			for (String selectedCol : selectedCols) {
+				if (null != selectedCol) {
+					if (!isVector(findColType(tableSchema, selectedCol))) {
+						throw new IllegalArgumentException("col type must be string " + selectedCol);
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Return the columns in the table whose types are string.
+	 *
+	 * @param tableSchema TableSchema
+	 * @return String columns.
+	 */
+	public static String[] getStringCols(TableSchema tableSchema) {
+		return getStringCols(tableSchema, null);
+	}
+
+	/**
+	 * Return the columns in the table whose types are string and are not included in the excludeCols.
+	 *
+	 * <p>If <code>excludeCols</code> is null, return all the string columns.
+	 *
+	 * @param tableSchema TableSchema.
+	 * @param excludeCols The columns who are not considered.
+	 * @return string columns.
+	 */
+	public static String[] getStringCols(TableSchema tableSchema, String[] excludeCols) {
+		ArrayList<String> numericCols = new ArrayList<>();
+		List<String> excludeColsList = null == excludeCols ? null : Arrays.asList(excludeCols);
+		String[] inColNames = tableSchema.getFieldNames();
+		TypeInformation<?>[] inColTypes = tableSchema.getFieldTypes();
+
+		for (int i = 0; i < inColNames.length; i++) {
+			if (isString(inColTypes[i])) {
+				if (null == excludeColsList || !excludeColsList.contains(inColNames[i])) {
+					numericCols.add(inColNames[i]);
+				}
+			}
+		}
+
+		return numericCols.toArray(new String[0]);
+	}
+
+	/**
+	 * Return the columns in the table whose types are numeric.
+	 *
+	 * @param tableSchema TableSchema
+	 * @return numeric columns.
+	 */
+	public static String[] getNumericCols(TableSchema tableSchema) {
+		return getNumericCols(tableSchema, null);
+	}
+
+	/**
+	 * Return the columns in the table whose types are numeric and are not included in the excludeCols.
+	 *
+	 * <p>If <code>excludeCols</code> is null, return all the numeric columns.
+	 *
+	 * @param tableSchema TableSchema.
+	 * @param excludeCols the columns who are not considered.
+	 * @return numeric columns.
+	 */
+	public static String[] getNumericCols(TableSchema tableSchema, String[] excludeCols) {
+		ArrayList<String> numericCols = new ArrayList<>();
+		List<String> excludeColsList = (null == excludeCols ? null : Arrays.asList(excludeCols));
+		String[] inColNames = tableSchema.getFieldNames();
+		TypeInformation<?>[] inColTypes = tableSchema.getFieldTypes();
+
+		for (int i = 0; i < inColNames.length; i++) {
+			if (isNumber(inColTypes[i])) {
+				if (null == excludeColsList || !excludeColsList.contains(inColNames[i])) {
+					numericCols.add(inColNames[i]);
+				}
+			}
+		}
+
+		return numericCols.toArray(new String[0]);
+	}
+
+	/**
+	 * Get the columns from featureCols who are included in the <code>categoricalCols</code>, and the columns whose
+	 * types are string or boolean.
+	 *
+	 * <p>If <code>categoricalCols</code> is null, return all the categorical columns.
+	 *
+	 * @param tableSchema     TableSchema.
+	 * @param featureCols     the columns to chosen from.
+	 * @param categoricalCols the columns which are included in the final result whatever the types of them are. And it
+	 *                        must be a subset of featureCols.
+	 * @return the categoricalCols.
+	 */
+	public static String[] getCategoricalCols(
+		TableSchema tableSchema, String[] featureCols, String[] categoricalCols) {
+		if (null == featureCols) {
+			return categoricalCols;
+		}
+		List<String> categoricalList = null == categoricalCols ? null : Arrays.asList(categoricalCols);
+		List<String> featureList = Arrays.asList(featureCols);
+		if (null != categoricalCols && !featureList.containsAll(categoricalList)) {
+			throw new IllegalArgumentException("CategoricalCols must be included in featureCols!");
+		}
+
+		TypeInformation[] featureColTypes = findColTypes(tableSchema, featureCols);
+		List<String> res = new ArrayList<>();
+		for (int i = 0; i < featureCols.length; i++) {
+			boolean included = null != categoricalList && categoricalList.contains(featureCols[i]);
+			if (included || Types.BOOLEAN == featureColTypes[i] || Types.STRING == featureColTypes[i]) {
+				res.add(featureCols[i]);
+			}
+		}
+
+		return res.toArray(new String[0]);
 	}
 }

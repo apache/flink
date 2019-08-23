@@ -97,4 +97,31 @@ public class TableUtilTest {
 		thrown.expect(RuntimeException.class);
 		TableUtil.assertStringCols(tableSchema, "f0", "f3");
 	}
+
+	@Test
+	public void getNumericColsTest() {
+		TableSchema tableSchema = new TableSchema(new String[] {"f0", "f1", "F2", "f3"},
+			new TypeInformation[] {Types.INT, Types.LONG, Types.STRING, Types.BOOLEAN});
+
+		Assert.assertArrayEquals(TableUtil.getNumericCols(tableSchema), new String[] {"f0", "f1"});
+		Assert.assertArrayEquals(TableUtil.getNumericCols(tableSchema, new String[] {"f0"}), new String[] {"f1"});
+		Assert.assertArrayEquals(TableUtil.getNumericCols(tableSchema, new String[] {"f2"}), new String[] {"f0", "f1"});
+	}
+
+	@Test
+	public void getCategoricalColsTest() {
+		TableSchema tableSchema = new TableSchema(new String[] {"f0", "f1", "f2", "f3"},
+			new TypeInformation[] {Types.INT, Types.LONG, Types.STRING, Types.BOOLEAN});
+
+		Assert.assertArrayEquals(TableUtil.getCategoricalCols(tableSchema, tableSchema.getFieldNames(), null),
+			new String[] {"f2", "f3"});
+		Assert.assertArrayEquals(
+			TableUtil.getCategoricalCols(tableSchema, new String[]{"f2", "f1", "f0", "f3"}, new String[] {"f0"}),
+			new String[] {"f2", "f0", "f3"});
+
+		thrown.expect(IllegalArgumentException.class);
+		Assert.assertArrayEquals(
+			TableUtil.getCategoricalCols(tableSchema, new String[] {"f3", "f0"}, new String[] {"f2"}),
+			new String[] {"f3", "f2"});
+	}
 }
