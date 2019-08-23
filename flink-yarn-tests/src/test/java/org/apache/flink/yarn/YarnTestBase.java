@@ -715,20 +715,7 @@ public abstract class YarnTestBase extends TestLogger {
 			writeYarnSiteConfigXML(conf, targetTestClassesFolder);
 
 			LOG.info("Starting up MiniDFSCluster");
-			if (miniDFSCluster == null) {
-
-				Configuration hdfsConfiguration = new Configuration();
-				hdfsConfiguration.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpHDFS.getRoot().getAbsolutePath());
-				if (principal != null && keytab != null) {
-					populateHDFSSecureConfigurations(hdfsConfiguration, principal, keytab);
-				}
-				miniDFSCluster = new MiniDFSCluster.Builder(hdfsConfiguration).numDataNodes(3).build();
-				miniDFSCluster.waitClusterUp();
-
-				hdfsConfiguration = miniDFSCluster.getConfiguration(0);
-				writeHDFSCoreSiteConfigXML(hdfsConfiguration, targetTestClassesFolder);
-				YARN_CONFIGURATION.addResource(hdfsConfiguration);
-			}
+			setMiniDFSCluster(principal, keytab, targetTestClassesFolder);
 
 			map.put("IN_TESTS", "yes we are in tests"); // see YarnClusterDescriptor() for more infos
 			map.put("YARN_CONF_DIR", targetTestClassesFolder.getAbsolutePath());
@@ -746,6 +733,23 @@ public abstract class YarnTestBase extends TestLogger {
 			Assert.fail();
 		}
 
+	}
+
+	private static void setMiniDFSCluster(String principal, String keytab, File targetTestClassesFolder) throws Exception {
+		if (miniDFSCluster == null) {
+
+			Configuration hdfsConfiguration = new Configuration();
+			hdfsConfiguration.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpHDFS.getRoot().getAbsolutePath());
+			if (principal != null && keytab != null) {
+				populateHDFSSecureConfigurations(hdfsConfiguration, principal, keytab);
+			}
+			miniDFSCluster = new MiniDFSCluster.Builder(hdfsConfiguration).numDataNodes(3).build();
+			miniDFSCluster.waitClusterUp();
+
+			hdfsConfiguration = miniDFSCluster.getConfiguration(0);
+			writeHDFSCoreSiteConfigXML(hdfsConfiguration, targetTestClassesFolder);
+			YARN_CONFIGURATION.addResource(hdfsConfiguration);
+		}
 	}
 
 	/**

@@ -513,7 +513,8 @@ public final class Utils {
 					appId,
 					new Path(taskManagerConfigFile.toURI()),
 					homeDirPath,
-					"", replication).f1;
+					"",
+					replication).f1;
 
 				log.debug("Prepared local resource for modified yaml: {}", flinkConf);
 			} finally {
