@@ -2854,7 +2854,7 @@ SPLIT_INDEX(string1, string2, integer1)
     <tr>
       <td>
         {% highlight text %}
-STR_TO_MAP(string1[, string2[, string3]])
+STR_TO_MAP(string1[, string2, string3]])
 {% endhighlight %}
       </td>
       <td>
