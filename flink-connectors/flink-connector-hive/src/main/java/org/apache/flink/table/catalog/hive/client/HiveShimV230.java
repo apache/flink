@@ -104,6 +104,7 @@ public class HiveShimV230 extends HiveShimV122 {
 	@Override
 	public void alterPartition(IMetaStoreClient client, String databaseName, String tableName, Partition partition)
 		throws InvalidOperationException, MetaException, TException {
+		String errorMsg = "Failed to alter partition for table %s in database %s";
 		try {
 			Method method = client.getClass().getMethod("alter_partition", String.class, String.class,
 				Partition.class, EnvironmentContext.class);
@@ -113,14 +114,10 @@ public class HiveShimV230 extends HiveShimV122 {
 			if (targetEx instanceof TException) {
 				throw (TException) targetEx;
 			} else {
-				throw new CatalogException(
-					String.format("Failed to alter partition for table %s in database %s", tableName, databaseName),
-					targetEx);
+				throw new CatalogException(String.format(errorMsg, tableName, databaseName), targetEx);
 			}
 		} catch (NoSuchMethodException | IllegalAccessException e) {
-			throw new CatalogException(
-				String.format("Failed to alter partition for table %s in database %s", tableName, databaseName),
-				e);
+			throw new CatalogException(String.format(errorMsg, tableName, databaseName), e);
 		}
 	}
 
