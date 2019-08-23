@@ -119,14 +119,20 @@ public class SqlClient {
 		try {
 			cli = new CliClient(context, executor);
 			// interactive CLI mode
-			if (options.getUpdateStatement() == null) {
+			if (options.getUpdateStatement() == null && options.getQueryStatement() == null) {
 				cli.open();
 			}
 			// execute single update statement
-			else {
+			else if (options.getUpdateStatement() != null) {
 				final boolean success = cli.submitUpdate(options.getUpdateStatement());
 				if (!success) {
 					throw new SqlClientException("Could not submit given SQL update statement to cluster.");
+				}
+			}
+			else if (options.getQueryStatement() != null) {
+				final boolean success = cli.executeQuery(options.getQueryStatement());
+				if (!success) {
+					throw new SqlClientException("Cound not execute given SQL query statement.");
 				}
 			}
 		} finally {

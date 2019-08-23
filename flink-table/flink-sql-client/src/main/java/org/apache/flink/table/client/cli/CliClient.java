@@ -236,6 +236,35 @@ public class CliClient {
 		}).orElse(false);
 	}
 
+	public boolean executeQuery(String statement) {
+		// TODO: long running streaming query would block the process, only support batch query now.
+		//  https://issues.apache.org/jira/browse/FLINK-12814 intros a non-interactive view mode,
+		//  and streaming query would time out and terminate. we could execute streaming query in
+		//  non-interactive view mode.
+		if (!(executor.getSessionProperties(context).containsKey("execution.type")
+			&& "batch".equalsIgnoreCase(executor.getSessionProperties(context).get("execution.type")))) {
+			printError("Unsupported execution mode: please use batch mode!");
+			return false;
+		}
+
+		terminal.writer().println(CliStrings.messageInfo(CliStrings.MESSAGE_WILL_EXECUTE).toAnsi());
+		terminal.writer().println(new AttributedString(statement).toString());
+		terminal.flush();
+
+		final Optional<SqlCommandCall> parsedStatement = parseCommand(statement);
+
+		return parsedStatement.map(cmdCall -> {
+			switch (cmdCall.command) {
+				case SELECT:
+					callSelect(cmdCall);
+					return true;
+				default:
+					printError(CliStrings.MESSAGE_UNSUPPORTED_SQL);
+					return false;
+			}
+		}).orElse(false);
+	}
+
 	// --------------------------------------------------------------------------------------------
 
 	private Optional<SqlCommandCall> parseCommand(String line) {
