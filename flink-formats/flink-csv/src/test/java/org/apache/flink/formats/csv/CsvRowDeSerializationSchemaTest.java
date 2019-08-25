@@ -168,6 +168,17 @@ public class CsvRowDeSerializationSchemaTest {
 			serialize(serSchemaBuilder, Row.of("Test", 12, "Hello")));
 	}
 
+	@Test
+	public void testEmptyLineDelimiter() throws Exception {
+		final TypeInformation<Row> rowInfo = Types.ROW(Types.STRING, Types.INT, Types.STRING);
+		final CsvRowSerializationSchema.Builder serSchemaBuilder = new CsvRowSerializationSchema.Builder(rowInfo)
+				.setLineDelimiter("");
+
+		assertArrayEquals(
+				"Test,12,Hello".getBytes(),
+				serialize(serSchemaBuilder, Row.of("Test", 12, "Hello")));
+	}
+
 	@Test(expected = IllegalArgumentException.class)
 	public void testInvalidNesting() throws Exception {
 		testNullableField(Types.ROW(Types.ROW(Types.STRING)), "FAIL", Row.of(Row.of("FAIL")));
