@@ -18,23 +18,25 @@
 
 package org.apache.flink.runtime.jobmaster;
 
-import org.apache.flink.configuration.BlobServerOptions;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobServer;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.blob.FailingPermanentBlobService;
+import org.apache.flink.runtime.blob.VoidPermanentBlobService;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.execution.librarycache.BlobLibraryCacheManager;
+import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
+import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceFactory;
+import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceFactory;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.legacy.utils.ArchivedExecutionGraphBuilder;
-import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
@@ -50,8 +52,11 @@ import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
 
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -59,43 +64,35 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link JobManagerRunner}
+ * Tests for the {@link JobManagerRunner}.
  */
 public class JobManagerRunnerTest extends TestLogger {
 
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static Configuration configuration;
-
-	private static TestingRpcService rpcService;
-
-	private static BlobServer blobServer;
-
-	private static HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
-
-	private static JobManagerSharedServices jobManagerSharedServices;
-
 	private static JobGraph jobGraph;
 
 	private static ArchivedExecutionGraph archivedExecutionGraph;
 
+	private static LibraryCacheManager libraryCacheManager;
+
+	private static JobMasterServiceFactory defaultJobMasterServiceFactory;
+
 	private TestingHighAvailabilityServices haServices;
+
+	private TestingLeaderElectionService leaderElectionService;
 
 	private TestingFatalErrorHandler fatalErrorHandler;
 
 	@BeforeClass
-	public static void setupClass() throws Exception {
-		configuration = new Configuration();
-		rpcService = new TestingRpcService();
+	public static void setupClass() {
+		libraryCacheManager = new BlobLibraryCacheManager(
+			FailingPermanentBlobService.INSTANCE,
+			FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
+			new String[]{});
 
-		configuration.setString(BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
-		blobServer = new BlobServer(
-			configuration,
-			new VoidBlobStore());
-
-		jobManagerSharedServices = JobManagerSharedServices.fromConfiguration(configuration, blobServer);
+		defaultJobMasterServiceFactory = new TestingJobMasterServiceFactory();
 
 		final JobVertex jobVertex = new JobVertex("Test vertex");
 		jobVertex.setInvokableClass(NoOpInvokable.class);
@@ -109,8 +106,9 @@ public class JobManagerRunnerTest extends TestLogger {
 
 	@Before
 	public void setup() {
+		leaderElectionService = new TestingLeaderElectionService();
 		haServices = new TestingHighAvailabilityServices();
-		haServices.setJobMasterLeaderElectionService(jobGraph.getJobID(), new TestingLeaderElectionService());
+		haServices.setJobMasterLeaderElectionService(jobGraph.getJobID(), leaderElectionService);
 		haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
 		haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
 
@@ -123,20 +121,12 @@ public class JobManagerRunnerTest extends TestLogger {
 	}
 
 	@AfterClass
-	public static void tearDownClass() throws Exception {
-		if (jobManagerSharedServices != null) {
-			jobManagerSharedServices.shutdown();
-		}
-
-		if (blobServer != null) {
-			blobServer.close();
-		}
-
-		if (rpcService != null) {
-			rpcService.stopService();
+	public static void tearDownClass() {
+		if (libraryCacheManager != null) {
+			libraryCacheManager.shutdown();
 		}
 	}
-	
+
 	@Test
 	public void testJobCompletion() throws Exception {
 		final JobManagerRunner jobManagerRunner = createJobManagerRunner();
@@ -204,18 +194,128 @@ public class JobManagerRunnerTest extends TestLogger {
 		}
 	}
 
+	@Test
+	public void testLibraryCacheManagerRegistration() throws Exception {
+		final BlobLibraryCacheManager libraryCacheManager = new BlobLibraryCacheManager(
+			VoidPermanentBlobService.INSTANCE,
+			FlinkUserCodeClassLoaders.ResolveOrder.CHILD_FIRST,
+			new String[]{});
+		final JobManagerRunner jobManagerRunner = createJobManagerRunner(libraryCacheManager);
+
+		try {
+			jobManagerRunner.start();
+
+			final JobID jobID = jobGraph.getJobID();
+			assertThat(libraryCacheManager.hasClassLoader(jobID), is(true));
+
+			jobManagerRunner.close();
+
+			assertThat(libraryCacheManager.hasClassLoader(jobID), is(false));
+		} finally {
+			jobManagerRunner.close();
+		}
+	}
+
+	/**
+	 * Tests that the {@link JobManagerRunner} always waits for the previous leadership operation
+	 * (granting or revoking leadership) to finish before starting a new leadership operation.
+	 */
+	@Test
+	public void testConcurrentLeadershipOperationsBlockingSuspend() throws Exception {
+		final CompletableFuture<Acknowledge> suspendedFuture = new CompletableFuture<>();
+
+		TestingJobMasterServiceFactory jobMasterServiceFactory = new TestingJobMasterServiceFactory(
+			() -> new TestingJobMasterService(
+				"localhost",
+				e -> suspendedFuture));
+		JobManagerRunner jobManagerRunner = createJobManagerRunner(jobMasterServiceFactory);
+
+		jobManagerRunner.start();
+
+		leaderElectionService.isLeader(UUID.randomUUID()).get();
+
+		leaderElectionService.notLeader();
+
+		final CompletableFuture<UUID> leaderFuture = leaderElectionService.isLeader(UUID.randomUUID());
+
+		// the new leadership should wait first for the suspension to happen
+		assertThat(leaderFuture.isDone(), is(false));
+
+		try {
+			leaderFuture.get(1L, TimeUnit.MILLISECONDS);
+			fail("Granted leadership even though the JobMaster has not been suspended.");
+		} catch (TimeoutException expected) {
+			// expected
+		}
+
+		suspendedFuture.complete(Acknowledge.get());
+
+		leaderFuture.get();
+	}
+
+	/**
+	 * Tests that the {@link JobManagerRunner} always waits for the previous leadership operation
+	 * (granting or revoking leadership) to finish before starting a new leadership operation.
+	 */
+	@Test
+	public void testConcurrentLeadershipOperationsBlockingGainLeadership() throws Exception {
+		final CompletableFuture<Exception> suspendFuture = new CompletableFuture<>();
+		final CompletableFuture<Acknowledge> startFuture = new CompletableFuture<>();
+
+		TestingJobMasterServiceFactory jobMasterServiceFactory = new TestingJobMasterServiceFactory(
+			() -> new TestingJobMasterService(
+				"localhost",
+				e -> {
+					suspendFuture.complete(e);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				},
+				ignored -> startFuture));
+		JobManagerRunner jobManagerRunner = createJobManagerRunner(jobMasterServiceFactory);
+
+		jobManagerRunner.start();
+
+		leaderElectionService.isLeader(UUID.randomUUID());
+
+		leaderElectionService.notLeader();
+
+		// suspending should wait for the start to happen first
+		assertThat(suspendFuture.isDone(), is(false));
+
+		try {
+			suspendFuture.get(1L, TimeUnit.MILLISECONDS);
+			fail("Suspended leadership even though the JobMaster has not been started.");
+		} catch (TimeoutException expected) {
+			// expected
+		}
+
+		startFuture.complete(Acknowledge.get());
+
+		suspendFuture.get();
+	}
+
+	@Nonnull
+	private JobManagerRunner createJobManagerRunner(LibraryCacheManager libraryCacheManager) throws Exception {
+		return createJobManagerRunner(defaultJobMasterServiceFactory, libraryCacheManager);
+	}
+
 	@Nonnull
 	private JobManagerRunner createJobManagerRunner() throws Exception {
+		return createJobManagerRunner(defaultJobMasterServiceFactory, libraryCacheManager);
+	}
+
+	@Nonnull
+	private JobManagerRunner createJobManagerRunner(JobMasterServiceFactory jobMasterServiceFactory) throws Exception {
+		return createJobManagerRunner(jobMasterServiceFactory, libraryCacheManager);
+	}
+
+	@Nonnull
+	private JobManagerRunner createJobManagerRunner(JobMasterServiceFactory jobMasterServiceFactory, LibraryCacheManager libraryCacheManager) throws Exception{
 		return new JobManagerRunner(
-			ResourceID.generate(),
 			jobGraph,
-			configuration,
-			rpcService,
+			jobMasterServiceFactory,
 			haServices,
-			heartbeatServices,
-			blobServer,
-			jobManagerSharedServices,
-			UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
+			libraryCacheManager,
+			TestingUtils.defaultExecutor(),
 			fatalErrorHandler);
 	}
 }

@@ -157,6 +157,26 @@ object Types {
   val SQL_TIMESTAMP: TypeInformation[java.sql.Timestamp] = JTypes.SQL_TIMESTAMP
 
   /**
+    * Returns type information for [[java.time.LocalDate]]. Supports a null value.
+    */
+  val LOCAL_DATE: TypeInformation[java.time.LocalDate] = JTypes.LOCAL_DATE
+
+  /**
+    * Returns type information for [[java.time.LocalTime]]. Supports a null value.
+    */
+  val LOCAL_TIME: TypeInformation[java.time.LocalTime] = JTypes.LOCAL_TIME
+
+  /**
+    * Returns type information for [[java.time.LocalDateTime]]. Supports a null value.
+    */
+  val LOCAL_DATE_TIME: TypeInformation[java.time.LocalDateTime] = JTypes.LOCAL_DATE_TIME
+
+  /**
+    * Returns type information for [[java.time.Instant]]. Supports a null value.
+    */
+  val INSTANT: TypeInformation[java.time.Instant] = JTypes.INSTANT
+
+  /**
     * Returns type information for [[org.apache.flink.types.Row]] with fields of the given types.
     * A row itself must not be null.
     *

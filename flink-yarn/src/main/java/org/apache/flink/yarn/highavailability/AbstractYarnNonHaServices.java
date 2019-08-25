@@ -23,7 +23,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.FsNegativeRunningJobsRegistry;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
 
 import java.io.IOException;
 
@@ -87,7 +87,7 @@ public abstract class AbstractYarnNonHaServices extends YarnHighAvailabilityServ
 	}
 
 	@Override
-	public SubmittedJobGraphStore getSubmittedJobGraphStore() throws Exception {
+	public JobGraphStore getJobGraphStore() throws Exception {
 		throw new UnsupportedOperationException("These High-Availability Services do not support storing job graphs");
 	}
 }

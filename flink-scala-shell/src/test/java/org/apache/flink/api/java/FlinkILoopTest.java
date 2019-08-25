@@ -19,7 +19,6 @@
 package org.apache.flink.api.java;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
@@ -36,6 +35,7 @@ import org.mockito.Matchers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -53,6 +53,7 @@ import static org.junit.Assert.assertTrue;
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(PlanExecutor.class)
+@PowerMockIgnore("javax.tools.*")
 public class FlinkILoopTest extends TestLogger {
 
 	@Test
@@ -149,11 +150,6 @@ public class FlinkILoopTest extends TestLogger {
 		@Override
 		public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
 			return null;
-		}
-
-		@Override
-		public void endSession(JobID jobID) throws Exception {
-
 		}
 
 		public String getHost() {

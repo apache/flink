@@ -84,6 +84,12 @@ import static org.apache.flink.api.java.typeutils.TypeExtractionUtils.typeToClas
 /**
  * A utility for reflection analysis on classes, to determine the return type of implementations of transformation
  * functions.
+ *
+ * <p>NOTES FOR USERS OF THIS CLASS:
+ * Automatic type extraction is a hacky business that depends on a lot of variables such as generics,
+ * compiler, interfaces, etc. The type extraction fails regularly with either {@link MissingTypeInfo} or
+ * hard exceptions. Whenever you use methods of this class, make sure to provide a way to pass custom
+ * type information as a fallback.
  */
 @Public
 public class TypeExtractor {
@@ -171,7 +177,6 @@ public class TypeExtractor {
 			MapFunction.class,
 			0,
 			1,
-			new int[]{0},
 			NO_INDEX,
 			inType,
 			functionName,
@@ -193,7 +198,6 @@ public class TypeExtractor {
 			FlatMapFunction.class,
 			0,
 			1,
-			new int[]{0},
 			new int[]{1, 0},
 			inType,
 			functionName,
@@ -222,7 +226,6 @@ public class TypeExtractor {
 			FoldFunction.class,
 			0,
 			1,
-			new int[]{1},
 			NO_INDEX,
 			inType,
 			functionName,
@@ -241,7 +244,6 @@ public class TypeExtractor {
 			AggregateFunction.class,
 			0,
 			1,
-			new int[]{0},
 			NO_INDEX,
 			inType,
 			functionName,
@@ -260,7 +262,6 @@ public class TypeExtractor {
 			AggregateFunction.class,
 			0,
 			2,
-			NO_INDEX,
 			NO_INDEX,
 			inType,
 			functionName,
@@ -281,7 +282,6 @@ public class TypeExtractor {
 			MapPartitionFunction.class,
 			0,
 			1,
-			new int[]{0, 0},
 			new int[]{1, 0},
 			inType,
 			functionName,
@@ -302,7 +302,6 @@ public class TypeExtractor {
 			GroupReduceFunction.class,
 			0,
 			1,
-			new int[]{0, 0},
 			new int[]{1, 0},
 			inType,
 			functionName,
@@ -323,7 +322,6 @@ public class TypeExtractor {
 			GroupCombineFunction.class,
 			0,
 			1,
-			new int[]{0, 0},
 			new int[]{1, 0},
 			inType,
 			functionName,
@@ -347,8 +345,6 @@ public class TypeExtractor {
 			0,
 			1,
 			2,
-			new int[]{0},
-			new int[]{1},
 			new int[]{2, 0},
 			in1Type,
 			in2Type,
@@ -373,8 +369,6 @@ public class TypeExtractor {
 			0,
 			1,
 			2,
-			new int[]{0},
-			new int[]{1},
 			NO_INDEX,
 			in1Type,
 			in2Type,
@@ -399,8 +393,6 @@ public class TypeExtractor {
 			0,
 			1,
 			2,
-			new int[]{0, 0},
-			new int[]{1, 0},
 			new int[]{2, 0},
 			in1Type,
 			in2Type,
@@ -425,8 +417,6 @@ public class TypeExtractor {
 			0,
 			1,
 			2,
-			new int[]{0},
-			new int[]{1},
 			NO_INDEX,
 			in1Type,
 			in2Type,
@@ -448,7 +438,6 @@ public class TypeExtractor {
 			KeySelector.class,
 			0,
 			1,
-			new int[]{0},
 			NO_INDEX,
 			inType,
 			functionName,
@@ -465,46 +454,16 @@ public class TypeExtractor {
 		Partitioner<T> partitioner,
 		String functionName,
 		boolean allowMissing) {
-		try {
-			final LambdaExecutable exec;
-			try {
-				exec = checkAndExtractLambda(partitioner);
-			} catch (TypeExtractionException e) {
-				throw new InvalidTypesException("Internal error occurred.", e);
-			}
-			if (exec != null) {
-				// check for lambda type erasure
-				validateLambdaGenericParameters(exec);
 
-				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
-				// paramLen is the total number of parameters of the provided lambda, it includes parameters added through closure
-				final int paramLen = exec.getParameterTypes().length;
-
-				final Method sam = TypeExtractionUtils.getSingleAbstractMethod(Partitioner.class);
-				// number of parameters the SAM of implemented interface has; the parameter indexing applies to this range
-				final int baseParametersLen = sam.getParameterTypes().length;
-
-				final Type keyType = TypeExtractionUtils.extractTypeFromLambda(
-					exec,
-					new int[]{0},
-					paramLen,
-					baseParametersLen);
-				return new TypeExtractor().privateCreateTypeInfo(keyType, null, null);
-			} else {
-				return new TypeExtractor().privateCreateTypeInfo(
-					Partitioner.class,
-					partitioner.getClass(),
-					0,
-					null,
-					null);
-			}
-		} catch (InvalidTypesException e) {
-			if (allowMissing) {
-				return (TypeInformation<T>) new MissingTypeInfo(functionName != null ? functionName : partitioner.toString(), e);
-			} else {
-				throw e;
-			}
-		}
+		return getUnaryOperatorReturnType(
+			partitioner,
+			Partitioner.class,
+			-1,
+			0,
+			new int[]{0},
+			null,
+			functionName,
+			allowMissing);
 	}
 
 
@@ -524,24 +483,43 @@ public class TypeExtractor {
 	/**
 	 * Returns the unary operator's return type.
 	 *
-	 * <p><b>NOTE:</b> lambda type indices allow extraction of Type from lambdas. To extract input type <b>IN</b>
-	 * from the function given below one should pass {@code new int[] {0,1,0}} as lambdaInputTypeArgumentIndices.
+	 * <p>This method can extract a type in 4 different ways:
+	 *
+	 * <p>1. By using the generics of the base class like MyFunction<X, Y, Z, IN, OUT>.
+	 *    This is what outputTypeArgumentIndex (in this example "4") is good for.
+	 *
+	 * <p>2. By using input type inference SubMyFunction<T, String, String, String, T>.
+	 *    This is what inputTypeArgumentIndex (in this example "0") and inType is good for.
+	 *
+	 * <p>3. By using the static method that a compiler generates for Java lambdas.
+	 *    This is what lambdaOutputTypeArgumentIndices is good for. Given that MyFunction has
+	 *    the following single abstract method:
 	 *
 	 * <pre>
 	 * <code>
-	 * OUT apply(Map<String, List<IN>> value)
+	 * void apply(IN value, Collector<OUT> value)
 	 * </code>
 	 * </pre>
 	 *
+	 * <p> Lambda type indices allow the extraction of a type from lambdas. To extract the
+	 *     output type <b>OUT</b> from the function one should pass {@code new int[] {1, 0}}.
+	 *     "1" for selecting the parameter and 0 for the first generic in this type.
+	 *     Use {@code TypeExtractor.NO_INDEX} for selecting the return type of the lambda for
+	 *     extraction or if the class cannot be a lambda because it is not a single abstract
+	 *     method interface.
+	 *
+	 * <p>4. By using interfaces such as {@link TypeInfoFactory} or {@link ResultTypeQueryable}.
+	 *
+	 * <p>See also comments in the header of this class.
+	 *
 	 * @param function Function to extract the return type from
 	 * @param baseClass Base class of the function
-	 * @param inputTypeArgumentIndex Index of input type in the class specification
-	 * @param outputTypeArgumentIndex Index of output type in the class specification
-	 * @param lambdaInputTypeArgumentIndices Table of indices of the type argument specifying the input type. See example.
+	 * @param inputTypeArgumentIndex Index of input generic type in the base class specification (ignored if inType is null)
+	 * @param outputTypeArgumentIndex Index of output generic type in the base class specification
 	 * @param lambdaOutputTypeArgumentIndices Table of indices of the type argument specifying the input type. See example.
-	 * @param inType Type of the input elements (In case of an iterable, it is the element type)
+	 * @param inType Type of the input elements (In case of an iterable, it is the element type) or null
 	 * @param functionName Function name
-	 * @param allowMissing Can the type information be missing
+	 * @param allowMissing Can the type information be missing (this generates a MissingTypeInfo for postponing an exception)
 	 * @param <IN> Input type
 	 * @param <OUT> Output type
 	 * @return TypeInformation of the return type of the function
@@ -553,11 +531,23 @@ public class TypeExtractor {
 		Class<?> baseClass,
 		int inputTypeArgumentIndex,
 		int outputTypeArgumentIndex,
-		int[] lambdaInputTypeArgumentIndices,
 		int[] lambdaOutputTypeArgumentIndices,
 		TypeInformation<IN> inType,
 		String functionName,
 		boolean allowMissing) {
+
+		Preconditions.checkArgument(inType == null || inputTypeArgumentIndex >= 0, "Input type argument index was not provided");
+		Preconditions.checkArgument(outputTypeArgumentIndex >= 0, "Output type argument index was not provided");
+		Preconditions.checkArgument(
+			lambdaOutputTypeArgumentIndices != null,
+			"Indices for output type arguments within lambda not provided");
+
+		// explicit result type has highest precedence
+		if (function instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) function).getProducedType();
+		}
+
+		// perform extraction
 		try {
 			final LambdaExecutable exec;
 			try {
@@ -566,14 +556,6 @@ public class TypeExtractor {
 				throw new InvalidTypesException("Internal error occurred.", e);
 			}
 			if (exec != null) {
-				Preconditions.checkArgument(
-					lambdaInputTypeArgumentIndices != null && lambdaInputTypeArgumentIndices.length >= 1,
-					"Indices for input type arguments within lambda not provided");
-				Preconditions.checkArgument(
-					lambdaOutputTypeArgumentIndices != null,
-					"Indices for output type arguments within lambda not provided");
-				// check for lambda type erasure
-				validateLambdaGenericParameters(exec);
 
 				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
 				// paramLen is the total number of parameters of the provided lambda, it includes parameters added through closure
@@ -584,43 +566,23 @@ public class TypeExtractor {
 				// number of parameters the SAM of implemented interface has; the parameter indexing applies to this range
 				final int baseParametersLen = sam.getParameterTypes().length;
 
-				// executable references "this" implicitly
-				if (paramLen <= 0) {
-					// executable declaring class can also be a super class of the input type
-					// we only validate if the executable exists in input type
-					validateInputContainsExecutable(exec, inType);
-				}
-				else {
-					final Type input = TypeExtractionUtils.extractTypeFromLambda(
-						exec,
-						lambdaInputTypeArgumentIndices,
-						paramLen,
-						baseParametersLen);
-					validateInputType(input, inType);
-				}
-
-				if (function instanceof ResultTypeQueryable) {
-					return ((ResultTypeQueryable<OUT>) function).getProducedType();
-				}
-
 				final Type output;
 				if (lambdaOutputTypeArgumentIndices.length > 0) {
 					output = TypeExtractionUtils.extractTypeFromLambda(
+						baseClass,
 						exec,
 						lambdaOutputTypeArgumentIndices,
 						paramLen,
 						baseParametersLen);
 				} else {
 					output = exec.getReturnType();
+					TypeExtractionUtils.validateLambdaType(baseClass, output);
 				}
 
 				return new TypeExtractor().privateCreateTypeInfo(output, inType, null);
 			} else {
-				Preconditions.checkArgument(inputTypeArgumentIndex >= 0, "Input type argument index was not provided");
-				Preconditions.checkArgument(outputTypeArgumentIndex >= 0, "Output type argument index was not provided");
-				validateInputType(baseClass, function.getClass(), inputTypeArgumentIndex, inType);
-				if(function instanceof ResultTypeQueryable) {
-					return ((ResultTypeQueryable<OUT>) function).getProducedType();
+				if (inType != null) {
+					validateInputType(baseClass, function.getClass(), inputTypeArgumentIndex, inType);
 				}
 				return new TypeExtractor().privateCreateTypeInfo(baseClass, function.getClass(), outputTypeArgumentIndex, inType, null);
 			}
@@ -637,27 +599,45 @@ public class TypeExtractor {
 	/**
 	 * Returns the binary operator's return type.
 	 *
-	 * <p><b>NOTE:</b> lambda type indices allows extraction of Type from lambdas. To extract input type <b>IN1</b>
-	 * from the function given below one should pass {@code new int[] {0,1,0}} as lambdaInput1TypeArgumentIndices.
+	 * <p>This method can extract a type in 4 different ways:
+	 *
+	 * <p>1. By using the generics of the base class like MyFunction<X, Y, Z, IN, OUT>.
+	 *    This is what outputTypeArgumentIndex (in this example "4") is good for.
+	 *
+	 * <p>2. By using input type inference SubMyFunction<T, String, String, String, T>.
+	 *    This is what inputTypeArgumentIndex (in this example "0") and inType is good for.
+	 *
+	 * <p>3. By using the static method that a compiler generates for Java lambdas.
+	 *    This is what lambdaOutputTypeArgumentIndices is good for. Given that MyFunction has
+	 *    the following single abstract method:
 	 *
 	 * <pre>
 	 * <code>
-	 * OUT apply(Map<String, List<IN1>> value1, List<IN2> value2)
+	 * void apply(IN value, Collector<OUT> value)
 	 * </code>
 	 * </pre>
 	 *
+	 * <p> Lambda type indices allow the extraction of a type from lambdas. To extract the
+	 *     output type <b>OUT</b> from the function one should pass {@code new int[] {1, 0}}.
+	 *     "1" for selecting the parameter and 0 for the first generic in this type.
+	 *     Use {@code TypeExtractor.NO_INDEX} for selecting the return type of the lambda for
+	 *     extraction or if the class cannot be a lambda because it is not a single abstract
+	 *     method interface.
+	 *
+	 * <p>4. By using interfaces such as {@link TypeInfoFactory} or {@link ResultTypeQueryable}.
+	 *
+	 * <p>See also comments in the header of this class.
+	 *
 	 * @param function Function to extract the return type from
 	 * @param baseClass Base class of the function
-	 * @param input1TypeArgumentIndex Index of first input type in the class specification
-	 * @param input2TypeArgumentIndex Index of second input type in the class specification
-	 * @param outputTypeArgumentIndex Index of output type in the class specification
-	 * @param lambdaInput1TypeArgumentIndices Table of indices of the type argument specifying the first input type. See example.
-	 * @param lambdaInput2TypeArgumentIndices Table of indices of the type argument specifying the second input type. See example.
+	 * @param input1TypeArgumentIndex Index of first input generic type in the class specification (ignored if in1Type is null)
+	 * @param input2TypeArgumentIndex Index of second input generic type in the class specification (ignored if in2Type is null)
+	 * @param outputTypeArgumentIndex Index of output generic type in the class specification
 	 * @param lambdaOutputTypeArgumentIndices Table of indices of the type argument specifying the output type. See example.
 	 * @param in1Type Type of the left side input elements (In case of an iterable, it is the element type)
 	 * @param in2Type Type of the right side input elements (In case of an iterable, it is the element type)
 	 * @param functionName Function name
-	 * @param allowMissing Can the type information be missing
+	 * @param allowMissing Can the type information be missing (this generates a MissingTypeInfo for postponing an exception)
 	 * @param <IN1> Left side input type
 	 * @param <IN2> Right side input type
 	 * @param <OUT> Output type
@@ -671,13 +651,25 @@ public class TypeExtractor {
 		int input1TypeArgumentIndex,
 		int input2TypeArgumentIndex,
 		int outputTypeArgumentIndex,
-		int[] lambdaInput1TypeArgumentIndices,
-		int[] lambdaInput2TypeArgumentIndices,
 		int[] lambdaOutputTypeArgumentIndices,
 		TypeInformation<IN1> in1Type,
 		TypeInformation<IN2> in2Type,
 		String functionName,
 		boolean allowMissing) {
+
+		Preconditions.checkArgument(in1Type == null || input1TypeArgumentIndex >= 0, "Input 1 type argument index was not provided");
+		Preconditions.checkArgument(in2Type == null || input2TypeArgumentIndex >= 0, "Input 2 type argument index was not provided");
+		Preconditions.checkArgument(outputTypeArgumentIndex >= 0, "Output type argument index was not provided");
+		Preconditions.checkArgument(
+			lambdaOutputTypeArgumentIndices != null,
+			"Indices for output type arguments within lambda not provided");
+
+		// explicit result type has highest precedence
+		if (function instanceof ResultTypeQueryable) {
+			return ((ResultTypeQueryable<OUT>) function).getProducedType();
+		}
+
+		// perform extraction
 		try {
 			final LambdaExecutable exec;
 			try {
@@ -686,17 +678,6 @@ public class TypeExtractor {
 				throw new InvalidTypesException("Internal error occurred.", e);
 			}
 			if (exec != null) {
-				Preconditions.checkArgument(
-					lambdaInput1TypeArgumentIndices != null && lambdaInput1TypeArgumentIndices.length >= 1,
-					"Indices for first input type arguments within lambda not provided");
-				Preconditions.checkArgument(
-					lambdaInput2TypeArgumentIndices != null && lambdaInput1TypeArgumentIndices.length >= 1,
-					"Indices for second input type arguments within lambda not provided");
-				Preconditions.checkArgument(
-					lambdaOutputTypeArgumentIndices != null,
-					"Indices for output type arguments within lambda not provided");
-				// check for lambda type erasure
-				validateLambdaGenericParameters(exec);
 
 				final Method sam = TypeExtractionUtils.getSingleAbstractMethod(baseClass);
 				final int baseParametersLen = sam.getParameterTypes().length;
@@ -704,32 +685,17 @@ public class TypeExtractor {
 				// parameters must be accessed from behind, since JVM can add additional parameters e.g. when using local variables inside lambda function
 				final int paramLen = exec.getParameterTypes().length;
 
-				final Type input1 = TypeExtractionUtils.extractTypeFromLambda(
-					exec,
-					lambdaInput1TypeArgumentIndices,
-					paramLen,
-					baseParametersLen);
-				final Type input2 = TypeExtractionUtils.extractTypeFromLambda(
-					exec,
-					lambdaInput2TypeArgumentIndices,
-					paramLen,
-					baseParametersLen);
-
-				validateInputType(input1, in1Type);
-				validateInputType(input2, in2Type);
-				if(function instanceof ResultTypeQueryable) {
-					return ((ResultTypeQueryable<OUT>) function).getProducedType();
-				}
-
 				final Type output;
 				if (lambdaOutputTypeArgumentIndices.length > 0) {
 					output = TypeExtractionUtils.extractTypeFromLambda(
+						baseClass,
 						exec,
 						lambdaOutputTypeArgumentIndices,
 						paramLen,
 						baseParametersLen);
 				} else {
 					output = exec.getReturnType();
+					TypeExtractionUtils.validateLambdaType(baseClass, output);
 				}
 
 				return new TypeExtractor().privateCreateTypeInfo(
@@ -738,13 +704,11 @@ public class TypeExtractor {
 					in2Type);
 			}
 			else {
-				Preconditions.checkArgument(input1TypeArgumentIndex >= 0, "Input 1 type argument index was not provided");
-				Preconditions.checkArgument(input2TypeArgumentIndex >= 0, "Input 2 type argument index was not provided");
-				Preconditions.checkArgument(outputTypeArgumentIndex >= 0, "Output type argument index was not provided");
-				validateInputType(baseClass, function.getClass(), input1TypeArgumentIndex, in1Type);
-				validateInputType(baseClass, function.getClass(), input2TypeArgumentIndex, in2Type);
-				if(function instanceof ResultTypeQueryable) {
-					return ((ResultTypeQueryable<OUT>) function).getProducedType();
+				if (in1Type != null) {
+					validateInputType(baseClass, function.getClass(), input1TypeArgumentIndex, in1Type);
+				}
+				if (in2Type != null) {
+					validateInputType(baseClass, function.getClass(), input2TypeArgumentIndex, in2Type);
 				}
 				return new TypeExtractor().privateCreateTypeInfo(baseClass, function.getClass(), outputTypeArgumentIndex, in1Type, in2Type);
 			}
@@ -915,9 +879,10 @@ public class TypeExtractor {
 					return typeInfo;
 				} else {
 					throw new InvalidTypesException("Type of TypeVariable '" + ((TypeVariable<?>) t).getName() + "' in '"
-							+ ((TypeVariable<?>) t).getGenericDeclaration() + "' could not be determined. This is most likely a type erasure problem. "
-							+ "The type extraction currently supports types with generic variables only in cases where "
-							+ "all variables in the return type can be deduced from the input type(s).");
+						+ ((TypeVariable<?>) t).getGenericDeclaration() + "' could not be determined. This is most likely a type erasure problem. "
+						+ "The type extraction currently supports types with generic variables only in cases where "
+						+ "all variables in the return type can be deduced from the input type(s). "
+						+ "Otherwise the type has to be specified explicitly using type information.");
 				}
 			}
 		}
@@ -1165,10 +1130,11 @@ public class TypeExtractor {
 				// variable could not be determined
 				if (subTypesInfo[i] == null && !lenient) {
 					throw new InvalidTypesException("Type of TypeVariable '" + ((TypeVariable<?>) subtypes[i]).getName() + "' in '"
-							+ ((TypeVariable<?>) subtypes[i]).getGenericDeclaration()
-							+ "' could not be determined. This is most likely a type erasure problem. "
-							+ "The type extraction currently supports types with generic variables only in cases where "
-							+ "all variables in the return type can be deduced from the input type(s).");
+						+ ((TypeVariable<?>) subtypes[i]).getGenericDeclaration()
+						+ "' could not be determined. This is most likely a type erasure problem. "
+						+ "The type extraction currently supports types with generic variables only in cases where "
+						+ "all variables in the return type can be deduced from the input type(s). "
+						+ "Otherwise the type has to be specified explicitly using type information.");
 				}
 			} else {
 				// create the type information of the subtype or null/exception
@@ -1616,30 +1582,6 @@ public class TypeExtractor {
 			}
 		}
 		return fieldCount;
-	}
-
-	private static void validateLambdaGenericParameters(LambdaExecutable exec) {
-		// check the arguments
-		for (Type t : exec.getParameterTypes()) {
-			validateLambdaGenericParameter(t);
-		}
-
-		// check the return type
-		validateLambdaGenericParameter(exec.getReturnType());
-	}
-
-	private static void validateLambdaGenericParameter(Type t) {
-		if(!(t instanceof Class)) {
-			return;
-		}
-		final Class<?> clazz = (Class<?>) t;
-
-		if(clazz.getTypeParameters().length > 0) {
-			throw new InvalidTypesException("The generic type parameters of '" + clazz.getSimpleName() + "' are missing. \n"
-					+ "It seems that your compiler has not stored them into the .class file. \n"
-					+ "Currently, only the Eclipse JDT compiler preserves the type information necessary to use the lambdas feature type-safely. \n"
-					+ "See the documentation for more information about how to compile jobs containing lambda expressions.");
-		}
 	}
 
 	/**
@@ -2134,7 +2076,7 @@ public class TypeExtractor {
 
 		Class<?> typeInfoClass;
 		try {
-			typeInfoClass = Class.forName(HADOOP_WRITABLE_TYPEINFO_CLASS, false, TypeExtractor.class.getClassLoader());
+			typeInfoClass = Class.forName(HADOOP_WRITABLE_TYPEINFO_CLASS, false, Thread.currentThread().getContextClassLoader());
 		}
 		catch (ClassNotFoundException e) {
 			throw new RuntimeException("Could not load the TypeInformation for the class '"

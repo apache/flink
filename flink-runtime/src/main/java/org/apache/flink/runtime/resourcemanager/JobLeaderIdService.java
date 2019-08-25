@@ -68,7 +68,7 @@ public class JobLeaderIdService {
 	public JobLeaderIdService(
 			HighAvailabilityServices highAvailabilityServices,
 			ScheduledExecutor scheduledExecutor,
-			Time jobTimeout) throws Exception {
+			Time jobTimeout) {
 		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices, "highAvailabilityServices");
 		this.scheduledExecutor = Preconditions.checkNotNull(scheduledExecutor, "scheduledExecutor");
 		this.jobTimeout = Preconditions.checkNotNull(jobTimeout, "jobTimeout");
@@ -188,7 +188,7 @@ public class JobLeaderIdService {
 
 		JobLeaderIdListener listener = jobLeaderIdListeners.get(jobId);
 
-		return listener.getLeaderIdFuture().thenApply((UUID id) -> id != null ? new JobMasterId(id) : null);
+		return listener.getLeaderIdFuture().thenApply(JobMasterId::fromUuidOrNull);
 	}
 
 	public boolean isValidTimeout(JobID jobId, UUID timeoutId) {

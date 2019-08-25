@@ -130,17 +130,6 @@ public abstract class PlanExecutor {
 	 */
 	public abstract String getOptimizerPlanAsJSON(Plan plan) throws Exception;
 
-	/**
-	 * Ends the job session, identified by the given JobID. Jobs can be kept around as sessions,
-	 * if a session timeout is specified. Keeping Jobs as sessions allows users to incrementally
-	 * add new operations to their dataflow, that refer to previous intermediate results of the
-	 * dataflow.
-	 * 
-	 * @param jobID The JobID identifying the job session.
-	 * @throws Exception Thrown, if the message to finish the session cannot be delivered.
-	 */
-	public abstract void endSession(JobID jobID) throws Exception;
-	
 	// ------------------------------------------------------------------------
 	//  Executor Factories
 	// ------------------------------------------------------------------------

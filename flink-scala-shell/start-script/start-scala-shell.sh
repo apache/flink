@@ -75,20 +75,31 @@ do
     fi
 done
 
-log_setting=""
-
-if [[ $1 = "yarn" ]]
-then
-FLINK_CLASSPATH=$FLINK_CLASSPATH:$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR
-log=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-scala-shell-yarn-$HOSTNAME.log
-log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j-yarn-session.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback-yarn.xml"
+if [ "$FLINK_IDENT_STRING" = "" ]; then
+        FLINK_IDENT_STRING="$USER"
 fi
+
+MODE=$1
+LOG=$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-scala-shell-$MODE-$HOSTNAME.log
+
+if [[ ($MODE = "local") || ($MODE = "remote") ]]
+then
+    LOG4J_CONFIG=log4j.properties
+    LOGBACK_CONFIG=logback.xml
+elif [[ $1 = "yarn" ]]
+then
+    LOG4J_CONFIG=log4j-yarn-session.properties
+    LOGBACK_CONFIG=logback-yarn.xml
+    FLINK_CLASSPATH=$FLINK_CLASSPATH:$HADOOP_CLASSPATH:$HADOOP_CONF_DIR:$YARN_CONF_DIR
+fi
+
+log_setting="-Dlog.file="$LOG" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/$LOG4J_CONFIG -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/$LOGBACK_CONFIG"
 
 if ${EXTERNAL_LIB_FOUND}
 then
-    java -Dscala.color -cp "$FLINK_CLASSPATH" $log_setting org.apache.flink.api.scala.FlinkShell $@ --addclasspath "$EXT_CLASSPATH"
+    $JAVA_RUN -Dscala.color -cp "$FLINK_CLASSPATH" $log_setting org.apache.flink.api.scala.FlinkShell $@ --addclasspath "$EXT_CLASSPATH"
 else
-    java -Dscala.color -cp "$FLINK_CLASSPATH" $log_setting org.apache.flink.api.scala.FlinkShell $@
+    $JAVA_RUN -Dscala.color -cp "$FLINK_CLASSPATH" $log_setting org.apache.flink.api.scala.FlinkShell $@
 fi
 
 #restore echo

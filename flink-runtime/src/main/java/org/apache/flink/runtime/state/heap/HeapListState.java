@@ -19,7 +19,8 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -39,23 +40,25 @@ import java.util.List;
  * @param <N> The type of the namespace.
  * @param <V> The type of the value.
  */
-public class HeapListState<K, N, V>
-		extends AbstractHeapMergingState<K, N, V, List<V>, Iterable<V>, ListState<V>, ListStateDescriptor<V>>
-		implements InternalListState<K, N, V> {
-
+class HeapListState<K, N, V>
+	extends AbstractHeapMergingState<K, N, V, List<V>, Iterable<V>>
+	implements InternalListState<K, N, V> {
 	/**
 	 * Creates a new key/value state for the given hash map of key/value pairs.
 	 *
-	 * @param stateDesc The state identifier for the state. This contains name
-	 *                           and can create a default state value.
-	 * @param stateTable The state tab;e to use in this kev/value state. May contain initial state.
+	 * @param stateTable The state table for which this state is associated to.
+	 * @param keySerializer The serializer for the keys.
+	 * @param valueSerializer The serializer for the state.
+	 * @param namespaceSerializer The serializer for the namespace.
+	 * @param defaultValue The default value for the state.
 	 */
-	public HeapListState(
-			ListStateDescriptor<V> stateDesc,
-			StateTable<K, N, List<V>> stateTable,
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer) {
-		super(stateDesc, stateTable, keySerializer, namespaceSerializer);
+	private HeapListState(
+		StateTable<K, N, List<V>> stateTable,
+		TypeSerializer<K> keySerializer,
+		TypeSerializer<List<V>> valueSerializer,
+		TypeSerializer<N> namespaceSerializer,
+		List<V> defaultValue) {
+		super(stateTable, keySerializer, valueSerializer, namespaceSerializer, defaultValue);
 	}
 
 	@Override
@@ -70,7 +73,7 @@ public class HeapListState<K, N, V>
 
 	@Override
 	public TypeSerializer<List<V>> getValueSerializer() {
-		return stateDesc.getSerializer();
+		return valueSerializer;
 	}
 
 	// ------------------------------------------------------------------------
@@ -79,7 +82,7 @@ public class HeapListState<K, N, V>
 
 	@Override
 	public Iterable<V> get() {
-		return stateTable.get(currentNamespace);
+		return getInternal();
 	}
 
 	@Override
@@ -180,5 +183,18 @@ public class HeapListState<K, N, V>
 				return previousState;
 			});
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	static <E, K, N, SV, S extends State, IS extends S> IS create(
+		StateDescriptor<S, SV> stateDesc,
+		StateTable<K, N, SV> stateTable,
+		TypeSerializer<K> keySerializer) {
+		return (IS) new HeapListState<>(
+			(StateTable<K, N, List<E>>) stateTable,
+			keySerializer,
+			(TypeSerializer<List<E>>) stateTable.getStateSerializer(),
+			stateTable.getNamespaceSerializer(),
+			(List<E>) stateDesc.getDefaultValue());
 	}
 }

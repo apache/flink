@@ -41,9 +41,9 @@ public class StatusWatermarkValve {
 	 * to handle watermark and stream status outputs from the valve.
 	 */
 	public interface ValveOutputHandler {
-		void handleWatermark(Watermark watermark);
+		void handleWatermark(Watermark watermark) throws Exception;
 
-		void handleStreamStatus(StreamStatus streamStatus);
+		void handleStreamStatus(StreamStatus streamStatus) throws Exception;
 	}
 
 	private final ValveOutputHandler outputHandler;
@@ -93,7 +93,7 @@ public class StatusWatermarkValve {
 	 * @param watermark the watermark to feed to the valve
 	 * @param channelIndex the index of the channel that the fed watermark belongs to (index starting from 0)
 	 */
-	public void inputWatermark(Watermark watermark, int channelIndex) {
+	public void inputWatermark(Watermark watermark, int channelIndex) throws Exception {
 		// ignore the input watermark if its input channel, or all input channels are idle (i.e. overall the valve is idle).
 		if (lastOutputStreamStatus.isActive() && channelStatuses[channelIndex].streamStatus.isActive()) {
 			long watermarkMillis = watermark.getTimestamp();
@@ -121,7 +121,7 @@ public class StatusWatermarkValve {
 	 * @param streamStatus the stream status to feed to the valve
 	 * @param channelIndex the index of the channel that the fed stream status belongs to (index starting from 0)
 	 */
-	public void inputStreamStatus(StreamStatus streamStatus, int channelIndex) {
+	public void inputStreamStatus(StreamStatus streamStatus, int channelIndex) throws Exception {
 		// only account for stream status inputs that will result in a status change for the input channel
 		if (streamStatus.isIdle() && channelStatuses[channelIndex].streamStatus.isActive()) {
 			// handle active -> idle toggle for the input channel
@@ -170,7 +170,7 @@ public class StatusWatermarkValve {
 		}
 	}
 
-	private void findAndOutputNewMinWatermarkAcrossAlignedChannels() {
+	private void findAndOutputNewMinWatermarkAcrossAlignedChannels() throws Exception {
 		long newMinWatermark = Long.MAX_VALUE;
 		boolean hasAlignedChannels = false;
 
@@ -190,7 +190,7 @@ public class StatusWatermarkValve {
 		}
 	}
 
-	private void findAndOutputMaxWatermarkAcrossAllChannels() {
+	private void findAndOutputMaxWatermarkAcrossAllChannels() throws Exception {
 		long maxWatermark = Long.MIN_VALUE;
 
 		for (InputChannelStatus channelStatus : channelStatuses) {

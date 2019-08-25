@@ -25,8 +25,12 @@ import org.apache.flink.annotation.PublicEvolving;
  *
  * @param <IN>
  *            Input tuple type
+ *
+ * @deprecated Please use the {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink StreamingFileSink}
+ * for writing to files from a streaming program.
  */
 @PublicEvolving
+@Deprecated
 public class WriteSinkFunctionByMillis<IN> extends WriteSinkFunction<IN> {
 	private static final long serialVersionUID = 1L;
 

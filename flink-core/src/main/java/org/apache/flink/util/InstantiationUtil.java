@@ -21,9 +21,11 @@ package org.apache.flink.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSerializationUtil;
+import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.typeutils.runtime.KryoRegistrationSerializerConfigSnapshot;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.IOReadableWritable;
+import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
@@ -41,8 +43,11 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -85,6 +90,40 @@ public final class InstantiationUtil {
 			}
 
 			return super.resolveClass(desc);
+		}
+
+		@Override
+		protected Class<?> resolveProxyClass(String[] interfaces) throws IOException, ClassNotFoundException {
+			if (classLoader != null) {
+				ClassLoader nonPublicLoader = null;
+				boolean hasNonPublicInterface = false;
+
+				// define proxy in class loader of non-public interface(s), if any
+				Class<?>[] classObjs = new Class<?>[interfaces.length];
+				for (int i = 0; i < interfaces.length; i++) {
+					Class<?> cl = Class.forName(interfaces[i], false, classLoader);
+					if ((cl.getModifiers() & Modifier.PUBLIC) == 0) {
+						if (hasNonPublicInterface) {
+							if (nonPublicLoader != cl.getClassLoader()) {
+								throw new IllegalAccessError(
+									"conflicting non-public interface class loaders");
+							}
+						} else {
+							nonPublicLoader = cl.getClassLoader();
+							hasNonPublicInterface = true;
+						}
+					}
+					classObjs[i] = cl;
+				}
+				try {
+					return Proxy.getProxyClass(
+						hasNonPublicInterface ? nonPublicLoader : classLoader, classObjs);
+				} catch (IllegalArgumentException e) {
+					throw new ClassNotFoundException(null, e);
+				}
+			}
+
+			return super.resolveProxyClass(interfaces);
 		}
 
 		// ------------------------------------------------
@@ -166,6 +205,7 @@ public final class InstantiationUtil {
 		scalaTypes.add("scala.Tuple2$mcDJ$sp");
 		scalaTypes.add("scala.Tuple2$mcDI$sp");
 		scalaTypes.add("scala.Tuple2$mcDD$sp");
+		scalaTypes.add("scala.Enumeration$ValueSet");
 	}
 
 	/**
@@ -194,23 +234,23 @@ public final class InstantiationUtil {
 			try {
 				Class.forName(streamClassDescriptor.getName(), false, classLoader);
 			} catch (ClassNotFoundException e) {
-				if (streamClassDescriptor.getName().equals("org.apache.avro.generic.GenericData$Array")) {
-					ObjectStreamClass result = ObjectStreamClass.lookup(
-						KryoRegistrationSerializerConfigSnapshot.DummyRegisteredClass.class);
-					return result;
+
+				final ObjectStreamClass equivalentSerializer =
+						MigrationUtil.getEquivalentSerializer(streamClassDescriptor.getName());
+
+				if (equivalentSerializer != null) {
+					return equivalentSerializer;
 				}
 			}
 
 			final Class localClass = resolveClass(streamClassDescriptor);
 			final String name = localClass.getName();
-			if (scalaSerializerClassnames.contains(name) || scalaTypes.contains(name) || localClass.isAnonymousClass()
-				// isAnonymousClass does not work for anonymous Scala classes; additionally check by classname
-				|| name.contains("$anon$") || name.contains("$anonfun")) {
-
+			if (scalaSerializerClassnames.contains(name) || scalaTypes.contains(name) || isAnonymousClass(localClass)
+				|| isOldAvroSerializer(name, streamClassDescriptor.getSerialVersionUID())) {
 				final ObjectStreamClass localClassDescriptor = ObjectStreamClass.lookup(localClass);
 				if (localClassDescriptor != null
 					&& localClassDescriptor.getSerialVersionUID() != streamClassDescriptor.getSerialVersionUID()) {
-					LOG.warn("Ignoring serialVersionUID mismatch for anonymous class {}; was {}, now {}.",
+					LOG.warn("Ignoring serialVersionUID mismatch for class {}; was {}, now {}.",
 						streamClassDescriptor.getName(), streamClassDescriptor.getSerialVersionUID(), localClassDescriptor.getSerialVersionUID());
 
 					streamClassDescriptor = localClassDescriptor;
@@ -219,6 +259,104 @@ public final class InstantiationUtil {
 
 			return streamClassDescriptor;
 		}
+
+	}
+
+	private static boolean isAnonymousClass(Class clazz) {
+		final String name = clazz.getName();
+
+		// isAnonymousClass does not work for anonymous Scala classes; additionally check by class name
+		if (name.contains("$anon$") || name.contains("$anonfun") || name.contains("$macro$")) {
+			return true;
+		}
+
+		// calling isAnonymousClass or getSimpleName can throw InternalError for certain Scala types, see https://issues.scala-lang.org/browse/SI-2034
+		// until we move to JDK 9, this try-catch is necessary
+		try {
+			return clazz.isAnonymousClass();
+		} catch (InternalError e) {
+			return false;
+		}
+	}
+
+	private static boolean isOldAvroSerializer(String name, long serialVersionUID) {
+		// please see FLINK-11436 for details on why we need to ignore serial version UID here for the AvroSerializer
+		return (serialVersionUID == 1) && "org.apache.flink.formats.avro.typeutils.AvroSerializer".equals(name);
+	}
+
+	/**
+	 * A mapping between the full path of a deprecated serializer and its equivalent.
+	 * These mappings are hardcoded and fixed.
+	 *
+	 * <p>IMPORTANT: mappings can be removed after 1 release as there will be a "migration path".
+	 * As an example, a serializer is removed in 1.5-SNAPSHOT, then the mapping should be added for 1.5,
+	 * and it can be removed in 1.6, as the path would be Flink-{< 1.5} -> Flink-1.5 -> Flink-{>= 1.6}.
+	 */
+	private enum MigrationUtil {
+
+		// To add a new mapping just pick a name and add an entry as the following:
+
+		GENERIC_DATA_ARRAY_SERIALIZER(
+				"org.apache.avro.generic.GenericData$Array",
+				ObjectStreamClass.lookup(KryoRegistrationSerializerConfigSnapshot.DummyRegisteredClass.class)),
+		HASH_MAP_SERIALIZER(
+				"org.apache.flink.runtime.state.HashMapSerializer",
+				ObjectStreamClass.lookup(MapSerializer.class)); // added in 1.5
+
+		/** An internal unmodifiable map containing the mappings between deprecated and new serializers. */
+		private static final Map<String, ObjectStreamClass> EQUIVALENCE_MAP = Collections.unmodifiableMap(initMap());
+
+		/** The full name of the class of the old serializer. */
+		private final String oldSerializerName;
+
+		/** The serialization descriptor of the class of the new serializer. */
+		private final ObjectStreamClass newSerializerStreamClass;
+
+		MigrationUtil(String oldSerializerName, ObjectStreamClass newSerializerStreamClass) {
+			this.oldSerializerName = oldSerializerName;
+			this.newSerializerStreamClass = newSerializerStreamClass;
+		}
+
+		private static Map<String, ObjectStreamClass> initMap() {
+			final Map<String, ObjectStreamClass> init = new HashMap<>(4);
+			for (MigrationUtil m: MigrationUtil.values()) {
+				init.put(m.oldSerializerName, m.newSerializerStreamClass);
+			}
+			return init;
+		}
+
+		private static ObjectStreamClass getEquivalentSerializer(String classDescriptorName) {
+			return EQUIVALENCE_MAP.get(classDescriptorName);
+		}
+	}
+
+	/**
+	 * Creates a new instance of the given class name and type using the provided {@link ClassLoader}.
+	 *
+	 * @param className of the class to load
+	 * @param targetType type of the instantiated class
+	 * @param classLoader to use for loading the class
+	 * @param <T> type of the instantiated class
+	 * @return Instance of the given class name
+	 * @throws FlinkException if the class could not be found
+	 */
+	public static <T> T instantiate(final String className, final Class<T> targetType, final ClassLoader classLoader) throws FlinkException {
+		final Class<? extends T> clazz;
+		try {
+			clazz = Class.forName(
+				className,
+				false,
+				classLoader).asSubclass(targetType);
+		} catch (ClassNotFoundException e) {
+			throw new FlinkException(
+				String.format(
+					"Could not instantiate class '%s' of type '%s'. Please make sure that this class is on your class path.",
+					className,
+					targetType.getName()),
+				e);
+		}
+
+		return instantiate(clazz);
 	}
 
 	/**
@@ -430,9 +568,10 @@ public final class InstantiationUtil {
 
 		final ClassLoader old = Thread.currentThread().getContextClassLoader();
 		// not using resource try to avoid AutoClosable's close() on the given stream
-		try (ObjectInputStream oois = isFailureTolerant
+		try {
+			ObjectInputStream oois = isFailureTolerant
 				? new InstantiationUtil.FailureTolerantObjectInputStream(in, cl)
-				: new InstantiationUtil.ClassLoaderObjectInputStream(in, cl)) {
+				: new InstantiationUtil.ClassLoaderObjectInputStream(in, cl);
 			Thread.currentThread().setContextClassLoader(cl);
 			return (T) oois.readObject();
 		}
@@ -535,6 +674,62 @@ public final class InstantiationUtil {
 		}
 	}
 
+	/**
+	 * Loads a class by name from the given input stream and reflectively instantiates it.
+	 *
+	 * <p>This method will use {@link DataInputView#readUTF()} to read the class name, and
+	 * then attempt to load the class from the given ClassLoader.
+	 *
+	 * @param in The stream to read the class name from.
+	 * @param cl The class loader to resolve the class.
+	 *
+	 * @throws IOException Thrown, if the class name could not be read, the class could not be found.
+	 */
+	public static <T> Class<T> resolveClassByName(
+			DataInputView in,
+			ClassLoader cl) throws IOException {
+		return resolveClassByName(in, cl, Object.class);
+	}
+
+	/**
+	 * Loads a class by name from the given input stream and reflectively instantiates it.
+	 *
+	 * <p>This method will use {@link DataInputView#readUTF()} to read the class name, and
+	 * then attempt to load the class from the given ClassLoader.
+	 *
+	 * <p>The resolved class is checked to be equal to or a subtype of the given supertype
+	 * class.
+	 *
+	 * @param in The stream to read the class name from.
+	 * @param cl The class loader to resolve the class.
+	 * @param supertype A class that the resolved class must extend.
+	 *
+	 * @throws IOException Thrown, if the class name could not be read, the class could not be found,
+	 *                     or the class is not a subtype of the given supertype class.
+	 */
+	public static <T> Class<T> resolveClassByName(
+			DataInputView in,
+			ClassLoader cl,
+			Class<? super T> supertype) throws IOException {
+
+		final String className = in.readUTF();
+		final Class<?> rawClazz;
+		try {
+			rawClazz = Class.forName(className, false, cl);
+		}
+		catch (ClassNotFoundException e) {
+			throw new IOException(
+					"Could not find class '" + className +  "' in classpath.", e);
+		}
+
+		if (!supertype.isAssignableFrom(rawClazz)) {
+			throw new IOException("The class " + className + " is not a subclass of " + supertype.getName());
+		}
+
+		@SuppressWarnings("unchecked")
+		Class<T> clazz = (Class<T>) rawClazz;
+		return clazz;
+	}
 
 	// --------------------------------------------------------------------------------------------
 

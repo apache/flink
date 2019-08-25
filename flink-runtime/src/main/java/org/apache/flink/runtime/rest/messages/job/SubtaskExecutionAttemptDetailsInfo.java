@@ -170,8 +170,8 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 		final long duration = startTime > 0 ? ((endTime > 0 ? endTime : now) - startTime) : -1;
 
 		final IOMetricsInfo ioMetricsInfo = new IOMetricsInfo(
-			ioMetrics.getNumBytesInLocal() + ioMetrics.getNumBytesInRemote(),
-			ioMetrics.isNumBytesInLocalComplete() && ioMetrics.isNumBytesInRemoteComplete(),
+			ioMetrics.getNumBytesIn(),
+			ioMetrics.isNumBytesInComplete(),
 			ioMetrics.getNumBytesOut(),
 			ioMetrics.isNumBytesOutComplete(),
 			ioMetrics.getNumRecordsIn(),

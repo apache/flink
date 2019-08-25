@@ -25,11 +25,15 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.generated.Address;
 import org.apache.flink.formats.avro.generated.Colors;
 import org.apache.flink.formats.avro.generated.Fixed16;
+import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
 
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -37,6 +41,8 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
@@ -67,7 +73,7 @@ public class AvroSplittableInputFormatTest {
 	static final String TEST_MAP_KEY2 = "KEY 2";
 	static final long TEST_MAP_VALUE2 = 17554L;
 
-	static final Integer TEST_NUM = new Integer(239);
+	static final Integer TEST_NUM = 239;
 	static final String TEST_STREET = "Baker Street";
 	static final String TEST_CITY = "London";
 	static final String TEST_STATE = "London";
@@ -79,20 +85,20 @@ public class AvroSplittableInputFormatTest {
 	public void createFiles() throws IOException {
 		testFile = File.createTempFile("AvroSplittableInputFormatTest", null);
 
-		ArrayList<CharSequence> stringArray = new ArrayList<CharSequence>();
+		ArrayList<CharSequence> stringArray = new ArrayList<>();
 		stringArray.add(TEST_ARRAY_STRING_1);
 		stringArray.add(TEST_ARRAY_STRING_2);
 
-		ArrayList<Boolean> booleanArray = new ArrayList<Boolean>();
+		ArrayList<Boolean> booleanArray = new ArrayList<>();
 		booleanArray.add(TEST_ARRAY_BOOLEAN_1);
 		booleanArray.add(TEST_ARRAY_BOOLEAN_2);
 
-		HashMap<CharSequence, Long> longMap = new HashMap<CharSequence, Long>();
+		HashMap<CharSequence, Long> longMap = new HashMap<>();
 		longMap.put(TEST_MAP_KEY1, TEST_MAP_VALUE1);
 		longMap.put(TEST_MAP_KEY2, TEST_MAP_VALUE2);
 
 		Address addr = new Address();
-		addr.setNum(new Integer(TEST_NUM));
+		addr.setNum(TEST_NUM);
 		addr.setStreet(TEST_STREET);
 		addr.setCity(TEST_CITY);
 		addr.setState(TEST_STATE);
@@ -108,6 +114,16 @@ public class AvroSplittableInputFormatTest {
 		user1.setTypeEnum(TEST_ENUM_COLOR);
 		user1.setTypeMap(longMap);
 		user1.setTypeNested(addr);
+		user1.setTypeBytes(ByteBuffer.allocate(10));
+		user1.setTypeDate(LocalDate.parse("2014-03-01"));
+		user1.setTypeTimeMillis(LocalTime.parse("12:12:12"));
+		user1.setTypeTimeMicros(123456);
+		user1.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"));
+		user1.setTypeTimestampMicros(123456L);
+		// 20.00
+		user1.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
+		// 20.00
+		user1.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
 
 		// Construct via builder
 		User user2 = User.newBuilder()
@@ -118,20 +134,30 @@ public class AvroSplittableInputFormatTest {
 				.setTypeDoubleTest(1.337d)
 				.setTypeNullTest(null)
 				.setTypeLongTest(1337L)
-				.setTypeArrayString(new ArrayList<CharSequence>())
-				.setTypeArrayBoolean(new ArrayList<Boolean>())
+				.setTypeArrayString(new ArrayList<>())
+				.setTypeArrayBoolean(new ArrayList<>())
 				.setTypeNullableArray(null)
 				.setTypeEnum(Colors.RED)
-				.setTypeMap(new HashMap<CharSequence, Long>())
+				.setTypeMap(new HashMap<>())
 				.setTypeFixed(new Fixed16())
 				.setTypeUnion(123L)
 				.setTypeNested(
 						Address.newBuilder().setNum(TEST_NUM).setStreet(TEST_STREET)
 								.setCity(TEST_CITY).setState(TEST_STATE).setZip(TEST_ZIP)
 								.build())
+				.setTypeBytes(ByteBuffer.allocate(10))
+				.setTypeDate(LocalDate.parse("2014-03-01"))
+				.setTypeTimeMillis(LocalTime.parse("12:12:12"))
+				.setTypeTimeMicros(123456)
+				.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"))
+				.setTypeTimestampMicros(123456L)
+				// 20.00
+				.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
+				// 20.00
+				.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()))
 				.build();
-		DatumWriter<User> userDatumWriter = new SpecificDatumWriter<User>(User.class);
-		DataFileWriter<User> dataFileWriter = new DataFileWriter<User>(userDatumWriter);
+		DatumWriter<User> userDatumWriter = new SpecificDatumWriter<>(User.class);
+		DataFileWriter<User> dataFileWriter = new DataFileWriter<>(userDatumWriter);
 		dataFileWriter.create(user1.getSchema(), testFile);
 		dataFileWriter.append(user1);
 		dataFileWriter.append(user2);
@@ -148,12 +174,22 @@ public class AvroSplittableInputFormatTest {
 			user.setTypeEnum(TEST_ENUM_COLOR);
 			user.setTypeMap(longMap);
 			Address address = new Address();
-			address.setNum(new Integer(TEST_NUM));
+			address.setNum(TEST_NUM);
 			address.setStreet(TEST_STREET);
 			address.setCity(TEST_CITY);
 			address.setState(TEST_STATE);
 			address.setZip(TEST_ZIP);
 			user.setTypeNested(address);
+			user.setTypeBytes(ByteBuffer.allocate(10));
+			user.setTypeDate(LocalDate.parse("2014-03-01"));
+			user.setTypeTimeMillis(LocalTime.parse("12:12:12"));
+			user.setTypeTimeMicros(123456);
+			user.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"));
+			user.setTypeTimestampMicros(123456L);
+			// 20.00
+			user.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
+			// 20.00
+			user.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
 
 			dataFileWriter.append(user);
 		}
@@ -164,7 +200,7 @@ public class AvroSplittableInputFormatTest {
 	public void testSplittedIF() throws IOException {
 		Configuration parameters = new Configuration();
 
-		AvroInputFormat<User> format = new AvroInputFormat<User>(new Path(testFile.getAbsolutePath()), User.class);
+		AvroInputFormat<User> format = new AvroInputFormat<>(new Path(testFile.getAbsolutePath()), User.class);
 
 		format.configure(parameters);
 		FileInputSplit[] splits = format.createInputSplits(4);
@@ -182,10 +218,10 @@ public class AvroSplittableInputFormatTest {
 			format.close();
 		}
 
-		Assert.assertEquals(1539, elementsPerSplit[0]);
-		Assert.assertEquals(1026, elementsPerSplit[1]);
-		Assert.assertEquals(1539, elementsPerSplit[2]);
-		Assert.assertEquals(896, elementsPerSplit[3]);
+		Assert.assertEquals(1604, elementsPerSplit[0]);
+		Assert.assertEquals(1203, elementsPerSplit[1]);
+		Assert.assertEquals(1203, elementsPerSplit[2]);
+		Assert.assertEquals(990, elementsPerSplit[3]);
 		Assert.assertEquals(NUM_RECORDS, elements);
 		format.close();
 	}
@@ -196,7 +232,7 @@ public class AvroSplittableInputFormatTest {
 
 		Configuration parameters = new Configuration();
 
-		AvroInputFormat<User> format = new AvroInputFormat<User>(new Path(testFile.getAbsolutePath()), User.class);
+		AvroInputFormat<User> format = new AvroInputFormat<>(new Path(testFile.getAbsolutePath()), User.class);
 		format.configure(parameters);
 
 		FileInputSplit[] splits = format.createInputSplits(4);
@@ -228,10 +264,10 @@ public class AvroSplittableInputFormatTest {
 			format.close();
 		}
 
-		Assert.assertEquals(1539, elementsPerSplit[0]);
-		Assert.assertEquals(1026, elementsPerSplit[1]);
-		Assert.assertEquals(1539, elementsPerSplit[2]);
-		Assert.assertEquals(896, elementsPerSplit[3]);
+		Assert.assertEquals(1604, elementsPerSplit[0]);
+		Assert.assertEquals(1203, elementsPerSplit[1]);
+		Assert.assertEquals(1203, elementsPerSplit[2]);
+		Assert.assertEquals(990, elementsPerSplit[3]);
 		Assert.assertEquals(NUM_RECORDS, elements);
 		format.close();
 	}
@@ -242,7 +278,7 @@ public class AvroSplittableInputFormatTest {
 
 		Configuration parameters = new Configuration();
 
-		AvroInputFormat<User> format = new AvroInputFormat<User>(new Path(testFile.getAbsolutePath()), User.class);
+		AvroInputFormat<User> format = new AvroInputFormat<>(new Path(testFile.getAbsolutePath()), User.class);
 		format.configure(parameters);
 
 		FileInputSplit[] splits = format.createInputSplits(4);
@@ -274,10 +310,10 @@ public class AvroSplittableInputFormatTest {
 			format.close();
 		}
 
-		Assert.assertEquals(1539, elementsPerSplit[0]);
-		Assert.assertEquals(1026, elementsPerSplit[1]);
-		Assert.assertEquals(1539, elementsPerSplit[2]);
-		Assert.assertEquals(896, elementsPerSplit[3]);
+		Assert.assertEquals(1604, elementsPerSplit[0]);
+		Assert.assertEquals(1203, elementsPerSplit[1]);
+		Assert.assertEquals(1203, elementsPerSplit[2]);
+		Assert.assertEquals(990, elementsPerSplit[3]);
 		Assert.assertEquals(NUM_RECORDS, elements);
 		format.close();
 	}
@@ -287,11 +323,23 @@ public class AvroSplittableInputFormatTest {
 
 	This dependency needs to be added
 
-        <dependency>
-            <groupId>org.apache.avro</groupId>
-            <artifactId>avro-mapred</artifactId>
-            <version>1.7.6</version>
-        </dependency>
+		<dependency>
+			<groupId>org.apache.avro</groupId>
+			<artifactId>avro-mapred</artifactId>
+			<version>1.7.6</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-hadoop-compatibility_2.11</artifactId>
+			<version>1.6-SNAPSHOT</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>16.0</version>
+		</dependency>
 
 	@Test
 	public void testHadoop() throws Exception {
@@ -314,10 +362,11 @@ public class AvroSplittableInputFormatTest {
 			}
 			i++;
 		}
-		System.out.println("Status "+Arrays.toString(elementsPerSplit));
-	} **/
+		System.out.println("Status " + Arrays.toString(elementsPerSplit));
+	} */
 
 	@After
+	@SuppressWarnings("ResultOfMethodCallIgnored")
 	public void deleteFiles() {
 		testFile.delete();
 	}

@@ -24,11 +24,11 @@ import org.apache.flink.core.memory.MemorySegment;
  * A simple buffer recycler that frees the memory segments.
  */
 public class FreeingBufferRecycler implements BufferRecycler {
-	
+
 	public static final BufferRecycler INSTANCE = new FreeingBufferRecycler();
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	// Not instantiable
 	private FreeingBufferRecycler() {}
 

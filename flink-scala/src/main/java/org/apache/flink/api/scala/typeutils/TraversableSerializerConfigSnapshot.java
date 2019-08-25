@@ -19,8 +19,12 @@
 package org.apache.flink.api.scala.typeutils;
 
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+
+import scala.collection.TraversableOnce;
 
 /**
  * A {@link TypeSerializerConfigSnapshot} for the Scala {@link TraversableSerializer}.
@@ -28,14 +32,20 @@ import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
  * <p>This configuration snapshot class is implemented in Java because Scala does not
  * allow calling different base class constructors from subclasses, while we need that
  * for the default empty constructor.
+ *
+ * @deprecated This is being replaced with {@link TraversableSerializerSnapshot}.
  */
-public class TraversableSerializerConfigSnapshot<E> extends CompositeTypeSerializerConfigSnapshot {
+@Deprecated
+public class TraversableSerializerConfigSnapshot<T extends TraversableOnce<E>, E>
+		extends CompositeTypeSerializerConfigSnapshot<T> {
 
 	private static final int VERSION = 1;
 
 	/** This empty nullary constructor is required for deserializing the configuration. */
+	@SuppressWarnings("unused")
 	public TraversableSerializerConfigSnapshot() {}
 
+	@SuppressWarnings("unused")
 	public TraversableSerializerConfigSnapshot(TypeSerializer<E> elementSerializer) {
 		super(elementSerializer);
 	}
@@ -43,5 +53,18 @@ public class TraversableSerializerConfigSnapshot<E> extends CompositeTypeSeriali
 	@Override
 	public int getVersion() {
 		return VERSION;
+	}
+
+	@Override
+	public TypeSerializerSchemaCompatibility<T> resolveSchemaCompatibility(TypeSerializer<T> newSerializer) {
+		TraversableSerializer<T, E> previousSerializer = (TraversableSerializer<T, E>) restoreSerializer();
+		TraversableSerializerSnapshot<T, E> newCompositeSnapshot =
+				new TraversableSerializerSnapshot<>(previousSerializer.cbfCode());
+
+		return CompositeTypeSerializerUtil.delegateCompatibilityCheckToNewSnapshot(
+				newSerializer,
+				newCompositeSnapshot,
+				getSingleNestedSerializerAndConfig().f1
+		);
 	}
 }

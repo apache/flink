@@ -18,68 +18,64 @@
 
 package org.apache.flink.runtime.executiongraph;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.blob.PermanentBlobService;
+import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.VoidBlobWriter;
+import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
-import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverRegion;
+import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
+import org.apache.flink.runtime.executiongraph.failover.RestartAllStrategy;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.executiongraph.utils.SimpleSlotProvider;
-import org.apache.flink.runtime.instance.BaseTestingActorGateway;
-import org.apache.flink.runtime.instance.HardwareDescription;
-import org.apache.flink.runtime.instance.Instance;
-import org.apache.flink.runtime.instance.InstanceID;
-import org.apache.flink.runtime.instance.SimpleSlot;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
+import org.apache.flink.runtime.io.network.partition.PartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
-import org.apache.flink.runtime.instance.SimpleSlotContext;
-import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
-import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.messages.TaskMessages.CancelTask;
-import org.apache.flink.runtime.messages.TaskMessages.FailIntermediateResultPartitions;
-import org.apache.flink.runtime.messages.TaskMessages.SubmitTask;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.util.SerializedValue;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 
-import akka.actor.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+
 import java.lang.reflect.Field;
-import java.net.InetAddress;
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
-
-import scala.concurrent.ExecutionContext;
-import scala.concurrent.ExecutionContext$;
+import java.util.function.Predicate;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 
 /**
  * A collection of utility methods for testing the ExecutionGraph and its related classes.
@@ -93,13 +89,12 @@ public class ExecutionGraphTestUtils {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Waits until the job has reached a certain state.
+	 * Waits until the Job has reached a certain state.
 	 *
 	 * <p>This method is based on polling and might miss very fast state transitions!
 	 */
 	public static void waitUntilJobStatus(ExecutionGraph eg, JobStatus status, long maxWaitMillis)
 			throws TimeoutException {
-
 		checkNotNull(eg);
 		checkNotNull(status);
 		checkArgument(maxWaitMillis >= 0);
@@ -114,7 +109,9 @@ public class ExecutionGraphTestUtils {
 		}
 
 		if (System.nanoTime() >= deadline) {
-			throw new TimeoutException();
+			throw new TimeoutException(
+				String.format("The job did not reach status %s in time. Current status is %s.",
+					status, eg.getState()));
 		}
 	}
 
@@ -125,7 +122,6 @@ public class ExecutionGraphTestUtils {
 	 */
 	public static void waitUntilExecutionState(Execution execution, ExecutionState state, long maxWaitMillis)
 			throws TimeoutException {
-
 		checkNotNull(execution);
 		checkNotNull(state);
 		checkArgument(maxWaitMillis >= 0);
@@ -140,13 +136,105 @@ public class ExecutionGraphTestUtils {
 		}
 
 		if (System.nanoTime() >= deadline) {
-			throw new TimeoutException();
+			throw new TimeoutException(
+				String.format("The execution did not reach state %s in time. Current state is %s.",
+					state, execution.getState()));
 		}
+	}
+
+	/**
+	 * Waits until the ExecutionVertex has reached a certain state.
+	 *
+	 * <p>This method is based on polling and might miss very fast state transitions!
+	 */
+	public static void waitUntilExecutionVertexState(ExecutionVertex executionVertex, ExecutionState state, long maxWaitMillis)
+		throws TimeoutException {
+		checkNotNull(executionVertex);
+		checkNotNull(state);
+		checkArgument(maxWaitMillis >= 0);
+
+		// this is a poor implementation - we may want to improve it eventually
+		final long deadline = maxWaitMillis == 0 ? Long.MAX_VALUE : System.nanoTime() + (maxWaitMillis * 1_000_000);
+
+		while (true) {
+			Execution execution = executionVertex.getCurrentExecutionAttempt();
+
+			if (execution == null || (execution.getState() != state && System.nanoTime() < deadline)) {
+				try {
+					Thread.sleep(2);
+				} catch (InterruptedException ignored) { }
+			} else {
+				break;
+			}
+
+			if (System.nanoTime() >= deadline) {
+				if (execution != null) {
+					throw new TimeoutException(
+						String.format("The execution vertex did not reach state %s in time. Current state is %s.",
+							state, execution.getState()));
+				} else {
+					throw new TimeoutException(
+						"Cannot get current execution attempt of " + executionVertex + '.');
+				}
+			}
+		}
+	}
+
+	/**
+	 * Waits until all executions fulfill the given predicate.
+	 *
+	 * @param executionGraph for which to check the executions
+	 * @param executionPredicate predicate which is to be fulfilled
+	 * @param maxWaitMillis timeout for the wait operation
+	 * @throws TimeoutException if the executions did not reach the target state in time
+	 */
+	public static void waitForAllExecutionsPredicate(
+			ExecutionGraph executionGraph,
+			Predicate<AccessExecution> executionPredicate,
+			long maxWaitMillis) throws TimeoutException {
+		final Predicate<AccessExecutionGraph> allExecutionsPredicate = allExecutionsPredicate(executionPredicate);
+		final Deadline deadline = Deadline.fromNow(Duration.ofMillis(maxWaitMillis));
+		boolean predicateResult;
+
+		do {
+			predicateResult = allExecutionsPredicate.test(executionGraph);
+
+			if (!predicateResult) {
+				try {
+					Thread.sleep(2L);
+				} catch (InterruptedException ignored) {
+					Thread.currentThread().interrupt();
+				}
+			}
+		} while (!predicateResult && deadline.hasTimeLeft());
+
+		if (!predicateResult) {
+			throw new TimeoutException("Not all executions fulfilled the predicate in time.");
+		}
+	}
+
+	public static Predicate<AccessExecutionGraph> allExecutionsPredicate(final Predicate<AccessExecution> executionPredicate) {
+		return accessExecutionGraph -> {
+			final Iterable<? extends AccessExecutionVertex> allExecutionVertices = accessExecutionGraph.getAllExecutionVertices();
+
+			for (AccessExecutionVertex executionVertex : allExecutionVertices) {
+				final AccessExecution currentExecutionAttempt = executionVertex.getCurrentExecutionAttempt();
+
+				if (currentExecutionAttempt == null || !executionPredicate.test(currentExecutionAttempt)) {
+					return false;
+				}
+			}
+
+			return true;
+		};
+	}
+
+	public static Predicate<AccessExecution> isInExecutionState(ExecutionState executionState) {
+		return (AccessExecution execution) -> execution.getState() == executionState;
 	}
 
 	public static void waitUntilFailoverRegionState(FailoverRegion region, JobStatus status, long maxWaitMillis)
 			throws TimeoutException {
-
 		checkNotNull(region);
 		checkNotNull(status);
 		checkArgument(maxWaitMillis >= 0);
@@ -181,7 +269,7 @@ public class ExecutionGraphTestUtils {
 	 */
 	public static void completeCancellingForAllVertices(ExecutionGraph eg) {
 		for (ExecutionVertex vertex : eg.getAllExecutionVertices()) {
-			vertex.getCurrentExecutionAttempt().cancelingComplete();
+			vertex.getCurrentExecutionAttempt().completeCancelling();
 		}
 	}
 
@@ -231,32 +319,12 @@ public class ExecutionGraphTestUtils {
 		}
 	}
 	
-	public static void setVertexResource(ExecutionVertex vertex, SimpleSlot slot) {
+	public static void setVertexResource(ExecutionVertex vertex, LogicalSlot slot) {
 		Execution exec = vertex.getCurrentExecutionAttempt();
 
 		if(!exec.tryAssignResource(slot)) {
 			throw new RuntimeException("Could not assign resource.");
 		}
-	}
-
-	// ------------------------------------------------------------------------
-	//  Mocking Slots
-	// ------------------------------------------------------------------------
-
-	public static SimpleSlot createMockSimpleSlot(TaskManagerGateway gateway) {
-		final TaskManagerLocation location = new TaskManagerLocation(
-				ResourceID.generate(), InetAddress.getLoopbackAddress(), 6572);
-
-		final SimpleSlotContext allocatedSlot = new SimpleSlotContext(
-			new AllocationID(),
-			location,
-			0,
-			gateway);
-
-		return new SimpleSlot(
-			allocatedSlot,
-			mock(SlotOwner.class),
-			0);
 	}
 
 	// ------------------------------------------------------------------------
@@ -340,26 +408,22 @@ public class ExecutionGraphTestUtils {
 		checkNotNull(vertices);
 		checkNotNull(timeout);
 
-		return ExecutionGraphBuilder.buildGraph(
-			null,
-			new JobGraph(jid, "test job", vertices),
-			new Configuration(),
-			executor,
-			executor,
-			slotProvider,
-			ExecutionGraphTestUtils.class.getClassLoader(),
-			new StandaloneCheckpointRecoveryFactory(),
-			timeout,
-			restartStrategy,
-			new UnregisteredMetricsGroup(),
-			1,
-			VoidBlobWriter.getInstance(),
-			timeout,
-			TEST_LOGGER);
+		return new TestingExecutionGraphBuilder(vertices)
+			.setFutureExecutor(executor)
+			.setIoExecutor(executor)
+			.setSlotProvider(slotProvider)
+			.setAllocationTimeout(timeout)
+			.setRpcTimeout(timeout)
+			.setRestartStrategy(restartStrategy)
+			.build();
 	}
 
 	public static JobVertex createNoOpVertex(int parallelism) {
-		JobVertex vertex = new JobVertex("vertex");
+		return createNoOpVertex("vertex", parallelism);
+	}
+
+	public static JobVertex createNoOpVertex(String name, int parallelism) {
+		JobVertex vertex = new JobVertex(name);
 		vertex.setInvokableClass(NoOpInvokable.class);
 		vertex.setParallelism(parallelism);
 		return vertex;
@@ -369,117 +433,40 @@ public class ExecutionGraphTestUtils {
 	//  utility mocking methods
 	// ------------------------------------------------------------------------
 
-	public static Instance getInstance(final TaskManagerGateway gateway) throws Exception {
-		return getInstance(gateway, 1);
+	public static JobVertex createJobVertex(String task1, int numTasks, Class<NoOpInvokable> invokable) {
+		JobVertex groupVertex = new JobVertex(task1);
+		groupVertex.setInvokableClass(invokable);
+		groupVertex.setParallelism(numTasks);
+		return groupVertex;
 	}
-
-	public static Instance getInstance(final TaskManagerGateway gateway, final int numberOfSlots) throws Exception {
-		ResourceID resourceID = ResourceID.generate();
-		HardwareDescription hardwareDescription = new HardwareDescription(4, 2L*1024*1024*1024, 1024*1024*1024, 512*1024*1024);
-		InetAddress address = InetAddress.getByName("127.0.0.1");
-		TaskManagerLocation connection = new TaskManagerLocation(resourceID, address, 10001);
-
-		return new Instance(gateway, connection, new InstanceID(), hardwareDescription, numberOfSlots);
-	}
-
-	@SuppressWarnings("serial")
-	public static class SimpleActorGateway extends BaseTestingActorGateway {
-
-
-		public SimpleActorGateway(ExecutionContext executionContext){
-			super(executionContext);
-		}
-
-		@Override
-		public Object handleMessage(Object message) {
-			if (message instanceof SubmitTask) {
-				SubmitTask submitTask = (SubmitTask) message;
-				return Acknowledge.get();
-			} else if(message instanceof CancelTask) {
-				return Acknowledge.get();
-			} else if(message instanceof FailIntermediateResultPartitions) {
-				return new Object();
-			} else {
-				return null;
-			}
-		}
-	}
-
-	@SuppressWarnings("serial")
-	public static class SimpleActorGatewayWithTDD extends SimpleActorGateway {
-
-		public TaskDeploymentDescriptor lastTDD;
-		private final PermanentBlobService blobCache;
-
-		public SimpleActorGatewayWithTDD(ExecutionContext executionContext, PermanentBlobService blobCache) {
-			super(executionContext);
-			this.blobCache = blobCache;
-		}
-
-		@Override
-		public Object handleMessage(Object message) {
-			if(message instanceof SubmitTask) {
-				SubmitTask submitTask = (SubmitTask) message;
-				lastTDD = submitTask.tasks();
-				try {
-					lastTDD.loadBigData(blobCache);
-					return Acknowledge.get();
-				} catch (Exception e) {
-					e.printStackTrace();
-					return new Status.Failure(e);
-				}
-			} else {
-				return super.handleMessage(message);
-			}
-		}
-	}
-
-	@SuppressWarnings("serial")
-	public static class SimpleFailingActorGateway extends BaseTestingActorGateway {
-
-		public SimpleFailingActorGateway(ExecutionContext executionContext) {
-			super(executionContext);
-		}
-
-		@Override
-		public Object handleMessage(Object message) throws Exception {
-			if(message instanceof SubmitTask) {
-				throw new Exception(ERROR_MESSAGE);
-			} else if (message instanceof CancelTask) {
-				CancelTask cancelTask = (CancelTask) message;
-
-				return Acknowledge.get();
-			} else {
-				return null;
-			}
-		}
-	}
-
-	public static final String ERROR_MESSAGE = "test_failure_error_message";
 
 	public static ExecutionJobVertex getExecutionVertex(
-			JobVertexID id, ScheduledExecutorService executor) 
-		throws Exception {
+			JobVertexID id,
+			ScheduledExecutorService executor) throws Exception {
+		return getExecutionVertex(id, executor, ScheduleMode.LAZY_FROM_SOURCES);
+	}
+
+	public static ExecutionJobVertex getExecutionVertex(
+			JobVertexID id,
+			ScheduledExecutorService executor,
+			ScheduleMode scheduleMode) throws Exception {
 
 		JobVertex ajv = new JobVertex("TestVertex", id);
-		ajv.setInvokableClass(mock(AbstractInvokable.class).getClass());
+		ajv.setInvokableClass(AbstractInvokable.class);
 
-		ExecutionGraph graph = new ExecutionGraph(
-			executor,
-			executor,
-			new JobID(), 
-			"test job", 
-			new Configuration(),
-			new SerializedValue<>(new ExecutionConfig()),
-			AkkaUtils.getDefaultTimeout(),
-			new NoRestartStrategy(),
-			new Scheduler(ExecutionContext$.MODULE$.fromExecutor(executor)));
+		ExecutionGraph graph = new TestingExecutionGraphBuilder(ajv)
+			.setIoExecutor(executor)
+			.setFutureExecutor(executor)
+			.setScheduleMode(scheduleMode)
+			.build();
 
-		return spy(new ExecutionJobVertex(graph, ajv, 1, AkkaUtils.getDefaultTimeout()));
+		graph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
+
+		return new ExecutionJobVertex(graph, ajv, 1, AkkaUtils.getDefaultTimeout());
 	}
 	
 	public static ExecutionJobVertex getExecutionVertex(JobVertexID id) throws Exception {
-		return getExecutionVertex(id, TestingUtils.defaultExecutor());
+		return getExecutionVertex(id, new DirectScheduledExecutorService());
 	}
 
 	// ------------------------------------------------------------------------
@@ -552,6 +539,154 @@ public class ExecutionGraphTestUtils {
 			}
 
 			subtaskIndex++;
+		}
+	}
+
+	/**
+	 * Builder for {@link ExecutionGraph}.
+	 */
+	public static class TestingExecutionGraphBuilder {
+
+		private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
+		private Time allocationTimeout = Time.seconds(10L);
+		private BlobWriter blobWriter = VoidBlobWriter.getInstance();
+		private MetricGroup metricGroup = new UnregisteredMetricsGroup();
+		private RestartStrategy restartStrategy = new NoRestartStrategy();
+		private Time rpcTimeout = AkkaUtils.getDefaultTimeout();
+		private CheckpointRecoveryFactory checkpointRecoveryFactory = new StandaloneCheckpointRecoveryFactory();
+		private ClassLoader classLoader = getClass().getClassLoader();
+		private SlotProvider slotProvider = new TestingSlotProvider(slotRequestId -> CompletableFuture.completedFuture(new TestingLogicalSlotBuilder().createTestingLogicalSlot()));
+		private Executor ioExecutor = TestingUtils.defaultExecutor();
+		private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
+		private Configuration jobMasterConfig = new Configuration();
+		private JobGraph jobGraph;
+		private PartitionTracker partitionTracker = NoOpPartitionTracker.INSTANCE;
+		private FailoverStrategy.Factory failoverStrategyFactory = new RestartAllStrategy.Factory();
+
+		public TestingExecutionGraphBuilder(final JobVertex ... jobVertices) {
+			this(new JobID(), "test job", jobVertices);
+		}
+
+		public TestingExecutionGraphBuilder(final JobID jobId, final JobVertex ... jobVertices) {
+			this(jobId, "test job", jobVertices);
+		}
+
+		public TestingExecutionGraphBuilder(final String jobName, final JobVertex ... jobVertices) {
+			this(new JobID(), jobName, jobVertices);
+		}
+
+		public TestingExecutionGraphBuilder(final JobID jobId, final String jobName, final JobVertex ... jobVertices) {
+			this(new JobGraph(jobId, jobName, jobVertices));
+		}
+
+		public TestingExecutionGraphBuilder(final JobGraph jobGraph) {
+			this.jobGraph = jobGraph;
+		}
+
+		public TestingExecutionGraphBuilder setJobMasterConfig(final Configuration jobMasterConfig) {
+			this.jobMasterConfig = jobMasterConfig;
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setFutureExecutor(final ScheduledExecutorService futureExecutor) {
+			this.futureExecutor = futureExecutor;
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setIoExecutor(final Executor ioExecutor) {
+			this.ioExecutor = ioExecutor;
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setSlotProvider(final SlotProvider slotProvider) {
+			this.slotProvider = slotProvider;
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setClassLoader(final ClassLoader classLoader) {
+			this.classLoader = classLoader;
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setCheckpointRecoveryFactory(final CheckpointRecoveryFactory checkpointRecoveryFactory) {
+			this.checkpointRecoveryFactory = checkpointRecoveryFactory;
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setRpcTimeout(final Time rpcTimeout) {
+			this.rpcTimeout = rpcTimeout;
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setRestartStrategy(final RestartStrategy restartStrategy) {
+			this.restartStrategy = restartStrategy;
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setMetricGroup(final MetricGroup metricGroup) {
+			this.metricGroup = metricGroup;
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setBlobWriter(final BlobWriter blobWriter) {
+			this.blobWriter = blobWriter;
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setAllocationTimeout(final Time allocationTimeout) {
+			this.allocationTimeout = allocationTimeout;
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setShuffleMaster(final ShuffleMaster<?> shuffleMaster) {
+			this.shuffleMaster = shuffleMaster;
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setPartitionTracker(final PartitionTracker partitionTracker) {
+			this.partitionTracker = partitionTracker;
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder allowQueuedScheduling() {
+			jobGraph.setAllowQueuedScheduling(true);
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setAllowQueuedScheduling(boolean allowQueuedScheduling) {
+			jobGraph.setAllowQueuedScheduling(allowQueuedScheduling);
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setScheduleMode(ScheduleMode scheduleMode) {
+			jobGraph.setScheduleMode(scheduleMode);
+			return this;
+		}
+
+		public TestingExecutionGraphBuilder setFailoverStrategyFactory(FailoverStrategy.Factory failoverStrategyFactory) {
+			this.failoverStrategyFactory = failoverStrategyFactory;
+			return this;
+		}
+
+		public ExecutionGraph build() throws JobException, JobExecutionException {
+			return ExecutionGraphBuilder.buildGraph(
+				null,
+				jobGraph,
+				jobMasterConfig,
+				futureExecutor,
+				ioExecutor,
+				slotProvider,
+				classLoader,
+				checkpointRecoveryFactory,
+				rpcTimeout,
+				restartStrategy,
+				metricGroup,
+				blobWriter,
+				allocationTimeout,
+				TEST_LOGGER,
+				shuffleMaster,
+				partitionTracker,
+				failoverStrategyFactory);
 		}
 	}
 }

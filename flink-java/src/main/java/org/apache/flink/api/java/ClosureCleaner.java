@@ -19,19 +19,27 @@
 package org.apache.flink.api.java;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.apache.flink.shaded.asm5.org.objectweb.asm.ClassReader;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.ClassVisitor;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.MethodVisitor;
-import org.apache.flink.shaded.asm5.org.objectweb.asm.Opcodes;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.ClassReader;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.ClassVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.MethodVisitor;
+import org.apache.flink.shaded.asm6.org.objectweb.asm.Opcodes;
 
+import org.apache.commons.lang3.ClassUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Externalizable;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 
 /**
  * The closure cleaner is a utility that tries to truncate the closure (enclosing instance)
@@ -49,6 +57,7 @@ public class ClosureCleaner {
 	 * class.
 	 *
 	 * @param func The object whose closure should be cleaned.
+	 * @param level the clean up level.
 	 * @param checkSerializable Flag to indicate whether serializability should be checked after
 	 *                          the closure cleaning attempt.
 	 *
@@ -56,14 +65,30 @@ public class ClosureCleaner {
 	 *                                 not serializable after the closure cleaning.
 	 *
 	 * @throws RuntimeException A RuntimeException may be thrown, if the code of the class could not
-	 *                          be loaded, in order to process during teh closure cleaning.
+	 *                          be loaded, in order to process during the closure cleaning.
 	 */
-	public static void clean(Object func, boolean checkSerializable) {
+	public static void clean(Object func, ExecutionConfig.ClosureCleanerLevel level, boolean checkSerializable) {
+		clean(func, level, checkSerializable, Collections.newSetFromMap(new IdentityHashMap<>()));
+	}
+
+	private static void clean(Object func, ExecutionConfig.ClosureCleanerLevel level, boolean checkSerializable, Set<Object> visited) {
 		if (func == null) {
 			return;
 		}
 
+		if (!visited.add(func)) {
+			return;
+		}
+
 		final Class<?> cls = func.getClass();
+
+		if (ClassUtils.isPrimitiveOrWrapper(cls)) {
+			return;
+		}
+
+		if (usesCustomSerialization(cls)) {
+			return;
+		}
 
 		// First find the field name of the "this$0" field, this can
 		// be "this$x" depending on the nesting
@@ -73,6 +98,33 @@ public class ClosureCleaner {
 			if (f.getName().startsWith("this$")) {
 				// found a closure referencing field - now try to clean
 				closureAccessed |= cleanThis0(func, cls, f.getName());
+			} else {
+				Object fieldObject;
+				try {
+					f.setAccessible(true);
+					fieldObject = f.get(func);
+				} catch (IllegalAccessException e) {
+					throw new RuntimeException(String.format("Can not access to the %s field in Class %s", f.getName(), func.getClass()));
+				}
+
+				/*
+				 * we should do a deep clean when we encounter an anonymous class, inner class and local class, but should
+				 * skip the class with custom serialize method.
+				 *
+				 * There are five kinds of classes (or interfaces):
+				 * a) Top level classes
+				 * b) Nested classes (static member classes)
+				 * c) Inner classes (non-static member classes)
+				 * d) Local classes (named classes declared within a method)
+				 * e) Anonymous classes
+				 */
+				if (level == ExecutionConfig.ClosureCleanerLevel.RECURSIVE && needsRecursion(f, fieldObject)) {
+					if (LOG.isDebugEnabled()) {
+						LOG.debug("Dig to clean the {}", fieldObject.getClass().getName());
+					}
+
+					clean(fieldObject, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true, visited);
+				}
 			}
 		}
 
@@ -99,6 +151,26 @@ public class ClosureCleaner {
 				throw new InvalidProgramException(msg, e);
 			}
 		}
+	}
+
+	private static boolean needsRecursion(Field f, Object fo) {
+		return (fo != null &&
+				!Modifier.isStatic(f.getModifiers()) &&
+				!Modifier.isTransient(f.getModifiers()));
+	}
+
+	private static boolean usesCustomSerialization(Class<?> cls) {
+		try {
+			cls.getDeclaredMethod("writeObject", ObjectOutputStream.class);
+			return true;
+		} catch (NoSuchMethodException ignored) {}
+
+		try {
+			cls.getDeclaredMethod("writeReplace");
+			return true;
+		} catch (NoSuchMethodException ignored) {}
+
+		return Externalizable.class.isAssignableFrom(cls);
 	}
 
 	public static void ensureSerializable(Object obj) {
@@ -176,7 +248,7 @@ class This0AccessFinder extends ClassVisitor {
 	private boolean isThis0Accessed;
 
 	public This0AccessFinder(String this0Name) {
-		super(Opcodes.ASM5);
+		super(Opcodes.ASM6);
 		this.this0Name = this0Name;
 	}
 
@@ -186,7 +258,7 @@ class This0AccessFinder extends ClassVisitor {
 
 	@Override
 	public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] exceptions) {
-		return new MethodVisitor(Opcodes.ASM5) {
+		return new MethodVisitor(Opcodes.ASM6) {
 
 			@Override
 			public void visitFieldInsn(int op, String owner, String name, String desc) {

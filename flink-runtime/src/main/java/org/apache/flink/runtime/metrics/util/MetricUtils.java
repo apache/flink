@@ -18,13 +18,21 @@
 
 package org.apache.flink.runtime.metrics.util;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.io.network.NetworkEnvironment;
+import org.apache.flink.runtime.clusterframework.BootstrapTools;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
-import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -41,9 +49,13 @@ import javax.management.ReflectionException;
 import java.lang.management.ClassLoadingMXBean;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryUsage;
 import java.lang.management.ThreadMXBean;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Supplier;
+
+import static org.apache.flink.runtime.metrics.util.SystemResourcesMetricsInitializer.instantiateSystemMetrics;
 
 /**
  * Utility class to register pre-defined metric sets.
@@ -51,13 +63,18 @@ import java.util.List;
 public class MetricUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(MetricUtils.class);
 	private static final String METRIC_GROUP_STATUS_NAME = "Status";
+	private static final String METRICS_ACTOR_SYSTEM_NAME = "flink-metrics";
+
+	static final String METRIC_GROUP_HEAP_NAME = "Heap";
+	static final String METRIC_GROUP_NONHEAP_NAME = "NonHeap";
 
 	private MetricUtils() {
 	}
 
 	public static JobManagerMetricGroup instantiateJobManagerMetricGroup(
 			final MetricRegistry metricRegistry,
-			final String hostname) {
+			final String hostname,
+			final Optional<Time> systemResourceProbeInterval) {
 		final JobManagerMetricGroup jobManagerMetricGroup = new JobManagerMetricGroup(
 			metricRegistry,
 			hostname);
@@ -67,28 +84,31 @@ public class MetricUtils {
 		// initialize the JM metrics
 		instantiateStatusMetrics(statusGroup);
 
+		if (systemResourceProbeInterval.isPresent()) {
+			instantiateSystemMetrics(jobManagerMetricGroup, systemResourceProbeInterval.get());
+		}
 		return jobManagerMetricGroup;
 	}
 
-	public static TaskManagerMetricGroup instantiateTaskManagerMetricGroup(
+	public static Tuple2<TaskManagerMetricGroup, MetricGroup> instantiateTaskManagerMetricGroup(
 			MetricRegistry metricRegistry,
-			TaskManagerLocation taskManagerLocation,
-			NetworkEnvironment network) {
+			String hostName,
+			ResourceID resourceID,
+			Optional<Time> systemResourceProbeInterval) {
 		final TaskManagerMetricGroup taskManagerMetricGroup = new TaskManagerMetricGroup(
 			metricRegistry,
-			taskManagerLocation.getHostname(),
-			taskManagerLocation.getResourceID().toString());
+			hostName,
+			resourceID.toString());
 
 		MetricGroup statusGroup = taskManagerMetricGroup.addGroup(METRIC_GROUP_STATUS_NAME);
 
 		// Initialize the TM metrics
 		instantiateStatusMetrics(statusGroup);
 
-		MetricGroup networkGroup = statusGroup
-			.addGroup("Network");
-		instantiateNetworkMetrics(networkGroup, network);
-
-		return taskManagerMetricGroup;
+		if (systemResourceProbeInterval.isPresent()) {
+			instantiateSystemMetrics(taskManagerMetricGroup, systemResourceProbeInterval.get());
+		}
+		return Tuple2.of(taskManagerMetricGroup, statusGroup);
 	}
 
 	public static void instantiateStatusMetrics(
@@ -102,40 +122,22 @@ public class MetricUtils {
 		instantiateCPUMetrics(jvm.addGroup("CPU"));
 	}
 
-	private static void instantiateNetworkMetrics(
-		MetricGroup metrics,
-		final NetworkEnvironment network) {
-		metrics.<Long, Gauge<Long>>gauge("TotalMemorySegments", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return (long) network.getNetworkBufferPool().getTotalNumberOfMemorySegments();
-			}
-		});
+	public static RpcService startMetricsRpcService(Configuration configuration, String hostname) throws Exception {
+		final String portRange = configuration.getString(MetricOptions.QUERY_SERVICE_PORT);
+		final int threadPriority = configuration.getInteger(MetricOptions.QUERY_SERVICE_THREAD_PRIORITY);
 
-		metrics.<Long, Gauge<Long>>gauge("AvailableMemorySegments", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return (long) network.getNetworkBufferPool().getNumberOfAvailableMemorySegments();
-			}
-		});
+		return AkkaRpcServiceUtils.createRpcService(
+			hostname,
+			portRange,
+			configuration,
+			METRICS_ACTOR_SYSTEM_NAME,
+			new BootstrapTools.FixedThreadPoolExecutorConfiguration(1, 1, threadPriority));
 	}
 
 	private static void instantiateClassLoaderMetrics(MetricGroup metrics) {
 		final ClassLoadingMXBean mxBean = ManagementFactory.getClassLoadingMXBean();
-
-		metrics.<Long, Gauge<Long>>gauge("ClassesLoaded", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getTotalLoadedClassCount();
-			}
-		});
-
-		metrics.<Long, Gauge<Long>>gauge("ClassesUnloaded", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getUnloadedClassCount();
-			}
-		});
+		metrics.<Long, Gauge<Long>>gauge("ClassesLoaded", mxBean::getTotalLoadedClassCount);
+		metrics.<Long, Gauge<Long>>gauge("ClassesUnloaded", mxBean::getUnloadedClassCount);
 	}
 
 	private static void instantiateGarbageCollectorMetrics(MetricGroup metrics) {
@@ -144,66 +146,14 @@ public class MetricUtils {
 		for (final GarbageCollectorMXBean garbageCollector: garbageCollectors) {
 			MetricGroup gcGroup = metrics.addGroup(garbageCollector.getName());
 
-			gcGroup.<Long, Gauge<Long>>gauge("Count", new Gauge<Long> () {
-				@Override
-				public Long getValue() {
-					return garbageCollector.getCollectionCount();
-				}
-			});
-
-			gcGroup.<Long, Gauge<Long>>gauge("Time", new Gauge<Long> () {
-				@Override
-				public Long getValue() {
-					return garbageCollector.getCollectionTime();
-				}
-			});
+			gcGroup.<Long, Gauge<Long>>gauge("Count", garbageCollector::getCollectionCount);
+			gcGroup.<Long, Gauge<Long>>gauge("Time", garbageCollector::getCollectionTime);
 		}
 	}
 
 	private static void instantiateMemoryMetrics(MetricGroup metrics) {
-		final MemoryMXBean mxBean = ManagementFactory.getMemoryMXBean();
-
-		MetricGroup heap = metrics.addGroup("Heap");
-
-		heap.<Long, Gauge<Long>>gauge("Used", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getHeapMemoryUsage().getUsed();
-			}
-		});
-		heap.<Long, Gauge<Long>>gauge("Committed", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getHeapMemoryUsage().getCommitted();
-			}
-		});
-		heap.<Long, Gauge<Long>>gauge("Max", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getHeapMemoryUsage().getMax();
-			}
-		});
-
-		MetricGroup nonHeap = metrics.addGroup("NonHeap");
-
-		nonHeap.<Long, Gauge<Long>>gauge("Used", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getNonHeapMemoryUsage().getUsed();
-			}
-		});
-		nonHeap.<Long, Gauge<Long>>gauge("Committed", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getNonHeapMemoryUsage().getCommitted();
-			}
-		});
-		nonHeap.<Long, Gauge<Long>>gauge("Max", new Gauge<Long> () {
-			@Override
-			public Long getValue() {
-				return mxBean.getNonHeapMemoryUsage().getMax();
-			}
-		});
+		instantiateHeapMemoryMetrics(metrics.addGroup(METRIC_GROUP_HEAP_NAME));
+		instantiateNonHeapMemoryMetrics(metrics.addGroup(METRIC_GROUP_NONHEAP_NAME));
 
 		final MBeanServer con = ManagementFactory.getPlatformMBeanServer();
 
@@ -236,33 +186,34 @@ public class MetricUtils {
 		}
 	}
 
+	@VisibleForTesting
+	static void instantiateHeapMemoryMetrics(final MetricGroup metricGroup) {
+		instantiateMemoryUsageMetrics(metricGroup, () -> ManagementFactory.getMemoryMXBean().getHeapMemoryUsage());
+	}
+
+	@VisibleForTesting
+	static void instantiateNonHeapMemoryMetrics(final MetricGroup metricGroup) {
+		instantiateMemoryUsageMetrics(metricGroup, () -> ManagementFactory.getMemoryMXBean().getNonHeapMemoryUsage());
+	}
+
+	private static void instantiateMemoryUsageMetrics(final MetricGroup metricGroup, final Supplier<MemoryUsage> memoryUsageSupplier) {
+		metricGroup.<Long, Gauge<Long>>gauge(MetricNames.MEMORY_USED, () -> memoryUsageSupplier.get().getUsed());
+		metricGroup.<Long, Gauge<Long>>gauge(MetricNames.MEMORY_COMMITTED, () -> memoryUsageSupplier.get().getCommitted());
+		metricGroup.<Long, Gauge<Long>>gauge(MetricNames.MEMORY_MAX, () -> memoryUsageSupplier.get().getMax());
+	}
+
 	private static void instantiateThreadMetrics(MetricGroup metrics) {
 		final ThreadMXBean mxBean = ManagementFactory.getThreadMXBean();
 
-		metrics.<Integer, Gauge<Integer>>gauge("Count", new Gauge<Integer> () {
-			@Override
-			public Integer getValue() {
-				return mxBean.getThreadCount();
-			}
-		});
+		metrics.<Integer, Gauge<Integer>>gauge("Count", mxBean::getThreadCount);
 	}
 
 	private static void instantiateCPUMetrics(MetricGroup metrics) {
 		try {
 			final com.sun.management.OperatingSystemMXBean mxBean = (com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
 
-			metrics.<Double, Gauge<Double>>gauge("Load", new Gauge<Double> () {
-				@Override
-				public Double getValue() {
-					return mxBean.getProcessCpuLoad();
-				}
-			});
-			metrics.<Long, Gauge<Long>>gauge("Time", new Gauge<Long> () {
-				@Override
-				public Long getValue() {
-					return mxBean.getProcessCpuTime();
-				}
-			});
+			metrics.<Double, Gauge<Double>>gauge("Load", mxBean::getProcessCpuLoad);
+			metrics.<Long, Gauge<Long>>gauge("Time", mxBean::getProcessCpuTime);
 		} catch (Exception e) {
 			LOG.warn("Cannot access com.sun.management.OperatingSystemMXBean.getProcessCpuLoad()" +
 				" - CPU load metrics will not be available.", e);

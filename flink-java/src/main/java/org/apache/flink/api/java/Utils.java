@@ -31,12 +31,13 @@ import org.apache.flink.configuration.Configuration;
 
 import org.apache.commons.lang3.StringUtils;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.Optional;
 import java.util.Random;
-
-import static org.apache.flink.api.java.functions.FunctionAnnotation.SkipCodeAnalysis;
 
 /**
  * Utility class that contains helper methods to work with Java APIs.
@@ -71,7 +72,6 @@ public final class Utils {
 	 *
 	 * @param <T> Type of elements to count.
 	 */
-	@SkipCodeAnalysis
 	public static class CountHelper<T> extends RichOutputFormat<T> {
 
 		private static final long serialVersionUID = 1L;
@@ -108,7 +108,6 @@ public final class Utils {
 	 *
 	 * @param <T> Type of elements to count.
 	 */
-	@SkipCodeAnalysis
 	public static class CollectHelper<T> extends RichOutputFormat<T> {
 
 		private static final long serialVersionUID = 1L;
@@ -220,7 +219,6 @@ public final class Utils {
 	 * {@link RichOutputFormat} for {@link ChecksumHashCode}.
 	 * @param <T>
 	 */
-	@SkipCodeAnalysis
 	public static class ChecksumHashCodeHelper<T> extends RichOutputFormat<T> {
 
 		private static final long serialVersionUID = 1L;
@@ -299,6 +297,24 @@ public final class Utils {
 			}
 		}
 		return ret;
+	}
+
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Resolves the given factories. The thread local factory has preference over the static factory.
+	 * If none is set, the method returns {@link Optional#empty()}.
+	 *
+	 * @param threadLocalFactory containing the thread local factory
+	 * @param staticFactory containing the global factory
+	 * @param <T> type of factory
+	 * @return Optional containing the resolved factory if it exists, otherwise it's empty
+	 */
+	public static <T> Optional<T> resolveFactory(ThreadLocal<T> threadLocalFactory, @Nullable T staticFactory) {
+		final T localFactory = threadLocalFactory.get();
+		final T factory = localFactory == null ? staticFactory : localFactory;
+
+		return Optional.ofNullable(factory);
 	}
 
 	/**

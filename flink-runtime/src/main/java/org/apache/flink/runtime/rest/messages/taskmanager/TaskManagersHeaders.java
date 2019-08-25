@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.rest.messages.taskmanager;
 
 import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.rest.handler.legacy.TaskManagersHandler;
+import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagersHandler;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
@@ -69,5 +69,10 @@ public class TaskManagersHeaders implements MessageHeaders<EmptyRequestBody, Tas
 
 	public static TaskManagersHeaders getInstance() {
 		return INSTANCE;
+	}
+
+	@Override
+	public String getDescription() {
+		return "Returns an overview over all task managers.";
 	}
 }

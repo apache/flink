@@ -166,7 +166,7 @@ public class ReOpenableMutableHashTable<BT, PT> extends MutableHashTable<BT, PT>
 	
 	@Override
 	protected void releaseTable() {
-		if(furtherPartitioning | this.currentRecursionDepth > 0) {
+		if(furtherPartitioning || this.currentRecursionDepth > 0) {
 			super.releaseTable();
 		}
 	}

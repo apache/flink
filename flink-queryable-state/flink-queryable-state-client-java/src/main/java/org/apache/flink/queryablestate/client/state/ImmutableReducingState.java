@@ -18,9 +18,10 @@
 
 package org.apache.flink.queryablestate.client.state;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.util.Preconditions;
 
@@ -33,7 +34,6 @@ import java.io.IOException;
  * {@link org.apache.flink.queryablestate.client.QueryableStateClient Queryable State Client} and
  * providing an {@link ReducingStateDescriptor}.
  */
-@PublicEvolving
 public final class ImmutableReducingState<V> extends ImmutableState implements ReducingState<V> {
 
 	private final V value;
@@ -57,13 +57,13 @@ public final class ImmutableReducingState<V> extends ImmutableState implements R
 		throw MODIFICATION_ATTEMPT_ERROR;
 	}
 
-	public static <V> ImmutableReducingState<V> createState(
-			final ReducingStateDescriptor<V> stateDescriptor,
-			final byte[] serializedState) throws IOException {
-
+	@SuppressWarnings("unchecked")
+	public static <V, S extends State> S createState(
+		StateDescriptor<S, V> stateDescriptor,
+		byte[] serializedState) throws IOException {
 		final V state = KvStateSerializer.deserializeValue(
-				serializedState,
-				stateDescriptor.getSerializer());
-		return new ImmutableReducingState<>(state);
+			serializedState,
+			stateDescriptor.getSerializer());
+		return (S) new ImmutableReducingState<>(state);
 	}
 }

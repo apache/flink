@@ -18,39 +18,12 @@
 
 package org.apache.flink.runtime.heartbeat;
 
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.util.Preconditions;
-
-import org.slf4j.Logger;
-
 /**
- * A {@link HeartbeatServices} that allows the injection of a {@link ScheduledExecutor}.
+ * A {@link HeartbeatServices} implementation for testing purposes.
  */
 public class TestingHeartbeatServices extends HeartbeatServices {
 
-	private final ScheduledExecutor scheduledExecutorToUse;
-
-	public TestingHeartbeatServices(long heartbeatInterval, long heartbeatTimeout, ScheduledExecutor scheduledExecutorToUse) {
-		super(heartbeatInterval, heartbeatTimeout);
-
-		this.scheduledExecutorToUse = Preconditions.checkNotNull(scheduledExecutorToUse);
-	}
-
-	@Override
-	public <I, O> HeartbeatManager<I, O> createHeartbeatManagerSender(
-		ResourceID resourceId,
-		HeartbeatListener<I, O> heartbeatListener,
-		ScheduledExecutor scheduledExecutor,
-		Logger log) {
-
-		return new HeartbeatManagerSenderImpl<>(
-			heartbeatInterval,
-			heartbeatTimeout,
-			resourceId,
-			heartbeatListener,
-			org.apache.flink.runtime.concurrent.Executors.directExecutor(),
-			scheduledExecutorToUse,
-			log);
+	public TestingHeartbeatServices() {
+		super(1000L, 10000L);
 	}
 }

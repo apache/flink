@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.rest.handler.legacy;
 
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.runtime.rest.handler.router.RoutedRequest;
+import org.apache.flink.runtime.rest.handler.util.KeepAliveWrite;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.Unpooled;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
@@ -29,14 +31,12 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpHeaders;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponse;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpVersion;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.KeepAliveWrite;
-import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.router.Routed;
 
 /**
  * Responder that returns a constant String.
  */
 @ChannelHandler.Sharable
-public class ConstantTextHandler extends SimpleChannelInboundHandler<Routed> {
+public class ConstantTextHandler extends SimpleChannelInboundHandler<RoutedRequest> {
 
 	private final byte[] encodedText;
 
@@ -45,13 +45,13 @@ public class ConstantTextHandler extends SimpleChannelInboundHandler<Routed> {
 	}
 
 	@Override
-	protected void channelRead0(ChannelHandlerContext ctx, Routed routed) throws Exception {
+	protected void channelRead0(ChannelHandlerContext ctx, RoutedRequest routed) throws Exception {
 		HttpResponse response = new DefaultFullHttpResponse(
 			HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.wrappedBuffer(encodedText));
 
 		response.headers().set(HttpHeaders.Names.CONTENT_LENGTH, encodedText.length);
 		response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain");
 
-		KeepAliveWrite.flush(ctx, routed.request(), response);
+		KeepAliveWrite.flush(ctx, routed.getRequest(), response);
 	}
 }

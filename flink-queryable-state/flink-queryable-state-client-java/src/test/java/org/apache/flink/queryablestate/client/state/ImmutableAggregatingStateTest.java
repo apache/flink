@@ -20,6 +20,7 @@ package org.apache.flink.queryablestate.client.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.AggregateFunction;
+import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
@@ -41,7 +42,7 @@ public class ImmutableAggregatingStateTest {
 					new SumAggr(),
 					String.class);
 
-	private ImmutableAggregatingState<Long, String> aggrState;
+	private AggregatingState<Long, String> aggrState;
 
 	@Before
 	public void setUp() throws Exception {
@@ -61,7 +62,7 @@ public class ImmutableAggregatingStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testUpdate() {
+	public void testUpdate() throws Exception {
 		String value = aggrState.get();
 		assertEquals("42", value);
 
@@ -69,7 +70,7 @@ public class ImmutableAggregatingStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testClear() {
+	public void testClear() throws Exception {
 		String value = aggrState.get();
 		assertEquals("42", value);
 

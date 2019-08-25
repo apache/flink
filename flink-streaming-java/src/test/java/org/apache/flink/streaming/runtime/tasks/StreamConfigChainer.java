@@ -61,6 +61,14 @@ public class StreamConfigChainer {
 	}
 
 	public <T> StreamConfigChainer chain(
+		OperatorID operatorID,
+		OneInputStreamOperator<T, T> operator,
+		TypeSerializer<T> typeSerializer,
+		boolean createKeyedStateBackend) {
+		return chain(operatorID, operator, typeSerializer, typeSerializer, createKeyedStateBackend);
+	}
+
+	public <T> StreamConfigChainer chain(
 			OperatorID operatorID,
 			OneInputStreamOperator<T, T> operator,
 			TypeSerializer<T> typeSerializer) {
@@ -68,16 +76,25 @@ public class StreamConfigChainer {
 	}
 
 	public <IN, OUT> StreamConfigChainer chain(
+		OperatorID operatorID,
+		OneInputStreamOperator<IN, OUT> operator,
+		TypeSerializer<IN> inputSerializer,
+		TypeSerializer<OUT> outputSerializer) {
+		return chain(operatorID, operator, inputSerializer, outputSerializer, false);
+	}
+
+	public <IN, OUT> StreamConfigChainer chain(
 			OperatorID operatorID,
 			OneInputStreamOperator<IN, OUT> operator,
 			TypeSerializer<IN> inputSerializer,
-			TypeSerializer<OUT> outputSerializer) {
+			TypeSerializer<OUT> outputSerializer,
+			boolean createKeyedStateBackend) {
 		chainIndex++;
 
 		tailConfig.setChainedOutputs(Collections.singletonList(
 			new StreamEdge(
-				new StreamNode(null, tailConfig.getChainIndex(), null, null, null, null, null),
-				new StreamNode(null, chainIndex, null, null, null, null, null),
+				new StreamNode(tailConfig.getChainIndex(), null, null, (StreamOperator<?>) null, null, null, null),
+				new StreamNode(chainIndex, null, null, (StreamOperator<?>) null, null, null, null),
 				0,
 				Collections.<String>emptyList(),
 				null,
@@ -87,6 +104,10 @@ public class StreamConfigChainer {
 		tailConfig.setOperatorID(checkNotNull(operatorID));
 		tailConfig.setTypeSerializerIn1(inputSerializer);
 		tailConfig.setTypeSerializerOut(outputSerializer);
+		if (createKeyedStateBackend) {
+			// used to test multiple stateful operators chained in a single task.
+			tailConfig.setStateKeySerializer(inputSerializer);
+		}
 		tailConfig.setChainIndex(chainIndex);
 
 		chainedConfigs.put(chainIndex, tailConfig);
@@ -99,8 +120,8 @@ public class StreamConfigChainer {
 		List<StreamEdge> outEdgesInOrder = new LinkedList<StreamEdge>();
 		outEdgesInOrder.add(
 			new StreamEdge(
-				new StreamNode(null, chainIndex, null, null, null, null, null),
-				new StreamNode(null, chainIndex , null, null, null, null, null),
+				new StreamNode(chainIndex, null, null, (StreamOperator<?>) null, null, null, null),
+				new StreamNode(chainIndex , null, null, (StreamOperator<?>) null, null, null, null),
 				0,
 				Collections.<String>emptyList(),
 				new BroadcastPartitioner<Object>(),

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.descriptors;
 
+import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -59,7 +61,8 @@ public class KafkaTest extends DescriptorTestBase {
 				.version("0.11")
 				.topic("MyTable")
 				.startFromSpecificOffsets(offsets)
-				.properties(properties);
+				.properties(properties)
+				.sinkPartitionerCustom(FlinkFixedPartitioner.class);
 
 		return Arrays.asList(earliestDesc, specificOffsetsDesc, specificOffsetsMapDesc);
 	}
@@ -102,6 +105,8 @@ public class KafkaTest extends DescriptorTestBase {
 		props3.put("connector.properties.0.value", "12");
 		props3.put("connector.properties.1.key", "kafka.stuff");
 		props3.put("connector.properties.1.value", "42");
+		props3.put("connector.sink-partitioner", "custom");
+		props3.put("connector.sink-partitioner-class", FlinkFixedPartitioner.class.getName());
 
 		return Arrays.asList(props1, props2, props3);
 	}

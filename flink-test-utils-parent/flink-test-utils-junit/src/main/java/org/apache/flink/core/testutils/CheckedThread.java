@@ -97,8 +97,19 @@ public abstract class CheckedThread extends Thread {
 	 * exceptions thrown from the {@link #go()} method.
 	 */
 	public void sync(long timeout) throws Exception {
-		join(timeout);
+		trySync(timeout);
 		checkFinished();
+	}
+
+	/**
+	 * Waits with timeout until the thread is completed and checks whether any error
+	 * occurred during the execution.
+	 *
+	 * <p>This method blocks like {@link #join()}, but performs an additional check for
+	 * exceptions thrown from the {@link #go()} method.
+	 */
+	public void trySync(long timeout) throws Exception {
+		join(timeout);
 		checkError();
 	}
 

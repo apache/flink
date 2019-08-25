@@ -30,12 +30,14 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.restart.NoRestartStrategy;
+import org.apache.flink.runtime.io.network.partition.NoOpPartitionTracker;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.util.TestLogger;
@@ -625,7 +627,7 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 		final Configuration jobManagerConfig = new Configuration();
 		jobManagerConfig.setString(
 				JobManagerOptions.EXECUTION_FAILOVER_STRATEGY,
-				FailoverStrategyLoader.PIPELINED_REGION_RESTART_STRATEGY_NAME);
+				FailoverStrategyLoader.LEGACY_PIPELINED_REGION_RESTART_STRATEGY_NAME);
 
 		final Time timeout = Time.seconds(10L);
 		return ExecutionGraphBuilder.buildGraph(
@@ -640,9 +642,10 @@ public class PipelinedFailoverRegionBuildingTest extends TestLogger {
 			timeout,
 			new NoRestartStrategy(),
 			new UnregisteredMetricsGroup(),
-			1000,
 			VoidBlobWriter.getInstance(),
 			timeout,
-			log);
+			log,
+			NettyShuffleMaster.INSTANCE,
+			NoOpPartitionTracker.INSTANCE);
 	}
 }

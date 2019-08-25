@@ -17,20 +17,22 @@
 # limitations under the License.
 ################################################################################
 
+set -Eeuo pipefail
+
 source "$(dirname "$0")"/common.sh
 
-TEST_PROGRAM_JAR=$TEST_INFRA_DIR/../../flink-end-to-end-tests/flink-dataset-allround-test/target/DataSetAllroundTestProgram.jar
+TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-dataset-allround-test/target/DataSetAllroundTestProgram.jar
 
 echo "Run DataSet-Allround-Test Program"
 
+# modify configuration to include spilling to disk
+set_config_key "taskmanager.network.memory.min" "10485760"
+set_config_key "taskmanager.network.memory.max" "10485760"
+
+set_conf_ssl "server"
 start_cluster
-$FLINK_DIR/bin/taskmanager.sh start
-$FLINK_DIR/bin/taskmanager.sh start
-$FLINK_DIR/bin/taskmanager.sh start
+start_taskmanagers 3
 
-$FLINK_DIR/bin/flink run -p 4 $TEST_PROGRAM_JAR --loadFactor 2 --outputPath $TEST_DATA_DIR/out/dataset_allround
-
-stop_cluster
-$FLINK_DIR/bin/taskmanager.sh stop-all
+$FLINK_DIR/bin/flink run -p 4 $TEST_PROGRAM_JAR --loadFactor 4 --outputPath $TEST_DATA_DIR/out/dataset_allround
 
 check_result_hash "DataSet-Allround-Test" $TEST_DATA_DIR/out/dataset_allround "d3cf2aeaa9320c772304cba42649eb47"

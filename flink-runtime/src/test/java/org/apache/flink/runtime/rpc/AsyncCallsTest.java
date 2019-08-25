@@ -24,8 +24,8 @@ import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
+import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -33,7 +33,6 @@ import akka.actor.ActorSystem;
 import akka.actor.Terminated;
 import org.junit.AfterClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import java.util.Arrays;
 import java.util.UUID;
@@ -52,7 +51,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-@Category(New.class)
 public class AsyncCallsTest extends TestLogger {
 
 	// ------------------------------------------------------------------------
@@ -64,7 +62,7 @@ public class AsyncCallsTest extends TestLogger {
 	private static final Time timeout = Time.seconds(10L);
 
 	private static final AkkaRpcService akkaRpcService =
-			new AkkaRpcService(actorSystem, Time.milliseconds(10000L));
+			new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
 
 	@AfterClass
 	public static void shutdown() throws InterruptedException, ExecutionException, TimeoutException {
@@ -83,88 +81,99 @@ public class AsyncCallsTest extends TestLogger {
 
 	@Test
 	public void testScheduleWithNoDelay() throws Exception {
+		runScheduleWithNoDelayTest(TestEndpoint::new);
+	}
 
+	@Test
+	public void testFencedScheduleWithNoDelay() throws Exception {
+		runScheduleWithNoDelayTest(FencedTestEndpoint::new);
+	}
+
+	private void runScheduleWithNoDelayTest(RpcEndpointFactory factory) throws Exception {
 		// to collect all the thread references
 		final ReentrantLock lock = new ReentrantLock();
 		final AtomicBoolean concurrentAccess = new AtomicBoolean(false);
 
-		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService, lock);
-		testEndpoint.start();
-		TestGateway gateway = testEndpoint.getSelfGateway(TestGateway.class);
+		RpcEndpoint rpcEndpoint = factory.create(akkaRpcService, lock, concurrentAccess);
+		rpcEndpoint.start();
 
-		// a bunch of gateway calls
-		gateway.someCall();
-		gateway.anotherCall();
-		gateway.someCall();
+		try {
+			TestGateway gateway = rpcEndpoint.getSelfGateway(TestGateway.class);
 
-		// run something asynchronously
-		for (int i = 0; i < 10000; i++) {
-			testEndpoint.runAsync(new Runnable() {
-				@Override
-				public void run() {
+			// a bunch of gateway calls
+			gateway.someCall();
+			gateway.anotherCall();
+			gateway.someCall();
+
+			// run something asynchronously
+			for (int i = 0; i < 10000; i++) {
+				rpcEndpoint.runAsync(() -> {
 					boolean holdsLock = lock.tryLock();
 					if (holdsLock) {
 						lock.unlock();
 					} else {
 						concurrentAccess.set(true);
 					}
-				}
-			});
+				});
+			}
+
+			CompletableFuture<String> result = rpcEndpoint.callAsync(
+				() -> {
+					boolean holdsLock = lock.tryLock();
+					if (holdsLock) {
+						lock.unlock();
+					} else {
+						concurrentAccess.set(true);
+					}
+					return "test";
+				},
+				Time.seconds(30L));
+
+			String str = result.get(30, TimeUnit.SECONDS);
+			assertEquals("test", str);
+
+			// validate that no concurrent access happened
+			assertFalse("Rpc Endpoint had concurrent access", concurrentAccess.get());
+		} finally {
+			RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
 		}
-	
-		CompletableFuture<String> result = testEndpoint.callAsync(
-			() -> {
-				boolean holdsLock = lock.tryLock();
-				if (holdsLock) {
-					lock.unlock();
-				} else {
-					concurrentAccess.set(true);
-				}
-				return "test";
-			},
-			Time.seconds(30L));
-
-		String str = result.get(30, TimeUnit.SECONDS);
-		assertEquals("test", str);
-
-		// validate that no concurrent access happened
-		assertFalse("Rpc Endpoint had concurrent access", testEndpoint.hasConcurrentAccess());
-		assertFalse("Rpc Endpoint had concurrent access", concurrentAccess.get());
-
-		testEndpoint.shutDown();
 	}
 
 	@Test
 	public void testScheduleWithDelay() throws Exception {
+		runScheduleWithDelayTest(TestEndpoint::new);
+	}
 
+	@Test
+	public void testFencedScheduleWithDelay() throws Exception {
+		runScheduleWithDelayTest(FencedTestEndpoint::new);
+	}
+
+	private void runScheduleWithDelayTest(RpcEndpointFactory factory) throws Exception {
 		// to collect all the thread references
 		final ReentrantLock lock = new ReentrantLock();
 		final AtomicBoolean concurrentAccess = new AtomicBoolean(false);
 		final OneShotLatch latch = new OneShotLatch();
 
-		final long delay = 100;
+		final long delay = 10L;
 
-		TestEndpoint testEndpoint = new TestEndpoint(akkaRpcService, lock);
-		testEndpoint.start();
+		RpcEndpoint rpcEndpoint = factory.create(akkaRpcService, lock, concurrentAccess);
+		rpcEndpoint.start();
 
-		// run something asynchronously
-		testEndpoint.runAsync(new Runnable() {
-			@Override
-			public void run() {
+		try {
+			// run something asynchronously
+			rpcEndpoint.runAsync(() -> {
 				boolean holdsLock = lock.tryLock();
 				if (holdsLock) {
 					lock.unlock();
 				} else {
 					concurrentAccess.set(true);
 				}
-			}
-		});
+			});
 
-		final long start = System.nanoTime();
+			final long start = System.nanoTime();
 
-		testEndpoint.scheduleRunAsync(new Runnable() {
-			@Override
-			public void run() {
+			rpcEndpoint.scheduleRunAsync(() -> {
 				boolean holdsLock = lock.tryLock();
 				if (holdsLock) {
 					lock.unlock();
@@ -172,17 +181,23 @@ public class AsyncCallsTest extends TestLogger {
 					concurrentAccess.set(true);
 				}
 				latch.trigger();
-			}
-		}, delay, TimeUnit.MILLISECONDS);
+			}, delay, TimeUnit.MILLISECONDS);
 
-		latch.await();
-		final long stop = System.nanoTime();
+			latch.await();
+			final long stop = System.nanoTime();
 
-		// validate that no concurrent access happened
-		assertFalse("Rpc Endpoint had concurrent access", testEndpoint.hasConcurrentAccess());
-		assertFalse("Rpc Endpoint had concurrent access", concurrentAccess.get());
+			// validate that no concurrent access happened
+			assertFalse("Rpc Endpoint had concurrent access", concurrentAccess.get());
 
-		assertTrue("call was not properly delayed", ((stop - start) / 1_000_000) >= delay);
+			assertTrue("call was not properly delayed", ((stop - start) / 1_000_000) >= delay);
+		} finally {
+			RpcUtils.terminateRpcEndpoint(rpcEndpoint, timeout);
+		}
+	}
+
+	@FunctionalInterface
+	private interface RpcEndpointFactory {
+		RpcEndpoint create(RpcService rpcService, ReentrantLock lock, AtomicBoolean concurrentAccess);
 	}
 
 	/**
@@ -305,8 +320,7 @@ public class AsyncCallsTest extends TestLogger {
 
 			return result;
 		} finally {
-			fencedTestEndpoint.shutDown();
-			fencedTestEndpoint.getTerminationFuture().get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+			RpcUtils.terminateRpcEndpoint(fencedTestEndpoint, timeout);
 		}
 	}
 
@@ -321,16 +335,16 @@ public class AsyncCallsTest extends TestLogger {
 		void anotherCall();
 	}
 
-	@SuppressWarnings("unused")
-	public static class TestEndpoint extends RpcEndpoint implements TestGateway {
+	private static class TestEndpoint extends RpcEndpoint implements TestGateway {
 
 		private final ReentrantLock lock;
 
-		private volatile boolean concurrentAccess;
+		private final AtomicBoolean concurrentAccess;
 
-		public TestEndpoint(RpcService rpcService, ReentrantLock lock) {
+		TestEndpoint(RpcService rpcService, ReentrantLock lock, AtomicBoolean concurrentAccess) {
 			super(rpcService);
 			this.lock = lock;
+			this.concurrentAccess = concurrentAccess;
 		}
 
 		@Override
@@ -339,7 +353,7 @@ public class AsyncCallsTest extends TestLogger {
 			if (holdsLock) {
 				lock.unlock();
 			} else {
-				concurrentAccess = true;
+				concurrentAccess.set(true);
 			}
 		}
 
@@ -349,35 +363,61 @@ public class AsyncCallsTest extends TestLogger {
 			if (holdsLock) {
 				lock.unlock();
 			} else {
-				concurrentAccess = true;
+				concurrentAccess.set(true);
 			}
-		}
-
-		public boolean hasConcurrentAccess() {
-			return concurrentAccess;
-		}
-
-		@Override
-		public CompletableFuture<Void> postStop() {
-			return CompletableFuture.completedFuture(null);
 		}
 	}
 
-	public interface FencedTestGateway extends FencedRpcGateway<UUID> {
+	public interface FencedTestGateway extends FencedRpcGateway<UUID>, TestGateway {
 		CompletableFuture<Acknowledge> setNewFencingToken(UUID fencingToken, @RpcTimeout Time timeout);
 	}
 
 	public static class FencedTestEndpoint extends FencedRpcEndpoint<UUID> implements FencedTestGateway {
+
+		private final ReentrantLock lock;
+		private final AtomicBoolean concurrentAccess;
 
 		private final OneShotLatch enteringSetNewFencingToken;
 		private final OneShotLatch triggerSetNewFencingToken;
 
 		protected FencedTestEndpoint(
 				RpcService rpcService,
+				ReentrantLock lock,
+				AtomicBoolean concurrentAccess) {
+			this(
+				rpcService,
+				lock,
+				concurrentAccess,
+				UUID.randomUUID(),
+				new OneShotLatch(),
+				new OneShotLatch());
+		}
+
+		protected FencedTestEndpoint(
+				RpcService rpcService,
+				UUID initialFencingToken,
+				OneShotLatch enteringSetNewFencingToken,
+				OneShotLatch triggerSetNewFencingToken) {
+			this(
+				rpcService,
+				new ReentrantLock(),
+				new AtomicBoolean(false),
+				initialFencingToken,
+				enteringSetNewFencingToken,
+				triggerSetNewFencingToken);
+		}
+
+		private FencedTestEndpoint(
+				RpcService rpcService,
+				ReentrantLock lock,
+				AtomicBoolean concurrentAccess,
 				UUID initialFencingToken,
 				OneShotLatch enteringSetNewFencingToken,
 				OneShotLatch triggerSetNewFencingToken) {
 			super(rpcService);
+
+			this.lock = lock;
+			this.concurrentAccess = concurrentAccess;
 
 			this.enteringSetNewFencingToken = enteringSetNewFencingToken;
 			this.triggerSetNewFencingToken = triggerSetNewFencingToken;
@@ -407,8 +447,23 @@ public class AsyncCallsTest extends TestLogger {
 		}
 
 		@Override
-		public CompletableFuture<Void> postStop() {
-			return CompletableFuture.completedFuture(null);
+		public void someCall() {
+			boolean holdsLock = lock.tryLock();
+			if (holdsLock) {
+				lock.unlock();
+			} else {
+				concurrentAccess.set(true);
+			}
+		}
+
+		@Override
+		public void anotherCall() {
+			boolean holdsLock = lock.tryLock();
+			if (holdsLock) {
+				lock.unlock();
+			} else {
+				concurrentAccess.set(true);
+			}
 		}
 	}
 }

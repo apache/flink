@@ -21,14 +21,16 @@ package org.apache.flink.test.streaming.runtime;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
-import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.MultiShotLatch;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.client.JobStatusMessage;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -45,7 +47,8 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.test.util.MiniClusterResource;
+import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -77,16 +80,16 @@ public class TimestampITCase extends TestLogger {
 	static MultiShotLatch latch;
 
 	@ClassRule
-	public static final MiniClusterResource CLUSTER = new MiniClusterResource(
-		new MiniClusterResource.MiniClusterResourceConfiguration(
-			getConfiguration(),
-			NUM_TASK_MANAGERS,
-			NUM_TASK_SLOTS),
-		true);
+	public static final MiniClusterWithClientResource CLUSTER = new MiniClusterWithClientResource(
+		new MiniClusterResourceConfiguration.Builder()
+			.setConfiguration(getConfiguration())
+			.setNumberTaskManagers(NUM_TASK_MANAGERS)
+			.setNumberSlotsPerTaskManager(NUM_TASK_SLOTS)
+			.build());
 
 	private static Configuration getConfiguration() {
 		Configuration config = new Configuration();
-		config.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE, 12L);
+		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "12m");
 		return config;
 	}
 
@@ -193,15 +196,14 @@ public class TimestampITCase extends TestLogger {
 					// send stop until the job is stopped
 					do {
 						try {
-							clusterClient.stop(id);
+							clusterClient.stopWithSavepoint(id, false, "test");
 						}
 						catch (Exception e) {
-							if (e.getCause() instanceof IllegalStateException) {
-								// this means the job is not yet ready to be stopped,
-								// for example because it is still in CREATED state
-								// we ignore the exception
-							} else {
-								// other problem
+							boolean ignoreException = ExceptionUtils.findThrowable(e, CheckpointException.class)
+								.map(CheckpointException::getCheckpointFailureReason)
+								.map(reason -> reason == CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING)
+								.orElse(false);
+							if (!ignoreException) {
 								throw e;
 							}
 						}
@@ -797,7 +799,7 @@ public class TimestampITCase extends TestLogger {
 		public void cancel() {}
 	}
 
-	private static class MyTimestampSourceInfinite implements SourceFunction<Integer>, StoppableFunction {
+	private static class MyTimestampSourceInfinite implements SourceFunction<Integer> {
 
 		private final long initialTime;
 		private final int numWatermarks;
@@ -823,11 +825,6 @@ public class TimestampITCase extends TestLogger {
 
 		@Override
 		public void cancel() {
-			running = false;
-		}
-
-		@Override
-		public void stop() {
 			running = false;
 		}
 	}

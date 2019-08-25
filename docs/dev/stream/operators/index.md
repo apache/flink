@@ -100,9 +100,9 @@ dataStream.filter(new FilterFunction<Integer>() {
         <tr>
           <td><strong>KeyBy</strong><br>DataStream &rarr; KeyedStream</td>
           <td>
-            <p>Logically partitions a stream into disjoint partitions, each partition containing elements of the same key.
-            Internally, this is implemented with hash partitioning. See <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">keys</a> on how to specify keys.
-            This transformation returns a KeyedStream.</p>
+            <p>Logically partitions a stream into disjoint partitions. All records with the same key are assigned to the same partition. Internally, <em>keyBy()</em> is implemented with hash partitioning. There are different ways to <a href="{{ site.baseurl }}/dev/api_concepts.html#specifying-keys">specify keys</a>.</p>
+            <p>
+            This transformation returns a <em>KeyedStream</em>, which is, among other things, required to use <a href="{{ site.baseurl }}/dev/stream/state/state.html#keyed-state">keyed state</a>. </p>
     {% highlight java %}
 dataStream.keyBy("someKey") // Key by field "someKey"
 dataStream.keyBy(0) // Key by the first element of a Tuple
@@ -123,9 +123,9 @@ dataStream.keyBy(0) // Key by the first element of a Tuple
           <td>
             <p>A "rolling" reduce on a keyed data stream. Combines the current element with the last reduced value and
             emits the new value.
-                    <br/>
+              <br/>
             	<br/>
-            A reduce function that creates a stream of partial sums:</p>
+            <p>A reduce function that creates a stream of partial sums:</p>
             {% highlight java %}
 keyedStream.reduce(new ReduceFunction<Integer>() {
     @Override
@@ -310,6 +310,21 @@ dataStream.join(otherStream)
           </td>
         </tr>
         <tr>
+          <td><strong>Interval Join</strong><br>KeyedStream,KeyedStream &rarr; DataStream</td>
+          <td>
+            <p>Join two elements e1 and e2 of two keyed streams with a common key over a given time interval, so that e1.timestamp + lowerBound <= e2.timestamp <= e1.timestamp + upperBound</p>
+    {% highlight java %}
+// this will join the two streams so that
+// key1 == key2 && leftTs - 2 < rightTs < leftTs + 2
+keyedStream.intervalJoin(otherKeyedStream)
+    .between(Time.milliseconds(-2), Time.milliseconds(2)) // lower and upper bound
+    .upperBoundExclusive(true) // optional
+    .lowerBoundExclusive(true) // optional
+    .process(new IntervalJoinFunction() {...});
+    {% endhighlight %}
+          </td>
+        </tr>
+        <tr>
           <td><strong>Window CoGroup</strong><br>DataStream,DataStream &rarr; DataStream</td>
           <td>
             <p>Cogroups two data streams on a given key and a common window.</p>
@@ -419,14 +434,14 @@ IterativeStream<Long> iteration = initialStream.iterate();
 DataStream<Long> iterationBody = iteration.map (/*do something*/);
 DataStream<Long> feedback = iterationBody.filter(new FilterFunction<Long>(){
     @Override
-    public boolean filter(Integer value) throws Exception {
+    public boolean filter(Long value) throws Exception {
         return value > 0;
     }
 });
 iteration.closeWith(feedback);
 DataStream<Long> output = iterationBody.filter(new FilterFunction<Long>(){
     @Override
-    public boolean filter(Integer value) throws Exception {
+    public boolean filter(Long value) throws Exception {
         return value <= 0;
     }
 });

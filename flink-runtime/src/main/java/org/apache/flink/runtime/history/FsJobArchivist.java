@@ -18,14 +18,13 @@
 
 package org.apache.flink.runtime.history;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.webmonitor.WebMonitorUtils;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
-import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.util.IOUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonEncoding;
@@ -64,26 +63,25 @@ public class FsJobArchivist {
 	 * {@link JobManagerOptions#ARCHIVE_DIR}.
 	 *
 	 * @param rootPath directory to which the archive should be written to
-	 * @param graph  graph to archive
+	 * @param jobId  job id
+	 * @param jsonToArchive collection of json-path pairs to that should be archived
 	 * @return path to where the archive was written, or null if no archive was created
 	 * @throws IOException
 	 */
-	public static Path archiveJob(Path rootPath, AccessExecutionGraph graph) throws IOException {
+	public static Path archiveJob(Path rootPath, JobID jobId, Collection<ArchivedJson> jsonToArchive) throws IOException {
 		try {
 			FileSystem fs = rootPath.getFileSystem();
-			Path path = new Path(rootPath, graph.getJobID().toString());
+			Path path = new Path(rootPath, jobId.toString());
 			OutputStream out = fs.create(path, FileSystem.WriteMode.NO_OVERWRITE);
 
 			try (JsonGenerator gen = jacksonFactory.createGenerator(out, JsonEncoding.UTF8)) {
 				gen.writeStartObject();
 				gen.writeArrayFieldStart(ARCHIVE);
-				for (JsonArchivist archiver : WebMonitorUtils.getJsonArchivists()) {
-					for (ArchivedJson archive : archiver.archiveJsonWithPath(graph)) {
-						gen.writeStartObject();
-						gen.writeStringField(PATH, archive.getPath());
-						gen.writeStringField(JSON, archive.getJson());
-						gen.writeEndObject();
-					}
+				for (ArchivedJson archive : jsonToArchive) {
+					gen.writeStartObject();
+					gen.writeStringField(PATH, archive.getPath());
+					gen.writeStringField(JSON, archive.getJson());
+					gen.writeEndObject();
 				}
 				gen.writeEndArray();
 				gen.writeEndObject();
@@ -91,7 +89,7 @@ public class FsJobArchivist {
 				fs.delete(path, false);
 				throw e;
 			}
-			LOG.info("Job {} has been archived at {}.", graph.getJobID(), path);
+			LOG.info("Job {} has been archived at {}.", jobId, path);
 			return path;
 		} catch (IOException e) {
 			LOG.error("Failed to archive job.", e);

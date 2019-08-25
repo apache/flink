@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -48,6 +49,8 @@ import static org.apache.flink.runtime.blob.BlobCachePutTest.verifyDeletedEventu
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.PERMANENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKey.BlobType.TRANSIENT_BLOB;
 import static org.apache.flink.runtime.blob.BlobKeyTest.verifyKeyDifferentHashEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -62,7 +65,7 @@ public class BlobClientTest extends TestLogger {
 	private static final int TEST_BUFFER_SIZE = 17 * 1000;
 
 	/** The instance of the (non-ssl) BLOB server used during the tests. */
-	static BlobServer blobServer;
+	static TestBlobServer blobServer;
 
 	/** The blob service (non-ssl) client configuration. */
 	static Configuration clientConfig;
@@ -79,7 +82,7 @@ public class BlobClientTest extends TestLogger {
 		config.setString(BlobServerOptions.STORAGE_DIRECTORY,
 			temporaryFolder.newFolder().getAbsolutePath());
 
-		blobServer = new BlobServer(config, new VoidBlobStore());
+		blobServer = new TestBlobServer(config, new VoidBlobStore());
 		blobServer.start();
 
 		clientConfig = new Configuration();
@@ -318,7 +321,7 @@ public class BlobClientTest extends TestLogger {
 		return clientConfig;
 	}
 
-	protected BlobServer getBlobServer() {
+	protected TestBlobServer getBlobServer() {
 		return blobServer;
 	}
 
@@ -453,7 +456,7 @@ public class BlobClientTest extends TestLogger {
 	}
 
 	/**
-	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, Configuration, JobID, List)} helper.
+	 * Tests the static {@link BlobClient#uploadFiles(InetSocketAddress, Configuration, JobID, List)} helper.
 	 */
 	@Test
 	public void testUploadJarFilesHelper() throws Exception {
@@ -461,7 +464,7 @@ public class BlobClientTest extends TestLogger {
 	}
 
 	/**
-	 * Tests the static {@link BlobClient#uploadJarFiles(InetSocketAddress, Configuration, JobID, List)}} helper.
+	 * Tests the static {@link BlobClient#uploadFiles(InetSocketAddress, Configuration, JobID, List)}} helper.
 	 */
 	static void uploadJarFile(BlobServer blobServer, Configuration blobClientConfig) throws Exception {
 		final File testFile = File.createTempFile("testfile", ".dat");
@@ -478,13 +481,67 @@ public class BlobClientTest extends TestLogger {
 			final InetSocketAddress serverAddress, final Configuration blobClientConfig,
 			final File testFile) throws IOException {
 		JobID jobId = new JobID();
-		List<PermanentBlobKey> blobKeys = BlobClient.uploadJarFiles(serverAddress, blobClientConfig,
+		List<PermanentBlobKey> blobKeys = BlobClient.uploadFiles(serverAddress, blobClientConfig,
 			jobId, Collections.singletonList(new Path(testFile.toURI())));
 
 		assertEquals(1, blobKeys.size());
 
 		try (BlobClient blobClient = new BlobClient(serverAddress, blobClientConfig)) {
 			validateGetAndClose(blobClient.getInternal(jobId, blobKeys.get(0)), testFile);
+		}
+	}
+
+
+	/**
+	 * Tests the socket operation timeout.
+	 */
+	@Test
+	public void testSocketTimeout() {
+		Configuration clientConfig = getBlobClientConfig();
+		int oldSoTimeout = clientConfig.getInteger(BlobServerOptions.SO_TIMEOUT);
+
+		clientConfig.setInteger(BlobServerOptions.SO_TIMEOUT, 50);
+		getBlobServer().setBlockingMillis(10_000);
+
+		try {
+			InetSocketAddress serverAddress = new InetSocketAddress("localhost", getBlobServer().getPort());
+
+			try (BlobClient client = new BlobClient(serverAddress, clientConfig)) {
+				client.getInternal(new JobID(), BlobKey.createKey(TRANSIENT_BLOB));
+
+				fail("Should throw an exception.");
+			} catch (Throwable t) {
+				assertThat(ExceptionUtils.findThrowable(t, java.net.SocketTimeoutException.class).isPresent(), is(true));
+			}
+		} finally {
+			clientConfig.setInteger(BlobServerOptions.SO_TIMEOUT, oldSoTimeout);
+			getBlobServer().setBlockingMillis(0);
+		}
+	}
+
+	static class TestBlobServer extends BlobServer {
+
+		private volatile long blockingMillis = 0;
+
+		TestBlobServer(Configuration config, BlobStore blobStore) throws IOException {
+			super(config, blobStore);
+		}
+
+		@Override
+		void getFileInternal(@Nullable JobID jobId, BlobKey blobKey, File localFile) throws IOException {
+			if (blockingMillis > 0) {
+				try {
+					Thread.sleep(blockingMillis);
+				} catch (InterruptedException e) {
+					throw new IOException(e);
+				}
+			}
+
+			super.getFileInternal(jobId, blobKey, localFile);
+		}
+
+		void setBlockingMillis(long millis) {
+			this.blockingMillis = millis;
 		}
 	}
 }

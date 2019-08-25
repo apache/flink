@@ -47,22 +47,22 @@ execute the program.
 If you are developing your program as a Maven project, you have to add the
 `flink-clients` module using this dependency:
 
-~~~xml
+{% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-clients{{ site.scala_version_suffix }}</artifactId>
   <version>{{ site.version }}</version>
 </dependency>
-~~~
+{% endhighlight %}
 
 ### Example
 
 The following illustrates the use of the `RemoteEnvironment`:
 
-~~~java
+{% highlight java %}
 public static void main(String[] args) throws Exception {
     ExecutionEnvironment env = ExecutionEnvironment
-        .createRemoteEnvironment("flink-master", 6123, "/home/user/udfs.jar");
+        .createRemoteEnvironment("flink-master", 8081, "/home/user/udfs.jar");
 
     DataSet<String> data = env.readTextFile("hdfs://path/to/file");
 
@@ -76,7 +76,7 @@ public static void main(String[] args) throws Exception {
 
     env.execute();
 }
-~~~
+{% endhighlight %}
 
 Note that the program contains custom user code and hence requires a JAR file with
 the classes of the code attached. The constructor of the remote environment

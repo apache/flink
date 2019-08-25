@@ -387,7 +387,7 @@ public class TypeInfoFactoryTest {
 
 		@Override
 		public int getTotalFields() {
-			return 0;
+			return 1;
 		}
 
 		@Override

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.JobExecutor;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -34,7 +34,7 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * A {@link StreamExecutionEnvironment} that executes its jobs on {@link LocalFlinkMiniCluster}.
+ * A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}.
  */
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
 
@@ -65,12 +65,11 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		final StreamGraph streamGraph = getStreamGraph();
-		streamGraph.setJobName(jobName);
+	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 		final JobGraph jobGraph = streamGraph.getJobGraph();
+		transformations.clear();
 
-		for (Path jarFile: jarFiles) {
+		for (Path jarFile : jarFiles) {
 			jobGraph.addJar(jarFile);
 		}
 

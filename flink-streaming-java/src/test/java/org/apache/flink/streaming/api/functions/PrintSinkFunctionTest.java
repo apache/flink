@@ -20,12 +20,11 @@ package org.apache.flink.streaming.api.functions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
-import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
+import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
 import org.junit.After;
-import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -33,93 +32,100 @@ import java.io.PrintStream;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for the {@link org.apache.flink.streaming.api.functions.sink.PrintSinkFunction}.
+ * Tests for the {@link PrintSinkFunction}.
  */
 public class PrintSinkFunctionTest {
 
-	public PrintStream printStreamOriginal = System.out;
-	private String line = System.lineSeparator();
+	private final PrintStream originalSystemOut = System.out;
+	private final PrintStream originalSystemErr = System.err;
+
+	private final ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();
+	private final ByteArrayOutputStream arrayErrorStream = new ByteArrayOutputStream();
+
+	private final String line = System.lineSeparator();
+
+	@Before
+	public void setUp() {
+		System.setOut(new PrintStream(arrayOutputStream));
+		System.setErr(new PrintStream(arrayErrorStream));
+	}
+
+	@After
+	public void tearDown() {
+		if (System.out != originalSystemOut) {
+			System.out.close();
+		}
+		if (System.err != originalSystemErr) {
+			System.err.close();
+		}
+		System.setOut(originalSystemOut);
+		System.setErr(originalSystemErr);
+	}
 
 	@Test
 	public void testPrintSinkStdOut() throws Exception {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		PrintStream stream = new PrintStream(baos);
-		System.setOut(stream);
-
-		final StreamingRuntimeContext ctx = Mockito.mock(StreamingRuntimeContext.class);
-
 		PrintSinkFunction<String> printSink = new PrintSinkFunction<>();
-		printSink.setRuntimeContext(ctx);
-		try {
-			printSink.open(new Configuration());
-		} catch (Exception e) {
-			Assert.fail();
-		}
-		printSink.setTargetToStandardOut();
+		printSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+
+		printSink.open(new Configuration());
+
 		printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
 
 		assertEquals("Print to System.out", printSink.toString());
-		assertEquals("hello world!" + line, baos.toString());
-
+		assertEquals("hello world!" + line, arrayOutputStream.toString());
 		printSink.close();
-		stream.close();
 	}
 
 	@Test
 	public void testPrintSinkStdErr() throws Exception {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		PrintStream stream = new PrintStream(baos);
-		System.setOut(stream);
+		PrintSinkFunction<String> printSink = new PrintSinkFunction<>(true);
+		printSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+		printSink.open(new Configuration());
 
-		final StreamingRuntimeContext ctx = Mockito.mock(StreamingRuntimeContext.class);
-
-		PrintSinkFunction<String> printSink = new PrintSinkFunction<>();
-		printSink.setRuntimeContext(ctx);
-		try {
-			printSink.open(new Configuration());
-		} catch (Exception e) {
-			Assert.fail();
-		}
-		printSink.setTargetToStandardErr();
 		printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
 
 		assertEquals("Print to System.err", printSink.toString());
-		assertEquals("hello world!" + line, baos.toString());
-
+		assertEquals("hello world!" + line, arrayErrorStream.toString());
 		printSink.close();
-		stream.close();
 	}
 
 	@Test
 	public void testPrintSinkWithPrefix() throws Exception {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		PrintStream stream = new PrintStream(baos);
-		System.setOut(stream);
-
-		final StreamingRuntimeContext ctx = Mockito.mock(StreamingRuntimeContext.class);
-		Mockito.when(ctx.getNumberOfParallelSubtasks()).thenReturn(2);
-		Mockito.when(ctx.getIndexOfThisSubtask()).thenReturn(1);
-
 		PrintSinkFunction<String> printSink = new PrintSinkFunction<>();
-		printSink.setRuntimeContext(ctx);
-		try {
-			printSink.open(new Configuration());
-		} catch (Exception e) {
-			Assert.fail();
-		}
-		printSink.setTargetToStandardErr();
+		printSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 2, 1));
+		printSink.open(new Configuration());
+
 		printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
 
-		assertEquals("Print to System.err", printSink.toString());
-		assertEquals("2> hello world!" + line, baos.toString());
-
+		assertEquals("Print to System.out", printSink.toString());
+		assertEquals("2> hello world!" + line, arrayOutputStream.toString());
 		printSink.close();
-		stream.close();
 	}
 
-	@After
-	public void restoreSystemOut() {
-		System.setOut(printStreamOriginal);
+	@Test
+	public void testPrintSinkWithIdentifierAndPrefix() throws Exception {
+		PrintSinkFunction<String> printSink = new PrintSinkFunction<>("mySink", false);
+		printSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 2, 1));
+		printSink.open(new Configuration());
+
+		printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
+
+		assertEquals("Print to System.out", printSink.toString());
+		assertEquals("mySink:2> hello world!" + line, arrayOutputStream.toString());
+		printSink.close();
+	}
+
+	@Test
+	public void testPrintSinkWithIdentifierButNoPrefix() throws Exception {
+		PrintSinkFunction<String> printSink = new PrintSinkFunction<>("mySink", false);
+		printSink.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+		printSink.open(new Configuration());
+
+		printSink.invoke("hello world!", SinkContextUtil.forTimestamp(0));
+
+		assertEquals("Print to System.out", printSink.toString());
+		assertEquals("mySink> hello world!" + line, arrayOutputStream.toString());
+		printSink.close();
 	}
 
 }

@@ -46,7 +46,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 
@@ -62,7 +61,6 @@ public class SubtaskExecutionAttemptAccumulatorsHandlerTest extends TestLogger {
 		final RestHandlerConfiguration restHandlerConfiguration = RestHandlerConfiguration.fromConfiguration(new Configuration());
 
 		final SubtaskExecutionAttemptAccumulatorsHandler handler = new SubtaskExecutionAttemptAccumulatorsHandler(
-			CompletableFuture.completedFuture("127.0.0.1:9527"),
 			() -> null,
 			Time.milliseconds(100L),
 			Collections.emptyMap(),
@@ -97,6 +95,7 @@ public class SubtaskExecutionAttemptAccumulatorsHandlerTest extends TestLogger {
 			new ExecutionAttemptID(),
 			attemptNum,
 			ExecutionState.FINISHED,
+			null,
 			null,
 			null,
 			subtaskIndex,

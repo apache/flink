@@ -30,12 +30,12 @@ public class ManualClock extends Clock {
 
 	@Override
 	public long absoluteTimeMillis() {
-		return currentTime.get() / 1_000L;
+		return currentTime.get() / 1_000_000L;
 	}
 
 	@Override
 	public long relativeTimeMillis() {
-		return currentTime.get() / 1_000L;
+		return currentTime.get() / 1_000_000L;
 	}
 
 	@Override

@@ -46,4 +46,8 @@ public final class JobMetricsHeaders extends AbstractMetricsHeaders<JobMetricsMe
 		return INSTANCE;
 	}
 
+	@Override
+	public String getDescription() {
+		return "Provides access to job metrics.";
+	}
 }

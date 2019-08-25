@@ -18,11 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
-import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
-import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.runtime.taskmanager.TaskActions;
+import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import org.junit.Test;
 
@@ -30,33 +26,24 @@ import static org.apache.flink.runtime.io.network.partition.consumer.SingleInput
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
-public class UnionInputGateTest {
+/**
+ * Tests for {@link UnionInputGate}.
+ */
+public class UnionInputGateTest extends InputGateTestBase {
 
 	/**
 	 * Tests basic correctness of buffer-or-event interleaving and correct <code>null</code> return
 	 * value after receiving all end-of-partition events.
 	 *
-	 * <p> For buffer-or-event instances, it is important to verify that they have been set off to
+	 * <p>For buffer-or-event instances, it is important to verify that they have been set off to
 	 * the correct logical index.
 	 */
 	@Test(timeout = 120 * 1000)
 	public void testBasicGetNextLogic() throws Exception {
 		// Setup
-		final String testTaskName = "Test Task";
-		final SingleInputGate ig1 = new SingleInputGate(
-			testTaskName, new JobID(),
-			new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
-			0, 3,
-			mock(TaskActions.class),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
-		final SingleInputGate ig2 = new SingleInputGate(
-			testTaskName, new JobID(),
-			new IntermediateDataSetID(), ResultPartitionType.PIPELINED,
-			0, 5,
-			mock(TaskActions.class),
-			UnregisteredMetricGroups.createUnregisteredTaskMetricGroup().getIOMetricGroup());
+		final SingleInputGate ig1 = createInputGate(3);
+		final SingleInputGate ig2 = createInputGate(5);
 
 		final UnionInputGate union = new UnionInputGate(new SingleInputGate[]{ig1, ig2});
 
@@ -84,15 +71,15 @@ public class UnionInputGateTest {
 		inputChannels[1][1].readEndOfPartitionEvent(); // 0 => 3
 		inputChannels[1][0].readEndOfPartitionEvent(); // 0 => 3
 
-		ig1.notifyChannelNonEmpty(inputChannels[0][0].getInputChannel());
-		ig1.notifyChannelNonEmpty(inputChannels[0][1].getInputChannel());
-		ig1.notifyChannelNonEmpty(inputChannels[0][2].getInputChannel());
+		ig1.notifyChannelNonEmpty(inputChannels[0][0]);
+		ig1.notifyChannelNonEmpty(inputChannels[0][1]);
+		ig1.notifyChannelNonEmpty(inputChannels[0][2]);
 
-		ig2.notifyChannelNonEmpty(inputChannels[1][0].getInputChannel());
-		ig2.notifyChannelNonEmpty(inputChannels[1][1].getInputChannel());
-		ig2.notifyChannelNonEmpty(inputChannels[1][2].getInputChannel());
-		ig2.notifyChannelNonEmpty(inputChannels[1][3].getInputChannel());
-		ig2.notifyChannelNonEmpty(inputChannels[1][4].getInputChannel());
+		ig2.notifyChannelNonEmpty(inputChannels[1][0]);
+		ig2.notifyChannelNonEmpty(inputChannels[1][1]);
+		ig2.notifyChannelNonEmpty(inputChannels[1][2]);
+		ig2.notifyChannelNonEmpty(inputChannels[1][3]);
+		ig2.notifyChannelNonEmpty(inputChannels[1][4]);
 
 		verifyBufferOrEvent(union, true, 0, true); // gate 1, channel 0
 		verifyBufferOrEvent(union, true, 3, true); // gate 2, channel 0
@@ -113,6 +100,39 @@ public class UnionInputGateTest {
 
 		// Return null when the input gate has received all end-of-partition events
 		assertTrue(union.isFinished());
-		assertFalse(union.getNextBufferOrEvent().isPresent());
+		assertFalse(union.getNext().isPresent());
+	}
+
+	@Test
+	public void testIsAvailable() throws Exception {
+		final SingleInputGate inputGate1 = createInputGate(1);
+		TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0);
+		inputGate1.setInputChannel(new IntermediateResultPartitionID(), inputChannel1);
+
+		final SingleInputGate inputGate2 = createInputGate(1);
+		TestInputChannel inputChannel2 = new TestInputChannel(inputGate2, 0);
+		inputGate2.setInputChannel(new IntermediateResultPartitionID(), inputChannel2);
+
+		testIsAvailable(new UnionInputGate(inputGate1, inputGate2), inputGate1, inputChannel1);
+	}
+
+	@Test
+	public void testIsAvailableAfterFinished() throws Exception {
+		final SingleInputGate inputGate1 = createInputGate(1);
+		TestInputChannel inputChannel1 = new TestInputChannel(inputGate1, 0);
+		inputGate1.setInputChannel(new IntermediateResultPartitionID(), inputChannel1);
+
+		final SingleInputGate inputGate2 = createInputGate(1);
+		TestInputChannel inputChannel2 = new TestInputChannel(inputGate2, 0);
+		inputGate2.setInputChannel(new IntermediateResultPartitionID(), inputChannel2);
+
+		testIsAvailableAfterFinished(
+			new UnionInputGate(inputGate1, inputGate2),
+			() -> {
+				inputChannel1.readEndOfPartitionEvent();
+				inputChannel2.readEndOfPartitionEvent();
+				inputGate1.notifyChannelNonEmpty(inputChannel1);
+				inputGate2.notifyChannelNonEmpty(inputChannel2);
+			});
 	}
 }

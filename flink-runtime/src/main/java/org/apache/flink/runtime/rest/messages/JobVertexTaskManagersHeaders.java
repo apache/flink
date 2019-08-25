@@ -71,4 +71,9 @@ public class JobVertexTaskManagersHeaders implements MessageHeaders<EmptyRequest
 	public static JobVertexTaskManagersHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns task information aggregated by task manager.";
+	}
 }

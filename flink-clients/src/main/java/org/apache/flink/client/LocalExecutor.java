@@ -20,14 +20,13 @@ package org.apache.flink.client;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
-import org.apache.flink.api.common.Program;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.dag.DataSinkNode;
@@ -36,9 +35,9 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.JobExecutorService;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 
 import java.util.List;
 
@@ -123,37 +122,28 @@ public class LocalExecutor extends PlanExecutor {
 	}
 
 	private JobExecutorService createJobExecutorService(Configuration configuration) throws Exception {
-		final JobExecutorService newJobExecutorService;
-		if (CoreOptions.NEW_MODE.equals(configuration.getString(CoreOptions.MODE))) {
-
-			configuration.setInteger(RestOptions.REST_PORT, 0);
-
-			final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
-				.setConfiguration(configuration)
-				.setNumTaskManagers(
-					configuration.getInteger(
-						ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
-						ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER))
-				.setRpcServiceSharing(MiniClusterConfiguration.RpcServiceSharing.SHARED)
-				.setNumSlotsPerTaskManager(
-					configuration.getInteger(
-						ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, 1))
-				.build();
-
-			final MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration);
-			miniCluster.start();
-
-			configuration.setInteger(RestOptions.REST_PORT, miniCluster.getRestAddress().getPort());
-
-			newJobExecutorService = miniCluster;
-		} else {
-			final LocalFlinkMiniCluster localFlinkMiniCluster = new LocalFlinkMiniCluster(configuration, true);
-			localFlinkMiniCluster.start();
-
-			newJobExecutorService = localFlinkMiniCluster;
+		if (!configuration.contains(RestOptions.BIND_PORT)) {
+			configuration.setString(RestOptions.BIND_PORT, "0");
 		}
 
-		return newJobExecutorService;
+		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
+			.setConfiguration(configuration)
+			.setNumTaskManagers(
+				configuration.getInteger(
+					ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
+					ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER))
+			.setRpcServiceSharing(RpcServiceSharing.SHARED)
+			.setNumSlotsPerTaskManager(
+				configuration.getInteger(
+					TaskManagerOptions.NUM_TASK_SLOTS, 1))
+			.build();
+
+		final MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration);
+		miniCluster.start();
+
+		configuration.setInteger(RestOptions.PORT, miniCluster.getRestAddress().get().getPort());
+
+		return miniCluster;
 	}
 
 	@Override
@@ -218,7 +208,7 @@ public class LocalExecutor extends PlanExecutor {
 
 			try {
 				// TODO: Set job's default parallelism to max number of slots
-				final int slotsPerTaskManager = jobExecutorServiceConfiguration.getInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, taskManagerNumSlots);
+				final int slotsPerTaskManager = jobExecutorServiceConfiguration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, taskManagerNumSlots);
 				final int numTaskManagers = jobExecutorServiceConfiguration.getInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 				plan.setDefaultParallelism(slotsPerTaskManager * numTaskManagers);
 
@@ -256,14 +246,9 @@ public class LocalExecutor extends PlanExecutor {
 		return new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(op);
 	}
 
-	@Override
-	public void endSession(JobID jobID) throws Exception {
-		// no op
-	}
-
 	private Configuration createConfiguration() {
 		Configuration newConfiguration = new Configuration();
-		newConfiguration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, getTaskManagerNumSlots());
+		newConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, getTaskManagerNumSlots());
 		newConfiguration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, isDefaultOverwriteFiles());
 
 		newConfiguration.addAll(baseConfiguration);
@@ -274,20 +259,6 @@ public class LocalExecutor extends PlanExecutor {
 	// --------------------------------------------------------------------------------------------
 	//  Static variants that internally bring up an instance and shut it down after the execution
 	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Executes the given program.
-	 *
-	 * @param pa The program.
-	 * @param args The parameters.
-	 * @return The execution result of the program.
-	 *
-	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
-	 *                   caused an exception.
-	 */
-	public static JobExecutionResult execute(Program pa, String... args) throws Exception {
-		return execute(pa.getPlan(args));
-	}
 
 	/**
 	 * Executes the given dataflow plan.

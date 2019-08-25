@@ -1,0 +1,458 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+{
+  # Generated parser implementation package and class name.
+  package: "org.apache.flink.sql.parser.impl",
+  class: "FlinkSqlParserImpl",
+
+  # List of additional classes and packages to import.
+  # Example. "org.apache.calcite.sql.*", "java.util.List".
+  imports: [
+    "org.apache.flink.sql.parser.ddl.SqlCreateTable",
+    "org.apache.flink.sql.parser.ddl.SqlDropTable"
+    "org.apache.flink.sql.parser.ddl.SqlCreateTable.TableCreationContext",
+    "org.apache.flink.sql.parser.ddl.SqlCreateView",
+    "org.apache.flink.sql.parser.ddl.SqlDropView",
+    "org.apache.flink.sql.parser.ddl.SqlTableColumn",
+    "org.apache.flink.sql.parser.ddl.SqlTableOption",
+    "org.apache.flink.sql.parser.dml.RichSqlInsert",
+    "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword",
+    "org.apache.flink.sql.parser.type.SqlArrayType",
+    "org.apache.flink.sql.parser.type.SqlBytesType",
+    "org.apache.flink.sql.parser.type.SqlMapType",
+    "org.apache.flink.sql.parser.type.SqlMultisetType",
+    "org.apache.flink.sql.parser.type.SqlRowType",
+    "org.apache.flink.sql.parser.type.SqlStringType",
+    "org.apache.flink.sql.parser.type.SqlTimeType",
+    "org.apache.flink.sql.parser.type.SqlTimestampType",
+    "org.apache.flink.sql.parser.utils.SqlTimeUnit",
+    "org.apache.flink.sql.parser.validate.FlinkSqlConformance",
+    "org.apache.flink.sql.parser.FlinkSqlDataTypeSpec",
+    "org.apache.flink.sql.parser.SqlProperty",
+    "org.apache.calcite.sql.SqlDrop",
+    "org.apache.calcite.sql.SqlCreate",
+    "java.util.List",
+    "java.util.ArrayList"
+  ]
+
+  # List of new keywords. Example: "DATABASES", "TABLES". If the keyword is not a reserved
+  # keyword, please also add it to 'nonReservedKeywords' section.
+  keywords: [
+    "COMMENT",
+    "PARTITIONED",
+    "IF",
+    "WATERMARK",
+    "ASCENDING",
+    "FROM_SOURCE",
+    "BOUNDED",
+    "DELAY",
+    "OVERWRITE",
+    "STRING",
+    "BYTES"
+  ]
+
+  # List of keywords from "keywords" section that are not reserved.
+  nonReservedKeywords: [
+    "A"
+    "ABSENT"
+    "ABSOLUTE"
+    "ACTION"
+    "ADA"
+    "ADD"
+    "ADMIN"
+    "AFTER"
+    "ALWAYS"
+    "APPLY"
+    "ASC"
+    "ASSERTION"
+    "ASSIGNMENT"
+    "ATTRIBUTE"
+    "ATTRIBUTES"
+    "BEFORE"
+    "BERNOULLI"
+    "BREADTH"
+    "C"
+    "CASCADE"
+    "CATALOG"
+    "CATALOG_NAME"
+    "CENTURY"
+    "CHAIN"
+    "CHARACTER_SET_CATALOG"
+    "CHARACTER_SET_NAME"
+    "CHARACTER_SET_SCHEMA"
+    "CHARACTERISTICS"
+    "CHARACTERS"
+    "CLASS_ORIGIN"
+    "COBOL"
+    "COLLATION"
+    "COLLATION_CATALOG"
+    "COLLATION_NAME"
+    "COLLATION_SCHEMA"
+    "COLUMN_NAME"
+    "COMMAND_FUNCTION"
+    "COMMAND_FUNCTION_CODE"
+    "COMMITTED"
+    "CONDITION_NUMBER"
+    "CONDITIONAL"
+    "CONNECTION"
+    "CONNECTION_NAME"
+    "CONSTRAINT_CATALOG"
+    "CONSTRAINT_NAME"
+    "CONSTRAINT_SCHEMA"
+    "CONSTRAINTS"
+    "CONSTRUCTOR"
+    "CONTINUE"
+    "CURSOR_NAME"
+    "DATA"
+    "DATABASE"
+    "DATETIME_INTERVAL_CODE"
+    "DATETIME_INTERVAL_PRECISION"
+    "DECADE"
+    "DEFAULTS"
+    "DEFERRABLE"
+    "DEFERRED"
+    "DEFINED"
+    "DEFINER"
+    "DEGREE"
+    "DEPTH"
+    "DERIVED"
+    "DESC"
+    "DESCRIPTION"
+    "DESCRIPTOR"
+    "DIAGNOSTICS"
+    "DISPATCH"
+    "DOMAIN"
+    "DOW"
+    "DOY"
+    "DYNAMIC_FUNCTION"
+    "DYNAMIC_FUNCTION_CODE"
+    "ENCODING"
+    "EPOCH"
+    "ERROR"
+    "EXCEPTION"
+    "EXCLUDE"
+    "EXCLUDING"
+    "FINAL"
+    "FIRST"
+    "FOLLOWING"
+    "FORMAT"
+    "FORTRAN"
+    "FOUND"
+    "FRAC_SECOND"
+    "G"
+    "GENERAL"
+    "GENERATED"
+    "GEOMETRY"
+    "GO"
+    "GOTO"
+    "GRANTED"
+    "HIERARCHY"
+    "IGNORE"
+    "IMMEDIATE"
+    "IMMEDIATELY"
+    "IMPLEMENTATION"
+    "INCLUDING"
+    "INCREMENT"
+    "INITIALLY"
+    "INPUT"
+    "INSTANCE"
+    "INSTANTIABLE"
+    "INVOKER"
+    "ISODOW"
+    "ISOYEAR"
+    "ISOLATION"
+    "JAVA"
+    "JSON"
+    "K"
+    "KEY"
+    "KEY_MEMBER"
+    "KEY_TYPE"
+    "LABEL"
+    "LAST"
+    "LENGTH"
+    "LEVEL"
+    "LIBRARY"
+    "LOCATOR"
+    "M"
+    "MATCHED"
+    "MAXVALUE"
+    "MICROSECOND"
+    "MESSAGE_LENGTH"
+    "MESSAGE_OCTET_LENGTH"
+    "MESSAGE_TEXT"
+    "MILLISECOND"
+    "MILLENNIUM"
+    "MINVALUE"
+    "MORE_"
+    "MUMPS"
+    "NAME"
+    "NAMES"
+    "NANOSECOND"
+    "NESTING"
+    "NORMALIZED"
+    "NULLABLE"
+    "NULLS"
+    "NUMBER"
+    "OBJECT"
+    "OCTETS"
+    "OPTION"
+    "OPTIONS"
+    "ORDERING"
+    "ORDINALITY"
+    "OTHERS"
+    "OUTPUT"
+    "OVERRIDING"
+    "PAD"
+    "PARAMETER_MODE"
+    "PARAMETER_NAME"
+    "PARAMETER_ORDINAL_POSITION"
+    "PARAMETER_SPECIFIC_CATALOG"
+    "PARAMETER_SPECIFIC_NAME"
+    "PARAMETER_SPECIFIC_SCHEMA"
+    "PARTIAL"
+    "PASCAL"
+    "PASSING"
+    "PASSTHROUGH"
+    "PAST"
+    "PATH"
+    "PLACING"
+    "PLAN"
+    "PLI"
+    "PRECEDING"
+    "PRESERVE"
+    "PRIOR"
+    "PRIVILEGES"
+    "PUBLIC"
+    "QUARTER"
+    "READ"
+    "RELATIVE"
+    "REPEATABLE"
+    "REPLACE"
+    "RESPECT"
+    "RESTART"
+    "RESTRICT"
+    "RETURNED_CARDINALITY"
+    "RETURNED_LENGTH"
+    "RETURNED_OCTET_LENGTH"
+    "RETURNED_SQLSTATE"
+    "RETURNING"
+    "ROLE"
+    "ROUTINE"
+    "ROUTINE_CATALOG"
+    "ROUTINE_NAME"
+    "ROUTINE_SCHEMA"
+    "ROW_COUNT"
+    "SCALAR"
+    "SCALE"
+    "SCHEMA"
+    "SCHEMA_NAME"
+    "SCOPE_CATALOGS"
+    "SCOPE_NAME"
+    "SCOPE_SCHEMA"
+    "SECTION"
+    "SECURITY"
+    "SELF"
+    "SEQUENCE"
+    "SERIALIZABLE"
+    "SERVER"
+    "SERVER_NAME"
+    "SESSION"
+    "SETS"
+    "SIMPLE"
+    "SIZE"
+    "SOURCE"
+    "SPACE"
+    "SPECIFIC_NAME"
+    "SQL_BIGINT"
+    "SQL_BINARY"
+    "SQL_BIT"
+    "SQL_BLOB"
+    "SQL_BOOLEAN"
+    "SQL_CHAR"
+    "SQL_CLOB"
+    "SQL_DATE"
+    "SQL_DECIMAL"
+    "SQL_DOUBLE"
+    "SQL_FLOAT"
+    "SQL_INTEGER"
+    "SQL_INTERVAL_DAY"
+    "SQL_INTERVAL_DAY_TO_HOUR"
+    "SQL_INTERVAL_DAY_TO_MINUTE"
+    "SQL_INTERVAL_DAY_TO_SECOND"
+    "SQL_INTERVAL_HOUR"
+    "SQL_INTERVAL_HOUR_TO_MINUTE"
+    "SQL_INTERVAL_HOUR_TO_SECOND"
+    "SQL_INTERVAL_MINUTE"
+    "SQL_INTERVAL_MINUTE_TO_SECOND"
+    "SQL_INTERVAL_MONTH"
+    "SQL_INTERVAL_SECOND"
+    "SQL_INTERVAL_YEAR"
+    "SQL_INTERVAL_YEAR_TO_MONTH"
+    "SQL_LONGVARBINARY"
+    "SQL_LONGVARNCHAR"
+    "SQL_LONGVARCHAR"
+    "SQL_NCHAR"
+    "SQL_NCLOB"
+    "SQL_NUMERIC"
+    "SQL_NVARCHAR"
+    "SQL_REAL"
+    "SQL_SMALLINT"
+    "SQL_TIME"
+    "SQL_TIMESTAMP"
+    "SQL_TINYINT"
+    "SQL_TSI_DAY"
+    "SQL_TSI_FRAC_SECOND"
+    "SQL_TSI_HOUR"
+    "SQL_TSI_MICROSECOND"
+    "SQL_TSI_MINUTE"
+    "SQL_TSI_MONTH"
+    "SQL_TSI_QUARTER"
+    "SQL_TSI_SECOND"
+    "SQL_TSI_WEEK"
+    "SQL_TSI_YEAR"
+    "SQL_VARBINARY"
+    "SQL_VARCHAR"
+    "STATE"
+    "STATEMENT"
+    "STRUCTURE"
+    "STYLE"
+    "SUBCLASS_ORIGIN"
+    "SUBSTITUTE"
+    "TABLE_NAME"
+    "TEMPORARY"
+    "TIES"
+    "TIMESTAMPADD"
+    "TIMESTAMPDIFF"
+    "TOP_LEVEL_COUNT"
+    "TRANSACTION"
+    "TRANSACTIONS_ACTIVE"
+    "TRANSACTIONS_COMMITTED"
+    "TRANSACTIONS_ROLLED_BACK"
+    "TRANSFORM"
+    "TRANSFORMS"
+    "TRIGGER_CATALOG"
+    "TRIGGER_NAME"
+    "TRIGGER_SCHEMA"
+    "TYPE"
+    "UNBOUNDED"
+    "UNCOMMITTED"
+    "UNCONDITIONAL"
+    "UNDER"
+    "UNNAMED"
+    "USAGE"
+    "USER_DEFINED_TYPE_CATALOG"
+    "USER_DEFINED_TYPE_CODE"
+    "USER_DEFINED_TYPE_NAME"
+    "USER_DEFINED_TYPE_SCHEMA"
+    "UTF8"
+    "UTF16"
+    "UTF32"
+    "VERSION"
+    "VIEW"
+    "WEEK"
+    "WRAPPER"
+    "WORK"
+    "WRITE"
+    "XML"
+    "ZONE",
+
+    # not in core, added in Flink
+    "PARTITIONED",
+    "IF",
+    "ASCENDING",
+    "FROM_SOURCE",
+    "BOUNDED",
+    "DELAY",
+    "OVERWRITE"
+  ]
+
+  # List of methods for parsing custom SQL statements.
+  # Return type of method implementation should be 'SqlNode'.
+  # Example: SqlShowDatabases(), SqlShowTables().
+  statementParserMethods: [
+    "RichSqlInsert()"
+  ]
+
+  # List of methods for parsing custom literals.
+  # Return type of method implementation should be "SqlNode".
+  # Example: ParseJsonLiteral().
+  literalParserMethods: [
+  ]
+
+  # List of methods for parsing ddl supported data types.
+  # Return type of method implementation should be "SqlIdentifier".
+  # Example: SqlParseTimeStampZ().
+  flinkDataTypeParserMethods: [
+    "SqlArrayType()",
+    "SqlMultisetType()",
+    "SqlMapType()",
+    "SqlRowType()",
+    "SqlStringType()",
+    "SqlBytesType()",
+    "SqlTimestampType()",
+    "SqlTimeType()"
+  ]
+
+  # List of methods for parsing custom data types.
+  # Return type of method implementation should be "SqlIdentifier".
+  # Example: SqlParseTimeStampZ().
+  dataTypeParserMethods: [
+  ]
+
+  # List of methods for parsing builtin function calls.
+  # Return type of method implementation should be "SqlNode".
+  # Example: DateFunctionCall().
+  builtinFunctionCallMethods: [
+  ]
+
+  # List of methods for parsing extensions to "ALTER <scope>" calls.
+  # Each must accept arguments "(SqlParserPos pos, String scope)".
+  # Example: "SqlUploadJarNode"
+  alterStatementParserMethods: [
+  ]
+
+  # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.
+  # Each must accept arguments "(SqlParserPos pos, boolean replace)".
+  createStatementParserMethods: [
+    "SqlCreateTable",
+    "SqlCreateView"
+  ]
+
+  # List of methods for parsing extensions to "DROP" calls.
+  # Each must accept arguments "(Span s)".
+  dropStatementParserMethods: [
+    "SqlDropTable",
+    "SqlDropView"
+  ]
+
+  # List of files in @includes directory that have parser method
+  # implementations for parsing custom SQL statements, literals or types
+  # given as part of "statementParserMethods", "literalParserMethods" or
+  # "dataTypeParserMethods".
+  implementationFiles: [
+    "parserImpls.ftl"
+  ]
+
+  # List of additional join types. Each is a method with no arguments.
+  # Example: LeftSemiJoin()
+  joinTypes: [
+  ]
+
+  includeCompoundIdentifier: true
+  includeBraces: true
+  includeAdditionalDeclarations: false
+}

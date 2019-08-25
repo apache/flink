@@ -74,7 +74,6 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public void startNewSession() throws Exception {
-		client.endSession(jobID);
 		jobID = JobID.generate();
 	}
 

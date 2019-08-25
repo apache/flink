@@ -18,7 +18,6 @@
 
 package org.apache.flink.api.common.functions;
 
-
 import org.apache.flink.annotation.Public;
 import org.apache.flink.util.Collector;
 

@@ -18,13 +18,11 @@
 
 package org.apache.flink.runtime.rest;
 
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.helpers.NOPLogger;
 
@@ -44,7 +42,6 @@ import static org.junit.Assert.fail;
 /**
  * Test cases for the {@link RestServerEndpoint}.
  */
-@Category(New.class)
 public class RestServerEndpointTest extends TestLogger {
 
 	@Rule
@@ -83,7 +80,7 @@ public class RestServerEndpointTest extends TestLogger {
 		final File file = temporaryFolder.newFolder();
 		final Path testUploadDir = file.toPath().resolve("testUploadDir");
 		assertFalse(Files.exists(testUploadDir));
-		RestServerEndpoint.createUploadDir(testUploadDir, NOPLogger.NOP_LOGGER);
+		RestServerEndpoint.createUploadDir(testUploadDir, NOPLogger.NOP_LOGGER, true);
 		assertTrue(Files.exists(testUploadDir));
 	}
 
@@ -95,7 +92,7 @@ public class RestServerEndpointTest extends TestLogger {
 		final Path testUploadDir = file.toPath().resolve("testUploadDir");
 		assertFalse(Files.exists(testUploadDir));
 		try {
-			RestServerEndpoint.createUploadDir(testUploadDir, NOPLogger.NOP_LOGGER);
+			RestServerEndpoint.createUploadDir(testUploadDir, NOPLogger.NOP_LOGGER, true);
 			fail("Expected exception not thrown.");
 		} catch (IOException e) {
 		}

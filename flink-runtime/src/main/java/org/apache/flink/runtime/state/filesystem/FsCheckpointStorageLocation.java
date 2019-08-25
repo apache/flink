@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state.filesystem;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.core.fs.EntropyInjector;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.CheckpointMetadataOutputStream;
@@ -48,17 +50,21 @@ public class FsCheckpointStorageLocation extends FsCheckpointStreamFactory imple
 
 	private final int fileStateSizeThreshold;
 
+	private final int writeBufferSize;
+
 	public FsCheckpointStorageLocation(
 			FileSystem fileSystem,
 			Path checkpointDir,
 			Path sharedStateDir,
 			Path taskOwnedStateDir,
 			CheckpointStorageLocationReference reference,
-			int fileStateSizeThreshold) {
+			int fileStateSizeThreshold,
+			int writeBufferSize) {
 
-		super(fileSystem, checkpointDir, sharedStateDir, fileStateSizeThreshold);
+		super(fileSystem, checkpointDir, sharedStateDir, fileStateSizeThreshold, writeBufferSize);
 
 		checkArgument(fileStateSizeThreshold >= 0);
+		checkArgument(writeBufferSize >= 0);
 
 		this.fileSystem = checkNotNull(fileSystem);
 		this.checkpointDirectory = checkNotNull(checkpointDir);
@@ -66,8 +72,12 @@ public class FsCheckpointStorageLocation extends FsCheckpointStreamFactory imple
 		this.taskOwnedStateDirectory = checkNotNull(taskOwnedStateDir);
 		this.reference = checkNotNull(reference);
 
-		this.metadataFilePath = new Path(checkpointDir, AbstractFsCheckpointStorage.METADATA_FILE_NAME);
+		// the metadata file should not have entropy in its path
+		Path metadataDir = EntropyInjector.removeEntropyMarkerIfPresent(fileSystem, checkpointDir);
+
+		this.metadataFilePath = new Path(metadataDir, AbstractFsCheckpointStorage.METADATA_FILE_NAME);
 		this.fileStateSizeThreshold = fileStateSizeThreshold;
+		this.writeBufferSize = writeBufferSize;
 	}
 
 	// ------------------------------------------------------------------------
@@ -125,6 +135,12 @@ public class FsCheckpointStorageLocation extends FsCheckpointStreamFactory imple
 				", metadataFilePath=" + metadataFilePath +
 				", reference=" + reference +
 				", fileStateSizeThreshold=" + fileStateSizeThreshold +
+				", writeBufferSize=" + writeBufferSize +
 				'}';
+	}
+
+	@VisibleForTesting
+	FileSystem getFileSystem() {
+		return fileSystem;
 	}
 }

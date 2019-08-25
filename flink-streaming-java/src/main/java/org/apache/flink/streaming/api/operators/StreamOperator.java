@@ -23,9 +23,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
-import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.Disposable;
 
 import java.io.Serializable;
@@ -51,11 +49,6 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Dis
 	// ------------------------------------------------------------------------
 	//  life cycle
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Initializes the operator. Sets access to the context and the output.
-	 */
-	void setup(StreamTask<?, ?> containingTask, StreamConfig config, Output<StreamRecord<OUT>> output);
 
 	/**
 	 * This method is called immediately before any elements are processed, it should contain the
@@ -92,6 +85,26 @@ public interface StreamOperator<OUT> extends CheckpointListener, KeyContext, Dis
 	// ------------------------------------------------------------------------
 	//  state snapshots
 	// ------------------------------------------------------------------------
+
+	/**
+	 * This method is called when the operator should do a snapshot, before it emits its
+	 * own checkpoint barrier.
+	 *
+	 * <p>This method is intended not for any actual state persistence, but only for emitting some
+	 * data before emitting the checkpoint barrier. Operators that maintain some small transient state
+	 * that is inefficient to checkpoint (especially when it would need to be checkpointed in a
+	 * re-scalable way) but can simply be sent downstream before the checkpoint. An example are
+	 * opportunistic pre-aggregation operators, which have small the pre-aggregation state that is
+	 * frequently flushed downstream.
+	 *
+	 * <p><b>Important:</b> This method should not be used for any actual state snapshot logic, because
+	 * it will inherently be within the synchronous part of the operator's checkpoint. If heavy work is done
+	 * within this method, it will affect latency and downstream checkpoint alignments.
+	 *
+	 * @param checkpointId The ID of the checkpoint.
+	 * @throws Exception Throwing an exception here causes the operator to fail and go into recovery.
+	 */
+	void prepareSnapshotPreBarrier(long checkpointId) throws Exception;
 
 	/**
 	 * Called to draw a state snapshot from the operator.

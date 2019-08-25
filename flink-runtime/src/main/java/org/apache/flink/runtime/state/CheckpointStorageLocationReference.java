@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
-import org.apache.hadoop.util.StringUtils;
+import org.apache.flink.util.StringUtils;
 
 import java.io.ObjectStreamException;
 import java.util.Arrays;

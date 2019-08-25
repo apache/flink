@@ -19,8 +19,12 @@
 package org.apache.flink.yarn.configuration;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.description.Description;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
+import static org.apache.flink.configuration.description.LinkElement.link;
+import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * This class holds configuration constants used by Flink's YARN runners.
@@ -46,6 +50,14 @@ public class YarnConfigOptions {
 			.withDescription("The port where the application master RPC system is listening.");
 
 	/**
+	 * The vcores used by YARN application master.
+	 */
+	public static final ConfigOption<Integer> APP_MASTER_VCORES =
+		key("yarn.appmaster.vcores")
+		.defaultValue(1)
+		.withDescription("The number of virtual cores (vcores) used by YARN application master.");
+
+	/**
 	 * Defines whether user-jars are included in the system class path for per-job-clusters as well as their positioning
 	 * in the path. They can be positioned at the beginning ("FIRST"), at the end ("LAST"), or be positioned based on
 	 * their name ("ORDER").
@@ -55,17 +67,21 @@ public class YarnConfigOptions {
 			.defaultValue("ORDER")
 			.withDescription("Defines whether user-jars are included in the system class path for per-job-clusters as" +
 				" well as their positioning in the path. They can be positioned at the beginning (\"FIRST\"), at the" +
-				" end (\"LAST\"), or be positioned based on their name (\"ORDER\"). Setting this parameter to" +
-				" \"DISABLED\" causes the jar to be included in the user class path instead.");
+				" end (\"LAST\"), or be positioned based on their name (\"ORDER\").");
 
 	/**
 	 * The vcores exposed by YARN.
 	 */
 	public static final ConfigOption<Integer> VCORES =
 		key("yarn.containers.vcores")
-		.defaultValue(-1)
-		.withDescription("The number of virtual cores (vcores) per YARN container. By default, the number of vcores" +
-			" is set to the number of slots per TaskManager, if set, or to 1, otherwise.");
+			.defaultValue(-1)
+			.withDescription(Description.builder().text(
+					"The number of virtual cores (vcores) per YARN container. By default, the number of vcores" +
+					" is set to the number of slots per TaskManager, if set, or to 1, otherwise. In order for this" +
+					" parameter to be used your cluster must have CPU scheduling enabled. You can do this by setting" +
+					" the %s.",
+				code("org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.FairScheduler"))
+				.build());
 
 	/**
 	 * The maximum number of failed YARN containers before entirely stopping
@@ -94,12 +110,42 @@ public class YarnConfigOptions {
 			" to set the JM host:port manually. It is recommended to leave this option at 1.");
 
 	/**
+	 * The config parameter defining the attemptFailuresValidityInterval of Yarn application.
+	 */
+	public static final ConfigOption<Long> APPLICATION_ATTEMPT_FAILURE_VALIDITY_INTERVAL =
+		key("yarn.application-attempt-failures-validity-interval")
+		.defaultValue(10000L)
+		.withDescription(Description.builder()
+			.text("Time window in milliseconds which defines the number of application attempt failures when restarting the AM. " +
+				"Failures which fall outside of this window are not being considered. " +
+				"Set this value to -1 in order to count globally. " +
+				"See %s for more information.", link("https://hortonworks.com/blog/apache-hadoop-yarn-hdp-2-2-fault-tolerance-features-long-running-services/", "here"))
+			.build());
+
+	/**
 	 * The heartbeat interval between the Application Master and the YARN Resource Manager.
 	 */
 	public static final ConfigOption<Integer> HEARTBEAT_DELAY_SECONDS =
-		key("yarn.heartbeat-delay")
+		key("yarn.heartbeat.interval")
 		.defaultValue(5)
+		.withDeprecatedKeys("yarn.heartbeat-delay")
 		.withDescription("Time between heartbeats with the ResourceManager in seconds.");
+
+	/**
+	 * The heartbeat interval between the Application Master and the YARN Resource Manager
+	 * if Flink is requesting containers.
+	 */
+	public static final ConfigOption<Integer> CONTAINER_REQUEST_HEARTBEAT_INTERVAL_MILLISECONDS =
+		key("yarn.heartbeat.container-request-interval")
+			.defaultValue(500)
+			.withDescription(
+				new Description.DescriptionBuilder()
+					.text("Time between heartbeats with the ResourceManager in milliseconds if Flink requests containers:")
+					.list(
+						text("The lower this value is, the faster Flink will get notified about container allocations since requests and allocations are transmitted via heartbeats."),
+						text("The lower this value is, the more excessive containers might get allocated which will eventually be released but put pressure on Yarn."))
+					.text("If you observe too many container allocations on the ResourceManager, then it is recommended to increase this value. See %s for more information.", link("https://issues.apache.org/jira/browse/YARN-1902", "this link"))
+					.build());
 
 	/**
 	 * When a Flink job is submitted to YARN, the JobManager's host and the number of available
@@ -149,7 +195,6 @@ public class YarnConfigOptions {
 
 	/** @see YarnConfigOptions#CLASSPATH_INCLUDE_USER_JAR */
 	public enum UserJarInclusion {
-		DISABLED,
 		FIRST,
 		LAST,
 		ORDER

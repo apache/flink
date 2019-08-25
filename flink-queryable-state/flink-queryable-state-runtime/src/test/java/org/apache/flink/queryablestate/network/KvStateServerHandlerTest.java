@@ -26,6 +26,8 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.queryablestate.client.VoidNamespace;
 import org.apache.flink.queryablestate.client.VoidNamespaceSerializer;
@@ -52,6 +54,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
@@ -328,6 +331,11 @@ public class KvStateServerHandlerTest extends TestLogger {
 							final TypeSerializer<VoidNamespace> safeNamespaceSerializer,
 							final TypeSerializer<Long> safeValueSerializer) throws Exception {
 						throw new RuntimeException("Expected test Exception");
+					}
+
+					@Override
+					public StateIncrementalVisitor<Integer, VoidNamespace, Long> getStateIncrementalVisitor(int recommendedMaxNumberOfReturnedRecords) {
+						throw new UnsupportedOperationException();
 					}
 
 					@Override
@@ -761,6 +769,10 @@ public class KvStateServerHandlerTest extends TestLogger {
 			IntSerializer.INSTANCE,
 			numKeyGroups,
 			new KeyGroupRange(0, 0),
-			registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()));
+			registry.createTaskRegistry(dummyEnv.getJobID(), dummyEnv.getJobVertexId()),
+			TtlTimeProvider.DEFAULT,
+			new UnregisteredMetricsGroup(),
+			Collections.emptyList(),
+			new CloseableRegistry());
 	}
 }

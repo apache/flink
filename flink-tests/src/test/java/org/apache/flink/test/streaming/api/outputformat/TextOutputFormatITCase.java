@@ -20,24 +20,21 @@ package org.apache.flink.test.streaming.api.outputformat;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.testfunctions.Tokenizer;
+import org.apache.flink.test.util.AbstractTestBase;
+
+import org.junit.Test;
 
 /**
  * Integration tests for {@link org.apache.flink.api.java.io.TextOutputFormat}.
  */
-public class TextOutputFormatITCase extends StreamingProgramTestBase {
+public class TextOutputFormatITCase extends AbstractTestBase {
 
-	protected String resultPath;
+	@Test
+	public void testProgram() throws Exception {
+		String resultPath = getTempDirPath("result");
 
-	@Override
-	protected void preSubmit() throws Exception {
-		resultPath = getTempDirPath("result");
-	}
-
-	@Override
-	protected void testProgram() throws Exception {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		DataStream<String> text = env.fromElements(WordCountData.TEXT);
@@ -49,10 +46,7 @@ public class TextOutputFormatITCase extends StreamingProgramTestBase {
 		counts.writeAsText(resultPath);
 
 		env.execute("WriteAsTextTest");
-	}
 
-	@Override
-	protected void postSubmit() throws Exception {
 		compareResultsByLinesInMemory(WordCountData.STREAMING_COUNTS_AS_TUPLES, resultPath);
 	}
 

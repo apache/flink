@@ -70,4 +70,9 @@ public class JobAccumulatorsHeaders implements MessageHeaders<EmptyRequestBody, 
 	public static JobAccumulatorsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns the accumulators for all tasks of a job, aggregated across the respective subtasks.";
+	}
 }

@@ -34,9 +34,8 @@ import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLParameters;
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
@@ -52,7 +51,8 @@ class NettyClient {
 
 	private Bootstrap bootstrap;
 
-	private SSLContext clientSSLContext = null;
+	@Nullable
+	private SSLHandlerFactory clientSSLFactory;
 
 	NettyClient(NettyConfig config) {
 		this.config = config;
@@ -63,7 +63,7 @@ class NettyClient {
 
 		this.protocol = protocol;
 
-		long start = System.currentTimeMillis();
+		final long start = System.nanoTime();
 
 		bootstrap = new Bootstrap();
 
@@ -112,13 +112,13 @@ class NettyClient {
 		}
 
 		try {
-			clientSSLContext = config.createClientSSLContext();
+			clientSSLFactory = config.createClientSSLEngineFactory();
 		} catch (Exception e) {
 			throw new IOException("Failed to initialize SSL Context for the Netty client", e);
 		}
 
-		long end = System.currentTimeMillis();
-		LOG.info("Successful initialization (took {} ms).", (end - start));
+		final long duration = (System.nanoTime() - start) / 1_000_000;
+		LOG.info("Successful initialization (took {} ms).", duration);
 	}
 
 	NettyConfig getConfig() {
@@ -130,7 +130,7 @@ class NettyClient {
 	}
 
 	void shutdown() {
-		long start = System.currentTimeMillis();
+		final long start = System.nanoTime();
 
 		if (bootstrap != null) {
 			if (bootstrap.group() != null) {
@@ -139,8 +139,8 @@ class NettyClient {
 			bootstrap = null;
 		}
 
-		long end = System.currentTimeMillis();
-		LOG.info("Successful shutdown (took {} ms).", (end - start));
+		final long duration = (System.nanoTime() - start) / 1_000_000;
+		LOG.info("Successful shutdown (took {} ms).", duration);
 	}
 
 	private void initNioBootstrap() {
@@ -177,20 +177,12 @@ class NettyClient {
 			public void initChannel(SocketChannel channel) throws Exception {
 
 				// SSL handler should be added first in the pipeline
-				if (clientSSLContext != null) {
-					SSLEngine sslEngine = clientSSLContext.createSSLEngine(
-						serverSocketAddress.getAddress().getHostAddress(),
-						serverSocketAddress.getPort());
-					sslEngine.setUseClientMode(true);
-
-					// Enable hostname verification for remote SSL connections
-					if (!serverSocketAddress.getAddress().isLoopbackAddress()) {
-						SSLParameters newSSLParameters = sslEngine.getSSLParameters();
-						config.setSSLVerifyHostname(newSSLParameters);
-						sslEngine.setSSLParameters(newSSLParameters);
-					}
-
-					channel.pipeline().addLast("ssl", new SslHandler(sslEngine));
+				if (clientSSLFactory != null) {
+					SslHandler sslHandler = clientSSLFactory.createNettySSLHandler(
+							channel.alloc(),
+							serverSocketAddress.getAddress().getCanonicalHostName(),
+							serverSocketAddress.getPort());
+					channel.pipeline().addLast("ssl", sslHandler);
 				}
 				channel.pipeline().addLast(protocol.getClientChannelHandlers());
 			}
@@ -200,7 +192,7 @@ class NettyClient {
 			return bootstrap.connect(serverSocketAddress);
 		}
 		catch (ChannelException e) {
-			if ( (e.getCause() instanceof java.net.SocketException &&
+			if ((e.getCause() instanceof java.net.SocketException &&
 					e.getCause().getMessage().equals("Too many open files")) ||
 				(e.getCause() instanceof ChannelException &&
 						e.getCause().getCause() instanceof java.net.SocketException &&

@@ -37,6 +37,8 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
@@ -66,7 +68,7 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 	/** ZooKeeper path of the node which stores the current leader information. */
 	private final String leaderPath;
 
-	private UUID issuedLeaderSessionID;
+	private volatile UUID issuedLeaderSessionID;
 
 	private volatile UUID confirmedLeaderSessionID;
 
@@ -205,8 +207,8 @@ public class ZooKeeperLeaderElectionService implements LeaderElectionService, Le
 	}
 
 	@Override
-	public boolean hasLeadership() {
-		return leaderLatch.hasLeadership();
+	public boolean hasLeadership(@Nonnull UUID leaderSessionId) {
+		return leaderLatch.hasLeadership() && leaderSessionId.equals(issuedLeaderSessionID);
 	}
 
 	@Override

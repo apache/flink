@@ -50,4 +50,8 @@ public final class SubtaskMetricsHeaders extends
 		return INSTANCE;
 	}
 
+	@Override
+	public String getDescription() {
+		return "Provides access to subtask metrics.";
+	}
 }

@@ -39,6 +39,7 @@ import org.apache.flink.runtime.io.network.api.reader.MutableReader;
 import org.apache.flink.runtime.io.network.api.reader.MutableRecordReader;
 import org.apache.flink.runtime.io.network.api.writer.ChannelSelector;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
+import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
@@ -254,7 +255,7 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 
 		String headName =  getEnvironment().getTaskInfo().getTaskName().split("->")[0].trim();
 		this.metrics = getEnvironment().getMetricGroup()
-			.addOperator(headName.startsWith("CHAIN") ? headName.substring(6) : headName);
+			.getOrAddOperator(headName.startsWith("CHAIN") ? headName.substring(6) : headName);
 		this.metrics.getIOMetricGroup().reuseInputMetricsForTask();
 		if (config.getNumberOfChainedStubs() == 0) {
 			this.metrics.getIOMetricGroup().reuseOutputMetricsForTask();
@@ -1250,8 +1251,10 @@ public class BatchTask<S extends Function, OT> extends AbstractInvokable impleme
 				oe = new OutputEmitter<T>(strategy, indexInSubtaskGroup, comparator, partitioner, dataDist);
 			}
 
-			final RecordWriter<SerializationDelegate<T>> recordWriter =
-					new RecordWriter<SerializationDelegate<T>>(task.getEnvironment().getWriter(outputOffset + i), oe);
+			final RecordWriter<SerializationDelegate<T>> recordWriter = new RecordWriterBuilder()
+				.setChannelSelector(oe)
+				.setTaskName(task.getEnvironment().getTaskInfo().getTaskName())
+				.build(task.getEnvironment().getWriter(outputOffset + i));
 
 			recordWriter.setMetricGroup(task.getEnvironment().getMetricGroup().getIOMetricGroup());
 

@@ -38,36 +38,41 @@ import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexMessageParameters;
 import org.apache.flink.runtime.rest.messages.JobVertexTaskManagersInfo;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
  * A request handler that provides the details of a job vertex, including id, name, and the
  * runtime and metrics of all its subtasks aggregated by TaskManager.
  */
-public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<JobVertexTaskManagersInfo, JobVertexMessageParameters> {
-	private MetricFetcher<?> metricFetcher;
+public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<JobVertexTaskManagersInfo, JobVertexMessageParameters> implements JsonArchivist {
+	private MetricFetcher metricFetcher;
 
 	public JobVertexTaskManagersHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
 			MessageHeaders<EmptyRequestBody, JobVertexTaskManagersInfo, JobVertexMessageParameters> messageHeaders,
 			ExecutionGraphCache executionGraphCache,
 			Executor executor,
-			MetricFetcher<?> metricFetcher) {
-		super(localRestAddress, leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
+			MetricFetcher metricFetcher) {
+		super(leaderRetriever, timeout, responseHeaders, messageHeaders, executionGraphCache, executor);
 		this.metricFetcher = Preconditions.checkNotNull(metricFetcher);
 	}
 
@@ -83,6 +88,24 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 			throw new NotFoundException(String.format("JobVertex %s not found", jobVertexID));
 		}
 
+		return createJobVertexTaskManagersInfo(jobVertex, jobID, metricFetcher);
+	}
+
+	@Override
+	public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+		Collection<? extends AccessExecutionJobVertex> vertices = graph.getAllVertices().values();
+		List<ArchivedJson> archive = new ArrayList<>(vertices.size());
+		for (AccessExecutionJobVertex task : vertices) {
+			ResponseBody json = createJobVertexTaskManagersInfo(task, graph.getJobID(), null);
+			String path = getMessageHeaders().getTargetRestEndpointURL()
+				.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
+				.replace(':' + JobVertexIdPathParameter.KEY, task.getJobVertexId().toString());
+			archive.add(new ArchivedJson(path, json));
+		}
+		return archive;
+	}
+
+	private static JobVertexTaskManagersInfo createJobVertexTaskManagersInfo(AccessExecutionJobVertex jobVertex, JobID jobID, @Nullable MetricFetcher metricFetcher) {
 		// Build a map that groups tasks by TaskManager
 		Map<String, List<AccessExecutionVertex>> taskManagerVertices = new HashMap<>();
 		for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
@@ -150,8 +173,8 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 				taskVertices.size());
 
 			final IOMetricsInfo jobVertexMetrics = new IOMetricsInfo(
-				counts.getNumBytesInLocal() + counts.getNumBytesInRemote(),
-				counts.isNumBytesInLocalComplete() && counts.isNumBytesInRemoteComplete(),
+				counts.getNumBytesIn(),
+				counts.isNumBytesInComplete(),
 				counts.getNumBytesOut(),
 				counts.isNumBytesOutComplete(),
 				counts.getNumRecordsIn(),
@@ -173,6 +196,6 @@ public class JobVertexTaskManagersHandler extends AbstractExecutionGraphHandler<
 				statusCounts));
 		}
 
-		return new JobVertexTaskManagersInfo(jobVertexID, jobVertex.getName(), now, taskManagersInfoList);
+		return new JobVertexTaskManagersInfo(jobVertex.getJobVertexId(), jobVertex.getName(), now, taskManagersInfoList);
 	}
 }

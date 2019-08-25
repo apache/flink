@@ -462,6 +462,13 @@ This file is based on the checkstyle file of Apache Beam.
     <!-- Detects empty statements (standalone ";" semicolon). -->
     <module name="EmptyStatement"/>
 
+	<!-- Detect multiple consecutive semicolons (e.g. ";;"). -->
+	<module name="RegexpSinglelineJava">
+	  <property name="format" value=";{2,}"/>
+	  <property name="message" value="Use one semicolon"/>
+	  <property name="ignoreComments" value="true"/>
+	</module>
+
     <!--
 
     MODIFIERS CHECKS
@@ -491,7 +498,7 @@ This file is based on the checkstyle file of Apache Beam.
       -->
       <property name="allowMultipleEmptyLines" value="false"/>
       <property name="allowMultipleEmptyLinesInsideClassMembers" value="false"/>
-      <property name="tokens" value="PACKAGE_DEF, IMPORT, CLASS_DEF,
+      <property name="tokens" value="PACKAGE_DEF, IMPORT, STATIC_IMPORT, CLASS_DEF,
         INTERFACE_DEF, ENUM_DEF, STATIC_INIT, INSTANCE_INIT, METHOD_DEF,
         CTOR_DEF"/>
     </module>
@@ -503,11 +510,11 @@ This file is based on the checkstyle file of Apache Beam.
       -->
       <property name="tokens" value="ASSIGN, BAND, BAND_ASSIGN, BOR,
         BOR_ASSIGN, BSR, BSR_ASSIGN, BXOR, BXOR_ASSIGN, COLON, DIV, DIV_ASSIGN,
-        EQUAL, GE, GT, LAND, LE, LITERAL_CATCH, LITERAL_DO, LITERAL_ELSE,
+        EQUAL, GE, GT, LAMBDA, LAND, LE, LITERAL_CATCH, LITERAL_DO, LITERAL_ELSE,
         LITERAL_FINALLY, LITERAL_FOR, LITERAL_IF, LITERAL_RETURN,
         LITERAL_SYNCHRONIZED, LITERAL_TRY, LITERAL_WHILE, LOR, LT, MINUS,
         MINUS_ASSIGN, MOD, MOD_ASSIGN, NOT_EQUAL, PLUS, PLUS_ASSIGN, QUESTION,
-        SL, SL_ASSIGN, SR_ASSIGN, STAR, STAR_ASSIGN"/>
+        SL, SL_ASSIGN, SR_ASSIGN, STAR, STAR_ASSIGN, TYPE_EXTENSION_AND"/>
       <property name="severity" value="error"/>
     </module>
 

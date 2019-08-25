@@ -31,11 +31,6 @@ import org.junit.Test;
  * Test job cancellation from within a MapFunction.
  */
 public class MapCancelingITCase extends CancelingTestBase {
-	private static final int parallelism = 4;
-
-	public MapCancelingITCase() {
-		setTaskManagerNumSlots(parallelism);
-	}
 
 	@Test
 	public void testMapCancelling() throws Exception {
@@ -65,7 +60,7 @@ public class MapCancelingITCase extends CancelingTestBase {
 				.map(mapper)
 				.output(new DiscardingOutputFormat<Integer>());
 
-		env.setParallelism(parallelism);
+		env.setParallelism(PARALLELISM);
 
 		runAndCancelJob(env.createProgramPlan(), 5 * 1000, 10 * 1000);
 	}

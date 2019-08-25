@@ -110,6 +110,11 @@ public abstract class KeyedProcessFunction<K, I, O> extends AbstractRichFunction
 		 * @param value The record to emit.
 		 */
 		public abstract <X> void output(OutputTag<X> outputTag, X value);
+
+		/**
+		 * Get key of the element being processed.
+		 */
+		public abstract K getCurrentKey();
 	}
 
 	/**
@@ -124,6 +129,7 @@ public abstract class KeyedProcessFunction<K, I, O> extends AbstractRichFunction
 		/**
 		 * Get key of the firing timer.
 		 */
+		@Override
 		public abstract K getCurrentKey();
 	}
 

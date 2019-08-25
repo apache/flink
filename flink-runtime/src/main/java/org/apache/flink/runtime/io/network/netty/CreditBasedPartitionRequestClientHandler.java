@@ -89,9 +89,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 	public void addInputChannel(RemoteInputChannel listener) throws IOException {
 		checkError();
 
-		if (!inputChannels.containsKey(listener.getInputChannelId())) {
-			inputChannels.put(listener.getInputChannelId(), listener);
-		}
+		inputChannels.putIfAbsent(listener.getInputChannelId(), listener);
 	}
 
 	@Override
@@ -112,12 +110,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 
 	@Override
 	public void notifyCreditAvailable(final RemoteInputChannel inputChannel) {
-		ctx.executor().execute(new Runnable() {
-			@Override
-			public void run() {
-				ctx.pipeline().fireUserEventTriggered(inputChannel);
-			}
-		});
+		ctx.executor().execute(() -> ctx.pipeline().fireUserEventTriggered(inputChannel));
 	}
 
 	// ------------------------------------------------------------------------
@@ -167,7 +160,9 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 				tex = new RemoteTransportException("Lost connection to task manager '" + remoteAddr + "'. " +
 					"This indicates that the remote task manager was lost.", remoteAddr, cause);
 			} else {
-				tex = new LocalTransportException(cause.getMessage(), ctx.channel().localAddress(), cause);
+				final SocketAddress localAddr = ctx.channel().localAddress();
+				tex = new LocalTransportException(
+					String.format("%s (connection to '%s')", cause.getMessage(), remoteAddr), localAddr, cause);
 			}
 
 			notifyAllChannelsOfErrorAndClose(tex);
@@ -325,8 +320,7 @@ class CreditBasedPartitionRequestClientHandler extends ChannelInboundHandlerAdap
 				nettyBuffer.readBytes(byteArray);
 
 				MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
-				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false);
-				buffer.setSize(receivedSize);
+				Buffer buffer = new NetworkBuffer(memSeg, FreeingBufferRecycler.INSTANCE, false, receivedSize);
 
 				inputChannel.onBuffer(buffer, bufferOrEvent.sequenceNumber, bufferOrEvent.backlog);
 			}

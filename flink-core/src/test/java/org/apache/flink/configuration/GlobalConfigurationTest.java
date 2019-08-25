@@ -31,7 +31,9 @@ import java.io.PrintWriter;
 import java.util.UUID;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * This class contains tests for the global configuration (parsing configuration directory information).
@@ -95,7 +97,7 @@ public class GlobalConfigurationTest extends TestLogger {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testFailIfNull() {
-		GlobalConfiguration.loadConfiguration(null);
+		GlobalConfiguration.loadConfiguration((String) null);
 	}
 
 	@Test(expected = IllegalConfigurationException.class)
@@ -120,4 +122,12 @@ public class GlobalConfigurationTest extends TestLogger {
 		assertNotNull(GlobalConfiguration.loadConfiguration(tempFolder.getRoot().getAbsolutePath()));
 	}
 
+	@Test
+	public void testHiddenKey() {
+		assertTrue(GlobalConfiguration.isSensitive("password123"));
+		assertTrue(GlobalConfiguration.isSensitive("123pasSword"));
+		assertTrue(GlobalConfiguration.isSensitive("PasSword"));
+		assertTrue(GlobalConfiguration.isSensitive("Secret"));
+		assertFalse(GlobalConfiguration.isSensitive("Hello"));
+	}
 }

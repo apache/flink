@@ -59,7 +59,7 @@ public class FlinkHttpObjectAggregator extends org.apache.flink.shaded.netty4.io
 				false,
 				new ErrorResponseBody(String.format(
 					e.getMessage() + " Try to raise [%s]",
-					RestOptions.REST_SERVER_MAX_CONTENT_LENGTH.key())),
+					RestOptions.SERVER_MAX_CONTENT_LENGTH.key())),
 				HttpResponseStatus.REQUEST_ENTITY_TOO_LARGE,
 				responseHeaders);
 		}

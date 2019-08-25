@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.experimental;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 
@@ -41,7 +41,7 @@ import java.util.NoSuchElementException;
  *
  * @param <T> The type of elements returned from the iterator.
  */
-@PublicEvolving
+@Experimental
 public class SocketStreamIterator<T> implements Iterator<T> {
 
 	/** Server socket to listen at. */

@@ -18,21 +18,21 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.testjar.AvroExternalJarProgram;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.File;
-import java.net.URL;
+import java.io.IOException;
 import java.util.Collections;
 
 /**
@@ -44,49 +44,45 @@ public class AvroExternalJarProgramITCase extends TestLogger {
 
 	private static final String TEST_DATA_FILE = "/testdata.avro";
 
+	private static final int PARALLELISM = 4;
+
+	private static final MiniCluster MINI_CLUSTER = new MiniCluster(
+		new MiniClusterConfiguration.Builder()
+			.setNumTaskManagers(1)
+			.setNumSlotsPerTaskManager(PARALLELISM)
+			.build());
+
+	@BeforeClass
+	public static void setUp() throws Exception {
+		MINI_CLUSTER.start();
+	}
+
+	@AfterClass
+	public static void tearDown() {
+		TestEnvironment.unsetAsContext();
+		MINI_CLUSTER.closeAsync();
+	}
+
 	@Test
-	public void testExternalProgram() {
+	public void testExternalProgram() throws Exception {
 
-		LocalFlinkMiniCluster testMiniCluster = null;
-
+		String jarFile = JAR_FILE;
 		try {
-			int parallelism = 4;
-			Configuration config = new Configuration();
-			config.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, parallelism);
-			testMiniCluster = new LocalFlinkMiniCluster(config, false);
-			testMiniCluster.start();
-
-			String jarFile = JAR_FILE;
-			String testData = getClass().getResource(TEST_DATA_FILE).toString();
-
-			PackagedProgram program = new PackagedProgram(new File(jarFile), new String[] { testData });
-
-			TestEnvironment.setAsContext(
-				testMiniCluster,
-				parallelism,
-				Collections.singleton(new Path(jarFile)),
-				Collections.<URL>emptyList());
-
-			config.setString(JobManagerOptions.ADDRESS, "localhost");
-			config.setInteger(JobManagerOptions.PORT, testMiniCluster.getLeaderRPCPort());
-
-			program.invokeInteractiveModeForExecution();
+			JobWithJars.checkJarFile(new File(jarFile).getAbsoluteFile().toURI().toURL());
+		} catch (IOException e) {
+			jarFile = "target/".concat(jarFile);
 		}
-		catch (Throwable t) {
-			System.err.println(t.getMessage());
-			t.printStackTrace();
-			Assert.fail("Error during the packaged program execution: " + t.getMessage());
-		}
-		finally {
-			TestEnvironment.unsetAsContext();
 
-			if (testMiniCluster != null) {
-				try {
-					testMiniCluster.stop();
-				} catch (Throwable t) {
-					// ignore
-				}
-			}
-		}
+		TestEnvironment.setAsContext(
+			MINI_CLUSTER,
+			PARALLELISM,
+			Collections.singleton(new Path(jarFile)),
+			Collections.emptyList());
+
+		String testData = getClass().getResource(TEST_DATA_FILE).toString();
+
+		PackagedProgram program = new PackagedProgram(new File(jarFile), new String[]{testData});
+
+		program.invokeInteractiveModeForExecution();
 	}
 }

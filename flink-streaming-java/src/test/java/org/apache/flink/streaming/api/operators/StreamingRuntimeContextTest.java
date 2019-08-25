@@ -38,10 +38,14 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.DummyEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
@@ -50,6 +54,7 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import org.junit.Test;
 import org.mockito.Matchers;
@@ -58,7 +63,6 @@ import org.mockito.stubbing.Answer;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertFalse;
@@ -296,6 +300,7 @@ public class StreamingRuntimeContextTest {
 		}).when(keyedStateBackend).getPartitionedState(Matchers.any(), any(TypeSerializer.class), any(StateDescriptor.class));
 
 		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
+		when(operatorMock.getOperatorID()).thenReturn(new OperatorID());
 
 		return operatorMock;
 	}
@@ -320,19 +325,24 @@ public class StreamingRuntimeContextTest {
 						(ListStateDescriptor<String>) invocationOnMock.getArguments()[2];
 
 				AbstractKeyedStateBackend<Integer> backend = new MemoryStateBackend().createKeyedStateBackend(
-						new DummyEnvironment("test_task", 1, 0),
-						new JobID(),
-						"test_op",
-						IntSerializer.INSTANCE,
-						1,
-						new KeyGroupRange(0, 0),
-						new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
+					new DummyEnvironment("test_task", 1, 0),
+					new JobID(),
+					"test_op",
+					IntSerializer.INSTANCE,
+					1,
+					new KeyGroupRange(0, 0),
+					new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
+					TtlTimeProvider.DEFAULT,
+					new UnregisteredMetricsGroup(),
+					Collections.emptyList(),
+					new CloseableRegistry());
 				backend.setCurrentKey(0);
 				return backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descr);
 			}
 		}).when(keyedStateBackend).getPartitionedState(Matchers.any(), any(TypeSerializer.class), any(ListStateDescriptor.class));
 
 		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
+		when(operatorMock.getOperatorID()).thenReturn(new OperatorID());
 		return operatorMock;
 	}
 
@@ -356,27 +366,30 @@ public class StreamingRuntimeContextTest {
 						(MapStateDescriptor<Integer, String>) invocationOnMock.getArguments()[2];
 
 				AbstractKeyedStateBackend<Integer> backend = new MemoryStateBackend().createKeyedStateBackend(
-						new DummyEnvironment("test_task", 1, 0),
-						new JobID(),
-						"test_op",
-						IntSerializer.INSTANCE,
-						1,
-						new KeyGroupRange(0, 0),
-						new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()));
+					new DummyEnvironment("test_task", 1, 0),
+					new JobID(),
+					"test_op",
+					IntSerializer.INSTANCE,
+					1,
+					new KeyGroupRange(0, 0),
+					new KvStateRegistry().createTaskRegistry(new JobID(), new JobVertexID()),
+					TtlTimeProvider.DEFAULT,
+					new UnregisteredMetricsGroup(),
+					Collections.emptyList(),
+					new CloseableRegistry());
 				backend.setCurrentKey(0);
 				return backend.getPartitionedState(VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, descr);
 			}
 		}).when(keyedStateBackend).getPartitionedState(Matchers.any(), any(TypeSerializer.class), any(MapStateDescriptor.class));
 
 		when(operatorMock.getKeyedStateStore()).thenReturn(keyedStateStore);
+		when(operatorMock.getOperatorID()).thenReturn(new OperatorID());
 		return operatorMock;
 	}
 
 	private static Environment createMockEnvironment() {
-		Environment env = mock(Environment.class);
-		when(env.getUserClassLoader()).thenReturn(StreamingRuntimeContextTest.class.getClassLoader());
-		when(env.getDistributedCacheEntries()).thenReturn(Collections.<String, Future<Path>>emptyMap());
-		when(env.getTaskInfo()).thenReturn(new TaskInfo("test task", 1, 0, 1, 1));
-		return env;
+		return MockEnvironment.builder()
+			.setTaskName("test task")
+			.build();
 	}
 }

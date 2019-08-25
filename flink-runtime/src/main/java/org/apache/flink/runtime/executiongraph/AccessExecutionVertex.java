@@ -20,6 +20,8 @@ package org.apache.flink.runtime.executiongraph;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
+import javax.annotation.Nullable;
+
 /**
  * Common interface for the runtime {@link ExecutionVertex} and {@link ArchivedExecutionVertex}.
  */
@@ -81,5 +83,6 @@ public interface AccessExecutionVertex {
 	 * @param attemptNumber attempt number of execution to be returned
 	 * @return execution for the given attempt number
 	 */
+	@Nullable
 	AccessExecution getPriorExecutionAttempt(int attemptNumber);
 }

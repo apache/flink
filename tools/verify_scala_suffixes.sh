@@ -61,6 +61,7 @@
 # [INFO]       \- org.scala-lang:scala-library:jar:2.10.4:compile
 # [INFO]
 
+MAVEN_ARGUMENTS=${1:-""}
 
 if [[ `basename $PWD` == "tools" ]] ; then
     cd ..
@@ -79,6 +80,13 @@ in_block=0
 block_name=""
 block_infected=0
 
+# exclude e2e modules and flink-docs for convenience as they
+# a) are not deployed during a release
+# b) exist only for dev purposes
+# c) no-one should depend on them
+e2e_modules=$(find flink-end-to-end-tests -mindepth 2 -maxdepth 5 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')
+excluded_modules=\!${e2e_modules//,/,\!},!flink-docs
+
 echo "Analyzing modules for Scala dependencies using 'mvn dependency:tree'."
 echo "If you haven't built the project, please do so first by running \"mvn clean install -DskipTests\""
 
@@ -86,14 +94,14 @@ infected=""
 clean=""
 
 while read line; do
-    if [[ $line == "$BEGIN"* ]]; then
+    if [[ $line == *"$BEGIN"* ]]; then
         reached_block=1
         # Maven module name
         block_name=`[[ "$line" =~ .*(flink-?[-a-zA-Z0-9.]*).* ]] && echo ${BASH_REMATCH[1]}`
-    elif [[ $line == "$SEPARATOR" ]] && [[ $reached_block -eq 1 ]]; then
+    elif [[ $line == *"$SEPARATOR"* ]] && [[ $reached_block -eq 1 ]]; then
         reached_block=0
         in_block=1
-    elif [[ $line == "$END" ]] && [[ $in_block -eq 1 ]]; then
+    elif [[ $line == *"$END"* ]] && [[ $in_block -eq 1 ]]; then
         if [[ $block_infected -eq 0 ]]; then
             clean="$block_name $clean"
         fi
@@ -102,14 +110,14 @@ while read line; do
         block_name=""
         block_infected=0
     elif [[ $in_block -eq 1 ]]; then
-        echo $line | grep org.scala-lang >/dev/null
+        echo $line | grep -E "org.scala-lang|- [^:]+:[^:]+_2\.1[0-9]" | grep --invert-match "org.scala-lang.*:.*:.*:test" | grep --invert-match "[^:]*:[^:]*_2\.1[0-9]:.*:.*:test" >/dev/null
         if [ $? -eq 0 ]; then
             #echo $block_name
             infected="$block_name $infected"
             block_infected=1
         fi
     fi
-done < <(mvn -o dependency:tree -Dincludes=org.scala-lang | tee /dev/tty)
+done < <(mvn -nsu dependency:tree -Dincludes=org.scala-lang,:*_2.1*:: -pl ${excluded_modules} ${MAVEN_ARGUMENTS} | tee /dev/tty)
 
 
 # deduplicate and sort
@@ -133,7 +141,7 @@ echo
 echo "Checking Scala-free modules:"
 
 for module in $clean; do
-    out=`find . -name 'pom.xml' -not -path '*target*' -exec grep "${module}_\d\+\.\d\+</artifactId>" "{}" \;`
+    out=`find . -maxdepth 3 -name 'pom.xml' -not -path '*target*' -exec grep "${module}_\\${scala.binary.version}</artifactId>" "{}" \;`
     if [[ "$out" == "" ]]; then
         printf "$GREEN OK $NC $module\n"
     else
@@ -147,7 +155,7 @@ echo
 echo "Checking Scala-dependent modules:"
 
 for module in $infected; do
-    out=`find . -name 'pom.xml' -not -path '*target*' -exec grep "${module}</artifactId>" "{}" \;`
+    out=`find . -maxdepth 3 -name 'pom.xml' -not -path '*target*' -exec grep "${module}</artifactId>" "{}" \;`
     if [[ "$out" == "" ]]; then
         printf "$GREEN OK $NC $module\n"
     else

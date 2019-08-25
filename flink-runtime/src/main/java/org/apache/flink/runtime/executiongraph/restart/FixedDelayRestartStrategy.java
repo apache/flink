@@ -18,14 +18,17 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.util.Preconditions;
-import scala.concurrent.duration.Duration;
 
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
+
+import scala.concurrent.duration.Duration;
 
 /**
  * Restart strategy which tries to restart the given {@link ExecutionGraph} a fixed number of times
@@ -59,15 +62,9 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 	}
 
 	@Override
-	public void restart(final RestartCallback restarter, ScheduledExecutor executor) {
+	public CompletableFuture<Void> restart(final RestartCallback restarter, ScheduledExecutor executor) {
 		currentRestartAttempt++;
-
-		executor.schedule(new Runnable() {
-			@Override
-			public void run() {
-				restarter.triggerFullRecovery();
-			}
-		}, delayBetweenRestartAttempts, TimeUnit.MILLISECONDS);
+		return FutureUtils.scheduleWithDelay(restarter::triggerFullRecovery, Time.milliseconds(delayBetweenRestartAttempts), executor);
 	}
 
 	/**

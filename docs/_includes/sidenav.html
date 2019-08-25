@@ -29,7 +29,7 @@ Extract the active nav IDs.
 {% for i in (1..10) %}
   {% if parent_id %}
     {% assign active_nav_ids = active_nav_ids | push: parent_id %}
-    {% assign current = (site.pages | where: "nav-id" , parent_id | sort: "nav-pos") %}
+    {% assign current = (site.pages_by_language[page.language] | where: "nav-id" , parent_id | sort: "nav-pos") %}
     {% if current.size > 0 %}
       {% assign parent_id = current[0].nav-parent_id %}
     {% else %}
@@ -39,6 +39,12 @@ Extract the active nav IDs.
     {% break %}
   {% endif %}
 {% endfor %}
+
+{% if page.language == "en" %}
+  {% capture baseurl_i18n %}{{ site.baseurl }}{% endcapture %}
+{% else if page.language == "zh" %}
+  {% capture baseurl_i18n %}{{ site.baseurl }}/{{ page.language }}{% endcapture %}
+{% endif %}
 
 {% comment %}
 ==============================================================================
@@ -63,7 +69,7 @@ level is determined by 'nav-pos'.
 {% assign posStack = site.array %}
 
 {% assign elements = site.array %}
-{% assign children = (site.pages | where: "nav-parent_id" , "root" | sort: "nav-pos") %}
+{% assign children = (site.pages_by_language[page.language] | where: "nav-parent_id" , "root" | sort: "nav-pos") %}
 {% if children.size > 0 %}
   {% assign elements = elements | push: children %}
 {% endif %}
@@ -72,7 +78,7 @@ level is determined by 'nav-pos'.
 {% assign pos = 0 %}
 
 <div class="sidenav-logo">
-  <p><a href="{{ site.baseurl }}"><img class="bottom" alt="Apache Flink" src="{{ site.baseurl }}/page/img/navbar-brand-logo.jpg"></a> v{{ site.version_title }}</p>
+  <p><a href="{{ baseurl_i18n }}"><img class="bottom" alt="Apache Flink" src="{{ site.baseurl }}/page/img/navbar-brand-logo.jpg"></a> v{{ site.version_title }}</p>
 </div>
 <ul id="sidenav">
 {% for i in (1..10000) %}
@@ -105,12 +111,15 @@ level is determined by 'nav-pos'.
 
     {% assign pos = pos | plus: 1 %}
     {% if this.nav-id %}
-      {% assign children = (site.pages | where: "nav-parent_id" , this.nav-id | sort: "nav-pos") %}
+      {% assign children = (site.pages_by_language[page.language] | where: "nav-parent_id" , this.nav-id | sort: "nav-pos") %}
       {% if children.size > 0 %}
         {% capture collapse_target %}"#collapse-{{ i }}" data-toggle="collapse"{% if active %} class="active"{% endif %}{% endcapture %}
         {% capture expand %}{% unless active %} <i class="fa fa-caret-down pull-right" aria-hidden="true" style="padding-top: 4px"></i>{% endunless %}{% endcapture %}
 <li><a href={{ collapse_target }}>{{ title }}{{ expand }}</a><div class="collapse{% if active %} in{% endif %}" id="collapse-{{ i }}"><ul>
-  {% if this.nav-show_overview %}<li><a href={{ overview_target }}>Overview</a></li>{% endif %}
+        {% if this.nav-show_overview %}
+          <li><a href={{ overview_target }}>
+            {% if page.is_default_language %}Overview{% else %}概览{% endif %}</a></li>
+        {% endif %}
         {% assign elements = elements | push: children %}
         {% assign elementsPosStack = elementsPosStack | push: elementsPos %}
         {% assign posStack = posStack | push: pos %}
@@ -126,7 +135,9 @@ level is determined by 'nav-pos'.
   {% endif %}
 {% endfor %}
   <li class="divider"></li>
-  <li><a href="https://ci.apache.org/projects/flink/flink-docs-release-{{site.version_javadocs}}/api/java"><i class="fa fa-external-link title" aria-hidden="true"></i> Javadocs</a></li>
+  <li><a href="{{ site.javadocs_baseurl }}/api/java"><i class="fa fa-external-link title" aria-hidden="true"></i> Javadocs</a></li>
+  <li><a href="{{ site.javadocs_baseurl }}/api/scala/index.html#org.apache.flink.api.scala.package"><i class="fa fa-external-link title" aria-hidden="true"></i> Scaladocs</a></li>
+  <li><a href="{{ site.pythondocs_baseurl }}/api/python"><i class="fa fa-external-link title" aria-hidden="true"></i> Pythondocs</a></li>
   <li><a href="http://flink.apache.org"><i class="fa fa-external-link title" aria-hidden="true"></i> Project Page</a></li>
 </ul>
 
@@ -141,7 +152,12 @@ level is determined by 'nav-pos'.
 
 <div class="sidenav-versions">
   <div class="dropdown">
-    <button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">Pick Docs Version
+    <button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">
+      {% if page.is_default_language %}
+        Pick Docs Version
+      {% else %}
+        选择文档版本
+      {% endif %}
     <span class="caret"></span></button>
     <ul class="dropdown-menu">
       {% for d in site.previous_docs %}
@@ -149,4 +165,17 @@ level is determined by 'nav-pos'.
       {% endfor %}
     </ul>
   </div>
+</div>
+
+<div class="sidenav-languages">
+  {% if page.is_default_language %}
+    <!-- link to the Chinese home page when current is blog page -->
+    <a href="{{ site.baseurl }}/zh{{ page.url }}">
+      <button type="submit" class="btn btn-default">中文版</button>
+    </a>
+  {% else %}
+    <a href="{{ site.baseurl }}{{ page.url | remove_first: 'zh/' }}">
+      <button type="submit" class="btn btn-default">English</button>
+    </a>
+  {% endif %}
 </div>

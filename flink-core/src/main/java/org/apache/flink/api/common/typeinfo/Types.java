@@ -43,6 +43,10 @@ import java.math.BigInteger;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -151,6 +155,28 @@ public class Types {
 	public static final TypeInformation<Timestamp> SQL_TIMESTAMP = SqlTimeTypeInfo.TIMESTAMP;
 
 	/**
+	 * Returns type information for {@link java.time.LocalDate}. Supports a null value.
+	 */
+	public static final TypeInformation<LocalDate> LOCAL_DATE = LocalTimeTypeInfo.LOCAL_DATE;
+
+	/**
+	 * Returns type information for {@link java.time.LocalTime}. Supports a null value.
+	 */
+	public static final TypeInformation<LocalTime> LOCAL_TIME = LocalTimeTypeInfo.LOCAL_TIME;
+
+	/**
+	 * Returns type information for {@link java.time.LocalDateTime}. Supports a null value.
+	 */
+	public static final TypeInformation<LocalDateTime> LOCAL_DATE_TIME = LocalTimeTypeInfo.LOCAL_DATE_TIME;
+
+	/**
+	 * Returns type infomation for {@link java.time.Instant}. Supports a null value.
+	 */
+	public static final TypeInformation<Instant> INSTANT = BasicTypeInfo.INSTANT_TYPE_INFO;
+
+	//CHECKSTYLE.OFF: MethodName
+
+	/**
 	 * Returns type information for {@link org.apache.flink.types.Row} with fields of the given types.
 	 * A row itself must not be null.
 	 *
@@ -161,7 +187,7 @@ public class Types {
 	 *
 	 * <p>The schema of rows can have up to <code>Integer.MAX_VALUE</code> fields, however, all row instances
 	 * must strictly adhere to the schema defined by the type info.
-	 * 
+	 *
 	 * <p>This method generates type information with fields of the given types; the fields have
 	 * the default names (f0, f1, f2 ..).
 	 *
@@ -446,4 +472,6 @@ public class Types {
 	public static <L, R> TypeInformation<Either<L, R>> EITHER(TypeInformation<L> leftType, TypeInformation<R> rightType) {
 		return new EitherTypeInfo<>(leftType, rightType);
 	}
+
+	//CHECKSTYLE.ON: MethodName
 }

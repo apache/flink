@@ -18,9 +18,10 @@
 
 package org.apache.flink.queryablestate.client.state;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.util.Preconditions;
 
@@ -34,7 +35,6 @@ import java.util.List;
  * {@link org.apache.flink.queryablestate.client.QueryableStateClient Queryable State Client} and
  * providing an {@link ListStateDescriptor}.
  */
-@PublicEvolving
 public final class ImmutableListState<V> extends ImmutableState implements ListState<V> {
 
 	private final List<V> listState;
@@ -58,23 +58,23 @@ public final class ImmutableListState<V> extends ImmutableState implements ListS
 		throw MODIFICATION_ATTEMPT_ERROR;
 	}
 
-	public static <V> ImmutableListState<V> createState(
-			final ListStateDescriptor<V> stateDescriptor,
-			final byte[] serializedState) throws IOException {
+	@Override
+	public void update(List<V> values) {
+		throw MODIFICATION_ATTEMPT_ERROR;
+	}
 
+	@Override
+	public void addAll(List<V> values) {
+		throw MODIFICATION_ATTEMPT_ERROR;
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <V, T, S extends State> S createState(
+		StateDescriptor<S, T> stateDescriptor,
+		byte[] serializedState) throws IOException {
 		final List<V> state = KvStateSerializer.deserializeList(
-				serializedState,
-				stateDescriptor.getElementSerializer());
-		return new ImmutableListState<>(state);
-	}
-
-	@Override
-	public void update(List<V> values) throws Exception {
-		throw MODIFICATION_ATTEMPT_ERROR;
-	}
-
-	@Override
-	public void addAll(List<V> values) throws Exception {
-		throw MODIFICATION_ATTEMPT_ERROR;
+			serializedState,
+			((ListStateDescriptor<V>) stateDescriptor).getElementSerializer());
+		return (S) new ImmutableListState<>(state);
 	}
 }

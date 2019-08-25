@@ -28,19 +28,25 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.api.support.membermodification.MemberMatcher;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the DatadogHttpClient.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(DMetric.class)
+@PrepareForTest({DMetric.class, DatadogHttpClient.class})
+@PowerMockIgnore("javax.net.ssl.*")
 public class DatadogHttpClientTest {
 
 	private static List<String> tags = Arrays.asList("tag1", "tag2");
@@ -53,14 +59,37 @@ public class DatadogHttpClientTest {
 		PowerMockito.when(DMetric.getUnixEpochTimestamp()).thenReturn(MOCKED_SYSTEM_MILLIS);
 	}
 
+	@Before
+	public void suppressValidateApiKey() {
+		PowerMockito.suppress(MemberMatcher.method(DatadogHttpClient.class, "validateApiKey"));
+	}
+
 	@Test(expected = IllegalArgumentException.class)
 	public void testClientWithEmptyKey() {
-		new DatadogHttpClient("");
+		new DatadogHttpClient("", null, 123);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testClientWithNullKey() {
-		new DatadogHttpClient(null);
+		new DatadogHttpClient(null, null, 123);
+	}
+
+	@Test
+	public void testGetProxyWithNullProxyHost() {
+		DatadogHttpClient client = new DatadogHttpClient("anApiKey", null, 123);
+		assert(client.getProxy() == Proxy.NO_PROXY);
+	}
+
+	@Test
+	public void testGetProxy() {
+		DatadogHttpClient client = new DatadogHttpClient("anApiKey", "localhost", 123);
+
+		assertTrue(client.getProxy().address() instanceof InetSocketAddress);
+
+		InetSocketAddress proxyAddress = (InetSocketAddress) client.getProxy().address();
+
+		assertEquals(123, proxyAddress.getPort());
+		assertEquals("localhost", proxyAddress.getHostString());
 	}
 
 	@Test

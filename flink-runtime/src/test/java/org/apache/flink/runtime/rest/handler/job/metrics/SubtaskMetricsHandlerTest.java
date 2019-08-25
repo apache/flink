@@ -27,7 +27,6 @@ import org.apache.flink.runtime.rest.messages.SubtaskIndexPathParameter;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * Tests for {@link SubtaskMetricsHandler}.
@@ -43,7 +42,6 @@ public class SubtaskMetricsHandlerTest extends MetricsHandlerTestBase<SubtaskMet
 	@Override
 	SubtaskMetricsHandler getMetricsHandler() {
 		return new SubtaskMetricsHandler(
-			CompletableFuture.completedFuture("localhost:12345"),
 			leaderRetriever,
 			TIMEOUT,
 			TEST_HEADERS,

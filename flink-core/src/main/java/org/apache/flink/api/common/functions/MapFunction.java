@@ -28,18 +28,19 @@ import java.io.Serializable;
  * Typical applications are parsing elements, converting data types, or projecting out fields.
  * Operations that produce multiple result elements from a single input element can be implemented
  * using the {@link FlatMapFunction}.
- * <p>
- * The basic syntax for using a MapFunction is as follows:
+ *
+ * <p>The basic syntax for using a MapFunction is as follows:
  * <pre>{@code
  * DataSet<X> input = ...;
- * 
+ *
  * DataSet<Y> result = input.map(new MyMapFunction());
  * }</pre>
- * 
+ *
  * @param <T> Type of the input elements.
  * @param <O> Type of the returned elements.
  */
 @Public
+@FunctionalInterface
 public interface MapFunction<T, O> extends Function, Serializable {
 
 	/**

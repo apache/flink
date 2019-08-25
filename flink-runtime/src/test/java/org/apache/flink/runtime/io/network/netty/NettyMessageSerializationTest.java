@@ -20,13 +20,11 @@ package org.apache.flink.runtime.io.network.netty;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.event.task.IntegerTaskEvent;
-import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelID;
-import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.channel.embedded.EmbeddedChannel;
@@ -36,6 +34,7 @@ import org.junit.Test;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -44,10 +43,11 @@ import static org.junit.Assert.assertTrue;
  */
 public class NettyMessageSerializationTest {
 
+	public static final boolean RESTORE_OLD_NETTY_BEHAVIOUR = false;
+
 	private final EmbeddedChannel channel = new EmbeddedChannel(
 			new NettyMessage.NettyMessageEncoder(), // outbound messages
-			NettyMessage.NettyMessageEncoder.createFrameLengthDecoder(), // inbound messages
-			new NettyMessage.NettyMessageDecoder()); // inbound messages
+			new NettyMessage.NettyMessageDecoder(RESTORE_OLD_NETTY_BEHAVIOUR)); // inbound messages
 
 	private final Random random = new Random();
 
@@ -95,7 +95,7 @@ public class NettyMessageSerializationTest {
 		}
 
 		{
-			NettyMessage.PartitionRequest expected = new NettyMessage.PartitionRequest(new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID()), random.nextInt(), new InputChannelID(), random.nextInt());
+			NettyMessage.PartitionRequest expected = new NettyMessage.PartitionRequest(new ResultPartitionID(), random.nextInt(), new InputChannelID(), random.nextInt());
 			NettyMessage.PartitionRequest actual = encodeAndDecode(expected);
 
 			assertEquals(expected.partitionId, actual.partitionId);
@@ -105,7 +105,7 @@ public class NettyMessageSerializationTest {
 		}
 
 		{
-			NettyMessage.TaskEventRequest expected = new NettyMessage.TaskEventRequest(new IntegerTaskEvent(random.nextInt()), new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID()), new InputChannelID());
+			NettyMessage.TaskEventRequest expected = new NettyMessage.TaskEventRequest(new IntegerTaskEvent(random.nextInt()), new ResultPartitionID(), new InputChannelID());
 			NettyMessage.TaskEventRequest actual = encodeAndDecode(expected);
 
 			assertEquals(expected.event, actual.event);
@@ -128,7 +128,7 @@ public class NettyMessageSerializationTest {
 		}
 
 		{
-			NettyMessage.AddCredit expected = new NettyMessage.AddCredit(new ResultPartitionID(new IntermediateResultPartitionID(), new ExecutionAttemptID()), random.nextInt(Integer.MAX_VALUE) + 1, new InputChannelID());
+			NettyMessage.AddCredit expected = new NettyMessage.AddCredit(new ResultPartitionID(), random.nextInt(Integer.MAX_VALUE) + 1, new InputChannelID());
 			NettyMessage.AddCredit actual = encodeAndDecode(expected);
 
 			assertEquals(expected.partitionId, actual.partitionId);
@@ -150,9 +150,10 @@ public class NettyMessageSerializationTest {
 			testBuffer, random.nextInt(), new InputChannelID(), random.nextInt());
 		NettyMessage.BufferResponse actual = encodeAndDecode(expected);
 
-		// Verify recycle has been called on buffer instance (LengthFieldBasedFrameDecoder creates a new one)
-		assertTrue(buffer.isRecycled());
-		assertTrue(testBuffer.isRecycled());
+		// Netty 4.1 is not copying the messages, but retaining slices of them. BufferResponse actual is in this case
+		// holding a reference to the buffer. Buffer will be recycled only once "actual" will be released.
+		assertFalse(buffer.isRecycled());
+		assertFalse(testBuffer.isRecycled());
 
 		final ByteBuf retainedSlice = actual.getNettyBuffer();
 

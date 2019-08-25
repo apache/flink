@@ -26,6 +26,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+/**
+ * Tests for the destruction of a {@link LocalBufferPool}.
+ */
 public class LocalBufferPoolDestroyTest {
 
 	/**
@@ -45,7 +48,7 @@ public class LocalBufferPoolDestroyTest {
 		LocalBufferPool localBufferPool = null;
 
 		try {
-			networkBufferPool = new NetworkBufferPool(1, 4096);
+			networkBufferPool = new NetworkBufferPool(1, 4096, 1);
 			localBufferPool = new LocalBufferPool(networkBufferPool, 1);
 
 			// Drain buffer pool

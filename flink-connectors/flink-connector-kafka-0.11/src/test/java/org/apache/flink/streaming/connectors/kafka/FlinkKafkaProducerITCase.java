@@ -101,6 +101,66 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 		deleteTestTopic(topicName);
 	}
 
+	@Test(timeout = 30000L, expected = IllegalStateException.class)
+	public void testPartitionsForAfterClosed() {
+		FlinkKafkaProducer<String, String> kafkaProducer = new FlinkKafkaProducer<>(extraProperties);
+		kafkaProducer.close();
+		kafkaProducer.partitionsFor("Topic");
+	}
+
+	@Test(timeout = 30000L, expected = IllegalStateException.class)
+	public void testInitTransactionsAfterClosed() {
+		FlinkKafkaProducer<String, String> kafkaProducer = new FlinkKafkaProducer<>(extraProperties);
+		kafkaProducer.close();
+		kafkaProducer.initTransactions();
+	}
+
+	@Test(timeout = 30000L, expected = IllegalStateException.class)
+	public void testBeginTransactionAfterClosed() {
+		FlinkKafkaProducer<String, String> kafkaProducer = new FlinkKafkaProducer<>(extraProperties);
+		kafkaProducer.initTransactions();
+		kafkaProducer.close();
+		kafkaProducer.beginTransaction();
+	}
+
+	@Test(timeout = 30000L, expected = IllegalStateException.class)
+	public void testCommitTransactionAfterClosed() {
+		String topicName = "testCommitTransactionAfterClosed";
+		FlinkKafkaProducer<String, String> kafkaProducer = getClosedProducer(topicName);
+		kafkaProducer.commitTransaction();
+	}
+
+	@Test(timeout = 30000L, expected = IllegalStateException.class)
+	public void testResumeTransactionAfterClosed() {
+		String topicName = "testAbortTransactionAfterClosed";
+		FlinkKafkaProducer<String, String> kafkaProducer = getClosedProducer(topicName);
+		kafkaProducer.resumeTransaction(0L, (short) 1);
+	}
+
+	@Test(timeout = 30000L, expected = IllegalStateException.class)
+	public void testAbortTransactionAfterClosed() {
+		String topicName = "testAbortTransactionAfterClosed";
+		FlinkKafkaProducer<String, String> kafkaProducer = getClosedProducer(topicName);
+		kafkaProducer.abortTransaction();
+		kafkaProducer.resumeTransaction(0L, (short) 1);
+	}
+
+	@Test(timeout = 30000L, expected = IllegalStateException.class)
+	public void testFlushAfterClosed() {
+		String topicName = "testCommitTransactionAfterClosed";
+		FlinkKafkaProducer<String, String> kafkaProducer = getClosedProducer(topicName);
+		kafkaProducer.flush();
+	}
+
+	private FlinkKafkaProducer<String, String> getClosedProducer(String topicName) {
+		FlinkKafkaProducer<String, String> kafkaProducer = new FlinkKafkaProducer<>(extraProperties);
+		kafkaProducer.initTransactions();
+		kafkaProducer.beginTransaction();
+		kafkaProducer.send(new ProducerRecord<>(topicName, "42", "42"));
+		kafkaProducer.close();
+		return kafkaProducer;
+	}
+
 	private void assertRecord(String topicName, String expectedKey, String expectedValue) {
 		try (KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<>(extraProperties)) {
 			kafkaConsumer.subscribe(Collections.singletonList(topicName));

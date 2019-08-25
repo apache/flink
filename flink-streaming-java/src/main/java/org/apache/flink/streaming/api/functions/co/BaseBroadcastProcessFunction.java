@@ -55,7 +55,7 @@ public abstract class BaseBroadcastProcessFunction extends AbstractRichFunction 
 		 * @param outputTag the {@code OutputTag} that identifies the side output to emit to.
 		 * @param value The record to emit.
 		 */
-		public abstract <X> void output(OutputTag<X> outputTag, X value);
+		public abstract <X> void output(final OutputTag<X> outputTag, final X value);
 
 		/** Returns the current processing time. */
 		public abstract long currentProcessingTime();
@@ -81,7 +81,7 @@ public abstract class BaseBroadcastProcessFunction extends AbstractRichFunction 
 		 * @param stateDescriptor the {@link MapStateDescriptor} of the state to be fetched.
 		 * @return The required {@link BroadcastState broadcast state}.
 		 */
-		public abstract <K, V> BroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> stateDescriptor);
+		public abstract <K, V> BroadcastState<K, V> getBroadcastState(final MapStateDescriptor<K, V> stateDescriptor);
 	}
 
 	/**
@@ -100,6 +100,6 @@ public abstract class BaseBroadcastProcessFunction extends AbstractRichFunction 
 		 * @param stateDescriptor the {@link MapStateDescriptor} of the state to be fetched.
 		 * @return The required read-only view of the broadcast state.
 		 */
-		public abstract <K, V> ReadOnlyBroadcastState<K, V> getBroadcastState(MapStateDescriptor<K, V> stateDescriptor);
+		public abstract <K, V> ReadOnlyBroadcastState<K, V> getBroadcastState(final MapStateDescriptor<K, V> stateDescriptor);
 	}
 }

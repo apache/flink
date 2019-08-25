@@ -73,19 +73,38 @@ public class MetricDumpSerialization {
 
 		private static final long serialVersionUID = 6928770855951536906L;
 
-		public final byte[] serializedMetrics;
+		public final byte[] serializedCounters;
+		public final byte[] serializedGauges;
+		public final byte[] serializedMeters;
+		public final byte[] serializedHistograms;
+
 		public final int numCounters;
 		public final int numGauges;
 		public final int numMeters;
 		public final int numHistograms;
 
-		public MetricSerializationResult(byte[] serializedMetrics, int numCounters, int numGauges, int numMeters, int numHistograms) {
-			Preconditions.checkNotNull(serializedMetrics);
+		public MetricSerializationResult(
+			byte[] serializedCounters,
+			byte[] serializedGauges,
+			byte[] serializedMeters,
+			byte[] serializedHistograms,
+			int numCounters,
+			int numGauges,
+			int numMeters,
+			int numHistograms) {
+
+			Preconditions.checkNotNull(serializedCounters);
+			Preconditions.checkNotNull(serializedGauges);
+			Preconditions.checkNotNull(serializedMeters);
+			Preconditions.checkNotNull(serializedHistograms);
 			Preconditions.checkArgument(numCounters >= 0);
 			Preconditions.checkArgument(numGauges >= 0);
 			Preconditions.checkArgument(numMeters >= 0);
 			Preconditions.checkArgument(numHistograms >= 0);
-			this.serializedMetrics = serializedMetrics;
+			this.serializedCounters = serializedCounters;
+			this.serializedGauges = serializedGauges;
+			this.serializedMeters = serializedMeters;
+			this.serializedHistograms = serializedHistograms;
 			this.numCounters = numCounters;
 			this.numGauges = numGauges;
 			this.numMeters = numMeters;
@@ -102,7 +121,10 @@ public class MetricDumpSerialization {
 	 */
 	public static class MetricDumpSerializer {
 
-		private DataOutputSerializer buffer = new DataOutputSerializer(1024 * 32);
+		private DataOutputSerializer countersBuffer = new DataOutputSerializer(1024 * 8);
+		private DataOutputSerializer gaugesBuffer = new DataOutputSerializer(1024 * 8);
+		private DataOutputSerializer metersBuffer = new DataOutputSerializer(1024 * 8);
+		private DataOutputSerializer histogramsBuffer = new DataOutputSerializer(1024 * 8);
 
 		/**
 		 * Serializes the given metrics and returns the resulting byte array.
@@ -126,53 +148,66 @@ public class MetricDumpSerialization {
 			Map<Histogram, Tuple2<QueryScopeInfo, String>> histograms,
 			Map<Meter, Tuple2<QueryScopeInfo, String>> meters) {
 
-			buffer.clear();
-
+			countersBuffer.clear();
 			int numCounters = 0;
 			for (Map.Entry<Counter, Tuple2<QueryScopeInfo, String>> entry : counters.entrySet()) {
 				try {
-					serializeCounter(buffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
+					serializeCounter(countersBuffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
 					numCounters++;
 				} catch (Exception e) {
 					LOG.debug("Failed to serialize counter.", e);
 				}
 			}
 
+			gaugesBuffer.clear();
 			int numGauges = 0;
 			for (Map.Entry<Gauge<?>, Tuple2<QueryScopeInfo, String>> entry : gauges.entrySet()) {
 				try {
-					serializeGauge(buffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
+					serializeGauge(gaugesBuffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
 					numGauges++;
 				} catch (Exception e) {
 					LOG.debug("Failed to serialize gauge.", e);
 				}
 			}
 
+			histogramsBuffer.clear();
 			int numHistograms = 0;
 			for (Map.Entry<Histogram, Tuple2<QueryScopeInfo, String>> entry : histograms.entrySet()) {
 				try {
-					serializeHistogram(buffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
+					serializeHistogram(histogramsBuffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
 					numHistograms++;
 				} catch (Exception e) {
 					LOG.debug("Failed to serialize histogram.", e);
 				}
 			}
 
+			metersBuffer.clear();
 			int numMeters = 0;
 			for (Map.Entry<Meter, Tuple2<QueryScopeInfo, String>> entry : meters.entrySet()) {
 				try {
-					serializeMeter(buffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
+					serializeMeter(metersBuffer, entry.getValue().f0, entry.getValue().f1, entry.getKey());
 					numMeters++;
 				} catch (Exception e) {
 					LOG.debug("Failed to serialize meter.", e);
 				}
 			}
 
-			return new MetricSerializationResult(buffer.getCopyOfBuffer(), numCounters, numGauges, numMeters, numHistograms);
+			return new MetricSerializationResult(
+				countersBuffer.getCopyOfBuffer(),
+				gaugesBuffer.getCopyOfBuffer(),
+				metersBuffer.getCopyOfBuffer(),
+				histogramsBuffer.getCopyOfBuffer(),
+				numCounters,
+				numGauges,
+				numMeters,
+				numHistograms);
 		}
 
 		public void close() {
-			buffer = null;
+			countersBuffer = null;
+			gaugesBuffer = null;
+			metersBuffer = null;
+			histogramsBuffer = null;
 		}
 	}
 
@@ -220,7 +255,7 @@ public class MetricDumpSerialization {
 		if (value == null) {
 			throw new NullPointerException("Value returned by gauge " + name + " was null.");
 		}
-		String stringValue = gauge.getValue().toString();
+		String stringValue = value.toString();
 		if (stringValue == null) {
 			throw new NullPointerException("toString() of the value returned by gauge " + name + " returned null.");
 		}
@@ -280,13 +315,16 @@ public class MetricDumpSerialization {
 		 * @return A list containing the deserialized metrics.
 		 */
 		public List<MetricDump> deserialize(MetricDumpSerialization.MetricSerializationResult data) {
-			DataInputView in = new DataInputDeserializer(data.serializedMetrics, 0, data.serializedMetrics.length);
+			DataInputView countersInputView = new DataInputDeserializer(data.serializedCounters, 0, data.serializedCounters.length);
+			DataInputView gaugesInputView = new DataInputDeserializer(data.serializedGauges, 0, data.serializedGauges.length);
+			DataInputView metersInputView = new DataInputDeserializer(data.serializedMeters, 0, data.serializedMeters.length);
+			DataInputView histogramsInputView = new DataInputDeserializer(data.serializedHistograms, 0, data.serializedHistograms.length);
 
-			List<MetricDump> metrics = new ArrayList<>(data.numCounters + data.numGauges + data.numHistograms + data.numMeters);
+			List<MetricDump> metrics = new ArrayList<>(data.numCounters + data.numGauges + data.numMeters + data.numHistograms);
 
 			for (int x = 0; x < data.numCounters; x++) {
 				try {
-					metrics.add(deserializeCounter(in));
+					metrics.add(deserializeCounter(countersInputView));
 				} catch (Exception e) {
 					LOG.debug("Failed to deserialize counter.", e);
 				}
@@ -294,25 +332,25 @@ public class MetricDumpSerialization {
 
 			for (int x = 0; x < data.numGauges; x++) {
 				try {
-					metrics.add(deserializeGauge(in));
+					metrics.add(deserializeGauge(gaugesInputView));
 				} catch (Exception e) {
 					LOG.debug("Failed to deserialize gauge.", e);
 				}
 			}
 
-			for (int x = 0; x < data.numHistograms; x++) {
+			for (int x = 0; x < data.numMeters; x++) {
 				try {
-					metrics.add(deserializeHistogram(in));
+					metrics.add(deserializeMeter(metersInputView));
 				} catch (Exception e) {
-					LOG.debug("Failed to deserialize histogram.", e);
+					LOG.debug("Failed to deserialize meter.", e);
 				}
 			}
 
-			for (int x = 0; x < data.numMeters; x++) {
+			for (int x = 0; x < data.numHistograms; x++) {
 				try {
-					metrics.add(deserializeMeter(in));
+					metrics.add(deserializeHistogram(histogramsInputView));
 				} catch (Exception e) {
-					LOG.debug("Failed to deserialize meter.", e);
+					LOG.debug("Failed to deserialize histogram.", e);
 				}
 			}
 

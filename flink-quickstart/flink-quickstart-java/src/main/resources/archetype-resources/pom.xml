@@ -156,25 +156,6 @@ under the License.
 		<pluginManagement>
 			<plugins>
 
-				<!-- If you want to use Java 8 Lambda Expressions uncomment the following lines -->
-				<!--
-				<plugin>
-					<artifactId>maven-compiler-plugin</artifactId>
-					<configuration>
-						<source>${java.version}</source>
-						<target>${java.version}</target>
-						<compilerId>jdt</compilerId>
-					</configuration>
-					<dependencies>
-						<dependency>
-							<groupId>org.eclipse.tycho</groupId>
-							<artifactId>tycho-compiler-jdt</artifactId>
-							<version>0.21.0</version>
-						</dependency>
-					</dependencies>
-				</plugin>
-				-->
-
 				<!-- This improves the out-of-the-box experience in Eclipse by resolving some warnings. -->
 				<plugin>
 					<groupId>org.eclipse.m2e</groupId>

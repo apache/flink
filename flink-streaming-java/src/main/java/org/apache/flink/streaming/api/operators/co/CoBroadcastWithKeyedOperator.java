@@ -33,6 +33,7 @@ import org.apache.flink.streaming.api.SimpleTimerService;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.TimerService;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction.ReadOnlyContext;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
@@ -141,7 +142,8 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		onTimerContext.timer = null;
 	}
 
-	private class ReadWriteContextImpl extends KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>.KeyedContext {
+	private class ReadWriteContextImpl
+			extends KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>.Context {
 
 		private final ExecutionConfig config;
 
@@ -220,7 +222,7 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 		}
 	}
 
-	private class ReadOnlyContextImpl extends KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>.KeyedReadOnlyContext {
+	private class ReadOnlyContextImpl extends ReadOnlyContext {
 
 		private final ExecutionConfig config;
 
@@ -286,6 +288,13 @@ public class CoBroadcastWithKeyedOperator<KS, IN1, IN2, OUT>
 			}
 			return state;
 		}
+
+		@Override
+		@SuppressWarnings("unchecked")
+		public KS getCurrentKey() {
+			return (KS) CoBroadcastWithKeyedOperator.this.getCurrentKey();
+		}
+
 	}
 
 	private class OnTimerContextImpl extends KeyedBroadcastProcessFunction<KS, IN1, IN2, OUT>.OnTimerContext {

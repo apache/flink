@@ -1,0 +1,2652 @@
+{
+  "calls" : [ {
+    "url" : "/cluster",
+    "method" : "DELETE",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
+    "url" : "/config",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:DashboardConfiguration",
+      "properties" : {
+        "refresh-interval" : {
+          "type" : "integer"
+        },
+        "timezone-name" : {
+          "type" : "string"
+        },
+        "timezone-offset" : {
+          "type" : "integer"
+        },
+        "flink-version" : {
+          "type" : "string"
+        },
+        "flink-revision" : {
+          "type" : "string"
+        }
+      }
+    }
+  }, {
+    "url" : "/jars",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarListInfo",
+      "properties" : {
+        "address" : {
+          "type" : "string"
+        },
+        "files" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarListInfo:JarFileInfo",
+            "properties" : {
+              "id" : {
+                "type" : "string"
+              },
+              "name" : {
+                "type" : "string"
+              },
+              "uploaded" : {
+                "type" : "integer"
+              },
+              "entry" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "object",
+                  "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarListInfo:JarEntryInfo",
+                  "properties" : {
+                    "name" : {
+                      "type" : "string"
+                    },
+                    "description" : {
+                      "type" : "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jars/upload",
+    "method" : "POST",
+    "status-code" : "200 OK",
+    "file-upload" : true,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarUploadResponseBody",
+      "properties" : {
+        "filename" : {
+          "type" : "string"
+        },
+        "status" : {
+          "type" : "string",
+          "enum" : [ "success" ]
+        }
+      }
+    }
+  }, {
+    "url" : "/jars/:jarid",
+    "method" : "DELETE",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jarid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
+    "url" : "/jars/:jarid/plan",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jarid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "program-args",
+        "mandatory" : false
+      }, {
+        "key" : "programArg",
+        "mandatory" : false
+      }, {
+        "key" : "entry-class",
+        "mandatory" : false
+      }, {
+        "key" : "parallelism",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarPlanRequestBody",
+      "properties" : {
+        "entryClass" : {
+          "type" : "string"
+        },
+        "programArgs" : {
+          "type" : "string"
+        },
+        "programArgsList" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "parallelism" : {
+          "type" : "integer"
+        },
+        "jobId" : {
+          "type" : "any"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
+      "properties" : {
+        "plan" : {
+          "type" : "any"
+        }
+      }
+    }
+  }, {
+    "url" : "/jars/:jarid/plan",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jarid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "program-args",
+        "mandatory" : false
+      }, {
+        "key" : "programArg",
+        "mandatory" : false
+      }, {
+        "key" : "entry-class",
+        "mandatory" : false
+      }, {
+        "key" : "parallelism",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarPlanRequestBody",
+      "properties" : {
+        "entryClass" : {
+          "type" : "string"
+        },
+        "programArgs" : {
+          "type" : "string"
+        },
+        "programArgsList" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "parallelism" : {
+          "type" : "integer"
+        },
+        "jobId" : {
+          "type" : "any"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
+      "properties" : {
+        "plan" : {
+          "type" : "any"
+        }
+      }
+    }
+  }, {
+    "url" : "/jars/:jarid/run",
+    "method" : "POST",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jarid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "allowNonRestoredState",
+        "mandatory" : false
+      }, {
+        "key" : "savepointPath",
+        "mandatory" : false
+      }, {
+        "key" : "program-args",
+        "mandatory" : false
+      }, {
+        "key" : "programArg",
+        "mandatory" : false
+      }, {
+        "key" : "entry-class",
+        "mandatory" : false
+      }, {
+        "key" : "parallelism",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarRunRequestBody",
+      "properties" : {
+        "entryClass" : {
+          "type" : "string"
+        },
+        "programArgs" : {
+          "type" : "string"
+        },
+        "programArgsList" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "parallelism" : {
+          "type" : "integer"
+        },
+        "jobId" : {
+          "type" : "any"
+        },
+        "allowNonRestoredState" : {
+          "type" : "boolean"
+        },
+        "savepointPath" : {
+          "type" : "string"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarRunResponseBody",
+      "properties" : {
+        "jobid" : {
+          "type" : "any"
+        }
+      }
+    }
+  }, {
+    "url" : "/jobmanager/config",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ClusterConfigurationInfoEntry",
+        "properties" : {
+          "key" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobmanager/metrics",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "get",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
+    "url" : "/jobs",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:JobIdsWithStatusOverview",
+      "properties" : {
+        "jobs" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:JobIdsWithStatusOverview:JobIdWithStatus",
+            "properties" : {
+              "id" : {
+                "type" : "any"
+              },
+              "status" : {
+                "type" : "string",
+                "enum" : [ "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs",
+    "method" : "POST",
+    "status-code" : "202 Accepted",
+    "file-upload" : true,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobSubmitRequestBody",
+      "properties" : {
+        "jobGraphFileName" : {
+          "type" : "string"
+        },
+        "jobJarFileNames" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "jobArtifactFileNames" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobSubmitRequestBody:DistributedCacheFile",
+            "properties" : {
+              "entryName" : {
+                "type" : "string"
+              },
+              "fileName" : {
+                "type" : "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobSubmitResponseBody",
+      "properties" : {
+        "jobUrl" : {
+          "type" : "string"
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/metrics",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "get",
+        "mandatory" : false
+      }, {
+        "key" : "agg",
+        "mandatory" : false
+      }, {
+        "key" : "jobs",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
+    "url" : "/jobs/overview",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:MultipleJobsDetails",
+      "properties" : {
+        "jobs" : {
+          "type" : "array",
+          "items" : {
+            "type" : "any"
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobDetailsInfo",
+      "properties" : {
+        "jid" : {
+          "type" : "any"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "isStoppable" : {
+          "type" : "boolean"
+        },
+        "state" : {
+          "type" : "string",
+          "enum" : [ "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
+        },
+        "start-time" : {
+          "type" : "integer"
+        },
+        "end-time" : {
+          "type" : "integer"
+        },
+        "duration" : {
+          "type" : "integer"
+        },
+        "now" : {
+          "type" : "integer"
+        },
+        "timestamps" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "integer"
+          }
+        },
+        "vertices" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobDetailsInfo:JobVertexDetailsInfo",
+            "properties" : {
+              "id" : {
+                "type" : "any"
+              },
+              "name" : {
+                "type" : "string"
+              },
+              "parallelism" : {
+                "type" : "integer"
+              },
+              "status" : {
+                "type" : "string",
+                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+              },
+              "start-time" : {
+                "type" : "integer"
+              },
+              "end-time" : {
+                "type" : "integer"
+              },
+              "duration" : {
+                "type" : "integer"
+              },
+              "tasks" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "integer"
+                }
+              },
+              "metrics" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:IOMetricsInfo",
+                "properties" : {
+                  "read-bytes" : {
+                    "type" : "integer"
+                  },
+                  "read-bytes-complete" : {
+                    "type" : "boolean"
+                  },
+                  "write-bytes" : {
+                    "type" : "integer"
+                  },
+                  "write-bytes-complete" : {
+                    "type" : "boolean"
+                  },
+                  "read-records" : {
+                    "type" : "integer"
+                  },
+                  "read-records-complete" : {
+                    "type" : "boolean"
+                  },
+                  "write-records" : {
+                    "type" : "integer"
+                  },
+                  "write-records-complete" : {
+                    "type" : "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "status-counts" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "integer"
+          }
+        },
+        "plan" : {
+          "type" : "string"
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid",
+    "method" : "PATCH",
+    "status-code" : "202 Accepted",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "mode",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
+    "url" : "/jobs/:jobid/accumulators",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "includeSerializedValue",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobAccumulatorsInfo",
+      "properties" : {
+        "job-accumulators" : {
+          "type" : "array",
+          "items" : {
+            "type" : "any"
+          }
+        },
+        "user-task-accumulators" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobAccumulatorsInfo:UserTaskAccumulator",
+            "properties" : {
+              "name" : {
+                "type" : "string"
+              },
+              "type" : {
+                "type" : "string"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "serialized-user-task-accumulators" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "any"
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/checkpoints",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics",
+      "properties" : {
+        "counts" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:Counts",
+          "properties" : {
+            "restored" : {
+              "type" : "integer"
+            },
+            "total" : {
+              "type" : "integer"
+            },
+            "in_progress" : {
+              "type" : "integer"
+            },
+            "completed" : {
+              "type" : "integer"
+            },
+            "failed" : {
+              "type" : "integer"
+            }
+          }
+        },
+        "summary" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:Summary",
+          "properties" : {
+            "state_size" : {
+              "type" : "object",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics",
+              "properties" : {
+                "min" : {
+                  "type" : "integer"
+                },
+                "max" : {
+                  "type" : "integer"
+                },
+                "avg" : {
+                  "type" : "integer"
+                }
+              }
+            },
+            "end_to_end_duration" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+            },
+            "alignment_buffered" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+            }
+          }
+        },
+        "latest" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:LatestCheckpoints",
+          "properties" : {
+            "completed" : {
+              "type" : "object",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics:CompletedCheckpointStatistics",
+              "properties" : {
+                "id" : {
+                  "type" : "integer"
+                },
+                "status" : {
+                  "type" : "string",
+                  "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+                },
+                "is_savepoint" : {
+                  "type" : "boolean"
+                },
+                "trigger_timestamp" : {
+                  "type" : "integer"
+                },
+                "latest_ack_timestamp" : {
+                  "type" : "integer"
+                },
+                "state_size" : {
+                  "type" : "integer"
+                },
+                "end_to_end_duration" : {
+                  "type" : "integer"
+                },
+                "alignment_buffered" : {
+                  "type" : "integer"
+                },
+                "num_subtasks" : {
+                  "type" : "integer"
+                },
+                "num_acknowledged_subtasks" : {
+                  "type" : "integer"
+                },
+                "tasks" : {
+                  "type" : "object",
+                  "additionalProperties" : {
+                    "type" : "object",
+                    "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics",
+                    "properties" : {
+                      "id" : {
+                        "type" : "integer"
+                      },
+                      "status" : {
+                        "type" : "string",
+                        "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+                      },
+                      "latest_ack_timestamp" : {
+                        "type" : "integer"
+                      },
+                      "state_size" : {
+                        "type" : "integer"
+                      },
+                      "end_to_end_duration" : {
+                        "type" : "integer"
+                      },
+                      "alignment_buffered" : {
+                        "type" : "integer"
+                      },
+                      "num_subtasks" : {
+                        "type" : "integer"
+                      },
+                      "num_acknowledged_subtasks" : {
+                        "type" : "integer"
+                      }
+                    }
+                  }
+                },
+                "external_path" : {
+                  "type" : "string"
+                },
+                "discarded" : {
+                  "type" : "boolean"
+                }
+              }
+            },
+            "savepoint" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics:CompletedCheckpointStatistics"
+            },
+            "failed" : {
+              "type" : "object",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics:FailedCheckpointStatistics",
+              "properties" : {
+                "id" : {
+                  "type" : "integer"
+                },
+                "status" : {
+                  "type" : "string",
+                  "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+                },
+                "is_savepoint" : {
+                  "type" : "boolean"
+                },
+                "trigger_timestamp" : {
+                  "type" : "integer"
+                },
+                "latest_ack_timestamp" : {
+                  "type" : "integer"
+                },
+                "state_size" : {
+                  "type" : "integer"
+                },
+                "end_to_end_duration" : {
+                  "type" : "integer"
+                },
+                "alignment_buffered" : {
+                  "type" : "integer"
+                },
+                "num_subtasks" : {
+                  "type" : "integer"
+                },
+                "num_acknowledged_subtasks" : {
+                  "type" : "integer"
+                },
+                "tasks" : {
+                  "type" : "object",
+                  "additionalProperties" : {
+                    "type" : "object",
+                    "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics"
+                  }
+                },
+                "failure_timestamp" : {
+                  "type" : "integer"
+                },
+                "failure_message" : {
+                  "type" : "string"
+                }
+              }
+            },
+            "restored" : {
+              "type" : "object",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointingStatistics:RestoredCheckpointStatistics",
+              "properties" : {
+                "id" : {
+                  "type" : "integer"
+                },
+                "restore_timestamp" : {
+                  "type" : "integer"
+                },
+                "is_savepoint" : {
+                  "type" : "boolean"
+                },
+                "external_path" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        },
+        "history" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics",
+            "properties" : {
+              "id" : {
+                "type" : "integer"
+              },
+              "status" : {
+                "type" : "string",
+                "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+              },
+              "is_savepoint" : {
+                "type" : "boolean"
+              },
+              "trigger_timestamp" : {
+                "type" : "integer"
+              },
+              "latest_ack_timestamp" : {
+                "type" : "integer"
+              },
+              "state_size" : {
+                "type" : "integer"
+              },
+              "end_to_end_duration" : {
+                "type" : "integer"
+              },
+              "alignment_buffered" : {
+                "type" : "integer"
+              },
+              "num_subtasks" : {
+                "type" : "integer"
+              },
+              "num_acknowledged_subtasks" : {
+                "type" : "integer"
+              },
+              "tasks" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "object",
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/checkpoints/config",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointConfigInfo",
+      "properties" : {
+        "mode" : {
+          "type" : "any"
+        },
+        "interval" : {
+          "type" : "integer"
+        },
+        "timeout" : {
+          "type" : "integer"
+        },
+        "min_pause" : {
+          "type" : "integer"
+        },
+        "max_concurrent" : {
+          "type" : "integer"
+        },
+        "externalization" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointConfigInfo:ExternalizedCheckpointInfo",
+          "properties" : {
+            "enabled" : {
+              "type" : "boolean"
+            },
+            "delete_on_cancellation" : {
+              "type" : "boolean"
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/checkpoints/details/:checkpointid",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "checkpointid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:CheckpointStatistics",
+      "properties" : {
+        "id" : {
+          "type" : "integer"
+        },
+        "status" : {
+          "type" : "string",
+          "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+        },
+        "is_savepoint" : {
+          "type" : "boolean"
+        },
+        "trigger_timestamp" : {
+          "type" : "integer"
+        },
+        "latest_ack_timestamp" : {
+          "type" : "integer"
+        },
+        "state_size" : {
+          "type" : "integer"
+        },
+        "end_to_end_duration" : {
+          "type" : "integer"
+        },
+        "alignment_buffered" : {
+          "type" : "integer"
+        },
+        "num_subtasks" : {
+          "type" : "integer"
+        },
+        "num_acknowledged_subtasks" : {
+          "type" : "integer"
+        },
+        "tasks" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatistics",
+            "properties" : {
+              "id" : {
+                "type" : "integer"
+              },
+              "status" : {
+                "type" : "string",
+                "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+              },
+              "latest_ack_timestamp" : {
+                "type" : "integer"
+              },
+              "state_size" : {
+                "type" : "integer"
+              },
+              "end_to_end_duration" : {
+                "type" : "integer"
+              },
+              "alignment_buffered" : {
+                "type" : "integer"
+              },
+              "num_subtasks" : {
+                "type" : "integer"
+              },
+              "num_acknowledged_subtasks" : {
+                "type" : "integer"
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/checkpoints/details/:checkpointid/subtasks/:vertexid",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "checkpointid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails",
+      "properties" : {
+        "id" : {
+          "type" : "integer"
+        },
+        "status" : {
+          "type" : "string",
+          "enum" : [ "IN_PROGRESS", "COMPLETED", "FAILED" ]
+        },
+        "latest_ack_timestamp" : {
+          "type" : "integer"
+        },
+        "state_size" : {
+          "type" : "integer"
+        },
+        "end_to_end_duration" : {
+          "type" : "integer"
+        },
+        "alignment_buffered" : {
+          "type" : "integer"
+        },
+        "num_subtasks" : {
+          "type" : "integer"
+        },
+        "num_acknowledged_subtasks" : {
+          "type" : "integer"
+        },
+        "summary" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:Summary",
+          "properties" : {
+            "state_size" : {
+              "type" : "object",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics",
+              "properties" : {
+                "min" : {
+                  "type" : "integer"
+                },
+                "max" : {
+                  "type" : "integer"
+                },
+                "avg" : {
+                  "type" : "integer"
+                }
+              }
+            },
+            "end_to_end_duration" : {
+              "type" : "object",
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+            },
+            "checkpoint_duration" : {
+              "type" : "object",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:CheckpointDuration",
+              "properties" : {
+                "sync" : {
+                  "type" : "object",
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+                },
+                "async" : {
+                  "type" : "object",
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+                }
+              }
+            },
+            "alignment" : {
+              "type" : "object",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:TaskCheckpointStatisticsWithSubtaskDetails:CheckpointAlignment",
+              "properties" : {
+                "buffered" : {
+                  "type" : "object",
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+                },
+                "duration" : {
+                  "type" : "object",
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:MinMaxAvgStatistics"
+                }
+              }
+            }
+          }
+        },
+        "subtasks" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:SubtaskCheckpointStatistics",
+            "properties" : {
+              "index" : {
+                "type" : "integer"
+              },
+              "status" : {
+                "type" : "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/config",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
+    "url" : "/jobs/:jobid/exceptions",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfo",
+      "properties" : {
+        "root-exception" : {
+          "type" : "string"
+        },
+        "timestamp" : {
+          "type" : "integer"
+        },
+        "all-exceptions" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobExceptionsInfo:ExecutionExceptionInfo",
+            "properties" : {
+              "exception" : {
+                "type" : "string"
+              },
+              "task" : {
+                "type" : "string"
+              },
+              "location" : {
+                "type" : "string"
+              },
+              "timestamp" : {
+                "type" : "integer"
+              }
+            }
+          }
+        },
+        "truncated" : {
+          "type" : "boolean"
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/execution-result",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobExecutionResultResponseBody",
+      "properties" : {
+        "status" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:queue:QueueStatus",
+          "required" : true,
+          "properties" : {
+            "id" : {
+              "type" : "string",
+              "required" : true,
+              "enum" : [ "IN_PROGRESS", "COMPLETED" ]
+            }
+          }
+        },
+        "job-execution-result" : {
+          "type" : "any"
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/metrics",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "get",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
+    "url" : "/jobs/:jobid/plan",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobPlanInfo",
+      "properties" : {
+        "plan" : {
+          "type" : "any"
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/rescaling",
+    "method" : "PATCH",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "parallelism",
+        "mandatory" : true
+      } ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:TriggerResponse",
+      "properties" : {
+        "request-id" : {
+          "type" : "any"
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/rescaling/:triggerid",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "triggerid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:AsynchronousOperationResult",
+      "properties" : {
+        "status" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:queue:QueueStatus",
+          "properties" : {
+            "id" : {
+              "type" : "string",
+              "required" : true,
+              "enum" : [ "IN_PROGRESS", "COMPLETED" ]
+            }
+          }
+        },
+        "operation" : {
+          "type" : "any"
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/savepoints",
+    "method" : "POST",
+    "status-code" : "202 Accepted",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:savepoints:SavepointTriggerRequestBody",
+      "properties" : {
+        "target-directory" : {
+          "type" : "string"
+        },
+        "cancel-job" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:TriggerResponse",
+      "properties" : {
+        "request-id" : {
+          "type" : "any"
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/savepoints/:triggerid",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "triggerid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:AsynchronousOperationResult",
+      "properties" : {
+        "status" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:queue:QueueStatus",
+          "properties" : {
+            "id" : {
+              "type" : "string",
+              "required" : true,
+              "enum" : [ "IN_PROGRESS", "COMPLETED" ]
+            }
+          }
+        },
+        "operation" : {
+          "type" : "any"
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/stop",
+    "method" : "POST",
+    "status-code" : "202 Accepted",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:savepoints:stop:StopWithSavepointRequestBody",
+      "properties" : {
+        "targetDirectory" : {
+          "type" : "string"
+        },
+        "drain" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:TriggerResponse",
+      "properties" : {
+        "request-id" : {
+          "type" : "any"
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexDetailsInfo",
+      "properties" : {
+        "id" : {
+          "type" : "any"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "parallelism" : {
+          "type" : "integer"
+        },
+        "now" : {
+          "type" : "integer"
+        },
+        "subtasks" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexDetailsInfo:VertexTaskDetail",
+            "properties" : {
+              "subtask" : {
+                "type" : "integer"
+              },
+              "status" : {
+                "type" : "string",
+                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+              },
+              "attempt" : {
+                "type" : "integer"
+              },
+              "host" : {
+                "type" : "string"
+              },
+              "start-time" : {
+                "type" : "integer"
+              },
+              "end-time" : {
+                "type" : "integer"
+              },
+              "duration" : {
+                "type" : "integer"
+              },
+              "metrics" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:IOMetricsInfo",
+                "properties" : {
+                  "read-bytes" : {
+                    "type" : "integer"
+                  },
+                  "read-bytes-complete" : {
+                    "type" : "boolean"
+                  },
+                  "write-bytes" : {
+                    "type" : "integer"
+                  },
+                  "write-bytes-complete" : {
+                    "type" : "boolean"
+                  },
+                  "read-records" : {
+                    "type" : "integer"
+                  },
+                  "read-records-complete" : {
+                    "type" : "boolean"
+                  },
+                  "write-records" : {
+                    "type" : "integer"
+                  },
+                  "write-records-complete" : {
+                    "type" : "boolean"
+                  }
+                }
+              },
+              "start_time" : {
+                "type" : "integer"
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/accumulators",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexAccumulatorsInfo",
+      "properties" : {
+        "id" : {
+          "type" : "string"
+        },
+        "user-accumulators" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:UserAccumulator",
+            "properties" : {
+              "name" : {
+                "type" : "string"
+              },
+              "type" : {
+                "type" : "string"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/backpressure",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexBackPressureInfo",
+      "properties" : {
+        "status" : {
+          "type" : "string",
+          "enum" : [ "deprecated", "ok" ]
+        },
+        "backpressure-level" : {
+          "type" : "string",
+          "enum" : [ "ok", "low", "high" ]
+        },
+        "end-timestamp" : {
+          "type" : "integer"
+        },
+        "subtasks" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexBackPressureInfo:SubtaskBackPressureInfo",
+            "properties" : {
+              "subtask" : {
+                "type" : "integer"
+              },
+              "backpressure-level" : {
+                "type" : "string",
+                "enum" : [ "ok", "low", "high" ]
+              },
+              "ratio" : {
+                "type" : "number"
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/metrics",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "get",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/subtasks/accumulators",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtasksAllAccumulatorsInfo",
+      "properties" : {
+        "id" : {
+          "type" : "any"
+        },
+        "parallelism" : {
+          "type" : "integer"
+        },
+        "subtasks" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtasksAllAccumulatorsInfo:SubtaskAccumulatorsInfo",
+            "properties" : {
+              "subtask" : {
+                "type" : "integer"
+              },
+              "attempt" : {
+                "type" : "integer"
+              },
+              "host" : {
+                "type" : "string"
+              },
+              "user-accumulators" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "object",
+                  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:UserAccumulator",
+                  "properties" : {
+                    "name" : {
+                      "type" : "string"
+                    },
+                    "type" : {
+                      "type" : "string"
+                    },
+                    "value" : {
+                      "type" : "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/subtasks/metrics",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "get",
+        "mandatory" : false
+      }, {
+        "key" : "agg",
+        "mandatory" : false
+      }, {
+        "key" : "subtasks",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/subtasks/:subtaskindex",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      }, {
+        "key" : "subtaskindex"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptDetailsInfo",
+      "properties" : {
+        "subtask" : {
+          "type" : "integer"
+        },
+        "status" : {
+          "type" : "string",
+          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+        },
+        "attempt" : {
+          "type" : "integer"
+        },
+        "host" : {
+          "type" : "string"
+        },
+        "start-time" : {
+          "type" : "integer"
+        },
+        "end-time" : {
+          "type" : "integer"
+        },
+        "duration" : {
+          "type" : "integer"
+        },
+        "metrics" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:IOMetricsInfo",
+          "properties" : {
+            "read-bytes" : {
+              "type" : "integer"
+            },
+            "read-bytes-complete" : {
+              "type" : "boolean"
+            },
+            "write-bytes" : {
+              "type" : "integer"
+            },
+            "write-bytes-complete" : {
+              "type" : "boolean"
+            },
+            "read-records" : {
+              "type" : "integer"
+            },
+            "read-records-complete" : {
+              "type" : "boolean"
+            },
+            "write-records" : {
+              "type" : "integer"
+            },
+            "write-records-complete" : {
+              "type" : "boolean"
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/subtasks/:subtaskindex/attempts/:attempt",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      }, {
+        "key" : "subtaskindex"
+      }, {
+        "key" : "attempt"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptDetailsInfo",
+      "properties" : {
+        "subtask" : {
+          "type" : "integer"
+        },
+        "status" : {
+          "type" : "string",
+          "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+        },
+        "attempt" : {
+          "type" : "integer"
+        },
+        "host" : {
+          "type" : "string"
+        },
+        "start-time" : {
+          "type" : "integer"
+        },
+        "end-time" : {
+          "type" : "integer"
+        },
+        "duration" : {
+          "type" : "integer"
+        },
+        "metrics" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:IOMetricsInfo",
+          "properties" : {
+            "read-bytes" : {
+              "type" : "integer"
+            },
+            "read-bytes-complete" : {
+              "type" : "boolean"
+            },
+            "write-bytes" : {
+              "type" : "integer"
+            },
+            "write-bytes-complete" : {
+              "type" : "boolean"
+            },
+            "read-records" : {
+              "type" : "integer"
+            },
+            "read-records-complete" : {
+              "type" : "boolean"
+            },
+            "write-records" : {
+              "type" : "integer"
+            },
+            "write-records-complete" : {
+              "type" : "boolean"
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/subtasks/:subtaskindex/attempts/:attempt/accumulators",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      }, {
+        "key" : "subtaskindex"
+      }, {
+        "key" : "attempt"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptAccumulatorsInfo",
+      "properties" : {
+        "subtask" : {
+          "type" : "integer"
+        },
+        "attempt" : {
+          "type" : "integer"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "user-accumulators" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:UserAccumulator",
+            "properties" : {
+              "name" : {
+                "type" : "string"
+              },
+              "type" : {
+                "type" : "string"
+              },
+              "value" : {
+                "type" : "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/subtasks/:subtaskindex/metrics",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      }, {
+        "key" : "subtaskindex"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "get",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/subtasktimes",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:SubtasksTimesInfo",
+      "properties" : {
+        "id" : {
+          "type" : "string"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "now" : {
+          "type" : "integer"
+        },
+        "subtasks" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:SubtasksTimesInfo:SubtaskTimeInfo",
+            "properties" : {
+              "subtask" : {
+                "type" : "integer"
+              },
+              "host" : {
+                "type" : "string"
+              },
+              "duration" : {
+                "type" : "integer"
+              },
+              "timestamps" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "integer"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/jobs/:jobid/vertices/:vertexid/taskmanagers",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jobid"
+      }, {
+        "key" : "vertexid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexTaskManagersInfo",
+      "properties" : {
+        "id" : {
+          "type" : "any"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "now" : {
+          "type" : "integer"
+        },
+        "taskmanagers" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexTaskManagersInfo:TaskManagersInfo",
+            "properties" : {
+              "host" : {
+                "type" : "string"
+              },
+              "status" : {
+                "type" : "string",
+                "enum" : [ "CREATED", "SCHEDULED", "DEPLOYING", "RUNNING", "FINISHED", "CANCELING", "CANCELED", "FAILED", "RECONCILING" ]
+              },
+              "start-time" : {
+                "type" : "integer"
+              },
+              "end-time" : {
+                "type" : "integer"
+              },
+              "duration" : {
+                "type" : "integer"
+              },
+              "metrics" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:IOMetricsInfo",
+                "properties" : {
+                  "read-bytes" : {
+                    "type" : "integer"
+                  },
+                  "read-bytes-complete" : {
+                    "type" : "boolean"
+                  },
+                  "write-bytes" : {
+                    "type" : "integer"
+                  },
+                  "write-bytes-complete" : {
+                    "type" : "boolean"
+                  },
+                  "read-records" : {
+                    "type" : "integer"
+                  },
+                  "read-records-complete" : {
+                    "type" : "boolean"
+                  },
+                  "write-records" : {
+                    "type" : "integer"
+                  },
+                  "write-records-complete" : {
+                    "type" : "boolean"
+                  }
+                }
+              },
+              "status-counts" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "integer"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/overview",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:legacy:messages:ClusterOverviewWithVersion",
+      "properties" : {
+        "taskmanagers" : {
+          "type" : "integer"
+        },
+        "slots-total" : {
+          "type" : "integer"
+        },
+        "slots-available" : {
+          "type" : "integer"
+        },
+        "jobs-running" : {
+          "type" : "integer"
+        },
+        "jobs-finished" : {
+          "type" : "integer"
+        },
+        "jobs-cancelled" : {
+          "type" : "integer"
+        },
+        "jobs-failed" : {
+          "type" : "integer"
+        },
+        "flink-version" : {
+          "type" : "string"
+        },
+        "flink-commit" : {
+          "type" : "string"
+        }
+      }
+    }
+  }, {
+    "url" : "/savepoint-disposal",
+    "method" : "POST",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:savepoints:SavepointDisposalRequest",
+      "properties" : {
+        "savepoint-path" : {
+          "type" : "string"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:TriggerResponse",
+      "properties" : {
+        "request-id" : {
+          "type" : "any"
+        }
+      }
+    }
+  }, {
+    "url" : "/savepoint-disposal/:triggerid",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "triggerid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:handler:async:AsynchronousOperationResult",
+      "properties" : {
+        "status" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:queue:QueueStatus",
+          "properties" : {
+            "id" : {
+              "type" : "string",
+              "required" : true,
+              "enum" : [ "IN_PROGRESS", "COMPLETED" ]
+            }
+          }
+        },
+        "operation" : {
+          "type" : "any"
+        }
+      }
+    }
+  }, {
+    "url" : "/taskmanagers",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagersInfo",
+      "properties" : {
+        "taskmanagers" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagerInfo",
+            "properties" : {
+              "id" : {
+                "type" : "any"
+              },
+              "path" : {
+                "type" : "string"
+              },
+              "dataPort" : {
+                "type" : "integer"
+              },
+              "timeSinceLastHeartbeat" : {
+                "type" : "integer"
+              },
+              "slotsNumber" : {
+                "type" : "integer"
+              },
+              "freeSlots" : {
+                "type" : "integer"
+              },
+              "hardware" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:instance:HardwareDescription",
+                "properties" : {
+                  "cpuCores" : {
+                    "type" : "integer"
+                  },
+                  "physicalMemory" : {
+                    "type" : "integer"
+                  },
+                  "freeMemory" : {
+                    "type" : "integer"
+                  },
+                  "managedMemory" : {
+                    "type" : "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/taskmanagers/metrics",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "get",
+        "mandatory" : false
+      }, {
+        "key" : "agg",
+        "mandatory" : false
+      }, {
+        "key" : "taskmanagers",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  }, {
+    "url" : "/taskmanagers/:taskmanagerid",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "taskmanagerid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagerDetailsInfo",
+      "properties" : {
+        "id" : {
+          "type" : "any"
+        },
+        "path" : {
+          "type" : "string"
+        },
+        "dataPort" : {
+          "type" : "integer"
+        },
+        "timeSinceLastHeartbeat" : {
+          "type" : "integer"
+        },
+        "slotsNumber" : {
+          "type" : "integer"
+        },
+        "freeSlots" : {
+          "type" : "integer"
+        },
+        "hardware" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:instance:HardwareDescription",
+          "properties" : {
+            "cpuCores" : {
+              "type" : "integer"
+            },
+            "physicalMemory" : {
+              "type" : "integer"
+            },
+            "freeMemory" : {
+              "type" : "integer"
+            },
+            "managedMemory" : {
+              "type" : "integer"
+            }
+          }
+        },
+        "metrics" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagerMetricsInfo",
+          "properties" : {
+            "heapUsed" : {
+              "type" : "integer"
+            },
+            "heapCommitted" : {
+              "type" : "integer"
+            },
+            "heapMax" : {
+              "type" : "integer"
+            },
+            "nonHeapUsed" : {
+              "type" : "integer"
+            },
+            "nonHeapCommitted" : {
+              "type" : "integer"
+            },
+            "nonHeapMax" : {
+              "type" : "integer"
+            },
+            "directCount" : {
+              "type" : "integer"
+            },
+            "directUsed" : {
+              "type" : "integer"
+            },
+            "directMax" : {
+              "type" : "integer"
+            },
+            "mappedCount" : {
+              "type" : "integer"
+            },
+            "mappedUsed" : {
+              "type" : "integer"
+            },
+            "mappedMax" : {
+              "type" : "integer"
+            },
+            "memorySegmentsAvailable" : {
+              "type" : "integer"
+            },
+            "memorySegmentsTotal" : {
+              "type" : "integer"
+            },
+            "garbageCollectors" : {
+              "type" : "array",
+              "items" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:TaskManagerMetricsInfo:GarbageCollectorInfo",
+                "properties" : {
+                  "name" : {
+                    "type" : "string"
+                  },
+                  "count" : {
+                    "type" : "integer"
+                  },
+                  "time" : {
+                    "type" : "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/taskmanagers/:taskmanagerid/metrics",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "taskmanagerid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "get",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "any"
+    },
+    "response" : {
+      "type" : "any"
+    }
+  } ]
+}

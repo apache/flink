@@ -19,7 +19,8 @@
 package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.rest.handler.legacy.ClusterConfigHandler;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
 
 import java.util.ArrayList;
 
@@ -45,8 +46,8 @@ public class ClusterConfigurationInfo extends ArrayList<ClusterConfigurationInfo
 			String value = config.getString(key, null);
 
 			// Mask key values which contain sensitive information
-			if (value != null && key.toLowerCase().contains("password")) {
-				value = "******";
+			if (value != null && GlobalConfiguration.isSensitive(key)) {
+				value = GlobalConfiguration.HIDDEN_CONTENT;
 			}
 
 			clusterConfig.add(new ClusterConfigurationInfoEntry(key, value));

@@ -96,6 +96,17 @@ public abstract class ProcessingTimeService {
 	public abstract void shutdownService();
 
 	/**
+	 * Shuts down and clean up the timer service provider hard and immediately. This does not wait
+	 * for any timer to complete. Any further call to {@link #registerTimer(long, ProcessingTimeCallback)}
+	 * will result in a hard exception. This call cannot be interrupted and will block until the shutdown is completed
+	 * or the timeout is exceeded.
+	 *
+	 * @param timeoutMs timeout for blocking on the service shutdown in milliseconds.
+	 * @return returns true iff the shutdown was completed.
+	 */
+	public abstract boolean shutdownServiceUninterruptible(long timeoutMs);
+
+	/**
 	 * Shuts down and clean up the timer service provider hard and immediately. This does wait
 	 * for all timers to complete or until the time limit is exceeded. Any call to
 	 * {@link #registerTimer(long, ProcessingTimeCallback)} will result in a hard exception after calling this method.

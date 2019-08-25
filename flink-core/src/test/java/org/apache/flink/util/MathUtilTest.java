@@ -18,6 +18,7 @@
 
 package org.apache.flink.util;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -130,5 +131,15 @@ public class MathUtilTest {
 		assertFalse(MathUtils.isPowerOf2(567923));
 		assertFalse(MathUtils.isPowerOf2(Integer.MAX_VALUE));
 		assertFalse(MathUtils.isPowerOf2(Long.MAX_VALUE));
+	}
+
+	@Test
+	public void testFlipSignBit() {
+		Assert.assertEquals(0L, MathUtils.flipSignBit(Long.MIN_VALUE));
+		Assert.assertEquals(Long.MIN_VALUE, MathUtils.flipSignBit(0L));
+		Assert.assertEquals(-1L, MathUtils.flipSignBit(Long.MAX_VALUE));
+		Assert.assertEquals(Long.MAX_VALUE, MathUtils.flipSignBit(-1L));
+		Assert.assertEquals(42L | Long.MIN_VALUE, MathUtils.flipSignBit(42L));
+		Assert.assertEquals(-42L & Long.MAX_VALUE, MathUtils.flipSignBit(-42L));
 	}
 }

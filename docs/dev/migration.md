@@ -25,6 +25,16 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
+## Migrating from Flink 1.3+ to Flink 1.7
+
+### API changes for serializer snapshots
+
+This would be relevant mostly for users implementing custom `TypeSerializer`s for their state.
+
+The old `TypeSerializerConfigSnapshot` abstraction is now deprecated, and will be fully removed in the future
+in favor of the new `TypeSerializerSnapshot`. For details and guides on how to migrate, please see
+[Migrating from deprecated serializer snapshot APIs before Flink 1.7]({{ site.baseurl }}/dev/stream/state/custom_serialization.html#migrating-from-deprecated-serializer-snapshot-apis-before-flink-17).
+
 ## Migrating from Flink 1.2 to Flink 1.3
 
 There are a few APIs that have been changed since Flink 1.2. Most of the changes are documented in their
@@ -59,7 +69,7 @@ now clean of specific logger dependencies.
 Example and quickstart archetypes already have loggers specified and should not be affected.
 For other custom projects, make sure to add logger dependencies. For example, in Maven's `pom.xml`, you can add:
 
-~~~xml
+{% highlight xml %}
 <dependency>
     <groupId>org.slf4j</groupId>
     <artifactId>slf4j-log4j12</artifactId>
@@ -71,7 +81,7 @@ For other custom projects, make sure to add logger dependencies. For example, in
     <artifactId>log4j</artifactId>
     <version>1.2.17</version>
 </dependency>
-~~~
+{% endhighlight %}
 
 ## Migrating from Flink 1.1 to Flink 1.2
 

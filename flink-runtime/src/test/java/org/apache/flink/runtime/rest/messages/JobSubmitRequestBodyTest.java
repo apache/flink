@@ -18,10 +18,10 @@
 
 package org.apache.flink.runtime.rest.messages;
 
-import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 /**
  * Tests for the {@link JobSubmitRequestBody}.
@@ -35,6 +35,11 @@ public class JobSubmitRequestBodyTest extends RestRequestMarshallingTestBase<Job
 
 	@Override
 	protected JobSubmitRequestBody getTestRequestInstance() throws IOException {
-		return new JobSubmitRequestBody(new JobGraph("job"));
+		return new JobSubmitRequestBody(
+			"jobgraph",
+			Arrays.asList("jar1", "jar2"),
+			Arrays.asList(
+				new JobSubmitRequestBody.DistributedCacheFile("entry1", "artifact1"),
+				new JobSubmitRequestBody.DistributedCacheFile("entry2", "artifact2")));
 	}
 }

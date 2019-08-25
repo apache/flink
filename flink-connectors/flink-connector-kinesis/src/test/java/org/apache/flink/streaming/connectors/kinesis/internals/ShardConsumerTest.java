@@ -113,9 +113,10 @@ public class ShardConsumerTest {
 				KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(Collections.singletonList("fakeStream")),
 				Mockito.mock(KinesisProxyInterface.class));
 
+		int shardIndex = fetcher.registerNewSubscribedShardState(subscribedShardsStateUnderTest.get(0));
 		new ShardConsumer<>(
 			fetcher,
-			0,
+			shardIndex,
 			subscribedShardsStateUnderTest.get(0).getStreamShardHandle(),
 			subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum(),
 			FakeKinesisBehavioursFactory.totalNumOfRecordsAfterNumOfGetRecordsCalls(1000, 9, 500L),
@@ -151,9 +152,10 @@ public class ShardConsumerTest {
 				KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(Collections.singletonList("fakeStream")),
 				Mockito.mock(KinesisProxyInterface.class));
 
+		int shardIndex = fetcher.registerNewSubscribedShardState(subscribedShardsStateUnderTest.get(0));
 		new ShardConsumer<>(
 			fetcher,
-			0,
+			shardIndex,
 			subscribedShardsStateUnderTest.get(0).getStreamShardHandle(),
 			subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum(),
 			// Get a total of 1000 records with 9 getRecords() calls,
@@ -163,6 +165,52 @@ public class ShardConsumerTest {
 			new ShardMetricsReporter()).run();
 
 		assertEquals(1000, sourceContext.getCollectedOutputs().size());
+		assertEquals(
+			SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get(),
+			subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum());
+	}
+
+	@Test
+	public void testCorrectNumOfCollectedRecordsAndUpdatedStateWithAdaptiveReads() {
+		Properties consumerProperties = new Properties();
+		consumerProperties.put("flink.shard.adaptivereads", "true");
+
+		StreamShardHandle fakeToBeConsumedShard = getMockStreamShard("fakeStream", 0);
+
+		LinkedList<KinesisStreamShardState> subscribedShardsStateUnderTest = new LinkedList<>();
+		subscribedShardsStateUnderTest.add(
+			new KinesisStreamShardState(KinesisDataFetcher.convertToStreamShardMetadata(fakeToBeConsumedShard),
+				fakeToBeConsumedShard, new SequenceNumber("fakeStartingState")));
+
+		TestSourceContext<String> sourceContext = new TestSourceContext<>();
+
+		TestableKinesisDataFetcher<String> fetcher =
+			new TestableKinesisDataFetcher<>(
+				Collections.singletonList("fakeStream"),
+				sourceContext,
+				consumerProperties,
+				new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
+				10,
+				2,
+				new AtomicReference<>(),
+				subscribedShardsStateUnderTest,
+				KinesisDataFetcher.createInitialSubscribedStreamsToLastDiscoveredShardsState(Collections.singletonList("fakeStream")),
+				Mockito.mock(KinesisProxyInterface.class));
+
+		int shardIndex = fetcher.registerNewSubscribedShardState(subscribedShardsStateUnderTest.get(0));
+		new ShardConsumer<>(
+			fetcher,
+			shardIndex,
+			subscribedShardsStateUnderTest.get(0).getStreamShardHandle(),
+			subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum(),
+			// Initial number of records to fetch --> 10
+			FakeKinesisBehavioursFactory.initialNumOfRecordsAfterNumOfGetRecordsCallsWithAdaptiveReads(10, 2, 500L),
+			new ShardMetricsReporter()).run();
+
+		// Avg record size for first batch --> 10 * 10 Kb/10 = 10 Kb
+		// Number of records fetched in second batch --> 2 Mb/10Kb * 5 = 40
+		// Total number of records = 10 + 40 = 50
+		assertEquals(50, sourceContext.getCollectedOutputs().size());
 		assertEquals(
 			SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get(),
 			subscribedShardsStateUnderTest.get(0).getLastProcessedSequenceNum());

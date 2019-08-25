@@ -22,17 +22,17 @@ import org.apache.flink.streaming.util.serialization.JSONKeyValueDeserialization
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.Assert;
 import org.junit.Test;
-
-import java.io.IOException;
 
 /**
  * Tests for the{@link JSONKeyValueDeserializationSchema}.
  */
 public class JSONKeyValueDeserializationSchemaTest {
+
 	@Test
-	public void testDeserializeWithoutMetadata() throws IOException {
+	public void testDeserializeWithoutMetadata() throws Exception {
 		ObjectMapper mapper = new ObjectMapper();
 		ObjectNode initialKey = mapper.createObjectNode();
 		initialKey.put("index", 4);
@@ -43,7 +43,7 @@ public class JSONKeyValueDeserializationSchemaTest {
 		byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
 
 		JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(false);
-		ObjectNode deserializedValue = schema.deserialize(serializedKey, serializedValue, "", 0, 0);
+		ObjectNode deserializedValue = schema.deserialize(newConsumerRecord(serializedKey, serializedValue));
 
 		Assert.assertTrue(deserializedValue.get("metadata") == null);
 		Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());
@@ -51,7 +51,52 @@ public class JSONKeyValueDeserializationSchemaTest {
 	}
 
 	@Test
-	public void testDeserializeWithMetadata() throws IOException {
+	public void testDeserializeWithoutKey() throws Exception {
+		ObjectMapper mapper = new ObjectMapper();
+		byte[] serializedKey = null;
+
+		ObjectNode initialValue = mapper.createObjectNode();
+		initialValue.put("word", "world");
+		byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
+
+		JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(false);
+		ObjectNode deserializedValue = schema.deserialize(newConsumerRecord(serializedKey, serializedValue));
+
+		Assert.assertTrue(deserializedValue.get("metadata") == null);
+		Assert.assertTrue(deserializedValue.get("key") == null);
+		Assert.assertEquals("world", deserializedValue.get("value").get("word").asText());
+	}
+
+	private static ConsumerRecord<byte[], byte[]> newConsumerRecord(
+		byte[] serializedKey, byte[] serializedValue) {
+		return newConsumerRecord("", 0, 0L, serializedKey, serializedValue);
+	}
+
+	private static ConsumerRecord<byte[], byte[]> newConsumerRecord(
+		String topic, int partition, long offset, byte[] serializedKey, byte[] serializedValue) {
+
+		return new ConsumerRecord<>(topic, partition, offset, serializedKey, serializedValue);
+	}
+
+	@Test
+	public void testDeserializeWithoutValue() throws Exception {
+		ObjectMapper mapper = new ObjectMapper();
+		ObjectNode initialKey = mapper.createObjectNode();
+		initialKey.put("index", 4);
+		byte[] serializedKey = mapper.writeValueAsBytes(initialKey);
+
+		byte[] serializedValue = null;
+
+		JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(false);
+		ObjectNode deserializedValue = schema.deserialize(newConsumerRecord(serializedKey, serializedValue));
+
+		Assert.assertTrue(deserializedValue.get("metadata") == null);
+		Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());
+		Assert.assertTrue(deserializedValue.get("value") == null);
+	}
+
+	@Test
+	public void testDeserializeWithMetadata() throws Exception {
 		ObjectMapper mapper = new ObjectMapper();
 		ObjectNode initialKey = mapper.createObjectNode();
 		initialKey.put("index", 4);
@@ -62,7 +107,9 @@ public class JSONKeyValueDeserializationSchemaTest {
 		byte[] serializedValue = mapper.writeValueAsBytes(initialValue);
 
 		JSONKeyValueDeserializationSchema schema = new JSONKeyValueDeserializationSchema(true);
-		ObjectNode deserializedValue = schema.deserialize(serializedKey, serializedValue, "topic#1", 3, 4);
+		final ConsumerRecord<byte[], byte[]> consumerRecord =
+				newConsumerRecord("topic#1", 3, 4L, serializedKey, serializedValue);
+		ObjectNode deserializedValue = schema.deserialize(consumerRecord);
 
 		Assert.assertEquals(4, deserializedValue.get("key").get("index").asInt());
 		Assert.assertEquals("world", deserializedValue.get("value").get("word").asText());

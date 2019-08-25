@@ -17,7 +17,7 @@
 
 package org.apache.flink.streaming.experimental;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -34,7 +34,7 @@ import java.net.Socket;
  * <p>This experimental class is relocated from flink-streaming-contrib. Please see package-info.java
  * for more information.
  */
-@Internal
+@Experimental
 public class CollectSink<IN> extends RichSinkFunction<IN> {
 
 	private static final long serialVersionUID = 1L;

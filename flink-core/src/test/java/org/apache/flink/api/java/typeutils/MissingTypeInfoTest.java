@@ -20,10 +20,6 @@ package org.apache.flink.api.java.typeutils;
 
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
-import org.apache.flink.util.TestLogger;
-import org.junit.Test;
-
-import static org.junit.Assert.*;
 
 public class MissingTypeInfoTest extends TypeInformationTestBase<MissingTypeInfo> {
 	private static final String functionName = "foobar";
@@ -40,5 +36,10 @@ public class MissingTypeInfoTest extends TypeInformationTestBase<MissingTypeInfo
 	@Override
 	public void testSerialization() {
 		// this class is not intended to be serialized
+	}
+
+	@Override
+	public void testGetTotalFields() {
+		// getTotalFields is not meant to be called
 	}
 }

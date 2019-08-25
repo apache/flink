@@ -41,7 +41,7 @@ import org.apache.flink.core.io.InputSplitSource;
  * The life cycle of an input format is the following:
  * <ol>
  *   <li>After being instantiated (parameterless), it is configured with a {@link Configuration} object. 
- *       Basic fields are read from the configuration, such as for example a file path, if the format describes
+ *       Basic fields are read from the configuration, such as a file path, if the format describes
  *       files as input.</li>
  *   <li>Optionally: It is called by the compiler to produce basic statistics about the input.</li>
  *   <li>It is called to create the input splits.</li>

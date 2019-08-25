@@ -21,21 +21,21 @@ package org.apache.flink.runtime.rest.handler.legacy;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * Cache for {@link AccessExecutionGraph} which are obtained from the Flink cluster. Every cache entry
+ * Cache for {@link ArchivedExecutionGraph} which are obtained from the Flink cluster. Every cache entry
  * has an associated time to live after which a new request will trigger the reloading of the
- * {@link AccessExecutionGraph} from the cluster.
+ * {@link ArchivedExecutionGraph} from the cluster.
  */
 public class ExecutionGraphCache implements Closeable {
 
@@ -76,12 +76,15 @@ public class ExecutionGraphCache implements Closeable {
 	 * {@link AccessExecutionGraph} will be requested again after the refresh interval has passed
 	 * or if the graph could not be retrieved from the given gateway.
 	 *
-	 * @param jobId identifying the {@link AccessExecutionGraph} to get
-	 * @param restfulGateway to request the {@link AccessExecutionGraph} from
-	 * @return Future containing the requested {@link AccessExecutionGraph}
+	 * @param jobId identifying the {@link ArchivedExecutionGraph} to get
+	 * @param restfulGateway to request the {@link ArchivedExecutionGraph} from
+	 * @return Future containing the requested {@link ArchivedExecutionGraph}
 	 */
 	public CompletableFuture<AccessExecutionGraph> getExecutionGraph(JobID jobId, RestfulGateway restfulGateway) {
+		return getExecutionGraphInternal(jobId, restfulGateway).thenApply(Function.identity());
+	}
 
+	private CompletableFuture<ArchivedExecutionGraph> getExecutionGraphInternal(JobID jobId, RestfulGateway restfulGateway) {
 		Preconditions.checkState(running, "ExecutionGraphCache is no longer running");
 
 		while (true) {
@@ -89,27 +92,12 @@ public class ExecutionGraphCache implements Closeable {
 
 			final long currentTime = System.currentTimeMillis();
 
-			if (oldEntry != null) {
-				if (currentTime < oldEntry.getTTL()) {
-					final CompletableFuture<AccessExecutionGraph> executionGraphFuture = oldEntry.getExecutionGraphFuture();
-					if (executionGraphFuture.isDone() && !executionGraphFuture.isCompletedExceptionally()) {
-
-						// TODO: Remove once we no longer request the actual ExecutionGraph from the JobManager but only the ArchivedExecutionGraph
-						try {
-							final AccessExecutionGraph executionGraph = executionGraphFuture.get();
-							if (executionGraph.getState() != JobStatus.SUSPENDING &&
-								executionGraph.getState() != JobStatus.SUSPENDED) {
-								return executionGraphFuture;
-							}
-							// send a new request to get the ExecutionGraph from the new leader
-						} catch (InterruptedException | ExecutionException e) {
-							throw new RuntimeException("Could not retrieve ExecutionGraph from the orderly completed future. This should never happen.", e);
-						}
-					} else if (!executionGraphFuture.isDone()) {
-						return executionGraphFuture;
-					}
-					// otherwise it must be completed exceptionally
+			if (oldEntry != null && currentTime < oldEntry.getTTL()) {
+				final CompletableFuture<ArchivedExecutionGraph> executionGraphFuture = oldEntry.getExecutionGraphFuture();
+				if (!executionGraphFuture.isCompletedExceptionally()) {
+					return executionGraphFuture;
 				}
+				// otherwise it must be completed exceptionally
 			}
 
 			final ExecutionGraphEntry newEntry = new ExecutionGraphEntry(currentTime + timeToLive.toMilliseconds());
@@ -125,10 +113,10 @@ public class ExecutionGraphCache implements Closeable {
 			}
 
 			if (successfulUpdate) {
-				final CompletableFuture<? extends AccessExecutionGraph> executionGraphFuture = restfulGateway.requestJob(jobId, timeout);
+				final CompletableFuture<ArchivedExecutionGraph> executionGraphFuture = restfulGateway.requestJob(jobId, timeout);
 
 				executionGraphFuture.whenComplete(
-					(AccessExecutionGraph executionGraph, Throwable throwable) -> {
+					(ArchivedExecutionGraph executionGraph, Throwable throwable) -> {
 						if (throwable != null) {
 							newEntry.getExecutionGraphFuture().completeExceptionally(throwable);
 
@@ -136,13 +124,6 @@ public class ExecutionGraphCache implements Closeable {
 							cachedExecutionGraphs.remove(jobId, newEntry);
 						} else {
 							newEntry.getExecutionGraphFuture().complete(executionGraph);
-
-							// TODO: Remove once we no longer request the actual ExecutionGraph from the JobManager but only the ArchivedExecutionGraph
-							if (executionGraph.getState() == JobStatus.SUSPENDING ||
-								executionGraph.getState() == JobStatus.SUSPENDED) {
-								// remove the entry in case of suspension --> triggers new request when accessed next time
-								cachedExecutionGraphs.remove(jobId, newEntry);
-							}
 						}
 					});
 
@@ -173,7 +154,7 @@ public class ExecutionGraphCache implements Closeable {
 	private static final class ExecutionGraphEntry {
 		private final long ttl;
 
-		private final CompletableFuture<AccessExecutionGraph> executionGraphFuture;
+		private final CompletableFuture<ArchivedExecutionGraph> executionGraphFuture;
 
 		ExecutionGraphEntry(long ttl) {
 			this.ttl = ttl;
@@ -184,7 +165,7 @@ public class ExecutionGraphCache implements Closeable {
 			return ttl;
 		}
 
-		public CompletableFuture<AccessExecutionGraph> getExecutionGraphFuture() {
+		public CompletableFuture<ArchivedExecutionGraph> getExecutionGraphFuture() {
 			return executionGraphFuture;
 		}
 	}

@@ -56,8 +56,8 @@ import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.QueryableStateStream;
@@ -106,8 +106,8 @@ import static org.junit.Assert.fail;
  */
 public abstract class AbstractQueryableStateTestBase extends TestLogger {
 
-	private static final Duration TEST_TIMEOUT = Duration.ofSeconds(10000L);
-	public static final long RETRY_TIMEOUT = 50L;
+	private static final Duration TEST_TIMEOUT = Duration.ofSeconds(200L);
+	private static final long RETRY_TIMEOUT = 50L;
 
 	private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(4);
 	private final ScheduledExecutor executor = new ScheduledExecutorServiceAdapter(executorService);
@@ -115,7 +115,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	/**
 	 * State backend to use.
 	 */
-	protected AbstractStateBackend stateBackend;
+	private StateBackend stateBackend;
 
 	/**
 	 * Client shared between all the test.
@@ -142,7 +142,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 *
 	 * @return a state backend instance for each unit test
 	 */
-	protected abstract AbstractStateBackend createStateBackend() throws Exception;
+	protected abstract StateBackend createStateBackend() throws Exception;
 
 	/**
 	 * Runs a simple topology producing random (key, 1) pairs at the sources (where
@@ -153,7 +153,6 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 	 * to query the counts of each key in rounds until all keys have non-zero counts.
 	 */
 	@Test
-	@SuppressWarnings("unchecked")
 	public void testQueryableState() throws Exception {
 		final Deadline deadline = Deadline.now().plus(TEST_TIMEOUT);
 		final int numKeys = 256;
@@ -597,6 +596,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 					}
 				}).asQueryableState("matata");
 
+		@SuppressWarnings("unchecked")
 		final ValueStateDescriptor<Tuple2<Integer, Long>> stateDesc =
 				(ValueStateDescriptor<Tuple2<Integer, Long>>) queryableState.getStateDescriptor();
 
@@ -836,9 +836,11 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 							false,
 							executor);
 
-					Tuple2<Integer, Long> value = future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get(key);
-					assertEquals("Key mismatch", key, value.f0.intValue());
-					if (expected == value.f1) {
+					Tuple2<Integer, Long> value =
+						future.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS).get(key);
+
+					if (value != null && value.f0 != null && expected == value.f1) {
+						assertEquals("Key mismatch", key, value.f0.intValue());
 						success = true;
 					} else {
 						// Retry
@@ -1271,7 +1273,7 @@ public abstract class AbstractQueryableStateTestBase extends TestLogger {
 			// Free cluster resources
 			clusterClient.cancel(jobId);
 			// cancel() is non-blocking so do this to make sure the job finished
-			CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccesfulWithDelay(
+			CompletableFuture<JobStatus> jobStatusFuture = FutureUtils.retrySuccessfulWithDelay(
 				() -> clusterClient.getJobStatus(jobId),
 				Time.milliseconds(50),
 				deadline,

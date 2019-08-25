@@ -20,11 +20,11 @@ package org.apache.flink.client.cli;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
+import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.StandaloneClusterClient;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -47,8 +47,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isNull;
 import static org.mockito.Mockito.mock;
@@ -134,10 +134,7 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 		replaceStdOutAndStdErr();
 
 		try {
-			CliFrontend frontend = new MockedCliFrontend(new StandaloneClusterClient(
-				getConfiguration(),
-				new TestingHighAvailabilityServices(),
-				false));
+			CliFrontend frontend = new MockedCliFrontend(new RestClusterClient<>(getConfiguration(), StandaloneClusterId.getInstance()));
 
 			String[] parameters = { "invalid job id" };
 			try {
@@ -282,12 +279,14 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 
 	// ------------------------------------------------------------------------
 
-	private static final class DisposeSavepointClusterClient extends StandaloneClusterClient {
+	private static final class DisposeSavepointClusterClient extends RestClusterClient<StandaloneClusterId> {
 
 		private final Function<String, CompletableFuture<Acknowledge>> disposeSavepointFunction;
 
-		DisposeSavepointClusterClient(Function<String, CompletableFuture<Acknowledge>> disposeSavepointFunction, Configuration configuration) {
-			super(configuration, new TestingHighAvailabilityServices(), false);
+		DisposeSavepointClusterClient(
+			Function<String, CompletableFuture<Acknowledge>> disposeSavepointFunction,
+			Configuration configuration) throws Exception {
+			super(configuration, StandaloneClusterId.getInstance());
 
 			this.disposeSavepointFunction = Preconditions.checkNotNull(disposeSavepointFunction);
 		}
@@ -315,7 +314,7 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 	private static ClusterClient<String> createClusterClient(String expectedResponse) throws Exception {
 		final ClusterClient<String> clusterClient = mock(ClusterClient.class);
 
-		when(clusterClient.triggerSavepoint(any(JobID.class), anyString()))
+		when(clusterClient.triggerSavepoint(any(JobID.class), nullable(String.class)))
 			.thenReturn(CompletableFuture.completedFuture(expectedResponse));
 
 		return clusterClient;
@@ -324,7 +323,7 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
 	private static ClusterClient<String> createFailingClusterClient(Exception expectedException) throws Exception {
 		final ClusterClient<String> clusterClient = mock(ClusterClient.class);
 
-		when(clusterClient.triggerSavepoint(any(JobID.class), anyString()))
+		when(clusterClient.triggerSavepoint(any(JobID.class), nullable(String.class)))
 			.thenReturn(FutureUtils.completedExceptionally(expectedException));
 
 		return clusterClient;

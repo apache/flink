@@ -193,7 +193,7 @@ public class TaskStateManagerImplTest extends TestLogger {
 				new LocalRecoveryDirectoryProviderImpl(allocBaseDirs, jobID, jobVertexID, 0);
 
 			LocalRecoveryConfig localRecoveryConfig =
-				new LocalRecoveryConfig(LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED, directoryProvider);
+				new LocalRecoveryConfig(true, directoryProvider);
 
 			TaskLocalStateStore taskLocalStateStore =
 				new TaskLocalStateStoreImpl(jobID, allocationID, jobVertexID, 13, localRecoveryConfig, directExecutor);
@@ -220,8 +220,8 @@ public class TaskStateManagerImplTest extends TestLogger {
 			}
 
 			Assert.assertEquals(
-				localRecoveryConfFromTaskLocalStateStore.getLocalRecoveryMode(),
-				localRecoveryConfFromTaskStateManager.getLocalRecoveryMode());
+				localRecoveryConfFromTaskLocalStateStore.isLocalRecoveryEnabled(),
+				localRecoveryConfFromTaskStateManager.isLocalRecoveryEnabled());
 		} finally {
 			tmpFolder.delete();
 		}

@@ -69,4 +69,9 @@ public class TaskCheckpointStatisticsHeaders implements MessageHeaders<EmptyRequ
 	public static TaskCheckpointStatisticsHeaders getInstance() {
 		return INSTANCE;
 	}
+
+	@Override
+	public String getDescription() {
+		return "Returns checkpoint statistics for a task and its subtasks.";
+	}
 }

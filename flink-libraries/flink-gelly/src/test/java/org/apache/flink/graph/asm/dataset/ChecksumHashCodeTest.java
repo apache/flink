@@ -18,8 +18,7 @@
 
 package org.apache.flink.graph.asm.dataset;
 
-import org.apache.flink.api.common.typeinfo.TypeHint;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.graph.asm.dataset.ChecksumHashCode.Checksum;
@@ -62,7 +61,7 @@ public class ChecksumHashCodeTest {
 
 	@Test
 	public void testEmptyList() throws Exception {
-		DataSet<Long> dataset = env.fromCollection(Collections.emptyList(), TypeInformation.of(new TypeHint<Long>(){}));
+		DataSet<Long> dataset = env.fromCollection(Collections.emptyList(), Types.LONG);
 
 		Checksum checksum = new ChecksumHashCode<Long>().run(dataset).execute();
 

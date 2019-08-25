@@ -21,6 +21,7 @@ package org.apache.flink.formats.avro.typeutils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -31,7 +32,6 @@ import org.apache.flink.formats.avro.AvroRecordInputFormatTest;
 import org.apache.flink.formats.avro.generated.Fixed16;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.test.util.MultipleProgramsTestBase;
-import org.apache.flink.util.Collector;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -52,6 +52,7 @@ import java.util.Map;
  */
 @RunWith(Parameterized.class)
 public class AvroTypeExtractionTest extends MultipleProgramsTestBase {
+
 	public AvroTypeExtractionTest(TestExecutionMode mode) {
 		super(mode);
 	}
@@ -80,7 +81,7 @@ public class AvroTypeExtractionTest extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Path in = new Path(inFile.getAbsoluteFile().toURI());
 
-		AvroInputFormat<User> users = new AvroInputFormat<User>(in, User.class);
+		AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
 		DataSet<User> usersDS = env.createInput(users)
 				.map((value) -> value);
 
@@ -88,8 +89,19 @@ public class AvroTypeExtractionTest extends MultipleProgramsTestBase {
 
 		env.execute("Simple Avro read job");
 
-		expected = "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": null, \"type_long_test\": null, \"type_double_test\": 123.45, \"type_null_test\": null, \"type_bool_test\": true, \"type_array_string\": [\"ELEMENT 1\", \"ELEMENT 2\"], \"type_array_boolean\": [true, false], \"type_nullable_array\": null, \"type_enum\": \"GREEN\", \"type_map\": {\"KEY 2\": 17554, \"KEY 1\": 8546456}, \"type_fixed\": null, \"type_union\": null, \"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", \"city\": \"London\", \"state\": \"London\", \"zip\": \"NW1 6XE\"}}\n" +
-					"{\"name\": \"Charlie\", \"favorite_number\": null, \"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, \"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], \"type_array_boolean\": [], \"type_nullable_array\": null, \"type_enum\": \"RED\", \"type_map\": {}, \"type_fixed\": null, \"type_union\": null, \"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", \"city\": \"London\", \"state\": \"London\", \"zip\": \"NW1 6XE\"}}\n";
+		expected = "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": null, \"type_long_test\": null, " +
+			"\"type_double_test\": 123.45, \"type_null_test\": null, \"type_bool_test\": true, \"type_array_string\": [\"ELEMENT 1\", \"ELEMENT 2\"], " +
+			"\"type_array_boolean\": [true, false], \"type_nullable_array\": null, \"type_enum\": \"GREEN\", \"type_map\": {\"KEY 2\": 17554, \"KEY 1\": 8546456}, " +
+			"\"type_fixed\": null, \"type_union\": null, \"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", \"city\": \"London\", \"state\": \"London\", \"zip\": \"NW1 6XE\"}, " +
+			"\"type_bytes\": {\"bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\"}, \"type_date\": 2014-03-01, \"type_time_millis\": 12:12:12.000, " +
+			"\"type_time_micros\": 123456, \"type_timestamp_millis\": 2014-03-01T12:12:12.321Z, \"type_timestamp_micros\": 123456, " +
+			"\"type_decimal_bytes\": {\"bytes\": \"\\u0007Ð\"}, \"type_decimal_fixed\": [7, -48]}\n" +
+			"{\"name\": \"Charlie\", \"favorite_number\": null, \"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, " +
+			"\"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], \"type_array_boolean\": [], \"type_nullable_array\": null, " +
+			"\"type_enum\": \"RED\", \"type_map\": {}, \"type_fixed\": null, \"type_union\": null, \"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", " +
+			"\"city\": \"London\", \"state\": \"London\", \"zip\": \"NW1 6XE\"}, \"type_bytes\": {\"bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\"}, " +
+			"\"type_date\": 2014-03-01, \"type_time_millis\": 12:12:12.000, \"type_time_micros\": 123456, \"type_timestamp_millis\": 2014-03-01T12:12:12.321Z, " +
+			"\"type_timestamp_micros\": 123456, \"type_decimal_bytes\": {\"bytes\": \"\\u0007Ð\"}, \"type_decimal_fixed\": [7, -48]}\n";
 	}
 
 	@Test
@@ -98,24 +110,31 @@ public class AvroTypeExtractionTest extends MultipleProgramsTestBase {
 		env.getConfig().enableForceAvro();
 		Path in = new Path(inFile.getAbsoluteFile().toURI());
 
-		AvroInputFormat<User> users = new AvroInputFormat<User>(in, User.class);
+		AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
 		DataSet<User> usersDS = env.createInput(users)
-				.map(new MapFunction<User, User>() {
-					@Override
-					public User map(User value) throws Exception {
-						Map<CharSequence, Long> ab = new HashMap<CharSequence, Long>(1);
-						ab.put("hehe", 12L);
-						value.setTypeMap(ab);
-						return value;
-					}
+				.map((MapFunction<User, User>) value -> {
+					Map<CharSequence, Long> ab = new HashMap<>(1);
+					ab.put("hehe", 12L);
+					value.setTypeMap(ab);
+					return value;
 				});
 
 		usersDS.writeAsText(resultPath);
 
 		env.execute("Simple Avro read job");
 
-		expected = "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": null, \"type_long_test\": null, \"type_double_test\": 123.45, \"type_null_test\": null, \"type_bool_test\": true, \"type_array_string\": [\"ELEMENT 1\", \"ELEMENT 2\"], \"type_array_boolean\": [true, false], \"type_nullable_array\": null, \"type_enum\": \"GREEN\", \"type_map\": {\"hehe\": 12}, \"type_fixed\": null, \"type_union\": null, \"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", \"city\": \"London\", \"state\": \"London\", \"zip\": \"NW1 6XE\"}}\n" +
-					"{\"name\": \"Charlie\", \"favorite_number\": null, \"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, \"type_null_test\": null, \"type_bool_test\": false, \"type_array_string\": [], \"type_array_boolean\": [], \"type_nullable_array\": null, \"type_enum\": \"RED\", \"type_map\": {\"hehe\": 12}, \"type_fixed\": null, \"type_union\": null, \"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", \"city\": \"London\", \"state\": \"London\", \"zip\": \"NW1 6XE\"}}\n";
+		expected = "{\"name\": \"Alyssa\", \"favorite_number\": 256, \"favorite_color\": null, \"type_long_test\": null, \"type_double_test\": 123.45, \"type_null_test\": null, " +
+			"\"type_bool_test\": true, \"type_array_string\": [\"ELEMENT 1\", \"ELEMENT 2\"], \"type_array_boolean\": [true, false], \"type_nullable_array\": null, " +
+			"\"type_enum\": \"GREEN\", \"type_map\": {\"hehe\": 12}, \"type_fixed\": null, \"type_union\": null, \"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", " +
+			"\"city\": \"London\", \"state\": \"London\", \"zip\": \"NW1 6XE\"}, \"type_bytes\": {\"bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\"}, " +
+			"\"type_date\": 2014-03-01, \"type_time_millis\": 12:12:12.000, \"type_time_micros\": 123456, \"type_timestamp_millis\": 2014-03-01T12:12:12.321Z, \"type_timestamp_micros\": 123456, " +
+			"\"type_decimal_bytes\": {\"bytes\": \"\\u0007Ð\"}, \"type_decimal_fixed\": [7, -48]}\n" +
+			"{\"name\": \"Charlie\", \"favorite_number\": null, \"favorite_color\": \"blue\", \"type_long_test\": 1337, \"type_double_test\": 1.337, \"type_null_test\": null, " +
+			"\"type_bool_test\": false, \"type_array_string\": [], \"type_array_boolean\": [], \"type_nullable_array\": null, \"type_enum\": \"RED\", \"type_map\": {\"hehe\": 12}, " +
+			"\"type_fixed\": null, \"type_union\": null, \"type_nested\": {\"num\": 239, \"street\": \"Baker Street\", \"city\": \"London\", \"state\": \"London\", \"zip\": \"NW1 6XE\"}, " +
+			"\"type_bytes\": {\"bytes\": \"\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\\u0000\"}, \"type_date\": 2014-03-01, \"type_time_millis\": 12:12:12.000, " +
+			"\"type_time_micros\": 123456, \"type_timestamp_millis\": 2014-03-01T12:12:12.321Z, \"type_timestamp_micros\": 123456, \"type_decimal_bytes\": {\"bytes\": \"\\u0007Ð\"}, " +
+			"\"type_decimal_fixed\": [7, -48]}\n";
 
 	}
 
@@ -125,17 +144,17 @@ public class AvroTypeExtractionTest extends MultipleProgramsTestBase {
 		env.getConfig().enableObjectReuse();
 		Path in = new Path(inFile.getAbsoluteFile().toURI());
 
-		AvroInputFormat<User> users = new AvroInputFormat<User>(in, User.class);
+		AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
 		DataSet<User> usersDS = env.createInput(users);
 
-		DataSet<Tuple2<String, Integer>> res = usersDS.groupBy("name").reduceGroup(new GroupReduceFunction<User, Tuple2<String, Integer>>() {
-			@Override
-			public void reduce(Iterable<User> values, Collector<Tuple2<String, Integer>> out) throws Exception {
+		DataSet<Tuple2<String, Integer>> res = usersDS
+			.groupBy("name")
+			.reduceGroup((GroupReduceFunction<User, Tuple2<String, Integer>>) (values, out) -> {
 				for (User u : values) {
-					out.collect(new Tuple2<String, Integer>(u.getName().toString(), 1));
+					out.collect(new Tuple2<>(u.getName().toString(), 1));
 				}
-			}
-		});
+			})
+			.returns(Types.TUPLE(Types.STRING, Types.INT));
 		res.writeAsText(resultPath);
 		env.execute("Avro Key selection");
 
@@ -148,22 +167,17 @@ public class AvroTypeExtractionTest extends MultipleProgramsTestBase {
 		env.getConfig().enableForceAvro();
 		Path in = new Path(inFile.getAbsoluteFile().toURI());
 
-		AvroInputFormat<User> users = new AvroInputFormat<User>(in, User.class);
+		AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
 		DataSet<User> usersDS = env.createInput(users);
 
-		DataSet<Tuple2<String, Integer>> res = usersDS.groupBy(new KeySelector<User, String>() {
-			@Override
-			public String getKey(User value) throws Exception {
-				return String.valueOf(value.getName());
-			}
-		}).reduceGroup(new GroupReduceFunction<User, Tuple2<String, Integer>>() {
-			@Override
-			public void reduce(Iterable<User> values, Collector<Tuple2<String, Integer>> out) throws Exception {
+		DataSet<Tuple2<String, Integer>> res = usersDS
+			.groupBy((KeySelector<User, String>) value -> String.valueOf(value.getName()))
+			.reduceGroup((GroupReduceFunction<User, Tuple2<String, Integer>>) (values, out) -> {
 				for (User u : values) {
-					out.collect(new Tuple2<String, Integer>(u.getName().toString(), 1));
+					out.collect(new Tuple2<>(u.getName().toString(), 1));
 				}
-			}
-		});
+			})
+			.returns(Types.TUPLE(Types.STRING, Types.INT));
 
 		res.writeAsText(resultPath);
 		env.execute("Avro Key selection");
@@ -177,22 +191,17 @@ public class AvroTypeExtractionTest extends MultipleProgramsTestBase {
 		env.getConfig().enableForceKryo();
 		Path in = new Path(inFile.getAbsoluteFile().toURI());
 
-		AvroInputFormat<User> users = new AvroInputFormat<User>(in, User.class);
+		AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
 		DataSet<User> usersDS = env.createInput(users);
 
-		DataSet<Tuple2<String, Integer>> res = usersDS.groupBy(new KeySelector<User, String>() {
-			@Override
-			public String getKey(User value) throws Exception {
-				return String.valueOf(value.getName());
-			}
-		}).reduceGroup(new GroupReduceFunction<User, Tuple2<String, Integer>>() {
-			@Override
-			public void reduce(Iterable<User> values, Collector<Tuple2<String, Integer>> out) throws Exception {
+		DataSet<Tuple2<String, Integer>> res = usersDS
+			.groupBy((KeySelector<User, String>) value -> String.valueOf(value.getName()))
+			.reduceGroup((GroupReduceFunction<User, Tuple2<String, Integer>>) (values, out) -> {
 				for (User u : values) {
-					out.collect(new Tuple2<String, Integer>(u.getName().toString(), 1));
+					out.collect(new Tuple2<>(u.getName().toString(), 1));
 				}
-			}
-		});
+			})
+			.returns(Types.TUPLE(Types.STRING, Types.INT));
 
 		res.writeAsText(resultPath);
 		env.execute("Avro Key selection");
@@ -216,17 +225,17 @@ public class AvroTypeExtractionTest extends MultipleProgramsTestBase {
 		final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 		Path in = new Path(inFile.getAbsoluteFile().toURI());
 
-		AvroInputFormat<User> users = new AvroInputFormat<User>(in, User.class);
+		AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
 		DataSet<User> usersDS = env.createInput(users);
 
-		DataSet<Object> res = usersDS.groupBy(fieldName).reduceGroup(new GroupReduceFunction<User, Object>() {
-			@Override
-			public void reduce(Iterable<User> values, Collector<Object> out) throws Exception {
+		DataSet<Object> res = usersDS
+			.groupBy(fieldName)
+			.reduceGroup((GroupReduceFunction<User, Object>) (values, out) -> {
 				for (User u : values) {
 					out.collect(u.get(fieldName));
 				}
-			}
-		});
+			})
+			.returns(Object.class);
 		res.writeAsText(resultPath);
 		env.execute("Simple Avro read job");
 
@@ -234,14 +243,19 @@ public class AvroTypeExtractionTest extends MultipleProgramsTestBase {
 		ExecutionConfig ec = env.getConfig();
 		Assert.assertTrue(ec.getRegisteredKryoTypes().contains(Fixed16.class));
 
-		if (fieldName.equals("name")) {
-			expected = "Alyssa\nCharlie";
-		} else if (fieldName.equals("type_enum")) {
-			expected = "GREEN\nRED\n";
-		} else if (fieldName.equals("type_double_test")) {
-			expected = "123.45\n1.337\n";
-		} else {
-			Assert.fail("Unknown field");
+		switch (fieldName) {
+			case "name":
+				expected = "Alyssa\nCharlie";
+				break;
+			case "type_enum":
+				expected = "GREEN\nRED\n";
+				break;
+			case "type_double_test":
+				expected = "123.45\n1.337\n";
+				break;
+			default:
+				Assert.fail("Unknown field");
+				break;
 		}
 
 		after();

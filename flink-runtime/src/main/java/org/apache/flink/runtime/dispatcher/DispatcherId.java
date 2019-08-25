@@ -29,29 +29,27 @@ public class DispatcherId extends AbstractID {
 
 	private static final long serialVersionUID = -1654056277003743966L;
 
-	public DispatcherId(byte[] bytes) {
-		super(bytes);
-	}
+	private DispatcherId() {}
 
-	public DispatcherId(long lowerPart, long upperPart) {
-		super(lowerPart, upperPart);
-	}
-
-	public DispatcherId(AbstractID id) {
-		super(id);
-	}
-
-	public DispatcherId() {}
-
-	public DispatcherId(UUID uuid) {
-		this(uuid.getLeastSignificantBits(), uuid.getMostSignificantBits());
+	private DispatcherId(UUID uuid) {
+		super(uuid.getLeastSignificantBits(), uuid.getMostSignificantBits());
 	}
 
 	public UUID toUUID() {
 		return new UUID(getUpperPart(), getLowerPart());
 	}
 
+	/**
+	 * Generates a new random DispatcherId.
+	 */
 	public static DispatcherId generate() {
 		return new DispatcherId();
+	}
+
+	/**
+	 * Creates a new DispatcherId that corresponds to the UUID.
+	 */
+	public static DispatcherId fromUuid(UUID uuid) {
+		return new DispatcherId(uuid);
 	}
 }

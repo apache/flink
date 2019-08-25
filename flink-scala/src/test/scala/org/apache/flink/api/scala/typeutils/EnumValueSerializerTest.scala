@@ -35,10 +35,11 @@ class EnumValueSerializerTest extends TestLogger with JUnitSuiteLike {
 
     val snapshot = enumSerializer.snapshotConfiguration()
 
-    assertFalse(enumSerializer.ensureCompatibility(snapshot).isRequiresMigration)
+    assertTrue(snapshot.resolveSchemaCompatibility(enumSerializer).isCompatibleAsIs)
   }
 }
 
+@SerialVersionUID(-3883456191213905962L)
 object Letters extends Enumeration {
   val A, B, C = Value
 }

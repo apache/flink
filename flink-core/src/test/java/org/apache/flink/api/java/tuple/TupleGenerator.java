@@ -133,6 +133,17 @@ class TupleGenerator {
 	private static void modifyTupleType(File root) throws IOException {
 		// generate code
 		StringBuilder sb = new StringBuilder();
+		sb.append("\tpublic static Tuple newInstance(int arity) {\n");
+		sb.append("\t\tswitch (arity) {\n");
+		// special case for Tuple0:
+		sb.append("\t\t\tcase 0: return Tuple0.INSTANCE;\n");
+		for (int i = FIRST; i <= LAST; i++) {
+			sb.append("\t\t\tcase ").append(i).append(": return new Tuple").append(i).append("();\n");
+		}
+		sb.append("\t\t\tdefault: throw new IllegalArgumentException(\"The tuple arity must be in [0, \" + MAX_ARITY + \"].\");\n");
+		sb.append("\t\t}\n");
+		sb.append("\t}\n\n");
+
 		sb.append("\tprivate static final Class<?>[] CLASSES = new Class<?>[] {\n\t\tTuple0.class");
 		for (int i = FIRST; i <= LAST; i++) {
 			sb.append(", Tuple").append(i).append(".class");

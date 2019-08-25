@@ -24,9 +24,9 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
  * Skeleton for a Flink Streaming Job.
  *
  * <p>For a tutorial how to write a Flink streaming application, check the
- * tutorials and examples on the <a href="http://flink.apache.org/docs/stable/">Flink Website</a>.
+ * tutorials and examples on the <a href="https://flink.apache.org/docs/stable/">Flink Website</a>.
  *
- * <p>To package your appliation into a JAR file for execution, run
+ * <p>To package your application into a JAR file for execution, run
  * 'mvn clean package' on the command line.
  *
  * <p>If you change the name of the main class (with the public static void main(String[] args))
@@ -54,7 +54,7 @@ public class StreamingJob {
 		 * and many more.
 		 * Have a look at the programming guide for the Java API:
 		 *
-		 * http://flink.apache.org/docs/latest/apis/streaming/index.html
+		 * https://flink.apache.org/docs/latest/apis/streaming/index.html
 		 *
 		 */
 

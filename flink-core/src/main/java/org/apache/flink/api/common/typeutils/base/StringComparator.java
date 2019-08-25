@@ -73,7 +73,7 @@ public final class StringComparator extends BasicTypeComparator<String> {
 
 
 	@Override
-	public void putNormalizedKey(String record, MemorySegment target, int offset, int len) {;
+	public void putNormalizedKey(String record, MemorySegment target, int offset, int len) {
 		final int limit = offset + len;
 		final int end = record.length();
 		int pos = 0;

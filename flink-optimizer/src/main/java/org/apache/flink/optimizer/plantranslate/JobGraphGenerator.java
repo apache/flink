@@ -18,20 +18,25 @@
 
 package org.apache.flink.optimizer.plantranslate;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.aggregators.AggregatorRegistry;
 import org.apache.flink.api.common.aggregators.AggregatorWithName;
 import org.apache.flink.api.common.aggregators.ConvergenceCriterion;
 import org.apache.flink.api.common.aggregators.LongSumAggregator;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.distributions.DataDistribution;
+import org.apache.flink.api.common.io.InputFormat;
+import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.common.operators.util.UserCodeWrapper;
 import org.apache.flink.api.common.typeutils.TypeSerializerFactory;
+import org.apache.flink.api.java.io.BlockingShuffleOutputFormat;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.AlgorithmOptions;
+import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.CompilerException;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.plan.BulkIterationPlanNode;
@@ -49,8 +54,6 @@ import org.apache.flink.optimizer.plan.SolutionSetPlanNode;
 import org.apache.flink.optimizer.plan.SourcePlanNode;
 import org.apache.flink.optimizer.plan.WorksetIterationPlanNode;
 import org.apache.flink.optimizer.plan.WorksetPlanNode;
-import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.optimizer.util.Utils;
 import org.apache.flink.runtime.io.network.DataExchangeMode;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -59,12 +62,14 @@ import org.apache.flink.runtime.iterative.task.IterationHeadTask;
 import org.apache.flink.runtime.iterative.task.IterationIntermediateTask;
 import org.apache.flink.runtime.iterative.task.IterationSynchronizationSinkTask;
 import org.apache.flink.runtime.iterative.task.IterationTailTask;
-import org.apache.flink.runtime.jobgraph.JobEdge;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.InputFormatVertex;
+import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
+import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.OutputFormatVertex;
+import org.apache.flink.runtime.jobgraph.JobVertex;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.operators.BatchTask;
 import org.apache.flink.runtime.operators.CoGroupDriver;
@@ -81,10 +86,18 @@ import org.apache.flink.runtime.operators.chaining.ChainedDriver;
 import org.apache.flink.runtime.operators.shipping.ShipStrategyType;
 import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.operators.util.TaskConfig;
+import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.Visitor;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonFactory;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -92,7 +105,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * This component translates the optimizer's resulting {@link org.apache.flink.optimizer.plan.OptimizedPlan}
@@ -106,6 +121,8 @@ import java.util.Map.Entry;
  * are created for the plan nodes, on the way back up, the nodes connect their predecessors.
  */
 public class JobGraphGenerator implements Visitor<PlanNode> {
+	
+	private static final Logger LOG = LoggerFactory.getLogger(JobGraphGenerator.class);
 	
 	public static final String MERGE_ITERATION_AUX_TASKS_KEY = "compiler.merge-iteration-aux";
 	
@@ -236,6 +253,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 
 		// add vertices to the graph
 		for (JobVertex vertex : this.vertices.values()) {
+			vertex.setInputDependencyConstraint(program.getOriginalPlan().getExecutionConfig().getDefaultInputDependencyConstraint());
 			graph.addVertex(vertex);
 		}
 
@@ -244,11 +262,13 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			vertex.setSlotSharingGroup(sharingGroup);
 		}
 
-		// add registered cache file into job configuration
-		for (Entry<String, DistributedCacheEntry> e : program.getOriginalPlan().getCachedFiles()) {
-			DistributedCache.writeFileInfoToConfig(e.getKey(), e.getValue(), graph.getJobConfiguration());
-		}
 
+		Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts =
+			program.getOriginalPlan().getCachedFiles().stream()
+			.map(entry -> Tuple2.of(entry.getKey(), entry.getValue()))
+			.collect(Collectors.toList());
+		addUserArtifactEntries(userArtifacts, graph);
+		
 		// release all references again
 		this.vertices = null;
 		this.chainedTasks = null;
@@ -259,6 +279,35 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 
 		// return job graph
 		return graph;
+	}
+
+	public static void addUserArtifactEntries(Collection<Tuple2<String, DistributedCache.DistributedCacheEntry>> userArtifacts, JobGraph jobGraph) {
+		if (userArtifacts != null && !userArtifacts.isEmpty()) {
+			try {
+				java.nio.file.Path tmpDir = Files.createTempDirectory("flink-distributed-cache-" + jobGraph.getJobID());
+				for (Tuple2<String, DistributedCache.DistributedCacheEntry> originalEntry : userArtifacts) {
+					Path filePath = new Path(originalEntry.f1.filePath);
+					boolean isLocalDir = false;
+					try {
+						FileSystem sourceFs = filePath.getFileSystem();
+						isLocalDir = !sourceFs.isDistributedFS() && sourceFs.getFileStatus(filePath).isDir();
+					} catch (IOException ioe) {
+						LOG.warn("Could not determine whether {} denotes a local path.", filePath, ioe);
+					}
+					// zip local directories because we only support file uploads
+					DistributedCache.DistributedCacheEntry entry;
+					if (isLocalDir) {
+						Path zip = FileUtils.compressDirectory(filePath, new Path(tmpDir.toString(), filePath.getName() + ".zip"));
+						entry = new DistributedCache.DistributedCacheEntry(zip.toString(), originalEntry.f1.isExecutable, true);
+					} else {
+						entry = new DistributedCache.DistributedCacheEntry(filePath.toString(), originalEntry.f1.isExecutable, false);
+					}
+					jobGraph.addUserArtifact(originalEntry.f0, entry);
+				}
+			} catch (IOException ioe) {
+				throw new FlinkRuntimeException("Could not compress distributed-cache artifacts.", ioe);
+			}
+		}
 	}
 
 	/**
@@ -438,7 +487,12 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 			if (node instanceof SourcePlanNode || node instanceof NAryUnionPlanNode || node instanceof SolutionSetPlanNode) {
 				return;
 			}
-			
+
+			// if this is a blocking shuffle vertex, we add one IntermediateDataSetID to its predecessor and return
+			if (checkAndConfigurePersistentIntermediateResult(node)) {
+				return;
+			}
+
 			// check if we have an iteration. in that case, translate the step function now
 			if (node instanceof IterationPlanNode) {
 				// prevent nested iterations
@@ -896,33 +950,41 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		return vertex;
 	}
 
-	private InputFormatVertex createDataSourceVertex(SourcePlanNode node) throws CompilerException {
-		final InputFormatVertex vertex = new InputFormatVertex(node.getNodeName());
+	private JobVertex createDataSourceVertex(SourcePlanNode node) throws CompilerException {
+		final InputOutputFormatVertex vertex = new InputOutputFormatVertex(node.getNodeName());
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
+
+		final OperatorID operatorID = new OperatorID();
 
 		vertex.setResources(node.getMinResources(), node.getPreferredResources());
 		vertex.setInvokableClass(DataSourceTask.class);
-		vertex.setFormatDescription(getDescriptionForUserCode(node.getProgramOperator().getUserCodeWrapper()));
+		vertex.setFormatDescription(operatorID, getDescriptionForUserCode(node.getProgramOperator().getUserCodeWrapper()));
 
 		// set user code
-		config.setStubWrapper(node.getProgramOperator().getUserCodeWrapper());
-		config.setStubParameters(node.getProgramOperator().getParameters());
+		new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader())
+			.addInputFormat(operatorID, (UserCodeWrapper<? extends InputFormat<?, ?>>) node.getProgramOperator().getUserCodeWrapper())
+			.addParameters(operatorID, node.getProgramOperator().getParameters())
+			.write(config);
 
 		config.setOutputSerializer(node.getSerializer());
 		return vertex;
 	}
 
 	private JobVertex createDataSinkVertex(SinkPlanNode node) throws CompilerException {
-		final OutputFormatVertex vertex = new OutputFormatVertex(node.getNodeName());
+		final InputOutputFormatVertex vertex = new InputOutputFormatVertex(node.getNodeName());
 		final TaskConfig config = new TaskConfig(vertex.getConfiguration());
+
+		final OperatorID operatorID = new OperatorID();
 
 		vertex.setResources(node.getMinResources(), node.getPreferredResources());
 		vertex.setInvokableClass(DataSinkTask.class);
-		vertex.setFormatDescription(getDescriptionForUserCode(node.getProgramOperator().getUserCodeWrapper()));
-		
+		vertex.setFormatDescription(operatorID, getDescriptionForUserCode(node.getProgramOperator().getUserCodeWrapper()));
+
 		// set user code
-		config.setStubWrapper(node.getProgramOperator().getUserCodeWrapper());
-		config.setStubParameters(node.getProgramOperator().getParameters());
+		new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader())
+			.addOutputFormat(operatorID, (UserCodeWrapper<? extends OutputFormat<?>>) node.getProgramOperator().getUserCodeWrapper())
+			.addParameters(operatorID, node.getProgramOperator().getParameters())
+			.write(config);
 
 		return vertex;
 	}
@@ -1085,6 +1147,36 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		}
 	}
 
+	private boolean checkAndConfigurePersistentIntermediateResult(PlanNode node) {
+		if (!(node instanceof SinkPlanNode)) {
+			return false;
+		}
+
+		final Object userCodeObject = node.getProgramOperator().getUserCodeWrapper().getUserCodeObject();
+		if (!(userCodeObject instanceof BlockingShuffleOutputFormat)) {
+			return false;
+		}
+
+		final Iterator<Channel> inputIterator = node.getInputs().iterator();
+		checkState(inputIterator.hasNext(), "SinkPlanNode must have a input.");
+
+		final PlanNode predecessorNode = inputIterator.next().getSource();
+		final JobVertex predecessorVertex = (vertices.containsKey(predecessorNode)) ?
+			vertices.get(predecessorNode) :
+			chainedTasks.get(predecessorNode).getContainingVertex();
+
+		checkState(predecessorVertex != null, "Bug: Chained task has not been assigned its containing vertex when connecting.");
+
+		predecessorVertex.createAndAddResultDataSet(
+				// use specified intermediateDataSetID
+				new IntermediateDataSetID(((BlockingShuffleOutputFormat) userCodeObject).getIntermediateDataSetId()),
+				ResultPartitionType.BLOCKING_PERSISTENT);
+
+		// remove this node so the OutputFormatVertex will not shown in the final JobGraph.
+		vertices.remove(node);
+		return true;
+	}
+
 	// ------------------------------------------------------------------------
 	// Connecting Vertices
 	// ------------------------------------------------------------------------
@@ -1210,7 +1302,7 @@ public class JobGraphGenerator implements Visitor<PlanNode> {
 		edge.setShipStrategyName(shipStrategy);
 		edge.setPreProcessingOperationName(localStrategy);
 		edge.setOperatorLevelCachingDescription(caching);
-		
+
 		return distributionPattern;
 	}
 	

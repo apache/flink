@@ -31,6 +31,8 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.fs.local.LocalFileSystemFactory;
+import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -44,12 +46,14 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -217,11 +221,8 @@ public abstract class FileSystem {
 	/** Cache for file systems, by scheme + authority. */
 	private static final HashMap<FSKey, FileSystem> CACHE = new HashMap<>();
 
-	/** All available file system factories. */
-	private static final List<FileSystemFactory> RAW_FACTORIES = loadFileSystems();
-
 	/** Mapping of file system schemes to the corresponding factories,
-	 * populated in {@link FileSystem#initialize(Configuration)}. */
+	 * populated in {@link FileSystem#initialize(Configuration, PluginManager)}. */
 	private static final HashMap<String, FileSystemFactory> FS_FACTORIES = new HashMap<>();
 
 	/** The default factory that is used when no scheme matches. */
@@ -229,9 +230,7 @@ public abstract class FileSystem {
 
 	/** The default filesystem scheme to be used, configured during process-wide initialization.
 	 * This value defaults to the local file systems scheme {@code 'file:///'} or {@code 'file:/'}. */
-	//CHECKSTYLE.OFF: StaticVariableName
-	private static URI DEFAULT_SCHEME;
-	//CHECKSTYLE.ON: StaticVariableName
+	private static URI defaultScheme;
 
 	// ------------------------------------------------------------------------
 	//  Initialization
@@ -251,17 +250,57 @@ public abstract class FileSystem {
 	 * A file path of {@code '/user/USERNAME/in.txt'} is interpreted as
 	 * {@code 'hdfs://localhost:9000/user/USERNAME/in.txt'}.
 	 *
+	 * @deprecated use {@link #initialize(Configuration, PluginManager)} instead.
+	 *
 	 * @param config the configuration from where to fetch the parameter.
 	 */
-	public static void initialize(Configuration config) throws IOException, IllegalConfigurationException {
+	@Deprecated
+	public static void initialize(Configuration config) throws IllegalConfigurationException {
+		initializeWithoutPlugins(config);
+	}
+
+	private static void initializeWithoutPlugins(Configuration config) throws IllegalConfigurationException {
+		initialize(config, null);
+	}
+
+	/**
+	 * Initializes the shared file system settings.
+	 *
+	 * <p>The given configuration is passed to each file system factory to initialize the respective
+	 * file systems. Because the configuration of file systems may be different subsequent to the call
+	 * of this method, this method clears the file system instance cache.
+	 *
+	 * <p>This method also reads the default file system URI from the configuration key
+	 * {@link CoreOptions#DEFAULT_FILESYSTEM_SCHEME}. All calls to {@link FileSystem#get(URI)} where
+	 * the URI has no scheme will be interpreted as relative to that URI.
+	 * As an example, assume the default file system URI is set to {@code 'hdfs://localhost:9000/'}.
+	 * A file path of {@code '/user/USERNAME/in.txt'} is interpreted as
+	 * {@code 'hdfs://localhost:9000/user/USERNAME/in.txt'}.
+	 *
+	 * @param config the configuration from where to fetch the parameter.
+	 * @param pluginManager optional plugin manager that is used to initialized filesystems provided as plugins.
+	 */
+	public static void initialize(
+		Configuration config,
+		PluginManager pluginManager) throws IllegalConfigurationException {
+
 		LOCK.lock();
 		try {
 			// make sure file systems are re-instantiated after re-configuration
 			CACHE.clear();
 			FS_FACTORIES.clear();
 
+			Collection<Supplier<Iterator<FileSystemFactory>>> factorySuppliers = new ArrayList<>(2);
+			factorySuppliers.add(() -> ServiceLoader.load(FileSystemFactory.class).iterator());
+
+			if (pluginManager != null) {
+				factorySuppliers.add(() -> pluginManager.load(FileSystemFactory.class));
+			}
+
+			final List<FileSystemFactory> fileSystemFactories = loadFileSystemFactories(factorySuppliers);
+
 			// configure all file system factories
-			for (FileSystemFactory factory : RAW_FACTORIES) {
+			for (FileSystemFactory factory : fileSystemFactories) {
 				factory.configure(config);
 				String scheme = factory.getScheme();
 
@@ -275,11 +314,11 @@ public abstract class FileSystem {
 			// also read the default file system scheme
 			final String stringifiedUri = config.getString(CoreOptions.DEFAULT_FILESYSTEM_SCHEME, null);
 			if (stringifiedUri == null) {
-				DEFAULT_SCHEME = null;
+				defaultScheme = null;
 			}
 			else {
 				try {
-					DEFAULT_SCHEME = new URI(stringifiedUri);
+					defaultScheme = new URI(stringifiedUri);
 				}
 				catch (URISyntaxException e) {
 					throw new IllegalConfigurationException("The default file system scheme ('" +
@@ -386,7 +425,7 @@ public abstract class FileSystem {
 			// even when not configured with an explicit Flink configuration, like on
 			// JobManager or TaskManager setup
 			if (FS_FACTORIES.isEmpty()) {
-				initialize(new Configuration());
+				initializeWithoutPlugins(new Configuration());
 			}
 
 			// Try to create a new file system
@@ -394,7 +433,10 @@ public abstract class FileSystem {
 			final FileSystemFactory factory = FS_FACTORIES.get(uri.getScheme());
 
 			if (factory != null) {
-				fs = factory.create(uri);
+				ClassLoader classLoader = factory.getClassLoader();
+				try (TemporaryClassLoaderContext classLoaderContext = new TemporaryClassLoaderContext(classLoader)) {
+					fs = factory.create(uri);
+				}
 			}
 			else {
 				try {
@@ -427,7 +469,7 @@ public abstract class FileSystem {
 	 * @return The default file system URI
 	 */
 	public static URI getDefaultFsUri() {
-		return DEFAULT_SCHEME != null ? DEFAULT_SCHEME : LocalFileSystem.getLocalFsURI();
+		return defaultScheme != null ? defaultScheme : LocalFileSystem.getLocalFsURI();
 	}
 
 	// ------------------------------------------------------------------------
@@ -494,6 +536,24 @@ public abstract class FileSystem {
 	 *        the file to open
 	 */
 	public abstract FSDataInputStream open(Path f) throws IOException;
+
+	/**
+	 * Creates a new {@link RecoverableWriter}. A recoverable writer creates streams that can
+	 * persist and recover their intermediate state.
+	 * Persisting and recovering intermediate state is a core building block for writing to
+	 * files that span multiple checkpoints.
+	 *
+	 * <p>The returned object can act as a shared factory to open and recover multiple streams.
+	 *
+	 * <p>This method is optional on file systems and various file system implementations may
+	 * not support this method, throwing an {@code UnsupportedOperationException}.
+	 *
+	 * @return A RecoverableWriter for this file system.
+	 * @throws IOException Thrown, if the recoverable writer cannot be instantiated.
+	 */
+	public RecoverableWriter createRecoverableWriter() throws IOException {
+		throw new UnsupportedOperationException("This file system does not support recoverable writers.");
+	}
 
 	/**
 	 * Return the number of bytes that large input files should be optimally be split into to minimize I/O time.
@@ -928,7 +988,9 @@ public abstract class FileSystem {
 	 *
 	 * @return A map from the file system scheme to corresponding file system factory.
 	 */
-	private static List<FileSystemFactory> loadFileSystems() {
+	private static List<FileSystemFactory> loadFileSystemFactories(
+		Collection<Supplier<Iterator<FileSystemFactory>>> factoryIteratorsSuppliers) {
+
 		final ArrayList<FileSystemFactory> list = new ArrayList<>();
 
 		// by default, we always have the local file system factory
@@ -936,36 +998,37 @@ public abstract class FileSystem {
 
 		LOG.debug("Loading extension file systems via services");
 
-		try {
-			ServiceLoader<FileSystemFactory> serviceLoader = ServiceLoader.load(FileSystemFactory.class);
-			Iterator<FileSystemFactory> iter = serviceLoader.iterator();
-
-			// we explicitly use an iterator here (rather than for-each) because that way
-			// we can catch errors in individual service instantiations
-
-			//noinspection WhileLoopReplaceableByForEach
-			while (iter.hasNext()) {
-				try {
-					FileSystemFactory factory = iter.next();
-					list.add(factory);
-					LOG.debug("Added file system {}:{}", factory.getScheme(), factory.getClass().getName());
-				}
-				catch (Throwable t) {
-					// catching Throwable here to handle various forms of class loading
-					// and initialization errors
-					ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-					LOG.error("Failed to load a file system via services", t);
-				}
+		for (Supplier<Iterator<FileSystemFactory>> factoryIteratorsSupplier : factoryIteratorsSuppliers) {
+			try {
+				addAllFactoriesToList(factoryIteratorsSupplier.get(), list);
+			} catch (Throwable t) {
+				// catching Throwable here to handle various forms of class loading
+				// and initialization errors
+				ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+				LOG.error("Failed to load additional file systems via services", t);
 			}
-		}
-		catch (Throwable t) {
-			// catching Throwable here to handle various forms of class loading
-			// and initialization errors
-			ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-			LOG.error("Failed to load additional file systems via services", t);
 		}
 
 		return Collections.unmodifiableList(list);
+	}
+
+	private static void addAllFactoriesToList(Iterator<FileSystemFactory> iter, List<FileSystemFactory> list) {
+		// we explicitly use an iterator here (rather than for-each) because that way
+		// we can catch errors in individual service instantiations
+
+		while (iter.hasNext()) {
+			try {
+				FileSystemFactory factory = iter.next();
+				list.add(factory);
+				LOG.debug("Added file system {}:{}", factory.getScheme(), factory.getClass().getName());
+			}
+			catch (Throwable t) {
+				// catching Throwable here to handle various forms of class loading
+				// and initialization errors
+				ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
+				LOG.error("Failed to load a file system via services", t);
+			}
+		}
 	}
 
 	/**

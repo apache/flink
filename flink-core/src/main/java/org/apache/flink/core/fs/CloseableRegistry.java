@@ -24,7 +24,10 @@ import org.apache.flink.util.AbstractCloseableRegistry;
 import javax.annotation.Nonnull;
 
 import java.io.Closeable;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -33,6 +36,8 @@ import java.util.Map;
  * <p>Registering to an already closed registry will throw an exception and close the provided {@link Closeable}
  *
  * <p>All methods in this class are thread-safe.
+ *
+ * <p>This class closes all registered {@link Closeable}s in the reverse registration order.
  */
 @Internal
 public class CloseableRegistry extends AbstractCloseableRegistry<Closeable, Object> {
@@ -40,7 +45,7 @@ public class CloseableRegistry extends AbstractCloseableRegistry<Closeable, Obje
 	private static final Object DUMMY = new Object();
 
 	public CloseableRegistry() {
-		super(new HashMap<>());
+		super(new LinkedHashMap<>());
 	}
 
 	@Override
@@ -51,5 +56,12 @@ public class CloseableRegistry extends AbstractCloseableRegistry<Closeable, Obje
 	@Override
 	protected boolean doUnRegister(@Nonnull Closeable closeable, @Nonnull Map<Closeable, Object> closeableMap) {
 		return closeableMap.remove(closeable) != null;
+	}
+
+	@Override
+	protected Collection<Closeable> getReferencesToClose() {
+		ArrayList<Closeable> closeablesToClose = new ArrayList<>(closeableToRef.keySet());
+		Collections.reverse(closeablesToClose);
+		return closeablesToClose;
 	}
 }

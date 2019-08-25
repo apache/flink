@@ -29,7 +29,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.jobmanager.scheduler.Scheduler;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 
 import org.junit.Test;
@@ -37,6 +36,7 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -89,7 +89,6 @@ public class RestartPipelinedRegionStrategyTest {
 		
 		List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
-        Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutor());
         final JobInformation jobInformation = new DummyJobInformation(
 			jobId,
 			jobName);
@@ -101,7 +100,7 @@ public class RestartPipelinedRegionStrategyTest {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
-            scheduler,
+			new TestingSlotProvider(ignored -> new CompletableFuture<>()),
             ExecutionGraph.class.getClassLoader(),
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout());
@@ -174,7 +173,6 @@ public class RestartPipelinedRegionStrategyTest {
 
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
-        Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutor());
         final JobInformation jobInformation = new DummyJobInformation(
 			jobId,
 			jobName);
@@ -186,7 +184,7 @@ public class RestartPipelinedRegionStrategyTest {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
-            scheduler,
+			new TestingSlotProvider(ignored -> new CompletableFuture<>()),
             ExecutionGraph.class.getClassLoader(),
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout());
@@ -264,7 +262,6 @@ public class RestartPipelinedRegionStrategyTest {
 
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4, v5));
 
-        Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutor());
 		final JobInformation jobInformation = new DummyJobInformation(
 			jobId,
 			jobName);
@@ -276,7 +273,7 @@ public class RestartPipelinedRegionStrategyTest {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
-            scheduler,
+			new TestingSlotProvider(ignored -> new CompletableFuture<>()),
             ExecutionGraph.class.getClassLoader(),
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout());
@@ -345,7 +342,6 @@ public class RestartPipelinedRegionStrategyTest {
 
         List<JobVertex> ordered = new ArrayList<JobVertex>(Arrays.asList(v1, v2, v3, v4));
 
-        Scheduler scheduler = new Scheduler(TestingUtils.defaultExecutor());
 		final JobInformation jobInformation = new DummyJobInformation(
 			jobId,
 			jobName);
@@ -357,7 +353,7 @@ public class RestartPipelinedRegionStrategyTest {
 			AkkaUtils.getDefaultTimeout(),
 			new NoRestartStrategy(),
             new RestartPipelinedRegionStrategy.Factory(),
-            scheduler,
+			new TestingSlotProvider(ignored -> new CompletableFuture<>()),
             ExecutionGraph.class.getClassLoader(),
 			VoidBlobWriter.getInstance(),
 			AkkaUtils.getDefaultTimeout());

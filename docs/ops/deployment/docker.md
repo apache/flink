@@ -23,53 +23,58 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-[Docker](https://www.docker.com) is a popular container runtime. There are
-official Docker images for Apache Flink available on Docker Hub which can be
-used directly or extended to better integrate into a production environment.
+[Docker](https://www.docker.com) is a popular container runtime. 
+There are Docker images for Apache Flink available on Docker Hub which can be used to deploy a session cluster.
+The Flink repository also contains tooling to create container images to deploy a job cluster.
 
 * This will be replaced by the TOC
 {:toc}
 
-## Official Docker Images
+## Flink session cluster
 
-The [official Docker repository](https://hub.docker.com/_/flink/) is
-hosted on Docker Hub and serves images of Flink version 1.2.1 and later.
+A Flink session cluster can be used to run multiple jobs. 
+Each job needs to be submitted to the cluster after it has been deployed. 
 
-Images for each supported combination of Hadoop and Scala are available, and
-tag aliases are provided for convenience.
+### Docker images
 
-For example, the following aliases can be used: *(`1.2.y` indicates the latest
-release of Flink 1.2)*
+The [Flink Docker repository](https://hub.docker.com/_/flink/) is hosted on
+Docker Hub and serves images of Flink version 1.2.1 and later.
 
-* `flink:latest` →
-`flink:<latest-flink>-hadoop<latest-hadoop>-scala_<latest-scala>`
-* `flink:1.2` → `flink:1.2.y-hadoop27-scala_2.11`
-* `flink:1.2.1-scala_2.10` → `flink:1.2.1-hadoop27-scala_2.10`
-* `flink:1.2-hadoop26` → `flink:1.2.y-hadoop26-scala_2.11`
+Images for each supported combination of Hadoop and Scala are available, and tag aliases are provided for convenience.
 
-<!-- NOTE: uncomment when docker-flink/docker-flink/issues/14 is resolved. -->
-<!--
-Additionally, images based on Alpine Linux are available. Reference them by
-appending `-alpine` to the tag. For the Alpine version of `flink:latest`, use
-`flink:alpine`.
+Beginning with Flink 1.5, image tags that omit a Hadoop version (e.g.
+`-hadoop28`) correspond to Hadoop-free releases of Flink that do not include a
+bundled Hadoop distribution.
 
-For example:
+For example, the following aliases can be used: *(`1.5.y` indicates the latest
+release of Flink 1.5)*
 
-* `flink:alpine`
-* `flink:1.2.1-alpine`
-* `flink:1.2-scala_2.10-alpine`
--->
+* `flink:latest` → `flink:<latest-flink>-scala_<latest-scala>`
+* `flink:1.5` → `flink:1.5.y-scala_2.11`
+* `flink:1.5-hadoop27` → `flink:1.5.y-hadoop27-scala_2.11`
 
-**Note:** The docker images are provided as a community project by individuals
+**Note:** The Docker images are provided as a community project by individuals
 on a best-effort basis. They are not official releases by the Apache Flink PMC.
+
+## Flink job cluster
+
+A Flink job cluster is a dedicated cluster which runs a single job. 
+The job is part of the image and, thus, there is no extra job submission needed. 
+
+### Docker images
+
+The Flink job cluster image needs to contain the user code jars of the job for which the cluster is started.
+Therefore, one needs to build a dedicated container image for every job.
+The `flink-container` module contains a `build.sh` script which can be used to create such an image.
+Please see the [instructions](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-container/docker/README.md) for more details. 
 
 ## Flink with Docker Compose
 
 [Docker Compose](https://docs.docker.com/compose/) is a convenient way to run a
 group of Docker containers locally.
 
-An [example config file](https://github.com/docker-flink/examples/blob/master/docker-compose.yml)
-is available on GitHub.
+Example config files for a [session cluster](https://github.com/docker-flink/examples/blob/master/docker-compose.yml) and a [job cluster](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-container/docker/docker-compose.yml)
+are available on GitHub.
 
 ### Usage
 
@@ -85,10 +90,14 @@ is available on GitHub.
 
         docker-compose scale taskmanager=<N>
 
-When the cluster is running, you can visit the web UI at [http://localhost:8081
-](http://localhost:8081) and submit a job.
+* Kill the cluster
 
-To submit a job via the command line, you must copy the JAR to the Jobmanager
+        docker-compose kill
+
+When the cluster is running, you can visit the web UI at [http://localhost:8081](http://localhost:8081). 
+You can also use the web UI to submit a job to a session cluster.
+
+To submit a job to a session cluster via the command line, you must copy the JAR to the JobManager
 container and submit the job from there.
 
 For example:

@@ -75,12 +75,12 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 
 	@Override
 	public ByteBuf unwrap() {
-		return super.unwrap().unwrap();
+		return super.unwrap();
 	}
 
 	@Override
 	public boolean isBuffer() {
-		return ((Buffer) unwrap()).isBuffer();
+		return getBuffer().isBuffer();
 	}
 
 	@Override
@@ -98,7 +98,7 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 	 */
 	@Override
 	public MemorySegment getMemorySegment() {
-		return ((Buffer) unwrap()).getMemorySegment();
+		return getBuffer().getMemorySegment();
 	}
 
 	@Override
@@ -108,22 +108,22 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 
 	@Override
 	public BufferRecycler getRecycler() {
-		return ((Buffer) unwrap()).getRecycler();
+		return getBuffer().getRecycler();
 	}
 
 	@Override
 	public void recycleBuffer() {
-		((Buffer) unwrap()).recycleBuffer();
+		getBuffer().recycleBuffer();
 	}
 
 	@Override
 	public boolean isRecycled() {
-		return ((Buffer) unwrap()).isRecycled();
+		return getBuffer().isRecycled();
 	}
 
 	@Override
 	public ReadOnlySlicedNetworkBuffer retainBuffer() {
-		((Buffer) unwrap()).retainBuffer();
+		getBuffer().retainBuffer();
 		return this;
 	}
 
@@ -150,11 +150,6 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 	@Override
 	public void setReaderIndex(int readerIndex) throws IndexOutOfBoundsException {
 		readerIndex(readerIndex);
-	}
-
-	@Override
-	public int getSizeUnsafe() {
-		return writerIndex();
 	}
 
 	@Override
@@ -203,11 +198,15 @@ public final class ReadOnlySlicedNetworkBuffer extends ReadOnlyByteBuf implement
 
 	@Override
 	public void setAllocator(ByteBufAllocator allocator) {
-		((Buffer) unwrap()).setAllocator(allocator);
+		getBuffer().setAllocator(allocator);
 	}
 
 	@Override
 	public ByteBuf asByteBuf() {
 		return this;
+	}
+
+	private Buffer getBuffer() {
+		return ((Buffer) unwrap().unwrap());
 	}
 }

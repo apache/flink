@@ -65,6 +65,12 @@ public class UnmodifiableConfiguration extends Configuration {
 		error();
 	}
 
+	@Override
+	public <T> boolean removeConfig(ConfigOption<T> configOption) {
+		error();
+		return false;
+	}
+
 	private void error(){
 		throw new UnsupportedOperationException("The configuration is unmodifiable; its contents cannot be changed.");
 	}

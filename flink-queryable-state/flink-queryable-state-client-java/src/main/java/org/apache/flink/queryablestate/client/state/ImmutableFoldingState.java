@@ -18,9 +18,10 @@
 
 package org.apache.flink.queryablestate.client.state;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.state.FoldingState;
 import org.apache.flink.api.common.state.FoldingStateDescriptor;
+import org.apache.flink.api.common.state.State;
+import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.util.Preconditions;
 
@@ -33,7 +34,6 @@ import java.io.IOException;
  * {@link org.apache.flink.queryablestate.client.QueryableStateClient Queryable State Client} and
  * providing an {@link FoldingStateDescriptor}.
  */
-@PublicEvolving
 @Deprecated
 public final class ImmutableFoldingState<IN, ACC> extends ImmutableState implements FoldingState<IN, ACC> {
 
@@ -58,13 +58,13 @@ public final class ImmutableFoldingState<IN, ACC> extends ImmutableState impleme
 		throw MODIFICATION_ATTEMPT_ERROR;
 	}
 
-	public static <IN, ACC> ImmutableFoldingState<IN, ACC> createState(
-			final FoldingStateDescriptor<IN, ACC> stateDescriptor,
-			final byte[] serializedState) throws IOException {
-
+	@SuppressWarnings("unchecked")
+	public static <ACC, S extends State> S createState(
+		StateDescriptor<S, ACC> stateDescriptor,
+		byte[] serializedState) throws IOException {
 		final ACC state = KvStateSerializer.deserializeValue(
-				serializedState,
-				stateDescriptor.getSerializer());
-		return new ImmutableFoldingState<>(state);
+			serializedState,
+			stateDescriptor.getSerializer());
+		return (S) new ImmutableFoldingState<>(state);
 	}
 }

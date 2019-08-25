@@ -23,6 +23,7 @@ import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.akka.exceptions.AkkaUnknownMessageException;
 import org.apache.flink.runtime.rpc.exceptions.FencingTokenException;
 import org.apache.flink.runtime.rpc.messages.FencedMessage;
+import org.apache.flink.runtime.rpc.messages.LocalFencedMessage;
 import org.apache.flink.runtime.rpc.messages.UnfencedMessage;
 
 import java.io.Serializable;
@@ -38,12 +39,16 @@ import java.util.concurrent.CompletableFuture;
  */
 public class FencedAkkaRpcActor<F extends Serializable, T extends FencedRpcEndpoint<F> & RpcGateway> extends AkkaRpcActor<T> {
 
-	public FencedAkkaRpcActor(T rpcEndpoint, CompletableFuture<Boolean> terminationFuture) {
-		super(rpcEndpoint, terminationFuture);
+	public FencedAkkaRpcActor(
+			T rpcEndpoint,
+			CompletableFuture<Boolean> terminationFuture,
+			int version,
+			final long maximumFramesize) {
+		super(rpcEndpoint, terminationFuture, version, maximumFramesize);
 	}
 
 	@Override
-	protected void handleMessage(Object message) {
+	protected void handleRpcMessage(Object message) {
 		if (message instanceof FencedMessage) {
 
 			final F expectedFencingToken = rpcEndpoint.getFencingToken();
@@ -66,7 +71,7 @@ public class FencedAkkaRpcActor<F extends Serializable, T extends FencedRpcEndpo
 				F fencingToken = fencedMessage.getFencingToken();
 
 				if (Objects.equals(expectedFencingToken, fencingToken)) {
-					super.handleMessage(fencedMessage.getPayload());
+					super.handleRpcMessage(fencedMessage.getPayload());
 				} else {
 					if (log.isDebugEnabled()) {
 						log.debug("Fencing token mismatch: Ignoring message {} because the fencing token {} did " +
@@ -80,7 +85,7 @@ public class FencedAkkaRpcActor<F extends Serializable, T extends FencedRpcEndpo
 				}
 			}
 		} else if (message instanceof UnfencedMessage) {
-			super.handleMessage(((UnfencedMessage<?>) message).getPayload());
+			super.handleRpcMessage(((UnfencedMessage<?>) message).getPayload());
 		} else {
 			if (log.isDebugEnabled()) {
 				log.debug("Unknown message type: Ignoring message {} because it is neither of type {} nor {}.",
@@ -91,5 +96,12 @@ public class FencedAkkaRpcActor<F extends Serializable, T extends FencedRpcEndpo
 				" of type " + message.getClass().getSimpleName() + " because it is neither of type " +
 				FencedMessage.class.getSimpleName() + " nor " + UnfencedMessage.class.getSimpleName() + '.'));
 		}
+	}
+
+	@Override
+	protected Object envelopeSelfMessage(Object message) {
+		final F fencingToken = rpcEndpoint.getFencingToken();
+
+		return new LocalFencedMessage<>(fencingToken, message);
 	}
 }

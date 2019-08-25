@@ -21,6 +21,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.common.typeutils.TypeInformationTestBase;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -28,7 +29,8 @@ import java.util.List;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test for {@link RowTypeInfo}.
@@ -47,7 +49,10 @@ public class RowTypeInfoTest extends TypeInformationTestBase<RowTypeInfo> {
 		return new RowTypeInfo[] {
 			new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO),
 			new RowTypeInfo(BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.BOOLEAN_TYPE_INFO),
-			new RowTypeInfo(typeList)
+			new RowTypeInfo(typeList),
+			new RowTypeInfo(
+				new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO},
+				new String[]{"int", "int2"})
 		};
 	}
 
@@ -121,6 +126,26 @@ public class RowTypeInfoTest extends TypeInformationTestBase<RowTypeInfo> {
 
 		assertEquals("Row(f0: Short, f1: BigDecimal)", typeInfo.getTypeAt("f1").toString());
 		assertEquals("Short", typeInfo.getTypeAt("f1.f0").toString());
+	}
+
+	@Test
+	public void testSchemaEquals() {
+		final RowTypeInfo row1 = new RowTypeInfo(
+			new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO},
+			new String[] {"field1", "field2"});
+		final RowTypeInfo row2 = new RowTypeInfo(
+			new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO},
+			new String[] {"field1", "field2"});
+		assertTrue(row1.schemaEquals(row2));
+
+		final RowTypeInfo other1 = new RowTypeInfo(
+			new TypeInformation[]{BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO},
+			new String[] {"otherField", "field2"});
+		final RowTypeInfo other2 = new RowTypeInfo(
+			new TypeInformation[]{BasicTypeInfo.LONG_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO},
+			new String[] {"field1", "field2"});
+		assertFalse(row1.schemaEquals(other1));
+		assertFalse(row1.schemaEquals(other2));
 	}
 
 }

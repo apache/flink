@@ -89,7 +89,7 @@ Internally, Flink makes the following distinctions between types:
 
   * Flink Java Tuples (part of the Flink Java API): max 25 fields, null fields not supported
 
-  * Scala *case classes* (including Scala tuples): max 22 fields, null fields not supported
+  * Scala *case classes* (including Scala tuples): null fields not supported
 
   * Row: tuples with arbitrary number of fields and support for null fields
 
@@ -238,7 +238,7 @@ as possible via reflection, using the few bits that Java preserves (mainly funct
 This logic also contains some simple type inference for cases where the return type of a function depends on its input type:
 
 {% highlight java %}
-public class AppendOne<T> extends MapFunction<T, Tuple2<T, Long>> {
+public class AppendOne<T> implements MapFunction<T, Tuple2<T, Long>> {
 
     public Tuple2<T, Long> map(T value) {
         return new Tuple2<T, Long>(value, 1L);
@@ -281,11 +281,11 @@ by all compilers (as of writing this document only reliably by the Eclipse JDT c
 
 #### Serialization of POJO types
 
-The PojoTypeInformation is creating serializers for all the fields inside the POJO. Standard types such as
+The `PojoTypeInfo` is creating serializers for all the fields inside the POJO. Standard types such as
 int, long, String etc. are handled by serializers we ship with Flink.
-For all other types, we fall back to Kryo.
+For all other types, we fall back to [Kryo](https://github.com/EsotericSoftware/kryo).
 
-If Kryo is not able to handle the type, you can ask the PojoTypeInfo to serialize the POJO using Avro.
+If Kryo is not able to handle the type, you can ask the `PojoTypeInfo` to serialize the POJO using [Avro](https://avro.apache.org).
 To do so, you have to call
 
 {% highlight java %}

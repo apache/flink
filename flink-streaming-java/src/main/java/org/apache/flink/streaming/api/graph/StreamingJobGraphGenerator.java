@@ -18,26 +18,24 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.cache.DistributedCache;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.Function;
 import org.apache.flink.api.common.operators.ResourceSpec;
-import org.apache.flink.api.common.operators.util.UserCodeObjectWrapper;
-import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.DistributionPattern;
-import org.apache.flink.runtime.jobgraph.InputFormatVertex;
+import org.apache.flink.runtime.jobgraph.InputOutputFormatContainer;
+import org.apache.flink.runtime.jobgraph.InputOutputFormatVertex;
 import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
@@ -48,9 +46,11 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.WithMasterCheckpointHook;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.InputSelectable;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
+import org.apache.flink.streaming.api.transformations.ShuffleMode;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
@@ -63,6 +63,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -73,6 +75,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
+
 /**
  * The StreamingJobGraphGenerator converts a {@link StreamGraph} into a {@link JobGraph}.
  */
@@ -81,16 +85,14 @@ public class StreamingJobGraphGenerator {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamingJobGraphGenerator.class);
 
-	/**
-	 * Restart delay used for the FixedDelayRestartStrategy in case checkpointing was enabled but
-	 * no restart strategy has been specified.
-	 */
-	private static final long DEFAULT_RESTART_DELAY = 10000L;
-
 	// ------------------------------------------------------------------------
 
 	public static JobGraph createJobGraph(StreamGraph streamGraph) {
-		return new StreamingJobGraphGenerator(streamGraph).createJobGraph();
+		return createJobGraph(streamGraph, null);
+	}
+
+	public static JobGraph createJobGraph(StreamGraph streamGraph, @Nullable JobID jobID) {
+		return new StreamingJobGraphGenerator(streamGraph, jobID).createJobGraph();
 	}
 
 	// ------------------------------------------------------------------------
@@ -111,10 +113,16 @@ public class StreamingJobGraphGenerator {
 	private final Map<Integer, ResourceSpec> chainedMinResources;
 	private final Map<Integer, ResourceSpec> chainedPreferredResources;
 
+	private final Map<Integer, InputOutputFormatContainer> chainedInputOutputFormats;
+
 	private final StreamGraphHasher defaultStreamGraphHasher;
 	private final List<StreamGraphHasher> legacyStreamGraphHashers;
 
 	private StreamingJobGraphGenerator(StreamGraph streamGraph) {
+		this(streamGraph, null);
+	}
+
+	private StreamingJobGraphGenerator(StreamGraph streamGraph, @Nullable JobID jobID) {
 		this.streamGraph = streamGraph;
 		this.defaultStreamGraphHasher = new StreamGraphHasherV2();
 		this.legacyStreamGraphHashers = Arrays.asList(new StreamGraphUserHashHasher());
@@ -126,15 +134,17 @@ public class StreamingJobGraphGenerator {
 		this.chainedNames = new HashMap<>();
 		this.chainedMinResources = new HashMap<>();
 		this.chainedPreferredResources = new HashMap<>();
+		this.chainedInputOutputFormats = new HashMap<>();
 		this.physicalEdgesInOrder = new ArrayList<>();
 
-		jobGraph = new JobGraph(streamGraph.getJobName());
+		jobGraph = new JobGraph(jobID, streamGraph.getJobName());
 	}
 
 	private JobGraph createJobGraph() {
+		preValidate();
 
 		// make sure that all vertices start immediately
-		jobGraph.setScheduleMode(ScheduleMode.EAGER);
+		jobGraph.setScheduleMode(streamGraph.getScheduleMode());
 
 		// Generate deterministic hashes for the nodes in order to identify them across
 		// submission iff they didn't change.
@@ -152,14 +162,11 @@ public class StreamingJobGraphGenerator {
 
 		setPhysicalEdges();
 
-		setSlotSharing();
+		setSlotSharingAndCoLocation();
 
 		configureCheckpointing();
 
-		// add registered cache file into job configuration
-		for (Tuple2<String, DistributedCache.DistributedCacheEntry> e : streamGraph.getEnvironment().getCachedFiles()) {
-			DistributedCache.writeFileInfoToConfig(e.f0, e.f1, jobGraph.getJobConfiguration());
-		}
+		JobGraphGenerator.addUserArtifactEntries(streamGraph.getUserArtifacts(), jobGraph);
 
 		// set the ExecutionConfig last when it has been finalized
 		try {
@@ -173,19 +180,42 @@ public class StreamingJobGraphGenerator {
 		return jobGraph;
 	}
 
+	@SuppressWarnings("deprecation")
+	private void preValidate() {
+		CheckpointConfig checkpointConfig = streamGraph.getCheckpointConfig();
+
+		if (checkpointConfig.isCheckpointingEnabled()) {
+			// temporarily forbid checkpointing for iterative jobs
+			if (streamGraph.isIterative() && !checkpointConfig.isForceCheckpointing()) {
+				throw new UnsupportedOperationException(
+					"Checkpointing is currently not supported by default for iterative jobs, as we cannot guarantee exactly once semantics. "
+						+ "State checkpoints happen normally, but records in-transit during the snapshot will be lost upon failure. "
+						+ "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
+			}
+
+			ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+			for (StreamNode node : streamGraph.getStreamNodes()) {
+				StreamOperatorFactory operatorFactory = node.getOperatorFactory();
+				if (operatorFactory != null) {
+					Class<?> operatorClass = operatorFactory.getStreamOperatorClass(classLoader);
+					if (InputSelectable.class.isAssignableFrom(operatorClass)) {
+
+						throw new UnsupportedOperationException(
+							"Checkpointing is currently not supported for operators that implement InputSelectable:"
+								+ operatorClass.getName());
+					}
+				}
+			}
+		}
+	}
+
 	private void setPhysicalEdges() {
 		Map<Integer, List<StreamEdge>> physicalInEdgesInOrder = new HashMap<Integer, List<StreamEdge>>();
 
 		for (StreamEdge edge : physicalEdgesInOrder) {
 			int target = edge.getTargetId();
 
-			List<StreamEdge> inEdges = physicalInEdgesInOrder.get(target);
-
-			// create if not set
-			if (inEdges == null) {
-				inEdges = new ArrayList<>();
-				physicalInEdgesInOrder.put(target, inEdges);
-			}
+			List<StreamEdge> inEdges = physicalInEdgesInOrder.computeIfAbsent(target, k -> new ArrayList<>());
 
 			inEdges.add(edge);
 		}
@@ -224,7 +254,9 @@ public class StreamingJobGraphGenerator {
 			List<StreamEdge> chainableOutputs = new ArrayList<StreamEdge>();
 			List<StreamEdge> nonChainableOutputs = new ArrayList<StreamEdge>();
 
-			for (StreamEdge outEdge : streamGraph.getStreamNode(currentNodeId).getOutEdges()) {
+			StreamNode currentNode = streamGraph.getStreamNode(currentNodeId);
+
+			for (StreamEdge outEdge : currentNode.getOutEdges()) {
 				if (isChainable(outEdge, streamGraph)) {
 					chainableOutputs.add(outEdge);
 				} else {
@@ -246,6 +278,7 @@ public class StreamingJobGraphGenerator {
 				chainedOperatorHashes.computeIfAbsent(startNodeId, k -> new ArrayList<>());
 
 			byte[] primaryHashBytes = hashes.get(currentNodeId);
+			OperatorID currentOperatorId = new OperatorID(primaryHashBytes);
 
 			for (Map<Integer, byte[]> legacyHash : legacyHashes) {
 				operatorHashes.add(new Tuple2<>(primaryHashBytes, legacyHash.get(currentNodeId)));
@@ -254,6 +287,14 @@ public class StreamingJobGraphGenerator {
 			chainedNames.put(currentNodeId, createChainedName(currentNodeId, chainableOutputs));
 			chainedMinResources.put(currentNodeId, createChainedMinResources(currentNodeId, chainableOutputs));
 			chainedPreferredResources.put(currentNodeId, createChainedPreferredResources(currentNodeId, chainableOutputs));
+
+			if (currentNode.getInputFormat() != null) {
+				getOrCreateFormatContainer(startNodeId).addInputFormat(currentOperatorId, currentNode.getInputFormat());
+			}
+
+			if (currentNode.getOutputFormat() != null) {
+				getOrCreateFormatContainer(startNodeId).addOutputFormat(currentOperatorId, currentNode.getOutputFormat());
+			}
 
 			StreamConfig config = currentNodeId.equals(startNodeId)
 					? createJobVertex(startNodeId, hashes, legacyHashes, chainedOperatorHashes)
@@ -276,19 +317,15 @@ public class StreamingJobGraphGenerator {
 				config.setTransitiveChainedTaskConfigs(chainedConfigs.get(startNodeId));
 
 			} else {
+				chainedConfigs.computeIfAbsent(startNodeId, k -> new HashMap<Integer, StreamConfig>());
 
-				Map<Integer, StreamConfig> chainedConfs = chainedConfigs.get(startNodeId);
-
-				if (chainedConfs == null) {
-					chainedConfigs.put(startNodeId, new HashMap<Integer, StreamConfig>());
-				}
 				config.setChainIndex(chainIndex);
 				StreamNode node = streamGraph.getStreamNode(currentNodeId);
 				config.setOperatorName(node.getOperatorName());
 				chainedConfigs.get(startNodeId).put(currentNodeId, config);
 			}
 
-			config.setOperatorID(new OperatorID(primaryHashBytes));
+			config.setOperatorID(currentOperatorId);
 
 			if (chainableOutputs.isEmpty()) {
 				config.setChainEnd();
@@ -298,6 +335,11 @@ public class StreamingJobGraphGenerator {
 		} else {
 			return new ArrayList<>();
 		}
+	}
+
+	private InputOutputFormatContainer getOrCreateFormatContainer(Integer startNodeId) {
+		return chainedInputOutputFormats
+			.computeIfAbsent(startNodeId, k -> new InputOutputFormatContainer(Thread.currentThread().getContextClassLoader()));
 	}
 
 	private String createChainedName(Integer vertexID, List<StreamEdge> chainedOutputs) {
@@ -367,15 +409,17 @@ public class StreamingJobGraphGenerator {
 			}
 		}
 
-		if (streamNode.getInputFormat() != null) {
-			jobVertex = new InputFormatVertex(
+		if (chainedInputOutputFormats.containsKey(streamNodeId)) {
+			jobVertex = new InputOutputFormatVertex(
 					chainedNames.get(streamNodeId),
 					jobVertexId,
 					legacyJobVertexIds,
 					chainedOperatorVertexIds,
 					userDefinedChainedOperatorVertexIds);
-			TaskConfig taskConfig = new TaskConfig(jobVertex.getConfiguration());
-			taskConfig.setStubWrapper(new UserCodeObjectWrapper<Object>(streamNode.getInputFormat()));
+
+			chainedInputOutputFormats
+				.get(streamNodeId)
+				.write(new TaskConfig(jobVertex.getConfiguration()));
 		} else {
 			jobVertex = new JobVertex(
 					chainedNames.get(streamNodeId),
@@ -402,6 +446,9 @@ public class StreamingJobGraphGenerator {
 		if (LOG.isDebugEnabled()) {
 			LOG.debug("Parallelism set: {} for {}", parallelism, streamNodeId);
 		}
+
+		// TODO: inherit InputDependencyConstraint from the head operator
+		jobVertex.setInputDependencyConstraint(streamGraph.getExecutionConfig().getDefaultInputDependencyConstraint());
 
 		jobVertices.put(streamNodeId, jobVertex);
 		builtVertices.add(streamNodeId);
@@ -441,21 +488,21 @@ public class StreamingJobGraphGenerator {
 			}
 		}
 
-		config.setStreamOperator(vertex.getOperator());
+		config.setStreamOperatorFactory(vertex.getOperatorFactory());
 		config.setOutputSelectors(vertex.getOutputSelectors());
 
 		config.setNumberOfOutputs(nonChainableOutputs.size());
 		config.setNonChainedOutputs(nonChainableOutputs);
 		config.setChainedOutputs(chainableOutputs);
 
-		config.setTimeCharacteristic(streamGraph.getEnvironment().getStreamTimeCharacteristic());
+		config.setTimeCharacteristic(streamGraph.getTimeCharacteristic());
 
-		final CheckpointConfig ceckpointCfg = streamGraph.getCheckpointConfig();
+		final CheckpointConfig checkpointCfg = streamGraph.getCheckpointConfig();
 
 		config.setStateBackend(streamGraph.getStateBackend());
-		config.setCheckpointingEnabled(ceckpointCfg.isCheckpointingEnabled());
-		if (ceckpointCfg.isCheckpointingEnabled()) {
-			config.setCheckpointMode(ceckpointCfg.getCheckpointingMode());
+		config.setCheckpointingEnabled(checkpointCfg.isCheckpointingEnabled());
+		if (checkpointCfg.isCheckpointingEnabled()) {
+			config.setCheckpointMode(checkpointCfg.getCheckpointingMode());
 		}
 		else {
 			// the "at-least-once" input handler is slightly cheaper (in the absence of checkpoints),
@@ -474,9 +521,6 @@ public class StreamingJobGraphGenerator {
 			config.setIterationWaitTime(streamGraph.getLoopTimeout(vertexID));
 		}
 
-		List<StreamEdge> allOutputs = new ArrayList<StreamEdge>(chainableOutputs);
-		allOutputs.addAll(nonChainableOutputs);
-
 		vertexConfigs.put(vertexID, config);
 	}
 
@@ -494,17 +538,35 @@ public class StreamingJobGraphGenerator {
 		downStreamConfig.setNumberOfInputs(downStreamConfig.getNumberOfInputs() + 1);
 
 		StreamPartitioner<?> partitioner = edge.getPartitioner();
+
+		ResultPartitionType resultPartitionType;
+		switch (edge.getShuffleMode()) {
+			case PIPELINED:
+				resultPartitionType = ResultPartitionType.PIPELINED_BOUNDED;
+				break;
+			case BATCH:
+				resultPartitionType = ResultPartitionType.BLOCKING;
+				break;
+			case UNDEFINED:
+				resultPartitionType = streamGraph.isBlockingConnectionsBetweenChains() ?
+						ResultPartitionType.BLOCKING : ResultPartitionType.PIPELINED_BOUNDED;
+				break;
+			default:
+				throw new UnsupportedOperationException("Data exchange mode " +
+					edge.getShuffleMode() + " is not supported yet.");
+		}
+
 		JobEdge jobEdge;
 		if (partitioner instanceof ForwardPartitioner || partitioner instanceof RescalePartitioner) {
 			jobEdge = downStreamVertex.connectNewDataSetAsInput(
 				headVertex,
 				DistributionPattern.POINTWISE,
-				ResultPartitionType.PIPELINED_BOUNDED);
+				resultPartitionType);
 		} else {
 			jobEdge = downStreamVertex.connectNewDataSetAsInput(
 					headVertex,
 					DistributionPattern.ALL_TO_ALL,
-					ResultPartitionType.PIPELINED_BOUNDED);
+					resultPartitionType);
 		}
 		// set strategy name so that web interface can show it.
 		jobEdge.setShipStrategyName(partitioner.toString());
@@ -516,11 +578,11 @@ public class StreamingJobGraphGenerator {
 	}
 
 	public static boolean isChainable(StreamEdge edge, StreamGraph streamGraph) {
-		StreamNode upStreamVertex = edge.getSourceVertex();
-		StreamNode downStreamVertex = edge.getTargetVertex();
+		StreamNode upStreamVertex = streamGraph.getSourceVertex(edge);
+		StreamNode downStreamVertex = streamGraph.getTargetVertex(edge);
 
-		StreamOperator<?> headOperator = upStreamVertex.getOperator();
-		StreamOperator<?> outOperator = downStreamVertex.getOperator();
+		StreamOperatorFactory<?> headOperator = upStreamVertex.getOperatorFactory();
+		StreamOperatorFactory<?> outOperator = downStreamVertex.getOperatorFactory();
 
 		return downStreamVertex.getInEdges().size() == 1
 				&& outOperator != null
@@ -530,58 +592,57 @@ public class StreamingJobGraphGenerator {
 				&& (headOperator.getChainingStrategy() == ChainingStrategy.HEAD ||
 					headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS)
 				&& (edge.getPartitioner() instanceof ForwardPartitioner)
+				&& edge.getShuffleMode() != ShuffleMode.BATCH
 				&& upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
 				&& streamGraph.isChainingEnabled();
 	}
 
-	private void setSlotSharing() {
-
-		Map<String, SlotSharingGroup> slotSharingGroups = new HashMap<>();
+	private void setSlotSharingAndCoLocation() {
+		final HashMap<String, SlotSharingGroup> slotSharingGroups = new HashMap<>();
+		final HashMap<String, Tuple2<SlotSharingGroup, CoLocationGroup>> coLocationGroups = new HashMap<>();
 
 		for (Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
 
-			String slotSharingGroup = streamGraph.getStreamNode(entry.getKey()).getSlotSharingGroup();
+			final StreamNode node = streamGraph.getStreamNode(entry.getKey());
+			final JobVertex vertex = entry.getValue();
 
-			SlotSharingGroup group = slotSharingGroups.get(slotSharingGroup);
-			if (group == null) {
-				group = new SlotSharingGroup();
-				slotSharingGroups.put(slotSharingGroup, group);
+			// configure slot sharing group
+			final String slotSharingGroupKey = node.getSlotSharingGroup();
+			final SlotSharingGroup sharingGroup;
+
+			if (slotSharingGroupKey != null) {
+				sharingGroup = slotSharingGroups.computeIfAbsent(
+						slotSharingGroupKey, (k) -> new SlotSharingGroup());
+				vertex.setSlotSharingGroup(sharingGroup);
+			} else {
+				sharingGroup = null;
 			}
-			entry.getValue().setSlotSharingGroup(group);
+
+			// configure co-location constraint
+			final String coLocationGroupKey = node.getCoLocationGroup();
+			if (coLocationGroupKey != null) {
+				if (sharingGroup == null) {
+					throw new IllegalStateException("Cannot use a co-location constraint without a slot sharing group");
+				}
+
+				Tuple2<SlotSharingGroup, CoLocationGroup> constraint = coLocationGroups.computeIfAbsent(
+						coLocationGroupKey, (k) -> new Tuple2<>(sharingGroup, new CoLocationGroup()));
+
+				if (constraint.f0 != sharingGroup) {
+					throw new IllegalStateException("Cannot co-locate operators from different slot sharing groups");
+				}
+
+				vertex.updateCoLocationGroup(constraint.f1);
+				constraint.f1.addVertex(vertex);
+			}
 		}
-
-		for (Tuple2<StreamNode, StreamNode> pair : streamGraph.getIterationSourceSinkPairs()) {
-
-			CoLocationGroup ccg = new CoLocationGroup();
-
-			JobVertex source = jobVertices.get(pair.f0.getId());
-			JobVertex sink = jobVertices.get(pair.f1.getId());
-
-			ccg.addVertex(source);
-			ccg.addVertex(sink);
-			source.updateCoLocationGroup(ccg);
-			sink.updateCoLocationGroup(ccg);
-		}
-
 	}
 
 	private void configureCheckpointing() {
 		CheckpointConfig cfg = streamGraph.getCheckpointConfig();
 
 		long interval = cfg.getCheckpointInterval();
-		if (interval > 0) {
-
-			ExecutionConfig executionConfig = streamGraph.getExecutionConfig();
-			// propagate the expected behaviour for checkpoint errors to task.
-			executionConfig.setFailTaskOnCheckpointError(cfg.isFailOnCheckpointingErrors());
-
-			// check if a restart strategy has been set, if not then set the FixedDelayRestartStrategy
-			if (executionConfig.getRestartStrategy() == null) {
-				// if the user enabled checkpointing, the default number of exec retries is infinite.
-				executionConfig.setRestartStrategy(
-					RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, DEFAULT_RESTART_DELAY));
-			}
-		} else {
+		if (interval < MINIMAL_CHECKPOINT_TIME) {
 			// interval of max value means disable periodic checkpoint
 			interval = Long.MAX_VALUE;
 		}
@@ -642,9 +703,8 @@ public class StreamingJobGraphGenerator {
 		final ArrayList<MasterTriggerRestoreHook.Factory> hooks = new ArrayList<>();
 
 		for (StreamNode node : streamGraph.getStreamNodes()) {
-			StreamOperator<?> op = node.getOperator();
-			if (op instanceof AbstractUdfStreamOperator) {
-				Function f = ((AbstractUdfStreamOperator<?, ?>) op).getUserFunction();
+			if (node.getOperatorFactory() instanceof UdfStreamOperatorFactory) {
+				Function f = ((UdfStreamOperatorFactory) node.getOperatorFactory()).getUserFunction();
 
 				if (f instanceof WithMasterCheckpointHook) {
 					hooks.add(new FunctionMasterCheckpointHookFactory((WithMasterCheckpointHook<?>) f));
@@ -695,7 +755,9 @@ public class StreamingJobGraphGenerator {
 				cfg.getMinPauseBetweenCheckpoints(),
 				cfg.getMaxConcurrentCheckpoints(),
 				retentionAfterTermination,
-				isExactlyOnce),
+				isExactlyOnce,
+				cfg.isPreferCheckpointForRecovery(),
+				cfg.getTolerableCheckpointFailureNumber()),
 			serializedStateBackend,
 			serializedHooks);
 

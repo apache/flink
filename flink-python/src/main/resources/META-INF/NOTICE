@@ -1,0 +1,15 @@
+flink-python
+Copyright 2014-2019 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the BSD license.
+See bundled license files for details
+
+- net.sf.py4j:py4j:0.10.8.1
+
+This project bundles the following dependencies under the MIT license. (https://opensource.org/licenses/MIT)
+See bundled license files for details.
+
+- net.razorvine:pyrolite:4.13

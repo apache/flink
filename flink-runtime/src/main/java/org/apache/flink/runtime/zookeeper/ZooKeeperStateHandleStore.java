@@ -18,24 +18,19 @@
 
 package org.apache.flink.runtime.zookeeper;
 
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.api.BackgroundCallback;
-import org.apache.curator.framework.api.CuratorEvent;
-import org.apache.curator.framework.api.CuratorEventType;
-import org.apache.curator.utils.ZKPaths;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.Preconditions;
+
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -44,7 +39,6 @@ import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -68,13 +62,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * State handle in ZooKeeper =&gt; State handle exists
  * </pre>
  *
- * But not:
+ * <p>But not:
  *
  * <pre>
  * State handle exists =&gt; State handle in ZooKeeper
  * </pre>
  *
- * There can be lingering state handles when failures happen during operation. They
+ * <p>There can be lingering state handles when failures happen during operation. They
  * need to be cleaned up manually (see <a href="https://issues.apache.org/jira/browse/FLINK-2513">
  * FLINK-2513</a> about a possible way to overcome this).
  *
@@ -82,14 +76,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ZooKeeperStateHandleStore<T extends Serializable> {
 
-	public static Logger LOG = LoggerFactory.getLogger(ZooKeeperStateHandleStore.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperStateHandleStore.class);
 
-	/** Curator ZooKeeper client */
+	/** Curator ZooKeeper client. */
 	private final CuratorFramework client;
 
 	private final RetrievableStateStorageHelper<T> storage;
-
-	private final Executor executor;
 
 	/** Lock node name of this ZooKeeperStateHandleStore. The name should be unique among all other state handle stores. */
 	private final String lockNode;
@@ -103,16 +95,13 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 	 *                            instance, e.g. <code>client.usingNamespace("/stateHandles")</code>
 	 * @param storage to persist the actual state and whose returned state handle is then written
 	 *                to ZooKeeper
-	 * @param executor to run the ZooKeeper callbacks
 	 */
 	public ZooKeeperStateHandleStore(
 		CuratorFramework client,
-		RetrievableStateStorageHelper<T> storage,
-		Executor executor) {
+		RetrievableStateStorageHelper<T> storage) {
 
 		this.client = checkNotNull(client, "Curator client");
 		this.storage = checkNotNull(storage, "State storage");
-		this.executor = checkNotNull(executor);
 
 		// Generate a unique lock node name
 		lockNode = UUID.randomUUID().toString();
@@ -262,7 +251,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 	public Collection<String> getAllPaths() throws Exception {
 		final String path = "/";
 
-		while(true) {
+		while (true) {
 			Stat stat = client.checkExists().forPath(path);
 
 			if (stat == null) {
@@ -329,97 +318,15 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 		return stateHandles;
 	}
 
-
-	/**
-	 * Gets all available state handles from ZooKeeper sorted by name (ascending) and locks the
-	 * respective state nodes. The result tuples contain the retrieved state and the path to the
-	 * node in ZooKeeper.
-	 *
-	 * <p>If there is a concurrent modification, the operation is retried until it succeeds.
-	 *
-	 * @return All state handles in ZooKeeper.
-	 * @throws Exception If a ZooKeeper or state handle operation fails
-	 */
-	@SuppressWarnings("unchecked")
-	public List<Tuple2<RetrievableStateHandle<T>, String>> getAllSortedByNameAndLock() throws Exception {
-		final List<Tuple2<RetrievableStateHandle<T>, String>> stateHandles = new ArrayList<>();
-
-		boolean success = false;
-
-		retry:
-		while (!success) {
-			stateHandles.clear();
-
-			Stat stat = client.checkExists().forPath("/");
-			if (stat == null) {
-				break; // Node does not exist, done.
-			} else {
-				// Initial cVersion (number of changes to the children of this node)
-				int initialCVersion = stat.getCversion();
-
-				List<String> children = ZKPaths.getSortedChildren(
-						client.getZookeeperClient().getZooKeeper(),
-						ZKPaths.fixForNamespace(client.getNamespace(), "/"));
-
-				for (String path : children) {
-					path = "/" + path;
-
-					try {
-						final RetrievableStateHandle<T> stateHandle = getAndLock(path);
-						stateHandles.add(new Tuple2<>(stateHandle, path));
-					} catch (KeeperException.NoNodeException ignored) {
-						// Concurrent deletion, retry
-						continue retry;
-					} catch (IOException ioException) {
-						LOG.warn("Could not get all ZooKeeper children. Node {} contained " +
-							"corrupted data. Releasing and trying to remove this node.", path, ioException);
-
-						releaseAndTryRemove(path);
-					}
-				}
-
-				int finalCVersion = client.checkExists().forPath("/").getCversion();
-
-				// Check for concurrent modifications
-				success = initialCVersion == finalCVersion;
-
-				// we don't have to release all locked nodes in case of a concurrent modification, because we
-				// will retrieve them in the next iteration again.
-			}
-		}
-
-		return stateHandles;
-	}
-
 	/**
 	 * Releases the lock for the given state node and tries to remove the state node if it is no longer locked.
-	 * The deletion of the state node is executed asynchronously.
-	 *
-	 * <p><strong>Important</strong>: This also discards the stored state handle after the given action
-	 * has been executed.
-	 *
-	 * @param pathInZooKeeper Path of state handle to remove (expected to start with a '/')
-	 * @throws Exception If the ZooKeeper operation fails
-	 */
-	public void releaseAndTryRemove(String pathInZooKeeper) throws Exception {
-		releaseAndTryRemove(pathInZooKeeper, null);
-	}
-
-	/**
-	 * Releases the lock for the given state node and tries to remove the state node if it is no longer locked.
-	 * The deletion of the state node is executed asynchronously. After the state node has been deleted, the given
-	 * callback is called with the {@link RetrievableStateHandle} of the deleted state node.
-	 *
-	 * <p><strong>Important</strong>: This also discards the stored state handle after the given action
-	 * has been executed.
+	 * It returns the {@link RetrievableStateHandle} stored under the given state node if any.
 	 *
 	 * @param pathInZooKeeper Path of state handle to remove
-	 * @param callback The callback to execute after a successful deletion. Null if no action needs to be executed.
-	 * @throws Exception If the ZooKeeper operation fails
+	 * @return True if the state handle could be released
+	 * @throws Exception If the ZooKeeper operation or discarding the state handle fails
 	 */
-	public void releaseAndTryRemove(
-			String pathInZooKeeper,
-			@Nullable final RemoveCallback<T> callback) throws Exception {
+	public boolean releaseAndTryRemove(String pathInZooKeeper) throws Exception {
 		checkNotNull(pathInZooKeeper, "Path in ZooKeeper");
 
 		final String path = normalizePath(pathInZooKeeper);
@@ -429,14 +336,23 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 		try {
 			stateHandle = get(path, false);
 		} catch (Exception e) {
-			LOG.warn("Could not retrieve the state handle from node " + path + '.', e);
+			LOG.warn("Could not retrieve the state handle from node {}.", path, e);
 		}
 
 		release(pathInZooKeeper);
 
-		final BackgroundCallback backgroundCallback = new RemoveBackgroundCallback<>(stateHandle, callback, path);
+		try {
+			client.delete().forPath(path);
+		} catch (KeeperException.NotEmptyException ignored) {
+			LOG.debug("Could not delete znode {} because it is still locked.", path);
+			return false;
+		}
 
-		client.delete().inBackground(backgroundCallback, executor).forPath(path);
+		if (stateHandle != null) {
+			stateHandle.discardState();
+		}
+
+		return true;
 	}
 
 	/**
@@ -506,6 +422,17 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 		}
 	}
 
+	/**
+	 * Recursively deletes all children.
+	 *
+	 * @throws Exception ZK errors
+	 */
+	public void deleteChildren() throws Exception {
+		final String path = "/" + client.getNamespace();
+		LOG.info("Removing {} from ZooKeeper", path);
+		ZKPaths.deleteChildren(client.getZookeeperClient().getZooKeeper(), path, true);
+	}
+
 	// ---------------------------------------------------------------------------------------------------------
 	// Protected methods
 	// ---------------------------------------------------------------------------------------------------------
@@ -545,22 +472,13 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 				client.create().withMode(CreateMode.EPHEMERAL).forPath(getLockPath(path));
 			} catch (KeeperException.NodeExistsException ignored) {
 				// we have already created the lock
-			} catch (KeeperException.NoNodeException e) {
-				throw new Exception("Cannot lock the node " + path + " since it does not exist.", e);
 			}
 		}
 
 		boolean success = false;
 
 		try {
-			byte[] data;
-
-			try {
-				data = client.getData().forPath(path);
-			} catch (Exception e) {
-				throw new Exception("Failed to retrieve state handle data under " + path +
-					" from ZooKeeper.", e);
-			}
+			byte[] data = client.getData().forPath(path);
 
 			try {
 				RetrievableStateHandle<T> retrievableStateHandle = InstantiationUtil.deserializeObject(
@@ -583,7 +501,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 	}
 
 	/**
-	 * Makes sure that every path starts with a "/"
+	 * Makes sure that every path starts with a "/".
 	 *
 	 * @param path Path to normalize
 	 * @return Normalized path such that it starts with a "/"
@@ -594,104 +512,5 @@ public class ZooKeeperStateHandleStore<T extends Serializable> {
 		} else {
 			return '/' + path;
 		}
-	}
-
-	// ---------------------------------------------------------------------------------------------------------
-	// Utility classes
-	// ---------------------------------------------------------------------------------------------------------
-
-	/**
-	 * Callback which is executed when removing a node from ZooKeeper. The callback will call the given
-	 * {@link RemoveCallback} if it is not null. Afterwards, it will discard the given {@link RetrievableStateHandle}
-	 * if it is not null.
-	 *
-	 * @param <T> Type of the value stored in the RetrievableStateHandle
-	 */
-	private static final class RemoveBackgroundCallback<T extends Serializable> implements BackgroundCallback {
-		@Nullable
-		private final RetrievableStateHandle<T> stateHandle;
-
-		@Nullable
-		private final RemoveCallback<T> callback;
-
-		private final String pathInZooKeeper;
-
-		private RemoveBackgroundCallback(
-			@Nullable RetrievableStateHandle<T> stateHandle,
-			@Nullable RemoveCallback<T> callback,
-			String pathInZooKeeper) {
-
-			this.stateHandle = stateHandle;
-			this.callback = callback;
-			this.pathInZooKeeper = Preconditions.checkNotNull(pathInZooKeeper);
-		}
-
-		@Override
-		public void processResult(CuratorFramework client, CuratorEvent event) throws Exception {
-			try {
-				if (event.getType() == CuratorEventType.DELETE) {
-					final KeeperException.Code resultCode = KeeperException.Code.get(event.getResultCode());
-
-					if (resultCode == KeeperException.Code.OK) {
-						Exception exception = null;
-
-						if (null != callback) {
-							try {
-								callback.apply(stateHandle);
-							} catch (Throwable e) {
-								exception = new Exception("Could not execute delete action for node " +
-									pathInZooKeeper + '.', e);
-							}
-						}
-
-						if (stateHandle != null) {
-							try {
-								// Discard the state handle
-								stateHandle.discardState();
-							} catch (Throwable e) {
-								Exception newException = new Exception("Could not discard state handle of node " +
-									pathInZooKeeper + '.', e);
-
-								if (exception == null) {
-									exception = newException;
-								} else {
-									exception.addSuppressed(newException);
-								}
-							}
-						}
-
-						if (exception != null) {
-							throw exception;
-						}
-					} else if (resultCode == KeeperException.Code.NOTEMPTY) {
-						// Could not delete the node because it still contains children/locks
-						LOG.debug("Could not delete node " + pathInZooKeeper + " because it is still locked.");
-					} else {
-						throw new IllegalStateException("Unexpected result code " +
-							resultCode.name() + " in '" + event + "' callback.");
-					}
-				} else {
-					throw new IllegalStateException("Unexpected event type " +
-						event.getType() + " in '" + event + "' callback.");
-				}
-			} catch (Exception e) {
-				LOG.warn("Failed to run callback for delete operation on node " + pathInZooKeeper + '.', e);
-			}
-
-		}
-	}
-
-	/**
-	 * Callback interface for remove calls
-	 */
-	public interface RemoveCallback<T extends Serializable> {
-		/**
-		 * Callback method. The parameter can be null if the {@link RetrievableStateHandle} could not be retrieved
-		 * from ZooKeeper.
-		 *
-		 * @param value RetrievableStateHandle retrieved from ZooKeeper, null if it was not retrievable
-		 * @throws FlinkException If the callback failed
-		 */
-		void apply(@Nullable RetrievableStateHandle<T> value) throws FlinkException;
 	}
 }

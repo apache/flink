@@ -34,7 +34,7 @@ import java.util.ArrayList;
  * <p>Pojo's have to be annotated with datastax annotations to work with this sink.
  *
  * <p>The example assumes that a table exists in a local cassandra database, according to the following queries:
- * CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class': 'SimpleStrategy', 'replication_factor': ‘1’};
+ * CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'};
  * CREATE TABLE IF NOT EXISTS test.message(body txt PRIMARY KEY)
  */
 public class CassandraPojoSinkExample {

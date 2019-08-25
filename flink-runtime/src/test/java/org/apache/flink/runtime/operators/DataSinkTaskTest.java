@@ -30,9 +30,10 @@ import org.apache.flink.runtime.operators.util.LocalStrategy;
 import org.apache.flink.runtime.testutils.recordutils.RecordComparatorFactory;
 import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Record;
-import org.junit.After;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,27 +45,21 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class DataSinkTaskTest extends TaskTestBase {
+
+	@Rule
+	public TemporaryFolder tempFolder = new TemporaryFolder();
 	
 	private static final Logger LOG = LoggerFactory.getLogger(DataSinkTaskTest.class);
 
 	private static final int MEMORY_MANAGER_SIZE = 3 * 1024 * 1024;
 
 	private static final int NETWORK_BUFFER_SIZE = 1024;
-
-	private final String tempTestPath = constructTestPath(DataSinkTaskTest.class, "dst_test");
-
-	@After
-	public void cleanUp() {
-		File tempTestFile = new File(this.tempTestPath);
-		if(tempTestFile.exists()) {
-			tempTestFile.delete();
-		}
-	}
 
 	@Test
 	public void testDataSinkTask() {
@@ -79,11 +74,10 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 			DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 
-			super.registerFileOutputTask(MockOutputFormat.class, new File(tempTestPath).toURI().toString());
+			File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+			super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString(), new Configuration());
 
 			testTask.invoke();
-
-			File tempTestFile = new File(this.tempTestPath);
 
 			Assert.assertTrue("Temp output file does not exist", tempTestFile.exists());
 
@@ -141,7 +135,8 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 		DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 
-		super.registerFileOutputTask(MockOutputFormat.class, new File(tempTestPath).toURI().toString());
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString(), new Configuration());
 
 		try {
 			// For the union reader to work, we need to start notifications *after* the union reader
@@ -156,8 +151,6 @@ public class DataSinkTaskTest extends TaskTestBase {
 			LOG.debug("Exception while invoking the test task.", e);
 			Assert.fail("Invoke method caused exception.");
 		}
-
-		File tempTestFile = new File(this.tempTestPath);
 
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
 
@@ -225,7 +218,8 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
-		super.registerFileOutputTask(MockOutputFormat.class, new File(tempTestPath).toURI().toString());
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString(), new Configuration());
 
 		try {
 			testTask.invoke();
@@ -233,8 +227,6 @@ public class DataSinkTaskTest extends TaskTestBase {
 			LOG.debug("Exception while invoking the test task.", e);
 			Assert.fail("Invoke method caused exception.");
 		}
-
-		File tempTestFile = new File(this.tempTestPath);
 
 		Assert.assertTrue("Temp output file does not exist",tempTestFile.exists());
 
@@ -295,9 +287,9 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 		DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 		Configuration stubParams = new Configuration();
-		super.getTaskConfig().setStubParameters(stubParams);
 
-		super.registerFileOutputTask(MockFailingOutputFormat.class, new File(tempTestPath).toURI().toString());
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+		super.registerFileOutputTask(MockFailingOutputFormat.class, tempTestFile.toURI().toString(), stubParams);
 
 		boolean stubFailed = false;
 
@@ -309,7 +301,6 @@ public class DataSinkTaskTest extends TaskTestBase {
 		Assert.assertTrue("Function exception was not forwarded.", stubFailed);
 
 		// assert that temp file was removed
-		File tempTestFile = new File(this.tempTestPath);
 		Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
 
 	}
@@ -327,7 +318,6 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 		DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 		Configuration stubParams = new Configuration();
-		super.getTaskConfig().setStubParameters(stubParams);
 
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
@@ -337,7 +327,8 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
-		super.registerFileOutputTask(MockFailingOutputFormat.class, new File(tempTestPath).toURI().toString());
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+		super.registerFileOutputTask(MockFailingOutputFormat.class, tempTestFile.toURI().toString(), stubParams);
 
 		boolean stubFailed = false;
 
@@ -349,7 +340,6 @@ public class DataSinkTaskTest extends TaskTestBase {
 		Assert.assertTrue("Function exception was not forwarded.", stubFailed);
 
 		// assert that temp file was removed
-		File tempTestFile = new File(this.tempTestPath);
 		Assert.assertFalse("Temp output file has not been removed", tempTestFile.exists());
 
 	}
@@ -361,9 +351,10 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 		final DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 		Configuration stubParams = new Configuration();
-		super.getTaskConfig().setStubParameters(stubParams);
 
-		super.registerFileOutputTask(MockOutputFormat.class,  new File(tempTestPath).toURI().toString());
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+
+		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString(), stubParams);
 
 		Thread taskRunner = new Thread() {
 			@Override
@@ -377,8 +368,6 @@ public class DataSinkTaskTest extends TaskTestBase {
 			}
 		};
 		taskRunner.start();
-
-		File tempTestFile = new File(this.tempTestPath);
 		
 		// wait until the task created the file
 		long deadline = System.currentTimeMillis() + 60000;
@@ -409,7 +398,6 @@ public class DataSinkTaskTest extends TaskTestBase {
 
 		final DataSinkTask<Record> testTask = new DataSinkTask<>(this.mockEnv);
 		Configuration stubParams = new Configuration();
-		super.getTaskConfig().setStubParameters(stubParams);
 
 		// set sorting
 		super.getTaskConfig().setInputLocalStrategy(0, LocalStrategy.SORT);
@@ -419,7 +407,8 @@ public class DataSinkTaskTest extends TaskTestBase {
 		super.getTaskConfig().setFilehandlesInput(0, 8);
 		super.getTaskConfig().setSpillingThresholdInput(0, 0.8f);
 
-		super.registerFileOutputTask(MockOutputFormat.class,  new File(tempTestPath).toURI().toString());
+		File tempTestFile = new File(tempFolder.getRoot(), UUID.randomUUID().toString());
+		super.registerFileOutputTask(MockOutputFormat.class, tempTestFile.toURI().toString(), stubParams);
 
 		Thread taskRunner = new Thread() {
 			@Override
@@ -491,21 +480,6 @@ public class DataSinkTaskTest extends TaskTestBase {
 			}
 			super.writeRecord(rec);
 		}
-	}
-	
-	public static String constructTestPath(Class<?> forClass, String folder) {
-		// we create test path that depends on class to prevent name clashes when two tests
-		// create temp files with the same name
-		String path = System.getProperty("java.io.tmpdir");
-		if (!(path.endsWith("/") || path.endsWith("\\")) ) {
-			path += System.getProperty("file.separator");
-		}
-		path += (forClass.getName() + "-" + folder);
-		return path;
-	}
-	
-	public static String constructTestURI(Class<?> forClass, String folder) {
-		return new File(constructTestPath(forClass, folder)).toURI().toString();
 	}
 }
 

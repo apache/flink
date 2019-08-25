@@ -21,43 +21,67 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.metrics.util.InterceptingOperatorMetricGroup;
+import org.apache.flink.runtime.metrics.util.InterceptingTaskMetricGroup;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.RichCoMapFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.InputSelectable;
+import org.apache.flink.streaming.api.operators.InputSelection;
+import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.util.TestBoundedTwoInputOperator;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.junit.Assert.assertEquals;
+
 /**
- * Tests for {@link org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask}. Theses tests
- * implicitly also test the {@link org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor}.
+ * Tests for {@link TwoInputStreamTask} and {@link TwoInputSelectableStreamTask}. Theses tests
+ * implicitly also test the {@link org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor}
+ * and {@link org.apache.flink.streaming.runtime.io.StreamTwoInputSelectableProcessor}.
  *
  * <p>Note:<br>
  * We only use a {@link CoStreamMap} operator here. We also test the individual operators but Map is
  * used as a representative to test TwoInputStreamTask, since TwoInputStreamTask is used for all
  * TwoInputStreamOperators.
  */
+@RunWith(Parameterized.class)
 public class TwoInputStreamTaskTest {
+
+	@Parameterized.Parameter
+	public boolean isInputSelectable;
+
+	@Parameterized.Parameters(name = "isInputSelectable = {0}")
+	public static List<Boolean> parameters() {
+		return Arrays.asList(Boolean.FALSE, Boolean.TRUE);
+	}
 
 	/**
 	 * This test verifies that open() and close() are correctly called. This test also verifies
@@ -69,12 +93,13 @@ public class TwoInputStreamTaskTest {
 	public void testOpenCloseAndTimestamps() throws Exception {
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
 				new TwoInputStreamTaskTestHarness<>(
-						TwoInputStreamTask::new,
+						isInputSelectable ? TwoInputSelectableStreamTask::new : TwoInputStreamTask::new,
 						BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
-		CoStreamMap<String, Integer, String> coMapOperator = new CoStreamMap<String, Integer, String>(new TestOpenCloseMapFunction());
+		CoStreamMap<String, Integer, String> coMapOperator = isInputSelectable ?
+			new AnyReadingCoStreamMap<>(new TestOpenCloseMapFunction()) : new CoStreamMap<>(new TestOpenCloseMapFunction());
 		streamConfig.setStreamOperator(coMapOperator);
 		streamConfig.setOperatorID(new OperatorID());
 
@@ -94,11 +119,13 @@ public class TwoInputStreamTaskTest {
 
 		expectedOutput.add(new StreamRecord<String>("1337", initialTime + 2));
 
+		testHarness.waitForInputProcessing();
+
 		testHarness.endInput();
 
 		testHarness.waitForTaskCompletion();
 
-		Assert.assertTrue("RichFunction methods where not called.", TestOpenCloseMapFunction.closeCalled);
+		Assert.assertTrue("RichFunction methods were not called.", TestOpenCloseMapFunction.closeCalled);
 
 		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 	}
@@ -114,7 +141,7 @@ public class TwoInputStreamTaskTest {
 
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
 			new TwoInputStreamTaskTestHarness<String, Integer, String>(
-				TwoInputStreamTask::new,
+				isInputSelectable ? TwoInputSelectableStreamTask::new : TwoInputStreamTask::new,
 				2, 2, new int[] {1, 2},
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.INT_TYPE_INFO,
@@ -122,7 +149,8 @@ public class TwoInputStreamTaskTest {
 		testHarness.setupOutputForSingletonOperatorChain();
 
 		StreamConfig streamConfig = testHarness.getStreamConfig();
-		CoStreamMap<String, Integer, String> coMapOperator = new CoStreamMap<String, Integer, String>(new IdentityMap());
+		CoStreamMap<String, Integer, String> coMapOperator = isInputSelectable ?
+			new AnyReadingCoStreamMap<>(new IdentityMap()) : new CoStreamMap<>(new IdentityMap());
 		streamConfig.setStreamOperator(coMapOperator);
 		streamConfig.setOperatorID(new OperatorID());
 
@@ -224,6 +252,11 @@ public class TwoInputStreamTaskTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testCheckpointBarriers() throws Exception {
+		if (isInputSelectable) {
+			// In the case of selective reading, checkpoints are not currently supported, and we skip this test
+			return;
+		}
+
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
 				new TwoInputStreamTaskTestHarness<String, Integer, String>(
 						TwoInputStreamTask::new,
@@ -308,6 +341,11 @@ public class TwoInputStreamTaskTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	public void testOvertakingCheckpointBarriers() throws Exception {
+		if (isInputSelectable) {
+			// In the case of selective reading, checkpoints are not currently supported, and we skip this test
+			return;
+		}
+
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
 				new TwoInputStreamTaskTestHarness<>(
 						TwoInputStreamTask::new,
@@ -383,10 +421,85 @@ public class TwoInputStreamTaskTest {
 	}
 
 	@Test
-	public void testWatermarkMetrics() throws Exception {
-		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness = new TwoInputStreamTaskTestHarness<>(TwoInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+	public void testOperatorMetricReuse() throws Exception {
+		final TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
+			isInputSelectable ? TwoInputSelectableStreamTask::new : TwoInputStreamTask::new,
+			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
-		CoStreamMap<String, Integer, String> headOperator = new CoStreamMap<>(new IdentityMap());
+		testHarness.setupOperatorChain(new OperatorID(), new DuplicatingOperator())
+			.chain(new OperatorID(), new OneInputStreamTaskTest.DuplicatingOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+			.chain(new OperatorID(), new OneInputStreamTaskTest.DuplicatingOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+			.finish();
+
+		final TaskMetricGroup taskMetricGroup = new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
+			@Override
+			public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
+				return new OperatorMetricGroup(NoOpMetricRegistry.INSTANCE, this, operatorID, name);
+			}
+		};
+
+		final StreamMockEnvironment env = new StreamMockEnvironment(
+			testHarness.jobConfig, testHarness.taskConfig, testHarness.memorySize, new MockInputSplitProvider(), testHarness.bufferSize, new TestTaskStateManager()) {
+			@Override
+			public TaskMetricGroup getMetricGroup() {
+				return taskMetricGroup;
+			}
+		};
+
+		final Counter numRecordsInCounter = taskMetricGroup.getIOMetricGroup().getNumRecordsInCounter();
+		final Counter numRecordsOutCounter = taskMetricGroup.getIOMetricGroup().getNumRecordsOutCounter();
+
+		testHarness.invoke(env);
+		testHarness.waitForTaskRunning();
+
+		final int numRecords1 = 5;
+		final int numRecords2 = 3;
+
+		for (int x = 0; x < numRecords1; x++) {
+			testHarness.processElement(new StreamRecord<>("hello"), 0, 0);
+		}
+
+		for (int x = 0; x < numRecords2; x++) {
+			testHarness.processElement(new StreamRecord<>("hello"), 1, 0);
+		}
+		testHarness.waitForInputProcessing();
+
+		assertEquals(numRecords1 + numRecords2, numRecordsInCounter.getCount());
+		assertEquals((numRecords1 + numRecords2) * 2 * 2 * 2, numRecordsOutCounter.getCount());
+
+		testHarness.endInput();
+		testHarness.waitForTaskCompletion();
+	}
+
+	static class DuplicatingOperator extends AbstractStreamOperator<String>
+		implements TwoInputStreamOperator<String, String, String>, InputSelectable {
+
+		@Override
+		public void processElement1(StreamRecord<String> element) {
+			output.collect(element);
+			output.collect(element);
+		}
+
+		@Override
+		public void processElement2(StreamRecord<String> element) {
+			output.collect(element);
+			output.collect(element);
+		}
+
+		@Override
+		public InputSelection nextSelection() {
+			return InputSelection.ALL;
+		}
+	}
+
+	@Test
+	public void testWatermarkMetrics() throws Exception {
+		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness = new TwoInputStreamTaskTestHarness<>(
+			isInputSelectable ? TwoInputSelectableStreamTask::new : TwoInputStreamTask::new,
+			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
+
+		CoStreamMap<String, Integer, String> headOperator = isInputSelectable ?
+			new AnyReadingCoStreamMap<>(new IdentityMap()) : new CoStreamMap<>(new IdentityMap());
 		final OperatorID headOperatorId = new OperatorID();
 
 		OneInputStreamTaskTest.WatermarkMetricOperator chainedOperator = new OneInputStreamTaskTest.WatermarkMetricOperator();
@@ -398,15 +511,15 @@ public class TwoInputStreamTaskTest {
 
 		InterceptingOperatorMetricGroup headOperatorMetricGroup = new InterceptingOperatorMetricGroup();
 		InterceptingOperatorMetricGroup chainedOperatorMetricGroup = new InterceptingOperatorMetricGroup();
-		TaskMetricGroup taskMetricGroup = new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
+		InterceptingTaskMetricGroup taskMetricGroup = new InterceptingTaskMetricGroup() {
 			@Override
-			public OperatorMetricGroup addOperator(OperatorID id, String name) {
+			public OperatorMetricGroup getOrAddOperator(OperatorID id, String name) {
 				if (id.equals(headOperatorId)) {
 					return headOperatorMetricGroup;
 				} else if (id.equals(chainedOperatorId)) {
 					return chainedOperatorMetricGroup;
 				} else {
-					return super.addOperator(id, name);
+					return super.getOrAddOperator(id, name);
 				}
 			}
 		};
@@ -422,6 +535,7 @@ public class TwoInputStreamTaskTest {
 		testHarness.invoke(env);
 		testHarness.waitForTaskRunning();
 
+		Gauge<Long> taskInputWatermarkGauge = (Gauge<Long>) taskMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
 		Gauge<Long> headInput1WatermarkGauge = (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_1_WATERMARK);
 		Gauge<Long> headInput2WatermarkGauge = (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_2_WATERMARK);
 		Gauge<Long> headInputWatermarkGauge = (Gauge<Long>) headOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
@@ -429,6 +543,19 @@ public class TwoInputStreamTaskTest {
 		Gauge<Long> chainedInputWatermarkGauge = (Gauge<Long>) chainedOperatorMetricGroup.get(MetricNames.IO_CURRENT_INPUT_WATERMARK);
 		Gauge<Long> chainedOutputWatermarkGauge = (Gauge<Long>) chainedOperatorMetricGroup.get(MetricNames.IO_CURRENT_OUTPUT_WATERMARK);
 
+		Assert.assertEquals("A metric was registered multiple times.",
+			7,
+			new HashSet<>(Arrays.asList(
+				taskInputWatermarkGauge,
+				headInput1WatermarkGauge,
+				headInput2WatermarkGauge,
+				headInputWatermarkGauge,
+				headOutputWatermarkGauge,
+				chainedInputWatermarkGauge,
+				chainedOutputWatermarkGauge))
+				.size());
+
+		Assert.assertEquals(Long.MIN_VALUE, taskInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(Long.MIN_VALUE, headInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(Long.MIN_VALUE, headInput1WatermarkGauge.getValue().longValue());
 		Assert.assertEquals(Long.MIN_VALUE, headInput2WatermarkGauge.getValue().longValue());
@@ -438,6 +565,7 @@ public class TwoInputStreamTaskTest {
 
 		testHarness.processElement(new Watermark(1L), 0, 0);
 		testHarness.waitForInputProcessing();
+		Assert.assertEquals(Long.MIN_VALUE, taskInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(Long.MIN_VALUE, headInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(1L, headInput1WatermarkGauge.getValue().longValue());
 		Assert.assertEquals(Long.MIN_VALUE, headInput2WatermarkGauge.getValue().longValue());
@@ -447,6 +575,7 @@ public class TwoInputStreamTaskTest {
 
 		testHarness.processElement(new Watermark(2L), 1, 0);
 		testHarness.waitForInputProcessing();
+		Assert.assertEquals(1L, taskInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(1L, headInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(1L, headInput1WatermarkGauge.getValue().longValue());
 		Assert.assertEquals(2L, headInput2WatermarkGauge.getValue().longValue());
@@ -456,6 +585,7 @@ public class TwoInputStreamTaskTest {
 
 		testHarness.processElement(new Watermark(3L), 0, 0);
 		testHarness.waitForInputProcessing();
+		Assert.assertEquals(2L, taskInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(2L, headInputWatermarkGauge.getValue().longValue());
 		Assert.assertEquals(3L, headInput1WatermarkGauge.getValue().longValue());
 		Assert.assertEquals(2L, headInput2WatermarkGauge.getValue().longValue());
@@ -467,6 +597,70 @@ public class TwoInputStreamTaskTest {
 		testHarness.waitForTaskCompletion();
 	}
 
+	@Test
+	public void testHandlingEndOfInput() throws Exception {
+		final TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
+			isInputSelectable ? TwoInputSelectableStreamTask::new : TwoInputStreamTask::new,
+			3,
+			2,
+			new int[] {1, 2, 2},
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO,
+			BasicTypeInfo.STRING_TYPE_INFO);
+
+		testHarness
+			.setupOperatorChain(
+				new OperatorID(),
+				isInputSelectable ? new TestBoundedAndSelectableTwoInputOperator("Operator0") : new TestBoundedTwoInputOperator("Operator0"))
+			.chain(
+				new OperatorID(),
+				new TestBoundedOneInputStreamOperator("Operator1"),
+				BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()))
+			.finish();
+
+		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<Object>();
+
+		testHarness.invoke();
+		testHarness.waitForTaskRunning();
+
+		TestBoundedTwoInputOperator headOperator = (TestBoundedTwoInputOperator) testHarness.getTask().headOperator;
+
+		testHarness.processElement(new StreamRecord<>("Hello-1"), 0, 0);
+		testHarness.endInput(0,  0);
+		testHarness.processElement(new StreamRecord<>("Hello-2"), 0, 1);
+		testHarness.endInput(0,  1);
+
+		testHarness.waitForInputProcessing();
+
+		testHarness.processElement(new StreamRecord<>("Hello-3"), 1, 0);
+		testHarness.processElement(new StreamRecord<>("Hello-4"), 1, 1);
+		testHarness.endInput(1,  0);
+		testHarness.endInput(1,  1);
+
+		testHarness.waitForInputProcessing();
+
+		testHarness.processElement(new StreamRecord<>("Hello-5"), 2, 0);
+		testHarness.processElement(new StreamRecord<>("Hello-6"), 2, 1);
+		testHarness.endInput(2,  0);
+		testHarness.endInput(2,  1);
+
+		testHarness.waitForInputProcessing();
+
+		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-1"));
+		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Hello-2"));
+		expectedOutput.add(new StreamRecord<>("[Operator0-1]: Bye"));
+		expectedOutput.add(new StreamRecord<>("[Operator0-2]: Hello-3"));
+		expectedOutput.add(new StreamRecord<>("[Operator0-2]: Hello-4"));
+		expectedOutput.add(new StreamRecord<>("[Operator0-2]: Hello-5"));
+		expectedOutput.add(new StreamRecord<>("[Operator0-2]: Hello-6"));
+		expectedOutput.add(new StreamRecord<>("[Operator0-2]: Bye"));
+		expectedOutput.add(new StreamRecord<>("[Operator1]: Bye"));
+
+		TestHarnessUtil.assertOutputEquals("Output was not correct.",
+			expectedOutput,
+			testHarness.getOutput());
+	}
+
 	// This must only be used in one test, otherwise the static fields will be changed
 	// by several tests concurrently
 	private static class TestOpenCloseMapFunction extends RichCoMapFunction<String, Integer, String> {
@@ -474,6 +668,11 @@ public class TwoInputStreamTaskTest {
 
 		public static boolean openCalled = false;
 		public static boolean closeCalled = false;
+
+		TestOpenCloseMapFunction() {
+			openCalled = false;
+			closeCalled = false;
+		}
 
 		@Override
 		public void open(Configuration parameters) throws Exception {
@@ -522,6 +721,32 @@ public class TwoInputStreamTaskTest {
 		public String map2(Integer value) throws Exception {
 
 			return value.toString();
+		}
+	}
+
+	private static class AnyReadingCoStreamMap<IN1, IN2, OUT> extends CoStreamMap<IN1, IN2, OUT>
+		implements InputSelectable {
+
+		public AnyReadingCoStreamMap(CoMapFunction<IN1, IN2, OUT> mapper) {
+			super(mapper);
+		}
+
+		@Override
+		public InputSelection nextSelection() {
+			return InputSelection.ALL;
+		}
+	}
+
+	private static class TestBoundedAndSelectableTwoInputOperator
+		extends TestBoundedTwoInputOperator implements InputSelectable {
+
+		public TestBoundedAndSelectableTwoInputOperator(String name) {
+			super(name);
+		}
+
+		@Override
+		public InputSelection nextSelection() {
+			return InputSelection.ALL;
 		}
 	}
 }

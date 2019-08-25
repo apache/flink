@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.legacy.utils;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MeterView;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
@@ -42,6 +43,7 @@ public class ArchivedExecutionBuilder {
 	private ExecutionState state;
 	private String failureCause;
 	private TaskManagerLocation assignedResourceLocation;
+	private AllocationID assignedAllocationID;
 	private StringifiedAccumulatorResult[] userAccumulators;
 	private IOMetrics ioMetrics;
 	private int parallelSubtaskIndex;
@@ -77,6 +79,11 @@ public class ArchivedExecutionBuilder {
 		return this;
 	}
 
+	public ArchivedExecutionBuilder setAssignedAllocationID(AllocationID assignedAllocationID) {
+		this.assignedAllocationID = assignedAllocationID;
+		return this;
+	}
+
 	public ArchivedExecutionBuilder setUserAccumulators(StringifiedAccumulatorResult[] userAccumulators) {
 		this.userAccumulators = userAccumulators;
 		return this;
@@ -101,6 +108,7 @@ public class ArchivedExecutionBuilder {
 			state != null ? state : ExecutionState.FINISHED,
 			failureCause != null ? failureCause : "(null)",
 			assignedResourceLocation != null ? assignedResourceLocation : new TaskManagerLocation(new ResourceID("tm"), InetAddress.getLocalHost(), 1234),
+			assignedAllocationID != null ? assignedAllocationID : new AllocationID(0L, 0L),
 			parallelSubtaskIndex,
 			stateTimestamps != null ? stateTimestamps : new long[]{1, 2, 3, 4, 5, 5, 5, 5}
 		);
@@ -114,8 +122,7 @@ public class ArchivedExecutionBuilder {
 				new MeterView(new TestCounter(1), 0),
 				new MeterView(new TestCounter(2), 0),
 				new MeterView(new TestCounter(3), 0),
-				new MeterView(new TestCounter(4), 0),
-				new MeterView(new TestCounter(5), 0));
+				new MeterView(new TestCounter(4), 0));
 		}
 	}
 

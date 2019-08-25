@@ -24,6 +24,7 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.formats.avro.AvroOutputFormat.Codec;
 import org.apache.flink.formats.avro.generated.Colors;
+import org.apache.flink.formats.avro.generated.Fixed2;
 import org.apache.flink.formats.avro.generated.User;
 import org.apache.flink.test.util.JavaProgramTestBase;
 
@@ -31,12 +32,18 @@ import org.apache.avro.file.DataFileReader;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.joda.time.DateTime;
+import org.joda.time.LocalDate;
+import org.joda.time.LocalTime;
 import org.junit.Assert;
 
 import java.io.File;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * IT cases for the {@link AvroOutputFormat}.
@@ -72,14 +79,14 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
 
 		//output the data with AvroOutputFormat for specific user type
 		DataSet<User> specificUser = input.map(new ConvertToUser());
-		AvroOutputFormat<User> avroOutputFormat = new AvroOutputFormat<User>(User.class);
+		AvroOutputFormat<User> avroOutputFormat = new AvroOutputFormat<>(User.class);
 		avroOutputFormat.setCodec(Codec.SNAPPY); // FLINK-4771: use a codec
 		avroOutputFormat.setSchema(User.SCHEMA$); //FLINK-3304: Ensure the OF is properly serializing the schema
 		specificUser.write(avroOutputFormat, outputPath1);
 
 		//output the data with AvroOutputFormat for reflect user type
 		DataSet<ReflectiveUser> reflectiveUser = specificUser.map(new ConvertToReflective());
-		reflectiveUser.write(new AvroOutputFormat<ReflectiveUser>(ReflectiveUser.class), outputPath2);
+		reflectiveUser.write(new AvroOutputFormat<>(ReflectiveUser.class), outputPath2);
 
 		env.execute();
 	}
@@ -92,17 +99,17 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
 		if (file1.isDirectory()) {
 			output1 = file1.listFiles();
 			// check for avro ext in dir.
-			for (File avroOutput : output1) {
+			for (File avroOutput : Objects.requireNonNull(output1)) {
 				Assert.assertTrue("Expect extension '.avro'", avroOutput.toString().endsWith(".avro"));
 			}
 		} else {
 			output1 = new File[] {file1};
 		}
-		List<String> result1 = new ArrayList<String>();
-		DatumReader<User> userDatumReader1 = new SpecificDatumReader<User>(User.class);
+		List<String> result1 = new ArrayList<>();
+		DatumReader<User> userDatumReader1 = new SpecificDatumReader<>(User.class);
 		for (File avroOutput : output1) {
 
-			DataFileReader<User> dataFileReader1 = new DataFileReader<User>(avroOutput, userDatumReader1);
+			DataFileReader<User> dataFileReader1 = new DataFileReader<>(avroOutput, userDatumReader1);
 			while (dataFileReader1.hasNext()) {
 				User user = dataFileReader1.next();
 				result1.add(user.getName() + "|" + user.getFavoriteNumber() + "|" + user.getFavoriteColor());
@@ -120,10 +127,10 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
 		} else {
 			output2 = new File[] {file2};
 		}
-		List<String> result2 = new ArrayList<String>();
-		DatumReader<ReflectiveUser> userDatumReader2 = new ReflectDatumReader<ReflectiveUser>(ReflectiveUser.class);
-		for (File avroOutput : output2) {
-			DataFileReader<ReflectiveUser> dataFileReader2 = new DataFileReader<ReflectiveUser>(avroOutput, userDatumReader2);
+		List<String> result2 = new ArrayList<>();
+		DatumReader<ReflectiveUser> userDatumReader2 = new ReflectDatumReader<>(ReflectiveUser.class);
+		for (File avroOutput : Objects.requireNonNull(output2)) {
+			DataFileReader<ReflectiveUser> dataFileReader2 = new DataFileReader<>(avroOutput, userDatumReader2);
 			while (dataFileReader2.hasNext()) {
 				ReflectiveUser user = dataFileReader2.next();
 				result2.add(user.getName() + "|" + user.getFavoriteNumber() + "|" + user.getFavoriteColor());
@@ -138,7 +145,7 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
 	private static final class ConvertToUser extends RichMapFunction<Tuple3<String, Integer, String>, User> {
 
 		@Override
-		public User map(Tuple3<String, Integer, String> value) throws Exception {
+		public User map(Tuple3<String, Integer, String> value) {
 			User user = new User();
 			user.setName(value.f0);
 			user.setFavoriteNumber(value.f1);
@@ -148,6 +155,16 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
 			user.setTypeArrayBoolean(Collections.emptyList());
 			user.setTypeEnum(Colors.BLUE);
 			user.setTypeMap(Collections.emptyMap());
+			user.setTypeBytes(ByteBuffer.allocate(10));
+			user.setTypeDate(LocalDate.parse("2014-03-01"));
+			user.setTypeTimeMillis(LocalTime.parse("12:12:12"));
+			user.setTypeTimeMicros(123456);
+			user.setTypeTimestampMillis(DateTime.parse("2014-03-01T12:12:12.321Z"));
+			user.setTypeTimestampMicros(123456L);
+			// 20.00
+			user.setTypeDecimalBytes(ByteBuffer.wrap(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
+			// 20.00
+			user.setTypeDecimalFixed(new Fixed2(BigDecimal.valueOf(2000, 2).unscaledValue().toByteArray()));
 			return user;
 		}
 	}
@@ -155,7 +172,7 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
 	private static final class ConvertToReflective extends RichMapFunction<User, ReflectiveUser> {
 
 		@Override
-		public ReflectiveUser map(User value) throws Exception {
+		public ReflectiveUser map(User value) {
 			return new ReflectiveUser(value.getName().toString(), value.getFavoriteNumber(), value.getFavoriteColor().toString());
 		}
 	}

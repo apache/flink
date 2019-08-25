@@ -19,23 +19,13 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.configuration.IllegalConfigurationException;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.instance.ActorGateway;
-import org.apache.flink.runtime.instance.AkkaActorGateway;
-import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.net.ConnectionUtils;
 import org.apache.flink.util.FlinkException;
 
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.dispatch.Mapper;
-import akka.dispatch.OnComplete;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,40 +43,22 @@ import scala.concurrent.duration.FiniteDuration;
 public class LeaderRetrievalUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(LeaderRetrievalUtils.class);
-	
+
 	/**
-	 * Retrieves the current leader gateway using the given {@link LeaderRetrievalService}. If the
-	 * current leader could not be retrieved after the given timeout, then a
-	 * {@link LeaderRetrievalException} is thrown.
+	 * Retrieves the leader akka url and the current leader session ID. The values are stored in a
+	 * {@link LeaderConnectionInfo} instance.
 	 *
-	 * @param leaderRetrievalService {@link LeaderRetrievalService} which is used for the leader retrieval
-	 * @param actorSystem ActorSystem which is used for the {@link LeaderRetrievalListener} implementation
-	 * @param timeout Timeout value for the retrieval call
-	 * @return The current leader gateway
-	 * @throws LeaderRetrievalException If the actor gateway could not be retrieved or the timeout has been exceeded
+	 * @param leaderRetrievalService Leader retrieval service to retrieve the leader connection
+	 *                               information
+	 * @param timeout Timeout when to give up looking for the leader
+	 * @return LeaderConnectionInfo containing the leader's akka URL and the current leader session
+	 * ID
+	 * @throws LeaderRetrievalException
 	 */
-	public static ActorGateway retrieveLeaderGateway(
+	public static LeaderConnectionInfo retrieveLeaderConnectionInfo(
 			LeaderRetrievalService leaderRetrievalService,
-			ActorSystem actorSystem,
-			FiniteDuration timeout)
-		throws LeaderRetrievalException {
-		LeaderGatewayListener listener = new LeaderGatewayListener(actorSystem, timeout);
-
-		try {
-			leaderRetrievalService.start(listener);
-
-			Future<ActorGateway> actorGatewayFuture = listener.getActorGatewayFuture();
-
-			return Await.result(actorGatewayFuture, timeout);
-		} catch (Exception e) {
-			throw new LeaderRetrievalException("Could not retrieve the leader gateway.", e);
-		} finally {
-			try {
-				leaderRetrievalService.stop();
-			} catch (Exception fe) {
-				LOG.warn("Could not stop the leader retrieval service.", fe);
-			}
-		}
+			Time timeout) throws LeaderRetrievalException {
+		return retrieveLeaderConnectionInfo(leaderRetrievalService, FutureUtils.toFiniteDuration(timeout));
 	}
 
 	/**
@@ -124,21 +96,6 @@ public class LeaderRetrievalUtils {
 		}
 	}
 
-	/**
-	 * Retrieves the current leader session id of the component identified by the given leader
-	 * retrieval service.
-	 *
-	 * @param leaderRetrievalService Leader retrieval service to be used for the leader retrieval
-	 * @param timeout Timeout for the leader retrieval
-	 * @return The leader session id of the retrieved leader
-	 * @throws LeaderRetrievalException if the leader retrieval operation fails (including a timeout)
-	 */
-	public static UUID retrieveLeaderSessionId(
-			LeaderRetrievalService leaderRetrievalService,
-			FiniteDuration timeout) throws LeaderRetrievalException {
-		return retrieveLeaderConnectionInfo(leaderRetrievalService, timeout).getLeaderSessionID();
-	}
-
 	public static InetAddress findConnectingAddress(
 			LeaderRetrievalService leaderRetrievalService,
 			Time timeout) throws LeaderRetrievalException {
@@ -173,65 +130,6 @@ public class LeaderRetrievalUtils {
 	}
 
 	/**
-	 * Helper class which is used by the retrieveLeaderGateway method as the
-	 * {@link LeaderRetrievalListener}.
-	 */
-	public static class LeaderGatewayListener implements LeaderRetrievalListener {
-
-		private final ActorSystem actorSystem;
-		private final FiniteDuration timeout;
-		private final Object lock = new Object();
-
-		private final Promise<ActorGateway> futureActorGateway = new scala.concurrent.impl.Promise.DefaultPromise<ActorGateway>();
-
-		public LeaderGatewayListener(ActorSystem actorSystem, FiniteDuration timeout) {
-			this.actorSystem = actorSystem;
-			this.timeout = timeout;
-		}
-
-		private void completePromise(ActorGateway gateway) {
-			synchronized (lock) {
-				if (!futureActorGateway.isCompleted()) {
-					futureActorGateway.success(gateway);
-				}
-			}
-		}
-
-		@Override
-		public void notifyLeaderAddress(final String leaderAddress, final UUID leaderSessionID) {
-			if(leaderAddress != null && !leaderAddress.equals("") && !futureActorGateway.isCompleted()) {
-				AkkaUtils.getActorRefFuture(leaderAddress, actorSystem, timeout)
-					.map(new Mapper<ActorRef, ActorGateway>() {
-						public ActorGateway apply(ActorRef ref) {
-							return new AkkaActorGateway(ref, leaderSessionID);
-						}
-					}, actorSystem.dispatcher())
-					.onComplete(new OnComplete<ActorGateway>() {
-						@Override
-						public void onComplete(Throwable failure, ActorGateway success) throws Throwable {
-							if (failure == null) {
-								completePromise(success);
-							} else {
-								LOG.debug("Could not retrieve the leader for address " + leaderAddress + ".", failure);
-							}
-						}
-					}, actorSystem.dispatcher());
-			}
-		}
-
-		@Override
-		public void handleError(Exception exception) {
-			if (!futureActorGateway.isCompleted()) {
-				futureActorGateway.failure(exception);
-			}
-		}
-
-		public Future<ActorGateway> getActorGatewayFuture() {
-			return futureActorGateway.future();
-		}
-	}
-
-	/**
 	 * Helper class which is used by the retrieveLeaderConnectionInfo method to retrieve the
 	 * leader's akka URL and the current leader session ID.
 	 */
@@ -261,19 +159,6 @@ public class LeaderRetrievalUtils {
 				connectionInfo.failure(exception);
 			}
 		}
-	}
-
-	/**
-	 * Gets the recovery mode as configured, based on {@link HighAvailabilityOptions#HA_MODE}.
-	 * 
-	 * @param config The configuration to read the recovery mode from.
-	 * @return The recovery mode.
-	 * 
-	 * @throws IllegalConfigurationException Thrown, if the recovery mode does not correspond
-	 *                                       to a known value.
-	 */
-	public static HighAvailabilityMode getRecoveryMode(Configuration config) {
-		return HighAvailabilityMode.fromConfig(config);
 	}
 	
 	// ------------------------------------------------------------------------

@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FoldFunction;
 import org.apache.flink.api.common.functions.Function;
@@ -89,7 +90,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * When using an evictor window performance will degrade significantly, since
  * incremental aggregation of window results cannot be used.
  *
- * <p>Note that the {@code WindowedStream} is purely and API construct, during runtime the
+ * <p>Note that the {@code WindowedStream} is purely an API construct, during runtime the
  * {@code WindowedStream} will be collapsed together with the {@code KeyedStream} and the operation
  * over the window into one single operation.
  *
@@ -600,7 +601,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * @param windowResultType The process window function result type.
 	 * @return The data stream that is the result of applying the fold function to the window.
 	 *
-	 * @deprecated use {@link #aggregate(AggregateFunction, WindowFunction, TypeInformation, TypeInformation, TypeInformation)} instead
+	 * @deprecated use {@link #aggregate(AggregateFunction, WindowFunction, TypeInformation, TypeInformation)} instead
 	 */
 	@Deprecated
 	@Internal
@@ -727,7 +728,7 @@ public class WindowedStream<T, K, W extends Window> {
 		}
 
 		return aggregate(function, new PassThroughWindowFunction<K, W, R>(),
-				accumulatorType, resultType, resultType);
+			accumulatorType, resultType);
 	}
 
 	/**
@@ -764,7 +765,7 @@ public class WindowedStream<T, K, W extends Window> {
 
 		TypeInformation<R> resultType = getWindowFunctionReturnType(windowFunction, aggResultType);
 
-		return aggregate(aggFunction, windowFunction, accumulatorType, aggResultType, resultType);
+		return aggregate(aggFunction, windowFunction, accumulatorType, resultType);
 	}
 
 	/**
@@ -792,13 +793,11 @@ public class WindowedStream<T, K, W extends Window> {
 			AggregateFunction<T, ACC, V> aggregateFunction,
 			WindowFunction<V, R, K, W> windowFunction,
 			TypeInformation<ACC> accumulatorType,
-			TypeInformation<V> aggregateResultType,
 			TypeInformation<R> resultType) {
 
 		checkNotNull(aggregateFunction, "aggregateFunction");
 		checkNotNull(windowFunction, "windowFunction");
 		checkNotNull(accumulatorType, "accumulatorType");
-		checkNotNull(aggregateResultType, "aggregateResultType");
 		checkNotNull(resultType, "resultType");
 
 		if (aggregateFunction instanceof RichFunction) {
@@ -896,7 +895,6 @@ public class WindowedStream<T, K, W extends Window> {
 			WindowFunction.class,
 			0,
 			1,
-			new int[]{2, 0},
 			new int[]{3, 0},
 			inType,
 			null,
@@ -912,7 +910,6 @@ public class WindowedStream<T, K, W extends Window> {
 			ProcessWindowFunction.class,
 			0,
 			1,
-			TypeExtractor.NO_INDEX,
 			TypeExtractor.NO_INDEX,
 			inType,
 			functionName,
@@ -1012,7 +1009,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Note that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1046,7 +1043,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Note that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1064,7 +1061,7 @@ public class WindowedStream<T, K, W extends Window> {
 	 * evaluation of the window for each key individually. The output of the window function is
 	 * interpreted as a regular non-windowed stream.
 	 *
-	 * <p>Not that this function requires that all data in the windows is buffered until the window
+	 * <p>Note that this function requires that all data in the windows is buffered until the window
 	 * is evaluated, as the function provides no means of incremental aggregation.
 	 *
 	 * @param function The window function.
@@ -1540,5 +1537,12 @@ public class WindowedStream<T, K, W extends Window> {
 
 	public TypeInformation<T> getInputType() {
 		return input.getType();
+	}
+
+	// -------------------- Testing Methods --------------------
+
+	@VisibleForTesting
+	long getAllowedLateness() {
+		return allowedLateness;
 	}
 }

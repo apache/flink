@@ -65,19 +65,31 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The date format of initial timestamp to start reading Kinesis stream from (when AT_TIMESTAMP is set for STREAM_INITIAL_POSITION). */
 	public static final String STREAM_TIMESTAMP_DATE_FORMAT = "flink.stream.initpos.timestamp.format";
 
-	/** The base backoff time between each describeStream attempt. */
+	/** The base backoff time between each describeStream attempt (for consuming from DynamoDB streams). */
 	public static final String STREAM_DESCRIBE_BACKOFF_BASE = "flink.stream.describe.backoff.base";
 
-	/** The maximum backoff time between each describeStream attempt. */
+	/** The maximum backoff time between each describeStream attempt (for consuming from DynamoDB streams). */
 	public static final String STREAM_DESCRIBE_BACKOFF_MAX = "flink.stream.describe.backoff.max";
 
-	/** The power constant for exponential backoff between each describeStream attempt. */
+	/** The power constant for exponential backoff between each describeStream attempt (for consuming from DynamoDB streams). */
 	public static final String STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT = "flink.stream.describe.backoff.expconst";
+
+	/** The maximum number of listShards attempts if we get a recoverable exception. */
+	public static final String LIST_SHARDS_RETRIES = "flink.list.shards.maxretries";
+
+	/** The base backoff time between each listShards attempt. */
+	public static final String LIST_SHARDS_BACKOFF_BASE = "flink.list.shards.backoff.base";
+
+	/** The maximum backoff time between each listShards attempt. */
+	public static final String LIST_SHARDS_BACKOFF_MAX = "flink.list.shards.backoff.max";
+
+	/** The power constant for exponential backoff between each listShards attempt. */
+	public static final String LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT = "flink.list.shards.backoff.expconst";
 
 	/** The maximum number of records to try to get each time we fetch records from a AWS Kinesis shard. */
 	public static final String SHARD_GETRECORDS_MAX = "flink.shard.getrecords.maxrecordcount";
 
-	/** The maximum number of getRecords attempts if we get ProvisionedThroughputExceededException. */
+	/** The maximum number of getRecords attempts if we get a recoverable exception. */
 	public static final String SHARD_GETRECORDS_RETRIES = "flink.shard.getrecords.maxretries";
 
 	/** The base backoff time between getRecords attempts if we get a ProvisionedThroughputExceededException. */
@@ -107,6 +119,21 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	/** The interval between each attempt to discover new shards. */
 	public static final String SHARD_DISCOVERY_INTERVAL_MILLIS = "flink.shard.discovery.intervalmillis";
 
+	/** The config to turn on adaptive reads from a shard. */
+	public static final String SHARD_USE_ADAPTIVE_READS = "flink.shard.adaptivereads";
+
+	/** The interval after which to consider a shard idle for purposes of watermark generation. */
+	public static final String SHARD_IDLE_INTERVAL_MILLIS = "flink.shard.idle.interval";
+
+	/** The interval for periodically synchronizing the shared watermark state. */
+	public static final String WATERMARK_SYNC_MILLIS = "flink.watermark.sync.interval";
+
+	/** The maximum delta allowed for the reader to advance ahead of the shared global watermark. */
+	public static final String WATERMARK_LOOKAHEAD_MILLIS = "flink.watermark.lookahead.millis";
+
+	/** The maximum number of records that will be buffered before suspending consumption of a shard. */
+	public static final String WATERMARK_SYNC_QUEUE_CAPACITY = "flink.watermark.sync.queue.capacity";
+
 	// ------------------------------------------------------------------------
 	//  Default values for consumer configuration
 	// ------------------------------------------------------------------------
@@ -120,6 +147,14 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final long DEFAULT_STREAM_DESCRIBE_BACKOFF_MAX = 5000L;
 
 	public static final double DEFAULT_STREAM_DESCRIBE_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
+
+	public static final long DEFAULT_LIST_SHARDS_BACKOFF_BASE = 1000L;
+
+	public static final long DEFAULT_LIST_SHARDS_BACKOFF_MAX = 5000L;
+
+	public static final double DEFAULT_LIST_SHARDS_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
+
+	public static final int DEFAULT_LIST_SHARDS_RETRIES = 10;
 
 	public static final int DEFAULT_SHARD_GETRECORDS_MAX = 10000;
 
@@ -142,6 +177,12 @@ public class ConsumerConfigConstants extends AWSConfigConstants {
 	public static final double DEFAULT_SHARD_GETITERATOR_BACKOFF_EXPONENTIAL_CONSTANT = 1.5;
 
 	public static final long DEFAULT_SHARD_DISCOVERY_INTERVAL_MILLIS = 10000L;
+
+	public static final boolean DEFAULT_SHARD_USE_ADAPTIVE_READS = false;
+
+	public static final long DEFAULT_SHARD_IDLE_INTERVAL_MILLIS = -1;
+
+	public static final long DEFAULT_WATERMARK_SYNC_MILLIS = 30_000;
 
 	/**
 	 * To avoid shard iterator expires in {@link ShardConsumer}s, the value for the configured

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServicesConfiguration;
 import org.apache.flink.util.FileUtils;
@@ -36,6 +37,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.InetAddress;
 
 public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
@@ -43,7 +45,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 	@ClassRule
 	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-	private static final long MEM_SIZE_PARAM = 128L*1024*1024;
+	private static final long MEM_SIZE_PARAM = 128L * 1024 * 1024;
 
 	/**
 	 * This tests that the creation of {@link TaskManagerServices} correctly creates the local state root directory
@@ -62,19 +64,9 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 		config.setString(CheckpointingOptions.LOCAL_RECOVERY_TASK_MANAGER_STATE_ROOT_DIRS, rootDirString);
 
 		// test configuration of the local state mode
-		config.setString(CheckpointingOptions.LOCAL_RECOVERY, "ENABLE_FILE_BASED");
+		config.setBoolean(CheckpointingOptions.LOCAL_RECOVERY, true);
 
-		final ResourceID tmResourceID = ResourceID.generate();
-
-		TaskManagerServicesConfiguration taskManagerServicesConfiguration =
-			TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), true);
-
-		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
-			taskManagerServicesConfiguration,
-			tmResourceID,
-			Executors.directExecutor(),
-			MEM_SIZE_PARAM,
-			MEM_SIZE_PARAM);
+		TaskManagerServices taskManagerServices = createTaskManagerServices(createTaskManagerServiceConfiguration(config));
 
 		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskManagerStateStore();
 
@@ -88,9 +80,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 		}
 
 		// verify local recovery mode
-		Assert.assertEquals(
-			LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED,
-			taskStateManager.getLocalRecoveryMode());
+		Assert.assertTrue(taskStateManager.isLocalRecoveryEnabled());
 
 		Assert.assertEquals("localState", TaskManagerServices.LOCAL_STATE_SUB_DIRECTORY_ROOT);
 		for (File rootDirectory : rootDirectories) {
@@ -107,17 +97,9 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
 		final Configuration config = new Configuration();
 
-		final ResourceID tmResourceID = ResourceID.generate();
+		TaskManagerServicesConfiguration taskManagerServicesConfiguration = createTaskManagerServiceConfiguration(config);
 
-		TaskManagerServicesConfiguration taskManagerServicesConfiguration =
-			TaskManagerServicesConfiguration.fromConfiguration(config, InetAddress.getLocalHost(), true);
-
-		TaskManagerServices taskManagerServices = TaskManagerServices.fromConfiguration(
-			taskManagerServicesConfiguration,
-			tmResourceID,
-			Executors.directExecutor(),
-			MEM_SIZE_PARAM,
-			MEM_SIZE_PARAM);
+		TaskManagerServices taskManagerServices = createTaskManagerServices(taskManagerServicesConfiguration);
 
 		TaskExecutorLocalStateStoresManager taskStateManager = taskManagerServices.getTaskManagerStateStore();
 
@@ -130,9 +112,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 				localStateRootDirectories[i]);
 		}
 
-		Assert.assertEquals(
-			LocalRecoveryConfig.LocalRecoveryMode.DISABLED,
-			taskStateManager.getLocalRecoveryMode());
+		Assert.assertFalse(taskStateManager.isLocalRecoveryEnabled());
 	}
 
 	/**
@@ -150,7 +130,7 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
 		File[] rootDirs = {temporaryFolder.newFolder(), temporaryFolder.newFolder(), temporaryFolder.newFolder()};
 		TaskExecutorLocalStateStoresManager storesManager = new TaskExecutorLocalStateStoresManager(
-			LocalRecoveryConfig.LocalRecoveryMode.ENABLE_FILE_BASED,
+			true,
 			rootDirs,
 			Executors.directExecutor());
 
@@ -187,8 +167,8 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 
 		// test that local recovery mode is forwarded to the created store
 		Assert.assertEquals(
-			storesManager.getLocalRecoveryMode(),
-			taskLocalStateStore.getLocalRecoveryConfig().getLocalRecoveryMode());
+			storesManager.isLocalRecoveryEnabled(),
+			taskLocalStateStore.getLocalRecoveryConfig().isLocalRecoveryEnabled());
 
 		Assert.assertTrue(testFile.exists());
 
@@ -220,5 +200,24 @@ public class TaskExecutorLocalStateStoresManagerTest extends TestLogger {
 				Assert.assertArrayEquals(new File[0], files);
 			}
 		}
+	}
+
+	private TaskManagerServicesConfiguration createTaskManagerServiceConfiguration(
+			Configuration config) throws IOException {
+		return TaskManagerServicesConfiguration.fromConfiguration(
+			config,
+			ResourceID.generate(),
+			InetAddress.getLocalHost(),
+			MEM_SIZE_PARAM,
+			MEM_SIZE_PARAM,
+			true);
+	}
+
+	private TaskManagerServices createTaskManagerServices(
+			TaskManagerServicesConfiguration config) throws Exception {
+		return TaskManagerServices.fromConfiguration(
+			config,
+			UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
+			Executors.directExecutor());
 	}
 }

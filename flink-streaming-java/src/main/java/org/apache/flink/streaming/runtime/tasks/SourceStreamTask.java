@@ -25,14 +25,18 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.DefaultActionContext;
 import org.apache.flink.util.FlinkException;
+
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * {@link StreamTask} for executing a {@link StreamSource}.
  *
  * <p>One important aspect of this is that the checkpointing and the emission of elements must never
  * occur at the same time. The execution must be serial. This is achieved by having the contract
- * with the StreamFunction that it must only modify its state or emit elements in
+ * with the {@link SourceFunction} that it must only modify its state or emit elements in
  * a synchronized block that locks on the lock Object. Also, the modification of the state
  * and the emission of elements must happen in the same block of code that is protected by the
  * synchronized block.
@@ -45,18 +49,25 @@ import org.apache.flink.util.FlinkException;
 public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends StreamSource<OUT, SRC>>
 	extends StreamTask<OUT, OP> {
 
+	private final LegacySourceFunctionThread sourceThread;
+
 	private volatile boolean externallyInducedCheckpoints;
+
+	/**
+	 * Indicates whether this Task was purposefully finished (by finishTask()), in this case we
+	 * want to ignore exceptions thrown after finishing, to ensure shutdown works smoothly.
+	 */
+	private volatile boolean isFinished = false;
 
 	public SourceStreamTask(Environment env) {
 		super(env);
+		this.sourceThread = new LegacySourceFunctionThread();
 	}
 
 	@Override
 	protected void init() {
-		// does not hold any resources, so no initialization needed
-
 		// we check if the source is actually inducing the checkpoints, rather
-		// than the trigger ch
+		// than the trigger
 		SourceFunction<?> source = headOperator.getUserFunction();
 		if (source instanceof ExternallyInducedSource) {
 			externallyInducedCheckpoints = true;
@@ -74,7 +85,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 					final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, timestamp);
 
 					try {
-						SourceStreamTask.super.triggerCheckpoint(checkpointMetaData, checkpointOptions);
+						SourceStreamTask.super.triggerCheckpoint(checkpointMetaData, checkpointOptions, false);
 					}
 					catch (RuntimeException | FlinkException e) {
 						throw e;
@@ -90,20 +101,49 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	}
 
 	@Override
+	protected void advanceToEndOfEventTime() throws Exception {
+		headOperator.advanceToEndOfEventTime();
+	}
+
+	@Override
 	protected void cleanup() {
 		// does not hold any resources, so no cleanup needed
 	}
 
 	@Override
-	protected void run() throws Exception {
-		headOperator.run(getCheckpointLock(), getStreamStatusMaintainer());
+	protected void performDefaultAction(DefaultActionContext context) throws Exception {
+
+		context.suspendDefaultAction();
+
+		// Against the usual contract of this method, this implementation is not step-wise but blocking instead for
+		// compatibility reasons with the current source interface (source functions run as a loop, not in steps).
+		sourceThread.setTaskDescription(getName());
+		sourceThread.start();
+		sourceThread.getCompletionFuture().whenComplete((Void ignore, Throwable sourceThreadThrowable) -> {
+			if (sourceThreadThrowable == null || isFinished) {
+				mailboxProcessor.allActionsCompleted();
+			} else {
+				mailboxProcessor.reportThrowable(sourceThreadThrowable);
+			}
+		});
 	}
 
 	@Override
-	protected void cancelTask() throws Exception {
+	protected void cancelTask() {
 		if (headOperator != null) {
 			headOperator.cancel();
 		}
+	}
+
+	@Override
+	protected void finishTask() throws Exception {
+		isFinished = true;
+		cancelTask();
+	}
+
+	@Override
+	public Optional<Thread> getExecutingThread() {
+		return Optional.of(sourceThread);
 	}
 
 	// ------------------------------------------------------------------------
@@ -111,15 +151,45 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	// ------------------------------------------------------------------------
 
 	@Override
-	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) throws Exception {
+	public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) throws Exception {
 		if (!externallyInducedCheckpoints) {
-			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions);
+			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 		}
 		else {
 			// we do not trigger checkpoints here, we simply state whether we can trigger them
 			synchronized (getCheckpointLock()) {
 				return isRunning();
 			}
+		}
+	}
+
+	/**
+	 * Runnable that executes the the source function in the head operator.
+	 */
+	private class LegacySourceFunctionThread extends Thread {
+
+		private final CompletableFuture<Void> completionFuture;
+
+		LegacySourceFunctionThread() {
+			this.completionFuture = new CompletableFuture<>();
+		}
+
+		@Override
+		public void run() {
+			try {
+				headOperator.run(getCheckpointLock(), getStreamStatusMaintainer(), operatorChain);
+				completionFuture.complete(null);
+			} catch (Throwable t) {
+				completionFuture.completeExceptionally(t);
+			}
+		}
+
+		public void setTaskDescription(final String taskDescription) {
+			setName("Legacy Source Thread - " + taskDescription);
+		}
+
+		CompletableFuture<Void> getCompletionFuture() {
+			return completionFuture;
 		}
 	}
 }

@@ -31,6 +31,8 @@ GEM
       pathutil (~> 0.9)
       rouge (>= 1.7, < 4)
       safe_yaml (~> 1.0)
+    jekyll-multiple-languages (2.0.3)
+    jekyll-paginate (1.1.0)
     jekyll-sass-converter (1.5.1)
       sass (~> 3.4)
     jekyll-watch (2.0.0)
@@ -75,6 +77,8 @@ DEPENDENCIES
   addressable (= 2.4.0)
   hawkins
   jekyll (= 3.7.2)
+  jekyll-multiple-languages (= 2.0.3)
+  jekyll-paginate (= 1.1.0)
   json (= 2.0.4)
   octokit (~> 4.3.0)
   therubyracer (= 0.12.2)

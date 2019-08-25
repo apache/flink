@@ -74,4 +74,14 @@ public class FlinkFixedPartitioner<T> extends FlinkKafkaPartitioner<T> {
 
 		return partitions[parallelInstanceId % partitions.length];
 	}
+
+	@Override
+	public boolean equals(Object o) {
+		return this == o || o instanceof FlinkFixedPartitioner;
+	}
+
+	@Override
+	public int hashCode() {
+		return FlinkFixedPartitioner.class.hashCode();
+	}
 }

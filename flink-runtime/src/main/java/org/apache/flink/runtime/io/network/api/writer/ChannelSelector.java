@@ -29,13 +29,28 @@ import org.apache.flink.core.io.IOReadableWritable;
 public interface ChannelSelector<T extends IOReadableWritable> {
 
 	/**
-	 * Returns the logical channel indexes, to which the given record should be
-	 * written.
+	 * Initializes the channel selector with the number of output channels.
 	 *
-	 * @param record      the record to the determine the output channels for
-	 * @param numChannels the total number of output channels which are attached to respective output gate
-	 * @return a (possibly empty) array of integer numbers which indicate the indices of the output channels through
-	 * which the record shall be forwarded
+	 * @param numberOfChannels the total number of output channels which are attached
+	 * 		to respective output gate.
 	 */
-	int[] selectChannels(T record, int numChannels);
+	void setup(int numberOfChannels);
+
+	/**
+	 * Returns the logical channel index, to which the given record should be written. It is
+	 * illegal to call this method for broadcast channel selectors and this method can remain
+	 * not implemented in that case (for example by throwing {@link UnsupportedOperationException}).
+	 *
+	 * @param record the record to determine the output channels for.
+	 * @return an integer number which indicates the index of the output
+	 * 		channel through which the record shall be forwarded.
+	 */
+	int selectChannel(T record);
+
+	/**
+	 * Returns whether the channel selector always selects all the output channels.
+	 *
+	 * @return true if the selector is for broadcast mode.
+	 */
+	boolean isBroadcast();
 }

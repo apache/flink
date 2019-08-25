@@ -18,21 +18,21 @@
 package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.runtime.minicluster.LocalFlinkMiniCluster;
+import org.apache.flink.client.deployment.StandaloneClusterId;
+import org.apache.flink.client.program.rest.RestClusterClient;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
-import org.apache.flink.test.util.TestBaseUtils;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
+import org.junit.ClassRule;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -44,38 +44,15 @@ import static org.junit.Assert.assertEquals;
  * Integration test that verifies that a user program with a big(ger) payload is successfully
  * submitted and run.
  */
-@Ignore("Fails on job submission payload being too large - [FLINK-7285]")
 public class BigUserProgramJobSubmitITCase extends TestLogger {
 
 	// ------------------------------------------------------------------------
 	//  The mini cluster that is shared across tests
 	// ------------------------------------------------------------------------
 
-	private static final int DEFAULT_PARALLELISM = 1;
-
-	private static LocalFlinkMiniCluster cluster;
-
-	private static final Logger LOG = LoggerFactory.getLogger(BigUserProgramJobSubmitITCase.class);
-
-	// ------------------------------------------------------------------------
-	//  Cluster setup & teardown
-	// ------------------------------------------------------------------------
-
-	@BeforeClass
-	public static void setup() throws Exception {
-		// make sure we do not use a singleActorSystem for the tests
-		// (therefore, we cannot simply inherit from StreamingMultipleProgramsTestBase)
-		LOG.info("Starting FlinkMiniCluster");
-		cluster = TestBaseUtils.startCluster(1, DEFAULT_PARALLELISM, false, false, false);
-		TestStreamEnvironment.setAsContext(cluster, DEFAULT_PARALLELISM);
-	}
-
-	@AfterClass
-	public static void teardown() throws Exception {
-		LOG.info("Closing FlinkMiniCluster");
-		TestStreamEnvironment.unsetAsContext();
-		TestBaseUtils.stopCluster(cluster, TestBaseUtils.DEFAULT_TIMEOUT);
-	}
+	@ClassRule
+	public static final MiniClusterResource MINI_CLUSTER_RESOURCE = new MiniClusterResource(
+		new MiniClusterResourceConfiguration.Builder().build());
 
 	private final Random rnd = new Random();
 
@@ -85,15 +62,16 @@ public class BigUserProgramJobSubmitITCase extends TestLogger {
 	@Test
 	public void bigDataInMap() throws Exception {
 
-		final byte[] data = new byte[100 * 1024 * 1024]; // 100 MB
+		final byte[] data = new byte[16 * 1024 * 1024]; // 16 MB
 		rnd.nextBytes(data); // use random data so that Java does not optimise it away
 		data[1] = 0;
 		data[3] = 0;
 		data[5] = 0;
 
-		TestListResultSink<String> resultSink = new TestListResultSink<>();
+		CollectingSink resultSink = new CollectingSink();
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+		env.setParallelism(1);
 
 		DataStream<Integer> src = env.fromElements(1, 3, 5);
 
@@ -106,15 +84,34 @@ public class BigUserProgramJobSubmitITCase extends TestLogger {
 			}
 		}).addSink(resultSink);
 
-		env.execute();
+		JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
 
-		List<String> expected = Arrays.asList("x 1 0", "x 3 0", "x 5 0");
+		final RestClusterClient<StandaloneClusterId> restClusterClient = new RestClusterClient<>(
+			MINI_CLUSTER_RESOURCE.getClientConfiguration(),
+			StandaloneClusterId.getInstance());
 
-		List<String> result = resultSink.getResult();
+		try {
+			restClusterClient.setDetached(false);
+			restClusterClient.submitJob(jobGraph, BigUserProgramJobSubmitITCase.class.getClassLoader());
 
-		Collections.sort(expected);
-		Collections.sort(result);
+			List<String> expected = Arrays.asList("x 1 0", "x 3 0", "x 5 0");
 
-		assertEquals(expected, result);
+			List<String> result = CollectingSink.result;
+
+			Collections.sort(expected);
+			Collections.sort(result);
+
+			assertEquals(expected, result);
+		} finally {
+			restClusterClient.shutdown();
+		}
+	}
+
+	private static class CollectingSink implements SinkFunction<String> {
+		private static final List<String> result = Collections.synchronizedList(new ArrayList<>(3));
+
+		public void invoke(String value, Context context) throws Exception {
+			result.add(value);
+		}
 	}
 }

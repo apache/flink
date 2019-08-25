@@ -22,6 +22,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * Restart strategy which does not restart an {@link ExecutionGraph}.
  */
@@ -33,15 +35,15 @@ public class NoRestartStrategy implements RestartStrategy {
 	}
 
 	@Override
-	public void restart(RestartCallback restarter, ScheduledExecutor executor) {
+	public CompletableFuture<Void> restart(RestartCallback restarter, ScheduledExecutor executor) {
 		throw new UnsupportedOperationException("NoRestartStrategy does not support restart.");
 	}
 
 	/**
-	 * Creates a NoRestartStrategy instance.
+	 * Creates a NoRestartStrategyFactory instance.
 	 *
 	 * @param configuration Configuration object which is ignored
-	 * @return NoRestartStrategy instance
+	 * @return NoRestartStrategyFactory instance
 	 */
 	public static NoRestartStrategyFactory createFactory(Configuration configuration) {
 		return new NoRestartStrategyFactory();

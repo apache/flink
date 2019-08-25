@@ -20,6 +20,9 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import java.io.IOException;
 
+/**
+ * Interface for releasing memory buffers.
+ */
 public interface BufferPoolOwner {
 
 	void releaseMemory(int numBuffersToRecycle) throws IOException;

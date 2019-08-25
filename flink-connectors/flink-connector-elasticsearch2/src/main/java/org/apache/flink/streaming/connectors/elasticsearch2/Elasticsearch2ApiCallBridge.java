@@ -21,12 +21,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchApiCallBridge;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.util.ElasticsearchUtils;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
@@ -44,7 +44,7 @@ import java.util.Map;
  * Implementation of {@link ElasticsearchApiCallBridge} for Elasticsearch 2.x.
  */
 @Internal
-public class Elasticsearch2ApiCallBridge implements ElasticsearchApiCallBridge {
+public class Elasticsearch2ApiCallBridge implements ElasticsearchApiCallBridge<TransportClient> {
 
 	private static final long serialVersionUID = 2638252694744361079L;
 
@@ -63,7 +63,7 @@ public class Elasticsearch2ApiCallBridge implements ElasticsearchApiCallBridge {
 	}
 
 	@Override
-	public Client createClient(Map<String, String> clientConfig) {
+	public TransportClient createClient(Map<String, String> clientConfig) {
 		Settings settings = Settings.settingsBuilder().put(clientConfig).build();
 
 		TransportClient transportClient = TransportClient.builder().settings(settings).build();
@@ -73,6 +73,10 @@ public class Elasticsearch2ApiCallBridge implements ElasticsearchApiCallBridge {
 
 		// verify that we actually are connected to a cluster
 		if (transportClient.connectedNodes().isEmpty()) {
+
+			// close the transportClient here
+			IOUtils.closeQuietly(transportClient);
+
 			throw new RuntimeException("Elasticsearch client is not connected to any Elasticsearch nodes!");
 		}
 
@@ -81,6 +85,11 @@ public class Elasticsearch2ApiCallBridge implements ElasticsearchApiCallBridge {
 		}
 
 		return transportClient;
+	}
+
+	@Override
+	public BulkProcessor.Builder createBulkProcessorBuilder(TransportClient client, BulkProcessor.Listener listener) {
+		return BulkProcessor.builder(client, listener);
 	}
 
 	@Override
@@ -117,10 +126,4 @@ public class Elasticsearch2ApiCallBridge implements ElasticsearchApiCallBridge {
 
 		builder.setBackoffPolicy(backoffPolicy);
 	}
-
-	@Override
-	public void cleanup() {
-		// nothing to cleanup
-	}
-
 }

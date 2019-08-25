@@ -28,7 +28,7 @@ reusing code that was implemented for Hadoop MapReduce.
 
 You can:
 
-- use Hadoop's `Writable` [data types](index.html#data-types) in Flink programs.
+- use Hadoop's `Writable` [data types]({{ site.baseurl }}/dev/api_concepts.html#supported-data-types) in Flink programs.
 - use any Hadoop `InputFormat` as a [DataSource](index.html#data-sources).
 - use any Hadoop `OutputFormat` as a [DataSink](index.html#data-sinks).
 - use a Hadoop `Mapper` as [FlatMapFunction](dataset_transformations.html#flatmap).
@@ -56,28 +56,31 @@ package.
 Add the following dependency to your `pom.xml` if you want to reuse Mappers
 and Reducers.
 
-~~~xml
+{% highlight xml %}
 <dependency>
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
 	<version>{{site.version}}</version>
 </dependency>
-~~~
+{% endhighlight %}
 
 ### Using Hadoop Data Types
 
 Flink supports all Hadoop `Writable` and `WritableComparable` data types
 out-of-the-box. You do not need to include the Hadoop Compatibility dependency,
 if you only want to use your Hadoop data types. See the
-[Programming Guide](index.html#data-types) for more details.
+[Programming Guide](index.html) for more details.
 
 ### Using Hadoop InputFormats
 
-Hadoop input formats can be used to create a data source by using
-one of the methods `readHadoopFile` or `createHadoopInput` of the
-`ExecutionEnvironment`. The former is used for input formats derived
+To use Hadoop `InputFormats` with Flink the format must first be wrapped
+using either `readHadoopFile` or `createHadoopInput` of the
+`HadoopInputs` utility class.
+The former is used for input formats derived
 from `FileInputFormat` while the latter has to be used for general purpose
 input formats.
+The resulting `InputFormat` can be used to create a data source by using
+`ExecutionEnvironmen#createInput`.
 
 The resulting `DataSet` contains 2-tuples where the first field
 is the key and the second field is the value retrieved from the Hadoop
@@ -88,28 +91,30 @@ The following example shows how to use Hadoop's `TextInputFormat`.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-~~~java
+{% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 DataSet<Tuple2<LongWritable, Text>> input =
-    env.readHadoopFile(new TextInputFormat(), LongWritable.class, Text.class, textPath);
+    env.createInput(HadoopInputs.readHadoopFile(new TextInputFormat(),
+                        LongWritable.class, Text.class, textPath));
 
 // Do something with the data.
 [...]
-~~~
+{% endhighlight %}
 
 </div>
 <div data-lang="scala" markdown="1">
 
-~~~scala
+{% highlight scala %}
 val env = ExecutionEnvironment.getExecutionEnvironment
 
 val input: DataSet[(LongWritable, Text)] =
-  env.readHadoopFile(new TextInputFormat, classOf[LongWritable], classOf[Text], textPath)
+  env.createInput(HadoopInputs.readHadoopFile(
+                    new TextInputFormat, classOf[LongWritable], classOf[Text], textPath))
 
 // Do something with the data.
 [...]
-~~~
+{% endhighlight %}
 
 </div>
 
@@ -128,7 +133,7 @@ The following example shows how to use Hadoop's `TextOutputFormat`.
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
 
-~~~java
+{% highlight java %}
 // Obtain the result we want to emit
 DataSet<Tuple2<Text, IntWritable>> hadoopResult = [...]
 
@@ -144,12 +149,12 @@ TextOutputFormat.setOutputPath(job, new Path(outputPath));
 
 // Emit data using the Hadoop TextOutputFormat.
 hadoopResult.output(hadoopOF);
-~~~
+{% endhighlight %}
 
 </div>
 <div data-lang="scala" markdown="1">
 
-~~~scala
+{% highlight scala %}
 // Obtain your result to emit.
 val hadoopResult: DataSet[(Text, IntWritable)] = [...]
 
@@ -163,7 +168,7 @@ FileOutputFormat.setOutputPath(hadoopOF.getJobConf, new Path(resultPath))
 hadoopResult.output(hadoopOF)
 
 
-~~~
+{% endhighlight %}
 
 </div>
 
@@ -185,9 +190,9 @@ and can be used as regular Flink [FlatMapFunctions](dataset_transformations.html
 
 The following example shows how to use Hadoop `Mapper` and `Reducer` functions.
 
-~~~java
+{% highlight java %}
 // Obtain data to process somehow.
-DataSet<Tuple2<Text, LongWritable>> text = [...]
+DataSet<Tuple2<LongWritable, Text>> text = [...]
 
 DataSet<Tuple2<Text, LongWritable>> result = text
   // use Hadoop Mapper (Tokenizer) as MapFunction
@@ -199,7 +204,7 @@ DataSet<Tuple2<Text, LongWritable>> result = text
   .reduceGroup(new HadoopReduceCombineFunction<Text, LongWritable, Text, LongWritable>(
     new Counter(), new Counter()
   ));
-~~~
+{% endhighlight %}
 
 **Please note:** The Reducer wrapper works on groups as defined by Flink's [groupBy()](dataset_transformations.html#transformations-on-grouped-dataset) operation. It does not consider any custom partitioners, sort or grouping comparators you might have set in the `JobConf`.
 
@@ -207,7 +212,7 @@ DataSet<Tuple2<Text, LongWritable>> result = text
 
 The following example shows a complete WordCount implementation using Hadoop data types, Input- and OutputFormats, and Mapper and Reducer implementations.
 
-~~~java
+{% highlight java %}
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 // Set up the Hadoop TextInputFormat.
@@ -233,9 +238,9 @@ DataSet<Tuple2<Text, LongWritable>> result = text
   ));
 
 // Set up the Hadoop TextOutputFormat.
-HadoopOutputFormat<Text, IntWritable> hadoopOF =
-  new HadoopOutputFormat<Text, IntWritable>(
-    new TextOutputFormat<Text, IntWritable>(), job
+HadoopOutputFormat<Text, LongWritable> hadoopOF =
+  new HadoopOutputFormat<Text, LongWritable>(
+    new TextOutputFormat<Text, LongWritable>(), job
   );
 hadoopOF.getConfiguration().set("mapreduce.output.textoutputformat.separator", " ");
 TextOutputFormat.setOutputPath(job, new Path(outputPath));
@@ -245,6 +250,6 @@ result.output(hadoopOF);
 
 // Execute Program
 env.execute("Hadoop WordCount");
-~~~
+{% endhighlight %}
 
 {% top %}

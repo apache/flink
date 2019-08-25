@@ -20,31 +20,37 @@ package org.apache.flink.runtime.rest.handler.job;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
+import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexMessageParameters;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.SubtasksTimesInfo;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
+import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
  * Request handler for the subtasks times info.
  */
-public class SubtasksTimesHandler extends AbstractJobVertexHandler<SubtasksTimesInfo, JobVertexMessageParameters>  {
+public class SubtasksTimesHandler extends AbstractJobVertexHandler<SubtasksTimesInfo, JobVertexMessageParameters> implements JsonArchivist {
 	public SubtasksTimesHandler(
-			CompletableFuture<String> localRestAddress,
 			GatewayRetriever<? extends RestfulGateway> leaderRetriever,
 			Time timeout,
 			Map<String, String> responseHeaders,
@@ -52,7 +58,6 @@ public class SubtasksTimesHandler extends AbstractJobVertexHandler<SubtasksTimes
 			ExecutionGraphCache executionGraphCache,
 			Executor executor) {
 		super(
-			localRestAddress,
 			leaderRetriever,
 			timeout,
 			responseHeaders,
@@ -63,7 +68,24 @@ public class SubtasksTimesHandler extends AbstractJobVertexHandler<SubtasksTimes
 
 	@Override
 	protected SubtasksTimesInfo handleRequest(HandlerRequest<EmptyRequestBody, JobVertexMessageParameters> request, AccessExecutionJobVertex jobVertex) {
+		return createSubtaskTimesInfo(jobVertex);
+	}
 
+	@Override
+	public Collection<ArchivedJson> archiveJsonWithPath(AccessExecutionGraph graph) throws IOException {
+		Collection<? extends AccessExecutionJobVertex> allVertices = graph.getAllVertices().values();
+		List<ArchivedJson> archive = new ArrayList<>(allVertices.size());
+		for (AccessExecutionJobVertex task : allVertices) {
+			ResponseBody json = createSubtaskTimesInfo(task);
+			String path = getMessageHeaders().getTargetRestEndpointURL()
+				.replace(':' + JobIDPathParameter.KEY, graph.getJobID().toString())
+				.replace(':' + JobVertexIdPathParameter.KEY, task.getJobVertexId().toString());
+			archive.add(new ArchivedJson(path, json));
+		}
+		return archive;
+	}
+
+	private static SubtasksTimesInfo createSubtaskTimesInfo(AccessExecutionJobVertex jobVertex) {
 		final String id = jobVertex.getJobVertexId().toString();
 		final String name = jobVertex.getName();
 		final long now = System.currentTimeMillis();

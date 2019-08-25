@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.connectors.fs;
 
-import org.apache.flink.api.java.tuple.Tuple2;
-
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileConstants;
 import org.junit.Test;
@@ -47,11 +45,11 @@ public class AvroKeyValueSinkWriterTest {
 
 		AvroKeyValueSinkWriter<String, String> writer = new AvroKeyValueSinkWriter(properties);
 		writer.setSyncOnFlush(true);
-		Writer<Tuple2<String, String>> other = writer.duplicate();
+		AvroKeyValueSinkWriter<String, String> other = writer.duplicate();
 
-		assertTrue(writer.equals(other));
+		assertTrue(StreamWriterBaseComparator.equals(writer, other));
 
 		writer.setSyncOnFlush(false);
-		assertFalse(writer.equals(other));
+		assertFalse(StreamWriterBaseComparator.equals(writer, other));
 	}
 }

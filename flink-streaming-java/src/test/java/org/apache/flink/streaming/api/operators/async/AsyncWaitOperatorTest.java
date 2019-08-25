@@ -21,7 +21,10 @@ package org.apache.flink.streaming.api.operators.async;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.java.Utils;
+import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
@@ -35,16 +38,19 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueueEntry;
@@ -57,6 +63,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.util.MockStreamConfig;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.util.ExceptionUtils;
@@ -74,9 +81,11 @@ import javax.annotation.Nonnull;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -176,6 +185,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	/**
 	 * A special {@link AsyncFunction} without issuing
 	 * {@link ResultFuture#complete} until the latch counts to zero.
+	 * {@link ResultFuture#complete} until the latch counts to zero.
 	 * This function is used in the testStateSnapshotAndRestore, ensuring
 	 * that {@link StreamElementQueueEntry} can stay
 	 * in the {@link StreamElementQueue} to be
@@ -209,6 +219,43 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		public static void countDown() {
 			latch.countDown();
+		}
+	}
+
+	/**
+	 * AsyncFunction supports a specific delay(ms) before async invocation.
+	 */
+	private static class DelayedAsyncFunction extends MyAsyncFunction {
+
+		private final long delayed;
+
+		public DelayedAsyncFunction(long delayed) {
+			this.delayed = delayed;
+		}
+
+		@Override
+		public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture) throws Exception {
+			executorService.submit(() -> {
+				try {
+					Thread.sleep(delayed);
+				} catch (InterruptedException e) {
+					resultFuture.completeExceptionally(e);
+				}
+				resultFuture.complete(Collections.singletonList(input * 2));
+			});
+		}
+	}
+
+	/**
+	 * A special {@link LazyAsyncFunction} for timeout handling.
+	 * Complete the result future with 3 times the input when the timeout occurred.
+	 */
+	private static class IgnoreTimeoutLazyAsyncFunction extends LazyAsyncFunction {
+		private static final long serialVersionUID = 1428714561365346128L;
+
+		@Override
+		public void timeout(Integer input, ResultFuture<Integer> resultFuture) throws Exception {
+			resultFuture.complete(Collections.singletonList(input * 3));
 		}
 	}
 
@@ -367,6 +414,32 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	}
 
 	/**
+	 * Test for the temporary fix to FLINK-13063.
+	 */
+	@Test
+	public void testAsyncOperatorIsNeverChained() {
+		StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+
+		DataStream<Integer> input = chainEnv.fromElements(1);
+		input = AsyncDataStream.orderedWait(
+			input,
+			new LazyAsyncFunction(),
+			TIMEOUT,
+			TimeUnit.MILLISECONDS,
+			6).map((x) -> x);
+		AsyncDataStream.unorderedWait(
+			input,
+			new MyAsyncFunction(),
+			TIMEOUT,
+			TimeUnit.MILLISECONDS,
+			3).map((x) -> x).addSink(new DiscardingSink<>());
+
+		final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
+
+		Assert.assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
+	}
+
+	/**
 	 *	Tests that the AsyncWaitOperator works together with chaining.
 	 */
 	@Test
@@ -419,24 +492,27 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	private JobVertex createChainedVertex(boolean withLazyFunction) {
 		StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 
+		// set parallelism to 2 to avoid chaining with source in case when available processors is 1.
+		chainEnv.setParallelism(2);
+
 		// the input is only used to construct a chained operator, and they will not be used in the real tests.
 		DataStream<Integer> input = chainEnv.fromElements(1, 2, 3);
 
 		if (withLazyFunction) {
-			input = AsyncDataStream.orderedWait(
+			input = addAsyncOperatorLegacyChained(
 				input,
 				new LazyAsyncFunction(),
 				TIMEOUT,
-				TimeUnit.MILLISECONDS,
-				6);
+				6,
+				AsyncDataStream.OutputMode.ORDERED);
 		}
 		else {
-			input = AsyncDataStream.orderedWait(
+			input = addAsyncOperatorLegacyChained(
 				input,
 				new MyAsyncFunction(),
 				TIMEOUT,
-				TimeUnit.MILLISECONDS,
-				6);
+				6,
+				AsyncDataStream.OutputMode.ORDERED);
 		}
 
 		// the map function is designed to chain after async function. we place an Integer object in it and
@@ -460,12 +536,12 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			}
 		});
 
-		input = AsyncDataStream.unorderedWait(
+		input = addAsyncOperatorLegacyChained(
 			input,
 			new MyAsyncFunction(),
 			TIMEOUT,
-			TimeUnit.MILLISECONDS,
-			3);
+			3,
+			AsyncDataStream.OutputMode.UNORDERED);
 
 		input.map(new MapFunction<Integer, Integer>() {
 			private static final long serialVersionUID = 5162085254238405527L;
@@ -479,7 +555,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		// be build our own OperatorChain
 		final JobGraph jobGraph = chainEnv.getStreamGraph().getJobGraph();
 
-		Assert.assertTrue(jobGraph.getVerticesSortedTopologicallyFromSources().size() == 3);
+		Assert.assertEquals(3, jobGraph.getVerticesSortedTopologicallyFromSources().size());
 
 		return jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 	}
@@ -526,7 +602,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		final CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointTimestamp);
 
-		task.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation());
+		task.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
 
 		taskStateManagerMock.getWaitForReportLatch().await();
 
@@ -567,7 +643,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		restoredTaskHarness.processElement(new StreamRecord<>(7, initialTime + 7));
 
 		// trigger the checkpoint while processing stream elements
-		restoredTask.triggerCheckpoint(new CheckpointMetaData(checkpointId, checkpointTimestamp), CheckpointOptions.forCheckpointWithDefaultLocation());
+		restoredTask.triggerCheckpoint(new CheckpointMetaData(checkpointId, checkpointTimestamp), CheckpointOptions.forCheckpointWithDefaultLocation(), false);
 
 		restoredTaskHarness.processElement(new StreamRecord<>(8, initialTime + 8));
 
@@ -599,11 +675,29 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testAsyncTimeout() throws Exception {
+	public void testAsyncTimeoutFailure() throws Exception {
+		testAsyncTimeout(
+			new LazyAsyncFunction(),
+			Optional.of(TimeoutException.class),
+			new StreamRecord<>(2, 5L));
+	}
+
+	@Test
+	public void testAsyncTimeoutIgnore() throws Exception {
+		testAsyncTimeout(
+			new IgnoreTimeoutLazyAsyncFunction(),
+			Optional.empty(),
+			new StreamRecord<>(3, 0L),
+			new StreamRecord<>(2, 5L));
+	}
+
+	private void testAsyncTimeout(LazyAsyncFunction lazyAsyncFunction,
+			Optional<Class<? extends Throwable>> expectedException,
+			StreamRecord<Integer>... expectedRecords) throws Exception {
 		final long timeout = 10L;
 
 		final AsyncWaitOperator<Integer, Integer> operator = new AsyncWaitOperator<>(
-			new LazyAsyncFunction(),
+			lazyAsyncFunction,
 			timeout,
 			2,
 			AsyncDataStream.OutputMode.ORDERED);
@@ -631,31 +725,33 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		testHarness.setProcessingTime(initialTime + timeout + 1L);
 
 		// allow the second async stream record to be processed
-		LazyAsyncFunction.countDown();
+		lazyAsyncFunction.countDown();
 
 		// wait until all async collectors in the buffer have been emitted out.
 		synchronized (testHarness.getCheckpointLock()) {
 			testHarness.close();
 		}
 
-		expectedOutput.add(new StreamRecord<>(2, initialTime + 5L));
+		expectedOutput.addAll(Arrays.asList(expectedRecords));
 
 		TestHarnessUtil.assertOutputEquals("Output with watermark was not correct.", expectedOutput, testHarness.getOutput());
 
-		ArgumentCaptor<Throwable> argumentCaptor = ArgumentCaptor.forClass(Throwable.class);
-
-		assertTrue(mockEnvironment.getActualExternalFailureCause().isPresent());
-		ExceptionUtils.findThrowable(mockEnvironment.getActualExternalFailureCause().get(), TimeoutException.class);
+		if (expectedException.isPresent()) {
+			assertTrue(mockEnvironment.getActualExternalFailureCause().isPresent());
+			assertTrue(ExceptionUtils.findThrowable(
+				mockEnvironment.getActualExternalFailureCause().get(),
+				expectedException.get()).isPresent());
+		}
 	}
 
 	@Nonnull
 	private MockEnvironment createMockEnvironment() {
-		return new MockEnvironment(
-			"foobarTask",
-			1024 * 1024L,
-			new MockInputSplitProvider(),
-			4 * 1024,
-			new TestTaskStateManager());
+		return new MockEnvironmentBuilder()
+			.setTaskName("foobarTask")
+			.setMemorySize(1024 * 1024L)
+			.setInputSplitProvider(new MockInputSplitProvider())
+			.setBufferSize(4 * 1024)
+			.build();
 	}
 
 	/**
@@ -679,8 +775,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		when(containingTask.getCheckpointLock()).thenReturn(lock);
 		when(containingTask.getProcessingTimeService()).thenReturn(new TestProcessingTimeService());
 
-		StreamConfig streamConfig = mock(StreamConfig.class);
-		doReturn(IntSerializer.INSTANCE).when(streamConfig).getTypeSerializerIn1(any(ClassLoader.class));
+		StreamConfig streamConfig = new MockStreamConfig();
+		streamConfig.setTypeSerializerIn1(IntSerializer.INSTANCE);
 
 		final OneShotLatch closingLatch = new OneShotLatch();
 		final OneShotLatch outputLatch = new OneShotLatch();
@@ -782,8 +878,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		when(containingTask.getCheckpointLock()).thenReturn(lock);
 		when(containingTask.getProcessingTimeService()).thenReturn(processingTimeService);
 
-		StreamConfig streamConfig = mock(StreamConfig.class);
-		doReturn(IntSerializer.INSTANCE).when(streamConfig).getTypeSerializerIn1(any(ClassLoader.class));
+		StreamConfig streamConfig = new MockStreamConfig();
+		streamConfig.setTypeSerializerIn1(IntSerializer.INSTANCE);
 
 		Output<StreamRecord<Integer>> output = mock(Output.class);
 
@@ -1068,6 +1164,84 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		@Override
 		public void asyncInvoke(IN input, ResultFuture<OUT> resultFuture) throws Exception {
 			// no op
+		}
+	}
+
+	/**
+	 * This helper function is needed to check that the temporary fix for FLINK-13063 can be backwards compatible with
+	 * the old chaining behavior by setting the ChainingStrategy manually. TODO: remove after a proper fix for
+	 * FLINK-13063 is in place that allows chaining.
+	 */
+	private <IN, OUT> SingleOutputStreamOperator<OUT> addAsyncOperatorLegacyChained(
+		DataStream<IN> in,
+		AsyncFunction<IN, OUT> func,
+		long timeout,
+		int bufSize,
+		AsyncDataStream.OutputMode mode) {
+
+		TypeInformation<OUT> outTypeInfo = TypeExtractor.getUnaryOperatorReturnType(
+			func,
+			AsyncFunction.class,
+			0,
+			1,
+			new int[]{1, 0},
+			in.getType(),
+			Utils.getCallLocationName(),
+			true);
+
+		// create transform
+		AsyncWaitOperator<IN, OUT> operator = new AsyncWaitOperator<>(
+			in.getExecutionEnvironment().clean(func),
+			timeout,
+			bufSize,
+			mode);
+
+		operator.setChainingStrategy(ChainingStrategy.ALWAYS);
+
+		return in.transform("async wait operator", outTypeInfo, operator);
+	}
+
+	/**
+	 * Delay a while before async invocation to check whether end input waits for all elements finished or not.
+	 */
+	@Test
+	public void testEndInput() throws Exception {
+		final AsyncWaitOperator<Integer, Integer> operator = new AsyncWaitOperator<>(
+			new DelayedAsyncFunction(10),
+			-1,
+			2,
+			AsyncDataStream.OutputMode.ORDERED);
+
+		final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+			new OneInputStreamOperatorTestHarness<>(operator, IntSerializer.INSTANCE);
+
+		final long initialTime = 0L;
+		final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+		expectedOutput.add(new StreamRecord<>(2, initialTime + 1));
+		expectedOutput.add(new StreamRecord<>(4, initialTime + 2));
+		expectedOutput.add(new Watermark(initialTime + 2));
+		expectedOutput.add(new StreamRecord<>(6, initialTime + 3));
+
+		testHarness.open();
+
+		try {
+			synchronized (testHarness.getCheckpointLock()) {
+				testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
+				testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
+				testHarness.processWatermark(new Watermark(initialTime + 2));
+				testHarness.processElement(new StreamRecord<>(3, initialTime + 3));
+			}
+
+			// wait until all async collectors in the buffer have been emitted out.
+			synchronized (testHarness.getCheckpointLock()) {
+				testHarness.endInput();
+			}
+
+			TestHarnessUtil.assertOutputEquals("Output with watermark was not correct.", expectedOutput, testHarness.getOutput());
+		} finally {
+			synchronized (testHarness.getCheckpointLock()) {
+				testHarness.close();
+			}
 		}
 	}
 }

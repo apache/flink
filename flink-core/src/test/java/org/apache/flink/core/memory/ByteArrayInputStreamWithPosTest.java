@@ -81,4 +81,18 @@ public class ByteArrayInputStreamWithPosTest {
 		thrown.expectMessage("Position out of bounds.");
 		stream.setPosition(-1);
 	}
+
+	@Test
+	public void testSetBuffer() {
+		ByteArrayInputStreamWithPos in = new ByteArrayInputStreamWithPos();
+		Assert.assertEquals(-1, in.read());
+		byte[] testData = new byte[]{0x42, 0x43, 0x44, 0x45};
+		int off = 1;
+		int len = 2;
+		in.setBuffer(testData, off, len);
+		for (int i = 0; i < len; ++i) {
+			Assert.assertEquals(testData[i + off], in.read());
+		}
+		Assert.assertEquals(-1, in.read());
+	}
 }

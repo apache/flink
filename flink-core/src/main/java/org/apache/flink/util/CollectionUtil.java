@@ -20,14 +20,25 @@ package org.apache.flink.util;
 
 import org.apache.flink.annotation.Internal;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
+import java.util.stream.Stream;
 
 /**
  * Simple utility to work with Java collections.
  */
 @Internal
 public final class CollectionUtil {
+
+	/**
+	 * A safe maximum size for arrays in the JVM.
+	 */
+	public static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
 	private CollectionUtil() {
 		throw new AssertionError();
@@ -39,5 +50,26 @@ public final class CollectionUtil {
 
 	public static boolean isNullOrEmpty(Map<?, ?> map) {
 		return map == null || map.isEmpty();
+	}
+
+	public static <T, R> Stream<R> mapWithIndex(Collection<T> input, final BiFunction<T, Integer, R> mapper) {
+		final AtomicInteger count = new AtomicInteger(0);
+
+		return input.stream().map(element -> mapper.apply(element, count.getAndIncrement()));
+	}
+
+	/** Partition a collection into approximately n buckets. */
+	public static <T> Collection<List<T>> partition(Collection<T> elements, int numBuckets) {
+		Map<Integer, List<T>> buckets = new HashMap<>(numBuckets);
+
+		int initialCapacity = elements.size() / numBuckets;
+
+		int index = 0;
+		for (T element : elements) {
+			int bucket = index % numBuckets;
+			buckets.computeIfAbsent(bucket, key -> new ArrayList<>(initialCapacity)).add(element);
+		}
+
+		return buckets.values();
 	}
 }

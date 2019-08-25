@@ -72,7 +72,6 @@ public class JarDeleteHandlerTest extends TestLogger {
 		jarDir = temporaryFolder.newFolder().toPath();
 		restfulGateway = TestingRestfulGateway.newBuilder().build();
 		jarDeleteHandler = new JarDeleteHandler(
-			CompletableFuture.completedFuture("localhost:12345"),
 			() -> CompletableFuture.completedFuture(restfulGateway),
 			Time.seconds(10),
 			Collections.emptyMap(),

@@ -20,14 +20,11 @@ package org.apache.flink.cep.scala
 import java.util.{UUID, List => JList, Map => JMap}
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.flink.cep.pattern.{Pattern => JPattern}
-import org.apache.flink.cep.scala.pattern.Pattern
-import org.apache.flink.cep.{EventComparator, PatternFlatSelectFunction, PatternFlatTimeoutFunction, PatternSelectFunction, PatternTimeoutFunction, PatternStream => JPatternStream}
+import org.apache.flink.cep.functions.PatternProcessFunction
+import org.apache.flink.cep.{PatternFlatSelectFunction, PatternFlatTimeoutFunction, PatternSelectFunction, PatternTimeoutFunction, PatternStream => JPatternStream}
 import org.apache.flink.streaming.api.scala.{asScalaStream, _}
 import org.apache.flink.util.Collector
 
-import org.apache.flink.cep.operator.CEPOperatorUtils
-import org.apache.flink.cep.scala.pattern.Pattern
 import scala.collection.Map
 
 /**
@@ -43,11 +40,19 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
   private[flink] def wrappedPatternStream = jPatternStream
 
-  def getPattern: Pattern[T, T] = Pattern(jPatternStream.getPattern.asInstanceOf[JPattern[T, T]])
-
-  def getInputStream: DataStream[T] = asScalaStream(jPatternStream.getInputStream)
-
-  def getComparator: EventComparator[T] = jPatternStream.getComparator
+  /**
+    * Applies a process function to the detected pattern sequence. For each pattern sequence the
+    * provided [[PatternProcessFunction]] is called.
+    *
+    * @param patternProcessFunction The pattern process function which is called for each detected
+    *                              pattern sequence.
+    * @tparam R Type of the resulting elements
+    * @return [[DataStream]] which contains the resulting elements from the pattern select function.
+    */
+  def process[R: TypeInformation](patternProcessFunction: PatternProcessFunction[T, R])
+  : DataStream[R] = {
+    asScalaStream(jPatternStream.process(patternProcessFunction, implicitly[TypeInformation[R]]))
+  }
 
   /**
     * Applies a select function to the detected pattern sequence. For each pattern sequence the
@@ -440,6 +445,11 @@ class PatternStream[T](jPatternStream: JPatternStream[T]) {
 
     flatSelect(outputTag, patternFlatTimeoutFun, patternFlatSelectFun)
   }
+
+ def sideOutputLateData(lateDataOutputTag: OutputTag[T]): PatternStream[T] = {
+   jPatternStream.sideOutputLateData(lateDataOutputTag)
+   this
+ }
 }
 
 object PatternStream {

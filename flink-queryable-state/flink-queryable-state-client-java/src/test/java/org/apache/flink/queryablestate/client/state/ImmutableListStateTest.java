@@ -19,6 +19,7 @@
 package org.apache.flink.queryablestate.client.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -42,7 +43,7 @@ public class ImmutableListStateTest {
 	private final ListStateDescriptor<Long> listStateDesc =
 			new ListStateDescriptor<>("test", BasicTypeInfo.LONG_TYPE_INFO);
 
-	private ImmutableListState<Long> listState;
+	private ListState<Long> listState;
 
 	@Before
 	public void setUp() throws Exception {
@@ -58,7 +59,7 @@ public class ImmutableListStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testUpdate() {
+	public void testUpdate() throws Exception {
 		List<Long> list = getStateContents();
 		assertEquals(1L, list.size());
 
@@ -69,7 +70,7 @@ public class ImmutableListStateTest {
 	}
 
 	@Test(expected = UnsupportedOperationException.class)
-	public void testClear() {
+	public void testClear() throws Exception {
 		List<Long> list = getStateContents();
 		assertEquals(1L, list.size());
 
@@ -100,7 +101,7 @@ public class ImmutableListStateTest {
 		return baos.toByteArray();
 	}
 
-	private List<Long> getStateContents() {
+	private List<Long> getStateContents() throws Exception {
 		List<Long> list = new ArrayList<>();
 		for (Long elem: listState.get()) {
 			list.add(elem);

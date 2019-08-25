@@ -145,7 +145,7 @@ public class UnregisteredMetricGroups {
 		}
 
 		@Override
-		public OperatorMetricGroup addOperator(OperatorID operatorID, String name) {
+		public OperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
 			return createUnregisteredOperatorMetricGroup();
 		}
 	}

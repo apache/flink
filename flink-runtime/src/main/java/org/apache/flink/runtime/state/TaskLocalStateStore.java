@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 
 import javax.annotation.Nonnegative;
@@ -33,6 +34,7 @@ import java.util.function.LongPredicate;
  * state is typically lost in case of machine failures. In such cases (and others), client code of this class must fall
  * back to using the slower but highly available store.
  */
+@Internal
 public interface TaskLocalStateStore {
 	/**
 	 * Stores the local state for the given checkpoint id.

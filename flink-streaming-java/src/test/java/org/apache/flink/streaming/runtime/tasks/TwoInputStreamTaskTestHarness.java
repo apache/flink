@@ -36,7 +36,7 @@ import java.util.function.Function;
 
 
 /**
- * Test harness for testing a {@link TwoInputStreamTask}.
+ * Test harness for testing a {@link TwoInputStreamTask} or a {@link TwoInputSelectableStreamTask}.
  *
  * <p>This mock Invokable provides the task with a basic runtime context and allows pushing elements
  * and watermarks into the task. {@link #getOutput()} can be used to get the emitted elements
@@ -71,7 +71,7 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 	 * it should be assigned to the first (1), or second (2) input of the task.
 	 */
 	public TwoInputStreamTaskTestHarness(
-			Function<Environment, ? extends TwoInputStreamTask<IN1, IN2, OUT>> taskFactory,
+			Function<Environment, ? extends AbstractTwoInputStreamTask<IN1, IN2, OUT>> taskFactory,
 			int numInputGates,
 			int numInputChannelsPerGate,
 			int[] inputGateAssignment,
@@ -98,7 +98,7 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 	 * second task input.
 	 */
 	public TwoInputStreamTaskTestHarness(
-			Function<Environment, ? extends TwoInputStreamTask<IN1, IN2, OUT>> taskFactory,
+			Function<Environment, ? extends AbstractTwoInputStreamTask<IN1, IN2, OUT>> taskFactory,
 			TypeInformation<IN1> inputType1,
 			TypeInformation<IN2> inputType2,
 			TypeInformation<OUT> outputType) {
@@ -116,8 +116,8 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 			private static final long serialVersionUID = 1L;
 		};
 
-		StreamNode sourceVertexDummy = new StreamNode(null, 0, "default group", dummyOperator, "source dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
-		StreamNode targetVertexDummy = new StreamNode(null, 1, "default group", dummyOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
+		StreamNode sourceVertexDummy = new StreamNode(0, "default group", null, dummyOperator, "source dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
+		StreamNode targetVertexDummy = new StreamNode(1, "default group", null, dummyOperator, "target dummy", new LinkedList<OutputSelector<?>>(), SourceStreamTask.class);
 
 		for (int i = 0; i < numInputGates; i++) {
 
@@ -169,8 +169,8 @@ public class TwoInputStreamTaskTestHarness<IN1, IN2, OUT> extends StreamTaskTest
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public TwoInputStreamTask<IN1, IN2, OUT> getTask() {
-		return (TwoInputStreamTask<IN1, IN2, OUT>) super.getTask();
+	public AbstractTwoInputStreamTask<IN1, IN2, OUT> getTask() {
+		return (AbstractTwoInputStreamTask<IN1, IN2, OUT>) super.getTask();
 	}
 }
 

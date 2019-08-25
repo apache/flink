@@ -18,12 +18,18 @@
 
 package org.apache.flink.runtime.executiongraph.failover;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.checkpoint.CheckpointException;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
+import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.GlobalModVersionMismatch;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.LocationPreferenceConstraint;
 import org.apache.flink.util.AbstractID;
@@ -36,8 +42,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -63,17 +69,19 @@ public class FailoverRegion {
 
 	private final List<ExecutionVertex> connectedExecutionVertexes;
 
-	/** The executor that executes the recovery action after all vertices are in a */
-	private final Executor executor;
+	private final Map<JobVertexID, ExecutionJobVertex> tasks;
 
 	/** Current status of the job execution */
 	private volatile JobStatus state = JobStatus.RUNNING;
 
+	public FailoverRegion(
+		ExecutionGraph executionGraph,
+		List<ExecutionVertex> connectedExecutions,
+		Map<JobVertexID, ExecutionJobVertex> tasks) {
 
-	public FailoverRegion(ExecutionGraph executionGraph, Executor executor, List<ExecutionVertex> connectedExecutions) {
 		this.executionGraph = checkNotNull(executionGraph);
-		this.executor = checkNotNull(executor);
 		this.connectedExecutionVertexes = checkNotNull(connectedExecutions);
+		this.tasks = checkNotNull(tasks);
 
 		LOG.debug("Created failover region {} with vertices: {}", id, connectedExecutions);
 	}
@@ -109,14 +117,7 @@ public class FailoverRegion {
 		return state;
 	}
 
-	/**
-	 * get all execution vertexes contained in this region
-	 */
-	public List<ExecutionVertex> getAllExecutionVertexes() {
-		return connectedExecutionVertexes;
-	}
-
-	// Notice the region to failover, 
+	// Notice the region to failover,
 	private void failover(long globalModVersionOfFailover) {
 		if (!executionGraph.getRestartStrategy().canRestart()) {
 			executionGraph.failGlobal(new FlinkException("RestartStrategy validate fail"));
@@ -137,32 +138,34 @@ public class FailoverRegion {
 
 	// cancel all executions in this sub graph
 	private void cancel(final long globalModVersionOfFailover) {
+		executionGraph.getJobMasterMainThreadExecutor().assertRunningInMainThread();
 		while (true) {
 			JobStatus curStatus = this.state;
 			if (curStatus.equals(JobStatus.RUNNING)) {
 				if (transitionState(curStatus, JobStatus.CANCELLING)) {
 
-					// we build a future that is complete once all vertices have reached a terminal state
-					final ArrayList<CompletableFuture<?>> futures = new ArrayList<>(connectedExecutionVertexes.size());
-
-					// cancel all tasks (that still need cancelling)
-					for (ExecutionVertex vertex : connectedExecutionVertexes) {
-						futures.add(vertex.cancel());
-					}
-
-					final FutureUtils.ConjunctFuture<Void> allTerminal = FutureUtils.waitForAll(futures);
-					allTerminal.thenAcceptAsync(
-						(Void value) -> allVerticesInTerminalState(globalModVersionOfFailover),
-						executor);
-
+					createTerminationFutureOverAllConnectedVertexes()
+						.thenAccept((nullptr) -> allVerticesInTerminalState(globalModVersionOfFailover));
 					break;
 				}
-			}
-			else {
+			} else {
 				LOG.info("FailoverRegion {} is {} when cancel.", id, state);
 				break;
 			}
 		}
+	}
+
+	@VisibleForTesting
+	protected CompletableFuture<Void> createTerminationFutureOverAllConnectedVertexes() {
+		// we build a future that is complete once all vertices have reached a terminal state
+		final ArrayList<CompletableFuture<?>> futures = new ArrayList<>(connectedExecutionVertexes.size());
+
+		// cancel all tasks (that still need cancelling)
+		for (ExecutionVertex vertex : connectedExecutionVertexes) {
+			futures.add(vertex.cancel());
+		}
+
+		return FutureUtils.waitForAll(futures);
 	}
 
 	// reset all executions in this sub graph
@@ -205,21 +208,33 @@ public class FailoverRegion {
 		try {
 			if (transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
 				// if we have checkpointed state, reload it into the executions
-				//TODO: checkpoint support restore part ExecutionVertex cp
-				/**
 				if (executionGraph.getCheckpointCoordinator() != null) {
+					// we abort pending checkpoints for
+					// i) enable new checkpoint could be triggered without waiting for last checkpoint expired.
+					// ii) ensure the EXACTLY_ONCE semantics if needed.
+					executionGraph.getCheckpointCoordinator().abortPendingCheckpoints(
+						new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION));
+
 					executionGraph.getCheckpointCoordinator().restoreLatestCheckpointedState(
-							connectedExecutionVertexes, false, false);
+						tasks, false, true);
 				}
-				*/
+
+				HashSet<AllocationID> previousAllocationsInRegion = new HashSet<>(connectedExecutionVertexes.size());
+				for (ExecutionVertex connectedExecutionVertex : connectedExecutionVertexes) {
+					AllocationID latestPriorAllocation = connectedExecutionVertex.getLatestPriorAllocation();
+					if (latestPriorAllocation != null) {
+						previousAllocationsInRegion.add(latestPriorAllocation);
+					}
+				}
+
 				//TODO, use restart strategy to schedule them.
 				//restart all connected ExecutionVertexes
 				for (ExecutionVertex ev : connectedExecutionVertexes) {
 					try {
 						ev.scheduleForExecution(
-							executionGraph.getSlotProvider(),
-							executionGraph.isQueuedSchedulingAllowed(),
-							LocationPreferenceConstraint.ANY); // some inputs not belonging to the failover region might have failed concurrently
+							executionGraph.getSlotProviderStrategy(),
+							LocationPreferenceConstraint.ANY,
+							previousAllocationsInRegion); // some inputs not belonging to the failover region might have failed concurrently
 					}
 					catch (Throwable e) {
 						failover(globalModVersionOfFailover);

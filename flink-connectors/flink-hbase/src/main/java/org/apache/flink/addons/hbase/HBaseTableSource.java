@@ -18,20 +18,24 @@
 
 package org.apache.flink.addons.hbase;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.sources.BatchTableSource;
+import org.apache.flink.table.sources.LookupableTableSource;
 import org.apache.flink.table.sources.ProjectableTableSource;
-import org.apache.flink.table.util.TableConnectorUtil;
+import org.apache.flink.table.sources.StreamTableSource;
+import org.apache.flink.table.utils.TableConnectorUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
-
-import java.util.Map;
 
 /**
  * Creates a TableSource to scan an HBase table.
@@ -46,22 +50,24 @@ import java.util.Map;
  * <pre>
  * {@code
  * HBaseTableSource hSrc = new HBaseTableSource(conf, "hTable");
+ * hSrc.setRowKey("rowkey", String.class);
  * hSrc.addColumn("fam1", "col1", byte[].class);
  * hSrc.addColumn("fam1", "col2", Integer.class);
  * hSrc.addColumn("fam2", "col1", String.class);
  *
  * tableEnv.registerTableSource("hTable", hSrc);
- * Table res = tableEnv.sql("SELECT t.fam2.col1, SUM(t.fam1.col2) FROM hTable AS t GROUP BY t.fam2.col1");
+ * Table res = tableEnv.sqlQuery(
+ *   "SELECT t.fam2.col1, SUM(t.fam1.col2) FROM hTable AS t " +
+ *   "WHERE t.rowkey LIKE 'flink%' GROUP BY t.fam2.col1");
  * }
  * </pre>
- *
  */
-public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTableSource<Row> {
+public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTableSource<Row>, StreamTableSource<Row>, LookupableTableSource<Row> {
 
-	private Configuration conf;
-	private String tableName;
-	private HBaseTableSchema hBaseSchema;
-	private TableSchema tableSchema;
+	private final Configuration conf;
+	private final String tableName;
+	private final HBaseTableSchema hbaseSchema;
+	private final int[] projectFields;
 
 	/**
 	 * The HBase configuration and the name of the table to read.
@@ -70,16 +76,14 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 	 * @param tableName the tableName
 	 */
 	public HBaseTableSource(Configuration conf, String tableName) {
-		this.conf = conf;
-		this.tableName = Preconditions.checkNotNull(tableName, "Table  name");
-		this.hBaseSchema = new HBaseTableSchema();
+		this(conf, tableName, new HBaseTableSchema(), null);
 	}
 
-	private HBaseTableSource(Configuration conf, String tableName, TableSchema tableSchema) {
+	HBaseTableSource(Configuration conf, String tableName, HBaseTableSchema hbaseSchema, int[] projectFields) {
 		this.conf = conf;
 		this.tableName = Preconditions.checkNotNull(tableName, "Table  name");
-		this.hBaseSchema = new HBaseTableSchema();
-		this.tableSchema = tableSchema;
+		this.hbaseSchema = hbaseSchema;
+		this.projectFields = projectFields;
 	}
 
 	/**
@@ -90,7 +94,16 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 	 * @param clazz     the data type of the qualifier
 	 */
 	public void addColumn(String family, String qualifier, Class<?> clazz) {
-		this.hBaseSchema.addColumn(family, qualifier, clazz);
+		this.hbaseSchema.addColumn(family, qualifier, clazz);
+	}
+
+	/**
+	 * Sets row key information in the table schema.
+	 * @param rowKeyName the row key field name
+	 * @param clazz the data type of the row key
+	 */
+	public void setRowKey(String rowKeyName, Class<?> clazz) {
+		this.hbaseSchema.setRowKey(rowKeyName, clazz);
 	}
 
 	/**
@@ -99,61 +112,82 @@ public class HBaseTableSource implements BatchTableSource<Row>, ProjectableTable
 	 * @param charset Name of the charset to use.
 	 */
 	public void setCharset(String charset) {
-		this.hBaseSchema.setCharset(charset);
+		this.hbaseSchema.setCharset(charset);
 	}
 
 	@Override
 	public TypeInformation<Row> getReturnType() {
-		return new RowTypeInfo(getFieldTypes(), getFieldNames());
+		HBaseTableSchema projectedSchema = hbaseSchema.getProjectedHBaseTableSchema(projectFields);
+		return projectedSchema.convertsToTableSchema().toRowType();
 	}
 
 	@Override
 	public TableSchema getTableSchema() {
-		if (this.tableSchema == null) {
-			return new TableSchema(getFieldNames(), getFieldTypes());
-		} else {
-			return this.tableSchema;
-		}
-	}
-
-	private String[] getFieldNames() {
-		return hBaseSchema.getFamilyNames();
-	}
-
-	private TypeInformation[] getFieldTypes() {
-		String[] famNames = hBaseSchema.getFamilyNames();
-		TypeInformation<?>[] fieldTypes = new TypeInformation[hBaseSchema.getFamilyNames().length];
-		int i = 0;
-		for (String family : famNames) {
-			fieldTypes[i] = new RowTypeInfo(hBaseSchema.getQualifierTypes(family), hBaseSchema.getQualifierNames(family));
-			i++;
-		}
-		return fieldTypes;
+		return hbaseSchema.convertsToTableSchema();
 	}
 
 	@Override
 	public DataSet<Row> getDataSet(ExecutionEnvironment execEnv) {
-		return execEnv.createInput(new HBaseRowInputFormat(conf, tableName, hBaseSchema), getReturnType()).name(explainSource());
+		HBaseTableSchema projectedSchema = hbaseSchema.getProjectedHBaseTableSchema(projectFields);
+		return execEnv
+			.createInput(new HBaseRowInputFormat(conf, tableName, projectedSchema), getReturnType())
+			.name(explainSource());
 	}
 
 	@Override
 	public HBaseTableSource projectFields(int[] fields) {
-		String[] famNames = hBaseSchema.getFamilyNames();
-		HBaseTableSource newTableSource = new HBaseTableSource(this.conf, tableName, getTableSchema().copy());
-		// Extract the family from the given fields
-		for (int field : fields) {
-			String family = famNames[field];
-			Map<String, TypeInformation<?>> familyInfo = hBaseSchema.getFamilyInfo(family);
-			for (String qualifier : familyInfo.keySet()) {
-				// create the newSchema
-				newTableSource.addColumn(family, qualifier, familyInfo.get(qualifier).getTypeClass());
-			}
-		}
-		return newTableSource;
+		return new HBaseTableSource(this.conf, tableName, hbaseSchema, fields);
 	}
 
 	@Override
 	public String explainSource() {
-		return TableConnectorUtil.generateRuntimeName(this.getClass(), getFieldNames());
+		return TableConnectorUtils.generateRuntimeName(this.getClass(), getTableSchema().getFieldNames());
+	}
+
+	@Override
+	public TableFunction<Row> getLookupFunction(String[] lookupKeys) {
+		Preconditions.checkArgument(
+			null != lookupKeys && lookupKeys.length == 1,
+			"HBase table can only be retrieved by rowKey for now.");
+		Preconditions.checkState(
+			hbaseSchema.getRowKeyName().isPresent(),
+			"HBase schema must have a row key when used in lookup mode.");
+		Preconditions.checkState(
+			hbaseSchema.getRowKeyName().get().equals(lookupKeys[0]),
+			"The lookup key is not row key of HBase.");
+
+		return new HBaseLookupFunction(
+			this.conf,
+			this.tableName,
+			hbaseSchema.getProjectedHBaseTableSchema(projectFields));
+	}
+
+	@Override
+	public AsyncTableFunction<Row> getAsyncLookupFunction(String[] lookupKeys) {
+		throw new UnsupportedOperationException("HBase table doesn't support async lookup currently.");
+	}
+
+	@Override
+	public boolean isAsyncEnabled() {
+		return false;
+	}
+
+	@Override
+	public boolean isBounded() {
+		// HBase source is always bounded.
+		return true;
+	}
+
+	@Override
+	public DataStream<Row> getDataStream(StreamExecutionEnvironment execEnv) {
+		HBaseTableSchema projectedSchema = hbaseSchema.getProjectedHBaseTableSchema(projectFields);
+		return execEnv
+			.createInput(new HBaseRowInputFormat(conf, tableName, projectedSchema), getReturnType())
+			.name(explainSource());
+	}
+
+	@VisibleForTesting
+	HBaseTableSchema getHBaseTableSchema() {
+		return this.hbaseSchema;
 	}
 }

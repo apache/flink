@@ -404,56 +404,30 @@ public class PendingCheckpoint {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Aborts a checkpoint because it expired (took too long).
+	 * Aborts a checkpoint with reason and cause.
 	 */
-	public void abortExpired() {
+	public void abort(CheckpointFailureReason reason, @Nullable Throwable cause) {
 		try {
-			Exception cause = new Exception("Checkpoint expired before completing");
-			onCompletionPromise.completeExceptionally(cause);
-			reportFailedCheckpoint(cause);
+			CheckpointException exception = new CheckpointException(reason, cause);
+			onCompletionPromise.completeExceptionally(exception);
+			reportFailedCheckpoint(exception);
+			assertAbortSubsumedForced(reason);
 		} finally {
 			dispose(true);
 		}
 	}
 
 	/**
-	 * Aborts the pending checkpoint because a newer completed checkpoint subsumed it.
+	 * Aborts a checkpoint with reason and cause.
 	 */
-	public void abortSubsumed() {
-		try {
-			Exception cause = new Exception("Checkpoints has been subsumed");
-			onCompletionPromise.completeExceptionally(cause);
-			reportFailedCheckpoint(cause);
-
-			if (props.forceCheckpoint()) {
-				throw new IllegalStateException("Bug: forced checkpoints must never be subsumed");
-			}
-		} finally {
-			dispose(true);
-		}
+	public void abort(CheckpointFailureReason reason) {
+		abort(reason, null);
 	}
 
-	public void abortDeclined() {
-		try {
-			Exception cause = new Exception("Checkpoint was declined (tasks not ready)");
-			onCompletionPromise.completeExceptionally(cause);
-			reportFailedCheckpoint(cause);
-		} finally {
-			dispose(true);
-		}
-	}
-
-	/**
-	 * Aborts the pending checkpoint due to an error.
-	 * @param cause The error's exception.
-	 */
-	public void abortError(Throwable cause) {
-		try {
-			Exception failure = new Exception("Checkpoint failed: " + cause.getMessage(), cause);
-			onCompletionPromise.completeExceptionally(failure);
-			reportFailedCheckpoint(failure);
-		} finally {
-			dispose(true);
+	private void assertAbortSubsumedForced(CheckpointFailureReason reason) {
+		if (props.forceCheckpoint() && reason == CheckpointFailureReason.CHECKPOINT_SUBSUMED) {
+			throw new IllegalStateException("Bug: forced checkpoints must never be subsumed, " +
+				"the abort reason is : " + reason.message());
 		}
 	}
 

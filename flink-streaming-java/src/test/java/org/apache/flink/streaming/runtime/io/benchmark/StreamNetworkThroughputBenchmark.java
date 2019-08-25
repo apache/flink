@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.runtime.io.benchmark;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.types.LongValue;
 
 import java.util.concurrent.CompletableFuture;
@@ -28,9 +29,9 @@ import java.util.concurrent.TimeUnit;
  * <a href="https://github.com/dataArtisans/flink-benchmarks">flink-benchmarks</a> project.
  */
 public class StreamNetworkThroughputBenchmark {
-	private StreamNetworkBenchmarkEnvironment<LongValue> environment;
-	private ReceiverThread receiver;
-	private LongRecordWriterThread[] writerThreads;
+	protected StreamNetworkBenchmarkEnvironment<LongValue> environment;
+	protected ReceiverThread receiver;
+	protected LongRecordWriterThread[] writerThreads;
 
 	public void executeBenchmark(long records) throws Exception {
 		executeBenchmark(records, Long.MAX_VALUE);
@@ -59,6 +60,29 @@ public class StreamNetworkThroughputBenchmark {
 		setUp(recordWriters, channels, flushTimeout, false);
 	}
 
+	public void setUp(int recordWriters, int channels, int flushTimeout, boolean localMode) throws Exception {
+		setUp(recordWriters, channels, flushTimeout, localMode, -1, -1);
+	}
+
+	public void setUp(
+			int recordWriters,
+			int channels,
+			int flushTimeout,
+			boolean localMode,
+			int senderBufferPoolSize,
+			int receiverBufferPoolSize) throws Exception {
+		setUp(
+			recordWriters,
+			channels,
+			flushTimeout,
+			false,
+			localMode,
+			senderBufferPoolSize,
+			receiverBufferPoolSize,
+			new Configuration()
+		);
+	}
+
 	/**
 	 * Initializes the throughput benchmark with the given parameters.
 	 *
@@ -68,15 +92,32 @@ public class StreamNetworkThroughputBenchmark {
 	 * @param channels
 	 * 		number of outgoing channels / receivers
 	 */
-	public void setUp(int recordWriters, int channels, int flushTimeout, boolean localMode) throws Exception {
+	public void setUp(
+			int recordWriters,
+			int channels,
+			int flushTimeout,
+			boolean broadcastMode,
+			boolean localMode,
+			int senderBufferPoolSize,
+			int receiverBufferPoolSize,
+			Configuration config) throws Exception {
 		environment = new StreamNetworkBenchmarkEnvironment<>();
-		environment.setUp(recordWriters, channels, localMode);
-		receiver = environment.createReceiver();
+		environment.setUp(
+			recordWriters,
+			channels,
+			broadcastMode,
+			localMode,
+			senderBufferPoolSize,
+			receiverBufferPoolSize,
+			config);
 		writerThreads = new LongRecordWriterThread[recordWriters];
 		for (int writer = 0; writer < recordWriters; writer++) {
-			writerThreads[writer] = new LongRecordWriterThread(environment.createRecordWriter(writer, flushTimeout));
+			writerThreads[writer] = new LongRecordWriterThread(
+				environment.createRecordWriter(writer, flushTimeout),
+				broadcastMode);
 			writerThreads[writer].start();
 		}
+		receiver = environment.createReceiver();
 	}
 
 	/**

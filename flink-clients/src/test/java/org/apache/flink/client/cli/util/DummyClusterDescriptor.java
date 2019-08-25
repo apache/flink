@@ -60,7 +60,7 @@ public class DummyClusterDescriptor<T> implements ClusterDescriptor<T> {
 	}
 
 	@Override
-	public void terminateCluster(T clusterId) throws FlinkException {
+	public void killCluster(T clusterId) throws FlinkException {
 		throw new UnsupportedOperationException("Cannot terminate a dummy cluster.");
 	}
 

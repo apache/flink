@@ -45,4 +45,9 @@ public class CheckpointIdPathParameter extends MessagePathParameter<Long> {
 	protected String convertToString(Long value) {
 		return value.toString();
 	}
+
+	@Override
+	public String getDescription() {
+		return "Long value that identifies a checkpoint.";
+	}
 }

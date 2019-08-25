@@ -18,6 +18,26 @@
 
 package org.apache.flink.api.java.typeutils;
 
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
+import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.types.Value;
+
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.junit.Assert;
+import org.junit.Test;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -25,27 +45,27 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
-import org.apache.flink.api.java.tuple.Tuple1;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.typeutils.TypeInfoParserTest.MyValue;
-
-import org.junit.Assert;
-import org.junit.Test;
-
 /**
- *  Pojo Type tests
+ *  Pojo Type tests.
  *
- *  A Pojo is a bean-style class with getters, setters and empty ctor
- *   OR a class with all fields public (or for every private field, there has to be a public getter/setter)
- *   everything else is a generic type (that can't be used for field selection)
+ * <p>Pojo is a bean-style class with getters, setters and empty ctor
+ * OR a class with all fields public (or for every private field, there has to be a public getter/setter)
+ * everything else is a generic type (that can't be used for field selection)
  */
 public class PojoTypeExtractionTest {
+
+	/**
+	 * Simple test type that implements the {@link Value} interface.
+	 */
+	public static class MyValue implements Value {
+		private static final long serialVersionUID = 8607223484689147046L;
+
+		@Override
+		public void write(DataOutputView out) throws IOException {}
+
+		@Override
+		public void read(DataInputView in) throws IOException {}
+	}
 
 	public static class HasDuplicateField extends WC {
 		@SuppressWarnings("unused")
@@ -568,13 +588,13 @@ public class PojoTypeExtractionTest {
 		}
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testGenericPojoTypeInference1() {
-		MapFunction<?, ?> function = new MyMapper<String>();
+		MyMapper<String> function = new MyMapper<>();
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
-				TypeInfoParser.parse("org.apache.flink.api.java.typeutils.PojoTypeExtractionTest$PojoWithGenerics<key=int,field1=Long,field2=String>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(
+				function,
+				TypeInformation.of(new TypeHint<PojoWithGenerics<Long, String>>(){}));
 		
 		Assert.assertTrue(ti instanceof PojoTypeInfo<?>);
 		PojoTypeInfo<?> pti = (PojoTypeInfo<?>) ti;
@@ -611,10 +631,12 @@ public class PojoTypeExtractionTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testGenericPojoTypeInference2() {
-		MapFunction<?, ?> function = new MyMapper2<Boolean, Character>();
+		MyMapper2<Boolean, Character> function = new MyMapper2<>();
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
-				TypeInfoParser.parse("Tuple2<Character,Boolean>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(
+				function,
+				TypeInformation.of(new TypeHint<Tuple2<Character,Boolean>>(){}));
+
 		Assert.assertTrue(ti instanceof PojoTypeInfo<?>);
 		PojoTypeInfo<?> pti = (PojoTypeInfo<?>) ti;
 		for(int i = 0; i < pti.getArity(); i++) {
@@ -646,10 +668,11 @@ public class PojoTypeExtractionTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testGenericPojoTypeInference3() {
-		MapFunction<?, ?> function = new MyMapper3<Boolean, Character>();
+		MyMapper3<Boolean, Character> function = new MyMapper3<>();
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
-				TypeInfoParser.parse("org.apache.flink.api.java.typeutils.PojoTypeExtractionTest$PojoTuple<extraField=char,f0=boolean,f1=boolean,f2=long>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(
+				function,
+				TypeInformation.of(new TypeHint<PojoTuple<Character, Boolean, Boolean>>(){}));
 		
 		Assert.assertTrue(ti instanceof TupleTypeInfo<?>);
 		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
@@ -672,10 +695,11 @@ public class PojoTypeExtractionTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testGenericPojoTypeInference4() {
-		MapFunction<?, ?> function = new MyMapper4<Byte>();
+		MyMapper4<Byte> function = new MyMapper4<>();
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
-				TypeInfoParser.parse("org.apache.flink.api.java.typeutils.PojoTypeExtractionTest$PojoWithParameterizedFields1<field=Tuple2<byte,byte>>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(
+				function,
+				TypeInformation.of(new TypeHint<PojoWithParameterizedFields1<Byte>>(){}));
 		Assert.assertEquals(BasicTypeInfo.BYTE_TYPE_INFO, ti);
 	}
 
@@ -694,12 +718,11 @@ public class PojoTypeExtractionTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testGenericPojoTypeInference5() {
-		MapFunction<?, ?> function = new MyMapper5<Byte>();
+		MyMapper5<Byte> function = new MyMapper5<>();
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
-				TypeInfoParser.parse("org.apache.flink.api.java.typeutils.PojoTypeExtractionTest$PojoWithParameterizedFields2<"
-						+ "field=org.apache.flink.api.java.typeutils.PojoTypeExtractionTest$PojoWithGenerics<key=int,field1=byte,field2=byte>"
-						+ ">"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(
+				function,
+				TypeInformation.of(new TypeHint<PojoWithParameterizedFields2<Byte>>(){}));
 		Assert.assertEquals(BasicTypeInfo.BYTE_TYPE_INFO, ti);
 	}
 	
@@ -718,12 +741,11 @@ public class PojoTypeExtractionTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testGenericPojoTypeInference6() {
-		MapFunction<?, ?> function = new MyMapper6<Integer>();
+		MyMapper6<Integer> function = new MyMapper6<>();
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
-				TypeInfoParser.parse("org.apache.flink.api.java.typeutils.PojoTypeExtractionTest$PojoWithParameterizedFields3<"
-						+ "field=int[]"
-						+ ">"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(
+				function,
+				TypeInformation.of(new TypeHint<PojoWithParameterizedFields3<Integer>>(){}));
 		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
 	}
 
@@ -742,12 +764,12 @@ public class PojoTypeExtractionTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testGenericPojoTypeInference7() {
-		MapFunction<?, ?> function = new MyMapper7<Integer>();
+		MyMapper7<Integer> function = new MyMapper7<>();
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation)
-				TypeInfoParser.parse("org.apache.flink.api.java.typeutils.PojoTypeExtractionTest$PojoWithParameterizedFields4<"
-						+ "field=Tuple1<int>[]"
-						+ ">"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(
+				function,
+				TypeInformation.of(new TypeHint<PojoWithParameterizedFields4<Integer>>(){}));
+
 		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, ti);
 	}
 
@@ -858,4 +880,24 @@ public class PojoTypeExtractionTest {
 		Assert.assertEquals(GenericTypeInfo.class, ((PojoTypeInfo) pti).getPojoFieldAt(0).getTypeInformation().getClass());
 	}
 
+	/**
+	 * POJO generated using Lombok.
+	 */
+	@Getter
+	@Setter
+	@NoArgsConstructor
+	public static class TestLombok{
+		private int age = 10;
+		private String name;
+	}
+
+	@Test
+	public void testLombokPojo() {
+		TypeInformation<TestLombok> ti = TypeExtractor.getForClass(TestLombok.class);
+		Assert.assertTrue(ti instanceof PojoTypeInfo);
+
+		PojoTypeInfo<TestLombok> pti = (PojoTypeInfo<TestLombok>) ti;
+		Assert.assertEquals(BasicTypeInfo.INT_TYPE_INFO, pti.getTypeAt(0));
+		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, pti.getTypeAt(1));
+	}
 }

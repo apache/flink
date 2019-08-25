@@ -10,18 +10,24 @@
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
-package org.apache.flink.api.java.typeutils.runtime;
 
-import java.io.IOException;
+package org.apache.flink.api.java.typeutils.runtime;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
+import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot.SelfResolvingTypeSerializer;
+import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
+import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.api.java.tuple.Tuple0;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.Preconditions;
+
+import java.io.IOException;
 
 @Internal
-public class Tuple0Serializer extends TupleSerializer<Tuple0> {
+public class Tuple0Serializer extends TupleSerializer<Tuple0> implements SelfResolvingTypeSerializer<Tuple0> {
 	
 	private static final long serialVersionUID = 1278813169022975971L;
 
@@ -72,6 +78,7 @@ public class Tuple0Serializer extends TupleSerializer<Tuple0> {
 
 	@Override
 	public void serialize(Tuple0 record, DataOutputView target) throws IOException {
+		Preconditions.checkNotNull(record);
 		target.writeByte(42);
 	}
 
@@ -92,8 +99,12 @@ public class Tuple0Serializer extends TupleSerializer<Tuple0> {
 		target.writeByte(source.readByte());
 	}
 
-	// ------------------------------------------------------------------------
+	@Override
+	public TypeSerializerSnapshot<Tuple0> snapshotConfiguration() {
+		return new Tuple0SerializerSnapshot();
+	}
 
+	// ------------------------------------------------------------------------
 
 	@Override
 	public int hashCode() {
@@ -102,22 +113,19 @@ public class Tuple0Serializer extends TupleSerializer<Tuple0> {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (obj instanceof Tuple0Serializer) {
-			Tuple0Serializer other = (Tuple0Serializer) obj;
-
-			return other.canEqual(this);
-		} else {
-			return false;
-		}
-	}
-
-	@Override
-	public boolean canEqual(Object obj) {
 		return obj instanceof Tuple0Serializer;
 	}
 
 	@Override
 	public String toString() {
 		return "Tuple0Serializer";
+	}
+
+	@Override
+	public TypeSerializerSchemaCompatibility<Tuple0> resolveSchemaCompatibilityViaRedirectingToNewSnapshotClass(
+			TypeSerializerConfigSnapshot<Tuple0> deprecatedConfigSnapshot) {
+
+		Tuple0SerializerSnapshot snapshot = new Tuple0SerializerSnapshot();
+		return snapshot.resolveSchemaCompatibility(this);
 	}
 }

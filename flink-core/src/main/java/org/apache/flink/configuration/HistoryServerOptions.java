@@ -34,7 +34,7 @@ public class HistoryServerOptions {
 	public static final ConfigOption<Long> HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL =
 		key("historyserver.archive.fs.refresh-interval")
 			.defaultValue(10000L)
-			.withDescription("Interval in milliseconds for refreshing the archived job directories.");;
+			.withDescription("Interval in milliseconds for refreshing the archived job directories.");
 
 	/**
 	 * Comma-separated list of directories which the HistoryServer polls for new archives.
@@ -76,11 +76,12 @@ public class HistoryServerOptions {
 	 */
 	public static final ConfigOption<Long> HISTORY_SERVER_WEB_REFRESH_INTERVAL =
 		key("historyserver.web.refresh-interval")
-			.defaultValue(10000L);
+			.defaultValue(10000L)
+			.withDescription("The refresh interval for the HistoryServer web-frontend in milliseconds.");
 
 	/**
 	 * Enables/Disables SSL support for the HistoryServer web-frontend. Only relevant if
-	 * {@link SecurityOptions#SSL_ENABLED} is enabled.
+	 * {@link SecurityOptions#SSL_REST_ENABLED} is enabled.
 	 */
 	public static final ConfigOption<Boolean> HISTORY_SERVER_WEB_SSL_ENABLED =
 		key("historyserver.web.ssl.enabled")

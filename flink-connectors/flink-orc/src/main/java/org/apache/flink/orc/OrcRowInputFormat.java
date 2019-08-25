@@ -304,7 +304,6 @@ public class OrcRowInputFormat extends FileInputFormat<Row> implements ResultTyp
 	@Override
 	public void closeInputFormat() throws IOException {
 		this.rows = null;
-		this.rows = null;
 		this.schema = null;
 		this.rowBatch = null;
 	}

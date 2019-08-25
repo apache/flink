@@ -26,7 +26,6 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.messages.StackTraceSampleMessages.TriggerStackTraceSample;
 import org.apache.flink.runtime.messages.StackTraceSampleResponse;
 import org.apache.flink.util.TestLogger;
 
@@ -66,7 +65,7 @@ public class StackTraceSampleCoordinatorTest extends TestLogger {
 	@AfterClass
 	public static void tearDown() throws Exception {
 		if (system != null) {
-			system.shutdown();
+			system.terminate();
 		}
 	}
 
@@ -94,16 +93,6 @@ public class StackTraceSampleCoordinatorTest extends TestLogger {
 
 		// Verify messages have been sent
 		for (ExecutionVertex vertex : vertices) {
-			ExecutionAttemptID expectedExecutionId = vertex
-					.getCurrentExecutionAttempt().getAttemptId();
-
-			TriggerStackTraceSample expectedMsg = new TriggerStackTraceSample(
-					0,
-					expectedExecutionId,
-					numSamples,
-					delayBetweenSamples,
-					maxStackTraceDepth);
-
 			Mockito.verify(vertex.getCurrentExecutionAttempt())
 				.requestStackTraceSample(Matchers.eq(0), Matchers.eq(numSamples), Matchers.eq(delayBetweenSamples), Matchers.eq(maxStackTraceDepth), Matchers.any(Time.class));
 		}

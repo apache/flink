@@ -83,7 +83,8 @@ public class ScalaShellRemoteStreamEnvironment extends RemoteStreamEnvironment {
 		try {
 			jarUrl = flinkILoop.writeFilesToDisk().getAbsoluteFile().toURI().toURL();
 		} catch (MalformedURLException e) {
-			throw new ProgramInvocationException("Could not write the user code classes to disk.", e);
+			throw new ProgramInvocationException("Could not write the user code classes to disk.",
+				streamGraph.getJobGraph().getJobID(), e);
 		}
 
 		List<URL> allJarFiles = new ArrayList<>(jarFiles.size() + 1);

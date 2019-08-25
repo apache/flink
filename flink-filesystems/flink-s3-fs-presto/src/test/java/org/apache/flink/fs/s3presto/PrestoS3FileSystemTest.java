@@ -20,17 +20,19 @@ package org.apache.flink.fs.s3presto;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
+import org.apache.flink.fs.s3.common.FlinkS3FileSystem;
+import org.apache.flink.runtime.util.HadoopConfigLoader;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.services.s3.AmazonS3Client;
-import com.facebook.presto.hive.PrestoS3FileSystem;
+import com.facebook.presto.hive.s3.PrestoS3FileSystem;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
 import java.net.URI;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -75,14 +77,27 @@ public class PrestoS3FileSystemTest {
 		validateBasicCredentials(fs);
 	}
 
+	@Test
+	public void testShadingOfAwsCredProviderConfig() {
+		final Configuration conf = new Configuration();
+		conf.setString("presto.s3.credentials-provider", "com.amazonaws.auth.ContainerCredentialsProvider");
+
+		HadoopConfigLoader configLoader = S3FileSystemFactory.createHadoopConfigLoader();
+		configLoader.setFlinkConfig(conf);
+
+		org.apache.hadoop.conf.Configuration hadoopConfig = configLoader.getOrLoadHadoopConfig();
+		assertEquals("org.apache.flink.fs.s3base.shaded.com.amazonaws.auth.ContainerCredentialsProvider",
+			hadoopConfig.get("presto.s3.credentials-provider"));
+	}
+
 	// ------------------------------------------------------------------------
 	//  utilities
 	// ------------------------------------------------------------------------
 
 	private static void validateBasicCredentials(FileSystem fs) throws Exception {
-		assertTrue(fs instanceof HadoopFileSystem);
+		assertTrue(fs instanceof FlinkS3FileSystem);
 
-		org.apache.hadoop.fs.FileSystem hadoopFs = ((HadoopFileSystem) fs).getHadoopFileSystem();
+		org.apache.hadoop.fs.FileSystem hadoopFs = ((FlinkS3FileSystem) fs).getHadoopFileSystem();
 		assertTrue(hadoopFs instanceof PrestoS3FileSystem);
 
 		try (PrestoS3FileSystem prestoFs = (PrestoS3FileSystem) hadoopFs) {

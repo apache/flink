@@ -20,9 +20,9 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.decline.CheckpointDeclineOnCancellationBarrierException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -31,6 +31,9 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
+import org.apache.flink.streaming.runtime.io.CheckpointBarrierAlignerTestBase;
+import org.apache.flink.streaming.runtime.io.CheckpointBarrierAlignerTestBase.CheckpointExceptionMatcher;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskTest.NoOpStreamTask;
 
 import org.junit.Test;
 
@@ -38,11 +41,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
 /**
  * Test checkpoint cancellation barrier.
@@ -66,7 +69,7 @@ public class StreamTaskCancellationBarrierTest {
 
 		// tell the task to commence a checkpoint
 		boolean result = task.triggerCheckpoint(new CheckpointMetaData(41L, System.currentTimeMillis()),
-			CheckpointOptions.forCheckpointWithDefaultLocation());
+			CheckpointOptions.forCheckpointWithDefaultLocation(), false);
 		assertFalse("task triggered checkpoint though not ready", result);
 
 		// a cancellation barrier should be downstream
@@ -108,7 +111,8 @@ public class StreamTaskCancellationBarrierTest {
 		testHarness.waitForInputProcessing();
 
 		// the decline call should go to the coordinator
-		verify(environment, times(1)).declineCheckpoint(eq(2L), any(CheckpointDeclineOnCancellationBarrierException.class));
+		verify(environment, times(1)).declineCheckpoint(eq(2L),
+			argThat(new CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 
 		// a cancellation barrier should be downstream
 		Object result = testHarness.getOutput().poll();
@@ -152,7 +156,8 @@ public class StreamTaskCancellationBarrierTest {
 		testHarness.waitForInputProcessing();
 
 		// the decline call should go to the coordinator
-		verify(environment, times(1)).declineCheckpoint(eq(2L), any(CheckpointDeclineOnCancellationBarrierException.class));
+		verify(environment, times(1)).declineCheckpoint(eq(2L),
+			argThat(new CheckpointBarrierAlignerTestBase.CheckpointExceptionMatcher(CheckpointFailureReason.CHECKPOINT_DECLINED_ON_CANCELLATION_BARRIER)));
 
 		// a cancellation barrier should be downstream
 		Object result = testHarness.getOutput().poll();
@@ -169,7 +174,7 @@ public class StreamTaskCancellationBarrierTest {
 	//  test tasks / functions
 	// ------------------------------------------------------------------------
 
-	private static class InitBlockingTask extends StreamTask<String, AbstractStreamOperator<String>> {
+	private static class InitBlockingTask extends NoOpStreamTask<String, AbstractStreamOperator<String>> {
 
 		private final Object lock = new Object();
 		private volatile boolean running = true;
@@ -180,18 +185,13 @@ public class StreamTaskCancellationBarrierTest {
 
 		@Override
 		protected void init() throws Exception {
+			super.init();
 			synchronized (lock) {
 				while (running) {
 					lock.wait();
 				}
 			}
 		}
-
-		@Override
-		protected void run() throws Exception {}
-
-		@Override
-		protected void cleanup() throws Exception {}
 
 		@Override
 		protected void cancelTask() throws Exception {

@@ -46,6 +46,7 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.CompositeType.FlatFieldDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -84,7 +85,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getGroupReduceReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Boolean"));
+		TypeInformation<?> ti = TypeExtractor.getGroupReduceReturnTypes(function, (TypeInformation) Types.BOOLEAN);
 
 		Assert.assertTrue(ti.isBasicType());
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
@@ -113,7 +114,7 @@ public class TypeExtractorTest {
 
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple9<Integer, Long, Double, Float, Boolean, String, Character, Short, Byte>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple9<Integer, Long, Double, Float, Boolean, String, Character, Short, Byte>>(){}));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(9, ti.getArity());
@@ -180,7 +181,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getFlatMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple3<Tuple1<String>, Tuple1<Integer>, Tuple2<Long, Long>>"));
+		TypeInformation<?> ti = TypeExtractor.getFlatMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple3<Tuple1<String>, Tuple1<Integer>, Tuple2<Long, Long>>>(){}));
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(3, ti.getArity());
 		Assert.assertTrue(ti instanceof TupleTypeInfo);
@@ -249,7 +250,7 @@ public class TypeExtractorTest {
 		};
 
 		TypeInformation<?> ti = TypeExtractor.getFlatMapReturnTypes(function,
-				(TypeInformation) TypeInfoParser.parse("Tuple0"));
+				(TypeInformation) TypeInformation.of(new TypeHint<Tuple0>(){}));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(0, ti.getArity());
@@ -269,7 +270,7 @@ public class TypeExtractorTest {
 			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getFlatJoinReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<String, Integer>"), (TypeInformation) TypeInfoParser.parse("String"));
+		TypeInformation<?> ti = TypeExtractor.getFlatJoinReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){}), (TypeInformation) Types.STRING);
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -323,8 +324,8 @@ public class TypeExtractorTest {
 		};
 
 		TypeInformation<?> ti = TypeExtractor.getCrossReturnTypes(function, 
-				(TypeInformation) TypeInfoParser.parse("org.apache.flink.api.java.typeutils.TypeExtractorTest$CustomType"),
-				(TypeInformation) TypeInfoParser.parse("Integer"));
+				(TypeInformation) TypeInformation.of(new TypeHint<CustomType>(){}),
+				(TypeInformation) Types.INT);
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertFalse(ti.isTupleType());
@@ -394,7 +395,7 @@ public class TypeExtractorTest {
 		};
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, 
-				(TypeInformation) TypeInfoParser.parse("Tuple2<Long,org.apache.flink.api.java.typeutils.TypeExtractorTest$CustomType>"));
+				(TypeInformation) TypeInformation.of(new TypeHint<Tuple2<Long, CustomType>>(){}));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -451,7 +452,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getKeySelectorTypes(function, (TypeInformation) TypeInfoParser.parse("StringValue"));
+		TypeInformation<?> ti = TypeExtractor.getKeySelectorTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<StringValue>(){}));
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertFalse(ti.isTupleType());
@@ -481,7 +482,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<StringValue, IntValue>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple2<StringValue, IntValue>>(){}));
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertTrue(ti.isTupleType());
@@ -520,7 +521,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<Long, String>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple2<Long, String>>(){}));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -563,7 +564,7 @@ public class TypeExtractorTest {
 			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple3<String, Long, Integer>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple3<String, Long, Integer>>(){}));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(3, ti.getArity());
@@ -605,7 +606,7 @@ public class TypeExtractorTest {
 			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple3<String, Long, String>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple3<String, Long, String>>(){}));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(3, ti.getArity());
@@ -631,7 +632,7 @@ public class TypeExtractorTest {
 			}			
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple3<String, Long, String>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple3<String, Long, String>>(){}));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(3, ti.getArity());
@@ -656,11 +657,11 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String"), "name", true);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) Types.STRING, "name", true);
 		Assert.assertTrue(ti instanceof MissingTypeInfo);
 		
 		try {
-			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String"));
+			TypeExtractor.getMapReturnTypes(function, (TypeInformation) Types.STRING);
 			Assert.fail("Expected an exception");
 		}
 		catch (InvalidTypesException e) {
@@ -680,11 +681,11 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String"), "name", true);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) Types.STRING, "name", true);
 		Assert.assertTrue(ti instanceof MissingTypeInfo);
 		
 		try {
-			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String"));
+			TypeExtractor.getMapReturnTypes(function, (TypeInformation) Types.STRING);
 			Assert.fail("Expected an exception");
 		}
 		catch (InvalidTypesException e) {
@@ -712,7 +713,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<String, String>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -744,7 +745,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<String, Tuple2<Integer, Integer>>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple2<String, Tuple2<Integer, Integer>>>(){}));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -783,7 +784,7 @@ public class TypeExtractorTest {
 			}
 		};
 		
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<Boolean, Tuple2<Tuple2<Integer, Tuple2<Boolean, Boolean>>, Tuple2<Integer, Tuple2<Boolean, Boolean>>>>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple2<Boolean, Tuple2<Tuple2<Integer, Tuple2<Boolean, Boolean>>, Tuple2<Integer, Tuple2<Boolean, Boolean>>>>>(){}));
 
 		// Should be 
 		// Tuple2<Boolean, Tuple2<Tuple2<Integer, Tuple2<Boolean, Boolean>>, Tuple2<Integer, Tuple2<Boolean, Boolean>>>>
@@ -823,11 +824,11 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, TypeInfoParser.parse("String"), "name", true);
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, Types.STRING, "name", true);
 		Assert.assertTrue(ti instanceof MissingTypeInfo);
 		
 		try {
-			TypeExtractor.getMapReturnTypes(function, TypeInfoParser.parse("String"));
+			TypeExtractor.getMapReturnTypes(function, Types.STRING);
 			Assert.fail("Expected an exception");
 		}
 		catch (InvalidTypesException e) {
@@ -842,7 +843,7 @@ public class TypeExtractorTest {
 			private static final long serialVersionUID = 1L;
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Boolean"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) Types.BOOLEAN);
 
 		Assert.assertTrue(ti.isBasicType());
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, ti);
@@ -906,7 +907,7 @@ public class TypeExtractorTest {
 	public void testFunctionDependingOnInputWithCustomTupleInput() {
 		IdentityMapper<SameTypeVariable<String>> function = new IdentityMapper<SameTypeVariable<String>>();
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<String, String>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple2<String, String>>(){}));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -994,7 +995,7 @@ public class TypeExtractorTest {
 	public void testFunctionWithNoGenericSuperclass() {
 		RichMapFunction<?, ?> function = new Mapper2();
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) Types.STRING);
 
 		Assert.assertTrue(ti.isBasicType());
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, ti);
@@ -1015,7 +1016,7 @@ public class TypeExtractorTest {
 			private static final long serialVersionUID = 1L;
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("DoubleValue"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<DoubleValue>(){}));
 
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
@@ -1156,11 +1157,11 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti =TypeExtractor.getMapReturnTypes(function, (TypeInformation)TypeInfoParser.parse("StringValue"), "name", true);
+		TypeInformation<?> ti =TypeExtractor.getMapReturnTypes(function, (TypeInformation)TypeInformation.of(new TypeHint<StringValue>(){}), "name", true);
 		Assert.assertTrue(ti instanceof MissingTypeInfo);
 		
 		try {
-			TypeExtractor.getMapReturnTypes(function, (TypeInformation)TypeInfoParser.parse("StringValue"));
+			TypeExtractor.getMapReturnTypes(function, (TypeInformation)TypeInformation.of(new TypeHint<StringValue>(){}));
 			Assert.fail("Expected an exception");
 		}
 		catch (InvalidTypesException e) {
@@ -1181,7 +1182,7 @@ public class TypeExtractorTest {
 			}
 		};
 
-		TypeInformation<?> ti = TypeExtractor.getCoGroupReturnTypes(function, (TypeInformation) TypeInfoParser.parse("String[]"), (TypeInformation) TypeInfoParser.parse("String[]"));
+		TypeInformation<?> ti = TypeExtractor.getCoGroupReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<String[]>(){}), (TypeInformation) TypeInformation.of(new TypeHint<String[]>(){}));
 
 		Assert.assertFalse(ti.isBasicType());
 		Assert.assertFalse(ti.isTupleType());
@@ -1224,7 +1225,7 @@ public class TypeExtractorTest {
 		};
 
 		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function,
-				(TypeInformation) TypeInfoParser.parse("org.apache.flink.api.java.typeutils.TypeExtractorTest$CustomArrayObject[]"));
+				(TypeInformation) TypeInformation.of(new TypeHint<CustomArrayObject[]>(){}));
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
 		Assert.assertEquals(CustomArrayObject.class, ((ObjectArrayTypeInfo<?, ?>) ti).getComponentInfo().getTypeClass());
@@ -1242,7 +1243,7 @@ public class TypeExtractorTest {
 			}
 		};
 		
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<String, String>[]"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple2<String, String>[]>(){}));
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
 		ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) ti;
@@ -1262,7 +1263,7 @@ public class TypeExtractorTest {
 	public void testCustomArrayWithTypeVariable() {
 		RichMapFunction<CustomArrayObject2<Boolean>[], ?> function = new IdentityMapper<CustomArrayObject2<Boolean>[]>();
 
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple1<Boolean>[]"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple1<Boolean>[]>(){}));
 
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?, ?>);
 		ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) ti;
@@ -1287,7 +1288,7 @@ public class TypeExtractorTest {
 			private static final long serialVersionUID = 1L;			
 		};
 		
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Boolean[]"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Boolean[]>(){}));
 		Assert.assertTrue(ti instanceof ObjectArrayTypeInfo<?,?>);
 		ObjectArrayTypeInfo<?, ?> oati = (ObjectArrayTypeInfo<?, ?>) ti;
 		Assert.assertEquals(BasicTypeInfo.BOOLEAN_TYPE_INFO, oati.getComponentInfo());
@@ -1346,14 +1347,14 @@ public class TypeExtractorTest {
 		};
 		
 		try {
-			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple2<Integer, String>"));
+			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple2<Integer, String>>(){}));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
 		}
 		
 		try {
-			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInfoParser.parse("Tuple3<String, String, String>"));
+			TypeExtractor.getMapReturnTypes(function, (TypeInformation) TypeInformation.of(new TypeHint<Tuple3<String, String, String>>(){}));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
@@ -1369,7 +1370,7 @@ public class TypeExtractorTest {
 		};
 		
 		try {
-			TypeExtractor.getMapReturnTypes(function2, (TypeInformation) TypeInfoParser.parse("IntValue"));
+			TypeExtractor.getMapReturnTypes(function2, (TypeInformation) TypeInformation.of(new TypeHint<IntValue>(){}));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
@@ -1385,7 +1386,7 @@ public class TypeExtractorTest {
 		};
 		
 		try {
-			TypeExtractor.getMapReturnTypes(function3, (TypeInformation) TypeInfoParser.parse("Integer[]"));
+			TypeExtractor.getMapReturnTypes(function3, (TypeInformation) TypeInformation.of(new TypeHint<Integer[]>(){}));
 			Assert.fail("exception expected");
 		} catch (InvalidTypesException e) {
 			// right
@@ -1405,12 +1406,12 @@ public class TypeExtractorTest {
 	@Test
 	public void testTypeErasure() {
 		TypeInformation<?> ti = TypeExtractor.getFlatMapReturnTypes(new DummyFlatMapFunction<String, Integer, String, Boolean>(), 
-					(TypeInformation) TypeInfoParser.parse("Tuple2<String, Integer>"), "name", true);
+					(TypeInformation) TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){}), "name", true);
 		Assert.assertTrue(ti instanceof MissingTypeInfo);
 		
 		try {
 			TypeExtractor.getFlatMapReturnTypes(new DummyFlatMapFunction<String, Integer, String, Boolean>(), 
-					(TypeInformation) TypeInfoParser.parse("Tuple2<String, Integer>"));
+					(TypeInformation) TypeInformation.of(new TypeHint<Tuple2<String, Integer>>(){}));
 			
 			Assert.fail("Expected an exception");
 		}
@@ -1571,7 +1572,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testDuplicateValue() {
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) new DuplicateValue<String>(), TypeInfoParser.parse("Tuple1<String>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) new DuplicateValue<String>(), TypeInformation.of(new TypeHint<Tuple1<String>>(){}));
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
 		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
@@ -1591,7 +1592,7 @@ public class TypeExtractorTest {
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Test
 	public void testDuplicateValueNested() {
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) new DuplicateValueNested<String>(), TypeInfoParser.parse("Tuple1<Tuple1<String>>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) new DuplicateValueNested<String>(), TypeInformation.of(new TypeHint<Tuple1<Tuple1<String>>>(){}));
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(2, ti.getArity());
 		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
@@ -1618,7 +1619,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testInputInference1() {
 		EdgeMapper<String, Double> em = new EdgeMapper<String, Double>();
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) em, TypeInfoParser.parse("Tuple3<String, String, Double>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) em, TypeInformation.of(new TypeHint<Tuple3<String, String, Double>>(){}));
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(3, ti.getArity());
 		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
@@ -1641,7 +1642,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testInputInference2() {
 		EdgeMapper2<Boolean> em = new EdgeMapper2<Boolean>();
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) em, TypeInfoParser.parse("Boolean"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) em, Types.BOOLEAN);
 		Assert.assertTrue(ti.isTupleType());
 		Assert.assertEquals(3, ti.getArity());
 		TupleTypeInfo<?> tti = (TupleTypeInfo<?>) ti;
@@ -1663,7 +1664,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testInputInference3() {
 		EdgeMapper3<Boolean, String> em = new EdgeMapper3<Boolean, String>();
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) em, TypeInfoParser.parse("Tuple3<Boolean,Boolean,String>"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) em, TypeInformation.of(new TypeHint<Tuple3<Boolean,Boolean,String>>(){}));
 		Assert.assertTrue(ti.isBasicType());
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, ti);
 	}
@@ -1681,7 +1682,7 @@ public class TypeExtractorTest {
 	@Test
 	public void testInputInference4() {
 		EdgeMapper4<Boolean, String> em = new EdgeMapper4<Boolean, String>();
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) em, TypeInfoParser.parse("Tuple3<Boolean,Boolean,String>[]"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction) em, TypeInformation.of(new TypeHint<Tuple3<Boolean,Boolean,String>[]>(){}));
 		Assert.assertTrue(ti.isBasicType());
 		Assert.assertEquals(BasicTypeInfo.STRING_TYPE_INFO, ti);
 	}
@@ -1762,7 +1763,7 @@ public class TypeExtractorTest {
 				return null;
 			}
 		};
-		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction)function, TypeInfoParser.parse("Tuple2<Integer, Double>[][]"));
+		TypeInformation<?> ti = TypeExtractor.getMapReturnTypes((MapFunction)function, TypeInformation.of(new TypeHint<Tuple2<Integer, Double>[][]>(){}));
 		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<Java Tuple2<Integer, Double>>>", ti.toString());
 
 		// primitive array
@@ -1775,7 +1776,7 @@ public class TypeExtractorTest {
 				return null;
 			}
 		};
-		ti = TypeExtractor.getMapReturnTypes((MapFunction)function, TypeInfoParser.parse("int[][][]"));
+		ti = TypeExtractor.getMapReturnTypes((MapFunction)function, TypeInformation.of(new TypeHint<int[][][]>(){}));
 		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<int[]>>", ti.toString());
 
 		// basic array
@@ -1788,7 +1789,7 @@ public class TypeExtractorTest {
 				return null;
 			}
 		};
-		ti = TypeExtractor.getMapReturnTypes((MapFunction)function, TypeInfoParser.parse("Integer[][][]"));
+		ti = TypeExtractor.getMapReturnTypes((MapFunction)function, TypeInformation.of(new TypeHint<Integer[][][]>(){}));
 		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<BasicArrayTypeInfo<Integer>>>", ti.toString());
 
 		// pojo array
@@ -1802,16 +1803,14 @@ public class TypeExtractorTest {
 			}
 		};
 		ti = TypeExtractor.getMapReturnTypes((MapFunction)function, 
-				TypeInfoParser.parse("org.apache.flink.api.java.typeutils.TypeExtractorTest$CustomType<"
-					+ "myField1=String,myField2=int"
-					+ ">[][][]"));
+				TypeInformation.of(new TypeHint<CustomType[][][]>(){}));
 		
 		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<"
 				+ "PojoType<org.apache.flink.api.java.typeutils.TypeExtractorTest$CustomType, fields = [myField1: String, myField2: Integer]>"
 				+ ">>>", ti.toString());
 		
 		// generic array
-		ti = TypeExtractor.getMapReturnTypes((MapFunction) new MapperWithMultiDimGenericArray<String>(), TypeInfoParser.parse("String[][][]"));
+		ti = TypeExtractor.getMapReturnTypes((MapFunction) new MapperWithMultiDimGenericArray<String>(), TypeInformation.of(new TypeHint<String[][][]>(){}));
 		Assert.assertEquals("ObjectArrayTypeInfo<ObjectArrayTypeInfo<ObjectArrayTypeInfo<Java Tuple1<String>>>>", ti.toString());
 	}
 

@@ -97,7 +97,7 @@ public class HashVsSortMiniBenchmark {
 	}
 
 	@After
-	public void afterTest() {
+	public void afterTest() throws Exception {
 		if (this.memoryManager != null) {
 			Assert.assertTrue("Memory Leak: Not all memory has been returned to the memory manager.",
 				this.memoryManager.verifyEmpty());
@@ -106,10 +106,7 @@ public class HashVsSortMiniBenchmark {
 		}
 		
 		if (this.ioManager != null) {
-			this.ioManager.shutdown();
-			if (!this.ioManager.isProperlyShutDown()) {
-				Assert.fail("I/O manager failed to properly shut down.");
-			}
+			this.ioManager.close();
 			this.ioManager = null;
 		}
 	}

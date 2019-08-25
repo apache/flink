@@ -25,23 +25,20 @@ import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGate
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.testutils.category.New;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-@Category(New.class)
 public class AllocatedSlotsTest extends TestLogger {
 
 	@Test
 	public void testOperations() throws Exception {
-		SlotPool.AllocatedSlots allocatedSlots = new SlotPool.AllocatedSlots();
+		SlotPoolImpl.AllocatedSlots allocatedSlots = new SlotPoolImpl.AllocatedSlots();
 
 		final AllocationID allocation1 = new AllocationID();
 		final SlotRequestId slotRequestID = new SlotRequestId();

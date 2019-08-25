@@ -18,13 +18,12 @@
 
 package org.apache.flink.test.operators;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RichMapPartitionFunction;
 import org.apache.flink.api.common.io.GenericInputFormat;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.io.GenericInputSplit;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
@@ -50,10 +49,9 @@ public class ExecutionEnvironmentITCase extends TestLogger {
 	@Test
 	public void testLocalEnvironmentWithConfig() throws Exception {
 		Configuration conf = new Configuration();
-		conf.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, PARALLELISM);
+		conf.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, PARALLELISM);
 
 		final ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment(conf);
-		env.setParallelism(ExecutionConfig.PARALLELISM_AUTO_MAX);
 		env.getConfig().disableSysoutLogging();
 
 		DataSet<Integer> result = env.createInput(new ParallelismDependentInputFormat())

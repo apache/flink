@@ -19,131 +19,131 @@
 package org.apache.flink.fs.s3presto;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.core.fs.FSDataOutputStream;
-import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.FileSystem;
-import org.apache.flink.core.fs.FileSystem.WriteMode;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.runtime.fs.hdfs.AbstractHadoopFileSystemITTest;
+import org.apache.flink.testutils.s3.S3TestCredentials;
 
-import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
+import static com.facebook.presto.hive.s3.PrestoS3FileSystem.S3_USE_INSTANCE_CREDENTIALS;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
- * Unit tests for the S3 file system support via Presto's PrestoS3FileSystem.
- * These tests do not actually read from or write to S3.
+ * Unit tests for the S3 file system support via Presto's {@link com.facebook.presto.hive.s3.PrestoS3FileSystem}.
+ *
+ * <p><strong>BEWARE</strong>: tests must take special care of S3's
+ * <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/Introduction.html#ConsistencyModel">consistency guarantees</a>
+ * and what the {@link com.facebook.presto.hive.s3.PrestoS3FileSystem} offers.
  */
-public class PrestoS3FileSystemITCase extends TestLogger {
+@RunWith(Parameterized.class)
+public class PrestoS3FileSystemITCase extends AbstractHadoopFileSystemITTest {
 
-	private static final String BUCKET = System.getenv("ARTIFACTS_AWS_BUCKET");
+	@Parameterized.Parameter
+	public String scheme;
+
+	@Parameterized.Parameters(name = "Scheme = {0}")
+	public static List<String> parameters() {
+		return Arrays.asList("s3", "s3p");
+	}
 
 	private static final String TEST_DATA_DIR = "tests-" + UUID.randomUUID();
 
-	private static final String ACCESS_KEY = System.getenv("ARTIFACTS_AWS_ACCESS_KEY");
-	private static final String SECRET_KEY = System.getenv("ARTIFACTS_AWS_SECRET_KEY");
-
 	@BeforeClass
-	public static void checkIfCredentialsArePresent() {
-		Assume.assumeTrue("AWS S3 bucket not configured, skipping test...", BUCKET != null);
-		Assume.assumeTrue("AWS S3 access key not configured, skipping test...", ACCESS_KEY != null);
-		Assume.assumeTrue("AWS S3 secret key not configured, skipping test...", SECRET_KEY != null);
-	}
-
-	@Test
-	public void testSimpleFileWriteAndRead() throws Exception {
+	public static void setup() throws IOException {
+		S3TestCredentials.assumeCredentialsAvailable();
+		// initialize configuration with valid credentials
 		final Configuration conf = new Configuration();
-		conf.setString("s3.access-key", ACCESS_KEY);
-		conf.setString("s3.secret-key", SECRET_KEY);
-
-		final String testLine = "Hello Upload!";
-
+		conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+		conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
 		FileSystem.initialize(conf);
 
-		final Path path = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR + "/test.txt");
-		final FileSystem fs = path.getFileSystem();
+		basePath = new Path(S3TestCredentials.getTestBucketUri() + TEST_DATA_DIR);
+		fs = basePath.getFileSystem();
+		deadline = System.nanoTime() + 30_000_000_000L;
 
-		try {
-			try (FSDataOutputStream out = fs.create(path, WriteMode.OVERWRITE);
-					OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
-				writer.write(testLine);
-			}
-
-			try (FSDataInputStream in = fs.open(path);
-					InputStreamReader ir = new InputStreamReader(in, StandardCharsets.UTF_8);
-					BufferedReader reader = new BufferedReader(ir)) {
-				String line = reader.readLine();
-				assertEquals(testLine, line);
-			}
-		}
-		finally {
-			fs.delete(path, false);
-		}
-	}
-
-	@Test
-	public void testDirectoryListing() throws Exception {
-		final Configuration conf = new Configuration();
-		conf.setString("s3.access-key", ACCESS_KEY);
-		conf.setString("s3.secret-key", SECRET_KEY);
-
-		FileSystem.initialize(conf);
-
-		final Path directory = new Path("s3://" + BUCKET + '/' + TEST_DATA_DIR + "/testdir/");
-		final FileSystem fs = directory.getFileSystem();
-
+		// check for uniqueness of the test directory
 		// directory must not yet exist
-		assertFalse(fs.exists(directory));
+		assertFalse(fs.exists(basePath));
+	}
 
-		try {
-			// create directory
-			assertTrue(fs.mkdirs(directory));
+	@Test
+	public void testConfigKeysForwarding() throws Exception {
+		final Path path = basePath;
 
-			// seems the presto file system does not assume existence of empty directories in S3
-//			assertTrue(fs.exists(directory));
+		// access without credentials should fail
+		{
+			Configuration conf = new Configuration();
+			// fail fast and do not fall back to trying EC2 credentials
+			conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
+			FileSystem.initialize(conf);
 
-			// directory empty
-			assertEquals(0, fs.listStatus(directory).length);
-
-			// create some files
-			final int numFiles = 3;
-			for (int i = 0; i < numFiles; i++) {
-				Path file = new Path(directory, "/file-" + i);
-				try (FSDataOutputStream out = fs.create(file, WriteMode.NO_OVERWRITE);
-						OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
-					writer.write("hello-" + i + "\n");
-				}
-			}
-
-			FileStatus[] files = fs.listStatus(directory);
-			assertNotNull(files);
-			assertEquals(3, files.length);
-
-			for (FileStatus status : files) {
-				assertFalse(status.isDir());
-			}
-
-			// now that there are files, the directory must exist
-			assertTrue(fs.exists(directory));
-		}
-		finally {
-			// clean up
-			fs.delete(directory, true);
+			try {
+				path.getFileSystem().exists(path);
+				fail("should fail with an exception");
+			} catch (IOException ignored) {}
 		}
 
-		// now directory must be gone
-		assertFalse(fs.exists(directory));
+		// standard Presto-style credential keys
+		{
+			Configuration conf = new Configuration();
+			conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
+			conf.setString("presto.s3.access-key", S3TestCredentials.getS3AccessKey());
+			conf.setString("presto.s3.secret-key", S3TestCredentials.getS3SecretKey());
+
+			FileSystem.initialize(conf);
+			path.getFileSystem().exists(path);
+		}
+
+		// shortened Presto-style credential keys
+		{
+			Configuration conf = new Configuration();
+			conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
+			conf.setString("s3.access-key", S3TestCredentials.getS3AccessKey());
+			conf.setString("s3.secret-key", S3TestCredentials.getS3SecretKey());
+
+			FileSystem.initialize(conf);
+			path.getFileSystem().exists(path);
+		}
+
+		// shortened Hadoop-style credential keys
+		{
+			Configuration conf = new Configuration();
+			conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
+			conf.setString("s3.access.key", S3TestCredentials.getS3AccessKey());
+			conf.setString("s3.secret.key", S3TestCredentials.getS3SecretKey());
+
+			FileSystem.initialize(conf);
+			path.getFileSystem().exists(path);
+		}
+
+		// shortened Hadoop-style credential keys with presto prefix
+		{
+			Configuration conf = new Configuration();
+			conf.setString(S3_USE_INSTANCE_CREDENTIALS, "false");
+			conf.setString("presto.s3.access.key", S3TestCredentials.getS3AccessKey());
+			conf.setString("presto.s3.secret.key", S3TestCredentials.getS3SecretKey());
+
+			FileSystem.initialize(conf);
+			path.getFileSystem().exists(path);
+		}
+
+		// re-set configuration
+		FileSystem.initialize(new Configuration());
+	}
+
+	@Override
+	protected void checkEmptyDirectory(Path path) throws IOException, InterruptedException {
+		// seems the presto file system does not assume existence of empty directories in S3
+		// do nothing as before
 	}
 }

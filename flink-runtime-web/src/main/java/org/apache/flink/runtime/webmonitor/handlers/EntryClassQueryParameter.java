@@ -28,4 +28,10 @@ public class EntryClassQueryParameter extends StringQueryParameter {
 	public EntryClassQueryParameter() {
 		super("entry-class", MessageParameterRequisiteness.OPTIONAL);
 	}
+
+	@Override
+	public String getDescription() {
+		return "String value that specifies the fully qualified name of the entry point class. " +
+			"Overrides the class defined in the jar file manifest.";
+	}
 }

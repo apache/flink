@@ -39,12 +39,12 @@ jobmanager.rpc.port: 6123
 
 # The heap size for the JobManager JVM
 
-jobmanager.heap.mb: 1024
+jobmanager.heap.size: 1024m
 
 
 # The heap size for the TaskManager JVM
 
-taskmanager.heap.mb: 1024
+taskmanager.heap.size: 1024m
 
 
 # The number of task slots that each TaskManager offers. Each slot runs one parallel pipeline.
@@ -120,23 +120,37 @@ parallelism.default: 1
 #
 # state.backend.incremental: false
 
+# The failover strategy, i.e., how the job computation recovers from task failures.
+# Only restart tasks that may have been affected by the task failure, which typically includes
+# downstream tasks and potentially upstream tasks if their produced data is no longer available for consumption.
+
+jobmanager.execution.failover-strategy: region
+
 #==============================================================================
-# Web Frontend
+# Rest & web frontend
 #==============================================================================
 
-# The address under which the web-based runtime monitor listens.
+# The port to which the REST client connects to. If rest.bind-port has
+# not been specified, then the server will bind to this port as well.
 #
-#jobmanager.web.address: 0.0.0.0
+#rest.port: 8081
 
-# The port under which the web-based runtime monitor listens.
-# A value of -1 deactivates the web server.
+# The address to which the REST client will connect to
+#
+#rest.address: 0.0.0.0
 
-web.port: 8081
+# Port range for the REST and web server to bind to.
+#
+#rest.bind-port: 8080-8090
+
+# The address that the REST & web server binds to
+#
+#rest.bind-address: 0.0.0.0
 
 # Flag to specify whether job submission is enabled from the web-based
 # runtime monitor. Uncomment to disable.
 
-#jobmanager.web.submit.enable: false
+#web.submit.enable: false
 
 #==============================================================================
 # Advanced
@@ -181,11 +195,11 @@ web.port: 8081
 
 # The amount of memory going to the network stack. These numbers usually need 
 # no tuning. Adjusting them may be necessary in case of an "Insufficient number
-# of network buffers" error. The default min is 64MB, teh default max is 1GB.
+# of network buffers" error. The default min is 64MB, the default max is 1GB.
 # 
 # taskmanager.network.memory.fraction: 0.1
-# taskmanager.network.memory.min: 67108864
-# taskmanager.network.memory.max: 1073741824
+# taskmanager.network.memory.min: 64mb
+# taskmanager.network.memory.max: 1gb
 
 #==============================================================================
 # Flink Cluster Security Configuration
