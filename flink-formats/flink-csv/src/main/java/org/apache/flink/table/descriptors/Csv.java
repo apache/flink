@@ -75,7 +75,7 @@ public class Csv extends FormatDescriptor {
 	}
 
 	/**
-	 * Sets the line delimiter ("\n" by default; otherwise "\r" or "\r\n" are allowed).
+	 * Sets the line delimiter ("\n" by default; otherwise "\r", "\r\n", or "" are allowed).
 	 *
 	 * @param delimiter the line delimiter
 	 */

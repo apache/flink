@@ -1114,7 +1114,7 @@ The CSV format can be used as follows:
 
     .fieldDelimiter(';')         // optional: field delimiter character (',' by default)
     .lineDelimiter("\r\n")       // optional: line delimiter ("\n" by default;
-                                 //   otherwise "\r" or "\r\n" are allowed)
+                                 //   otherwise "\r", "\r\n", or "" are allowed)
     .quoteCharacter('\'')        // optional: quote character for enclosing field values ('"' by default)
     .allowComments()             // optional: ignores comment lines that start with '#' (disabled by default);
                                  //   if enabled, make sure to also ignore parse errors to allow empty rows
@@ -1142,9 +1142,9 @@ The CSV format can be used as follows:
 
     .field_delimiter(';')          # optional: field delimiter character (',' by default)
     .line_delimiter("\r\n")        # optional: line delimiter ("\n" by default;
-                                   #   otherwise "\r" or "\r\n" are allowed)
-    .quote_character('\'')         # optional: quote character for enclosing field values ('"' by default)
-    .allow_comments()              # optional: ignores comment lines that start with '#' (disabled by default);
+                                   #   otherwise "\r", "\r\n", or "" are allowed)
+    .quote_character("'")          # optional: quote character for enclosing field values ('"' by default)
+    .allow_comments()              # optional: ignores comment lines that start with "#" (disabled by default);
                                    #   if enabled, make sure to also ignore parse errors to allow empty rows
     .ignore_parse_errors()         # optional: skip fields and rows with parse errors instead of failing;
                                    #   fields are set to null in case of errors
@@ -1169,7 +1169,8 @@ format:
   derive-schema: true
 
   field-delimiter: ";"         # optional: field delimiter character (',' by default)
-  line-delimiter: "\r\n"       # optional: line delimiter ("\n" by default; otherwise "\r" or "\r\n" are allowed)
+  line-delimiter: "\r\n"       # optional: line delimiter ("\n" by default;
+                               #   otherwise "\r", "\r\n", or "" are allowed)
   quote-character: "'"         # optional: quote character for enclosing field values ('"' by default)
   allow-comments: true         # optional: ignores comment lines that start with "#" (disabled by default);
                                #   if enabled, make sure to also ignore parse errors to allow empty rows

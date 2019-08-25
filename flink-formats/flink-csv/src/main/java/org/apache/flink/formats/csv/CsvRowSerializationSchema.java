@@ -116,9 +116,9 @@ public final class CsvRowSerializationSchema implements SerializationSchema<Row>
 
 		public Builder setLineDelimiter(String delimiter) {
 			Preconditions.checkNotNull(delimiter, "Delimiter must not be null.");
-			if (!delimiter.equals("\n") && !delimiter.equals("\r") && !delimiter.equals("\r\n")) {
+			if (!delimiter.equals("\n") && !delimiter.equals("\r") && !delimiter.equals("\r\n") && !delimiter.equals("")) {
 				throw new IllegalArgumentException(
-					"Unsupported new line delimiter. Only \\n, \\r, or \\r\\n are supported.");
+					"Unsupported new line delimiter. Only \\n, \\r, \\r\\n, or empty string are supported.");
 			}
 			this.csvSchema = this.csvSchema.rebuild().setLineSeparator(delimiter).build();
 			return this;
