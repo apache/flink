@@ -303,13 +303,13 @@ CREATE TABLE MyUserTable (
   -- declare a format for this system
   'format.type' = 'avro',
   'format.avro-schema' = '{
-                            \"namespace\": \"org.myorganization\",
-                            \"type\": \"record\",
-                            \"name\": \"UserMessage\",
-                            \"fields\": [
-                                {\"name\": \"ts\", \"type\": \"string\"},
-                                {\"name\": \"user\", \"type\": \"long\"},
-                                {\"name\": \"message\", \"type\": [\"string\", \"null\"]}
+                            "namespace": "org.myorganization",
+                            "type": "record",
+                            "name": "UserMessage",
+                            "fields": [
+                                {"name": "ts", "type": "string"},
+                                {"name": "user", "type": "long"},
+                                {"name": "message", "type": ["string", "null"]}
                             ]
                          }'
 );
@@ -753,7 +753,7 @@ The Kafka connector allows for reading and writing from and to an Apache Kafka t
     .version("0.11")  # required: valid connector versions are
                       # "0.8", "0.9", "0.10", "0.11", and "universal"
     .topic("...")     # required: topic name from which the table is read
-    
+
     # optional: connector specific properties
     .property("zookeeper.connect", "localhost:2181")
     .property("bootstrap.servers", "localhost:9092")
@@ -809,14 +809,14 @@ connector:
 CREATE TABLE MyUserTable (
   ...
 ) WITH (
-  'connector.type' = 'kafka',       
+  'connector.type' = 'kafka',
 
   'connector.version' = '0.11',     -- required: valid connector versions are
                                     -- "0.8", "0.9", "0.10", "0.11", and "universal"
 
   'connector.topic' = 'topic_name', -- required: topic name from which the table is read
 
-  'update-mode' = 'append',         -- required: update mode when used as table sink, 
+  'update-mode' = 'append',         -- required: update mode when used as table sink,
                                     -- only support append mode now.
 
   'connector.properties.0.key' = 'zookeeper.connect', -- optional: connector specific properties
@@ -825,8 +825,8 @@ CREATE TABLE MyUserTable (
   'connector.properties.1.value' = 'localhost:9092',
   'connector.properties.2.key' = 'group.id',
   'connector.properties.2.value' = 'testGroup',
-  'connector.startup-mode' = 'earliest-offset',    -- optional: valid modes are "earliest-offset", 
-                                                   -- "latest-offset", "group-offsets", 
+  'connector.startup-mode' = 'earliest-offset',    -- optional: valid modes are "earliest-offset",
+                                                   -- "latest-offset", "group-offsets",
                                                    -- or "specific-offsets"
 
   -- optional: used in case of startup mode with specific offsets
@@ -835,10 +835,10 @@ CREATE TABLE MyUserTable (
   'connector.specific-offsets.1.partition' = '1',
   'connector.specific-offsets.1.offset' = '300',
 
-  'connector.sink-partitioner' = '...',  -- optional: output partitioning from Flink's partitions 
-                                         -- into Kafka's partitions valid are "fixed" 
+  'connector.sink-partitioner' = '...',  -- optional: output partitioning from Flink's partitions
+                                         -- into Kafka's partitions valid are "fixed"
                                          -- (each Flink partition ends up in at most one Kafka partition),
-                                         -- "round-robin" (a Flink partition is distributed to 
+                                         -- "round-robin" (a Flink partition is distributed to
                                          -- Kafka partitions round-robin)
                                          -- "custom" (use a custom FlinkKafkaPartitioner subclass)
   -- optional: used in case of sink partitioner custom
@@ -1000,9 +1000,9 @@ CREATE TABLE MyUserTable (
   ...
 ) WITH (
   'connector.type' = 'elasticsearch', -- required: specify this table type is elasticsearch
-  
+
   'connector.version' = '6',          -- required: valid connector versions are "6"
-  
+
   'connector.hosts.0.hostname' = 'host_name',  -- required: one or more Elasticsearch hosts to connect to
   'connector.hosts.0.port' = '9092',
   'connector.hosts.0.protocol' = 'http',
@@ -1011,28 +1011,28 @@ CREATE TABLE MyUserTable (
 
   'connector.document-type' = 'user',  -- required: Elasticsearch document type
 
-  'update-mode' = 'append',            -- optional: update mode when used as table sink.           
+  'update-mode' = 'append',            -- optional: update mode when used as table sink.
 
   'connector.key-delimiter' = '$',     -- optional: delimiter for composite keys ("_" by default)
                                        -- e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
 
   'connector.key-null-literal' = 'n/a',  -- optional: representation for null fields in keys ("null" by default)
 
-  'connector.failure-handler' = '...',   -- optional: failure handling strategy in case a request to 
+  'connector.failure-handler' = '...',   -- optional: failure handling strategy in case a request to
                                          -- Elasticsearch fails ("fail" by default).
-                                         -- valid strategies are 
+                                         -- valid strategies are
                                          -- "fail" (throws an exception if a request fails and
-                                         -- thus causes a job failure), 
+                                         -- thus causes a job failure),
                                          -- "ignore" (ignores failures and drops the request),
-                                         -- "retry-rejected" (re-adds requests that have failed due 
-                                         -- to queue capacity saturation), 
+                                         -- "retry-rejected" (re-adds requests that have failed due
+                                         -- to queue capacity saturation),
                                          -- or "custom" for failure handling with a
                                          -- ActionRequestFailureHandler subclass
 
   -- optional: configure how to buffer elements before sending them in bulk to the cluster for efficiency
   'connector.flush-on-checkpoint' = 'true',   -- optional: disables flushing on checkpoint (see notes below!)
                                               -- ("true" by default)
-  'connector.bulk-flush.max-actions' = '42',  -- optional: maximum number of actions to buffer 
+  'connector.bulk-flush.max-actions' = '42',  -- optional: maximum number of actions to buffer
                                               -- for each bulk request
   'connector.bulk-flush.max-size' = '42 mb',  -- optional: maximum size of buffered actions in bytes
                                               -- per bulk request
@@ -1191,7 +1191,7 @@ CREATE TABLE MyUserTable (
   'format.line-delimiter' = '\r\n',       -- optional: line delimiter ("\n" by default; otherwise
                                           -- "\r" or "\r\n" are allowed)
   'format.quote-character' = '''',        -- optional: quote character for enclosing field values ('"' by default)
-  'format.allow-comments' = true,         -- optional: ignores comment lines that start with "#" 
+  'format.allow-comments' = true,         -- optional: ignores comment lines that start with "#"
                                           -- (disabled by default);
                                           -- if enabled, make sure to also ignore parse errors to allow empty rows
   'format.ignore-parse-errors' = 'true',  -- optional: skip fields and rows with parse errors instead of failing;
@@ -1370,16 +1370,16 @@ CREATE TABLE MyUserTable (
   'format.fields.1.name' = 'rideTime',
   'format.fields.1.type' = 'TIMESTAMP',
 
-  'format.json-schema' = '                  -- or by using a JSON schema which parses to DECIMAL and TIMESTAMP
-    {                           
-      \"type\": \"object\",
-      \"properties\": {
-        \"lon\": {
-          \"type\": \"number\"
+  'format.json-schema' =                    -- or by using a JSON schema which parses to DECIMAL and TIMESTAMP
+    '{
+      "type": "object",
+      "properties": {
+        "lon": {
+          "type": "number"
         },
-        \"rideTime\": {
-          \"type\": \"string\",
-          \"format\": \"date-time\"
+        "rideTime": {
+          "type": "string",
+          "format": "date-time"
         }
       }
     }',
@@ -1544,13 +1544,13 @@ CREATE TABLE MyUserTable (
   'format.type' = 'avro',                                 -- required: specify the schema type
   'format.record-class' = 'org.organization.types.User',  -- required: define the schema either by using an Avro specific record class
 
-  'format.avro-schema' = '                                -- or by using an Avro schema
-    {
-      \"type\": \"record\",
-      \"name\": \"test\",
-      \"fields\" : [
-        {\"name\": \"a\", \"type\": \"long\"},
-        {\"name\": \"b\", \"type\": \"string\"}
+  'format.avro-schema' =                                  -- or by using an Avro schema
+    '{
+      "type": "record",
+      "name": "test",
+      "fields" : [
+        {"name": "a", "type": "long"},
+        {"name": "b", "type": "string"}
       ]
     }'
 );

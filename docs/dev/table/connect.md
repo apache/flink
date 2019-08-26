@@ -303,13 +303,13 @@ CREATE TABLE MyUserTable (
   -- declare a format for this system
   'format.type' = 'avro',
   'format.avro-schema' = '{
-                            \"namespace\": \"org.myorganization\",
-                            \"type\": \"record\",
-                            \"name\": \"UserMessage\",
-                            \"fields\": [
-                                {\"name\": \"ts\", \"type\": \"string\"},
-                                {\"name\": \"user\", \"type\": \"long\"},
-                                {\"name\": \"message\", \"type\": [\"string\", \"null\"]}
+                            "namespace": "org.myorganization",
+                            "type": "record",
+                            "name": "UserMessage",
+                            "fields": [
+                                {"name": "ts", "type": "string"},
+                                {"name": "user", "type": "long"},
+                                {"name": "message", "type": ["string", "null"]}
                             ]
                          }'
 );
@@ -1370,16 +1370,16 @@ CREATE TABLE MyUserTable (
   'format.fields.1.name' = 'rideTime',
   'format.fields.1.type' = 'TIMESTAMP',
 
-  'format.json-schema' = '                  -- or by using a JSON schema which parses to DECIMAL and TIMESTAMP
-    {                           
-      \"type\": \"object\",
-      \"properties\": {
-        \"lon\": {
-          \"type\": \"number\"
+  'format.json-schema' =                    -- or by using a JSON schema which parses to DECIMAL and TIMESTAMP
+    '{
+      "type": "object",
+      "properties": {
+        "lon": {
+          "type": "number"
         },
-        \"rideTime\": {
-          \"type\": \"string\",
-          \"format\": \"date-time\"
+        "rideTime": {
+          "type": "string",
+          "format": "date-time"
         }
       }
     }',
@@ -1544,13 +1544,13 @@ CREATE TABLE MyUserTable (
   'format.type' = 'avro',                                 -- required: specify the schema type
   'format.record-class' = 'org.organization.types.User',  -- required: define the schema either by using an Avro specific record class
 
-  'format.avro-schema' = '                                -- or by using an Avro schema
-    {
-      \"type\": \"record\",
-      \"name\": \"test\",
-      \"fields\" : [
-        {\"name\": \"a\", \"type\": \"long\"},
-        {\"name\": \"b\", \"type\": \"string\"}
+  'format.avro-schema' =                                  -- or by using an Avro schema
+    '{
+      "type": "record",
+      "name": "test",
+      "fields" : [
+        {"name": "a", "type": "long"},
+        {"name": "b", "type": "string"}
       ]
     }'
 );
