@@ -101,14 +101,14 @@ Afterwards, you can inspect the running Docker containers with the following com
 {% highlight bash %}
 docker-compose ps
 
-                     Name                                    Command               State                   Ports                
---------------------------------------------------------------------------------------------------------------------------------
-flink-cluster-playground_clickevent-generator_1   /docker-entrypoint.sh java ...   Up       6123/tcp, 8081/tcp                  
-flink-cluster-playground_client_1                 /docker-entrypoint.sh flin ...   Exit 0                                       
-flink-cluster-playground_jobmanager_1             /docker-entrypoint.sh jobm ...   Up       6123/tcp, 0.0.0.0:8081->8081/tcp    
-flink-cluster-playground_kafka_1                  start-kafka.sh                   Up       0.0.0.0:9094->9094/tcp              
-flink-cluster-playground_taskmanager_1            /docker-entrypoint.sh task ...   Up       6123/tcp, 8081/tcp                  
-flink-cluster-playground_zookeeper_1              /bin/sh -c /usr/sbin/sshd  ...   Up       2181/tcp, 22/tcp, 2888/tcp, 3888/tcp
+                    Name                                  Command               State                   Ports                
+-----------------------------------------------------------------------------------------------------------------------------
+operations-playground_clickevent-generator_1   /docker-entrypoint.sh java ...   Up       6123/tcp, 8081/tcp                  
+operations-playground_client_1                 /docker-entrypoint.sh flin ...   Exit 0                                       
+operations-playground_jobmanager_1             /docker-entrypoint.sh jobm ...   Up       6123/tcp, 0.0.0.0:8081->8081/tcp    
+operations-playground_kafka_1                  start-kafka.sh                   Up       0.0.0.0:9094->9094/tcp              
+operations-playground_taskmanager_1            /docker-entrypoint.sh task ...   Up       6123/tcp, 8081/tcp                  
+operations-playground_zookeeper_1              /bin/sh -c /usr/sbin/sshd  ...   Up       2181/tcp, 22/tcp, 2888/tcp, 3888/tcp
 {% endhighlight %}
 
 This indicates that the client container has successfully submitted the Flink Job (`Exit 0`) and all 
