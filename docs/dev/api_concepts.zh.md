@@ -24,9 +24,9 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Flink 程序是实现了分布式集合转换（例如过滤、映射、更新状态、join、分组、定义窗口、聚合）的规范化程序。集合初始创建自数据源（例如读取文件、kafka 主题，或本地内存中的集合）。结果通过 sink 返回，例如，它可以将数据写入（分布式）文件，或标准输出（例如命令行终端）。Flink 程序可以在多种环境中运行，独立运行或嵌入到其他程序中。可以在本地 JVM 中执行，也可以在多台机器的集群上执行。
+Flink 程序是实现了分布式集合转换（例如过滤、映射、更新状态、join、分组、定义窗口、聚合）的规范化程序。集合初始创建自 source（例如读取文件、kafka 主题，或本地内存中的集合）。结果通过 sink 返回，例如，它可以将数据写入（分布式）文件，或标准输出（例如命令行终端）。Flink 程序可以在多种环境中运行，独立运行或嵌入到其他程序中。可以在本地 JVM 中执行，也可以在多台机器的集群上执行。
 
-针对有界和无界两种数据源类型，你可以使用 DataSet API 来编写批处理程序或使用 DataStream API 来编写流处理程序。本篇指南将介绍这两种 API 通用的基本概念，使用每种 API 编写程序的具体信息请查阅
+针对有界和无界两种数据 source 类型，你可以使用 DataSet API 来编写批处理程序或使用 DataStream API 来编写流处理程序。本篇指南将介绍这两种 API 通用的基本概念，关于使用 API 编写程序的具体信息请查阅
 [流处理指南]({{ site.baseurl }}/zh/dev/datastream_api.html) 和
 [批处理指南]({{ site.baseurl }}/zh/dev/batch/index.html)。
 
@@ -38,18 +38,18 @@ Flink 程序是实现了分布式集合转换（例如过滤、映射、更新�
 DataSet 和 DataStream
 ----------------------
 
-Flink 用特有的 `DataSet` 和 `DataStream` 类来表示程序中的数据。你可以将他们视为包含重复项的不可变数据集合。对于 `DataSet`，数据是有限的，而对于 `DataStream`，元素的数量可以是无限的。
+Flink 用特有的 `DataSet` 和 `DataStream` 类来表示程序中的数据。你可以将他们视为可能包含重复项的不可变数据集合。对于 `DataSet`，数据是有限的，而对于 `DataStream`，元素的数量可以是无限的。
 
 这些集合与标准的 Java 集合有一些关键的区别。首先它们是不可变的，也就是说它们一旦被创建你就不能添加或删除元素了。你也不能简单地检查它们内部的元素。
 
-在 Flink 程序中，集合最初通过添加数据源来创建，通过使用 API 的诸如 `map`、`filter` 等方法对数据源进行转换从而派生新的集合。
+在 Flink 程序中，集合最初通过添加数据 source 来创建，通过使用诸如 `map`、`filter` 等 API 方法对数据 source 进行转换从而派生新的集合。
 
 剖析一个 Flink 程序
 --------------------------
 
 Flink 程序看起来像是转换数据集合的规范化程序。每个程序由一些基本的部分组成：
 
-1. 获取执行环境 `execution environment`，
+1. 获取执行环境，
 2. 加载/创建初始数据，
 3. 指定对数据的转换操作，
 4. 指定计算结果存放的位置，
@@ -73,9 +73,9 @@ createLocalEnvironment()
 createRemoteEnvironment(String host, int port, String... jarFiles)
 {% endhighlight %}
 
-通常你只需要使用 `getExecutionEnvironment()`，因为它会根据上下文环境完成正确的工作，如果你在 IDE 中执行程序或者作为标准的 Java 程序来执行，它会创建你的本机执行环境。如果你将程序封装成 JAR 包，然后通过[命令行]({{ site.baseurl }}/zh/ops/cli.html)调用，Flink 集群管理器会执行你的 main 方法并且 `getExecutionEnvironment()` 会返回在集群上执行程序的执行环境。
+通常你只需要使用 `getExecutionEnvironment()`，因为它会根据上下文环境完成正确的工作：如果你在 IDE 中执行程序或者作为标准的 Java 程序来执行，它会创建你的本机执行环境；如果你将程序封装成 JAR 包，然后通过[命令行]({{ site.baseurl }}/zh/ops/cli.html)调用，Flink 集群管理器会执行你的 main 方法并且 `getExecutionEnvironment()` 会返回在集群上执行程序的执行环境。
 
-针对不同的数据源，执行环境有若干不同读取文件的方法：你可以逐行读取 CSV 文件，或者使用完全自定义的输入格式。要将文本文件作为一系列行读取，你可以使用：
+针对不同的数据 source，执行环境有若干不同读取文件的方法：你可以逐行读取 CSV 文件，或者使用完全自定义的输入格式。要将文本文件作为一系列行读取，你可以使用：
 
 {% highlight java %}
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -83,7 +83,7 @@ final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEn
 DataStream<String> text = env.readTextFile("file:///path/to/file");
 {% endhighlight %}
 
-这样你会得到一个 DataStream 然后应用转换操作创建新的派生 DataStream。
+这样你会得到一个 DataStream 然后对其应用转换操作从而创建新的派生 DataStream。
 
 通过调用 DataStream 的转换函数来进行转换。下面是一个映射转换的实例：
 
@@ -125,7 +125,7 @@ createRemoteEnvironment(host: String, port: Int, jarFiles: String*)
 
 通常你只需要使用 `getExecutionEnvironment()`，因为它会根据上下文环境完成正确的工作，如果你在 IDE 中执行程序或者作为标准的 Java 程序来执行，它会创建你的本机执行环境。如果你将程序封装成 JAR 包，然后通过[命令行]({{ site.baseurl }}/zh/ops/cli.html)调用，Flink 集群管理器会执行你的 main 方法并且 `getExecutionEnvironment()` 会返回在集群上执行程序的执行环境。
 
-针对不同的数据源，执行环境有若干不同的读取文件的方法：你可以逐行读取 CSV 文件，或者使用完全自定义的输入格式。要将文本文件作为一系列行读取，你可以使用：
+针对不同的数据 source，执行环境有若干不同的读取文件的方法：你可以逐行读取 CSV 文件，或者使用完全自定义的输入格式。要将文本文件作为一系列行读取，你可以使用：
 
 {% highlight scala %}
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
@@ -133,7 +133,7 @@ val env = StreamExecutionEnvironment.getExecutionEnvironment()
 val text: DataStream[String] = env.readTextFile("file:///path/to/file")
 {% endhighlight %}
 
-如此你会得到一个 DataStream 然后应用转换操作创建新的派生 DataStream。
+如此你会得到一个 DataStream 然后对其应用转换操作从而创建新的派生 DataStream。
 
 通过调用 DataStream 的转换函数来进行转换。下面是一个映射转换的实例：
 
@@ -160,19 +160,19 @@ print()
 
 `execute()` 方法返回 `JobExecutionResult`，它包括执行耗时和一个累加器的结果。
 
-有关流数据源和 sink 以及有关 DataStream 支持的转换操作的详细信息请参阅[流处理指南]({{ site.baseurl }}/zh/dev/datastream_api.html)。
+有关流数据的 source 和 sink 以及有关 DataStream 支持的转换操作的详细信息请参阅[流处理指南]({{ site.baseurl }}/zh/dev/datastream_api.html)。
 
-有关批数据源和 sink 以及有关 DataSet 支持的转换操作的详细信息请参阅[批处理指南]({{ site.baseurl }}/zh/dev/batch/index.html)。
+有关批数据的 source 和 sink 以及有关 DataSet 支持的转换操作的详细信息请参阅[批处理指南]({{ site.baseurl }}/zh/dev/batch/index.html)。
 
 
 {% top %}
 
-延迟求值
+延迟计算
 ---------------
 
 无论在本地还是集群执行，所有的 Flink 程序都是延迟执行的：当程序的 main 方法被执行时，并不立即执行数据的加载和转换，而是创建每个操作并将其加入到程序的执行计划中。当执行环境调用 `execute()` 方法显式地触发执行的时候才真正执行各个操作。
 
-延迟求值允许你构建复杂的程序，Flink 将其作为整体计划单元来执行。
+延迟计算允许你构建复杂的程序，Flink 将其作为整体计划单元来执行。
 
 {% top %}
 
@@ -222,7 +222,7 @@ val keyed = input.keyBy(0)
 </div>
 </div>
 
-按照第一个字段（由整数 0 代表）对 Tuple 分组。
+按照第一个字段（整型字段）对 Tuple 分组。
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -274,9 +274,9 @@ DataStream<WC> wordCounts = words.keyBy("word").window(/*指定窗口*/);
 
 - 根据字段名称选择 POJO 的字段。例如 `“user”` 就是指 POJO 类型的“user”字段。
 
-- 根据字段名称或 0 开始的字段索引选择 Tuple 的字段。例如 `“f0”` 和 `“5”` 分别指 Java Tuple 类型的第一个和第五个字段。
+- 根据字段名称或 0 开始的字段索引选择 Tuple 的字段。例如 `“f0”` 和 `“5”` 分别指 Java Tuple 类型的第一个和第六个字段。
 
-- 可以选择 POJO 和 Tuple 的嵌套字段。 例如，一个 POJO 类型有一个“user”字段还是一个 POJO 类型，那么 `“user.zip”` 即指这个“user”字段的“zip”字段。任意嵌套和混合的 POJO 和 Tuple都是支持的，例如“f1.user.zip”或“user.f3.1.zip”。
+- 可以选择 POJO 和 Tuple 的嵌套字段。 例如，一个 POJO 类型有一个“user”字段还是一个 POJO 类型，那么 `“user.zip”` 即指这个“user”字段的“zip”字段。任意嵌套和混合的 POJO 和 Tuple都是支持的，例如 `“f1.user.zip”` 或 `“user.f3.1.zip”`。
 
 - 可以使用 `"*"` 通配符表达式选择完整的类型。这也适用于非 Tuple 或 POJO 类型。
 
@@ -334,9 +334,9 @@ val wordCounts = words.keyBy("word").window(/*指定窗口*/)
 
 - 根据字段名称选择 POJO 的字段。例如 `“user”` 就是指 POJO 类型的“user”字段。
 
-- 根据字段名称或 0 开始的字段索引选择 Tuple 的字段。例如 `“f0”` 和 `“5”` 分别指 Java Tuple 类型的第一个和第五个字段。
+- 根据 1 开始的字段名称或 0 开始的字段索引选择 Tuple 的字段。例如 `“_1”` 和 `“5”` 分别指 Java Tuple 类型的第一个和第六个字段。
 
-- 可以选择 POJO 和 Tuple 的嵌套字段。 例如，一个 POJO 类型有一个“user”字段还是一个 POJO 类型，那么 `“user.zip”` 即指这个“user”字段的“zip”字段。任意嵌套和混合的 POJO 和 Tuple都是支持的，例如“f1.user.zip”或“user.f3.1.zip”。
+- 可以选择 POJO 和 Tuple 的嵌套字段。 例如，一个 POJO 类型有一个“user”字段还是一个 POJO 类型，那么 `“user.zip”` 即指这个“user”字段的“zip”字段。任意嵌套和混合的 POJO 和 Tuple都是支持的，例如 `“_2.user.zip”` 或 `“user._4.1.zip”`。
 
 - 可以使用 `"*"` 通配符表达式选择完整的类型。这也适用于非 Tuple 或 POJO 类型。
 
@@ -362,7 +362,7 @@ class ComplexNestedClass(
 
 - `"complex"`：递归选择 POJO 类型 `ComplexNestedClass` 的 complex 字段的全部字段。
 
-- `"complex.word.f2"`：选择嵌套 `Tuple3` 类型的最后一个字段。
+- `"complex.word._3"`：选择嵌套 `Tuple3` 类型的最后一个字段。
 
 - `"complex.hadoopCitizen"`：选择 hadoop 的 `IntWritable` 类型。
 
@@ -431,7 +431,7 @@ data.map(new MapFunction<String, Integer> () {
 
 #### Java 8 Lambda 表达式
 
-Flink 也支持 Java API 的 Java 8 Lambda 表达式。
+Flink 的 Java API 也支持 Java 8 Lambda 表达式。
 
 {% highlight java %}
 data.filter(s -> s.startsWith("http://"));
@@ -551,7 +551,7 @@ Flink 对于 DataSet 或 DataStream 中可以包含的元素类型做了一些�
 <div data-lang="java" markdown="1">
 
 Tuple 是复合类型，包含固定数量的各种类型的字段。
-Java API 提供了从 `Tuple1` 到 `Tuple25` 的类。 Tuple 的每一个字段可以是任意 Flink 类型，包括 Tuple，即嵌套的 Tuple。Tuple 的字段可以通过字段序号如 `tuple.f4` 直接访问，也可以使用通常的 getter 方法 `tuple.getField(int position)`。字段索引从 0 开始。请注意，这与 Scala Tuple 形成鲜明对比，但与 Java 的常规索引更为一致。
+Java API 提供了从 `Tuple1` 到 `Tuple25` 的类。 Tuple 的每一个字段可以是任意 Flink 类型，包括 Tuple，即嵌套的 Tuple。Tuple 的字段可以通过字段名称如 `tuple.f4` 直接访问，也可以使用通常的 getter 方法 `tuple.getField(int position)`。字段索引从 0 开始。请注意，这与 Scala Tuple 形成鲜明对比，但与 Java 的常规索引更为一致。
 
 {% highlight java %}
 DataStream<Tuple2<String, Integer>> wordCounts = env.fromElements(
@@ -573,7 +573,7 @@ wordCounts.keyBy(0); // .keyBy("f0") 也可以
 </div>
 <div data-lang="scala" markdown="1">
 
-Scala Case Classe （和指定 case 为 Case Class 的 Scala Tuple）是复合类型，包含固定数量的各种类型的字段。Tuple 的字段从 1 开始索引。例如 `_1` 指第一个字段。Case Class 字段用名称索引。
+Scala Case Class（以及作为 Case Class 的特例的 Scala Tuple）是复合类型，包含固定数量的各种类型的字段。Tuple 的字段从 1 开始索引。例如 `_1` 指第一个字段。Case Class 字段用名称索引。
 
 {% highlight scala %}
 case class WordCount(word: String, count: Int)
@@ -668,7 +668,7 @@ Flink 将这些数据类型视为黑盒，并且无法访问其内容（为了�
 
 #### 值
 
-*值* 类型手工描述其序列化和反序列化。它们不是通过通用序列化框架，而是通过使用 `read` 和 `write` 方法实现 `org.apache.flinktypes.Value` 接口来为这些操作提供自定义编码。当通用序列化效率非常低时，使用值类型是合理的。例如，用数组实现稀疏向量。已知数组大部分元素为零，就可以对非零元素使用特殊编码，而通用序列化只会简单地将所有数组元素都写入。
+*值* 类型手工描述其序列化和反序列化。它们不是通过通用序列化框架，而是通过实现 `org.apache.flinktypes.Value` 接口的 `read` 和 `write` 方法来为这些操作提供自定义编码。当通用序列化效率非常低时，使用值类型是合理的。例如，用数组实现稀疏向量。已知数组大部分元素为零，就可以对非零元素使用特殊编码，而通用序列化只会简单地将所有数组元素都写入。
 
 `org.apache.flinktypes.CopyableValue` 接口以类似的方式支持内部手工克隆逻辑。
 
@@ -694,7 +694,7 @@ Java API 有对 `Either` 的自定义实现。
 
 Java 编译器在编译后抛弃了大量泛型类型信息。这在 Java 中被称作 *类型擦除*。它意味着在运行时，对象的实例已经不知道它的泛型类型了。例如 `DataStream<String>` 和 `DataStream<Long>` 的实例在 JVM 看来是一样的。
 
-Flink 在准备程序执行时（程序的 main 方法被调用时）需要类型信息。Flink Java API 尝试重建以各种方式丢弃的类型信息，并将其显式存储在数据集和算子中。你可以通过 `DataStream.getType()` 获取数据类型。此方法返回 `TypeInformation` 的一个实例，这是 Flink 内部表示类型地方式。
+Flink 在准备程序执行时（程序的 main 方法被调用时）需要类型信息。Flink Java API 尝试重建以各种方式丢弃的类型信息，并将其显式存储在数据集和算子中。你可以通过 `DataStream.getType()` 获取数据类型。此方法返回 `TypeInformation` 的一个实例，这是 Flink 内部表示类型的方式。
 
 类型推断有其局限性，在某些情况下需要程序员的“配合”。
 这方面的示例是从集合创建数据集的方法，例如 `ExecutionEnvironment.fromCollection()`，你可以在这里传递一个描述类型的参数。 但是像 `MapFunction<I, O>` 这样的泛型函数可能还需要额外的类型信息。
@@ -759,7 +759,7 @@ myJobExecutionResult.getAccumulatorResult("num-lines")
 
 __自定义累加器：__
 
-要实现你自己的累加器，只需编写累加器接口的实现即可。如果你认为 Flink 应该提供你的自定义累加器，请随意创建拉取请求。
+要实现你自己的累加器，只需编写累加器接口的实现即可。如果你认为 Flink 应该提供你的自定义累加器，请创建 pull request。
 
 你可以选择实现
 {% gh_link /flink-core/src/main/java/org/apache/flink/api/common/accumulators/Accumulator.java "Accumulator" %}
