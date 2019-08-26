@@ -19,6 +19,7 @@
 package org.apache.flink.table.plan.rules
 
 import org.apache.calcite.rel.core.RelFactories
+import org.apache.calcite.rel.rules
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.table.plan.nodes.logical._
@@ -144,6 +145,13 @@ object FlinkRuleSets {
   )
 
   /**
+    * RuleSet to optimize plans for Python UDF execution
+    */
+  val LOGICAL_PYTHON_OPT_RULES: RuleSet = RuleSets.ofList(
+    PythonScalarFunctionSplitRule.INSTANCE
+  )
+
+  /**
     * RuleSet to normalize plans for batch / DataSet execution
     */
   val DATASET_NORM_RULES: RuleSet = RuleSets.ofList(
@@ -233,8 +241,9 @@ object FlinkRuleSets {
     StreamTableSourceScanRule.INSTANCE,
     DataStreamMatchRule.INSTANCE,
     DataStreamTableAggregateRule.INSTANCE,
-    DataStreamGroupWindowTableAggregateRule.INSTANCE
-  )
+    DataStreamGroupWindowTableAggregateRule.INSTANCE,
+    DataStreamPythonCalcRule.INSTANCE
+    )
 
   /**
     * RuleSet to decorate plans for stream / DataStream execution

@@ -53,6 +53,12 @@ class CalciteConfigBuilder {
   private var logicalOptRuleSets: List[RuleSet] = Nil
 
   /**
+    * Defines the logical optimization rule set.
+    */
+  private var replacePythonLogicalOptRules: Boolean = false
+  private var pythonLogicalOptRuleSets: List[RuleSet] = Nil
+
+  /**
     * Defines the physical optimization rule set.
     */
   private var replacePhysicalOptRules: Boolean = false
@@ -225,6 +231,8 @@ class CalciteConfigBuilder {
     replaceNormRules,
     getRuleSet(logicalOptRuleSets),
     replaceLogicalOptRules,
+    getRuleSet(pythonLogicalOptRuleSets),
+    replacePythonLogicalOptRules,
     getRuleSet(physicalOptRuleSets),
     replacePhysicalOptRules,
     getRuleSet(decoRuleSets),
@@ -254,6 +262,10 @@ class CalciteConfig(
   val logicalOptRuleSet: Option[RuleSet],
   /** Whether this configuration replaces the built-in logical optimization rule set. */
   val replacesLogicalOptRuleSet: Boolean,
+  /** A custom Python logical optimization rule set. */
+  val pythonLogicalOptRuleSet: Option[RuleSet],
+  /** Whether this configuration replaces the built-in Python logical optimization rule set.  */
+  val replacesPythonLogicalOptRuleSet: Boolean,
   /** A custom physical optimization rule set. */
   val physicalOptRuleSet: Option[RuleSet],
   /** Whether this configuration replaces the built-in physical optimization rule set. */

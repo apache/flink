@@ -87,6 +87,25 @@ abstract class Optimizer(
   }
 
   /**
+    * Returns the logical Python optimization rule set for this optimizer
+    * including a custom RuleSet configuration.
+    */
+  protected def getPythonLogicalOptRuleSet: RuleSet = {
+    materializedConfig.pythonLogicalOptRuleSet match {
+
+      case None =>
+        getBuiltInPythonLogicalOptRuleSet
+
+      case Some(ruleSet) =>
+        if (materializedConfig.replacesLogicalOptRuleSet) {
+          ruleSet
+        } else {
+          RuleSets.ofList((getBuiltInPythonLogicalOptRuleSet.asScala ++ ruleSet.asScala).asJava)
+        }
+    }
+  }
+
+  /**
     * Returns the physical optimization rule set for this optimizer
     * including a custom RuleSet configuration.
     */
@@ -115,6 +134,13 @@ abstract class Optimizer(
     */
   protected def getBuiltInLogicalOptRuleSet: RuleSet = {
     FlinkRuleSets.LOGICAL_OPT_RULES
+  }
+
+  /**
+    * Returns the built-in Python logical optimization rules that are defined by the optimizer.
+    */
+  protected def getBuiltInPythonLogicalOptRuleSet: RuleSet = {
+    FlinkRuleSets.LOGICAL_PYTHON_OPT_RULES
   }
 
   /**
@@ -148,6 +174,19 @@ abstract class Optimizer(
     val normRuleSet = getNormRuleSet
     if (normRuleSet.iterator().hasNext) {
       runHepPlannerSequentially(HepMatchOrder.BOTTOM_UP, normRuleSet, relNode, relNode.getTraitSet)
+    } else {
+      relNode
+    }
+  }
+
+  protected def optimizePythonLogicalPlan(relNode: RelNode): RelNode = {
+    val logicalOptRuleSet = getPythonLogicalOptRuleSet
+    if (logicalOptRuleSet.iterator().hasNext) {
+      runHepPlannerSimultaneously(
+        HepMatchOrder.TOP_DOWN,
+        logicalOptRuleSet,
+        relNode,
+        relNode.getTraitSet)
     } else {
       relNode
     }
