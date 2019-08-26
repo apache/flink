@@ -88,7 +88,7 @@ public class HiveShimV230 extends HiveShimV122 {
 	public boolean moveToTrash(FileSystem fs, Path path, Configuration conf, boolean purge) throws IOException {
 		try {
 			Method method = FileUtils.class.getDeclaredMethod("moveToTrash", FileSystem.class, Path.class,
-				Configuration.class, boolean.class);
+					Configuration.class, boolean.class);
 			return (boolean) method.invoke(null, fs, path, conf, purge);
 		} catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
 			throw new IOException("Failed to move " + path + " to trash", e);
@@ -103,7 +103,7 @@ public class HiveShimV230 extends HiveShimV122 {
 
 	@Override
 	public void alterPartition(IMetaStoreClient client, String databaseName, String tableName, Partition partition)
-		throws InvalidOperationException, MetaException, TException {
+			throws InvalidOperationException, MetaException, TException {
 		String errorMsg = "Failed to alter partition for table %s in database %s";
 		try {
 			Method method = client.getClass().getMethod("alter_partition", String.class, String.class,
@@ -125,7 +125,7 @@ public class HiveShimV230 extends HiveShimV122 {
 	public SimpleGenericUDAFParameterInfo createUDAFParameterInfo(ObjectInspector[] params, boolean isWindowing, boolean distinct, boolean allColumns) {
 		try {
 			Constructor constructor = SimpleGenericUDAFParameterInfo.class.getConstructor(ObjectInspector[].class,
-				boolean.class, boolean.class, boolean.class);
+					boolean.class, boolean.class, boolean.class);
 			return (SimpleGenericUDAFParameterInfo) constructor.newInstance(params, isWindowing, distinct, allColumns);
 		} catch (NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
 			throw new CatalogException("Failed to create SimpleGenericUDAFParameterInfo", e);
