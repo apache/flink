@@ -67,5 +67,10 @@ public class PrometheusPushGatewayReporterOptions {
 	public static final ConfigOption<String> GROUPING_KEY = ConfigOptions
 		.key("groupingKey")
 		.defaultValue("")
-		.withDescription("The grouping key which metrics will be pushed e.g. k1=v1,k2=v2");
+			.withDescription(Description.builder()
+				.text("Specifies the grouping key which is the group and global labels of all metrics." +
+					" The label name and value is separated with '=', and labels are separated with ';', e.g. k1=v1;k2=v2." +
+					" Please ensure that your grouping key meet the %s.",
+					LinkElement.link("https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels", "Prometheus metric labels requirements"))
+					.build());
 }

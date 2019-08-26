@@ -19,7 +19,6 @@
 package org.apache.flink.metrics.prometheus;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
@@ -60,7 +59,7 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
 		String configuredJobName = config.getString(JOB_NAME.key(), JOB_NAME.defaultValue());
 		boolean randomSuffix = config.getBoolean(RANDOM_JOB_NAME_SUFFIX.key(), RANDOM_JOB_NAME_SUFFIX.defaultValue());
 		deleteOnShutdown = config.getBoolean(DELETE_ON_SHUTDOWN.key(), DELETE_ON_SHUTDOWN.defaultValue());
-		groupingKey = parserGroupingKey(config.getString(GROUPING_KEY.key(), GROUPING_KEY.defaultValue()));
+		groupingKey = parseGroupingKey(config.getString(GROUPING_KEY.key(), GROUPING_KEY.defaultValue()));
 
 		if (host == null || host.isEmpty() || port < 1) {
 			throw new IllegalArgumentException("Invalid host/port configuration. Host: " + host + " Port: " + port);
@@ -77,14 +76,14 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
 			host, port, jobName, randomSuffix, deleteOnShutdown, groupingKey);
 	}
 
-	@VisibleForTesting
-	static Map<String, String> parserGroupingKey(final String groupingKeyConfig) {
+	Map<String, String> parseGroupingKey(final String groupingKeyConfig) {
 		if (!groupingKeyConfig.isEmpty()) {
 			Map<String, String> groupingKey = new HashMap<>();
-			String[] kvs = groupingKeyConfig.split(",");
+			String[] kvs = groupingKeyConfig.split(";");
 			for (String kv : kvs) {
 				int idx = kv.indexOf("=");
 				if (idx < 0) {
+					log.warn("Invalid prometheusPushGateway groupingKey {}, will be ignored", kv);
 					continue;
 				}
 				groupingKey.put(kv.substring(0, idx), kv.substring(idx + 1));
