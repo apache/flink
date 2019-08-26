@@ -64,8 +64,8 @@ class StreamOptimizer(
       RelTimeIndicatorConverter.convert(decorPlan, relBuilder.getRexBuilder)
     val normalizedPlan = optimizeNormalizeLogicalPlan(planWithMaterializedTimeAttributes)
     val logicalPlan = optimizeLogicalPlan(normalizedPlan)
-
-    val physicalPlan = optimizePhysicalPlan(logicalPlan, FlinkConventions.DATASTREAM)
+    val logicalRewritePlan = optimizeLogicalRewritePlan(logicalPlan)
+    val physicalPlan = optimizePhysicalPlan(logicalRewritePlan, FlinkConventions.DATASTREAM)
     optimizeDecoratePlan(physicalPlan, updatesAsRetraction)
   }
 
