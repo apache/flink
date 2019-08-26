@@ -697,7 +697,7 @@ Java 编译器在编译后抛弃了大量泛型类型信息。这在 Java 中被
 Flink 在准备程序执行时（程序的 main 方法被调用时）需要类型信息。Flink Java API 尝试重建以各种方式丢弃的类型信息，并将其显式存储在数据集和算子中。你可以通过 `DataStream.getType()` 获取数据类型。此方法返回 `TypeInformation` 的一个实例，这是 Flink 内部表示类型的方式。
 
 类型推断有其局限性，在某些情况下需要程序员的“配合”。
-这方面的示例是从集合创建数据集的方法，例如 `ExecutionEnvironment.fromCollection()`，你可以在这里传递一个描述类型的参数。 但是像 `MapFunction<I, O>` 这样的泛型函数可能还需要额外的类型信息。
+这方面的示例是从集合创建数据集的方法，例如 `ExecutionEnvironment.fromCollection()`，你可以在这里传递一个描述类型的参数。 像 `MapFunction<I, O>` 这样的泛型函数同样可能需要额外的类型信息。
 
 可以通过输入格式和函数实现 {% gh_link /flink-core/src/main/java/org/apache/flink/api/java/typeutils/ResultTypeQueryable.java "ResultTypeQueryable" %} 
 接口，以明确告知 API 其返回类型。 被调函数的*输入类型*通常可以通过先前操作的结果类型来推断。
