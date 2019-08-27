@@ -22,9 +22,13 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Temporal Tables represent a concept of a (parameterized) view on a changing history table that returns the content of a table at a specific point in time.
+Temporal tables represent a concept of changing table that its data is deemed to be effective or valid along some time period.
 
-Flink can keep track of the changes applied to an underlying append-only table and allows for accessing the table's content at a certain point in time within a query.
+The changing table can either be a changing history table which tracks the changes (e.g. database changelogs) or a changing dimension table which materializes the changes (e.g. database tables).
+
+For the changing history table, Flink can keep track of the changes and allows for accessing the content of the table at a certain point in time within a query. In Flink, this kind of table is represented by a *Temporal Table Function*.
+
+For the changing dimension table, Flink allows for accessing the content of the table at processing time within a query. In Flink, this kind of table is represented by a *Temporal Table*. In the future, a *Temporal Table* can also represents a changing history table.
 
 * This will be replaced by the TOC
 {:toc}
@@ -78,9 +82,36 @@ The concept of *Temporal Tables* aims to simplify such queries, speed up their e
 
 In the above example `currency` would be a primary key for `RatesHistory` table and `rowtime` would be the timestamp attribute.
 
-In Flink, a temporal table is represented by a *Temporal Table Function*.
+In Flink, this is represented by a *Temporal Table Function*.
 
-Temporal Table Functions
+On the other hand, we have the requirement to join a changing dimension table which is an external database table.
+
+Let's assume that we have a table `LatestRates` (e.g. stored in MySQL table) that is materialized with the latest rate. The `LatestRates` is the materialized history `RatesHistory`. Then the content of `LatestRates` table at time `10:58` will be:
+
+{% highlight text %}
+10:58> SELECT * FROM LatestRates;
+currency   rate
+======== ======
+US Dollar   102
+Yen           1
+Euro        116
+{% endhighlight %}
+
+The content of `LatestRates` table at time `12:00` will be:
+
+{% highlight text %}
+12:00> SELECT * FROM LatestRates;
+currency   rate
+======== ======
+US Dollar   102
+Yen           1
+Euro        119
+Pounds      108
+{% endhighlight %}
+
+In Flink, this is represented by a *Temporal Table*. Note that, in the future, the *Temporal Table* can also represents the changing history table `RetesHistory`.
+
+Temporal Table Function
 ------------------------
 
 In order to access the data in a temporal table, one must pass a [time attribute](time_attributes.html) that determines the version of the table that will be returned.
@@ -186,5 +217,75 @@ which allows us to use the function `rates` in the [Table API](../tableApi.html#
 
 Line `(2)` registers this function under the name `Rates` in our table environment,
 which allows us to use the `Rates` function in [SQL](../sql.html#joins).
+
+## Temporal Table
+
+**Notes:** This is only supported in blink planner.
+
+In order to access data in temporal table, currently one must define a `TableSource` with `LookupableTableSource`. Flink uses the SQL syntax of `FOR SYSTEM_TIME AS OF` to query temporal table, which is proposed in SQL:2011.
+
+Assuming that we defined a temporal table called `LatestRates`, we can query such a table in the following way:
+
+{% highlight sql %}
+SELECT * FROM LatestRates FOR SYSTEM_TIME AS OF TIME '10:15';
+
+currency   rate
+======== ======
+US Dollar   102
+Euro        114
+Yen           1
+
+SELECT * FROM LatestRates FOR SYSTEM_TIME AS OF TIME '11:00';
+
+currency   rate
+======== ======
+US Dollar   102
+Euro        116
+Yen           1
+{% endhighlight %}
+
+**Note**: Currently, Flink doesn't support directly querying the temporal table with a constant time. At the moment, temporal table can only be used in joins. The example above is used to provide an intuition about what the temporal table `LatestRates` returns.
+
+See also the page about [joins for continuous queries](joins.html) for more information about how to join with a temporal table.
+
+### Defining Temporal Table
+
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+// Get the stream and table environments.
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+StreamTableEnvironment tEnv = TableEnvironment.getTableEnvironment(env);
+
+// Create an HBaseTableSource as a temporal table which implements LookableTableSource
+// In the real setup, you should replace this with your own table.
+HBaseTableSource rates = new HBaseTableSource(conf, "Rates");
+rates.setRowKey("currency", String.class);   // currency as the primary key
+rates.addColumn("fam1", "rate", Double.class);
+
+// register the temporal table into environment, then we can query it in sql
+tEnv.registerTableSource("Rates", rates);
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+// Get the stream and table environments.
+val env = StreamExecutionEnvironment.getExecutionEnvironment
+val tEnv = TableEnvironment.getTableEnvironment(env)
+
+// Create an HBaseTableSource as a temporal table which implements LookableTableSource
+// In the real setup, you should replace this with your own table.
+val rates = new HBaseTableSource(conf, "Rates")
+rates.setRowKey("currency", String.class)   // currency as the primary key
+rates.addColumn("fam1", "rate", Double.class)
+
+// register the temporal table into environment, then we can query it in sql
+tEnv.registerTableSource("Rates", rates)
+{% endhighlight %}
+</div>
+</div>
+
+See also the page about [how to define LookupableTableSource](../sourceSinks.html#defining-a-tablesource-with-lookupable).
 
 {% top %}
