@@ -97,7 +97,7 @@ import static org.mockito.Mockito.when;
 /**
  * Tests for the {@link SlotManagerImpl}.
  */
-public class SlotManagerTest extends TestLogger {
+public class SlotManagerImplTest extends TestLogger {
 
 	/**
 	 * Tests that we can register task manager and their slots at the slot manager.
