@@ -102,8 +102,9 @@ public class WebFrontendITCase extends TestLogger {
 		} catch (Exception e) {
 			throw new AssertionError("Could not setup test.", e);
 		}
+
+		// !!DO NOT REMOVE!! next line is required for tests
 		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "12m");
-		config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
 
 		return config;
 	}
@@ -239,11 +240,12 @@ public class WebFrontendITCase extends TestLogger {
 	public void getConfiguration() {
 		try {
 			String config = TestBaseUtils.getFromHTTP("http://localhost:" + getRestPort() + "/jobmanager/config");
-
 			Map<String, String> conf = WebMonitorUtils.fromKeyValueJsonArray(config);
-			assertEquals(
-				CLUSTER_CONFIGURATION.getString(ConfigConstants.LOCAL_START_WEBSERVER, null),
-				conf.get(ConfigConstants.LOCAL_START_WEBSERVER));
+
+			String expected = CLUSTER_CONFIGURATION.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE);
+			String actual = conf.get(TaskManagerOptions.MANAGED_MEMORY_SIZE.key());
+
+			assertEquals(expected, actual);
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
