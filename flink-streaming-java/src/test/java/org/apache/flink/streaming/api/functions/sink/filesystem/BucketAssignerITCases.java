@@ -46,7 +46,7 @@ public class BucketAssignerITCases {
 
 		final RollingPolicy<String, String> rollingPolicy =
 			DefaultRollingPolicy
-				.create()
+				.builder()
 				.withMaxPartSize(7L)
 				.build();
 

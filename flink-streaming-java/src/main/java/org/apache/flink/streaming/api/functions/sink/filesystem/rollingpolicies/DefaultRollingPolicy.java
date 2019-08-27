@@ -83,10 +83,34 @@ public final class DefaultRollingPolicy<IN, BucketID> implements RollingPolicy<I
 	}
 
 	/**
-	 * Initiates the instantiation of a {@code DefaultRollingPolicy}.
-	 * To finalize it and have the actual policy, call {@code .create()}.
+	 * Returns the maximum part file size before rolling.
+	 * @return Max size in bytes
 	 */
-	public static DefaultRollingPolicy.PolicyBuilder create() {
+	public long getMaxPartSize() {
+		return partSize;
+	}
+
+	/**
+	 * Returns the maximum time duration a part file can stay open before rolling.
+	 * @return Time duration in milliseconds
+	 */
+	public long getRolloverInterval() {
+		return rolloverInterval;
+	}
+
+	/**
+	 * Returns time duration of allowed inactivity after which a part file will have to roll.
+	 * @return Time duration in milliseconds
+	 */
+	public long getInactivityInterval() {
+		return inactivityInterval;
+	}
+
+	/**
+	 * Creates a new {@link PolicyBuilder} that is used to configure and build
+	 * an instance of {@code DefaultRollingPolicy}.
+	 */
+	public static DefaultRollingPolicy.PolicyBuilder builder() {
 		return new DefaultRollingPolicy.PolicyBuilder(
 				DEFAULT_MAX_PART_SIZE,
 				DEFAULT_ROLLOVER_INTERVAL,
@@ -94,7 +118,16 @@ public final class DefaultRollingPolicy<IN, BucketID> implements RollingPolicy<I
 	}
 
 	/**
+	 * This method is {@link Deprecated}, use {@link DefaultRollingPolicy#builder()} instead.
+	 */
+	@Deprecated
+	public static DefaultRollingPolicy.PolicyBuilder create() {
+		return builder();
+	}
+
+	/**
 	 * A helper class that holds the configuration properties for the {@link DefaultRollingPolicy}.
+	 * The {@link PolicyBuilder#build()} method must be called to instantiate the policy.
 	 */
 	@PublicEvolving
 	public static final class PolicyBuilder {
