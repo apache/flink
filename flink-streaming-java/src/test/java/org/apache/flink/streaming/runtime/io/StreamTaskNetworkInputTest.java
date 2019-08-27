@@ -107,7 +107,6 @@ public class StreamTaskNetworkInputTest {
 				new EmptyBufferStorage(),
 				new CheckpointBarrierTracker(1)),
 			inSerializer,
-			ioManager,
 			0,
 			deserializers);
 
