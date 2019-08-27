@@ -665,6 +665,12 @@ under the License.
 			</properties>
 		</profile>
 		<profile>
+			<id>hive-2.1.1</id>
+			<properties>
+				<hive.version>2.1.1</hive.version>
+			</properties>
+		</profile>
+		<profile>
 			<id>skip-hive-tests</id>
 			<build>
 				<plugins>
