@@ -86,7 +86,6 @@ public final class StreamTaskNetworkInput implements StreamTaskInput {
 	StreamTaskNetworkInput(
 		CheckpointedInputGate checkpointedInputGate,
 		TypeSerializer<?> inputSerializer,
-		IOManager ioManager,
 		int inputIndex,
 		RecordDeserializer<DeserializationDelegate<StreamElement>>[] recordDeserializers) {
 
