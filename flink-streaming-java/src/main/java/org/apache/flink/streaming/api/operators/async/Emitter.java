@@ -26,10 +26,13 @@ import org.apache.flink.streaming.api.operators.async.queue.AsyncResult;
 import org.apache.flink.streaming.api.operators.async.queue.AsyncWatermarkResult;
 import org.apache.flink.streaming.api.operators.async.queue.StreamElementQueue;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutor;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
 
 import java.util.Collection;
 
@@ -50,6 +53,9 @@ public class Emitter<OUT> implements Runnable {
 	/** Output for the watermark elements. */
 	private final Output<StreamRecord<OUT>> output;
 
+	/** Executor for mailbox. */
+	private final MailboxExecutor executor;
+
 	/** Queue to consume the async results from. */
 	private final StreamElementQueue streamElementQueue;
 
@@ -62,11 +68,13 @@ public class Emitter<OUT> implements Runnable {
 
 	public Emitter(
 			final Object checkpointLock,
-			final Output<StreamRecord<OUT>> output,
-			final StreamElementQueue streamElementQueue,
-			final OperatorActions operatorActions) {
+			final @Nonnull MailboxExecutor executor,
+			final @Nonnull Output<StreamRecord<OUT>> output,
+			final @Nonnull StreamElementQueue streamElementQueue,
+			final @Nonnull OperatorActions operatorActions) {
 
 		this.checkpointLock = Preconditions.checkNotNull(checkpointLock, "checkpointLock");
+		this.executor = Preconditions.checkNotNull(executor, "executor");
 		this.output = Preconditions.checkNotNull(output, "output");
 		this.streamElementQueue = Preconditions.checkNotNull(streamElementQueue, "streamElementQueue");
 		this.operatorActions = Preconditions.checkNotNull(operatorActions, "operatorActions");
@@ -80,9 +88,14 @@ public class Emitter<OUT> implements Runnable {
 		try {
 			while (running) {
 				LOG.debug("Wait for next completed async stream element result.");
-				AsyncResult streamElementEntry = streamElementQueue.peekBlockingly();
-
-				output(streamElementEntry);
+				AsyncResult asyncResult = streamElementQueue.peekBlockingly();
+				executor.submit(() -> {
+					try {
+						output(asyncResult);
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+					}
+				}).get();
 			}
 		} catch (InterruptedException e) {
 			if (running) {
@@ -97,21 +110,22 @@ public class Emitter<OUT> implements Runnable {
 		}
 	}
 
+	/**
+	 * Executed as a mail in the mailbox thread. Output needs to be guarded with checkpoint lock (for the time being).
+	 *
+	 * @param asyncResult the result to output.
+	 */
 	private void output(AsyncResult asyncResult) throws InterruptedException {
 		if (asyncResult.isWatermark()) {
+			AsyncWatermarkResult asyncWatermarkResult = asyncResult.asWatermark();
+
+			LOG.debug("Output async watermark.");
+
 			synchronized (checkpointLock) {
-				AsyncWatermarkResult asyncWatermarkResult = asyncResult.asWatermark();
-
-				LOG.debug("Output async watermark.");
 				output.emitWatermark(asyncWatermarkResult.getWatermark());
-
 				// remove the peeked element from the async collector buffer so that it is no longer
 				// checkpointed
 				streamElementQueue.poll();
-
-				// notify the main thread that there is again space left in the async collector
-				// buffer
-				checkpointLock.notifyAll();
 			}
 		} else {
 			AsyncCollectionResult<OUT> streamRecordResult = asyncResult.asResultCollection();
@@ -122,9 +136,9 @@ public class Emitter<OUT> implements Runnable {
 				timestampedCollector.eraseTimestamp();
 			}
 
-			synchronized (checkpointLock) {
-				LOG.debug("Output async stream element collection result.");
+			LOG.debug("Output async stream element collection result.");
 
+			synchronized (checkpointLock) {
 				try {
 					Collection<OUT> resultCollection = streamRecordResult.get();
 
@@ -142,10 +156,6 @@ public class Emitter<OUT> implements Runnable {
 				// remove the peeked element from the async collector buffer so that it is no longer
 				// checkpointed
 				streamElementQueue.poll();
-
-				// notify the main thread that there is again space left in the async collector
-				// buffer
-				checkpointLock.notifyAll();
 			}
 		}
 	}

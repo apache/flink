@@ -63,7 +63,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.Matchers;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayDeque;
@@ -453,9 +452,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		final StreamConfig streamConfig = testHarness.getStreamConfig();
 		final StreamConfig operatorChainStreamConfig = new StreamConfig(chainedVertex.getConfiguration());
-		final AsyncWaitOperator<Integer, Integer> headOperator =
-				operatorChainStreamConfig.getStreamOperator(AsyncWaitOperatorTest.class.getClassLoader());
-		streamConfig.setStreamOperator(headOperator);
+		streamConfig.setStreamOperatorFactory(
+				operatorChainStreamConfig.getStreamOperatorFactory(AsyncWaitOperatorTest.class.getClassLoader()));
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
@@ -549,7 +547,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		return jobGraph.getVerticesSortedTopologicallyFromSources().get(1);
 	}
 
-	@Ignore("TODO: fix me when AsyncWaitOperator integrates with mailbox")
 	@Test
 	public void testStateSnapshotAndRestore() throws Exception {
 		final OneInputStreamTaskTestHarness<Integer, Integer> testHarness = new OneInputStreamTaskTestHarness<>(
@@ -559,15 +556,15 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		testHarness.setupOutputForSingletonOperatorChain();
 
-		AsyncWaitOperator<Integer, Integer> operator = new AsyncWaitOperator<>(
+		AsyncWaitOperatorFactory<Integer, Integer> factory = new AsyncWaitOperatorFactory<>(
 			new LazyAsyncFunction(),
 			TIMEOUT,
-			3,
+			4,
 			AsyncDataStream.OutputMode.ORDERED);
 
 		final StreamConfig streamConfig = testHarness.getStreamConfig();
 		OperatorID operatorID = new OperatorID(42L, 4711L);
-		streamConfig.setStreamOperator(operator);
+		streamConfig.setStreamOperatorFactory(factory);
 		streamConfig.setOperatorID(operatorID);
 
 		final TestTaskStateManager taskStateManagerMock = testHarness.getTaskStateManager();
@@ -614,13 +611,13 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		restoredTaskHarness.setTaskStateSnapshot(checkpointId, subtaskStates);
 		restoredTaskHarness.setupOutputForSingletonOperatorChain();
 
-		AsyncWaitOperator<Integer, Integer> restoredOperator = new AsyncWaitOperator<>(
+		AsyncWaitOperatorFactory<Integer, Integer> restoredOperator = new AsyncWaitOperatorFactory<>(
 			new MyAsyncFunction(),
 			TIMEOUT,
 			6,
 			AsyncDataStream.OutputMode.ORDERED);
 
-		restoredTaskHarness.getStreamConfig().setStreamOperator(restoredOperator);
+		restoredTaskHarness.getStreamConfig().setStreamOperatorFactory(restoredOperator);
 		restoredTaskHarness.getStreamConfig().setOperatorID(operatorID);
 
 		restoredTaskHarness.invoke();
@@ -737,7 +734,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	 * <p>Note that this test does not enforce the exact strict ordering because with the fix it is no
 	 * longer possible. However, it provokes the described situation without the fix.
 	 */
-	@Ignore("TODO: fix me when AsyncWaitOperator integrates with mailbox")
 	@Test(timeout = 10000L)
 	public void testClosingWithBlockedEmitter() throws Exception {
 
@@ -753,9 +749,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 
 		final StreamConfig streamConfig = testHarness.getStreamConfig();
 		final StreamConfig operatorChainStreamConfig = new StreamConfig(chainedVertex.getConfiguration());
-		final AsyncWaitOperator<Integer, Integer> headOperator =
-				operatorChainStreamConfig.getStreamOperator(AsyncWaitOperatorTest.class.getClassLoader());
-		streamConfig.setStreamOperator(headOperator);
+		streamConfig.setStreamOperatorFactory(
+				operatorChainStreamConfig.getStreamOperatorFactory(AsyncWaitOperatorTest.class.getClassLoader()));
 
 		testHarness.invoke();
 		testHarness.waitForTaskRunning();
@@ -1031,15 +1026,15 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			true);
 
 		// create transform
-		AsyncWaitOperator<IN, OUT> operator = new AsyncWaitOperator<>(
+		AsyncWaitOperatorFactory<IN, OUT> factory = new AsyncWaitOperatorFactory<>(
 			in.getExecutionEnvironment().clean(func),
 			timeout,
 			bufSize,
 			mode);
 
-		operator.setChainingStrategy(ChainingStrategy.ALWAYS);
+		factory.setChainingStrategy(ChainingStrategy.ALWAYS);
 
-		return in.transform("async wait operator", outTypeInfo, operator);
+		return in.transform("async wait operator", outTypeInfo, factory);
 	}
 
 	/**
@@ -1087,7 +1082,7 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			AsyncDataStream.OutputMode outputMode) throws Exception {
 
 		return new OneInputStreamOperatorTestHarness<>(
-			new AsyncWaitOperator<>(function, timeout, capacity, outputMode),
+			new AsyncWaitOperatorFactory<>(function, timeout, capacity, outputMode),
 			IntSerializer.INSTANCE);
 	}
 }
