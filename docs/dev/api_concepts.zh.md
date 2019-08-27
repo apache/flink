@@ -393,7 +393,7 @@ These are valid field expressions for the example code above:
 <div data-lang="scala" markdown="1">
 
 In the example below, we have a `WC` POJO with two fields "word" and "count". To group by the field `word`, we just pass its name to the `keyBy()` function.
-{% highlight java %}
+{% highlight scala %}
 // some ordinary POJO (Plain old Java Object)
 class WC(var word: String, var count: Int) {
   def this() { this("", 0L) }
@@ -624,7 +624,7 @@ Flink places some restrictions on the type of elements that can be in a DataSet 
 The reason for this is that the system analyzes the types to determine
 efficient execution strategies.
 
-There are six different categories of data types:
+There are seven different categories of data types:
 
 1. **Java Tuples** and **Scala Case Classes**
 2. **Java POJOs**
