@@ -85,7 +85,6 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 	private final WatermarkGauge watermarkGauge;
 	private final Counter numRecordsIn;
 
-	@SuppressWarnings("unchecked")
 	public StreamOneInputProcessor(
 			InputGate[] inputGates,
 			TypeSerializer<IN> inputSerializer,
