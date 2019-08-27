@@ -812,7 +812,7 @@ LIMIT 3
 
 {% top %}
 
-### Top-N
+#### Top-N
 
 Top-N queries ask for the N smallest or largest values ordered by columns. Both smallest and largest values sets are considered Top-N queries. Top-N queries are useful in cases where the need is to display only the N bottom-most or the N top-
 most records from batch/streaming table on a condition. This result set can be used for further analysis.
@@ -890,7 +890,7 @@ val result1 = tableEnv.sqlQuery(
 </div>
 </div>
 
-#### No Ranking Output Optimization
+##### No Ranking Output Optimization
 
 As described above, the `rownum` field will be written into the result table as one field of the primary key, which may lead to a lot of records being written to the result table. For example, when the record (say `product-1001`) of ranking 9 is updated and its rank is upgraded to 1, all the records from ranking 1 ~ 9 will be output to the result table as update messages. If the result table receives too many data, it will become the bottleneck of the SQL job.
 
@@ -949,7 +949,7 @@ val result1 = tableEnv.sqlQuery(
 
 {% top %}
 
-### Deduplication
+#### Deduplication
 
 Deduplication is removing rows that duplicate over a set of columns, keeping only the first one or the last one. In some cases, the upstream ETL jobs are not end-to-end exactly-once, this may result in there are duplicate records in the sink in case of failover. However, the duplicate records will affect the correctness of downstream analytical jobs (e.g. `SUM`, `COUNT`). So a deduplication is needed before further analysis.
 
