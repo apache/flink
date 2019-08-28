@@ -61,15 +61,15 @@ public class ByteBufferUtilsTest {
 	@Test
 	public void testCompareHeapBufferWithDirectBuffer() {
 		byte[] bytes = new byte[]{'a', 'b', 'c', 'd', 'e'};
-		final int LEN = bytes.length;
+		final int len = bytes.length;
 		ByteBuffer heapBuffer = ByteBuffer.wrap(bytes);
-		ByteBuffer directBuffer = ByteBuffer.allocateDirect(LEN);
+		ByteBuffer directBuffer = ByteBuffer.allocateDirect(len);
 		directBuffer.put(bytes);
-		int res = ByteBufferUtils.compareTo(heapBuffer, 1, LEN - 1, directBuffer, 1, LEN - 1);
+		int res = ByteBufferUtils.compareTo(heapBuffer, 1, len - 1, directBuffer, 1, len - 1);
 		Assert.assertThat(res, is(0));
-		res = ByteBufferUtils.compareTo(heapBuffer, 0, LEN - 1, directBuffer, 1, LEN - 1);
+		res = ByteBufferUtils.compareTo(heapBuffer, 0, len - 1, directBuffer, 1, len - 1);
 		Assert.assertThat(res, lessThan(0));
-		res = ByteBufferUtils.compareTo(heapBuffer, 1, LEN - 1, directBuffer, 0, LEN - 1);
+		res = ByteBufferUtils.compareTo(heapBuffer, 1, len - 1, directBuffer, 0, len - 1);
 		Assert.assertThat(res, greaterThan(0));
 	}
 
