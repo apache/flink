@@ -18,15 +18,17 @@
 package org.apache.flink.table.planner.codegen.agg
 
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.planner.codegen.CodeGenUtils.primitiveTypeTermForType
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator.DISTINCT_KEY_TERM
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
-import org.apache.flink.table.planner.expressions.{DeclarativeExpressionResolver, ResolvedAggInputReference, ResolvedAggLocalReference, ResolvedDistinctKeyReference, RexNodeConverter}
+import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.{toRexDistinctKey, toRexInputRef}
+import org.apache.flink.table.planner.expressions.{DeclarativeExpressionResolver, RexNodeConverter, RexNodeExpression}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.types.logical.LogicalType
 
+import org.apache.calcite.rex.RexLiteral
 import org.apache.calcite.tools.RelBuilder
 
 /**
@@ -41,7 +43,7 @@ import org.apache.calcite.tools.RelBuilder
   * @param aggBufferOffset  the offset in the buffers of this aggregate
   * @param aggBufferSize  the total size of aggregate buffers
   * @param inputTypes   the input field type infos
-  * @param constantExprs  the constant expressions
+  * @param constants  the constant literals
   * @param relBuilder  the rel builder to translate expressions to calcite rex nodes
   */
 class DeclarativeAggCodeGen(
@@ -52,7 +54,7 @@ class DeclarativeAggCodeGen(
     aggBufferOffset: Int,
     aggBufferSize: Int,
     inputTypes: Seq[LogicalType],
-    constantExprs: Seq[GeneratedExpression],
+    constants: Seq[RexLiteral],
     relBuilder: RelBuilder)
   extends AggCodeGen {
 
@@ -62,14 +64,21 @@ class DeclarativeAggCodeGen(
   private val bufferIndexes = Array.range(aggBufferOffset, aggBufferOffset + bufferTypes.length)
   private val bufferTerms = function.aggBufferAttributes
       .map(a => s"agg${aggInfo.aggIndex}_${a.getName}")
-  private val bufferNullTerms = bufferTerms.map(_ + "_isNull")
+
+  private val rexNodeGen = new RexNodeConverter(relBuilder)
+
+  private val bufferNullTerms = {
+    val exprCodegen = new ExprCodeGenerator(ctx, false)
+    bufferTerms.zip(bufferTypes).map {
+      case (name, t) => new LocalReferenceExpression(name, fromLogicalTypeToDataType(t))
+    }.map(_.accept(rexNodeGen)).map(exprCodegen.generateExpression).map(_.nullTerm)
+  }
 
   private val argIndexes = aggInfo.argIndexes
   private val argTypes = {
-    val types = inputTypes ++ constantExprs.map(_.resultType)
+    val types = inputTypes ++ constants.map(t => FlinkTypeFactory.toLogicalType(t.getType))
     argIndexes.map(types(_))
   }
-  private val rexNodeGen = new RexNodeConverter(relBuilder)
 
   def createAccumulator(generator: ExprCodeGenerator): Seq[GeneratedExpression] = {
     function.initialValuesExpressions
@@ -79,21 +88,15 @@ class DeclarativeAggCodeGen(
   def setAccumulator(generator: ExprCodeGenerator): String = {
     val aggBufferAccesses = function.aggBufferAttributes.zipWithIndex
       .map { case (attr, index) =>
-        new ResolvedAggInputReference(
-          attr.getName, bufferIndexes(index), bufferTypes(index))
+        toRexInputRef(relBuilder, bufferIndexes(index), bufferTypes(index))
       }
       .map(expr => generator.generateExpression(expr.accept(rexNodeGen)))
 
     val setters = aggBufferAccesses.zipWithIndex.map {
       case (access, index) =>
-        val typeTerm = primitiveTypeTermForType(access.resultType)
-        val memberName = bufferTerms(index)
-        val memberNullTerm = bufferNullTerms(index)
-        ctx.addReusableMember(s"private $typeTerm $memberName;")
-        ctx.addReusableMember(s"private boolean $memberNullTerm;")
         s"""
-           |${access.copyResultTermToTargetIfChanged(ctx, memberName)};
-           |$memberNullTerm = ${access.nullTerm};
+           |${access.copyResultTermToTargetIfChanged(ctx, bufferTerms(index))};
+           |${bufferNullTerms(index)} = ${access.nullTerm};
          """.stripMargin
     }
 
@@ -218,8 +221,8 @@ class DeclarativeAggCodeGen(
 
     override def toMergeInputExpr(name: String, localIndex: Int): ResolvedExpression = {
       // in merge case, the input1 is mergedAcc
-      new ResolvedAggInputReference(
-        name,
+      toRexInputRef(
+        relBuilder,
         mergedAccOffset + bufferIndexes(localIndex),
         bufferTypes(localIndex))
     }
@@ -228,37 +231,31 @@ class DeclarativeAggCodeGen(
       val inputIndex = argIndexes(localIndex)
       if (inputIndex >= inputTypes.length) { // it is a constant
         val constantIndex = inputIndex - inputTypes.length
-        val constantTerm = constantExprs(constantIndex).resultTerm
-        val nullTerm = constantExprs(constantIndex).nullTerm
-        val constantType = constantExprs(constantIndex).resultType
-        // constant is reused as member variable
-        new ResolvedAggLocalReference(
-          constantTerm,
-          nullTerm,
-          constantType)
+        val constant = constants(constantIndex)
+        new RexNodeExpression(constant,
+          fromLogicalTypeToDataType(FlinkTypeFactory.toLogicalType(constant.getType)))
       } else { // it is a input field
         if (isDistinctMerge) { // this is called from distinct merge
           if (function.operandCount == 1) {
             // the distinct key is a BoxedValue
-            new ResolvedDistinctKeyReference(name, argTypes(localIndex))
+            val t = argTypes(localIndex)
+            toRexDistinctKey(relBuilder, name, t)
           } else {
             // the distinct key is a BaseRow
-            new ResolvedAggInputReference(name, localIndex, argTypes(localIndex))
+            toRexInputRef(relBuilder, localIndex, argTypes(localIndex))
           }
         } else {
           // the input is the inputRow
-          new ResolvedAggInputReference(
-            name, argIndexes(localIndex), argTypes(localIndex))
+          toRexInputRef(relBuilder, argIndexes(localIndex), argTypes(localIndex))
         }
       }
     }
 
     override def toAggBufferExpr(name: String, localIndex: Int): ResolvedExpression = {
-        // it is a agg buffer.
-        val name = bufferTerms(localIndex)
-        val nullTerm = bufferNullTerms(localIndex)
-        // buffer access is reused as member variable
-        new ResolvedAggLocalReference(name, nullTerm, bufferTypes(localIndex))
+      // name => agg${aggInfo.aggIndex}_$name"
+      new LocalReferenceExpression(
+        bufferTerms(localIndex),
+        fromLogicalTypeToDataType(bufferTypes(localIndex)))
     }
   }
 

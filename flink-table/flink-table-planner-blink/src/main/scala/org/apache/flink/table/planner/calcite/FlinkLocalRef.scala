@@ -23,18 +23,16 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexLocalRef
 
 /**
-  * Special reference which represent a local filed, such as aggregate buffers or constants.
+  * Special reference which represent a local field, such as aggregate buffers or constants.
   * We are stored as class members, so the field can be referenced directly.
   * We should use an unique name to locate the field.
   *
   * See [[org.apache.flink.table.planner.codegen.ExprCodeGenerator.visitLocalRef()]]
   */
-case class RexAggLocalVariable(
+case class LocalReference(
     fieldTerm: String,
-    nullTerm: String,
-    dataType: RelDataType,
-    internalType: LogicalType)
-  extends RexLocalRef(0, dataType)
+    dataType: RelDataType)
+    extends RexLocalRef(0, dataType)
 
 /**
   * Special reference which represent a distinct key input filed,

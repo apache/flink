@@ -25,7 +25,8 @@ import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.planner.dataview.DataViewSpec
-import org.apache.flink.table.planner.expressions.{ResolvedAggInputReference, ResolvedDistinctKeyReference, RexNodeConverter}
+import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
+import org.apache.flink.table.planner.expressions.{DeclarativeExpressionResolver, RexNodeConverter}
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.{getAggFunctionUDIMethod, getAggUserDefinedInputTypes, getUserDefinedMethod, internalTypesToClasses, signatureToString}
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.planner.utils.SingleElementIterator
@@ -282,14 +283,15 @@ class ImperativeAggCodeGen(
         val inputRef = if (generator.input1Term.startsWith(DISTINCT_KEY_TERM)) {
           if (argTypes.length == 1) {
             // called from distinct merge and the inputTerm is the only argument
-            new ResolvedDistinctKeyReference(generator.input1Term, inputTypes(f))
+            DeclarativeExpressionResolver.toRexDistinctKey(
+              relBuilder, generator.input1Term, inputTypes(f))
           } else {
             // called from distinct merge call and the inputTerm is BaseRow type
-            new ResolvedAggInputReference(f.toString, index, inputTypes(f))
+            toRexInputRef(relBuilder, index, inputTypes(f))
           }
         } else {
           // called from accumulate
-          new ResolvedAggInputReference(f.toString, f, inputTypes(f))
+          toRexInputRef(relBuilder, f, inputTypes(f))
         }
         var inputExpr = generator.generateExpression(inputRef.accept(rexNodeGen))
         if (inputFieldCopy) inputExpr = inputExpr.deepCopy(ctx)

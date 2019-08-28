@@ -23,12 +23,19 @@ import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.RexDistinctKeyVariable;
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction;
+import org.apache.flink.table.types.logical.LogicalType;
 
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType;
 
 /**
  * Abstract class to resolve the expressions in {@link DeclarativeAggregateFunction}.
@@ -92,4 +99,20 @@ public abstract class DeclarativeExpressionResolver extends ExpressionDefaultVis
 	 * For aggregate buffer.
 	 */
 	public abstract ResolvedExpression toAggBufferExpr(String name, int localIndex);
+
+	public static ResolvedExpression toRexInputRef(RelBuilder builder, int i, LogicalType t) {
+		RelDataType tp = ((FlinkTypeFactory) builder.getTypeFactory())
+			.createFieldTypeFromLogicalType(t);
+		return new RexNodeExpression(new RexInputRef(i, tp), fromLogicalTypeToDataType(t));
+	}
+
+	public static ResolvedExpression toRexDistinctKey(RelBuilder builder, String name, LogicalType t) {
+		return new RexNodeExpression(
+			new RexDistinctKeyVariable(
+				name,
+				((FlinkTypeFactory) builder.getTypeFactory())
+					.createFieldTypeFromLogicalType(t),
+				t),
+			fromLogicalTypeToDataType(t));
+	}
 }

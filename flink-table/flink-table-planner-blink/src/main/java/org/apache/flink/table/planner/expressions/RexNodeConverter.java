@@ -25,8 +25,8 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
 import org.apache.flink.table.expressions.ExpressionVisitor;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.ResolvedExpressionVisitor;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
@@ -46,8 +46,7 @@ import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.calcite.RexAggLocalVariable;
-import org.apache.flink.table.planner.calcite.RexDistinctKeyVariable;
+import org.apache.flink.table.planner.calcite.LocalReference;
 import org.apache.flink.table.planner.functions.InternalFunctionDefinitions;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.functions.sql.SqlThrowExceptionFunction;
@@ -70,7 +69,6 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexFieldCollation;
-import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexWindowBound;
@@ -118,9 +116,6 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
 
 /**
  * Visit expression to generator {@link RexNode}.
- *
- * <p>TODO remove blink expressions(like {@link ResolvedAggInputReference}) and use
- * {@link ResolvedExpressionVisitor}.
  */
 public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
@@ -875,41 +870,17 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 
 	@Override
 	public RexNode visit(Expression other) {
-		if (other instanceof ResolvedAggInputReference) {
-			return visitResolvedAggInputReference((ResolvedAggInputReference) other);
-		} else if (other instanceof ResolvedAggLocalReference) {
-			return visitResolvedAggLocalReference((ResolvedAggLocalReference) other);
-		} else if (other instanceof ResolvedDistinctKeyReference) {
-			return visitResolvedDistinctKeyReference((ResolvedDistinctKeyReference) other);
-		} else if (other instanceof RexNodeExpression) {
+		if (other instanceof RexNodeExpression) {
 			return ((RexNodeExpression) other).getRexNode();
+		} else if (other instanceof LocalReferenceExpression) {
+			LocalReferenceExpression local = (LocalReferenceExpression) other;
+			return new LocalReference(
+				local.getName(),
+				typeFactory.createFieldTypeFromLogicalType(
+					fromDataTypeToLogicalType(local.getOutputDataType())));
 		} else {
 			throw new UnsupportedOperationException(other.getClass().getSimpleName() + ":" + other.toString());
 		}
-	}
-
-	private RexNode visitResolvedAggInputReference(ResolvedAggInputReference reference) {
-		// using index to resolve field directly, name used in toString only
-		return new RexInputRef(
-				reference.getIndex(),
-				typeFactory.createFieldTypeFromLogicalType(reference.getResultType()));
-	}
-
-	private RexNode visitResolvedAggLocalReference(ResolvedAggLocalReference reference) {
-		LogicalType type = reference.getResultType();
-		return new RexAggLocalVariable(
-				reference.getFieldTerm(),
-				reference.getNullTerm(),
-				typeFactory.createFieldTypeFromLogicalType(type),
-				type);
-	}
-
-	private RexNode visitResolvedDistinctKeyReference(ResolvedDistinctKeyReference reference) {
-		LogicalType type = reference.getResultType();
-		return new RexDistinctKeyVariable(
-				reference.getName(),
-				typeFactory.createFieldTypeFromLogicalType(type),
-				type);
 	}
 
 	private RexNode createCollation(RexNode node, RelFieldCollation.Direction direction,

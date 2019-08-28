@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
 import org.apache.flink.table.dataformat._
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexAggLocalVariable, RexDistinctKeyVariable}
+import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, LocalReference, RexDistinctKeyVariable}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{requireTemporal, requireTimeInterval, _}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
@@ -397,8 +397,12 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   }
 
   override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression = localRef match {
-    case local: RexAggLocalVariable =>
-      GeneratedExpression(local.fieldTerm, local.nullTerm, NO_CODE, local.internalType)
+    case local: LocalReference =>
+      val internalType = FlinkTypeFactory.toLogicalType(local.dataType)
+      val nullTerm = local.fieldTerm + "IsNull" // not use newName, keep isNull unique.
+      ctx.addReusableMember(s"${primitiveTypeTermForType(internalType)} ${local.fieldTerm};")
+      ctx.addReusableMember(s"boolean $nullTerm;")
+      GeneratedExpression(local.fieldTerm, nullTerm, NO_CODE, internalType)
     case value: RexDistinctKeyVariable =>
       val inputExpr = ctx.getReusableInputUnboxingExprs(input1Term, 0) match {
         case Some(expr) => expr
