@@ -396,14 +396,18 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     GeneratedExpression(input1Term, NEVER_NULL, NO_CODE, input1Type)
   }
 
-  override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression = localRef match {
-    case local: LocalReference =>
+  override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression =
+    throw new CodeGenException("RexLocalRef are not supported yet.")
+
+  def visitLocalReference(local: LocalReference): GeneratedExpression = {
       val internalType = FlinkTypeFactory.toLogicalType(local.dataType)
       val nullTerm = local.fieldTerm + "IsNull" // not use newName, keep isNull unique.
       ctx.addReusableMember(s"${primitiveTypeTermForType(internalType)} ${local.fieldTerm};")
       ctx.addReusableMember(s"boolean $nullTerm;")
       GeneratedExpression(local.fieldTerm, nullTerm, NO_CODE, internalType)
-    case value: RexDistinctKeyVariable =>
+  }
+
+  def visitDistinctKeyVariable(value: RexDistinctKeyVariable): GeneratedExpression = {
       val inputExpr = ctx.getReusableInputUnboxingExprs(input1Term, 0) match {
         case Some(expr) => expr
         case None =>
@@ -426,7 +430,6 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       }
       // hide the generated code as it will be executed only once
       GeneratedExpression(inputExpr.resultTerm, inputExpr.nullTerm, NO_CODE, inputExpr.resultType)
-    case _ => throw new CodeGenException("Local variables are not supported yet.")
   }
 
   override def visitRangeRef(rangeRef: RexRangeRef): GeneratedExpression =
