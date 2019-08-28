@@ -36,7 +36,7 @@ public class StreamOperatorFactoryUtil {
 	 * @param output the output of the operator.
 	 * @return a newly created and configured operator.
 	 */
-	public static <OUT, OP extends StreamOperatorFactory<OUT>> OP createOperator(
+	public static <OUT, OP extends StreamOperator<OUT>> OP createOperator(
 			StreamOperatorFactory<OUT> operatorFactory,
 			StreamTask<OUT, ?> containingTask,
 			StreamConfig configuration,
