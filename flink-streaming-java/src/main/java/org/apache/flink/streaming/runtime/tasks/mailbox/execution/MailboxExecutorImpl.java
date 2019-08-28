@@ -23,16 +23,13 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxStateException;
 
 import javax.annotation.Nonnull;
 
-import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Implementation of an executor service build around a mailbox-based execution model.
  */
-public class MailboxExecutorServiceImpl extends AbstractExecutorService implements MailboxExecutorService {
+public class MailboxExecutorImpl implements MailboxExecutor {
 
 	/** Reference to the thread that executes the mailbox letters.  */
 	@Nonnull
@@ -42,11 +39,11 @@ public class MailboxExecutorServiceImpl extends AbstractExecutorService implemen
 	@Nonnull
 	private final Mailbox mailbox;
 
-	public MailboxExecutorServiceImpl(@Nonnull Mailbox mailbox) {
+	public MailboxExecutorImpl(@Nonnull Mailbox mailbox) {
 		this(mailbox, Thread.currentThread());
 	}
 
-	public MailboxExecutorServiceImpl(@Nonnull Mailbox mailbox, @Nonnull Thread taskMailboxThread) {
+	public MailboxExecutorImpl(@Nonnull Mailbox mailbox, @Nonnull Thread taskMailboxThread) {
 		this.mailbox = mailbox;
 		this.taskMailboxThread = taskMailboxThread;
 	}
@@ -90,32 +87,6 @@ public class MailboxExecutorServiceImpl extends AbstractExecutorService implemen
 	@Override
 	public boolean isMailboxThread() {
 		return Thread.currentThread() == taskMailboxThread;
-	}
-
-	@Override
-	public void shutdown() {
-		mailbox.quiesce();
-	}
-
-	@Nonnull
-	@Override
-	public List<Runnable> shutdownNow() {
-		return mailbox.close();
-	}
-
-	@Override
-	public boolean isShutdown() {
-		return mailbox.getState() != Mailbox.State.OPEN;
-	}
-
-	@Override
-	public boolean isTerminated() {
-		return mailbox.getState() == Mailbox.State.CLOSED;
-	}
-
-	@Override
-	public boolean awaitTermination(long timeout, @Nonnull TimeUnit unit) {
-		throw new UnsupportedOperationException("This method is not supported by this implementation.");
 	}
 
 	/**
