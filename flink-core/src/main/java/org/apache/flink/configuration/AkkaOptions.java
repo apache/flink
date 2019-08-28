@@ -21,8 +21,6 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.description.Description;
 
-import static org.apache.flink.configuration.description.LinkElement.link;
-
 /**
  * Akka configuration options.
  */
@@ -38,34 +36,6 @@ public class AkkaOptions {
 		.withDescription("Timeout used for all futures and blocking Akka calls. If Flink fails due to timeouts then you" +
 			" should try to increase this value. Timeouts can be caused by slow machines or a congested network. The" +
 			" timeout value requires a time-unit specifier (ms/s/min/h/d).");
-
-	/**
-	 * The Akka death watch heartbeat interval.
-	 */
-	public static final ConfigOption<String> WATCH_HEARTBEAT_INTERVAL = ConfigOptions
-		.key("akka.watch.heartbeat.interval")
-		.defaultValue(ASK_TIMEOUT.defaultValue())
-		.withDescription(Description.builder()
-			.text("Heartbeat interval for Akka’s DeathWatch mechanism to detect dead TaskManagers. If" +
-					" TaskManagers are wrongly marked dead because of lost or delayed heartbeat messages, then you" +
-					" should decrease this value or increase akka.watch.heartbeat.pause. A thorough description of" +
-					" Akka’s DeathWatch can be found %s",
-				link("http://doc.akka.io/docs/akka/snapshot/scala/remoting.html#failure-detector", "here")).build());
-
-	/**
-	 * The maximum acceptable Akka death watch heartbeat pause.
-	 */
-	public static final ConfigOption<String> WATCH_HEARTBEAT_PAUSE = ConfigOptions
-		.key("akka.watch.heartbeat.pause")
-		.defaultValue("60 s")
-		.withDescription(Description.builder()
-			.text("Acceptable heartbeat pause for Akka’s DeathWatch mechanism. A low value does not allow an" +
-					" irregular heartbeat. If TaskManagers are wrongly marked dead because of lost or delayed" +
-					" heartbeat messages, then you should increase this value or decrease akka.watch.heartbeat.interval." +
-					" Higher value increases the time to detect a dead TaskManager. A thorough description of Akka’s" +
-					" DeathWatch can be found %s",
-				link("http://doc.akka.io/docs/akka/snapshot/scala/remoting.html#failure-detector", "here")
-			).build());
 	/**
 	 * The Akka tcp connection timeout.
 	 */
@@ -113,18 +83,6 @@ public class AkkaOptions {
 		.defaultValue(300.0)
 		.withDescription("Threshold for the transport failure detector. Since Flink uses TCP, the detector is not" +
 			" necessary and, thus, the threshold is set to a high value.");
-
-	/**
-	 * Detection threshold for the phi accrual watch failure detector.
-	 */
-	public static final ConfigOption<Integer> WATCH_THRESHOLD = ConfigOptions
-		.key("akka.watch.threshold")
-		.defaultValue(12)
-		.withDescription(Description.builder()
-			.text("Threshold for the DeathWatch failure detector. A low value is prone to false positives whereas" +
-					" a high value increases the time to detect a dead TaskManager. A thorough description of Akka’s" +
-					" DeathWatch can be found %s",
-				link("http://doc.akka.io/docs/akka/snapshot/scala/remoting.html#failure-detector", "here")).build());
 
 	/**
 	 * Override SSL support for the Akka transport.
