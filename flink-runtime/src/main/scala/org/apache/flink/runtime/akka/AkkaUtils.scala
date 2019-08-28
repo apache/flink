@@ -417,19 +417,6 @@ object AkkaUtils {
 
     val transportThreshold = configuration.getDouble(AkkaOptions.TRANSPORT_THRESHOLD)
 
-    val watchHeartbeatInterval = configuration.getString(
-      AkkaOptions.WATCH_HEARTBEAT_INTERVAL)
-
-    val watchHeartbeatPause = configuration.getString(AkkaOptions.WATCH_HEARTBEAT_PAUSE)
-
-    validateHeartbeat(
-      AkkaOptions.WATCH_HEARTBEAT_PAUSE.key(),
-      watchHeartbeatPause,
-      AkkaOptions.WATCH_HEARTBEAT_INTERVAL.key(),
-      watchHeartbeatInterval)
-
-    val watchThreshold = configuration.getInteger(AkkaOptions.WATCH_THRESHOLD)
-
     val akkaTCPTimeout = configuration.getString(AkkaOptions.TCP_TIMEOUT)
 
     val akkaFramesize = configuration.getString(AkkaOptions.FRAMESIZE)
@@ -503,12 +490,6 @@ object AkkaUtils {
          |      acceptable-heartbeat-pause = $transportHeartbeatPause
          |      heartbeat-interval = $transportHeartbeatInterval
          |      threshold = $transportThreshold
-         |    }
-         |
-         |    watch-failure-detector{
-         |      heartbeat-interval = $watchHeartbeatInterval
-         |      acceptable-heartbeat-pause = $watchHeartbeatPause
-         |      threshold = $watchThreshold
          |    }
          |
          |    netty {

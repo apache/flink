@@ -876,7 +876,7 @@ public final class ConfigConstants {
 	/**
 	 * Heartbeat interval of watch failure detector.
 	 *
-	 * @deprecated Use {@link AkkaOptions#WATCH_HEARTBEAT_INTERVAL} instead.
+	 * @deprecated This option is no longer used and has no effect on Flink.
 	 */
 	@Deprecated
 	public static final String AKKA_WATCH_HEARTBEAT_INTERVAL = "akka.watch.heartbeat.interval";
@@ -884,7 +884,7 @@ public final class ConfigConstants {
 	/**
 	 * Allowed heartbeat pause for the watch failure detector.
 	 *
-	 * @deprecated Use {@link AkkaOptions#WATCH_HEARTBEAT_PAUSE} instead.
+	 * @deprecated This option is no longer used and has no effect on Flink.
 	 */
 	@Deprecated
 	public static final String AKKA_WATCH_HEARTBEAT_PAUSE = "akka.watch.heartbeat.pause";
@@ -892,7 +892,7 @@ public final class ConfigConstants {
 	/**
 	 * Detection threshold for the phi accrual watch failure detector.
 	 *
-	 * @deprecated Use {@link AkkaOptions#WATCH_THRESHOLD} instead.
+	 * @deprecated This option is no longer used and has no effect on Flink.
 	 */
 	@Deprecated
 	public static final String AKKA_WATCH_THRESHOLD = "akka.watch.threshold";
@@ -1777,7 +1777,7 @@ public final class ConfigConstants {
 	public static final double DEFAULT_AKKA_TRANSPORT_THRESHOLD = 300.0;
 
 	/**
-	 * @deprecated Use {@link AkkaOptions#WATCH_THRESHOLD} instead.
+	 * @deprecated This default value is no longer used and has no effect on Flink.
 	 */
 	@Deprecated
 	public static final double DEFAULT_AKKA_WATCH_THRESHOLD = 12;
