@@ -49,6 +49,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.Test;
 
@@ -806,9 +807,14 @@ public class SlotManagerImplTest extends TestLogger {
 		final SlotStatus slotStatus2 = new SlotStatus(slotId2, resourceProfile);
 		final SlotReport slotReport = new SlotReport(Arrays.asList(slotStatus1, slotStatus2));
 
-		final Executor mainThreadExecutor = TestingUtils.defaultExecutor();
+		final ScheduledExecutor mainThreadExecutor = TestingUtils.defaultScheduledExecutor();
 
-		try (final SlotManagerImpl slotManager = SlotManagerBuilder.newBuilder().build()) {
+		final SlotManagerImpl slotManager = SlotManagerBuilder
+			.newBuilder()
+			.setScheduledExecutor(mainThreadExecutor)
+			.build();
+
+		try {
 
 			slotManager.start(resourceManagerId, mainThreadExecutor, resourceManagerActions);
 
@@ -834,12 +840,6 @@ public class SlotManagerImplTest extends TestLogger {
 			final SlotID requestedSlotId = slotIds.take();
 			final SlotID freeSlotId = requestedSlotId.equals(slotId1) ? slotId2 : slotId1;
 
-			CompletableFuture<Boolean> freeSlotFuture = CompletableFuture.supplyAsync(
-				() -> slotManager.getSlot(freeSlotId).getState() == TaskManagerSlot.State.FREE,
-				mainThreadExecutor);
-
-			assertTrue(freeSlotFuture.get());
-
 			final SlotStatus newSlotStatus1 = new SlotStatus(requestedSlotId, resourceProfile, new JobID(), new AllocationID());
 			final SlotStatus newSlotStatus2 = new SlotStatus(freeSlotId, resourceProfile);
 			final SlotReport newSlotReport = new SlotReport(Arrays.asList(newSlotStatus1, newSlotStatus2));
@@ -853,16 +853,11 @@ public class SlotManagerImplTest extends TestLogger {
 
 			final SlotID requestedSlotId2 = slotIds.take();
 
-			assertEquals(slotId2, requestedSlotId2);
-
-			CompletableFuture<TaskManagerSlot> requestedSlotFuture = CompletableFuture.supplyAsync(
-				() -> slotManager.getSlot(requestedSlotId2),
+			assertEquals(freeSlotId, requestedSlotId2);
+		} finally {
+			CompletableFuture.runAsync(
+				ThrowingRunnable.unchecked(slotManager::close),
 				mainThreadExecutor);
-
-			TaskManagerSlot slot = requestedSlotFuture.get();
-
-			assertTrue(slot.getState() == TaskManagerSlot.State.ALLOCATED);
-			assertEquals(allocationId, slot.getAllocationId());
 		}
 	}
 
