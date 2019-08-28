@@ -63,6 +63,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutorFactory;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
@@ -98,7 +99,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 
 	protected final TestProcessingTimeService processingTimeService;
 
-	protected final MockStreamTask mockTask;
+	protected final MockStreamTask<?, ?> mockTask;
 
 	protected final TestTaskStateManager taskStateManager;
 
@@ -288,6 +289,10 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 			}
 			setupCalled = true;
 		}
+	}
+
+	private MailboxExecutorFactory getMailboxExecutorFactory() {
+		return mockTask.getMailboxExecutorFactory();
 	}
 
 	/**
@@ -527,6 +532,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 		if (internalEnvironment.isPresent()) {
 			internalEnvironment.get().close();
 		}
+		mockTask.cleanup();
 	}
 
 	public void setProcessingTime(long time) throws Exception {
