@@ -31,7 +31,7 @@ import java.util.Map;
 public class PrometheusPushGatewayReporterTest extends TestLogger {
 
 	@Test
-	public void testParserGroupingKey() {
+	public void testParseGroupingKey() {
 		PrometheusPushGatewayReporter reporter = new PrometheusPushGatewayReporter();
 		Map<String, String> groupingKey = reporter.parseGroupingKey("k1=v1;k2=v2");
 		Assert.assertNotNull(groupingKey);
@@ -40,7 +40,7 @@ public class PrometheusPushGatewayReporterTest extends TestLogger {
 	}
 
 	@Test
-	public void testParserIncompleteGroupingKey() {
+	public void testParseIncompleteGroupingKey() {
 		PrometheusPushGatewayReporter reporter = new PrometheusPushGatewayReporter();
 		Map<String, String> groupingKey = reporter.parseGroupingKey("k1=");
 		Assert.assertNotNull(groupingKey);
