@@ -135,14 +135,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 				if (column instanceof SqlTableColumn) {
 					SqlTableColumn tableColumn = (SqlTableColumn) column;
 					columnName = tableColumn.getName().getSimple();
-					String typeName = tableColumn.getType().getTypeName().getSimple();
-					if (typeName == null) {
-						throw new SqlParseException(
-							column.getParserPosition(),
-							"Non supported type for column ["
-								+ columnName + "], at "
-								+ column.getParserPosition());
-					}
 				} else if (column instanceof SqlBasicCall) {
 					SqlBasicCall tableColumn = (SqlBasicCall) column;
 					columnName = tableColumn.getOperands()[1].toString();
@@ -243,9 +235,9 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
 	@Override
 	public void unparse(
-		SqlWriter writer,
-		int leftPrec,
-		int rightPrec) {
+			SqlWriter writer,
+			int leftPrec,
+			int rightPrec) {
 		writer.keyword("CREATE TABLE");
 		tableName.unparse(writer, leftPrec, rightPrec);
 		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.create("sds"), "(", ")");

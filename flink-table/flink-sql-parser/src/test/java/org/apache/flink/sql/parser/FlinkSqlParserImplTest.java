@@ -408,6 +408,19 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testCreateTableWithUserDefinedType() {
+		final String sql = "create table t(\n" +
+			"  a catalog1.db1.MyType1,\n" +
+			"  b db2.MyType2\n" +
+			") with (\n" +
+			"  'k1' = 'v1',\n" +
+			"  'k2' = 'v2'\n" +
+			")";
+		final String errMsg = "UDT in DDL is not supported yet.";
+		checkFails(sql, errMsg);
+	}
+
+	@Test
 	public void testInvalidComputedColumn() {
 		checkFails("CREATE TABLE sls_stream (\n" +
 			"  a bigint, \n" +
