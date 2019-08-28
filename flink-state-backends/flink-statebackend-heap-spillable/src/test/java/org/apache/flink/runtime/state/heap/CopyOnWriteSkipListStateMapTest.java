@@ -38,12 +38,14 @@ import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.IOUtils;
 
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -55,6 +57,7 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.runtime.state.heap.SkipListUtils.NIL_NODE;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -1190,6 +1193,30 @@ public class CopyOnWriteSkipListStateMapTest {
 
 		stateMap.close();
 		assertFalse(closedVisitor.hasNext());
+	}
+
+	@Test
+	public void testPutAndGetNode() {
+		TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
+		TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
+		TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = new CopyOnWriteSkipListStateMap<>(
+			keySerializer, namespaceSerializer, stateSerializer, spaceAllocator);
+		final int key = 10;
+		final long namespace = 0L;
+		final String valueString = "test";
+		SkipListKeySerializer<Integer, Long> skipListKeySerializer = new SkipListKeySerializer<>(keySerializer, namespaceSerializer);
+		SkipListValueSerializer<String> skipListValueSerializer = new SkipListValueSerializer<>(stateSerializer);
+		byte[] keyBytes = skipListKeySerializer.serialize(key, namespace);
+		byte[] constructedKeyBytes = new byte[keyBytes.length + 1];
+		System.arraycopy(keyBytes, 0, constructedKeyBytes, 1, keyBytes.length);
+		ByteBuffer keyByteBuffer = ByteBuffer.wrap(constructedKeyBytes);
+		int keyLen = keyBytes.length;
+		byte[] value = skipListValueSerializer.serialize(valueString);
+		stateMap.putNode(keyByteBuffer, 1, keyLen, value, false);
+		long node = stateMap.getNode(keyByteBuffer, 1, keyLen);
+		long valuePointer = SkipListUtils.helpGetValuePointer(node, spaceAllocator);
+		Assert.assertThat(stateMap.helpGetState(valuePointer), is(valueString));
 	}
 
 	@SuppressWarnings("unchecked")

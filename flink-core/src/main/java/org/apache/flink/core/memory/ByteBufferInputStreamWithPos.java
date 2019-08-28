@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.heap;
+package org.apache.flink.core.memory;
 
 import org.apache.flink.util.Preconditions;
 
@@ -35,11 +35,8 @@ public class ByteBufferInputStreamWithPos extends InputStream {
 	private int count;
 	private int mark;
 
-	ByteBufferInputStreamWithPos(ByteBuffer buffer, int offset, int length) {
-		this.position = offset;
-		this.buffer = buffer;
-		this.mark = offset;
-		this.count = offset + length;
+	public ByteBufferInputStreamWithPos(ByteBuffer buffer, int offset, int length) {
+		setBuffer(buffer, offset, length);
 	}
 
 	@Override
@@ -69,7 +66,7 @@ public class ByteBufferInputStreamWithPos extends InputStream {
 			return 0;
 		}
 
-		ByteBufferUtils.copyFromBufferToArray(buffer, b, position, off, len);
+		ByteBufferUtils.copyFromBufferToArray(buffer, position, b, off, len);
 		position += len;
 		return len;
 	}
@@ -110,8 +107,19 @@ public class ByteBufferInputStreamWithPos extends InputStream {
 	public void close() {
 	}
 
-	void setPosition(long pos) {
+	public int getPosition() {
+		return position;
+	}
+
+	public void setPosition(int pos) {
 		Preconditions.checkArgument(pos >= 0 && pos <= count, "Position out of bounds.");
-		this.position = (int) pos;
+		this.position = pos;
+	}
+
+	public void setBuffer(ByteBuffer buffer, int offset, int length) {
+		this.count = Math.min(buffer.limit(), offset + length);
+		setPosition(offset);
+		this.buffer = buffer;
+		this.mark = offset;
 	}
 }

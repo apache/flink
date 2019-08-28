@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.core.memory.ByteBufferUtils;
 import org.apache.flink.runtime.state.heap.space.Allocator;
 import org.apache.flink.runtime.state.heap.space.Chunk;
 import org.apache.flink.runtime.state.heap.space.SpaceUtils;
@@ -261,7 +262,7 @@ public class SkipListUtils {
 	 */
 	public static void putKeyData(
 		ByteBuffer byteBuffer, int offset, ByteBuffer keyByteBuffer, int keyOffset, int keyLen, int level) {
-		ByteBufferUtils.copyFromBufferToBuffer(keyByteBuffer, byteBuffer, keyOffset,
+		ByteBufferUtils.copyFromBufferToBuffer(keyByteBuffer, keyOffset, byteBuffer,
 			offset + getKeyDataOffset(level), keyLen);
 	}
 
@@ -380,7 +381,7 @@ public class SkipListUtils {
 	 * @param value value data.
 	 */
 	public static void putValueData(ByteBuffer byteBuffer, int offset, byte[] value) {
-		ByteBufferUtils.copyFromArrayToBuffer(byteBuffer, offset + getValueMetaLen(), value, 0, value.length);
+		ByteBufferUtils.copyFromArrayToBuffer(value, 0, byteBuffer, offset + getValueMetaLen(), value.length);
 	}
 
 	/**

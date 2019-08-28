@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.memory.ByteBufferUtils;
 import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.heap.space.Allocator;
@@ -58,6 +59,10 @@ import static org.apache.flink.runtime.state.heap.SkipListUtils.NIL_VALUE_POINTE
 /**
  * Implementation of state map which is based on skip list with copy-on-write support. states will
  * be serialized to bytes and stored in the space allocated with the given allocator.
+ *
+ * @param <K> type of key
+ * @param <N> type of namespace
+ * @param <S> type of state
  */
 public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> implements AutoCloseable {
 
@@ -161,24 +166,24 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 	private final ResourceGuard resourceGuard;
 
 	public CopyOnWriteSkipListStateMap(
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			TypeSerializer<S> stateSerializer,
-			Allocator spaceAllocator) {
+			@Nonnull TypeSerializer<K> keySerializer,
+			@Nonnull TypeSerializer<N> namespaceSerializer,
+			@Nonnull TypeSerializer<S> stateSerializer,
+			@Nonnull Allocator spaceAllocator) {
 		this(keySerializer, namespaceSerializer, stateSerializer, spaceAllocator,
 			DEFAULT_MAX_KEYS_TO_DELETE_ONE_TIME, DEFAULT_LOGICAL_REMOVED_KEYS_RATIO);
 	}
 
 	public CopyOnWriteSkipListStateMap(
-			TypeSerializer<K> keySerializer,
-			TypeSerializer<N> namespaceSerializer,
-			TypeSerializer<S> stateSerializer,
-			Allocator spaceAllocator,
+			@Nonnull TypeSerializer<K> keySerializer,
+			@Nonnull TypeSerializer<N> namespaceSerializer,
+			@Nonnull TypeSerializer<S> stateSerializer,
+			@Nonnull Allocator spaceAllocator,
 			int numKeysToDeleteOneTime,
 			float logicalRemovedKeysRatio) {
 		this.skipListKeySerializer = new SkipListKeySerializer<>(keySerializer, namespaceSerializer);
 		this.skipListValueSerializer = new SkipListValueSerializer<>(stateSerializer);
-		this.spaceAllocator = Preconditions.checkNotNull(spaceAllocator);
+		this.spaceAllocator = spaceAllocator;
 		Preconditions.checkArgument(numKeysToDeleteOneTime >= 0,
 			"numKeysToDeleteOneTime should be non-negative, but is "  + numKeysToDeleteOneTime);
 		this.numKeysToDeleteOneTime = numKeysToDeleteOneTime;
@@ -223,11 +228,8 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 	@Override
 	public S get(K key, N namespace) {
 		updateStat();
-		byte[] keyBytes = skipListKeySerializer.serialize(key, namespace);
-		ByteBuffer keyByteBuffer = ByteBuffer.wrap(keyBytes);
-		int keyLen = keyBytes.length;
 
-		long node = getNode(keyByteBuffer, 0, keyLen);
+		long node = getNodeInternal(key, namespace);
 
 		if (node == NIL_NODE) {
 			return null;
@@ -239,11 +241,8 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 	@Override
 	public boolean containsKey(K key, N namespace) {
 		updateStat();
-		byte[] keyBytes = skipListKeySerializer.serialize(key, namespace);
-		ByteBuffer keyByteBuffer = ByteBuffer.wrap(keyBytes);
-		int keyLen = keyBytes.length;
 
-		long node = getNode(keyByteBuffer, 0, keyLen);
+		long node = getNodeInternal(key, namespace);
 
 		return node != NIL_NODE;
 	}
@@ -251,9 +250,8 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 	@Override
 	public void put(K key, N namespace, S state) {
 		updateStat();
-		byte[] keyBytes = skipListKeySerializer.serialize(key, namespace);
-		ByteBuffer keyByteBuffer = ByteBuffer.wrap(keyBytes);
-		int keyLen = keyBytes.length;
+		ByteBuffer keyByteBuffer = getKeyByteBuffer(key, namespace);
+		int keyLen = keyByteBuffer.limit();
 		byte[] value = skipListValueSerializer.serialize(state);
 
 		putNode(keyByteBuffer, 0, keyLen, value, false);
@@ -262,9 +260,8 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 	@Override
 	public S putAndGetOld(K key, N namespace, S state) {
 		updateStat();
-		byte[] keyBytes = skipListKeySerializer.serialize(key, namespace);
-		ByteBuffer keyByteBuffer = ByteBuffer.wrap(keyBytes);
-		int keyLen = keyBytes.length;
+		ByteBuffer keyByteBuffer = getKeyByteBuffer(key, namespace);
+		int keyLen = keyByteBuffer.limit();
 		byte[] value = skipListValueSerializer.serialize(state);
 
 		return putNode(keyByteBuffer, 0, keyLen, value, true);
@@ -273,9 +270,8 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 	@Override
 	public void remove(K key, N namespace) {
 		updateStat();
-		byte[] keyBytes = skipListKeySerializer.serialize(key, namespace);
-		ByteBuffer keyByteBuffer = ByteBuffer.wrap(keyBytes);
-		int keyLen = keyBytes.length;
+		ByteBuffer keyByteBuffer = getKeyByteBuffer(key, namespace);
+		int keyLen = keyByteBuffer.limit();
 
 		removeNode(keyByteBuffer, 0, keyLen, false);
 	}
@@ -283,9 +279,8 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 	@Override
 	public S removeAndGetOld(K key, N namespace) {
 		updateStat();
-		byte[] keyBytes = skipListKeySerializer.serialize(key, namespace);
-		ByteBuffer keyByteBuffer = ByteBuffer.wrap(keyBytes);
-		int keyLen = keyBytes.length;
+		ByteBuffer keyByteBuffer = getKeyByteBuffer(key, namespace);
+		int keyLen = keyByteBuffer.limit();
 
 		return removeNode(keyByteBuffer, 0, keyLen, true);
 	}
@@ -297,9 +292,8 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 		T value,
 		StateTransformationFunction<S, T> transformation) throws Exception {
 		updateStat();
-		byte[] keyBytes = skipListKeySerializer.serialize(key, namespace);
-		ByteBuffer keyByteBuffer = ByteBuffer.wrap(keyBytes);
-		int keyLen = keyBytes.length;
+		ByteBuffer keyByteBuffer = getKeyByteBuffer(key, namespace);
+		int keyLen = keyByteBuffer.limit();
 
 		long node = getNode(keyByteBuffer, 0, keyLen);
 		S oldState = node == NIL_NODE ? null : helpGetNodeState(node);
@@ -318,7 +312,8 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 	 * @param keyLen        length of the key.
 	 * @return id of the node. NIL_NODE will be returned if key does no exist.
 	 */
-	private long getNode(ByteBuffer keyByteBuffer, int keyOffset, int keyLen) {
+	@VisibleForTesting
+	long getNode(ByteBuffer keyByteBuffer, int keyOffset, int keyLen) {
 		int deleteCount = 0;
 		long prevNode = findPredecessor(keyByteBuffer, keyOffset, 1);
 		long currentNode  = helpGetNextNode(prevNode, 0);
@@ -374,7 +369,8 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 	 * @param returnOldState whether to return old state.
 	 * @return the old state. Null will be returned if key does not exist or returnOldState is false.
 	 */
-	private S putNode(ByteBuffer keyByteBuffer, int keyOffset, int keyLen, byte[] value, boolean returnOldState) {
+	@VisibleForTesting
+	S putNode(ByteBuffer keyByteBuffer, int keyOffset, int keyLen, byte[] value, boolean returnOldState) {
 		int deleteCount = 0;
 		long prevNode = findPredecessor(keyByteBuffer, keyOffset, 1);
 		long currentNode = helpGetNextNode(prevNode, 0);
@@ -741,7 +737,6 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 		return level;
 	}
 
-
 	/**
 	 * Write the meta and data for the key to the given node.
 	 *
@@ -991,6 +986,32 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 		requestCount++;
 	}
 
+	/**
+	 * Find the node containing the given key.
+	 *
+	 * @param key       the key.
+	 * @param namespace the namespace.
+	 * @return id of the node. NIL_NODE will be returned if key does no exist.
+	 */
+	private long getNodeInternal(K key, N namespace) {
+		ByteBuffer keyByteBuffer = getKeyByteBuffer(key, namespace);
+		int keyLen = keyByteBuffer.limit();
+
+		return getNode(keyByteBuffer, 0, keyLen);
+	}
+
+	/**
+	 * Get the {@link ByteBuffer} wrapping up the serialized key bytes.
+	 *
+	 * @param key       the key.
+	 * @param namespace the namespace.
+	 * @return the {@link ByteBuffer} wrapping up the serialized key bytes.
+	 */
+	private ByteBuffer getKeyByteBuffer(K key, N namespace) {
+		byte[] keyBytes = skipListKeySerializer.serialize(key, namespace);
+		return ByteBuffer.wrap(keyBytes);
+	}
+
 	// Help methods ---------------------------------------------------------------
 
 	/**
@@ -1041,7 +1062,8 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 	/**
 	 * Return the state of the node. null will be returned if the node is removed.
 	 */
-	private S helpGetNodeState(long node) {
+	@VisibleForTesting
+	S helpGetNodeState(long node) {
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
 		ByteBuffer byteBuffer = chunk.getByteBuffer(offsetInChunk);
@@ -1083,8 +1105,8 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 
 		int valueLen = SkipListUtils.getValueLen(bb, offsetInByteBuffer);
 		byte[] valueBytes = new byte[valueLen];
-		ByteBufferUtils.copyFromBufferToArray(bb, valueBytes,
-			offsetInByteBuffer + SkipListUtils.getValueMetaLen(), 0, valueLen);
+		ByteBufferUtils.copyFromBufferToArray(bb, offsetInByteBuffer + SkipListUtils.getValueMetaLen(), valueBytes,
+			0, valueLen);
 
 		return valueBytes;
 	}
@@ -1449,7 +1471,7 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 			int keyDataOffset = offsetInByteBuffer + SkipListUtils.getKeyDataOffset(level);
 
 			ByteBuffer byteBuffer = ByteBuffer.allocate(keyLen);
-			ByteBufferUtils.copyFromBufferToBuffer(bb, byteBuffer, keyDataOffset, 0, keyLen);
+			ByteBufferUtils.copyFromBufferToBuffer(bb, keyDataOffset, byteBuffer, 0, keyLen);
 			nextKeyByteBuffer = byteBuffer;
 			nextKeyOffset = 0;
 		}

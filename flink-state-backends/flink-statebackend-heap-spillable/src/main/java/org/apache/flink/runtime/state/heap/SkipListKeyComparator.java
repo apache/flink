@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.core.memory.ByteBufferUtils;
+
 import java.nio.ByteBuffer;
 
 /**

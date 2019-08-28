@@ -24,6 +24,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.nio.ByteBuffer;
+
 /**
  * Tests for {@link ByteArrayInputStreamWithPos}.
  */
@@ -89,7 +91,7 @@ public class ByteArrayInputStreamWithPosTest {
 		byte[] testData = new byte[]{0x42, 0x43, 0x44, 0x45};
 		int off = 1;
 		int len = 2;
-		in.setBuffer(testData, off, len);
+		in.setBuffer(ByteBuffer.wrap(testData), off, len);
 		for (int i = 0; i < len; ++i) {
 			Assert.assertEquals(testData[i + off], in.read());
 		}

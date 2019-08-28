@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.heap;
+package org.apache.flink.core.memory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
@@ -27,7 +28,6 @@ import java.nio.ByteBuffer;
  * Utilities to get/put data to {@link ByteBuffer}. All methods don't change
  * byte buffer's position.
  */
-@SuppressWarnings({"WeakerAccess", "unused", "UnusedReturnValue"})
 public class ByteBufferUtils {
 
 	private static final boolean UNSAFE_AVAIL = UnsafeHelp.isAvailable();
@@ -117,15 +117,15 @@ public class ByteBufferUtils {
 	 * won't affect the position of any of the buffers.
 	 *
 	 * @param in                the given buffer to read
-	 * @param out               the given buffer of destination
 	 * @param sourceOffset      the given buffer's offset of src
+	 * @param out               the given buffer of destination
 	 * @param destinationOffset the given buffer's offset of destination
 	 * @param length            indicate data length
 	 */
-	public static int copyFromBufferToBuffer(
+	public static void copyFromBufferToBuffer(
 			@Nonnull ByteBuffer in,
-			ByteBuffer out,
 			int sourceOffset,
+			ByteBuffer out,
 			int destinationOffset,
 			int length) {
 		if (in.hasArray() && out.hasArray()) {
@@ -141,19 +141,18 @@ public class ByteBufferUtils {
 			out.put(inDup);
 			out.position(outOldPos);
 		}
-		return destinationOffset + length;
 	}
 
 	/**
 	 * Copies bytes from given array's offset to length part into the given buffer. Puts the bytes
 	 * to buffer's given position.
 	 *
-	 * @param out      the given buffer of destination
 	 * @param in       array to read
 	 * @param inOffset the offset at which the byte has to be read
+	 * @param out      the given buffer of destination
 	 * @param length   indicate data length
 	 */
-	public static void copyFromArrayToBuffer(ByteBuffer out, int outOffset, byte[] in, int inOffset, int length) {
+	public static void copyFromArrayToBuffer(byte[] in, int inOffset, ByteBuffer out, int outOffset, int length) {
 		if (out.hasArray()) {
 			System.arraycopy(in, inOffset, out.array(), out.arrayOffset() + outOffset, length);
 		} else if (UNSAFE_AVAIL) {
@@ -171,13 +170,17 @@ public class ByteBufferUtils {
 	 * the array.
 	 *
 	 * @param in                the given buffer to read
-	 * @param out               array of destination
 	 * @param sourceOffset      the offset
+	 * @param out               array of destination
 	 * @param destinationOffset the offset
 	 * @param length            indicate data length
 	 */
-	public static void copyFromBufferToArray(ByteBuffer in, byte[] out, int sourceOffset, int destinationOffset,
-		int length) {
+	public static void copyFromBufferToArray(
+			ByteBuffer in,
+			int sourceOffset,
+			byte[] out,
+			int destinationOffset,
+			int length) {
 		if (in.hasArray()) {
 			System.arraycopy(in.array(), sourceOffset + in.arrayOffset(), out, destinationOffset, length);
 		} else if (UNSAFE_AVAIL) {
@@ -190,62 +193,114 @@ public class ByteBufferUtils {
 		}
 	}
 
-	public static int compareTo(ByteBuffer buf1, int o1, int l1, byte[] buf2, int o2, int l2) {
+	/**
+	 * Compare the content of a {@link ByteBuffer} with that of a byte array.
+	 *
+	 * @param srcBuffer  the source ByteBuffer
+	 * @param srcOffset  the source offset to start from for comparison.
+	 * @param srcLength  the source length to compare.
+	 * @param dest       the dest byte array.
+	 * @param destOffset the dest offset to start from for comparison.
+	 * @param destLength the dest length to compare.
+	 * @return 0 if equals, 1 if the source is bigger by bytes order, or -1 if the dest is bigger.
+	 */
+	public static int compareTo(
+			ByteBuffer srcBuffer,
+			int srcOffset,
+			int srcLength,
+			byte[] dest,
+			int destOffset,
+			int destLength) {
 		if (UNSAFE_UNALIGNED) {
-			long offset1Adj;
-			Object refObj1 = null;
-			if (buf1.isDirect()) {
-				offset1Adj = o1 + getBufferAddress(buf1);
+			long srcOffsetAddress;
+			Object srcArray = null;
+			if (srcBuffer.isDirect()) {
+				srcOffsetAddress = srcOffset + getBufferAddress(srcBuffer);
 			} else {
-				offset1Adj = o1 + buf1.arrayOffset() + UnsafeHelp.BYTE_ARRAY_BASE_OFFSET;
-				refObj1 = buf1.array();
+				srcOffsetAddress = srcOffset + srcBuffer.arrayOffset() + UnsafeHelp.BYTE_ARRAY_BASE_OFFSET;
+				srcArray = srcBuffer.array();
 			}
-			return compareToUnsafe(refObj1, offset1Adj, l1, buf2, o2 + UnsafeHelp.BYTE_ARRAY_BASE_OFFSET, l2);
+			return compareToUnsafe(srcArray, srcOffsetAddress, srcLength,
+				dest, destOffset + UnsafeHelp.BYTE_ARRAY_BASE_OFFSET, destLength);
 		}
-		int end1 = o1 + l1;
-		int end2 = o2 + l2;
-		for (int i = o1, j = o2; i < end1 && j < end2; i++, j++) {
-			int a = buf1.get(i) & 0xFF;
-			int b = buf2[j] & 0xFF;
+		int srcEnd = srcOffset + srcLength;
+		int destEnd = destOffset + destLength;
+		for (int i = srcOffset, j = destOffset; i < srcEnd && j < destEnd; i++, j++) {
+			int a = srcBuffer.get(i) & 0xFF;
+			int b = dest[j] & 0xFF;
 			if (a != b) {
 				return a - b;
 			}
 		}
-		return l1 - l2;
+		return srcLength - destLength;
 	}
 
-	public static int compareTo(ByteBuffer buf1, int o1, int l1, ByteBuffer buf2, int o2, int l2) {
+	/**
+	 * Compare two {@link ByteBuffer}.
+	 *
+	 * @param srcBuffer  the source ByteBuffer.
+	 * @param srcOffset  the source offset to start from for comparison.
+	 * @param srcLength  the source length to compare.
+	 * @param destBuffer the dest ByteBuffer.
+	 * @param destOffset the dest offset to start from for comparison.
+	 * @param destLength the dest length to compare.
+	 * @return 0 if equals, positive if the source is bigger by bytes order, or negative if the dest is bigger.
+	 */
+	public static int compareTo(
+			ByteBuffer srcBuffer,
+			int srcOffset,
+			int srcLength,
+			ByteBuffer destBuffer,
+			int destOffset,
+			int destLength) {
 		if (UNSAFE_UNALIGNED) {
-			long offset1Adj, offset2Adj;
-			Object refObj1 = null, refObj2 = null;
-			if (buf1.isDirect()) {
-				offset1Adj = o1 + getBufferAddress(buf1);
+			long srcOffsetAddress, destOffsetAddress;
+			Object srcArray = null, destArray = null;
+			if (srcBuffer.isDirect()) {
+				srcOffsetAddress = srcOffset + getBufferAddress(srcBuffer);
 			} else {
-				offset1Adj = o1 + buf1.arrayOffset() + UnsafeHelp.BYTE_ARRAY_BASE_OFFSET;
-				refObj1 = buf1.array();
+				srcOffsetAddress = srcOffset + srcBuffer.arrayOffset() + UnsafeHelp.BYTE_ARRAY_BASE_OFFSET;
+				srcArray = srcBuffer.array();
 			}
-			if (buf2.isDirect()) {
-				offset2Adj = o2 + getBufferAddress(buf2);
+			if (destBuffer.isDirect()) {
+				destOffsetAddress = destOffset + getBufferAddress(destBuffer);
 			} else {
-				offset2Adj = o2 + buf2.arrayOffset() + UnsafeHelp.BYTE_ARRAY_BASE_OFFSET;
-				refObj2 = buf2.array();
+				destOffsetAddress = destOffset + destBuffer.arrayOffset() + UnsafeHelp.BYTE_ARRAY_BASE_OFFSET;
+				destArray = destBuffer.array();
 			}
-			return compareToUnsafe(refObj1, offset1Adj, l1, refObj2, offset2Adj, l2);
+			return compareToUnsafe(srcArray, srcOffsetAddress, srcLength, destArray, destOffsetAddress, destLength);
 		}
-		int end1 = o1 + l1;
-		int end2 = o2 + l2;
-		for (int i = o1, j = o2; i < end1 && j < end2; i++, j++) {
-			int a = buf1.get(i) & 0xFF;
-			int b = buf2.get(j) & 0xFF;
+		int end1 = srcOffset + srcLength;
+		int end2 = destOffset + destLength;
+		for (int i = srcOffset, j = destOffset; i < end1 && j < end2; i++, j++) {
+			int a = srcBuffer.get(i) & 0xFF;
+			int b = destBuffer.get(j) & 0xFF;
 			if (a != b) {
 				return a - b;
 			}
 		}
-		return l1 - l2;
+		return srcLength - destLength;
 	}
 
-	static int compareToUnsafe(Object obj1, long o1, int l1, Object obj2, long o2, int l2) {
-		final int minLength = Math.min(l1, l2);
+	/**
+	 * Compare with {@link sun.misc.Unsafe} methods.
+	 *
+	 * @param src the source object, will use the offset as an absolute address if null.
+	 * @param srcOffset the source offset to start from for comparison.
+	 * @param srcLength the source length to compare.
+	 * @param dest the dest object, will use the offset as an absolute address if null.
+	 * @param destOffset the dest offset to start from for comparison.
+	 * @param destLength the dest length to compare.
+	 * @return 0 if equals, 1 if the source is bigger by bytes order, or -1 if the dest is bigger.
+	 */
+	private static int compareToUnsafe(
+			@Nullable Object src,
+			long srcOffset,
+			int srcLength,
+			@Nullable Object dest,
+			long destOffset,
+			int destLength) {
+		final int minLength = Math.min(srcLength, destLength);
 		final int minWords = minLength / Long.BYTES;
 
 		/*
@@ -255,8 +310,8 @@ public class ByteBufferUtils {
 		 */
 		int j = minWords << 3; // Same as minWords * SIZEOF_LONG
 		for (int i = 0; i < j; i += Long.BYTES) {
-			long lw = UnsafeHelp.UNSAFE.getLong(obj1, o1 + i);
-			long rw = UnsafeHelp.UNSAFE.getLong(obj2, o2 + i);
+			long lw = UnsafeHelp.UNSAFE.getLong(src, srcOffset + i);
+			long rw = UnsafeHelp.UNSAFE.getLong(dest, destOffset + i);
 			long diff = lw ^ rw;
 			if (diff != 0) {
 				return lessThanUnsignedLong(lw, rw) ? -1 : 1;
@@ -265,29 +320,29 @@ public class ByteBufferUtils {
 		int offset = j;
 
 		if (minLength - offset >= Integer.BYTES) {
-			int il = UnsafeHelp.UNSAFE.getInt(obj1, o1 + offset);
-			int ir = UnsafeHelp.UNSAFE.getInt(obj2, o2 + offset);
+			int il = UnsafeHelp.UNSAFE.getInt(src, srcOffset + offset);
+			int ir = UnsafeHelp.UNSAFE.getInt(dest, destOffset + offset);
 			if (il != ir) {
 				return lessThanUnsignedInt(il, ir) ? -1 : 1;
 			}
 			offset += Integer.BYTES;
 		}
 		if (minLength - offset >= Short.BYTES) {
-			short sl = UnsafeHelp.UNSAFE.getShort(obj1, o1 + offset);
-			short sr = UnsafeHelp.UNSAFE.getShort(obj2, o2 + offset);
+			short sl = UnsafeHelp.UNSAFE.getShort(src, srcOffset + offset);
+			short sr = UnsafeHelp.UNSAFE.getShort(dest, destOffset + offset);
 			if (sl != sr) {
 				return lessThanUnsignedShort(sl, sr) ? -1 : 1;
 			}
 			offset += Short.BYTES;
 		}
 		if (minLength - offset == 1) {
-			int a = (UnsafeHelp.UNSAFE.getByte(obj1, o1 + offset) & 0xff);
-			int b = (UnsafeHelp.UNSAFE.getByte(obj2, o2 + offset) & 0xff);
+			int a = (UnsafeHelp.UNSAFE.getByte(src, srcOffset + offset) & 0xff);
+			int b = (UnsafeHelp.UNSAFE.getByte(dest, destOffset + offset) & 0xff);
 			if (a != b) {
 				return a - b;
 			}
 		}
-		return l1 - l2;
+		return srcLength - destLength;
 	}
 
 	private static boolean lessThanUnsignedLong(long x1, long x2) {

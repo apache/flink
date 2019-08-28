@@ -16,11 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.state.heap;
+package org.apache.flink.core.memory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.misc.Unsafe;
+
+import javax.annotation.Nonnull;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -32,7 +34,6 @@ import java.security.PrivilegedAction;
 /**
  * Unsafe use help.
  */
-@SuppressWarnings({"WeakerAccess", "UnusedReturnValue"})
 public class UnsafeHelp {
 	private static final Logger LOG = LoggerFactory.getLogger(UnsafeHelp.class);
 
@@ -49,7 +50,7 @@ public class UnsafeHelp {
 	// This number limits the number of bytes to copy per call to Unsafe's
 	// copyMemory method. A limit is imposed to allow for savepoint polling
 	// during a large copy
-	static final long UNSAFE_COPY_THRESHOLD = 1024L * 1024L;
+	private static final long UNSAFE_COPY_THRESHOLD = 1024L * 1024L;
 
 	static {
 		UNSAFE = (Unsafe) AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
@@ -122,7 +123,7 @@ public class UnsafeHelp {
 	 * @param offset the offset to read from
 	 * @return int value at offset
 	 */
-	static int getAsInt(ByteBuffer buf, int offset) {
+	private static int getAsInt(@Nonnull ByteBuffer buf, int offset) {
 		if (buf.isDirect()) {
 			return UNSAFE.getInt(ByteBufferUtils.getBufferAddress(buf) + offset);
 		}
@@ -151,7 +152,7 @@ public class UnsafeHelp {
 	 * @param offset the offset to read from
 	 * @return long value at offset
 	 */
-	static long getAsLong(ByteBuffer buf, int offset) {
+	private static long getAsLong(@Nonnull ByteBuffer buf, int offset) {
 		if (buf.isDirect()) {
 			return UNSAFE.getLong(ByteBufferUtils.getBufferAddress(buf) + offset);
 		}
@@ -180,7 +181,7 @@ public class UnsafeHelp {
 	 * @param offset the offset to read from
 	 * @return short value at offset
 	 */
-	static short getAsShort(ByteBuffer buf, int offset) {
+	private static short getAsShort(@Nonnull ByteBuffer buf, int offset) {
 		if (buf.isDirect()) {
 			return UNSAFE.getShort(ByteBufferUtils.getBufferAddress(buf) + offset);
 		}
@@ -194,7 +195,7 @@ public class UnsafeHelp {
 	 * @param offset the offset at which the byte has to be read
 	 * @return the byte at the given offset
 	 */
-	public static byte toByte(ByteBuffer buf, int offset) {
+	public static byte toByte(@Nonnull ByteBuffer buf, int offset) {
 		if (buf.isDirect()) {
 			return UNSAFE.getByte(ByteBufferUtils.getBufferAddress(buf) + offset);
 		} else {
@@ -252,7 +253,7 @@ public class UnsafeHelp {
 	 * @param destOffset the start offset of the target buffer to copy to
 	 * @param length     the length of the data to copy
 	 */
-	public static void copy(ByteBuffer src, int srcOffset, ByteBuffer dest, int destOffset, int length) {
+	public static void copy(@Nonnull ByteBuffer src, int srcOffset, ByteBuffer dest, int destOffset, int length) {
 		long srcAddress, destAddress;
 		Object srcBase = null, destBase = null;
 		if (src.isDirect()) {
@@ -280,7 +281,7 @@ public class UnsafeHelp {
 	 * @param destOffset the start offset of the target buffer to copy to
 	 * @param length     the length of the data to copy
 	 */
-	public static void copy(ByteBuffer src, int srcOffset, byte[] dest, int destOffset, int length) {
+	public static void copy(@Nonnull ByteBuffer src, int srcOffset, byte[] dest, int destOffset, int length) {
 		long srcAddress = srcOffset;
 		Object srcBase = null;
 		if (src.isDirect()) {
@@ -302,7 +303,7 @@ public class UnsafeHelp {
 	 * @param destOffset the start offset of the target buffer to copy to
 	 * @param length     the length of the data to copy
 	 */
-	public static void copy(byte[] src, int srcOffset, ByteBuffer dest, int destOffset, int length) {
+	public static void copy(byte[] src, int srcOffset, @Nonnull ByteBuffer dest, int destOffset, int length) {
 		long destAddress = destOffset;
 		Object destBase = null;
 		if (dest.isDirect()) {

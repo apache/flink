@@ -18,12 +18,16 @@
  *
  */
 
-package org.apache.flink.runtime.state.heap;
+package org.apache.flink.core.memory;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
+
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 
 /**
  * Tests for {@link ByteBufferUtils}.
@@ -54,6 +58,21 @@ public class ByteBufferUtilsTest {
 		doTest(bb, 7);
 	}
 
+	@Test
+	public void testCompareHeapBufferWithDirectBuffer() {
+		byte[] bytes = new byte[]{'a', 'b', 'c', 'd', 'e'};
+		final int LEN = bytes.length;
+		ByteBuffer heapBuffer = ByteBuffer.wrap(bytes);
+		ByteBuffer directBuffer = ByteBuffer.allocateDirect(LEN);
+		directBuffer.put(bytes);
+		int res = ByteBufferUtils.compareTo(heapBuffer, 1, LEN - 1, directBuffer, 1, LEN - 1);
+		Assert.assertThat(res, is(0));
+		res = ByteBufferUtils.compareTo(heapBuffer, 0, LEN - 1, directBuffer, 1, LEN - 1);
+		Assert.assertThat(res, lessThan(0));
+		res = ByteBufferUtils.compareTo(heapBuffer, 1, LEN - 1, directBuffer, 0, LEN - 1);
+		Assert.assertThat(res, greaterThan(0));
+	}
+
 	private void doTest(ByteBuffer bb, int offset) {
 		int positionOri = bb.position();
 
@@ -72,7 +91,7 @@ public class ByteBufferUtilsTest {
 
 		ByteBuffer bb2 = ByteBuffer.allocate(12);
 		int positionOri2 = bb2.position();
-		ByteBufferUtils.copyFromBufferToBuffer(bb, bb2, offset, 0, 12);
+		ByteBufferUtils.copyFromBufferToBuffer(bb, offset, bb2, 0, 12);
 
 		Assert.assertEquals(ByteBufferUtils.toInt(bb2, 0), 123);
 		Assert.assertEquals(ByteBufferUtils.toLong(bb2, 4), 1234);

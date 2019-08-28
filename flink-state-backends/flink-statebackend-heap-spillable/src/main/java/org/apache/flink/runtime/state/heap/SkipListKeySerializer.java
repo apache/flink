@@ -21,6 +21,8 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
+import org.apache.flink.core.memory.ByteBufferInputStreamWithPos;
+import org.apache.flink.core.memory.ByteBufferUtils;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
@@ -132,15 +134,15 @@ class SkipListKeySerializer<K, N> {
 		// read namespace
 		int namespaceLen = ByteBufferUtils.toInt(byteBuffer, offset);
 		byte[] namespaceBytes = new byte[namespaceLen];
-		ByteBufferUtils.copyFromBufferToArray(byteBuffer, namespaceBytes,
-			offset + Integer.BYTES, 0, namespaceLen);
+		ByteBufferUtils.copyFromBufferToArray(byteBuffer, offset + Integer.BYTES, namespaceBytes,
+			0, namespaceLen);
 
 		// read key
 		int keyOffset = offset + Integer.BYTES + namespaceLen;
 		int keyLen = ByteBufferUtils.toInt(byteBuffer, keyOffset);
 		byte[] keyBytes = new byte[keyLen];
-		ByteBufferUtils.copyFromBufferToArray(byteBuffer, keyBytes,
-			keyOffset + Integer.BYTES, 0, keyLen);
+		ByteBufferUtils.copyFromBufferToArray(byteBuffer, keyOffset + Integer.BYTES, keyBytes,
+			0, keyLen);
 
 		return Tuple2.of(keyBytes, namespaceBytes);
 	}
