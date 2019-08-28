@@ -99,7 +99,6 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 		Duration failuresInterval = Duration.apply(failuresIntervalString);
 		Duration delay = Duration.apply(delayString);
 
-
 		return new FailureRateRestartStrategyFactory(maxFailuresPerInterval, Time.milliseconds(failuresInterval.toMillis()), Time.milliseconds(delay.toMillis()));
 	}
 
