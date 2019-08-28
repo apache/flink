@@ -27,7 +27,8 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils.{binaryRowFieldSetAcc
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.agg.batch.AggCodeGenHelper.buildAggregateArgsMapping
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator
-import org.apache.flink.table.planner.expressions.{DeclarativeExpressionResolver, ResolvedAggInputReference, RexNodeConverter}
+import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
+import org.apache.flink.table.planner.expressions.{DeclarativeExpressionResolver, RexNodeConverter}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.SortUtil
 import org.apache.flink.table.runtime.generated.{NormalizedKeyComputer, RecordComparator}
@@ -286,7 +287,7 @@ object HashAggCodeGenHelper {
       val bindRefOffset = inputType.getFieldCount
       val getAuxGroupingExprs = auxGrouping.indices.map { idx =>
         val (_, resultType) = aggBuffMapping(idx)(0)
-        new ResolvedAggInputReference("aux_group", bindRefOffset + idx, resultType)
+        toRexInputRef(builder, bindRefOffset + idx, resultType)
       }.map(_.accept(new RexNodeConverter(builder))).map(exprCodegen.generateExpression)
 
       val getAggValueExprs = aggregates.zipWithIndex.map {
@@ -338,17 +339,17 @@ object HashAggCodeGenHelper {
 
     override def toMergeInputExpr(name: String, localIndex: Int): ResolvedExpression = {
       val (inputIndex, inputType) = argsMapping(aggIndex)(localIndex)
-      new ResolvedAggInputReference(name, inputIndex, inputType)
+      toRexInputRef(relBuilder, inputIndex, inputType)
     }
 
     override def toAccInputExpr(name: String, localIndex: Int): ResolvedExpression = {
       val (inputIndex, inputType) = argsMapping(aggIndex)(localIndex)
-      new ResolvedAggInputReference(name, inputIndex, inputType)
+      toRexInputRef(relBuilder, inputIndex, inputType)
     }
 
     override def toAggBufferExpr(name: String, localIndex: Int): ResolvedExpression = {
       val (aggBuffAttrIndex, aggBuffAttrType) = aggBuffMapping(aggIndex)(localIndex)
-      new ResolvedAggInputReference(name, offset + aggBuffAttrIndex, aggBuffAttrType)
+      toRexInputRef(relBuilder, offset + aggBuffAttrIndex, aggBuffAttrType)
     }
   }
 

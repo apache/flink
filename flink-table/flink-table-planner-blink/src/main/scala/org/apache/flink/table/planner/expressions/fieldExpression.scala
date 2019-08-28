@@ -19,7 +19,6 @@ package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api._
-import org.apache.flink.table.expressions.ResolvedFieldReference
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -231,55 +230,18 @@ case class StreamRecordTimestamp() extends LeafExpression {
 }
 
 /**
-  * Normally we should use [[ResolvedFieldReference]] to represent an input field.
-  * [[ResolvedFieldReference]] uses name to locate the field, in aggregate case, we want to use
-  * field index.
+  * Special reference which represent a local field, such as aggregate buffers or constants.
+  * We are stored as class members, so the field can be referenced directly.
+  * We should use an unique name to locate the field.
   */
-case class PlannerResolvedAggInputReference(
+case class PlannerLocalReference(
     name: String,
-    index: Int,
     resultType: TypeInformation[_]) extends Attribute {
 
   override def toString = s"'$name"
 
   override private[flink] def withName(newName: String): Attribute = {
     if (newName == name) this
-    else PlannerResolvedAggInputReference(newName, index, resultType)
-  }
-}
-
-/**
-  * Special reference which represent a local filed, such as aggregate buffers or constants.
-  * We are stored as class members, so the field can be referenced directly.
-  * We should use an unique name to locate the field.
-  */
-case class PlannerResolvedAggLocalReference(
-    name: String,
-    nullTerm: String,
-    resultType: TypeInformation[_])
-    extends Attribute {
-
-  override def toString = s"'$name"
-
-  override private[flink] def withName(newName: String): Attribute = {
-    if (newName == name) this
-    else PlannerResolvedAggLocalReference(newName, nullTerm, resultType)
-  }
-}
-
-/**
-  * Special reference which represent a distinct key input filed,
-  * [[ResolvedDistinctKeyReference]] uses name to locate the field.
-  */
-case class PlannerResolvedDistinctKeyReference(
-    name: String,
-    resultType: TypeInformation[_])
-    extends Attribute {
-
-  override def toString = s"'$name"
-
-  override private[flink] def withName(newName: String): Attribute = {
-    if (newName == name) this
-    else PlannerResolvedDistinctKeyReference(newName, resultType)
+    else PlannerLocalReference(newName, resultType)
   }
 }
