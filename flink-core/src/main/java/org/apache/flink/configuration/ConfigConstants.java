@@ -111,7 +111,12 @@ public final class ConfigConstants {
 	 */
 	@Deprecated
 	@PublicEvolving
-	public static final String RESTART_STRATEGY_FAILURE_RATE_DELAY = "restart-strategy.failure-rate.delay";
+	public static final ConfigOption<String> RESTART_STRATEGY_FAILURE_RATE_DELAY =
+		key("restart-strategy.failure-rate.delay")
+			.defaultValue("0 s")
+			.withDescription(
+				"Delay between two consecutive restart attempts in FailureRateRestartStrategy. " +
+				"It can be specified using Scala's FiniteDuration notation: \"1 min\", \"20 s\"");
 
 	/**
 	 * Config parameter for the number of re-tries for failed tasks. Setting this

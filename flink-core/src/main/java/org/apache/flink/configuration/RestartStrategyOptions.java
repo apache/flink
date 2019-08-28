@@ -123,7 +123,7 @@ public class RestartStrategyOptions {
 
 	public static final ConfigOption<String> RESTART_STRATEGY_FAILURE_RATE_DELAY = ConfigOptions
 		.key("restart-strategy.failure-rate.delay")
-		.defaultValue(AkkaOptions.ASK_TIMEOUT.defaultValue())
+		.defaultValue("0 s")
 		.withDescription(
 			Description.builder()
 				.text(
