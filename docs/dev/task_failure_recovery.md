@@ -199,7 +199,7 @@ restart-strategy: failure-rate
     <tr>
         <td><it>restart-strategy.failure-rate.delay</it></td>
         <td>Delay between two consecutive restart attempts</td>
-        <td><it>akka.ask.timeout</it></td>
+        <td><it>0 s</it></td>
     </tr>
   </tbody>
 </table>
