@@ -197,6 +197,18 @@ public class CheckpointCoordinator {
 	/** Registry that tracks state which is shared across (incremental) checkpoints. */
 	private SharedStateRegistry sharedStateRegistry;
 
+	/** Flag Whether to enable recursively deletion. If true, can reduce delete api call in CompletedCheckpoint.doDiscard */
+	private boolean enableDeleteRecursive;
+
+	// Getter and Setter
+	public boolean getEnableDeleteRecursive() {
+		return enableDeleteRecursive;
+	}
+
+	public void setEnableDeleteRecursive(boolean enableDeleteRecursive) {
+		this.enableDeleteRecursive = enableDeleteRecursive;
+	}
+
 	private boolean isPreferCheckpointForRecovery;
 
 	private final CheckpointFailureManager failureManager;
@@ -1077,6 +1089,7 @@ public class CheckpointCoordinator {
 		try {
 			try {
 				completedCheckpoint = pendingCheckpoint.finalizeCheckpoint(checkpointsCleaner, this::scheduleTriggerRequest, executor);
+				completedCheckpoint.setEnableDeleteRecursive(enableDeleteRecursive);
 				failureManager.handleCheckpointSuccess(pendingCheckpoint.getCheckpointId());
 			}
 			catch (Exception e1) {
@@ -1475,6 +1488,7 @@ public class CheckpointCoordinator {
 		// Load the savepoint as a checkpoint into the system
 		CompletedCheckpoint savepoint = Checkpoints.loadAndValidateCheckpoint(
 				job, tasks, checkpointLocation, userClassLoader, allowNonRestored);
+		savepoint.setEnableDeleteRecursive(enableDeleteRecursive);
 
 		completedCheckpointStore.addCheckpoint(savepoint, checkpointsCleaner, this::scheduleTriggerRequest);
 

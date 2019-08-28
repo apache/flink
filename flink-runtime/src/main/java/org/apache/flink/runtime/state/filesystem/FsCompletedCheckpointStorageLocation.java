@@ -68,9 +68,14 @@ public class FsCompletedCheckpointStorageLocation implements CompletedCheckpoint
 
 	@Override
 	public void disposeStorageLocation() throws IOException {
+		disposeStorageLocation(false);
+	}
+
+	@Override
+	public void disposeStorageLocation(boolean recursive) throws IOException {
 		if (fs == null) {
 			fs = exclusiveCheckpointDir.getFileSystem();
 		}
-		fs.delete(exclusiveCheckpointDir, false);
+		fs.delete(exclusiveCheckpointDir, recursive);
 	}
 }

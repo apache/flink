@@ -456,7 +456,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			CheckpointIDCounter checkpointIDCounter,
 			CompletedCheckpointStore checkpointStore,
 			StateBackend checkpointStateBackend,
-			CheckpointStatsTracker statsTracker) {
+			CheckpointStatsTracker statsTracker,
+			boolean enableDeleteRecursive) {
 
 		checkState(state == JobStatus.CREATED, "Job must be in CREATED state");
 		checkState(checkpointCoordinator == null, "checkpointing already enabled");
@@ -507,6 +508,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
+		checkpointCoordinator.setEnableDeleteRecursive(enableDeleteRecursive);
+		if (enableDeleteRecursive){
+			LOG.warn("enable delete completed checkpoint recursively");
+		}
+
 		// register the master hooks on the checkpoint coordinator
 		for (MasterTriggerRestoreHook<?> hook : masterHooks) {
 			if (!checkpointCoordinator.addMasterHook(hook)) {
@@ -525,6 +531,30 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		}
 
 		this.stateBackendName = checkpointStateBackend.getClass().getSimpleName();
+	}
+
+	public void enableCheckpointing(
+			CheckpointCoordinatorConfiguration chkConfig,
+			List<ExecutionJobVertex> verticesToTrigger,
+			List<ExecutionJobVertex> verticesToWaitFor,
+			List<ExecutionJobVertex> verticesToCommitTo,
+			List<MasterTriggerRestoreHook<?>> masterHooks,
+			CheckpointIDCounter checkpointIDCounter,
+			CompletedCheckpointStore checkpointStore,
+			StateBackend checkpointStateBackend,
+			CheckpointStatsTracker statsTracker) {
+
+		enableCheckpointing(
+			chkConfig,
+			verticesToTrigger,
+			verticesToWaitFor,
+			verticesToCommitTo,
+			masterHooks,
+			checkpointIDCounter,
+			checkpointStore,
+			checkpointStateBackend,
+			statsTracker,
+			false);
 	}
 
 	@Nullable

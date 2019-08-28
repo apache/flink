@@ -45,4 +45,14 @@ public interface CompletedCheckpointStorageLocation extends java.io.Serializable
 	 * like the checkpoint directory.
 	 */
 	void disposeStorageLocation() throws IOException;
+
+	/**
+	 * Disposes the storage location. This method should be called after all state objects have
+	 * been released. It typically disposes the base structure of the checkpoint storage,
+	 * like the checkpoint directory.
+	 *
+	 * @param recursive Flag Whether to enable recursively deletion. According to the value of 'apus.checkpoint.delete.recursive'
+	 * @throws IOException
+	 */
+	void disposeStorageLocation(boolean recursive) throws IOException;
 }

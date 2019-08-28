@@ -86,6 +86,11 @@ public class NonPersistentMetadataCheckpointStorageLocation
 
 		@Override
 		public void disposeStorageLocation() {}
+
+		@Override
+		public void disposeStorageLocation(boolean recursive) throws IOException {
+			
+		}
 	}
 
 	// ------------------------------------------------------------------------

@@ -23,6 +23,8 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -38,8 +40,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -107,6 +111,17 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
 	/** Optional stats tracker callback for discard. */
 	@Nullable
 	private transient volatile CompletedCheckpointStats.DiscardCallback discardCallback;
+
+	private boolean enableDeleteRecursive;
+
+	//Getter and Setter
+	public boolean getEnableDeleteRecursive() {
+		return enableDeleteRecursive;
+	}
+
+	public void setEnableDeleteRecursive(boolean enableDeleteRecursive) {
+		this.enableDeleteRecursive = enableDeleteRecursive;
+	}
 
 	// ------------------------------------------------------------------------
 
@@ -253,14 +268,14 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
 
 			// discard private state objects
 			try {
-				StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
+				StateUtil.bestEffortDiscardAllStateObjects(enableDeleteRecursive ? getIncrementKeyedStates() : operatorStates.values());
 			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
 			// discard location as a whole
 			try {
-				storageLocation.disposeStorageLocation();
+				storageLocation.disposeStorageLocation(enableDeleteRecursive);
 			}
 			catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
@@ -289,6 +304,33 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
 			jobStatus == JobStatus.CANCELED && props.discardOnJobCancelled() ||
 			jobStatus == JobStatus.FAILED && props.discardOnJobFailed() ||
 			jobStatus == JobStatus.SUSPENDED && props.discardOnJobSuspended();
+	}
+
+	private Set<KeyedStateHandle> getIncrementKeyedStates() {
+		Set<KeyedStateHandle> incrementKeyedState = new HashSet<>(16);
+
+		//reference SavepointV2Serializer.serializeKeyedStateHandle
+		operatorStates.values().forEach(operatorState -> {
+			operatorState.getStates().forEach(operatorSubtaskState -> {
+				if (operatorSubtaskState != null) {
+					for (KeyedStateHandle managedKeyedState : operatorSubtaskState.getManagedKeyedState()) {
+						if (managedKeyedState instanceof IncrementalRemoteKeyedStateHandle) {
+							incrementKeyedState.add(managedKeyedState);
+						}
+					}
+				}
+
+				if (operatorSubtaskState != null) {
+					for (KeyedStateHandle rawKeyedState : operatorSubtaskState.getRawKeyedState()) {
+						if (rawKeyedState instanceof IncrementalRemoteKeyedStateHandle) {
+							incrementKeyedState.add(rawKeyedState);
+						}
+					}
+				}
+			});
+		});
+
+		return incrementKeyedState;
 	}
 
 	// ------------------------------------------------------------------------

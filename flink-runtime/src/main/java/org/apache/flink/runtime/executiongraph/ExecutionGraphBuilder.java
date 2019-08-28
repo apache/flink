@@ -353,7 +353,8 @@ public class ExecutionGraphBuilder {
 				checkpointIdCounter,
 				completedCheckpoints,
 				rootBackend,
-				checkpointStatsTracker);
+				checkpointStatsTracker,
+				jobManagerConfig.getBoolean(CheckpointingOptions.ENABLE_DELETE_RECURSIVELY));
 		}
 
 		// create all the metrics for the Execution Graph
