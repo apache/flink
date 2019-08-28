@@ -19,9 +19,9 @@
 package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
 
 import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.streaming.runtime.tasks.mailbox.Mailbox;
-import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxImpl;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxStateException;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
+import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.WrappingRuntimeException;
 
@@ -30,6 +30,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Optional;
+
+import static org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox.MIN_PRIORITY;
 
 /**
  * This class encapsulates the logic of the mailbox-based execution model. At the core of this model
@@ -44,27 +46,27 @@ import java.util.Optional;
  *
  * <p>The design of {@link #runMailboxLoop()} is centered around the idea of keeping the expected hot path
  * (default action, no mail) as fast as possible, with just a single volatile read per iteration in
- * {@link Mailbox#hasMail}. This means that all checking of mail and other control flags (mailboxLoopRunning,
+ * {@link TaskMailbox#hasMail}. This means that all checking of mail and other control flags (mailboxLoopRunning,
  * suspendedDefaultAction) are always connected to #hasMail indicating true. This means that control flag changes in
  * the mailbox thread can be done directly, but we must ensure that there is at least one action in the mailbox so that
  * the change is picked up. For control flag changes by all other threads, that must happen through mailbox actions,
  * this is automatically the case.
  *
  * <p>This class has a open-prepareClose-close lifecycle that is connected with and maps to the lifecycle of the
- * encapsulated {@link Mailbox} (which is open-quiesce-close).
+ * encapsulated {@link TaskMailbox} (which is open-quiesce-close).
  */
 public class MailboxProcessor {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MailboxProcessor.class);
 
 	/** The mailbox data-structure that manages request for special actions, like timers, checkpoints, ... */
-	private final Mailbox mailbox;
-
-	/** Executor-style facade for client code to submit actions to the mailbox. */
-	private final MailboxExecutorService mailboxExecutor;
+	private final TaskMailbox mailbox;
 
 	/** Action that is repeatedly executed if no action request is in the mailbox. Typically record processing. */
 	private final MailboxDefaultAction mailboxDefaultAction;
+
+	/** The thread that executes the mailbox letters. */
+	private final Thread mailboxThread;
 
 	/** Control flag to terminate the mailbox loop. Must only be accessed from mailbox thread. */
 	private boolean mailboxLoopRunning;
@@ -81,8 +83,8 @@ public class MailboxProcessor {
 
 	public MailboxProcessor(MailboxDefaultAction mailboxDefaultAction) {
 		this.mailboxDefaultAction = Preconditions.checkNotNull(mailboxDefaultAction);
-		this.mailbox = new MailboxImpl();
-		this.mailboxExecutor = new MailboxExecutorServiceImpl(mailbox);
+		this.mailbox = new TaskMailboxImpl();
+		this.mailboxThread = Thread.currentThread();
 		this.mailboxPoisonLetter = () -> mailboxLoopRunning = false;
 		this.mailboxLoopRunning = true;
 		this.suspendedDefaultAction = null;
@@ -90,9 +92,10 @@ public class MailboxProcessor {
 
 	/**
 	 * Returns an executor service facade to submit actions to the mailbox.
+	 * @param priority
 	 */
-	public MailboxExecutorService getMailboxExecutor() {
-		return mailboxExecutor;
+	public MailboxExecutor getMailboxExecutor(int priority) {
+		return new MailboxExecutorImpl(mailbox.getDownstreamMailbox(priority), mailboxThread);
 	}
 
 	/**
@@ -106,7 +109,7 @@ public class MailboxProcessor {
 	 * Lifecycle method to close the mailbox for action submission.
 	 */
 	public void prepareClose() {
-		mailboxExecutor.shutdown();
+		mailbox.quiesce();
 	}
 
 	/**
@@ -114,11 +117,15 @@ public class MailboxProcessor {
 	 * {@link java.util.concurrent.RunnableFuture} that are still contained in the mailbox.
 	 */
 	public void close() {
-		List<Runnable> droppedLetters = mailboxExecutor.shutdownNow();
+		List<Runnable> droppedLetters = mailbox.close();
 		if (!droppedLetters.isEmpty()) {
 			LOG.debug("Closing the mailbox dropped letters {}.", droppedLetters);
 			FutureUtils.cancelRunnableFutures(droppedLetters);
 		}
+	}
+
+	private boolean isMailboxThread() {
+		return Thread.currentThread() == mailboxThread;
 	}
 
 	/**
@@ -127,12 +134,12 @@ public class MailboxProcessor {
 	public void runMailboxLoop() throws Exception {
 
 		Preconditions.checkState(
-			mailboxExecutor.isMailboxThread(),
+			isMailboxThread(),
 			"Method must be executed by declared mailbox thread!");
 
-		final Mailbox localMailbox = mailbox;
+		final TaskMailbox localMailbox = mailbox;
 
-		assert localMailbox.getState() == Mailbox.State.OPEN : "Mailbox must be opened!";
+		assert localMailbox.getState() == TaskMailbox.State.OPEN : "Mailbox must be opened!";
 
 		final MailboxDefaultActionContext defaultActionContext = new MailboxDefaultActionContext(this);
 
@@ -172,7 +179,7 @@ public class MailboxProcessor {
 	 * changes. This keeps the hot path in {@link #runMailboxLoop()} free from any other flag checking, at the cost
 	 * that all flag changes must make sure that the mailbox signals mailbox#hasMail.
 	 */
-	private boolean processMail(Mailbox mailbox) throws MailboxStateException, InterruptedException {
+	private boolean processMail(TaskMailbox mailbox) throws MailboxStateException, InterruptedException {
 
 		// Doing this check is an optimization to only have a volatile read in the expected hot path, locks are only
 		// acquired after this point.
@@ -185,14 +192,18 @@ public class MailboxProcessor {
 		// TODO consider batched draining into list and/or limit number of executed letters
 		// Take letters in a non-blockingly and execute them.
 		Optional<Runnable> maybeLetter;
-		while (isMailboxLoopRunning() && (maybeLetter = mailbox.tryTakeMail()).isPresent()) {
-			maybeLetter.get().run();
+		while (isMailboxLoopRunning() && (maybeLetter = mailbox.tryTakeMail(MIN_PRIORITY)).isPresent()) {
+			try {
+				maybeLetter.get().run();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 		}
 
 		// If the default action is currently not available, we can run a blocking mailbox execution until the default
 		// action becomes available again.
 		while (isDefaultActionUnavailable() && isMailboxLoopRunning()) {
-			Runnable letter = mailbox.takeMail();
+			Runnable letter = mailbox.takeMail(MIN_PRIORITY);
 			letter.run();
 		}
 
@@ -205,7 +216,7 @@ public class MailboxProcessor {
 	 */
 	private SuspendedMailboxDefaultAction suspendDefaultAction() {
 
-		Preconditions.checkState(mailboxExecutor.isMailboxThread(), "Suspending must only be called from the mailbox thread!");
+		Preconditions.checkState(isMailboxThread(), "Suspending must only be called from the mailbox thread!");
 
 		if (suspendedDefaultAction == null) {
 			suspendedDefaultAction = new SuspendDefaultActionRunnable();
@@ -263,7 +274,7 @@ public class MailboxProcessor {
 
 		@Override
 		public void resume() {
-			if (mailboxExecutor.isMailboxThread()) {
+			if (isMailboxThread()) {
 				resumeInternal();
 			} else {
 				sendPriorityLetter(this::resumeInternal);
