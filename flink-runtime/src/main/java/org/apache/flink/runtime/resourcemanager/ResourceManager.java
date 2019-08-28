@@ -695,7 +695,9 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			log.debug("Replacing old registration of TaskExecutor {}.", taskExecutorResourceId);
 
 			// remove old task manager registration from slot manager
-			slotManager.unregisterTaskManager(oldRegistration.getInstanceID());
+			slotManager.unregisterTaskManager(
+				oldRegistration.getInstanceID(),
+				new ResourceManagerException(String.format("TaskExecutor %s re-connected to the ResourceManager.", taskExecutorResourceId)));
 		}
 
 		final WorkerType newWorker = workerStarted(taskExecutorResourceId);
@@ -803,7 +805,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			log.info("Closing TaskExecutor connection {} because: {}", resourceID, cause.getMessage());
 
 			// TODO :: suggest failed task executor to stop itself
-			slotManager.unregisterTaskManager(workerRegistration.getInstanceID());
+			slotManager.unregisterTaskManager(workerRegistration.getInstanceID(), cause);
 
 			workerRegistration.getTaskExecutorGateway().disconnectResourceManager(cause);
 		} else {
@@ -859,7 +861,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
 			}
 		} else {
 			// unregister in order to clean up potential left over state
-			slotManager.unregisterTaskManager(instanceId);
+			slotManager.unregisterTaskManager(instanceId, cause);
 		}
 	}
 
