@@ -155,8 +155,7 @@ public class CollectBatchResult<C> extends BasicResult<C> implements Materialize
 			if (executionException != null) {
 				throw executionException;
 			}
-			// wait until retrievalT
-			//hread finished.
+			// wait until retrievalThread finished.
 			resultLatch.await();
 			return resultTable.subList(0, resultTable.size());
 		} catch (InterruptedException e) {
