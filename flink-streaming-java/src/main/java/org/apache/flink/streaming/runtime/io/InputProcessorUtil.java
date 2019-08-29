@@ -34,7 +34,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Utility for creating {@link CheckpointedInputGate} based on checkpoint mode
- * for {@link StreamOneInputProcessor} and {@link StreamTwoInputSelectableProcessor}.
+ * for {@link StreamOneInputProcessor} and {@link StreamTwoInputProcessor}.
  */
 @Internal
 public class InputProcessorUtil {

@@ -24,7 +24,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.TwoInputSelectableStreamTask;
+import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
@@ -255,7 +255,7 @@ public class Int2HashJoinOperatorTest implements Serializable {
 				new IntType(), new IntType(), new IntType(), new IntType());
 		TwoInputStreamTaskTestHarness<BinaryRow, BinaryRow, JoinedRow> testHarness =
 			new TwoInputStreamTaskTestHarness<>(
-				TwoInputSelectableStreamTask::new,
+				TwoInputStreamTask::new,
 				2, 1, new int[]{1, 2}, typeInfo, (TypeInformation) typeInfo, baseRowType);
 		testHarness.memorySize = 36 * 1024 * 1024;
 		testHarness.getExecutionConfig().enableObjectReuse();

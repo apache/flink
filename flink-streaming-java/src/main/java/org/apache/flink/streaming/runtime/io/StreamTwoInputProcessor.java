@@ -35,6 +35,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
@@ -45,13 +46,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Input reader for {@link org.apache.flink.streaming.runtime.tasks.TwoInputSelectableStreamTask}.
+ * Input reader for {@link TwoInputStreamTask}.
  *
  * @param <IN1> The type of the records that arrive on the first input
  * @param <IN2> The type of the records that arrive on the second input
  */
 @Internal
-public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements StreamInputProcessor {
+public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProcessor {
 
 	private final TwoInputStreamOperator<IN1, IN2, ?> streamOperator;
 
@@ -83,7 +84,7 @@ public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements Stream
 
 	private boolean isPrepared;
 
-	public StreamTwoInputSelectableProcessor(
+	public StreamTwoInputProcessor(
 		Collection<InputGate> inputGates1,
 		Collection<InputGate> inputGates2,
 		TypeSerializer<IN1> inputSerializer1,
