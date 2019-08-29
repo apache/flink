@@ -23,7 +23,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.runtime.io.StreamTwoInputSelectableProcessor;
+import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 import org.apache.flink.streaming.runtime.io.TwoInputSelectionHandler;
 
 import java.io.IOException;
@@ -34,9 +34,9 @@ import java.util.Collection;
  * the {@link TwoInputStreamOperator} to select input for reading.
  */
 @Internal
-public class TwoInputSelectableStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTask<IN1, IN2, OUT> {
+public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTask<IN1, IN2, OUT> {
 
-	public TwoInputSelectableStreamTask(Environment env) {
+	public TwoInputStreamTask(Environment env) {
 		super(env);
 	}
 
@@ -50,7 +50,7 @@ public class TwoInputSelectableStreamTask<IN1, IN2, OUT> extends AbstractTwoInpu
 		TwoInputSelectionHandler twoInputSelectionHandler = new TwoInputSelectionHandler(
 			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null);
 
-		this.inputProcessor = new StreamTwoInputSelectableProcessor<>(
+		this.inputProcessor = new StreamTwoInputProcessor<>(
 			inputGates1, inputGates2,
 			inputDeserializer1, inputDeserializer2,
 			this,

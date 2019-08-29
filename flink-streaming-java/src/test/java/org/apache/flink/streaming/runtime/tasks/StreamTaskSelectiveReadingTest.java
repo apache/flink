@@ -184,7 +184,7 @@ public class StreamTaskSelectiveReadingTest {
 	// Utilities
 	// ------------------------------------------------------------------------
 
-	private static class TestSelectiveReadingTask<IN1, IN2, OUT> extends TwoInputSelectableStreamTask<IN1, IN2, OUT> {
+	private static class TestSelectiveReadingTask<IN1, IN2, OUT> extends TwoInputStreamTask<IN1, IN2, OUT> {
 
 		private volatile boolean started;
 

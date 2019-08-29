@@ -25,7 +25,7 @@ import javax.annotation.Nullable;
 
 /**
  * This handler is mainly used for selecting the next available input index
- * in {@link StreamTwoInputSelectableProcessor}.
+ * in {@link StreamTwoInputProcessor}.
  */
 @Internal
 public class TwoInputSelectionHandler {

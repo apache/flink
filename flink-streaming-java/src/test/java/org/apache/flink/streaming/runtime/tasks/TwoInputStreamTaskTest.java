@@ -45,6 +45,7 @@ import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.operators.co.CoStreamMap;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.util.TestBoundedTwoInputOperator;
@@ -61,12 +62,12 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for {@link TwoInputSelectableStreamTask}. Theses tests implicitly also test the
- * {@link org.apache.flink.streaming.runtime.io.StreamTwoInputSelectableProcessor}.
+ * Tests for {@link TwoInputStreamTask}. Theses tests implicitly also test the
+ * {@link StreamTwoInputProcessor}.
  *
  * <p>Note:<br>
  * We only use a {@link CoStreamMap} operator here. We also test the individual operators but Map is
- * used as a representative to test {@link TwoInputSelectableStreamTask}, since {@link TwoInputSelectableStreamTask}
+ * used as a representative to test {@link TwoInputStreamTask}, since {@link TwoInputStreamTask}
  * is used for all {@link TwoInputStreamOperator}s.
  */
 public class TwoInputStreamTaskTest {
@@ -80,7 +81,7 @@ public class TwoInputStreamTaskTest {
 	public void testOpenCloseAndTimestamps() throws Exception {
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
 				new TwoInputStreamTaskTestHarness<>(
-						TwoInputSelectableStreamTask::new,
+						TwoInputStreamTask::new,
 						BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
 
@@ -126,7 +127,7 @@ public class TwoInputStreamTaskTest {
 
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
 			new TwoInputStreamTaskTestHarness<>(
-				TwoInputSelectableStreamTask::new,
+				TwoInputStreamTask::new,
 				2, 2, new int[] {1, 2},
 				BasicTypeInfo.STRING_TYPE_INFO,
 				BasicTypeInfo.INT_TYPE_INFO,
@@ -238,7 +239,7 @@ public class TwoInputStreamTaskTest {
 
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
 				new TwoInputStreamTaskTestHarness<>(
-						TwoInputSelectableStreamTask::new,
+						TwoInputStreamTask::new,
 						2, 2, new int[] {1, 2},
 						BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 		testHarness.setupOutputForSingletonOperatorChain();
@@ -322,7 +323,7 @@ public class TwoInputStreamTaskTest {
 
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness =
 				new TwoInputStreamTaskTestHarness<>(
-						TwoInputSelectableStreamTask::new,
+						TwoInputStreamTask::new,
 						2, 2, new int[] {1, 2},
 						BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
@@ -397,7 +398,7 @@ public class TwoInputStreamTaskTest {
 	@Test
 	public void testOperatorMetricReuse() throws Exception {
 		final TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
-			TwoInputSelectableStreamTask::new,
+			TwoInputStreamTask::new,
 			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		testHarness.setupOperatorChain(new OperatorID(), new DuplicatingOperator())
@@ -470,7 +471,7 @@ public class TwoInputStreamTaskTest {
 	@SuppressWarnings("unchecked")
 	public void testWatermarkMetrics() throws Exception {
 		final TwoInputStreamTaskTestHarness<String, Integer, String> testHarness = new TwoInputStreamTaskTestHarness<>(
-			TwoInputSelectableStreamTask::new,
+			TwoInputStreamTask::new,
 			BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.INT_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO);
 
 		CoStreamMap<String, Integer, String> headOperator = new CoStreamMap<>(new IdentityMap());
@@ -574,7 +575,7 @@ public class TwoInputStreamTaskTest {
 	@Test
 	public void testHandlingEndOfInput() throws Exception {
 		final TwoInputStreamTaskTestHarness<String, String, String> testHarness = new TwoInputStreamTaskTestHarness<>(
-			TwoInputSelectableStreamTask::new,
+			TwoInputStreamTask::new,
 			BasicTypeInfo.STRING_TYPE_INFO,
 			BasicTypeInfo.STRING_TYPE_INFO,
 			BasicTypeInfo.STRING_TYPE_INFO);

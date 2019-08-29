@@ -148,7 +148,7 @@ public class StreamTaskTestHarness<OUT> {
 	}
 
 	/**
-	 * This must be overwritten for OneInputStreamTask or TwoInputSelectableStreamTask test harnesses.
+	 * This must be overwritten for OneInputStreamTask or TwoInputStreamTask test harnesses.
 	 */
 	protected void initializeInputs() throws IOException, InterruptedException {}
 

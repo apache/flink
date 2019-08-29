@@ -83,7 +83,7 @@ public class StreamTaskTestHarnessTest {
 			// expected
 		}
 
-		harness = new StreamTaskTestHarness<>(TwoInputSelectableStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
+		harness = new StreamTaskTestHarness<>(TwoInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO);
 		harness.setupOperatorChain(new OperatorID(), new TwoInputTestOperator())
 			.chain(new OperatorID(), new TestOperator(), BasicTypeInfo.STRING_TYPE_INFO.createSerializer(new ExecutionConfig()));
 

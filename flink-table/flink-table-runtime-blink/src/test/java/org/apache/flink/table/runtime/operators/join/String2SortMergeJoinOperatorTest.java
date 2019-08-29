@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.TwoInputSelectableStreamTask;
+import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTaskTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
 import org.apache.flink.table.dataformat.BinaryRow;
@@ -140,7 +140,7 @@ public class String2SortMergeJoinOperatorTest {
 
 	private TwoInputStreamTaskTestHarness<BinaryRow, BinaryRow, JoinedRow> buildSortMergeJoin(StreamOperator operator) throws Exception {
 		final TwoInputStreamTaskTestHarness<BinaryRow, BinaryRow, JoinedRow> testHarness =
-				new TwoInputStreamTaskTestHarness<>(TwoInputSelectableStreamTask::new, 2, 2,
+				new TwoInputStreamTaskTestHarness<>(TwoInputStreamTask::new, 2, 2,
 					new int[]{1, 2}, typeInfo, (TypeInformation) typeInfo, joinedInfo);
 
 		testHarness.memorySize = 36 * 1024 * 1024;
