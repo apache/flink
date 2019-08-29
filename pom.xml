@@ -859,6 +859,13 @@ under the License.
 								</dependency>
 							</dependencies>
 						</plugin>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-surefire-plugin</artifactId>
+							<configuration>
+								<excludedGroups>org.apache.flink.testutils.junit.FailsOnJava11</excludedGroups>
+							</configuration>
+						</plugin>
 					</plugins>
 				</pluginManagement>
 
