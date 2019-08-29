@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -75,9 +75,9 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 	 * @throws Exception
 	 */
 	public static FixedDelayRestartStrategyFactory createFactory(Configuration configuration) throws Exception {
-		int maxAttempts = configuration.getInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+		int maxAttempts = configuration.getInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS);
 
-		String delayString = configuration.getString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY);
+		String delayString = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY);
 
 		long delay;
 
@@ -85,7 +85,7 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 			delay = Duration.apply(delayString).toMillis();
 		} catch (NumberFormatException nfe) {
 			throw new Exception("Invalid config value for " +
-					ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY + ": " + delayString +
+					RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY.key() + ": " + delayString +
 					". Value must be a valid duration (such as '100 milli' or '10 s')");
 		}
 

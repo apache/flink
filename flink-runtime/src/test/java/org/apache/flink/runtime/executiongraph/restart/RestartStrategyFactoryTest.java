@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -47,7 +47,7 @@ public class RestartStrategyFactoryTest extends TestLogger {
 	@Test
 	public void createRestartStrategyFactory_noRestartStrategyButAttemptsConfigured_returnsNoOrFixedIfCheckpointingEnabledRestartStrategyFactory() throws Exception {
 		final Configuration configuration = new Configuration();
-		configuration.setInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+		configuration.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
 
 		final RestartStrategyFactory restartStrategyFactory = RestartStrategyFactory.createRestartStrategyFactory(configuration);
 
@@ -59,9 +59,9 @@ public class RestartStrategyFactoryTest extends TestLogger {
 		final int attempts = 42;
 		final Duration delayBetweenRestartAttempts = Duration.ofSeconds(1337L);
 		final Configuration configuration = new Configuration();
-		configuration.setString(ConfigConstants.RESTART_STRATEGY, "fixed-delay");
-		configuration.setInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, attempts);
-		configuration.setString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY, delayBetweenRestartAttempts.getSeconds() + "s");
+		configuration.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+		configuration.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, attempts);
+		configuration.setString(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, delayBetweenRestartAttempts.getSeconds() + "s");
 
 		final RestartStrategyFactory restartStrategyFactory = RestartStrategyFactory.createRestartStrategyFactory(configuration);
 
