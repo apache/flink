@@ -217,7 +217,7 @@ take a look at the [Stream Processing Application Tutorial]({{ site.baseurl }}/g
 If you are writing a batch processing application and you are looking for inspiration what to write,
 take a look at the [Batch Application Examples]({{ site.baseurl }}/dev/batch/examples.html)
 
-For a complete overview over the APIa, have a look at the
+For a complete overview over the APIs, have a look at the
 [DataStream API]({{ site.baseurl }}/dev/datastream_api.html) and
 [DataSet API]({{ site.baseurl }}/dev/batch/index.html) sections.
 
