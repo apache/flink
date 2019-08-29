@@ -31,10 +31,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.yarn.YarnTestUtils.isHadoopVersionGreaterThanOrEquals;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
@@ -92,12 +92,6 @@ public class RegisterApplicationMasterResponseReflectorTest extends TestLogger {
 
 		final Method method = registerApplicationMasterResponseReflector.getMethod();
 		assertThat(method, notNullValue());
-	}
-
-	private static boolean isHadoopVersionGreaterThanOrEquals(final int major, final int minor) {
-		final String[] splitVersion = VersionInfo.getVersion().split("\\.");
-		final int[] versions = Arrays.stream(splitVersion).mapToInt(Integer::parseInt).toArray();
-		return versions[0] >= major && versions[1] >= minor;
 	}
 
 	/**
