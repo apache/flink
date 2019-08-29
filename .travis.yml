@@ -248,7 +248,7 @@ jobs:
       jdk: "openjdk9"
       script: ./tools/travis_controller.sh misc
       env: PROFILE="-Dhadoop.version=2.8.3 -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -Djdk9"
-      name: misc
+      name: misc - jdk 9
     - if: type = cron
       jdk: "openjdk9"
       stage: cleanup
@@ -267,89 +267,89 @@ jobs:
       stage: test
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -De2e-metrics -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_misc.sh
-      name: misc - hadoop 2.8
+      name: e2e - misc - hadoop 2.8
     - if: type = cron
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_ha.sh
-      name: ha - hadoop 2.8
+      name: e2e - ha - hadoop 2.8
     - if: type = cron
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_sticky.sh
-      name: sticky - hadoop 2.8
+      name: e2e - sticky - hadoop 2.8
     - if: type = cron
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
-      name: checkpoints - hadoop 2.8
+      name: e2e - checkpoints - hadoop 2.8
     - if: type = cron
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_container.sh
-      name: container - hadoop 2.8
+      name: e2e - container - hadoop 2.8
     - if: type = cron
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_heavy.sh
-      name: heavy - hadoop 2.8
+      name: e2e - heavy - hadoop 2.8
       # E2E profiles - Scala 2.12
     - if: type = cron
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -De2e-metrics -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_misc.sh
-      name: misc - scala 2.12
+      name: e2e - misc - scala 2.12
     - if: type = cron
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_ha.sh
-      name: ha - scala 2.12
+      name: e2e - ha - scala 2.12
     - if: type = cron
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_sticky.sh
-      name: sticky - scala 2.12
+      name: e2e - sticky - scala 2.12
     - if: type = cron
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
-      name: checkpoints - scala 2.12
+      name: e2e - checkpoints - scala 2.12
     - if: type = cron
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_container.sh
-      name: container - scala 2.12
+      name: e2e - container - scala 2.12
     - if: type = cron
       env: PROFILE="-Dinclude-hadoop -Dhadoop.version=2.8.3 -Dscala-2.12 -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_heavy.sh
-      name: heavy - scala 2.12
+      name: e2e - heavy - scala 2.12
       # E2E profiles - Hadoop-free
     - if: type = cron
       env: PROFILE="-De2e-metrics -Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_misc_hadoopfree.sh
-      name: misc
+      name: e2e - misc
     - if: type = cron
       env: PROFILE="-Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_ha.sh
-      name: ha
+      name: e2e - ha
     - if: type = cron
       env: PROFILE="-Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_sticky.sh
-      name: sticky
+      name: e2e - sticky
     - if: type = cron
       env: PROFILE="-Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
-      name: checkpoints
+      name: e2e - checkpoints
     - if: type = cron
       env: PROFILE="-Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_container.sh
-      name: container
+      name: e2e - container
     - if: type = cron
       env: PROFILE="-Dinclude-kinesis"
       script: ./tools/travis/nightly.sh split_heavy.sh
-      name: heavy
+      name: e2e - heavy
     - # E2E profiles - Java 9
     - if: type = cron
       stage: test
       jdk: "openjdk9"
       env: PROFILE="-De2e-metrics -Dinclude-kinesis -Djdk9"
       script: ./tools/travis/nightly.sh split_ha.sh
-      name: ha - jdk9
+      name: e2e - ha - jdk9
     - if: type = cron
       env: PROFILE="-Dinclude-kinesis -Djdk9"
       script: ./tools/travis/nightly.sh split_sticky.sh
-      name: sticky - jdk 9
+      name: e2e - sticky - jdk 9
     - if: type = cron
       env: PROFILE="-Dinclude-kinesis -Djdk9"
       script: ./tools/travis/nightly.sh split_checkpoints.sh
-      name: checkpoints - jdk 9
+      name: e2e - checkpoints - jdk 9
