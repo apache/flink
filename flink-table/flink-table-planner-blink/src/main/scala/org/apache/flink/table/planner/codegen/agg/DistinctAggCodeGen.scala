@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.codegen.GenerateUtils.{generateFieldAccess
 import org.apache.flink.table.planner.codegen.GeneratedExpression._
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
-import org.apache.flink.table.planner.expressions.RexNodeConverter
+import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.utils.DistinctInfo
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
@@ -91,7 +91,7 @@ class DistinctAggCodeGen(
   val isValueChangedTerm: String = s"is_distinct_value_changed_$distinctIndex"
   val isValueEmptyTerm: String = s"is_distinct_value_empty_$distinctIndex"
   val valueGenerator: DistinctValueGenerator = createDistinctValueGenerator()
-  private val rexNodeGen = new RexNodeConverter(relBuilder)
+  private val rexNodeGen = new ExpressionConverter(relBuilder)
 
   addReusableDistinctAccumulator()
 

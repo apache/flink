@@ -59,9 +59,9 @@ import org.apache.flink.table.planner.expressions.PlannerRowtimeAttribute;
 import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
 import org.apache.flink.table.planner.expressions.PlannerWindowReference;
 import org.apache.flink.table.planner.expressions.PlannerWindowStart;
-import org.apache.flink.table.planner.expressions.RexNodeConverter;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.SqlAggFunctionVisitor;
+import org.apache.flink.table.planner.expressions.converter.ExpressionConverter;
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction;
 import org.apache.flink.table.planner.operations.DataStreamQueryOperation;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
@@ -119,7 +119,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 	private final FlinkRelBuilder relBuilder;
 	private final SingleRelVisitor singleRelVisitor = new SingleRelVisitor();
 	private final LookupCallResolver callResolver;
-	private final RexNodeConverter rexNodeConverter;
+	private final ExpressionConverter expressionConverter;
 	private final AggregateVisitor aggregateVisitor = new AggregateVisitor();
 	private final TableAggregateVisitor tableAggregateVisitor = new TableAggregateVisitor();
 	private final JoinExpressionVisitor joinExpressionVisitor = new JoinExpressionVisitor();
@@ -127,7 +127,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 	public QueryOperationConverter(FlinkRelBuilder relBuilder, FunctionLookup functionCatalog) {
 		this.relBuilder = relBuilder;
 		this.callResolver = new LookupCallResolver(functionCatalog);
-		this.rexNodeConverter = new RexNodeConverter(relBuilder);
+		this.expressionConverter = new ExpressionConverter(relBuilder);
 	}
 
 	@Override
@@ -499,7 +499,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				Expression aggregate = unresolvedCall.getChildren().get(0);
 				if (isFunctionOfKind(aggregate, AGGREGATE)) {
 					return aggregate.accept(callResolver).accept(
-							new AggCallVisitor(relBuilder, rexNodeConverter, aggregateName, false));
+							new AggCallVisitor(relBuilder, expressionConverter, aggregateName, false));
 				}
 			}
 			throw new TableException("Expected named aggregate. Got: " + unresolvedCall);
@@ -514,15 +514,15 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 			private final RelBuilder relBuilder;
 			private final SqlAggFunctionVisitor sqlAggFunctionVisitor;
-			private final RexNodeConverter rexNodeConverter;
+			private final ExpressionConverter expressionConverter;
 			private final String name;
 			private final boolean isDistinct;
 
-			public AggCallVisitor(RelBuilder relBuilder, RexNodeConverter rexNodeConverter, String name,
+			public AggCallVisitor(RelBuilder relBuilder, ExpressionConverter expressionConverter, String name,
 					boolean isDistinct) {
 				this.relBuilder = relBuilder;
 				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor((FlinkTypeFactory) relBuilder.getTypeFactory());
-				this.rexNodeConverter = rexNodeConverter;
+				this.expressionConverter = expressionConverter;
 				this.name = name;
 				this.isDistinct = isDistinct;
 			}
@@ -532,7 +532,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 				FunctionDefinition def = call.getFunctionDefinition();
 				if (BuiltInFunctionDefinitions.DISTINCT == def) {
 					Expression innerAgg = call.getChildren().get(0);
-					return innerAgg.accept(new AggCallVisitor(relBuilder, rexNodeConverter, name, true));
+					return innerAgg.accept(new AggCallVisitor(relBuilder, expressionConverter, name, true));
 				} else {
 					SqlAggFunction sqlAggFunction = call.accept(sqlAggFunctionVisitor);
 					return relBuilder.aggregateCall(
@@ -541,7 +541,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 						false,
 						null,
 						name,
-						call.getChildren().stream().map(expr -> expr.accept(rexNodeConverter))
+						call.getChildren().stream().map(expr -> expr.accept(expressionConverter))
 							.collect(Collectors.toList()));
 				}
 			}
@@ -557,7 +557,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 		@Override
 		public AggCall visit(CallExpression call) {
 			if (isFunctionOfKind(call, TABLE_AGGREGATE)) {
-				return call.accept(new TableAggCallVisitor(relBuilder, rexNodeConverter));
+				return call.accept(new TableAggCallVisitor(relBuilder, expressionConverter));
 			}
 			return defaultMethod(call);
 		}
@@ -571,12 +571,12 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 			private final RelBuilder relBuilder;
 			private final SqlAggFunctionVisitor sqlAggFunctionVisitor;
-			private final RexNodeConverter rexNodeConverter;
+			private final ExpressionConverter expressionConverter;
 
-			public TableAggCallVisitor(RelBuilder relBuilder, RexNodeConverter rexNodeConverter) {
+			public TableAggCallVisitor(RelBuilder relBuilder, ExpressionConverter expressionConverter) {
 				this.relBuilder = relBuilder;
 				this.sqlAggFunctionVisitor = new SqlAggFunctionVisitor((FlinkTypeFactory) relBuilder.getTypeFactory());
-				this.rexNodeConverter = rexNodeConverter;
+				this.expressionConverter = expressionConverter;
 			}
 
 			@Override
@@ -588,7 +588,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 					false,
 					null,
 					sqlAggFunction.toString(),
-					call.getChildren().stream().map(expr -> expr.accept(rexNodeConverter)).collect(toList()));
+					call.getChildren().stream().map(expr -> expr.accept(expressionConverter)).collect(toList()));
 			}
 
 			@Override
@@ -599,6 +599,6 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 	}
 
 	private RexNode convertExprToRexNode(Expression expr) {
-		return expr.accept(callResolver).accept(rexNodeConverter);
+		return expr.accept(callResolver).accept(expressionConverter);
 	}
 }

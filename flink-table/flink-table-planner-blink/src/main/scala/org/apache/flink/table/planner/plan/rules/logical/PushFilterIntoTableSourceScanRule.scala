@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.calcite.FlinkContext
-import org.apache.flink.table.planner.expressions.RexNodeConverter
+import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.schema.{FlinkRelOptTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RexNodeExtractor}
@@ -112,7 +112,7 @@ class PushFilterIntoTableSourceScanRule extends RelOptRule(
       call.transformTo(newScan)
     } else {
       relBuilder.push(scan)
-      val converter = new RexNodeConverter(relBuilder)
+      val converter = new ExpressionConverter(relBuilder)
       val remainingConditions = remainingPredicates.map(_.accept(converter)) ++ unconvertedRexNodes
       val remainingCondition = remainingConditions.reduce((l, r) => relBuilder.and(l, r))
       val newFilter = filter.copy(filter.getTraitSet, newScan, remainingCondition)
