@@ -50,7 +50,6 @@ import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.apache.log4j.Level;
@@ -264,7 +263,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 					"-nm", "customName",
 					"-Dfancy-configuration-value=veryFancy",
 					"-Dyarn.maximum-failed-containers=3",
-					"-Dyarn.application.priority=-5",
 					"-D" + YarnConfigOptions.VCORES.key() + "=2"},
 				"Flink JobManager is now running on ",
 				RunTypes.YARN_SESSION);
@@ -297,7 +295,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				//
 				assertThat(flinkConfig, hasEntry("fancy-configuration-value", "veryFancy"));
 				assertThat(flinkConfig, hasEntry("yarn.maximum-failed-containers", "3"));
-				assertThat(flinkConfig, hasEntry(YarnConfigOptions.APPLICATION_PRIORITY.key(), "5"));
 
 				//
 				// FLINK-2213: assert that vcores are set
@@ -330,15 +327,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		checkState(port != null, "port not found in log");
 
 		return HostAndPort.fromParts(hostname, Integer.parseInt(port));
-	}
-
-	private ApplicationReport getOnlyApplicationReport() throws IOException, YarnException {
-		final YarnClient yarnClient = getYarnClient();
-		checkState(yarnClient != null);
-
-		final List<ApplicationReport> apps = yarnClient.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
-		assertEquals(1, apps.size()); // Only one running
-		return apps.get(0);
 	}
 
 	private void submitJob(final String jobFileName) throws IOException, InterruptedException {
