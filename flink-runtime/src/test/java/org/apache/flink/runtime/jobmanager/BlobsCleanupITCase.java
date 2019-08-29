@@ -22,8 +22,8 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.BlobServerOptions;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -88,8 +88,8 @@ public class BlobsCleanupITCase extends TestLogger {
 
 		Configuration cfg = new Configuration();
 		cfg.setString(BlobServerOptions.STORAGE_DIRECTORY, blobBaseDir.getAbsolutePath());
-		cfg.setString(ConfigConstants.RESTART_STRATEGY, "fixeddelay");
-		cfg.setInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
+		cfg.setString(RestartStrategyOptions.RESTART_STRATEGY, "fixeddelay");
+		cfg.setInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS, 1);
 		// BLOBs are deleted from BlobCache between 1s and 2s after last reference
 		// -> the BlobCache may still have the BLOB or not (let's test both cases randomly)
 		cfg.setLong(BlobServerOptions.CLEANUP_INTERVAL, 1L);

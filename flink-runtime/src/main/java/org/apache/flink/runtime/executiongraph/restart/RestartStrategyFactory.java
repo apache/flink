@@ -22,6 +22,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,14 +88,14 @@ public abstract class RestartStrategyFactory implements Serializable {
 	 * @throws Exception which indicates that the RestartStrategy could not be instantiated.
 	 */
 	public static RestartStrategyFactory createRestartStrategyFactory(Configuration configuration) throws Exception {
-		String restartStrategyName = configuration.getString(ConfigConstants.RESTART_STRATEGY, null);
+		String restartStrategyName = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY, null);
 
 		if (restartStrategyName == null) {
 			// support deprecated ConfigConstants values
-			final int numberExecutionRetries = configuration.getInteger(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
+			final int numberExecutionRetries = configuration.getInteger(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS,
 				ConfigConstants.DEFAULT_EXECUTION_RETRIES);
 			String pauseString = configuration.getString(AkkaOptions.WATCH_HEARTBEAT_PAUSE);
-			String delayString = configuration.getString(ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY,
+			String delayString = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY,
 				pauseString);
 
 			long delay;
@@ -108,7 +109,7 @@ public abstract class RestartStrategyFactory implements Serializable {
 						". Value must be a valid duration (such as '10 s' or '1 min')");
 				} else {
 					throw new Exception("Invalid config value for " +
-						ConfigConstants.RESTART_STRATEGY_FIXED_DELAY_DELAY + ": " + delayString +
+						RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY.key() + ": " + delayString +
 						". Value must be a valid duration (such as '100 milli' or '10 s')");
 				}
 			}
