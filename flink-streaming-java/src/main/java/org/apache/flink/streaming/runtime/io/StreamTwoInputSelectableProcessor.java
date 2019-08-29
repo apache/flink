@@ -37,9 +37,6 @@ import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -48,18 +45,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * Input reader for {@link org.apache.flink.streaming.runtime.tasks.TwoInputSelectableStreamTask}
- * in the case that the operator is InputSelectable.
+ * Input reader for {@link org.apache.flink.streaming.runtime.tasks.TwoInputSelectableStreamTask}.
  *
  * @param <IN1> The type of the records that arrive on the first input
  * @param <IN2> The type of the records that arrive on the second input
  */
 @Internal
 public final class StreamTwoInputSelectableProcessor<IN1, IN2> implements StreamInputProcessor {
-
-	private static final Logger LOG = LoggerFactory.getLogger(StreamTwoInputSelectableProcessor.class);
-
-	private static final CompletableFuture<?> UNAVAILABLE = new CompletableFuture<>();
 
 	private final TwoInputStreamOperator<IN1, IN2, ?> streamOperator;
 
