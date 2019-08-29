@@ -16,25 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.dispatcher;
-
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
+package org.apache.flink.table.catalog.hive.client;
 
 /**
- * No operation {@link org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore.SubmittedJobGraphListener}
- * implemetation for testing purposes.
+ * Shim for Hive version 2.3.4.
  */
-public enum NoOpSubmittedJobGraphListener implements SubmittedJobGraphStore.SubmittedJobGraphListener {
-	INSTANCE;
+public class HiveShimV234 extends HiveShimV233 {
 
-	@Override
-	public void onAddedJobGraph(JobID jobId) {
-		// No op
-	}
-
-	@Override
-	public void onRemovedJobGraph(JobID jobId) {
-		// No op
-	}
 }

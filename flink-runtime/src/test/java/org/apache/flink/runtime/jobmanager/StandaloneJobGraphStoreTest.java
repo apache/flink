@@ -20,46 +20,30 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.junit.Test;
 
-import java.io.Serializable;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
-/**
- * A recoverable {@link JobGraph}.
- */
-public class SubmittedJobGraph implements Serializable {
-
-	private static final long serialVersionUID = 2836099271734771825L;
-
-	/** The submitted {@link JobGraph}. */
-	private final JobGraph jobGraph;
+public class StandaloneJobGraphStoreTest {
 
 	/**
-	 * Creates a {@link SubmittedJobGraph}.
-	 *
-	 * @param jobGraph The submitted {@link JobGraph}
+	 * Tests that all operations work and don't change the state.
 	 */
-	public SubmittedJobGraph(JobGraph jobGraph) {
-		this.jobGraph = checkNotNull(jobGraph, "Job graph");
-	}
+	@Test
+	public void testNoOps() {
+		StandaloneJobGraphStore jobGraphs = new StandaloneJobGraphStore();
 
-	/**
-	 * Returns the submitted {@link JobGraph}.
-	 */
-	public JobGraph getJobGraph() {
-		return jobGraph;
-	}
+		JobGraph jobGraph = new JobGraph("testNoOps");
 
-	/**
-	 * Returns the {@link JobID} of the submitted {@link JobGraph}.
-	 */
-	public JobID getJobId() {
-		return jobGraph.getJobID();
-	}
+		assertEquals(0, jobGraphs.getJobIds().size());
 
-	@Override
-	public String toString() {
-		return String.format("SubmittedJobGraph(%s)", jobGraph.getJobID());
+		jobGraphs.putJobGraph(jobGraph);
+		assertEquals(0, jobGraphs.getJobIds().size());
+
+		jobGraphs.removeJobGraph(jobGraph.getJobID());
+		assertEquals(0, jobGraphs.getJobIds().size());
+
+		assertNull(jobGraphs.recoverJobGraph(new JobID()));
 	}
 }

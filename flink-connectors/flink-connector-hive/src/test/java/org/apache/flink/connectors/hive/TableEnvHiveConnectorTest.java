@@ -39,6 +39,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
@@ -166,6 +167,22 @@ public class TableEnvHiveConnectorTest {
 			tableEnv.sqlUpdate("insert into db1.dest select * from db1.src1");
 			tableEnv.execute("test2");
 			verifyHiveQueryResult("select * from db1.dest", hiveShell.executeQuery("select * from db1.src1"));
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testInsertOverwrite() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.dest (x int, y string)");
+			hiveShell.insertInto("db1", "dest").addRow(1, "a").addRow(2, "b").commit();
+			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta", "2\tb"));
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			tableEnv.sqlUpdate("insert overwrite db1.dest values (3,'c')");
+			tableEnv.execute("test insert overwrite");
+			verifyHiveQueryResult("select * from db1.dest", Collections.singletonList("3\tc"));
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}

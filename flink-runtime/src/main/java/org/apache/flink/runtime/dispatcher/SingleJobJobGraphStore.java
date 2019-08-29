@@ -20,27 +20,27 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Objects;
 
 /**
- * {@link SubmittedJobGraphStore} implementation for a single job.
+ * {@link JobGraphStore} implementation for a single job.
  */
-public class SingleJobSubmittedJobGraphStore implements SubmittedJobGraphStore {
+public class SingleJobJobGraphStore implements JobGraphStore {
 
 	private final JobGraph jobGraph;
 
-	public SingleJobSubmittedJobGraphStore(JobGraph jobGraph) {
+	public SingleJobJobGraphStore(JobGraph jobGraph) {
 		this.jobGraph = Preconditions.checkNotNull(jobGraph);
 	}
 
 	@Override
-	public void start(SubmittedJobGraphListener jobGraphListener) throws Exception {
+	public void start(JobGraphListener jobGraphListener) throws Exception {
 		// noop
 	}
 
@@ -50,17 +50,17 @@ public class SingleJobSubmittedJobGraphStore implements SubmittedJobGraphStore {
 	}
 
 	@Override
-	public SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception {
+	public JobGraph recoverJobGraph(JobID jobId) throws Exception {
 		if (jobGraph.getJobID().equals(jobId)) {
-			return new SubmittedJobGraph(jobGraph);
+			return jobGraph;
 		} else {
 			throw new FlinkException("Could not recover job graph " + jobId + '.');
 		}
 	}
 
 	@Override
-	public void putJobGraph(SubmittedJobGraph jobGraph) throws Exception {
-		if (!jobGraph.getJobId().equals(jobGraph.getJobId())) {
+	public void putJobGraph(JobGraph jobGraph) throws Exception {
+		if (!Objects.equals(this.jobGraph.getJobID(), jobGraph.getJobID())) {
 			throw new FlinkException("Cannot put additional jobs into this submitted job graph store.");
 		}
 	}

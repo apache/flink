@@ -26,36 +26,36 @@ import javax.annotation.Nullable;
 import java.util.Collection;
 
 /**
- * {@link SubmittedJobGraph} instances for recovery.
+ * {@link JobGraph} instances for recovery.
  */
-public interface SubmittedJobGraphStore {
+public interface JobGraphStore {
 
 	/**
-	 * Starts the {@link SubmittedJobGraphStore} service.
+	 * Starts the {@link JobGraphStore} service.
 	 */
-	void start(SubmittedJobGraphListener jobGraphListener) throws Exception;
+	void start(JobGraphListener jobGraphListener) throws Exception;
 
 	/**
-	 * Stops the {@link SubmittedJobGraphStore} service.
+	 * Stops the {@link JobGraphStore} service.
 	 */
 	void stop() throws Exception;
 
 	/**
-	 * Returns the {@link SubmittedJobGraph} with the given {@link JobID} or
+	 * Returns the {@link JobGraph} with the given {@link JobID} or
 	 * {@code null} if no job was registered.
 	 */
 	@Nullable
-	SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception;
+	JobGraph recoverJobGraph(JobID jobId) throws Exception;
 
 	/**
-	 * Adds the {@link SubmittedJobGraph} instance.
+	 * Adds the {@link JobGraph} instance.
 	 *
 	 * <p>If a job graph with the same {@link JobID} exists, it is replaced.
 	 */
-	void putJobGraph(SubmittedJobGraph jobGraph) throws Exception;
+	void putJobGraph(JobGraph jobGraph) throws Exception;
 
 	/**
-	 * Removes the {@link SubmittedJobGraph} with the given {@link JobID} if it exists.
+	 * Removes the {@link JobGraph} with the given {@link JobID} if it exists.
 	 */
 	void removeJobGraph(JobID jobId) throws Exception;
 
@@ -63,7 +63,7 @@ public interface SubmittedJobGraphStore {
 	 * Releases the locks on the specified {@link JobGraph}.
 	 *
 	 * Releasing the locks allows that another instance can delete the job from
-	 * the {@link SubmittedJobGraphStore}.
+	 * the {@link JobGraphStore}.
 	 *
 	 * @param jobId specifying the job to release the locks for
 	 * @throws Exception if the locks cannot be released
@@ -79,14 +79,13 @@ public interface SubmittedJobGraphStore {
 	Collection<JobID> getJobIds() throws Exception;
 
 	/**
-	 * A listener for {@link SubmittedJobGraph} instances. This is used to react to races between
-	 * multiple running {@link SubmittedJobGraphStore} instances (on multiple job managers).
+	 * A listener for {@link JobGraph} instances. This is used to react to races between
+	 * multiple running {@link JobGraphStore} instances (on multiple job managers).
 	 */
-	interface SubmittedJobGraphListener {
+	interface JobGraphListener {
 
 		/**
-		 * Callback for {@link SubmittedJobGraph} instances added by a different {@link
-		 * SubmittedJobGraphStore} instance.
+		 * Callback for {@link JobGraph} instances added by a different {@link JobGraphStore} instance.
 		 *
 		 * <p><strong>Important:</strong> It is possible to get false positives and be notified
 		 * about a job graph, which was added by this instance.
@@ -96,8 +95,7 @@ public interface SubmittedJobGraphStore {
 		void onAddedJobGraph(JobID jobId);
 
 		/**
-		 * Callback for {@link SubmittedJobGraph} instances removed by a different {@link
-		 * SubmittedJobGraphStore} instance.
+		 * Callback for {@link JobGraph} instances removed by a different {@link JobGraphStore} instance.
 		 *
 		 * @param jobId The {@link JobID} of the removed job graph
 		 */

@@ -21,11 +21,15 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputSelectableProcessor;
+import org.apache.flink.streaming.runtime.io.TwoInputSelectionHandler;
 
 import java.io.IOException;
 import java.util.Collection;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link StreamTask} for executing a {@link TwoInputStreamOperator} and supporting
@@ -45,6 +49,9 @@ public class TwoInputSelectableStreamTask<IN1, IN2, OUT> extends AbstractTwoInpu
 		TypeSerializer<IN1> inputDeserializer1,
 		TypeSerializer<IN2> inputDeserializer2) throws IOException {
 
+		checkState(headOperator instanceof InputSelectable);
+		TwoInputSelectionHandler twoInputSelectionHandler = new TwoInputSelectionHandler((InputSelectable) headOperator);
+
 		this.inputProcessor = new StreamTwoInputSelectableProcessor<>(
 			inputGates1, inputGates2,
 			inputDeserializer1, inputDeserializer2,
@@ -55,9 +62,11 @@ public class TwoInputSelectableStreamTask<IN1, IN2, OUT> extends AbstractTwoInpu
 			getEnvironment().getTaskManagerInfo().getConfiguration(),
 			getStreamStatusMaintainer(),
 			this.headOperator,
+			twoInputSelectionHandler,
 			input1WatermarkGauge,
 			input2WatermarkGauge,
 			getTaskNameWithSubtaskAndId(),
-			operatorChain);
+			operatorChain,
+			setupNumRecordsInCounter(headOperator));
 	}
 }

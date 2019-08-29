@@ -105,8 +105,7 @@ public class ExecutionConfigTest extends TestLogger {
 				forceAvroEnabled = r.nextBoolean(),
 				forceKryoEnabled = r.nextBoolean(),
 				disableGenericTypes = r.nextBoolean(),
-				objectReuseEnabled = r.nextBoolean(),
-				sysoutLoggingEnabled = r.nextBoolean();
+				objectReuseEnabled = r.nextBoolean();
 
 		final ExecutionConfig config = new ExecutionConfig();
 
@@ -135,11 +134,6 @@ public class ExecutionConfigTest extends TestLogger {
 		} else {
 			config.disableObjectReuse();
 		}
-		if (sysoutLoggingEnabled) {
-			config.enableSysoutLogging();
-		} else {
-			config.disableSysoutLogging();
-		}
 		config.setParallelism(parallelism);
 
 		final ExecutionConfig copy1 = CommonTestUtils.createCopySerializable(config);
@@ -156,7 +150,6 @@ public class ExecutionConfigTest extends TestLogger {
 		assertEquals(forceKryoEnabled, copy1.isForceKryoEnabled());
 		assertEquals(disableGenericTypes, copy1.hasGenericTypesDisabled());
 		assertEquals(objectReuseEnabled, copy1.isObjectReuseEnabled());
-		assertEquals(sysoutLoggingEnabled, copy1.isSysoutLoggingEnabled());
 		assertEquals(parallelism, copy1.getParallelism());
 	}
 }

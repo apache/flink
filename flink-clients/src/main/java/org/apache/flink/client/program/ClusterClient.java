@@ -86,9 +86,6 @@ public abstract class ClusterClient<T> {
 
 	private final boolean sharedHaServices;
 
-	/** Flag indicating whether to sysout print execution updates. */
-	private boolean printStatusDuringExecution = true;
-
 	/**
 	 * For interactive invocations, the job results are only available after the ContextEnvironment has
 	 * been run inside the user JAR. We pass the Client to every instance of the ContextEnvironment
@@ -162,23 +159,6 @@ public abstract class ClusterClient<T> {
 	// ------------------------------------------------------------------------
 	//  Configuration
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Configures whether the client should print progress updates during the execution to {@code System.out}.
-	 * All updates are logged via the SLF4J loggers regardless of this setting.
-	 *
-	 * @param print True to print updates to standard out during execution, false to not print them.
-	 */
-	public void setPrintStatusDuringExecution(boolean print) {
-		this.printStatusDuringExecution = print;
-	}
-
-	/**
-	 * @return whether the client will print progress updates during the execution to {@code System.out}
-	 */
-	public boolean getPrintStatusDuringExecution() {
-		return this.printStatusDuringExecution;
-	}
 
 	/**
 	 * Gets the current cluster connection info (may change in case of a HA setup).

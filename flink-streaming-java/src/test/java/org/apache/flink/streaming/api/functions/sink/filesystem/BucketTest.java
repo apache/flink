@@ -369,7 +369,7 @@ public class BucketTest {
 
 	private static final String bucketId = "testing-bucket";
 
-	private static final RollingPolicy<String, String> rollingPolicy = DefaultRollingPolicy.create().build();
+	private static final RollingPolicy<String, String> rollingPolicy = DefaultRollingPolicy.builder().build();
 
 	private static final PartFileWriter.PartFileFactory<String, String> partFileFactory =
 			new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>());

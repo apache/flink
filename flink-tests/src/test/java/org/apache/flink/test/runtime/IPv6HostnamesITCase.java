@@ -87,7 +87,6 @@ public class IPv6HostnamesITCase extends TestLogger {
 
 			ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 			env.setParallelism(4);
-			env.getConfig().disableSysoutLogging();
 
 			// get input data
 			DataSet<String> text = env.fromElements(WordCountData.TEXT.split("\n"));

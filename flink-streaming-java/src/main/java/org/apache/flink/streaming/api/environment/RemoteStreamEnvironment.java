@@ -274,8 +274,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 				streamGraph.getJobGraph().getJobID(), e);
 		}
 
-		client.setPrintStatusDuringExecution(executionConfig.isSysoutLoggingEnabled());
-
 		if (savepointRestoreSettings == null) {
 			savepointRestoreSettings = SavepointRestoreSettings.none();
 		}

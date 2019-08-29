@@ -17,36 +17,36 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-{% comment %}
+{%- comment -%}
 ==============================================================================
 Extract the active nav IDs.
 ==============================================================================
-{% endcomment %}
+{%- endcomment -%}
 
-{% assign active_nav_ids = site.array %}
-{% assign parent_id = page.nav-parent_id %}
+{%- assign active_nav_ids = site.array -%}
+{%- assign parent_id = page.nav-parent_id -%}
 
-{% for i in (1..10) %}
-  {% if parent_id %}
-    {% assign active_nav_ids = active_nav_ids | push: parent_id %}
-    {% assign current = (site.pages_by_language[page.language] | where: "nav-id" , parent_id | sort: "nav-pos") %}
-    {% if current.size > 0 %}
-      {% assign parent_id = current[0].nav-parent_id %}
-    {% else %}
-      {% break %}
-    {% endif %}
-  {% else %}
-    {% break %}
-  {% endif %}
-{% endfor %}
+{%- for i in (1..10) -%}
+  {%- if parent_id -%}
+    {%- assign active_nav_ids = active_nav_ids | push: parent_id -%}
+    {%- assign current = (site.pages_by_language[page.language] | where: "nav-id" , parent_id | sort: "nav-pos") -%}
+    {%- if current.size > 0 -%}
+      {%- assign parent_id = current[0].nav-parent_id -%}
+    {%- else -%}
+      {%- break -%}
+    {%- endif -%}
+  {%- else -%}
+    {%- break -%}
+  {%- endif -%}
+{%- endfor -%}
 
-{% if page.language == "en" %}
-  {% capture baseurl_i18n %}{{ site.baseurl }}{% endcapture %}
-{% else if page.language == "zh" %}
-  {% capture baseurl_i18n %}{{ site.baseurl }}/{{ page.language }}{% endcapture %}
-{% endif %}
+{%- if page.language == "en" -%}
+  {%- capture baseurl_i18n -%}{{ site.baseurl }}{%- endcapture -%}
+{%- else if page.language == "zh" -%}
+  {%- capture baseurl_i18n -%}{{ site.baseurl }}/{{ page.language }}{%- endcapture -%}
+{%- endif -%}
 
-{% comment %}
+{%- comment -%}
 ==============================================================================
 Build the nested list from nav-id and nav-parent_id relations.
 ==============================================================================
@@ -63,77 +63,80 @@ Level 0 is made up of all pages, which have nav-parent_id set to 'root'.
 The 'title' of the page is used as the default link text. You can
 override this via 'nav-title'. The relative position per navigational
 level is determined by 'nav-pos'.
-{% endcomment %}
+{%- endcomment -%}
 
-{% assign elementsPosStack = site.array %}
-{% assign posStack = site.array %}
+{%- assign elementsPosStack = site.array -%}
+{%- assign posStack = site.array -%}
 
-{% assign elements = site.array %}
-{% assign children = (site.pages_by_language[page.language] | where: "nav-parent_id" , "root" | sort: "nav-pos") %}
-{% if children.size > 0 %}
-  {% assign elements = elements | push: children %}
-{% endif %}
+{%- assign elements = site.array -%}
+{%- assign all_pages_by_nav_parent = (site.pages_by_language[page.language] | where_exp: "item", "item.nav-parent_id != nil" | group_by: "nav-parent_id") -%}
+{%- assign children = (all_pages_by_nav_parent | where: "name" , "root") -%}
+{%- assign children = (children[0].items | sort: "nav-pos") -%}
+{%- if children.size > 0 -%}
+  {%- assign elements = elements | push: children -%}
+{%- endif -%}
 
-{% assign elementsPos = 0 %}
-{% assign pos = 0 %}
+{%- assign elementsPos = 0 -%}
+{%- assign pos = 0 -%}
 
 <div class="sidenav-logo">
   <p><a href="{{ baseurl_i18n }}"><img class="bottom" alt="Apache Flink" src="{{ site.baseurl }}/page/img/navbar-brand-logo.jpg"></a> v{{ site.version_title }}</p>
 </div>
 <ul id="sidenav">
-{% for i in (1..10000) %}
-  {% if pos >= elements[elementsPos].size %}
-    {% if elementsPos == 0 %}
-      {% break %}
-    {% else %}
-      {% assign elementsPos = elementsPosStack | last %}
-      {% assign pos = posStack | last %}
-</li></ul></div>
-      {% assign elementsPosStack = elementsPosStack | pop %}
-      {% assign posStack = posStack | pop %}
-    {% endif %}
-  {% else %}
-    {% assign this = elements[elementsPos][pos] %}
+{%- for i in (1..10000) -%}
+  {%- if pos >= elements[elementsPos].size -%}
+    {%- if elementsPos == 0 -%}
+      {%- break -%}
+    {%- else -%}
+      {%- assign elementsPos = elementsPosStack | last -%}
+      {%- assign pos = posStack | last %}
+</ul></div></li>
+      {%- assign elementsPosStack = elementsPosStack | pop -%}
+      {%- assign posStack = posStack | pop -%}
+    {%- endif -%}
+  {%- else -%}
+    {%- assign this = elements[elementsPos][pos] -%}
 
-    {% if this.url == page.url %}
-      {% assign active = true %}
-    {% elsif this.nav-id and active_nav_ids contains this.nav-id %}
-      {% assign active = true %}
-    {% else %}
-      {% assign active = false %}
-    {% endif %}
+    {%- if this.url == page.url -%}
+      {%- assign active = true -%}
+    {%- elsif this.nav-id and active_nav_ids contains this.nav-id -%}
+      {%- assign active = true -%}
+    {%- else -%}
+      {%- assign active = false -%}
+    {%- endif -%}
 
-    {% capture title %}{% if this.nav-title %}{{ this.nav-title }}{% else %}{{ this.title }}{% endif %}{% endcapture %}
-    {% capture target %}"{{ site.baseurl }}{{ this.url }}"{% if active %} class="active"{% endif %}{% endcapture %}
-    {% capture overview_target %}"{{ site.baseurl }}{{ this.url }}"{% if this.url == page.url %} class="active"{% endif %}{% endcapture %}
+    {%- capture title -%}{%- if this.nav-title -%}{{ this.nav-title }}{%- else -%}{{ this.title }}{%- endif -%}{%- endcapture -%}
+    {%- capture target -%}"{{ site.baseurl }}{{ this.url }}"{%- if active %} class="active"{%- endif -%}{%- endcapture -%}
+    {%- capture overview_target -%}"{{ site.baseurl }}{{ this.url }}"{%- if this.url == page.url -%} class="active"{%- endif -%}{%- endcapture -%}
 
     {% if this.section-break %}<hr class="section-break"></hr>{% endif %}
 
-    {% assign pos = pos | plus: 1 %}
-    {% if this.nav-id %}
-      {% assign children = (site.pages_by_language[page.language] | where: "nav-parent_id" , this.nav-id | sort: "nav-pos") %}
-      {% if children.size > 0 %}
-        {% capture collapse_target %}"#collapse-{{ i }}" data-toggle="collapse"{% if active %} class="active"{% endif %}{% endcapture %}
-        {% capture expand %}{% unless active %} <i class="fa fa-caret-down pull-right" aria-hidden="true" style="padding-top: 4px"></i>{% endunless %}{% endcapture %}
+    {%- assign pos = pos | plus: 1 -%}
+    {%- if this.nav-id -%}
+      {%- assign children = (all_pages_by_nav_parent | where: "name" , this.nav-id) -%}
+      {%- if children.size > 0 -%}
+        {%- assign children = (children[0].items | sort: "nav-pos") -%}
+        {%- capture collapse_target -%}"#collapse-{{ i }}" data-toggle="collapse"{%- if active -%} class="active"{%- endif -%}{%- endcapture -%}
+        {%- capture expand -%}{%- unless active -%} <i class="fa fa-caret-down pull-right" aria-hidden="true" style="padding-top: 4px"></i>{%- endunless -%}{%- endcapture %}
 <li><a href={{ collapse_target }}>{{ title }}{{ expand }}</a><div class="collapse{% if active %} in{% endif %}" id="collapse-{{ i }}"><ul>
-        {% if this.nav-show_overview %}
-          <li><a href={{ overview_target }}>
-            {% if page.is_default_language %}Overview{% else %}概览{% endif %}</a></li>
-        {% endif %}
-        {% assign elements = elements | push: children %}
-        {% assign elementsPosStack = elementsPosStack | push: elementsPos %}
-        {% assign posStack = posStack | push: pos %}
+        {%- if this.nav-show_overview %}
+<li><a href={{ overview_target }}>
+            {%- if page.is_default_language %}Overview{% else %}概览{% endif %}</a></li>
+        {%- endif -%}
+        {%- assign elements = elements | push: children -%}
+        {%- assign elementsPosStack = elementsPosStack | push: elementsPos -%}
+        {%- assign posStack = posStack | push: pos -%}
 
-        {% assign elementsPos = elements.size | minus: 1 %}
-        {% assign pos = 0 %}
-      {% else %}
+        {%- assign elementsPos = elements.size | minus: 1 -%}
+        {%- assign pos = 0 -%}
+      {%- else %}
 <li><a href={{ target }}>{{ title }}</a></li>
-      {% endif %}
-    {% else %}
+      {%- endif -%}
+    {%- else %}
 <li><a href={{ target }}>{{ title }}</a></li>
-    {% endif %}
-  {% endif %}
-{% endfor %}
+    {%- endif -%}
+  {%- endif -%}
+{%- endfor %}
   <li class="divider"></li>
   <li><a href="{{ site.javadocs_baseurl }}/api/java"><i class="fa fa-external-link title" aria-hidden="true"></i> Javadocs</a></li>
   <li><a href="{{ site.javadocs_baseurl }}/api/scala/index.html#org.apache.flink.api.scala.package"><i class="fa fa-external-link title" aria-hidden="true"></i> Scaladocs</a></li>
@@ -153,29 +156,29 @@ level is determined by 'nav-pos'.
 <div class="sidenav-versions">
   <div class="dropdown">
     <button class="btn btn-default dropdown-toggle" type="button" data-toggle="dropdown">
-      {% if page.is_default_language %}
+      {%- if page.is_default_language -%}
         Pick Docs Version
-      {% else %}
+      {%- else -%}
         选择文档版本
-      {% endif %}
+      {%- endif -%}
     <span class="caret"></span></button>
     <ul class="dropdown-menu">
-      {% for d in site.previous_docs %}
+      {%- for d in site.previous_docs %}
       <li><a href="{{ d[1] }}">v{{ d[0] }}</a></li>
-      {% endfor %}
+      {%- endfor %}
     </ul>
   </div>
 </div>
 
 <div class="sidenav-languages">
-  {% if page.is_default_language %}
+  {%- if page.is_default_language -%}
     <!-- link to the Chinese home page when current is blog page -->
     <a href="{{ site.baseurl }}/zh{{ page.url }}">
       <button type="submit" class="btn btn-default">中文版</button>
     </a>
-  {% else %}
+  {%- else -%}
     <a href="{{ site.baseurl }}{{ page.url | remove_first: 'zh/' }}">
       <button type="submit" class="btn btn-default">English</button>
     </a>
-  {% endif %}
+  {%- endif %}
 </div>

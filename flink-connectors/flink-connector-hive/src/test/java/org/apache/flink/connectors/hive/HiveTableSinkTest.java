@@ -243,43 +243,6 @@ public class HiveTableSinkTest {
 		hiveCatalog.dropTable(tablePath, false);
 	}
 
-	@Test
-	public void testInsertOverwrite() throws Exception {
-		String dbName = "default";
-		String tblName = "dest";
-		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 0);
-		ObjectPath tablePath = new ObjectPath(dbName, tblName);
-
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
-
-		// write some data and verify
-		List<Row> toWrite = generateRecords(5);
-		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
-		tableEnv.registerTable("src", src);
-
-		CatalogTable table = (CatalogTable) hiveCatalog.getTable(tablePath);
-		tableEnv.registerTableSink("destSink", new HiveTableSink(new JobConf(hiveConf), tablePath, table));
-		tableEnv.sqlQuery("select * from src").insertInto("destSink");
-		tableEnv.execute("mytest");
-
-		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
-
-		// write some data to overwrite existing data and verify
-		toWrite = generateRecords(3);
-		Table src1 = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
-		tableEnv.registerTable("src1", src1);
-
-		HiveTableSink sink = new HiveTableSink(new JobConf(hiveConf), tablePath, table);
-		sink.setOverwrite(true);
-		tableEnv.registerTableSink("destSink1", sink);
-		tableEnv.sqlQuery("select * from src1").insertInto("destSink1");
-		tableEnv.execute("mytest");
-
-		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
-
-		hiveCatalog.dropTable(tablePath, false);
-	}
-
 	private RowTypeInfo createDestTable(String dbName, String tblName, TableSchema tableSchema, int numPartCols) throws Exception {
 		CatalogTable catalogTable = createCatalogTable(tableSchema, numPartCols);
 		hiveCatalog.createTable(new ObjectPath(dbName, tblName), catalogTable, false);

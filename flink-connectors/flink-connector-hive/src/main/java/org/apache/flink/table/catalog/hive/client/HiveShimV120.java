@@ -32,6 +32,7 @@ import org.apache.hadoop.hive.metastore.api.Function;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
@@ -46,9 +47,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Shim for Hive version 1.x.
+ * Shim for Hive version 1.2.0.
  */
-public class HiveShimV1 implements HiveShim {
+public class HiveShimV120 implements HiveShim {
 
 	@Override
 	public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
@@ -111,6 +112,25 @@ public class HiveShimV1 implements HiveShim {
 		// parameters can be overridden. The extra config we add here will be removed by HMS after it's used.
 		table.getParameters().put(StatsSetupConst.DO_NOT_UPDATE_STATS, "true");
 		client.alter_table(databaseName, tableName, table);
+	}
+
+	@Override
+	public void alterPartition(IMetaStoreClient client, String databaseName, String tableName, Partition partition)
+			throws InvalidOperationException, MetaException, TException {
+		String errorMsg = "Failed to alter partition for table %s in database %s";
+		try {
+			Method method = client.getClass().getMethod("alter_partition", String.class, String.class, Partition.class);
+			method.invoke(client, databaseName, tableName, partition);
+		} catch (InvocationTargetException ite) {
+			Throwable targetEx = ite.getTargetException();
+			if (targetEx instanceof TException) {
+				throw (TException) targetEx;
+			} else {
+				throw new CatalogException(String.format(errorMsg, tableName, databaseName), targetEx);
+			}
+		} catch (NoSuchMethodException | IllegalAccessException e) {
+			throw new CatalogException(String.format(errorMsg, tableName, databaseName), e);
+		}
 	}
 
 	@Override

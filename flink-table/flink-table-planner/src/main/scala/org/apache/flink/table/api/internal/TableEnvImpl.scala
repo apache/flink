@@ -33,7 +33,7 @@ import org.apache.flink.table.operations.ddl.CreateTableOperation
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
 import org.apache.flink.table.operations.{CatalogQueryOperation, PlannerQueryOperation, TableSourceQueryOperation, _}
 import org.apache.flink.table.planner.PlanningConfigurationBuilder
-import org.apache.flink.table.sinks.{PartitionableTableSink, TableSink, TableSinkUtils}
+import org.apache.flink.table.sinks.{OverwritableTableSink, PartitionableTableSink, TableSink, TableSinkUtils}
 import org.apache.flink.table.sources.TableSource
 import org.apache.flink.table.sqlexec.SqlToOperationConverter
 import org.apache.flink.table.util.JavaScalaConversionUtil
@@ -398,7 +398,7 @@ abstract class TableEnvImpl(
         val targetTablePath = insert.getTargetTable.asInstanceOf[SqlIdentifier].names
 
         // insert query result into sink table
-        insertInto(queryResult, InsertOptions(insert.getStaticPartitionKVs),
+        insertInto(queryResult, InsertOptions(insert.getStaticPartitionKVs, insert.isOverwrite),
           targetTablePath.asScala:_*)
       case createTable: SqlCreateTable =>
         val operation = SqlToOperationConverter
@@ -442,12 +442,12 @@ abstract class TableEnvImpl(
       pathContinued: String*): Unit = {
     insertInto(
       table,
-      InsertOptions(new JHashMap[String, String]()),
+      InsertOptions(new JHashMap[String, String](), false),
       path +: pathContinued: _*)
   }
 
   /** Insert options for executing sql insert. **/
-  case class InsertOptions(staticPartitions: JMap[String, String])
+  case class InsertOptions(staticPartitions: JMap[String, String], overwrite: Boolean)
 
   /**
     * Writes the [[Table]] to a [[TableSink]] that was registered under the specified name.
@@ -474,12 +474,18 @@ abstract class TableEnvImpl(
           objectIdentifier,
           tableSink)
         // set static partitions if it is a partitioned table sink
+        // set whether to overwrite if it's an OverwritableTableSink
         tableSink match {
           case partitionableSink: PartitionableTableSink
             if partitionableSink.getPartitionFieldNames != null
               && partitionableSink.getPartitionFieldNames.nonEmpty =>
             partitionableSink.setStaticPartition(insertOptions.staticPartitions)
+          case overwritableTableSink: OverwritableTableSink =>
+            overwritableTableSink.setOverwrite(insertOptions.overwrite)
           case _ =>
+            require(!insertOptions.overwrite, "INSERT OVERWRITE requires " +
+              s"${classOf[OverwritableTableSink].getSimpleName} but actually got " +
+              tableSink.getClass.getName)
         }
         // emit the table to the configured table sink
         writeToSink(table, tableSink)

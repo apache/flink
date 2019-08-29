@@ -19,16 +19,16 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
-import org.apache.flink.runtime.testutils.InMemorySubmittedJobGraphStore;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.testutils.InMemoryJobGraphStore;
 
 import javax.annotation.Nullable;
 
 /**
- * {@link InMemorySubmittedJobGraphStore} implementation which can throw artifical errors for
+ * {@link InMemoryJobGraphStore} implementation which can throw artifical errors for
  * testing purposes.
  */
-final class FaultySubmittedJobGraphStore extends InMemorySubmittedJobGraphStore {
+final class FaultyJobGraphStore extends InMemoryJobGraphStore {
 
 	@Nullable
 	private Exception recoveryFailure = null;
@@ -45,7 +45,7 @@ final class FaultySubmittedJobGraphStore extends InMemorySubmittedJobGraphStore 
 	}
 
 	@Override
-	public synchronized SubmittedJobGraph recoverJobGraph(JobID jobId) throws Exception {
+	public synchronized JobGraph recoverJobGraph(JobID jobId) throws Exception {
 		if (recoveryFailure != null) {
 			throw recoveryFailure;
 		} else {

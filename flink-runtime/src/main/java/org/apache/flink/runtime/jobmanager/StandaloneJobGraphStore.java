@@ -25,15 +25,15 @@ import java.util.Collection;
 import java.util.Collections;
 
 /**
- * {@link SubmittedJobGraph} instances for JobManagers running in {@link HighAvailabilityMode#NONE}.
+ * {@link JobGraph} instances for JobManagers running in {@link HighAvailabilityMode#NONE}.
  *
  * <p>All operations are NoOps, because {@link JobGraph} instances cannot be recovered in this
  * recovery mode.
  */
-public class StandaloneSubmittedJobGraphStore implements SubmittedJobGraphStore {
+public class StandaloneJobGraphStore implements JobGraphStore {
 
 	@Override
-	public void start(SubmittedJobGraphListener jobGraphListener) throws Exception {
+	public void start(JobGraphListener jobGraphListener) throws Exception {
 		// Nothing to do
 	}
 
@@ -43,7 +43,7 @@ public class StandaloneSubmittedJobGraphStore implements SubmittedJobGraphStore 
 	}
 
 	@Override
-	public void putJobGraph(SubmittedJobGraph jobGraph) {
+	public void putJobGraph(JobGraph jobGraph) {
 		// Nothing to do
 	}
 
@@ -63,7 +63,7 @@ public class StandaloneSubmittedJobGraphStore implements SubmittedJobGraphStore 
 	}
 
 	@Override
-	public SubmittedJobGraph recoverJobGraph(JobID jobId) {
+	public JobGraph recoverJobGraph(JobID jobId) {
 		return null;
 	}
 }
