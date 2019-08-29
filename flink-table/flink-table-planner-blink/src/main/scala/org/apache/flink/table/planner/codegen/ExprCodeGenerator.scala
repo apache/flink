@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
 import org.apache.flink.table.dataformat._
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, LocalReference, RexDistinctKeyVariable}
+import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{requireTemporal, requireTimeInterval, _}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
@@ -399,12 +399,12 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression =
     throw new CodeGenException("RexLocalRef are not supported yet.")
 
-  def visitLocalReference(local: LocalReference): GeneratedExpression = {
-      val internalType = FlinkTypeFactory.toLogicalType(local.dataType)
-      val nullTerm = local.fieldTerm + "IsNull" // not use newName, keep isNull unique.
-      ctx.addReusableMember(s"${primitiveTypeTermForType(internalType)} ${local.fieldTerm};")
+  def visitRexFieldVariable(variable: RexFieldVariable): GeneratedExpression = {
+      val internalType = FlinkTypeFactory.toLogicalType(variable.dataType)
+      val nullTerm = variable.fieldTerm + "IsNull" // not use newName, keep isNull unique.
+      ctx.addReusableMember(s"${primitiveTypeTermForType(internalType)} ${variable.fieldTerm};")
       ctx.addReusableMember(s"boolean $nullTerm;")
-      GeneratedExpression(local.fieldTerm, nullTerm, NO_CODE, internalType)
+      GeneratedExpression(variable.fieldTerm, nullTerm, NO_CODE, internalType)
   }
 
   def visitDistinctKeyVariable(value: RexDistinctKeyVariable): GeneratedExpression = {

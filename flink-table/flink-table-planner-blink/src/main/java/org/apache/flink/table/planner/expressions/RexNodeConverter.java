@@ -46,7 +46,7 @@ import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.calcite.LocalReference;
+import org.apache.flink.table.planner.calcite.RexFieldVariable;
 import org.apache.flink.table.planner.functions.InternalFunctionDefinitions;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.functions.sql.SqlThrowExceptionFunction;
@@ -874,7 +874,7 @@ public class RexNodeConverter implements ExpressionVisitor<RexNode> {
 			return ((RexNodeExpression) other).getRexNode();
 		} else if (other instanceof LocalReferenceExpression) {
 			LocalReferenceExpression local = (LocalReferenceExpression) other;
-			return new LocalReference(
+			return new RexFieldVariable(
 				local.getName(),
 				typeFactory.createFieldTypeFromLogicalType(
 					fromDataTypeToLogicalType(local.getOutputDataType())));

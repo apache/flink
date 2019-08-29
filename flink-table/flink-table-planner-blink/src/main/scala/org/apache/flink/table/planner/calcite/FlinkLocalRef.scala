@@ -28,14 +28,14 @@ import org.apache.calcite.rex.{RexBiVisitor, RexVariable, RexVisitor}
   * We are stored as class members, so the field can be referenced directly.
   * We should use an unique name to locate the field.
   */
-case class LocalReference(
+case class RexFieldVariable(
     fieldTerm: String,
     dataType: RelDataType) extends RexVariable(fieldTerm, dataType) {
   
   override def accept[R](visitor: RexVisitor[R]): R = {
     visitor match {
       case gen: ExprCodeGenerator =>
-        gen.visitLocalReference(this).asInstanceOf[R]
+        gen.visitRexFieldVariable(this).asInstanceOf[R]
       case _ =>
         throw new RuntimeException("Not support visitor: " + visitor)
     }
