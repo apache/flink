@@ -71,7 +71,8 @@ public class RocksDBNativeMetricMonitorTest {
 		RocksDBNativeMetricMonitor monitor = new RocksDBNativeMetricMonitor(
 			options,
 			group,
-			localRocksDBResource.getRocksDB()
+			localRocksDBResource.getRocksDB(),
+			true
 		);
 
 		ColumnFamilyHandle handle = localRocksDBResource.createNewColumnFamily(COLUMN_FAMILY_NAME);

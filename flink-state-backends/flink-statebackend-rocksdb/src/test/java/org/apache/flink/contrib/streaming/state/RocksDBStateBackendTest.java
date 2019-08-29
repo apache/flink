@@ -151,6 +151,7 @@ public class RocksDBStateBackendTest extends StateBackendTestBase<RocksDBStateBa
 		configuration.setString(
 			RocksDBOptions.TIMER_SERVICE_FACTORY,
 			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
+		configuration.setBoolean(RocksDBOptions.COLUMN_FAMILY_AS_VARIABLE, true);
 		backend = backend.configure(configuration, Thread.currentThread().getContextClassLoader());
 		backend.setDbStoragePath(dbPath);
 		return backend;
