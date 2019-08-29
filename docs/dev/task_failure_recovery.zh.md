@@ -42,28 +42,7 @@ Flink 作业如果没有定义重启策略，则会遵循集群启动时加载�
 这些参数也在配置文件中设置。
 后文的描述中会详细介绍每种重启策略的配置项。
 
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 50%">重启策略</th>
-      <th class="text-left">restart-strategy 配置值</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-        <td>固定延时重启策略</td>
-        <td>fixed-delay</td>
-    </tr>
-    <tr>
-        <td>故障率重启策略</td>
-        <td>failure-rate</td>
-    </tr>
-    <tr>
-        <td>不重启策略</td>
-        <td>none</td>
-    </tr>
-  </tbody>
-</table>
+{% include generated/restart_strategy_configuration.html %}
 
 除了定义默认的重启策略以外，还可以为每个 Flink 作业单独定义重启策略。
 这个重启策略通过在程序中的 `ExecutionEnvironment` 对象上调用 `setRestartStrategy` 方法来设置。
@@ -109,27 +88,7 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 restart-strategy: fixed-delay
 {% endhighlight %}
 
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 40%">配置参数</th>
-      <th class="text-left" style="width: 40%">描述</th>
-      <th class="text-left">默认配置值</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-        <td><code>restart-strategy.fixed-delay.attempts</code></td>
-        <td>作业宣告失败之前 Flink 重试执行的最大次数</td>
-        <td>启用 checkpoint 的话是 <code>Integer.MAX_VALUE</code>，否则是 1</td>
-    </tr>
-    <tr>
-        <td><code>restart-strategy.fixed-delay.delay</code></td>
-        <td>延时重试意味着执行遭遇故障后，并不立即重新启动，而是延后一段时间。当程序与外部系统有交互时延时重试可能会有所帮助，比如程序里有连接或者挂起的事务的话，在尝试重新执行之前应该等待连接或者挂起的事务超时。</td>
-        <td>启用 checkpoint 的话是 10 秒，否则使用 <code>akka.ask.timeout</code> 的值</td>
-    </tr>
-  </tbody>
-</table>
+{% include generated/fixed_delay_restart_strategy_configuration.html %}
 
 例如：
 
@@ -173,32 +132,7 @@ env.setRestartStrategy(RestartStrategies.fixedDelayRestart(
 restart-strategy: failure-rate
 {% endhighlight %}
 
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 40%">配置参数</th>
-      <th class="text-left" style="width: 40%">描述</th>
-      <th class="text-left">配置默认值</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-        <td><it>restart-strategy.failure-rate.max-failures-per-interval</it></td>
-        <td>单个时间间隔内允许的最大重启次数</td>
-        <td>1</td>
-    </tr>
-    <tr>
-        <td><it>restart-strategy.failure-rate.failure-rate-interval</it></td>
-        <td>测量故障率的时间间隔</td>
-        <td>1 分钟</td>
-    </tr>
-    <tr>
-        <td><it>restart-strategy.failure-rate.delay</it></td>
-        <td>连续两次重启尝试之间的延时</td>
-        <td><it>akka.ask.timeout</it></td>
-    </tr>
-  </tbody>
-</table>
+{% include generated/failure_rate_restart_strategy_configuration.html %}
 
 例如：
 
