@@ -477,7 +477,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		try {
 			freeClusterMem = getCurrentFreeClusterResources(yarnClient);
 		} catch (YarnException | IOException e) {
-			failSessionDuringDeployment(yarnClient, yarnApplication);
+			failSessionDuringDeployment(yarnClient);
 			throw new YarnDeploymentException("Could not retrieve information about free cluster resources.", e);
 		}
 
@@ -491,7 +491,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 				maxRes,
 				freeClusterMem);
 		} catch (YarnDeploymentException yde) {
-			failSessionDuringDeployment(yarnClient, yarnApplication);
+			failSessionDuringDeployment(yarnClient);
 			throw yde;
 		}
 
@@ -1193,20 +1193,11 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	/**
-	 * Kills YARN application and stops YARN client.
-	 *
-	 * <p>Use this method to kill the App before it has been properly deployed
+	 * Stops YARN client.
 	 */
-	private void failSessionDuringDeployment(YarnClient yarnClient, YarnClientApplication yarnApplication) {
+	private void failSessionDuringDeployment(YarnClient yarnClient) {
 		LOG.info("Killing YARN application");
 
-		try {
-			yarnClient.killApplication(yarnApplication.getNewApplicationResponse().getApplicationId());
-		} catch (Exception e) {
-			// we only log a debug message here because the "killApplication" call is a best-effort
-			// call (we don't know if the application has been deployed when the error occured).
-			LOG.debug("Error while killing YARN application", e);
-		}
 		yarnClient.stop();
 	}
 
@@ -1501,7 +1492,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		@Override
 		public void run() {
 			LOG.info("Cancelling deployment from Deployment Failure Hook");
-			failSessionDuringDeployment(yarnClient, yarnApplication);
+			failSessionDuringDeployment(yarnClient);
 			LOG.info("Deleting files in {}.", yarnFilesDir);
 			try {
 				FileSystem fs = FileSystem.get(yarnConfiguration);
