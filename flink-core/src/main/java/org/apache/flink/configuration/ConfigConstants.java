@@ -56,20 +56,29 @@ public final class ConfigConstants {
 	 * be "failurerate", "failure-rate" to use FailureRateRestartStrategy. You can also
 	 * specify a class name which implements the RestartStrategy interface and has a static
 	 * create method which takes a Configuration object.
+	 *
+	 * @deprecated use {@link RestartStrategyOptions#RESTART_STRATEGY} instead.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public static final String RESTART_STRATEGY = "restart-strategy";
 
 	/**
 	 * Maximum number of attempts the fixed delay restart strategy will try before failing a job.
+	 *
+	 * @deprecated use {@link RestartStrategyOptions#RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS} instead.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public static final String RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS = "restart-strategy.fixed-delay.attempts";
 
 	/**
 	 * Delay between two consecutive restart attempts in FixedDelayRestartStrategy. It can be specified using Scala's
 	 * FiniteDuration notation: "1 min", "20 s"
+	 *
+	 * @deprecated use {@link RestartStrategyOptions#RESTART_STRATEGY_FIXED_DELAY_DELAY} instead.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public static final ConfigOption<String> RESTART_STRATEGY_FIXED_DELAY_DELAY =
 		key("restart-strategy.fixed-delay.delay").defaultValue("0 s");
@@ -77,21 +86,30 @@ public final class ConfigConstants {
 	/**
 	 * Maximum number of restarts in given time interval {@link #RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL} before failing a job
 	 * in FailureRateRestartStrategy.
+	 *
+	 * @deprecated use {@link RestartStrategyOptions#RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL} instead.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public static final String RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL = "restart-strategy.failure-rate.max-failures-per-interval";
 
 	/**
 	 * Time interval in which greater amount of failures than {@link #RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL} causes
 	 * job fail in FailureRateRestartStrategy. It can be specified using Scala's FiniteDuration notation: "1 min", "20 s"
+	 *
+	 * @deprecated use {@link RestartStrategyOptions#RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL}
 	 */
+	@Deprecated
 	@PublicEvolving
 	public static final String RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL = "restart-strategy.failure-rate.failure-rate-interval";
 
 	/**
 	 * Delay between two consecutive restart attempts in FailureRateRestartStrategy.
 	 * It can be specified using Scala's FiniteDuration notation: "1 min", "20 s".
+	 *
+	 * @deprecated use {@link RestartStrategyOptions#RESTART_STRATEGY_FAILURE_RATE_DELAY} instead.
 	 */
+	@Deprecated
 	@PublicEvolving
 	public static final String RESTART_STRATEGY_FAILURE_RATE_DELAY = "restart-strategy.failure-rate.delay";
 

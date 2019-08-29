@@ -68,6 +68,20 @@ These parameters configure the default HDFS used by Flink. Setups that do not sp
 
 {% include generated/job_manager_configuration.html %}
 
+### Restart Strategies
+
+Configuration options to control Flink's restart behaviour in case of job failures.
+
+{% include generated/restart_strategy_configuration.html %}
+
+#### Fixed Delay Restart Strategy
+
+{% include generated/fixed_delay_restart_strategy_configuration.html %}
+
+#### Failure Rate Restart Strategy
+
+{% include generated/failure_rate_restart_strategy_configuration.html %}
+
 ### TaskManager
 
 {% include generated/task_manager_configuration.html %}
