@@ -109,8 +109,12 @@ EOF
 
 echo "$SQL_STATEMENT_1"
 
+echo "the filesystem sql jar is $FILESYSTEM_SQL_JAR"
+
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
-  --library $SQL_JARS_DIR \
+  --jar $FILESYSTEM_SQL_JAR \
+  --jar $JSON_SQL_JAR \
+  --jar $CSV_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
   --update "$SQL_STATEMENT_1" | grep "Job ID:" | sed 's/.* //g')
@@ -139,7 +143,9 @@ EOF
 echo "$SQL_STATEMENT_2"
 
 JOB_ID=$($FLINK_DIR/bin/sql-client.sh embedded \
-  --library $SQL_JARS_DIR \
+  --jar $FILESYSTEM_SQL_JAR \
+  --jar $JSON_SQL_JAR \
+  --jar $CSV_SQL_JAR \
   --jar $SQL_TOOLBOX_JAR \
   --environment $SQL_CONF \
   --update "$SQL_STATEMENT_2" | grep "Job ID:" | sed 's/.* //g')
