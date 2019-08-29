@@ -25,7 +25,7 @@ import org.apache.flink.table.expressions.utils.ApiExpressionUtils.{typeLiteral,
 import org.apache.flink.table.expressions.{CallExpression, ResolvedExpression, ResolvedFieldReference}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.expressions.RexNodeConverter
+import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isAssignable
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
@@ -293,7 +293,7 @@ object TableSourceUtil {
           typeLiteral(outputType),
           valueLiteral(false)),
         outputType)
-      val rexExpression = castExpression.accept(new RexNodeConverter(relBuilder))
+      val rexExpression = castExpression.accept(new ExpressionConverter(relBuilder))
       relBuilder.clear()
       rexExpression
     }

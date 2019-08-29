@@ -25,8 +25,9 @@ import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator._
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, ExprCodeGenerator, GeneratedExpression}
 import org.apache.flink.table.planner.dataview.DataViewSpec
+import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver
 import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
-import org.apache.flink.table.planner.expressions.{DeclarativeExpressionResolver, RexNodeConverter}
+import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.{getAggFunctionUDIMethod, getAggUserDefinedInputTypes, getUserDefinedMethod, internalTypesToClasses, signatureToString}
 import org.apache.flink.table.planner.plan.utils.AggregateInfo
 import org.apache.flink.table.planner.utils.SingleElementIterator
@@ -112,7 +113,7 @@ class ImperativeAggCodeGen(
   private val externalResultType = aggInfo.externalResultType
   private val internalResultType = fromDataTypeToLogicalType(externalResultType)
 
-  private val rexNodeGen = new RexNodeConverter(relBuilder)
+  private val rexNodeGen = new ExpressionConverter(relBuilder)
 
   val viewSpecs: Array[DataViewSpec] = aggInfo.viewSpecs
   // add reusable dataviews to context

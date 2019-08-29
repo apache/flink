@@ -33,8 +33,9 @@ import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateColl
 import org.apache.flink.table.planner.codegen._
 import org.apache.flink.table.planner.codegen.agg.batch.AggCodeGenHelper.{buildAggregateArgsMapping, genAggregateByFlatAggregateBuffer, genFlatAggBufferExprs, genInitFlatAggregateBuffer}
 import org.apache.flink.table.planner.codegen.agg.batch.WindowCodeGenerator.{asLong, isTimeIntervalLiteral}
+import org.apache.flink.table.planner.expressions.CallExpressionResolver
 import org.apache.flink.table.planner.expressions.ExpressionBuilder._
-import org.apache.flink.table.planner.expressions.{CallExpressionResolver, RexNodeConverter}
+import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.getAccumulatorTypeOfAggregateFunction
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
@@ -696,7 +697,7 @@ abstract class WindowCodeGenerator(
         remainder)),
       literal(index * slideSize))
     exprCodegen.generateExpression(new CallExpressionResolver(relBuilder).resolve(expr).accept(
-      new RexNodeConverter(relBuilder.values(inputRowType))))
+      new ExpressionConverter(relBuilder.values(inputRowType))))
   }
 
   def getGrouping: Array[Int] = grouping
