@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.executiongraph.restart;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.RestartStrategyOptions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,7 +84,7 @@ public abstract class RestartStrategyFactory implements Serializable {
 	 * @throws Exception which indicates that the RestartStrategy could not be instantiated.
 	 */
 	public static RestartStrategyFactory createRestartStrategyFactory(Configuration configuration) throws Exception {
-		String restartStrategyName = configuration.getString(ConfigConstants.RESTART_STRATEGY, null);
+		String restartStrategyName = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY, null);
 
 		if (restartStrategyName == null) {
 			return new NoOrFixedIfCheckpointingEnabledRestartStrategyFactory();

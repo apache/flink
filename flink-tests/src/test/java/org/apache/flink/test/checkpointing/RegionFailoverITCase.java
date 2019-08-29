@@ -28,9 +28,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.executiongraph.restart.FailingRestartStrategy;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.CheckpointListener;
@@ -106,7 +106,7 @@ public class RegionFailoverITCase extends TestLogger {
 		configuration.setString(JobManagerOptions.EXECUTION_FAILOVER_STRATEGY, "region");
 		// global failover times: 3, region failover times: NUM_OF_RESTARTS
 		configuration.setInteger(FailingRestartStrategy.NUM_FAILURES_CONFIG_OPTION, 3);
-		configuration.setString(ConfigConstants.RESTART_STRATEGY, FailingRestartStrategy.class.getName());
+		configuration.setString(RestartStrategyOptions.RESTART_STRATEGY, FailingRestartStrategy.class.getName());
 
 		cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()
