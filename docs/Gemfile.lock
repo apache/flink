@@ -55,7 +55,6 @@ GEM
     pathutil (0.16.2)
       forwardable-extended (~> 2.6)
     public_suffix (3.1.1)
-    rake (12.3.3)
     rb-fsevent (0.10.3)
     rb-inotify (0.10.0)
       ffi (~> 1.0)
@@ -68,9 +67,6 @@ GEM
     sass-listen (4.0.0)
       rb-fsevent (~> 0.9, >= 0.9.4)
       rb-inotify (~> 0.9, >= 0.9.7)
-    sassc (2.0.1)
-      ffi (~> 1.9)
-      rake
     sawyer (0.8.2)
       addressable (>= 2.3.5)
       faraday (> 0.8, < 2.0)
@@ -90,7 +86,6 @@ DEPENDENCIES
   json (= 2.2.0)
   liquid-c (= 4.0.0)
   octokit (= 4.14.0)
-  sassc (= 2.0.1)
   therubyracer (= 0.12.3)
 
 RUBY VERSION
