@@ -21,6 +21,7 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.TableFunction;
@@ -63,9 +64,11 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 
 	private transient boolean allIdentityConverter;
 	private transient HiveObjectConversion[] conversions;
+	private transient HiveShim hiveShim;
 
-	public HiveGenericUDTF(HiveFunctionWrapper<GenericUDTF> hiveFunctionWrapper) {
+	public HiveGenericUDTF(HiveFunctionWrapper<GenericUDTF> hiveFunctionWrapper, HiveShim hiveShim) {
 		this.hiveFunctionWrapper = hiveFunctionWrapper;
+		this.hiveShim = hiveShim;
 	}
 
 	@Override
@@ -77,7 +80,7 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 			HiveGenericUDTF.this.collect(row);
 		});
 
-		ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(constantArguments, argTypes);
+		ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
 		returnInspector = function.initialize(argumentInspectors);
 
 		isArgsSingleArray = HiveFunctionUtil.isSingleBoxedArray(argTypes);
@@ -129,7 +132,7 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 		LOG.info("Getting result type of HiveGenericUDTF with {}", hiveFunctionWrapper.getClassName());
 
 		try {
-			ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(constantArguments, argTypes);
+			ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
 			return HiveTypeUtil.toFlinkType(
 				hiveFunctionWrapper.createFunction().initialize(argumentInspectors));
 		} catch (UDFArgumentException e) {
