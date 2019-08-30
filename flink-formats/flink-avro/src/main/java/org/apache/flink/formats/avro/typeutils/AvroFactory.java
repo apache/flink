@@ -94,7 +94,8 @@ final class AvroFactory<T> {
 	@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 	private static <T> AvroFactory<T> fromSpecific(Class<T> type, ClassLoader cl, Optional<Schema> previousSchema) {
 		SpecificData specificData = new SpecificData(cl);
-		Schema newSchema = specificData.getSchema(type);
+		Optional<Schema> newSchemaOptional = tryExtractAvroSchema(type);
+		Schema newSchema = newSchemaOptional.orElseGet(() -> specificData.getSchema(type));
 
 		return new AvroFactory<>(
 			specificData,
@@ -128,6 +129,20 @@ final class AvroFactory<T> {
 			new ReflectDatumReader<>(previousSchema.orElse(newSchema), newSchema, reflectData),
 			new ReflectDatumWriter<>(newSchema, reflectData)
 		);
+	}
+
+	/**
+	 * Extracts an Avro {@link Schema} from a {@link SpecificRecord}. We do this by creating an
+	 * instance of the class using the zero-argument constructor and calling {@link
+	 * SpecificRecord#getSchema()} on it.
+	 */
+	private static Optional<Schema> tryExtractAvroSchema(Class<?> type) {
+		try {
+			SpecificRecord instance = (SpecificRecord) type.newInstance();
+			return Optional.of(instance.getSchema());
+		} catch (InstantiationException | IllegalAccessException e) {
+			return Optional.empty();
+		}
 	}
 
 	private AvroFactory(
