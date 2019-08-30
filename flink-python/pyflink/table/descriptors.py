@@ -699,6 +699,57 @@ class FileSystem(ConnectorDescriptor):
         return self
 
 
+class Bucket(ConnectorDescriptor):
+    """
+    Connector descriptor for a bucket file system.
+    """
+
+    def __init__(self):
+        gateway = get_gateway()
+        self._j_bucket = gateway.jvm.Bucket()
+        super(Bucket, self).__init__(self._j_bucket)
+
+    def base_path(self, path_str):
+        """
+        Sets the path to a file or directory in a file system.
+
+        :param path_str: The path of a file or directory.
+        :return: This :class:`FileSystem` object.
+        """
+        self._j_bucket = self._j_bucket.basePath(path_str)
+        return self
+
+    def date_format(self, data_format):
+        """
+        Sets the path to a file or directory in a file system.
+
+        :param path_str: The path of a file or directory.
+        :return: This :class:`FileSystem` object.
+        """
+        self._j_bucket = self._j_bucket.dateFormat(data_format)
+        return self
+
+    def row_format(self):
+        """
+        Sets the path to a file or directory in a file system.
+
+        :param path_str: The path of a file or directory.
+        :return: This :class:`FileSystem` object.
+        """
+        self._j_bucket = self._j_bucket.rowFormat()
+        return self
+
+    def bult_format(self):
+        """
+        Sets the path to a file or directory in a file system.
+
+        :param path_str: The path of a file or directory.
+        :return: This :class:`FileSystem` object.
+        """
+        self._j_bucket = self._j_bucket.bultFormat()
+        return self
+
+
 class Kafka(ConnectorDescriptor):
     """
     Connector descriptor for the Apache Kafka message queue.

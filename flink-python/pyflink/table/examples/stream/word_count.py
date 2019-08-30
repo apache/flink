@@ -23,19 +23,11 @@ import tempfile
 
 from pyflink.datastream import StreamExecutionEnvironment
 from pyflink.table import StreamTableEnvironment, TableConfig
-from pyflink.table.descriptors import FileSystem, OldCsv, Schema
+from pyflink.table.descriptors import Bucket, Json, Schema
 from pyflink.table.types import DataTypes
 
 
 def word_count():
-    content = "line Licensed to the Apache Software Foundation ASF under one " \
-              "line or more contributor license agreements See the NOTICE file " \
-              "line distributed with this work for additional information " \
-              "line regarding copyright ownership The ASF licenses this file " \
-              "to you under the Apache License Version the " \
-              "License you may not use this file except in compliance " \
-              "with the License"
-
     t_config = TableConfig()
     env = StreamExecutionEnvironment.get_execution_environment()
     t_env = StreamTableEnvironment.create(env, t_config)
@@ -54,20 +46,19 @@ def word_count():
 
     logging.info("Results directory: %s", result_path)
 
-    t_env.connect(FileSystem().path(result_path)) \
-        .with_format(OldCsv()
-                     .field_delimiter(',')
-                     .field("word", DataTypes.STRING())
-                     .field("count", DataTypes.BIGINT())) \
+    t_env.connect(Bucket().base_path(result_path)) \
+        .with_format(Json()
+                     .derive_schema()
+                     .field("name", DataTypes.STRING())
+                     .field("age", DataTypes.BIGINT())) \
         .with_schema(Schema()
-                     .field("word", DataTypes.STRING())
-                     .field("count", DataTypes.BIGINT())) \
+                     .field("name", DataTypes.STRING())
+                     .field("age", DataTypes.BIGINT())) \
         .register_table_sink("Results")
 
-    elements = [(word, 1) for word in content.split(" ")]
-    t_env.from_elements(elements, ["word", "count"]) \
-         .group_by("word") \
-         .select("word, count(1) as count") \
+    elements = [('tom', 10),('cat', 20)]
+    t_env.from_elements(elements, ["name", "age"]) \
+         .select("name, age") \
          .insert_into("Results")
 
     t_env.execute("word_count")
