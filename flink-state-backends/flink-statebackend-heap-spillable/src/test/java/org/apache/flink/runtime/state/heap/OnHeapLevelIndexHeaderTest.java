@@ -20,6 +20,8 @@
 
 package org.apache.flink.runtime.state.heap;
 
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -32,7 +34,7 @@ import static org.apache.flink.runtime.state.heap.SkipListUtils.NIL_NODE;
 /**
  * Tests for {@link OnHeapLevelIndexHeader}.
  */
-public class OnHeapLevelIndexHeaderTest {
+public class OnHeapLevelIndexHeaderTest extends TestLogger {
 
 	@Test
 	public void testNormal() {

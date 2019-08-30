@@ -27,6 +27,7 @@ import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -38,7 +39,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for {@link SkipListKeyComparator}.
  */
-public class SkipListKeyComparatorTest {
+public class SkipListKeyComparatorTest extends TestLogger {
 
 	@Test
 	public void testCompareSkipListKeyForPrimitive() {

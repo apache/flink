@@ -36,6 +36,7 @@ import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.heap.space.Allocator;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.IOUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -66,7 +67,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for {@link CopyOnWriteSkipListStateMap}.
  */
-public class CopyOnWriteSkipListStateMapTest {
+public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 
 	private TestAllocator spaceAllocator;
 

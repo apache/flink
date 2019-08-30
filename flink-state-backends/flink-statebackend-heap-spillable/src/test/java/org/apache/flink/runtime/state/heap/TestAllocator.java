@@ -24,6 +24,7 @@ import org.apache.flink.runtime.state.heap.space.Allocator;
 import org.apache.flink.runtime.state.heap.space.Chunk;
 import org.apache.flink.runtime.state.heap.space.SpaceUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TestLogger;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -37,7 +38,7 @@ import static org.apache.flink.runtime.state.heap.space.Constants.FOUR_BYTES_MAR
  * will create a chunk for each allocation request. Size of a chunk
  * is fixed, and only used by one space.
  */
-public class TestAllocator implements Allocator {
+public class TestAllocator extends TestLogger implements Allocator {
 
 	/**
 	 * Max allocate size supported by this allocator.

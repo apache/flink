@@ -20,6 +20,8 @@
 
 package org.apache.flink.core.memory;
 
+import org.apache.flink.util.TestLogger;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -32,69 +34,161 @@ import static org.hamcrest.Matchers.lessThan;
 /**
  * Tests for {@link ByteBufferUtils}.
  */
-public class ByteBufferUtilsTest {
+public class ByteBufferUtilsTest extends TestLogger {
 
 	@Test
-	public void testBBWriteAndRead() {
-
-		ByteBuffer bb = ByteBuffer.allocateDirect(4096);
-		doTest(bb, 0);
-		doTest(bb, 1);
-		doTest(bb, 2);
-		doTest(bb, 3);
-		doTest(bb, 4);
-		doTest(bb, 5);
-		doTest(bb, 6);
-		doTest(bb, 7);
-
-		bb = ByteBuffer.allocate(4096);
-		doTest(bb, 0);
-		doTest(bb, 1);
-		doTest(bb, 2);
-		doTest(bb, 3);
-		doTest(bb, 4);
-		doTest(bb, 5);
-		doTest(bb, 6);
-		doTest(bb, 7);
+	public void testDirectBBWriteAndRead() {
+		testWithDifferentOffset(true);
 	}
 
 	@Test
-	public void testCompareHeapBufferWithDirectBuffer() {
-		byte[] bytes = new byte[]{'a', 'b', 'c', 'd', 'e'};
-		final int len = bytes.length;
-		ByteBuffer heapBuffer = ByteBuffer.wrap(bytes);
-		ByteBuffer directBuffer = ByteBuffer.allocateDirect(len);
-		directBuffer.put(bytes);
-		int res = ByteBufferUtils.compareTo(heapBuffer, 1, len - 1, directBuffer, 1, len - 1);
-		Assert.assertThat(res, is(0));
-		res = ByteBufferUtils.compareTo(heapBuffer, 0, len - 1, directBuffer, 1, len - 1);
-		Assert.assertThat(res, lessThan(0));
-		res = ByteBufferUtils.compareTo(heapBuffer, 1, len - 1, directBuffer, 0, len - 1);
-		Assert.assertThat(res, greaterThan(0));
+	public void testHeapBBWriteAndRead() {
+		testWithDifferentOffset(false);
 	}
 
-	private void doTest(ByteBuffer bb, int offset) {
+	@Test
+	public void testCompareDirectBBToArray() {
+		testCompareTo(true, false, false);
+	}
+
+	@Test
+	public void testCompareDirectBBToDirectBB() {
+		testCompareTo(true, true, true);
+	}
+
+	@Test
+	public void testCompareDirectBBToHeapBB() {
+		testCompareTo(true, true, false);
+	}
+
+	@Test
+	public void testCompareHeapBBToArray() {
+		testCompareTo(false, false, false);
+	}
+
+	@Test
+	public void testCompareHeapBBToDirectBB() {
+		testCompareTo(false, true, true);
+	}
+
+	@Test
+	public void testCompareHeapBBToHeapBB() {
+		testCompareTo(false, true, false);
+	}
+
+	private void testCompareTo(boolean isLeftBBDirect, boolean isRightBuffer, boolean isRightDirect) {
+		testEquals(isLeftBBDirect, isRightBuffer, isRightDirect);
+		testLessThan(isLeftBBDirect, isRightBuffer, isRightDirect);
+		testGreaterThan(isLeftBBDirect, isRightBuffer, isRightDirect);
+	}
+
+	private void testEquals(boolean isLeftBBDirect, boolean isRightBuffer, boolean isRightDirect) {
+		byte[] leftBufferBytes = new byte[]{'a', 'b', 'c', 'd', 'e'};
+		byte[] rightBufferBytes = new byte[]{'b', 'c', 'd', 'e', 'f'};
+		ByteBuffer left = isLeftBBDirect
+			? ByteBuffer.allocateDirect(leftBufferBytes.length).put(leftBufferBytes)
+			: ByteBuffer.wrap(leftBufferBytes);
+		ByteBuffer right = null;
+		if (isRightBuffer) {
+			right = isRightDirect
+				? ByteBuffer.allocateDirect(rightBufferBytes.length).put(rightBufferBytes)
+				: ByteBuffer.wrap(rightBufferBytes);
+		}
+		if (right != null) {
+			Assert.assertThat(
+				ByteBufferUtils.compareTo(left, 1, 4, right, 0, 4),
+				is(0));
+		} else {
+			Assert.assertThat(
+				ByteBufferUtils.compareTo(left, 1, 4, rightBufferBytes, 0, 4),
+				is(0));
+		}
+	}
+
+	private void testLessThan(boolean isLeftBBDirect, boolean isRightBuffer, boolean isRightDirect) {
+		byte[] leftBufferBytes = new byte[]{'a', 'b', 'c', 'd', 'e'};
+		byte[] rightBufferBytes = new byte[]{'b', 'c', 'd', 'e', 'f'};
+		ByteBuffer left = isLeftBBDirect
+			? ByteBuffer.allocateDirect(leftBufferBytes.length).put(leftBufferBytes)
+			: ByteBuffer.wrap(leftBufferBytes);
+		ByteBuffer right = null;
+		if (isRightBuffer) {
+			right = isRightDirect
+				? ByteBuffer.allocateDirect(rightBufferBytes.length).put(rightBufferBytes)
+				: ByteBuffer.wrap(rightBufferBytes);
+		}
+		if (right != null) {
+			Assert.assertThat(
+				ByteBufferUtils.compareTo(left, 1, 4, right, 1, 4),
+				lessThan(0));
+		} else {
+			Assert.assertThat(
+				ByteBufferUtils.compareTo(left, 1, 4, rightBufferBytes, 1, 4),
+				lessThan(0));
+		}
+	}
+
+	private void testGreaterThan(boolean isLeftBBDirect, boolean isRightBuffer, boolean isRightDirect) {
+		byte[] leftBufferBytes = new byte[]{'a', 'b', 'c', 'd', 'e'};
+		byte[] rightBufferBytes = new byte[]{'b', 'c', 'd', 'e', 'f'};
+		ByteBuffer left = isLeftBBDirect
+			? ByteBuffer.allocateDirect(leftBufferBytes.length).put(leftBufferBytes)
+			: ByteBuffer.wrap(leftBufferBytes);
+		ByteBuffer right = null;
+		if (isRightBuffer) {
+			right = isRightDirect
+				? ByteBuffer.allocateDirect(rightBufferBytes.length).put(rightBufferBytes)
+				: ByteBuffer.wrap(rightBufferBytes);
+		}
+		if (right != null) {
+			Assert.assertThat(
+				ByteBufferUtils.compareTo(left, 1, 4, right, 0, 3),
+				greaterThan(0));
+		} else {
+			Assert.assertThat(
+				ByteBufferUtils.compareTo(left, 1, 4, rightBufferBytes, 0, 3),
+				greaterThan(0));
+		}
+	}
+
+	private void testWithDifferentOffset(boolean direct) {
+		int bufferSize = 4096;
+		int offsetNumber = 7;
+		ByteBuffer bb = direct ? ByteBuffer.allocateDirect(bufferSize) : ByteBuffer.allocate(bufferSize);
+		for (int offset = 0; offset < offsetNumber; offset++) {
+			doCompositeTest(bb, offset);
+		}
+	}
+
+	private void doCompositeTest(ByteBuffer bb, int offset) {
 		int positionOri = bb.position();
 
+		// put an int into the buffer at the given offset, confirm it could be read and buffer position won't change
 		ByteBufferUtils.putInt(bb, offset, 123);
 		Assert.assertEquals(bb.position(), positionOri);
 		Assert.assertEquals(123, ByteBufferUtils.toInt(bb, offset));
 		Assert.assertEquals(bb.position(), positionOri);
 
+		// put a long next to the first int (4 bytes), confirm it could be read and buffer position won't change
 		ByteBufferUtils.putLong(bb, offset + 4, 1234);
 		Assert.assertEquals(bb.position(), positionOri);
 		Assert.assertEquals(1234, ByteBufferUtils.toLong(bb, offset + 4));
 		Assert.assertEquals(bb.position(), positionOri);
 
+		// check and confirm the first int could be read correctly and buffer position won't change
 		Assert.assertEquals(123, ByteBufferUtils.toInt(bb, offset));
 		Assert.assertEquals(bb.position(), positionOri);
 
+		// copy data into a new buffer
 		ByteBuffer bb2 = ByteBuffer.allocate(12);
 		int positionOri2 = bb2.position();
 		ByteBufferUtils.copyFromBufferToBuffer(bb, offset, bb2, 0, 12);
 
+		// check and confirm the int value is correctly copied
 		Assert.assertEquals(ByteBufferUtils.toInt(bb2, 0), 123);
+		// check and confirm the long value is correctly copied
 		Assert.assertEquals(ByteBufferUtils.toLong(bb2, 4), 1234);
+		// check and confirm the buffers' position won't change after copy operation
 		Assert.assertEquals(bb.position(), positionOri);
 		Assert.assertEquals(bb2.position(), positionOri2);
 	}

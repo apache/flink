@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -36,7 +37,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link SkipListKeySerializer}.
  */
-public class SkipListSerializerTest {
+public class SkipListSerializerTest extends TestLogger {
 
 	@Test
 	public void testSkipListKeySerializer() throws IOException {

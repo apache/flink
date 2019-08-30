@@ -21,6 +21,7 @@
 package org.apache.flink.runtime.state.heap;
 
 import org.apache.flink.core.memory.ByteBufferUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -33,7 +34,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Tests for {@link SkipListUtils}.
  */
-public class SkipListUtilsTest {
+public class SkipListUtilsTest extends TestLogger {
 
 	@Test
 	public void testKeySpacePutAndGet() {

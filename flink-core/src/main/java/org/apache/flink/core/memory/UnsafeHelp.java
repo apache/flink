@@ -32,7 +32,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 
 /**
- * Unsafe use help.
+ * Unsafe helper class, mainly refers to org.apache.hadoop.hbase.util.UnsafeAccess.
  */
 public class UnsafeHelp {
 	private static final Logger LOG = LoggerFactory.getLogger(UnsafeHelp.class);

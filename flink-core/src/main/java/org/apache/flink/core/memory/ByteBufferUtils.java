@@ -27,6 +27,8 @@ import java.nio.ByteBuffer;
 /**
  * Utilities to get/put data to {@link ByteBuffer}. All methods don't change
  * byte buffer's position.
+ *
+ * <p/> This class partially refers to org.apache.hadoop.hbase.util.ByteBufferUtils.
  */
 public class ByteBufferUtils {
 
