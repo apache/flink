@@ -1,6 +1,5 @@
 .bundle/
 .jekyll-metadata
-.jekyll-cache/
 .rubydeps/
 content/
 ruby2/.bundle/

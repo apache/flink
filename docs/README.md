@@ -42,7 +42,8 @@ If you call the script with the preview flag `build_docs.sh -p`, Jekyll will
 start a web server at `localhost:4000` and watch the docs directory for
 updates. Use this mode to preview changes locally. 
 
-You can call the script with the incremental flag `build_docs.sh -i`.
+If you have ruby 2.0 or greater, 
+you can call the script with the incremental flag `build_docs.sh -i`.
 Jekyll will then serve a live preview at `localhost:4000`,
 and it will be much faster because it will only rebuild the pages corresponding
 to files that are modified. Note that if you are making changes that affect
