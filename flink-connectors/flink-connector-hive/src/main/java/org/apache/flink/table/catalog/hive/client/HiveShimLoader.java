@@ -43,6 +43,7 @@ public class HiveShimLoader {
 	public static final String HIVE_VERSION_V2_3_3 = "2.3.3";
 	public static final String HIVE_VERSION_V2_3_4 = "2.3.4";
 	public static final String HIVE_VERSION_V2_3_5 = "2.3.5";
+	public static final String HIVE_VERSION_V2_3_6 = "2.3.6";
 
 	private static final Map<String, HiveShim> hiveShims = new ConcurrentHashMap<>(2);
 
@@ -85,6 +86,9 @@ public class HiveShimLoader {
 			}
 			if (v.startsWith(HIVE_VERSION_V2_3_5)) {
 				return new HiveShimV235();
+			}
+			if (v.startsWith(HIVE_VERSION_V2_3_6)) {
+				return new HiveShimV236();
 			}
 			throw new CatalogException("Unsupported Hive version " + v);
 		});
