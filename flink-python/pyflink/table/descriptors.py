@@ -32,6 +32,7 @@ __all__ = [
     'Schema',
     'OldCsv',
     'FileSystem',
+    'Bucket',
     'Kafka',
     'Elasticsearch',
     'Csv',
