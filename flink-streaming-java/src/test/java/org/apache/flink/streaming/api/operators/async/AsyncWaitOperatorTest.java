@@ -305,14 +305,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	}
 
 	private void testEventTime(AsyncDataStream.OutputMode mode) throws Exception {
-		final AsyncWaitOperator<Integer, Integer> operator = new AsyncWaitOperator<>(
-			new MyAsyncFunction(),
-			TIMEOUT,
-			2,
-			mode);
-
 		final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-				new OneInputStreamOperatorTestHarness<>(operator, IntSerializer.INSTANCE);
+			createTestHarness(new MyAsyncFunction(), TIMEOUT, 2, mode);
 
 		final long initialTime = 0L;
 		final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -370,10 +364,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	}
 
 	private void testProcessingTime(AsyncDataStream.OutputMode mode) throws Exception {
-		final AsyncWaitOperator<Integer, Integer> operator = new AsyncWaitOperator<>(
-			new MyAsyncFunction(), TIMEOUT, 6, mode);
-
-		final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness = new OneInputStreamOperatorTestHarness<>(operator, IntSerializer.INSTANCE);
+		final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+			createTestHarness(new MyAsyncFunction(), TIMEOUT, 6, mode);
 
 		final long initialTime = 0L;
 		final Queue<Object> expectedOutput = new ArrayDeque<>();
@@ -690,14 +682,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			StreamRecord<Integer>... expectedRecords) throws Exception {
 		final long timeout = 10L;
 
-		final AsyncWaitOperator<Integer, Integer> operator = new AsyncWaitOperator<>(
-			lazyAsyncFunction,
-			timeout,
-			2,
-			AsyncDataStream.OutputMode.ORDERED);
-
 		final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator, IntSerializer.INSTANCE);
+			createTestHarness(lazyAsyncFunction, timeout, 2, AsyncDataStream.OutputMode.ORDERED);
 
 		final MockEnvironment mockEnvironment = testHarness.getEnvironment();
 		mockEnvironment.setExpectedExternalFailureCause(Throwable.class);
@@ -788,15 +774,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	 */
 	@Test
 	public void testTimeoutCleanup() throws Exception {
-		AsyncWaitOperator<Integer, Integer> asyncWaitOperator = new AsyncWaitOperator<>(
-			new MyAsyncFunction(),
-			TIMEOUT,
-			1,
-			AsyncDataStream.OutputMode.UNORDERED);
-
-		OneInputStreamOperatorTestHarness<Integer, Integer> harness = new OneInputStreamOperatorTestHarness<>(
-			asyncWaitOperator,
-			IntSerializer.INSTANCE);
+		OneInputStreamOperatorTestHarness<Integer, Integer> harness =
+			createTestHarness(new MyAsyncFunction(), TIMEOUT, 1, AsyncDataStream.OutputMode.UNORDERED);
 
 		harness.open();
 
@@ -838,21 +817,10 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	}
 
 	private void testUserExceptionHandling(AsyncDataStream.OutputMode outputMode) throws Exception {
-		UserExceptionAsyncFunction asyncWaitFunction = new UserExceptionAsyncFunction();
-		long timeout = 2000L;
-
-		AsyncWaitOperator<Integer, Integer> asyncWaitOperator = new AsyncWaitOperator<>(
-			asyncWaitFunction,
-			TIMEOUT,
-			2,
-			outputMode);
-
-		OneInputStreamOperatorTestHarness<Integer, Integer> harness = new OneInputStreamOperatorTestHarness<>(
-			asyncWaitOperator,
-			IntSerializer.INSTANCE);
+		OneInputStreamOperatorTestHarness<Integer, Integer> harness =
+			createTestHarness(new UserExceptionAsyncFunction(), TIMEOUT, 2, outputMode);
 
 		harness.getEnvironment().setExpectedExternalFailureCause(Throwable.class);
-
 		harness.open();
 
 		synchronized (harness.getCheckpointLock()) {
@@ -902,21 +870,10 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	}
 
 	private void testTimeoutExceptionHandling(AsyncDataStream.OutputMode outputMode) throws Exception {
-		AsyncFunction<Integer, Integer> asyncFunction = new NoOpAsyncFunction<>();
-		long timeout = 10L; // 1 milli second
-
-		AsyncWaitOperator<Integer, Integer> asyncWaitOperator = new AsyncWaitOperator<>(
-			asyncFunction,
-			timeout,
-			2,
-			outputMode);
-
-		OneInputStreamOperatorTestHarness<Integer, Integer> harness = new OneInputStreamOperatorTestHarness<>(
-			asyncWaitOperator,
-			IntSerializer.INSTANCE);
+		OneInputStreamOperatorTestHarness<Integer, Integer> harness =
+			createTestHarness(new NoOpAsyncFunction<>(), 10L, 2, outputMode);
 
 		harness.getEnvironment().setExpectedExternalFailureCause(Throwable.class);
-
 		harness.open();
 
 		synchronized (harness.getCheckpointLock()) {
@@ -937,19 +894,16 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	 */
 	@Test(timeout = 10000)
 	public void testRestartWithFullQueue() throws Exception {
-		int capacity = 10;
+		final int capacity = 10;
 
 		// 1. create the snapshot which contains capacity + 1 elements
 		final CompletableFuture<Void> trigger = new CompletableFuture<>();
-		final ControllableAsyncFunction<Integer> controllableAsyncFunction = new ControllableAsyncFunction<>(trigger);
 
-		final OneInputStreamOperatorTestHarness<Integer, Integer> snapshotHarness = new OneInputStreamOperatorTestHarness<>(
-			new AsyncWaitOperator<>(
-				controllableAsyncFunction, // the NoOpAsyncFunction is like a blocking function
-				1000L,
-				capacity,
-				AsyncDataStream.OutputMode.ORDERED),
-			IntSerializer.INSTANCE);
+		final OneInputStreamOperatorTestHarness<Integer, Integer> snapshotHarness = createTestHarness(
+			new ControllableAsyncFunction<>(trigger), // the NoOpAsyncFunction is like a blocking function
+			1000L,
+			capacity,
+			AsyncDataStream.OutputMode.ORDERED);
 
 		snapshotHarness.open();
 
@@ -998,13 +952,11 @@ public class AsyncWaitOperatorTest extends TestLogger {
 		}
 
 		// 2. restore the snapshot and check that we complete
-		final OneInputStreamOperatorTestHarness<Integer, Integer> recoverHarness = new OneInputStreamOperatorTestHarness<>(
-			new AsyncWaitOperator<>(
-				new ControllableAsyncFunction<>(CompletableFuture.completedFuture(null)),
-				1000L,
-				capacity,
-				AsyncDataStream.OutputMode.ORDERED),
-			IntSerializer.INSTANCE);
+		final OneInputStreamOperatorTestHarness<Integer, Integer> recoverHarness = createTestHarness(
+			new ControllableAsyncFunction<>(CompletableFuture.completedFuture(null)),
+			1000L,
+			capacity,
+			AsyncDataStream.OutputMode.ORDERED);
 
 		recoverHarness.initializeState(snapshot);
 
@@ -1089,14 +1041,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 	 */
 	@Test
 	public void testEndInput() throws Exception {
-		final AsyncWaitOperator<Integer, Integer> operator = new AsyncWaitOperator<>(
-			new DelayedAsyncFunction(10),
-			-1,
-			2,
-			AsyncDataStream.OutputMode.ORDERED);
-
 		final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator, IntSerializer.INSTANCE);
+			createTestHarness(new DelayedAsyncFunction(10), -1, 2, AsyncDataStream.OutputMode.ORDERED);
 
 		final long initialTime = 0L;
 		final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -1126,5 +1072,16 @@ public class AsyncWaitOperatorTest extends TestLogger {
 				testHarness.close();
 			}
 		}
+	}
+
+	private static <OUT> OneInputStreamOperatorTestHarness<Integer, OUT> createTestHarness(
+			AsyncFunction<Integer, OUT> function,
+			long timeout,
+			int capacity,
+			AsyncDataStream.OutputMode outputMode) throws Exception {
+
+		return new OneInputStreamOperatorTestHarness<>(
+			new AsyncWaitOperator<>(function, timeout, capacity, outputMode),
+			IntSerializer.INSTANCE);
 	}
 }
