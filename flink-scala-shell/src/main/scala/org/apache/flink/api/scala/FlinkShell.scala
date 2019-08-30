@@ -279,12 +279,7 @@ object FlinkShell {
 
     val webMonitorUrl = new URL(cluster.getWebInterfaceURL)
 
-    val inetSocketAddress = new InetSocketAddress(webMonitorUrl.getHost, webMonitorUrl.getPort)
-
-    val address = inetSocketAddress.getAddress.getHostAddress
-    val port = inetSocketAddress.getPort
-
-    (address, port, Some(Right(cluster)))
+    (webMonitorUrl.getHost, webMonitorUrl.getPort, Some(Right(cluster)))
   }
 
   def fetchDeployedYarnClusterInfo(
