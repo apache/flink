@@ -354,7 +354,7 @@ public class SqlToOperationConverterTest {
 					DataTypes.FIELD("f2", DataTypes.MULTISET(DataTypes.BOOLEAN()))))
 		);
 		StringBuilder buffer = new StringBuilder("create table t1(\n");
-		for (int i = 0; i < testItems.size(); i ++) {
+		for (int i = 0; i < testItems.size(); i++) {
 			buffer.append("f")
 				.append(i)
 				.append(" ")
