@@ -49,6 +49,7 @@ public class HiveRunnerShimLoader {
 				case HiveShimLoader.HIVE_VERSION_V2_3_3:
 				case HiveShimLoader.HIVE_VERSION_V2_3_4:
 				case HiveShimLoader.HIVE_VERSION_V2_3_5:
+				case HiveShimLoader.HIVE_VERSION_V2_3_6:
 					return new HiveRunnerShimV4();
 				default:
 					throw new RuntimeException("Unsupported Hive version " + v);
