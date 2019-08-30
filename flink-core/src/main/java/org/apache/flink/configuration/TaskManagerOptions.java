@@ -42,28 +42,29 @@ public class TaskManagerOptions {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * JVM heap size for the TaskManagers with memory size.
-	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
-	public static final ConfigOption<String> TASK_MANAGER_HEAP_MEMORY =
-			key("taskmanager.heap.size")
-			.defaultValue("1024m")
-			.withDescription("JVM heap size for the TaskManagers, which are the parallel workers of" +
-					" the system. On YARN setups, this value is automatically configured to the size of the TaskManager's" +
-					" YARN container, minus a certain tolerance value.");
-
-	/**
 	 * JVM heap size (in megabytes) for the TaskManagers.
 	 *
 	 * @deprecated use {@link #TASK_MANAGER_HEAP_MEMORY}
 	 */
 	@Deprecated
 	public static final ConfigOption<Integer> TASK_MANAGER_HEAP_MEMORY_MB =
-			key("taskmanager.heap.mb")
+		key("taskmanager.heap.mb")
 			.defaultValue(1024)
 			.withDescription("JVM heap size (in megabytes) for the TaskManagers, which are the parallel workers of" +
 				" the system. On YARN setups, this value is automatically configured to the size of the TaskManager's" +
 				" YARN container, minus a certain tolerance value.");
+
+	/**
+	 * JVM heap size for the TaskManagers with memory size.
+	 */
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
+	public static final ConfigOption<String> TASK_MANAGER_HEAP_MEMORY =
+			key("taskmanager.heap.size")
+			.defaultValue("1024m")
+			.withDeprecatedKeys(TASK_MANAGER_HEAP_MEMORY_MB.key())
+			.withDescription("JVM heap size for the TaskManagers, which are the parallel workers of" +
+					" the system. On YARN setups, this value is automatically configured to the size of the TaskManager's" +
+					" YARN container, minus a certain tolerance value.");
 
 	/**
 	 * Whether to kill the TaskManager when the task thread throws an OutOfMemoryError.

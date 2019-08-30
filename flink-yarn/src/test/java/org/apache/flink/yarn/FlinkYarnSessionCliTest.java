@@ -414,8 +414,8 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 	@Test
 	public void testHeapMemoryPropertyWithOldConfigKey() throws Exception {
 		Configuration configuration = new Configuration();
-		configuration.setInteger(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY_MB, 2048);
-		configuration.setInteger(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY_MB, 4096);
+		configuration.setString(JobManagerOptions.JOB_MANAGER_HEAP_MEMORY, "2048m");
+		configuration.setString(TaskManagerOptions.TASK_MANAGER_HEAP_MEMORY, "4096m");
 
 		final FlinkYarnSessionCli flinkYarnSessionCli = new FlinkYarnSessionCli(
 			configuration,
