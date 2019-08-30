@@ -37,8 +37,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
-import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
-import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -66,8 +64,6 @@ import org.apache.flink.util.TestLogger;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Test;
-
-import javax.annotation.Nonnull;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -700,11 +696,11 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			2,
 			AsyncDataStream.OutputMode.ORDERED);
 
-		final MockEnvironment mockEnvironment = createMockEnvironment();
-		mockEnvironment.setExpectedExternalFailureCause(Throwable.class);
-
 		final OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
-			new OneInputStreamOperatorTestHarness<>(operator, IntSerializer.INSTANCE, mockEnvironment);
+			new OneInputStreamOperatorTestHarness<>(operator, IntSerializer.INSTANCE);
+
+		final MockEnvironment mockEnvironment = testHarness.getEnvironment();
+		mockEnvironment.setExpectedExternalFailureCause(Throwable.class);
 
 		final long initialTime = 0L;
 		final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -740,16 +736,6 @@ public class AsyncWaitOperatorTest extends TestLogger {
 				mockEnvironment.getActualExternalFailureCause().get(),
 				expectedException.get()).isPresent());
 		}
-	}
-
-	@Nonnull
-	private MockEnvironment createMockEnvironment() {
-		return new MockEnvironmentBuilder()
-			.setTaskName("foobarTask")
-			.setMemorySize(1024 * 1024L)
-			.setInputSplitProvider(new MockInputSplitProvider())
-			.setBufferSize(4 * 1024)
-			.build();
 	}
 
 	/**
@@ -861,13 +847,11 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			2,
 			outputMode);
 
-		final MockEnvironment mockEnvironment = createMockEnvironment();
-		mockEnvironment.setExpectedExternalFailureCause(Throwable.class);
-
 		OneInputStreamOperatorTestHarness<Integer, Integer> harness = new OneInputStreamOperatorTestHarness<>(
 			asyncWaitOperator,
-			IntSerializer.INSTANCE,
-			mockEnvironment);
+			IntSerializer.INSTANCE);
+
+		harness.getEnvironment().setExpectedExternalFailureCause(Throwable.class);
 
 		harness.open();
 
@@ -927,13 +911,11 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			2,
 			outputMode);
 
-		final MockEnvironment mockEnvironment = createMockEnvironment();
-		mockEnvironment.setExpectedExternalFailureCause(Throwable.class);
-
 		OneInputStreamOperatorTestHarness<Integer, Integer> harness = new OneInputStreamOperatorTestHarness<>(
 			asyncWaitOperator,
-			IntSerializer.INSTANCE,
-			mockEnvironment);
+			IntSerializer.INSTANCE);
+
+		harness.getEnvironment().setExpectedExternalFailureCause(Throwable.class);
 
 		harness.open();
 
