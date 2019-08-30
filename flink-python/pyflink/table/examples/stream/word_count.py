@@ -46,7 +46,7 @@ def word_count():
 
     logging.info("Results directory: %s", result_path)
 
-    t_env.connect(Bucket().base_path(result_path)) \
+    t_env.connect(Bucket().base_path(result_path).date_format("yyyy-HH-dd")) \
         .with_format(Json()
                      .derive_schema()
                      .field("name", DataTypes.STRING())
@@ -56,7 +56,7 @@ def word_count():
                      .field("age", DataTypes.BIGINT())) \
         .register_table_sink("Results")
 
-    elements = [('tom', 10),('cat', 20)]
+    elements = [('tom', 10), ('cat', 20)]
     t_env.from_elements(elements, ["name", "age"]) \
          .select("name, age") \
          .insert_into("Results")
