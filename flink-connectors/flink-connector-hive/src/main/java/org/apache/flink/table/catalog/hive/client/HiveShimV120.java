@@ -21,13 +21,16 @@ package org.apache.flink.table.catalog.hive.client;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.FileUtils;
+import org.apache.hadoop.hive.common.HiveStatsUtils;
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
+import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.Function;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
@@ -45,6 +48,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Shim for Hive version 1.2.0.
@@ -143,4 +147,51 @@ public class HiveShimV120 implements HiveShim {
 			throw new CatalogException("Failed to create SimpleGenericUDAFParameterInfo", e);
 		}
 	}
+
+	@Override
+	public Class<?> getMetaStoreUtilsClass() {
+		try {
+			return Class.forName("org.apache.hadoop.hive.metastore.MetaStoreUtils");
+		} catch (ClassNotFoundException e) {
+			throw new CatalogException("Failed to find class MetaStoreUtils", e);
+		}
+	}
+
+	@Override
+	public Class<?> getHiveMetaStoreUtilsClass() {
+		return getMetaStoreUtilsClass();
+	}
+
+	@Override
+	public Class<?> getDateDataTypeClass() {
+		return java.sql.Date.class;
+	}
+
+	@Override
+	public Class<?> getTimestampDataTypeClass() {
+		return java.sql.Timestamp.class;
+	}
+
+	@Override
+	public FileStatus[] getFileStatusRecurse(Path path, int level, FileSystem fs) throws IOException {
+		try {
+			Method method = HiveStatsUtils.class.getMethod("getFileStatusRecurse", Path.class, Integer.TYPE, FileSystem.class);
+			// getFileStatusRecurse is a static method
+			return (FileStatus[]) method.invoke(null, path, level, fs);
+		} catch (Exception ex) {
+			throw new CatalogException("Failed to invoke HiveStatsUtils.getFileStatusRecurse()", ex);
+		}
+	}
+
+	@Override
+	public void makeSpecFromName(Map<String, String> partSpec, Path currPath) {
+		try {
+			Method method = Warehouse.class.getMethod("makeSpecFromName", Map.class, Path.class);
+			// makeSpecFromName is a static method
+			method.invoke(null, partSpec, currPath);
+		} catch (Exception ex) {
+			throw new CatalogException("Failed to invoke Warehouse.makeSpecFromName()", ex);
+		}
+	}
+
 }
