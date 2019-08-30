@@ -48,9 +48,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -190,71 +193,154 @@ public class SqlToOperationConverterTest {
 		assertEquals(expectedStaticPartitions, sinkModifyOperation.getStaticPartitions());
 	}
 
-	@Test
+	@Test // TODO: tweak the tests when FLINK-13604 is fixed.
 	public void testCreateTableWithFullDataTypes() {
-		final String sql = "create table t1(\n" +
-			"  f0 CHAR,\n" +
-			"  f1 CHAR NOT NULL,\n" +
-			"  f2 CHAR NULL,\n" +
-			"  f3 CHAR(33),\n" +
-			"  f4 VARCHAR,\n" +
-			"  f5 VARCHAR(33),\n" +
-			"  f6 STRING,\n" +
-			"  f7 BOOLEAN,\n" +
-			"  f8 BINARY,\n" +
-			"  f9 BINARY(33),\n" +
-			"  f10 VARBINARY,\n" +
-			"  f11 VARBINARY(33),\n" +
-			"  f12 BYTES,\n" +
-			"  f13 DECIMAL,\n" +
-			"  f14 DEC,\n" +
-			"  f15 NUMERIC,\n" +
-			"  f16 DECIMAL(10),\n" +
-			"  f17 DEC(10),\n" +
-			"  f18 NUMERIC(10),\n" +
-			"  f19 DECIMAL(10, 3),\n" +
-			"  f20 DEC(10, 3),\n" +
-			"  f21 NUMERIC(10, 3),\n" +
-			"  f22 TINYINT,\n" +
-			"  f23 SMALLINT,\n" +
-			"  f24 INTEGER,\n" +
-			"  f25 INT,\n" +
-			"  f26 BIGINT,\n" +
-			"  f27 FLOAT,\n" +
-			"  f28 DOUBLE,\n" +
-			"  f29 DOUBLE PRECISION,\n" +
-			"  f30 DATE,\n" +
-			"  f31 TIME,\n" +
-			"  f32 TIME WITHOUT TIME ZONE,\n" +
-			"  f33 TIME(3),\n" +
-			"  f34 TIME(3) WITHOUT TIME ZONE,\n" +
-			"  f35 TIMESTAMP,\n" +
-			"  f36 TIMESTAMP WITHOUT TIME ZONE,\n" +
-			"  f37 TIMESTAMP(3),\n" +
-			"  f38 TIMESTAMP(3) WITHOUT TIME ZONE,\n" +
-			"  f39 TIMESTAMP WITH LOCAL TIME ZONE,\n" +
-			"  f40 TIMESTAMP(3) WITH LOCAL TIME ZONE,\n" +
-			"  f41 ARRAY<TIMESTAMP(3) WITH LOCAL TIME ZONE>,\n" +
-			"  f42 ARRAY<INT NOT NULL>,\n" +
-			"  f43 INT ARRAY,\n" +
-			"  f44 INT NOT NULL ARRAY,\n" +
-			"  f45 INT ARRAY NOT NULL,\n" +
-			"  f46 MULTISET<INT NOT NULL>,\n" +
-			"  f47 INT MULTISET,\n" +
-			"  f48 INT NOT NULL MULTISET,\n" +
-			"  f49 INT MULTISET NOT NULL,\n" +
-			"  f50 MAP<BIGINT, BOOLEAN>,\n" +
-			"  f51 ROW<f0 INT NOT NULL, f1 BOOLEAN>,\n" +
-			"  f52 ROW(f0 INT NOT NULL, f1 BOOLEAN),\n" +
-			"  f53 ROW<`f0` INT>,\n" +
-			"  f54 ROW(`f0` INT),\n" +
-			"  f55 ROW<>,\n" +
-			"  f56 ROW(),\n" +
-			"  f57 ROW<f0 INT NOT NULL 'This is a comment.', f1 BOOLEAN 'This as well.'>)";
+		final List<TestItem> testItems = Arrays.asList(
+			createTestItem("CHAR", DataTypes.CHAR(1)),
+			createTestItem("CHAR NOT NULL", DataTypes.CHAR(1).notNull()),
+			createTestItem("CHAR NULL", DataTypes.CHAR(1)),
+			createTestItem("CHAR(33)", DataTypes.CHAR(33)),
+			createTestItem("VARCHAR", DataTypes.STRING()),
+			createTestItem("VARCHAR(33)", DataTypes.VARCHAR(33)),
+			createTestItem("STRING", DataTypes.STRING()),
+			createTestItem("BOOLEAN", DataTypes.BOOLEAN()),
+			createTestItem("BINARY", DataTypes.BINARY(1)),
+			createTestItem("BINARY(33)", DataTypes.BINARY(33)),
+			createTestItem("VARBINARY", DataTypes.BYTES()),
+			createTestItem("VARBINARY(33)", DataTypes.VARBINARY(33)),
+			createTestItem("BYTES", DataTypes.BYTES()),
+			createTestItem("DECIMAL", DataTypes.DECIMAL(10, 0)),
+			createTestItem("DEC", DataTypes.DECIMAL(10, 0)),
+			createTestItem("NUMERIC", DataTypes.DECIMAL(10, 0)),
+			createTestItem("DECIMAL(10)", DataTypes.DECIMAL(10, 0)),
+			createTestItem("DEC(10)", DataTypes.DECIMAL(10, 0)),
+			createTestItem("NUMERIC(10)", DataTypes.DECIMAL(10, 0)),
+			createTestItem("DECIMAL(10, 3)", DataTypes.DECIMAL(10, 3)),
+			createTestItem("DEC(10, 3)", DataTypes.DECIMAL(10, 3)),
+			createTestItem("NUMERIC(10, 3)", DataTypes.DECIMAL(10, 3)),
+			createTestItem("TINYINT", DataTypes.TINYINT()),
+			createTestItem("SMALLINT", DataTypes.SMALLINT()),
+			createTestItem("INTEGER", DataTypes.INT()),
+			createTestItem("INT", DataTypes.INT()),
+			createTestItem("BIGINT", DataTypes.BIGINT()),
+			createTestItem("FLOAT", DataTypes.FLOAT()),
+			createTestItem("DOUBLE", DataTypes.DOUBLE()),
+			createTestItem("DOUBLE PRECISION", DataTypes.DOUBLE()),
+			createTestItem("DATE", DataTypes.DATE()),
+			createTestItem("TIME", DataTypes.TIME()),
+			createTestItem("TIME WITHOUT TIME ZONE", DataTypes.TIME()),
+			// Expect to be TIME(3).
+			createTestItem("TIME(3)", DataTypes.TIME()),
+			// Expect to be TIME(3).
+			createTestItem("TIME(3) WITHOUT TIME ZONE", DataTypes.TIME()),
+			createTestItem("TIMESTAMP", DataTypes.TIMESTAMP(3)),
+			createTestItem("TIMESTAMP WITHOUT TIME ZONE", DataTypes.TIMESTAMP(3)),
+			createTestItem("TIMESTAMP(3)", DataTypes.TIMESTAMP(3)),
+			createTestItem("TIMESTAMP(3) WITHOUT TIME ZONE", DataTypes.TIMESTAMP(3)),
+			createTestItem("TIMESTAMP WITH LOCAL TIME ZONE",
+				DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)),
+			createTestItem("TIMESTAMP(3) WITH LOCAL TIME ZONE",
+				DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)),
+			createTestItem("ARRAY<TIMESTAMP(3) WITH LOCAL TIME ZONE>",
+				DataTypes.ARRAY(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))),
+			createTestItem("ARRAY<INT NOT NULL>",
+				DataTypes.ARRAY(DataTypes.INT().notNull())),
+			createTestItem("INT ARRAY", DataTypes.ARRAY(DataTypes.INT())),
+			createTestItem("INT NOT NULL ARRAY",
+				DataTypes.ARRAY(DataTypes.INT().notNull())),
+			createTestItem("INT ARRAY NOT NULL",
+				DataTypes.ARRAY(DataTypes.INT()).notNull()),
+			createTestItem("MULTISET<INT NOT NULL>",
+				DataTypes.MULTISET(DataTypes.INT().notNull())),
+			createTestItem("INT MULTISET",
+				DataTypes.MULTISET(DataTypes.INT())),
+			createTestItem("INT NOT NULL MULTISET",
+				DataTypes.MULTISET(DataTypes.INT().notNull())),
+			createTestItem("INT MULTISET NOT NULL",
+				DataTypes.MULTISET(DataTypes.INT()).notNull()),
+			createTestItem("MAP<BIGINT, BOOLEAN>",
+				DataTypes.MAP(DataTypes.BIGINT(), DataTypes.BOOLEAN())),
+			// Expect to be ROW<`f0` INT NOT NULL, `f1` BOOLEAN>.
+			createTestItem("ROW<f0 INT NOT NULL, f1 BOOLEAN>",
+				DataTypes.ROW(
+					DataTypes.FIELD("f0", DataTypes.INT()),
+					DataTypes.FIELD("f1", DataTypes.BOOLEAN()))),
+			// Expect to be ROW<`f0` INT NOT NULL, `f1` BOOLEAN>.
+			createTestItem("ROW(f0 INT NOT NULL, f1 BOOLEAN)",
+				DataTypes.ROW(
+					DataTypes.FIELD("f0", DataTypes.INT()),
+					DataTypes.FIELD("f1", DataTypes.BOOLEAN()))),
+			createTestItem("ROW<`f0` INT>",
+				DataTypes.ROW(DataTypes.FIELD("f0", DataTypes.INT()))),
+			createTestItem("ROW(`f0` INT)",
+				DataTypes.ROW(DataTypes.FIELD("f0", DataTypes.INT()))),
+			createTestItem("ROW<>", DataTypes.ROW()),
+			createTestItem("ROW()", DataTypes.ROW()),
+			// Expect to be ROW<`f0` INT NOT NULL '...', `f1` BOOLEAN '...'>.
+			createTestItem("ROW<f0 INT NOT NULL 'This is a comment.',"
+				+ " f1 BOOLEAN 'This as well.'>",
+				DataTypes.ROW(
+					DataTypes.FIELD("f0", DataTypes.INT()),
+					DataTypes.FIELD("f1", DataTypes.BOOLEAN()))),
+			createTestItem("ARRAY<ROW<f0 INT, f1 BOOLEAN>>",
+				DataTypes.ARRAY(
+					DataTypes.ROW(
+						DataTypes.FIELD("f0", DataTypes.INT()),
+						DataTypes.FIELD("f1", DataTypes.BOOLEAN())))),
+			createTestItem("ROW<f0 INT, f1 BOOLEAN> MULTISET",
+				DataTypes.MULTISET(
+					DataTypes.ROW(
+						DataTypes.FIELD("f0", DataTypes.INT()),
+						DataTypes.FIELD("f1", DataTypes.BOOLEAN())))),
+			createTestItem("MULTISET<ROW<f0 INT, f1 BOOLEAN>>",
+				DataTypes.MULTISET(
+					DataTypes.ROW(
+						DataTypes.FIELD("f0", DataTypes.INT()),
+						DataTypes.FIELD("f1", DataTypes.BOOLEAN())))),
+			createTestItem("ROW<f0 Row<f00 INT, f01 BOOLEAN>, "
+					+ "f1 INT ARRAY, "
+					+ "f2 BOOLEAN MULTISET>",
+				DataTypes.ROW(DataTypes.FIELD("f0",
+					DataTypes.ROW(
+						DataTypes.FIELD("f00", DataTypes.INT()),
+						DataTypes.FIELD("f01", DataTypes.BOOLEAN()))),
+					DataTypes.FIELD("f1", DataTypes.ARRAY(DataTypes.INT())),
+					DataTypes.FIELD("f2", DataTypes.MULTISET(DataTypes.BOOLEAN()))))
+		);
+		StringBuilder buffer = new StringBuilder("create table t1(\n");
+		for (int i = 0; i < testItems.size(); i ++) {
+			buffer.append("f")
+				.append(i)
+				.append(" ")
+				.append(testItems.get(i).testExpr);
+			if (i == testItems.size() - 1) {
+				buffer.append(")");
+			} else {
+				buffer.append(",\n");
+			}
+		}
+		final String sql = buffer.toString();
 		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
 		SqlNode node = planner.parse(sql);
 		assert node instanceof SqlCreateTable;
-		SqlToOperationConverter.convert(planner, node);
+		Operation operation = SqlToOperationConverter.convert(planner, node);
+		TableSchema schema = ((CreateTableOperation) operation).getCatalogTable().getSchema();
+		Object[] expectedDataTypes = testItems.stream().map(item -> item.expectedType).toArray();
+		assertArrayEquals(expectedDataTypes, schema.getFieldDataTypes());
+	}
+
+	//~ Tool Methods ----------------------------------------------------------
+
+	private static TestItem createTestItem(Object... args) {
+		assert args.length == 2;
+		final String testExpr = (String) args[0];
+		TestItem testItem = TestItem.fromTestExpr(testExpr);
+		if (args[1] instanceof String) {
+			testItem.withExpectedError((String) args[1]);
+		} else {
+			testItem.withExpectedType(args[1]);
+		}
+		return testItem;
 	}
 
 	private Operation parse(String sql, FlinkPlannerImpl planner) {
@@ -267,4 +353,38 @@ public class SqlToOperationConverterTest {
 		return plannerContext.createFlinkPlanner(catalogManager.getCurrentCatalog(),
 			catalogManager.getCurrentDatabase());
 	}
+
+	//~ Inner Classes ----------------------------------------------------------
+
+	private static class TestItem {
+		private final String testExpr;
+		@Nullable
+		private Object expectedType;
+		@Nullable
+		private String expectedError;
+
+		private TestItem(String testExpr) {
+			this.testExpr = testExpr;
+		}
+
+		static TestItem fromTestExpr(String testExpr) {
+			return new TestItem(testExpr);
+		}
+
+		TestItem withExpectedType(Object expectedType) {
+			this.expectedType = expectedType;
+			return this;
+		}
+
+		TestItem withExpectedError(String expectedError) {
+			this.expectedError = expectedError;
+			return this;
+		}
+
+		@Override
+		public String toString() {
+			return this.testExpr;
+		}
+	}
+
 }
