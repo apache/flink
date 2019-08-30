@@ -22,6 +22,7 @@ package org.apache.flink.ml.common.utils;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
@@ -352,5 +353,64 @@ public class TableUtil {
 		}
 
 		return res.toArray(new String[0]);
+	}
+
+	/**
+	 * format the column names as header of markdown.
+	 */
+	public static String formatTitle(String[] colNames) {
+		StringBuilder sbd = new StringBuilder();
+		StringBuilder sbdSplitter = new StringBuilder();
+
+		for (int i = 0; i < colNames.length; ++i) {
+			if (i > 0) {
+				sbd.append("|");
+				sbdSplitter.append("|");
+			}
+
+			sbd.append(colNames[i]);
+
+			int t = null == colNames[i] ? 4 : colNames[i].length();
+			for (int j = 0; j < t; j++) {
+				sbdSplitter.append("-");
+			}
+		}
+
+		return sbd.toString() + "\r\n" + sbdSplitter.toString();
+	}
+
+	/**
+	 * format the row as body of markdown.
+	 */
+	public static String formatRows(Row row) {
+		StringBuilder sbd = new StringBuilder();
+
+		for (int i = 0; i < row.getArity(); ++i) {
+			if (i > 0) {
+				sbd.append("|");
+			}
+			Object obj = row.getField(i);
+			if (obj instanceof Double || obj instanceof Float) {
+				sbd.append(String.format("%.4f", (double) obj));
+			} else {
+				sbd.append(obj);
+			}
+		}
+
+		return sbd.toString();
+	}
+
+	/**
+	 * format the column names and rows in table as markdown.
+	 */
+	public static String format(String[] colNames, List<Row> data) {
+		StringBuilder sbd = new StringBuilder();
+		sbd.append(formatTitle(colNames));
+
+		for (Row row : data) {
+			sbd.append("\n").append(formatRows(row));
+		}
+
+		return sbd.toString();
 	}
 }
