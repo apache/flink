@@ -56,7 +56,7 @@ public class YarnPrioritySchedulingITCase extends YarnTestBase {
 					"-jm", "768m",
 					"-tm", "1024m",
 					"-Dyarn.application.priority=" + priority},
-				"Flink JobManager is now running on ",
+				"JobManager Web Interface:",
 				RunTypes.YARN_SESSION);
 
 			try {

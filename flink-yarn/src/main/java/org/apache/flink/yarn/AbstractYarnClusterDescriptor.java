@@ -339,32 +339,31 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					"configuration for accessing YARN.");
 			}
 
-			final ApplicationReport appReport = yarnClient.getApplicationReport(applicationId);
+			final ApplicationReport report = yarnClient.getApplicationReport(applicationId);
 
-			if (appReport.getFinalApplicationStatus() != FinalApplicationStatus.UNDEFINED) {
+			if (report.getFinalApplicationStatus() != FinalApplicationStatus.UNDEFINED) {
 				// Flink cluster is not running anymore
 				LOG.error("The application {} doesn't run anymore. It has previously completed with final status: {}",
-					applicationId, appReport.getFinalApplicationStatus());
+					applicationId, report.getFinalApplicationStatus());
 				throw new RuntimeException("The Yarn application " + applicationId + " doesn't run anymore.");
 			}
 
-			final String host = appReport.getHost();
-			final int rpcPort = appReport.getRpcPort();
+			final String host = report.getHost();
+			final int port = report.getRpcPort();
 
-			LOG.info("Found application JobManager host name '{}' and port '{}' from supplied application id '{}'",
-				host, rpcPort, applicationId);
+			LOG.info("Found Web Interface {}:{} of application '{}'.", host, port, applicationId);
 
 			flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
-			flinkConfiguration.setInteger(JobManagerOptions.PORT, rpcPort);
+			flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
 
 			flinkConfiguration.setString(RestOptions.ADDRESS, host);
-			flinkConfiguration.setInteger(RestOptions.PORT, rpcPort);
+			flinkConfiguration.setInteger(RestOptions.PORT, port);
 
 			return createYarnClusterClient(
 				this,
 				-1, // we don't know the number of task managers of a started Flink cluster
 				-1, // we don't know how many slots each task manager has for a started Flink cluster
-				appReport,
+				report,
 				flinkConfiguration,
 				false);
 		} catch (Exception e) {
@@ -513,10 +512,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			yarnApplication,
 			validClusterSpecification);
 
-		String host = report.getHost();
-		int port = report.getRpcPort();
+		final String host = report.getHost();
+		final int port = report.getRpcPort();
 
-		// Correctly initialize the Flink config
 		flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
 		flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
 
