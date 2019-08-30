@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.PermanentBlobService;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.shaded.guava18.com.google.common.base.MoreObjects;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -277,7 +278,9 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
 				FlinkUserCodeClassLoaders.create(
 					classLoaderResolveOrder,
 					libraryURLs,
-					FlinkUserCodeClassLoaders.class.getClassLoader(),
+					MoreObjects.firstNonNull(
+						Thread.currentThread().getContextClassLoader(),
+						FlinkUserCodeClassLoaders.class.getClassLoader()),
 					alwaysParentFirstPatterns);
 
 			// NOTE: do not store the class paths, i.e. URLs, into a set for performance reasons
