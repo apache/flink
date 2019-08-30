@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexFieldVariable;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
+import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule.ConvertContext;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -59,6 +60,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.TimeZone;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
 
@@ -70,7 +72,7 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 	private static final List<CallExpressionConvertRule> FUNCTION_CONVERT_CHAIN = Arrays.asList(
 		new ScalarFunctionConvertRule(),
 		new OverConvertRule(),
-		new DefinedConvertRule(),
+		new DirectConvertRule(),
 		new CustomizedConvertRule()
 	);
 
@@ -198,8 +200,12 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 		}
 	}
 
-	private CallExpressionConvertRule.ConvertContext newFunctionContext() {
-		return new CallExpressionConvertRule.ConvertContext() {
+	public static List<RexNode> toRexNodes(ConvertContext context, List<Expression> expr) {
+		return expr.stream().map(context::toRexNode).collect(Collectors.toList());
+	}
+
+	private ConvertContext newFunctionContext() {
+		return new ConvertContext() {
 			@Override
 			public RexNode toRexNode(Expression expr) {
 				return expr.accept(ExpressionConverter.this);

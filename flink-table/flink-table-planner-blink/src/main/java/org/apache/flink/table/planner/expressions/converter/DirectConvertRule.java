@@ -30,11 +30,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.planner.expressions.converter.ExpressionConverter.toRexNodes;
+
 /**
- * Defined function {@link CallExpressionConvertRule}, it included conversions are one-to-one with
- * calcite SqlOperator.
+ * A {@link CallExpressionConvertRule} that performs a simple one-to-one mapping between
+ * {@link FunctionDefinition} and a corresponding {@link SqlOperator}.
  */
-public class DefinedConvertRule implements CallExpressionConvertRule {
+public class DirectConvertRule implements CallExpressionConvertRule {
 
 	private static final Map<FunctionDefinition, SqlOperator> DEFINITION_OPERATOR_MAP = new HashMap<>();
 	static {
@@ -132,6 +134,7 @@ public class DefinedConvertRule implements CallExpressionConvertRule {
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.AT, FlinkSqlOperatorTable.ITEM);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.CARDINALITY, FlinkSqlOperatorTable.CARDINALITY);
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.ORDER_DESC, FlinkSqlOperatorTable.DESC);
+		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.ARRAY_ELEMENT, FlinkSqlOperatorTable.ELEMENT);
 
 		// crypto hash
 		DEFINITION_OPERATOR_MAP.put(BuiltInFunctionDefinitions.MD5, FlinkSqlOperatorTable.MD5);
@@ -148,11 +151,7 @@ public class DefinedConvertRule implements CallExpressionConvertRule {
 	@Override
 	public Optional<RexNode> convert(CallExpression call, ConvertContext context) {
 		SqlOperator operator = DEFINITION_OPERATOR_MAP.get(call.getFunctionDefinition());
-		if (operator == null) {
-			return Optional.empty();
-		} else {
-			return Optional.of(context.getRelBuilder()
-				.call(operator, context.toRexNodes(call.getChildren())));
-		}
+		return Optional.ofNullable(operator)
+			.map(op -> context.getRelBuilder().call(op, toRexNodes(context, call.getChildren())));
 	}
 }

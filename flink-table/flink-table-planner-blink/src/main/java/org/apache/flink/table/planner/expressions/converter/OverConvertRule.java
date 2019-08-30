@@ -62,7 +62,7 @@ import static org.apache.flink.table.planner.expressions.converter.ExpressionCon
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
 
 /**
- * {@link CallExpressionConvertRule} to convert over sql.
+ * A {@link CallExpressionConvertRule} that converts {@link BuiltInFunctionDefinitions#OVER}.
  */
 public class OverConvertRule implements CallExpressionConvertRule {
 

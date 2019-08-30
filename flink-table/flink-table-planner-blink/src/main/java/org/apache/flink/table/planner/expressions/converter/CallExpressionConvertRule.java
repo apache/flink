@@ -25,9 +25,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.tools.RelBuilder;
 
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Rule to convert {@link CallExpression}.
@@ -50,10 +48,6 @@ public interface CallExpressionConvertRule {
 		 * Convert expression to RexNode, used by children conversion.
 		 */
 		RexNode toRexNode(Expression expr);
-
-		default List<RexNode> toRexNodes(List<Expression> expr) {
-			return expr.stream().map(this::toRexNode).collect(Collectors.toList());
-		}
 
 		RelBuilder getRelBuilder();
 
