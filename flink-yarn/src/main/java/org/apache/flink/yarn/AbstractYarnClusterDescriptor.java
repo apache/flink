@@ -29,6 +29,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.SecurityOptions;
@@ -348,12 +349,15 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 
 			final String host = report.getHost();
-			final int rpcPort = report.getRpcPort();
+			final int port = report.getRpcPort();
 
-			LOG.info("Found Web Interface {}:{} of application '{}'.", host, rpcPort, applicationId);
+			LOG.info("Found Web Interface {}:{} of application '{}'.", host, port, applicationId);
+
+			flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
+			flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
 
 			flinkConfiguration.setString(RestOptions.ADDRESS, host);
-			flinkConfiguration.setInteger(RestOptions.PORT, rpcPort);
+			flinkConfiguration.setInteger(RestOptions.PORT, port);
 
 			return createYarnClusterClient(
 				this,
@@ -510,6 +514,9 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 
 		final String host = report.getHost();
 		final int port = report.getRpcPort();
+
+		flinkConfiguration.setString(JobManagerOptions.ADDRESS, host);
+		flinkConfiguration.setInteger(JobManagerOptions.PORT, port);
 
 		flinkConfiguration.setString(RestOptions.ADDRESS, host);
 		flinkConfiguration.setInteger(RestOptions.PORT, port);
