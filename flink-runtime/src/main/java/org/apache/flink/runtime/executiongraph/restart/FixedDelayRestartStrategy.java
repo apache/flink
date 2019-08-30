@@ -104,17 +104,25 @@ public class FixedDelayRestartStrategy implements RestartStrategy {
 
 		private static final long serialVersionUID = 6642934067762271950L;
 
-		private final int maxAttempts;
-		private final long delay;
+		private final int maxNumberRestartAttempts;
+		private final long delayBetweenRestartAttempts;
 
-		public FixedDelayRestartStrategyFactory(int maxAttempts, long delay) {
-			this.maxAttempts = maxAttempts;
-			this.delay = delay;
+		public FixedDelayRestartStrategyFactory(int maxNumberRestartAttempts, long delayBetweenRestartAttempts) {
+			this.maxNumberRestartAttempts = maxNumberRestartAttempts;
+			this.delayBetweenRestartAttempts = delayBetweenRestartAttempts;
 		}
 
 		@Override
 		public RestartStrategy createRestartStrategy() {
-			return new FixedDelayRestartStrategy(maxAttempts, delay);
+			return new FixedDelayRestartStrategy(maxNumberRestartAttempts, delayBetweenRestartAttempts);
+		}
+
+		int getMaxNumberRestartAttempts() {
+			return maxNumberRestartAttempts;
+		}
+
+		long getDelayBetweenRestartAttempts() {
+			return delayBetweenRestartAttempts;
 		}
 	}
 }
