@@ -19,7 +19,7 @@
 package org.apache.flink.api.scala
 
 import java.io._
-import java.net.{InetSocketAddress, URL}
+import java.net.URL
 
 import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
 import org.apache.flink.client.deployment.ClusterDescriptor
