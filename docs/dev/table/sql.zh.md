@@ -1080,7 +1080,7 @@ If the table does not exist, nothing happens.
 
 ## DDL
 
-DDLs are specified with the `sqlUpdate()` method of the `TableEnvironment`. The method returns nothing for a success table creation. A `Table` can be register into the [Catalog](catalog.html) with a `CREATE TABLE` statement, then be referenced in the SQL queries in method `sqlQuery()` of `TableEnvironment`.
+DDLs are specified with the `sqlUpdate()` method of the `TableEnvironment`. The method returns nothing for a success table creation. A `Table` can be register into the [Catalog](catalogs.html) with a `CREATE TABLE` statement, then be referenced in the SQL queries in method `sqlQuery()` of `TableEnvironment`.
 
 **Note:** Flink's DDL support is not yet feature complete. Queries that include unsupported SQL features cause a `TableException`. The supported features of SQL DDL on batch and streaming tables are listed in the following sections.
 
