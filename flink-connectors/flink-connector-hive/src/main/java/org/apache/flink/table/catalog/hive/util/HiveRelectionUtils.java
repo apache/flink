@@ -47,7 +47,7 @@ import java.util.Properties;
  * <p>Relevant Hive methods cannot be called directly because shimming is required to support different, possibly
  * incompatible Hive versions.
  */
-public class HiveRelectionUtils {
+public class HiveReflectionUtils {
 
 	public static Properties getTableMetadata(HiveShim hiveShim, Table table) {
 		try {
