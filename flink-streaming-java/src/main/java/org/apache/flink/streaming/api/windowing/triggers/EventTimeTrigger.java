@@ -28,13 +28,13 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
  * @see org.apache.flink.streaming.api.watermark.Watermark
  */
 @PublicEvolving
-public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
+public class EventTimeTrigger<T> extends Trigger<T, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
 	private EventTimeTrigger() {}
 
 	@Override
-	public TriggerResult onElement(Object element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
+	public TriggerResult onElement(T element, long timestamp, TimeWindow window, TriggerContext ctx) throws Exception {
 		if (window.maxTimestamp() <= ctx.getCurrentWatermark()) {
 			// if the watermark is already past the window fire immediately
 			return TriggerResult.FIRE;
@@ -89,7 +89,7 @@ public class EventTimeTrigger extends Trigger<Object, TimeWindow> {
 	 * <p>Once the trigger fires all elements are discarded. Elements that arrive late immediately
 	 * trigger window evaluation with just this one element.
 	 */
-	public static EventTimeTrigger create() {
-		return new EventTimeTrigger();
+	public static <T> EventTimeTrigger<T> create() {
+		return new EventTimeTrigger<>();
 	}
 }

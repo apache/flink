@@ -42,7 +42,7 @@ import java.util.Collections;
  *   keyed.window(EventTimeSessionWindows.withGap(Time.minutes(1)));
  * } </pre>
  */
-public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeWindow> {
+public class EventTimeSessionWindows<T> extends MergingWindowAssigner<T, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
 	protected long sessionTimeout;
@@ -56,12 +56,12 @@ public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeW
 	}
 
 	@Override
-	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
+	public Collection<TimeWindow> assignWindows(T element, long timestamp, WindowAssignerContext context) {
 		return Collections.singletonList(new TimeWindow(timestamp, timestamp + sessionTimeout));
 	}
 
 	@Override
-	public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+	public Trigger<T, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
 		return EventTimeTrigger.create();
 	}
 
@@ -77,8 +77,8 @@ public class EventTimeSessionWindows extends MergingWindowAssigner<Object, TimeW
 	 * @param size The session timeout, i.e. the time gap between sessions
 	 * @return The policy.
 	 */
-	public static EventTimeSessionWindows withGap(Time size) {
-		return new EventTimeSessionWindows(size.toMilliseconds());
+	public static <T> EventTimeSessionWindows<T> withGap(Time size) {
+		return new EventTimeSessionWindows<>(size.toMilliseconds());
 	}
 
 	/**

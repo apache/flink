@@ -106,7 +106,7 @@ class TimeWindowTranslationTest extends AbstractTestBase {
 
     val winOperator1 = operator1.asInstanceOf[WindowOperator[_, _, _, _, _]]
 
-    assertTrue(winOperator1.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator1.getTrigger.isInstanceOf[EventTimeTrigger[(String, Int)]])
     assertTrue(winOperator1.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(winOperator1.getStateDescriptor.isInstanceOf[ReducingStateDescriptor[_]])
   }
@@ -132,7 +132,7 @@ class TimeWindowTranslationTest extends AbstractTestBase {
 
     val winOperator1 = operator1.asInstanceOf[WindowOperator[_, _, _, _, _]]
 
-    assertTrue(winOperator1.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator1.getTrigger.isInstanceOf[EventTimeTrigger[(String, Int)]])
     assertTrue(winOperator1.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(winOperator1.getStateDescriptor.isInstanceOf[FoldingStateDescriptor[_, _]])
   }
@@ -164,7 +164,7 @@ class TimeWindowTranslationTest extends AbstractTestBase {
 
     val winOperator1 = operator1.asInstanceOf[WindowOperator[_, _, _, _, _]]
 
-    assertTrue(winOperator1.getTrigger.isInstanceOf[EventTimeTrigger])
+    assertTrue(winOperator1.getTrigger.isInstanceOf[EventTimeTrigger[(String, Int)]])
     assertTrue(winOperator1.getWindowAssigner.isInstanceOf[SlidingEventTimeWindows])
     assertTrue(winOperator1.getStateDescriptor.isInstanceOf[ListStateDescriptor[_]])
   }

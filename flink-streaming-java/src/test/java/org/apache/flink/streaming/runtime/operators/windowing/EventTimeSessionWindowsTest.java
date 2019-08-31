@@ -67,7 +67,7 @@ public class EventTimeSessionWindowsTest extends TestLogger {
 		WindowAssigner.WindowAssignerContext mockContext =
 				mock(WindowAssigner.WindowAssignerContext.class);
 
-		EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.milliseconds(sessionGap));
+		EventTimeSessionWindows<String> assigner = EventTimeSessionWindows.withGap(Time.milliseconds(sessionGap));
 
 		assertThat(assigner.assignWindows("String", 0L, mockContext), contains(timeWindow(0, 0 + sessionGap)));
 		assertThat(assigner.assignWindows("String", 4999L, mockContext), contains(timeWindow(4999, 4999 + sessionGap)));
@@ -78,7 +78,7 @@ public class EventTimeSessionWindowsTest extends TestLogger {
 	public void testMergeSinglePointWindow() {
 		MergingWindowAssigner.MergeCallback callback = mock(MergingWindowAssigner.MergeCallback.class);
 
-		EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.milliseconds(5000));
+		EventTimeSessionWindows<String> assigner = EventTimeSessionWindows.withGap(Time.milliseconds(5000));
 
 		assigner.mergeWindows(Lists.newArrayList(new TimeWindow(0, 0)), callback);
 
@@ -89,7 +89,7 @@ public class EventTimeSessionWindowsTest extends TestLogger {
 	public void testMergeSingleWindow() {
 		MergingWindowAssigner.MergeCallback callback = mock(MergingWindowAssigner.MergeCallback.class);
 
-		EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.milliseconds(5000));
+		EventTimeSessionWindows<String> assigner = EventTimeSessionWindows.withGap(Time.milliseconds(5000));
 
 		assigner.mergeWindows(Lists.newArrayList(new TimeWindow(0, 1)), callback);
 
@@ -100,7 +100,7 @@ public class EventTimeSessionWindowsTest extends TestLogger {
 	public void testMergeConsecutiveWindows() {
 		MergingWindowAssigner.MergeCallback callback = mock(MergingWindowAssigner.MergeCallback.class);
 
-		EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.milliseconds(5000));
+		EventTimeSessionWindows<String> assigner = EventTimeSessionWindows.withGap(Time.milliseconds(5000));
 
 		assigner.mergeWindows(
 				Lists.newArrayList(
@@ -156,7 +156,7 @@ public class EventTimeSessionWindowsTest extends TestLogger {
 		WindowAssigner.WindowAssignerContext mockContext =
 				mock(WindowAssigner.WindowAssignerContext.class);
 
-		EventTimeSessionWindows assigner = EventTimeSessionWindows.withGap(Time.seconds(sessionGap / 1000));
+		EventTimeSessionWindows<String> assigner = EventTimeSessionWindows.withGap(Time.seconds(sessionGap / 1000));
 
 		assertThat(assigner.assignWindows("String", 0L, mockContext), contains(timeWindow(0, 0 + sessionGap)));
 		assertThat(assigner.assignWindows("String", 4999L, mockContext), contains(timeWindow(4999, 4999 + sessionGap)));

@@ -66,7 +66,7 @@ public class ProcessingTimeSessionWindowsTest extends TestLogger {
 		WindowAssigner.WindowAssignerContext mockContext =
 				mock(WindowAssigner.WindowAssignerContext.class);
 
-		ProcessingTimeSessionWindows assigner = ProcessingTimeSessionWindows.withGap(Time.milliseconds(5000));
+		ProcessingTimeSessionWindows<String> assigner = ProcessingTimeSessionWindows.withGap(Time.milliseconds(5000));
 
 		when(mockContext.getCurrentProcessingTime()).thenReturn(0L);
 		assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext), contains(timeWindow(0, 5000)));
@@ -158,7 +158,7 @@ public class ProcessingTimeSessionWindowsTest extends TestLogger {
 		WindowAssigner.WindowAssignerContext mockContext =
 				mock(WindowAssigner.WindowAssignerContext.class);
 
-		ProcessingTimeSessionWindows assigner = ProcessingTimeSessionWindows.withGap(Time.seconds(5));
+		ProcessingTimeSessionWindows<String> assigner = ProcessingTimeSessionWindows.withGap(Time.seconds(5));
 
 		when(mockContext.getCurrentProcessingTime()).thenReturn(0L);
 		assertThat(assigner.assignWindows("String", Long.MIN_VALUE, mockContext), contains(timeWindow(0, 5000)));

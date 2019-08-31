@@ -42,7 +42,7 @@ import java.util.Collections;
  *   keyed.window(ProcessingTimeSessionWindows.withGap(Time.minutes(1)));
  * } </pre>
  */
-public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, TimeWindow> {
+public class ProcessingTimeSessionWindows<T> extends MergingWindowAssigner<T, TimeWindow> {
 	private static final long serialVersionUID = 1L;
 
 	protected long sessionTimeout;
@@ -56,13 +56,13 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
 	}
 
 	@Override
-	public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssignerContext context) {
+	public Collection<TimeWindow> assignWindows(T element, long timestamp, WindowAssignerContext context) {
 		long currentProcessingTime = context.getCurrentProcessingTime();
 		return Collections.singletonList(new TimeWindow(currentProcessingTime, currentProcessingTime + sessionTimeout));
 	}
 
 	@Override
-	public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
+	public Trigger<T, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
 		return ProcessingTimeTrigger.create();
 	}
 
@@ -78,8 +78,8 @@ public class ProcessingTimeSessionWindows extends MergingWindowAssigner<Object, 
 	 * @param size The session timeout, i.e. the time gap between sessions
 	 * @return The policy.
 	 */
-	public static ProcessingTimeSessionWindows withGap(Time size) {
-		return new ProcessingTimeSessionWindows(size.toMilliseconds());
+	public static <T> ProcessingTimeSessionWindows<T> withGap(Time size) {
+		return new ProcessingTimeSessionWindows<>(size.toMilliseconds());
 	}
 
 	/**
