@@ -92,6 +92,7 @@ public class HiveShimLoader {
 			}
 			if (v.startsWith(HIVE_VERSION_V2_3_6)) {
 				return new HiveShimV236();
+			}
 			if (v.startsWith(HIVE_VERSION_V3_1_0)) {
 				return new HiveShimV310();
 			}

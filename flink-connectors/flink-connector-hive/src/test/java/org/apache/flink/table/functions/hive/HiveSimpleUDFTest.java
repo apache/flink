@@ -21,7 +21,7 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.catalog.hive.util.HiveRelectionUtils;
+import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.functions.hive.util.TestHiveUDFArray;
 import org.apache.flink.table.types.DataType;
 
@@ -29,7 +29,6 @@ import org.apache.hadoop.hive.ql.udf.UDFBase64;
 import org.apache.hadoop.hive.ql.udf.UDFBin;
 import org.apache.hadoop.hive.ql.udf.UDFConv;
 import org.apache.hadoop.hive.ql.udf.UDFJson;
-import org.apache.hadoop.hive.ql.udf.UDFMinute;
 import org.apache.hadoop.hive.ql.udf.UDFRand;
 import org.apache.hadoop.hive.ql.udf.UDFRegExpExtract;
 import org.apache.hadoop.hive.ql.udf.UDFToInteger;
@@ -124,19 +123,6 @@ public class HiveSimpleUDFTest {
 		assertEquals(null, udf.eval(json, pattern));
 	}
 
-//	@Test Disabled because in HIve 3.1.0 UDFMinute is no long a simple UDF.
-	public void testUDFMinute() throws FlinkHiveUDFException {
-		HiveSimpleUDF udf = init(
-			UDFMinute.class,
-			new DataType[]{
-				DataTypes.STRING()
-			});
-
-		assertEquals(17, udf.eval("1969-07-20 20:17:40"));
-		assertEquals(17, udf.eval(HiveRelectionUtils.convertToHiveTimestamp(hiveShim, "1969-07-20 20:17:40")));
-		assertEquals(58, udf.eval("12:58:59"));
-	}
-
 	@Test
 	public void testUDFWeekOfYear() throws FlinkHiveUDFException {
 		HiveSimpleUDF udf = init(
@@ -146,8 +132,8 @@ public class HiveSimpleUDFTest {
 			});
 
 		assertEquals(29, udf.eval("1969-07-20"));
-		assertEquals(29, udf.eval(HiveRelectionUtils.convertToHiveDate(hiveShim, "1969-07-20")));
-		assertEquals(29, udf.eval(HiveRelectionUtils.convertToHiveTimestamp(hiveShim, "1969-07-20 00:00:00")));
+		assertEquals(29, udf.eval(HiveReflectionUtils.convertToHiveDate(hiveShim, "1969-07-20")));
+		assertEquals(29, udf.eval(HiveReflectionUtils.convertToHiveTimestamp(hiveShim, "1969-07-20 00:00:00")));
 		assertEquals(1, udf.eval("1980-12-31 12:59:59"));
 	}
 

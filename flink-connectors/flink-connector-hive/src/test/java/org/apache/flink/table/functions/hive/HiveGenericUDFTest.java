@@ -21,7 +21,7 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.catalog.hive.util.HiveRelectionUtils;
+import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.functions.hive.util.TestGenericUDFArray;
 import org.apache.flink.table.functions.hive.util.TestGenericUDFStructSize;
 import org.apache.flink.table.types.DataType;
@@ -141,7 +141,7 @@ public class HiveGenericUDFTest {
 			}
 		);
 
-		assertEquals("8", udf.eval(HiveRelectionUtils.convertToHiveDate(hiveShim, "2019-08-31"), constMonth));
+		assertEquals("8", udf.eval(HiveReflectionUtils.convertToHiveDate(hiveShim, "2019-08-31"), constMonth));
 	}
 
 	@Test
@@ -270,8 +270,8 @@ public class HiveGenericUDFTest {
 			}
 		);
 
-		assertEquals(-4182, udf.eval(HiveRelectionUtils.convertToHiveDate(hiveShim, d),
-			HiveRelectionUtils.convertToHiveTimestamp(hiveShim, t2)));
+		assertEquals(-4182, udf.eval(HiveReflectionUtils.convertToHiveDate(hiveShim, d),
+			HiveReflectionUtils.convertToHiveTimestamp(hiveShim, t2)));
 
 		// Test invalid char length
 		udf = init(

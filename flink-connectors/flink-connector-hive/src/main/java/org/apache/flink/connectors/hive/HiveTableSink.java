@@ -29,7 +29,7 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
-import org.apache.flink.table.catalog.hive.util.HiveRelectionUtils;
+import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.sinks.OutputFormatTableSink;
 import org.apache.flink.table.sinks.OverwritableTableSink;
 import org.apache.flink.table.sinks.PartitionableTableSink;
@@ -124,7 +124,7 @@ public class HiveTableSink extends OutputFormatTableSink<Row> implements Partiti
 				tablePath,
 				catalogTable,
 				hiveTablePartition,
-				HiveRelectionUtils.getTableMetadata(hiveShim, table),
+				HiveReflectionUtils.getTableMetadata(hiveShim, table),
 				overwrite);
 		} catch (TException e) {
 			throw new CatalogException("Failed to query Hive metaStore", e);

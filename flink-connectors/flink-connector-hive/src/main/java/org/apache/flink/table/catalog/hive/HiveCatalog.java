@@ -56,7 +56,7 @@ import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
-import org.apache.flink.table.catalog.hive.util.HiveRelectionUtils;
+import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveStatsUtil;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
@@ -519,8 +519,8 @@ public class HiveCatalog extends AbstractCatalog {
 		} else {
 			// get schema from deserializer
 			try {
-				fields = HiveRelectionUtils.getFieldsFromDeserializer(hiveShim, hiveTable.getTableName(),
-						HiveRelectionUtils.getDeserializer(hiveShim, hiveConf, hiveTable, true));
+				fields = HiveReflectionUtils.getFieldsFromDeserializer(hiveShim, hiveTable.getTableName(),
+						HiveReflectionUtils.getDeserializer(hiveShim, hiveConf, hiveTable, true));
 			} catch (SerDeException | MetaException e) {
 				throw new CatalogException("Failed to get Hive table schema from deserializer", e);
 			}
@@ -739,7 +739,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 		try {
 			// partition spec can be partial
-			List<String> partialVals = HiveRelectionUtils.getPvals(hiveShim, hiveTable.getPartitionKeys(),
+			List<String> partialVals = HiveReflectionUtils.getPvals(hiveShim, hiveTable.getPartitionKeys(),
 				partitionSpec.getPartitionSpec());
 			return client.listPartitionNames(tablePath.getDatabaseName(), tablePath.getObjectName(), partialVals,
 				(short) -1).stream().map(HiveCatalog::createPartitionSpec).collect(Collectors.toList());
