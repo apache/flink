@@ -67,8 +67,7 @@ import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.
 public class OverConvertRule implements CallExpressionConvertRule {
 
 	@Override
-	public Optional<RexNode> convert(
-		CallExpression call, ConvertContext context) {
+	public Optional<RexNode> convert(CallExpression call, ConvertContext context) {
 		List<Expression> children = call.getChildren();
 		if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.OVER) {
 			FlinkTypeFactory typeFactory = context.getTypeFactory();
@@ -118,8 +117,11 @@ public class OverConvertRule implements CallExpressionConvertRule {
 		return Optional.empty();
 	}
 
-	private RexNode createCollation(RexNode node, RelFieldCollation.Direction direction,
-		RelFieldCollation.NullDirection nullDirection, Set<SqlKind> kinds) {
+	private RexNode createCollation(
+			RexNode node,
+			RelFieldCollation.Direction direction,
+			RelFieldCollation.NullDirection nullDirection,
+			Set<SqlKind> kinds) {
 		switch (node.getKind()) {
 			case DESCENDING:
 				kinds.add(node.getKind());

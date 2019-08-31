@@ -37,7 +37,6 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.Preconditions;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.calcite.rel.type.RelDataType;
@@ -177,7 +176,7 @@ public class CustomizedConvertRule implements CallExpressionConvertRule {
 	private static RexNode convertMap(CallExpression call, ConvertContext context) {
 		// TODO get type from CallExpression directly until introduce type inference on Expression
 		List<Expression> children = call.getChildren();
-		Preconditions.checkArgument(!children.isEmpty() && children.size() % 2 == 0);
+		checkArgument(call, !children.isEmpty() && children.size() % 2 == 0);
 		List<RexNode> childrenRexNode = toRexNodes(context, children);
 		RelDataType keyType = childrenRexNode.get(0).getType();
 		RelDataType valueType = childrenRexNode.get(childrenRexNode.size() - 1).getType();
@@ -311,13 +310,10 @@ public class CustomizedConvertRule implements CallExpressionConvertRule {
 		checkArgumentNumber(call, 2);
 		RexNode child = context.toRexNode(call.getChildren().get(0));
 		ValueLiteralExpression keyLiteral = (ValueLiteralExpression) call.getChildren().get(1);
-		Optional<Integer> indexOptional = ExpressionUtils.extractValue(keyLiteral, String.class).map(
-			child.getType().getFieldNames()::indexOf);
-		// Note: never replace the following code with :
-		// int index = indexOptional.orElseGet(() -> extractValue(keyLiteral, Integer.class));
-		// Because the logical in `orElseGet` always executed no matter whether indexOptional is present or not.
-		int index;
-		index = indexOptional.orElseGet(() -> extractValue(keyLiteral, Integer.class));
+		Optional<Integer> indexOptional = ExpressionUtils
+				.extractValue(keyLiteral, String.class)
+				.map(child.getType().getFieldNames()::indexOf);
+		int index = indexOptional.orElseGet(() -> extractValue(keyLiteral, Integer.class));
 		return context.getRelBuilder().getRexBuilder().makeFieldAccess(child, index);
 	}
 
@@ -328,8 +324,7 @@ public class CustomizedConvertRule implements CallExpressionConvertRule {
 			QueryOperation tableOperation = ((TableReferenceExpression) headExpr).getQueryOperation();
 			RexNode child = context.toRexNode(call.getChildren().get(0));
 			return RexSubQuery.in(((FlinkRelBuilder) context.getRelBuilder())
-					.queryOperation(tableOperation).build(),
-				ImmutableList.of(child));
+					.queryOperation(tableOperation).build(), ImmutableList.of(child));
 		} else {
 			List<RexNode> child = toRexNodes(context, call.getChildren());
 			return context.getRelBuilder().call(FlinkSqlOperatorTable.IN, child);
@@ -376,10 +371,7 @@ public class CustomizedConvertRule implements CallExpressionConvertRule {
 
 	private static void checkArgument(CallExpression call, boolean check) {
 		if (!check) {
-			throw new TableException(String.format(
-				"Invalid number of arguments for call: %s. %d arguments passed.",
-				call.getFunctionDefinition(),
-				call.getChildren().size()));
+			throw new TableException("Invalid arguments for call: " + call);
 		}
 	}
 
