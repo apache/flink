@@ -182,6 +182,17 @@ public class LocalExecutor extends PlanExecutor {
 			throw new IllegalArgumentException("The plan may not be null.");
 		}
 
+		stop();
+
+		// configure the number of local slots equal to the parallelism of the local plan
+		if (this.taskManagerNumSlots == DEFAULT_TASK_MANAGER_NUM_SLOTS) {
+			int maxParallelism = plan.getMaximumParallelism();
+			if (maxParallelism > 0) {
+				this.taskManagerNumSlots = maxParallelism;
+			}
+		}
+		start();
+
 		synchronized (this.lock) {
 
 			// check if we start a session dedicated for this execution
@@ -189,14 +200,6 @@ public class LocalExecutor extends PlanExecutor {
 
 			if (jobExecutorService == null) {
 				shutDownAtEnd = true;
-
-				// configure the number of local slots equal to the parallelism of the local plan
-				if (this.taskManagerNumSlots == DEFAULT_TASK_MANAGER_NUM_SLOTS) {
-					int maxParallelism = plan.getMaximumParallelism();
-					if (maxParallelism > 0) {
-						this.taskManagerNumSlots = maxParallelism;
-					}
-				}
 
 				// start the cluster for us
 				start();
