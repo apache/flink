@@ -137,7 +137,7 @@ public interface HiveShim {
 	/**
 	 * Hive Timestamp data type class was changed in Hive 3.1.0.
 	 *
-	 * @return Hive's Date class
+	 * @return Hive's Timestamp class
 	 */
 	Class<?> getTimestampDataTypeClass();
 
