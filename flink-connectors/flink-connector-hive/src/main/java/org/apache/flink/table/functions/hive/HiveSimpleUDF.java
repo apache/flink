@@ -135,5 +135,4 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 			throw new FlinkHiveUDFException(e);
 		}
 	}
-
 }
