@@ -20,7 +20,6 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
@@ -73,14 +72,8 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	}
 
 	@Override
-	public void startNewSession() throws Exception {
-		jobID = JobID.generate();
-	}
-
-	@Override
 	public String toString() {
-		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism())
-				+ ") : " + getIdString();
+		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism()) + ")";
 	}
 
 	public ClusterClient<?> getClient() {

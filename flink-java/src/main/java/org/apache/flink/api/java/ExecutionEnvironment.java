@@ -24,7 +24,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.io.FileInputFormat;
@@ -120,13 +119,6 @@ public abstract class ExecutionEnvironment {
 	/** Result from the latest execution, to make it retrievable when using eager execution methods. */
 	protected JobExecutionResult lastJobExecutionResult;
 
-	/** The ID of the session, defined by this execution environment. Sessions and Jobs are same in
-	 *  Flink, as Jobs can consist of multiple parts that are attached to the growing dataflow graph. */
-	protected JobID jobID;
-
-	/** The session timeout in seconds. */
-	protected long sessionTimeout;
-
 	/** Flag to indicate whether sinks have been cleared in previous executions. */
 	private boolean wasExecuted = false;
 
@@ -134,7 +126,7 @@ public abstract class ExecutionEnvironment {
 	 * Creates a new Execution Environment.
 	 */
 	protected ExecutionEnvironment() {
-		jobID = JobID.generate();
+
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -244,68 +236,6 @@ public abstract class ExecutionEnvironment {
 	public JobExecutionResult getLastJobExecutionResult(){
 		return this.lastJobExecutionResult;
 	}
-
-	// --------------------------------------------------------------------------------------------
-	//  Session Management
-	// --------------------------------------------------------------------------------------------
-
-	/**
-	 * Gets the JobID by which this environment is identified. The JobID sets the execution context
-	 * in the cluster or local environment.
-	 *
-	 * @return The JobID of this environment.
-	 * @see #getIdString()
-	 */
-	@PublicEvolving
-	public JobID getId() {
-		return this.jobID;
-	}
-
-	/**
-	 * Gets the JobID by which this environment is identified, as a string.
-	 *
-	 * @return The JobID as a string.
-	 * @see #getId()
-	 */
-	@PublicEvolving
-	public String getIdString() {
-		return this.jobID.toString();
-	}
-
-	/**
-	 * Sets the session timeout to hold the intermediate results of a job. This only
-	 * applies the updated timeout in future executions.
-	 *
-	 * @param timeout The timeout, in seconds.
-	 */
-	@PublicEvolving
-	public void setSessionTimeout(long timeout) {
-		throw new IllegalStateException("Support for sessions is currently disabled. " +
-				"It will be enabled in future Flink versions.");
-		// Session management is disabled, revert this commit to enable
-		//if (timeout < 0) {
-		//	throw new IllegalArgumentException("The session timeout must not be less than zero.");
-		//}
-		//this.sessionTimeout = timeout;
-	}
-
-	/**
-	 * Gets the session timeout for this environment. The session timeout defines for how long
-	 * after an execution, the job and its intermediate results will be kept for future
-	 * interactions.
-	 *
-	 * @return The session timeout, in seconds.
-	 */
-	@PublicEvolving
-	public long getSessionTimeout() {
-		return sessionTimeout;
-	}
-
-	/**
-	 * Starts a new session, discarding the previous data flow and all of its intermediate results.
-	 */
-	@PublicEvolving
-	public abstract void startNewSession() throws Exception;
 
 	// --------------------------------------------------------------------------------------------
 	//  Registry for types and serializers
