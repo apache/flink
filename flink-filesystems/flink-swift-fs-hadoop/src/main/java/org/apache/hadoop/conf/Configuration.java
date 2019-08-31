@@ -2549,7 +2549,7 @@ public class Configuration implements Iterable<Entry<String,String>>,
       Element root = null;
       boolean returnCachedProperties = false;
 
-      if (resource instanceof URL) {                  // an URL resource
+      if (resource instanceof URL) {                  // a URL resource
         doc = parse(builder, (URL)resource);
       } else if (resource instanceof String) {        // a CLASSPATH resource
         URL url = getResource((String)resource);

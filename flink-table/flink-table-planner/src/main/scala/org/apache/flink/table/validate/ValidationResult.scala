@@ -46,7 +46,7 @@ object ValidationSuccess extends ValidationResult {
 
 /**
   * Represents the failing result of a validation,
-  * with a error message to show the reason of failure.
+  * with an error message to show the reason of failure.
   */
 case class ValidationFailure(message: String) extends ValidationResult {
   val isSuccess: Boolean = false

@@ -77,7 +77,7 @@ public class ClassLoaderUtilsTest {
 			assertTrue("Cannot create and delete temp file", nonExisting.delete());
 
 			// create a URL classloader with
-			// - a HTTP URL
+			// - an HTTP URL
 			// - a file URL for an existing jar file
 			// - a file URL for an existing file that is not a jar file
 			// - a file URL for a non-existing file

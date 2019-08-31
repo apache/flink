@@ -267,7 +267,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 			// emit records
 			emitRecordsWithRowNumber(sortKey, inputRow, out, oldSortKey, oldRow, oldRank);
 		} else if (checkSortKeyInBufferRange(sortKey, buffer)) {
-			// it is an unique record but is in the topN, insert sort key into buffer
+			// it is a unique record but is in the topN, insert sort key into buffer
 			int size = buffer.put(sortKey, rowKey);
 			rowKeyMap.put(rowKey, new RankRow(inputRowSer.copy(inputRow), size, true));
 
@@ -410,7 +410,7 @@ public class UpdatableTopNFunction extends AbstractTopNFunction implements Check
 			retract(out, oldRow.row, oldRow.innerRank);
 			collect(out, inputRow);
 		} else if (checkSortKeyInBufferRange(sortKey, buffer)) {
-			// it is an unique record but is in the topN, insert sort key into buffer
+			// it is a unique record but is in the topN, insert sort key into buffer
 			int size = buffer.put(sortKey, rowKey);
 			rowKeyMap.put(rowKey, new RankRow(inputRowSer.copy(inputRow), size, true));
 			collect(out, inputRow);

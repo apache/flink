@@ -2823,7 +2823,7 @@ public class Configuration implements Iterable<Map.Entry<String,String>>,
 			boolean returnCachedProperties = false;
 			boolean isRestricted = wrapper.isParserRestricted();
 
-			if (resource instanceof URL) {                  // an URL resource
+			if (resource instanceof URL) {                  // a URL resource
 				reader = (XMLStreamReader2)parse((URL)resource, isRestricted);
 			} else if (resource instanceof String) {        // a CLASSPATH resource
 				URL url = getResource((String)resource);

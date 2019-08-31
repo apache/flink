@@ -428,7 +428,7 @@ public abstract class ClusterClient<T> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Returns an URL (as a string) to the JobManager web interface.
+	 * Returns a URL (as a string) to the JobManager web interface.
 	 */
 	public abstract String getWebInterfaceURL();
 

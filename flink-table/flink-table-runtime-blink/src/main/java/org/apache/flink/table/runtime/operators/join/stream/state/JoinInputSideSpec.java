@@ -84,7 +84,7 @@ public class JoinInputSideSpec implements Serializable {
 	}
 
 	/**
-	 * Creates a {@link JoinInputSideSpec} that the input has an unique key.
+	 * Creates a {@link JoinInputSideSpec} that the input has a unique key.
 	 * @param uniqueKeyType type information of the unique key
 	 * @param uniqueKeySelector key selector to extract unique key from the input row
 	 */
@@ -95,7 +95,7 @@ public class JoinInputSideSpec implements Serializable {
 	}
 
 	/**
-	 * Creates a {@link JoinInputSideSpec} that input has an unique key and the unique key is
+	 * Creates a {@link JoinInputSideSpec} that input has a unique key and the unique key is
 	 * contained by the join key.
 	 * @param uniqueKeyType type information of the unique key
 	 * @param uniqueKeySelector key selector to extract unique key from the input row

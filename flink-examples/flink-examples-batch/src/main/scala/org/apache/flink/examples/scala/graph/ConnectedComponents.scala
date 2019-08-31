@@ -26,7 +26,7 @@ import org.apache.flink.util.Collector
 /**
  * An implementation of the connected components algorithm, using a delta iteration.
  *
- * Initially, the algorithm assigns each vertex an unique ID. In each step, a vertex picks the
+ * Initially, the algorithm assigns each vertex a unique ID. In each step, a vertex picks the
  * minimum of its own ID and its neighbors' IDs, as its new ID and tells its neighbors about its
  * new ID. After the algorithm has completed, all vertices in the same component will have the same
  * ID.

@@ -1955,7 +1955,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
             false);
 
         // check that the columns referenced in these comparisons form
-        // an unique key of the filterInput
+        // a unique key of the filterInput
         final List<RexInputRef> rightJoinKeys = new ArrayList<>();
         for (RexNode key : tmpRightJoinKeys) {
           assert key instanceof RexInputRef;

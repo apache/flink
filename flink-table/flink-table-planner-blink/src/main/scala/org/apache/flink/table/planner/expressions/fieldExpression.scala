@@ -232,7 +232,7 @@ case class StreamRecordTimestamp() extends LeafExpression {
 /**
   * Special reference which represent a local field, such as aggregate buffers or constants.
   * We are stored as class members, so the field can be referenced directly.
-  * We should use an unique name to locate the field.
+  * We should use a unique name to locate the field.
   */
 case class PlannerLocalReference(
     name: String,

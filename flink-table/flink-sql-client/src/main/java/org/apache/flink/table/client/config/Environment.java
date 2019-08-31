@@ -180,7 +180,7 @@ public class Environment {
 	// --------------------------------------------------------------------------------------------
 
 	/**
-	 * Parses an environment file from an URL.
+	 * Parses an environment file from a URL.
 	 */
 	public static Environment parse(URL url) throws IOException {
 		try {

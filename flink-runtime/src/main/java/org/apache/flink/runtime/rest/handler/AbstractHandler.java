@@ -108,7 +108,7 @@ public abstract class AbstractHandler<T extends RestfulGateway, R extends Reques
 		try {
 			inFlightRequestTracker.registerRequest();
 			if (!(httpRequest instanceof FullHttpRequest)) {
-				// The RestServerEndpoint defines a HttpObjectAggregator in the pipeline that always returns
+				// The RestServerEndpoint defines an HttpObjectAggregator in the pipeline that always returns
 				// FullHttpRequests.
 				log.error("Implementation error: Received a request that wasn't a FullHttpRequest.");
 				throw new RestHandlerException("Bad request received.", HttpResponseStatus.BAD_REQUEST);
