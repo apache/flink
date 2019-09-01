@@ -542,6 +542,14 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		int taskManagerCount = clusterSpecification.getNumberTaskManagers();
 		int jobManagerMemoryMb = clusterSpecification.getMasterMemoryMB();
 		int taskManagerMemoryMb = clusterSpecification.getTaskManagerMemoryMB();
+		int slotsPerTaskManager = clusterSpecification.getSlotsPerTaskManager();
+		int yarnMaxAllowedCores = maximumResourceCapability.getVirtualCores();
+
+		if (slotsPerTaskManager > yarnMaxAllowedCores) {
+			throw new YarnDeploymentException("The number slots of requested TaskManager is higher than YARN" +
+				" maximum allowed resource capability " + yarnMaxAllowedCores + ". Please decrease the number" +
+				" slots per TaskManager (using -ys); otherwise your job cannot be deployed in YARN cluster");
+		}
 
 		if (jobManagerMemoryMb < yarnMinAllocationMB || taskManagerMemoryMb < yarnMinAllocationMB) {
 			LOG.warn("The JobManager or TaskManager memory is below the smallest possible YARN Container size. "
