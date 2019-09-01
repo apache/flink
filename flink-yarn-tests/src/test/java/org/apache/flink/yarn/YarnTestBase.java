@@ -952,8 +952,11 @@ public abstract class YarnTestBase extends TestLogger {
 	@AfterClass
 	public static void teardown() throws Exception {
 
-		LOG.info("Stopping MiniYarn Cluster");
-		yarnCluster.stop();
+		if (yarnCluster != null) {
+			LOG.info("Stopping MiniYarn Cluster");
+			yarnCluster.stop();
+			yarnCluster = null;
+		}
 
 		// Unset FLINK_CONF_DIR, as it might change the behavior of other tests
 		Map<String, String> map = new HashMap<>(System.getenv());
