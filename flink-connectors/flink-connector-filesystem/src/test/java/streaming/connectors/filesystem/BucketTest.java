@@ -17,8 +17,8 @@
 
 package streaming.connectors.filesystem;
 
-import org.apache.flink.streaming.connectors.fs.table.descriptors.Bucket;
-import org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator;
+import org.apache.flink.table.descriptors.Bucket;
+import org.apache.flink.table.descriptors.BucketValidator;
 import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.descriptors.DescriptorTestBase;
 import org.apache.flink.table.descriptors.DescriptorValidator;

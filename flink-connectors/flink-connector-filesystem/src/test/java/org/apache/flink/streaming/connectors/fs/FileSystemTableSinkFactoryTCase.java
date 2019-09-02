@@ -18,7 +18,7 @@ package org.apache.flink.streaming.connectors.fs;
 import org.apache.flink.streaming.connectors.fs.table.AvroFileSystemTableSink;
 import org.apache.flink.streaming.connectors.fs.table.ParquetFileSystemTableSink;
 import org.apache.flink.streaming.connectors.fs.table.RowFileSystemTableSink;
-import org.apache.flink.streaming.connectors.fs.table.descriptors.Bucket;
+import org.apache.flink.table.descriptors.Bucket;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.descriptors.Avro;
