@@ -119,7 +119,6 @@ def import_flink_view(gateway):
     java_import(gateway.jvm, "org.apache.flink.table.api.dataview.*")
     java_import(gateway.jvm, "org.apache.flink.table.catalog.*")
     java_import(gateway.jvm, "org.apache.flink.table.descriptors.*")
-    java_import(gateway.jvm, "org.apache.flink.streaming.connectors.fs.table.descriptors.*")
     java_import(gateway.jvm, "org.apache.flink.table.descriptors.python.*")
     java_import(gateway.jvm, "org.apache.flink.table.sources.*")
     java_import(gateway.jvm, "org.apache.flink.table.sinks.*")

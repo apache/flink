@@ -34,8 +34,8 @@ import org.apache.avro.specific.SpecificRecordBase;
 
 import java.util.Map;
 
-import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_BASEPATH;
-import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_DATE_FORMAT;
+import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_BASEPATH;
+import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_DATE_FORMAT;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
 
 /**

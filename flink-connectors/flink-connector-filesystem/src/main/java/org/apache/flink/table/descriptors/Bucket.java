@@ -16,22 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.fs.table.descriptors;
+package org.apache.flink.table.descriptors;
 
 import org.apache.flink.streaming.connectors.fs.Writer;
 import org.apache.flink.streaming.connectors.fs.bucketing.Bucketer;
-import org.apache.flink.table.descriptors.ConnectorDescriptor;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
 
-import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_BASEPATH;
-import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_DATA_TYPE;
-import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_DATE_FORMAT;
-import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_SINK_BUCKET_CLASS;
-import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_SINK_WRITE_CLASS;
-import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_TYPE_VALUE_BUCKET;
+import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_BASEPATH;
+import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_DATA_TYPE;
+import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_DATE_FORMAT;
+import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_SINK_BUCKET_CLASS;
+import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_SINK_WRITE_CLASS;
+import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_TYPE_VALUE_BUCKET;
 
 
 /**

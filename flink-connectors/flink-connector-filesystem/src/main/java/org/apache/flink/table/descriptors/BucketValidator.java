@@ -16,9 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.connectors.fs.table.descriptors;
+package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.descriptors.Bucket;
 import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 

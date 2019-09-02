@@ -18,13 +18,13 @@
 
 package org.apache.flink.streaming.connectors.fs.table;
 
-import org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator;
+import org.apache.flink.table.descriptors.BucketValidator;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_BASEPATH;
-import static org.apache.flink.streaming.connectors.fs.table.descriptors.BucketValidator.CONNECTOR_DATE_FORMAT;
+import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_BASEPATH;
+import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_DATE_FORMAT;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT;
 
