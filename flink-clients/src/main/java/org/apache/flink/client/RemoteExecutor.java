@@ -39,6 +39,9 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * The RemoteExecutor is a {@link org.apache.flink.api.common.PlanExecutor} that takes the program
  * and ships it to a remote Flink cluster for execution.
@@ -145,31 +148,19 @@ public class RemoteExecutor extends PlanExecutor {
 	//  Startup & Shutdown
 	// ------------------------------------------------------------------------
 
-	@Override
-	public void start() throws Exception {
-		synchronized (lock) {
-			if (client == null) {
-				client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor");
-			}
-			else {
-				throw new IllegalStateException("The remote executor was already started.");
-			}
-		}
+	private void start() throws Exception {
+		Thread.holdsLock(lock);
+		checkState(client == null);
+
+		client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor");
 	}
 
-	@Override
-	public void stop() throws Exception {
-		synchronized (lock) {
-			if (client != null) {
-				client.shutdown();
-				client = null;
-			}
+	private void stop() throws Exception {
+		Thread.holdsLock(lock);
+		if (client != null) {
+			client.shutdown();
+			client = null;
 		}
-	}
-
-	@Override
-	public boolean isRunning() {
-		return client != null;
 	}
 
 	// ------------------------------------------------------------------------
@@ -178,49 +169,29 @@ public class RemoteExecutor extends PlanExecutor {
 
 	@Override
 	public JobExecutionResult executePlan(Plan plan) throws Exception {
-		if (plan == null) {
-			throw new IllegalArgumentException("The plan may not be null.");
-		}
+		checkNotNull(plan);
 
 		JobWithJars p = new JobWithJars(plan, this.jarFiles, this.globalClasspaths);
 		return executePlanWithJars(p);
 	}
 
-	public JobExecutionResult executePlanWithJars(JobWithJars program) throws Exception {
-		if (program == null) {
-			throw new IllegalArgumentException("The job may not be null.");
-		}
+	private JobExecutionResult executePlanWithJars(JobWithJars program) throws Exception {
+		checkNotNull(program);
 
 		synchronized (this.lock) {
-			// check if we start a session dedicated for this execution
-			final boolean shutDownAtEnd;
-
-			if (client == null) {
-				shutDownAtEnd = true;
-				// start the executor for us
-				start();
-			}
-			else {
-				// we use the existing session
-				shutDownAtEnd = false;
-			}
-
 			try {
+				start();
 				return client.run(program, defaultParallelism).getJobExecutionResult();
-			}
-			finally {
-				if (shutDownAtEnd) {
-					stop();
-				}
+			} finally {
+				stop();
 			}
 		}
 	}
 
 	@Override
-	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
+	public String getOptimizerPlanAsJSON(Plan plan) {
 		Optimizer opt = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), new Configuration());
 		OptimizedPlan optPlan = opt.compile(plan);
 		return new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(optPlan);
 	}
-
 }

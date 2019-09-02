@@ -56,11 +56,10 @@ public class LocalExecutorITCase extends TestLogger {
 			LocalExecutor executor = new LocalExecutor();
 			executor.setDefaultOverwriteFiles(true);
 			executor.setTaskManagerNumSlots(parallelism);
-			executor.start();
+
 			Plan wcPlan = getWordCountPlan(inFile, outFile, parallelism);
 			wcPlan.setExecutionConfig(new ExecutionConfig());
 			executor.executePlan(wcPlan);
-			executor.stop();
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());

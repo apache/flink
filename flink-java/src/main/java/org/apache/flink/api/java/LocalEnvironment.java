@@ -77,16 +77,8 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		final Plan p = createProgramPlan(jobName);
 
 		// TODO: 31.08.19 make the executor autocloseable
-		PlanExecutor executor = null;
-		try {
-			executor = PlanExecutor.createLocalExecutor(configuration);
-			executor.start();
-			lastJobExecutionResult = executor.executePlan(p);
-		} finally {
-			if (executor != null) {
-				executor.stop();
-			}
-		}
+		final PlanExecutor executor = PlanExecutor.createLocalExecutor(configuration);
+		lastJobExecutionResult = executor.executePlan(p);
 		return lastJobExecutionResult;
 	}
 

@@ -41,6 +41,9 @@ import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * A PlanExecutor that runs Flink programs on a local embedded Flink runtime instance.
  *
@@ -77,11 +80,11 @@ public class LocalExecutor extends PlanExecutor {
 	// ------------------------------------------------------------------------
 
 	public LocalExecutor() {
-		this(null);
+		this(new Configuration());
 	}
 
 	public LocalExecutor(Configuration conf) {
-		this.baseConfiguration = conf != null ? conf : new Configuration();
+		this.baseConfiguration = checkNotNull(conf);
 	}
 
 	// ------------------------------------------------------------------------
@@ -106,19 +109,13 @@ public class LocalExecutor extends PlanExecutor {
 
 	// --------------------------------------------------------------------------------------------
 
-	@Override
-	public void start() throws Exception {
-		synchronized (lock) {
-			if (jobExecutorService == null) {
-				// create the embedded runtime
-				jobExecutorServiceConfiguration = createConfiguration();
+	private void start() throws Exception {
+		Thread.holdsLock(lock);
+		checkState(jobExecutorService == null);
 
-				// start it up
-				jobExecutorService = createJobExecutorService(jobExecutorServiceConfiguration);
-			} else {
-				throw new IllegalStateException("The local executor was already started.");
-			}
-		}
+		// start the embedded runtime
+		jobExecutorServiceConfiguration = createConfiguration();
+		jobExecutorService = createJobExecutorService(jobExecutorServiceConfiguration);
 	}
 
 	private JobExecutorService createJobExecutorService(Configuration configuration) throws Exception {
@@ -146,20 +143,11 @@ public class LocalExecutor extends PlanExecutor {
 		return miniCluster;
 	}
 
-	@Override
-	public void stop() throws Exception {
-		synchronized (lock) {
-			if (jobExecutorService != null) {
-				jobExecutorService.close();
-				jobExecutorService = null;
-			}
-		}
-	}
-
-	@Override
-	public boolean isRunning() {
-		synchronized (lock) {
-			return jobExecutorService != null;
+	private void stop() throws Exception {
+		Thread.holdsLock(lock);
+		if (jobExecutorService != null) {
+			jobExecutorService.close();
+			jobExecutorService = null;
 		}
 	}
 
@@ -178,38 +166,13 @@ public class LocalExecutor extends PlanExecutor {
 	 */
 	@Override
 	public JobExecutionResult executePlan(Plan plan) throws Exception {
-		if (plan == null) {
-			throw new IllegalArgumentException("The plan may not be null.");
-		}
-
-		stop();
-
-		// configure the number of local slots equal to the parallelism of the local plan
-		if (this.taskManagerNumSlots == DEFAULT_TASK_MANAGER_NUM_SLOTS) {
-			int maxParallelism = plan.getMaximumParallelism();
-			if (maxParallelism > 0) {
-				this.taskManagerNumSlots = maxParallelism;
-			}
-		}
-		start();
+		checkNotNull(plan);
 
 		synchronized (this.lock) {
-
-			// check if we start a session dedicated for this execution
-			final boolean shutDownAtEnd;
-
-			if (jobExecutorService == null) {
-				shutDownAtEnd = true;
-
-				// start the cluster for us
-				start();
-			}
-			else {
-				// we use the existing session
-				shutDownAtEnd = false;
-			}
-
 			try {
+				configureNoOfLocalSlots(plan);
+				start();
+
 				// TODO: Set job's default parallelism to max number of slots
 				final int slotsPerTaskManager = jobExecutorServiceConfiguration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, taskManagerNumSlots);
 				final int numTaskManagers = jobExecutorServiceConfiguration.getInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
@@ -222,11 +185,17 @@ public class LocalExecutor extends PlanExecutor {
 				JobGraph jobGraph = jgg.compileJobGraph(op, plan.getJobId());
 
 				return jobExecutorService.executeJobBlocking(jobGraph);
+			} finally {
+				stop();
 			}
-			finally {
-				if (shutDownAtEnd) {
-					stop();
-				}
+		}
+	}
+
+	private void configureNoOfLocalSlots(final Plan plan) {
+		if (this.taskManagerNumSlots == DEFAULT_TASK_MANAGER_NUM_SLOTS) {
+			int maxParallelism = plan.getMaximumParallelism();
+			if (maxParallelism > 0) {
+				this.taskManagerNumSlots = maxParallelism;
 			}
 		}
 	}
@@ -236,10 +205,9 @@ public class LocalExecutor extends PlanExecutor {
 	 *
 	 * @param plan The dataflow plan.
 	 * @return The dataflow's execution plan, as a JSON string.
-	 * @throws Exception Thrown, if the optimization process that creates the execution plan failed.
 	 */
 	@Override
-	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
+	public String getOptimizerPlanAsJSON(Plan plan) {
 		final int parallelism = plan.getDefaultParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? 1 : plan.getDefaultParallelism();
 
 		Optimizer pc = new Optimizer(new DataStatistics(), this.baseConfiguration);
