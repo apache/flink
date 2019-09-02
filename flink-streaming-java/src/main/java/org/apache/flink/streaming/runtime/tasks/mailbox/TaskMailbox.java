@@ -72,6 +72,13 @@ public interface TaskMailbox {
 	State getState();
 
 	/**
+	 * Returns a mailbox view bound to all mails.
+	 *
+	 * @return the mailbox
+	 */
+	Mailbox getMainMailbox();
+
+	/**
 	 * Returns a mailbox view bound to the given priority.
 	 *
 	 * <p>Enqueuing letters (e.g., {@link Mailbox#putMail(Runnable)} and {@link Mailbox#putFirst(Runnable)}) will mark these letters
