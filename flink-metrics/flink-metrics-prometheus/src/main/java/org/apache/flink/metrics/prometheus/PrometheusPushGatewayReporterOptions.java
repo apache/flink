@@ -69,8 +69,8 @@ public class PrometheusPushGatewayReporterOptions {
 		.defaultValue("")
 			.withDescription(Description.builder()
 				.text("Specifies the grouping key which is the group and global labels of all metrics." +
-					" The label name and value is separated with '=', and labels are separated with ';', e.g. k1=v1;k2=v2." +
-					" Please ensure that your grouping key meet the %s.",
-					LinkElement.link("https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels", "Prometheus metric labels requirements"))
+					" The label name and value are separated with '=', and labels are separated by ';', e.g., k1=v1;k2=v2." +
+					" Please ensure that your grouping key meets the %s.",
+					LinkElement.link("https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels", "Prometheus requirements"))
 					.build());
 }

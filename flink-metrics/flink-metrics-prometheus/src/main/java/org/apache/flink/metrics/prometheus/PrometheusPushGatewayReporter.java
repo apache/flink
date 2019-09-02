@@ -24,11 +24,13 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.util.AbstractID;
+import org.apache.flink.util.StringUtils;
 
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.PushGateway;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -83,15 +85,22 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
 			for (String kv : kvs) {
 				int idx = kv.indexOf("=");
 				if (idx < 0) {
-					log.warn("Invalid prometheusPushGateway groupingKey {}, will be ignored", kv);
+					log.warn("Invalid prometheusPushGateway groupingKey:{}, will be ignored", kv);
 					continue;
 				}
-				groupingKey.put(kv.substring(0, idx), kv.substring(idx + 1));
+
+				String labelKey = kv.substring(0, idx);
+				String labelValue = kv.substring(idx + 1);
+				if (StringUtils.isNullOrWhitespaceOnly(labelKey) || StringUtils.isNullOrWhitespaceOnly(labelValue)) {
+					log.warn("Invalid groupingKey {labelKey:{}, labelValue:{}} will be ignored", labelKey, labelValue);
+					continue;
+				}
+				groupingKey.put(labelKey, labelValue);
 			}
 
 			return groupingKey;
 		}
-		return null;
+		return Collections.emptyMap();
 	}
 
 	@Override
