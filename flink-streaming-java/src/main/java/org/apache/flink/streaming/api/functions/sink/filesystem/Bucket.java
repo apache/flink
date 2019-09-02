@@ -146,10 +146,6 @@ public class Bucket<IN, BucketID> {
 
 			fsWriter.recoverForCommit(resumable).commitAfterRecovery();
 		}
-
-		if (fsWriter.requiresCleanupOfRecoverableState()) {
-			fsWriter.cleanupRecoverableState(resumable);
-		}
 	}
 
 	private void commitRecoveredPendingFiles(final BucketState<BucketID> state) throws IOException {
@@ -312,12 +308,19 @@ public class Bucket<IN, BucketID> {
 
 		while (it.hasNext()) {
 			final ResumeRecoverable recoverable = it.next().getValue();
-			final boolean successfullyDeleted = fsWriter.cleanupRecoverableState(recoverable);
-			it.remove();
 
-			if (LOG.isDebugEnabled() && successfullyDeleted) {
-				LOG.debug("Subtask {} successfully deleted incomplete part for bucket id={}.", subtaskIndex, bucketId);
+			// this check is redundant, as we only put entries in the resumablesPerCheckpoint map
+			// list when the requiresCleanupOfRecoverableState() returns true, but having it makes
+			// the code more readable.
+
+			if (fsWriter.requiresCleanupOfRecoverableState()) {
+				final boolean successfullyDeleted = fsWriter.cleanupRecoverableState(recoverable);
+
+				if (LOG.isDebugEnabled() && successfullyDeleted) {
+					LOG.debug("Subtask {} successfully deleted incomplete part for bucket id={}.", subtaskIndex, bucketId);
+				}
 			}
+			it.remove();
 		}
 	}
 
