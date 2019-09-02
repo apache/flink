@@ -324,7 +324,9 @@ FilterableTableSource[T] {
 
 {% top %}
 
-### Defining a TableSource with Lookupable
+### Defining a TableSource for Lookups
+
+<span class="label label-danger">Attention</span> This is an experimental feature. The interface may be changed in future versions. It's only supported in Blink planner.
 
 The `LookupableTableSource` interface adds support for the table to be accessed via key column(s) in a lookup fashion. This is very useful when used to join with a dimension table to enrich some information. If you want to use the `TableSource` in lookup mode, you should use the source in [temporal table join syntax](streaming/joins.html).
 

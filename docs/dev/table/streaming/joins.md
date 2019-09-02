@@ -225,10 +225,10 @@ lower or equal timestamp is expected.
 Join with a Temporal Table
 --------------------------
 
-**Notes:** This is only supported in blink planner.
+A join with a temporal table joins an arbitrary table (left input/probe side) with a temporal table (right input/build side),
+i.e., an external dimension table that changes over time. Please check the corresponding page for more information about [temporal tables](temporal_tables.html#temporal-table).
 
-A join with a temporal table joins an append/upsert/retract stream (left input/probe side) with a temporal table (right input/build side),
-e.g., an external dimension table that changes over time. Please check the corresponding page for more information about [temporal tables](temporal_tables.html#temporal-table).
+<span class="label label-danger">Attention</span> Users can not use arbitrary tables as a temporal table, but need to use a table backed by a `LookupableTableSource`. A `LookupableTableSource` can only be used for temporal join as a temporal table. See the page for more details about [how to define LookupableTableSource](../sourceSinks.html#defining-a-tablesource-with-lookupable).
 
 The following example shows an `Orders` stream that should be joined with the continuously changing currency rates table `LatestRates`.
 
@@ -300,7 +300,7 @@ FROM
   ON r.currency = o.currency
 {% endhighlight %}
 
-Each record from the probe side will be joined with the current version of the build side table. In our example, the query is using the processing-time notion, so a newly appended order would always be joined with the most recent version of `LatestRates` when executing the operation.
+Each record from the probe side will be joined with the current version of the build side table. In our example, the query is using the processing-time notion, so a newly appended order would always be joined with the most recent version of `LatestRates` when executing the operation. Note that the result is not deterministic for processing-time.
 
 In contrast to [regular joins](#regular-joins), the previous results of the temporal table join will not be affected despite the changes on the build side. Also, the temporal table join operator is very lightweight and does not keep any state.
 
@@ -345,8 +345,10 @@ FROM
 </div>
 </div>
 
-**Note**:
-1. Flink only supports temporal table joins in SQL, and does not support temporal table joins in Table API currently.
-2. Flink does not support event time temporal table joins currently.
+<span class="label label-danger">Attention</span> It is only supported in Blink planner.
+
+<span class="label label-danger">Attention</span> It is only supported in SQL, and not supported in Table API yet.
+
+<span class="label label-danger">Attention</span> Flink does not support event time temporal table joins currently.
 
 {% top %}
