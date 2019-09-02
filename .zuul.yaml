@@ -13,27 +13,58 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# NOTE: periodic-20 pipeline means the jobs will be ran at UTC2000 everyday.
 - project:
     name: apache/flink
-    check:
+    periodic-20:
       jobs:
         - flink-build-and-test-arm64-core
         - flink-build-and-test-arm64-tests
+        - flink-end-to-end-test-checkpoints-and-sticky
+        - flink-end-to-end-test-heavy-and-ha
+        - flink-end-to-end-test-misc-hadoopfree-and-misc
 
 - job:
     name: flink-build-and-test-arm64-core
     parent: init-test
     description: |
-      The flink-core build on ARM.
-    run: tools/openlab/build_core.yaml
+      The flink-core build and test on ARM.
+    run: tools/openlab/build_and_test_core.yaml
     nodeset: ubuntu-xenial-arm64
-    voting: false
+    branches: master
 
 - job:
     name: flink-build-and-test-arm64-tests
     parent: init-test
     description: |
-      The flink-test build on ARM.
-    run: tools/openlab/build_test.yaml
+      The flink-tests build and test on ARM.
+    run: tools/openlab/build_and_test_tests.yaml
     nodeset: ubuntu-xenial-arm64
-    voting: false
+    branches: master
+
+- job:
+    name: flink-end-to-end-test-checkpoints-and-sticky
+    parent: init-test
+    description: |
+      The flink end to end test for checkpoints and sticky on ARM.
+    run: tools/openlab/e2e_checkpoints_and_sticky.yaml
+    nodeset: ubuntu-xenial-arm64
+    branches: master
+
+- job:
+    name: flink-end-to-end-test-heavy-and-ha
+    parent: init-test
+    description: |
+      The flink end to end test for heavy and ha on ARM.
+    run: tools/openlab/e2e_heavy_and_ha.yaml
+    nodeset: ubuntu-xenial-arm64
+    branches: master
+
+- job:
+    name: flink-end-to-end-test-misc-hadoopfree-and-misc
+    parent: init-test
+    description: |
+      The flink end to end test for misc-hadoopfree and misc on ARM.
+    run: tools/openlab/e2e_misc_hadoopfree_and_misc.yaml
+    nodeset: ubuntu-xenial-arm64
+    branches: master

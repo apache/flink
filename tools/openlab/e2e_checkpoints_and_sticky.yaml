@@ -1,0 +1,74 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+- import_playbook: common.yaml
+
+- hosts: all
+  become: yes
+  tasks:
+    # Todo(wxy): Frocksdb doesn't have ARM release. Build and install it locally currently.
+    - name: Build and install frocksdb
+      shell:
+        cmd: |
+          git clone https://github.com/dataArtisans/frocksdb.git
+          cd frocksdb
+          git checkout origin/FRocksDB-5.17.2
+          apt update
+          apt install -y gcc g++ make
+          export DEBUG_LEVEL=0
+          make -j8 rocksdbjava
+
+          mvn install:install-file -DgroupId=com.data-artisans \
+          -DartifactId=frocksdbjni -Dversion=5.17.2-artisans-1.0 \
+          -Dpackaging=jar -Dfile=java/target/rocksdbjni-5.17.2-linux64.jar
+      args:
+        executable: /bin/bash
+        chdir: '{{ zuul.project.src_dir }}'
+      environment: '{{ global_env }}'
+
+    # Todo(wxy): Docker-compose doesn't have ARM package on ARM. Should fix this in Flink.
+    # See: https://github.com/apache/flink/pull/9782
+    - name: Comment out docker installation
+      lineinfile:
+        path: "/home/zuul/src/github.com/apache/flink/tools/travis/nightly.sh"
+        regexp: "^.*setup_docker.sh"
+        line: "# source ${HERE}/setup_docker.sh"
+
+    # Todo(wxy):minikube doesn't support ARM . Should fix this in Flink.
+    # See: https://github.com/apache/flink/pull/9782
+    - name: Comment out k8s installation
+      lineinfile:
+        path: "/home/zuul/src/github.com/apache/flink/tools/travis/nightly.sh"
+        regexp: "^.*setup_kubernetes.sh"
+        line: "# source ${HERE}/setup_kubernetes.sh"
+
+    - name: Run split_checkpoints.sh e2e test
+      shell:
+        cmd: |
+          set -xo pipefail
+          ./tools/travis/nightly.sh split_checkpoints.sh
+      args:
+        executable: /bin/bash
+        chdir: '{{ zuul.project.src_dir }}'
+      environment: '{{ global_env }}'
+
+    - name: Run split_sticky.sh e2e test
+      shell:
+        cmd: |
+          set -xo pipefail
+          ./tools/travis/nightly.sh split_sticky.sh
+      args:
+        executable: /bin/bash
+        chdir: '{{ zuul.project.src_dir }}'
+      environment: '{{ global_env }}'

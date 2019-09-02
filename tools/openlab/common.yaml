@@ -22,22 +22,6 @@
       scala_version: '2.11.0'
     - role: install-maven
       maven_version: '3.2.5'
-
-- hosts: all
-  become: no
   tasks:
-    - name: Build Flink
-      shell:
-        cmd: |
-          set -xe
-
-          mvn clean install -nsu -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 \
-          -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B -DskipTests -Dhadoop.version=2.8.3 \
-          -Pinclude-kinesis -Dinclude_hadoop_aws -Dscala-2.11 -am -pl flink-annotations,\
-          flink-test-utils-parent/flink-test-utils,flink-state-backends/flink-statebackend-rocksdb,flink-clients,\
-          flink-core,flink-java,flink-optimizer,flink-runtime,flink-runtime-web,flink-scala,flink-streaming-java,\
-          flink-streaming-scala,flink-metrics,flink-metrics/flink-metrics-core,flink-scala-shell
-      args:
-        executable: /bin/bash
-        chdir: '{{ zuul.project.src_dir }}'
-      environment: '{{ global_env }}'
+    - name: clean up iptable rules
+      shell: iptables -F
