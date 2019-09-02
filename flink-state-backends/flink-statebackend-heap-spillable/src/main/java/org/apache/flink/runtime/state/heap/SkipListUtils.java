@@ -100,8 +100,9 @@ public class SkipListUtils {
 	 * @param byteBuffer byte buffer for key space.
 	 * @param offset offset of key space in the byte buffer.
 	 */
-	public static byte getNodeStatus(ByteBuffer byteBuffer, int offset) {
-		return (byte) ((ByteBufferUtils.toInt(byteBuffer, offset + KEY_META_OFFSET) >>> 8) & BYTE_MASK);
+	public static NodeStatus getNodeStatus(ByteBuffer byteBuffer, int offset) {
+		byte status = (byte) ((ByteBufferUtils.toInt(byteBuffer, offset + KEY_META_OFFSET) >>> 8) & BYTE_MASK);
+		return NodeStatus.valueOf(status);
 	}
 
 	/**
@@ -112,8 +113,8 @@ public class SkipListUtils {
 	 * @param level the level.
 	 * @param status the status.
 	 */
-	public static void putLevelAndNodeStatus(ByteBuffer byteBuffer, int offset, int level, byte status) {
-		int data = ((status & BYTE_MASK) << 8) | level;
+	public static void putLevelAndNodeStatus(ByteBuffer byteBuffer, int offset, int level, NodeStatus status) {
+		int data = ((status.getValue() & BYTE_MASK) << 8) | level;
 		ByteBufferUtils.putInt(byteBuffer, offset + SkipListUtils.KEY_META_OFFSET, data);
 	}
 
@@ -208,7 +209,8 @@ public class SkipListUtils {
 	 *
 	 * @param byteBuffer byte buffer for key space.
 	 * @param offset offset of key space in the byte buffer.
-	 * @param level level of index.
+	 * @param totalLevel the level of the node.
+	 * @param level on which level to get the previous key pointer of the node.
 	 */
 	public static long getPrevIndexNode(ByteBuffer byteBuffer, int offset, int totalLevel, int level) {
 		int of = offset + INDEX_NEXT_OFFSET_BY_LEVEL_ARRAY[totalLevel] + level * Long.BYTES;
@@ -513,7 +515,7 @@ public class SkipListUtils {
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
 		ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
 		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
-		return getNodeStatus(bb, offsetInByteBuffer) == NodeStatus.REMOVE.getValue();
+		return getNodeStatus(bb, offsetInByteBuffer) == NodeStatus.REMOVE;
 	}
 
 	/**
@@ -606,7 +608,6 @@ public class SkipListUtils {
 			nextNode = helpGetNextNode(currentNode, currentLevel, levelIndexHeader, spaceAllocator);
 		}
 	}
-
 
 	/**
 	 * Returns the next value pointer of the value.
@@ -777,21 +778,4 @@ public class SkipListUtils {
 		return helpGetValueVersion(valuePointer, spaceAllocator);
 	}
 
-	/**
-	 * Status of the node.
-	 */
-	public enum NodeStatus {
-
-		PUT((byte) 0), REMOVE((byte) 1);
-
-		private byte value;
-
-		NodeStatus(byte value) {
-			this.value = value;
-		}
-
-		public byte getValue() {
-			return value;
-		}
-	}
 }

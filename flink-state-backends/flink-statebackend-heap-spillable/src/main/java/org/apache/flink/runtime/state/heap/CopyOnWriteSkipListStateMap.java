@@ -192,6 +192,8 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 		this.logicalRemovedKeysRatio = logicalRemovedKeysRatio;
 
 		this.levelIndexHeader = new OnHeapLevelIndexHeader();
+		// Refers to JDK implementation of Xor-shift random number generator, 0x0100 is to ensure non-zero seed.
+		// See https://github.com/openjdk-mirror/jdk7u-jdk/blob/master/src/share/classes/java/util/concurrent/ConcurrentSkipListMap.java#L373
 		this.randomSeed = ThreadLocalRandom.current().nextInt() | 0x0100;
 
 		this.stateMapVersion = 0;
@@ -414,8 +416,8 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 						oldValuePointer = updateValueWithReplace(currentNode, value);
 					}
 
-					byte oldStatus = helpSetNodeStatus(currentNode, SkipListUtils.NodeStatus.PUT.getValue());
-					if (oldStatus == SkipListUtils.NodeStatus.REMOVE.getValue()) {
+					NodeStatus oldStatus = helpSetNodeStatus(currentNode, NodeStatus.PUT);
+					if (oldStatus == NodeStatus.REMOVE) {
 						logicallyRemovedNodes.remove(currentNode);
 					}
 
@@ -533,7 +535,7 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 					oldValueNeedFree = true;
 				}
 
-				helpSetNodeStatus(currentNode, SkipListUtils.NodeStatus.REMOVE.getValue());
+				helpSetNodeStatus(currentNode, NodeStatus.REMOVE);
 				logicallyRemovedNodes.add(currentNode);
 			}
 
@@ -761,7 +763,7 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 		ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
 		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
 
-		SkipListUtils.putLevelAndNodeStatus(bb, offsetInByteBuffer, level, SkipListUtils.NodeStatus.PUT.getValue());
+		SkipListUtils.putLevelAndNodeStatus(bb, offsetInByteBuffer, level, NodeStatus.PUT);
 		SkipListUtils.putKeyLen(bb, offsetInByteBuffer, keyLen);
 		SkipListUtils.putValuePointer(bb, offsetInByteBuffer, valuePointer);
 		SkipListUtils.putNextKeyPointer(bb, offsetInByteBuffer, nextNode);
@@ -1045,12 +1047,12 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 	/**
 	 * Set node status to the given new status, and return old status.
 	 */
-	private byte helpSetNodeStatus(long node, byte newStatus) {
+	private NodeStatus helpSetNodeStatus(long node, NodeStatus newStatus) {
 		Chunk chunk = this.spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
 		ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
 		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
-		byte oldStatus = SkipListUtils.getNodeStatus(bb, offsetInByteBuffer);
+		NodeStatus oldStatus = SkipListUtils.getNodeStatus(bb, offsetInByteBuffer);
 		if (oldStatus != newStatus) {
 			int level = SkipListUtils.getLevel(bb, offsetInByteBuffer);
 			SkipListUtils.putLevelAndNodeStatus(bb, offsetInByteBuffer, level, newStatus);

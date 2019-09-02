@@ -32,6 +32,9 @@ import java.nio.ByteBuffer;
 /**
  * Serializer/deserializer used for conversion between key/namespace and skip list key.
  * It is not thread safe.
+ *
+ * @param <K> The type of the key.
+ * @param <N> The type of the namespace.
  */
 class SkipListKeySerializer<K, N> {
 

@@ -30,6 +30,8 @@ import java.nio.ByteBuffer;
 /**
  * Serializer/deserializer used for conversion between state and skip list value.
  * It is not thread safe.
+ *
+ * @param <S> type of state.
  */
 class SkipListValueSerializer<S> {
 

@@ -68,7 +68,7 @@ public class SkipListUtilsTest extends TestLogger {
 		ThreadLocalRandom random = ThreadLocalRandom.current();
 		KeySpace keySpace = new KeySpace();
 		keySpace.level = level;
-		keySpace.status = random.nextBoolean() ? SkipListUtils.NodeStatus.PUT : SkipListUtils.NodeStatus.REMOVE;
+		keySpace.status = random.nextBoolean() ? NodeStatus.PUT : NodeStatus.REMOVE;
 		keySpace.valuePointer = random.nextLong();
 		keySpace.nextKeyPointer = random.nextLong();
 		keySpace.nextIndexNodes = new long[level];
@@ -83,7 +83,7 @@ public class SkipListUtilsTest extends TestLogger {
 	}
 
 	private void putKeySpace(KeySpace keySpace, ByteBuffer byteBuffer, int offset) {
-		SkipListUtils.putLevelAndNodeStatus(byteBuffer, offset, keySpace.level, keySpace.status.getValue());
+		SkipListUtils.putLevelAndNodeStatus(byteBuffer, offset, keySpace.level, keySpace.status);
 		SkipListUtils.putKeyLen(byteBuffer, offset, keySpace.keyData.length);
 		SkipListUtils.putValuePointer(byteBuffer, offset, keySpace.valuePointer);
 		SkipListUtils.putNextKeyPointer(byteBuffer, offset, keySpace.nextKeyPointer);
@@ -99,7 +99,7 @@ public class SkipListUtilsTest extends TestLogger {
 
 	private void verifyGetKeySpace(KeySpace keySpace, ByteBuffer byteBuffer, int offset) {
 		assertEquals(keySpace.level, SkipListUtils.getLevel(byteBuffer, offset));
-		assertEquals(keySpace.status.getValue(), SkipListUtils.getNodeStatus(byteBuffer, offset));
+		assertEquals(keySpace.status, SkipListUtils.getNodeStatus(byteBuffer, offset));
 		assertEquals(keySpace.keyData.length, SkipListUtils.getKeyLen(byteBuffer, offset));
 		assertEquals(keySpace.valuePointer, SkipListUtils.getValuePointer(byteBuffer, offset));
 		assertEquals(keySpace.nextKeyPointer, SkipListUtils.getNextKeyPointer(byteBuffer, offset));
@@ -149,7 +149,7 @@ public class SkipListUtilsTest extends TestLogger {
 	 */
 	static class KeySpace {
 		int level;
-		SkipListUtils.NodeStatus status;
+		NodeStatus status;
 		long valuePointer;
 		long nextKeyPointer;
 		long[] nextIndexNodes;
