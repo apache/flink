@@ -159,4 +159,13 @@ public class ExecutionConfigTest extends TestLogger {
 
 		assertNotNull(config.getGlobalJobParameters());
 	}
+
+	@Test
+	public void testGlobalParametersHashCode() {
+		ExecutionConfig config = new ExecutionConfig();
+		ExecutionConfig anotherConfig = new ExecutionConfig();
+
+		assertEquals(config.getGlobalJobParameters().hashCode(),
+			anotherConfig.getGlobalJobParameters().hashCode());
+	}
 }
