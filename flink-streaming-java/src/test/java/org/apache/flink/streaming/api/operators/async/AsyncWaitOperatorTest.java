@@ -252,7 +252,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			EmitterBlockingFunction.lock = lock;
 		}
 
-		@Override public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) throws Exception {
+		@Override
+		public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) throws Exception {
 			assertTrue(Thread.currentThread().holdsLock(lock));
 
 			outputLatch.trigger();
@@ -484,8 +485,10 @@ public class AsyncWaitOperatorTest extends TestLogger {
 				new StreamRecordComparator());
 	}
 
-	private JobVertex createChainedVertex(AsyncFunction<Integer, Integer> firstFunction,
+	private JobVertex createChainedVertex(
+			AsyncFunction<Integer, Integer> firstFunction,
 			AsyncFunction<Integer, Integer> secondFunction) {
+
 		StreamExecutionEnvironment chainEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 
 		// set parallelism to 2 to avoid chaining with source in case when available processors is 1.
@@ -677,7 +680,8 @@ public class AsyncWaitOperatorTest extends TestLogger {
 			new StreamRecord<>(2, 5L));
 	}
 
-	private void testAsyncTimeout(LazyAsyncFunction lazyAsyncFunction,
+	private void testAsyncTimeout(
+			LazyAsyncFunction lazyAsyncFunction,
 			Optional<Class<? extends Throwable>> expectedException,
 			StreamRecord<Integer>... expectedRecords) throws Exception {
 		final long timeout = 10L;
