@@ -247,6 +247,11 @@ public class TaskMailboxImpl implements TaskMailbox {
 	}
 
 	@Override
+	public Mailbox getMainMailbox() {
+		return new DownstreamMailbox(TaskMailbox.MIN_PRIORITY);
+	}
+
+	@Override
 	public Mailbox getDownstreamMailbox(int priority) {
 		Preconditions.checkArgument(priority >= 0, "The priority of a downstream mailbox should be non-negative");
 		return new DownstreamMailbox(priority);
