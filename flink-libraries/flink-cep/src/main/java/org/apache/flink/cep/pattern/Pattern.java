@@ -18,7 +18,6 @@
 
 package org.apache.flink.cep.pattern;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
@@ -156,7 +155,7 @@ public class Pattern<T, F extends T> {
 	public Pattern<T, F> where(IterativeCondition<F> condition) {
 		Preconditions.checkNotNull(condition, "The condition cannot be null.");
 
-		ClosureCleaner.clean(condition, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(condition, true);
 		if (this.condition == null) {
 			this.condition = condition;
 		} else {
@@ -178,7 +177,7 @@ public class Pattern<T, F extends T> {
 	public Pattern<T, F> or(IterativeCondition<F> condition) {
 		Preconditions.checkNotNull(condition, "The condition cannot be null.");
 
-		ClosureCleaner.clean(condition, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(condition, true);
 
 		if (this.condition == null) {
 			this.condition = condition;
@@ -228,7 +227,7 @@ public class Pattern<T, F extends T> {
 			throw new MalformedPatternException("The until condition is only applicable to looping states.");
 		}
 
-		ClosureCleaner.clean(untilCondition, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(untilCondition, true);
 		this.untilCondition = untilCondition;
 
 		return this;

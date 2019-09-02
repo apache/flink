@@ -54,7 +54,7 @@ public class ClosureCleanerTest {
 		MapCreator creator = new NonSerializableMapCreator();
 		MapFunction<Integer, Integer> map = creator.getMap();
 
-		ClosureCleaner.clean(map, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(map, true);
 
 		int result = map.map(3);
 		Assert.assertEquals(result, 4);
@@ -65,7 +65,7 @@ public class ClosureCleanerTest {
 		MapCreator creator = new SerializableMapCreator(1);
 		MapFunction<Integer, Integer> map = creator.getMap();
 
-		ClosureCleaner.clean(map, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(map, true);
 
 		int result = map.map(3);
 		Assert.assertEquals(result, 4);
@@ -76,7 +76,7 @@ public class ClosureCleanerTest {
 		MapCreator creator = new NestedSerializableMapCreator(1);
 		MapFunction<Integer, Integer> map = creator.getMap();
 
-		ClosureCleaner.clean(map, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(map, true);
 
 		ClosureCleaner.ensureSerializable(map);
 
@@ -89,7 +89,7 @@ public class ClosureCleanerTest {
 		MapCreator creator = new NestedNonSerializableMapCreator(1);
 		MapFunction<Integer, Integer> map = creator.getMap();
 
-		ClosureCleaner.clean(map, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(map, true);
 
 		ClosureCleaner.ensureSerializable(map);
 
@@ -104,7 +104,7 @@ public class ClosureCleanerTest {
 
 		WrapperMapFunction wrapped = new WrapperMapFunction(notCleanedMap);
 
-		ClosureCleaner.clean(wrapped, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(wrapped, true);
 
 		ClosureCleaner.ensureSerializable(wrapped);
 
@@ -116,7 +116,7 @@ public class ClosureCleanerTest {
 	public void testComplexTopLevelClassClean() throws Exception {
 		MapFunction<Integer, Integer> complexMap = new ComplexMap((MapFunction<Integer, Integer>) value -> value + 1);
 
-		ClosureCleaner.clean(complexMap, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(complexMap, true);
 
 		int result = complexMap.map(3);
 
@@ -127,7 +127,7 @@ public class ClosureCleanerTest {
 	public void testComplexInnerClassClean() throws Exception {
 		MapFunction<Integer, Integer> complexMap = new InnerComplexMap((MapFunction<Integer, Integer>) value -> value + 1);
 
-		ClosureCleaner.clean(complexMap, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(complexMap, true);
 
 		int result = complexMap.map(3);
 
@@ -137,7 +137,7 @@ public class ClosureCleanerTest {
 	@Test
 	public void testSelfReferencingClean() {
 		final NestedSelfReferencing selfReferencing = new NestedSelfReferencing();
-		ClosureCleaner.clean(selfReferencing, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(selfReferencing, true);
 	}
 
 	class InnerCustomMap implements MapFunction<Integer, Integer> {
@@ -191,7 +191,7 @@ public class ClosureCleanerTest {
 
 		MapFunction<Integer, Integer> wrappedMap = new WrapperMapFunction(nestedMap);
 
-		ClosureCleaner.clean(wrappedMap, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(wrappedMap, true);
 
 		ClosureCleaner.ensureSerializable(wrappedMap);
 	}
@@ -204,7 +204,7 @@ public class ClosureCleanerTest {
 
 		Tuple1<MapFunction<Integer, Integer>> tuple = new Tuple1<>(wrappedMap);
 
-		ClosureCleaner.clean(tuple, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(tuple, true);
 
 		ClosureCleaner.ensureSerializable(tuple);
 	}
@@ -213,7 +213,7 @@ public class ClosureCleanerTest {
 	public void testRecursiveClass() {
 		RecursiveClass recursiveClass = new RecursiveClass(new RecursiveClass());
 
-		ClosureCleaner.clean(recursiveClass, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(recursiveClass, true);
 
 		ClosureCleaner.ensureSerializable(recursiveClass);
 	}
@@ -230,7 +230,7 @@ public class ClosureCleanerTest {
 	public void testWriteReplaceRecursive() {
 		WithWriteReplace writeReplace = new WithWriteReplace(new WithWriteReplace.Payload("text"));
 		Assert.assertEquals("text", writeReplace.getPayload().getRaw());
-		ClosureCleaner.clean(writeReplace, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(writeReplace, true);
 	}
 }
 

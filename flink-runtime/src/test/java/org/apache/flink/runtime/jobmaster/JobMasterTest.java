@@ -1636,7 +1636,7 @@ public class JobMasterTest extends TestLogger {
 
 			AggregateFunction<Integer, Integer, Integer> aggregateFunction = createAggregateFunction();
 
-			ClosureCleaner.clean(aggregateFunction, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+			ClosureCleaner.clean(aggregateFunction, true);
 			byte[] serializedAggregateFunction = InstantiationUtil.serializeObject(aggregateFunction);
 
 			updateAggregateFuture = jobMasterGateway.updateGlobalAggregate("agg1", 1, serializedAggregateFunction);

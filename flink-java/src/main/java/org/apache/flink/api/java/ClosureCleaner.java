@@ -53,6 +53,26 @@ public class ClosureCleaner {
 	private static final Logger LOG = LoggerFactory.getLogger(ClosureCleaner.class);
 
 	/**
+	 * Tries to clean the closure of the given object, if the object is a non-static inner class.
+	 * This will use the default closure cleaner level of {@link ExecutionConfig.ClosureCleanerLevel#RECURSIVE}.
+	 *
+	 * @param func The object whose closure should be cleaned.
+	 * @param checkSerializable Flag to indicate whether serializability should be checked after
+	 * 		the closure cleaning attempt.
+	 * @throws InvalidProgramException Thrown, if 'checkSerializable' is true, and the object was
+	 * 		not serializable after the closure cleaning.
+	 * @throws RuntimeException A RuntimeException may be thrown, if the code of the class could
+	 * 		not be loaded, in order to process during the closure cleaning.
+	 */
+	public static void clean(Object func, boolean checkSerializable) {
+		clean(
+				func,
+				ExecutionConfig.ClosureCleanerLevel.RECURSIVE,
+				checkSerializable,
+				Collections.newSetFromMap(new IdentityHashMap<>()));
+	}
+
+	/**
 	 * Tries to clean the closure of the given object, if the object is a non-static inner
 	 * class.
 	 *

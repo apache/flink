@@ -19,7 +19,6 @@ package org.apache.flink.streaming.connectors.kinesis;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.state.ListState;
@@ -239,7 +238,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	 */
 	public void setShardAssigner(KinesisShardAssigner shardAssigner) {
 		this.shardAssigner = checkNotNull(shardAssigner, "function can not be null");
-		ClosureCleaner.clean(shardAssigner, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(shardAssigner, true);
 	}
 
 	public AssignerWithPeriodicWatermarks<T> getPeriodicWatermarkAssigner() {
@@ -254,7 +253,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	public void setPeriodicWatermarkAssigner(
 		AssignerWithPeriodicWatermarks<T> periodicWatermarkAssigner) {
 		this.periodicWatermarkAssigner = periodicWatermarkAssigner;
-		ClosureCleaner.clean(this.periodicWatermarkAssigner, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(this.periodicWatermarkAssigner, true);
 	}
 
 	public WatermarkTracker getWatermarkTracker() {
@@ -268,7 +267,7 @@ public class FlinkKinesisConsumer<T> extends RichParallelSourceFunction<T> imple
 	 */
 	public void setWatermarkTracker(WatermarkTracker watermarkTracker) {
 		this.watermarkTracker = watermarkTracker;
-		ClosureCleaner.clean(this.watermarkTracker, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+		ClosureCleaner.clean(this.watermarkTracker, true);
 	}
 
 	// ------------------------------------------------------------------------
