@@ -1060,7 +1060,7 @@ Table result = left.join(right)
     </tr>
     <tr>
     	<td>
-        <strong>Inner Join with Table Function</strong><br>
+        <strong>Inner Join with Table Function (UDTF)</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
@@ -1081,7 +1081,7 @@ Table result = orders
     </tr>
     <tr>
     	<td>
-        <strong>Left Outer Join with Table Function</strong><br>
+        <strong>Left Outer Join with Table Function (UDTF)</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
@@ -1208,7 +1208,7 @@ val result = left.join(right)
     </tr>
     <tr>
     	<td>
-        <strong>Inner Join with Table Function</strong><br>
+        <strong>Inner Join with Table Function (UDTF)</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
@@ -1227,7 +1227,7 @@ val result: Table = table
     </tr>
     <tr>
     	<td>
-        <strong>Left Outer Join with Table Function</strong><br>
+        <strong>Left Outer Join with Table Function (UDTF)</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
     	<td>
         <p>Joins a table with the results of a table function. Each row of the left (outer) table is joined with all rows produced by the corresponding call of the table function. If a table function call returns an empty result, the corresponding outer row is preserved and the result padded with null values.</p>
@@ -1331,7 +1331,7 @@ full_outer_result = left.full_outer_join(right, "a = d").select("a, b, e")
     </tr>
     <tr>
     	<td>
-        <strong>Inner Join with Table Function</strong><br>
+        <strong>Inner Join with Table Function (UDTF)</strong><br>
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
     	<td>
@@ -1349,7 +1349,7 @@ result = orders.join_lateral("split(c).as(s, t, v)").select("a, b, s, t, v")
     </tr>
     <tr>
     	<td>
-        <strong>Left Outer Join with Table Function</strong><br>
+        <strong>Left Outer Join with Table Function (UDTF)</strong><br>
         <span class="label label-primary">批处理</span> <span class="label label-primary">流处理</span>
       </td>
       <td>

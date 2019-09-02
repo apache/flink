@@ -324,7 +324,9 @@ FilterableTableSource[T] {
 
 {% top %}
 
-### Defining a TableSource with Lookupable
+### Defining a TableSource for Lookups
+
+<span class="label label-danger">Attention</span> This is an experimental feature. The interface may be changed in future versions. It's only supported in Blink planner.
 
 The `LookupableTableSource` interface adds support for the table to be accessed via key column(s) in a lookup fashion. This is very useful when used to join with a dimension table to enrich some information. If you want to use the `TableSource` in lookup mode, you should use the source in [temporal table join syntax](streaming/joins.html).
 
@@ -359,7 +361,7 @@ LookupableTableSource[T] extends TableSource[T] {
 </div>
 
 * `getLookupFunction(lookupkeys)`: Returns a `TableFunction` which used to lookup the matched row(s) via lookup keys. The lookupkeys are the field names of `LookupableTableSource` in the join equal conditions. The eval method parameters of the returned `TableFunction`'s should be in the order which `lookupkeys` defined. It is recommended to define the parameters in varargs (e.g. `eval(Object... lookupkeys)` to match all the cases). The return type of the `TableFunction` must be identical to the return type defined by the `TableSource.getReturnType()` method.
-* `getAsyncLookupFunction(lookupkeys)`: Optional. Similar to `getLookupFunction`, but the `AsyncLookupFunction` lookups the matched row(s) asynchronously. The underlying of `AsyncLookupFunction` will be called via [Async I/O](/dev/stream/operators/asyncio.html). The first argument of the eval method of the returned `AsyncTableFunction` should be defined as `java.util.concurrent.CompletableFuture` to collect results asynchronously (e.g. `eval(CompletableFuture<Collection<String>> result, Object... lookupkeys)`). Can throw an exception if the TableSource doesn't support asynchronously lookup.
+* `getAsyncLookupFunction(lookupkeys)`: Optional. Similar to `getLookupFunction`, but the `AsyncLookupFunction` lookups the matched row(s) asynchronously. The underlying of `AsyncLookupFunction` will be called via [Async I/O](/dev/stream/operators/asyncio.html). The first argument of the eval method of the returned `AsyncTableFunction` should be defined as `java.util.concurrent.CompletableFuture` to collect results asynchronously (e.g. `eval(CompletableFuture<Collection<String>> result, Object... lookupkeys)`). The implementation of this method can throw an exception if the TableSource doesn't support asynchronously lookup.
 * `isAsyncEnabled()`: Returns true if async lookup is enabled. It requires `getAsyncLookupFunction(lookupkeys)` is implemented if `isAsyncEnabled` returns true.
 
 {% top %}

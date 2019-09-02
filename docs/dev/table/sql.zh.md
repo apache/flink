@@ -667,7 +667,7 @@ WHERE
     ON r.currency = o.currency
     {% endhighlight %}
         <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">Temporal Tables</a> concept description.</p>
-        <p>Only supported in blink planner.</p>
+        <p>Only supported in Blink planner.</p>
       </td>
     </tr>
 

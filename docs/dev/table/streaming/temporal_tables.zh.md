@@ -22,19 +22,21 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Temporal tables represent a concept of changing table that its data is deemed to be effective or valid along some time period.
+Temporal Tables represent a concept of a (parameterized) view on a changing table that returns the content of a table at a specific point in time.
 
 The changing table can either be a changing history table which tracks the changes (e.g. database changelogs) or a changing dimension table which materializes the changes (e.g. database tables).
 
 For the changing history table, Flink can keep track of the changes and allows for accessing the content of the table at a certain point in time within a query. In Flink, this kind of table is represented by a *Temporal Table Function*.
 
-For the changing dimension table, Flink allows for accessing the content of the table at processing time within a query. In Flink, this kind of table is represented by a *Temporal Table*. In the future, a *Temporal Table* can also represents a changing history table.
+For the changing dimension table, Flink allows for accessing the content of the table at processing time within a query. In Flink, this kind of table is represented by a *Temporal Table*.
 
 * This will be replaced by the TOC
 {:toc}
 
 Motivation
 ----------
+
+### Correlate with a changing history table
 
 Let's assume that we have the following table `RatesHistory`.
 
@@ -82,11 +84,13 @@ The concept of *Temporal Tables* aims to simplify such queries, speed up their e
 
 In the above example `currency` would be a primary key for `RatesHistory` table and `rowtime` would be the timestamp attribute.
 
-In Flink, this is represented by a *Temporal Table Function*.
+In Flink, this is represented by a [*Temporal Table Function*](#temporal-table-function).
 
-On the other hand, we have the requirement to join a changing dimension table which is an external database table.
+### Correlate with a changing dimension table
 
-Let's assume that we have a table `LatestRates` (e.g. stored in MySQL table) that is materialized with the latest rate. The `LatestRates` is the materialized history `RatesHistory`. Then the content of `LatestRates` table at time `10:58` will be:
+On the other hand, some use cases require to join a changing dimension table which is an external database table.
+
+Let's assume that `LatestRates` is a table (e.g. stored in) which is materialized with the latest rate. The `LatestRates` is the materialized history `RatesHistory`. Then the content of `LatestRates` table at time `10:58` will be:
 
 {% highlight text %}
 10:58> SELECT * FROM LatestRates;
@@ -109,7 +113,7 @@ Euro        119
 Pounds      108
 {% endhighlight %}
 
-In Flink, this is represented by a *Temporal Table*. Note that, in the future, the *Temporal Table* can also represents the changing history table `RetesHistory`.
+In Flink, this is represented by a [*Temporal Table*](#temporal-table).
 
 Temporal Table Function
 ------------------------
@@ -220,7 +224,7 @@ which allows us to use the `Rates` function in [SQL](../sql.html#joins).
 
 ## Temporal Table
 
-**Notes:** This is only supported in blink planner.
+<span class="label label-danger">Attention</span> This is only supported in Blink planner.
 
 In order to access data in temporal table, currently one must define a `TableSource` with `LookupableTableSource`. Flink uses the SQL syntax of `FOR SYSTEM_TIME AS OF` to query temporal table, which is proposed in SQL:2011.
 
@@ -286,6 +290,6 @@ tEnv.registerTableSource("Rates", rates)
 </div>
 </div>
 
-See also the page about [how to define LookupableTableSource](../sourceSinks.html#defining-a-tablesource-with-lookupable).
+See also the page about [how to define LookupableTableSource](../sourceSinks.html#defining-a-tablesource-for-lookups).
 
 {% top %}
