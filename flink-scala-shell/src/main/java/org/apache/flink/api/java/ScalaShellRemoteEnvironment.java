@@ -62,16 +62,8 @@ public class ScalaShellRemoteEnvironment extends RemoteEnvironment {
 		final Plan p = createProgramPlan(jobName);
 		final List<URL> allJarFiles = getUpdatedJarFiles();
 
-		PlanExecutor executor = null;
-		try {
-			executor = PlanExecutor.createRemoteExecutor(host, port, clientConfiguration, allJarFiles, globalClasspaths);
-			executor.start();
-			lastJobExecutionResult = executor.executePlan(p);
-		} finally {
-			if (executor != null) {
-				executor.stop();
-			}
-		}
+		final PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, clientConfiguration, allJarFiles, globalClasspaths);
+		lastJobExecutionResult = executor.executePlan(p);
 		return lastJobExecutionResult;
 	}
 
