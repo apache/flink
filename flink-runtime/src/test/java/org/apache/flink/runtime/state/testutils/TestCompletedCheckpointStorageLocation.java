@@ -63,4 +63,9 @@ public class TestCompletedCheckpointStorageLocation implements CompletedCheckpoi
 	public void disposeStorageLocation() throws IOException {
 		disposed = true;
 	}
+
+	@Override
+	public void disposeStorageLocation(boolean recursive) throws IOException {
+		disposed = true;
+	}
 }

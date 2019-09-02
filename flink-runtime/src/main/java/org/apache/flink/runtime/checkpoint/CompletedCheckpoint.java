@@ -26,6 +26,8 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -40,6 +42,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -254,14 +258,14 @@ public class CompletedCheckpoint implements Serializable {
 
 			// discard private state objects
 			try {
-				StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
+				StateUtil.bestEffortDiscardAllStateObjects(getSharedStateHandle());
 			} catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
 			}
 
 			// discard location as a whole
 			try {
-				storageLocation.disposeStorageLocation();
+				storageLocation.disposeStorageLocation(true);
 			}
 			catch (Exception e) {
 				exception = ExceptionUtils.firstOrSuppressed(e, exception);
@@ -279,6 +283,30 @@ public class CompletedCheckpoint implements Serializable {
 				discardCallback.notifyDiscardedCheckpoint();
 			}
 		}
+	}
+
+	private Set<StreamStateHandle> getSharedStateHandle() {
+		Set<StreamStateHandle> sharedStateHandles = new HashSet<>(operatorStates.size());
+
+		//reference SavepointV2Serializer.serializeKeyedStateHandle
+		operatorStates.values().forEach(operatorState -> {
+			operatorState.getStates().forEach(operatorSubtaskState -> {
+				if (operatorSubtaskState != null) {
+					for (KeyedStateHandle managedKeyedState : operatorSubtaskState.getManagedKeyedState()) {
+						if (managedKeyedState instanceof IncrementalRemoteKeyedStateHandle) {
+							sharedStateHandles.addAll(((IncrementalRemoteKeyedStateHandle) managedKeyedState).getSharedState().values());
+						}
+					}
+					for (KeyedStateHandle rawKeyedState : operatorSubtaskState.getRawKeyedState()) {
+						if (rawKeyedState instanceof IncrementalRemoteKeyedStateHandle) {
+							sharedStateHandles.addAll(((IncrementalRemoteKeyedStateHandle) rawKeyedState).getSharedState().values());
+						}
+					}
+				}
+			});
+		});
+
+		return sharedStateHandles;
 	}
 
 	// ------------------------------------------------------------------------
