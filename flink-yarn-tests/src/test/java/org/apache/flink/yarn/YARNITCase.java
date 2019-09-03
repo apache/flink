@@ -56,7 +56,6 @@ import static org.junit.Assert.assertThat;
  * Test cases for the deployment of Yarn Flink clusters.
  */
 public class YARNITCase extends YarnTestBase {
-
 	private final Duration yarnAppTerminateTimeout = Duration.ofSeconds(10);
 
 	private final int sleepIntervalInMS = 100;
@@ -114,10 +113,6 @@ public class YARNITCase extends YarnTestBase {
 					assertThat(jobResult, is(notNullValue()));
 					assertThat(jobResult.getSerializedThrowable().isPresent(), is(false));
 					waitApplicationFinishedElseKillIt(applicationId, yarnAppTerminateTimeout, yarnClusterDescriptor);
-				} finally {
-					if (clusterClient != null) {
-						clusterClient.shutdown();
-					}
 				}
 			}
 		});
@@ -128,7 +123,7 @@ public class YARNITCase extends YarnTestBase {
 		runTest(() -> {
 			Configuration configuration = new Configuration();
 			configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
-			configuration.setString(YarnConfigOptions.FILE_REPLICATION, "5");
+			configuration.setString(YarnConfigOptions.FILE_REPLICATION, "4");
 			final YarnClient yarnClient = getYarnClient();
 
 			try (final YarnClusterDescriptor yarnClusterDescriptor = new YarnClusterDescriptor(
@@ -154,25 +149,19 @@ public class YARNITCase extends YarnTestBase {
 				final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
 
 				File testingJar = YarnTestBase.findFile("..", new YarnTestUtils.TestJarFinder("flink-yarn-tests"));
-
 				jobGraph.addJar(new org.apache.flink.core.fs.Path(testingJar.toURI()));
 
-				ApplicationId applicationId = null;
-				ClusterClient<ApplicationId> clusterClient = null;
-
-				try {
-					clusterClient = yarnClusterDescriptor.deployJobCluster(
-						clusterSpecification,
-						jobGraph,
-						false);
-					applicationId = clusterClient.getClusterId();
-
+				try (ClusterClient<ApplicationId> clusterClient = yarnClusterDescriptor.deployJobCluster(
+					clusterSpecification,
+					jobGraph,
+					false)) {
+					ApplicationId applicationId = clusterClient.getClusterId();
 					final FileSystem fs = FileSystem.get(getYarnConfiguration());
 					String suffix = ".flink/" + applicationId.toString() + "/" + flinkUberjar.getName();
 
 					Path uberJarHDFSPath = new Path(fs.getHomeDirectory(), suffix);
 					FileStatus fsStatus = fs.getFileStatus(uberJarHDFSPath);
-					Assert.assertEquals(5, fsStatus.getReplication());
+					Assert.assertEquals(4, fsStatus.getReplication());
 
 					Path appPath = uberJarHDFSPath.getParent();
 					FileStatus[] fileStatuses = fs.listStatus(appPath, new PathFilter() {
@@ -211,7 +200,6 @@ public class YARNITCase extends YarnTestBase {
 			YarnClusterDescriptor yarnClusterDescriptor) throws Exception {
 		Deadline deadline = Deadline.now().plus(timeout);
 		YarnApplicationState state = getYarnClient().getApplicationReport(applicationId).getYarnApplicationState();
-
 		while (state != YarnApplicationState.FINISHED) {
 			if (state == YarnApplicationState.FAILED || state == YarnApplicationState.KILLED) {
 				Assert.fail("Application became FAILED or KILLED while expecting FINISHED");

@@ -740,10 +740,15 @@ public abstract class YarnTestBase extends TestLogger {
 
 			Configuration hdfsConfiguration = new Configuration();
 			hdfsConfiguration.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpHDFS.getRoot().getAbsolutePath());
+			// As we need three data nodes, free random ports are needed here
+			hdfsConfiguration.set("dfs.datanode.https.address",	"0.0.0.0:0");
 			if (principal != null && keytab != null) {
 				populateHDFSSecureConfigurations(hdfsConfiguration, principal, keytab);
 			}
-			miniDFSCluster = new MiniDFSCluster.Builder(hdfsConfiguration).numDataNodes(3).build();
+			miniDFSCluster = new MiniDFSCluster
+				.Builder(hdfsConfiguration)
+				.numDataNodes(2)
+				.build();
 			miniDFSCluster.waitClusterUp();
 
 			hdfsConfiguration = miniDFSCluster.getConfiguration(0);
