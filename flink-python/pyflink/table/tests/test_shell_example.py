@@ -121,4 +121,3 @@ class ShellExampleTests(PyFlinkTestCase):
         t.select("a + 1, b, c").insert_into("stream_sink")
 
         st_env.execute("stream_job")
-
