@@ -116,7 +116,9 @@ class ShellExampleTests(PyFlinkTestCase):
                          .field("a", DataTypes.BIGINT())
                          .field("b", DataTypes.STRING())
                          .field("c", DataTypes.STRING())) \
-            .register_table_sink("stream_sink")
+            .register_table_sink("stream_sink") \
+            .in_append_mode()
+
 
         t.select("a + 1, b, c").insert_into("stream_sink")
 
