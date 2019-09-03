@@ -92,7 +92,7 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
 				String labelKey = kv.substring(0, idx);
 				String labelValue = kv.substring(idx + 1);
 				if (StringUtils.isNullOrWhitespaceOnly(labelKey) || StringUtils.isNullOrWhitespaceOnly(labelValue)) {
-					log.warn("Invalid groupingKey {labelKey:{}, labelValue:{}} will be ignored", labelKey, labelValue);
+					log.warn("Invalid groupingKey {labelKey:{}, labelValue:{}} must not be empty", labelKey, labelValue);
 					continue;
 				}
 				groupingKey.put(labelKey, labelValue);
