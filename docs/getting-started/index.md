@@ -46,8 +46,9 @@ A walkthrough provides instructions to bootstrap a small Flink project with a co
 <!-- 
 * The [**DataStream API**]() code walkthrough shows how to implement a simple DataStream application and how to extend it to be stateful and use timers.
 -->
-* The [**DataStream API**](./tutorials/datastream_api.html) tutorial shows how to implement a basic DataStream application. 
-* The [**Table API**](./walkthroughs/table_api.html) code walkthrough shows how to implement a simple Table API query on a batch source and how to evolve it into a continuous query on a streaming source.
+* The [**DataStream API**](./tutorials/datastream_api.html) tutorial shows how to implement a basic DataStream application. The DataStream API is Flink's main abstraction to implement stateful streaming applications with sophisticated time semantics in Java or Scala.
+
+* The [**Table API**](./walkthroughs/table_api.html) code walkthrough shows how to implement a simple Table API query on a batch source and how to evolve it into a continuous query on a streaming source. The Table API Flink's language-embedded, relational API to write SQL-like queries in Java or Scala which are automatically optimized similar to SQL queries. Table API queries can be executed on batch or streaming data with identical syntax and semantics.
 
 <!-- 
 ### Starting a new Flink application
