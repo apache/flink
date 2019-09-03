@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -121,10 +122,12 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 		config.setInteger(ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, NUM_TMS);
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, NUM_SLOTS_PER_TM);
 
-		haStorageDir = TEMPORARY_FOLDER.newFolder();
+		File haStorageRootDir = TEMPORARY_FOLDER.newFolder();
+		String clusterId = UUID.randomUUID().toString();
+		haStorageDir = new File(haStorageRootDir, clusterId);
 
-		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haStorageDir.toString());
-		config.setString(HighAvailabilityOptions.HA_CLUSTER_ID, UUID.randomUUID().toString());
+		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haStorageRootDir.toString());
+		config.setString(HighAvailabilityOptions.HA_CLUSTER_ID, clusterId);
 		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zkServer.getConnectString());
 		config.setString(HighAvailabilityOptions.HA_MODE, "zookeeper");
 
@@ -217,7 +220,7 @@ public class ZooKeeperHighAvailabilityITCase extends TestLogger {
 		Files.walkFileTree(haStorageDir.toPath(), new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-				if (file.getFileName().toString().startsWith("completedCheckpoint")) {
+				if (file.getFileName().toString().startsWith(ZooKeeperUtils.HA_STORAGE_COMPLETED_CHECKPOINT)) {
 					log.debug("Moving original checkpoint file {}.", file);
 					try {
 						Files.move(file, movedCheckpointLocation.toPath().resolve(file.getFileName()));
