@@ -68,15 +68,10 @@ public class LocalEnvironment extends ExecutionEnvironment {
 
 	// --------------------------------------------------------------------------------------------
 
-	// TODO: 31.08.19 make sure that start and stop are called in the execute.
-	// the other place would be here, but this can complicate code, as the
-	// lifecycle management would be outside the executor itself.
-
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		final Plan p = createProgramPlan(jobName);
 
-		// TODO: 31.08.19 make the executor autocloseable
 		final PlanExecutor executor = PlanExecutor.createLocalExecutor(configuration);
 		lastJobExecutionResult = executor.executePlan(p);
 		return lastJobExecutionResult;
