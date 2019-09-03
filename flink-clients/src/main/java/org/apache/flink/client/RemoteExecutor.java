@@ -32,7 +32,6 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.util.NetUtils;
 
 import java.net.InetSocketAddress;
 import java.net.URL;
@@ -64,36 +63,6 @@ public class RemoteExecutor extends PlanExecutor {
 	public RemoteExecutor(String hostname, int port) {
 		this(hostname, port, new Configuration(), Collections.<URL>emptyList(),
 				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostname, int port, URL jarFile) {
-		this(hostname, port, new Configuration(), Collections.singletonList(jarFile),
-				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostport, URL jarFile) {
-		this(NetUtils.parseHostPortAddress(hostport), new Configuration(), Collections.singletonList(jarFile),
-				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostname, int port, List<URL> jarFiles) {
-		this(new InetSocketAddress(hostname, port), new Configuration(), jarFiles,
-				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration) {
-		this(hostname, port, clientConfiguration, Collections.<URL>emptyList(),
-				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration, URL jarFile) {
-		this(hostname, port, clientConfiguration, Collections.singletonList(jarFile),
-				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostport, Configuration clientConfiguration, URL jarFile) {
-		this(NetUtils.parseHostPortAddress(hostport), clientConfiguration,
-				Collections.singletonList(jarFile), Collections.<URL>emptyList());
 	}
 
 	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration,
