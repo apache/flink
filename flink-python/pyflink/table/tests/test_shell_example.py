@@ -94,32 +94,3 @@ class ShellExampleTests(PyFlinkTestCase):
         with open(sink_path, 'r') as f:
             lines = f.read()
             self.assertEqual(lines, '2,hi,hello\n' + '3,hi,hello\n')
-
-    def test_stream_case1(self):
-        from pyflink.shell import s_env, st_env, Json, DataTypes, Schema, Bucket
-        # example begin
-
-        import tempfile
-        import os
-        import shutil
-        sink_path = tempfile.gettempdir() + '/aaaaa'
-        if os.path.exists(sink_path):
-            if os.path.isfile(sink_path):
-                os.remove(sink_path)
-            else:
-                shutil.rmtree(sink_path)
-        s_env.set_parallelism(1)
-        t = st_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
-        st_env.connect(Bucket().base_path(sink_path).row_format()) \
-            .with_format(Json().derive_schema()) \
-            .with_schema(Schema()
-                         .field("a", DataTypes.BIGINT())
-                         .field("b", DataTypes.STRING())
-                         .field("c", DataTypes.STRING())) \
-            .register_table_sink("stream_sink") \
-            .in_append_mode()
-
-
-        t.select("a + 1, b, c").insert_into("stream_sink")
-
-        st_env.execute("stream_job")
