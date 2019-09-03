@@ -110,7 +110,7 @@ class ShellExampleTests(PyFlinkTestCase):
                 shutil.rmtree(sink_path)
         s_env.set_parallelism(1)
         t = st_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
-        st_env.connect(Bucket().base_path(sink_path)) \
+        st_env.connect(Bucket().base_path(sink_path).row_format()) \
             .with_format(Json().derive_schema()) \
             .with_schema(Schema()
                          .field("a", DataTypes.BIGINT())
