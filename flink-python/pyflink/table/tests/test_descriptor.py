@@ -17,7 +17,7 @@
 ################################################################################
 import os
 
-from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Kafka,Bucket,
+from pyflink.table.descriptors import (FileSystem, OldCsv, Rowtime, Schema, Kafka, Bucket,
                                        Elasticsearch, Csv, Avro, Json, CustomConnectorDescriptor,
                                        CustomFormatDescriptor)
 from pyflink.table.table_schema import TableSchema
@@ -38,6 +38,7 @@ class FileSystemDescriptorTests(PyFlinkTestCase):
                     'connector.type': 'filesystem',
                     'connector.path': '/test.csv'}
         self.assertEqual(expected, properties)
+
 
 class BucketDescriptorTests(PyFlinkTestCase):
 
