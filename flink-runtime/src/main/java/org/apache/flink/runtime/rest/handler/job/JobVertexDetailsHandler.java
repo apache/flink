@@ -115,6 +115,7 @@ public class JobVertexDetailsHandler extends AbstractExecutionGraphHandler<JobVe
 
 			TaskManagerLocation location = vertex.getCurrentAssignedResourceLocation();
 			String locationString = location == null ? "(unassigned)" : location.getHostname() + ":" + location.dataPort();
+			String resourceId = location == null ? "(unassigned)" : location.getResourceID().getResourceIdString();
 
 			long startTime = vertex.getStateTimestamp(ExecutionState.DEPLOYING);
 			if (startTime == 0) {
@@ -145,7 +146,8 @@ public class JobVertexDetailsHandler extends AbstractExecutionGraphHandler<JobVe
 					counts.getNumRecordsIn(),
 					counts.isNumRecordsInComplete(),
 					counts.getNumRecordsOut(),
-					counts.isNumRecordsOutComplete())));
+					counts.isNumRecordsOutComplete()),
+				resourceId));
 
 			num++;
 		}

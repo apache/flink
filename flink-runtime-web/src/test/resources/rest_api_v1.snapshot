@@ -1684,6 +1684,9 @@
               },
               "start_time" : {
                 "type" : "integer"
+              },
+              "resource-id" : {
+                "type" : "string"
               }
             }
           }
@@ -1955,6 +1958,9 @@
         "duration" : {
           "type" : "integer"
         },
+        "resource-id" : {
+          "type" : "string"
+        },
         "metrics" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:IOMetricsInfo",
@@ -2034,6 +2040,9 @@
         },
         "duration" : {
           "type" : "integer"
+        },
+        "resource-id" : {
+          "type" : "string"
         },
         "metrics" : {
           "type" : "object",
