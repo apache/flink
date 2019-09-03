@@ -91,7 +91,7 @@ output of the Flink job should show 1000 views per page and window.
 The playground environment is set up in just a few steps. We will walk you through the necessary 
 commands and show how to validate that everything is running correctly.
 
-We assume that you have that you have [docker](https://docs.docker.com/) (1.12+) and
+We assume that you have [Docker](https://docs.docker.com/) (1.12+) and
 [docker-compose](https://docs.docker.com/compose/) (2.1+) installed on your machine.
 
 The required configuration files are available in the 
@@ -213,7 +213,7 @@ docker-compose exec kafka kafka-console-consumer.sh \
 
 Now that you learned how to interact with Flink and the Docker containers, let's have a look at 
 some common operational tasks that you can try out on our playground.
-All of these tasks are independent of each other, i.e.i you can perform them in any order. 
+All of these tasks are independent of each other, i.e. you can perform them in any order. 
 Most tasks can be executed via the [CLI](#flink-cli) and the [REST API](#flink-rest-api).
 
 ### Listing Running Jobs
@@ -286,7 +286,7 @@ an external resource).
 docker-compose kill taskmanager
 {% endhighlight %}
 
-After a few seconds, Flink will notice the loss of the TaskManager, cancel the affected Job, and 
+After a few seconds, the Flink Master will notice the loss of the TaskManager, cancel the affected Job, and 
 immediately resubmit it for recovery.
 When the Job gets restarted, its tasks remain in the `SCHEDULED` state, which is indicated by the 
 purple colored squares (see screenshot below).
