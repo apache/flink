@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
@@ -62,6 +63,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ZooKeeperUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtils.class);
+
+	/**  The prefix of the submitted job graph file. */
+	public static final String HA_STORAGE_SUBMITTED_JOBGRAPH_PREFIX = "submittedJobGraph";
+
+	/** The prefix of the completed checkpoint file. */
+	public static final String HA_STORAGE_COMPLETED_CHECKPOINT = "completedCheckpoint";
 
 	/**
 	 * Starts a {@link CuratorFramework} instance and connects it to the given ZooKeeper
@@ -240,7 +247,8 @@ public class ZooKeeperUtils {
 
 		checkNotNull(configuration, "Configuration");
 
-		RetrievableStateStorageHelper<JobGraph> stateStorage = createFileSystemStateStorage(configuration, "submittedJobGraph");
+		RetrievableStateStorageHelper<JobGraph> stateStorage = createFileSystemStateStorage(
+			configuration, HA_STORAGE_SUBMITTED_JOBGRAPH_PREFIX);
 
 		// ZooKeeper submitted jobs root dir
 		String zooKeeperJobsPath = configuration.getString(HighAvailabilityOptions.HA_ZOOKEEPER_JOBGRAPHS_PATH);
@@ -289,7 +297,7 @@ public class ZooKeeperUtils {
 
 		RetrievableStateStorageHelper<CompletedCheckpoint> stateStorage = createFileSystemStateStorage(
 			configuration,
-			"completedCheckpoint");
+			HA_STORAGE_COMPLETED_CHECKPOINT);
 
 		checkpointsPath += ZooKeeperJobGraphStore.getPathForJob(jobId);
 
@@ -354,13 +362,23 @@ public class ZooKeeperUtils {
 			Configuration configuration,
 			String prefix) throws IOException {
 
+		return new FileSystemStateStorageHelper<T>(getClusterHighAvailabilityStoragePath(configuration), prefix);
+	}
+
+	/**
+	 * Get high availability storage path of current flink cluster.
+	 * @param configuration {@link Configuration} object
+	 * @return high availability storage path of current flink cluster
+	 */
+	private static String getClusterHighAvailabilityStoragePath(Configuration configuration) {
 		String rootPath = configuration.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
 
 		if (rootPath == null || StringUtils.isBlank(rootPath)) {
 			throw new IllegalConfigurationException("Missing high-availability storage path for metadata." +
 					" Specify via configuration key '" + HighAvailabilityOptions.HA_STORAGE_PATH + "'.");
 		} else {
-			return new FileSystemStateStorageHelper<T>(rootPath, prefix);
+			final String clusterId = configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
+			return new Path(rootPath, clusterId).toString();
 		}
 	}
 
