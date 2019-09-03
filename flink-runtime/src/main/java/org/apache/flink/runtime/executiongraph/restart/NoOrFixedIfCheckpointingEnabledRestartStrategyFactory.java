@@ -23,7 +23,7 @@ package org.apache.flink.runtime.executiongraph.restart;
  * depending if checkpointing was enabled.
  */
 public class NoOrFixedIfCheckpointingEnabledRestartStrategyFactory extends RestartStrategyFactory {
-	private static final long DEFAULT_RESTART_DELAY = 10000L;
+	private static final long DEFAULT_RESTART_DELAY = 1000L;
 
 	private static final long serialVersionUID = -1809462525812787862L;
 
