@@ -549,7 +549,13 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 */
 	@PublicEvolving
 	public void setDefaultInputDependencyConstraint(InputDependencyConstraint inputDependencyConstraint) {
-		this.defaultInputDependencyConstraint = inputDependencyConstraint;
+		if (inputDependencyConstraint != null) {
+			this.defaultInputDependencyConstraint = inputDependencyConstraint;
+		} else {
+			// defaultInputDependencyConstraint is not allowed to be null
+			// setting it to ANY to not break existing jobs
+			this.defaultInputDependencyConstraint = InputDependencyConstraint.ANY;
+		}
 	}
 
 	/**
