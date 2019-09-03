@@ -40,7 +40,6 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * The RemoteExecutor is a {@link org.apache.flink.api.common.PlanExecutor} that takes the program
@@ -54,15 +53,11 @@ import static org.apache.flink.util.Preconditions.checkState;
  */
 public class RemoteExecutor extends PlanExecutor {
 
-	private final Object lock = new Object();
-
 	private final List<URL> jarFiles;
 
 	private final List<URL> globalClasspaths;
 
 	private final Configuration clientConfiguration;
-
-	private ClusterClient<?> client;
 
 	private int defaultParallelism = 1;
 
@@ -148,19 +143,13 @@ public class RemoteExecutor extends PlanExecutor {
 	//  Startup & Shutdown
 	// ------------------------------------------------------------------------
 
-	private void start() throws Exception {
-		Thread.holdsLock(lock);
-		checkState(client == null);
-
-		client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor");
+	private ClusterClient<?> startClusterClient() throws Exception {
+		return new RestClusterClient<>(clientConfiguration, "RemoteExecutor");
 	}
 
-	private void stop() throws Exception {
-		Thread.holdsLock(lock);
-		if (client != null) {
-			client.shutdown();
-			client = null;
-		}
+	private void stopClusterClient(final ClusterClient<?> client) throws Exception {
+		checkNotNull(client);
+		client.shutdown();
 	}
 
 	// ------------------------------------------------------------------------
@@ -178,12 +167,13 @@ public class RemoteExecutor extends PlanExecutor {
 	private JobExecutionResult executePlanWithJars(JobWithJars program) throws Exception {
 		checkNotNull(program);
 
-		synchronized (this.lock) {
-			try {
-				start();
-				return client.run(program, defaultParallelism).getJobExecutionResult();
-			} finally {
-				stop();
+		ClusterClient<?>  client = null;
+		try {
+			client = startClusterClient();
+			return client.run(program, defaultParallelism).getJobExecutionResult();
+		} finally {
+			if (client != null) {
+				stopClusterClient(client);
 			}
 		}
 	}
