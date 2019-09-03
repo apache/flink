@@ -67,6 +67,18 @@ public class ResourceManagerOptions {
 			" for other JVM memory usage.");
 
 	/**
+	 * Percentage of heap space to remove from jobmanager containers (YARN / Mesos), to compensate
+	 * for other JVM memory usage.
+	 */
+	public static final ConfigOption<Float> JOBMANAGER_CONTAINERIZED_HEAP_CUTOFF_RATIO = ConfigOptions
+		.key("jobmanager.containerized.heap-cutoff-ratio")
+		.defaultValue(0.25f)
+		.withFallbackKeys("containerized.heap-cutoff-ratio")
+		.withDeprecatedKeys("yarn.heap-cutoff-ratio")
+		.withDescription("Percentage of heap space to remove from jobmanager containers (YARN / Mesos), to compensate" +
+			" for other JVM memory usage.");
+
+	/**
 	 * Minimum amount of heap memory to remove in containers, as a safety margin.
 	 */
 	public static final ConfigOption<Integer> CONTAINERIZED_HEAP_CUTOFF_MIN = ConfigOptions
@@ -74,6 +86,16 @@ public class ResourceManagerOptions {
 		.defaultValue(600)
 		.withDeprecatedKeys("yarn.heap-cutoff-min")
 		.withDescription("Minimum amount of heap memory to remove in containers, as a safety margin.");
+
+	/**
+	 * Minimum amount of heap memory to remove in jobmanager containers, as a safety margin.
+	 */
+	public static final ConfigOption<Integer> JOBMANAGER_CONTAINERIZED_HEAP_CUTOFF_MIN = ConfigOptions
+		.key("jobmanager.containerized.heap-cutoff-min")
+		.defaultValue(600)
+		.withFallbackKeys("containerized.heap-cutoff-min")
+		.withDeprecatedKeys("yarn.heap-cutoff-min")
+		.withDescription("Minimum amount of heap memory to remove in jobmanager containers, as a safety margin.");
 
 	/**
 	 * The timeout for a slot request to be discarded, in milliseconds.

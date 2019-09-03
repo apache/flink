@@ -92,19 +92,19 @@ public final class Utils {
 	/**
 	 * See documentation.
 	 */
-	public static int calculateHeapSize(int memory, org.apache.flink.configuration.Configuration conf) {
+	public static int calculateJobManagerHeapSize(int memory, org.apache.flink.configuration.Configuration conf) {
 
-		float memoryCutoffRatio = conf.getFloat(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO);
-		int minCutoff = conf.getInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN);
+		float memoryCutoffRatio = conf.getFloat(ResourceManagerOptions.JOBMANAGER_CONTAINERIZED_HEAP_CUTOFF_RATIO);
+		int minCutoff = conf.getInteger(ResourceManagerOptions.JOBMANAGER_CONTAINERIZED_HEAP_CUTOFF_MIN);
 
 		if (memoryCutoffRatio > 1 || memoryCutoffRatio < 0) {
 			throw new IllegalArgumentException("The configuration value '"
-				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key()
+				+ ResourceManagerOptions.JOBMANAGER_CONTAINERIZED_HEAP_CUTOFF_RATIO.key()
 				+ "' must be between 0 and 1. Value given=" + memoryCutoffRatio);
 		}
 		if (minCutoff > memory) {
 			throw new IllegalArgumentException("The configuration value '"
-				+ ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key()
+				+ ResourceManagerOptions.JOBMANAGER_CONTAINERIZED_HEAP_CUTOFF_MIN.key()
 				+ "' is higher (" + minCutoff + ") than the requested amount of memory " + memory);
 		}
 

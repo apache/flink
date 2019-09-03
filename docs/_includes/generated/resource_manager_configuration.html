@@ -18,6 +18,16 @@
             <td>Percentage of heap space to remove from containers (YARN / Mesos), to compensate for other JVM memory usage.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.containerized.heap-cutoff-min</h5></td>
+            <td style="word-wrap: break-word;">600</td>
+            <td>Minimum amount of heap memory to remove in jobmanager containers, as a safety margin.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.containerized.heap-cutoff-ratio</h5></td>
+            <td style="word-wrap: break-word;">0.25</td>
+            <td>Percentage of heap space to remove from jobmanager containers (YARN / Mesos), to compensate for other JVM memory usage.</td>
+        </tr>
+        <tr>
             <td><h5>local.number-resourcemanager</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>The number of resource managers start.</td>

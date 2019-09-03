@@ -81,58 +81,65 @@ public class UtilsTest extends TestLogger {
 
 	/**
 	 * Remove 15% of the heap, at least 384MB.
-	 *
 	 */
 	@Test
 	public void testHeapCutoff() {
 		Configuration conf = new Configuration();
+		conf.setFloat(ResourceManagerOptions.JOBMANAGER_CONTAINERIZED_HEAP_CUTOFF_RATIO, 0.15F);
+		conf.setInteger(ResourceManagerOptions.JOBMANAGER_CONTAINERIZED_HEAP_CUTOFF_MIN, 384);
+
+		Assert.assertEquals(616, Utils.calculateJobManagerHeapSize(1000, conf));
+		Assert.assertEquals(8500, Utils.calculateJobManagerHeapSize(10000, conf));
+
+		// test different configuration
+		Assert.assertEquals(3400, Utils.calculateJobManagerHeapSize(4000, conf));
+
+		conf.setString(ResourceManagerOptions.JOBMANAGER_CONTAINERIZED_HEAP_CUTOFF_MIN.key(), "1000");
+		conf.setString(ResourceManagerOptions.JOBMANAGER_CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "0.1");
+		Assert.assertEquals(3000, Utils.calculateJobManagerHeapSize(4000, conf));
+
+		conf.setString(ResourceManagerOptions.JOBMANAGER_CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "0.5");
+		Assert.assertEquals(2000, Utils.calculateJobManagerHeapSize(4000, conf));
+
+		conf.setString(ResourceManagerOptions.JOBMANAGER_CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "1");
+		Assert.assertEquals(0, Utils.calculateJobManagerHeapSize(4000, conf));
+
+		// test fallback
+		conf = new Configuration();
 		conf.setFloat(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO, 0.15F);
 		conf.setInteger(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN, 384);
 
-		Assert.assertEquals(616, Utils.calculateHeapSize(1000, conf));
-		Assert.assertEquals(8500, Utils.calculateHeapSize(10000, conf));
-
-		// test different configuration
-		Assert.assertEquals(3400, Utils.calculateHeapSize(4000, conf));
-
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_MIN.key(), "1000");
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "0.1");
-		Assert.assertEquals(3000, Utils.calculateHeapSize(4000, conf));
-
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "0.5");
-		Assert.assertEquals(2000, Utils.calculateHeapSize(4000, conf));
-
-		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "1");
-		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+		Assert.assertEquals(616, Utils.calculateJobManagerHeapSize(1000, conf));
+		Assert.assertEquals(8500, Utils.calculateJobManagerHeapSize(10000, conf));
 
 		// test also deprecated keys
 		conf = new Configuration();
 		conf.setDouble(ConfigConstants.YARN_HEAP_CUTOFF_RATIO, 0.15);
 		conf.setInteger(ConfigConstants.YARN_HEAP_CUTOFF_MIN, 384);
 
-		Assert.assertEquals(616, Utils.calculateHeapSize(1000, conf));
-		Assert.assertEquals(8500, Utils.calculateHeapSize(10000, conf));
+		Assert.assertEquals(616, Utils.calculateJobManagerHeapSize(1000, conf));
+		Assert.assertEquals(8500, Utils.calculateJobManagerHeapSize(10000, conf));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void illegalArgument() {
 		Configuration conf = new Configuration();
 		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "1.1");
-		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+		Assert.assertEquals(0, Utils.calculateJobManagerHeapSize(4000, conf));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void illegalArgumentNegative() {
 		Configuration conf = new Configuration();
 		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "-0.01");
-		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+		Assert.assertEquals(0, Utils.calculateJobManagerHeapSize(4000, conf));
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void tooMuchCutoff() {
 		Configuration conf = new Configuration();
 		conf.setString(ResourceManagerOptions.CONTAINERIZED_HEAP_CUTOFF_RATIO.key(), "6000");
-		Assert.assertEquals(0, Utils.calculateHeapSize(4000, conf));
+		Assert.assertEquals(0, Utils.calculateJobManagerHeapSize(4000, conf));
 	}
 
 	@Test
