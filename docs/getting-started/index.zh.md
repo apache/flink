@@ -4,6 +4,7 @@ nav-id: getting-started
 nav-title: '<i class="fa fa-rocket title appetizer" aria-hidden="true"></i> Getting Started'
 nav-parent_id: root
 section-break: true
+nav-show_overview: true
 nav-pos: 1
 ---
 <!--
@@ -24,3 +25,32 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
+
+There are many ways to get started with Apache Flink. Which one is the best for you depends on your goal and prior experience.
+
+### Taking a first look at Flink
+
+The **Docker Playgrounds** provide sandboxed Flink environments that are set up in just a few minutes and which allow you to explore and play with Flink.
+
+* The [**Operations Playground**](./docker-playgrounds/flink-operations-playground.html) shows you how to operate streaming applications with Flink. You can experience how Flink recovers application from failures, upgrade and scale streaming applications up and down, and query application metrics.
+
+<!-- 
+* The [**Streaming SQL Playground**]() provides a Flink cluster with a SQL CLI client, tables which are fed by streaming data sources, and instructions for how to run continuous streaming SQL queries on these tables. This is the perfect environment for your first steps with streaming SQL. 
+-->
+
+### First steps with one of Flink's APIs
+
+The **API Tutorials** are the best way to get started and introduce you step by step to an API.
+A tutorial provides instructions to bootstrap a small Flink project with a code skeleton and shows how to extend it to a simple application.
+
+* The [**DataStream API**](./tutorials/datastream_api.html) tutorial shows how to implement a basic DataStream application. The DataStream API is Flink's main abstraction to implement stateful streaming applications with sophisticated time semantics in Java or Scala.
+
+<!-- 
+### Starting a new Flink application
+
+The **Project Setup** instructions show you how to create a project for a new Flink application in just a few steps.
+
+* [**DataStream API**]()
+* [**DataSet API**]()
+* [**Table API / SQL**]() 
+ -->
