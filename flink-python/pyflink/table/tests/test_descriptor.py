@@ -45,13 +45,14 @@ class BucketDescriptorTests(PyFlinkTestCase):
     def test_path(self):
         bucket = Bucket()
 
-        bucket = bucket.base_path("/tmp/bucket").row_format()
+        bucket = bucket.base_path("/tmp/bucket").row_format().date_format("yyyyMMddHH")
 
         properties = bucket.to_properties()
         expected = {'connector.property-version': '1',
                     'connector.type': 'bucket',
+                    'connector.date.format': 'yyyyMMddHH'
                     'connector.format.type': 'row',
-                    'connector.path': '/tmp/bucket'}
+                    'connector.basepath': '/tmp/bucket'}
         self.assertEqual(expected, properties)
 
 
