@@ -28,7 +28,7 @@ In this page, we will introduce some useful optimization options and the interna
 
 <span class="label label-danger">Attention</span> Currently, the optimization options mentioned in this page are only supported for the Blink planner.
 
-<span class="label label-danger">Attention</span> Currently, the streaming aggregation optimization are only supported for [unbounded-aggregations]({{ site.baseurl }}/dev/table/sql.html#aggregations). Optimizations for [window aggregations]({{ site.baseurl }}/dev/table/sql.html#group-windows) will be supported in the future.
+<span class="label label-danger">Attention</span> Currently, the streaming aggregations optimization are only supported for [unbounded-aggregations]({{ site.baseurl }}/dev/table/sql.html#aggregations). Optimizations for [window aggregations]({{ site.baseurl }}/dev/table/sql.html#group-windows) will be supported in the future.
 
 * This will be replaced by the TOC
 {:toc}
@@ -48,7 +48,7 @@ The following figure explains how the mini-batch aggregation reduces state opera
 
 MiniBatch optimization is disabled by default. In order to enable this optimization, you should set options `table.exec.mini-batch.enabled`, `table.exec.mini-batch.allow-latency` and `table.exec.mini-batch.size`. Please see [configuration]({{ site.baseurl }}/dev/table/config.html#execution-options) page for more details.
 
-The following examples show how to enable the option.
+The following examples show how to enable these options.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -60,7 +60,7 @@ tEnv.getConfig()        // access high-level configuration
   .getConfiguration()   // set low-level key-value options
   .setString("table.exec.mini-batch.enabled", "true")  // enable mini-batch optimization
   .setString("table.exec.mini-batch.allow-latency", "5 s") // use 5 seconds to buffer input records
-  .setString("table.exec.mini-batch.size", "5000"); // the maximum number of records can be buffered by each aggregate operator tasks
+  .setString("table.exec.mini-batch.size", "5000"); // the maximum number of records can be buffered by each aggregate operator task
 {% endhighlight %}
 </div>
 
@@ -73,7 +73,7 @@ tEnv.getConfig         // access high-level configuration
   .getConfiguration    // set low-level key-value options
   .setString("table.exec.mini-batch.enabled", "true") // enable mini-batch optimization
   .setString("table.exec.mini-batch.allow-latency", "5 s") // use 5 seconds to buffer input records
-  .setString("table.exec.mini-batch.size", "5000") // the maximum number of records can be buffered by each aggregate operator tasks
+  .setString("table.exec.mini-batch.size", "5000") // the maximum number of records can be buffered by each aggregate operator task
 {% endhighlight %}
 </div>
 
@@ -86,14 +86,14 @@ t_env.get_config()        # access high-level configuration
   .get_configuration()    # set low-level key-value options
   .set_string("table.exec.mini-batch.enabled", "true") # enable mini-batch optimization
   .set_string("table.exec.mini-batch.allow-latency", "5 s") # use 5 seconds to buffer input records
-  .set_string("table.exec.mini-batch.size", "5000"); # the maximum number of records can be buffered by each aggregate operator tasks
+  .set_string("table.exec.mini-batch.size", "5000"); # the maximum number of records can be buffered by each aggregate operator task
 {% endhighlight %}
 </div>
 </div>
 
 ## Local-Global Aggregation
 
-Local-Global is proposed to solve data skew problem by dividing an group aggregation into two stages, that is doing local aggregation in upstream firstly, and followed by global aggregation in downstream, which is similar to Combine + Reduce pattern in MapReduce. For example, considering the following SQL:
+Local-Global is proposed to solve data skew problem by dividing a group aggregation into two stages, that is doing local aggregation in upstream firstly, and followed by global aggregation in downstream, which is similar to Combine + Reduce pattern in MapReduce. For example, considering the following SQL:
 
 {% highlight sql %}
 SELECT color, sum(id)
@@ -102,7 +102,7 @@ GROUP BY color
 {% endhighlight %}
 
 It is possible that the records in the data stream are skewed, thus some instances of aggregation operator have to process much more records than others, which leads to hotspot.
-The local aggregation can help to accumulate a certain amount of inputs which have the same key into a single accumulator. The global aggregate will only receive the reduced accumulators instead of large number of raw inputs.
+The local aggregation can help to accumulate a certain amount of inputs which have the same key into a single accumulator. The global aggregation will only receive the reduced accumulators instead of large number of raw inputs.
 This can significantly reduce the network shuffle and the cost of state access. The number of inputs accumulated by local aggregation every time is based on mini-batch interval. It means local-global aggregation depends on mini-batch optimization is enabled.
 
 The following figure shows how the local-global aggregation improve performance.
@@ -265,7 +265,7 @@ GROUP BY day
 {% endhighlight %}
 
 Flink SQL optimizer can recognize the different filter arguments on the same distinct key. For example, in the above example, all the three COUNT DISTINCT are on `user_id` column.
-Then Flink can use just one share state instance instead of three state instances to reduce state access and state size. In some workloads, this can get significant performance improvements.
+Then Flink can use just one shared state instance instead of three state instances to reduce state access and state size. In some workloads, this can get significant performance improvements.
 
 
 {% top %}
