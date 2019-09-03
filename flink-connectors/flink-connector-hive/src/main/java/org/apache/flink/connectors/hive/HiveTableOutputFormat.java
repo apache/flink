@@ -229,7 +229,7 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 					for (FileStatus part : generatedParts) {
 						commitJob(part.getPath().toString());
 						LinkedHashMap<String, String> fullPartSpec = new LinkedHashMap<>();
-						hiveShim.makeSpecFromName(fullPartSpec, part.getPath(), null);
+						hiveShim.makeSpecFromName(fullPartSpec, part.getPath());
 						loadPartition(part.getPath(), table, fullPartSpec, client);
 					}
 				} else {

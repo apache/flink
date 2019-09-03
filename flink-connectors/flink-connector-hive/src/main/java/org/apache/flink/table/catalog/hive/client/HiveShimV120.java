@@ -49,7 +49,6 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Shim for Hive version 1.2.0.
@@ -185,7 +184,7 @@ public class HiveShimV120 implements HiveShim {
 	}
 
 	@Override
-	public void makeSpecFromName(Map<String, String> partSpec, Path currPath, Set<String> notUsed) {
+	public void makeSpecFromName(Map<String, String> partSpec, Path currPath) {
 		try {
 			Method method = Warehouse.class.getMethod("makeSpecFromName", Map.class, Path.class);
 			// makeSpecFromName is a static method

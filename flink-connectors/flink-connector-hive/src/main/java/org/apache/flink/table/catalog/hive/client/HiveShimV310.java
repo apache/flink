@@ -101,7 +101,7 @@ public class HiveShimV310 extends HiveShimV235 {
 	}
 
 	@Override
-	public void makeSpecFromName(Map<String, String> partSpec, Path currPath, Set<String> notUsed) {
+	public void makeSpecFromName(Map<String, String> partSpec, Path currPath) {
 		try {
 			Method method = Warehouse.class.getMethod("makeSpecFromName", Map.class, Path.class, Set.class);
 			// makeSpecFromName is a static method

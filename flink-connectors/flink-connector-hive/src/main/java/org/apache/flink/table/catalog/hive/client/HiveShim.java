@@ -38,7 +38,6 @@ import org.apache.thrift.TException;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * A shim layer to support different versions of Hive.
@@ -157,8 +156,7 @@ public interface HiveShim {
 	 *
 	 * @param partSpec partition specs
 	 * @param currPath the current path
-	 * @param notUsed newly added argument (which we don't care)
 	 */
-	void makeSpecFromName(Map<String, String> partSpec, Path currPath, Set<String> notUsed);
+	void makeSpecFromName(Map<String, String> partSpec, Path currPath);
 
 }
