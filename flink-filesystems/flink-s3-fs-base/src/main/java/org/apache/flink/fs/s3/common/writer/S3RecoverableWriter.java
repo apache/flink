@@ -103,7 +103,7 @@ public class S3RecoverableWriter implements RecoverableWriter {
 
 	@Override
 	public boolean requiresCleanupOfRecoverableState() {
-		return false;
+		return true;
 	}
 
 	@Override
