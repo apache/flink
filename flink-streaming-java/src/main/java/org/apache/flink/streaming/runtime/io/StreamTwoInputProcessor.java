@@ -279,7 +279,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
 	private CompletableFuture<?> isAnyInputAvailable() {
 		if (input1.isFinished()) {
-			return input2.isFinished() ? AVAILABLE : input2.isAvailable();
+			return input2.isAvailable();
 		}
 
 		if (input2.isFinished()) {
