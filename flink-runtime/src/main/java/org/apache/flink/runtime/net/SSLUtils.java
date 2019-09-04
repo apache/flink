@@ -124,7 +124,7 @@ public class SSLUtils {
 	}
 
 	/**
-	 * Creates a SSLEngineFactory to be used by internal communication server endpoints.
+	 * Creates an SSLEngineFactory to be used by internal communication server endpoints.
 	 */
 	public static SSLHandlerFactory createInternalServerSSLEngineFactory(final Configuration config) throws Exception {
 		SslContext sslContext = createInternalNettySSLContext(config, false);
@@ -139,7 +139,7 @@ public class SSLUtils {
 	}
 
 	/**
-	 * Creates a SSLEngineFactory to be used by internal communication client endpoints.
+	 * Creates an SSLEngineFactory to be used by internal communication client endpoints.
 	 */
 	public static SSLHandlerFactory createInternalClientSSLEngineFactory(final Configuration config) throws Exception {
 		SslContext sslContext = createInternalNettySSLContext(config, true);
