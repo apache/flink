@@ -20,7 +20,6 @@ package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -28,10 +27,8 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.AccessExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.AccessExecutionVertex;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
-import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rest.handler.legacy.files.StaticFileServerHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.FlinkException;
@@ -47,17 +44,13 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.net.InetAddress;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utilities for the web runtime monitor. This class contains for example methods to build
@@ -147,33 +140,6 @@ public final class WebMonitorUtils {
 		} else {
 			return Optional.empty();
 		}
-	}
-
-	/**
-	 * Get address of web monitor from configuration.
-	 *
-	 * @param configuration Configuration contains those for WebMonitor.
-	 * @param resolution Whether to try address resolution of the given hostname or not.
-	 *                   This allows to fail fast in case that the hostname cannot be resolved.
-	 * @return Address of WebMonitor.
-	 */
-	public static String getWebMonitorAddress(
-		Configuration configuration,
-		HighAvailabilityServicesUtils.AddressResolution resolution
-	) throws UnknownHostException {
-		final String address = checkNotNull(configuration.getString(RestOptions.ADDRESS), "%s must be set", RestOptions.ADDRESS.key());
-
-		if (resolution == HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION) {
-			// Fail fast if the hostname cannot be resolved
-			//noinspection ResultOfMethodCallIgnored
-			InetAddress.getByName(address);
-		}
-
-		final int port = configuration.getInteger(RestOptions.PORT);
-		final boolean enableSSL = SSLUtils.isRestSSLEnabled(configuration);
-		final String protocol = enableSSL ? "https://" : "http://";
-
-		return String.format("%s%s:%s", protocol, address, port);
 	}
 
 	/**

@@ -22,16 +22,18 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneClientHAServices;
 import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneHaServices;
-import org.apache.flink.runtime.highavailability.zookeeper.ZKClientHAServices;
+import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperClientHAServices;
 import org.apache.flink.runtime.highavailability.zookeeper.ZooKeeperHaServices;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobMaster;
+import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
@@ -41,9 +43,11 @@ import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.curator.framework.CuratorFramework;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.concurrent.Executor;
 
-import static org.apache.flink.runtime.webmonitor.WebMonitorUtils.getWebMonitorAddress;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Utils class to instantiate {@link HighAvailabilityServices} implementations.
@@ -140,7 +144,7 @@ public class HighAvailabilityServicesUtils {
 				return new StandaloneClientHAServices(webMonitorAddress);
 			case ZOOKEEPER:
 				final CuratorFramework client = ZooKeeperUtils.startCuratorFramework(configuration);
-				return new ZKClientHAServices(client, configuration);
+				return new ZooKeeperClientHAServices(client, configuration);
 			case FACTORY_CLASS:
 				return createCustomClientHAServices(configuration);
 			default:
@@ -173,6 +177,32 @@ public class HighAvailabilityServicesUtils {
 		}
 
 		return Tuple2.of(hostname, port);
+	}
+
+	/**
+	 * Get address of web monitor from configuration.
+	 *
+	 * @param configuration Configuration contains those for WebMonitor.
+	 * @param resolution Whether to try address resolution of the given hostname or not.
+	 *                   This allows to fail fast in case that the hostname cannot be resolved.
+	 * @return Address of WebMonitor.
+	 */
+	public static String getWebMonitorAddress(
+		Configuration configuration,
+		HighAvailabilityServicesUtils.AddressResolution resolution) throws UnknownHostException {
+		final String address = checkNotNull(configuration.getString(RestOptions.ADDRESS), "%s must be set", RestOptions.ADDRESS.key());
+
+		if (resolution == HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION) {
+			// Fail fast if the hostname cannot be resolved
+			//noinspection ResultOfMethodCallIgnored
+			InetAddress.getByName(address);
+		}
+
+		final int port = configuration.getInteger(RestOptions.PORT);
+		final boolean enableSSL = SSLUtils.isRestSSLEnabled(configuration);
+		final String protocol = enableSSL ? "https://" : "http://";
+
+		return String.format("%s%s:%s", protocol, address, port);
 	}
 
 	private static HighAvailabilityServices createCustomHAServices(Configuration config, Executor executor) throws FlinkException {

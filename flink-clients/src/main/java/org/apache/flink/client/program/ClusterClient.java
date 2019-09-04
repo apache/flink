@@ -106,9 +106,11 @@ public abstract class ClusterClient<T> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Shuts down the client. This stops possible internal services.
+	 * User overridable hook to close the client, possibly closes internal services.
 	 */
-	public abstract void shutdown() throws Exception;
+	public void shutdown() throws Exception {
+
+	}
 
 	// ------------------------------------------------------------------------
 	//  Access to the Program's Plan
@@ -409,5 +411,7 @@ public abstract class ClusterClient<T> {
 	 */
 	public abstract JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException;
 
-	public abstract void shutDownCluster();
+	public void shutDownCluster() {
+		throw new UnsupportedOperationException("The " + getClass().getSimpleName() + " does not support shutDownCluster.");
+	}
 }

@@ -59,6 +59,22 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
 		assertSame(haServices, actualHaServices);
 	}
 
+	@Test
+	public void testCreateCustomClientHAServices() throws Exception {
+		Configuration config = new Configuration();
+
+		ClientHighAvailabilityServices clientHAServices = Mockito.mock(ClientHighAvailabilityServices.class);
+		TestHAFactory.clientHAServices = clientHAServices;
+
+		config.setString(HighAvailabilityOptions.HA_MODE, TestHAFactory.class.getName());
+
+		// when
+		ClientHighAvailabilityServices actualClientHAServices = HighAvailabilityServicesUtils.createClientHAService(config);
+
+		// then
+		assertSame(clientHAServices, actualClientHAServices);
+	}
+
 	@Test(expected = Exception.class)
 	public void testCustomHAServicesFactoryNotDefined() throws Exception {
 		Configuration config = new Configuration();
@@ -77,10 +93,16 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
 	public static class TestHAFactory implements HighAvailabilityServicesFactory {
 
 		static HighAvailabilityServices haServices;
+		static ClientHighAvailabilityServices clientHAServices;
 
 		@Override
 		public HighAvailabilityServices createHAServices(Configuration configuration, Executor executor) {
 			return haServices;
+		}
+
+		@Override
+		public ClientHighAvailabilityServices createClientHAServices(Configuration configuration) throws Exception {
+			return clientHAServices;
 		}
 	}
 }

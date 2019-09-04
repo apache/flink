@@ -56,11 +56,6 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	}
 
 	@Override
-	public void shutdown() throws Exception {
-		// no op
-	}
-
-	@Override
 	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
 		final CompletableFuture<JobSubmissionResult> jobSubmissionResultFuture = submitJob(jobGraph);
 
@@ -157,15 +152,6 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	@Override
 	public String getWebInterfaceURL() {
 		return miniCluster.getRestAddress().toString();
-	}
-
-	@Override
-	public void shutDownCluster() {
-		try {
-			miniCluster.close();
-		} catch (Exception e) {
-			ExceptionUtils.rethrow(e);
-		}
 	}
 
 	enum MiniClusterId {

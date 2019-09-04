@@ -158,11 +158,10 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 
 	@VisibleForTesting
 	RestClusterClient(
-			Configuration configuration,
-			@Nullable RestClient restClient,
-			T clusterId,
-			WaitStrategy waitStrategy
-	) throws Exception {
+		Configuration configuration,
+		@Nullable RestClient restClient,
+		T clusterId,
+		WaitStrategy waitStrategy) throws Exception {
 		super(configuration);
 		this.restClusterClientConfiguration = RestClusterClientConfiguration.fromConfiguration(configuration);
 

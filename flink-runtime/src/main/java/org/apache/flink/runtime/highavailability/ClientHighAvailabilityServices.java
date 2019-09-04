@@ -22,8 +22,8 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 /**
  * {@code ClientHighAvailabilityServices} provides services those are required
- * in client-side. At the moment only web monitor leader retriever is required
- * because all requests from client are received and propagated by web monitor.
+ * on client-side. At the moment only the REST endpoint leader retriever is required
+ * because all communication between the client and cluster happens via the REST endpoint.
  */
 public interface ClientHighAvailabilityServices extends AutoCloseable {
 

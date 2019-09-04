@@ -93,14 +93,4 @@ public class FakeClusterClient extends ClusterClient<ApplicationId> {
 	public Map<String, OptionalFailure<Object>> getAccumulators(JobID jobID, ClassLoader loader) {
 		return Collections.emptyMap();
 	}
-
-	@Override
-	public void shutDownCluster() {
-		// no op
-	}
-
-	@Override
-	public void shutdown() throws Exception {
-
-	}
 }
