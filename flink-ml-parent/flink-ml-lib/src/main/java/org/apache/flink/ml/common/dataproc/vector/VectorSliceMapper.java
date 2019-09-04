@@ -20,14 +20,12 @@
 package org.apache.flink.ml.common.dataproc.vector;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.common.linalg.Vector;
 import org.apache.flink.ml.common.mapper.SISOMapper;
+import org.apache.flink.ml.common.utils.VectorTypes;
 import org.apache.flink.ml.params.dataproc.vector.VectorSliceParams;
 import org.apache.flink.table.api.TableSchema;
-
-import org.apache.commons.lang3.StringUtils;
 
 /**
  * This mapper maps vector to a thinner one with special indices.
@@ -43,16 +41,17 @@ public class VectorSliceMapper extends SISOMapper {
 
 	@Override
 	protected Object map(Object input) {
-		if (StringUtils.isEmpty((String) input)) {
-			return input;
+		if (input == null) {
+			return null;
 		}
-		Vector vec = Vector.parse((String) input);
-		return vec.slice(indices).serialize();
+
+		Vector vec = (Vector) input;
+		return vec.slice(indices);
 	}
 
 	@Override
 	protected TypeInformation initOutputColType() {
-		return Types.STRING;
+		return VectorTypes.VECTOR;
 	}
 
 }
