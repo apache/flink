@@ -46,4 +46,26 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 
 in the shell. Note that `hadoop` is the hadoop binary and that `classpath` is an argument that will make it print the configured Hadoop classpath.
 
+## Running a job locally
+
+To run a job locally as one JVM process using the mini cluster, the required hadoop dependencies have to be explicitly
+added to the classpath of the started JVM process.
+
+To run an application using maven (also from IDE as a maven project), the required hadoop dependencies can be added
+as provided to the pom.xml, e.g.:
+
+```xml
+<dependency>
+    <groupId>org.apache.hadoop</groupId>
+    <artifactId>hadoop-client</artifactId>
+    <version>2.8.3</version>
+    <scope>provided</scope>
+</dependency>
+```
+
+This way it should work both in local and cluster run where the provided dependencies are added elsewhere as described before.
+
+To run or debug an application in IntelliJ Idea the provided dependencies can be included to the class path
+in the "Run|Edit Configurations" window.
+
 {% top %}
