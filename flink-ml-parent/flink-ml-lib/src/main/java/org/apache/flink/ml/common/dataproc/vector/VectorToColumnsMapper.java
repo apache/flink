@@ -32,8 +32,6 @@ import org.apache.flink.ml.params.dataproc.vector.VectorToColumnsParams;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
-import org.apache.commons.lang3.StringUtils;
-
 /**
  * This mapper maps vector to table columns.
  */
@@ -64,17 +62,16 @@ public class VectorToColumnsMapper extends Mapper {
 
 	@Override
 	public Row map(Row row) {
-		String str = (String) row.getField(idx);
 		Row result = new Row(colSize);
-
-		if (StringUtils.isEmpty(str)) {
-			for (int i = 0; i < colSize; ++i) {
-				result.setField(i, 0.0);
+		Object obj = row.getField(idx);
+		if (null == obj) {
+			for (int i = 0; i < colSize; i++) {
+				result.setField(i, null);
 			}
 			return outputColsHelper.getResultRow(row, result);
 		}
 
-		Vector vec = Vector.parse(str);
+		Vector vec = (Vector) obj;
 
 		if (vec instanceof SparseVector) {
 			for (int i = 0; i < colSize; ++i) {
