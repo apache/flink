@@ -78,33 +78,6 @@ JAR file into `lib` directory.
 It's encouraged to use the plugin-based loading mechanism for file systems that support it. Loading file systems components from the `lib`
 directory may be not supported in future Flink versions.
 
-## HDFS and Hadoop File System support
-
-For all schemes where Flink cannot find a directly supported file system, it falls back to Hadoop.
-All Hadoop file systems are automatically available when `flink-runtime` and the Hadoop libraries are on the classpath.
-
-This way, Flink seamlessly supports all of Hadoop file systems, and all Hadoop-compatible file systems (HCFS).
-
-  - **hdfs**
-  - **ftp**
-  - **s3n** and **s3a**
-  - **har**
-  - ...
-
-### Hadoop Configuration
-
-We recommend using Flink's built-in file systems unless required otherwise. Using a Hadoop File System directly may be required, for example, when using that file system for YARN's resource storage, via the `fs.defaultFS` configuration property in Hadoop's `core-site.xml`.
-
-Putting the Hadoop configuration in the same class path as the Hadoop libraries makes the Hadoop File Systems pick up that configuration.
-You can reference another Hadoop configuration by setting the environment variable `HADOOP_CONF_DIR`, or by referencing it via the [Flink configuration](../config.html#hdfs).
-
-{% highlight yaml %}
-fs.hdfs.hadoopconf: /path/to/etc/hadoop
-{% endhighlight %}
-
-This registers `/path/to/etc/hadoop` as Hadoop's configuration directory and is where Flink will look for the `core-site.xml` and `hdfs-site.xml` files.
-
-
 ## Adding a new pluggable File System implementation
 
 File systems are represented via the `org.apache.flink.core.fs.FileSystem` class, which captures the ways to access and modify files and objects in that file system.
@@ -120,6 +93,40 @@ During plugins discovery, the file system factory class will be loaded by a dedi
 The same class loader should be used during file system instantiation and the file system operation calls.
 
 <span class="label label-warning">Warning</span> In practice, it means you should avoid using `Thread.currentThread().getContextClassLoader()` class loader
-in your implementation. 
+in your implementation.
+
+## Hadoop File System (HDFS) and its other implementations
+
+For all schemes where Flink cannot find a directly supported file system, it falls back to Hadoop.
+All Hadoop file systems are automatically available when `flink-runtime` and the Hadoop libraries are on the classpath.
+See also **[Hadoop Integration]({{ site.baseurl }}/ops/deployment/hadoop.html)**.
+
+This way, Flink seamlessly supports all of Hadoop file systems implementing the `org.apache.hadoop.fs.FileSystem` interface,
+and all Hadoop-compatible file systems (HCFS).
+
+  - HDFS (tested)
+  - [Google Cloud Storage Connector for Hadoop](https://cloud.google.com/hadoop/google-cloud-storage-connector) (tested)
+  - [Alluxio](http://alluxio.org/) (tested, see configuration specifics below)
+  - [XtreemFS](http://www.xtreemfs.org/) (tested)
+  - FTP via [Hftp](http://hadoop.apache.org/docs/r1.2.1/hftp.html) (not tested)
+  - HAR (not tested)
+  - ...
+
+The Hadoop configuration has to have an entry for the required file system implementation in the `core-site.xml` file.
+See example for **[Alluxio]({{ site.baseurl }}/ops/filesystems/#alluxio)**.
+
+We recommend using Flink's built-in file systems unless required otherwise. Using a Hadoop File System directly may be required,
+for example, when using that file system for YARN's resource storage, via the `fs.defaultFS` configuration property in Hadoop's `core-site.xml`.
+
+### Alluxio
+
+For Alluxio support add the following entry into the `core-site.xml` file:
+
+{% highlight xml %}
+<property>
+  <name>fs.alluxio.impl</name>
+  <value>alluxio.hadoop.FileSystem</value>
+</property>
+{% endhighlight %}
 
 {% top %}
