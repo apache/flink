@@ -147,7 +147,8 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	private TernaryBoolean enableTtlCompactionFilter;
 
 	/** This determines the type of priority queue state. */
-	private final PriorityQueueStateType priorityQueueStateType;
+	@Nullable
+	private PriorityQueueStateType priorityQueueStateType;
 
 	/** The default rocksdb metrics options. */
 	private final RocksDBNativeMetricOptions defaultMetricOptions;
@@ -265,8 +266,6 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.checkpointStreamBackend = checkNotNull(checkpointStreamBackend);
 		this.enableIncrementalCheckpointing = enableIncrementalCheckpointing;
 		this.numberOfTransferingThreads = UNDEFINED_NUMBER_OF_TRANSFERING_THREADS;
-		// for now, we use still the heap-based implementation as default
-		this.priorityQueueStateType = PriorityQueueStateType.HEAP;
 		this.defaultMetricOptions = new RocksDBNativeMetricOptions();
 		this.enableTtlCompactionFilter = TernaryBoolean.UNDEFINED;
 	}
@@ -314,10 +313,11 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 		this.enableTtlCompactionFilter = original.enableTtlCompactionFilter
 			.resolveUndefined(config.getBoolean(TTL_COMPACT_FILTER_ENABLED));
 
-		final String priorityQueueTypeString = config.getString(TIMER_SERVICE_FACTORY);
-
-		this.priorityQueueStateType = priorityQueueTypeString.length() > 0 ?
-			PriorityQueueStateType.valueOf(priorityQueueTypeString.toUpperCase()) : original.priorityQueueStateType;
+		if (null == original.priorityQueueStateType) {
+			this.priorityQueueStateType = config.getEnum(PriorityQueueStateType.class, TIMER_SERVICE_FACTORY);
+		} else {
+			this.priorityQueueStateType = original.priorityQueueStateType;
+		}
 
 		// configure local directories
 		if (original.localRocksDbDirectories != null) {
@@ -507,7 +507,7 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 			keyGroupRange,
 			executionConfig,
 			localRecoveryConfig,
-			priorityQueueStateType,
+			getPriorityQueueStateType(),
 			ttlTimeProvider,
 			metricGroup,
 			stateHandles,
@@ -714,6 +714,22 @@ public class RocksDBStateBackend extends AbstractStateBackend implements Configu
 	 */
 	public void enableTtlCompactionFilter() {
 		enableTtlCompactionFilter = TernaryBoolean.TRUE;
+	}
+
+	/**
+	 * Gets the type of the priority queue state. It will fallback to the default value, if it is not explicitly set.
+	 * @return The type of the priority queue state.
+	 */
+	public PriorityQueueStateType getPriorityQueueStateType() {
+		return priorityQueueStateType == null ?
+			PriorityQueueStateType.valueOf(TIMER_SERVICE_FACTORY.defaultValue()) : priorityQueueStateType;
+	}
+
+	/**
+	 * Sets the type of the priority queue state. It will fallback to the default value, if it is not explicitly set.
+	 */
+	public void setPriorityQueueStateType(PriorityQueueStateType priorityQueueStateType) {
+		this.priorityQueueStateType = checkNotNull(priorityQueueStateType);
 	}
 
 	// ------------------------------------------------------------------------
