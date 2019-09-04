@@ -29,7 +29,6 @@ import org.junit.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.URL;
 import java.net.UnknownHostException;
 import java.util.Collections;
 
@@ -51,35 +50,34 @@ public class RemoteExecutorHostnameResolutionTest extends TestLogger {
 
 	@Test
 	public void testUnresolvableHostname1() throws Exception {
-
 		RemoteExecutor exec = new RemoteExecutor(nonExistingHostname, port);
+
 		try {
 			exec.executePlan(getProgram());
 			fail("This should fail with an ProgramInvocationException");
-		}
-		catch (UnknownHostException ignored) {
-			// that is what we want!
+		} catch (UnknownHostException ignored) {
+			// expected
 		}
 	}
 
 	@Test
 	public void testUnresolvableHostname2() throws Exception {
-
-		InetSocketAddress add = new InetSocketAddress(nonExistingHostname, port);
-		RemoteExecutor exec = new RemoteExecutor(add, new Configuration(),
-				Collections.<URL>emptyList(), Collections.<URL>emptyList());
+		RemoteExecutor exec = new RemoteExecutor(
+			new InetSocketAddress(nonExistingHostname, port),
+			new Configuration(),
+			Collections.emptyList(),
+			Collections.emptyList());
 		try {
 			exec.executePlan(getProgram());
 			fail("This should fail with an ProgramInvocationException");
-		}
-		catch (UnknownHostException ignored) {
+		} catch (UnknownHostException ignored) {
 			// that is what we want!
 		}
 	}
 
 	private static Plan getProgram() {
 		ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
-		env.fromElements(1, 2, 3).output(new DiscardingOutputFormat<Integer>());
+		env.fromElements(1, 2, 3).output(new DiscardingOutputFormat<>());
 		return env.createProgramPlan();
 	}
 

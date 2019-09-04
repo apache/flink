@@ -35,9 +35,6 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -77,12 +74,6 @@ public abstract class ClusterClient<T> {
 
 	/** Timeout for futures. */
 	protected final FiniteDuration timeout;
-
-	/** Service factory for high available. */
-	protected final HighAvailabilityServices highAvailabilityServices;
-
-	private final boolean sharedHaServices;
-
 	/**
 	 * For interactive invocations, the job results are only available after the ContextEnvironment has
 	 * been run inside the user JAR. We pass the Client to every instance of the ContextEnvironment
@@ -103,39 +94,11 @@ public abstract class ClusterClient<T> {
 	 * if that is not possible.
 	 *
 	 * @param flinkConfig The config used to obtain the job-manager's address, and used to configure the optimizer.
-	 *
-	 * @throws Exception we cannot create the high availability services
 	 */
-	public ClusterClient(Configuration flinkConfig) throws Exception {
-		this(
-			flinkConfig,
-			HighAvailabilityServicesUtils.createHighAvailabilityServices(
-				flinkConfig,
-				Executors.directExecutor(),
-				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION),
-			false);
-	}
-
-	/**
-	 * Creates a instance that submits the programs to the JobManager defined in the
-	 * configuration. This method will try to resolve the JobManager hostname and throw an exception
-	 * if that is not possible.
-	 *
-	 * @param flinkConfig The config used to obtain the job-manager's address, and used to configure the optimizer.
-	 * @param highAvailabilityServices HighAvailabilityServices to use for leader retrieval
-	 * @param sharedHaServices true if the HighAvailabilityServices are shared and must not be shut down
-	 */
-	public ClusterClient(
-			Configuration flinkConfig,
-			HighAvailabilityServices highAvailabilityServices,
-			boolean sharedHaServices) {
+	public ClusterClient(Configuration flinkConfig) {
 		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), flinkConfig);
-
 		this.timeout = AkkaUtils.getClientTimeout(flinkConfig);
-
-		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
-		this.sharedHaServices = sharedHaServices;
 	}
 
 	// ------------------------------------------------------------------------
@@ -143,15 +106,9 @@ public abstract class ClusterClient<T> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Shuts down the client. This stops the internal actor system and actors.
+	 * Shuts down the client. This stops possible internal services.
 	 */
-	public void shutdown() throws Exception {
-		synchronized (this) {
-			if (!sharedHaServices && highAvailabilityServices != null) {
-				highAvailabilityServices.close();
-			}
-		}
-	}
+	public abstract void shutdown() throws Exception;
 
 	// ------------------------------------------------------------------------
 	//  Access to the Program's Plan
@@ -450,10 +407,7 @@ public abstract class ClusterClient<T> {
 	 * @param jobGraph The JobGraph to be submitted
 	 * @return JobSubmissionResult
 	 */
-	public abstract JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
-		throws ProgramInvocationException;
+	public abstract JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException;
 
-	public void shutDownCluster() {
-		throw new UnsupportedOperationException("The " + getClass().getSimpleName() + " does not support shutDownCluster.");
-	}
+	public abstract void shutDownCluster();
 }
