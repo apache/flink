@@ -129,6 +129,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import javax.annotation.Nullable;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -156,6 +158,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -799,6 +802,25 @@ public class StreamTaskTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that some StreamTask methods are called only in the main task's thread.
+	 * Currently, the main task's thread is the thread that creates the task.
+	 */
+	@Test
+	public void testThreadInvariants() throws Throwable {
+		try (MockEnvironment mockEnvironment = new MockEnvironmentBuilder().build()) {
+			ClassLoader taskClassLoader = new TestUserCodeClassLoader();
+
+			RunningTask<ThreadInspectingTask> runningTask = runTask(() -> {
+				Thread.currentThread().setContextClassLoader(taskClassLoader);
+				return new ThreadInspectingTask(mockEnvironment);
+			});
+			runningTask.invocationFuture.get();
+
+			assertThat(runningTask.streamTask.getTaskClassLoader(), is(sameInstance(taskClassLoader)));
+		}
+	}
+
 	@Test
 	public void testOperatorNotSupportedByNonNetworkCreditMode() throws Exception {
 
@@ -1397,6 +1419,50 @@ public class StreamTaskTest extends TestLogger {
 		protected void processInput(DefaultActionContext context) throws Exception {
 			syncLatch.await();
 			super.processInput(context);
+		}
+	}
+
+	private static class ThreadInspectingTask extends StreamTask<String, AbstractStreamOperator<String>> {
+
+		private final long taskThreadId;
+		private final ClassLoader taskClassLoader;
+
+		ThreadInspectingTask(Environment env) {
+			super(env, null);
+			Thread currentThread = Thread.currentThread();
+			taskThreadId = currentThread.getId();
+			taskClassLoader = currentThread.getContextClassLoader();
+		}
+
+		@Nullable
+		ClassLoader getTaskClassLoader() {
+			return taskClassLoader;
+		}
+
+		@Override
+		protected void init() throws Exception {
+			checkTaskThreadInfo();
+		}
+
+		@Override
+		protected void processInput(DefaultActionContext context) throws Exception {
+			checkTaskThreadInfo();
+			context.allActionsCompleted();
+		}
+
+		@Override
+		protected void cleanup() throws Exception {
+			checkTaskThreadInfo();
+		}
+
+		private void checkTaskThreadInfo() {
+			Thread currentThread = Thread.currentThread();
+			Preconditions.checkState(
+				taskThreadId == currentThread.getId(),
+				"Task's method was called in non task thread.");
+			Preconditions.checkState(
+				taskClassLoader == currentThread.getContextClassLoader(),
+				"Task's context class loader has been changed during invocation.");
 		}
 	}
 
