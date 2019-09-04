@@ -83,7 +83,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		CommandLineParser parser = new DefaultParser();
 		CommandLine cmd = parser.parse(options, new String[]{"run", "-j", "fake.jar", "-n", "15",
-				"-D", "akka.ask.timeout=5 min", "-D", "env.java.opts=-DappName=foobar"});
+				"-D", "akka.ask.timeout=5 min", "-D", "env.java.opts=-DappName=foobar", "-D", "security.ssl.internal.key-password=changeit"});
 
 		AbstractYarnClusterDescriptor flinkYarnDescriptor = cli.createClusterDescriptor(cmd);
 
@@ -91,9 +91,10 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		Map<String, String> dynProperties =
 			FlinkYarnSessionCli.getDynamicProperties(flinkYarnDescriptor.getDynamicPropertiesEncoded());
-		assertEquals(2, dynProperties.size());
+		assertEquals(3, dynProperties.size());
 		assertEquals("5 min", dynProperties.get("akka.ask.timeout"));
 		assertEquals("-DappName=foobar", dynProperties.get("env.java.opts"));
+		assertEquals("changeit", dynProperties.get("security.ssl.internal.key-password"));
 	}
 
 	@Test
