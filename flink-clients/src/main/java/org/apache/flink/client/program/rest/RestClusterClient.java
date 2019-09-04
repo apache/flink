@@ -186,7 +186,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 	}
 
 	@Override
-	public void shutdown() {
+	public void close() {
 		ExecutorUtils.gracefulShutdown(restClusterClientConfiguration.getRetryDelay(), TimeUnit.MILLISECONDS, retryExecutorService);
 
 		this.restClient.shutdown(Time.seconds(5));
@@ -202,6 +202,12 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 			clientHAServices.close();
 		} catch (Exception e) {
 			log.error("An error occurred during stopping the ClientHighAvailabilityServices", e);
+		}
+
+		try {
+			super.close();
+		} catch (Exception e) {
+			log.error("Error while closing the Cluster Client", e);
 		}
 	}
 

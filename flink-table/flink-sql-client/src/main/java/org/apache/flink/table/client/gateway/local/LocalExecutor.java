@@ -431,7 +431,7 @@ public class LocalExecutor implements Executor {
 			} finally {
 				try {
 					if (clusterClient != null) {
-						clusterClient.shutdown();
+						clusterClient.close();
 					}
 				} catch (Exception e) {
 					// ignore

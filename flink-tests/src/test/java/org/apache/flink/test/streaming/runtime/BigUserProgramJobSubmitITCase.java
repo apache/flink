@@ -103,7 +103,7 @@ public class BigUserProgramJobSubmitITCase extends TestLogger {
 
 			assertEquals(expected, result);
 		} finally {
-			restClusterClient.shutdown();
+			restClusterClient.close();
 		}
 	}
 

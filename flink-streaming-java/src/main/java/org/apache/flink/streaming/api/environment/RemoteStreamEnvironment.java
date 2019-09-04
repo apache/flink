@@ -292,7 +292,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		}
 		finally {
 			try {
-				client.shutdown();
+				client.close();
 			} catch (Exception e) {
 				LOG.warn("Could not properly shut down the cluster client.", e);
 			}

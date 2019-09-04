@@ -176,7 +176,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 
 				killApplicationAndWait(id);
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		});
 	}
@@ -199,7 +199,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 
 				killApplicationAndWait(restClusterClient.getClusterId());
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		});
 	}
