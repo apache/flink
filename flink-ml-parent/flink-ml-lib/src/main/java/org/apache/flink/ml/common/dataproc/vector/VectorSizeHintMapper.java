@@ -20,25 +20,33 @@
 package org.apache.flink.ml.common.dataproc.vector;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.common.linalg.Vector;
 import org.apache.flink.ml.common.mapper.SISOFlatMapper;
+import org.apache.flink.ml.common.utils.VectorTypes;
 import org.apache.flink.ml.params.dataproc.vector.VectorSizeHintParams;
 import org.apache.flink.ml.params.shared.HasSize;
 import org.apache.flink.table.api.TableSchema;
-
-import java.util.List;
+import org.apache.flink.util.Collector;
 
 /**
- * This mapper check the size of vector and give results as parameter define.
+ * This mapper checks the size of vector and give results as parameter define.
  */
 public class VectorSizeHintMapper extends SISOFlatMapper {
 	private int size;
 
 	private enum HandleType {
+		/**
+		 * If the input vector is null or its size does not match the given one, then throw exception.
+		 */
 		ERROR,
+		/**
+		 * It will accept the vector if it is not null and its size matches the given one.
+		 */
 		SKIP,
+		/**
+		 * It will accept the vector if the vector is not null.
+		 */
 		OPTIMISTIC
 	}
 
@@ -51,49 +59,42 @@ public class VectorSizeHintMapper extends SISOFlatMapper {
 	}
 
 	@Override
-	protected void flatMap(Object input, List<Object> output) {
-		String in = (String) input;
+	protected void flatMap(Object input, Collector<Object> output) {
+		Vector vec;
 		switch (handleMethod) {
 			case SKIP:
-				if (in == null) {
+				if (null == input) {
 					return;
 				} else {
-					if (getVectorSize(in) == size) {
-						output.add(in);
+					vec = (Vector) input;
+					if (vec.size() == size) {
+						output.collect(vec);
 					}
 				}
 				break;
 			case ERROR:
-				if (in == null) {
+				if (input == null) {
 					throw new NullPointerException(
 						"Got null vector in VectorSizeHint, set `handleInvalid` to 'skip' to filter invalid rows.");
 				} else {
-					int localSize = getVectorSize(in);
-					if (localSize == size) {
-						output.add(in);
+					vec = (Vector) input;
+					if (vec.size() == size) {
+						output.collect(vec);
 					} else {
-						throw new RuntimeException(
-							"VectorSizeHint : vec size (" + localSize + ") not equal param size (" + size + ").");
+						throw new IllegalArgumentException(
+							"VectorSizeHint : vec size (" + vec.size() + ") not equal param size (" + size + ").");
 					}
 				}
 				break;
 			case OPTIMISTIC:
-				if (in == null || in.isEmpty()) {
-					return;
-				} else {
-					output.add(in);
+				if (input != null) {
+					output.collect(input);
 				}
-
 		}
-	}
-
-	private int getVectorSize(String in) {
-		Vector vec = Vector.parse(in);
-		return vec.size();
 	}
 
 	@Override
 	protected TypeInformation initOutputColType() {
-		return Types.STRING;
+		return VectorTypes.VECTOR;
 	}
 }
