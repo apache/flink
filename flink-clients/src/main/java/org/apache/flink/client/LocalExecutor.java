@@ -99,11 +99,6 @@ public class LocalExecutor extends PlanExecutor {
 
 	// --------------------------------------------------------------------------------------------
 
-	private JobExecutorService startExecutorService(final Configuration executorServiceConfig) throws Exception {
-		checkNotNull(executorServiceConfig);
-		return createJobExecutorService(executorServiceConfig);
-	}
-
 	private JobExecutorService createJobExecutorService(Configuration configuration) throws Exception {
 		if (!configuration.contains(RestOptions.BIND_PORT)) {
 			configuration.setString(RestOptions.BIND_PORT, "0");
@@ -129,11 +124,6 @@ public class LocalExecutor extends PlanExecutor {
 		return miniCluster;
 	}
 
-	private void stopExecutorService(final JobExecutorService executorService) throws Exception {
-		checkNotNull(executorService);
-		executorService.close();
-	}
-
 	/**
 	 * Executes the given program on a local runtime and waits for the job to finish.
 	 *
@@ -151,11 +141,9 @@ public class LocalExecutor extends PlanExecutor {
 	public JobExecutionResult executePlan(Plan plan) throws Exception {
 		checkNotNull(plan);
 
-		JobExecutorService executorService = null;
-		try {
-			final Configuration jobExecutorServiceConfiguration = configureExecution(plan);
+		final Configuration jobExecutorServiceConfiguration = configureExecution(plan);
 
-			executorService = startExecutorService(jobExecutorServiceConfiguration);
+		try (final JobExecutorService executorService = createJobExecutorService(jobExecutorServiceConfiguration)) {
 
 			Optimizer pc = new Optimizer(new DataStatistics(), jobExecutorServiceConfiguration);
 			OptimizedPlan op = pc.compile(plan);
@@ -164,10 +152,6 @@ public class LocalExecutor extends PlanExecutor {
 			JobGraph jobGraph = jgg.compileJobGraph(op, plan.getJobId());
 
 			return executorService.executeJobBlocking(jobGraph);
-		} finally {
-			if (executorService != null) {
-				stopExecutorService(executorService);
-			}
 		}
 	}
 
