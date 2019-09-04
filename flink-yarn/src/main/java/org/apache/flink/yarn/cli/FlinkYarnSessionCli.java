@@ -335,6 +335,10 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 
 		final Properties properties = cmd.getOptionProperties(dynamicproperties.getOpt());
 
+		for (String key : properties.stringPropertyNames()) {
+			LOG.info("Dynamic Property set: {}={}", key, GlobalConfiguration.isSensitive(key) ? GlobalConfiguration.HIDDEN_CONTENT : properties.getProperty(key));
+		}
+
 		String[] dynamicProperties = properties.stringPropertyNames().stream()
 			.flatMap(
 				(String key) -> {
