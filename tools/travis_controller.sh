@@ -96,6 +96,26 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
     fi
 
     if [ $EXIT_CODE == 0 ]; then
+        ./tools/releasing/collect_license_files.sh ./build-target
+        diff "NOTICE-binary" "licenses-output/NOTICE-binary"
+        EXIT_CODE=$(($EXIT_CODE+$?))
+        diff -r "licenses-binary" "licenses-output/licenses-binary"
+        EXIT_CODE=$(($EXIT_CODE+$?))
+
+        if [ $EXIT_CODE != 0 ]; then
+          echo "=============================================================================="
+          echo "ERROR: binary licensing is out-of-date."
+          echo "Please update NOTICE-binary and licenses-binary using"
+          echo "'tools/releasing/collect_license_files.sh'."
+          echo "=============================================================================="
+        fi
+    else
+        echo "=============================================================================="
+        echo "Previous build failure detected, skipping licensing check."
+        echo "=============================================================================="
+    fi
+
+    if [ $EXIT_CODE == 0 ]; then
         echo "Creating cache build directory $CACHE_FLINK_DIR"
         mkdir -p "$CACHE_FLINK_DIR"
     
