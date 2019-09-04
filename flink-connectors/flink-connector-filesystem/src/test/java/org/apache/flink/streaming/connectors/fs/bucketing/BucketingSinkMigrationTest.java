@@ -92,7 +92,8 @@ public class BucketingSinkMigrationTest {
 			Tuple2.of(MigrationVersion.v1_5, "/tmp/junit4927100426019463155/junit2465610012100182280/1970-01-01--00/part-0-"),
 			Tuple2.of(MigrationVersion.v1_6, "/tmp/junit3459711376354834545/junit5114611885650086135/1970-01-01--00/part-0-"),
 			Tuple2.of(MigrationVersion.v1_7, "/var/folders/r2/tdhx810x7yxb7q9_brnp49x40000gp/T/junit4288325607215628863/junit8132783417241536320/1970-01-01--08/part-0-"),
-			Tuple2.of(MigrationVersion.v1_8, "/var/folders/rc/84k970r94nz456tb9cdlt30s1j0k94/T/junit7271027454784776053/junit5108755539355247469/1970-01-01--08/part-0-"));
+			Tuple2.of(MigrationVersion.v1_8, "/var/folders/rc/84k970r94nz456tb9cdlt30s1j0k94/T/junit7271027454784776053/junit5108755539355247469/1970-01-01--08/part-0-"),
+			Tuple2.of(MigrationVersion.v1_9, "/var/folders/rc/84k970r94nz456tb9cdlt30s1j0k94/T/junit587754116249874744/junit764636113243634374/1970-01-01--08/part-0-"));
 	}
 
 	private final MigrationVersion testMigrateVersion;

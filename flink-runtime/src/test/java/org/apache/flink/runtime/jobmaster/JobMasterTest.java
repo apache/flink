@@ -62,6 +62,7 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategyLoader;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
+import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.instance.SimpleSlotContext;
@@ -220,6 +221,8 @@ public class JobMasterTest extends TestLogger {
 
 	private static HeartbeatServices heartbeatServices;
 
+	private static TestingHeartbeatServices testingHeartbeatService;
+
 	private Configuration configuration;
 
 	private ResourceID jmResourceId;
@@ -238,6 +241,7 @@ public class JobMasterTest extends TestLogger {
 
 		fastHeartbeatServices = new HeartbeatServices(fastHeartbeatInterval, fastHeartbeatTimeout);
 		heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
+		testingHeartbeatService = new TestingHeartbeatServices(heartbeatInterval, heartbeatTimeout);
 	}
 
 	@Before
@@ -1775,7 +1779,7 @@ public class JobMasterTest extends TestLogger {
 	}
 
 	/**
-	 * Tests the updateGlobalAggregate functionality
+	 * Tests the updateGlobalAggregate functionality.
 	 */
 	@Test
 	public void testJobMasterAggregatesValuesCorrectly() throws Exception {
@@ -1833,9 +1837,7 @@ public class JobMasterTest extends TestLogger {
 
 			@Override
 			public Integer add(Integer value, Integer accumulator) {
-				Integer _acc = (Integer) accumulator;
-				Integer _value = (Integer) value;
-				return _acc + _value;
+				return accumulator + value;
 			}
 
 			@Override
@@ -1969,14 +1971,14 @@ public class JobMasterTest extends TestLogger {
 
 	@Test
 	public void testJobFailureWhenTaskExecutorHeartbeatTimeout() throws Exception {
-		final AtomicBoolean respondToHeartbeats = new AtomicBoolean(true);
 		runJobFailureWhenTaskExecutorTerminatesTest(
-			fastHeartbeatServices,
-			(localTaskManagerLocation, jobMasterGateway) -> respondToHeartbeats.set(false),
+			testingHeartbeatService,
+			(localTaskManagerLocation, jobMasterGateway) ->
+				testingHeartbeatService.triggerHeartbeatTimeout(
+					jmResourceId,
+					localTaskManagerLocation.getResourceID()),
 			(jobMasterGateway, taskManagerResourceId) -> (resourceId, ignored) -> {
-				if (respondToHeartbeats.get()) {
-					jobMasterGateway.heartbeatFromTaskManager(taskManagerResourceId, new AccumulatorReport(Collections.emptyList()));
-				}
+				jobMasterGateway.heartbeatFromTaskManager(taskManagerResourceId, new AccumulatorReport(Collections.emptyList()));
 			}
 		);
 	}

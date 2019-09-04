@@ -340,11 +340,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		Throwable jobManagerDisconnectThrowable = null;
 
-		if (resourceManagerConnection != null) {
-			resourceManagerConnection.close();
-		}
-
 		FlinkException cause = new FlinkException("The TaskExecutor is shutting down.");
+
+		closeResourceManagerConnection(cause);
+
 		for (JobManagerConnection jobManagerConnection : jobManagerConnections.values()) {
 			try {
 				disassociateFromJobManager(jobManagerConnection, cause);
@@ -958,7 +957,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	@Override
 	public void disconnectResourceManager(Exception cause) {
-		reconnectToResourceManager(cause);
+		if (isRunning()) {
+			reconnectToResourceManager(cause);
+		}
 	}
 
 	// ======================================================================
@@ -986,6 +987,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private void reconnectToResourceManager(Exception cause) {
 		closeResourceManagerConnection(cause);
+		startRegistrationTimeout();
 		tryConnectToResourceManager();
 	}
 
@@ -1098,8 +1100,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			resourceManagerConnection.close();
 			resourceManagerConnection = null;
 		}
-
-		startRegistrationTimeout();
 	}
 
 	private void startRegistrationTimeout() {

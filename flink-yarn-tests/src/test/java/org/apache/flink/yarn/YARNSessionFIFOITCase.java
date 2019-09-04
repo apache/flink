@@ -132,7 +132,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			Runner clusterRunner =
 				startWithArgs(
 					args.toArray(new String[args.size()]),
-					"Flink JobManager is now running on", RunTypes.YARN_SESSION);
+					"JobManager Web Interface:", RunTypes.YARN_SESSION);
 
 			// before checking any strings outputted by the CLI, first give it time to return
 			clusterRunner.join();

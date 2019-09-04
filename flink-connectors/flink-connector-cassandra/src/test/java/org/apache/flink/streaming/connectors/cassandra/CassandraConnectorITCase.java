@@ -45,6 +45,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
+import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.types.Row;
 
 import com.datastax.driver.core.Cluster;
@@ -60,6 +61,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -90,6 +92,7 @@ import static org.junit.Assert.assertTrue;
  * IT cases for all cassandra sinks.
  */
 @SuppressWarnings("serial")
+@Category(FailsOnJava11.class)
 public class CassandraConnectorITCase extends WriteAheadSinkTestBase<Tuple3<String, Integer, Integer>, CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>>> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CassandraConnectorITCase.class);

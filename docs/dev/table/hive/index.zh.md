@@ -155,7 +155,7 @@ String hiveConfDir     = "/opt/hive-conf";
 String version         = "2.3.4"; // or 1.2.1
 
 HiveCatalog hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version);
-tableEnv.registerCatalog(hive);
+tableEnv.registerCatalog("myhive", hive);
 {% endhighlight %}
 </div>
 <div data-lang="Scala" markdown="1">
@@ -167,7 +167,7 @@ val hiveConfDir     = "/opt/hive-conf"
 val version         = "2.3.4" // or 1.2.1
 
 val hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version)
-tableEnv.registerCatalog(hive)
+tableEnv.registerCatalog("myhive", hive)
 {% endhighlight %}
 </div>
 <div data-lang="YAML" markdown="1">

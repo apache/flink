@@ -102,6 +102,7 @@ flink-connectors/flink-connector-kafka-base,\
 flink-connectors/flink-connector-nifi,\
 flink-connectors/flink-connector-rabbitmq,\
 flink-connectors/flink-connector-twitter,\
+flink-connectors/flink-connector-kinesis,\
 flink-metrics/flink-metrics-dropwizard,\
 flink-metrics/flink-metrics-graphite,\
 flink-metrics/flink-metrics-jmx,\
@@ -128,10 +129,6 @@ MODULES_CONNECTORS_JDK9_EXCLUSIONS="\
 
 MODULES_TESTS="\
 flink-tests"
-
-if [[ ${PROFILE} == *"include-kinesis"* ]]; then
-    MODULES_CONNECTORS="$MODULES_CONNECTORS,flink-connectors/flink-connector-kinesis"
-fi
 
 # we can only build the Kafka 0.8 connector when building for Scala 2.11
 if [[ $PROFILE == *"scala-2.11"* ]]; then

@@ -50,7 +50,6 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.kryo.Serializers;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.fs.Path;
@@ -1132,8 +1131,6 @@ public abstract class ExecutionEnvironment {
 	@PublicEvolving
 	public static ExecutionEnvironment createLocalEnvironmentWithWebUI(Configuration conf) {
 		checkNotNull(conf, "conf");
-
-		conf.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
 
 		if (!conf.contains(RestOptions.PORT)) {
 			// explicitly set this option so that it's not set to 0 later

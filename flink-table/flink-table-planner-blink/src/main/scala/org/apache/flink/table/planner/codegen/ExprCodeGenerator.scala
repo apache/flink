@@ -22,7 +22,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
 import org.apache.flink.table.dataformat._
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexAggLocalVariable, RexDistinctKeyVariable}
+import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{requireTemporal, requireTimeInterval, _}
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
@@ -396,10 +396,18 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
     GeneratedExpression(input1Term, NEVER_NULL, NO_CODE, input1Type)
   }
 
-  override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression = localRef match {
-    case local: RexAggLocalVariable =>
-      GeneratedExpression(local.fieldTerm, local.nullTerm, NO_CODE, local.internalType)
-    case value: RexDistinctKeyVariable =>
+  override def visitLocalRef(localRef: RexLocalRef): GeneratedExpression =
+    throw new CodeGenException("RexLocalRef are not supported yet.")
+
+  def visitRexFieldVariable(variable: RexFieldVariable): GeneratedExpression = {
+      val internalType = FlinkTypeFactory.toLogicalType(variable.dataType)
+      val nullTerm = variable.fieldTerm + "IsNull" // not use newName, keep isNull unique.
+      ctx.addReusableMember(s"${primitiveTypeTermForType(internalType)} ${variable.fieldTerm};")
+      ctx.addReusableMember(s"boolean $nullTerm;")
+      GeneratedExpression(variable.fieldTerm, nullTerm, NO_CODE, internalType)
+  }
+
+  def visitDistinctKeyVariable(value: RexDistinctKeyVariable): GeneratedExpression = {
       val inputExpr = ctx.getReusableInputUnboxingExprs(input1Term, 0) match {
         case Some(expr) => expr
         case None =>
@@ -422,7 +430,6 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       }
       // hide the generated code as it will be executed only once
       GeneratedExpression(inputExpr.resultTerm, inputExpr.nullTerm, NO_CODE, inputExpr.resultType)
-    case _ => throw new CodeGenException("Local variables are not supported yet.")
   }
 
   override def visitRangeRef(rangeRef: RexRangeRef): GeneratedExpression =

@@ -152,4 +152,20 @@ public class ExecutionConfigTest extends TestLogger {
 		assertEquals(objectReuseEnabled, copy1.isObjectReuseEnabled());
 		assertEquals(parallelism, copy1.getParallelism());
 	}
+
+	@Test
+	public void testGlobalParametersNotNull() {
+		final ExecutionConfig config = new ExecutionConfig();
+
+		assertNotNull(config.getGlobalJobParameters());
+	}
+
+	@Test
+	public void testGlobalParametersHashCode() {
+		ExecutionConfig config = new ExecutionConfig();
+		ExecutionConfig anotherConfig = new ExecutionConfig();
+
+		assertEquals(config.getGlobalJobParameters().hashCode(),
+			anotherConfig.getGlobalJobParameters().hashCode());
+	}
 }

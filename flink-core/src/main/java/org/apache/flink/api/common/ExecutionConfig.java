@@ -162,7 +162,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	// ------------------------------- User code values --------------------------------------------
 
-	private GlobalJobParameters globalJobParameters;
+	private GlobalJobParameters globalJobParameters = new GlobalJobParameters();
 
 	// Serializers and types registered with Kryo and the PojoSerializer
 	// we store them in linked maps/sets to ensure they are registered in order in all kryo instances.
@@ -546,7 +546,13 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 */
 	@PublicEvolving
 	public void setDefaultInputDependencyConstraint(InputDependencyConstraint inputDependencyConstraint) {
-		this.defaultInputDependencyConstraint = inputDependencyConstraint;
+		if (inputDependencyConstraint != null) {
+			this.defaultInputDependencyConstraint = inputDependencyConstraint;
+		} else {
+			// defaultInputDependencyConstraint is not allowed to be null
+			// setting it to ANY to not break existing jobs
+			this.defaultInputDependencyConstraint = InputDependencyConstraint.ANY;
+		}
 	}
 
 	/**
@@ -761,6 +767,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * @param globalJobParameters Custom user configuration object
 	 */
 	public void setGlobalJobParameters(GlobalJobParameters globalJobParameters) {
+		Preconditions.checkNotNull(globalJobParameters, "globalJobParameters shouldn't be null");
 		this.globalJobParameters = globalJobParameters;
 	}
 
@@ -1064,6 +1071,20 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		 */
 		public Map<String, String> toMap() {
 			return Collections.emptyMap();
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == null || this.getClass() != obj.getClass()) {
+				return false;
+			}
+
+			return true;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash();
 		}
 	}
 

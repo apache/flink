@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,14 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.streaming.runtime.tasks.mailbox.execution;
-
-import org.apache.flink.streaming.runtime.tasks.mailbox.Mailbox;
-
-import java.util.concurrent.ExecutorService;
+package org.apache.flink.table.catalog.hive.client;
 
 /**
- * Interface for an {@link ExecutorService} build around a {@link Mailbox}-based execution model.
+ * Shim for Hive version 2.1.1.
  */
-public interface MailboxExecutorService extends MailboxExecutor, ExecutorService {
+public class HiveShimV211 extends HiveShimV210 {
+
 }

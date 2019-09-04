@@ -27,7 +27,6 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogTableImpl;
 import org.apache.flink.table.catalog.ObjectPath;
@@ -41,7 +40,6 @@ import org.apache.flink.types.Row;
 import com.klarna.hiverunner.HiveShell;
 import com.klarna.hiverunner.annotations.HiveSQL;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.mapred.JobConf;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -100,31 +98,6 @@ public class HiveTableSinkTest {
 		tableEnv.registerCatalog("hive", hiveCatalog);
 		tableEnv.sqlQuery("select * from src").insertInto("hive", "default", "dest");
 		tableEnv.execute("mytest");
-
-		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
-
-		hiveCatalog.dropTable(tablePath, false);
-	}
-
-	@Test
-	public void testInsertIntoDynamicPartition() throws Exception {
-		String dbName = "default";
-		String tblName = "dest";
-		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 1);
-		ObjectPath tablePath = new ObjectPath(dbName, tblName);
-
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
-
-		List<Row> toWrite = generateRecords(5);
-		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
-		tableEnv.registerTable("src", src);
-
-		tableEnv.registerCatalog("hive", hiveCatalog);
-		tableEnv.sqlQuery("select * from src").insertInto("hive", "default", "dest");
-		tableEnv.execute("mytest");
-
-		List<CatalogPartitionSpec> partitionSpecs = hiveCatalog.listPartitions(tablePath);
-		assertEquals(toWrite.size(), partitionSpecs.size());
 
 		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
 
@@ -210,36 +183,6 @@ public class HiveTableSinkTest {
 		List<String> result = hiveShell.executeQuery("select * from " + tblName);
 		assertEquals(1, result.size());
 		assertEquals("[{\"f1\":1,\"f2\":\"a\"},{\"f1\":2,\"f2\":\"b\"},{\"f1\":3,\"f2\":\"c\"}]", result.get(0));
-		hiveCatalog.dropTable(tablePath, false);
-	}
-
-	@Test
-	public void testInsertIntoStaticPartition() throws Exception {
-		String dbName = "default";
-		String tblName = "dest";
-		RowTypeInfo rowTypeInfo = createDestTable(dbName, tblName, 1);
-		ObjectPath tablePath = new ObjectPath(dbName, tblName);
-
-		TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
-		List<Row> toWrite = generateRecords(1);
-		Table src = tableEnv.fromTableSource(new CollectionTableSource(toWrite, rowTypeInfo));
-		tableEnv.registerTable("src", src);
-
-		Map<String, String> partSpec = new HashMap<>();
-		partSpec.put("s", "a");
-
-		CatalogTable table = (CatalogTable) hiveCatalog.getTable(tablePath);
-		HiveTableSink hiveTableSink = new HiveTableSink(new JobConf(hiveConf), tablePath, table);
-		hiveTableSink.setStaticPartition(partSpec);
-		tableEnv.registerTableSink("destSink", hiveTableSink);
-		tableEnv.sqlQuery("select * from src").insertInto("destSink");
-		tableEnv.execute("mytest");
-
-		// make sure new partition is created
-		assertEquals(toWrite.size(), hiveCatalog.listPartitions(tablePath).size());
-
-		verifyWrittenData(toWrite, hiveShell.executeQuery("select * from " + tblName));
-
 		hiveCatalog.dropTable(tablePath, false);
 	}
 

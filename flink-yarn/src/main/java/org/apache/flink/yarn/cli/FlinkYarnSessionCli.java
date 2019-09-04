@@ -34,7 +34,6 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
-import org.apache.flink.runtime.util.LeaderConnectionInfo;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
@@ -619,10 +618,6 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 					yarnApplicationId = clusterClient.getClusterId();
 
 					try {
-						final LeaderConnectionInfo connectionInfo = clusterClient.getClusterConnectionInfo();
-
-						System.out.println("Flink JobManager is now running on " + connectionInfo.getHostname() +
-							':' + connectionInfo.getPort() + " with leader id " + connectionInfo.getLeaderSessionID() + '.');
 						System.out.println("JobManager Web Interface: " + clusterClient.getWebInterfaceURL());
 
 						writeYarnPropertiesFile(

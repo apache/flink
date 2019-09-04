@@ -21,28 +21,33 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import javax.annotation.Nullable;
 
 /**
  * This handler is mainly used for selecting the next available input index
- * in {@link StreamTwoInputSelectableProcessor}.
+ * in {@link StreamTwoInputProcessor}.
  */
 @Internal
 public class TwoInputSelectionHandler {
 
+	@Nullable
 	private final InputSelectable inputSelector;
 
 	private InputSelection inputSelection;
 
 	private int availableInputsMask;
 
-	public TwoInputSelectionHandler(InputSelectable inputSelectable) {
-		this.inputSelector = checkNotNull(inputSelectable);
+	public TwoInputSelectionHandler(@Nullable InputSelectable inputSelectable) {
+		this.inputSelector = inputSelectable;
 		this.availableInputsMask = (int) new InputSelection.Builder().select(1).select(2).build().getInputMask();
 	}
 
 	void nextSelection() {
-		inputSelection = inputSelector.nextSelection();
+		if (inputSelector == null) {
+			inputSelection = InputSelection.ALL;
+		} else {
+			inputSelection = inputSelector.nextSelection();
+		}
 	}
 
 	int selectNextInputIndex(int lastReadInputIndex) {

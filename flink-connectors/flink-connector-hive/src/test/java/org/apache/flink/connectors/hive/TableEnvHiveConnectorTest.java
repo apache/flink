@@ -20,6 +20,7 @@ package org.apache.flink.connectors.hive;
 
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableImpl;
+import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
@@ -183,6 +184,57 @@ public class TableEnvHiveConnectorTest {
 			tableEnv.sqlUpdate("insert overwrite db1.dest values (3,'c')");
 			tableEnv.execute("test insert overwrite");
 			verifyHiveQueryResult("select * from db1.dest", Collections.singletonList("3\tc"));
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testStaticPartition() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.src (x int)");
+			hiveShell.insertInto("db1", "src").addRow(1).addRow(2).commit();
+			hiveShell.execute("create table db1.dest (x int) partitioned by (p1 string, p2 double)");
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			tableEnv.sqlUpdate("insert into db1.dest partition (p1='1''1', p2=1.1) select x from db1.src");
+			tableEnv.execute("static partitioning");
+			assertEquals(1, hiveCatalog.listPartitions(new ObjectPath("db1", "dest")).size());
+			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\t1'1\t1.1", "2\t1'1\t1.1"));
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testDynamicPartition() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.src (x int, y string, z double)");
+			hiveShell.insertInto("db1", "src").addRow(1, "a", 1.1).addRow(2, "a", 2.2).addRow(3, "b", 3.3).commit();
+			hiveShell.execute("create table db1.dest (x int) partitioned by (p1 string, p2 double)");
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			tableEnv.sqlUpdate("insert into db1.dest select * from db1.src");
+			tableEnv.execute("dynamic partitioning");
+			assertEquals(3, hiveCatalog.listPartitions(new ObjectPath("db1", "dest")).size());
+			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\ta\t1.1", "2\ta\t2.2", "3\tb\t3.3"));
+		} finally {
+			hiveShell.execute("drop database db1 cascade");
+		}
+	}
+
+	@Test
+	public void testPartialDynamicPartition() throws Exception {
+		hiveShell.execute("create database db1");
+		try {
+			hiveShell.execute("create table db1.src (x int, y string)");
+			hiveShell.insertInto("db1", "src").addRow(1, "a").addRow(2, "b").commit();
+			hiveShell.execute("create table db1.dest (x int) partitioned by (p1 double, p2 string)");
+			TableEnvironment tableEnv = getTableEnvWithHiveCatalog();
+			tableEnv.sqlUpdate("insert into db1.dest partition (p1=1.1) select x,y from db1.src");
+			tableEnv.execute("partial dynamic partitioning");
+			assertEquals(2, hiveCatalog.listPartitions(new ObjectPath("db1", "dest")).size());
+			verifyHiveQueryResult("select * from db1.dest", Arrays.asList("1\t1.1\ta", "2\t1.1\tb"));
 		} finally {
 			hiveShell.execute("drop database db1 cascade");
 		}

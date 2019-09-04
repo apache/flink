@@ -35,9 +35,9 @@ under the License.
 		<suppress
 			files="org[\\/]apache[\\/]flink[\\/]streaming[\\/]python[\\/]connectors[\\/].*.java"
 		checks="MethodNameCheck|ParameterName"/>
-	    <!-- RexNodeConverter has to use guava directly -->
+	    <!-- Have to use guava directly -->
 	    <suppress
-			files="RexNodeConverter.java"
+			files="OverConvertRule.java|CustomizedConvertRule.java"
 			checks="IllegalImport"/>
 		<!-- Cassandra connectors have to use guava directly -->
 		<suppress

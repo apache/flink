@@ -408,12 +408,8 @@ class HarnessTestBase extends StreamingWithStateTestBase {
   }
 
   def getOperator(testHarness: OneInputStreamOperatorTestHarness[_, _])
-      : AbstractUdfStreamOperator[_, _] = {
-    val operatorField = classOf[OneInputStreamOperatorTestHarness[_, _]]
-      .getDeclaredField("oneInputOperator")
-    operatorField.setAccessible(true)
-    operatorField.get(testHarness).asInstanceOf[AbstractUdfStreamOperator[_, _]]
-  }
+  : AbstractUdfStreamOperator[_, _] =
+    testHarness.getOneInputOperator.asInstanceOf[AbstractUdfStreamOperator[_, _]]
 
   def verify(expected: JQueue[Object], actual: JQueue[Object]): Unit = {
     verify(expected, actual, new RowResultSortComparator)

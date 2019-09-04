@@ -488,11 +488,23 @@ public class StreamTaskTest extends TestLogger {
 		CheckpointResponder checkpointResponder = mock(CheckpointResponder.class);
 		doAnswer(new Answer() {
 			@Override
-			public Object answer(InvocationOnMock invocation) throws Throwable {
+			public Object answer(InvocationOnMock invocation) {
 				acknowledgeCheckpointLatch.trigger();
 
 				// block here so that we can issue the concurrent cancel call
-				completeAcknowledge.await();
+				while (true) {
+					try {
+						// wait until we successfully await (no pun intended)
+						completeAcknowledge.await();
+
+						// when await() returns normally, we break out of the loop
+						break;
+					} catch (InterruptedException e) {
+						// survive interruptions that arise from thread pool shutdown
+						// production code cannot actually throw InterruptedException from
+						// checkpoint acknowledgement
+					}
+				}
 
 				return null;
 			}

@@ -93,11 +93,6 @@ public class SimpleOperatorFactory<OUT> implements StreamOperatorFactory<OUT> {
 	}
 
 	@Override
-	public boolean isOperatorSelectiveReading(ClassLoader classLoader) {
-		return operator instanceof InputSelectable;
-	}
-
-	@Override
 	public boolean isOutputTypeConfigurable() {
 		return operator instanceof OutputTypeConfigurable;
 	}

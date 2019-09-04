@@ -46,6 +46,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
@@ -55,6 +56,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutorFactory;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.XORShiftRandom;
 
@@ -148,12 +150,17 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				chainedConfigs,
 				userCodeClassloader,
 				streamOutputMap,
-				allOps);
+				allOps,
+				containingTask.getMailboxExecutorFactory());
 
 			if (operatorFactory != null) {
 				WatermarkGaugeExposingOutput<StreamRecord<OUT>> output = getChainEntryPoint();
 
-				headOperator = operatorFactory.createStreamOperator(containingTask, configuration, output);
+				headOperator = StreamOperatorFactoryUtil.createOperator(
+						operatorFactory,
+						containingTask,
+						configuration,
+						output);
 
 				headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_OUTPUT_WATERMARK, output.getWatermarkGauge());
 			} else {
@@ -345,7 +352,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			Map<Integer, StreamConfig> chainedConfigs,
 			ClassLoader userCodeClassloader,
 			Map<StreamEdge, RecordWriterOutput<?>> streamOutputs,
-			List<StreamOperator<?>> allOperators) {
+			List<StreamOperator<?>> allOperators,
+			MailboxExecutorFactory mailboxExecutorFactory) {
 		List<Tuple2<WatermarkGaugeExposingOutput<StreamRecord<T>>, StreamEdge>> allOutputs = new ArrayList<>(4);
 
 		// create collectors for the network outputs
@@ -368,7 +376,8 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 				userCodeClassloader,
 				streamOutputs,
 				allOperators,
-				outputEdge.getOutputTag());
+				outputEdge.getOutputTag(),
+				mailboxExecutorFactory);
 			allOutputs.add(new Tuple2<>(output, outputEdge));
 		}
 
@@ -417,13 +426,14 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 	}
 
 	private <IN, OUT> WatermarkGaugeExposingOutput<StreamRecord<IN>> createChainedOperator(
-			StreamTask<?, ?> containingTask,
+			StreamTask<OUT, ?> containingTask,
 			StreamConfig operatorConfig,
 			Map<Integer, StreamConfig> chainedConfigs,
 			ClassLoader userCodeClassloader,
 			Map<StreamEdge, RecordWriterOutput<?>> streamOutputs,
 			List<StreamOperator<?>> allOperators,
-			OutputTag<IN> outputTag) {
+			OutputTag<IN> outputTag,
+			MailboxExecutorFactory mailboxExecutorFactory) {
 		// create the output that the operator writes to first. this may recursively create more operators
 		WatermarkGaugeExposingOutput<StreamRecord<OUT>> chainedOperatorOutput = createOutputCollector(
 			containingTask,
@@ -431,12 +441,15 @@ public class OperatorChain<OUT, OP extends StreamOperator<OUT>> implements Strea
 			chainedConfigs,
 			userCodeClassloader,
 			streamOutputs,
-			allOperators);
+			allOperators,
+			mailboxExecutorFactory);
 
 		// now create the operator and give it the output collector to write its output to
-		StreamOperatorFactory<OUT> chainedOperatorFactory = operatorConfig.getStreamOperatorFactory(userCodeClassloader);
-		OneInputStreamOperator<IN, OUT> chainedOperator = chainedOperatorFactory.createStreamOperator(
-				containingTask, operatorConfig, chainedOperatorOutput);
+		OneInputStreamOperator<IN, OUT> chainedOperator = StreamOperatorFactoryUtil.createOperator(
+				operatorConfig.getStreamOperatorFactory(userCodeClassloader),
+				containingTask,
+				operatorConfig,
+				chainedOperatorOutput);
 
 		allOperators.add(chainedOperator);
 

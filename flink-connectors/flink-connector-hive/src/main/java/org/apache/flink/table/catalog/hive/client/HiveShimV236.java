@@ -16,47 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser.ddl;
+package org.apache.flink.table.catalog.hive.client;
 
 /**
- * All supported data types in DDL. Used for Create Table DDL validation.
+ * Shim for Hive version 2.3.6.
  */
-public enum SqlColumnType {
-	BOOLEAN,
-	TINYINT,
-	SMALLINT,
-	INT,
-	INTEGER,
-	BIGINT,
-	REAL,
-	FLOAT,
-	DOUBLE,
-	DECIMAL,
-	DATE,
-	TIME,
-	TIMESTAMP,
-	VARCHAR,
-	VARBINARY,
-	ANY,
-	ARRAY,
-	MAP,
-	ROW,
-	UNSUPPORTED;
+public class HiveShimV236 extends HiveShimV235 {
 
-	/** Returns the column type with the string representation. **/
-	public static SqlColumnType getType(String type) {
-		if (type == null) {
-			return UNSUPPORTED;
-		}
-		try {
-			return SqlColumnType.valueOf(type.toUpperCase());
-		} catch (IllegalArgumentException var1) {
-			return UNSUPPORTED;
-		}
-	}
-
-	/** Returns true if this type is unsupported. **/
-	public boolean isUnsupported() {
-		return this.equals(UNSUPPORTED);
-	}
 }

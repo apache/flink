@@ -4016,6 +4016,16 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
   }
 
   @Test
+  def testIfDecimal(): Unit = {
+    // test DECIMAL, DECIMAL
+    testAllApis(
+      ifThenElse('f7 < 5, 'f31, 'f34),
+      "ifThenElse(f7 < 5, f31, f34)",
+      "IF(f7 < 5, f31, f34)",
+      "-0.1231231321321321111")
+  }
+
+  @Test
   def testIsDecimal(): Unit = {
     testSqlApi(
       "IS_DECIMAL('1')",

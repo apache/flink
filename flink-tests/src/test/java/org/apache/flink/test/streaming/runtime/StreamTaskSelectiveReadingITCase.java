@@ -38,7 +38,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for selective reading of {@code TwoInputSelectableStreamTask}.
+ * Tests for selective reading of {@code TwoInputStreamTask}.
  */
 public class StreamTaskSelectiveReadingITCase {
 	@Test
