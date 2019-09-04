@@ -20,16 +20,15 @@
 package org.apache.flink.ml.common.dataproc.vector;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.common.linalg.DenseVector;
 import org.apache.flink.ml.common.linalg.SparseVector;
 import org.apache.flink.ml.common.linalg.Vector;
+import org.apache.flink.ml.common.linalg.VectorUtil;
 import org.apache.flink.ml.common.mapper.SISOMapper;
+import org.apache.flink.ml.common.utils.VectorTypes;
 import org.apache.flink.ml.params.dataproc.vector.VectorElementwiseProductParams;
 import org.apache.flink.table.api.TableSchema;
-
-import org.apache.commons.lang3.StringUtils;
 
 /**
  * This mapper maps a vector to a new vector with special scale.
@@ -39,36 +38,37 @@ public class VectorElementwiseProductMapper extends SISOMapper {
 
 	public VectorElementwiseProductMapper(TableSchema dataSchema, Params params) {
 		super(dataSchema, params);
-		this.scalingVector = Vector.parse(this.params.get(VectorElementwiseProductParams.SCALING_VECTOR));
+		this.scalingVector = VectorUtil.parse(this.params.get(VectorElementwiseProductParams.SCALING_VECTOR));
 	}
 
 	@Override
 	protected TypeInformation initOutputColType() {
-		return Types.STRING;
+		return VectorTypes.VECTOR;
 	}
 
 	@Override
 	protected Object map(Object input) {
-		if (StringUtils.isEmpty((String) input)) {
-			return input;
-		} else {
-			Vector vector = Vector.parse((String) input);
-			if (vector instanceof DenseVector) {
-				double[] vec = ((DenseVector) vector).getData();
-				for (int i = 0; i < vec.length; ++i) {
-					vec[i] = vec[i] * scalingVector.get(i);
-				}
-			} else {
-				SparseVector vec = (SparseVector) vector;
-				double[] vecValues = vec.getValues();
-				int[] vecIndices = vec.getIndices();
-
-				for (int i = 0; i < vecValues.length; ++i) {
-					vecValues[i] *= scalingVector.get(vecIndices[i]);
-				}
-			}
-			return vector.serialize();
+		if (null == input) {
+			return null;
 		}
+
+		Vector vector = (Vector) input;
+
+		if (vector instanceof DenseVector) {
+			double[] vec = ((DenseVector) vector).getData();
+			for (int i = 0; i < vec.length; ++i) {
+				vec[i] = vec[i] * scalingVector.get(i);
+			}
+		} else {
+			SparseVector vec = (SparseVector) vector;
+			double[] vecValues = vec.getValues();
+			int[] vecIndices = vec.getIndices();
+
+			for (int i = 0; i < vecValues.length; ++i) {
+				vecValues[i] *= scalingVector.get(vecIndices[i]);
+			}
+		}
+		return vector;
 	}
 
 }
