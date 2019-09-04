@@ -61,7 +61,10 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 		if (isDetached()) {
 			try {
-				return jobSubmissionResultFuture.get();
+				final JobSubmissionResult jobSubmissionResult = jobSubmissionResultFuture.get();
+
+				this.lastJobExecutionResult = new DetachedJobExecutionResult(jobSubmissionResult.getJobID());
+				return lastJobExecutionResult;
 			} catch (InterruptedException | ExecutionException e) {
 				ExceptionUtils.checkInterrupted(e);
 

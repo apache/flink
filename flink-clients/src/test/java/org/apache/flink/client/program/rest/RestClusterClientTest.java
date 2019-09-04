@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
 import org.apache.flink.client.deployment.StandaloneClusterId;
+import org.apache.flink.client.program.DetachedJobExecutionResult;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -123,7 +124,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -261,7 +261,7 @@ public class RestClusterClientTest extends TestLogger {
 
 				// if the detached mode didn't work, then we would not reach this point because the execution result
 				// retrieval would have failed.
-				assertThat(jobSubmissionResult, is(not(instanceOf(JobExecutionResult.class))));
+				assertThat(jobSubmissionResult, is(instanceOf(DetachedJobExecutionResult.class)));
 				assertThat(jobSubmissionResult.getJobID(), is(jobId));
 			} finally {
 				restClusterClient.close();
