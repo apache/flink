@@ -98,6 +98,15 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	 */
 	LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID, String defaultJobManagerAddress);
 
+	/**
+	 * This retriever should no longer be used on the cluster side. The web monitor retriever
+	 * is only required on the client-side and we have a dedicated high-availability services
+	 * for the client, named {@link ClientHighAvailabilityServices}. See also FLINK-13750.
+	 *
+	 * @return the leader retriever for web monitor
+	 * @deprecated just use {@link ClientHighAvailabilityServices} instead of this services.
+	 */
+	@Deprecated
 	LeaderRetrievalService getWebMonitorLeaderRetriever();
 
 	/**

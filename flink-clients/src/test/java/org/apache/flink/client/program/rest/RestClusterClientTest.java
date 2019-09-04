@@ -187,8 +187,7 @@ public class RestClusterClientTest extends TestLogger {
 			clientConfig,
 			createRestClient(),
 			StandaloneClusterId.getInstance(),
-			(attempt) -> 0,
-			null);
+			(attempt) -> 0);
 	}
 
 	@Nonnull

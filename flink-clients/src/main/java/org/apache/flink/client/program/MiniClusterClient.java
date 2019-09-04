@@ -51,14 +51,8 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	private final MiniCluster miniCluster;
 
 	public MiniClusterClient(@Nonnull Configuration configuration, @Nonnull MiniCluster miniCluster) {
-		super(configuration, miniCluster.getHighAvailabilityServices(), true);
-
+		super(configuration);
 		this.miniCluster = miniCluster;
-	}
-
-	@Override
-	public void shutdown() throws Exception {
-		super.shutdown();
 	}
 
 	@Override
@@ -88,9 +82,7 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 			try {
 				return jobResult.toJobExecutionResult(classLoader);
-			} catch (JobExecutionException e) {
-				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
-			} catch (IOException | ClassNotFoundException e) {
+			} catch (JobExecutionException | IOException | ClassNotFoundException e) {
 				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
 			}
 		}
@@ -156,10 +148,6 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	public MiniClusterClient.MiniClusterId getClusterId() {
 		return MiniClusterId.INSTANCE;
 	}
-
-	// ======================================
-	// Legacy methods
-	// ======================================
 
 	@Override
 	public String getWebInterfaceURL() {
