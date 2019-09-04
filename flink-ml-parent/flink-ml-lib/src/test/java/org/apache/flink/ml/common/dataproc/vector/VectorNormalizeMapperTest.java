@@ -22,6 +22,8 @@ package org.apache.flink.ml.common.dataproc.vector;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.ml.api.misc.param.Params;
+import org.apache.flink.ml.common.linalg.DenseVector;
+import org.apache.flink.ml.common.utils.VectorTypes;
 import org.apache.flink.ml.params.dataproc.vector.VectorNormalizeParams;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
@@ -44,8 +46,10 @@ public class VectorNormalizeMapperTest {
 
 		VectorNormalizeMapper mapper = new VectorNormalizeMapper(schema, params);
 
-		assertEquals(mapper.map(Row.of("3.0 4.0")).getField(0), "0.6 0.8");
-		assertEquals(mapper.getOutputSchema(), schema);
+		assertEquals(mapper.map(Row.of(new DenseVector(new double[]{3.0, 4.0}))).getField(0),
+			new DenseVector(new double[]{0.6, 0.8}));
+		assertEquals(mapper.getOutputSchema(),
+			new TableSchema(new String[]{"vec"}, new TypeInformation<?>[]{VectorTypes.VECTOR}));
 	}
 
 	@Test
@@ -59,10 +63,12 @@ public class VectorNormalizeMapperTest {
 
 		VectorNormalizeMapper mapper = new VectorNormalizeMapper(schema, params);
 
-		assertEquals(mapper.map(Row.of("3.0 4.0")).getField(1), "0.6 0.8");
+		assertEquals(mapper.map(Row.of(new DenseVector(new double[]{3.0, 4.0}))).getField(1),
+			new DenseVector(new double[]{0.6, 0.8}));
 		assertEquals(
 			mapper.getOutputSchema(),
-			new TableSchema(new String[]{"vec", "res"}, new TypeInformation<?>[]{Types.STRING, Types.STRING})
+			new TableSchema(new String[]{"vec", "res"},
+				new TypeInformation<?>[]{Types.STRING, VectorTypes.VECTOR})
 		);
 	}
 
@@ -78,10 +84,11 @@ public class VectorNormalizeMapperTest {
 
 		VectorNormalizeMapper mapper = new VectorNormalizeMapper(schema, params);
 
-		assertEquals(mapper.map(Row.of("3.0 4.0")).getField(0), "0.6 0.8");
+		assertEquals(mapper.map(Row.of(new DenseVector(new double[]{3.0, 4.0}))).getField(0),
+			new DenseVector(new double[]{0.6, 0.8}));
 		assertEquals(
 			mapper.getOutputSchema(),
-			new TableSchema(new String[]{"res"}, new TypeInformation<?>[]{Types.STRING})
+			new TableSchema(new String[]{"res"}, new TypeInformation<?>[]{VectorTypes.VECTOR})
 		);
 	}
 
@@ -96,10 +103,12 @@ public class VectorNormalizeMapperTest {
 
 		VectorNormalizeMapper mapper = new VectorNormalizeMapper(schema, params);
 
-		assertEquals(mapper.map(Row.of("2.0 3.0")).getField(1), "0.4 0.6");
+		assertEquals(mapper.map(Row.of(new DenseVector(new double[]{2.0, 3.0}))).getField(1),
+			new DenseVector(new double[]{0.4, 0.6}));
 		assertEquals(
 			mapper.getOutputSchema(),
-			new TableSchema(new String[]{"vec", "res"}, new TypeInformation<?>[]{Types.STRING, Types.STRING})
+			new TableSchema(new String[]{"vec", "res"},
+				new TypeInformation<?>[]{Types.STRING, VectorTypes.VECTOR})
 		);
 	}
 

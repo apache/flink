@@ -20,14 +20,12 @@
 package org.apache.flink.ml.common.dataproc.vector;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.common.linalg.Vector;
 import org.apache.flink.ml.common.mapper.SISOMapper;
+import org.apache.flink.ml.common.utils.VectorTypes;
 import org.apache.flink.ml.params.dataproc.vector.VectorNormalizeParams;
 import org.apache.flink.table.api.TableSchema;
-
-import org.apache.commons.lang3.StringUtils;
 
 /**
  * This mapper maps a vector with a new vector which divided by norm-p.
@@ -42,16 +40,17 @@ public class VectorNormalizeMapper extends SISOMapper {
 
 	@Override
 	protected TypeInformation initOutputColType() {
-		return Types.STRING;
+		return VectorTypes.VECTOR;
 	}
 
 	@Override
 	protected Object map(Object input) {
-		if (StringUtils.isEmpty((String) input)) {
-			return input;
+		if (null == input) {
+			return null;
 		}
-		Vector vec = Vector.parse((String) input);
+
+		Vector vec = (Vector) input;
 		vec.normalizeEqual(p);
-		return vec.serialize();
+		return vec;
 	}
 }
