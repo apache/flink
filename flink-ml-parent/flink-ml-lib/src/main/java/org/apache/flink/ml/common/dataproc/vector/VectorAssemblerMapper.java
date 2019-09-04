@@ -20,12 +20,12 @@
 package org.apache.flink.ml.common.dataproc.vector;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.common.linalg.DenseVector;
 import org.apache.flink.ml.common.linalg.SparseVector;
 import org.apache.flink.ml.common.linalg.Vector;
 import org.apache.flink.ml.common.mapper.MISOMapper;
+import org.apache.flink.ml.common.utils.VectorTypes;
 import org.apache.flink.ml.params.dataproc.vector.VectorAssemblerParams;
 import org.apache.flink.table.api.TableSchema;
 
@@ -63,7 +63,7 @@ public class VectorAssemblerMapper extends MISOMapper {
 
 	@Override
 	protected TypeInformation initOutputColType() {
-		return Types.STRING;
+		return VectorTypes.VECTOR;
 	}
 
 	/**
@@ -73,24 +73,15 @@ public class VectorAssemblerMapper extends MISOMapper {
 	protected Object map(Object[] input) {
 		int pos = 0;
 		Map<Integer, Double> map = new HashMap<>();
-		// parse the data, and write it in List.
+		// getVector the data, and write it in List.
 		for (Object col : input) {
 			if (null != col) {
-				String str = col.toString();
-				Vector parsed = Vector.parse(str);
-				if (parsed instanceof SparseVector) {
-					SparseVector sv = (SparseVector) parsed;
-					int[] idx = sv.getIndices();
-					double[] values = sv.getValues();
-					for (int j = 0; j < idx.length; ++j) {
-						map.put(pos + idx[j], values[j]);
-					}
-					pos += sv.size();
+				if (col instanceof Number) {
+					map.put(pos++, ((Number) col).doubleValue());
+				} else if (col instanceof Vector) {
+					pos = appendVector((Vector) col, map, pos);
 				} else {
-					DenseVector dv = (DenseVector) parsed;
-					for (int j = 0; j < dv.size(); ++j) {
-						map.put(pos++, dv.get(j));
-					}
+					throw new UnsupportedOperationException("not support type of object.");
 				}
 			} else {
 				switch (handleInvalid) {
@@ -105,12 +96,31 @@ public class VectorAssemblerMapper extends MISOMapper {
 			}
 		}
 
-		/* form the vector, and finally serialize it. */
+		/* form the vector, and finally toString it. */
 		Vector vec = new SparseVector(pos, map);
 
 		if (map.size() * RATIO > pos) {
 			vec = ((SparseVector) vec).toDenseVector();
 		}
-		return vec.serialize();
+
+		return vec;
+	}
+
+	private int appendVector(Vector vec, Map<Integer, Double> map, int pos) {
+		if (vec instanceof SparseVector) {
+			SparseVector sv = (SparseVector) vec;
+			int[] idx = sv.getIndices();
+			double[] values = sv.getValues();
+			for (int j = 0; j < idx.length; ++j) {
+				map.put(pos + idx[j], values[j]);
+			}
+			pos += sv.size();
+		} else if (vec instanceof DenseVector) {
+			DenseVector dv = (DenseVector) vec;
+			for (int j = 0; j < dv.size(); ++j) {
+				map.put(pos++, dv.get(j));
+			}
+		}
+		return pos;
 	}
 }
