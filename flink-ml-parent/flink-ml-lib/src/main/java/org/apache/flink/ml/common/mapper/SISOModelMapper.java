@@ -25,39 +25,32 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
 /**
- * Abstract class for mappers with Single Input column and Single Output column(SISO).
- * Operations that produce zero, one or more Row type result data per Row type data
- * can also use the {@link SISOFlatMapper}.
+ * ModelMapper with Single Input column and Single Output column(SISO).
  */
-public abstract class SISOMapper extends Mapper {
+public abstract class SISOModelMapper extends ModelMapper {
+
 	private final SISOColsHelper colsHelper;
 
-	/**
-	 * Constructor.
-	 *
-	 * @param dataSchema input tableSchema
-	 * @param params     input parameters.
-	 */
-	public SISOMapper(TableSchema dataSchema, Params params) {
-		super(dataSchema, params);
-		this.colsHelper = new SISOColsHelper(dataSchema, initOutputColType(), params);
+	public SISOModelMapper(TableSchema modelScheme, TableSchema dataSchema, Params params) {
+		super(modelScheme, dataSchema, params);
+		this.colsHelper = new SISOColsHelper(dataSchema, initPredResultColType(), params);
 	}
 
 	/**
-	 * Determine the return type of the {@link SISOMapper#map(Object)}.
+	 * Determine the prediction result type of the {@link SISOModelMapper#predictResult(Object)}.
 	 *
 	 * @return the outputColType.
 	 */
-	protected abstract TypeInformation initOutputColType();
+	protected abstract TypeInformation initPredResultColType();
 
 	/**
-	 * Map the single input column <code>input</code> to a single output.
+	 * Predict the single input column <code>input</code> to a single output.
 	 *
 	 * @param input the input object
-	 * @return the single map result.
+	 * @return the single predicted result.
 	 * @throws Exception
 	 */
-	protected abstract Object map(Object input) throws Exception;
+	protected abstract Object predictResult(Object input) throws Exception;
 
 	@Override
 	public TableSchema getOutputSchema() {
@@ -66,6 +59,6 @@ public abstract class SISOMapper extends Mapper {
 
 	@Override
 	public Row map(Row row) throws Exception {
-		return colsHelper.handleMap(row, this::map);
+		return this.colsHelper.handleMap(row, this::predictResult);
 	}
 }

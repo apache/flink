@@ -21,23 +21,16 @@ package org.apache.flink.ml.common.mapper;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.ml.api.misc.param.Params;
-import org.apache.flink.ml.common.utils.OutputColsHelper;
-import org.apache.flink.ml.common.utils.TableUtil;
-import org.apache.flink.ml.params.mode.SISOFlatMapperParams;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * FlatMapper with Single Input column and Single Output column(SISO).
  */
 public abstract class SISOFlatMapper extends FlatMapper {
-	private final OutputColsHelper outputColsHelper;
-	private final int colIndex;
-	private ArrayList <Object> buffer = new ArrayList <>();
+
+	private final SISOColsHelper colHelper;
 
 	/**
 	 * Constructor.
@@ -47,24 +40,12 @@ public abstract class SISOFlatMapper extends FlatMapper {
 	 */
 	public SISOFlatMapper(TableSchema dataSchema, Params params) {
 		super(dataSchema, params);
-		String inputColName = this.params.get(SISOFlatMapperParams.SELECTED_COL);
-		this.colIndex = TableUtil.findColIndex(dataSchema.getFieldNames(), inputColName);
-		String outputColName = null;
-		if (this.params.contains(SISOFlatMapperParams.OUTPUT_COL)) {
-			outputColName = params.get(SISOFlatMapperParams.OUTPUT_COL);
-		}
-		if (null == outputColName) {
-			outputColName = inputColName;
-		}
-		String[] keepColNames = null;
-		if (this.params.contains(SISOFlatMapperParams.RESERVED_COLS)) {
-			keepColNames = this.params.get(SISOFlatMapperParams.RESERVED_COLS);
-		}
-		this.outputColsHelper = new OutputColsHelper(dataSchema, outputColName, initOutputColType(), keepColNames);
+		this.colHelper = new SISOColsHelper(dataSchema, initOutputColType(), params);
 	}
 
 	/**
 	 * Determine the flatmap return type of the {@link SISOFlatMapper#flatMap(Row, Collector)}.
+	 *
 	 * @return the outputColType.
 	 */
 
@@ -74,28 +55,25 @@ public abstract class SISOFlatMapper extends FlatMapper {
 	 * Flatmap the single input object into a single output.
 	 *
 	 * @param input  the input data.
-	 * @param output the output data.
+	 * @param output the output data collector.
 	 */
 
-	protected abstract void flatMap(Object input, List <Object> output);
+	protected abstract void flatMap(Object input, Collector<Object> output);
 
 	@Override
 	public TableSchema getOutputSchema() {
-		return outputColsHelper.getResultSchema();
+		return colHelper.getOutputSchema();
 	}
 
 	/**
 	 * Wrapper method for the {@link FlatMapper}.
-	 * @param row the input row.
+	 *
+	 * @param row    the input row.
 	 * @param output
 	 */
 	@Override
 	public void flatMap(Row row, Collector<Row> output) throws Exception {
-		this.buffer.clear();
-		flatMap(row.getField(this.colIndex), buffer);
-		for (Object obj : buffer) {
-			output.collect(this.outputColsHelper.getResultRowSingle(row, obj));
-		}
+		this.colHelper.handleFlatMap(row, output, this::flatMap);
 	}
 
 }
