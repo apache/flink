@@ -28,7 +28,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.client.program.DetachedEnvironment.DetachedJobExecutionResult;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -120,16 +119,6 @@ public class ClientTest extends TestLogger {
 
 		try {
 			PackagedProgram prg = new PackagedProgram(TestGetRuntime.class);
-			clusterClient.run(prg, 1);
-			fail(FAIL_MESSAGE);
-		} catch (ProgramInvocationException e) {
-			assertEquals(
-					DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.JOB_RESULT_MESSAGE,
-					e.getCause().getMessage());
-		}
-
-		try {
-			PackagedProgram prg = new PackagedProgram(TestGetJobID.class);
 			clusterClient.run(prg, 1);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
