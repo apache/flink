@@ -60,7 +60,7 @@ To integrate with Hive, users need the following dependencies in their project.
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-hive{{site.scala_version_suffix}}</artifactId>
+  <artifactId>flink-connector-hive{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
   <scope>provided</scope>
 </dependency>
@@ -69,7 +69,7 @@ To integrate with Hive, users need the following dependencies in their project.
 
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-hadoop-compatibility{{site.scala_version_suffix}}</artifactId>
+  <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
   <scope>provided</scope>
 </dependency>
@@ -79,7 +79,7 @@ To integrate with Hive, users need the following dependencies in their project.
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-shaded-hadoop-2-uber</artifactId>
-  <version>2.7.5-7.0</version>
+  <version>2.7.5-{{ site.shaded_version }}</version>
   <scope>provided</scope>
 </dependency>
 
@@ -96,7 +96,7 @@ To integrate with Hive, users need the following dependencies in their project.
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-hive{{site.scala_version_suffix}}</artifactId>
+  <artifactId>flink-connector-hive{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
   <scope>provided</scope>
 </dependency>
@@ -105,7 +105,7 @@ To integrate with Hive, users need the following dependencies in their project.
 
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-hadoop-compatibility{{site.scala_version_suffix}}</artifactId>
+  <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
   <scope>provided</scope>
 </dependency>
@@ -115,7 +115,7 @@ To integrate with Hive, users need the following dependencies in their project.
 <dependency>
   <groupId>org.apache.flink</groupId>
   <artifactId>flink-shaded-hadoop-2-uber</artifactId>
-  <version>2.6.5-7.0</version>
+  <version>2.6.5-{{ site.shaded_version }}</version>
   <scope>provided</scope>
 </dependency>
 
