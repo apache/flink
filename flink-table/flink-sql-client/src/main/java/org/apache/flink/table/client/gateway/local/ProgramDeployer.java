@@ -131,7 +131,7 @@ public class ProgramDeployer<C> implements Runnable {
 		} finally {
 			try {
 				if (clusterClient != null) {
-					clusterClient.shutdown();
+					clusterClient.close();
 				}
 			} catch (Exception e) {
 				// ignore
@@ -172,7 +172,7 @@ public class ProgramDeployer<C> implements Runnable {
 		} finally {
 			try {
 				if (clusterClient != null) {
-					clusterClient.shutdown();
+					clusterClient.close();
 				}
 			} catch (Exception e) {
 				// ignore

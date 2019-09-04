@@ -107,7 +107,7 @@ public class RemoteExecutor extends PlanExecutor {
 	public int getDefaultParallelism() {
 		return defaultParallelism;
 	}
-	
+
 	// ------------------------------------------------------------------------
 	//  Executing programs
 	// ------------------------------------------------------------------------
@@ -123,14 +123,8 @@ public class RemoteExecutor extends PlanExecutor {
 	private JobExecutionResult executePlanWithJars(JobWithJars program) throws Exception {
 		checkNotNull(program);
 
-		ClusterClient<?>  client = null;
-		try {
-			client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor");
+		try (ClusterClient<?>  client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor")) {
 			return client.run(program, defaultParallelism).getJobExecutionResult();
-		} finally {
-			if (client != null) {
-				client.shutdown();
-			}
 		}
 	}
 

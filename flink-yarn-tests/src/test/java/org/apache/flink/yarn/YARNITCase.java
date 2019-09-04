@@ -125,7 +125,7 @@ public class YARNITCase extends YarnTestBase {
 					waitApplicationFinishedElseKillIt(applicationId, yarnAppTerminateTimeout, yarnClusterDescriptor);
 				} finally {
 					if (clusterClient != null) {
-						clusterClient.shutdown();
+						clusterClient.close();
 					}
 				}
 			}
