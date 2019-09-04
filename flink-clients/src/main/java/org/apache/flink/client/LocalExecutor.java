@@ -171,10 +171,10 @@ public class LocalExecutor extends PlanExecutor {
 		}
 	}
 
-	private Configuration configureExecution(final Plan executable) {
-		setNumberOfTaskSlots(executable);
+	private Configuration configureExecution(final Plan plan) {
+		setNumberOfTaskSlots(plan);
 		final Configuration executorConfiguration = createExecutorServiceConfig();
-		setPlanParallelism(executable, executorConfiguration);
+		setPlanParallelism(plan, executorConfiguration);
 		return executorConfiguration;
 	}
 
