@@ -159,14 +159,18 @@ public final class TypeInferenceUtil {
 			InputTypeValidator validator,
 			CallContext callContext) {
 
-		final String expectedSignatures = validator.getExpectedSignatures(callContext.getFunctionDefinition())
-			.stream()
-			.map(s -> formatSignature(callContext.getName(), s))
-			.collect(Collectors.joining("\n"));
+		final String expectedSignatures = formatSignatures(callContext.getName(),
+				validator.getExpectedSignatures(callContext.getFunctionDefinition()));
 		return new ValidationException(
 			String.format(
 				"Invalid input arguments. Expected signatures are:\n%s",
 				expectedSignatures));
+	}
+
+	public static String formatSignatures(String name, List<Signature> signatures) {
+		return signatures.stream()
+				.map(s -> formatSignature(name, s))
+				.collect(Collectors.joining("\n"));
 	}
 
 	private static String formatSignature(String name, Signature s) {

@@ -16,37 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.inference.validators;
+package org.apache.flink.table.types.inference.transformations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.types.inference.ArgumentCount;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.InputTypeValidator;
-import org.apache.flink.table.types.inference.Signature;
-import org.apache.flink.table.types.inference.Signature.Argument;
-
-import java.util.Collections;
-import java.util.List;
+import org.apache.flink.table.types.inference.TypeTransformation;
 
 /**
- * Validator that does not perform any validation and always passes.
+ * Type transformation where a result type is transformed into the same type
+ * but nullable if any of the calls operands is nullable.
  */
 @Internal
-public class PassingTypeValidator implements InputTypeValidator {
+public class ToNullableTransformation implements TypeTransformation {
 
 	@Override
-	public ArgumentCount getArgumentCount() {
-		return ArgumentCount.passing();
-	}
+	public DataType transform(CallContext callContext, DataType typeToTransform) {
+		boolean anyArgumentNullable = callContext.getArgumentDataTypes()
+			.stream()
+			.anyMatch(d -> d.getLogicalType().isNullable());
 
-	@Override
-	public boolean validate(CallContext callContext, boolean throwOnFailure) {
-		return true;
-	}
-
-	@Override
-	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return Collections.singletonList(Signature.of(Argument.of("*")));
+		if (anyArgumentNullable) {
+			return typeToTransform.nullable();
+		} else {
+			return typeToTransform;
+		}
 	}
 }

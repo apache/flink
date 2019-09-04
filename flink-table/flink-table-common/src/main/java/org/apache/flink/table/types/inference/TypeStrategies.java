@@ -19,7 +19,12 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.strategies.CascadeTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.ExplicitTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MissingTypeStrategy;
+
+import java.util.Arrays;
 
 /**
  * Strategies for inferring an output or accumulator data type of a function call.
@@ -28,6 +33,28 @@ import org.apache.flink.table.types.inference.strategies.MissingTypeStrategy;
  */
 @Internal
 public final class TypeStrategies {
+
+	// --------------------------------------------------------------------------------------------
+	// factory methods for type strategies
+	// --------------------------------------------------------------------------------------------
+
+	/**
+	 * Creates a type strategy that return an explicitly given type.
+	 */
+	public static TypeStrategy explicit(DataType dataType) {
+		return new ExplicitTypeStrategy(dataType);
+	}
+
+	/**
+	 * Creates a type strategy that applies a strategy and then a sequence of transforms to its result.
+	 */
+	public static TypeStrategy cascade(TypeStrategy strategy, TypeTransformation... transformations) {
+		return new CascadeTypeStrategy(strategy, Arrays.asList(transformations));
+	}
+
+	// --------------------------------------------------------------------------------------------
+	// concrete, reusable type strategies
+	// --------------------------------------------------------------------------------------------
 
 	/**
 	 * Placeholder for a missing type strategy.

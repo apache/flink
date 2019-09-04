@@ -35,7 +35,7 @@ import java.util.Optional;
 import static org.apache.flink.table.planner.expressions.converter.ExpressionConverter.toRexNodes;
 
 /**
- * Use standard sql to convert function to RexNode.
+ * Use standard sql to convert {@link CallExpression} to RexNode.
  */
 public class StandardSqlConvertRule implements CallExpressionConvertRule {
 

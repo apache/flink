@@ -16,37 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.inference.validators;
+package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.types.inference.ArgumentCount;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.InputTypeValidator;
-import org.apache.flink.table.types.inference.Signature;
-import org.apache.flink.table.types.inference.Signature.Argument;
+import org.apache.flink.table.types.inference.TypeStrategy;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.Optional;
 
 /**
- * Validator that does not perform any validation and always passes.
+ * A type strategy that returns an explicitly specified {@link DataType}.
  */
 @Internal
-public class PassingTypeValidator implements InputTypeValidator {
+public class ExplicitTypeStrategy implements TypeStrategy {
 
-	@Override
-	public ArgumentCount getArgumentCount() {
-		return ArgumentCount.passing();
+	private final DataType dataType;
+
+	public ExplicitTypeStrategy(DataType dataType) {
+		this.dataType = dataType;
 	}
 
 	@Override
-	public boolean validate(CallContext callContext, boolean throwOnFailure) {
-		return true;
-	}
-
-	@Override
-	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return Collections.singletonList(Signature.of(Argument.of("*")));
+	public Optional<DataType> inferType(CallContext callContext) {
+		return Optional.of(dataType);
 	}
 }

@@ -49,4 +49,94 @@ public interface ArgumentCount {
 	 * <p>{@link Optional#empty()} if such an upper bound is not defined.
 	 */
 	Optional<Integer> getMaxCount();
+
+	/**
+	 * The argument count should to be exactly the same as count.
+	 */
+	static ArgumentCount exact(int count) {
+		return new ArgumentCount() {
+
+			@Override
+			public boolean isValidCount(int validCount) {
+				return count == validCount;
+			}
+
+			@Override
+			public Optional<Integer> getMinCount() {
+				return Optional.of(count);
+			}
+
+			@Override
+			public Optional<Integer> getMaxCount() {
+				return Optional.of(count);
+			}
+		};
+	}
+
+	/**
+	 * The argument count should to be in the range of min and max.
+	 */
+	static ArgumentCount range(int min, int max) {
+		return new ArgumentCount() {
+			@Override
+			public boolean isValidCount(int count) {
+				return min <= count && count <= max;
+			}
+
+			@Override
+			public Optional<Integer> getMinCount() {
+				return Optional.of(min);
+			}
+
+			@Override
+			public Optional<Integer> getMaxCount() {
+				return Optional.of(max);
+			}
+		};
+	}
+
+	/**
+	 * The argument count should bigger than min.
+	 */
+	static ArgumentCount atLeast(int min) {
+		return new ArgumentCount() {
+			@Override
+			public boolean isValidCount(int count) {
+				return min <= count;
+			}
+
+			@Override
+			public Optional<Integer> getMinCount() {
+				return Optional.of(min);
+			}
+
+			@Override
+			public Optional<Integer> getMaxCount() {
+				return Optional.empty();
+			}
+		};
+	}
+
+	/**
+	 * Always pass on {@link ArgumentCount}.
+	 */
+	static ArgumentCount passing() {
+		return new ArgumentCount() {
+
+			@Override
+			public boolean isValidCount(int count) {
+				return true;
+			}
+
+			@Override
+			public Optional<Integer> getMinCount() {
+				return Optional.empty();
+			}
+
+			@Override
+			public Optional<Integer> getMaxCount() {
+				return Optional.empty();
+			}
+		};
+	}
 }

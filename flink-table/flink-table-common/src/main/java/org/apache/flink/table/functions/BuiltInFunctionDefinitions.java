@@ -19,8 +19,12 @@
 package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.types.inference.InputTypeStrategies;
+import org.apache.flink.table.types.inference.InputTypeValidators;
 import org.apache.flink.table.types.inference.TypeStrategies;
+import org.apache.flink.table.types.inference.TypeTransformations;
 import org.apache.flink.util.Preconditions;
 
 import java.lang.reflect.Field;
@@ -33,6 +37,7 @@ import java.util.Set;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.BOOLEAN;
 
 /**
  * Dictionary of function definitions for all built-in functions.
@@ -44,8 +49,13 @@ public final class BuiltInFunctionDefinitions {
 	public static final BuiltInFunctionDefinition AND =
 		new BuiltInFunctionDefinition.Builder()
 			.name("and")
+			.standardSql("AND")
 			.kind(SCALAR)
-			.outputTypeStrategy(TypeStrategies.MISSING)
+			.outputTypeStrategy(TypeStrategies.cascade(
+				TypeStrategies.explicit(DataTypes.BOOLEAN().notNull()),
+				TypeTransformations.TO_NULLABLE))
+			.inputTypeValidator(InputTypeValidators.typeRoot(BOOLEAN, BOOLEAN))
+			.inputTypeStrategy(InputTypeStrategies.explicit(DataTypes.BOOLEAN()))
 			.build();
 	public static final BuiltInFunctionDefinition OR =
 		new BuiltInFunctionDefinition.Builder()

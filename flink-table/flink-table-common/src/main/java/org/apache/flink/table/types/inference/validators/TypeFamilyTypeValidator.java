@@ -20,33 +20,56 @@ package org.apache.flink.table.types.inference.validators;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
 import org.apache.flink.table.types.inference.InputTypeValidator;
 import org.apache.flink.table.types.inference.Signature;
-import org.apache.flink.table.types.inference.Signature.Argument;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * Validator that does not perform any validation and always passes.
+ * A validator that passes if the arguments are of given {@link LogicalTypeRoot}.
  */
 @Internal
-public class PassingTypeValidator implements InputTypeValidator {
+public class TypeFamilyTypeValidator implements InputTypeValidator {
+
+	private final List<LogicalTypeFamily> expectedTypeFamilies;
+
+	public TypeFamilyTypeValidator(List<LogicalTypeFamily> expectedTypeFamilies) {
+		this.expectedTypeFamilies = expectedTypeFamilies;
+	}
 
 	@Override
 	public ArgumentCount getArgumentCount() {
-		return ArgumentCount.passing();
+		return ArgumentCount.exact(expectedTypeFamilies.size());
 	}
 
 	@Override
 	public boolean validate(CallContext callContext, boolean throwOnFailure) {
+		List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+		for (int i = 0; i < expectedTypeFamilies.size(); i++) {
+			LogicalType actualType = argumentDataTypes.get(i).getLogicalType();
+			LogicalTypeFamily expectedTypeFamily = expectedTypeFamilies.get(i);
+			if (!LogicalTypeChecks.hasFamily(actualType, expectedTypeFamily)) {
+				return false;
+			}
+		}
+
 		return true;
 	}
 
 	@Override
 	public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
-		return Collections.singletonList(Signature.of(Argument.of("*")));
+		return Collections.singletonList(Signature.of(
+				expectedTypeFamilies.stream()
+						.map(arg -> Signature.Argument.of(arg.toString()))
+						.collect(Collectors.toList())));
 	}
 }
