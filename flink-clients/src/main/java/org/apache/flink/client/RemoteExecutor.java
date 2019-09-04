@@ -107,20 +107,7 @@ public class RemoteExecutor extends PlanExecutor {
 	public int getDefaultParallelism() {
 		return defaultParallelism;
 	}
-
-	// ------------------------------------------------------------------------
-	//  Startup & Shutdown
-	// ------------------------------------------------------------------------
-
-	private ClusterClient<?> startClusterClient() throws Exception {
-		return new RestClusterClient<>(clientConfiguration, "RemoteExecutor");
-	}
-
-	private void stopClusterClient(final ClusterClient<?> client) throws Exception {
-		checkNotNull(client);
-		client.shutdown();
-	}
-
+	
 	// ------------------------------------------------------------------------
 	//  Executing programs
 	// ------------------------------------------------------------------------
@@ -138,11 +125,11 @@ public class RemoteExecutor extends PlanExecutor {
 
 		ClusterClient<?>  client = null;
 		try {
-			client = startClusterClient();
+			client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor");
 			return client.run(program, defaultParallelism).getJobExecutionResult();
 		} finally {
 			if (client != null) {
-				stopClusterClient(client);
+				client.shutdown();
 			}
 		}
 	}
