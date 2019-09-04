@@ -24,7 +24,6 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.optimizer.DataStatistics;
@@ -54,20 +53,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class LocalExecutor extends PlanExecutor {
 
-	private static final boolean DEFAULT_OVERWRITE = false;
-
-	private static final int DEFAULT_TASK_MANAGER_NUM_SLOTS = -1;
-
 	/** Custom user configuration for the execution. */
 	private final Configuration baseConfiguration;
-
-	/** Config value for how many slots to provide in the local cluster. */
-	private int taskManagerNumSlots = DEFAULT_TASK_MANAGER_NUM_SLOTS;
-
-	/** Config flag whether to overwrite existing files by default. */
-	private boolean defaultOverwriteFiles = DEFAULT_OVERWRITE;
-
-	// ------------------------------------------------------------------------
 
 	public LocalExecutor() {
 		this(new Configuration());
@@ -76,28 +63,6 @@ public class LocalExecutor extends PlanExecutor {
 	public LocalExecutor(Configuration conf) {
 		this.baseConfiguration = checkNotNull(conf);
 	}
-
-	// ------------------------------------------------------------------------
-	//  Configuration
-	// ------------------------------------------------------------------------
-
-	public boolean isDefaultOverwriteFiles() {
-		return defaultOverwriteFiles;
-	}
-
-	public void setDefaultOverwriteFiles(boolean defaultOverwriteFiles) {
-		this.defaultOverwriteFiles = defaultOverwriteFiles;
-	}
-
-	public void setTaskManagerNumSlots(int taskManagerNumSlots) {
-		this.taskManagerNumSlots = taskManagerNumSlots;
-	}
-
-	public int getTaskManagerNumSlots() {
-		return this.taskManagerNumSlots;
-	}
-
-	// --------------------------------------------------------------------------------------------
 
 	private JobExecutorService createJobExecutorService(Configuration configuration) throws Exception {
 		if (!configuration.contains(RestOptions.BIND_PORT)) {
@@ -156,37 +121,25 @@ public class LocalExecutor extends PlanExecutor {
 	}
 
 	private Configuration configureExecution(final Plan plan) {
-		setNumberOfTaskSlots(plan);
-		final Configuration executorConfiguration = createExecutorServiceConfig();
+		final Configuration executorConfiguration = createExecutorServiceConfig(plan);
 		setPlanParallelism(plan, executorConfiguration);
 		return executorConfiguration;
 	}
 
-	private void setNumberOfTaskSlots(final Plan plan) {
-		if (this.taskManagerNumSlots == DEFAULT_TASK_MANAGER_NUM_SLOTS) {
-			int maxParallelism = plan.getMaximumParallelism();
-			if (maxParallelism > 0) {
-				this.taskManagerNumSlots = maxParallelism;
-			}
-		}
-	}
-
-	private Configuration createExecutorServiceConfig() {
+	private Configuration createExecutorServiceConfig(final Plan plan) {
 		final Configuration newConfiguration = new Configuration();
-		newConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, taskManagerNumSlots);
-		newConfiguration.setBoolean(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, defaultOverwriteFiles);
-
+		newConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, plan.getMaximumParallelism());
 		newConfiguration.addAll(baseConfiguration);
-
 		return newConfiguration;
 	}
 
 	private void setPlanParallelism(final Plan plan, final Configuration executorServiceConfig) {
 		// TODO: Set job's default parallelism to max number of slots
 		final int slotsPerTaskManager = executorServiceConfig.getInteger(
-				TaskManagerOptions.NUM_TASK_SLOTS, taskManagerNumSlots);
+				TaskManagerOptions.NUM_TASK_SLOTS, plan.getMaximumParallelism());
 		final int numTaskManagers = executorServiceConfig.getInteger(
 				ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
+
 		plan.setDefaultParallelism(slotsPerTaskManager * numTaskManagers);
 	}
 
