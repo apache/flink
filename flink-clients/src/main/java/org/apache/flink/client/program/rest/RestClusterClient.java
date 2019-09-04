@@ -176,7 +176,7 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 
 		this.clientHAServices = HighAvailabilityServicesUtils.createClientHAService(configuration);
 
-		this.webMonitorRetrievalService = clientHAServices.getWebMonitorLeaderRetriever();
+		this.webMonitorRetrievalService = clientHAServices.getClusterRestEndpointLeaderRetriever();
 		this.retryExecutorService = Executors.newSingleThreadScheduledExecutor(new ExecutorThreadFactory("Flink-RestClusterClient-Retry"));
 		startLeaderRetrievers();
 	}

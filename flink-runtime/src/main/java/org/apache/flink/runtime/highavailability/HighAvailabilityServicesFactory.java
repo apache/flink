@@ -52,7 +52,7 @@ public interface HighAvailabilityServicesFactory {
 			private HighAvailabilityServices haServices = createHAServices(configuration, Executors.directExecutor());
 
 			@Override
-			public LeaderRetrievalService getWebMonitorLeaderRetriever() {
+			public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
 				return haServices.getWebMonitorLeaderRetriever();
 			}
 

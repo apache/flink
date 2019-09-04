@@ -21,17 +21,23 @@ package org.apache.flink.runtime.highavailability;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 
 /**
- * {@code ClientHighAvailabilityServices} provides services those are required
- * on client-side. At the moment only the REST endpoint leader retriever is required
- * because all communication between the client and cluster happens via the REST endpoint.
+ * A variant of the ClientHighAvailabilityServices for testing.
  */
-public interface ClientHighAvailabilityServices extends AutoCloseable {
+public class TestingClientHAServices implements ClientHighAvailabilityServices {
 
-	/**
-	 * Get the leader retriever for the rest endpoint.
-	 *
-	 * @return the leader retriever for the web monitor.
-	 */
-	LeaderRetrievalService getClusterRestEndpointLeaderRetriever();
+	private LeaderRetrievalService clusterRestEndpointLeaderRetriever;
 
+	public void setClusterRestEndpointLeaderRetriever(LeaderRetrievalService clusterRestEndpointLeaderRetriever) {
+		this.clusterRestEndpointLeaderRetriever = clusterRestEndpointLeaderRetriever;
+	}
+
+	@Override
+	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+		return clusterRestEndpointLeaderRetriever;
+	}
+
+	@Override
+	public void close() throws Exception {
+
+	}
 }

@@ -45,7 +45,7 @@ public class StandaloneClientHAServices implements ClientHighAvailabilityService
 	}
 
 	@Override
-	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
+	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
 		synchronized (lock) {
 			checkState(running, "ClientHaService has already been closed.");
 			return new StandaloneLeaderRetrievalService(webMonitorAddress, DEFAULT_LEADER_ID);

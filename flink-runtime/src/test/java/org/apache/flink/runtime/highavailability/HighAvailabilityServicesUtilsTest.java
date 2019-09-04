@@ -20,11 +20,11 @@ package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.util.concurrent.Executor;
 
@@ -39,10 +39,10 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
 	public void testCreateCustomHAServices() throws Exception {
 		Configuration config = new Configuration();
 
-		HighAvailabilityServices haServices = Mockito.mock(HighAvailabilityServices.class);
+		HighAvailabilityServices haServices = new TestingHighAvailabilityServices();
 		TestHAFactory.haServices = haServices;
 
-		Executor executor = Mockito.mock(Executor.class);
+		Executor executor = Executors.directExecutor();
 
 		config.setString(HighAvailabilityOptions.HA_MODE, TestHAFactory.class.getName());
 
@@ -63,7 +63,7 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
 	public void testCreateCustomClientHAServices() throws Exception {
 		Configuration config = new Configuration();
 
-		ClientHighAvailabilityServices clientHAServices = Mockito.mock(ClientHighAvailabilityServices.class);
+		ClientHighAvailabilityServices clientHAServices = new TestingClientHAServices();
 		TestHAFactory.clientHAServices = clientHAServices;
 
 		config.setString(HighAvailabilityOptions.HA_MODE, TestHAFactory.class.getName());
@@ -79,7 +79,7 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
 	public void testCustomHAServicesFactoryNotDefined() throws Exception {
 		Configuration config = new Configuration();
 
-		Executor executor = Mockito.mock(Executor.class);
+		Executor executor = Executors.directExecutor();
 
 		config.setString(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.FACTORY_CLASS.name().toLowerCase());
 

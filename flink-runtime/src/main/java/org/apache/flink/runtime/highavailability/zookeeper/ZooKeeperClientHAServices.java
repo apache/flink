@@ -45,7 +45,7 @@ public class ZooKeeperClientHAServices implements ClientHighAvailabilityServices
 	}
 
 	@Override
-	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
+	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
 		return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, REST_SERVER_LEADER_PATH);
 	}
 
