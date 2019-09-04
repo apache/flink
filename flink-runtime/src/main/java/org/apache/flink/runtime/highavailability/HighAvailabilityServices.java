@@ -79,7 +79,7 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	LeaderRetrievalService getDispatcherLeaderRetriever();
 
 	/**
-	 * Gets the leader retriever for the job JobMaster which is responsible for the given job
+	 * Gets the leader retriever for the job JobMaster which is responsible for the given job.
 	 *
 	 * @param jobID The identifier of the job.
 	 * @return Leader retrieval service to retrieve the job manager for the given job
@@ -89,7 +89,7 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	LeaderRetrievalService getJobManagerLeaderRetriever(JobID jobID);
 
 	/**
-	 * Gets the leader retriever for the job JobMaster which is responsible for the given job
+	 * Gets the leader retriever for the job JobMaster which is responsible for the given job.
 	 *
 	 * @param jobID The identifier of the job.
 	 * @param defaultJobManagerAddress JobManager address which will be returned by
@@ -134,14 +134,14 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	LeaderElectionService getWebMonitorLeaderElectionService();
 
 	/**
-	 * Gets the checkpoint recovery factory for the job manager
+	 * Gets the checkpoint recovery factory for the job manager.
 	 *
 	 * @return Checkpoint recovery factory
 	 */
 	CheckpointRecoveryFactory getCheckpointRecoveryFactory();
 
 	/**
-	 * Gets the submitted job graph store for the job manager
+	 * Gets the submitted job graph store for the job manager.
 	 *
 	 * @return Submitted job graph store
 	 * @throws Exception if the submitted job graph store could not be created
