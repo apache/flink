@@ -55,7 +55,6 @@ public class LocalExecutorITCase extends TestLogger {
 
 			LocalExecutor executor = new LocalExecutor();
 			executor.setDefaultOverwriteFiles(true);
-			executor.setTaskManagerNumSlots(parallelism);
 
 			Plan wcPlan = getWordCountPlan(inFile, outFile, parallelism);
 			wcPlan.setExecutionConfig(new ExecutionConfig());
