@@ -73,7 +73,8 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 		new ScalarFunctionConvertRule(),
 		new OverConvertRule(),
 		new DirectConvertRule(),
-		new CustomizedConvertRule()
+		new CustomizedConvertRule(),
+		new StandardSqlConvertRule()
 	);
 
 	private final RelBuilder relBuilder;
