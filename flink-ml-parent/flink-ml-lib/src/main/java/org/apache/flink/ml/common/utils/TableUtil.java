@@ -169,9 +169,9 @@ public class TableUtil {
 	 * @return whether it is vector type
 	 */
 	public static boolean isVector(TypeInformation dataType) {
-		return VectorTypes.VECTOR == dataType
-			|| VectorTypes.DENSE_VECTOR == dataType
-			|| VectorTypes.SPARSE_VECTOR == dataType
+		return VectorTypes.VECTOR.equals(dataType)
+			|| VectorTypes.DENSE_VECTOR.equals(dataType)
+			|| VectorTypes.SPARSE_VECTOR.equals(dataType)
 			;
 	}
 
