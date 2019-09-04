@@ -32,6 +32,8 @@ import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.operators.testutils.MockEnvironment;
+import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -60,6 +62,7 @@ import java.io.IOException;
 import java.util.Collections;
 
 import static org.hamcrest.CoreMatchers.anyOf;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertArrayEquals;
@@ -170,6 +173,37 @@ public class RocksDBStateBackendConfigTest {
 			RocksDBPriorityQueueSetFactory.class,
 			keyedBackend.getPriorityQueueFactory().getClass());
 		keyedBackend.dispose();
+	}
+
+	/**
+	 * Validates that user custom configuration from code should override the flink-conf.yaml.
+	 */
+	@Test
+	public void testConfigureTimerServiceLoadingFromApplication() throws Exception {
+		final MockEnvironment env = new MockEnvironmentBuilder().build();
+
+		// priorityQueueStateType of the job backend
+		final RocksDBStateBackend backend = new RocksDBStateBackend(tempFolder.newFolder().toURI().toString());
+		backend.setPriorityQueueStateType(RocksDBStateBackend.PriorityQueueStateType.HEAP);
+
+		// priorityQueueStateType in the cluster config
+		final Configuration configFromConfFile = new Configuration();
+		configFromConfFile.setString(
+			RocksDBOptions.TIMER_SERVICE_FACTORY,
+			RocksDBStateBackend.PriorityQueueStateType.ROCKSDB.toString());
+
+		// configure final backend from job and cluster config
+		final RocksDBStateBackend configuredRocksDBStateBackend = backend.configure(
+			configFromConfFile,
+			Thread.currentThread().getContextClassLoader());
+		final RocksDBKeyedStateBackend<Integer> keyedBackend = createKeyedStateBackend(configuredRocksDBStateBackend, env);
+
+		// priorityQueueStateType of the job backend should be preserved
+		assertThat(keyedBackend.getPriorityQueueFactory(), instanceOf(HeapPriorityQueueSetFactory.class));
+
+		keyedBackend.close();
+		keyedBackend.dispose();
+		env.close();
 	}
 
 	@Test
