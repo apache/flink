@@ -27,6 +27,7 @@ import org.apache.flink.ml.common.linalg.Vector;
 import org.apache.flink.ml.common.linalg.VectorIterator;
 import org.apache.flink.ml.common.mapper.SISOMapper;
 import org.apache.flink.ml.common.utils.TableUtil;
+import org.apache.flink.ml.common.utils.VectorTypes;
 import org.apache.flink.ml.params.ml.feature.BinarizerParams;
 import org.apache.flink.table.api.TableSchema;
 
@@ -41,16 +42,21 @@ import java.util.Arrays;
  */
 public class BinarizerMapper extends SISOMapper {
 	private double threshold;
-	private TypeInformation outputType;
+	private TypeInformation selectedColType;
 	private static final double RATIO = 1.5;
 	private Object objectValue0, objectValue1;
 
 	public BinarizerMapper(TableSchema dataSchema, Params params) throws Exception {
 		super(dataSchema, params);
 		this.threshold = this.params.get(BinarizerParams.THRESHOLD);
-		outputType = TableUtil.findColType(dataSchema, this.params.get(BinarizerParams.SELECTED_COL));
-		if (TableUtil.isNumber(outputType)) {
-			Constructor constructor = outputType.getTypeClass().getConstructor(String.class);
+
+		selectedColType = TableUtil.findColType(
+			dataSchema,
+			this.params.get(BinarizerParams.SELECTED_COL)
+		);
+
+		if (TableUtil.isNumber(selectedColType)) {
+			Constructor constructor = selectedColType.getTypeClass().getConstructor(String.class);
 			objectValue0 = constructor.newInstance("0");
 			objectValue1 = constructor.newInstance("1");
 		}
@@ -58,7 +64,16 @@ public class BinarizerMapper extends SISOMapper {
 
 	@Override
 	protected TypeInformation initOutputColType() {
-		return TableUtil.findColType(dataSchema, this.params.get(BinarizerParams.SELECTED_COL));
+		final TypeInformation<?> selectedColType = TableUtil.findColType(
+			dataSchema,
+			this.params.get(BinarizerParams.SELECTED_COL)
+		);
+
+		if (TableUtil.isNumber(selectedColType)) {
+			return selectedColType;
+		}
+
+		return VectorTypes.VECTOR;
 	}
 
 	/**
@@ -75,14 +90,13 @@ public class BinarizerMapper extends SISOMapper {
 		if (null == input) {
 			return null;
 		}
-		if (TableUtil.isNumber(outputType)) {
+		if (TableUtil.isNumber(selectedColType)) {
 			return ((Number) input).doubleValue() > threshold ? objectValue1 : objectValue0;
-		} else if (TableUtil.isString(outputType)) {
-			String str = (String) input;
-			if (str.isEmpty()) {
-				return "";
+		} else if (TableUtil.isVector(selectedColType)) {
+			Vector parseVector = (Vector) input;
+			if (null == parseVector) {
+				return null;
 			}
-			Vector parseVector = Vector.parse(str);
 			if (parseVector instanceof SparseVector) {
 				SparseVector vec = (SparseVector) parseVector;
 				VectorIterator vectorIterator = vec.iterator();
@@ -96,7 +110,7 @@ public class BinarizerMapper extends SISOMapper {
 				}
 				double[] newValues = new double[pos];
 				Arrays.fill(newValues, 1.0);
-				return new SparseVector(vec.size(), Arrays.copyOf(newIndices, pos), newValues).serialize();
+				return new SparseVector(vec.size(), Arrays.copyOf(newIndices, pos), newValues);
 			} else {
 				DenseVector vec = (DenseVector) parseVector;
 				double[] data = vec.getData();
@@ -111,11 +125,11 @@ public class BinarizerMapper extends SISOMapper {
 					}
 				}
 				if (pos * RATIO > vec.size()) {
-					return vec.serialize();
+					return vec;
 				} else {
 					double[] newValues = new double[pos];
 					Arrays.fill(newValues, 1.0);
-					return new SparseVector(vec.size(), Arrays.copyOf(newIndices, pos), newValues).serialize();
+					return new SparseVector(vec.size(), Arrays.copyOf(newIndices, pos), newValues);
 				}
 			}
 		} else {

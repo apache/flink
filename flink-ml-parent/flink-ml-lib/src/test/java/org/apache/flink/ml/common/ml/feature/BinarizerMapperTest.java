@@ -22,12 +22,15 @@ package org.apache.flink.ml.common.ml.feature;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.ml.api.misc.param.Params;
+import org.apache.flink.ml.common.linalg.VectorUtil;
+import org.apache.flink.ml.common.utils.VectorTypes;
 import org.apache.flink.ml.params.ml.feature.BinarizerParams;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
-import org.junit.Assert;
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Unit test for BinarizerMapper.
@@ -35,21 +38,23 @@ import org.junit.Test;
 public class BinarizerMapperTest {
 	@Test
 	public void test1() throws Exception {
-		TableSchema schema = new TableSchema(new String[]{"feature"}, new TypeInformation<?>[]{Types.STRING});
+		TableSchema schema = new TableSchema(new String[] {"feature"}, new TypeInformation<?>[] {VectorTypes.VECTOR});
 
 		Params params = new Params()
 			.set(BinarizerParams.SELECTED_COL, "feature");
 
 		BinarizerMapper mapper = new BinarizerMapper(schema, params);
 
-		Assert.assertEquals(mapper.map(Row.of("0.1 0.6")).getField(0), "1.0 1.0");
-		Assert.assertEquals(mapper.map(Row.of("$20$4:0.2 6:1.0 7:0.05")).getField(0), "$20$4:1.0 6:1.0 7:1.0");
-		Assert.assertEquals(mapper.getOutputSchema(), schema);
+		assertEquals(mapper.map(Row.of(VectorUtil.parse("0.1 0.6"))).getField(0), VectorUtil.parse("1.0 1.0"));
+		assertEquals(mapper.map(Row.of(VectorUtil.parse("$20$4:0.2 6:1.0 7:0.05"))).getField(0),
+			VectorUtil.parse("$20$4:1.0 6:1.0 7:1.0"));
+		assertEquals(mapper.getOutputSchema(),
+			new TableSchema(new String[] {"feature"}, new TypeInformation<?>[] {VectorTypes.VECTOR}));
 	}
 
 	@Test
 	public void test2() throws Exception {
-		TableSchema schema = new TableSchema(new String[]{"feature"}, new TypeInformation<?>[]{Types.STRING});
+		TableSchema schema = new TableSchema(new String[] {"feature"}, new TypeInformation<?>[] {VectorTypes.VECTOR});
 
 		Params params = new Params()
 			.set(BinarizerParams.SELECTED_COL, "feature")
@@ -57,29 +62,30 @@ public class BinarizerMapperTest {
 
 		BinarizerMapper mapper = new BinarizerMapper(schema, params);
 
-		Assert.assertEquals(mapper.map(Row.of("0.1 0.6")).getField(0), "$2$");
-		Assert.assertEquals(mapper.map(Row.of("2.1 2.6 4.1 0.6 3.2")).getField(0), "1.0 1.0 1.0 0.0 1.0");
-		Assert.assertEquals(mapper.map(Row.of("$20$4:0.2 6:1.0 7:0.05")).getField(0), "$20$");
+		assertEquals(mapper.map(Row.of(VectorUtil.parse("0.1 0.6"))).getField(0), VectorUtil.parse("$2$"));
+		assertEquals(mapper.map(Row.of(VectorUtil.parse("2.1 2.6 4.1 0.6 3.2"))).getField(0), VectorUtil.parse("1.0 1.0 1.0 0.0 1.0"));
+		assertEquals(mapper.map(Row.of(VectorUtil.parse("$20$4:0.2 6:1.0 7:0.05"))).getField(0), VectorUtil.parse("$20$"));
 
-		Assert.assertEquals(mapper.getOutputSchema(), schema);
+		assertEquals(mapper.getOutputSchema(),
+			new TableSchema(new String[] {"feature"}, new TypeInformation<?>[] {VectorTypes.VECTOR}));
 	}
 
 	@Test
 	public void test3() throws Exception {
-		TableSchema schema = new TableSchema(new String[]{"feature"}, new TypeInformation<?>[]{Types.DOUBLE});
+		TableSchema schema = new TableSchema(new String[] {"feature"}, new TypeInformation<?>[] {Types.DOUBLE});
 
 		Params params = new Params()
 			.set(BinarizerParams.SELECTED_COL, "feature");
 
 		BinarizerMapper mapper = new BinarizerMapper(schema, params);
 
-		Assert.assertEquals(mapper.map(Row.of(0.6)).getField(0), 1.0);
-		Assert.assertEquals(mapper.getOutputSchema(), schema);
+		assertEquals(mapper.map(Row.of(0.6)).getField(0), 1.0);
+		assertEquals(mapper.getOutputSchema(), schema);
 	}
 
 	@Test
 	public void test4() throws Exception {
-		TableSchema schema = new TableSchema(new String[]{"feature"}, new TypeInformation<?>[]{Types.DOUBLE});
+		TableSchema schema = new TableSchema(new String[] {"feature"}, new TypeInformation<?>[] {Types.DOUBLE});
 
 		Params params = new Params()
 			.set(BinarizerParams.SELECTED_COL, "feature")
@@ -88,23 +94,23 @@ public class BinarizerMapperTest {
 
 		BinarizerMapper mapper = new BinarizerMapper(schema, params);
 
-		Assert.assertEquals(mapper.map(Row.of(0.6)).getField(1), 0.0);
-		Assert.assertEquals(mapper.getOutputSchema(),
-			new TableSchema(new String[]{"feature", "output"},
-				new TypeInformation<?>[]{Types.DOUBLE, Types.DOUBLE})
+		assertEquals(mapper.map(Row.of(0.6)).getField(1), 0.0);
+		assertEquals(mapper.getOutputSchema(),
+			new TableSchema(new String[] {"feature", "output"},
+				new TypeInformation<?>[] {Types.DOUBLE, Types.DOUBLE})
 		);
 	}
 
 	@Test
 	public void test5() throws Exception {
-		TableSchema schema = new TableSchema(new String[]{"feature"}, new TypeInformation<?>[]{Types.LONG});
+		TableSchema schema = new TableSchema(new String[] {"feature"}, new TypeInformation<?>[] {Types.LONG});
 
 		Params params = new Params()
 			.set(BinarizerParams.SELECTED_COL, "feature");
 
 		BinarizerMapper mapper = new BinarizerMapper(schema, params);
 
-		Assert.assertEquals(mapper.map(Row.of(4L)).getField(0), 1L);
-		Assert.assertEquals(mapper.getOutputSchema(), schema);
+		assertEquals(mapper.map(Row.of(4L)).getField(0), 1L);
+		assertEquals(mapper.getOutputSchema(), schema);
 	}
 }
