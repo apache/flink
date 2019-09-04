@@ -182,6 +182,9 @@ abstract class PlannerBase(
               if partitionableSink.getPartitionFieldNames != null
                 && partitionableSink.getPartitionFieldNames.nonEmpty =>
               partitionableSink.setStaticPartition(catalogSink.getStaticPartitions)
+            case _ =>
+          }
+          sink match {
             case overwritableTableSink: OverwritableTableSink =>
               overwritableTableSink.setOverwrite(catalogSink.isOverwrite)
             case _ =>

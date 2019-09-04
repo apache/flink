@@ -160,12 +160,15 @@ class StreamPlanner(
               identifier,
               sink)
             // set static partitions if it is a partitioned sink
-            // set whether to overwrite if it's an OverwritableTableSink
             sink match {
               case partitionableSink: PartitionableTableSink
                 if partitionableSink.getPartitionFieldNames != null
                   && partitionableSink.getPartitionFieldNames.nonEmpty =>
                 partitionableSink.setStaticPartition(catalogSink.getStaticPartitions)
+              case _ =>
+            }
+            // set whether to overwrite if it's an OverwritableTableSink
+            sink match {
               case overwritableTableSink: OverwritableTableSink =>
                 overwritableTableSink.setOverwrite(catalogSink.isOverwrite)
               case _ =>
