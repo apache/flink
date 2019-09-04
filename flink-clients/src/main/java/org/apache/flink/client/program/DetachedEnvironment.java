@@ -22,12 +22,8 @@ import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.optimizer.plan.FlinkPlan;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.URL;
 import java.util.List;
@@ -38,9 +34,7 @@ import java.util.List;
 public class DetachedEnvironment extends ContextEnvironment {
 
 	/** Keeps track of the program plan for the Client to access. */
-	private FlinkPlan detachedPlan;
-
-	private static final Logger LOG = LoggerFactory.getLogger(DetachedEnvironment.class);
+	private boolean alreadyCalled;
 
 	public DetachedEnvironment(
 			ClusterClient<?> remoteConnection,
@@ -49,26 +43,25 @@ public class DetachedEnvironment extends ContextEnvironment {
 			ClassLoader userCodeClassLoader,
 			SavepointRestoreSettings savepointSettings) {
 		super(remoteConnection, jarFiles, classpaths, userCodeClassLoader, savepointSettings);
+		alreadyCalled = false;
 	}
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
+		verifyExecuteIsCalledOnce();
+
 		Plan p = createProgramPlan(jobName);
 		OptimizedPlan optPlan = ClusterClient.getOptimizedPlan(client.compiler, p, getParallelism());
 
-		setDetachedPlan(optPlan);
-		
 		final JobSubmissionResult result = client.run(optPlan, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings);
 		this.lastJobExecutionResult = result.getJobExecutionResult();
 		return this.lastJobExecutionResult;
 	}
 
-	public void setDetachedPlan(FlinkPlan plan) {
-		if (detachedPlan == null) {
-			detachedPlan = plan;
-		} else {
-			throw new InvalidProgramException(DetachedJobExecutionResult.DETACHED_MESSAGE +
-					DetachedJobExecutionResult.EXECUTE_TWICE_MESSAGE);
+	private void verifyExecuteIsCalledOnce() {
+		if (alreadyCalled) {
+			throw new InvalidProgramException(DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.EXECUTE_TWICE_MESSAGE);
 		}
+		alreadyCalled = true;
 	}
 }
