@@ -73,7 +73,7 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public String toString() {
-		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism()) + ").";
+		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism()) + ")";
 	}
 
 	public ClusterClient<?> getClient() {
