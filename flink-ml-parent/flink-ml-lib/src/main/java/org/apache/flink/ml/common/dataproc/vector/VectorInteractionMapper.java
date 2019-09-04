@@ -20,12 +20,12 @@
 package org.apache.flink.ml.common.dataproc.vector;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.common.linalg.DenseVector;
 import org.apache.flink.ml.common.linalg.SparseVector;
 import org.apache.flink.ml.common.linalg.Vector;
 import org.apache.flink.ml.common.mapper.MISOMapper;
+import org.apache.flink.ml.common.utils.VectorTypes;
 import org.apache.flink.table.api.TableSchema;
 
 /**
@@ -39,7 +39,7 @@ public class VectorInteractionMapper extends MISOMapper {
 
 	@Override
 	protected TypeInformation initOutputColType() {
-		return Types.STRING;
+		return VectorTypes.VECTOR;
 	}
 
 	@Override
@@ -48,46 +48,51 @@ public class VectorInteractionMapper extends MISOMapper {
 			throw new IllegalArgumentException("VectorInteraction only support two input columns.");
 		}
 
-		String vecStr = (String) input[0];
-		String scalingStr = (String) input[1];
-
-		if (vecStr == null || scalingStr == null) {
+		if (input[0] == null || input[1] == null) {
 			return null;
-		} else if (vecStr.isEmpty() || scalingStr.isEmpty()) {
-			return "";
-		} else {
-			Vector vector = Vector.parse(vecStr);
-			if (vector instanceof SparseVector) {
-				SparseVector sparseVector = (SparseVector) vector;
-				int vecSize = sparseVector.size();
-				int[] indices = sparseVector.getIndices();
-				double[] values = sparseVector.getValues();
-				SparseVector scalingVector = SparseVector.deserialize(scalingStr);
-				int scalingSize = scalingVector.size();
-				int[] scalingIndices = scalingVector.getIndices();
-				double[] scalingValues = scalingVector.getValues();
-				double[] interactionValues = new double[scalingIndices.length * indices.length];
-				int[] interactionIndices = new int[scalingIndices.length * indices.length];
-				for (int i = 0; i < indices.length; ++i) {
-					for (int j = 0; j < scalingIndices.length; ++j) {
-						int idx = i * scalingIndices.length + j;
-						interactionIndices[idx] = vecSize * scalingIndices[j] + indices[i];
-						interactionValues[idx] = values[i] * scalingValues[j];
-					}
-				}
-				return new SparseVector(vecSize * scalingSize, interactionIndices, interactionValues).serialize();
-			} else {
-				double[] vecArray = ((DenseVector) vector).getData();
-				double[] scalingArray = DenseVector.deserialize(scalingStr).getData();
-				DenseVector inter = new DenseVector(vecArray.length * scalingArray.length);
-				double[] interArray = inter.getData();
-				for (int i = 0; i < vecArray.length; ++i) {
-					for (int j = 0; j < scalingArray.length; ++j) {
-						interArray[i * scalingArray.length + j] = vecArray[i] * scalingArray[j];
-					}
-				}
-				return inter.serialize();
+		}
+
+		Vector vector1 = (Vector) input[0];
+		Vector vector2 = (Vector) input[1];
+
+		if (vector1 instanceof SparseVector) {
+			if (vector2 instanceof DenseVector) {
+				throw new IllegalArgumentException("Make sure the two input vectors are both dense or sparse.");
 			}
+			SparseVector sparseVector = (SparseVector) vector1;
+			int vecSize = sparseVector.size();
+			int[] indices = sparseVector.getIndices();
+			double[] values = sparseVector.getValues();
+			SparseVector scalingVector = (SparseVector) vector2;
+			int scalingSize = scalingVector.size();
+			int[] scalingIndices = scalingVector.getIndices();
+			double[] scalingValues = scalingVector.getValues();
+			double[] interactionValues = new double[scalingIndices.length * indices.length];
+			int[] interactionIndices = new int[scalingIndices.length * indices.length];
+			for (int i = 0; i < indices.length; ++i) {
+				int idxBase = i * scalingIndices.length;
+				for (int j = 0; j < scalingIndices.length; ++j) {
+					int idx = idxBase + j;
+					interactionIndices[idx] = vecSize * scalingIndices[j] + indices[i];
+					interactionValues[idx] = values[i] * scalingValues[j];
+				}
+			}
+			return new SparseVector(vecSize * scalingSize, interactionIndices, interactionValues);
+		} else {
+			if (vector2 instanceof SparseVector) {
+				throw new IllegalArgumentException("Make sure the two input vectors are both dense or sparse.");
+			}
+			double[] vecArray = ((DenseVector) vector1).getData();
+			double[] scalingArray = ((DenseVector) vector2).getData();
+			DenseVector inter = new DenseVector(vecArray.length * scalingArray.length);
+			double[] interArray = inter.getData();
+			for (int i = 0; i < vecArray.length; ++i) {
+				int idxBase = i * scalingArray.length;
+				for (int j = 0; j < scalingArray.length; ++j) {
+					interArray[idxBase + j] = vecArray[i] * scalingArray[j];
+				}
+			}
+			return inter;
 		}
 	}
 }

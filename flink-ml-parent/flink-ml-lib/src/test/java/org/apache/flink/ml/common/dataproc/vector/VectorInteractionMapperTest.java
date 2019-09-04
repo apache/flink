@@ -22,6 +22,9 @@ package org.apache.flink.ml.common.dataproc.vector;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.ml.api.misc.param.Params;
+import org.apache.flink.ml.common.linalg.DenseVector;
+import org.apache.flink.ml.common.linalg.SparseVector;
+import org.apache.flink.ml.common.utils.VectorTypes;
 import org.apache.flink.ml.params.dataproc.vector.VectorInteractionParams;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
@@ -40,7 +43,7 @@ public class VectorInteractionMapperTest {
 			new TypeInformation<?>[]{Types.STRING, Types.STRING});
 
 		TableSchema outSchema = new TableSchema(new String[]{"c0", "c1", "out"},
-			new TypeInformation<?>[]{Types.STRING, Types.STRING, Types.STRING});
+			new TypeInformation<?>[]{Types.STRING, Types.STRING, VectorTypes.VECTOR});
 
 		Params params = new Params()
 			.set(VectorInteractionParams.SELECTED_COLS, new String[]{"c0", "c1"})
@@ -48,7 +51,8 @@ public class VectorInteractionMapperTest {
 
 		VectorInteractionMapper mapper = new VectorInteractionMapper(schema, params);
 
-		assertEquals(mapper.map(Row.of("3.0 4.0", "3.0 4.0")).getField(2).toString(), "9.0 12.0 12.0 16.0");
+		assertEquals(mapper.map(Row.of(new DenseVector(new double[]{3.0, 4.0}), new DenseVector(new double[]{3.0, 4.0})))
+			.getField(2), new DenseVector(new double[]{9.0, 12.0, 12.0, 16.0}));
 		assertEquals(mapper.getOutputSchema(), outSchema);
 	}
 
@@ -58,7 +62,7 @@ public class VectorInteractionMapperTest {
 			new TypeInformation<?>[]{Types.STRING, Types.STRING});
 
 		TableSchema outSchema = new TableSchema(new String[]{"c0", "out"},
-			new TypeInformation<?>[]{Types.STRING, Types.STRING});
+			new TypeInformation<?>[]{Types.STRING, VectorTypes.VECTOR});
 
 		Params params = new Params()
 			.set(VectorInteractionParams.SELECTED_COLS, new String[]{"c0", "c1"})
@@ -67,7 +71,9 @@ public class VectorInteractionMapperTest {
 
 		VectorInteractionMapper mapper = new VectorInteractionMapper(schema, params);
 
-		assertEquals(mapper.map(Row.of("3.0 4.0", "3.0 4.0")).getField(1).toString(), "9.0 12.0 12.0 16.0");
+		assertEquals(mapper.map(Row.of(new DenseVector(new double[]{3.0, 4.0}),
+			new DenseVector(new double[]{3.0, 4.0}))).getField(1),
+			new DenseVector(new double[]{9.0, 12.0, 12.0, 16.0}));
 		assertEquals(mapper.getOutputSchema(), outSchema);
 	}
 
@@ -77,7 +83,7 @@ public class VectorInteractionMapperTest {
 			new TypeInformation<?>[]{Types.STRING, Types.STRING});
 
 		TableSchema outSchema = new TableSchema(new String[]{"c0", "out"},
-			new TypeInformation<?>[]{Types.STRING, Types.STRING});
+			new TypeInformation<?>[]{Types.STRING, VectorTypes.VECTOR});
 
 		Params params = new Params()
 			.set(VectorInteractionParams.SELECTED_COLS, new String[]{"c0", "c1"})
@@ -86,8 +92,9 @@ public class VectorInteractionMapperTest {
 
 		VectorInteractionMapper mapper = new VectorInteractionMapper(schema, params);
 
-		assertEquals(mapper.map(Row.of("$10$0:1.0 9:4.0", "$10$0:1.0 9:4.0")).getField(1).toString(),
-			"$100$0:1.0 9:4.0 90:4.0 99:16.0");
+		assertEquals(mapper.map(Row.of(new SparseVector(10, new int[]{0, 9}, new double[]{1.0, 4.0}),
+			new SparseVector(10, new int[]{0, 9}, new double[]{1.0, 4.0}))).getField(1),
+			new SparseVector(100, new int[]{0, 9, 90, 99}, new double[]{1.0, 4.0, 4.0, 16.0}));
 		assertEquals(mapper.getOutputSchema(), outSchema);
 	}
 }
