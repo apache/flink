@@ -107,7 +107,13 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	 * @deprecated just use {@link ClientHighAvailabilityServices} instead of this services.
 	 */
 	@Deprecated
-	LeaderRetrievalService getWebMonitorLeaderRetriever();
+	default LeaderRetrievalService getWebMonitorLeaderRetriever() {
+		throw new UnsupportedOperationException(
+			String.format(
+				"getWebMonitorLeaderRetriever should no longer be used. Instead use %s to " +
+					"instantiate the cluster rest endpoint leader retriever.",
+				ClientHighAvailabilityServices.class.getName()));
+	}
 
 	/**
 	 * Gets the leader election service for the cluster's resource manager.
