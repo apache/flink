@@ -158,6 +158,9 @@ public final class DefaultRollingPolicy<IN, BucketID> implements RollingPolicy<I
 
 		/**
 		 * Sets the interval of allowed inactivity after which a part file will have to roll.
+		 * The frequency at which this is checked is controlled by the
+		 * {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink.RowFormatBuilder#withBucketCheckInterval(long)}
+		 * setting.
 		 * @param interval the allowed inactivity interval.
 		 */
 		public DefaultRollingPolicy.PolicyBuilder withInactivityInterval(final long interval) {
@@ -167,6 +170,9 @@ public final class DefaultRollingPolicy<IN, BucketID> implements RollingPolicy<I
 
 		/**
 		 * Sets the max time a part file can stay open before having to roll.
+		 * The frequency at which this is checked is controlled by the
+		 * {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink.RowFormatBuilder#withBucketCheckInterval(long)}
+		 * setting.
 		 * @param interval the desired rollover interval.
 		 */
 		public DefaultRollingPolicy.PolicyBuilder withRolloverInterval(final long interval) {

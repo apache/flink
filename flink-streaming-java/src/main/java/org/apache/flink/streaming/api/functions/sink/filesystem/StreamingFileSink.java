@@ -224,14 +224,30 @@ public class StreamingFileSink<IN>
 			this.partFileSuffix = Preconditions.checkNotNull(partFileSuffix);
 		}
 
+		/**
+		 * Creates a new builder instance with the specified bucket check interval. The interval specifies how often
+		 * time based {@link RollingPolicy}s will be checked/executed for the open buckets.
+		 * @param interval Time interval in milliseconds
+		 * @return A new builder with the check interval set.
+		 */
 		public StreamingFileSink.RowFormatBuilder<IN, BucketID> withBucketCheckInterval(final long interval) {
 			return new RowFormatBuilder<>(basePath, encoder, bucketAssigner, rollingPolicy, interval, bucketFactory, partFilePrefix, partFileSuffix);
 		}
 
+		/**
+		 * Creates a new builder instance with the specified {@link BucketAssigner}.
+		 * @param assigner @{@link BucketAssigner} to be used.
+		 * @return A new builder with the assigner set.
+		 */
 		public StreamingFileSink.RowFormatBuilder<IN, BucketID> withBucketAssigner(final BucketAssigner<IN, BucketID> assigner) {
 			return new RowFormatBuilder<>(basePath, encoder, Preconditions.checkNotNull(assigner), rollingPolicy, bucketCheckInterval, bucketFactory, partFilePrefix, partFileSuffix);
 		}
 
+		/**
+		 * Creates a new builder instance with the specified {@link RollingPolicy} set for the bucketing logic.
+		 * @param policy {@link RollingPolicy} to be applied
+		 * @return A new builder with the check interval set.
+		 */
 		public StreamingFileSink.RowFormatBuilder<IN, BucketID> withRollingPolicy(final RollingPolicy<IN, BucketID> policy) {
 			return new RowFormatBuilder<>(basePath, encoder, bucketAssigner, Preconditions.checkNotNull(policy), bucketCheckInterval, bucketFactory, partFilePrefix, partFileSuffix);
 		}
@@ -314,10 +330,19 @@ public class StreamingFileSink<IN>
 			this.partFileSuffix = Preconditions.checkNotNull(partFileSuffix);
 		}
 
+		/**
+		 * Currently bulk formats always use the {@link OnCheckpointRollingPolicy} therefore this settings does
+		 * not have any effect.
+		 */
 		public StreamingFileSink.BulkFormatBuilder<IN, BucketID> withBucketCheckInterval(long interval) {
 			return new BulkFormatBuilder<>(basePath, writerFactory, bucketAssigner, interval, bucketFactory, partFilePrefix, partFileSuffix);
 		}
 
+		/**
+		 * Creates a new builder instance with the specified {@link BucketAssigner}.
+		 * @param assigner @{@link BucketAssigner} to be used.
+		 * @return A new builder with the assigner set.
+		 */
 		public <ID> StreamingFileSink.BulkFormatBuilder<IN, ID> withBucketAssigner(BucketAssigner<IN, ID> assigner) {
 			return new BulkFormatBuilder<>(basePath, writerFactory, Preconditions.checkNotNull(assigner), bucketCheckInterval, new DefaultBucketFactoryImpl<>(), partFilePrefix, partFileSuffix);
 		}
