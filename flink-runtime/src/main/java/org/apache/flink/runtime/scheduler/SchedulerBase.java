@@ -45,8 +45,11 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphBuilder;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphException;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IntermediateResult;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
+import org.apache.flink.runtime.executiongraph.failover.adapter.DefaultFailoverTopology;
+import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverTopology;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategy;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyFactory;
 import org.apache.flink.runtime.executiongraph.restart.RestartStrategyResolving;
@@ -70,6 +73,9 @@ import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.OperatorBackPressureStats;
+import org.apache.flink.runtime.scheduler.adapter.ExecutionGraphToSchedulingTopologyAdapter;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -83,6 +89,7 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -101,6 +108,12 @@ public abstract class SchedulerBase implements SchedulerNG {
 	private final JobGraph jobGraph;
 
 	private final ExecutionGraph executionGraph;
+
+	private final SchedulingTopology schedulingTopology;
+
+	private final FailoverTopology failoverTopology;
+
+	private final InputsLocationsRetriever inputsLocationsRetriever;
 
 	private final BackPressureStatsTracker backPressureStatsTracker;
 
@@ -124,9 +137,10 @@ public abstract class SchedulerBase implements SchedulerNG {
 
 	private final Time slotRequestTimeout;
 
+
 	private ComponentMainThreadExecutor mainThreadExecutor = new ComponentMainThreadExecutor.DummyComponentMainThreadExecutor(
-		"LegacyScheduler is not initialized with proper main thread executor. " +
-			"Call to LegacyScheduler.setMainThreadExecutor(...) required.");
+		"SchedulerBase is not initialized with proper main thread executor. " +
+			"Call to SchedulerBase.setMainThreadExecutor(...) required.");
 
 	public SchedulerBase(
 		final Logger log,
@@ -172,6 +186,9 @@ public abstract class SchedulerBase implements SchedulerNG {
 		this.slotRequestTimeout = checkNotNull(slotRequestTimeout);
 
 		this.executionGraph = createAndRestoreExecutionGraph(jobManagerJobMetricGroup, checkNotNull(shuffleMaster), checkNotNull(partitionTracker));
+		this.schedulingTopology = new ExecutionGraphToSchedulingTopologyAdapter(executionGraph);
+		this.failoverTopology = new DefaultFailoverTopology(executionGraph);
+		this.inputsLocationsRetriever = new ExecutionGraphToInputsLocationsRetrieverAdapter(executionGraph);
 	}
 
 	private ExecutionGraph createAndRestoreExecutionGraph(
@@ -222,6 +239,26 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	/**
+	 * @deprecated Direct access to the execution graph by scheduler implementations is discouraged
+	 * because currently the execution graph has various features and responsibilities that a
+	 * scheduler should not be concerned about. The following specialized abstractions to the
+	 * execution graph and accessors should be preferred over direct access:
+	 * <ul>
+	 *     <li>{@link #getSchedulingTopology()}
+	 *     <li>{@link #getFailoverTopology()}
+	 *     <li>{@link #getInputsLocationsRetriever()}
+	 *     <li>{@link #getExecutionVertex(ExecutionVertexID)}
+	 *     <li>{@link #getExecutionVertexId(ExecutionAttemptID)}
+	 *     <li>{@link #getExecutionVertexIdOrThrow(ExecutionAttemptID)}
+	 * </ul>
+	 * Currently, only {@link LegacyScheduler} requires direct access to the execution graph.
+	 */
+	@Deprecated
+	protected ExecutionGraph getExecutionGraph() {
+		return executionGraph;
+	}
+
+	/**
 	 * Tries to restore the given {@link ExecutionGraph} from the provided {@link SavepointRestoreSettings}.
 	 *
 	 * @param executionGraphToRestore {@link ExecutionGraph} which is supposed to be restored
@@ -241,6 +278,68 @@ public abstract class SchedulerBase implements SchedulerNG {
 		}
 	}
 
+	protected void resetForNewExecutionIfInTerminalState(final Collection<ExecutionVertexID> verticesToDeploy) {
+		verticesToDeploy.forEach(executionVertexId -> getExecutionVertex(executionVertexId)
+			.resetForNewExecutionIfInTerminalState());
+	}
+
+	protected void transitionToScheduled(final Collection<ExecutionVertexID> verticesToDeploy) {
+		verticesToDeploy.forEach(executionVertexId -> getExecutionVertex(executionVertexId)
+			.getCurrentExecutionAttempt()
+			.transitionState(ExecutionState.SCHEDULED));
+	}
+
+	protected ComponentMainThreadExecutor getMainThreadExecutor() {
+		return mainThreadExecutor;
+	}
+
+	protected void failJob(Throwable cause) {
+		executionGraph.failJob(cause);
+	}
+
+	protected FailoverTopology getFailoverTopology() {
+		return failoverTopology;
+	}
+
+	protected SchedulingTopology getSchedulingTopology() {
+		return schedulingTopology;
+	}
+
+	protected InputsLocationsRetriever getInputsLocationsRetriever() {
+		return inputsLocationsRetriever;
+	}
+
+	protected final void prepareExecutionGraphForNgScheduling() {
+		executionGraph.enableNgScheduling(new UpdateSchedulerNgOnInternalTaskFailuresListener(this, jobGraph.getJobID()));
+		executionGraph.transitionToRunning();
+	}
+
+	protected Optional<ExecutionVertexID> getExecutionVertexId(final ExecutionAttemptID executionAttemptId) {
+		return Optional.ofNullable(executionGraph.getRegisteredExecutions().get(executionAttemptId))
+			.map(this::getExecutionVertexId);
+	}
+
+	protected ExecutionVertexID getExecutionVertexIdOrThrow(final ExecutionAttemptID executionAttemptId) {
+		return getExecutionVertexId(executionAttemptId)
+			.orElseThrow(() -> new IllegalStateException("Cannot find execution " + executionAttemptId));
+	}
+
+	private ExecutionVertexID getExecutionVertexId(final Execution execution) {
+		return execution.getVertex().getID();
+	}
+
+	protected ExecutionVertex getExecutionVertex(final ExecutionVertexID executionVertexId) {
+		return executionGraph.getAllVertices().get(executionVertexId.getJobVertexId()).getTaskVertices()[executionVertexId.getSubtaskIndex()];
+	}
+
+	protected JobGraph getJobGraph() {
+		return jobGraph;
+	}
+
+	// ------------------------------------------------------------------------
+	// SchedulerNG
+	// ------------------------------------------------------------------------
+
 	@Override
 	public void setMainThreadExecutor(final ComponentMainThreadExecutor mainThreadExecutor) {
 		this.mainThreadExecutor = checkNotNull(mainThreadExecutor);
@@ -253,16 +352,12 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	@Override
-	public void startScheduling() {
+	public final void startScheduling() {
 		mainThreadExecutor.assertRunningInMainThread();
-
-		try {
-			executionGraph.scheduleForExecution();
-		}
-		catch (Throwable t) {
-			executionGraph.failGlobal(t);
-		}
+		startSchedulingInternal();
 	}
+
+	protected abstract void startSchedulingInternal();
 
 	@Override
 	public void suspend(Throwable cause) {
@@ -282,9 +377,17 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	@Override
-	public boolean updateTaskExecutionState(final TaskExecutionState taskExecutionState) {
-		mainThreadExecutor.assertRunningInMainThread();
-		return executionGraph.updateState(taskExecutionState);
+	public final boolean updateTaskExecutionState(final TaskExecutionState taskExecutionState) {
+		final Optional<ExecutionVertexID> executionVertexId = getExecutionVertexId(taskExecutionState.getID());
+		if (executionVertexId.isPresent()) {
+			executionGraph.updateState(taskExecutionState);
+			updateTaskExecutionStateInternal(executionVertexId.get(), taskExecutionState);
+			return true;
+		}
+		return false;
+	}
+
+	protected void updateTaskExecutionStateInternal(final ExecutionVertexID executionVertexId, final TaskExecutionState taskExecutionState) {
 	}
 
 	@Override
@@ -363,14 +466,20 @@ public abstract class SchedulerBase implements SchedulerNG {
 	}
 
 	@Override
-	public void scheduleOrUpdateConsumers(final ResultPartitionID partitionID) {
+	public final void scheduleOrUpdateConsumers(final ResultPartitionID partitionId) {
 		mainThreadExecutor.assertRunningInMainThread();
 
 		try {
-			executionGraph.scheduleOrUpdateConsumers(partitionID);
+			executionGraph.scheduleOrUpdateConsumers(partitionId);
 		} catch (ExecutionGraphException e) {
 			throw new RuntimeException(e);
 		}
+
+		final ExecutionVertexID producerVertexId = getExecutionVertexIdOrThrow(partitionId.getProducerId());
+		scheduleOrUpdateConsumersInternal(producerVertexId, partitionId);
+	}
+
+	protected void scheduleOrUpdateConsumersInternal(ExecutionVertexID producerVertexId, ResultPartitionID resultPartitionId) {
 	}
 
 	@Override

@@ -17,42 +17,19 @@
  * under the License.
  */
 
-package org.apache.flink.runtime.executiongraph.failover.flip1;
+package org.apache.flink.runtime.scheduler;
+
+import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
- * A RestartBackoffTimeStrategy implementation for tests.
+ * Operations on the {@link ExecutionVertex}.
  */
-public class TestRestartBackoffTimeStrategy implements RestartBackoffTimeStrategy {
+interface ExecutionVertexOperations {
 
-	private boolean canRestart;
+	void deploy(ExecutionVertex executionVertex) throws JobException;
 
-	private long backoffTime;
-
-	public TestRestartBackoffTimeStrategy(boolean canRestart, long backoffTime) {
-		this.canRestart = canRestart;
-		this.backoffTime = backoffTime;
-	}
-
-	@Override
-	public boolean canRestart() {
-		return canRestart;
-	}
-
-	@Override
-	public long getBackoffTime() {
-		return backoffTime;
-	}
-
-	@Override
-	public void notifyFailure(Throwable cause) {
-		// ignore
-	}
-
-	public void setCanRestart(final boolean canRestart) {
-		this.canRestart = canRestart;
-	}
-
-	public void setBackoffTime(final long backoffTime) {
-		this.backoffTime = backoffTime;
-	}
+	CompletableFuture<?> cancel(ExecutionVertex executionVertex);
 }

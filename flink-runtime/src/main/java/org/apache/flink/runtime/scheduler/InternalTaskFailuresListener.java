@@ -17,42 +17,21 @@
  * under the License.
  */
 
-package org.apache.flink.runtime.executiongraph.failover.flip1;
+package org.apache.flink.runtime.scheduler;
+
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.jobmaster.JobMasterGateway;
+import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 
 /**
- * A RestartBackoffTimeStrategy implementation for tests.
+ * This interface enables subscribing to Task failures that are detected from the JobMaster side
+ * (e.g., from within the {@link ExecutionGraph}).
+ * In contrast, there are also failures that are detected by the TaskManager, which are communicated
+ * via {@link JobMasterGateway#updateTaskExecutionState(TaskExecutionState)}.
  */
-public class TestRestartBackoffTimeStrategy implements RestartBackoffTimeStrategy {
+public interface InternalTaskFailuresListener {
 
-	private boolean canRestart;
+	void notifyFailed(ExecutionAttemptID attemptId, Throwable t);
 
-	private long backoffTime;
-
-	public TestRestartBackoffTimeStrategy(boolean canRestart, long backoffTime) {
-		this.canRestart = canRestart;
-		this.backoffTime = backoffTime;
-	}
-
-	@Override
-	public boolean canRestart() {
-		return canRestart;
-	}
-
-	@Override
-	public long getBackoffTime() {
-		return backoffTime;
-	}
-
-	@Override
-	public void notifyFailure(Throwable cause) {
-		// ignore
-	}
-
-	public void setCanRestart(final boolean canRestart) {
-		this.canRestart = canRestart;
-	}
-
-	public void setBackoffTime(final long backoffTime) {
-		this.backoffTime = backoffTime;
-	}
 }

@@ -67,6 +67,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
+import org.apache.flink.runtime.scheduler.InternalTaskFailuresListener;
 import org.apache.flink.runtime.scheduler.adapter.ExecutionGraphToSchedulingTopologyAdapter;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -249,6 +250,8 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	/** Blob writer used to offload RPC messages. */
 	private final BlobWriter blobWriter;
 
+	private boolean legacyScheduling = true;
+
 	/** The total number of vertices currently in the execution graph. */
 	private int numVerticesTotal;
 
@@ -257,6 +260,9 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	private PartitionReleaseStrategy partitionReleaseStrategy;
 
 	private SchedulingTopology schedulingTopology;
+
+	@Nullable
+	private InternalTaskFailuresListener internalTaskFailuresListener;
 
 	// ------ Configuration of the Execution -------
 
@@ -512,8 +518,6 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		this.resultPartitionAvailabilityChecker = new ExecutionGraphResultPartitionAvailabilityChecker(
 			this::createResultPartitionId,
 			partitionTracker);
-
-		LOG.info("Job recovers via failover strategy: {}", failoverStrategy.getStrategyName());
 	}
 
 	public void start(@Nonnull ComponentMainThreadExecutor jobMasterMainThreadExecutor) {
@@ -880,6 +884,13 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		return StringifiedAccumulatorResult.stringifyAccumulatorResults(accumulatorMap);
 	}
 
+	public void enableNgScheduling(final InternalTaskFailuresListener internalTaskFailuresListener) {
+		checkNotNull(internalTaskFailuresListener);
+		checkState(this.internalTaskFailuresListener == null, "enableNgScheduling can be only called once");
+		this.internalTaskFailuresListener = internalTaskFailuresListener;
+		this.legacyScheduling = false;
+	}
+
 	// --------------------------------------------------------------------------------------------
 	//  Actions
 	// --------------------------------------------------------------------------------------------
@@ -942,9 +953,23 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			new DefaultFailoverTopology(this));
 	}
 
+	public boolean isLegacyScheduling() {
+		return legacyScheduling;
+	}
+
+	public void transitionToRunning() {
+		if (!transitionState(JobStatus.CREATED, JobStatus.RUNNING)) {
+			throw new IllegalStateException("Job may only be scheduled from state " + JobStatus.CREATED);
+		}
+	}
+
 	public void scheduleForExecution() throws JobException {
 
 		assertRunningInJobMasterMainThread();
+
+		if (isLegacyScheduling()) {
+			LOG.info("Job recovers via failover strategy: {}", failoverStrategy.getStrategyName());
+		}
 
 		final long currentGlobalModVersion = globalModVersion;
 
@@ -1129,6 +1154,11 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 * @param t The exception that caused the failure.
 	 */
 	public void failGlobal(Throwable t) {
+		if (!isLegacyScheduling()) {
+			// Implementation does not work for new generation scheduler.
+			// Will be fixed with FLINK-14232.
+			ExceptionUtils.rethrow(t);
+		}
 
 		assertRunningInJobMasterMainThread();
 
@@ -1310,6 +1340,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 		return transitionState(current, newState, null);
 	}
 
+	private void transitionState(JobStatus newState, Throwable error) {
+		transitionState(state, newState, error);
+	}
+
 	private boolean transitionState(JobStatus current, JobStatus newState, Throwable error) {
 		assertRunningInJobMasterMainThread();
 		// consistency check
@@ -1433,7 +1467,12 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	 *
 	 * @return true if the operation could be executed; false if a concurrent job status change occurred
 	 */
+	@Deprecated
 	private boolean tryRestartOrFail(long globalModVersionForRestart) {
+		if (!isLegacyScheduling()) {
+			return true;
+		}
+
 		JobStatus currentState = state;
 
 		if (currentState == JobStatus.FAILING || currentState == JobStatus.RESTARTING) {
@@ -1483,6 +1522,21 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			// this operation is only allowed in the state FAILING or RESTARTING
 			return false;
 		}
+	}
+
+	public void failJob(Throwable cause) {
+		if (state == JobStatus.FAILING || state.isGloballyTerminalState()) {
+			return;
+		}
+
+		transitionState(JobStatus.FAILING, cause);
+		initFailureCause(cause);
+
+		FutureUtils.assertNoException(
+			cancelVerticesAsync().whenComplete((aVoid, throwable) -> {
+				transitionState(JobStatus.FAILED, cause);
+				onTerminalState(JobStatus.FAILED);
+			}));
 	}
 
 	private void onTerminalState(JobStatus status) {
@@ -1557,7 +1611,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			case FAILED:
 				// this deserialization is exception-free
 				accumulators = deserializeAccumulators(state);
-				attempt.markFailed(state.getError(userClassLoader), accumulators, state.getIOMetrics());
+				attempt.markFailed(state.getError(userClassLoader), accumulators, state.getIOMetrics(), !isLegacyScheduling());
 				return true;
 
 			default:
@@ -1727,6 +1781,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			final ExecutionState newExecutionState,
 			final Throwable error) {
 
+		if (!isLegacyScheduling()) {
+			return;
+		}
+
 		// see what this means for us. currently, the first FAILED state means -> FAILED
 		if (newExecutionState == ExecutionState.FAILED) {
 			final Throwable ex = error != null ? error : new FlinkException("Unknown Error (missing cause)");
@@ -1754,6 +1812,12 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	void assertRunningInJobMasterMainThread() {
 		if (!(jobMasterMainThreadExecutor instanceof ComponentMainThreadExecutor.DummyComponentMainThreadExecutor)) {
 			jobMasterMainThreadExecutor.assertRunningInMainThread();
+		}
+	}
+
+	void notifySchedulerNgAboutInternalTaskFailure(final ExecutionAttemptID attemptId, final Throwable t) {
+		if (internalTaskFailuresListener != null) {
+			internalTaskFailuresListener.notifyFailed(attemptId, t);
 		}
 	}
 
