@@ -172,11 +172,11 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	private CheckpointStorageWorkerView checkpointStorage;
 
 	/**
-	 * The internal {@link ProcessingTimeService} used to define the current
+	 * The internal {@link TimerService} used to define the current
 	 * processing time (default = {@code System.currentTimeMillis()}) and
 	 * register timers for tasks to be executed in the future.
 	 */
-	protected ProcessingTimeService timerService;
+	protected TimerService timerService;
 
 	private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
 
@@ -221,31 +221,31 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
 	 *
 	 * @param env The task environment for this task.
-	 * @param timeProvider Optionally, a specific time provider to use.
+	 * @param timerService Optionally, a specific timer service to use.
 	 */
-	protected StreamTask(Environment env, @Nullable ProcessingTimeService timeProvider) {
-		this(env, timeProvider, FatalExitExceptionHandler.INSTANCE);
+	protected StreamTask(Environment env, @Nullable TimerService timerService) {
+		this(env, timerService, FatalExitExceptionHandler.INSTANCE);
 	}
 
 	/**
 	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
 	 *
-	 * <p>This constructor accepts a special {@link ProcessingTimeService}. By default (and if
-	 * null is passes for the time provider) a {@link SystemProcessingTimeService DefaultTimerService}
+	 * <p>This constructor accepts a special {@link TimerService}. By default (and if
+	 * null is passes for the timer service) a {@link SystemProcessingTimeService DefaultTimerService}
 	 * will be used.
 	 *
 	 * @param environment The task environment for this task.
-	 * @param timeProvider Optionally, a specific time provider to use.
+	 * @param timerService Optionally, a specific timer service to use.
 	 * @param uncaughtExceptionHandler to handle uncaught exceptions in the async operations thread pool
 	 */
 	protected StreamTask(
 			Environment environment,
-			@Nullable ProcessingTimeService timeProvider,
+			@Nullable TimerService timerService,
 			Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
 
 		super(environment);
 
-		this.timerService = timeProvider;
+		this.timerService = timerService;
 		this.uncaughtExceptionHandler = Preconditions.checkNotNull(uncaughtExceptionHandler);
 		this.configuration = new StreamConfig(getTaskConfiguration());
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
