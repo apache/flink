@@ -189,6 +189,8 @@ public class LaunchableMesosWorker implements LaunchableTask {
 				"cpus=" + getCPUs() +
 				", memory=" + getMemory() +
 				", gpus=" + getGPUs() +
+				", disk=" + getDisk() +
+				", network=" + getNetworkMbps() +
 				"}";
 		}
 	}
