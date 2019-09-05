@@ -39,11 +39,6 @@ public final class PlanExposingEnvironment extends ExecutionEnvironment {
 		throw new OptimizerPlanEnvironment.ProgramAbortException();
 	}
 
-	@Override
-	public String getExecutionPlan() throws Exception {
-		throw new OptimizerPlanEnvironment.ProgramAbortException();
-	}
-
 	public void setAsContext() {
 		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 			@Override

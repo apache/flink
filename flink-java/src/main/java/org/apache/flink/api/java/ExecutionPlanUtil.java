@@ -14,33 +14,27 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package org.apache.flink.api.java;
 
-import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.operators.CollectionExecutor;
+import org.apache.flink.api.common.PlanExecutor;
+import org.apache.flink.configuration.Configuration;
 
 /**
- * Version of {@link ExecutionEnvironment} that allows serial, local, collection-based executions of Flink programs.
+ * A utility for extracting an execution plan (as JSON) from a {@link Plan}.
  */
-@PublicEvolving
-public class CollectionEnvironment extends ExecutionEnvironment {
+class ExecutionPlanUtil {
 
-	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		Plan p = createProgramPlan(jobName);
-
-		// We need to reverse here. Object-Reuse enabled, means safe mode is disabled.
-		CollectionExecutor exec = new CollectionExecutor(getConfig());
-		this.lastJobExecutionResult = exec.execute(p);
-		return this.lastJobExecutionResult;
-	}
-
-	@Override
-	public int getParallelism() {
-		return 1; // always serial
+	/**
+	 * Extracts the execution plan (as JSON) from the given {@link Plan}.
+	 */
+	static String getExecutionPlanAsJSON(Plan plan) {
+		// make sure that we do not start an executor in any case here.
+		// if one runs, fine, of not, we only create the class but disregard immediately afterwards
+		PlanExecutor tempExecutor = PlanExecutor.createLocalExecutor(new Configuration());
+		return tempExecutor.getOptimizerPlanAsJSON(plan);
 	}
 }

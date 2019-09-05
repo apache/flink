@@ -354,11 +354,6 @@ public class JsonJobGraphGenerationTest {
 			throw new AbortError();
 		}
 
-		@Override
-		public String getExecutionPlan() throws Exception {
-			throw new UnsupportedOperationException();
-		}
-
 		public static void setAsNext(final JsonValidator validator, final int defaultParallelism) {
 			initializeContextEnvironment(new ExecutionEnvironmentFactory() {
 				@Override

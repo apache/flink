@@ -766,13 +766,14 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates the plan with which the system will execute the program, and returns it as
 	 * a String using a JSON representation of the execution data flow graph.
-	 * Note that this needs to be called, before the plan is executed.
 	 *
 	 * @return The execution plan of the program, as a JSON String.
-	 * @throws Exception Thrown, if the compiler could not be instantiated, or the master could not
-	 *                   be contacted to retrieve information relevant to the execution planning.
+	 * @throws Exception Thrown, if the compiler could not be instantiated.
 	 */
-	public abstract String getExecutionPlan() throws Exception;
+	public String getExecutionPlan() throws Exception {
+		Plan p = createProgramPlan(null, false);
+		return ExecutionPlanUtil.getExecutionPlanAsJSON(p);
+	}
 
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
