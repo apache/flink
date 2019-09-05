@@ -975,7 +975,7 @@ public class StreamTaskTest extends TestLogger {
 	public static class NoOpStreamTask<T, OP extends StreamOperator<T>> extends StreamTask<T, OP> {
 
 		public NoOpStreamTask(Environment environment) {
-			super(environment, null);
+			super(environment);
 		}
 
 		@Override
@@ -1257,11 +1257,12 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		public StreamTaskStateInitializer createStreamTaskStateInitializer() {
 			final StreamTaskStateInitializer streamTaskStateManager = super.createStreamTaskStateInitializer();
-			return (operatorID, operatorClassName, keyContext, keySerializer, closeableRegistry, metricGroup) -> {
+			return (operatorID, operatorClassName, processingTimeService, keyContext, keySerializer, closeableRegistry, metricGroup) -> {
 
 				final StreamOperatorStateContext context = streamTaskStateManager.streamOperatorStateContext(
 					operatorID,
 					operatorClassName,
+					processingTimeService,
 					keyContext,
 					keySerializer,
 					closeableRegistry,
@@ -1425,7 +1426,7 @@ public class StreamTaskTest extends TestLogger {
 		private transient boolean hasTimerTriggered;
 
 		ThreadInspectingTask(Environment env) {
-			super(env, null);
+			super(env);
 			Thread currentThread = Thread.currentThread();
 			taskThreadId = currentThread.getId();
 			taskClassLoader = currentThread.getContextClassLoader();

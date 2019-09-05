@@ -157,7 +157,7 @@ public class StreamSourceOperatorWatermarksTest {
 
 		StreamSourceContexts.getSourceContext(
 			TimeCharacteristic.IngestionTime,
-			operator.getContainingTask().getProcessingTimeService(),
+			processingTimeService,
 			operator.getContainingTask().getCheckpointLock(),
 			operator.getContainingTask().getStreamStatusMaintainer(),
 			new CollectorOutput<String>(output),

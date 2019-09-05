@@ -34,6 +34,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatusProvider;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain.BroadcastingOutputCollector;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain.ChainingOutput;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain.WatermarkGaugeExposingOutput;
+import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
 import org.junit.Test;
 
@@ -78,8 +79,7 @@ public class OperatorChainTest {
 		checkArgument(operators.length > 0);
 
 		try (MockEnvironment env = MockEnvironment.builder().build()) {
-
-		final StreamTask<?, ?> containingTask = new OneInputStreamTask<T, OneInputStreamOperator<T, T>>(env);
+			final StreamTask<?, ?> containingTask = new MockStreamTaskBuilder(env).build();
 
 			final StreamStatusProvider statusProvider = mock(StreamStatusProvider.class);
 			final StreamConfig cfg = new StreamConfig(new Configuration());
