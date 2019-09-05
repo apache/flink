@@ -28,9 +28,7 @@ import org.apache.flink.api.java.ExecutionEnvironmentFactory;
  */
 public final class PreviewPlanEnvironment extends ExecutionEnvironment {
 
-	String preview;
-
-	Plan plan;
+	private Plan plan;
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
@@ -57,10 +55,6 @@ public final class PreviewPlanEnvironment extends ExecutionEnvironment {
 
 	public void unsetAsContext() {
 		resetContextEnvironment();
-	}
-
-	public void setPreview(String preview) {
-		this.preview = preview;
 	}
 
 	public Plan getPlan() {
