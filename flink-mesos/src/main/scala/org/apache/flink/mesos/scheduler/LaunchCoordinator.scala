@@ -71,7 +71,10 @@ class LaunchCoordinator(
             + s"of disk: ${lease.diskMB()} MB, network: ${lease.networkMbps()} Mbps")
           schedulerDriver.declineOffer(lease.getOffer.getId)
         }
-      }).build
+      })
+      // avoid situations where we have lots of expired offers and we only expire a few at a time
+      .withRejectAllExpiredOffers()
+      .build
   }
 
   override def postStop(): Unit = {
