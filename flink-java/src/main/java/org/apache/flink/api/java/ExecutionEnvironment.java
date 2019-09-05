@@ -766,13 +766,14 @@ public abstract class ExecutionEnvironment {
 	/**
 	 * Creates the plan with which the system will execute the program, and returns it as
 	 * a String using a JSON representation of the execution data flow graph.
-	 * Note that this needs to be called, before the plan is executed.
 	 *
 	 * @return The execution plan of the program, as a JSON String.
-	 * @throws Exception Thrown, if the compiler could not be instantiated, or the master could not
-	 *                   be contacted to retrieve information relevant to the execution planning.
+	 * @throws Exception Thrown, if the compiler could not be instantiated.
 	 */
-	public abstract String getExecutionPlan() throws Exception;
+	public String getExecutionPlan() throws Exception {
+		Plan p = createProgramPlan(getDefaultName(), false);
+		return ExecutionPlanUtil.getExecutionPlanAsJSON(p);
+	}
 
 	/**
 	 * Registers a file at the distributed cache under the given name. The file will be accessible
@@ -836,7 +837,7 @@ public abstract class ExecutionEnvironment {
 	 */
 	@Internal
 	public Plan createProgramPlan() {
-		return createProgramPlan(null);
+		return createProgramPlan(getDefaultName());
 	}
 
 	/**
@@ -868,6 +869,8 @@ public abstract class ExecutionEnvironment {
 	 */
 	@Internal
 	public Plan createProgramPlan(String jobName, boolean clearSinks) {
+		checkNotNull(jobName);
+
 		if (this.sinks.isEmpty()) {
 			if (wasExecuted) {
 				throw new RuntimeException("No new data sinks have been defined since the " +
@@ -878,10 +881,6 @@ public abstract class ExecutionEnvironment {
 						"A program needs at least one sink that consumes data. " +
 						"Examples are writing the data set or printing it.");
 			}
-		}
-
-		if (jobName == null) {
-			jobName = getDefaultName();
 		}
 
 		OperatorTranslation translator = new OperatorTranslation();

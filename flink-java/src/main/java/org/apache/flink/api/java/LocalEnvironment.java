@@ -78,13 +78,6 @@ public class LocalEnvironment extends ExecutionEnvironment {
 	}
 
 	@Override
-	public String getExecutionPlan() throws Exception {
-		final Plan p = createProgramPlan("plan", false);
-		final PlanExecutor tempExecutor = PlanExecutor.createLocalExecutor(configuration);
-		return tempExecutor.getOptimizerPlanAsJSON(p);
-	}
-
-	@Override
 	public String toString() {
 		return "Local Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism()) + ").";
 	}

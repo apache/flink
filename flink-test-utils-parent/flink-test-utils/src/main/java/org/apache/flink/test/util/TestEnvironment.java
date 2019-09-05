@@ -27,7 +27,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.JobExecutor;
@@ -111,14 +110,6 @@ public class TestEnvironment extends ExecutionEnvironment {
 
 		this.lastJobExecutionResult = jobExecutor.executeJobBlocking(jobGraph);
 		return this.lastJobExecutionResult;
-	}
-
-	@Override
-	public String getExecutionPlan() throws Exception {
-		OptimizedPlan op = compileProgram("unused");
-
-		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
-		return jsonGen.getOptimizerPlanAsJSON(op);
 	}
 
 	private OptimizedPlan compileProgram(String jobName) {

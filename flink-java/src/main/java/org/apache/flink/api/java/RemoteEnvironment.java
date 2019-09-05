@@ -161,13 +161,6 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	}
 
 	@Override
-	public String getExecutionPlan() throws Exception {
-		final Plan p = createProgramPlan("plan", false);
-		final PlanExecutor tempExecutor = PlanExecutor.createLocalExecutor(new Configuration());
-		return tempExecutor.getOptimizerPlanAsJSON(p);
-	}
-
-	@Override
 	public String toString() {
 		return "Remote Environment (" + this.host + ":" + this.port + " - parallelism = " +
 				(getParallelism() == -1 ? "default" : getParallelism()) + ").";

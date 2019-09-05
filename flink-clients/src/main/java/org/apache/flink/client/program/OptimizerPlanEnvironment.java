@@ -54,15 +54,6 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 		throw new ProgramAbortException();
 	}
 
-	@Override
-	public String getExecutionPlan() throws Exception {
-		Plan plan = createProgramPlan(null, false);
-		this.optimizerPlan = compiler.compile(plan);
-
-		// do not go on with anything now!
-		throw new ProgramAbortException();
-	}
-
 	public FlinkPlan getOptimizedPlan(PackagedProgram prog) throws ProgramInvocationException {
 
 		// temporarily write syserr and sysout to a byte array.
