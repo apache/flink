@@ -130,7 +130,8 @@ public abstract class YarnTestBase extends TestLogger {
 		// workaround for annoying InterruptedException logging:
 		// https://issues.apache.org/jira/browse/YARN-1022
 		"java.lang.InterruptedException",
-		// This happens when AM finish very quick, but TM still try to reconnect with it.
+		// This is workaround for {@link YARNITCase.testFileReplication} where AM finishes faster,
+		// while TM is still starting and trying to reconnect with AM.
 		"java.net.ConnectException: Connection refused",
 		// very specific on purpose
 		"Remote connection to [null] failed with java.net.ConnectException: Connection refused",
@@ -230,8 +231,8 @@ public abstract class YarnTestBase extends TestLogger {
 			conf.set(DFSConfigKeys.DFS_DATANODE_USER_NAME_KEY, principal);
 			conf.set(DFSConfigKeys.DFS_DATANODE_KEYTAB_FILE_KEY, keytab);
 
-			conf.set(DFSConfigKeys.DFS_DATANODE_ADDRESS_KEY, "127.0.0.1:0");
-			conf.set(DFSConfigKeys.DFS_DATANODE_HTTP_ADDRESS_KEY, "127.0.0.1:0");
+			conf.set(DFSConfigKeys.DFS_DATANODE_ADDRESS_KEY, "0.0.0.0:0");
+			conf.set(DFSConfigKeys.DFS_DATANODE_HTTPS_ADDRESS_KEY, "0.0.0.0:0");
 			conf.set(DFSConfigKeys.DFS_DATANODE_DATA_DIR_KEY, "700");
 
 			conf.set("dfs.data.transfer.protection", "authentication");
@@ -639,14 +640,14 @@ public abstract class YarnTestBase extends TestLogger {
 	}
 
 	public static void startYARNSecureMode(YarnConfiguration conf, String principal, String keytab) {
-		start(conf, principal, keytab);
+		start(conf, principal, keytab, false);
 	}
 
-	public static void startYARNWithConfig(YarnConfiguration conf) {
-		start(conf, null, null);
+	public static void startYARNWithConfig(YarnConfiguration conf, boolean withDFS) {
+		start(conf, null, null, withDFS);
 	}
 
-	private static void start(YarnConfiguration conf, String principal, String keytab) {
+	private static void start(YarnConfiguration conf, String principal, String keytab, boolean withDFS) {
 		// set the home directory to a temp directory. Flink on YARN is using the home dir to distribute the file
 		File homeDir = null;
 		try {
@@ -714,8 +715,10 @@ public abstract class YarnTestBase extends TestLogger {
 			File targetTestClassesFolder = new File("target/test-classes");
 			writeYarnSiteConfigXML(conf, targetTestClassesFolder);
 
-			LOG.info("Starting up MiniDFSCluster");
-			setMiniDFSCluster(principal, keytab, targetTestClassesFolder);
+			if (withDFS) {
+				LOG.info("Starting up MiniDFSCluster");
+				setMiniDFSCluster(principal, keytab, targetTestClassesFolder);
+			}
 
 			map.put("IN_TESTS", "yes we are in tests"); // see YarnClusterDescriptor() for more infos
 			map.put("YARN_CONF_DIR", targetTestClassesFolder.getAbsolutePath());
@@ -737,14 +740,10 @@ public abstract class YarnTestBase extends TestLogger {
 
 	private static void setMiniDFSCluster(String principal, String keytab, File targetTestClassesFolder) throws Exception {
 		if (miniDFSCluster == null) {
-
 			Configuration hdfsConfiguration = new Configuration();
 			hdfsConfiguration.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tmpHDFS.getRoot().getAbsolutePath());
-			// As we need three data nodes, free random ports are needed here
-			hdfsConfiguration.set("dfs.datanode.https.address",	"0.0.0.0:0");
-			if (principal != null && keytab != null) {
-				populateHDFSSecureConfigurations(hdfsConfiguration, principal, keytab);
-			}
+			populateHDFSSecureConfigurations(hdfsConfiguration, principal, keytab);
+
 			miniDFSCluster = new MiniDFSCluster
 				.Builder(hdfsConfiguration)
 				.numDataNodes(2)
@@ -762,7 +761,8 @@ public abstract class YarnTestBase extends TestLogger {
 	 */
 	@BeforeClass
 	public static void setup() throws Exception {
-		startYARNWithConfig(YARN_CONFIGURATION);
+
+		startYARNWithConfig(YARN_CONFIGURATION, false);
 	}
 
 	// -------------------------- Runner -------------------------- //
@@ -1035,8 +1035,10 @@ public abstract class YarnTestBase extends TestLogger {
 			yarnCluster = null;
 		}
 
-		LOG.info("Stopping MiniDFS Cluster");
-		miniDFSCluster.shutdown();
+		if (miniDFSCluster != null) {
+			LOG.info("Stopping MiniDFS Cluster");
+			miniDFSCluster.shutdown();
+		}
 
 		// Unset FLINK_CONF_DIR, as it might change the behavior of other tests
 		Map<String, String> map = new HashMap<>(System.getenv());

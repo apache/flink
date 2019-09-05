@@ -69,7 +69,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 		YARN_CONFIGURATION.setInt(YarnConfiguration.NM_PMEM_MB, 768);
 		YARN_CONFIGURATION.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 512);
 		YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-fifo");
-		startYARNWithConfig(YARN_CONFIGURATION);
+		startYARNWithConfig(YARN_CONFIGURATION, false);
 	}
 
 	@After

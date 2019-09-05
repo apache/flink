@@ -63,7 +63,7 @@ public class YARNITCase extends YarnTestBase {
 	@BeforeClass
 	public static void setup() {
 		YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-per-job");
-		startYARNWithConfig(YARN_CONFIGURATION);
+		startYARNWithConfig(YARN_CONFIGURATION, true);
 	}
 
 	@Test
@@ -123,7 +123,7 @@ public class YARNITCase extends YarnTestBase {
 		runTest(() -> {
 			Configuration configuration = new Configuration();
 			configuration.setString(AkkaOptions.ASK_TIMEOUT, "30 s");
-			configuration.setString(YarnConfigOptions.FILE_REPLICATION, "4");
+			configuration.setInteger(YarnConfigOptions.FILE_REPLICATION, 4);
 			final YarnClient yarnClient = getYarnClient();
 
 			try (final YarnClusterDescriptor yarnClusterDescriptor = new YarnClusterDescriptor(

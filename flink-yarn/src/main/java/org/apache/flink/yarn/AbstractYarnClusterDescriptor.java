@@ -746,15 +746,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		StringBuilder envShipFileList = new StringBuilder();
 
 		int fileReplication = yarnConfiguration.getInt(DFSConfigKeys.DFS_REPLICATION_KEY, DFSConfigKeys.DFS_REPLICATION_DEFAULT);
-		if (flinkConfiguration.contains(YarnConfigOptions.FILE_REPLICATION)) {
-			try {
-				final String replication = flinkConfiguration.getString(YarnConfigOptions.FILE_REPLICATION);
-				fileReplication = Integer.parseInt(replication);
-			} catch (NumberFormatException e) {
-				throw new RuntimeException(
-					"The yarn configuration yarn.file-replication has to be a positive integer", e);
-			}
-		}
+		fileReplication = flinkConfiguration.getInteger(YarnConfigOptions.FILE_REPLICATION, fileReplication);
 
 		// upload and register ship files
 		List<String> systemClassPaths = uploadAndRegisterFiles(

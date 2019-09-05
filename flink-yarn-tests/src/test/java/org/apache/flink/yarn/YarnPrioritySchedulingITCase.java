@@ -42,7 +42,7 @@ public class YarnPrioritySchedulingITCase extends YarnTestBase {
 			isHadoopVersionGreaterThanOrEquals(2, 8));
 
 		YARN_CONFIGURATION.setStrings("yarn.cluster.max-application-priority", "10");
-		startYARNWithConfig(YARN_CONFIGURATION);
+		startYARNWithConfig(YARN_CONFIGURATION, false);
 	}
 
 	@Test

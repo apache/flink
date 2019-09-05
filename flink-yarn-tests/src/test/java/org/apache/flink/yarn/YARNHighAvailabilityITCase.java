@@ -120,7 +120,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
 		YARN_CONFIGURATION.setClass(YarnConfiguration.RM_SCHEDULER, CapacityScheduler.class, ResourceScheduler.class);
 		YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, LOG_DIR);
 		YARN_CONFIGURATION.setInt(YarnConfiguration.NM_PMEM_MB, 4096);
-		startYARNWithConfig(YARN_CONFIGURATION);
+		startYARNWithConfig(YARN_CONFIGURATION, false);
 	}
 
 	@AfterClass

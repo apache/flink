@@ -120,7 +120,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		YARN_CONFIGURATION.setInt("yarn.scheduler.capacity.root.default.capacity", 40);
 		YARN_CONFIGURATION.setInt("yarn.scheduler.capacity.root.qa-team.capacity", 60);
 		YARN_CONFIGURATION.set(YarnTestBase.TEST_CLUSTER_NAME_KEY, "flink-yarn-tests-capacityscheduler");
-		startYARNWithConfig(YARN_CONFIGURATION);
+		startYARNWithConfig(YARN_CONFIGURATION, false);
 
 		restClientExecutor = Executors.newSingleThreadExecutor();
 		restClient = new RestClient(RestClientConfiguration.fromConfiguration(new Configuration()), restClientExecutor);
