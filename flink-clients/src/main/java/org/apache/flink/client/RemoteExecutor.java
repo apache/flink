@@ -27,11 +27,6 @@ import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.costs.DefaultCostEstimator;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 
 import java.net.InetSocketAddress;
 import java.net.URL;
@@ -126,12 +121,5 @@ public class RemoteExecutor extends PlanExecutor {
 		try (ClusterClient<?>  client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor")) {
 			return client.run(program, defaultParallelism).getJobExecutionResult();
 		}
-	}
-
-	@Override
-	public String getOptimizerPlanAsJSON(Plan plan) {
-		Optimizer opt = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), new Configuration());
-		OptimizedPlan optPlan = opt.compile(plan);
-		return new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(optPlan);
 	}
 }

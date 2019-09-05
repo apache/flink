@@ -18,7 +18,6 @@
 
 package org.apache.flink.client;
 
-import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
@@ -29,7 +28,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.optimizer.DataStatistics;
 import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.JobExecutorService;
@@ -138,22 +136,5 @@ public class LocalExecutor extends PlanExecutor {
 				ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 
 		plan.setDefaultParallelism(slotsPerTaskManager * numTaskManagers);
-	}
-
-	/**
-	 * Creates a JSON representation of the given dataflow's execution plan.
-	 *
-	 * @param plan The dataflow plan.
-	 * @return The dataflow's execution plan, as a JSON string.
-	 */
-	@Override
-	public String getOptimizerPlanAsJSON(Plan plan) {
-		final int parallelism = plan.getDefaultParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? 1 : plan.getDefaultParallelism();
-
-		Optimizer pc = new Optimizer(new DataStatistics(), this.baseConfiguration);
-		pc.setDefaultParallelism(parallelism);
-		OptimizedPlan op = pc.compile(plan);
-
-		return new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(op);
 	}
 }
