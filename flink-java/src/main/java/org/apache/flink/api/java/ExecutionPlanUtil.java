@@ -19,22 +19,58 @@
 
 package org.apache.flink.api.java;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.api.common.PlanExecutor;
-import org.apache.flink.configuration.Configuration;
 
 /**
  * A utility for extracting an execution plan (as JSON) from a {@link Plan}.
  */
-class ExecutionPlanUtil {
+@Internal
+public class ExecutionPlanUtil {
+
+	private static final String PLAN_GENERATOR_CLASS_NAME = "org.apache.flink.optimizer.plandump.ExecutionPlanJSONGenerator";
 
 	/**
 	 * Extracts the execution plan (as JSON) from the given {@link Plan}.
 	 */
-	static String getExecutionPlanAsJSON(Plan plan) {
-		// make sure that we do not start an executor in any case here.
-		// if one runs, fine, of not, we only create the class but disregard immediately afterwards
-		PlanExecutor tempExecutor = PlanExecutor.createLocalExecutor(new Configuration());
-		return tempExecutor.getOptimizerPlanAsJSON(plan);
+	public static String getExecutionPlanAsJSON(Plan plan) {
+		ExecutionPlanJSONGenerator jsonGenerator = getJSONGenerator();
+		return jsonGenerator.getExecutionPlan(plan);
+	}
+
+	private static ExecutionPlanJSONGenerator getJSONGenerator() {
+		Class<? extends ExecutionPlanJSONGenerator> planGeneratorClass = loadJSONGeneratorClass(
+				PLAN_GENERATOR_CLASS_NAME);
+
+		try {
+			return planGeneratorClass.getConstructor().newInstance();
+		} catch (Throwable t) {
+			throw new RuntimeException("An error occurred while loading the plan generator ("
+					+ PLAN_GENERATOR_CLASS_NAME + ").", t);
+		}
+	}
+
+	private static Class<? extends ExecutionPlanJSONGenerator> loadJSONGeneratorClass(String className) {
+		try {
+			Class<?> generatorClass = Class.forName(
+					"org.apache.flink.optimizer.plandump.ExecutionPlanJSONGenerator");
+			return generatorClass.asSubclass(ExecutionPlanJSONGenerator.class);
+		} catch (ClassNotFoundException cnfe) {
+			throw new RuntimeException("Could not load the plan generator class (" + className
+					+ "). Do you have the 'flink-optimizer' project in your dependencies?");
+		} catch (Throwable t) {
+			throw new RuntimeException(
+					"An error occurred while loading the plan generator (" + className + ").",
+					t);
+		}
+	}
+
+	/**
+	 * Internal interface for the JSON plan generator that has to reside in the optimizer package.
+	 * We load the actual subclass using reflection.
+	 */
+	@Internal
+	public interface ExecutionPlanJSONGenerator {
+		String getExecutionPlan(Plan plan);
 	}
 }
