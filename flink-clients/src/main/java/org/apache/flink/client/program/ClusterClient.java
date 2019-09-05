@@ -230,11 +230,6 @@ public abstract class ClusterClient<T> {
 		return run(optPlan, jobWithJars.getJarFiles(), jobWithJars.getClasspaths(), classLoader, savepointSettings);
 	}
 
-	public JobSubmissionResult run(
-			FlinkPlan compiledPlan, List<URL> libraries, List<URL> classpaths, ClassLoader classLoader) throws ProgramInvocationException {
-		return run(compiledPlan, libraries, classpaths, classLoader, SavepointRestoreSettings.none());
-	}
-
 	public JobSubmissionResult run(FlinkPlan compiledPlan,
 			List<URL> libraries, List<URL> classpaths, ClassLoader classLoader, SavepointRestoreSettings savepointSettings)
 			throws ProgramInvocationException {
