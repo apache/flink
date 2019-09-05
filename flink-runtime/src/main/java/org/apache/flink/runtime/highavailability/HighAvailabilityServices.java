@@ -138,7 +138,21 @@ public interface HighAvailabilityServices extends ClientHighAvailabilityServices
 	 */
 	LeaderElectionService getJobManagerLeaderElectionService(JobID jobID);
 
-	LeaderElectionService getWebMonitorLeaderElectionService();
+	/**
+	 * Gets the leader election service for the cluster's rest endpoint.
+	 *
+	 * @return the leader election service used by the cluster's rest endpoint
+	 * @deprecated Use {@link #getClusterRestEndpointLeaderElectionService()} instead.
+	 */
+	@Deprecated
+	default LeaderElectionService getWebMonitorLeaderElectionService() {
+		throw new UnsupportedOperationException(
+			"getWebMonitorLeaderElectionService should no longer be used. Instead use " +
+				"#getClusterRestEndpointLeaderElectionService to instantiate the cluster " +
+				"rest endpoint's leader election service. If you called this method, then " +
+				"make sure that #getClusterRestEndpointLeaderElectionService has been " +
+				"implemented by your HighAvailabilityServices implementation.");
+	}
 
 	/**
 	 * Gets the checkpoint recovery factory for the job manager.
@@ -169,6 +183,17 @@ public interface HighAvailabilityServices extends ClientHighAvailabilityServices
 	 * @throws IOException if the blob store could not be created
 	 */
 	BlobStore createBlobStore() throws IOException;
+
+	/**
+	 * Gets the leader election service for the cluster's rest endpoint.
+	 *
+	 * @return the leader election service used by the cluster's rest endpoint
+	 */
+	default LeaderElectionService getClusterRestEndpointLeaderElectionService() {
+		// for backwards compatibility we delegate to getWebMonitorLeaderElectionService
+		// all implementations of this interface should override getClusterRestEndpointLeaderElectionService, though
+		return getWebMonitorLeaderElectionService();
+	}
 
 	@Override
 	default LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
