@@ -55,7 +55,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	private volatile LeaderElectionService dispatcherLeaderElectionService;
 
-	private volatile LeaderElectionService webMonitorEndpointLeaderElectionService;
+	private volatile LeaderElectionService clusterRestEndpointLeaderElectionService;
 
 	private volatile CheckpointRecoveryFactory checkpointRecoveryFactory;
 
@@ -95,8 +95,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 		this.dispatcherLeaderElectionService = leaderElectionService;
 	}
 
-	public void setWebMonitorEndpointLeaderElectionService(final LeaderElectionService webMonitorEndpointLeaderElectionService) {
-		this.webMonitorEndpointLeaderElectionService = webMonitorEndpointLeaderElectionService;
+	public void setClusterRestEndpointLeaderElectionService(final LeaderElectionService clusterRestEndpointLeaderElectionService) {
+		this.clusterRestEndpointLeaderElectionService = clusterRestEndpointLeaderElectionService;
 	}
 
 	public void setCheckpointRecoveryFactory(CheckpointRecoveryFactory checkpointRecoveryFactory) {
@@ -197,8 +197,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	}
 
 	@Override
-	public LeaderElectionService getWebMonitorLeaderElectionService() {
-		return webMonitorEndpointLeaderElectionService;
+	public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
+		return clusterRestEndpointLeaderElectionService;
 	}
 
 	@Override
