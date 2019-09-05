@@ -1685,7 +1685,7 @@
               "start_time" : {
                 "type" : "integer"
               },
-              "resource-id" : {
+              "taskmanager-id" : {
                 "type" : "string"
               }
             }
@@ -1958,7 +1958,7 @@
         "duration" : {
           "type" : "integer"
         },
-        "resource-id" : {
+        "taskmanager-id" : {
           "type" : "string"
         },
         "metrics" : {
@@ -2041,7 +2041,7 @@
         "duration" : {
           "type" : "integer"
         },
-        "resource-id" : {
+        "taskmanager-id" : {
           "type" : "string"
         },
         "metrics" : {
