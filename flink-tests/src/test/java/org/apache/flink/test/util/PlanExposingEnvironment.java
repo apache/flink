@@ -27,7 +27,7 @@ import org.apache.flink.client.program.OptimizerPlanEnvironment;
 /**
  * Environment to extract the pre-optimized plan.
  */
-public final class PreviewPlanEnvironment extends ExecutionEnvironment {
+public final class PlanExposingEnvironment extends ExecutionEnvironment {
 
 	private Plan plan;
 
@@ -52,7 +52,7 @@ public final class PreviewPlanEnvironment extends ExecutionEnvironment {
 		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {
-				return PreviewPlanEnvironment.this;
+				return PlanExposingEnvironment.this;
 			}
 		};
 		initializeContextEnvironment(factory);
