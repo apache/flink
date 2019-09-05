@@ -47,13 +47,13 @@ public class TestingManualHighAvailabilityServices implements HighAvailabilitySe
 
 	private final ManualLeaderService dispatcherLeaderService;
 
-	private final ManualLeaderService webMonitorEndpointLeaderService;
+	private final ManualLeaderService clusterRestEndpointLeaderService;
 
 	public TestingManualHighAvailabilityServices() {
 		jobManagerLeaderServices = new HashMap<>(4);
 		resourceManagerLeaderService = new ManualLeaderService();
 		dispatcherLeaderService = new ManualLeaderService();
-		webMonitorEndpointLeaderService = new ManualLeaderService();
+		clusterRestEndpointLeaderService = new ManualLeaderService();
 	}
 
 	@Override
@@ -80,7 +80,7 @@ public class TestingManualHighAvailabilityServices implements HighAvailabilitySe
 
 	@Override
 	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
-		return webMonitorEndpointLeaderService.createLeaderRetrievalService();
+		return clusterRestEndpointLeaderService.createLeaderRetrievalService();
 	}
 
 	@Override
@@ -101,8 +101,8 @@ public class TestingManualHighAvailabilityServices implements HighAvailabilitySe
 	}
 
 	@Override
-	public LeaderElectionService getWebMonitorLeaderElectionService() {
-		return webMonitorEndpointLeaderService.createLeaderElectionService();
+	public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
+		return clusterRestEndpointLeaderService.createLeaderElectionService();
 	}
 
 	@Override

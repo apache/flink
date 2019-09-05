@@ -199,7 +199,7 @@ public class YarnPreConfiguredMasterNonHaServices extends AbstractYarnNonHaServi
 	}
 
 	@Override
-	public LeaderElectionService getWebMonitorLeaderElectionService() {
+	public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
 		enter();
 		try {
 			throw new UnsupportedOperationException();

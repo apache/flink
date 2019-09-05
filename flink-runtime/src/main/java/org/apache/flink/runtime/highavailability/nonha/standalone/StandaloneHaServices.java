@@ -148,7 +148,7 @@ public class StandaloneHaServices extends AbstractNonHaServices {
 	}
 
 	@Override
-	public LeaderElectionService getWebMonitorLeaderElectionService() {
+	public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
 		synchronized (lock) {
 			checkNotShutdown();
 
