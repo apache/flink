@@ -23,9 +23,6 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import javax.annotation.Nullable;
 
-import java.io.File;
-import java.io.IOException;
-
 /**
  * Abstract class representing Flink Streaming plans.
  */
@@ -45,7 +42,4 @@ public abstract class StreamingPlan implements FlinkPlan {
 	public abstract JobGraph getJobGraph(@Nullable JobID jobID);
 
 	public abstract String getStreamingPlanAsJSON();
-
-	public abstract void dumpStreamingPlanAsJSON(File file) throws IOException;
-
 }
