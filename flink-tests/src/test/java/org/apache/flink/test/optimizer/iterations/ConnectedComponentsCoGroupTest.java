@@ -32,7 +32,7 @@ import org.apache.flink.api.java.operators.DeltaIteration;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.OptimizerPlanEnvironment.ProgramAbortException;
-import org.apache.flink.client.program.PreviewPlanEnvironment;
+import org.apache.flink.test.util.PreviewPlanEnvironment;
 import org.apache.flink.optimizer.dag.TempMode;
 import org.apache.flink.optimizer.plan.DualInputPlanNode;
 import org.apache.flink.optimizer.plan.OptimizedPlan;

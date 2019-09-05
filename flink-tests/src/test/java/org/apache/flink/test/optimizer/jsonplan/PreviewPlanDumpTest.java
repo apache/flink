@@ -20,7 +20,7 @@ package org.apache.flink.test.optimizer.jsonplan;
 
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.client.program.OptimizerPlanEnvironment;
-import org.apache.flink.client.program.PreviewPlanEnvironment;
+import org.apache.flink.test.util.PreviewPlanEnvironment;
 import org.apache.flink.examples.java.clustering.KMeans;
 import org.apache.flink.examples.java.graph.ConnectedComponents;
 import org.apache.flink.examples.java.graph.PageRank;
