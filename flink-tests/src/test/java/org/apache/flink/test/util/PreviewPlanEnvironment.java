@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.program;
+package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
+import org.apache.flink.client.program.OptimizerPlanEnvironment;
 
 /**
  * Environment to extract the pre-optimized plan.
