@@ -133,7 +133,7 @@ public class FlinkILoopTest extends TestLogger {
 		}
 
 		@Override
-		public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
+		public String getOptimizerPlanAsJSON(Plan plan) {
 			return null;
 		}
 

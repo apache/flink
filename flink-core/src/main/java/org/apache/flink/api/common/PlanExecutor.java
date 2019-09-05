@@ -69,10 +69,8 @@ public abstract class PlanExecutor {
 	 * 
 	 * @param plan The program to get the execution plan for.
 	 * @return The execution plan, as a JSON string.
-	 * 
-	 * @throws Exception Thrown, if the executor could not connect to the compiler.
 	 */
-	public abstract String getOptimizerPlanAsJSON(Plan plan) throws Exception;
+	public abstract String getOptimizerPlanAsJSON(Plan plan);
 
 	// ------------------------------------------------------------------------
 	//  Executor Factories
