@@ -18,17 +18,16 @@
 
 package org.apache.flink.optimizer.plan;
 
-import java.io.File;
-import java.io.IOException;
-
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
+import java.io.IOException;
+
 /**
- * Abstract class representing Flink Streaming plans
- * 
+ * Abstract class representing Flink Streaming plans.
  */
 public abstract class StreamingPlan implements FlinkPlan {
 
