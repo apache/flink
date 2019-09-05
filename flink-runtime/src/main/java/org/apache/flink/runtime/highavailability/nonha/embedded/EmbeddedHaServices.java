@@ -102,7 +102,7 @@ public class EmbeddedHaServices extends AbstractNonHaServices {
 	}
 
 	@Override
-	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
+	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
 		return webMonitorLeaderService.createLeaderRetrievalService();
 	}
 

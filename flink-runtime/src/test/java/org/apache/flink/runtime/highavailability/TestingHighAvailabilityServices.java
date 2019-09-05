@@ -41,7 +41,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
 	private volatile LeaderRetrievalService dispatcherLeaderRetriever;
 
-	private volatile LeaderRetrievalService webMonitorEndpointLeaderRetriever;
+	private volatile LeaderRetrievalService clusterRestEndpointLeaderRetriever;
 
 	private volatile Function<JobID, LeaderRetrievalService> jobMasterLeaderRetrieverFunction = ignored -> null;
 
@@ -75,8 +75,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 		this.dispatcherLeaderRetriever = dispatcherLeaderRetriever;
 	}
 
-	public void setWebMonitorEndpointLeaderRetriever(final LeaderRetrievalService webMonitorEndpointLeaderRetriever) {
-		this.webMonitorEndpointLeaderRetriever = webMonitorEndpointLeaderRetriever;
+	public void setClusterRestEndpointLeaderRetriever(final LeaderRetrievalService clusterRestEndpointLeaderRetriever) {
+		this.clusterRestEndpointLeaderRetriever = clusterRestEndpointLeaderRetriever;
 	}
 
 	public void setJobMasterLeaderRetriever(JobID jobID, LeaderRetrievalService jobMasterLeaderRetriever) {
@@ -159,8 +159,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 	}
 
 	@Override
-	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
-		return webMonitorEndpointLeaderRetriever;
+	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+		return clusterRestEndpointLeaderRetriever;
 	}
 
 	@Override
