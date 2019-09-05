@@ -23,7 +23,6 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.concurrent.NeverCompleteFuture;
 
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -76,11 +75,4 @@ public final class NeverFireProcessingTimeService extends ProcessingTimeService 
 		shutdown.set(true);
 		return shutdown.get();
 	}
-
-	@Override
-	public boolean shutdownAndAwaitPending(long time, TimeUnit timeUnit) throws InterruptedException {
-		shutdown.set(true);
-		return shutdown.get();
-	}
 }
-
