@@ -206,13 +206,8 @@ public class HighAvailabilityServicesUtils {
 	}
 
 	private static HighAvailabilityServices createCustomHAServices(Configuration config, Executor executor) throws FlinkException {
-		final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-		final String haServicesClassName = config.getString(HighAvailabilityOptions.HA_MODE);
-
-		final HighAvailabilityServicesFactory highAvailabilityServicesFactory = InstantiationUtil.instantiate(
-			haServicesClassName,
-			HighAvailabilityServicesFactory.class,
-			classLoader);
+		final HighAvailabilityServicesFactory highAvailabilityServicesFactory = loadCustomHighAvailabilityServicesFactory(
+			config.getString(HighAvailabilityOptions.HA_MODE));
 
 		try {
 			return highAvailabilityServicesFactory.createHAServices(config, executor);
@@ -220,19 +215,23 @@ public class HighAvailabilityServicesUtils {
 			throw new FlinkException(
 				String.format(
 					"Could not create the ha services from the instantiated HighAvailabilityServicesFactory %s.",
-					haServicesClassName),
+					highAvailabilityServicesFactory.getClass().getName()),
 				e);
 		}
 	}
 
-	private static ClientHighAvailabilityServices createCustomClientHAServices(Configuration config) throws FlinkException {
+	private static HighAvailabilityServicesFactory loadCustomHighAvailabilityServicesFactory(String highAvailabilityServicesFactoryClassName) throws FlinkException {
 		final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-		final String haServicesClassName = config.getString(HighAvailabilityOptions.HA_MODE);
 
-		final HighAvailabilityServicesFactory highAvailabilityServicesFactory = InstantiationUtil.instantiate(
-			haServicesClassName,
+		return InstantiationUtil.instantiate(
+			highAvailabilityServicesFactoryClassName,
 			HighAvailabilityServicesFactory.class,
 			classLoader);
+	}
+
+	private static ClientHighAvailabilityServices createCustomClientHAServices(Configuration config) throws FlinkException {
+		final HighAvailabilityServicesFactory highAvailabilityServicesFactory = loadCustomHighAvailabilityServicesFactory(
+			config.getString(HighAvailabilityOptions.HA_MODE));
 
 		try {
 			return highAvailabilityServicesFactory.createClientHAServices(config);
@@ -240,7 +239,7 @@ public class HighAvailabilityServicesUtils {
 			throw new FlinkException(
 				String.format(
 					"Could not create the client ha services from the instantiated HighAvailabilityServicesFactory %s.",
-					haServicesClassName),
+					highAvailabilityServicesFactory.getClass().getName()),
 				e);
 		}
 	}
