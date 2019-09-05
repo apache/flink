@@ -235,11 +235,12 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
 				StateBackend stateBackend,
 				ProcessingTimeService processingTimeService) {
 
-				return new StreamTaskStateInitializerImpl(env, stateBackend, processingTimeService) {
+				return new StreamTaskStateInitializerImpl(env, stateBackend) {
 					@Override
 					protected <K> InternalTimeServiceManager<K> internalTimeServiceManager(
 						AbstractKeyedStateBackend<K> keyedStatedBackend,
 						KeyContext keyContext,
+						ProcessingTimeService processingTimeService,
 						Iterable<KeyGroupStatePartitionStreamProvider> rawKeyedStates) throws Exception {
 
 						return null;

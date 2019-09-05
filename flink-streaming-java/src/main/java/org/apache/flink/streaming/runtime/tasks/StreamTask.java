@@ -349,8 +349,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	public StreamTaskStateInitializer createStreamTaskStateInitializer() {
 		return new StreamTaskStateInitializerImpl(
 			getEnvironment(),
-			stateBackend,
-			timerService);
+			stateBackend);
 	}
 
 	protected Counter setupNumRecordsInCounter(StreamOperator streamOperator) {

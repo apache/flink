@@ -62,7 +62,7 @@ public class MockStreamTaskBuilder {
 
 		StateBackend stateBackend = new MemoryStateBackend();
 		this.checkpointStorage = stateBackend.createCheckpointStorage(new JobID());
-		this.streamTaskStateInitializer = new StreamTaskStateInitializerImpl(environment, stateBackend, processingTimeService);
+		this.streamTaskStateInitializer = new StreamTaskStateInitializerImpl(environment, stateBackend);
 	}
 
 	public MockStreamTaskBuilder setName(String name) {
