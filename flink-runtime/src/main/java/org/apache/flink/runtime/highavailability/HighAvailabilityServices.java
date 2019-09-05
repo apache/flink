@@ -43,7 +43,7 @@ import java.util.UUID;
  *     <li>Naming of RPC endpoints</li>
  * </ul>
  */
-public interface HighAvailabilityServices extends AutoCloseable {
+public interface HighAvailabilityServices extends ClientHighAvailabilityServices {
 
 	// ------------------------------------------------------------------------
 	//  Constants
@@ -104,15 +104,16 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	 * for the client, named {@link ClientHighAvailabilityServices}. See also FLINK-13750.
 	 *
 	 * @return the leader retriever for web monitor
-	 * @deprecated just use {@link ClientHighAvailabilityServices} instead of this services.
+	 * @deprecated just use {@link #getClusterRestEndpointLeaderRetriever()} instead of this method.
 	 */
 	@Deprecated
 	default LeaderRetrievalService getWebMonitorLeaderRetriever() {
 		throw new UnsupportedOperationException(
-			String.format(
-				"getWebMonitorLeaderRetriever should no longer be used. Instead use %s to " +
-					"instantiate the cluster rest endpoint leader retriever.",
-				ClientHighAvailabilityServices.class.getName()));
+			"getWebMonitorLeaderRetriever should no longer be used. Instead use " +
+				"#getClusterRestEndpointLeaderRetriever to instantiate the cluster " +
+				"rest endpoint leader retriever. If you called this method, then " +
+				"make sure that #getClusterRestEndpointLeaderRetriever has been " +
+				"implemented by your HighAvailabilityServices implementation.");
 	}
 
 	/**
@@ -168,6 +169,13 @@ public interface HighAvailabilityServices extends AutoCloseable {
 	 * @throws IOException if the blob store could not be created
 	 */
 	BlobStore createBlobStore() throws IOException;
+
+	@Override
+	default LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
+		// for backwards compatibility we delegate to getWebMonitorLeaderRetriever
+		// all implementations of this interface should override getClusterRestEndpointLeaderRetriever, though
+		return getWebMonitorLeaderRetriever();
+	}
 
 	// ------------------------------------------------------------------------
 	//  Shutdown and Cleanup
