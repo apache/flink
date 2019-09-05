@@ -154,7 +154,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 				blobServer,
 				executor,
 				metricFetcher,
-				highAvailabilityServices.getWebMonitorLeaderElectionService(),
+				highAvailabilityServices.getClusterRestEndpointLeaderElectionService(),
 				fatalErrorHandler);
 
 			log.debug("Starting Dispatcher REST endpoint.");
