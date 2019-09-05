@@ -190,8 +190,17 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		}
 	}
 
-	@Override
-	public boolean shutdownAndAwaitPending(long time, TimeUnit timeUnit) throws InterruptedException {
+	/**
+	 * Shuts down and clean up the timer service provider hard and immediately. This does wait
+	 * for all timers to complete or until the time limit is exceeded. Any call to
+	 * {@link #registerTimer(long, ProcessingTimeCallback)} will result in a hard exception after calling this method.
+	 * @param time time to wait for termination.
+	 * @param timeUnit time unit of parameter time.
+	 * @return {@code true} if this timer service and all pending timers are terminated and
+	 *         {@code false} if the timeout elapsed before this happened.
+	 */
+	@VisibleForTesting
+	boolean shutdownAndAwaitPending(long time, TimeUnit timeUnit) throws InterruptedException {
 		shutdownService();
 		return timerService.awaitTermination(time, timeUnit);
 	}
