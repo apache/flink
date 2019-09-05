@@ -20,8 +20,6 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ProgramDescription;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.optimizer.dag.DataSinkNode;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -33,8 +31,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -243,54 +239,6 @@ public class PackagedProgram {
 
 	public String getMainClassName() {
 		return this.mainClass.getName();
-	}
-
-	/**
-	 * Returns the analyzed plan without any optimizations.
-	 *
-	 * @return
-	 *         the analyzed plan without any optimizations.
-	 * @throws ProgramInvocationException Thrown if an error occurred in the
-	 *  user-provided pact assembler. This may indicate
-	 *         missing parameters for generation.
-	 */
-	public String getPreviewPlan() throws ProgramInvocationException {
-		Thread.currentThread().setContextClassLoader(this.getUserCodeClassLoader());
-		List<DataSinkNode> previewPlan;
-
-		// temporary hack to support the web client
-		PreviewPlanEnvironment env = new PreviewPlanEnvironment();
-		env.setAsContext();
-		try {
-			invokeInteractiveModeForExecution();
-		} catch (ProgramInvocationException e) {
-			throw e;
-		} catch (Throwable t) {
-			// the invocation gets aborted with the preview plan
-			if (env.previewPlan == null) {
-				if (env.preview != null) {
-					return env.preview;
-				} else {
-					throw new ProgramInvocationException("The program caused an error:", t);
-				}
-			}
-		} finally {
-			env.unsetAsContext();
-		}
-
-		if (env.previewPlan != null) {
-			previewPlan = env.previewPlan;
-		} else {
-			throw new ProgramInvocationException(
-					"The program plan could not be fetched. The program silently swallowed the control flow exceptions.");
-		}
-
-		PlanJSONDumpGenerator jsonGen = new PlanJSONDumpGenerator();
-		StringWriter string = new StringWriter(1024);
-		try (PrintWriter pw = new PrintWriter(string)) {
-			jsonGen.dumpPactPlanAsJSON(previewPlan, pw);
-		}
-		return string.toString();
 	}
 
 	/**

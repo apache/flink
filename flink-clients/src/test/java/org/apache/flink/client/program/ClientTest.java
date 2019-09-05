@@ -200,7 +200,6 @@ public class ClientTest extends TestLogger {
 	@Test
 	public void testGetExecutionPlan() throws ProgramInvocationException {
 		PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/dev/random", "/tmp");
-		assertNotNull(prg.getPreviewPlan());
 
 		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
 		OptimizedPlan op = (OptimizedPlan) ClusterClient.getOptimizedPlan(optimizer, prg, 1);
