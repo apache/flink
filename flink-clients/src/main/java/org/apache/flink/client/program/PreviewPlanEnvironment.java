@@ -22,17 +22,11 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.dag.DataSinkNode;
-
-import java.util.List;
 
 /**
  * Environment to extract the pre-optimized plan.
  */
 public final class PreviewPlanEnvironment extends ExecutionEnvironment {
-
-	List<DataSinkNode> previewPlan;
 
 	String preview;
 
@@ -41,7 +35,6 @@ public final class PreviewPlanEnvironment extends ExecutionEnvironment {
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		this.plan = createProgramPlan(jobName);
-		this.previewPlan = Optimizer.createPreOptimizedPlan(plan);
 
 		// do not go on with anything now!
 		throw new OptimizerPlanEnvironment.ProgramAbortException();
@@ -49,10 +42,6 @@ public final class PreviewPlanEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public String getExecutionPlan() throws Exception {
-		Plan plan = createProgramPlan("unused");
-		this.previewPlan = Optimizer.createPreOptimizedPlan(plan);
-
-		// do not go on with anything now!
 		throw new OptimizerPlanEnvironment.ProgramAbortException();
 	}
 
