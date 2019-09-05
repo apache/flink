@@ -56,11 +56,6 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 	}
 
 	@Override
-	public void close() throws Exception {
-
-	}
-
-	@Override
 	public JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException {
 		final CompletableFuture<JobSubmissionResult> jobSubmissionResultFuture = submitJob(jobGraph);
 

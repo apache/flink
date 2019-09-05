@@ -101,6 +101,11 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 		this.timeout = AkkaUtils.getClientTimeout(flinkConfig);
 	}
 
+	@Override
+	public void close() throws Exception {
+
+	}
+
 	// ------------------------------------------------------------------------
 	//  Access to the Program's Plan
 	// ------------------------------------------------------------------------
