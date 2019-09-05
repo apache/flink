@@ -38,11 +38,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link ProcessingTimeService} which assigns as current processing time the result of calling
+ * A {@link TimerService} which assigns as current processing time the result of calling
  * {@link System#currentTimeMillis()} and registers timers using a {@link ScheduledThreadPoolExecutor}.
  */
 @Internal
-public class SystemProcessingTimeService extends ProcessingTimeService {
+public class SystemProcessingTimeService implements TimerService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SystemProcessingTimeService.class);
 

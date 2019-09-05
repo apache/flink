@@ -69,7 +69,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	/**
 	 * Constructor for initialization, possibly with initial state (recovery / savepoint / etc).
 	 *
-	 * <p>This constructor accepts a special {@link ProcessingTimeService}. By default (and if
+	 * <p>This constructor accepts a special {@link TimerService}. By default (and if
 	 * null is passes for the time provider) a {@link SystemProcessingTimeService DefaultTimerService}
 	 * will be used.
 	 *
@@ -79,7 +79,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 	@VisibleForTesting
 	public OneInputStreamTask(
 			Environment env,
-			@Nullable ProcessingTimeService timeProvider) {
+			@Nullable TimerService timeProvider) {
 		super(env, timeProvider);
 	}
 
