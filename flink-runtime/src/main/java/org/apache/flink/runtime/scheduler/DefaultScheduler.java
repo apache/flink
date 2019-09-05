@@ -39,7 +39,7 @@ import java.util.concurrent.ScheduledExecutorService;
 /**
  * Stub implementation of the future default scheduler.
  */
-public class DefaultScheduler extends LegacyScheduler {
+public class DefaultScheduler extends SchedulerBase {
 
 	public DefaultScheduler(
 			final Logger log,
