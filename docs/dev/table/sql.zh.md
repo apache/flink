@@ -29,7 +29,7 @@ This is a complete list of Data Definition Language (DDL) and Data Manipulation 
 ## Query
 SQL queries are specified with the `sqlQuery()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries](common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream](common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink](common.html#emit-a-table)). SQL and Table API queries can be seamlessly mixed and are holistically optimized and translated into a single program.
 
-In order to access a table in a SQL query, it must be [registered in the TableEnvironment](common.html#register-tables-in-the-catalog). A table can be registered from a [TableSource](common.html#register-a-tablesource), [Table](common.html#register-a-table), [CREATE TABLE statement](#create-table), [DataStream, or DataSet](common.html#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register external catalogs in a TableEnvironment](common.html#register-an-external-catalog) to specify the location of the data sources.
+In order to access a table in an SQL query, it must be [registered in the TableEnvironment](common.html#register-tables-in-the-catalog). A table can be registered from a [TableSource](common.html#register-a-tablesource), [Table](common.html#register-a-table), [CREATE TABLE statement](#create-table), [DataStream, or DataSet](common.html#register-a-datastream-or-dataset-as-table). Alternatively, users can also [register external catalogs in a TableEnvironment](common.html#register-an-external-catalog) to specify the location of the data sources.
 
 For convenience `Table.toString()` automatically registers the table under a unique name in its `TableEnvironment` and returns the name. Hence, `Table` objects can be directly inlined into SQL queries (by string concatenation) as shown in the examples below.
 
@@ -37,7 +37,7 @@ For convenience `Table.toString()` automatically registers the table under a uni
 
 ### Specifying a Query
 
-The following examples show how to specify a SQL queries on registered and inlined tables.
+The following examples show how to specify an SQL queries on registered and inlined tables.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -56,7 +56,7 @@ Table result = tableEnv.sqlQuery(
 // SQL query with a registered table
 // register the DataStream as table "Orders"
 tableEnv.registerDataStream("Orders", ds, "user, product, amount");
-// run a SQL query on the Table and retrieve the result as a new Table
+// run an SQL query on the Table and retrieve the result as a new Table
 Table result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
@@ -66,7 +66,7 @@ TableSink csvSink = new CsvTableSink("/path/to/file", ...);
 String[] fieldNames = {"product", "amount"};
 TypeInformation[] fieldTypes = {Types.STRING, Types.INT};
 tableEnv.registerTableSink("RubberOrders", fieldNames, fieldTypes, csvSink);
-// run a SQL update query on the Table and emit the result to the TableSink
+// run an SQL update query on the Table and emit the result to the TableSink
 tableEnv.sqlUpdate(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 {% endhighlight %}
@@ -88,7 +88,7 @@ val result = tableEnv.sqlQuery(
 // SQL query with a registered table
 // register the DataStream under the name "Orders"
 tableEnv.registerDataStream("Orders", ds, 'user, 'product, 'amount)
-// run a SQL query on the Table and retrieve the result as a new Table
+// run an SQL query on the Table and retrieve the result as a new Table
 val result2 = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 
@@ -98,7 +98,7 @@ val csvSink: CsvTableSink = new CsvTableSink("/path/to/file", ...)
 val fieldNames: Array[String] = Array("product", "amount")
 val fieldTypes: Array[TypeInformation[_]] = Array(Types.STRING, Types.INT)
 tableEnv.registerTableSink("RubberOrders", fieldNames, fieldTypes, csvSink)
-// run a SQL update query on the Table and emit the result to the TableSink
+// run an SQL update query on the Table and emit the result to the TableSink
 tableEnv.sqlUpdate(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
@@ -122,7 +122,7 @@ field_names = ["product", "amount"]
 field_types = [DataTypes.STRING(), DataTypes.BIGINT()]
 csv_sink = CsvTableSink(field_names, field_types, "/path/to/file", ...)
 table_env.register_table_sink("RubberOrders", csv_sink)
-# run a SQL update query on the Table and emit the result to the TableSink
+# run an SQL update query on the Table and emit the result to the TableSink
 table_env \
     .sql_update("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
@@ -847,7 +847,7 @@ FROM Orders
 
 #### Group Windows
 
-Group windows are defined in the `GROUP BY` clause of a SQL query. Just like queries with regular `GROUP BY` clauses, queries with a `GROUP BY` clause that includes a group window function compute a single result row per group. The following group windows functions are supported for SQL on batch and streaming tables.
+Group windows are defined in the `GROUP BY` clause of an SQL query. Just like queries with regular `GROUP BY` clauses, queries with a `GROUP BY` clause that includes a group window function compute a single result row per group. The following group windows functions are supported for SQL on batch and streaming tables.
 
 <table class="table table-bordered">
   <thead>
@@ -1086,7 +1086,7 @@ DDLs are specified with the `sqlUpdate()` method of the `TableEnvironment`. The 
 
 ### Specifying a DDL
 
-The following examples show how to specify a SQL DDL.
+The following examples show how to specify an SQL DDL.
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -1097,14 +1097,14 @@ StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 // SQL query with a registered table
 // register a table named "Orders"
 tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product VARCHAR, amount INT) WITH (...)");
-// run a SQL query on the Table and retrieve the result as a new Table
+// run an SQL query on the Table and retrieve the result as a new Table
 Table result = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
 // SQL update with a registered table
 // register a TableSink
 tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product VARCHAR, amount INT) WITH (...)");
-// run a SQL update query on the Table and emit the result to the TableSink
+// run an SQL update query on the Table and emit the result to the TableSink
 tableEnv.sqlUpdate(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 {% endhighlight %}
@@ -1118,14 +1118,14 @@ val tableEnv = StreamTableEnvironment.create(env)
 // SQL query with a registered table
 // register a table named "Orders"
 tableEnv.sqlUpdate("CREATE TABLE Orders (`user` BIGINT, product VARCHAR, amount INT) WITH (...)");
-// run a SQL query on the Table and retrieve the result as a new Table
+// run an SQL query on the Table and retrieve the result as a new Table
 val result = tableEnv.sqlQuery(
   "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
 
 // SQL update with a registered table
 // register a TableSink
 tableEnv.sqlUpdate("CREATE TABLE RubberOrders(product VARCHAR, amount INT) WITH ('connector.path'='/path/to/file' ...)");
-// run a SQL update query on the Table and emit the result to the TableSink
+// run an SQL update query on the Table and emit the result to the TableSink
 tableEnv.sqlUpdate(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}
@@ -1139,7 +1139,7 @@ table_env = StreamTableEnvironment.create(env)
 # SQL update with a registered table
 # register a TableSink
 table_env.sql_update("CREATE TABLE RubberOrders(product VARCHAR, amount INT) with (...)")
-# run a SQL update query on the Table and emit the result to the TableSink
+# run an SQL update query on the Table and emit the result to the TableSink
 table_env \
     .sql_update("INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 {% endhighlight %}

@@ -213,7 +213,7 @@ trait StreamTableEnvironment extends TableEnvironment {
 
 
   /**
-    * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
+    * Evaluates an SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
     * NOTE: Currently only SQL INSERT statements are supported.
     *
     * All tables referenced by the query must be registered in the TableEnvironment.

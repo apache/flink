@@ -47,7 +47,7 @@ public class SqlLikeUtils {
 	}
 
 	/**
-	 * Translates a SQL LIKE pattern to Java regex pattern, with optional
+	 * Translates an SQL LIKE pattern to Java regex pattern, with optional
 	 * escape string.
 	 */
 	public static String sqlToRegexLike(
@@ -66,7 +66,7 @@ public class SqlLikeUtils {
 	}
 
 	/**
-	 * Translates a SQL LIKE pattern to Java regex pattern.
+	 * Translates an SQL LIKE pattern to Java regex pattern.
 	 */
 	static String sqlToRegexLike(
 		String sqlPattern,
@@ -207,7 +207,7 @@ public class SqlLikeUtils {
 	}
 
 	/**
-	 * Translates a SQL SIMILAR pattern to Java regex pattern, with optional
+	 * Translates an SQL SIMILAR pattern to Java regex pattern, with optional
 	 * escape string.
 	 */
 	static String sqlToRegexSimilar(

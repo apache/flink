@@ -214,7 +214,7 @@ public class CliClient {
 	}
 
 	/**
-	 * Submits a SQL update statement and prints status information and/or errors on the terminal.
+	 * Submits an SQL update statement and prints status information and/or errors on the terminal.
 	 *
 	 * @param statement SQL update statement
 	 * @return flag to indicate if the submission was successful or not

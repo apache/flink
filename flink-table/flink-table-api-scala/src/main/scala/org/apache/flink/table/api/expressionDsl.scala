@@ -197,7 +197,7 @@ trait ImplicitExpressionOperations {
   def to (other: Expression): Expression = unresolvedCall(RANGE_TO, expr, other)
 
   /**
-    * Similar to a SQL distinct aggregation clause such as COUNT(DISTINCT a), declares that an
+    * Similar to an SQL distinct aggregation clause such as COUNT(DISTINCT a), declares that an
     * aggregation function is only applied on distinct input values.
     *
     * For example:
@@ -701,19 +701,19 @@ trait ImplicitExpressionOperations {
   // Temporal operations
 
   /**
-    * Parses a date string in the form "yyyy-MM-dd" to a SQL Date.
+    * Parses a date string in the form "yyyy-MM-dd" to an SQL Date.
     */
   def toDate: Expression =
     unresolvedCall(CAST, expr, typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.DATE)))
 
   /**
-    * Parses a time string in the form "HH:mm:ss" to a SQL Time.
+    * Parses a time string in the form "HH:mm:ss" to an SQL Time.
     */
   def toTime: Expression =
     unresolvedCall(CAST, expr, typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.TIME)))
 
   /**
-    * Parses a timestamp string in the form "yyyy-MM-dd HH:mm:ss[.SSS]" to a SQL Timestamp.
+    * Parses a timestamp string in the form "yyyy-MM-dd HH:mm:ss[.SSS]" to an SQL Timestamp.
     */
   def toTimestamp: Expression =
     unresolvedCall(CAST, expr, typeLiteral(fromLegacyInfoToDataType(SqlTimeTypeInfo.TIMESTAMP)))

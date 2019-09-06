@@ -264,7 +264,7 @@ class TableEnvironment(object):
 
     def sql_query(self, query):
         """
-        Evaluates a SQL query on registered tables and retrieves the result as a :class:`Table`.
+        Evaluates an SQL query on registered tables and retrieves the result as a :class:`Table`.
 
         All tables referenced by the query must be registered in the TableEnvironment.
 
@@ -286,7 +286,7 @@ class TableEnvironment(object):
 
     def sql_update(self, stmt):
         """
-        Evaluates a SQL statement such as INSERT, UPDATE or DELETE or a DDL statement
+        Evaluates an SQL statement such as INSERT, UPDATE or DELETE or a DDL statement
 
         .. note::
 

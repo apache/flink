@@ -453,7 +453,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	StreamTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
 
 	/**
-	 * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
+	 * Evaluates an SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
 	 * NOTE: Currently only SQL INSERT statements are supported.
 	 *
 	 * <p>All tables referenced by the query must be registered in the TableEnvironment.

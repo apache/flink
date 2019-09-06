@@ -301,7 +301,7 @@ public interface TableEnvironment {
 	String[] getCompletionHints(String statement, int position);
 
 	/**
-	 * Evaluates a SQL query on registered tables and retrieves the result as a {@link Table}.
+	 * Evaluates an SQL query on registered tables and retrieves the result as a {@link Table}.
 	 *
 	 * <p>All tables referenced by the query must be registered in the TableEnvironment.
 	 * A {@link Table} is automatically registered when its {@link Table#toString()} method is
@@ -323,7 +323,7 @@ public interface TableEnvironment {
 	Table sqlQuery(String query);
 
 	/**
-	 * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
+	 * Evaluates an SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
 	 * NOTE: Currently only SQL INSERT statements and CREATE TABLE statements are supported.
 	 *
 	 * <p>All tables referenced by the query must be registered in the TableEnvironment.

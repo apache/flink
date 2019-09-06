@@ -52,7 +52,7 @@ class CalciteConfigBuilder {
   private var operatorTables: List[SqlOperatorTable] = Nil
 
   /**
-    * Defines a SQL parser configuration.
+    * Defines an SQL parser configuration.
     */
   private var replaceSqlParserConfig: Option[SqlParser.Config] = None
 

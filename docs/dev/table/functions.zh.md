@@ -3431,7 +3431,7 @@ DATE string
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a SQL date parsed from <i>string</i> in form of "yyyy-MM-dd".</p>
+        <p>Returns an SQL date parsed from <i>string</i> in form of "yyyy-MM-dd".</p>
       </td>
     </tr>
 
@@ -3442,7 +3442,7 @@ TIME string
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a SQL time parsed from <i>string</i> in form of "HH:mm:ss".</p>
+        <p>Returns an SQL time parsed from <i>string</i> in form of "HH:mm:ss".</p>
       </td>
     </tr>
 
@@ -3453,7 +3453,7 @@ TIMESTAMP string
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a SQL timestamp parsed from <i>string</i> in form of "yyyy-MM-dd HH:mm:ss[.SSS]".</p>
+        <p>Returns an SQL timestamp parsed from <i>string</i> in form of "yyyy-MM-dd HH:mm:ss[.SSS]".</p>
       </td>
     </tr>
 
@@ -3834,7 +3834,7 @@ STRING.toDate()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a SQL date parsed from <i>STRING</i> in form of "yyyy-MM-dd".</p>
+        <p>Returns an SQL date parsed from <i>STRING</i> in form of "yyyy-MM-dd".</p>
       </td>
     </tr>
 
@@ -3845,7 +3845,7 @@ STRING.toTime()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a SQL time parsed from <i>STRING</i> in form of "HH:mm:ss".</p>
+        <p>Returns an SQL time parsed from <i>STRING</i> in form of "HH:mm:ss".</p>
       </td>
     </tr>
 
@@ -3856,7 +3856,7 @@ STRING.toTimestamp()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a SQL timestamp parsed from <i>STRING</i> in form of "yyyy-MM-dd HH:mm:ss[.SSS]".</p>
+        <p>Returns an SQL timestamp parsed from <i>STRING</i> in form of "yyyy-MM-dd HH:mm:ss[.SSS]".</p>
       </td>
     </tr>
 
@@ -4115,7 +4115,7 @@ STRING.toDate
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a SQL date parsed from <i>STRING</i> in form of "yyyy-MM-dd".</p>
+        <p>Returns an SQL date parsed from <i>STRING</i> in form of "yyyy-MM-dd".</p>
       </td>
     </tr>
 
@@ -4126,7 +4126,7 @@ STRING.toTime
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a SQL time parsed from <i>STRING</i> in form of "HH:mm:ss".</p>
+        <p>Returns an SQL time parsed from <i>STRING</i> in form of "HH:mm:ss".</p>
       </td>
     </tr>
 
@@ -4137,7 +4137,7 @@ STRING.toTimestamp
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a SQL timestamp parsed from <i>STRING</i> in form of "yyyy-MM-dd HH:mm:ss[.SSS]".</p>
+        <p>Returns an SQL timestamp parsed from <i>STRING</i> in form of "yyyy-MM-dd HH:mm:ss[.SSS]".</p>
       </td>
     </tr>
 

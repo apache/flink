@@ -29,7 +29,7 @@ import java.util.List;
 /**
  * This interface serves two purposes:
  * <ul>
- * <li>SQL parser - transforms a SQL string into a Table API specific tree of
+ * <li>SQL parser - transforms an SQL string into a Table API specific tree of
  * {@link Operation}s</li>
  * <li>relational planner - provides a way to plan, optimize and transform tree of
  * {@link ModifyOperation} into a runnable form ({@link Transformation})</li>

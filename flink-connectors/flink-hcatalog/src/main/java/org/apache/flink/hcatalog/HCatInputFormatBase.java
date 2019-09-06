@@ -147,11 +147,11 @@ public abstract class HCatInputFormatBase<T> extends RichInputFormat<T, HadoopIn
 	}
 
 	/**
-	 * Specifies a SQL-like filter condition on the table's partition columns.
+	 * Specifies an SQL-like filter condition on the table's partition columns.
 	 * Filter conditions on non-partition columns are invalid.
 	 * A partition filter can significantly reduce the amount of data to be read.
 	 *
-	 * @param filter A SQL-like filter condition on the table's partition columns.
+	 * @param filter An SQL-like filter condition on the table's partition columns.
 	 * @return This InputFormat with specified partition filter.
 	 * @throws java.io.IOException
 	 */

@@ -638,7 +638,7 @@ class MySystemTableSourceFactory extends StreamTableSourceFactory[Row] {
 
 ### Use a TableFactory in the SQL Client
 
-In a SQL Client environment file, the previously presented factory could be declared as:
+In an SQL Client environment file, the previously presented factory could be declared as:
 
 {% highlight yaml %}
 tables:

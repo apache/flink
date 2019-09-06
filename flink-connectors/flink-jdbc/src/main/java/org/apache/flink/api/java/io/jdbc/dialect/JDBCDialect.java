@@ -90,7 +90,7 @@ public interface JDBCDialect extends Serializable {
 
 	/**
 	 * Get update one row statement by condition fields, default not use limit 1,
-	 * because limit 1 is a sql dialect.
+	 * because limit 1 is an sql dialect.
 	 */
 	default String getUpdateStatement(String tableName, String[] fieldNames, String[] conditionFields) {
 		String setClause = Arrays.stream(fieldNames)
@@ -106,7 +106,7 @@ public interface JDBCDialect extends Serializable {
 
 	/**
 	 * Get delete one row statement by condition fields, default not use limit 1,
-	 * because limit 1 is a sql dialect.
+	 * because limit 1 is an sql dialect.
 	 */
 	default String getDeleteStatement(String tableName, String[] conditionFields) {
 		String conditionClause = Arrays.stream(conditionFields)

@@ -53,12 +53,12 @@ The following table compares traditional relational algebra and stream processin
 	</tr>
 </table>
 
-Despite these differences, processing streams with relational queries and SQL is not impossible. Advanced relational database systems offer a feature called *Materialized Views*. A materialized view is defined as a SQL query, just like a regular virtual view. In contrast to a virtual view, a materialized view caches the result of the query such that the query does not need to be evaluated when the view is accessed. A common challenge for caching is to prevent a cache from serving outdated results. A materialized view becomes outdated when the base tables of its definition query are modified. *Eager View Maintenance* is a technique to update a materialized view as soon as its base tables are updated.
+Despite these differences, processing streams with relational queries and SQL is not impossible. Advanced relational database systems offer a feature called *Materialized Views*. A materialized view is defined as an SQL query, just like a regular virtual view. In contrast to a virtual view, a materialized view caches the result of the query such that the query does not need to be evaluated when the view is accessed. A common challenge for caching is to prevent a cache from serving outdated results. A materialized view becomes outdated when the base tables of its definition query are modified. *Eager View Maintenance* is a technique to update a materialized view as soon as its base tables are updated.
 
 The connection between eager view maintenance and SQL queries on streams becomes obvious if we consider the following:
 
 - A database table is the result of a *stream* of `INSERT`, `UPDATE`, and `DELETE` DML statements, often called *changelog stream*.
-- A materialized view is defined as a SQL query. In order to update the view, the query continuously processes the changelog streams of the view's base relations.
+- A materialized view is defined as an SQL query. In order to update the view, the query continuously processes the changelog streams of the view's base relations.
 - The materialized view is the result of the streaming SQL query.
 
 With these points in mind, we introduce following concept of *Dynamic tables* in the next section.

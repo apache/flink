@@ -65,7 +65,7 @@ class Table(object):
 
     def select(self, fields):
         """
-        Performs a selection operation. Similar to a SQL SELECT statement. The field expressions
+        Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
         can contain complex expressions.
 
         Example:
@@ -95,7 +95,7 @@ class Table(object):
 
     def filter(self, predicate):
         """
-        Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
+        Filters out elements that don't pass the filter predicate. Similar to an SQL WHERE
         clause.
 
         Example:
@@ -110,7 +110,7 @@ class Table(object):
 
     def where(self, predicate):
         """
-        Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
+        Filters out elements that don't pass the filter predicate. Similar to an SQL WHERE
         clause.
 
         Example:
@@ -126,7 +126,7 @@ class Table(object):
     def group_by(self, fields):
         """
         Groups the elements on some grouping keys. Use this before a selection with aggregations
-        to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
+        to perform the aggregation on a per-group basis. Similar to an SQL GROUP BY statement.
 
         Example:
         ::
@@ -153,7 +153,7 @@ class Table(object):
 
     def join(self, right, join_predicate=None):
         """
-        Joins two :class:`Table`. Similar to a SQL join. The fields of the two joined
+        Joins two :class:`Table`. Similar to an SQL join. The fields of the two joined
         operations must not overlap, use :func:`~pyflink.table.Table.alias` to rename fields if
         necessary. You can use where and select clauses after a join to further specify the
         behaviour of the join.
@@ -179,7 +179,7 @@ class Table(object):
 
     def left_outer_join(self, right, join_predicate=None):
         """
-        Joins two :class:`Table`. Similar to a SQL left outer join. The fields of the two joined
+        Joins two :class:`Table`. Similar to an SQL left outer join. The fields of the two joined
         operations must not overlap, use :func:`~pyflink.table.Table.alias` to rename fields if
         necessary.
 
@@ -205,7 +205,7 @@ class Table(object):
 
     def right_outer_join(self, right, join_predicate):
         """
-        Joins two :class:`Table`. Similar to a SQL right outer join. The fields of the two joined
+        Joins two :class:`Table`. Similar to an SQL right outer join. The fields of the two joined
         operations must not overlap, use :func:`~pyflink.table.Table.alias` to rename fields if
         necessary.
 
@@ -227,7 +227,7 @@ class Table(object):
 
     def full_outer_join(self, right, join_predicate):
         """
-        Joins two :class:`Table`. Similar to a SQL full outer join. The fields of the two joined
+        Joins two :class:`Table`. Similar to an SQL full outer join. The fields of the two joined
         operations must not overlap, use :func:`~pyflink.table.Table.alias` to rename fields if
         necessary.
 
@@ -249,7 +249,7 @@ class Table(object):
 
     def join_lateral(self, table_function_call, join_predicate=None):
         """
-        Joins this Table with an user-defined TableFunction. This join is similar to a SQL inner
+        Joins this Table with an user-defined TableFunction. This join is similar to an SQL inner
         join but works with a table function. Each row of the table is joined with the rows
         produced by the table function.
 
@@ -275,7 +275,7 @@ class Table(object):
     def left_outer_join_lateral(self, table_function_call, join_predicate=None):
         """
         Joins this Table with an user-defined TableFunction. This join is similar to
-        a SQL left outer join but works with a table function. Each row of the table is joined
+        an SQL left outer join but works with a table function. Each row of the table is joined
         with all rows produced by the table function. If the join does not produce any row, the
         outer row is padded with nulls.
 
@@ -301,7 +301,7 @@ class Table(object):
     def minus(self, right):
         """
         Minus of two :class:`Table` with duplicate records removed.
-        Similar to a SQL EXCEPT clause. Minus returns records from the left table that do not
+        Similar to an SQL EXCEPT clause. Minus returns records from the left table that do not
         exist in the right table. Duplicate records in the left table are returned
         exactly once, i.e., duplicates are removed. Both tables must have identical field types.
 
@@ -321,8 +321,8 @@ class Table(object):
 
     def minus_all(self, right):
         """
-        Minus of two :class:`Table`. Similar to a SQL EXCEPT ALL.
-        Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in
+        Minus of two :class:`Table`. Similar to an SQL EXCEPT ALL.
+        Similar to an SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in
         the right table. A record that is present n times in the left table and m times
         in the right table is returned (n - m) times, i.e., as many duplicates as are present
         in the right table are removed. Both tables must have identical field types.
@@ -344,7 +344,7 @@ class Table(object):
     def union(self, right):
         """
         Unions two :class:`Table` with duplicate records removed.
-        Similar to a SQL UNION. The fields of the two union operations must fully overlap.
+        Similar to an SQL UNION. The fields of the two union operations must fully overlap.
 
         .. note::
 
@@ -362,7 +362,7 @@ class Table(object):
 
     def union_all(self, right):
         """
-        Unions two :class:`Table`. Similar to a SQL UNION ALL. The fields of the two union
+        Unions two :class:`Table`. Similar to an SQL UNION ALL. The fields of the two union
         operations must fully overlap.
 
         .. note::
@@ -439,7 +439,7 @@ class Table(object):
     def offset(self, offset):
         """
         Limits a sorted result from an offset position.
-        Similar to a SQL OFFSET clause. Offset is technically part of the Order By operator and
+        Similar to an SQL OFFSET clause. Offset is technically part of the Order By operator and
         thus must be preceded by it.
         :func:`~pyflink.table.Table.offset` can be combined with a subsequent
         :func:`~pyflink.table.Table.fetch` call to return n rows after skipping the first o rows.
@@ -460,7 +460,7 @@ class Table(object):
     def fetch(self, fetch):
         """
         Limits a sorted result to the first n rows.
-        Similar to a SQL FETCH clause. Fetch is technically part of the Order By operator and
+        Similar to an SQL FETCH clause. Fetch is technically part of the Order By operator and
         thus must be preceded by it.
         :func:`~pyflink.table.Table.offset` can be combined with a preceding
         :func:`~pyflink.table.Table.fetch` call to return n rows after skipping the first o rows.
@@ -552,7 +552,7 @@ class Table(object):
 
     def add_columns(self, fields):
         """
-        Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+        Adds additional columns. Similar to an SQL SELECT statement. The field expressions
         can contain complex expressions, but can not contain aggregations. It will throw an
         exception if the added fields already exist.
 
@@ -568,7 +568,7 @@ class Table(object):
 
     def add_or_replace_columns(self, fields):
         """
-        Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+        Adds additional columns. Similar to an SQL SELECT statement. The field expressions
         can contain complex expressions, but can not contain aggregations. Existing fields will be
         replaced if add columns name is the same as the existing column name. Moreover, if the added
         fields have duplicate field name, then the last one is used.

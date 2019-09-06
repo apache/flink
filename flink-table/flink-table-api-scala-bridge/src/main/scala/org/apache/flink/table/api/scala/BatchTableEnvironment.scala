@@ -36,7 +36,7 @@ import org.apache.flink.table.sinks.TableSink
   * - register a [[DataSet]] in the [[TableEnvironment]]'s catalog
   * - register a [[Table]] in the [[TableEnvironment]]'s catalog
   * - scan a registered table to obtain a [[Table]]
-  * - specify a SQL query on registered tables to obtain a [[Table]]
+  * - specify an SQL query on registered tables to obtain a [[Table]]
   * - convert a [[Table]] into a [[DataSet]]
   * - explain the AST and execution plan of a [[Table]]
   */
@@ -157,7 +157,7 @@ trait BatchTableEnvironment extends TableEnvironment {
     queryConfig: BatchQueryConfig): DataSet[T]
 
   /**
-    * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
+    * Evaluates an SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
     * NOTE: Currently only SQL INSERT statements are supported.
     *
     * All tables referenced by the query must be registered in the TableEnvironment.
@@ -259,7 +259,7 @@ object BatchTableEnvironment {
     * - register a [[DataSet]] in the [[TableEnvironment]]'s catalog
     * - register a [[Table]] in the [[TableEnvironment]]'s catalog
     * - scan a registered table to obtain a [[Table]]
-    * - specify a SQL query on registered tables to obtain a [[Table]]
+    * - specify an SQL query on registered tables to obtain a [[Table]]
     * - convert a [[Table]] into a [[DataSet]]
     * - explain the AST and execution plan of a [[Table]]
     *
@@ -278,7 +278,7 @@ object BatchTableEnvironment {
     * - register a [[DataSet]] in the [[TableEnvironment]]'s catalog
     * - register a [[Table]] in the [[TableEnvironment]]'s catalog
     * - scan a registered table to obtain a [[Table]]
-    * - specify a SQL query on registered tables to obtain a [[Table]]
+    * - specify an SQL query on registered tables to obtain a [[Table]]
     * - convert a [[Table]] into a [[DataSet]]
     * - explain the AST and execution plan of a [[Table]]
     *

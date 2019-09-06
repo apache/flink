@@ -157,7 +157,7 @@ Mode "embedded" submits Flink jobs from the local machine.
 
 ### Environment Files
 
-A SQL query needs a configuration environment in which it is executed. The so-called *environment files* define available catalogs, table sources and sinks, user-defined functions, and other properties required for execution and deployment.
+An SQL query needs a configuration environment in which it is executed. The so-called *environment files* define available catalogs, table sources and sinks, user-defined functions, and other properties required for execution and deployment.
 
 Every environment file is a regular [YAML file](http://yaml.org/). An example of such a file is presented below.
 
@@ -251,7 +251,7 @@ deployment:
 This configuration:
 
 - defines an environment with a table source `MyTableSource` that reads from a CSV file,
-- defines a view `MyCustomView` that declares a virtual table using a SQL query,
+- defines a view `MyCustomView` that declares a virtual table using an SQL query,
 - defines a user-defined function `myUDF` that can be instantiated using the class name and two constructor parameters,
 - connects to two Hive catalogs and uses `catalog_1` as the current catalog with `mydb1` as the current database of the catalog,
 - uses the old planner in streaming mode for running statements with event-time characteristic and a parallelism of 1,

@@ -267,7 +267,7 @@ NOTE: Use the prebound Execution Environments and Table Environment to implement
     * btenv.registerTable("tableName", batchTable)
     * val result = btenv.sqlQuery("SELECT * FROM tableName").collect
     HINT: You can use print() on a DataSet to print the contents or collect()
-    a sql query result back to the shell.
+    an sql query result back to the shell.
 
   Streaming - Use the 'senv' and 'stenv' variable
 

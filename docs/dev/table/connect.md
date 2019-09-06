@@ -79,7 +79,7 @@ Connections can be specified either
 
 This allows not only for better unification of APIs and SQL Client but also for better extensibility in case of [custom implementations](sourceSinks.html) without changing the actual declaration.
 
-Every declaration is similar to a SQL `CREATE TABLE` statement. One can define the name of the table, the schema of the table, a connector, and a data format upfront for connecting to an external system.
+Every declaration is similar to an SQL `CREATE TABLE` statement. One can define the name of the table, the schema of the table, a connector, and a data format upfront for connecting to an external system.
 
 The **connector** describes the external system that stores the data of a table. Storage systems such as [Apacha Kafka](http://kafka.apache.org/) or a regular file system can be declared here. The connector might already provide a fixed format with fields and schema.
 
@@ -326,7 +326,7 @@ If no factory can be found or multiple factories match for the given properties,
 Table Schema
 ------------
 
-The table schema defines the names and types of columns similar to the column definitions of a SQL `CREATE TABLE` statement. In addition, one can specify how columns are mapped from and to fields of the format in which the table data is encoded. The origin of a field might be important if the name of the column should differ from the input/output format. For instance, a column `user_name` should reference the field `$$-user-name` from a JSON format. Additionally, the schema is needed to map types from an external system to Flink's representation. In case of a table sink, it ensures that only data with valid schema is written to an external system.
+The table schema defines the names and types of columns similar to the column definitions of an SQL `CREATE TABLE` statement. In addition, one can specify how columns are mapped from and to fields of the format in which the table data is encoded. The origin of a field might be important if the name of the column should differ from the input/output format. For instance, a column `user_name` should reference the field `$$-user-name` from a JSON format. Additionally, the schema is needed to map types from an external system to Flink's representation. In case of a table sink, it ensures that only data with valid schema is written to an external system.
 
 The following example shows a simple schema without time attributes and one-to-one field mapping of input/output to table columns.
 

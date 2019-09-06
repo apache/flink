@@ -130,7 +130,7 @@ public class SqlDateTimeUtils {
 	// Date/Time/Timestamp --> internal int/int/long conversion
 	// --------------------------------------------------------------------------------------------
 
-	/** Converts the internal representation of a SQL DATE (int) to the Java
+	/** Converts the internal representation of an SQL DATE (int) to the Java
 	 * type used for UDF parameters ({@link java.sql.Date}). */
 	public static java.sql.Date internalToDate(int v) {
 		// note that, in this case, can't handle Daylight Saving Time
@@ -138,14 +138,14 @@ public class SqlDateTimeUtils {
 		return new java.sql.Date(t - LOCAL_TZ.getOffset(t));
 	}
 
-	/** Converts the internal representation of a SQL TIME (int) to the Java
+	/** Converts the internal representation of an SQL TIME (int) to the Java
 	 * type used for UDF parameters ({@link java.sql.Time}). */
 	public static java.sql.Time internalToTime(int v) {
 		// note that, in this case, can't handle Daylight Saving Time
 		return new java.sql.Time(v - LOCAL_TZ.getOffset(v));
 	}
 
-	/** Converts the internal representation of a SQL TIMESTAMP (long) to the Java
+	/** Converts the internal representation of an SQL TIMESTAMP (long) to the Java
 	 * type used for UDF parameters ({@link java.sql.Timestamp}). */
 	public static java.sql.Timestamp internalToTimestamp(long v) {
 		return new java.sql.Timestamp(v - LOCAL_TZ.getOffset(v));

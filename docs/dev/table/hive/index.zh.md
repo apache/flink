@@ -26,7 +26,7 @@ under the License.
 -->
 
 [Apache Hive](https://hive.apache.org/) has established itself as a focal point of the data warehousing ecosystem.
-It serves as not only a SQL engine for big data analytics and ETL, but also a data management platform, where data is discovered, defined, and evolved.
+It serves as not only an SQL engine for big data analytics and ETL, but also a data management platform, where data is discovered, defined, and evolved.
 
 Flink offers a two-fold integration with Hive.
 The first is to leverage Hive's Metastore as a persistent catalog for storing Flink specific metadata across sessions.

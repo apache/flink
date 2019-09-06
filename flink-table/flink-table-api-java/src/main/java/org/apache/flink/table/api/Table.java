@@ -90,7 +90,7 @@ public interface Table {
 	QueryOperation getQueryOperation();
 
 	/**
-	 * Performs a selection operation. Similar to a SQL SELECT statement. The field expressions
+	 * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
 	 * can contain complex expressions and aggregations.
 	 *
 	 * <p>Example:
@@ -104,7 +104,7 @@ public interface Table {
 	Table select(String fields);
 
 	/**
-	 * Performs a selection operation. Similar to a SQL SELECT statement. The field expressions
+	 * Performs a selection operation. Similar to an SQL SELECT statement. The field expressions
 	 * can contain complex expressions and aggregations.
 	 *
 	 * <p>Scala Example:
@@ -188,7 +188,7 @@ public interface Table {
 	Table as(Expression... fields);
 
 	/**
-	 * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
+	 * Filters out elements that don't pass the filter predicate. Similar to an SQL WHERE
 	 * clause.
 	 *
 	 * <p>Example:
@@ -202,7 +202,7 @@ public interface Table {
 	Table filter(String predicate);
 
 	/**
-	 * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
+	 * Filters out elements that don't pass the filter predicate. Similar to an SQL WHERE
 	 * clause.
 	 *
 	 * <p>Scala Example:
@@ -216,7 +216,7 @@ public interface Table {
 	Table filter(Expression predicate);
 
 	/**
-	 * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
+	 * Filters out elements that don't pass the filter predicate. Similar to an SQL WHERE
 	 * clause.
 	 *
 	 * <p>Example:
@@ -230,7 +230,7 @@ public interface Table {
 	Table where(String predicate);
 
 	/**
-	 * Filters out elements that don't pass the filter predicate. Similar to a SQL WHERE
+	 * Filters out elements that don't pass the filter predicate. Similar to an SQL WHERE
 	 * clause.
 	 *
 	 * <p>Scala Example:
@@ -245,7 +245,7 @@ public interface Table {
 
 	/**
 	 * Groups the elements on some grouping keys. Use this before a selection with aggregations
-	 * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
+	 * to perform the aggregation on a per-group basis. Similar to an SQL GROUP BY statement.
 	 *
 	 * <p>Example:
 	 *
@@ -259,7 +259,7 @@ public interface Table {
 
 	/**
 	 * Groups the elements on some grouping keys. Use this before a selection with aggregations
-	 * to perform the aggregation on a per-group basis. Similar to a SQL GROUP BY statement.
+	 * to perform the aggregation on a per-group basis. Similar to an SQL GROUP BY statement.
 	 *
 	 * <p>Scala Example:
 	 *
@@ -285,7 +285,7 @@ public interface Table {
 	Table distinct();
 
 	/**
-	 * Joins two {@link Table}s. Similar to a SQL join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to an SQL join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary. You can use
 	 * where and select clauses after a join to further specify the behaviour of the join.
 	 *
@@ -302,7 +302,7 @@ public interface Table {
 	Table join(Table right);
 
 	/**
-	 * Joins two {@link Table}s. Similar to a SQL join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to an SQL join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} .
@@ -318,7 +318,7 @@ public interface Table {
 	Table join(Table right, String joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to a SQL join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to an SQL join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} .
@@ -334,7 +334,7 @@ public interface Table {
 	Table join(Table right, Expression joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to a SQL left outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to an SQL left outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -351,7 +351,7 @@ public interface Table {
 	Table leftOuterJoin(Table right);
 
 	/**
-	 * Joins two {@link Table}s. Similar to a SQL left outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to an SQL left outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -368,7 +368,7 @@ public interface Table {
 	Table leftOuterJoin(Table right, String joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to a SQL left outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to an SQL left outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -385,7 +385,7 @@ public interface Table {
 	Table leftOuterJoin(Table right, Expression joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to a SQL right outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to an SQL right outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -402,7 +402,7 @@ public interface Table {
 	Table rightOuterJoin(Table right, String joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to a SQL right outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to an SQL right outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -419,7 +419,7 @@ public interface Table {
 	Table rightOuterJoin(Table right, Expression joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to a SQL full outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to an SQL full outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -436,7 +436,7 @@ public interface Table {
 	Table fullOuterJoin(Table right, String joinPredicate);
 
 	/**
-	 * Joins two {@link Table}s. Similar to a SQL full outer join. The fields of the two joined
+	 * Joins two {@link Table}s. Similar to an SQL full outer join. The fields of the two joined
 	 * operations must not overlap, use {@code as} to rename fields if necessary.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment} and its
@@ -454,7 +454,7 @@ public interface Table {
 
 	/**
 	 * Joins this {@link Table} with an user-defined {@link TableFunction}. This join is similar to
-	 * a SQL inner join with ON TRUE predicate but works with a table function. Each row of the
+	 * an SQL inner join with ON TRUE predicate but works with a table function. Each row of the
 	 * table is joined with all rows produced by the table function.
 	 *
 	 * <p>Example:
@@ -477,7 +477,7 @@ public interface Table {
 
 	/**
 	 * Joins this {@link Table} with an user-defined {@link TableFunction}. This join is similar to
-	 * a SQL inner join with ON TRUE predicate but works with a table function. Each row of the
+	 * an SQL inner join with ON TRUE predicate but works with a table function. Each row of the
 	 * table is joined with all rows produced by the table function.
 	 *
 	 * <p>Scala Example:
@@ -499,7 +499,7 @@ public interface Table {
 
 	/**
 	 * Joins this {@link Table} with an user-defined {@link TableFunction}. This join is similar to
-	 * a SQL inner join but works with a table function. Each row of the table is joined with all
+	 * an SQL inner join but works with a table function. Each row of the table is joined with all
 	 * rows produced by the table function.
 	 *
 	 * <p>Example:
@@ -522,7 +522,7 @@ public interface Table {
 
 	/**
 	 * Joins this {@link Table} with an user-defined {@link TableFunction}. This join is similar to
-	 * a SQL inner join but works with a table function. Each row of the table is joined with all
+	 * an SQL inner join but works with a table function. Each row of the table is joined with all
 	 * rows produced by the table function.
 	 *
 	 * <p>Scala Example:
@@ -544,7 +544,7 @@ public interface Table {
 
 	/**
 	 * Joins this {@link Table} with an user-defined {@link TableFunction}. This join is similar to
-	 * a SQL left outer join with ON TRUE predicate but works with a table function. Each row of
+	 * an SQL left outer join with ON TRUE predicate but works with a table function. Each row of
 	 * the table is joined with all rows produced by the table function. If the table function does
 	 * not produce any row, the outer row is padded with nulls.
 	 *
@@ -568,7 +568,7 @@ public interface Table {
 
 	/**
 	 * Joins this {@link Table} with an user-defined {@link TableFunction}. This join is similar to
-	 * a SQL left outer join with ON TRUE predicate but works with a table function. Each row of
+	 * an SQL left outer join with ON TRUE predicate but works with a table function. Each row of
 	 * the table is joined with all rows produced by the table function. If the table function does
 	 * not produce any row, the outer row is padded with nulls.
 	 *
@@ -591,7 +591,7 @@ public interface Table {
 
 	/**
 	 * Joins this {@link Table} with an user-defined {@link TableFunction}. This join is similar to
-	 * a SQL left outer join with ON TRUE predicate but works with a table function. Each row of
+	 * an SQL left outer join with ON TRUE predicate but works with a table function. Each row of
 	 * the table is joined with all rows produced by the table function. If the table function does
 	 * not produce any row, the outer row is padded with nulls.
 	 *
@@ -615,7 +615,7 @@ public interface Table {
 
 	/**
 	 * Joins this {@link Table} with an user-defined {@link TableFunction}. This join is similar to
-	 * a SQL left outer join with ON TRUE predicate but works with a table function. Each row of
+	 * an SQL left outer join with ON TRUE predicate but works with a table function. Each row of
 	 * the table is joined with all rows produced by the table function. If the table function does
 	 * not produce any row, the outer row is padded with nulls.
 	 *
@@ -638,7 +638,7 @@ public interface Table {
 
 	/**
 	 * Minus of two {@link Table}s with duplicate records removed.
-	 * Similar to a SQL EXCEPT clause. Minus returns records from the left table that do not
+	 * Similar to an SQL EXCEPT clause. Minus returns records from the left table that do not
 	 * exist in the right table. Duplicate records in the left table are returned
 	 * exactly once, i.e., duplicates are removed. Both tables must have identical field types.
 	 *
@@ -655,8 +655,8 @@ public interface Table {
 	Table minus(Table right);
 
 	/**
-	 * Minus of two {@link Table}s. Similar to a SQL EXCEPT ALL.
-	 * Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in
+	 * Minus of two {@link Table}s. Similar to an SQL EXCEPT ALL.
+	 * Similar to an SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in
 	 * the right table. A record that is present n times in the left table and m times
 	 * in the right table is returned (n - m) times, i.e., as many duplicates as are present
 	 * in the right table are removed. Both tables must have identical field types.
@@ -675,7 +675,7 @@ public interface Table {
 
 	/**
 	 * Unions two {@link Table}s with duplicate records removed.
-	 * Similar to a SQL UNION. The fields of the two union operations must fully overlap.
+	 * Similar to an SQL UNION. The fields of the two union operations must fully overlap.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment}.
 	 *
@@ -690,7 +690,7 @@ public interface Table {
 	Table union(Table right);
 
 	/**
-	 * Unions two {@link Table}s. Similar to a SQL UNION ALL. The fields of the two union
+	 * Unions two {@link Table}s. Similar to an SQL UNION ALL. The fields of the two union
 	 * operations must fully overlap.
 	 *
 	 * <p>Note: Both tables must be bound to the same {@code TableEnvironment}.
@@ -771,7 +771,7 @@ public interface Table {
 
 	/**
 	 * Limits a sorted result from an offset position.
-	 * Similar to a SQL OFFSET clause. Offset is technically part of the Order By operator and
+	 * Similar to an SQL OFFSET clause. Offset is technically part of the Order By operator and
 	 * thus must be preceded by it.
 	 *
 	 * {@link Table#offset(int offset)} can be combined with a subsequent
@@ -792,7 +792,7 @@ public interface Table {
 
 	/**
 	 * Limits a sorted result to the first n rows.
-	 * Similar to a SQL FETCH clause. Fetch is technically part of the Order By operator and
+	 * Similar to an SQL FETCH clause. Fetch is technically part of the Order By operator and
 	 * thus must be preceded by it.
 	 *
 	 * {@link Table#fetch(int fetch)} can be combined with a preceding
@@ -911,7 +911,7 @@ public interface Table {
 	OverWindowedTable window(OverWindow... overWindows);
 
 	/**
-	 * Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+	 * Adds additional columns. Similar to an SQL SELECT statement. The field expressions
 	 * can contain complex expressions, but can not contain aggregations. It will throw an exception
 	 * if the added fields already exist.
 	 *
@@ -925,7 +925,7 @@ public interface Table {
 	Table addColumns(String fields);
 
 	/**
-	 * Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+	 * Adds additional columns. Similar to an SQL SELECT statement. The field expressions
 	 * can contain complex expressions, but can not contain aggregations. It will throw an exception
 	 * if the added fields already exist.
 	 *
@@ -940,7 +940,7 @@ public interface Table {
 	Table addColumns(Expression... fields);
 
 	/**
-	 * Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+	 * Adds additional columns. Similar to an SQL SELECT statement. The field expressions
 	 * can contain complex expressions, but can not contain aggregations. Existing fields will be
      * replaced if add columns name is the same as the existing column name. Moreover, if the added
      * fields have duplicate field name, then the last one is used.
@@ -955,7 +955,7 @@ public interface Table {
 	Table addOrReplaceColumns(String fields);
 
 	/**
-	 * Adds additional columns. Similar to a SQL SELECT statement. The field expressions
+	 * Adds additional columns. Similar to an SQL SELECT statement. The field expressions
 	 * can contain complex expressions, but can not contain aggregations. Existing fields will be
 	 * replaced. If the added fields have duplicate field name, then the last one is used.
 	 *

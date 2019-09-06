@@ -60,7 +60,7 @@ tableEnv.registerTableSink("outputTable", ...);
 
 // create a Table from a Table API query
 Table tapiResult = tableEnv.scan("table1").select(...);
-// create a Table from a SQL query
+// create a Table from an SQL query
 Table sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ... ");
 
 // emit a Table API result Table to a TableSink, same for SQL result
@@ -86,7 +86,7 @@ tableEnv.registerTableSink("outputTable", ...);
 
 // create a Table from a Table API query
 val tapiResult = tableEnv.scan("table1").select(...)
-// create a Table from a SQL query
+// create a Table from an SQL query
 val sqlResult  = tableEnv.sqlQuery("SELECT ... FROM table2 ...")
 
 // emit a Table API result Table to a TableSink, same for SQL result
@@ -113,7 +113,7 @@ table_env.register_table_sink("outputTable", ...);
 
 # create a Table from a Table API query
 tapi_result = table_env.scan("table1").select(...)
-# create a Table from a SQL query
+# create a Table from an SQL query
 sql_result  = table_env.sql_query("SELECT ... FROM table2 ...")
 
 # emit a Table API result Table to a TableSink, same for SQL result
@@ -697,8 +697,8 @@ table_env.sql_update(
 
 Table API and SQL queries can be easily mixed because both return `Table` objects:
 
-* A Table API query can be defined on the `Table` object returned by a SQL query.
-* A SQL query can be defined on the result of a Table API query by [registering the resulting Table](#register-a-table) in the `TableEnvironment` and referencing it in the `FROM` clause of the SQL query.
+* A Table API query can be defined on the `Table` object returned by an SQL query.
+* An SQL query can be defined on the result of a Table API query by [registering the resulting Table](#register-a-table) in the `TableEnvironment` and referencing it in the `FROM` clause of the SQL query.
 
 {% top %}
 
@@ -803,7 +803,7 @@ Table API and SQL queries are translated into [DataStream]({{ site.baseurl }}/de
 A Table API or SQL query is translated when:
 
 * a `Table` is emitted to a `TableSink`, i.e., when `Table.insertInto()` is called.
-* a SQL update query is specified, i.e., when `TableEnvironment.sqlUpdate()` is called.
+* an SQL update query is specified, i.e., when `TableEnvironment.sqlUpdate()` is called.
 * a `Table` is converted into a `DataStream` or `DataSet` (see [Integration with DataStream and DataSet API](#integration-with-datastream-and-dataset-api)).
 
 Once translated, a Table API or SQL query is handled like a regular DataStream or DataSet program and is executed when `StreamExecutionEnvironment.execute()` or `ExecutionEnvironment.execute()` is called.
@@ -823,7 +823,7 @@ For `TableEnvironment`, A Table API or SQL query is translated when `TableEnviro
 while for `StreamTableEnvironment`, A Table API or SQL query is translated when:
 
 * a `Table` is emitted to a `TableSink`, i.e., when `Table.insertInto()` is called.
-* a SQL update query is specified, i.e., when `TableEnvironment.sqlUpdate()` is called.
+* an SQL update query is specified, i.e., when `TableEnvironment.sqlUpdate()` is called.
 * a `Table` is converted into a `DataStream`.
 
 Once translated, a Table API or SQL query is handled like a regular DataStream program and is executed when `TableEnvironment.execute()` or `StreamExecutionEnvironment.execute()` is called.

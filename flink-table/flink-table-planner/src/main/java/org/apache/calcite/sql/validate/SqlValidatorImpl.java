@@ -1609,7 +1609,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 	 * <p>Unlike the base class method, this method is not deprecated.
 	 * It is available from within Calcite, but is not part of the public API.
 	 *
-	 * @param node A SQL parse tree node, never null
+	 * @param node An SQL parse tree node, never null
 	 * @param type Its type; must not be null
 	 */
 	@SuppressWarnings("deprecation")
@@ -5568,7 +5568,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
 
 		public RelDataType visit(SqlNodeList nodeList) {
 			// Operand is of a type that we can't derive a type for. If the
-			// operand is of a peculiar type, such as a SqlNodeList, then you
+			// operand is of a peculiar type, such as an SqlNodeList, then you
 			// should override the operator's validateCall() method so that it
 			// doesn't try to validate that operand as an expression.
 			throw Util.needToImplement(nodeList);

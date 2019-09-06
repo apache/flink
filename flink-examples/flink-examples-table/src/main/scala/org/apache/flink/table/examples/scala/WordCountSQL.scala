@@ -26,7 +26,7 @@ import org.apache.flink.table.api.scala._
   * This example shows how to:
   *  - Convert DataSets to Tables
   *  - Register a Table under a name
-  *  - Run a SQL query on the registered Table
+  *  - Run an SQL query on the registered Table
   *
   */
 object WordCountSQL {
@@ -46,7 +46,7 @@ object WordCountSQL {
     // register the DataSet as table "WordCount"
     tEnv.registerDataSet("WordCount", input, 'word, 'frequency)
 
-    // run a SQL query on the Table and retrieve the result as a new Table
+    // run an SQL query on the Table and retrieve the result as a new Table
     val table = tEnv.sqlQuery("SELECT word, SUM(frequency) FROM WordCount GROUP BY word")
 
     table.toDataSet[WC].print()

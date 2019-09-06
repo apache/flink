@@ -214,7 +214,7 @@ The Table API supports the following operations. Please note that not all operat
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
   		<td>
-        <p>Similar to the FROM clause in a SQL query. Performs a scan of a registered table.</p>
+        <p>Similar to the FROM clause in an SQL query. Performs a scan of a registered table.</p>
 {% highlight java %}
 Table orders = tableEnv.scan("Orders");
 {% endhighlight %}
@@ -226,7 +226,7 @@ Table orders = tableEnv.scan("Orders");
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL SELECT statement. Performs a select operation.</p>
+        <p>Similar to an SQL SELECT statement. Performs a select operation.</p>
 {% highlight java %}
 Table orders = tableEnv.scan("Orders");
 Table result = orders.select("a, c as d");
@@ -257,7 +257,7 @@ Table result = orders.as("x, y, z, t");
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL WHERE clause. Filters out rows that do not pass the filter predicate.</p>
+        <p>Similar to an SQL WHERE clause. Filters out rows that do not pass the filter predicate.</p>
 {% highlight java %}
 Table orders = tableEnv.scan("Orders");
 Table result = orders.where("b === 'red'");
@@ -289,7 +289,7 @@ Table result = orders.filter("a % 2 === 0");
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
   		<td>
-        <p>Similar to the FROM clause in a SQL query. Performs a scan of a registered table.</p>
+        <p>Similar to the FROM clause in an SQL query. Performs a scan of a registered table.</p>
 {% highlight scala %}
 val orders: Table = tableEnv.scan("Orders")
 {% endhighlight %}
@@ -301,7 +301,7 @@ val orders: Table = tableEnv.scan("Orders")
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL SELECT statement. Performs a select operation.</p>
+        <p>Similar to an SQL SELECT statement. Performs a select operation.</p>
 {% highlight scala %}
 val orders: Table = tableEnv.scan("Orders")
 val result = orders.select('a, 'c as 'd)
@@ -332,7 +332,7 @@ val orders: Table = tableEnv.scan("Orders").as('x, 'y, 'z, 't)
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL WHERE clause. Filters out rows that do not pass the filter predicate.</p>
+        <p>Similar to an SQL WHERE clause. Filters out rows that do not pass the filter predicate.</p>
 {% highlight scala %}
 val orders: Table = tableEnv.scan("Orders")
 val result = orders.filter('a % 2 === 0)
@@ -651,7 +651,7 @@ result = orders.rename_columns("b as b2, c as c2")
         <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Similar to a SQL GROUP BY clause. Groups the rows on the grouping keys with a following running aggregation operator to aggregate rows group-wise.</p>
+        <p>Similar to an SQL GROUP BY clause. Groups the rows on the grouping keys with a following running aggregation operator to aggregate rows group-wise.</p>
 {% highlight java %}
 Table orders = tableEnv.scan("Orders");
 Table result = orders.groupBy("a").select("a, b.sum as d");
@@ -681,7 +681,7 @@ Table result = orders
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-       <p>Similar to a SQL OVER clause. Over window aggregates are computed for each row, based on a window (range) of preceding and succeeding rows. See the <a href="#over-windows">over windows section</a> for more details.</p>
+       <p>Similar to an SQL OVER clause. Over window aggregates are computed for each row, based on a window (range) of preceding and succeeding rows. See the <a href="#over-windows">over windows section</a> for more details.</p>
 {% highlight java %}
 Table orders = tableEnv.scan("Orders");
 Table result = orders
@@ -704,7 +704,7 @@ Table result = orders
         <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Similar to a SQL DISTINCT aggregation clause such as COUNT(DISTINCT a). Distinct aggregation declares that an aggregation function (built-in or user-defined) is only applied on distinct input values. Distinct can be applied to <b>GroupBy Aggregation</b>, <b>GroupBy Window Aggregation</b> and <b>Over Window Aggregation</b>.</p>
+        <p>Similar to an SQL DISTINCT aggregation clause such as COUNT(DISTINCT a). Distinct aggregation declares that an aggregation function (built-in or user-defined) is only applied on distinct input values. Distinct can be applied to <b>GroupBy Aggregation</b>, <b>GroupBy Window Aggregation</b> and <b>Over Window Aggregation</b>.</p>
 {% highlight java %}
 Table orders = tableEnv.scan("Orders");
 // Distinct aggregation on group by
@@ -742,7 +742,7 @@ orders.groupBy("users").select("users, myUdagg.distinct(points) as myDistinctRes
         <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Similar to a SQL DISTINCT clause. Returns records with distinct value combinations.</p>
+        <p>Similar to an SQL DISTINCT clause. Returns records with distinct value combinations.</p>
 {% highlight java %}
 Table orders = tableEnv.scan("Orders");
 Table result = orders.distinct();
@@ -772,7 +772,7 @@ Table result = orders.distinct();
         <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Similar to a SQL GROUP BY clause. Groups the rows on the grouping keys with a following running aggregation operator to aggregate rows group-wise.</p>
+        <p>Similar to an SQL GROUP BY clause. Groups the rows on the grouping keys with a following running aggregation operator to aggregate rows group-wise.</p>
 {% highlight scala %}
 val orders: Table = tableEnv.scan("Orders")
 val result = orders.groupBy('a).select('a, 'b.sum as 'd)
@@ -802,7 +802,7 @@ val result: Table = orders
         <span class="label label-primary">Streaming</span>
       </td>
     	<td>
-       <p>Similar to a SQL OVER clause. Over window aggregates are computed for each row, based on a window (range) of preceding and succeeding rows. See the <a href="#over-windows">over windows section</a> for more details.</p>
+       <p>Similar to an SQL OVER clause. Over window aggregates are computed for each row, based on a window (range) of preceding and succeeding rows. See the <a href="#over-windows">over windows section</a> for more details.</p>
        {% highlight scala %}
 val orders: Table = tableEnv.scan("Orders")
 val result: Table = orders
@@ -825,7 +825,7 @@ val result: Table = orders
         <span class="label label-info">Result Updating</span>
       </td>
       <td>
-        <p>Similar to a SQL DISTINCT AGGREGATION clause such as COUNT(DISTINCT a). Distinct aggregation declares that an aggregation function (built-in or user-defined) is only applied on distinct input values. Distinct can be applied to <b>GroupBy Aggregation</b>, <b>GroupBy Window Aggregation</b> and <b>Over Window Aggregation</b>.</p>
+        <p>Similar to an SQL DISTINCT AGGREGATION clause such as COUNT(DISTINCT a). Distinct aggregation declares that an aggregation function (built-in or user-defined) is only applied on distinct input values. Distinct can be applied to <b>GroupBy Aggregation</b>, <b>GroupBy Window Aggregation</b> and <b>Over Window Aggregation</b>.</p>
 {% highlight scala %}
 val orders: Table = tableEnv.scan("Orders");
 // Distinct aggregation on group by
@@ -862,7 +862,7 @@ orders.groupBy('users).select('users, myUdagg.distinct('points) as 'myDistinctRe
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL DISTINCT clause. Returns records with distinct value combinations.</p>
+        <p>Similar to an SQL DISTINCT clause. Returns records with distinct value combinations.</p>
 {% highlight scala %}
 val orders: Table = tableEnv.scan("Orders")
 val result = orders.distinct()
@@ -1002,7 +1002,7 @@ result = orders.distinct()
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined through join operator or using a where or filter operator.</p>
+        <p>Similar to an SQL JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined through join operator or using a where or filter operator.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
@@ -1151,7 +1151,7 @@ Table result = orders
         <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined through join operator or using a where or filter operator.</p>
+        <p>Similar to an SQL JOIN clause. Joins two tables. Both tables must have distinct field names and at least one equality join predicate must be defined through join operator or using a where or filter operator.</p>
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
 val right = ds2.toTable(tableEnv, 'd, 'e, 'f)
@@ -1402,7 +1402,7 @@ result = orders.left_outer_join_lateral("split(c).as(s, t, v)").select("a, b, s,
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL UNION clause. Unions two tables with duplicate records removed. Both tables must have identical field types.</p>
+        <p>Similar to an SQL UNION clause. Unions two tables with duplicate records removed. Both tables must have identical field types.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
@@ -1417,7 +1417,7 @@ Table result = left.union(right);
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL UNION ALL clause. Unions two tables. Both tables must have identical field types.</p>
+        <p>Similar to an SQL UNION ALL clause. Unions two tables. Both tables must have identical field types.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
@@ -1432,7 +1432,7 @@ Table result = left.unionAll(right);
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL INTERSECT clause. Intersect returns records that exist in both tables. If a record is present one or both tables more than once, it is returned just once, i.e., the resulting table has no duplicate records. Both tables must have identical field types.</p>
+        <p>Similar to an SQL INTERSECT clause. Intersect returns records that exist in both tables. If a record is present one or both tables more than once, it is returned just once, i.e., the resulting table has no duplicate records. Both tables must have identical field types.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
@@ -1447,7 +1447,7 @@ Table result = left.intersect(right);
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL INTERSECT ALL clause. IntersectAll returns records that exist in both tables. If a record is present in both tables more than once, it is returned as many times as it is present in both tables, i.e., the resulting table might have duplicate records. Both tables must have identical field types.</p>
+        <p>Similar to an SQL INTERSECT ALL clause. IntersectAll returns records that exist in both tables. If a record is present in both tables more than once, it is returned as many times as it is present in both tables, i.e., the resulting table might have duplicate records. Both tables must have identical field types.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "d, e, f");
@@ -1462,7 +1462,7 @@ Table result = left.intersectAll(right);
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL EXCEPT clause. Minus returns records from the left table that do not exist in the right table. Duplicate records in the left table are returned exactly once, i.e., duplicates are removed. Both tables must have identical field types.</p>
+        <p>Similar to an SQL EXCEPT clause. Minus returns records from the left table that do not exist in the right table. Duplicate records in the left table are returned exactly once, i.e., duplicates are removed. Both tables must have identical field types.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
@@ -1477,7 +1477,7 @@ Table result = left.minus(right);
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in the right table. A record that is present n times in the left table and m times in the right table is returned (n - m) times, i.e., as many duplicates as are present in the right table are removed. Both tables must have identical field types.</p>
+        <p>Similar to an SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in the right table. A record that is present n times in the left table and m times in the right table is returned (n - m) times, i.e., as many duplicates as are present in the right table are removed. Both tables must have identical field types.</p>
 {% highlight java %}
 Table left = tableEnv.fromDataSet(ds1, "a, b, c");
 Table right = tableEnv.fromDataSet(ds2, "a, b, c");
@@ -1492,7 +1492,7 @@ Table result = left.minusAll(right);
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL IN clause. In returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.</p>
+        <p>Similar to an SQL IN clause. In returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.</p>
 {% highlight java %}
 Table left = ds1.toTable(tableEnv, "a, b, c");
 Table right = ds2.toTable(tableEnv, "a");
@@ -1528,7 +1528,7 @@ Table result = left.select("a, b, c").where("a.in(RightTable)");
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL UNION clause. Unions two tables with duplicate records removed, both tables must have identical field types.</p>
+        <p>Similar to an SQL UNION clause. Unions two tables with duplicate records removed, both tables must have identical field types.</p>
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
 val right = ds2.toTable(tableEnv, 'a, 'b, 'c)
@@ -1544,7 +1544,7 @@ val result = left.union(right)
 
       </td>
       <td>
-        <p>Similar to a SQL UNION ALL clause. Unions two tables, both tables must have identical field types.</p>
+        <p>Similar to an SQL UNION ALL clause. Unions two tables, both tables must have identical field types.</p>
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
 val right = ds2.toTable(tableEnv, 'a, 'b, 'c)
@@ -1559,7 +1559,7 @@ val result = left.unionAll(right)
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL INTERSECT clause. Intersect returns records that exist in both tables. If a record is present in one or both tables more than once, it is returned just once, i.e., the resulting table has no duplicate records. Both tables must have identical field types.</p>
+        <p>Similar to an SQL INTERSECT clause. Intersect returns records that exist in both tables. If a record is present in one or both tables more than once, it is returned just once, i.e., the resulting table has no duplicate records. Both tables must have identical field types.</p>
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
 val right = ds2.toTable(tableEnv, 'e, 'f, 'g)
@@ -1574,7 +1574,7 @@ val result = left.intersect(right)
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL INTERSECT ALL clause. IntersectAll returns records that exist in both tables. If a record is present in both tables more than once, it is returned as many times as it is present in both tables, i.e., the resulting table might have duplicate records. Both tables must have identical field types.</p>
+        <p>Similar to an SQL INTERSECT ALL clause. IntersectAll returns records that exist in both tables. If a record is present in both tables more than once, it is returned as many times as it is present in both tables, i.e., the resulting table might have duplicate records. Both tables must have identical field types.</p>
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
 val right = ds2.toTable(tableEnv, 'e, 'f, 'g)
@@ -1589,7 +1589,7 @@ val result = left.intersectAll(right)
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL EXCEPT clause. Minus returns records from the left table that do not exist in the right table. Duplicate records in the left table are returned exactly once, i.e., duplicates are removed. Both tables must have identical field types.</p>
+        <p>Similar to an SQL EXCEPT clause. Minus returns records from the left table that do not exist in the right table. Duplicate records in the left table are returned exactly once, i.e., duplicates are removed. Both tables must have identical field types.</p>
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
 val right = ds2.toTable(tableEnv, 'a, 'b, 'c)
@@ -1604,7 +1604,7 @@ val result = left.minus(right)
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in the right table. A record that is present n times in the left table and m times in the right table is returned (n - m) times, i.e., as many duplicates as are present in the right table are removed. Both tables must have identical field types.</p>
+        <p>Similar to an SQL EXCEPT ALL clause. MinusAll returns the records that do not exist in the right table. A record that is present n times in the left table and m times in the right table is returned (n - m) times, i.e., as many duplicates as are present in the right table are removed. Both tables must have identical field types.</p>
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
 val right = ds2.toTable(tableEnv, 'a, 'b, 'c)
@@ -1619,7 +1619,7 @@ val result = left.minusAll(right)
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to a SQL IN clause. In returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.</p>
+        <p>Similar to an SQL IN clause. In returns true if an expression exists in a given table sub-query. The sub-query table must consist of one column. This column must have the same data type as the expression.</p>
 {% highlight scala %}
 val left = ds1.toTable(tableEnv, 'a, 'b, 'c)
 val right = ds2.toTable(tableEnv, 'a)
@@ -1780,7 +1780,7 @@ result = left.select("a, b, c").where("a.in(RightTable)")
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions.</p>
+        <p>Similar to an SQL ORDER BY clause. Returns records globally sorted across all parallel partitions.</p>
 {% highlight java %}
 Table in = tableEnv.fromDataSet(ds, "a, b, c");
 Table result = in.orderBy("a.asc");
@@ -1829,7 +1829,7 @@ Table result3 = in.orderBy("a.asc").offset(10).fetch(5);
         <span class="label label-primary">Batch</span>
       </td>
       <td>
-        <p>Similar to a SQL ORDER BY clause. Returns records globally sorted across all parallel partitions.</p>
+        <p>Similar to an SQL ORDER BY clause. Returns records globally sorted across all parallel partitions.</p>
 {% highlight scala %}
 val in = ds.toTable(tableEnv, 'a, 'b, 'c)
 val result = in.orderBy('a.asc)
@@ -1931,7 +1931,7 @@ result3 = in.order_by("a.asc").offset(10).fetch(5)
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to the INSERT INTO clause in a SQL query. Performs a insertion into a registered output table.</p>
+        <p>Similar to the INSERT INTO clause in an SQL query. Performs a insertion into a registered output table.</p>
 
         <p>Output tables must be registered in the TableEnvironment (see <a href="common.html#register-a-tablesink">Register a TableSink</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
 
@@ -1961,7 +1961,7 @@ orders.insertInto("OutOrders");
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
       <td>
-        <p>Similar to the INSERT INTO clause in a SQL query. Performs a insertion into a registered output table.</p>
+        <p>Similar to the INSERT INTO clause in an SQL query. Performs a insertion into a registered output table.</p>
 
         <p>Output tables must be registered in the TableEnvironment (see <a href="common.html#register-a-tablesink">Register a TableSink</a>). Moreover, the schema of the registered table must match the schema of the query.</p>
 

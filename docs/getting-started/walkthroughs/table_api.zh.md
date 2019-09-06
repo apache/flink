@@ -254,7 +254,7 @@ env.execute("Spend Report")
 
 Now with the skeleton of a Job set-up, you are ready to add some business logic.
 The goal is to build a report that shows the total spend for each account across each hour of the day.
-Just like a SQL query, Flink can select the required fields and group by your keys.
+Just like an SQL query, Flink can select the required fields and group by your keys.
 Because the timestamp field has millisecond granularity, you can use the UDF to round it down to the nearest hour.
 Finally, select all the fields, summing the total spend per account-hour pair with the built-in `sum` [aggregate function]({{ site.baseurl }}/dev/table/functions.html#aggregate-functions).
 

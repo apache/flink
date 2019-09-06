@@ -1289,13 +1289,13 @@ class UserDefinedType(DataType):
 
     def serialize(self, obj):
         """
-        Converts the a user-type object into a SQL datum.
+        Converts the a user-type object into an SQL datum.
         """
         raise NotImplementedError("UDT must implement serialize().")
 
     def deserialize(self, datum):
         """
-        Converts a SQL datum into a user-type object.
+        Converts an SQL datum into a user-type object.
         """
         raise NotImplementedError("UDT must implement deserialize().")
 

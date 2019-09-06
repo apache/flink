@@ -271,7 +271,7 @@ class TableConfig(object):
 
     def set_sql_dialect(self, sql_dialect):
         """
-        Sets the current SQL dialect to parse a SQL query. Flink's SQL behavior by default.
+        Sets the current SQL dialect to parse an SQL query. Flink's SQL behavior by default.
 
         :param sql_dialect: The given SQL dialect.
         :type sql_dialect: SqlDialect

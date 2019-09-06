@@ -47,7 +47,7 @@ import java.lang.reflect.Constructor;
  *     <li>register a {@link DataSet} in the {@link TableEnvironment}'s catalog</li>
  *     <li>register a {@link Table} in the {@link TableEnvironment}'s catalog</li>
  *     <li>scan a registered table to obtain a {@link Table}</li>
- *     <li>specify a SQL query on registered tables to obtain a {@link Table}</li>
+ *     <li>specify an SQL query on registered tables to obtain a {@link Table}</li>
  *     <li>convert a {@link Table} into a {@link DataSet}</li>
  *     <li>explain the AST and execution plan of a {@link Table}</li>
  * </ul>
@@ -212,7 +212,7 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	<T> DataSet<T> toDataSet(Table table, TypeInformation<T> typeInfo, BatchQueryConfig queryConfig);
 
 	/**
-	 * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
+	 * Evaluates an SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
 	 * NOTE: Currently only SQL INSERT statements are supported.
 	 *
 	 * <p>All tables referenced by the query must be registered in the TableEnvironment.
@@ -295,7 +295,7 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 *     <li>register a {@link DataSet} in the {@link TableEnvironment}'s catalog</li>
 	 *     <li>register a {@link Table} in the {@link TableEnvironment}'s catalog</li>
 	 *     <li>scan a registered table to obtain a {@link Table}</li>
-	 *     <li>specify a SQL query on registered tables to obtain a {@link Table}</li>
+	 *     <li>specify an SQL query on registered tables to obtain a {@link Table}</li>
 	 *     <li>convert a {@link Table} into a {@link DataSet}</li>
 	 *     <li>explain the AST and execution plan of a {@link Table}</li>
 	 * </ul>
@@ -316,7 +316,7 @@ public interface BatchTableEnvironment extends TableEnvironment {
 	 *     <li>register a {@link DataSet} in the {@link TableEnvironment}'s catalog</li>
 	 *     <li>register a {@link Table} in the {@link TableEnvironment}'s catalog</li>
 	 *     <li>scan a registered table to obtain a {@link Table}</li>
-	 *     <li>specify a SQL query on registered tables to obtain a {@link Table}</li>
+	 *     <li>specify an SQL query on registered tables to obtain a {@link Table}</li>
 	 *     <li>convert a {@link Table} into a {@link DataSet}</li>
 	 *     <li>explain the AST and execution plan of a {@link Table}</li>
 	 * </ul>

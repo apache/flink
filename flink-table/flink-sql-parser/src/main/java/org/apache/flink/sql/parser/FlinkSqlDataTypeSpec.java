@@ -47,7 +47,7 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 
 /**
- * Represents a SQL data type specification in a parse tree.
+ * Represents an SQL data type specification in a parse tree.
  *
  * <p>A <code>SqlDataTypeSpec</code> is immutable; once created, you cannot
  * change any of the fields.</p>
