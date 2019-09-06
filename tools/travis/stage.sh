@@ -121,12 +121,6 @@ flink-libraries/flink-gelly-examples,\
 flink-connectors/flink-connector-kafka,\
 flink-connectors/flink-sql-connector-kafka,"
 
-MODULES_CONNECTORS_JDK9_EXCLUSIONS="\
-!flink-filesystems/flink-s3-fs-hadoop,\
-!flink-filesystems/flink-s3-fs-presto,\
-!flink-filesystems/flink-mapr-fs,\
-!flink-connectors/flink-hbase"
-
 MODULES_TESTS="\
 flink-tests"
 
@@ -185,11 +179,6 @@ function get_test_modules_for_stage() {
     local negated_connectors=\!${MODULES_CONNECTORS//,/,\!}
     local negated_tests=\!${MODULES_TESTS//,/,\!}
     local modules_misc="$negated_core,$negated_libraries,$negated_blink_planner,$negated_connectors,$negated_kafka_gelly,$negated_tests"
-
-    # various modules fail testing on JDK 9; exclude them
-    if [[ ${PROFILE} == *"jdk9"* ]]; then
-        modules_connectors="$modules_connectors,$MODULES_CONNECTORS_JDK9_EXCLUSIONS"
-    fi
 
     case ${stage} in
         (${STAGE_CORE})

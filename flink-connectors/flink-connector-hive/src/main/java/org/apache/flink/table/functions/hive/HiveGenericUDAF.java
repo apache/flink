@@ -84,7 +84,8 @@ public class HiveGenericUDAF
 	}
 
 	private void init() throws HiveException {
-		ObjectInspector[] inputInspectors = HiveInspectors.toInspectors(constantArguments, argTypes);
+		ObjectInspector[] inputInspectors = HiveInspectors.toInspectors(HiveShimLoader.loadHiveShim(hiveVersion),
+			constantArguments, argTypes);
 
 		// Flink UDAF only supports Hive UDAF's PARTIAL_1 and FINAL mode
 

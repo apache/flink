@@ -19,6 +19,8 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
@@ -47,6 +49,7 @@ import static org.junit.Assert.assertEquals;
  * Test for {@link HiveGenericUDTF}.
  */
 public class HiveGenericUDTFTest {
+	private static HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
 
 	private static TestCollector collector;
 
@@ -193,12 +196,12 @@ public class HiveGenericUDTFTest {
 	private static HiveGenericUDTF init(Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) throws Exception {
 		HiveFunctionWrapper<GenericUDTF> wrapper = new HiveFunctionWrapper(hiveUdfClass.getName());
 
-		HiveGenericUDTF udf = new HiveGenericUDTF(wrapper);
+		HiveGenericUDTF udf = new HiveGenericUDTF(wrapper, hiveShim);
 
 		udf.setArgumentTypesAndConstants(constantArgs, argTypes);
 		udf.getHiveResultType(constantArgs, argTypes);
 
-		ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(constantArgs, argTypes);
+		ObjectInspector[] argumentInspectors = HiveInspectors.toInspectors(hiveShim, constantArgs, argTypes);
 		ObjectInspector returnInspector = wrapper.createFunction().initialize(argumentInspectors);
 
 		udf.open(null);

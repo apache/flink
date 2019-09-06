@@ -53,7 +53,10 @@ import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.exceptions.TablePartitionedException;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientFactory;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
+import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveStatsUtil;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
@@ -63,7 +66,6 @@ import org.apache.flink.util.StringUtils;
 
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.MetaStoreUtils;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.ColumnStatisticsObj;
@@ -121,6 +123,7 @@ public class HiveCatalog extends AbstractCatalog {
 
 	private final HiveConf hiveConf;
 	private final String hiveVersion;
+	private final HiveShim hiveShim;
 
 	private HiveMetastoreClientWrapper client;
 
@@ -138,6 +141,7 @@ public class HiveCatalog extends AbstractCatalog {
 		this.hiveConf = hiveConf == null ? createHiveConf(null) : hiveConf;
 		checkArgument(!StringUtils.isNullOrWhitespaceOnly(hiveVersion), "hiveVersion cannot be null or empty");
 		this.hiveVersion = hiveVersion;
+		hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		// add this to hiveConf to make sure table factory and source/sink see the same Hive version as HiveCatalog
 		this.hiveConf.set(HiveCatalogValidator.CATALOG_HIVE_VERSION, hiveVersion);
 
@@ -494,7 +498,7 @@ public class HiveCatalog extends AbstractCatalog {
 		}
 	}
 
-	private static CatalogBaseTable instantiateCatalogTable(Table hiveTable, HiveConf hiveConf) {
+	private CatalogBaseTable instantiateCatalogTable(Table hiveTable, HiveConf hiveConf) {
 		boolean isView = TableType.valueOf(hiveTable.getTableType()) == TableType.VIRTUAL_VIEW;
 
 		// Table properties
@@ -515,8 +519,8 @@ public class HiveCatalog extends AbstractCatalog {
 		} else {
 			// get schema from deserializer
 			try {
-				fields = MetaStoreUtils.getFieldsFromDeserializer(hiveTable.getTableName(),
-						MetaStoreUtils.getDeserializer(hiveConf, hiveTable, true));
+				fields = HiveReflectionUtils.getFieldsFromDeserializer(hiveShim, hiveTable.getTableName(),
+						HiveReflectionUtils.getDeserializer(hiveShim, hiveConf, hiveTable, true));
 			} catch (SerDeException | MetaException e) {
 				throw new CatalogException("Failed to get Hive table schema from deserializer", e);
 			}
@@ -735,7 +739,8 @@ public class HiveCatalog extends AbstractCatalog {
 
 		try {
 			// partition spec can be partial
-			List<String> partialVals = MetaStoreUtils.getPvals(hiveTable.getPartitionKeys(), partitionSpec.getPartitionSpec());
+			List<String> partialVals = HiveReflectionUtils.getPvals(hiveShim, hiveTable.getPartitionKeys(),
+				partitionSpec.getPartitionSpec());
 			return client.listPartitionNames(tablePath.getDatabaseName(), tablePath.getObjectName(), partialVals,
 				(short) -1).stream().map(HiveCatalog::createPartitionSpec).collect(Collectors.toList());
 		} catch (TException e) {
