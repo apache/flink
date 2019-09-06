@@ -111,7 +111,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	}
 
 	@Override
-	protected void performDefaultAction(DefaultActionContext context) throws Exception {
+	protected void processInput(DefaultActionContext context) throws Exception {
 
 		context.suspendDefaultAction();
 

@@ -194,14 +194,14 @@ public class StreamTaskSelectiveReadingTest {
 		}
 
 		@Override
-		protected void performDefaultAction(DefaultActionContext context) throws Exception {
+		protected void processInput(DefaultActionContext context) throws Exception {
 			if (!started) {
 				synchronized (this) {
 					this.wait();
 				}
 			}
 
-			super.performDefaultAction(context);
+			super.processInput(context);
 		}
 
 		public void startProcessing() {
