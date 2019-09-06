@@ -101,6 +101,14 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 		this.timeout = AkkaUtils.getClientTimeout(flinkConfig);
 	}
 
+	/**
+	 * User overridable hook to close the client, possibly closes internal services.
+	 * @deprecated use the {@link #close()} instead. This method stays for backwards compatibility.
+	 */
+	public void shutdown() throws Exception {
+		close();
+	}
+
 	@Override
 	public void close() throws Exception {
 
