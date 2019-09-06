@@ -82,7 +82,7 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 	}
 
 	@Override
-	protected void performDefaultAction(DefaultActionContext context) throws Exception {
+	protected void processInput(DefaultActionContext context) throws Exception {
 		if (input.hasNext()) {
 			reuse.replace(input.next());
 			headOperator.setKeyContextElement1(reuse);

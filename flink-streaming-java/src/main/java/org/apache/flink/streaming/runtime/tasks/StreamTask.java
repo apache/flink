@@ -247,7 +247,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		this.accumulatorMap = getEnvironment().getAccumulatorRegistry().getUserMap();
 		this.recordWriters = createRecordWriters(configuration, environment);
 		this.syncSavepointLatch = new SynchronousSavepointLatch();
-		this.mailboxProcessor = new MailboxProcessor(this::performDefaultAction);
+		this.mailboxProcessor = new MailboxProcessor(this::processInput);
 		this.asyncExceptionHandler = new StreamTaskAsyncExceptionHandler(environment);
 	}
 
@@ -273,7 +273,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * @param context context object for collaborative interaction between the action and the stream task.
 	 * @throws Exception on any problems in the action.
 	 */
-	protected void performDefaultAction(DefaultActionContext context) throws Exception {
+	protected void processInput(DefaultActionContext context) throws Exception {
 		if (!inputProcessor.processInput()) {
 			if (inputProcessor.isFinished()) {
 				context.allActionsCompleted();

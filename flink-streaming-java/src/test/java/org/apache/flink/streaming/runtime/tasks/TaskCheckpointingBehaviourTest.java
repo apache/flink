@@ -475,7 +475,7 @@ public class TaskCheckpointingBehaviourTest extends TestLogger {
 		public void init() {}
 
 		@Override
-		protected void performDefaultAction(DefaultActionContext context) throws Exception {
+		protected void processInput(DefaultActionContext context) throws Exception {
 			triggerCheckpointOnBarrier(
 				new CheckpointMetaData(
 					11L,
