@@ -49,7 +49,7 @@ The following tables list all available connectors and formats. Their mutual com
 | Apache Kafka      | 0.10                | `flink-connector-kafka-0.10` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.10{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.11                | `flink-connector-kafka-0.11` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka-0.11{{site.scala_version_suffix}}-{{site.version}}.jar) |
 | Apache Kafka      | 0.11+ (`universal`) | `flink-connector-kafka`      | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-kafka{{site.scala_version_suffix}}-{{site.version}}.jar) |
-| Parquet           |                     | `flink-connector-filesystem` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-bucket{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-bucket{{site.scala_version_suffix}}-{{site.version}}.jar) |
+| Bucket Filesystem |                     | `flink-connector-filesystem` | [Download](http://central.maven.org/maven2/org/apache/flink/flink-sql-connector-bucket{{site.scala_version_suffix}}/{{site.version}}/flink-sql-connector-bucket{{site.scala_version_suffix}}-{{site.version}}.jar) |
 
 ### Formats
 
@@ -1106,6 +1106,20 @@ The connector can be defined as follows:
 {% endhighlight %}
 </div>
 
+<div data-lang="python" markdown="1">
+{% highlight python %}
+.connect(
+    Bucket()
+    .base_path("/tmp/json")            # required: the file system path where data write to
+    .date_format("yyyyMMddHHmm")                   # optional ,date partition of the data, default is yyyy-MM-dd--HH
+
+    # required ,the data type ,the row_format is used to write row-wise data,e.g. json or csv
+    .row_format()                       # the bult_format is used to write bulk-encoding data,e.g. Parquet
+    .bult_format()
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 connector:
@@ -1114,6 +1128,22 @@ connector:
   format.type: row      # required ,the data type ,the rowFormat is used to write row-wise data,e.g. json or csv
                         # the bultFormat is used to write bulk-encoding data,e.g. Parquet
   date.format: yyyyMMddHH  # optional ,date partition of the data, default is yyyy-MM-dd--HH
+{% endhighlight %}
+</div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight java %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'connector.type' = 'bucket',       
+  'connector.basepath' = 'hdfs:///tmp/json', -- required: the file system path where data write to
+  'connector.format.type' = 'row', -- required ,the data type ,the rowFormat is used to write row-wise data,e.g. json or csv
+                                   --    the bultFormat is used to write bulk-encoding data,e.g. Parquet
+  'connector.date.format' = 'yyyyMMddHHmm', -- optional ,date partition of the data, default is yyyy-MM-dd--HH
+  'update-mode' = 'append'        -- required: update mode when used as table sink, 
+                                    -- only support append mode now.
+)
 {% endhighlight %}
 </div>
 

@@ -19,15 +19,13 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.descriptors.Bucket;
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 
 /**
  * The validator for {@link Bucket}.
  */
 @Internal
 public class BucketValidator extends ConnectorDescriptorValidator {
+
 	public static final String CONNECTOR_TYPE_VALUE_BUCKET = "bucket";
 	public static final String CONNECTOR_BASEPATH = "connector.basepath";
 	public static final String CONNECTOR_DATE_FORMAT = "connector.date.format";
@@ -45,28 +43,6 @@ public class BucketValidator extends ConnectorDescriptorValidator {
 		properties.validateString(CONNECTOR_BASEPATH, false, 1, Integer.MAX_VALUE);
 		properties.validateString(CONNECTOR_DATA_TYPE, false, 1, Integer.MAX_VALUE);
 		properties.validateString(CONNECTOR_DATE_FORMAT, true, 1, Integer.MAX_VALUE);
-//		validateDataType(properties);
 	}
-
-//	private void validateDataType(DescriptorProperties properties) {
-//
-//		final Map<String, Consumer<String>> validation = new HashMap<>();
-//		validation.put(
-//			getDataType(properties.getString(FormatDescriptorValidator.FORMAT_TYPE)),
-//			noValidation());
-//		properties.validateEnum(CONNECTOR_DATA_TYPE, false, validation);
-//	}
-//
-//	private String getDataType(String formatType) {
-//		switch (formatType) {
-//			case JsonValidator.FORMAT_TYPE_VALUE:
-//			case CsvValidator.FORMAT_TYPE_VALUE:
-//				return CONNECTOR_DATA_TYPE_ROW_VALUE;
-//			case AvroValidator.FORMAT_TYPE_VALUE:
-//			case ParquetValidator.FORMAT_TYPE_VALUE:
-//				return CONNECTOR_DATA_TYPE_BULT_VALUE;
-//		}
-//		throw new IllegalArgumentException("Invalid formatType.");
-//	}
 
 }

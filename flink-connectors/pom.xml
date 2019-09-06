@@ -58,6 +58,7 @@ under the License.
 		<module>flink-connector-kafka</module>
 		<module>flink-connector-gcp-pubsub</module>
 		<module>flink-connector-kinesis</module>
+		<module>flink-sql-connector-bucket</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up

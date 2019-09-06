@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.descriptors;
 
-import org.apache.flink.streaming.connectors.fs.Writer;
-import org.apache.flink.streaming.connectors.fs.bucketing.Bucketer;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Map;
@@ -27,8 +25,6 @@ import java.util.Map;
 import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_BASEPATH;
 import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_DATA_TYPE;
 import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_DATE_FORMAT;
-import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_SINK_BUCKET_CLASS;
-import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_SINK_WRITE_CLASS;
 import static org.apache.flink.table.descriptors.BucketValidator.CONNECTOR_TYPE_VALUE_BUCKET;
 
 
@@ -40,9 +36,6 @@ public class Bucket extends ConnectorDescriptor {
 	private String basePath;
 	private String dateFormat;
 	private FormatType formatType;
-
-	private Class<? extends Bucketer> bucketerClass;
-	private Class<? extends Writer> writerClass;
 
 	public Bucket() {
 		super(CONNECTOR_TYPE_VALUE_BUCKET, 1, true);
@@ -69,27 +62,11 @@ public class Bucket extends ConnectorDescriptor {
 		return this;
 	}
 
-	public Bucket writer(Class<? extends Writer> writerClass) {
-		this.writerClass = Preconditions.checkNotNull(writerClass);
-		return this;
-	}
-
-	public Bucket bucketer(Class<? extends Bucketer> bucketerClass) {
-		this.bucketerClass = Preconditions.checkNotNull(bucketerClass);
-		return this;
-	}
-
 	@Override
 	protected Map<String, String> toConnectorProperties() {
 		final DescriptorProperties properties = new DescriptorProperties();
 		if (basePath != null) {
 			properties.putString(CONNECTOR_BASEPATH, basePath);
-		}
-		if (bucketerClass != null) {
-			properties.putClass(CONNECTOR_SINK_BUCKET_CLASS, bucketerClass);
-		}
-		if (writerClass != null) {
-			properties.putClass(CONNECTOR_SINK_WRITE_CLASS, writerClass);
 		}
 
 		if (formatType != null) {

@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.util.TimeZone;
 
 /**
- * A  implementation .
+ * A simple {@link BulkWriter} implementation that wraps a {@link DataFileWriter}.
  *
  * @param <T> The type of written.
  */
