@@ -710,42 +710,40 @@ class Bucket(ConnectorDescriptor):
         self._j_bucket = gateway.jvm.Bucket()
         super(Bucket, self).__init__(self._j_bucket)
 
-    def base_path(self, path_str):
+    def base_path(self, base_path):
         """
-        Sets the path to a file or directory in a file system.
+        Sets the base_path to a  directory in a bucket file system.
 
-        :param path_str: The path of a file or directory.
-        :return: This :class:`FileSystem` object.
+        :param base_path: The path of directory.
+        :return: This :class:`Bucket` object.
         """
-        self._j_bucket = self._j_bucket.basePath(path_str)
+        self._j_bucket = self._j_bucket.basePath(base_path)
         return self
 
     def date_format(self, data_format):
         """
         Sets the path to a file or directory in a file system.
 
-        :param path_str: The path of a file or directory.
-        :return: This :class:`FileSystem` object.
+        :param data_format: set the data partition format of the data.
+        :return: This :class:`Bucket` object.
         """
         self._j_bucket = self._j_bucket.dateFormat(data_format)
         return self
 
     def row_format(self):
         """
-        Sets the path to a file or directory in a file system.
+        the data type , it is used to write row-wise data,e.g. json or csv.
 
-        :param path_str: The path of a file or directory.
-        :return: This :class:`FileSystem` object.
+        :return: This :class:`Bucket` object.
         """
         self._j_bucket = self._j_bucket.rowFormat()
         return self
 
     def bult_format(self):
         """
-        Sets the path to a file or directory in a file system.
+        the data type ,it is used to write bulk-encoding data,e.g. Parquet.
 
-        :param path_str: The path of a file or directory.
-        :return: This :class:`FileSystem` object.
+        :return: This :class:`Bucket` object.
         """
         self._j_bucket = self._j_bucket.bultFormat()
         return self

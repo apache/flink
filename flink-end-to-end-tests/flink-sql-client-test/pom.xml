@@ -103,6 +103,7 @@ under the License.
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
+		<!-- Used by maven-dependency-plugin -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-filesystem_${scala.binary.version}</artifactId>

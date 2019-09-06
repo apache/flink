@@ -29,8 +29,7 @@ public class BucketValidator extends ConnectorDescriptorValidator {
 	public static final String CONNECTOR_TYPE_VALUE_BUCKET = "bucket";
 	public static final String CONNECTOR_BASEPATH = "connector.basepath";
 	public static final String CONNECTOR_DATE_FORMAT = "connector.date.format";
-	public static final String CONNECTOR_SINK_BUCKET_CLASS = "connector.bucket.class";
-	public static final String CONNECTOR_SINK_WRITE_CLASS = "connector.write.class";
+
 
 	public static final String CONNECTOR_DATA_TYPE = "connector.format.type";
 	public static final String CONNECTOR_DATA_TYPE_ROW_VALUE = "row";

@@ -83,7 +83,7 @@ public class BucketingSinkMigrationTest {
 	/**
 	 * The bucket file prefix is the absolute path to the part files, which is stored within the savepoint.
 	 */
-@Parameterized.Parameters(name = "Migration Savepoint / Bucket Files Prefix: {0}")
+	@Parameterized.Parameters(name = "Migration Savepoint / Bucket Files Prefix: {0}")
 	public static Collection<Tuple2<MigrationVersion, String>> parameters () {
 		return Arrays.asList(
 			Tuple2.of(MigrationVersion.v1_2, "/var/folders/v_/ry2wp5fx0y7c1rvr41xy9_700000gn/T/junit9160378385359106772/junit479663758539998903/1970-01-01--01/part-0-"),

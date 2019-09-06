@@ -19,8 +19,8 @@
 package org.apache.flink.api.common.serialization;
 
 /**
- *
- * @param <IN>
+ * the base class fo the Serialization Encoder
+ * @param <IN> The data stream to be written to output stream
  */
 public abstract class SerializationEncoderBase<IN> implements Encoder<IN> {
 	protected SerializationSchema serializationSchema;
