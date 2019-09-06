@@ -30,7 +30,6 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.minicluster.JobExecutor;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.util.Preconditions;
 
@@ -45,7 +44,7 @@ import java.util.Collections;
  */
 public class TestEnvironment extends ExecutionEnvironment {
 
-	private final JobExecutor jobExecutor;
+	private final MiniCluster miniCluster;
 
 	private final Collection<Path> jarFiles;
 
@@ -54,12 +53,12 @@ public class TestEnvironment extends ExecutionEnvironment {
 	private TestEnvironment lastEnv;
 
 	public TestEnvironment(
-			JobExecutor jobExecutor,
+			MiniCluster miniCluster,
 			int parallelism,
 			boolean isObjectReuseEnabled,
 			Collection<Path> jarFiles,
 			Collection<URL> classPaths) {
-		this.jobExecutor = Preconditions.checkNotNull(jobExecutor);
+		this.miniCluster = Preconditions.checkNotNull(miniCluster);
 		this.jarFiles = Preconditions.checkNotNull(jarFiles);
 		this.classPaths = Preconditions.checkNotNull(classPaths);
 
@@ -75,11 +74,11 @@ public class TestEnvironment extends ExecutionEnvironment {
 	}
 
 	public TestEnvironment(
-			JobExecutor executor,
+			MiniCluster miniCluster,
 			int parallelism,
 			boolean isObjectReuseEnabled) {
 		this(
-			executor,
+			miniCluster,
 			parallelism,
 			isObjectReuseEnabled,
 			Collections.emptyList(),
@@ -109,7 +108,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 
 		jobGraph.setClasspaths(new ArrayList<>(classPaths));
 
-		this.lastJobExecutionResult = jobExecutor.executeJobBlocking(jobGraph);
+		this.lastJobExecutionResult = miniCluster.executeJobBlocking(jobGraph);
 		return this.lastJobExecutionResult;
 	}
 
@@ -132,7 +131,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {
-				lastEnv = new TestEnvironment(jobExecutor, getParallelism(), getConfig().isObjectReuseEnabled());
+				lastEnv = new TestEnvironment(miniCluster, getParallelism(), getConfig().isObjectReuseEnabled());
 				return lastEnv;
 			}
 		};
@@ -147,13 +146,13 @@ public class TestEnvironment extends ExecutionEnvironment {
 	 * environment executes the given jobs on a Flink mini cluster with the given default
 	 * parallelism and the additional jar files and class paths.
 	 *
-	 * @param jobExecutor The executor to run the jobs on
+	 * @param miniCluster The MiniCluster to run the jobs on
 	 * @param parallelism The default parallelism
 	 * @param jarFiles Additional jar files to execute the job with
 	 * @param classPaths Additional class paths to execute the job with
 	 */
 	public static void setAsContext(
-		final JobExecutor jobExecutor,
+		final MiniCluster miniCluster,
 		final int parallelism,
 		final Collection<Path> jarFiles,
 		final Collection<URL> classPaths) {
@@ -162,7 +161,7 @@ public class TestEnvironment extends ExecutionEnvironment {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {
 				return new TestEnvironment(
-					jobExecutor,
+					miniCluster,
 					parallelism,
 					false,
 					jarFiles,
@@ -179,12 +178,12 @@ public class TestEnvironment extends ExecutionEnvironment {
 	 * environment executes the given jobs on a Flink mini cluster with the given default
 	 * parallelism and the additional jar files and class paths.
 	 *
-	 * @param jobExecutor The executor to run the jobs on
+	 * @param miniCluster The MiniCluster to run the jobs on
 	 * @param parallelism The default parallelism
 	 */
-	public static void setAsContext(final JobExecutor jobExecutor, final int parallelism) {
+	public static void setAsContext(final MiniCluster miniCluster, final int parallelism) {
 		setAsContext(
-			jobExecutor,
+			miniCluster,
 			parallelism,
 			Collections.emptyList(),
 			Collections.emptyList());

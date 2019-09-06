@@ -33,7 +33,6 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.minicluster.JobExecutorService;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
@@ -64,7 +63,7 @@ public class LocalExecutor extends PlanExecutor {
 		this.baseConfiguration = checkNotNull(conf);
 	}
 
-	private JobExecutorService createJobExecutorService(Configuration configuration) throws Exception {
+	private MiniCluster createMiniCluster(Configuration configuration) throws Exception {
 		if (!configuration.contains(RestOptions.BIND_PORT)) {
 			configuration.setString(RestOptions.BIND_PORT, "0");
 		}
@@ -108,7 +107,7 @@ public class LocalExecutor extends PlanExecutor {
 
 		final Configuration jobExecutorServiceConfiguration = configureExecution(plan);
 
-		try (final JobExecutorService executorService = createJobExecutorService(jobExecutorServiceConfiguration)) {
+		try (final MiniCluster executorService = createMiniCluster(jobExecutorServiceConfiguration)) {
 
 			Optimizer pc = new Optimizer(new DataStatistics(), jobExecutorServiceConfiguration);
 			OptimizedPlan op = pc.compile(plan);
