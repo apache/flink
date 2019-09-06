@@ -66,7 +66,7 @@ public class StreamIterationHead<OUT> extends OneInputStreamTask<OUT, OUT> {
 	// ------------------------------------------------------------------------
 
 	@Override
-	protected void performDefaultAction(ActionContext context) throws Exception {
+	protected void processInput(ActionContext context) throws Exception {
 		StreamRecord<OUT> nextRecord = shouldWait ?
 			dataChannel.poll(iterationWaitTime, TimeUnit.MILLISECONDS) :
 			dataChannel.take();
