@@ -114,6 +114,7 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 	protected void performDefaultAction(ActionContext context) throws Exception {
 		// Against the usual contract of this method, this implementation is not step-wise but blocking instead for
 		// compatibility reasons with the current source interface (source functions run as a loop, not in steps).
+		sourceThread.setTaskDescription(getName());
 		sourceThread.start();
 
 		// We run an alternative mailbox loop that does not involve default actions and synchronizes around actions.
@@ -205,6 +206,10 @@ public class SourceStreamTask<OUT, SRC extends SourceFunction<OUT>, OP extends S
 			} finally {
 				mailbox.clearAndPut(SOURCE_POISON_LETTER);
 			}
+		}
+
+		public void setTaskDescription(final String taskDescription) {
+			setName("Legacy Source Thread - " + taskDescription);
 		}
 
 		void checkThrowSourceExecutionException() throws Exception {
