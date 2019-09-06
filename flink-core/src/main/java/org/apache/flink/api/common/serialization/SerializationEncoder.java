@@ -19,7 +19,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 /**
- * write the Serialized data to the output
+ * write the Serialized data to the output stream.
  */
 public class SerializationEncoder<IN> extends SerializationEncoderBase<IN> {
 
