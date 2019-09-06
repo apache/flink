@@ -19,7 +19,6 @@
 package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.descriptors.BucketValidator;
 
 /**
  * the format type for bucket file system ,
