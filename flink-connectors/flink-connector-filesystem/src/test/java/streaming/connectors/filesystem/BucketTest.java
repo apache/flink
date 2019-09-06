@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- *
+ * Tests for the {@link Bucket} descriptor.
  */
 public class BucketTest extends DescriptorTestBase {
 
