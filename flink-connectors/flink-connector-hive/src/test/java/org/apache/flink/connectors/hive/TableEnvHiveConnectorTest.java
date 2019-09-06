@@ -114,6 +114,10 @@ public class TableEnvHiveConnectorTest {
 	public void testDifferentFormats() throws Exception {
 		String[] formats = new String[]{"orc", "parquet", "sequencefile", "csv"};
 		for (String format : formats) {
+			if (format.equals("orc") && hmsClient.getHiveVersion().startsWith("2.0")) {
+				// Ignore orc test for Hive version 2.0.x for now due to FLINK-13998
+				continue;
+			}
 			readWriteFormat(format);
 		}
 	}
