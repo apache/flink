@@ -275,7 +275,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * @param context context object for collaborative interaction between the action and the stream task.
 	 * @throws Exception on any problems in the action.
 	 */
-	protected void performDefaultAction(ActionContext context) throws Exception {
+	protected void processInput(ActionContext context) throws Exception {
 		if (!inputProcessor.processInput()) {
 			context.allActionsCompleted();
 		}
@@ -298,7 +298,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				}
 			}
 
-			performDefaultAction(actionContext);
+			processInput(actionContext);
 		}
 	}
 

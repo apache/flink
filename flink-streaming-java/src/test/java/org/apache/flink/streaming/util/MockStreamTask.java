@@ -81,7 +81,7 @@ public class MockStreamTask extends StreamTask {
 	public void init() { }
 
 	@Override
-	protected void performDefaultAction(ActionContext context) throws Exception {
+	protected void processInput(ActionContext context) throws Exception {
 		context.allActionsCompleted();
 	}
 
