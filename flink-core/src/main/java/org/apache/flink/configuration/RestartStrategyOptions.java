@@ -69,7 +69,7 @@ public class RestartStrategyOptions {
 					code("none"),
 					code("fixed-delay"),
 					code("Integer.MAX_VALUE"),
-					code("0 s"))
+					code("1 s"))
 				.build());
 
 	public static final ConfigOption<Integer> RESTART_STRATEGY_FIXED_DELAY_ATTEMPTS = ConfigOptions
@@ -85,7 +85,7 @@ public class RestartStrategyOptions {
 
 	public static final ConfigOption<String> RESTART_STRATEGY_FIXED_DELAY_DELAY = ConfigOptions
 		.key("restart-strategy.fixed-delay.delay")
-		.defaultValue("0 s")
+		.defaultValue("1 s")
 		.withDescription(
 			Description.builder()
 				.text(
@@ -124,7 +124,7 @@ public class RestartStrategyOptions {
 
 	public static final ConfigOption<String> RESTART_STRATEGY_FAILURE_RATE_DELAY = ConfigOptions
 		.key("restart-strategy.failure-rate.delay")
-		.defaultValue(AkkaOptions.ASK_TIMEOUT.defaultValue())
+		.defaultValue("1 s")
 		.withDescription(
 			Description.builder()
 				.text(
