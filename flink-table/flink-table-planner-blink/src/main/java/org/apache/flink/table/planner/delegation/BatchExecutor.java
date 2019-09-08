@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InputDependencyConstraint;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
@@ -33,6 +34,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.planner.plan.nodes.resource.NodeResourceUtil;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -41,27 +43,34 @@ import java.util.List;
  */
 @Internal
 public class BatchExecutor extends ExecutorBase {
+	// buffer transformations to generate StreamGraph
+	private List<Transformation<?>> transformations = new ArrayList<>();
 
 	@VisibleForTesting
 	public BatchExecutor(StreamExecutionEnvironment executionEnvironment) {
 		super(executionEnvironment);
 	}
 
-	/**
-	 * Sets batch configs.
-	 */
-	private void setBatchProperties(StreamExecutionEnvironment execEnv) {
-		ExecutionConfig executionConfig = execEnv.getConfig();
-		executionConfig.enableObjectReuse();
-		executionConfig.setLatencyTrackingInterval(-1);
-		execEnv.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
-		execEnv.setBufferTimeout(-1);
-		if (isShuffleModeAllBatch()) {
-			executionConfig.setDefaultInputDependencyConstraint(InputDependencyConstraint.ALL);
-		}
+	@Override
+	public void apply(List<Transformation<?>> transformations) {
+		this.transformations.addAll(transformations);
 	}
 
 	@Override
+	public JobExecutionResult execute(String jobName) throws Exception {
+		StreamGraph streamGraph = getStreamGraph(jobName);
+		return getExecutionEnvironment().execute(streamGraph);
+	}
+
+	@Override
+	public StreamGraph getStreamGraph(String jobName) {
+		try {
+			return getStreamGraph(transformations, jobName);
+		} finally {
+			transformations.clear();
+		}
+	}
+
 	public StreamGraph getStreamGraph(List<Transformation<?>> transformations, String jobName) {
 		StreamExecutionEnvironment execEnv = getExecutionEnvironment();
 		setBatchProperties(execEnv);
@@ -84,6 +93,21 @@ public class BatchExecutor extends ExecutorBase {
 			streamGraph.setBlockingConnectionsBetweenChains(true);
 		}
 		return streamGraph;
+	}
+
+	/**
+	 * Sets batch configs.
+	 */
+	private void setBatchProperties(StreamExecutionEnvironment execEnv) {
+		ExecutionConfig executionConfig = execEnv.getConfig();
+		executionConfig.enableObjectReuse();
+		executionConfig.setLatencyTrackingInterval(-1);
+		execEnv.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+		execEnv.setBufferTimeout(-1);
+		if (isShuffleModeAllBatch()) {
+			executionConfig.setDefaultInputDependencyConstraint(InputDependencyConstraint.ALL);
+		}
+		executionConfig.disableAllVerticesInSameSlotSharingGroupByDefault();
 	}
 
 	private boolean isShuffleModeAllBatch() {

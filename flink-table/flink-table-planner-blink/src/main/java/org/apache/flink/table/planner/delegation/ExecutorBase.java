@@ -41,8 +41,6 @@ public abstract class ExecutorBase implements Executor {
 	private static final String DEFAULT_JOB_NAME = "Flink Exec Table Job";
 
 	private final StreamExecutionEnvironment execEnv;
-	// buffer transformations to generate StreamGraph
-	private List<Transformation<?>> transformations = new ArrayList<>();
 	protected TableConfig tableConfig;
 
 	public ExecutorBase(StreamExecutionEnvironment executionEnvironment) {
@@ -53,34 +51,17 @@ public abstract class ExecutorBase implements Executor {
 		this.tableConfig = tableConfig;
 	}
 
-	@Override
-	public void apply(List<Transformation<?>> transformations) {
-		this.transformations.addAll(transformations);
-	}
-
-	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		StreamGraph streamGraph = getStreamGraph(jobName);
-		return execEnv.execute(streamGraph);
-	}
-
 	public StreamExecutionEnvironment getExecutionEnvironment() {
 		return execEnv;
 	}
 
 	/**
-	 * Translates the applied transformations to a stream graph.
+	 * Translates the transformations applied into this executor to a stream graph.
 	 */
-	public StreamGraph getStreamGraph(String jobName) {
-		try {
-			return getStreamGraph(transformations, jobName);
-		} finally {
-			transformations.clear();
-		}
-	}
+	public abstract StreamGraph getStreamGraph(String jobName);
 
 	/**
-	 * Translates the given transformations to a stream graph.
+	 * Translates the given transformations to a stream graph. This method is used for {@code Planner#explain} method.
 	 */
 	public abstract StreamGraph getStreamGraph(List<Transformation<?>> transformations, String jobName);
 

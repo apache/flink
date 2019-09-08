@@ -77,9 +77,7 @@ class StreamPlanner(
     val optimizedRelNodes = optimize(sinkRelNodes)
     val execNodes = translateToExecNodePlan(optimizedRelNodes)
     val transformations = translateToPlan(execNodes)
-    val streamExecutor = new StreamExecutor(getExecEnv)
-    streamExecutor.setTableConfig(getTableConfig)
-    val streamGraph = streamExecutor.getStreamGraph(transformations, "")
+    val streamGraph = executor.asInstanceOf[ExecutorBase].getStreamGraph(transformations, "")
     val executionPlan = PlanUtil.explainStreamGraph(streamGraph)
 
     val sb = new StringBuilder
