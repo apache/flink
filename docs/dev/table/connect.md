@@ -1085,7 +1085,7 @@ CREATE TABLE MyUserTable (
 
 The Bucket File System Connector allows for writing into a file system.
 
-The connector can operate in append-onlyw mode
+The connector can operate in append-only mode
 The connector can be defined as follows:
 
 <div class="codetabs" markdown="1">

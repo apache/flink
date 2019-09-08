@@ -1075,6 +1075,80 @@ CREATE TABLE MyUserTable (
 
 {% top %}
 
+
+### Bucket File System Connector
+
+<span class="label label-primary">Sink: Streaming Append Mode</span>
+<span class="label label-info">Format:JSON,CSV,PARQUET,AVRO</span>
+
+使用 Bucket File System 连接器可以将数据写入到不同的文件系统，比如file、hdfs，支持多种写入格式，比如json、csv、parquet、avro.
+
+该连接器只支持append-only模式
+该连接器的使用方式如下所示:
+
+<div class="codetabs" markdown="1">
+<div data-lang="Java/Scala" markdown="1">
+{% highlight java %}
+.connect(
+  new Bucket()
+    .basePath("file:///tmp/flink-data/csv")   # 必填: 数据写入的目录
+    
+     # 必填 ，写入的数据类型, rowFormat 用于写入行格式的数据，比如json或者csv
+     # bultFormat用于写入批量存储格式的数据，比如parquet、avro
+    .rowFormat() 
+    .bultFormat()
+    
+     # 可选 ,数据的分区格式, 缺省值yyyy-MM-dd--HH
+    .dateFormat("yyyy-MM-dd-HHmm")             
+)
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+.connect(
+    Bucket()
+    .base_path("/tmp/json")             # 必填 ，写入的数据类型, rowFormat 用于写入行格式的数据，比如json或者csv
+    .date_format("yyyyMMddHHmm")                   #  可选 ,数据的分区格式, 缺省值yyyy-MM-dd--HH
+
+    # 必填 ，写入的数据类型, rowFormat 用于写入行格式的数据，比如json或者csv
+    .row_format()                       # bultFormat用于写入批量存储格式的数据，比如parquet、avro
+    .bult_format()
+)
+{% endhighlight %}
+</div>
+
+<div data-lang="YAML" markdown="1">
+{% highlight yaml %}
+connector:
+  type: bucket
+  basepath: /tmp/json    # 必填 ，写入的数据类型, rowFormat 用于写入行格式的数据，比如json或者csv
+  format.type: row      # 必填 ，写入的数据类型, rowFormat 用于写入行格式的数据，比如json或者csv
+                        # bultFormat用于写入批量存储格式的数据，比如parquet、avro
+  date.format: yyyyMMddHH  #  可选 ,数据的分区格式, 缺省值yyyy-MM-dd--HH
+{% endhighlight %}
+</div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight java %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'connector.type' = 'bucket',       
+  'connector.basepath' = 'hdfs:///tmp/json', --  必填 ，写入的数据类型, rowFormat 用于写入行格式的数据，比如json或者csv
+  'connector.format.type' = 'row', -- 必填 ，写入的数据类型, rowFormat 用于写入行格式的数据，比如json或者csv
+                                   --    bultFormat用于写入批量存储格式的数据，比如parquet、avro
+  'connector.date.format' = 'yyyyMMddHHmm', --  可选 ,数据的分区格式, 缺省值yyyy-MM-dd--HH
+  'update-mode' = 'append'        -- 必填: 目前只支持 append 模式
+)
+{% endhighlight %}
+</div>
+
+</div>
+
+{% top %}
+
+
 Table Formats
 -------------
 
