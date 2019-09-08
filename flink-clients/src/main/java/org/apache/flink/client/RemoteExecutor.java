@@ -32,12 +32,13 @@ import org.apache.flink.optimizer.Optimizer;
 import org.apache.flink.optimizer.costs.DefaultCostEstimator;
 import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
-import org.apache.flink.util.NetUtils;
 
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * The RemoteExecutor is a {@link org.apache.flink.api.common.PlanExecutor} that takes the program
@@ -51,51 +52,17 @@ import java.util.List;
  */
 public class RemoteExecutor extends PlanExecutor {
 
-	private final Object lock = new Object();
-
 	private final List<URL> jarFiles;
 
 	private final List<URL> globalClasspaths;
 
 	private final Configuration clientConfiguration;
 
-	private ClusterClient<?> client;
-
 	private int defaultParallelism = 1;
 
 	public RemoteExecutor(String hostname, int port) {
 		this(hostname, port, new Configuration(), Collections.<URL>emptyList(),
 				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostname, int port, URL jarFile) {
-		this(hostname, port, new Configuration(), Collections.singletonList(jarFile),
-				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostport, URL jarFile) {
-		this(NetUtils.parseHostPortAddress(hostport), new Configuration(), Collections.singletonList(jarFile),
-				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostname, int port, List<URL> jarFiles) {
-		this(new InetSocketAddress(hostname, port), new Configuration(), jarFiles,
-				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration) {
-		this(hostname, port, clientConfiguration, Collections.<URL>emptyList(),
-				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration, URL jarFile) {
-		this(hostname, port, clientConfiguration, Collections.singletonList(jarFile),
-				Collections.<URL>emptyList());
-	}
-
-	public RemoteExecutor(String hostport, Configuration clientConfiguration, URL jarFile) {
-		this(NetUtils.parseHostPortAddress(hostport), clientConfiguration,
-				Collections.singletonList(jarFile), Collections.<URL>emptyList());
 	}
 
 	public RemoteExecutor(String hostname, int port, Configuration clientConfiguration,
@@ -142,85 +109,29 @@ public class RemoteExecutor extends PlanExecutor {
 	}
 
 	// ------------------------------------------------------------------------
-	//  Startup & Shutdown
-	// ------------------------------------------------------------------------
-
-	@Override
-	public void start() throws Exception {
-		synchronized (lock) {
-			if (client == null) {
-				client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor");
-			}
-			else {
-				throw new IllegalStateException("The remote executor was already started.");
-			}
-		}
-	}
-
-	@Override
-	public void stop() throws Exception {
-		synchronized (lock) {
-			if (client != null) {
-				client.shutdown();
-				client = null;
-			}
-		}
-	}
-
-	@Override
-	public boolean isRunning() {
-		return client != null;
-	}
-
-	// ------------------------------------------------------------------------
 	//  Executing programs
 	// ------------------------------------------------------------------------
 
 	@Override
 	public JobExecutionResult executePlan(Plan plan) throws Exception {
-		if (plan == null) {
-			throw new IllegalArgumentException("The plan may not be null.");
-		}
+		checkNotNull(plan);
 
 		JobWithJars p = new JobWithJars(plan, this.jarFiles, this.globalClasspaths);
 		return executePlanWithJars(p);
 	}
 
-	public JobExecutionResult executePlanWithJars(JobWithJars program) throws Exception {
-		if (program == null) {
-			throw new IllegalArgumentException("The job may not be null.");
-		}
+	private JobExecutionResult executePlanWithJars(JobWithJars program) throws Exception {
+		checkNotNull(program);
 
-		synchronized (this.lock) {
-			// check if we start a session dedicated for this execution
-			final boolean shutDownAtEnd;
-
-			if (client == null) {
-				shutDownAtEnd = true;
-				// start the executor for us
-				start();
-			}
-			else {
-				// we use the existing session
-				shutDownAtEnd = false;
-			}
-
-			try {
-				return client.run(program, defaultParallelism).getJobExecutionResult();
-			}
-			finally {
-				if (shutDownAtEnd) {
-					stop();
-				}
-			}
+		try (ClusterClient<?>  client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor")) {
+			return client.run(program, defaultParallelism).getJobExecutionResult();
 		}
 	}
 
 	@Override
-	public String getOptimizerPlanAsJSON(Plan plan) throws Exception {
+	public String getOptimizerPlanAsJSON(Plan plan) {
 		Optimizer opt = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), new Configuration());
 		OptimizedPlan optPlan = opt.compile(plan);
 		return new PlanJSONDumpGenerator().getOptimizerPlanAsJSON(optPlan);
 	}
-
 }

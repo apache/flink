@@ -1,6 +1,6 @@
 ---
-title: "Flink Cluster Playground"
-nav-title: 'Flink Cluster Playground'
+title: "Flink Operations Playground"
+nav-title: 'Flink Operations Playground'
 nav-parent_id: docker-playgrounds
 nav-pos: 1
 ---
@@ -30,6 +30,19 @@ operational principles apply.
 In this playground, you will learn how to manage and run Flink Jobs. You will see how to deploy and 
 monitor an application, experience how Flink recovers from Job failure, and perform everyday 
 operational tasks like upgrades and rescaling.
+
+{% if site.version contains "SNAPSHOT" %}
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">
+  <b>
+  NOTE: The Apache Flink Docker images used for this playground are only available for
+  released versions of Apache Flink.
+  </b><br>
+  Since you are currently looking at the latest SNAPSHOT
+  version of the documentation, all version references below will not work.
+  Please switch the documentation to the latest released version via the release picker which you
+  find on the left side below the menu.
+</p>
+{% endif %}
 
 * This will be replaced by the TOC
 {:toc}
@@ -75,19 +88,10 @@ output of the Flink job should show 1000 views per page and window.
 
 ## Starting the Playground
 
-{% if site.version contains "SNAPSHOT" %}
-<p style="border-radius: 5px; padding: 5px" class="bg-danger">
-  <b>Note</b>: The Apache Flink Docker images used for this playground are only available for
-  released versions of Apache Flink. Since you are currently looking at the latest SNAPSHOT
-  version of the documentation the branch referenced below will not exist. You can either change it 
-  manually or switch to the released version of the documentation via the release picker.
-</p>
-{% endif %}
-
 The playground environment is set up in just a few steps. We will walk you through the necessary 
 commands and show how to validate that everything is running correctly.
 
-We assume that you have that you have [docker](https://docs.docker.com/) (1.12+) and
+We assume that you have [Docker](https://docs.docker.com/) (1.12+) and
 [docker-compose](https://docs.docker.com/compose/) (2.1+) installed on your machine.
 
 The required configuration files are available in the 
@@ -95,8 +99,9 @@ The required configuration files are available in the
 up the environment:
 
 {% highlight bash %}
-git clone --branch release-{{ site.version }} git@github.com:apache/flink-playgrounds.git
-cd flink-cluster-playground
+git clone --branch release-{{ site.version_title }} https://github.com/apache/flink-playgrounds.git
+cd flink-playgrounds/operations-playground
+docker-compose build
 docker-compose up -d
 {% endhighlight %}
 
@@ -105,14 +110,14 @@ Afterwards, you can inspect the running Docker containers with the following com
 {% highlight bash %}
 docker-compose ps
 
-                     Name                                    Command               State                   Ports                
---------------------------------------------------------------------------------------------------------------------------------
-flink-cluster-playground_clickevent-generator_1   /docker-entrypoint.sh java ...   Up       6123/tcp, 8081/tcp                  
-flink-cluster-playground_client_1                 /docker-entrypoint.sh flin ...   Exit 0                                       
-flink-cluster-playground_jobmanager_1             /docker-entrypoint.sh jobm ...   Up       6123/tcp, 0.0.0.0:8081->8081/tcp    
-flink-cluster-playground_kafka_1                  start-kafka.sh                   Up       0.0.0.0:9094->9094/tcp              
-flink-cluster-playground_taskmanager_1            /docker-entrypoint.sh task ...   Up       6123/tcp, 8081/tcp                  
-flink-cluster-playground_zookeeper_1              /bin/sh -c /usr/sbin/sshd  ...   Up       2181/tcp, 22/tcp, 2888/tcp, 3888/tcp
+                    Name                                  Command               State                   Ports                
+-----------------------------------------------------------------------------------------------------------------------------
+operations-playground_clickevent-generator_1   /docker-entrypoint.sh java ...   Up       6123/tcp, 8081/tcp                  
+operations-playground_client_1                 /docker-entrypoint.sh flin ...   Exit 0                                       
+operations-playground_jobmanager_1             /docker-entrypoint.sh jobm ...   Up       6123/tcp, 0.0.0.0:8081->8081/tcp    
+operations-playground_kafka_1                  start-kafka.sh                   Up       0.0.0.0:9094->9094/tcp              
+operations-playground_taskmanager_1            /docker-entrypoint.sh task ...   Up       6123/tcp, 8081/tcp                  
+operations-playground_zookeeper_1              /bin/sh -c /usr/sbin/sshd  ...   Up       2181/tcp, 22/tcp, 2888/tcp, 3888/tcp
 {% endhighlight %}
 
 This indicates that the client container has successfully submitted the Flink Job (`Exit 0`) and all 
@@ -208,7 +213,7 @@ docker-compose exec kafka kafka-console-consumer.sh \
 
 Now that you learned how to interact with Flink and the Docker containers, let's have a look at 
 some common operational tasks that you can try out on our playground.
-All of these tasks are independent of each other, i.e.i you can perform them in any order. 
+All of these tasks are independent of each other, i.e. you can perform them in any order. 
 Most tasks can be executed via the [CLI](#flink-cli) and the [REST API](#flink-rest-api).
 
 ### Listing Running Jobs
@@ -281,7 +286,7 @@ an external resource).
 docker-compose kill taskmanager
 {% endhighlight %}
 
-After a few seconds, Flink will notice the loss of the TaskManager, cancel the affected Job, and 
+After a few seconds, the Flink Master will notice the loss of the TaskManager, cancel the affected Job, and 
 immediately resubmit it for recovery.
 When the Job gets restarted, its tasks remain in the `SCHEDULED` state, which is indicated by the 
 purple colored squares (see screenshot below).
@@ -428,7 +433,7 @@ restarting it without any changes.
 **Command**
 {% highlight bash %}
 docker-compose run --no-deps client flink run -s <savepoint-path> \
-  -d /opt/flink/examples/streaming/ClickEventCount.jar \
+  -d /opt/ClickCountJob.jar \
   --bootstrap.servers kafka:9092 --checkpointing --event-time
 {% endhighlight %}
 **Expected Output**
@@ -443,7 +448,7 @@ Job has been submitted with JobID <job-id>
 {% highlight bash %}
 # Uploading the JAR from the Client container
 docker-compose run --no-deps client curl -X POST -H "Expect:" \
-  -F "jarfile=@/opt/flink/examples/streaming/ClickEventCount.jar" http://jobmanager:8081/jars/upload
+  -F "jarfile=@/opt/ClickCountJob.jar" http://jobmanager:8081/jars/upload
 {% endhighlight %}
 
 **Expected Response (pretty-printed)**
@@ -485,7 +490,7 @@ during resubmission.
 **Command**
 {% highlight bash %}
 docker-compose run --no-deps client flink run -p 3 -s <savepoint-path> \
-  -d /opt/flink/examples/streaming/ClickEventCount.jar \
+  -d /opt/ClickCountJob.jar \
   --bootstrap.servers kafka:9092 --checkpointing --event-time
 {% endhighlight %}
 **Expected Output**
@@ -500,7 +505,7 @@ Job has been submitted with JobID <job-id>
 {% highlight bash %}
 # Uploading the JAR from the Client container
 docker-compose run --no-deps client curl -X POST -H "Expect:" \
-  -F "jarfile=@/opt/flink/examples/streaming/ClickEventCount.jar" http://jobmanager:8081/jars/upload
+  -F "jarfile=@/opt/ClickCountJob.jar" http://jobmanager:8081/jars/upload
 {% endhighlight %}
 
 **Expected Response (pretty-printed)**

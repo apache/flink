@@ -62,7 +62,7 @@ import scala.concurrent.duration.FiniteDuration;
  *
  * @param <T> type of the cluster id
  */
-public abstract class ClusterClient<T> {
+public abstract class ClusterClient<T> implements AutoCloseable {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -101,14 +101,16 @@ public abstract class ClusterClient<T> {
 		this.timeout = AkkaUtils.getClientTimeout(flinkConfig);
 	}
 
-	// ------------------------------------------------------------------------
-	//  Startup & Shutdown
-	// ------------------------------------------------------------------------
-
 	/**
 	 * User overridable hook to close the client, possibly closes internal services.
+	 * @deprecated use the {@link #close()} instead. This method stays for backwards compatibility.
 	 */
 	public void shutdown() throws Exception {
+		close();
+	}
+
+	@Override
+	public void close() throws Exception {
 
 	}
 

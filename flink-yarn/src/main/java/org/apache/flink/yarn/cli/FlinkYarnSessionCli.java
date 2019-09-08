@@ -626,7 +626,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 							yarnClusterDescriptor.getDynamicPropertiesEncoded());
 					} catch (Exception e) {
 						try {
-							clusterClient.shutdown();
+							clusterClient.close();
 						} catch (Exception ex) {
 							LOG.info("Could not properly shutdown cluster client.", ex);
 						}
@@ -705,7 +705,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		clusterClient.shutDownCluster();
 
 		try {
-			clusterClient.shutdown();
+			clusterClient.close();
 		} catch (Exception e) {
 			LOG.info("Could not properly shutdown cluster client.", e);
 		}

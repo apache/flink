@@ -474,12 +474,15 @@ abstract class TableEnvImpl(
           objectIdentifier,
           tableSink)
         // set static partitions if it is a partitioned table sink
-        // set whether to overwrite if it's an OverwritableTableSink
         tableSink match {
           case partitionableSink: PartitionableTableSink
             if partitionableSink.getPartitionFieldNames != null
               && partitionableSink.getPartitionFieldNames.nonEmpty =>
             partitionableSink.setStaticPartition(insertOptions.staticPartitions)
+          case _ =>
+        }
+        // set whether to overwrite if it's an OverwritableTableSink
+        tableSink match {
           case overwritableTableSink: OverwritableTableSink =>
             overwritableTableSink.setOverwrite(insertOptions.overwrite)
           case _ =>

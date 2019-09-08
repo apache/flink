@@ -48,8 +48,4 @@ public class CollectionEnvironment extends ExecutionEnvironment {
 	public String getExecutionPlan() throws Exception {
 		throw new UnsupportedOperationException("Execution plans are not used for collection-based execution.");
 	}
-
-	@Override
-	public void startNewSession() throws Exception {
-	}
 }

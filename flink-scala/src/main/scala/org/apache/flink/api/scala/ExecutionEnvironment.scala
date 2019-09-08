@@ -23,7 +23,7 @@ import org.apache.flink.api.common.io.{FileInputFormat, InputFormat}
 import org.apache.flink.api.common.restartstrategy.RestartStrategies.RestartStrategyConfiguration
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.common.typeutils.CompositeType
-import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult, JobID}
+import org.apache.flink.api.common.{ExecutionConfig, JobExecutionResult}
 import org.apache.flink.api.java.io._
 import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer
@@ -135,57 +135,9 @@ class ExecutionEnvironment(javaEnv: JavaEnv) {
   def getNumberOfExecutionRetries = javaEnv.getNumberOfExecutionRetries
 
   /**
-   * Gets the UUID by which this environment is identified. The UUID sets the execution context
-   * in the cluster or local environment.
-   */
-  @PublicEvolving
-  def getId: JobID = {
-    javaEnv.getId
-  }
-
-  /**
    * Gets the JobExecutionResult of the last executed job.
    */
   def getLastJobExecutionResult = javaEnv.getLastJobExecutionResult
-
-  /**
-   * Gets the UUID by which this environment is identified, as a string.
-   */
-  @PublicEvolving
-  def getIdString: String = {
-    javaEnv.getIdString
-  }
-
-  /**
-   * Starts a new session, discarding all intermediate results.
-   */
-  @PublicEvolving
-  def startNewSession() {
-    javaEnv.startNewSession()
-  }
-
-  /**
-   * Sets the session timeout to hold the intermediate results of a job. This only
-   * applies the updated timeout in future executions.
- *
-   * @param timeout The timeout in seconds.
-   */
-  @PublicEvolving
-  def setSessionTimeout(timeout: Long) {
-    javaEnv.setSessionTimeout(timeout)
-  }
-
-  /**
-   * Gets the session timeout for this environment. The session timeout defines for how long
-   * after an execution, the job and its intermediate results will be kept for future
-   * interactions.
-   *
-   * @return The session timeout, in seconds.
-   */
-  @PublicEvolving
-  def getSessionTimeout: Long = {
-    javaEnv.getSessionTimeout
-  }
 
   /**
    * Registers the given type with the serializer at the [[KryoSerializer]].

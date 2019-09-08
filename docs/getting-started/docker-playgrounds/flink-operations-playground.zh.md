@@ -1,6 +1,6 @@
 ---
-title: "Flink Cluster Playground"
-nav-title: 'Flink Cluster Playground'
+title: "Flink Operations Playground"
+nav-title: 'Flink Operations Playground'
 nav-parent_id: docker-playgrounds
 nav-pos: 1
 ---
@@ -30,6 +30,19 @@ operational principles apply.
 In this playground, you will learn how to manage and run Flink Jobs. You will see how to deploy and 
 monitor an application, experience how Flink recovers from Job failure, and perform everyday 
 operational tasks like upgrades and rescaling.
+
+{% if site.version contains "SNAPSHOT" %}
+<p style="border-radius: 5px; padding: 5px" class="bg-danger">
+  <b>
+  NOTE: The Apache Flink Docker images used for this playground are only available for
+  released versions of Apache Flink.
+  </b><br>
+  Since you are currently looking at the latest SNAPSHOT
+  version of the documentation, all version references below will not work.
+  Please switch the documentation to the latest released version via the release picker which you
+  find on the left side below the menu.
+</p>
+{% endif %}
 
 * This will be replaced by the TOC
 {:toc}
@@ -75,19 +88,10 @@ output of the Flink job should show 1000 views per page and window.
 
 ## Starting the Playground
 
-{% if site.version contains "SNAPSHOT" %}
-<p style="border-radius: 5px; padding: 5px" class="bg-danger">
-  <b>Note</b>: The Apache Flink Docker images used for this playground are only available for
-  released versions of Apache Flink. Since you are currently looking at the latest SNAPSHOT
-  version of the documentation the branch referenced below will not exist. You can either change it 
-  manually or switch to the released version of the documentation via the release picker.
-</p>
-{% endif %}
-
 The playground environment is set up in just a few steps. We will walk you through the necessary 
 commands and show how to validate that everything is running correctly.
 
-We assume that you have that you have [docker](https://docs.docker.com/) (1.12+) and
+We assume that you have [Docker](https://docs.docker.com/) (1.12+) and
 [docker-compose](https://docs.docker.com/compose/) (2.1+) installed on your machine.
 
 The required configuration files are available in the 
@@ -95,28 +99,35 @@ The required configuration files are available in the
 up the environment:
 
 {% highlight bash %}
-git clone --branch release-{{ site.version }} git@github.com:apache/flink-playgrounds.git
-cd flink-cluster-playground
+git clone --branch release-{{ site.version_title }} https://github.com/apache/flink-playgrounds.git
+cd flink-playgrounds/operations-playground
+docker-compose build
 docker-compose up -d
 {% endhighlight %}
 
-Afterwards, `docker-compose ps` should give you the following output:
+Afterwards, you can inspect the running Docker containers with the following command:
 
 {% highlight bash %}
-                     Name                                    Command               State                   Ports                
---------------------------------------------------------------------------------------------------------------------------------
-flink-cluster-playground_clickevent-generator_1   /docker-entrypoint.sh java ...   Up       6123/tcp, 8081/tcp                  
-flink-cluster-playground_client_1                 /docker-entrypoint.sh flin ...   Exit 0                                       
-flink-cluster-playground_jobmanager_1             /docker-entrypoint.sh jobm ...   Up       6123/tcp, 0.0.0.0:8081->8081/tcp    
-flink-cluster-playground_kafka_1                  start-kafka.sh                   Up       0.0.0.0:9094->9094/tcp              
-flink-cluster-playground_taskmanager_1            /docker-entrypoint.sh task ...   Up       6123/tcp, 8081/tcp                  
-flink-cluster-playground_zookeeper_1              /bin/sh -c /usr/sbin/sshd  ...   Up       2181/tcp, 22/tcp, 2888/tcp, 3888/tcp
+docker-compose ps
+
+                    Name                                  Command               State                   Ports                
+-----------------------------------------------------------------------------------------------------------------------------
+operations-playground_clickevent-generator_1   /docker-entrypoint.sh java ...   Up       6123/tcp, 8081/tcp                  
+operations-playground_client_1                 /docker-entrypoint.sh flin ...   Exit 0                                       
+operations-playground_jobmanager_1             /docker-entrypoint.sh jobm ...   Up       6123/tcp, 0.0.0.0:8081->8081/tcp    
+operations-playground_kafka_1                  start-kafka.sh                   Up       0.0.0.0:9094->9094/tcp              
+operations-playground_taskmanager_1            /docker-entrypoint.sh task ...   Up       6123/tcp, 8081/tcp                  
+operations-playground_zookeeper_1              /bin/sh -c /usr/sbin/sshd  ...   Up       2181/tcp, 22/tcp, 2888/tcp, 3888/tcp
 {% endhighlight %}
 
-This indicates that the client container has successfully submitted the Flink Job ("Exit 0") and all 
-cluster components as well as the data generator are running ("Up").
+This indicates that the client container has successfully submitted the Flink Job (`Exit 0`) and all 
+cluster components as well as the data generator are running (`Up`).
 
-You can stop the playground environment by calling `docker-compose down -v`.
+You can stop the playground environment by calling:
+
+{% highlight bash %}
+docker-compose down -v
+{% endhighlight %}
 
 ## Entering the Playground
 
@@ -126,8 +137,8 @@ will show you how to interact with the Flink Cluster and demonstrate some of Fli
 ### Flink WebUI
 
 The most natural starting point to observe your Flink Cluster is the Web UI exposed under 
-http://localhost:8081. If everything went well, you'll see that the cluster initially consists of 
-one TaskManager and one Job called *Click Event Count* is in "RUNNING" state.
+[http://localhost:8081](http://localhost:8081). If everything went well, you'll see that the cluster initially consists of 
+one TaskManager and executes a Job called *Click Event Count*.
 
 <img src="{{ site.baseurl }}/fig/playground-webui.png" alt="Playground Flink WebUI"
 class="offset" width="100%" />
@@ -175,31 +186,35 @@ curl localhost:8081/jobs
 
 {% if site.version contains "SNAPSHOT" %}
 <p style="border-radius: 5px; padding: 5px" class="bg-info">
-  <b>Note</b>: If `curl` is not available on your machine, you can run it from the *client* 
+  <b>Note</b>: If the <i>curl</i> command is not available on your machine, you can run it from the client
   container (similar to the Flink CLI):
-  {% highlight bash%}
-  docker-compose run --no-deps client curl jobmanager:8081/jobs 
-  {% endhighlight %}  
+{% highlight bash%}
+docker-compose run --no-deps client curl jobmanager:8081/jobs 
+{% endhighlight %}  
 </p>
 {% endif %}
 
 ### Kafka Topics
 
-To manually look at the records in the Kakfa Topics, you can run
+You can look at the records that are written to the Kafka Topics by running
 {% highlight bash%}
 //input topic (1000 records/s)
-docker-compose exec kafka kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic input
+docker-compose exec kafka kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 --topic input
+
 //output topic (24 records/min)
-docker-compose exec kafka kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic output
+docker-compose exec kafka kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 --topic output
 {% endhighlight %}
 
 {%  top %}
 
 ## Time to Play!
 
-This section describes some prototypical operational activities in the context of this playground. 
-They do not need to be executed in any particular order. Most of these tasks can be performed either
-via the [CLI](#flink-cli) or the [REST API](#flink-rest-api).
+Now that you learned how to interact with Flink and the Docker containers, let's have a look at 
+some common operational tasks that you can try out on our playground.
+All of these tasks are independent of each other, i.e. you can perform them in any order. 
+Most tasks can be executed via the [CLI](#flink-cli) and the [REST API](#flink-rest-api).
 
 ### Listing Running Jobs
 
@@ -237,7 +252,7 @@ curl localhost:8081/jobs
 </div>
 </div>
 
-The JobID is assinged to a Job upon submission and is needed to perform actions on the Job via the 
+The JobID is assigned to a Job upon submission and is needed to perform actions on the Job via the 
 CLI or REST API.
 
 ### Observing Failure & Recovery
@@ -256,7 +271,8 @@ For this, start reading from the *output* topic and leave this command running u
 recovery (Step 3).
 
 {% highlight bash%}
-docker-compose exec kafka kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic output
+docker-compose exec kafka kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 --topic output
 {% endhighlight %}
 
 #### Step 2: Introducing a Fault
@@ -270,34 +286,52 @@ an external resource).
 docker-compose kill taskmanager
 {% endhighlight %}
 
-After a few seconds, you will see in the Flink WebUI that the Job failed, and has been 
-automatically resubmitted. At this point, it can not be restarted though due to the lack of 
-resources (no TaskSlots provided by TaskManagers) and will go through a cycle of cancellations and 
-resubmissions until resources become available again.
+After a few seconds, the Flink Master will notice the loss of the TaskManager, cancel the affected Job, and 
+immediately resubmit it for recovery.
+When the Job gets restarted, its tasks remain in the `SCHEDULED` state, which is indicated by the 
+purple colored squares (see screenshot below).
 
 <img src="{{ site.baseurl }}/fig/playground-webui-failure.png" alt="Playground Flink WebUI" 
 class="offset" width="100%" />
 
-In the meantime, the data generator keeps pushing `ClickEvent`s into the *input* topic. 
+<p style="border-radius: 5px; padding: 5px" class="bg-info">
+  <b>Note</b>: Even though the tasks of the job are in SCHEDULED state and not RUNNING yet, the overall 
+  status of a Job is shown as RUNNING.
+</p>
+
+At this point, the tasks of the Job cannot move from the `SCHEDULED` state to `RUNNING` because there
+are no resources (TaskSlots provided by TaskManagers) to the run the tasks.
+Until a new TaskManager becomes available, the Job will go through a cycle of cancellations and resubmissions.
+
+In the meantime, the data generator keeps pushing `ClickEvent`s into the *input* topic. This is 
+similar to a real production setup where data is produced while the Job to process it is down.
 
 #### Step 3: Recovery
 
-Once you restart the TaskManager the Job will recover from its last successful 
-[checkpoint]({{ site.baseurl }}/internals/stream_checkpointing.html) prior to the failure.
+Once you restart the TaskManager, it reconnects to the Master.
 
 {% highlight bash%}
 docker-compose up -d taskmanager
 {% endhighlight %}
 
-Once the new TaskManager has registered itself with the Flink Master, the Job will start "RUNNING" 
-again. It will then quickly process the full backlog of input events (accumulated during the outage) 
-from Kafka and produce output at a much higher rate (> 24 records/minute) until it has caught up to 
-the head of the queue. In the *output* you will see that all keys (`page`s) are present for all time 
-windows and the count is exactly one thousand. Since we are using the 
-[FlinkKafkaProducer]({{ site.baseurl }}/dev/connectors/kafka.html#kafka-producers-and-fault-tolerance)
-in its "at-least-once" mode, there is a chance that you will see some output records twice.
+When the Master is notified about the new TaskManager, it schedules the tasks of the 
+recovering Job to the newly available TaskSlots. Upon restart, the tasks recover their state from
+the last successful [checkpoint]({{ site.baseurl }}/internals/stream_checkpointing.html) that was taken
+before the failure and switch to the `RUNNING` state.
 
-### Upgrading & Rescaling the Job
+The Job will quickly process the full backlog of input events (accumulated during the outage) 
+from Kafka and produce output at a much higher rate (> 24 records/minute) until it reaches 
+the head of the stream. In the *output* you will see that all keys (`page`s) are present for all time 
+windows and that every count is exactly one thousand. Since we are using the 
+[FlinkKafkaProducer]({{ site.baseurl }}/dev/connectors/kafka.html#kafka-producers-and-fault-tolerance)
+in its "at-least-once" mode, there is a chance that you will see some duplicate output records.
+
+<p style="border-radius: 5px; padding: 5px" class="bg-info">
+  <b>Note</b>: Most production setups rely on a resource manager (Kubernetes, Yarn, Mesos) to
+  automatically restart failed processes.
+</p>
+
+### Upgrading & Rescaling a Job
 
 Upgrading a Flink Job always involves two steps: First, the Flink Job is gracefully stopped with a
 [Savepoint]({{site.base_url}}/ops/state/savepoints.html). A Savepoint is a consistent snapshot of 
@@ -313,7 +347,8 @@ Before starting with the upgrade you might want to start tailing the *output* to
 observe that no data is lost or corrupted in the course the upgrade. 
 
 {% highlight bash%}
-docker-compose exec kafka kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic output
+docker-compose exec kafka kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 --topic output
 {% endhighlight %}
 
 #### Step 1: Stopping the Job
@@ -334,41 +369,6 @@ docker-compose run --no-deps client flink stop <job-id>
 Suspending job "<job-id>" with a savepoint.
 Suspended job "<job-id>" with a savepoint.
 {% endhighlight %}
-</div>
- <div data-lang="REST API" markdown="1">
- 
- **Request**
-{% highlight bash %}
-# triggering stop
-curl -X POST localhost:8081/jobs/<job-id>/stop -d '{"drain": false}'
-{% endhighlight %}
-
-**Expected Response (pretty-printed)**
-{% highlight json %}
-{
-  "request-id": "<trigger-id>"
-}
-{% endhighlight %}
-
-**Request**
-{% highlight bash %}
-# check status of stop action
- curl localhost:8081/jobs/<job-id>/savepoints/<trigger-id>
-{% endhighlight %}
-
-**Expected Response (pretty-printed)**
-{% highlight json %}
-{
-  "status": {
-    "id": "COMPLETED"
-  },
-  "operation": {
-    "location": "<savepoint-path>"
-  }
-
-{% endhighlight %}
-</div>
-</div>
 
 The Savepoint has been stored to the `state.savepoint.dir` configured in the *flink-conf.yaml*, 
 which is mounted under */tmp/flink-savepoints-directory/* on your local machine. You will need the 
@@ -387,6 +387,41 @@ total 0
    2 drwxrwxrwt 135 root root 3420 17 jul 17:09 ..
 1002 drwxr-xr-x   2 root root  140 17 jul 17:05 savepoint-<short-job-id>-<uuid>
 {% endhighlight %}
+</div>
+ <div data-lang="REST API" markdown="1">
+ 
+ **Request**
+{% highlight bash %}
+# triggering stop
+curl -X POST localhost:8081/jobs/<job-id>/stop -d '{"drain": false}'
+{% endhighlight %}
+
+**Expected Response (pretty-printed)**
+{% highlight json %}
+{
+  "request-id": "<trigger-id>"
+}
+{% endhighlight %}
+
+**Request**
+{% highlight bash %}
+# check status of stop action and retrieve savepoint path
+ curl localhost:8081/jobs/<job-id>/savepoints/<trigger-id>
+{% endhighlight %}
+
+**Expected Response (pretty-printed)**
+{% highlight json %}
+{
+  "status": {
+    "id": "COMPLETED"
+  },
+  "operation": {
+    "location": "<savepoint-path>"
+  }
+
+{% endhighlight %}
+</div>
+</div>
 
 #### Step 2a: Restart Job without Changes
 
@@ -397,7 +432,9 @@ restarting it without any changes.
 <div data-lang="CLI" markdown="1">
 **Command**
 {% highlight bash %}
-docker-compose run --no-deps client flink run -s <savepoint-path> -d /opt/flink/examples/streaming/ClickEventCount.jar --bootstrap.servers kafka:9092 --checkpointing --event-time
+docker-compose run --no-deps client flink run -s <savepoint-path> \
+  -d /opt/ClickCountJob.jar \
+  --bootstrap.servers kafka:9092 --checkpointing --event-time
 {% endhighlight %}
 **Expected Output**
 {% highlight bash %}
@@ -409,8 +446,9 @@ Job has been submitted with JobID <job-id>
 
 **Request**
 {% highlight bash %}
-# Uploading the JAR
-curl -X POST -H "Expect:" -F "jarfile=@/opt/flink/examples/streaming/ClickEventCount.jar" http://localhost:8081/jars/upload
+# Uploading the JAR from the Client container
+docker-compose run --no-deps client curl -X POST -H "Expect:" \
+  -F "jarfile=@/opt/ClickCountJob.jar" http://jobmanager:8081/jars/upload
 {% endhighlight %}
 
 **Expected Response (pretty-printed)**
@@ -425,7 +463,8 @@ curl -X POST -H "Expect:" -F "jarfile=@/opt/flink/examples/streaming/ClickEventC
 **Request**
 {% highlight bash %}
 # Submitting the Job
-curl -X POST http://localhost:8081/jars/<jar-id>/run -d {"programArgs": "--bootstrap.servers kafka:9092 --checkpointing --event-time", "savepointPath": "<savepoint-path>"}
+curl -X POST http://localhost:8081/jars/<jar-id>/run \
+  -d '{"programArgs": "--bootstrap.servers kafka:9092 --checkpointing --event-time", "savepointPath": "<savepoint-path>"}'
 {% endhighlight %}
 **Expected Response (pretty-printed)**
 {% highlight json %}
@@ -436,7 +475,7 @@ curl -X POST http://localhost:8081/jars/<jar-id>/run -d {"programArgs": "--boots
 </div>
 </div>
 
-Once the Job is "RUNNING" again, you will see in the *output* Topic that records are produced at a 
+Once the Job is `RUNNING` again, you will see in the *output* Topic that records are produced at a 
 higher rate while the Job is processing the backlog accumulated during the outage. Additionally, 
 you will see that no data was lost during the upgrade: all windows are present with a count of 
 exactly one thousand. 
@@ -450,7 +489,9 @@ during resubmission.
 <div data-lang="CLI" markdown="1">
 **Command**
 {% highlight bash %}
-docker-compose run --no-deps client flink run -p 3 -s <savepoint-path> -d /opt/flink/examples/streaming/ClickEventCount.jar --bootstrap.servers kafka:9092 --checkpointing --event-time
+docker-compose run --no-deps client flink run -p 3 -s <savepoint-path> \
+  -d /opt/ClickCountJob.jar \
+  --bootstrap.servers kafka:9092 --checkpointing --event-time
 {% endhighlight %}
 **Expected Output**
 {% highlight bash %}
@@ -462,8 +503,9 @@ Job has been submitted with JobID <job-id>
 
 **Request**
 {% highlight bash %}
-# Uploading the JAR
-curl -X POST -H "Expect:" -F "jarfile=@/opt/flink/examples/streaming/ClickEventCount.jar" http://localhost:8081/jars/upload
+# Uploading the JAR from the Client container
+docker-compose run --no-deps client curl -X POST -H "Expect:" \
+  -F "jarfile=@/opt/ClickCountJob.jar" http://jobmanager:8081/jars/upload
 {% endhighlight %}
 
 **Expected Response (pretty-printed)**
@@ -478,7 +520,8 @@ curl -X POST -H "Expect:" -F "jarfile=@/opt/flink/examples/streaming/ClickEventC
 **Request**
 {% highlight bash %}
 # Submitting the Job
-curl -X POST http://localhost:8081/jars/<jar-id>/run -d {"parallelism": 3, "programArgs": "--bootstrap.servers kafka:9092 --checkpointing --event-time", "savepointPath": "<savepoint-path>"}
+curl -X POST http://localhost:8081/jars/<jar-id>/run \
+  -d '{"parallelism": 3, "programArgs": "--bootstrap.servers kafka:9092 --checkpointing --event-time", "savepointPath": "<savepoint-path>"}'
 {% endhighlight %}
 **Expected Response (pretty-printed**
 {% highlight json %}
@@ -489,11 +532,11 @@ curl -X POST http://localhost:8081/jars/<jar-id>/run -d {"parallelism": 3, "prog
 </div>
 </div>
 Now, the Job has been resubmitted, but it will not start as there are not enough TaskSlots to
-execute it with the increased parallelism (1 available, 3 needed). With
+execute it with the increased parallelism (2 available, 3 needed). With
 {% highlight bash %}
 docker-compose scale taskmanager=2
 {% endhighlight %}
-you can add a second TaskManager to the Flink Cluster, which will automatically register with the 
+you can add a second TaskManager with two TaskSlots to the Flink Cluster, which will automatically register with the 
 Flink Master. Shortly after adding the TaskManager the Job should start running again.
 
 Once the Job is "RUNNING" again, you will see in the *output* Topic that now data was lost during 

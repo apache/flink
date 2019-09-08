@@ -151,7 +151,7 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	}
 
 	@Override
-	public LeaderRetrievalService getWebMonitorLeaderRetriever() {
+	public LeaderRetrievalService getClusterRestEndpointLeaderRetriever() {
 		return ZooKeeperUtils.createLeaderRetrievalService(client, configuration, REST_SERVER_LEADER_PATH);
 	}
 
@@ -171,7 +171,7 @@ public class ZooKeeperHaServices implements HighAvailabilityServices {
 	}
 
 	@Override
-	public LeaderElectionService getWebMonitorLeaderElectionService() {
+	public LeaderElectionService getClusterRestEndpointLeaderElectionService() {
 		return ZooKeeperUtils.createLeaderElectionService(client, configuration, REST_SERVER_LEADER_PATH);
 	}
 

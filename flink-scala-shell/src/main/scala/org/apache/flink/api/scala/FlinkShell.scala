@@ -230,7 +230,7 @@ object FlinkShell {
         case Some(Left(miniCluster)) => miniCluster.close()
         case Some(Right(yarnCluster)) =>
           yarnCluster.shutDownCluster()
-          yarnCluster.shutdown()
+          yarnCluster.close()
         case _ =>
       }
     }

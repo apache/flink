@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,22 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.jobmanager;
+package org.apache.flink.runtime.concurrent;
+
+import java.util.concurrent.Executor;
 
 /**
- * The startup mode for the JobManager.
+ * {@link Executor} implementation which fails when {@link #execute(Runnable)}
+ * is called. This can be helpful if one wants to make sure that an executor
+ * is never been used.
  */
-public enum JobManagerMode {
+public enum UnsupportedOperationExecutor implements Executor {
+	INSTANCE;
 
-	/**
-	 * Causes the JobManager to operate in single user mode and
-	 * start a local embedded TaskManager.
-	 */
-	LOCAL,
-
-	/**
-	 * Starts the JobManager in the regular mode where it waits for external TaskManagers
-	 * to connect.
-	 */
-	CLUSTER
+	@Override
+	public void execute(Runnable command) {
+		throw new UnsupportedOperationException("This executor should never been used.");
+	}
 }

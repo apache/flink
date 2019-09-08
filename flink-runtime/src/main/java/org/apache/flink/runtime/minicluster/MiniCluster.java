@@ -162,7 +162,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	private LeaderRetrievalService dispatcherLeaderRetriever;
 
 	@GuardedBy("lock")
-	private LeaderRetrievalService webMonitorLeaderRetrievalService;
+	private LeaderRetrievalService clusterRestEndpointLeaderRetrievalService;
 
 	@GuardedBy("lock")
 	private Collection<DispatcherResourceManagerComponent<?>> dispatcherResourceManagerComponents;
@@ -324,7 +324,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 				resourceManagerLeaderRetriever = haServices.getResourceManagerLeaderRetriever();
 				dispatcherLeaderRetriever = haServices.getDispatcherLeaderRetriever();
-				webMonitorLeaderRetrievalService = haServices.getWebMonitorLeaderRetriever();
+				clusterRestEndpointLeaderRetrievalService = haServices.getClusterRestEndpointLeaderRetriever();
 
 				dispatcherGatewayRetriever = new RpcGatewayRetriever<>(
 					commonRpcService,
@@ -342,7 +342,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 
 				resourceManagerLeaderRetriever.start(resourceManagerGatewayRetriever);
 				dispatcherLeaderRetriever.start(dispatcherGatewayRetriever);
-				webMonitorLeaderRetrievalService.start(webMonitorLeaderRetriever);
+				clusterRestEndpointLeaderRetrievalService.start(webMonitorLeaderRetriever);
 			}
 			catch (Exception e) {
 				// cleanup everything
@@ -773,14 +773,14 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 						dispatcherLeaderRetriever = null;
 					}
 
-					if (webMonitorLeaderRetrievalService != null) {
+					if (clusterRestEndpointLeaderRetrievalService != null) {
 						try {
-							webMonitorLeaderRetrievalService.stop();
+							clusterRestEndpointLeaderRetrievalService.stop();
 						} catch (Exception e) {
 							exception = ExceptionUtils.firstOrSuppressed(e, exception);
 						}
 
-						webMonitorLeaderRetrievalService = null;
+						clusterRestEndpointLeaderRetrievalService = null;
 					}
 				}
 

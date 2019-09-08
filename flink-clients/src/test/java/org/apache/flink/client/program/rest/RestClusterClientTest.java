@@ -238,7 +238,7 @@ public class RestClusterClientTest extends TestLogger {
 				restClusterClient.cancel(jobId);
 				Assert.assertTrue(terminationHandler.jobCanceled);
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}
@@ -264,7 +264,7 @@ public class RestClusterClientTest extends TestLogger {
 				assertThat(jobSubmissionResult, is(not(instanceOf(JobExecutionResult.class))));
 				assertThat(jobSubmissionResult.getJobID(), is(jobId));
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 
@@ -383,7 +383,7 @@ public class RestClusterClientTest extends TestLogger {
 					assertThat(cause.get().getMessage(), equalTo("expected"));
 				}
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}
@@ -432,7 +432,7 @@ public class RestClusterClientTest extends TestLogger {
 					}
 				}
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}
@@ -504,7 +504,7 @@ public class RestClusterClientTest extends TestLogger {
 				JobStatusMessage job2 = jobDetailsIterator.next();
 				Assert.assertNotEquals("The job status should not be equal.", job1.getJobState(), job2.getJobState());
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}
@@ -528,7 +528,7 @@ public class RestClusterClientTest extends TestLogger {
 					assertEquals("testValue", accumulators.get("testKey").get().toString());
 				}
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}
@@ -583,7 +583,7 @@ public class RestClusterClientTest extends TestLogger {
 
 				restClusterClient.sendRequest(PingRestHandlerHeaders.INSTANCE).get();
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}
@@ -598,7 +598,7 @@ public class RestClusterClientTest extends TestLogger {
 			} catch (final ProgramInvocationException expected) {
 				// expected
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}
@@ -635,7 +635,7 @@ public class RestClusterClientTest extends TestLogger {
 			}  catch (Exception e) {
 				assertThat(ExceptionUtils.findThrowableWithMessage(e, exceptionMessage).isPresent(), is(true));
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}

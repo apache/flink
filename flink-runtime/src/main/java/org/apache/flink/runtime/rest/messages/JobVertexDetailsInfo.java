@@ -122,6 +122,7 @@ public class JobVertexDetailsInfo implements ResponseBody {
 		public static final String FIELD_NAME_END_TIME = "end-time";
 		public static final String FIELD_NAME_DURATION = "duration";
 		public static final String FIELD_NAME_METRICS = "metrics";
+		public static final String FIELD_NAME_TASKMANAGER_ID = "taskmanager-id";
 
 		@JsonProperty(FIELD_NAME_SUBTASK)
 		private final int subtask;
@@ -150,6 +151,9 @@ public class JobVertexDetailsInfo implements ResponseBody {
 		@JsonProperty(FIELD_NAME_METRICS)
 		private final IOMetricsInfo metrics;
 
+		@JsonProperty(FIELD_NAME_TASKMANAGER_ID)
+		private final String taskmanagerId;
+
 		@JsonCreator
 		public VertexTaskDetail(
 				@JsonProperty(FIELD_NAME_SUBTASK) int subtask,
@@ -159,7 +163,8 @@ public class JobVertexDetailsInfo implements ResponseBody {
 				@JsonProperty(FIELD_NAME_START_TIME) long startTime,
 				@JsonProperty(FIELD_NAME_END_TIME) long endTime,
 				@JsonProperty(FIELD_NAME_DURATION) long duration,
-				@JsonProperty(FIELD_NAME_METRICS) IOMetricsInfo metrics) {
+				@JsonProperty(FIELD_NAME_METRICS) IOMetricsInfo metrics,
+				@JsonProperty(FIELD_NAME_TASKMANAGER_ID) String taskmanagerId) {
 			this.subtask = subtask;
 			this.status = checkNotNull(status);
 			this.attempt = attempt;
@@ -169,6 +174,7 @@ public class JobVertexDetailsInfo implements ResponseBody {
 			this.endTime = endTime;
 			this.duration = duration;
 			this.metrics = checkNotNull(metrics);
+			this.taskmanagerId = checkNotNull(taskmanagerId);
 		}
 
 		@JsonIgnore
@@ -195,12 +201,13 @@ public class JobVertexDetailsInfo implements ResponseBody {
 				startTimeCompatible == that.startTimeCompatible &&
 				endTime == that.endTime &&
 				duration == that.duration &&
-				Objects.equals(metrics, that.metrics);
+				Objects.equals(metrics, that.metrics) &&
+				Objects.equals(taskmanagerId, that.taskmanagerId);
 		}
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(subtask, status, attempt, host, startTime, startTimeCompatible, endTime, duration, metrics);
+			return Objects.hash(subtask, status, attempt, host, startTime, startTimeCompatible, endTime, duration, metrics, taskmanagerId);
 		}
 	}
 }

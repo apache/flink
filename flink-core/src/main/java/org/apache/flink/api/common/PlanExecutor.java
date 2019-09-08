@@ -45,35 +45,6 @@ public abstract class PlanExecutor {
 	private static final String REMOTE_EXECUTOR_CLASS = "org.apache.flink.client.RemoteExecutor";
 
 	// ------------------------------------------------------------------------
-	//  Startup & Shutdown
-	// ------------------------------------------------------------------------
-
-	/**
-	 * Starts the program executor. After the executor has been started, it will keep
-	 * running until {@link #stop()} is called. 
-	 * 
-	 * @throws Exception Thrown, if the executor startup failed.
-	 */
-	public abstract void start() throws Exception;
-
-	/**
-	 * Shuts down the plan executor and releases all local resources.
-	 *
-	 * <p>This method also ends all sessions created by this executor. Remote job executions
-	 * may complete, but the session is not kept alive after that.</p>
-	 *
-	 * @throws Exception Thrown, if the proper shutdown failed. 
-	 */
-	public abstract void stop() throws Exception;
-
-	/**
-	 * Checks if this executor is currently running.
-	 * 
-	 * @return True is the executor is running, false otherwise.
-	 */
-	public abstract boolean isRunning();
-	
-	// ------------------------------------------------------------------------
 	//  Program Execution
 	// ------------------------------------------------------------------------
 	
@@ -154,12 +125,11 @@ public abstract class PlanExecutor {
 				Collections.<URL>emptyList() : globalClasspaths;
 
 		try {
-			PlanExecutor executor = (clientConfiguration == null) ?
+			return (clientConfiguration == null) ?
 					reClass.getConstructor(String.class, int.class, List.class)
 						.newInstance(hostname, port, files) :
 					reClass.getConstructor(String.class, int.class, Configuration.class, List.class, List.class)
 						.newInstance(hostname, port, clientConfiguration, files, paths);
-			return executor;
 		}
 		catch (Throwable t) {
 			throw new RuntimeException("An error occurred while loading the remote executor ("
