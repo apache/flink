@@ -23,22 +23,139 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+* This will be replaced by the TOC
+{:toc}
+
 这个连接器提供了一个 Sink 来将分区文件写入到支持 [Flink `FileSystem`]({{ site.baseurl}}/zh/ops/filesystems/index.html) 接口的文件系统中。
 
-由于在流处理中输入可能是无限的，所以流处理的文件 sink 会将数据写入到桶中。如何分桶是可以配置的，一种有效的默认
-策略是基于时间的分桶，这种策略每个小时写入一个新的桶，这些桶各包含了无限输出流的一部分数据。
+In order to handle unbounded data streams, the streaming file sink writes incoming data
+into buckets. The bucketing behaviour is fully configurable with a default time-based
+bucketing where we start writing a new bucket every hour and thus get files that correspond to
+records received during certain time intervals from the stream.
 
-在一个桶内部，会进一步将输出基于滚动策略切分成更小的文件。这有助于防止桶文件变得过大。滚动策略也是可以配置的，默认
-策略会根据文件大小和超时时间来滚动文件，超时时间是指没有新数据写入部分文件（part file）的时间。
+The bucket directories themselves contain several part files with the actual output data, with at least
+one for each subtask of the sink that has received data for the bucket. Additional part files will be created according to the configurable
+rolling policy. The default policy rolls files based on size, a timeout that specifies the maximum duration for which a file can be open, and a maximum inactivity timeout after which the file is closed.
 
-`StreamingFileSink` 支持行编码格式和批量编码格式，比如 [Apache Parquet](http://parquet.apache.org)。
+ <div class="alert alert-info">
+     <b>IMPORTANT:</b> Checkpointing needs to be enabled when using the StreamingFileSink. Part files can only be finalized
+     on successful checkpoints. If checkpointing is disabled part files will forever stay in `in-progress` or `pending` state
+     and cannot be safely read by downstream systems.
+ </div>
 
-#### 使用行编码输出格式
+ <img src="{{ site.baseurl }}/fig/streamfilesink_bucketing.png" class="center" style="width: 100%;" />
 
-只需要配置一个输出路径和一个 [Encoder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/serialization/Encoder.html)。
-Encoder负责为每个文件的 `OutputStream` 序列化数据。
+### Bucket Assignment
 
-基本用法如下:
+The bucketing logic defines how the data will be structured into subdirectories inside the base output directory.
+
+Both row and bulk formats use the [DateTimeBucketAssigner]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/bucketassigners/DateTimeBucketAssigner.html) as the default assigner.
+By default the DateTimeBucketAssigner creates hourly buckets based on the system default timezone
+with the following format: `yyyy-MM-dd--HH`. Both the date format (i.e. bucket size) and timezone can be
+configured manually.
+
+We can specify a custom [BucketAssigner]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/BucketAssigner.html) by calling `.withBucketAssigner(assigner)` on the format builders.
+
+Flink comes with two built in BucketAssigners:
+
+ - [DateTimeBucketAssigner]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/bucketassigners/DateTimeBucketAssigner.html) : Default time based assigner
+ - [BasePathBucketAssigner]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/bucketassigners/BasePathBucketAssigner.html) : Assigner that stores all part files in the base path (single global bucket)
+
+### Rolling Policy
+
+The [RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html) defines when a given in-progress part file will be closed and moved to the pending and later to finished state.
+In combination with the checkpointing interval (pending files become finished on the next checkpoint) this controls how quickly
+part files become available for downstream readers and also the size and number of these parts.
+
+Flink comes with two built-in RollingPolicies:
+
+ - [DefaultRollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/rollingpolicies/DefaultRollingPolicy.html)
+ - [OnCheckpointRollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/rollingpolicies/OnCheckpointRollingPolicy.html)
+
+### Part file lifecycle
+
+In order to use the output of the StreamingFileSink in downstream systems, we need to understand the naming and lifecycle of the output files produced.
+
+Part files can be in one of three states:
+ 1. **In-progress** : The part file that is currently being written to is in-progress
+ 2. **Pending** : Once a part file is closed for writing it becomes pending
+ 3. **Finished** : On successful checkpoints pending files become finished
+
+Only finished files are safe to read by downstream systems as those are guaranteed to not be modified later. Finished files can be distinguished by their naming scheme only.
+
+File naming schemes:
+ - **In-progress / Pending**: `part-subtaskIndex-partFileIndex.inprogress.uid`
+ - **Finished:** `part-subtaskIndex-partFileIndex`
+
+Part file indexes are strictly increasing for any given subtask (in the order they were created). However these indexes are not always sequential. When the job restarts, the next part index for all subtask will be the `max part index + 1`.
+
+Each writer subtask will have a single in-progress part file at any given time for every active bucket, but there can be several pending and finished files.
+
+**Part file example**
+
+To better understand the lifecycle of these files let's look at a simple example with 2 sink subtasks:
+
+```
+└── 2019-08-25--12
+    ├── part-0-0.inprogress.bd053eb0-5ecf-4c85-8433-9eff486ac334
+    └── part-1-0.inprogress.ea65a428-a1d0-4a0b-bbc5-7a436a75e575
+```
+
+When the part file `part-1-0` is rolled (let's say it becomes too large), it becomes pending but it is not renamed. The sink then opens a new part file: `part-1-1`:
+
+```
+└── 2019-08-25--12
+    ├── part-0-0.inprogress.bd053eb0-5ecf-4c85-8433-9eff486ac334
+    ├── part-1-0.inprogress.ea65a428-a1d0-4a0b-bbc5-7a436a75e575
+    └── part-1-1.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
+```
+
+As `part-1-0` is now pending completion, after the next successful checkpoint, it is finalized:
+
+```
+└── 2019-08-25--12
+    ├── part-0-0.inprogress.bd053eb0-5ecf-4c85-8433-9eff486ac334
+    ├── part-1-0
+    └── part-1-1.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
+```
+
+New buckets are created as dictated by the bucketing policy, and this doesn't affect currently in-progress files:
+
+```
+└── 2019-08-25--12
+    ├── part-0-0.inprogress.bd053eb0-5ecf-4c85-8433-9eff486ac334
+    ├── part-1-0
+    └── part-1-1.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
+└── 2019-08-25--13
+    └── part-0-2.inprogress.2b475fec-1482-4dea-9946-eb4353b475f1
+```
+
+Old buckets can still receive new records as the bucketing policy is evaluated on a per-record basis.
+
+## File Formats
+
+The `StreamingFileSink` supports both row-wise and bulk encoding formats, such as [Apache Parquet](http://parquet.apache.org).
+These two variants come with their respective builders that can be created with the following static methods:
+
+ - Row-encoded sink: `StreamingFileSink.forRowFormat(basePath, rowEncoder)`
+ - Bulk-encoded sink: `StreamingFileSink.forBulkFormat(basePath, bulkWriterFactory)`
+
+When creating either a row or a bulk encoded sink we have to specify the base path where the buckets will be
+stored and the encoding logic for our data.
+
+Please check out the JavaDoc for [StreamingFileSink]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/StreamingFileSink.html) for all the configuration options
+and more documentation about the implementation of the different data formats.
+
+### Row-encoded Formats
+
+Row-encoded formats need to specify an [Encoder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/serialization/Encoder.html) that is used for serializing individual rows to the `OutputStream` of the in-progress part files.
+
+In addition to the bucket assigner the [RowFormatBuilder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/StreamingFileSink.RowFormatBuilder.html) allows the user to specify:
+
+ - Custom [RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html) : Rolling polciy to override the DefaultRollingPolicy
+ - bucketCheckInterval (default = 1 min) : Millisecond interval for checking time based rolling policies
+
+Basic usage for writing String elements thus looks like this:
 
 
 <div class="codetabs" markdown="1">
@@ -47,11 +164,18 @@ Encoder负责为每个文件的 `OutputStream` 序列化数据。
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
 
 DataStream<String> input = ...;
 
 final StreamingFileSink<String> sink = StreamingFileSink
-	.forRowFormat(new Path(outputPath), new SimpleStringEncoder<>("UTF-8"))
+    .forRowFormat(new Path(outputPath), new SimpleStringEncoder<>("UTF-8"))
+    .withRollingPolicy(
+        DefaultRollingPolicy.builder()
+            .withRolloverInterval(TimeUnit.MINUTES.toMillis(15))
+            .withInactivityInterval(TimeUnit.MINUTES.toMillis(5))
+            .withMaxPartSize(1024 * 1024 * 1024)
+            .build())
 	.build();
 
 input.addSink(sink);
@@ -63,11 +187,18 @@ input.addSink(sink);
 import org.apache.flink.api.common.serialization.SimpleStringEncoder
 import org.apache.flink.core.fs.Path
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy
 
 val input: DataStream[String] = ...
 
 val sink: StreamingFileSink[String] = StreamingFileSink
     .forRowFormat(new Path(outputPath), new SimpleStringEncoder[String]("UTF-8"))
+    .withRollingPolicy(
+        DefaultRollingPolicy.builder()
+            .withRolloverInterval(TimeUnit.MINUTES.toMillis(15))
+            .withInactivityInterval(TimeUnit.MINUTES.toMillis(5))
+            .withMaxPartSize(1024 * 1024 * 1024)
+            .build())
     .build()
 
 input.addSink(sink)
@@ -76,28 +207,143 @@ input.addSink(sink)
 </div>
 </div>
 
-上面的代码创建了一个按小时分桶、按默认策略滚动的 sink。默认分桶器是
-[DateTimeBucketAssigner]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/bucketassigners/DateTimeBucketAssigner.html)
-，默认滚动策略是
-[DefaultRollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/rollingpolicies/DefaultRollingPolicy.html)。
-可以为 sink builder 自定义
-[BucketAssigner]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/BucketAssigner.html)
-和
-[RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html)。
-更多配置操作以及分桶器和滚动策略的工作机制和相互影响请参考：
-[StreamingFileSink]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/StreamingFileSink.html)。
+This example creates a simple sink that assigns records to the default one hour time buckets. It also specifies
+a rolling policy that rolls the in-progress part file on either of the following 3 conditions:
 
-#### 使用批量编码输出格式
+ - It contains at least 15 minutes worth of data
+ - It hasn't received new records for the last 5 minutes
+ - The file size reached 1 GB (after writing the last record)
 
-上面的示例使用 `Encoder` 分别序列化每一个记录。除此之外，流式文件 sink 还支持批量编码的输出格式，比如 [Apache Parquet](http://parquet.apache.org)。
-使用这种编码格式需要用 `StreamingFileSink.forBulkFormat()` 来代替 `StreamingFileSink.forRowFormat()` ，然后指定一个 `BulkWriter.Factory`。
+### Bulk-encoded Formats
 
-[ParquetAvroWriters]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/parquet/avro/ParquetAvroWriters.html)
-中包含了为各种类型创建 `BulkWriter.Factory` 的静态方法。
+Bulk-encoded sinks are created similarly to the row-encoded ones but here instead of
+specifying an `Encoder` we have to specify [BulkWriter.Factory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/api/common/serialization/BulkWriter.Factory.html).
+The `BulkWriter` logic defines how new elements added, flushed and how the bulk of records
+are finalized for further encoding purposes.
 
-<div class="alert alert-info">
-    <b>重要:</b> 批量编码格式只能和 `OnCheckpointRollingPolicy` 结合使用，每次做 checkpoint 时滚动文件。
+Flink comes with two built-in BulkWriter factories:
+
+ - [ParquetWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/parquet/ParquetWriterFactory.html)
+ - [SequenceFileWriterFactory]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/sequencefile/SequenceFileWriterFactory.html)
+
+#### Parquet format
+
+Flink contains built in convenience methods for creating Parquet writer factories for Avro data. These methods
+and their associated documentation can be found in the [ParquetAvroWriters]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/parquet/avro/ParquetAvroWriters.html) class.
+
+For writing to other Parquet compatible data formats, users need to create the ParquetWriterFactory with a custom implementation of the [ParquetBuilder]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/formats/parquet/ParquetBuilder.html) interface.
+
+To use the Parquet bulk encoder in your application you need to add the following dependency:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-parquet{{ site.scala_version_suffix }}</artifactId>
+  <version>{{ site.version }}</version>
+</dependency>
+{% endhighlight %}
+
+A StreamingFileSink that writes Avro data to Parquet format can be created like this:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.formats.parquet.avro.ParquetAvroWriters;
+import org.apache.avro.Schema;
+
+
+Schema schema = ...;
+DataStream<GenericRecord> stream = ...;
+
+final StreamingFileSink<GenericRecord> sink = StreamingFileSink
+	.forBulkFormat(outputBasePath, ParquetAvroWriters.forGenericRecord(schema))
+	.build();
+
+input.addSink(sink);
+
+{% endhighlight %}
 </div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+import org.apache.flink.formats.parquet.avro.ParquetAvroWriters
+import org.apache.avro.Schema
+
+val schema: Schema = ...
+val input: DataStream[GenericRecord] = ...
+
+val sink: StreamingFileSink[GenericRecord] = StreamingFileSink
+    .forBulkFormat(outputBasePath, ParquetAvroWriters.forGenericRecord(schema))
+    .build()
+
+input.addSink(sink)
+
+{% endhighlight %}
+</div>
+</div>
+
+#### Hadoop SequenceFile format
+
+To use the SequenceFile bulk encoder in your application you need to add the following dependency:
+
+{% highlight xml %}
+<dependency>
+  <groupId>org.apache.flink</groupId>
+  <artifactId>flink-sequence-file</artifactId>
+  <version>{{ site.version }}</version>
+</dependency>
+{% endhighlight %}
+
+A simple SequenceFile writer can be created like this:
+
+<div class="codetabs" markdown="1">
+<div data-lang="java" markdown="1">
+{% highlight java %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
+import org.apache.flink.configuration.GlobalConfiguration;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.SequenceFile;
+import org.apache.hadoop.io.Text;
+
+
+DataStream<Tuple2<LongWritable, Text>> input = ...;
+Configuration hadoopConf = HadoopUtils.getHadoopConfiguration(GlobalConfiguration.loadConfiguration());
+final StreamingFileSink<Tuple2<LongWritable, Text>> sink = StreamingFileSink
+  .forBulkFormat(
+    outputBasePath,
+    new SequenceFileWriterFactory<>(hadoopConf, LongWritable.class, Text.class))
+	.build();
+
+input.addSink(sink);
+
+{% endhighlight %}
+</div>
+<div data-lang="scala" markdown="1">
+{% highlight scala %}
+import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
+import org.apache.flink.configuration.GlobalConfiguration
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.io.LongWritable
+import org.apache.hadoop.io.SequenceFile
+import org.apache.hadoop.io.Text;
+
+val input: DataStream[(LongWritable, Text)] = ...
+val hadoopConf: Configuration = HadoopUtils.getHadoopConfiguration(GlobalConfiguration.loadConfiguration())
+val sink: StreamingFileSink[(LongWritable, Text)] = StreamingFileSink
+  .forBulkFormat(
+    outputBasePath,
+    new SequenceFileWriterFactory(hadoopConf, LongWritable.class, Text.class))
+	.build()
+
+input.addSink(sink)
+
+{% endhighlight %}
+</div>
+</div>
+
+The SequenceFileWriterFactory supports additional constructor parameters to specify compression settings.
 
 ####  关于S3的重要内容
 

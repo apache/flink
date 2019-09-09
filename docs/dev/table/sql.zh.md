@@ -24,7 +24,7 @@ under the License.
 
 This is a complete list of Data Definition Language (DDL) and Data Manipulation Language (DML) constructs supported in Flink.
 * This will be replaced by the TOC
-{:toc} 
+{:toc}
 
 ## Query
 SQL queries are specified with the `sqlQuery()` method of the `TableEnvironment`. The method returns the result of the SQL query as a `Table`. A `Table` can be used in [subsequent SQL and Table API queries](common.html#mixing-table-api-and-sql), be [converted into a DataSet or DataStream](common.html#integration-with-datastream-and-dataset-api), or [written to a TableSink](common.html#emit-a-table)). SQL and Table API queries can be seamlessly mixed and are holistically optimized and translated into a single program.
@@ -329,7 +329,7 @@ USE mydatabase;
 </table>
 </div>
 
-### Scan, Projection, and Filter
+#### Scan, Projection, and Filter
 
 <div markdown="1">
 <table class="table table-bordered">
@@ -598,7 +598,7 @@ FROM Orders CROSS JOIN UNNEST(tags) AS t (tag)
     </tr>
     <tr>
     	<td>
-        <strong>Join with Table Function</strong><br>
+        <strong>Join with Table Function (UDTF)</strong><br>
         <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span>
       </td>
     	<td>
@@ -622,7 +622,7 @@ FROM Orders LEFT JOIN LATERAL TABLE(unnest_udtf(tags)) t AS tag ON TRUE
         <p><b>Note:</b> Currently, only literal <code>TRUE</code> is supported as predicate for a left outer join against a lateral table.</p>
       </td>
     </tr>
-   <tr>
+    <tr>
       <td>
         <strong>Join with Temporal Table Function</strong><br>
         <span class="label label-primary">Streaming</span>
@@ -658,14 +658,14 @@ WHERE
 
         <p>Only inner and left joins with processing-time temporal tables are supported.</p>
         <p>The following example assumes that <strong>LatestRates</strong> is a <a href="streaming/temporal_tables.html#temporal-table">Temporal Table</a> which is materialized with the latest rate.</p>
-    {% highlight sql %}
-    SELECT
-    o.amout, o.currency, r.rate, o.amount * r.rate
-    FROM
-    Orders AS o
-    JOIN LatestRates FOR SYSTEM_TIME AS OF o.proctime AS r
-    ON r.currency = o.currency
-    {% endhighlight %}
+{% highlight sql %}
+SELECT
+  o.amout, o.currency, r.rate, o.amount * r.rate
+FROM
+  Orders AS o
+  JOIN LatestRates FOR SYSTEM_TIME AS OF o.proctime AS r
+  ON r.currency = o.currency
+{% endhighlight %}
         <p>For more information please check the more detailed <a href="streaming/temporal_tables.html">Temporal Tables</a> concept description.</p>
         <p>Only supported in Blink planner.</p>
       </td>
@@ -1308,23 +1308,9 @@ MATCH_RECOGNIZE (
 
 {% top %}
 
-### Drop Table
-
-{% highlight sql %}
-DROP TABLE [IF EXISTS] [catalog_name.][db_name.]table_name
-{% endhighlight %}
-
-Drop a table with the given table name. If the table to drop does not exist, an exception is thrown.
-
-**IF EXISTS**
-
-If the table does not exist, nothing happens.
-
-{% top %}
-
 ## DDL
 
-DDLs are specified with the `sqlUpdate()` method of the `TableEnvironment`. The method returns nothing for a success table creation. A `Table` can be register into the [Catalog](catalogs.html) with a `CREATE TABLE` statement, then be referenced in the SQL queries in method `sqlQuery()` of `TableEnvironment`.
+DDLs are specified with the `sqlUpdate()` method of the `TableEnvironment`. The method returns nothing for a success table creation. A `Table` can be register into the [Catalog](catalogs.html) with a `CREATE TABLE` statement, then can be referenced in SQL queries in method `sqlQuery()` of `TableEnvironment`.
 
 **Note:** Flink's DDL support is not yet feature complete. Queries that include unsupported SQL features cause a `TableException`. The supported features of SQL DDL on batch and streaming tables are listed in the following sections.
 
