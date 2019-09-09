@@ -18,11 +18,14 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.CheckedThread;
+import org.apache.flink.util.function.FunctionUtils;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -33,12 +36,17 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
@@ -259,6 +267,73 @@ public class FileUtilsTest extends TestLogger {
 		assertDirEquals(compressDir.resolve(originalDir), extractDir.resolve(originalDir));
 	}
 
+	@Test
+	public void testListFilesInPathWithoutAnyFileReturnEmptyList() throws IOException {
+		final java.nio.file.Path testDir = tmp.newFolder("_test_0").toPath();
+
+		assertTrue(FileUtils.listFilesInPath(testDir.toFile(), f -> f.getName().endsWith(".jar")).isEmpty());
+	}
+
+	@Test
+	public void testListFilesInPath() throws IOException {
+		final java.nio.file.Path testDir = tmp.newFolder("_test_1").toPath();
+		final Tuple3<Collection<File>, Collection<File>, Collection<URL>> result = prepareTestFiles(testDir);
+
+		assertTrue(CollectionUtils.isEqualCollection(result.f0,
+			FileUtils.listFilesInPath(testDir.toFile(), f ->  f.getName().endsWith(".jar"))));
+	}
+
+	@Test
+	public void testRelativizeToWorkingDir() throws IOException {
+		final java.nio.file.Path testDir = tmp.newFolder("_test_2").toPath();
+		final Tuple3<Collection<File>, Collection<File>, Collection<URL>> result = prepareTestFiles(testDir);
+		final Collection<File> relativeFiles = FileUtils.relativizeToWorkingDir(result.f0);
+		relativeFiles.forEach(file -> assertFalse(file.isAbsolute()));
+		assertTrue(
+			CollectionUtils.isEqualCollection(
+				result.f1,
+				FileUtils.relativizeToWorkingDir(result.f0)
+			)
+		);
+	}
+
+	@Test
+	public void testToRelativeURLs() throws IOException {
+		final java.nio.file.Path testDir = tmp.newFolder("_test_3").toPath();
+		final Tuple3<Collection<File>, Collection<File>, Collection<URL>> result = prepareTestFiles(testDir);
+
+		final Collection<URL> relativeURLs = FileUtils.toRelativeURLs(result.f1);
+		relativeURLs.forEach(url -> assertFalse(new File(url.getPath()).isAbsolute()));
+
+		assertTrue(
+			CollectionUtils.isEqualCollection(
+				result.f2,
+				relativeURLs
+			)
+		);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testToRelativeURLsThrowExceptionBecauseOfAbsolutePath() throws IOException {
+		final File tempFile = tmp.newFile();
+		FileUtils.toRelativeURLs(Arrays.asList(tempFile));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testListDirFailsIfDirectoryDoesNotExist() throws IOException {
+		final String fileName = "_does_not_exists_file";
+		final String doesNotExistsFilePath = tmp.getRoot() + "/" + fileName;
+
+		FileUtils.listFilesInPath(new File(doesNotExistsFilePath), f ->  f.getName().endsWith(".jar"));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testListAFileFailsBecauseDirectoryIsExpected() throws IOException {
+		final String fileName = "a.jar";
+		final File file = tmp.newFile(fileName);
+		FileUtils.listFilesInPath(file, f ->  f.getName().endsWith(".jar"));
+	}
+
 	// ------------------------------------------------------------------------
 	//  Utilities
 	// ------------------------------------------------------------------------
@@ -310,6 +385,60 @@ public class FileUtilsTest extends TestLogger {
 				generateRandomDirs(subdir, numFiles, numDirs, depth - 1);
 			}
 		}
+	}
+
+	/**
+	 * Generate some files in the directory {@code dir}.
+	 * @param dir the directory where the files are generated
+	 * @return Tuple3 holding the generated files' absolute path, relative to the working directory path and relative
+	 * url.
+	 * @throws IOException if I/O error occurs while generating the files
+	 */
+	public static Tuple3<Collection<File>, Collection<File>, Collection<URL>> prepareTestFiles(
+		final java.nio.file.Path dir) throws IOException {
+
+		Tuple3<Collection<File>, Collection<File>, Collection<URL>> result = new Tuple3<>();
+
+		result.f0 = generateSomeFilesInDirectoryReturnJarFiles(dir);
+		result.f1 = toRelativeFiles(result.f0);
+		result.f2 = toRelativeURLs(result.f1);
+
+		return result;
+	}
+
+	private static Collection<File> generateSomeFilesInDirectoryReturnJarFiles(
+			final java.nio.file.Path dir) throws IOException {
+
+		final java.nio.file.Path jobSubDir1 = Files.createDirectory(dir.resolve("_sub_dir1"));
+		final java.nio.file.Path jobSubDir2 = Files.createDirectory(dir.resolve("_sub_dir2"));
+		final java.nio.file.Path jarFile1 = Files.createFile(dir.resolve("file1.jar"));
+		final java.nio.file.Path jarFile2 = Files.createFile(dir.resolve("file2.jar"));
+		final java.nio.file.Path jarFile3 = Files.createFile(jobSubDir1.resolve("file3.jar"));
+		final java.nio.file.Path jarFile4 = Files.createFile(jobSubDir2.resolve("file4.jar"));
+		final Collection<File> jarFiles = new ArrayList<>();
+
+		Files.createFile(dir.resolve("file1.txt"));
+		Files.createFile(jobSubDir2.resolve("file2.txt"));
+
+		jarFiles.add(jarFile1.toFile());
+		jarFiles.add(jarFile2.toFile());
+		jarFiles.add(jarFile3.toFile());
+		jarFiles.add(jarFile4.toFile());
+		return jarFiles;
+	}
+
+	private static Collection<File> toRelativeFiles(Collection<File> files) {
+		final java.nio.file.Path workingDir = Paths.get(System.getProperty("user.dir"));
+		final Collection<File> relativeFiles = new ArrayList<>();
+		files.forEach(file -> relativeFiles.add(workingDir.relativize(file.toPath()).toFile()));
+		return relativeFiles;
+	}
+
+	private static Collection<URL> toRelativeURLs(Collection<File> relativeFiles) throws MalformedURLException {
+		final Collection<URL> relativeURLs = new ArrayList<>();
+		final URL context = new URL(relativeFiles.iterator().next().toURI().getScheme() + ":");
+		relativeFiles.forEach(FunctionUtils.uncheckedConsumer(file -> relativeURLs.add(new URL(context, file.toString()))));
+		return relativeURLs;
 	}
 
 	/**
