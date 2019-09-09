@@ -30,7 +30,7 @@ Flink Web 界面提供了一个选项卡来监控正在运行 Job 的反压行�
 ## 反压
 
 如果你看到一个 Task 发生 **反压警告**（例如： `High`），意味着它生产数据的速率比下游 Task 消费数据的速率要快。
-在工作流中数据记录是从上游向下游流动的（例如：从 Sources 到 Sinks）。反压沿着相反的方向传播，沿着数据流向上游传播。
+在工作流中数据记录是从上游向下游流动的（例如：从 Source 到 Sink）。反压沿着相反的方向传播，沿着数据流向上游传播。
 
 以一个简单的 `Source -> Sink` Job 为例。如果看到 `Source` 发生了警告，意味着 `Sink` 消费数据的速率比 `Source` 生产数据的速率要慢。
 `Sink` 正在向上游的 `Source` 算子产生反压。
@@ -63,7 +63,7 @@ Flink Web 界面提供了一个选项卡来监控正在运行 Job 的反压行�
 - `web.backpressure.delay-between-samples`: 用于确定反压的 stack trace 采样间隔时间 (默认: 50, 50 ms)。
 
 
-## 案例
+## 示例
 
 你可以在 Job 的 Overview 选项卡后面找到 *Back Pressure* 。
 
