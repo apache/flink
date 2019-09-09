@@ -76,12 +76,6 @@ public class MemoryManager {
 	/** Memory segments allocated per memory owner. */
 	private final HashMap<Object, Set<MemorySegment>> allocatedSegments;
 
-	/** The type of memory governed by this memory manager. */
-	private final MemoryType memoryType;
-
-	/** Mask used to round down sizes to multiples of the page size. */
-	private final long roundingMask;
-
 	/** The size of the memory segments. */
 	private final int pageSize;
 
@@ -130,13 +124,11 @@ public class MemoryManager {
 			throw new IllegalArgumentException("The given page size is not a power of two.");
 		}
 
-		this.memoryType = memoryType;
 		this.memorySize = memorySize;
 		this.numberOfSlots = numberOfSlots;
 
 		// assign page size and bit utilities
 		this.pageSize = pageSize;
-		this.roundingMask = ~((long) (pageSize - 1));
 
 		final long numPagesLong = memorySize / pageSize;
 		if (numPagesLong > Integer.MAX_VALUE) {
@@ -504,24 +496,6 @@ public class MemoryManager {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Gets the type of memory (heap / off-heap) managed by this memory manager.
-	 *
-	 * @return The type of memory managed by this memory manager.
-	 */
-	public MemoryType getMemoryType() {
-		return memoryType;
-	}
-
-	/**
-	 * Checks whether this memory manager pre-allocates the memory.
-	 *
-	 * @return True if the memory manager pre-allocates the memory, false if it allocates as needed.
-	 */
-	public boolean isPreAllocated() {
-		return isPreAllocated;
-	}
-
-	/**
 	 * Gets the size of the pages handled by the memory manager.
 	 *
 	 * @return The size of the pages handled by the memory manager.
@@ -540,15 +514,6 @@ public class MemoryManager {
 	}
 
 	/**
-	 * Gets the total number of memory pages managed by this memory manager.
-	 *
-	 * @return The total number of memory pages managed by this memory manager.
-	 */
-	public int getTotalNumPages() {
-		return totalNumPages;
-	}
-
-	/**
 	 * Computes to how many pages the given number of bytes corresponds. If the given number of bytes is not an
 	 * exact multiple of a page size, the result is rounded down, such that a portion of the memory (smaller
 	 * than the page size) is not included.
@@ -562,25 +527,6 @@ public class MemoryManager {
 		}
 
 		return (int) (totalNumPages * fraction / numberOfSlots);
-	}
-
-	/**
-	 * Computes the memory size of the fraction per slot.
-	 *
-	 * @param fraction The fraction of the memory of the task slot.
-	 * @return The number of pages corresponding to the memory fraction.
-	 */
-	public long computeMemorySize(double fraction) {
-		return pageSize * (long) computeNumberOfPages(fraction);
-	}
-
-	/**
-	 * Rounds the given value down to a multiple of the memory manager's page size.
-	 *
-	 * @return The given value, rounded down to a multiple of the page size.
-	 */
-	public long roundDownToPageSizeMultiple(long numBytes) {
-		return numBytes & roundingMask;
 	}
 
 
