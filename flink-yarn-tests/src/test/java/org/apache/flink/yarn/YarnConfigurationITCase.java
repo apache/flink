@@ -108,7 +108,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
 
 			final File streamingWordCountFile = getTestJarPath("WindowJoin.jar");
 
-			final PackagedProgram packagedProgram = new PackagedProgram(streamingWordCountFile);
+			final PackagedProgram packagedProgram = PackagedProgram.newBuilder().setJarFile(streamingWordCountFile).build();
 			final JobGraph jobGraph = PackagedProgramUtils.createJobGraph(packagedProgram, configuration, 1);
 
 			try {

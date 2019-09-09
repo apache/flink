@@ -16,24 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.handlers;
+package org.apache.flink.container.entrypoint.testjar;
 
 /**
- * Query parameter specifying the arguments for the program.
- * @deprecated please, use {@link JarRequestBody#FIELD_NAME_PROGRAM_ARGUMENTS_LIST}
- * @see org.apache.flink.client.program.PackagedProgram.Builder#setArguments(String...)
+ * This class is depended by {@link TestUserClassLoaderJob}.
  */
-@Deprecated
-public class ProgramArgsQueryParameter extends StringQueryParameter {
+class TestUserClassLoaderJobLib {
 
-	public ProgramArgsQueryParameter() {
-		super("program-args", MessageParameterRequisiteness.OPTIONAL);
+	int getValue() {
+		return 0;
 	}
 
-	@Override
-	public String getDescription() {
-		return String.format("Deprecated, please use '%s' instead. " +
-			"String value that specifies the arguments for the program or plan",
-			ProgramArgQueryParameter.PROGRAM_ARG_PARAMETER_NAME);
+	public static void main(String[] args) {
 	}
 }

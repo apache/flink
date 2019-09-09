@@ -97,6 +97,7 @@ public class CliFrontendPackageProgramTest extends TestLogger {
 		ProgramOptions programOptions = mock(ProgramOptions.class);
 		ExecutionConfigAccessor executionOptions = mock(ExecutionConfigAccessor.class);
 		when(executionOptions.getJarFilePath()).thenReturn(getNonJarFilePath());
+		when(programOptions.getProgramArgs()).thenReturn(new String[0]);
 
 		try {
 			frontend.buildProgram(programOptions, executionOptions);

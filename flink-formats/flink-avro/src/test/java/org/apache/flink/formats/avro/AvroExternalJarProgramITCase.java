@@ -81,7 +81,10 @@ public class AvroExternalJarProgramITCase extends TestLogger {
 
 		String testData = getClass().getResource(TEST_DATA_FILE).toString();
 
-		PackagedProgram program = new PackagedProgram(new File(jarFile), new String[]{testData});
+		PackagedProgram program = PackagedProgram.newBuilder()
+			.setJarFile(new File(jarFile))
+			.setArguments(new String[]{testData})
+			.build();
 
 		program.invokeInteractiveModeForExecution();
 	}
