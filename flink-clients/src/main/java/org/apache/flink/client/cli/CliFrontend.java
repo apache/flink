@@ -796,9 +796,12 @@ public class CliFrontend {
 			jarFile = getJarFile(jarFilePath);
 		}
 
-		PackagedProgram program = entryPointClass == null ?
-				new PackagedProgram(jarFile, classpaths, programArgs) :
-				new PackagedProgram(jarFile, classpaths, entryPointClass, programArgs);
+		PackagedProgram program = PackagedProgram.newBuilder()
+			.setJarFile(jarFile)
+			.setUserClassPaths(classpaths)
+			.setEntryPointClassName(entryPointClass)
+			.setArguments(programArgs)
+			.build();
 
 		program.setSavepointRestoreSettings(executionParameters.getSavepointRestoreSettings());
 

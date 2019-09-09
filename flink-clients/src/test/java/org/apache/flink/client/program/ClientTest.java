@@ -99,7 +99,7 @@ public class ClientTest extends TestLogger {
 	public void testDetachedMode() throws Exception{
 		final ClusterClient<?> clusterClient = new MiniClusterClient(new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster());
 		try {
-			PackagedProgram prg = new PackagedProgram(TestExecuteTwice.class);
+			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestExecuteTwice.class.getName()).build();
 			ClientUtils.executeProgram(clusterClient, prg, 1, true);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
@@ -109,7 +109,7 @@ public class ClientTest extends TestLogger {
 		}
 
 		try {
-			PackagedProgram prg = new PackagedProgram(TestEager.class);
+			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestEager.class.getName()).build();
 			ClientUtils.executeProgram(clusterClient, prg, 1, true);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
@@ -119,7 +119,7 @@ public class ClientTest extends TestLogger {
 		}
 
 		try {
-			PackagedProgram prg = new PackagedProgram(TestGetRuntime.class);
+			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetRuntime.class.getName()).build();
 			ClientUtils.executeProgram(clusterClient, prg, 1, true);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
@@ -129,7 +129,7 @@ public class ClientTest extends TestLogger {
 		}
 
 		try {
-			PackagedProgram prg = new PackagedProgram(TestGetAccumulator.class);
+			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAccumulator.class.getName()).build();
 			ClientUtils.executeProgram(clusterClient, prg, 1, true);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
@@ -139,7 +139,7 @@ public class ClientTest extends TestLogger {
 		}
 
 		try {
-			PackagedProgram prg = new PackagedProgram(TestGetAllAccumulator.class);
+			PackagedProgram prg = PackagedProgram.newBuilder().setEntryPointClassName(TestGetAllAccumulator.class.getName()).build();
 			ClientUtils.executeProgram(clusterClient, prg, 1, true);
 			fail(FAIL_MESSAGE);
 		} catch (ProgramInvocationException e) {
@@ -194,7 +194,10 @@ public class ClientTest extends TestLogger {
 
 	@Test
 	public void testGetExecutionPlan() throws ProgramInvocationException {
-		PackagedProgram prg = new PackagedProgram(TestOptimizerPlan.class, "/dev/random", "/tmp");
+		PackagedProgram prg = PackagedProgram.newBuilder()
+			.setEntryPointClassName(TestOptimizerPlan.class.getName())
+			.setArguments("/dev/random", "/tmp")
+			.build();
 
 		Optimizer optimizer = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), config);
 		Plan plan = (Plan) PackagedProgramUtils.getPipelineFromProgram(prg, 1);

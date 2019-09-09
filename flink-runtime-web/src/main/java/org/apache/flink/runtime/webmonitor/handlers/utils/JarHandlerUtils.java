@@ -119,10 +119,11 @@ public class JarHandlerUtils {
 			}
 
 			try {
-				final PackagedProgram packagedProgram = new PackagedProgram(
-					jarFile.toFile(),
-					entryClass,
-					programArgs.toArray(new String[0]));
+				final PackagedProgram packagedProgram = PackagedProgram.newBuilder()
+					.setJarFile(jarFile.toFile())
+					.setEntryPointClassName(entryClass)
+					.setArguments(programArgs.toArray(new String[0]))
+					.build();
 				return PackagedProgramUtils.createJobGraph(packagedProgram, configuration, parallelism, jobId);
 			} catch (final ProgramInvocationException e) {
 				throw new CompletionException(e);

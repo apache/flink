@@ -16,24 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.handlers;
+package org.apache.flink.container.entrypoint.testjar;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
- * Query parameter specifying the arguments for the program.
- * @deprecated please, use {@link JarRequestBody#FIELD_NAME_PROGRAM_ARGUMENTS_LIST}
- * @see org.apache.flink.client.program.PackagedProgram.Builder#setArguments(String...)
+ * The test job information.
  */
-@Deprecated
-public class ProgramArgsQueryParameter extends StringQueryParameter {
+public class TestJobInfo {
 
-	public ProgramArgsQueryParameter() {
-		super("program-args", MessageParameterRequisiteness.OPTIONAL);
-	}
-
-	@Override
-	public String getDescription() {
-		return String.format("Deprecated, please use '%s' instead. " +
-			"String value that specifies the arguments for the program or plan",
-			ProgramArgQueryParameter.PROGRAM_ARG_PARAMETER_NAME);
-	}
+	public static final String JOB_CLASS = "org.apache.flink.container.entrypoint.testjar.TestUserClassLoaderJob";
+	public static final String JOB_LIB_CLASS = "org.apache.flink.container.entrypoint.testjar.TestUserClassLoaderJobLib";
+	public static final Path JOB_JAR_PATH = Paths.get("target", "maven-test-user-classloader-job-jar.jar");
+	public static final Path JOB_LIB_JAR_PATH = Paths.get("target", "maven-test-user-classloader-job-lib-jar.jar");
 }

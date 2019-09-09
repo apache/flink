@@ -129,7 +129,7 @@ public class JarListHandler extends AbstractRestHandler<RestfulGateway, EmptyReq
 
 						PackagedProgram program = null;
 						try {
-							program = new PackagedProgram(f, clazz, new String[0]);
+							program = PackagedProgram.newBuilder().setJarFile(f).setEntryPointClassName(clazz).build();
 						} catch (Exception ignored) {
 							// ignore jar files which throw an error upon creating a PackagedProgram
 						}

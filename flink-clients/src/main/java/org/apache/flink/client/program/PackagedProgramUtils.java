@@ -33,6 +33,9 @@ import javax.annotation.Nullable;
  */
 public class PackagedProgramUtils {
 
+	private static final String PYTHON_DRIVER_CLASS_NAME = "org.apache.flink.client.python.PythonDriver";
+
+	private static final String PYTHON_GATEWAY_CLASS_NAME = "org.apache.flink.client.python.PythonGatewayServer";
 	/**
 	 * Creates a {@link JobGraph} with a specified {@link JobID}
 	 * from the given {@link PackagedProgram}.
@@ -100,6 +103,11 @@ public class PackagedProgramUtils {
 		} finally {
 			Thread.currentThread().setContextClassLoader(contextClassLoader);
 		}
+	}
+
+	public static Boolean isPython(String entryPointClassName) {
+		return (entryPointClassName != null) &&
+			(entryPointClassName.equals(PYTHON_DRIVER_CLASS_NAME) || entryPointClassName.equals(PYTHON_GATEWAY_CLASS_NAME));
 	}
 
 	private PackagedProgramUtils() {}
