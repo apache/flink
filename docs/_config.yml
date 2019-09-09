@@ -39,6 +39,10 @@ scala_version: "2.11"
 # This suffix is appended to the Scala-dependent Maven artifact names
 scala_version_suffix: "_2.11"
 
+# Plain flink-shaded version is needed for e.g. the hive connector.
+# Please update the shaded_version once new flink-shaded is released.
+shaded_version: "8.0"
+
 # Some commonly linked pages (this was more important to have as a variable
 # during incubator; by now it should also be fine to hardcode these.)
 website_url: "http://flink.apache.org"
@@ -47,14 +51,14 @@ github_url: "https://github.com/apache/flink"
 download_url: "http://flink.apache.org/downloads.html"
 
 # please use a protocol relative URL here
-baseurl: //ci.apache.org/projects/flink/flink-docs-master
+baseurl: //ci.apache.org/projects/flink/flink-docs-release-1.9
 stable_baseurl: //ci.apache.org/projects/flink/flink-docs-stable
 
-javadocs_baseurl: //ci.apache.org/projects/flink/flink-docs-master
-pythondocs_baseurl: //ci.apache.org/projects/flink/flink-docs-master
+javadocs_baseurl: //ci.apache.org/projects/flink/flink-docs-release-1.9
+pythondocs_baseurl: //ci.apache.org/projects/flink/flink-docs-release-1.9
 
 # Flag whether this is a stable version or not. Used for the quickstart page.
-is_stable: false
+is_stable: true
 
 # Flag to indicate whether an outdated warning should be shown.
 show_outdated_warning: false

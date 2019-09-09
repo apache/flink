@@ -99,28 +99,6 @@ public class BucketTest {
 	}
 
 	@Test
-	public void shouldCleanupResumableAfterRestoring() throws Exception {
-		final File outDir = TEMP_FOLDER.newFolder();
-		final Path path = new Path(outDir.toURI());
-
-		final TestRecoverableWriter recoverableWriter = getRecoverableWriter(path);
-		final Bucket<String, String> bucketUnderTest =
-				createBucket(recoverableWriter, path, 0, 0);
-
-		bucketUnderTest.write("test-element", 0L);
-
-		final BucketState<String> state = bucketUnderTest.onReceptionOfCheckpoint(0L);
-		assertThat(state, hasActiveInProgressFile());
-
-		bucketUnderTest.onSuccessfulCompletionOfCheckpoint(0L);
-
-		final TestRecoverableWriter newRecoverableWriter = getRecoverableWriter(path);
-		restoreBucket(newRecoverableWriter, 0, 1, state);
-
-		assertThat(newRecoverableWriter, hasCalledDiscard(1)); // that is for checkpoints 0 and 1
-	}
-
-	@Test
 	public void shouldNotCallCleanupWithoutInProgressPartFiles() throws Exception {
 		final File outDir = TEMP_FOLDER.newFolder();
 		final Path path = new Path(outDir.toURI());

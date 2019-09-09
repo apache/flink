@@ -56,6 +56,36 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>The RPC endpoint provides {@link #runAsync(Runnable)}, {@link #callAsync(Callable, Time)}
  * and the {@link #getMainThreadExecutor()} to execute code in the RPC endpoint's main thread.
+ *
+ * <h1>Lifecycle</h1>
+ *
+ * <p>The RPC endpoint has the following stages:
+ * <ul>
+ *    <li>
+ *        The RPC endpoint is created in a non-running state and does not serve any RPC requests.
+ *    </li>
+ *    <li>
+ *        Calling the {@link #start()} method triggers the start of the RPC endpoint and schedules overridable
+ *        {@link #onStart()} method call to the main thread.
+ *    </li>
+ *    <li>
+ *        When the start operation ends the RPC endpoint is moved to the running state
+ *        and starts to serve and complete RPC requests.
+ *    </li>
+ *    <li>
+ *        Calling the {@link #closeAsync()} method triggers the termination of the RPC endpoint and schedules overridable
+ *        {@link #onStop()} method call to the main thread.
+ *    </li>
+ *    <li>
+ *        When {@link #onStop()} method is called, it triggers an asynchronous stop operation.
+ *        The RPC endpoint is not in the running state anymore but it continues to serve RPC requests.
+ *    </li>
+ *    <li>
+ *        When the asynchronous stop operation ends, the RPC endpoint terminates completely
+ *        and does not serve RPC requests anymore.
+ *    </li>
+ * </ul>
+ * The running state can be queried in a RPC method handler or in the main thread by calling {@link #isRunning()} method.
  */
 public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 
@@ -78,6 +108,13 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 	/** The main thread executor to be used to execute future callbacks in the main thread
 	 * of the executing rpc server. */
 	private final MainThreadExecutor mainThreadExecutor;
+
+	/**
+	 * Indicates whether the RPC endpoint is started and not stopped or being stopped.
+	 *
+	 * <p>IMPORTANT: the running state is not thread safe and can be used only in the main thread of the rpc endpoint.
+	 */
+	private boolean isRunning;
 
 	/**
 	 * Initializes the RPC endpoint.
@@ -112,12 +149,22 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 		return endpointId;
 	}
 
+	/**
+	 * Returns whether the RPC endpoint is started and not stopped or being stopped.
+	 *
+	 * @return whether the RPC endpoint is started and not stopped or being stopped.
+	 */
+	protected boolean isRunning() {
+		validateRunsInMainThread();
+		return isRunning;
+	}
+
 	// ------------------------------------------------------------------------
 	//  Start & shutdown & lifecycle callbacks
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Starts the rpc endpoint. This tells the underlying rpc server that the rpc endpoint is ready
+	 * Triggers start of the rpc endpoint. This tells the underlying rpc server that the rpc endpoint is ready
 	 * to process remote procedure calls.
 	 *
 	 * @throws Exception indicating that something went wrong while starting the RPC endpoint
@@ -127,20 +174,33 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 	}
 
 	/**
-	 * User overridable callback.
+	 * Internal method which is called by the RpcService implementation to start the RpcEndpoint.
+	 *
+	 * @throws Exception indicating that the rpc endpoint could not be started. If an exception occurs,
+	 * then the rpc endpoint will automatically terminate.
+	 */
+	public final void internalCallOnStart() throws Exception {
+		validateRunsInMainThread();
+		isRunning = true;
+		onStart();
+	}
+
+	/**
+	 * User overridable callback which is called from {@link #internalCallOnStart()}.
 	 *
 	 * <p>This method is called when the RpcEndpoint is being started. The method is guaranteed
 	 * to be executed in the main thread context and can be used to start the rpc endpoint in the
 	 * context of the rpc endpoint's main thread.
 	 *
 	 * <p>IMPORTANT: This method should never be called directly by the user.
+	 *
 	 * @throws Exception indicating that the rpc endpoint could not be started. If an exception occurs,
 	 * then the rpc endpoint will automatically terminate.
 	 */
-	public void onStart() throws Exception {}
+	protected void onStart() throws Exception {}
 
 	/**
-	 * Stops the rpc endpoint. This tells the underlying rpc server that the rpc endpoint is
+	 * Triggers stop of the rpc endpoint. This tells the underlying rpc server that the rpc endpoint is
 	 * no longer ready to process remote procedure calls.
 	 */
 	protected final void stop() {
@@ -148,7 +208,20 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 	}
 
 	/**
-	 * User overridable callback.
+	 * Internal method which is called by the RpcService implementation to stop the RpcEndpoint.
+	 *
+	 * @return Future which is completed once all post stop actions are completed. If an error
+	 * occurs this future is completed exceptionally
+	 */
+	public final CompletableFuture<Void> internalCallOnStop() {
+		validateRunsInMainThread();
+		CompletableFuture<Void> stopFuture = onStop();
+		isRunning = false;
+		return stopFuture;
+	}
+
+	/**
+	 * User overridable callback which is called from {@link #internalCallOnStop()}.
 	 *
 	 * <p>This method is called when the RpcEndpoint is being shut down. The method is guaranteed
 	 * to be executed in the main thread context and can be used to clean up internal state.
@@ -158,7 +231,7 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 	 * @return Future which is completed once all post stop actions are completed. If an error
 	 * occurs this future is completed exceptionally
 	 */
-	public CompletableFuture<Void> onStop() {
+	protected CompletableFuture<Void> onStop() {
 		return CompletableFuture.completedFuture(null);
 	}
 
