@@ -106,6 +106,7 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 					.setSlotNumber(slot.getPhysicalSlotNumber())
 					.setAllocationId(slot.getAllocationId())
 					.setSlotRequestId(slotRequestId)
+					.setSlotSharingGroupId(task.getSlotSharingGroupId())
 					.setSlotOwner(this)
 					.createTestingLogicalSlot();
 				allocatedSlots.put(slotRequestId, slot);
