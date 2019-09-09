@@ -184,8 +184,6 @@ public class PackagedProgram {
 			}
 
 			checkJarFile(jarFileUrl);
-		} else if (!isPython) {
-			throw new IllegalArgumentException("The jar file must not be null.");
 		}
 
 		this.jarFile = jarFileUrl;
