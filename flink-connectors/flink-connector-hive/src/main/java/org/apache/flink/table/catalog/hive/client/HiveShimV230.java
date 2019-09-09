@@ -47,7 +47,7 @@ import java.util.List;
 /**
  * Shim for Hive version 2.3.0.
  */
-public class HiveShimV230 extends HiveShimV211 {
+public class HiveShimV230 extends HiveShimV220 {
 
 	@Override
 	public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
