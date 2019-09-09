@@ -667,6 +667,12 @@ under the License.
 			</properties>
 		</profile>
 		<profile>
+			<id>hive-2.2.0</id>
+			<properties>
+				<hive.version>2.2.0</hive.version>
+			</properties>
+		</profile>
+		<profile>
 			<id>hive-3.1.1</id>
 			<properties>
 				<hive.version>3.1.1</hive.version>
