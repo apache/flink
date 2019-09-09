@@ -57,7 +57,7 @@ public class StandaloneDispatcher extends Dispatcher {
 			endpointId,
 			configuration,
 			highAvailabilityServices,
-			highAvailabilityServices.getSubmittedJobGraphStore(),
+			highAvailabilityServices.getJobGraphStore(),
 			resourceManagerGatewayRetriever,
 			blobServer,
 			heartbeatServices,

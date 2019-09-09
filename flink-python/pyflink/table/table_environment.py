@@ -236,6 +236,16 @@ class TableEnvironment(object):
         j_udf_name_array = self._j_tenv.listUserDefinedFunctions()
         return [item for item in j_udf_name_array]
 
+    def list_functions(self):
+        """
+        Gets the names of all functions in this environment.
+
+        :return: List of the names of all functions in this environment.
+        :rtype: list[str]
+        """
+        j_function_name_array = self._j_tenv.listFunctions()
+        return [item for item in j_function_name_array]
+
     def explain(self, table=None, extended=False):
         """
         Returns the AST of the specified Table API and SQL queries and the execution plan to compute

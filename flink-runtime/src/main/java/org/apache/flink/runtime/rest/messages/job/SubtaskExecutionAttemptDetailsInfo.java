@@ -52,6 +52,8 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 
 	public static final String FIELD_NAME_METRICS = "metrics";
 
+	public static final String FIELD_NAME_TASKMANAGER_ID = "taskmanager-id";
+
 	@JsonProperty(FIELD_NAME_SUBTASK_INDEX)
 	private final int subtaskIndex;
 
@@ -76,6 +78,9 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 	@JsonProperty(FIELD_NAME_METRICS)
 	private final IOMetricsInfo ioMetricsInfo;
 
+	@JsonProperty(FIELD_NAME_TASKMANAGER_ID)
+	private final String taskmanagerId;
+
 	@JsonCreator
 	public SubtaskExecutionAttemptDetailsInfo(
 			@JsonProperty(FIELD_NAME_SUBTASK_INDEX) int subtaskIndex,
@@ -85,7 +90,8 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 			@JsonProperty(FIELD_NAME_START_TIME) long startTime,
 			@JsonProperty(FIELD_NAME_END_TIME) long endTime,
 			@JsonProperty(FIELD_NAME_DURATION) long duration,
-			@JsonProperty(FIELD_NAME_METRICS) IOMetricsInfo ioMetricsInfo) {
+			@JsonProperty(FIELD_NAME_METRICS) IOMetricsInfo ioMetricsInfo,
+			@JsonProperty(FIELD_NAME_TASKMANAGER_ID) String taskmanagerId) {
 
 		this.subtaskIndex = subtaskIndex;
 		this.status = Preconditions.checkNotNull(status);
@@ -95,6 +101,7 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 		this.endTime = endTime;
 		this.duration = duration;
 		this.ioMetricsInfo = Preconditions.checkNotNull(ioMetricsInfo);
+		this.taskmanagerId = Preconditions.checkNotNull(taskmanagerId);
 	}
 
 	public int getSubtaskIndex() {
@@ -129,6 +136,10 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 		return ioMetricsInfo;
 	}
 
+	public String getTaskmanagerId() {
+		return taskmanagerId;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) {
@@ -147,12 +158,13 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 			startTime == that.startTime &&
 			endTime == that.endTime &&
 			duration == that.duration &&
-			Objects.equals(ioMetricsInfo, that.ioMetricsInfo);
+			Objects.equals(ioMetricsInfo, that.ioMetricsInfo) &&
+			Objects.equals(taskmanagerId, that.taskmanagerId);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(subtaskIndex, status, attempt, host, startTime, endTime, duration, ioMetricsInfo);
+		return Objects.hash(subtaskIndex, status, attempt, host, startTime, endTime, duration, ioMetricsInfo, taskmanagerId);
 	}
 
 	public static SubtaskExecutionAttemptDetailsInfo create(AccessExecution execution, MutableIOMetrics ioMetrics) {
@@ -161,6 +173,7 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 
 		final TaskManagerLocation location = execution.getAssignedResourceLocation();
 		final String locationString = location == null ? "(unassigned)" : location.getHostname();
+		String taskmanagerId = location == null ? "(unassigned)" : location.getResourceID().toString();
 
 		long startTime = execution.getStateTimestamp(ExecutionState.DEPLOYING);
 		if (startTime == 0) {
@@ -187,7 +200,8 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 			startTime,
 			endTime,
 			duration,
-			ioMetricsInfo
+			ioMetricsInfo,
+			taskmanagerId
 		);
 	}
 }

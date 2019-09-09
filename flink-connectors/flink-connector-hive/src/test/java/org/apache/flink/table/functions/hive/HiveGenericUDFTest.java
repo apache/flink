@@ -19,6 +19,9 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.functions.hive.util.TestGenericUDFArray;
 import org.apache.flink.table.functions.hive.util.TestGenericUDFStructSize;
 import org.apache.flink.table.types.DataType;
@@ -38,9 +41,8 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFStringToMap;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFStruct;
 import org.junit.Test;
 
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
-import java.sql.Date;
-import java.sql.Timestamp;
 import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
@@ -49,6 +51,7 @@ import static org.junit.Assert.assertEquals;
  * Test for {@link HiveGenericUDF}.
  */
 public class HiveGenericUDFTest {
+	private static HiveShim hiveShim = HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion());
 
 	@Test
 	public void testAbs() {
@@ -108,7 +111,7 @@ public class HiveGenericUDFTest {
 	}
 
 	@Test
-	public void testDateFormat() {
+	public void testDateFormat() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
 		String constYear = "y";
 		String constMonth = "M";
 
@@ -138,7 +141,7 @@ public class HiveGenericUDFTest {
 			}
 		);
 
-		assertEquals("8", udf.eval(Date.valueOf("2019-08-31"), constMonth));
+		assertEquals("8", udf.eval(HiveReflectionUtils.convertToHiveDate(hiveShim, "2019-08-31"), constMonth));
 	}
 
 	@Test
@@ -235,7 +238,7 @@ public class HiveGenericUDFTest {
 	}
 
 	@Test
-	public void testDataDiff() {
+	public void testDataDiff() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
 
 		String d = "1969-07-20";
 		String t1 = "1969-07-20 00:00:00";
@@ -267,7 +270,8 @@ public class HiveGenericUDFTest {
 			}
 		);
 
-		assertEquals(-4182, udf.eval(Date.valueOf(d), Timestamp.valueOf(t2)));
+		assertEquals(-4182, udf.eval(HiveReflectionUtils.convertToHiveDate(hiveShim, d),
+			HiveReflectionUtils.convertToHiveTimestamp(hiveShim, t2)));
 
 		// Test invalid char length
 		udf = init(
@@ -381,7 +385,7 @@ public class HiveGenericUDFTest {
 	}
 
 	private static HiveGenericUDF init(Class hiveUdfClass, Object[] constantArgs, DataType[] argTypes) {
-		HiveGenericUDF udf = new HiveGenericUDF(new HiveFunctionWrapper(hiveUdfClass.getName()));
+		HiveGenericUDF udf = new HiveGenericUDF(new HiveFunctionWrapper(hiveUdfClass.getName()), hiveShim);
 
 		udf.setArgumentTypesAndConstants(constantArgs, argTypes);
 		udf.getHiveResultType(constantArgs, argTypes);

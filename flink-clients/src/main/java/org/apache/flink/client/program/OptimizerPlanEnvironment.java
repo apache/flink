@@ -63,11 +63,6 @@ public class OptimizerPlanEnvironment extends ExecutionEnvironment {
 		throw new ProgramAbortException();
 	}
 
-	@Override
-	public void startNewSession() {
-		// do nothing
-	}
-
 	public FlinkPlan getOptimizedPlan(PackagedProgram prog) throws ProgramInvocationException {
 
 		// temporarily write syserr and sysout to a byte array.

@@ -49,6 +49,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
+import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 
@@ -73,7 +74,7 @@ public class CheckpointSettingsSerializableTest extends TestLogger {
 
 	@Test
 	public void testDeserializationOfUserCodeWithUserClassLoader() throws Exception {
-		final CommonTestUtils.ObjectAndClassLoader outsideClassLoading = CommonTestUtils.createObjectFromNewClassLoader();
+		final ClassLoaderUtils.ObjectAndClassLoader<Serializable> outsideClassLoading = ClassLoaderUtils.createSerializableObjectFromNewClassLoader();
 		final ClassLoader classLoader = outsideClassLoading.getClassLoader();
 		final Serializable outOfClassPath = outsideClassLoading.getObject();
 

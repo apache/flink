@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.runtime.batch.sql.join
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{INT_TYPE_INFO, LONG_TYPE_INFO}
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{DOUBLE_TYPE_INFO, INT_TYPE_INFO, LONG_TYPE_INFO}
 import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
 import org.apache.flink.table.api.Types
@@ -66,6 +66,31 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
         row("Hi", "Hallo"),
         row("Hello", "Hallo Welt"),
         row("Hello world", "Hallo Welt")
+      ))
+  }
+
+  @Test
+  def testLongJoinWithBigRange(): Unit = {
+    registerCollection(
+      "inputT1",
+      Seq(
+        row(Long.box(Long.MaxValue), Double.box(1)),
+        row(Long.box(Long.MinValue), Double.box(1))),
+      new RowTypeInfo(LONG_TYPE_INFO, DOUBLE_TYPE_INFO),
+      "a, b")
+    registerCollection(
+      "inputT2",
+      Seq(
+        row(Long.box(Long.MaxValue), Double.box(1)),
+        row(Long.box(Long.MinValue), Double.box(1))),
+      new RowTypeInfo(LONG_TYPE_INFO, DOUBLE_TYPE_INFO),
+      "c, d")
+
+    checkResult(
+      "SELECT a, b, c, d FROM inputT1, inputT2 WHERE a = c",
+      Seq(
+        row(Long.box(Long.MaxValue), Double.box(1), Long.box(Long.MaxValue), Double.box(1)),
+        row(Long.box(Long.MinValue), Double.box(1), Long.box(Long.MinValue), Double.box(1))
       ))
   }
 

@@ -602,29 +602,31 @@ public class SlotSharingManager {
 				}
 			}
 
-			if (LOG.isDebugEnabled()) {
-				LOG.debug("Not all requests are fulfilled due to over-allocated, number of requests is {}, " +
-						"number of evicted requests is {}, underlying allocated is {}, fulfilled is {}, " +
-						"evicted requests is {},",
-					children.size(),
-					childrenToEvict.size(),
-					slotContext.getResourceProfile(),
-					requiredResources,
-					childrenToEvict);
-			}
+			if (childrenToEvict.size() > 0) {
+				if (LOG.isDebugEnabled()) {
+					LOG.debug("Not all requests are fulfilled due to over-allocated, number of requests is {}, " +
+									"number of evicted requests is {}, underlying allocated is {}, fulfilled is {}, " +
+									"evicted requests is {},",
+							children.size(),
+							childrenToEvict.size(),
+							slotContext.getResourceProfile(),
+							requiredResources,
+							childrenToEvict);
+				}
 
-			if (childrenToEvict.size() == children.size()) {
-				// Since RM always return a slot whose resource is larger than the requested one,
-				// The current situation only happens when we request to RM using the resource
-				// profile of a task who is belonging to a CoLocationGroup. Similar to dealing
-				// with the failure of the underlying request, currently we fail all the requests
-				// directly.
-				release(new SharedSlotOversubscribedException(
-					"The allocated slot does not have enough resource for any task.", false));
-			} else {
-				for (TaskSlot taskSlot : childrenToEvict) {
-					taskSlot.release(new SharedSlotOversubscribedException(
-						"The allocated slot does not have enough resource for all the tasks.", true));
+				if (childrenToEvict.size() == children.size()) {
+					// Since RM always return a slot whose resource is larger than the requested one,
+					// The current situation only happens when we request to RM using the resource
+					// profile of a task who is belonging to a CoLocationGroup. Similar to dealing
+					// with the failure of the underlying request, currently we fail all the requests
+					// directly.
+					release(new SharedSlotOversubscribedException(
+							"The allocated slot does not have enough resource for any task.", false));
+				} else {
+					for (TaskSlot taskSlot : childrenToEvict) {
+						taskSlot.release(new SharedSlotOversubscribedException(
+								"The allocated slot does not have enough resource for all the tasks.", true));
+					}
 				}
 			}
 		}

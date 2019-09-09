@@ -22,27 +22,27 @@ import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.runtime.util.SingleElementIterator
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.table.dataformat.{BaseRow, GenericRow}
-import org.apache.flink.table.expressions.utils.ApiExpressionUtils
-import org.apache.flink.table.expressions.{Expression, ExpressionVisitor, FieldReferenceExpression, TypeLiteralExpression, UnresolvedCallExpression, UnresolvedReferenceExpression, ValueLiteralExpression, _}
+import org.apache.flink.table.expressions.{Expression, _}
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.STREAM_RECORD
 import org.apache.flink.table.planner.codegen._
-import org.apache.flink.table.planner.expressions.{ResolvedAggInputReference, ResolvedAggLocalReference, RexNodeConverter}
+import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver
+import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.toRexInputRef
+import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.{getAccumulatorTypeOfAggregateFunction, getAggUserDefinedInputTypes}
 import org.apache.flink.table.runtime.context.ExecutionContextImpl
 import org.apache.flink.table.runtime.generated.{GeneratedAggsHandleFunction, GeneratedOperator}
 import org.apache.flink.table.runtime.types.InternalSerializers
-import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.{fromDataTypeToLogicalType, fromLogicalTypeToDataType}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
+
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.RelBuilder
-
-import scala.collection.JavaConverters._
 
 /**
   * Batch aggregate code generate helper.
@@ -236,14 +236,8 @@ object AggCodeGenHelper {
     auxGroupingMapping ++ aggCallMapping
   }
 
-  def newLocalReference(
-      ctx: CodeGeneratorContext,
-      resultTerm: String,
-      resultType: LogicalType): ResolvedAggLocalReference = {
-    val nullTerm = resultTerm + "IsNull"
-    ctx.addReusableMember(s"${primitiveTypeTermForType(resultType)} $resultTerm;")
-    ctx.addReusableMember(s"boolean $nullTerm;")
-    new ResolvedAggLocalReference(resultTerm, nullTerm, resultType)
+  def newLocalReference(resultTerm: String, resultType: LogicalType): LocalReferenceExpression = {
+    new LocalReferenceExpression(resultTerm, fromLogicalTypeToDataType(resultType))
   }
 
   /**
@@ -253,60 +247,27 @@ object AggCodeGenHelper {
     */
   private case class ResolveReference(
       ctx: CodeGeneratorContext,
+      relBuilder: RelBuilder,
       isMerge: Boolean,
       agg: DeclarativeAggregateFunction,
       aggIndex: Int,
       argsMapping: Array[Array[(Int, LogicalType)]],
-      aggBufferTypes: Array[Array[LogicalType]]) extends ExpressionVisitor[Expression] {
+      aggBufferTypes: Array[Array[LogicalType]])
+    extends DeclarativeExpressionResolver(relBuilder, agg, isMerge) {
 
-    override def visit(call: CallExpression): Expression = ???
-
-    override def visit(valueLiteralExpression: ValueLiteralExpression): Expression = {
-      valueLiteralExpression
+    override def toMergeInputExpr(name: String, localIndex: Int): ResolvedExpression = {
+      val (inputIndex, inputType) = argsMapping(aggIndex)(localIndex)
+      toRexInputRef(relBuilder, inputIndex, inputType)
     }
 
-    override def visit(input: FieldReferenceExpression): Expression = {
-      input
+    override def toAccInputExpr(name: String, localIndex: Int): ResolvedExpression = {
+      val (inputIndex, inputType) = argsMapping(aggIndex)(localIndex)
+      toRexInputRef(relBuilder, inputIndex, inputType)
     }
 
-    override def visit(typeLiteral: TypeLiteralExpression): Expression = {
-      typeLiteral
-    }
-
-    private def visitUnresolvedCallExpression(
-        unresolvedCall: UnresolvedCallExpression): Expression = {
-      ApiExpressionUtils.unresolvedCall(
-        unresolvedCall.getFunctionDefinition,
-        unresolvedCall.getChildren.asScala.map(_.accept(this)): _*)
-    }
-
-    private def visitUnresolvedFieldReference(
-        input: UnresolvedReferenceExpression): Expression = {
-      agg.aggBufferAttributes.indexOf(input) match {
-        case -1 =>
-          // We always use UnresolvedFieldReference to represent reference of input field.
-          // In non-merge case, the input is operand of the aggregate function. But in merge
-          // case, the input is aggregate buffers which sent by local aggregate.
-          val localIndex = if (isMerge) {
-            agg.mergeOperands.indexOf(input)
-          } else {
-            agg.operands.indexOf(input)
-          }
-          val (inputIndex, inputType) = argsMapping(aggIndex)(localIndex)
-          new ResolvedAggInputReference(input.getName, inputIndex, inputType)
-        case localIndex =>
-          val variableName = s"agg${aggIndex}_${input.getName}"
-          newLocalReference(
-            ctx, variableName, aggBufferTypes(aggIndex)(localIndex))
-      }
-    }
-
-    override def visit(other: Expression): Expression = {
-      other match {
-        case u : UnresolvedReferenceExpression => visitUnresolvedFieldReference(u)
-        case u : UnresolvedCallExpression => visitUnresolvedCallExpression(u)
-        case _ => other
-      }
+    override def toAggBufferExpr(name: String, localIndex: Int): ResolvedExpression = {
+      val variableName = s"agg${aggIndex}_$name"
+      newLocalReference(variableName, aggBufferTypes(aggIndex)(localIndex))
     }
   }
 
@@ -323,21 +284,21 @@ object AggCodeGenHelper {
       aggBufferNames: Array[Array[String]],
       aggBufferTypes: Array[Array[LogicalType]]): Seq[GeneratedExpression] = {
     val exprCodegen = new ExprCodeGenerator(ctx, false)
-    val converter = new RexNodeConverter(builder)
+    val converter = new ExpressionConverter(builder)
 
     val accessAuxGroupingExprs = auxGrouping.indices.map {
-      idx => newLocalReference(ctx, aggBufferNames(idx)(0), aggBufferTypes(idx)(0))
+      idx => newLocalReference(aggBufferNames(idx)(0), aggBufferTypes(idx)(0))
     }.map(_.accept(converter)).map(exprCodegen.generateExpression)
 
     val aggCallExprs = aggregates.zipWithIndex.flatMap {
       case (agg: DeclarativeAggregateFunction, aggIndex: Int) =>
         val idx = auxGrouping.length + aggIndex
         agg.aggBufferAttributes.map(_.accept(
-          ResolveReference(ctx, isMerge, agg, idx, argsMapping, aggBufferTypes)))
+          ResolveReference(ctx, builder, isMerge, agg, idx, argsMapping, aggBufferTypes)))
       case (_: AggregateFunction[_, _], aggIndex: Int) =>
         val idx = auxGrouping.length + aggIndex
         val variableName = aggBufferNames(idx)(0)
-        Some(newLocalReference(ctx, variableName, aggBufferTypes(idx)(0)))
+        Some(newLocalReference(variableName, aggBufferTypes(idx)(0)))
     }.map(_.accept(converter)).map(exprCodegen.generateExpression)
 
     accessAuxGroupingExprs ++ aggCallExprs
@@ -378,7 +339,7 @@ object AggCodeGenHelper {
       case (agg: AggregateFunction[_, _]) =>
         Some(agg)
     }.map {
-      case (expr: Expression) => expr.accept(new RexNodeConverter(builder))
+      case (expr: Expression) => expr.accept(new ExpressionConverter(builder))
       case t@_ => t
     }.map {
       case (rex: RexNode) => exprCodegen.generateExpression(rex)
@@ -525,12 +486,12 @@ object AggCodeGenHelper {
       case (agg: DeclarativeAggregateFunction, aggIndex) =>
         val idx = auxGrouping.length + aggIndex
         agg.getValueExpression.accept(ResolveReference(
-          ctx, isMerge, agg, idx, argsMapping, aggBufferTypes))
+          ctx, builder, isMerge, agg, idx, argsMapping, aggBufferTypes))
       case (agg: AggregateFunction[_, _], aggIndex) =>
         val idx = auxGrouping.length + aggIndex
         (agg, idx)
     }.map {
-      case (expr: Expression) => expr.accept(new RexNodeConverter(builder))
+      case (expr: Expression) => expr.accept(new ExpressionConverter(builder))
       case t@_ => t
     }.map {
       case (rex: RexNode) => exprCodegen.generateExpression(rex)
@@ -567,15 +528,16 @@ object AggCodeGenHelper {
     aggregates.zipWithIndex.flatMap {
       case (agg: DeclarativeAggregateFunction, aggIndex) =>
         val idx = auxGrouping.length + aggIndex
-        agg.mergeExpressions.map(
-          _.accept(ResolveReference(ctx, isMerge = true, agg, idx, argsMapping, aggBufferTypes)))
+        agg.mergeExpressions.map(_.accept(ResolveReference(
+          ctx, builder, isMerge = true, agg, idx, argsMapping, aggBufferTypes)))
       case (agg: AggregateFunction[_, _], aggIndex) =>
         val idx = auxGrouping.length + aggIndex
         Some(agg, idx)
     }.zip(aggBufferExprs.slice(auxGrouping.length, aggBufferExprs.size)).map {
       // DeclarativeAggregateFunction
       case ((expr: Expression), aggBufVar) =>
-        val mergeExpr = exprCodegen.generateExpression(expr.accept(new RexNodeConverter(builder)))
+        val mergeExpr = exprCodegen.generateExpression(
+          expr.accept(new ExpressionConverter(builder)))
         s"""
            |${mergeExpr.code}
            |${aggBufVar.nullTerm} = ${mergeExpr.nullTerm};
@@ -586,9 +548,9 @@ object AggCodeGenHelper {
       // UserDefinedAggregateFunction
       case ((agg: AggregateFunction[_, _], aggIndex: Int), aggBufVar) =>
         val (inputIndex, inputType) = argsMapping(aggIndex)(0)
-        val inputRef = new ResolvedAggInputReference(inputTerm, inputIndex, inputType)
+        val inputRef = toRexInputRef(builder, inputIndex, inputType)
         val inputExpr = exprCodegen.generateExpression(
-          inputRef.accept(new RexNodeConverter(builder)))
+          inputRef.accept(new ExpressionConverter(builder)))
         val singleIterableClass = classOf[SingleElementIterator[_]].getCanonicalName
 
         val externalAccT = getAccumulatorTypeOfAggregateFunction(agg)
@@ -629,8 +591,8 @@ object AggCodeGenHelper {
         val aggCall = aggCallToAggFun._1
         aggCallToAggFun._2 match {
           case agg: DeclarativeAggregateFunction =>
-            agg.accumulateExpressions.map(_.accept(
-              ResolveReference(ctx, isMerge = false, agg, idx, argsMapping, aggBufferTypes)))
+            agg.accumulateExpressions.map(_.accept(ResolveReference(
+              ctx, builder, isMerge = false, agg, idx, argsMapping, aggBufferTypes)))
                 .map(e => (e, aggCall))
           case agg: AggregateFunction[_, _] =>
             val idx = auxGrouping.length + aggIndex
@@ -639,7 +601,7 @@ object AggCodeGenHelper {
     }.zip(aggBufferExprs.slice(auxGrouping.length, aggBufferExprs.size)).map {
       // DeclarativeAggregateFunction
       case ((expr: Expression, aggCall: AggregateCall), aggBufVar) =>
-        val accExpr = exprCodegen.generateExpression(expr.accept(new RexNodeConverter(builder)))
+        val accExpr = exprCodegen.generateExpression(expr.accept(new ExpressionConverter(builder)))
         (s"""
             |${accExpr.code}
             |${aggBufVar.nullTerm} = ${accExpr.nullTerm};
@@ -655,8 +617,8 @@ object AggCodeGenHelper {
 
         val inputExprs = inFields.map {
           f =>
-            val inputRef = new ResolvedAggInputReference(inputTerm, f._1, f._2)
-            exprCodegen.generateExpression(inputRef.accept(new RexNodeConverter(builder)))
+            val inputRef = toRexInputRef(builder, f._1, f._2)
+            exprCodegen.generateExpression(inputRef.accept(new ExpressionConverter(builder)))
         }
 
         val externalUDITypes = getAggUserDefinedInputTypes(

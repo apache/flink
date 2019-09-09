@@ -153,7 +153,8 @@ public class SqlToOperationConverter {
 			targetTablePath,
 			(PlannerQueryOperation) SqlToOperationConverter.convert(flinkPlanner,
 				insert.getSource()),
-			insert.getStaticPartitionKVs());
+			insert.getStaticPartitionKVs(),
+			insert.isOverwrite());
 	}
 
 	/** Fallback method for sql query. */

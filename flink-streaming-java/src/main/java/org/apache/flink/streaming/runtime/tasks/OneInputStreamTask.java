@@ -76,19 +76,20 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 			InputGate[] inputGates = getEnvironment().getAllInputGates();
 
 			inputProcessor = new StreamOneInputProcessor<>(
-					inputGates,
-					inSerializer,
-					this,
-					configuration.getCheckpointMode(),
-					getCheckpointLock(),
-					getEnvironment().getIOManager(),
-					getEnvironment().getTaskManagerInfo().getConfiguration(),
-					getStreamStatusMaintainer(),
-					this.headOperator,
-					getEnvironment().getMetricGroup().getIOMetricGroup(),
-					inputWatermarkGauge,
-					getTaskNameWithSubtaskAndId(),
-					operatorChain);
+				inputGates,
+				inSerializer,
+				this,
+				configuration.getCheckpointMode(),
+				getCheckpointLock(),
+				getEnvironment().getIOManager(),
+				getEnvironment().getTaskManagerInfo().getConfiguration(),
+				getStreamStatusMaintainer(),
+				headOperator,
+				getEnvironment().getMetricGroup().getIOMetricGroup(),
+				inputWatermarkGauge,
+				getTaskNameWithSubtaskAndId(),
+				operatorChain,
+				setupNumRecordsInCounter(headOperator));
 		}
 		headOperator.getMetricGroup().gauge(MetricNames.IO_CURRENT_INPUT_WATERMARK, this.inputWatermarkGauge);
 		// wrap watermark gauge since registered metrics must be unique

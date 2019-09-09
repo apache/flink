@@ -953,8 +953,7 @@ class TestingTableEnvironment private(
   }
 
   override def insertInto(table: Table, path: String, pathContinued: String*): Unit = {
-    val fullPath = List(path)
-    fullPath.addAll(pathContinued)
+    val fullPath = List(path) ++ pathContinued.toList
 
     val modifyOperations = List(new CatalogSinkModifyOperation(fullPath, table.getQueryOperation))
     if (isEagerOperationTranslation) {

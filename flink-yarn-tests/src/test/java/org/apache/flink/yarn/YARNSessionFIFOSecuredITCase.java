@@ -25,6 +25,7 @@ import org.apache.flink.runtime.security.SecurityUtils;
 import org.apache.flink.runtime.security.modules.HadoopModule;
 import org.apache.flink.test.util.SecureTestEnvironment;
 import org.apache.flink.test.util.TestingSecurityContext;
+import org.apache.flink.testutils.junit.FailsOnJava11;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -37,6 +38,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,6 +108,7 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 
 	@Test(timeout = 60000) // timeout after a minute.
 	@Override
+	@Category(FailsOnJava11.class)
 	public void testDetachedMode() throws Exception {
 		runTest(() -> {
 			runDetachedModeTest();

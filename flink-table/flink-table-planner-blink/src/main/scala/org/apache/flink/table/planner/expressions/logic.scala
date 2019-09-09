@@ -19,6 +19,8 @@ package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.table.planner.validate._
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
+import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.isDecimal
 
 abstract class BinaryPredicate extends BinaryExpression {
   override private[flink] def resultType = BasicTypeInfo.BOOLEAN_TYPE_INFO
@@ -76,7 +78,9 @@ case class If(
 
   override private[flink] def validateInput(): ValidationResult = {
     if (condition.resultType == BasicTypeInfo.BOOLEAN_TYPE_INFO &&
-        ifTrue.resultType == ifFalse.resultType) {
+        ((isDecimal(fromTypeInfoToLogicalType(ifTrue.resultType)) &&
+            isDecimal(fromTypeInfoToLogicalType(ifFalse.resultType))) ||
+            ifTrue.resultType == ifFalse.resultType)) {
       ValidationSuccess
     } else {
       ValidationFailure(

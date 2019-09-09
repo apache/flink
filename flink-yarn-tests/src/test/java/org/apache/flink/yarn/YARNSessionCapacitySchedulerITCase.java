@@ -50,7 +50,6 @@ import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.CapacityScheduler;
 import org.apache.log4j.Level;
@@ -154,7 +153,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-t", flinkShadedHadoopDir.getAbsolutePath(),
 				"-jm", "768m",
 				"-tm", "1024m", "-qu", "qa-team"},
-			"Flink JobManager is now running on ", null, RunTypes.YARN_SESSION, 0));
+			"JobManager Web Interface:", null, RunTypes.YARN_SESSION, 0));
 	}
 
 	/**
@@ -265,7 +264,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 					"-Dfancy-configuration-value=veryFancy",
 					"-Dyarn.maximum-failed-containers=3",
 					"-D" + YarnConfigOptions.VCORES.key() + "=2"},
-				"Flink JobManager is now running on ",
+				"JobManager Web Interface:",
 				RunTypes.YARN_SESSION);
 
 			try {
@@ -273,7 +272,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				final HostAndPort hostAndPort = parseJobManagerHostname(logs);
 				final String host = hostAndPort.getHostText();
 				final int port = hostAndPort.getPort();
-				LOG.info("Extracted hostname:port: {}", host, port);
+				LOG.info("Extracted hostname:port: {}:{}", host, port);
 
 				submitJob("WindowJoin.jar");
 
@@ -314,7 +313,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 	}
 
 	private static HostAndPort parseJobManagerHostname(final String logs) {
-		final Pattern p = Pattern.compile("Flink JobManager is now running on ([a-zA-Z0-9.-]+):([0-9]+)");
+		final Pattern p = Pattern.compile("JobManager Web Interface: http://([a-zA-Z0-9.-]+):([0-9]+)");
 		final Matcher matches = p.matcher(logs);
 		String hostname = null;
 		String port = null;
@@ -328,15 +327,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 		checkState(port != null, "port not found in log");
 
 		return HostAndPort.fromParts(hostname, Integer.parseInt(port));
-	}
-
-	private ApplicationReport getOnlyApplicationReport() throws IOException, YarnException {
-		final YarnClient yarnClient = getYarnClient();
-		checkState(yarnClient != null);
-
-		final List<ApplicationReport> apps = yarnClient.getApplications(EnumSet.of(YarnApplicationState.RUNNING));
-		assertEquals(1, apps.size()); // Only one running
-		return apps.get(0);
 	}
 
 	private void submitJob(final String jobFileName) throws IOException, InterruptedException {

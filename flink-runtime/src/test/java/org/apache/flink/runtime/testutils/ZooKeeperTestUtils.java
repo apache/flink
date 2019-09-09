@@ -86,7 +86,6 @@ public class ZooKeeperTestUtils {
 		config.setString(AkkaOptions.WATCH_HEARTBEAT_PAUSE, "6 s");
 		config.setInteger(AkkaOptions.WATCH_THRESHOLD, 9);
 		config.setString(AkkaOptions.ASK_TIMEOUT, "100 s");
-		config.setString(HighAvailabilityOptions.HA_JOB_DELAY, "10 s");
 
 		return config;
 	}

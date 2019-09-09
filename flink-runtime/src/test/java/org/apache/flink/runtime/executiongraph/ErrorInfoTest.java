@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.testutils.ClassLoaderUtils;
 
 import org.junit.Test;
 
@@ -49,7 +50,7 @@ public class ErrorInfoTest {
 		private static final long serialVersionUID = 42L;
 
 		@SuppressWarnings("unused")
-		private final Serializable outOfClassLoader = CommonTestUtils.createObjectFromNewClassLoader().getObject();
+		private final Serializable outOfClassLoader = ClassLoaderUtils.createSerializableObjectFromNewClassLoader().getObject();
 
 		public ExceptionWithCustomClassLoader() {
 			super("tada");

@@ -22,10 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -85,7 +83,7 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 	// ---------------- Metrics ------------------
 
 	private final WatermarkGauge watermarkGauge;
-	private Counter numRecordsIn;
+	private final Counter numRecordsIn;
 
 	@SuppressWarnings("unchecked")
 	public StreamOneInputProcessor(
@@ -101,7 +99,8 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 			TaskIOMetricGroup metrics,
 			WatermarkGauge watermarkGauge,
 			String taskName,
-			OperatorChain<?, ?> operatorChain) throws IOException {
+			OperatorChain<?, ?> operatorChain,
+			Counter numRecordsIn) throws IOException {
 
 		InputGate inputGate = InputGateUtil.createInputGate(inputGates);
 
@@ -127,6 +126,7 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 		metrics.gauge("checkpointAlignmentTime", barrierHandler::getAlignmentDurationNanos);
 
 		this.operatorChain = checkNotNull(operatorChain);
+		this.numRecordsIn = checkNotNull(numRecordsIn);
 	}
 
 	@Override
@@ -141,8 +141,6 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
 	@Override
 	public boolean processInput() throws Exception {
-		initializeNumRecordsIn();
-
 		StreamElement recordOrMark = input.pollNextNullable();
 		if (recordOrMark != null) {
 			int channel = input.getLastChannel();
@@ -189,17 +187,6 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 		}
 	}
 
-	private void initializeNumRecordsIn() {
-		if (numRecordsIn == null) {
-			try {
-				numRecordsIn = ((OperatorMetricGroup) streamOperator.getMetricGroup()).getIOMetricGroup().getNumRecordsInCounter();
-			} catch (Exception e) {
-				LOG.warn("An exception occurred during the metrics setup.", e);
-				numRecordsIn = new SimpleCounter();
-			}
-		}
-	}
-
 	@Override
 	public void close() throws IOException {
 		input.close();
@@ -215,26 +202,18 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 		}
 
 		@Override
-		public void handleWatermark(Watermark watermark) {
-			try {
-				synchronized (lock) {
-					watermarkGauge.setCurrentWatermark(watermark.getTimestamp());
-					operator.processWatermark(watermark);
-				}
-			} catch (Exception e) {
-				throw new RuntimeException("Exception occurred while processing valve output watermark: ", e);
+		public void handleWatermark(Watermark watermark) throws Exception {
+			synchronized (lock) {
+				watermarkGauge.setCurrentWatermark(watermark.getTimestamp());
+				operator.processWatermark(watermark);
 			}
 		}
 
 		@SuppressWarnings("unchecked")
 		@Override
 		public void handleStreamStatus(StreamStatus streamStatus) {
-			try {
-				synchronized (lock) {
-					streamStatusMaintainer.toggleStreamStatus(streamStatus);
-				}
-			} catch (Exception e) {
-				throw new RuntimeException("Exception occurred while processing valve output stream status: ", e);
+			synchronized (lock) {
+				streamStatusMaintainer.toggleStreamStatus(streamStatus);
 			}
 		}
 	}

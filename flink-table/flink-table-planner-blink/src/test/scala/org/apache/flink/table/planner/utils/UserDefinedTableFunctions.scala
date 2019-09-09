@@ -113,21 +113,6 @@ class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[
   }
 }
 
-@SerialVersionUID(1L)
-class TableFunc5 extends TableFunction[Tuple2[String, Int]] {
-  def eval(bytes: Array[Byte]) {
-    if (null != bytes) {
-      collect(new Tuple2(new String(bytes), bytes.length))
-    }
-  }
-
-  def eval(str: String) {
-    if (null != str) {
-      collect(new Tuple2(str, str.length))
-    }
-  }
-}
-
 //TODO support dynamic type
 //class UDTFWithDynamicType extends TableFunction[Row] {
 //

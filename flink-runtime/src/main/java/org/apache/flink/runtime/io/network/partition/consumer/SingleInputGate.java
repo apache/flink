@@ -559,7 +559,6 @@ public class SingleInputGate extends InputGate {
 					markAvailable();
 				}
 
-				currentChannel.notifySubpartitionConsumed();
 				currentChannel.releaseAllResources();
 			}
 

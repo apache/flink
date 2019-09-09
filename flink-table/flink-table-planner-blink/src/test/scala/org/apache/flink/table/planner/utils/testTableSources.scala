@@ -29,7 +29,7 @@ import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall
-import org.apache.flink.table.expressions.{Expression, FieldReferenceExpression, UnresolvedCallExpression, ValueLiteralExpression}
+import org.apache.flink.table.expressions.{CallExpression, Expression, FieldReferenceExpression, ValueLiteralExpression}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions.AND
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
@@ -398,12 +398,12 @@ class TestFilterableTableSource(
 
   private def shouldPushDown(expr: Expression): Boolean = {
     expr match {
-      case expr: UnresolvedCallExpression if expr.getChildren.size() == 2 => shouldPushDown(expr)
+      case expr: CallExpression if expr.getChildren.size() == 2 => shouldPushDown(expr)
       case _ => false
     }
   }
 
-  private def shouldPushDown(binExpr: UnresolvedCallExpression): Boolean = {
+  private def shouldPushDown(binExpr: CallExpression): Boolean = {
     val children = binExpr.getChildren
     require(children.size() == 2)
     (children.head, children.last) match {
@@ -419,13 +419,13 @@ class TestFilterableTableSource(
 
   private def shouldKeep(row: Row): Boolean = {
     filterPredicates.isEmpty || filterPredicates.forall {
-      case expr: UnresolvedCallExpression if expr.getChildren.size() == 2 =>
+      case expr: CallExpression if expr.getChildren.size() == 2 =>
         binaryFilterApplies(expr, row)
       case expr => throw new RuntimeException(expr + " not supported!")
     }
   }
 
-  private def binaryFilterApplies(binExpr: UnresolvedCallExpression, row: Row): Boolean = {
+  private def binaryFilterApplies(binExpr: CallExpression, row: Row): Boolean = {
     val children = binExpr.getChildren
     require(children.size() == 2)
     val (lhsValue, rhsValue) = extractValues(binExpr, row)
@@ -447,7 +447,7 @@ class TestFilterableTableSource(
   }
 
   private def extractValues(
-      binExpr: UnresolvedCallExpression,
+      binExpr: CallExpression,
       row: Row): (Comparable[Any], Comparable[Any]) = {
     val children = binExpr.getChildren
     require(children.size() == 2)

@@ -68,6 +68,10 @@ public final class ObjectIdentifier implements Serializable {
 		return objectName;
 	}
 
+	public ObjectPath toObjectPath() {
+		return new ObjectPath(databaseName, objectName);
+	}
+
 	/**
 	 * Returns a string that fully serializes this instance. The serialized string can be used for
 	 * transmitting or persisting an object identifier.

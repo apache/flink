@@ -78,10 +78,6 @@ public class FakeClusterClient extends ClusterClient<ApplicationId> {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}
 
-	public void stop(final JobID jobId) {
-		// no op
-	}
-
 	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}

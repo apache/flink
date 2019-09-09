@@ -19,12 +19,12 @@
 package org.apache.flink.api.scala
 
 import java.io._
+import java.net.URL
 
 import org.apache.flink.client.cli.{CliFrontend, CliFrontendParser}
 import org.apache.flink.client.deployment.ClusterDescriptor
 import org.apache.flink.client.program.ClusterClient
 import org.apache.flink.configuration.{Configuration, GlobalConfiguration, JobManagerOptions}
-import org.apache.flink.runtime.akka.AkkaUtils
 import org.apache.flink.runtime.minicluster.{MiniCluster, MiniClusterConfiguration}
 
 import scala.collection.mutable.ArrayBuffer
@@ -230,7 +230,7 @@ object FlinkShell {
         case Some(Left(miniCluster)) => miniCluster.close()
         case Some(Right(yarnCluster)) =>
           yarnCluster.shutDownCluster()
-          yarnCluster.shutdown()
+          yarnCluster.close()
         case _ =>
       }
     }
@@ -277,13 +277,9 @@ object FlinkShell {
 
     val cluster = clusterDescriptor.deploySessionCluster(clusterSpecification)
 
-    val inetSocketAddress = AkkaUtils.getInetSocketAddressFromAkkaURL(
-      cluster.getClusterConnectionInfo.getAddress)
+    val webMonitorUrl = new URL(cluster.getWebInterfaceURL)
 
-    val address = inetSocketAddress.getAddress.getHostAddress
-    val port = inetSocketAddress.getPort
-
-    (address, port, Some(Right(cluster)))
+    (webMonitorUrl.getHost, webMonitorUrl.getPort, Some(Right(cluster)))
   }
 
   def fetchDeployedYarnClusterInfo(
@@ -317,10 +313,9 @@ object FlinkShell {
       throw new RuntimeException("Yarn Cluster could not be retrieved.")
     }
 
-    val jobManager = AkkaUtils.getInetSocketAddressFromAkkaURL(
-      cluster.getClusterConnectionInfo.getAddress)
+    val webMonitorUrl = new URL(cluster.getWebInterfaceURL)
 
-    (jobManager.getHostString, jobManager.getPort, None)
+    (webMonitorUrl.getHost, webMonitorUrl.getPort, None)
   }
 
   def ensureYarnConfig(config: Config) = config.yarnConfig match {

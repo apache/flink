@@ -96,7 +96,7 @@ public class TestingSlotManager implements SlotManager {
 	}
 
 	@Override
-	public boolean unregisterTaskManager(InstanceID instanceId) {
+	public boolean unregisterTaskManager(InstanceID instanceId, Exception cause) {
 		return false;
 	}
 

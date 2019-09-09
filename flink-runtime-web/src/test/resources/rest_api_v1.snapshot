@@ -48,6 +48,15 @@
         },
         "flink-revision" : {
           "type" : "string"
+        },
+        "features" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:DashboardConfiguration:Features",
+          "properties" : {
+            "web-submit" : {
+              "type" : "boolean"
+            }
+          }
         }
       }
     }
@@ -1684,6 +1693,9 @@
               },
               "start_time" : {
                 "type" : "integer"
+              },
+              "taskmanager-id" : {
+                "type" : "string"
               }
             }
           }
@@ -1955,6 +1967,9 @@
         "duration" : {
           "type" : "integer"
         },
+        "taskmanager-id" : {
+          "type" : "string"
+        },
         "metrics" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:IOMetricsInfo",
@@ -2034,6 +2049,9 @@
         },
         "duration" : {
           "type" : "integer"
+        },
+        "taskmanager-id" : {
+          "type" : "string"
         },
         "metrics" : {
           "type" : "object",

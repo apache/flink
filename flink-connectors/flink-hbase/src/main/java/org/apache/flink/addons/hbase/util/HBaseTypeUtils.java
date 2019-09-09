@@ -21,7 +21,6 @@ package org.apache.flink.addons.hbase.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 
-import org.apache.commons.net.ntp.TimeStamp;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.math.BigDecimal;
@@ -102,7 +101,7 @@ public class HBaseTypeUtils {
 			case 8:
 				return Bytes.toBytes((boolean) value);
 			case 9: // sql.Timestamp encoded to Long
-				return Bytes.toBytes(((TimeStamp) value).getTime());
+				return Bytes.toBytes(((Timestamp) value).getTime());
 			case 10: // sql.Date encoded as long
 				return Bytes.toBytes(((Date) value).getTime());
 			case 11: // sql.Time encoded as long

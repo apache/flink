@@ -206,6 +206,8 @@ final class BoundedBlockingSubpartition extends ResultSubpartition {
 	}
 
 	void releaseReaderReference(BoundedBlockingSubpartitionReader reader) throws IOException {
+		onConsumedSubpartition();
+
 		synchronized (lock) {
 			if (readers.remove(reader) && isReleased) {
 				checkReaderReferencesAndDispose();

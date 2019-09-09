@@ -1044,11 +1044,6 @@ public final class ConfigConstants {
 	@PublicEvolving
 	public static final String HA_JOB_MANAGER_PORT = "high-availability.jobmanager.port";
 
-	/** @deprecated Deprecated in favour of {@link HighAvailabilityOptions#HA_JOB_DELAY}. */
-	@PublicEvolving
-	@Deprecated
-	public static final String HA_JOB_DELAY = "high-availability.job.delay";
-
 	/** @deprecated Deprecated in favour of {@link #HA_MODE}. */
 	@Deprecated
 	public static final String RECOVERY_MODE = "recovery.mode";
@@ -1057,7 +1052,7 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final String RECOVERY_JOB_MANAGER_PORT = "recovery.jobmanager.port";
 
-	/** @deprecated Deprecated in favour of {@link #HA_JOB_DELAY}. */
+	/** @deprecated This option is no longer used and has no effect on Flink. */
 	@Deprecated
 	public static final String RECOVERY_JOB_DELAY = "recovery.job.delay";
 
@@ -1866,6 +1861,10 @@ public final class ConfigConstants {
 	@Deprecated
 	public static final int DEFAULT_LOCAL_NUMBER_RESOURCE_MANAGER = 1;
 
+	/**
+	 * @deprecated Has no effect; the web-server is always started. Will be removed in 2.0.
+	 */
+	@Deprecated
 	public static final String LOCAL_START_WEBSERVER = "local.start-webserver";
 
 	// --------------------------- High Availability ---------------------------------

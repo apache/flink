@@ -169,7 +169,7 @@ value1 BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
       </td>
       <td>
         <p>By default (or with the ASYMMETRIC keyword), returns TRUE if <i>value1</i> is greater than or equal to <i>value2</i> and less than or equal to <i>value3</i>.
-          With the SYMMETRIC keyword, returns TRUE if <i>value1</i> is inclusively between <i>value2</i> and <i>value3</i>.
+          With the SYMMETRIC keyword, returns TRUE if <i>value1</i> is inclusively between <i>value2</i> and <i>value3</i>. 
           When either <i>value2</i> or <i>value3</i> is NULL, returns FALSE or UNKNOWN.</p>
           <p>E.g., <code>12 BETWEEN 15 AND 12</code> returns FALSE;
           <code>12 BETWEEN SYMMETRIC 15 AND 12</code> returns TRUE;
@@ -187,7 +187,7 @@ value1 NOT BETWEEN [ ASYMMETRIC | SYMMETRIC ] value2 AND value3
       </td>
       <td>
         <p>By default (or with the ASYMMETRIC keyword), returns TRUE if <i>value1</i> is less than <i>value2</i> or greater than <i>value3</i>.
-          With the SYMMETRIC keyword, returns TRUE if <i>value1</i> is not inclusively between <i>value2</i> and <i>value3</i>.
+          With the SYMMETRIC keyword, returns TRUE if <i>value1</i> is not inclusively between <i>value2</i> and <i>value3</i>. 
           When either <i>value2</i> or <i>value3</i> is NULL, returns TRUE or UNKNOWN.</p>
           <p>E.g., <code>12 NOT BETWEEN 15 AND 12</code> returns TRUE;
           <code>12 NOT BETWEEN SYMMETRIC 15 AND 12</code> returns FALSE;
@@ -254,7 +254,7 @@ value1 IN (value2 [, value3]* )
 {% endhighlight %}
       </td>
       <td>
-        <p> Returns TRUE if <i>value1</i> exists in the given list <i>(value2, value3, ...)</i>.
+        <p> Returns TRUE if <i>value1</i> exists in the given list <i>(value2, value3, ...)</i>. 
         When <i>(value2, value3, ...)</i>. contains NULL, returns TRUE if the element can be found and UNKNOWN otherwise. Always returns UNKNOWN if <i>value1</i> is NULL.</p>
         <p>E.g., <code>4 IN (1, 2, 3)</code> returns FALSE;
         <code>1 IN (1, 2, NULL)</code> returns TRUE;
@@ -445,7 +445,7 @@ ANY1.in(ANY2, ANY3, ...)
 {% endhighlight %}
       </td>
       <td>
-        <p> Returns TRUE if <i>ANY1</i> exists in a given list <i>(ANY2, ANY3, ...)</i>.
+        <p> Returns TRUE if <i>ANY1</i> exists in a given list <i>(ANY2, ANY3, ...)</i>. 
         When <i>(ANY2, ANY3, ...)</i>. contains NULL, returns TRUE if the element can be found and UNKNOWN otherwise. Always returns UNKNOWN if <i>ANY1</i> is NULL.</p>
         <p>E.g., <code>4.in(1, 2, 3)</code> returns FALSE.</p>
       </td>
@@ -625,7 +625,7 @@ ANY1.in(ANY2, ANY3, ...)
 {% endhighlight %}
       </td>
       <td>
-        <p> Returns TRUE if <i>ANY1</i> exists in a given list <i>(ANY2, ANY3, ...)</i>.
+        <p> Returns TRUE if <i>ANY1</i> exists in a given list <i>(ANY2, ANY3, ...)</i>. 
         When <i>(ANY2, ANY3, ...)</i>. contains NULL, returns TRUE if the element can be found and UNKNOWN otherwise. Always returns UNKNOWN if <i>ANY1</i> is NULL.</p>
         <p>E.g., <code>4.in(1, 2, 3)</code> returns FALSE.</p>
       </td>
@@ -767,7 +767,7 @@ boolean IS NOT TRUE
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>boolean</i> is FALSE or UNKNOWN; returns FALSE if <i>boolean</i> is FALSE.</p>
+        <p>Returns TRUE if <i>boolean</i> is FALSE or UNKNOWN; returns FALSE if <i>boolean</i> is TRUE.</p>
       </td>
     </tr>
 
@@ -870,7 +870,7 @@ BOOLEAN.isNotTrue
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>BOOLEAN</i> is FALSE or UNKNOWN; returns FALSE if <i>BOOLEAN</i> is FALSE.</p>
+        <p>Returns TRUE if <i>BOOLEAN</i> is FALSE or UNKNOWN; returns FALSE if <i>BOOLEAN</i> is TRUE.</p>
       </td>
     </tr>
 
@@ -962,7 +962,7 @@ BOOLEAN.isNotTrue
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>BOOLEAN</i> is FALSE or UNKNOWN; returns FALSE if <i>BOOLEAN</i> is FALSE.</p>
+        <p>Returns TRUE if <i>BOOLEAN</i> is FALSE or UNKNOWN; returns FALSE if <i>BOOLEAN</i> is TRUE.</p>
       </td>
     </tr>
 
@@ -1147,7 +1147,7 @@ LOG(numeric1, numeric2)
 {% endhighlight %}
       </td>
       <td>
-        <p>When called with one argument, returns the natural logarithm of <i>numeric2</i>. When called with two arguments, this function returns the logarithm of <i>numeric2</i> to the base <i>numeric1</i>.</p>
+        <p>When called with one argument, returns the natural logarithm of <i>numeric2</i>. When called with two arguments, this function returns the logarithm of <i>numeric2</i> to the base <i>numeric1</i>.</p> 
         <p><b>Note:</b> Currently, <i>numeric2</i> must be greater than 0 and <i>numeric1</i> must be greater than 1.</p>
       </td>
     </tr>
@@ -1161,7 +1161,7 @@ EXP(numeric)
       <td>
         <p>Returns e raised to the power of <i>numeric</i>.</p>
       </td>
-    </tr>
+    </tr>   
 
     <tr>
       <td>
@@ -1173,7 +1173,7 @@ CEILING(numeric)
       <td>
         <p>Rounds <i>numeric</i> up, and returns the smallest number that is greater than or equal to <i>numeric</i>.</p>
       </td>
-    </tr>
+    </tr>  
 
     <tr>
       <td>
@@ -1204,7 +1204,7 @@ SINH(numeric)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the hyperbolic sine of <i>numeric</i>.</p>
+        <p>Returns the hyperbolic sine of <i>numeric</i>.</p> 
         <p>The return type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
@@ -1238,7 +1238,7 @@ TANH(numeric)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the hyperbolic tangent of <i>numeric</i>.</p>
+        <p>Returns the hyperbolic tangent of <i>numeric</i>.</p> 
         <p>The return type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
@@ -1286,7 +1286,7 @@ ATAN(numeric)
         <p>Returns the arc tangent of <i>numeric</i>.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight text %}
@@ -1305,7 +1305,7 @@ COSH(numeric)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the hyperbolic cosine of <i>NUMERIC</i>.</p>
+        <p>Returns the hyperbolic cosine of <i>NUMERIC</i>.</p> 
         <p>Return value type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
@@ -1429,7 +1429,7 @@ UUID()
       <p>Returns an UUID (Universally Unique Identifier) string (e.g., "3d3c68f7-f608-473f-b60c-b0c44ad4cc4e") according to RFC 4122 type 4 (pseudo randomly generated) UUID. The UUID is generated using a cryptographically strong pseudo random number generator.</p>
     </td>
    </tr>
-
+    
     <tr>
       <td>
         {% highlight text %}
@@ -1454,7 +1454,7 @@ HEX(string)
         <p>E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".</p>
       </td>
     </tr>
-
+        
     <tr>
       <td>
         {% highlight text %}
@@ -1466,7 +1466,19 @@ TRUNCATE(numeric1, integer2)
         <p>E.g. <code>truncate(42.345, 2)</code> to 42.34. and <code>truncate(42.345)</code> to 42.0.</p>
       </td>
     </tr>
-
+    
+    <tr>
+      <td>
+        {% highlight text %}
+PI()
+{% endhighlight %}
+      </td>
+      <td>
+      <p>Returns the value of π (pi).</p>
+      <p>Only supported in blink planner.</p>
+      </td>
+    </tr> 
+        
   </tbody>
 </table>
 </div>
@@ -1502,7 +1514,7 @@ TRUNCATE(numeric1, integer2)
         <p>Returns negative <i>NUMERIC</i>.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight java %}
@@ -1612,7 +1624,7 @@ NUMERIC.log10()
         <p>Returns the base 10 logarithm of <i>NUMERIC</i>.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight java %}
@@ -1632,7 +1644,7 @@ NUMERIC1.log(NUMERIC2)
 {% endhighlight %}
       </td>
       <td>
-        <p>When called without argument, returns the natural logarithm of <i>NUMERIC1</i>. When called with an argument, returns the logarithm of <i>NUMERIC1</i> to the base <i>NUMERIC2</i>.</p>
+        <p>When called without argument, returns the natural logarithm of <i>NUMERIC1</i>. When called with an argument, returns the logarithm of <i>NUMERIC1</i> to the base <i>NUMERIC2</i>.</p> 
         <p><b>Note:</b> Currently, <i>NUMERIC1</i> must be greater than 0 and <i>NUMERIC2</i> must be greater than 1.</p>
       </td>
     </tr>
@@ -1688,7 +1700,7 @@ NUMERIC.sinh()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the hyperbolic sine of <i>NUMERIC</i>.</p>
+        <p>Returns the hyperbolic sine of <i>NUMERIC</i>.</p> 
         <p>The return type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
@@ -1722,7 +1734,7 @@ NUMERIC.tanh()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the hyperbolic tangent of <i>NUMERIC</i>.</p>
+        <p>Returns the hyperbolic tangent of <i>NUMERIC</i>.</p> 
         <p>The return type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
@@ -1770,7 +1782,7 @@ NUMERIC.atan()
         <p>Returns the arc tangent of <i>NUMERIC</i>.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight java %}
@@ -1789,7 +1801,7 @@ NUMERIC.cosh()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the hyperbolic cosine of <i>NUMERIC</i>.</p>
+        <p>Returns the hyperbolic cosine of <i>NUMERIC</i>.</p> 
         <p>Return value type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
@@ -1939,7 +1951,7 @@ STRING.hex()
       <p>E.g. a numeric 20 leads to "14", a numeric 100 leads to "64", a string "hello,world" leads to "68656C6C6F2C776F726C64".</p>
     </td>
    </tr>
-
+ 
        <tr>
          <td>
            {% highlight text %}
@@ -1951,7 +1963,7 @@ numeric1.truncate(INTEGER2)
            <p>E.g. <code>42.324.truncate(2)</code> to 42.34. and <code>42.324.truncate()</code> to 42.0.</p>
          </td>
        </tr>
-
+   
   </tbody>
 </table>
 </div>
@@ -1987,7 +1999,7 @@ numeric1.truncate(INTEGER2)
         <p>Returns negative <i>NUMERIC</i>.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -2097,7 +2109,7 @@ NUMERIC.log10()
         <p>Returns the base 10 logarithm of <i>NUMERIC</i>.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -2117,7 +2129,7 @@ NUMERIC1.log(NUMERIC2)
 {% endhighlight %}
       </td>
       <td>
-        <p>When called without argument, returns the natural logarithm of <i>NUMERIC1</i>. When called with an argument, returns the logarithm of <i>NUMERIC1</i> to the base <i>NUMERIC2</i>.</p>
+        <p>When called without argument, returns the natural logarithm of <i>NUMERIC1</i>. When called with an argument, returns the logarithm of <i>NUMERIC1</i> to the base <i>NUMERIC2</i>.</p> 
         <p><b>Note:</b> Currently, <i>NUMERIC1</i> must be greater than 0 and <i>NUMERIC2</i> must be greater than 1.</p>
       </td>
     </tr>
@@ -2154,7 +2166,7 @@ NUMERIC.floor()
         <p>Rounds <i>NUMERIC</i> down, and returns the largest number that is less than or equal to <i>NUMERIC</i>.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -2173,7 +2185,7 @@ NUMERIC.sinh()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the hyperbolic sine of <i>NUMERIC</i>.</p>
+        <p>Returns the hyperbolic sine of <i>NUMERIC</i>.</p> 
         <p>The return type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
@@ -2207,7 +2219,7 @@ NUMERIC.tanh()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the hyperbolic tangent of <i>NUMERIC</i>.</p>
+        <p>Returns the hyperbolic tangent of <i>NUMERIC</i>.</p> 
         <p>The return type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
@@ -2255,7 +2267,7 @@ NUMERIC.atan()
         <p>Returns the arc tangent of <i>NUMERIC</i>.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -2274,7 +2286,7 @@ NUMERIC.cosh()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the hyperbolic cosine of <i>NUMERIC</i>.</p>
+        <p>Returns the hyperbolic cosine of <i>NUMERIC</i>.</p> 
         <p>Return value type is <i>DOUBLE</i>.</p>
       </td>
     </tr>
@@ -2510,7 +2522,7 @@ TRIM([ BOTH | LEADING | TRAILING ] string1 FROM string2)
         <p>Returns a string that removes leading and/or trailing characters <i>string1</i> from <i>string2</i>. By default, whitespaces at both sides are removed.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight text %}
@@ -2518,7 +2530,7 @@ LTRIM(string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that removes the left whitespaces from <i>string</i>.</p>
+        <p>Returns a string that removes the left whitespaces from <i>string</i>.</p> 
         <p>E.g., <code>LTRIM(' This is a test String.')</code> returns "This is a test String.".</p>
       </td>
     </tr>
@@ -2530,7 +2542,7 @@ RTRIM(string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that removes the right whitespaces from <i>string</i>.</p>
+        <p>Returns a string that removes the right whitespaces from <i>string</i>.</p> 
         <p>E.g., <code>RTRIM('This is a test String. ')</code> returns "This is a test String.".</p>
       </td>
     </tr>
@@ -2542,7 +2554,7 @@ REPEAT(string, integer)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that repeats the base <i>string</i> <i>integer</i> times.</p>
+        <p>Returns a string that repeats the base <i>string</i> <i>integer</i> times.</p> 
         <p>E.g., <code>REPEAT('This is a test String.', 2)</code> returns "This is a test String.This is a test String.".</p>
       </td>
     </tr>
@@ -2554,7 +2566,7 @@ REGEXP_REPLACE(string1, string2, string3)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string from <i>string1</i> with all the substrings that match a regular expression <i>string2</i> consecutively being replaced with <i>string3</i>.</p>
+        <p>Returns a string from <i>string1</i> with all the substrings that match a regular expression <i>string2</i> consecutively being replaced with <i>string3</i>.</p> 
         <p>E.g., <code>REGEXP_REPLACE('foobar', 'oo|ar', '')</code> returns "fb".</p>
       </td>
     </tr>
@@ -2601,8 +2613,8 @@ REGEXP_EXTRACT(string1, string2[, integer])
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string from <i>string1</i> which extracted with a specified regular expression <i>string2</i> and a regex match group index <i>integer</i>.</p>
-        <p><b>Note:</b> The regex match group index starts from 1 and 0 means matching the whole regex. In addition, the regex match group index should not exceed the number of the defined groups.</p>
+        <p>Returns a string from <i>string1</i> which extracted with a specified regular expression <i>string2</i> and a regex match group index <i>integer</i>.</p> 
+        <p><b>Note:</b> The regex match group index starts from 1 and 0 means matching the whole regex. In addition, the regex match group index should not exceed the number of the defined groups.</p> 
         <p>E.g. <code>REGEXP_EXTRACT('foothebar', 'foo(.*?)(bar)', 2)"</code> returns "bar".</p>
       </td>
     </tr>
@@ -2637,7 +2649,7 @@ CONCAT_WS(string1, string2, string3,...)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that concatenates <i>string2, string3, ...</i> with a separator <i>string1</i>. The separator is added between the strings to be concatenated. Returns NULL If <i>string1</i> is NULL. Compared with <code>CONCAT()</code>, <code>CONCAT_WS()</code> automatically skips NULL arguments.</p>
+        <p>Returns a string that concatenates <i>string2, string3, ...</i> with a separator <i>string1</i>. The separator is added between the strings to be concatenated. Returns NULL If <i>string1</i> is NULL. Compared with <code>CONCAT()</code>, <code>CONCAT_WS()</code> automatically skips NULL arguments.</p> 
         <p>E.g., <code>CONCAT_WS('~', 'AA', NULL, 'BB', '', 'CC')</code> returns "AA~BB~~CC".</p>
   </td>
     </tr>
@@ -2649,11 +2661,11 @@ LPAD(string1, integer, string2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new string from <i>string1</i> left-padded with <i>string2</i> to a length of <i>integer</i> characters. If the length of <i>string1</i> is shorter than <i>integer</i>, returns <i>string1</i> shortened to <i>integer</i> characters.</p>
+        <p>Returns a new string from <i>string1</i> left-padded with <i>string2</i> to a length of <i>integer</i> characters. If the length of <i>string1</i> is shorter than <i>integer</i>, returns <i>string1</i> shortened to <i>integer</i> characters.</p> 
         <p>E.g., <code>LPAD('hi',4,'??')</code> returns "??hi"; <code>LPAD('hi',1,'??')</code> returns "h".</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight text %}
@@ -2661,11 +2673,11 @@ RPAD(string1, integer, string2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new string from <i>string1</i> right-padded with <i>string2</i> to a length of <i>integer</i> characters. If the length of <i>string1</i> is shorter than <i>integer</i>, returns <i>string1</i> shortened to <i>integer</i> characters.</p>
+        <p>Returns a new string from <i>string1</i> right-padded with <i>string2</i> to a length of <i>integer</i> characters. If the length of <i>string1</i> is shorter than <i>integer</i>, returns <i>string1</i> shortened to <i>integer</i> characters.</p> 
         <p>E.g., <code>RPAD('hi',4,'??')</code> returns "hi??", <code>RPAD('hi',1,'??')</code> returns "h".</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight text %}
@@ -2673,11 +2685,11 @@ FROM_BASE64(string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the base64-decoded result from <i>string</i>; returns NULL if <i>string</i> is NULL.</p>
+        <p>Returns the base64-decoded result from <i>string</i>; returns NULL if <i>string</i> is NULL.</p> 
         <p>E.g., <code>FROM_BASE64('aGVsbG8gd29ybGQ=')</code> returns "hello world".</p>
       </td>
     </tr>
-
+        
     <tr>
       <td>
         {% highlight text %}
@@ -2685,10 +2697,184 @@ TO_BASE64(string)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the base64-encoded result from <i>string</i>; returns NULL if <i>string</i> is NULL.</p>
+        <p>Returns the base64-encoded result from <i>string</i>; returns NULL if <i>string</i> is NULL.</p> 
         <p>E.g., <code>TO_BASE64('hello world')</code> returns "aGVsbG8gd29ybGQ=".</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+ASCII(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the numeric value of the first character of <i>string</i>. Returns NULL if <i>string</i> is NULL.</p>
+        <p>Only supported in blink planner.</p>
+        <p>E.g., <code>ascii('abc')</code> returns 97, and <code>ascii(CAST(NULL AS VARCHAR))</code> returns NULL.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+CHR(integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the ASCII character having the binary equivalent to <i>integer</i>. If <i>integer</i> is larger than 255, we will get the modulus of <i>integer</i> divided by 255 first, and returns <i>CHR</i> of the modulus. Returns NULL if <i>integer</i> is NULL.</p>
+        <p>Only supported in blink planner.</p>
+        <p>E.g., <code>chr(97)</code> returns a, <code>chr(353)</code> returns a, and <code>ascii(CAST(NULL AS VARCHAR))</code> returns NULL.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+DECODE(binary, string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Decodes the first argument into a String using the provided character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+ENCODE(string1, string2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Encodes the <i>string1</i> into a BINARY using the provided <i>string2</i> character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+INSTR(string1, string2)
+{% endhighlight %}
+      </td>
+      <td>
+        Returns the position of the first occurrence of <i>string2</i> in <i>string1</i>. Returns NULL if any of arguments is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LEFT(string, integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the leftmost <i>integer</i> characters from the <i>string</i>. Returns EMPTY String if <i>integer</i> is negative. Returns NULL if any argument is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+RIGHT(string, integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the rightmost <i>integer</i> characters from the <i>string</i>. Returns EMPTY String if <i>integer</i> is negative. Returns NULL if any argument is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LOCATE(string1, string2[, integer])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the position of the first occurrence of <i>string1</i> in <i>string2</i> after position <i>integer</i>. Returns 0 if not found. Returns NULL if any of arguments is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+PARSE_URL(string1, string2[, string3])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the specified part from the URL. Valid values for <i>string2</i> include 'HOST', 'PATH', 'QUERY', 'REF', 'PROTOCOL', 'AUTHORITY', 'FILE', and 'USERINFO'. Returns NULL if any of arguments is NULL.</p>
+        <p>E.g., <code>parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST')</code>, returns 'facebook.com'.</p>
+        <p>Also a value of a particular key in QUERY can be extracted by providing the key as the third argument <i>string3</i>.</p>
+        <p>E.g., <code>parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1')</code> returns 'v1'. </p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+REGEXP(string1, string2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns TRUE if any (possibly empty) substring of <i>string1</i> matches the Java regular expression <i>string2</i>, otherwise FALSE. Returns NULL if any of arguments is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+REVERSE(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the reversed string. Returns NULL if <i>string</i> is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SPLIT_INDEX(string1, string2, integer1)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Splits <i>string1</i> by the delimiter <i>string2</i>, returns the <i>integer</i>th (zero-based) string of the split strings. Returns NULL if <i>integer</i> is negative. Returns NULL if any of arguments is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+STR_TO_MAP(string1[, string2, string3]])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a map after splitting the <i>string1</i> into key/value pairs using delimiters. <i>string2</i> is the pair delimiter, default is ','. And <i>string3</i> is the key-value delimiter, default is '='.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+SUBSTR(string[, integer1[, integer2]])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a substring of string starting from position integer1 with length integer2 (to the end by default).</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+        
   </tbody>
 </table>
 </div>
@@ -2781,7 +2967,7 @@ STRING.ltrim()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that removes the left whitespaces from <i>STRING</i>.</p>
+        <p>Returns a string that removes the left whitespaces from <i>STRING</i>.</p> 
         <p>E.g., <code>' This is a test String.'.ltrim()</code> returns "This is a test String.".</p>
       </td>
     </tr>
@@ -2793,7 +2979,7 @@ STRING.rtrim()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that removes the right whitespaces from <i>STRING</i>.</p>
+        <p>Returns a string that removes the right whitespaces from <i>STRING</i>.</p> 
         <p>E.g., <code>'This is a test String. '.rtrim()</code> returns "This is a test String.".</p>
       </td>
     </tr>
@@ -2805,10 +2991,10 @@ STRING.repeat(INT)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that repeats the base <i>STRING</i> <i>INT</i> times.</p>
+        <p>Returns a string that repeats the base <i>STRING</i> <i>INT</i> times.</p> 
         <p>E.g., <code>'This is a test String.'.repeat(2)</code> returns "This is a test String.This is a test String.".</p>
       </td>
-    </tr>
+    </tr>    
 
     <tr>
       <td>
@@ -2817,11 +3003,11 @@ STRING1.regexpReplace(STRING2, STRING3)
 {% endhighlight %}
       </td>
        <td>
-         <p>Returns a string from <i>STRING1</i> with all the substrings that match a regular expression <i>STRING2</i> consecutively being replaced with <i>STRING3</i>.</p>
+         <p>Returns a string from <i>STRING1</i> with all the substrings that match a regular expression <i>STRING2</i> consecutively being replaced with <i>STRING3</i>.</p> 
          <p>E.g., <code>'foobar'.regexpReplace('oo|ar', '')</code> returns "fb".</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight java %}
@@ -2867,7 +3053,7 @@ STRING1.regexpExtract(STRING2[, INTEGER1])
       </td>
       <td>
         <p>Returns a string from <i>STRING1</i> which extracted with a specified regular expression <i>STRING2</i> and a regex match group index <i>INTEGER1</i>.</p>
-        <p><b>Note:</b> The regex match group index starts from 1 and 0 means matching the whole regex. In addition, the regex match group index should not exceed the number of the defined groups.</p>
+        <p><b>Note:</b> The regex match group index starts from 1 and 0 means matching the whole regex. In addition, the regex match group index should not exceed the number of the defined groups.</p> 
         <p>E.g., <code>'foothebar'.regexpExtract('foo(.*?)(bar)', 2)</code> returns "bar".</p>
       </td>
     </tr>
@@ -2902,7 +3088,7 @@ concat_ws(STRING1, STRING2, STRING3, ...)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that concatenates <i>STRING2, STRING3, ...</i> with a separator <i>STRING1</i>. The separator is added between the strings to be concatenated. Returns NULL If <i>STRING1</i> is NULL. Compared with <code>concat()</code>, <code>concat_ws()</code> automatically skips NULL arguments.</p>
+        <p>Returns a string that concatenates <i>STRING2, STRING3, ...</i> with a separator <i>STRING1</i>. The separator is added between the strings to be concatenated. Returns NULL If <i>STRING1</i> is NULL. Compared with <code>concat()</code>, <code>concat_ws()</code> automatically skips NULL arguments.</p> 
         <p>E.g., <code>concat_ws('~', 'AA', Null(STRING), 'BB', '', 'CC')</code> returns "AA~BB~~CC".</p>
       </td>
     </tr>
@@ -2914,7 +3100,7 @@ STRING1.lpad(INT, STRING2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new string from <i>STRING1</i> left-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p>
+        <p>Returns a new string from <i>STRING1</i> left-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p> 
         <p>E.g., <code>'hi'.lpad(4, '??')</code> returns "??hi";  <code>'hi'.lpad(1, '??')</code> returns "h".</p>
       </td>
     </tr>
@@ -2926,11 +3112,11 @@ STRING1.rpad(INT, STRING2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new string from <i>STRING1</i> right-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p>
+        <p>Returns a new string from <i>STRING1</i> right-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p> 
         <p>E.g., <code>'hi'.rpad(4, '??')</code> returns "hi??";  <code>'hi'.rpad(1, '??')</code> returns "h".</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight java %}
@@ -2938,11 +3124,11 @@ STRING.fromBase64()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the base64-decoded result from <i>STRING</i>; returns NULL if <i>STRING</i> is NULL.</p>
+        <p>Returns the base64-decoded result from <i>STRING</i>; returns NULL if <i>STRING</i> is NULL.</p> 
         <p>E.g., <code>'aGVsbG8gd29ybGQ='.fromBase64()</code> returns "hello world".</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight java %}
@@ -2989,7 +3175,7 @@ STRING.charLength()
       <td>
         <p>Returns the number of characters in <i>STRING</i>.</p>
       </td>
-    </tr>
+    </tr> 
 
     <tr>
       <td>
@@ -3045,7 +3231,7 @@ STRING.ltrim()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that removes the left whitespaces from <i>STRING</i>.</p>
+        <p>Returns a string that removes the left whitespaces from <i>STRING</i>.</p> 
         <p>E.g., <code>" This is a test String.".ltrim()</code> returns "This is a test String.".</p>
       </td>
     </tr>
@@ -3057,7 +3243,7 @@ STRING.rtrim()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that removes the right whitespaces from <i>STRING</i>.</p>
+        <p>Returns a string that removes the right whitespaces from <i>STRING</i>.</p> 
         <p>E.g., <code>"This is a test String. ".rtrim()</code> returns "This is a test String.".</p>
       </td>
     </tr>
@@ -3069,10 +3255,10 @@ STRING.repeat(INT)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that repeats the base <i>STRING</i> <i>INT</i> times.</p>
+        <p>Returns a string that repeats the base <i>STRING</i> <i>INT</i> times.</p> 
         <p>E.g., <code>"This is a test String.".repeat(2)</code> returns "This is a test String.This is a test String.".</p>
       </td>
-    </tr>
+    </tr> 
 
     <tr>
       <td>
@@ -3081,7 +3267,7 @@ STRING1.regexpReplace(STRING2, STRING3)
 {% endhighlight %}
       </td>
        <td>
-         <p>Returns a string from <i>STRING1</i> with all the substrings that match a regular expression <i>STRING2</i> consecutively being replaced with <i>STRING3</i>.</p>
+         <p>Returns a string from <i>STRING1</i> with all the substrings that match a regular expression <i>STRING2</i> consecutively being replaced with <i>STRING3</i>.</p> 
          <p>E.g. <code>"foobar".regexpReplace("oo|ar", "")</code> returns "fb".</p>
       </td>
     </tr>
@@ -3146,7 +3332,7 @@ STRING.initCap()
         <p>Returns a new form of <i>STRING</i> with the first character of each word converted to uppercase and the rest characters to lowercase. Here a word means a sequences of alphanumeric characters.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -3166,11 +3352,11 @@ concat_ws(STRING1, STRING2, STRING3, ...)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a string that concatenates <i>STRING2, STRING3, ...</i> with a separator <i>STRING1</i>. The separator is added between the strings to be concatenated. Returns NULL If <i>STRING1</i> is NULL. Compared with <code>concat()</code>, <code>concat_ws()</code> automatically skips NULL arguments.</p>
+        <p>Returns a string that concatenates <i>STRING2, STRING3, ...</i> with a separator <i>STRING1</i>. The separator is added between the strings to be concatenated. Returns NULL If <i>STRING1</i> is NULL. Compared with <code>concat()</code>, <code>concat_ws()</code> automatically skips NULL arguments.</p> 
         <p>E.g., <code>concat_ws("~", "AA", Null(Types.STRING), "BB", "", "CC")</code> returns "AA~BB~~CC".</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -3178,7 +3364,7 @@ STRING1.lpad(INT, STRING2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new string from <i>STRING1</i> left-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p>
+        <p>Returns a new string from <i>STRING1</i> left-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p> 
         <p>E.g., <code>"hi".lpad(4, "??")</code> returns "??hi";  <code>"hi".lpad(1, "??")</code> returns "h".</p>
       </td>
     </tr>
@@ -3190,11 +3376,11 @@ STRING1.rpad(INT, STRING2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new string from <i>STRING1</i> right-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p>
+        <p>Returns a new string from <i>STRING1</i> right-padded with <i>STRING2</i> to a length of <i>INT</i> characters. If the length of <i>STRING1</i> is shorter than <i>INT</i>, returns <i>STRING1</i> shortened to <i>INT</i> characters.</p> 
         <p>E.g., <code>"hi".rpad(4, "??")</code> returns "hi??";  <code>"hi".rpad(1, "??")</code> returns "h".</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -3202,11 +3388,11 @@ STRING.fromBase64()
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the base64-decoded result from <i>STRING</i>; returns null If <i>STRING</i> is NULL.</p>
+        <p>Returns the base64-decoded result from <i>STRING</i>; returns null If <i>STRING</i> is NULL.</p> 
         <p>E.g., <code>"aGVsbG8gd29ybGQ=".fromBase64()</code> returns "hello world".</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -3278,7 +3464,7 @@ INTERVAL string range
 {% endhighlight %}
       </td>
       <td>
-        <p>Parses an interval <i>string</i> in the form "dd hh:mm:ss.fff" for SQL intervals of milliseconds or "yyyy-mm" for SQL intervals of months. An interval range might be <code>DAY</code>, <code>MINUTE</code>, <code>DAY TO HOUR</code>, or <code>DAY TO SECOND</code> for intervals of milliseconds; <code>YEAR</code> or <code>YEAR TO MONTH</code> for intervals of months.</p>
+        <p>Parses an interval <i>string</i> in the form "dd hh:mm:ss.fff" for SQL intervals of milliseconds or "yyyy-mm" for SQL intervals of months. An interval range might be <code>DAY</code>, <code>MINUTE</code>, <code>DAY TO HOUR</code>, or <code>DAY TO SECOND</code> for intervals of milliseconds; <code>YEAR</code> or <code>YEAR TO MONTH</code> for intervals of months.</p> 
         <p>E.g., <code>INTERVAL '10 00:00:00.004' DAY TO SECOND</code>, <code>INTERVAL '10' DAY</code>, or <code>INTERVAL '2-10' YEAR TO MONTH</code> return intervals.</p>
       </td>
     </tr>
@@ -3357,11 +3543,11 @@ YEAR(date)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the year from SQL date <i>date</i>. Equivalent to EXTRACT(YEAR FROM date).</p>
+        <p>Returns the year from SQL date <i>date</i>. Equivalent to EXTRACT(YEAR FROM date).</p> 
         <p>E.g., <code>YEAR(DATE '1994-09-27')</code> returns 1994.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight text %}
@@ -3369,7 +3555,7 @@ QUARTER(date)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the quarter of a year (an integer between 1 and 4) from SQL date <i>date</i>. Equivalent to <code>EXTRACT(QUARTER FROM date)</code>.</p>
+        <p>Returns the quarter of a year (an integer between 1 and 4) from SQL date <i>date</i>. Equivalent to <code>EXTRACT(QUARTER FROM date)</code>.</p> 
         <p>E.g., <code>QUARTER(DATE '1994-09-27')</code> returns 3.</p>
       </td>
     </tr>
@@ -3381,7 +3567,7 @@ MONTH(date)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns the month of a year (an integer between 1 and 12) from SQL date <i>date</i>. Equivalent to <code>EXTRACT(MONTH FROM date)</code>.</p>
+        <p>Returns the month of a year (an integer between 1 and 12) from SQL date <i>date</i>. Equivalent to <code>EXTRACT(MONTH FROM date)</code>.</p> 
         <p>E.g., <code>MONTH(DATE '1994-09-27')</code> returns 9.</p>
       </td>
     </tr>
@@ -3477,7 +3663,7 @@ FLOOR(timepoint TO timeintervalunit)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a value that rounds <i>timepoint</i> down to the time unit <i>timeintervalunit</i>.</p>
+        <p>Returns a value that rounds <i>timepoint</i> down to the time unit <i>timeintervalunit</i>.</p> 
         <p>E.g., <code>FLOOR(TIME '12:44:31' TO MINUTE)</code> returns 12:44:00.</p>
       </td>
     </tr>
@@ -3524,7 +3710,7 @@ TIMESTAMPADD(timeintervalunit, interval, timepoint)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a new time value that adds a (signed) integer interval to <i>timepoint</i>. The unit for <i>interval</i> is given by the unit argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>WEEK</code>, <code>MONTH</code>, <code>QUARTER</code>, or <code>YEAR</code>.</p>
+        <p>Returns a new time value that adds a (signed) integer interval to <i>timepoint</i>. The unit for <i>interval</i> is given by the unit argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>WEEK</code>, <code>MONTH</code>, <code>QUARTER</code>, or <code>YEAR</code>.</p> 
         <p>E.g., <code>TIMESTAMPADD(WEEK, 1, DATE '2003-01-02')</code> returns <code>2003-01-09</code>.</p>
       </td>
     </tr>
@@ -3540,6 +3726,92 @@ TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
         <p>E.g., <code>TIMESTAMPDIFF(DAY, TIMESTAMP '2003-01-02 10:00:00', TIMESTAMP '2003-01-03 10:00:00')</code> leads to <code>1</code>.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+      {% highlight text %}
+CONVERT_TZ(string1, string2, string3)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts a datetime <i>string1</i> (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone <i>string2</i> to time zone <i>string3</i>. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-8:00".</p>
+        <p>E.g., <code>CONVERT('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles')</code> returns '1969-12-31 16:00:00'.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+        
+    <tr>
+      <td>
+      {% highlight text %}
+FROM_UNIXTIME(numeric[, string])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a representation of the <i>numeric</i> argument as a value in <i>string</i> format (default is 'YYYY-MM-DD hh:mm:ss'). <i>numeric</i> is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig).</p>
+        <p>E.g., <code>FROM_UNIXTIME(44)</code> returns '1970-01-01 09:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+      {% highlight text %}
+UNIX_TIMESTAMP()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Gets current Unix timestamp in seconds. This function is not deterministic.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+      {% highlight text %}
+UNIX_TIMESTAMP(string1[, string2])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts date time string <i>string1</i> in format <i>string2</i> (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+        
+    <tr>
+      <td>
+      {% highlight text %}
+TO_DATE(string1[, string2])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts a date string <i>string1</i> with format <i>string2</i> (by default 'yyyy-MM-dd') to a date.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr> 
+       
+    <tr>
+      <td>
+      {% highlight text %}
+TO_TIMESTAMP(string1[, string2])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts date time string <i>string1</i> with format <i>string2</i> (by default: 'yyyy-MM-dd HH:mm:ss') under the session time zone (specified by TableConfig) to a timestamp.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+        
+    <tr>
+      <td>
+      {% highlight text %}
+NOW()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the current SQL timestamp in the UTC time zone. This function is not deterministic.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
 
   </tbody>
 </table>
@@ -3553,7 +3825,7 @@ TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
       <th class="text-center">Description</th>
     </tr>
   </thead>
-
+  
   <tbody>
    <tr>
       <td>
@@ -3635,7 +3907,7 @@ NUMERIC.weeks
         <p>E.g., <code>2.weeks</code> returns 1209600000.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight java %}
@@ -3770,7 +4042,7 @@ TIMEPOINT.floor(TIMEINTERVALUNIT)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a value that rounds <i>TIMEPOINT</i> down to the time unit <i>TIMEINTERVALUNIT</i>.</p>
+        <p>Returns a value that rounds <i>TIMEPOINT</i> down to the time unit <i>TIMEINTERVALUNIT</i>.</p> 
         <p>E.g., <code>'12:44:31'.toDate.floor(MINUTE)</code> returns 12:44:00.</p>
       </td>
     </tr>
@@ -3918,7 +4190,7 @@ NUMERIC.weeks
         <p>E.g., <code>2.weeks</code> returns 1209600000.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -4053,7 +4325,7 @@ TIMEPOINT.floor(TIMEINTERVALUNIT)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns a value that rounds <i>TIMEPOINT</i> down to the time unit <i>TIMEINTERVALUNIT</i>.</p>
+        <p>Returns a value that rounds <i>TIMEPOINT</i> down to the time unit <i>TIMEINTERVALUNIT</i>.</p> 
         <p>E.g., <code>"12:44:31".toDate.floor(TimeIntervalUnit.MINUTE)</code> returns 12:44:00.</p>
       </td>
     </tr>
@@ -4153,7 +4425,7 @@ END
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns <i>resultX</i> when the first <i>conditionX</i> is met.
+        <p>Returns <i>resultX</i> when the first <i>conditionX</i> is met. 
         When no condition is met, returns <i>resultZ</i> if it is provided and returns NULL otherwise.</p>
       </td>
     </tr>
@@ -4181,6 +4453,56 @@ COALESCE(value1, value2 [, value3 ]* )
         <p>E.g., <code>COALESCE(NULL, 5)</code> returns 5.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+IF(condition, true_value, false_value)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the <i>true_value</i> if <i>condition</i> is met, otherwise <i>false_value</i>.</p>
+        <p>Only supported in blink planner.</p>
+        <p>E.g., <code>IF(5 > 3, 5, 3)</code> returns 5.</p>
+      </td>
+    </tr>    
+
+    <tr>
+      <td>
+        {% highlight text %}
+IS_ALPHA(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if all characters in <i>string</i> are letter, otherwise false.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>    
+
+    <tr>
+      <td>
+        {% highlight text %}
+IS_DECIMAL(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if <i>string</i> can be parsed to a valid numeric, otherwise false.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>    
+
+    <tr>
+      <td>
+        {% highlight text %}
+IS_DIGIT(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if all characters in <i>string</i> are digit, otherwise false.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+    
   </tbody>
 </table>
 </div>
@@ -4193,7 +4515,7 @@ COALESCE(value1, value2 [, value3 ]* )
       <th class="text-center">Description</th>
     </tr>
   </thead>
-
+  
   <tbody>
     <tr>
       <td>
@@ -4202,7 +4524,7 @@ BOOLEAN.?(VALUE1, VALUE2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns <i>VALUE1</i> if <i>BOOLEAN</i> evaluates to TRUE; returns <i>VALUE2</i> otherwise.</p>
+        <p>Returns <i>VALUE1</i> if <i>BOOLEAN</i> evaluates to TRUE; returns <i>VALUE2</i> otherwise.</p> 
         <p>E.g., <code>(42 > 5).?('A', 'B')</code> returns "A".</p>
       </td>
     </tr>
@@ -4218,7 +4540,7 @@ BOOLEAN.?(VALUE1, VALUE2)
       <th class="text-center">Description</th>
     </tr>
   </thead>
-
+  
   <tbody>
     <tr>
       <td>
@@ -4227,7 +4549,7 @@ BOOLEAN.?(VALUE1, VALUE2)
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns <i>VALUE1</i> if <i>BOOLEAN</i> evaluates to TRUE; returns <i>VALUE2</i> otherwise.</p>
+        <p>Returns <i>VALUE1</i> if <i>BOOLEAN</i> evaluates to TRUE; returns <i>VALUE2</i> otherwise.</p> 
         <p>E.g., <code>(42 > 5).?("A", "B")</code> returns "A".</p>
       </td>
     </tr>
@@ -4275,7 +4597,7 @@ CAST(value AS type)
       <th class="text-center">Description</th>
     </tr>
   </thead>
-
+  
   <tbody>
     <tr>
       <td>
@@ -4435,7 +4757,7 @@ ARRAY.element()
         <p>Returns the sole element of <i>ARRAY</i> (whose cardinality should be one); returns NULL if <i>ARRAY</i> is empty. Throws an exception if <i>ARRAY</i> has more than one element.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight java %}
@@ -4503,7 +4825,7 @@ ARRAY.element()
         <p>Returns the sole element of <i>ARRAY</i> (whose cardinality should be one); returns NULL if <i>ARRAY</i> is empty. Throws an exception if <i>ARRAY</i> has more than one element.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -4589,7 +4911,7 @@ MAP ‘[’ value1, value2 [, value3, value4 ]* ‘]’
       <th class="text-center">Description</th>
     </tr>
   </thead>
-
+  
   <tbody>
     <tr>
       <td>
@@ -4601,7 +4923,7 @@ row(ANY1, ANY2, ...)
         <p>Returns a row created from a list of object values (<i>ANY1, ANY2</i>, ...). Row is composite type that can be access via <a href="#value-access-functions">value access functions</a>.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight java %}
@@ -4623,7 +4945,7 @@ map(ANY1, ANY2, ANY3, ANY4, ...)
         <p>Returns a map created from a list of key-value pairs ((<i>ANY1, ANY2</i>), <i>(ANY3, ANY4)</i>, ...).</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight java %}
@@ -4658,7 +4980,7 @@ row(ANY1, ANY2, ...)
         <p>Returns a row created from a list of object values (<i>ANY1, ANY2</i>, ...). Row is composite type that can be access via <a href="#value-access-functions">value access functions</a>.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -4669,7 +4991,7 @@ array(ANY1, ANY2, ...)
         <p>Returns an array created from a list of object values (<i>ANY1, ANY2</i>, ...).</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -4680,7 +5002,7 @@ map(ANY1, ANY2, ANY3, ANY4, ...)
         <p>Returns a map created from a list of key-value pairs ((<i>ANY1, ANY2</i>), <i>(ANY3, ANY4)</i>, ...).</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -4917,7 +5239,7 @@ SHA1(string)
         <p>Returns the SHA-1 hash of <i>string</i> as a string of 40 hexadecimal digits; returns NULL if <i>string</i> is NULL.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight text %}
@@ -4927,8 +5249,8 @@ SHA224(string)
       <td>
         <p>Returns the SHA-224 hash of <i>string</i> as a string of 56 hexadecimal digits; returns NULL if <i>string</i> is NULL.</p>
       </td>
-    </tr>
-
+    </tr>    
+    
     <tr>
       <td>
         {% highlight text %}
@@ -4939,7 +5261,7 @@ SHA256(string)
         <p>Returns the SHA-256 hash of <i>string</i> as a string of 64 hexadecimal digits; returns NULL if <i>string</i> is NULL.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight text %}
@@ -4949,7 +5271,7 @@ SHA384(string)
       <td>
         <p>Returns the SHA-384 hash of <i>string</i> as a string of 96 hexadecimal digits; returns NULL if <i>string</i> is NULL.</p>
       </td>
-    </tr>
+    </tr>  
 
     <tr>
       <td>
@@ -4985,7 +5307,7 @@ SHA2(string, hashLength)
       <th class="text-center">Description</th>
     </tr>
   </thead>
-
+  
   <tbody>
     <tr>
       <td>
@@ -5076,7 +5398,7 @@ STRING.sha2(INT)
       <th class="text-center">Description</th>
     </tr>
   </thead>
-
+  
   <tbody>
     <tr>
       <td>
@@ -5121,7 +5443,7 @@ STRING.sha256()
         <p>Returns the SHA-256 hash of <i>STRING</i> as a string of 64 hexadecimal digits; returns NULL if <i>STRING</i> is NULL.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -5131,7 +5453,7 @@ STRING.sha384()
       <td>
         <p>Returns the SHA-384 hash of <i>STRING</i> as a string of 96 hexadecimal digits; returns NULL if <i>STRING</i> is NULL.</p>
       </td>
-    </tr>
+    </tr>    
 
     <tr>
       <td>
@@ -5234,7 +5556,7 @@ ANY.as(NAME1, NAME2, ...)
 Aggregate Functions
 -------------------
 
-The aggregate functions take an expression across all the rows as the input and return a single aggregated value as the result.
+The aggregate functions take an expression across all the rows as the input and return a single aggregated value as the result. 
 
 <div class="codetabs" markdown="1">
 <div data-lang="SQL" markdown="1">
@@ -5367,6 +5689,116 @@ COLLECT([ ALL | DISTINCT ] expression)
           <p>By default or with keyword ALL, returns a multiset of <i>expression</i> across all input rows. NULL values will be ignored. Use DISTINCT for one unique instance of each value.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+VARIANCE([ ALL | DISTINCT ] expression)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Synonyms for VAR_SAMP().</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+RANK()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the rank of a value in a group of values. The result is one plus the number of rows preceding or equal to the current row in the ordering of the partition. The values will produce gaps in the sequence.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+DENSE_RANK()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the rank of a value in a group of values. The result is one plus the previously assigned rank value. Unlike the function rank, dense_rank will not produce gaps in the ranking sequence.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ROW_NUMBER()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Assigns a unique, sequential number to each row, starting with one, according to the ordering of rows within the window partition.</p>
+        <p>ROW_NUMBER and RANK are similar. ROW_NUMBER numbers all rows sequentially (for example 1, 2, 3, 4, 5). RANK provides the same numeric value for ties (for example 1, 2, 2, 4, 5).</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LEAD(expression [, offset] [, default] )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the value of <i>expression</i> at the <i>offset</i>th row after the current row in the window. The default value of <i>offset</i> is 1 and the default value of <i>default</i> is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LAG(expression [, offset] [, default])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the value of <i>expression</i> at the <i>offset</i>th row after the current row in the window. The default value of <i>offset</i> is 1 and the default value of <i>default</i> is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+        
+    <tr>
+      <td>
+        {% highlight text %}
+FIRST_VALUE(expression)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the first value in an ordered set of values.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LAST_VALUE(expression)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the last value in an ordered set of values.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LISTAGG(expression [, separator])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Concatenates the values of string expressions and places separator values between them. The separator is not added at the end of string. The default value of <i>separator</i> is ','.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+           
   </tbody>
 </table>
 
@@ -5380,7 +5812,7 @@ COLLECT([ ALL | DISTINCT ] expression)
       <th class="text-center">Description</th>
     </tr>
   </thead>
-
+  
   <tbody>
     <tr>
       <td>
@@ -5458,7 +5890,7 @@ FIELD.stddevPop
         <p>Returns the population standard deviation of numeric field <i>FIELD</i> across all input rows.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight java %}
@@ -5592,7 +6024,7 @@ FIELD.stddevPop
         <p>Returns the population standard deviation of numeric field <i>FIELD</i> across all input rows.</p>
       </td>
     </tr>
-
+    
     <tr>
       <td>
         {% highlight scala %}
@@ -5763,7 +6195,7 @@ The following table lists specifiers for date format functions.
 Time Interval and Point Unit Specifiers
 ---------------------------------------
 
-The following table lists specifiers for time interval and time point units.
+The following table lists specifiers for time interval and time point units. 
 
 For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
 
@@ -5856,7 +6288,7 @@ select("withColumns(*)") | select("*") = select("a, b, c, d, e")
         all the columns
       </td>
     </tr>
-
+    
     <tr>
       <td>
         withColumns(m to n)
@@ -5870,7 +6302,7 @@ select("withColumns(2 to 4)") = select("b, c, d")
         columns from m to n
       </td>
     </tr>
-
+    
     <tr>
       <td>
         withColumns(m, n, k)
@@ -5884,7 +6316,7 @@ select("withColumns(1, 3, e)") = select("a, c, e")
         columns m, n, k
       </td>
     </tr>
-
+    
     <tr>
       <td>
         withColumns(m, n to k)
@@ -5898,7 +6330,7 @@ select("withColumns(1, 3 to 5)") = select("a, c, d ,e")
         mixing of the above two representation
       </td>
     </tr>
-
+    
     <tr>
       <td>
         withoutColumns(m to n)
@@ -5926,7 +6358,7 @@ select("withoutColumns(1, 3, 5)") = select("b, d")
         deselect columns m, n, k
       </td>
     </tr>
-
+    
     <tr>
       <td>
         withoutColumns(m, n to k)
@@ -5940,7 +6372,7 @@ select("withoutColumns(1, 3 to 5)") = select("b")
         mixing of the above two representation
       </td>
     </tr>
-
+    
   </tbody>
 </table>
 </div>
@@ -5968,7 +6400,7 @@ select(withColumns('*)) | select('*) = select('a, 'b, 'c, 'd, 'e)
         all the columns
       </td>
     </tr>
-
+    
     <tr>
       <td>
         withColumns(m to n)
@@ -6023,8 +6455,8 @@ select(withoutColumns(2 to 4)) = select('a, 'e)
       <td>
         deselect columns from m to n
       </td>
-    </tr>
-
+    </tr>   
+     
     <tr>
       <td>
         withoutColumns(m, n, k)
@@ -6038,7 +6470,7 @@ select(withoutColumns(1, 3, 5)) = select('b, 'd)
         deselect columns m, n, k
       </td>
     </tr>
-
+   
     <tr>
       <td>
         withoutColumns(m, n to k)
@@ -6051,8 +6483,8 @@ select(withoutColumns(1, 3 to 5)) = select('b)
       <td>
         mixing of the above two representation
       </td>
-    </tr>
-
+    </tr> 
+    
   </tbody>
 </table>
 </div>

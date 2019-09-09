@@ -22,114 +22,111 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-Programs written in the [Data Stream API]({{ site.baseurl }}/dev/datastream_api.html) often hold state in various forms:
+用 [Data Stream API]({{ site.baseurl }}/zh/dev/datastream_api.html) 编写的程序通常以各种形式保存状态：
 
-- Windows gather elements or aggregates until they are triggered
-- Transformation functions may use the key/value state interface to store values
-- Transformation functions may implement the `CheckpointedFunction` interface to make their local variables fault tolerant
+- 在 Window 触发之前要么收集元素、要么聚合
+- 转换函数可以使用 key/value 格式的状态接口来存储状态
+- 转换函数可以实现 `CheckpointedFunction` 接口，使其本地变量具有容错能力
 
-See also [state section]({{ site.baseurl }}/dev/stream/state/index.html) in the streaming API guide.
+另请参阅 Streaming API 指南中的 [状态部分]({{ site.baseurl }}/zh/dev/stream/state/index.html) 。
 
-When checkpointing is activated, such state is persisted upon checkpoints to guard against data loss and recover consistently.
-How the state is represented internally, and how and where it is persisted upon checkpoints depends on the
-chosen **State Backend**.
+在启动 CheckPoint 机制时，状态会随着 CheckPoint 而持久化，以防止数据丢失、保障恢复时的一致性。
+状态内部的存储格式、状态在 CheckPoint 时如何持久化以及持久化在哪里均取决于选择的 **State Backend**。
 
 * ToC
 {:toc}
 
-## Available State Backends
+## 可用的 State Backends
 
-Out of the box, Flink bundles these state backends:
+Flink 内置了以下这些开箱即用的 state backends ：
 
  - *MemoryStateBackend*
  - *FsStateBackend*
  - *RocksDBStateBackend*
 
-If nothing else is configured, the system will use the MemoryStateBackend.
+如果不设置，默认使用 MemoryStateBackend。
 
 
-### The MemoryStateBackend
+### MemoryStateBackend
 
-The *MemoryStateBackend* holds data internally as objects on the Java heap. Key/value state and window operators hold hash tables
-that store the values, triggers, etc.
+在 *MemoryStateBackend* 内部，数据以 Java 对象的形式存储在堆中。 Key/value 形式的状态和窗口算子持有存储着状态值、触发器的 hash table。
 
-Upon checkpoints, this state backend will snapshot the state and send it as part of the checkpoint acknowledgement messages to the
-JobManager (master), which stores it on its heap as well.
+在 CheckPoint 时，State Backend 对状态进行快照，并将快照信息作为 CheckPoint 应答消息的一部分发送给 JobManager(master)，同时 JobManager 也将快照信息存储在堆内存中。
 
-The MemoryStateBackend can be configured to use asynchronous snapshots. While we strongly encourage the use of asynchronous snapshots to avoid blocking pipelines, please note that this is currently enabled 
-by default. To disable this feature, users can instantiate a `MemoryStateBackend` with the corresponding boolean flag in the constructor set to `false`(this should only used for debug), e.g.:
+MemoryStateBackend 能配置异步快照。强烈建议使用异步快照来防止数据流阻塞，注意，异步快照默认是开启的。
+用户可以在实例化 `MemoryStateBackend` 的时候，将相应布尔类型的构造参数设置为 `false` 来关闭异步快照（仅在 debug 的时候使用），例如：
 
 {% highlight java %}
     new MemoryStateBackend(MAX_MEM_STATE_SIZE, false);
 {% endhighlight %}
 
-Limitations of the MemoryStateBackend:
+MemoryStateBackend 的限制：
 
-  - The size of each individual state is by default limited to 5 MB. This value can be increased in the constructor of the MemoryStateBackend.
-  - Irrespective of the configured maximal state size, the state cannot be larger than the akka frame size (see [Configuration]({{ site.baseurl }}/ops/config.html)).
-  - The aggregate state must fit into the JobManager memory.
+  - 默认情况下，每个独立的状态大小限制是 5 MB。在 MemoryStateBackend 的构造器中可以增加其大小。
+  - 无论配置的最大状态内存大小（MAX_MEM_STATE_SIZE）有多大，都不能大于 akka frame 大小（看[配置参数]({{ site.baseurl }}/zh/ops/config.html)）。
+  - 聚合后的状态必须能够放进 JobManager 的内存中。
 
-The MemoryStateBackend is encouraged for:
+MemoryStateBackend 适用场景：
 
-  - Local development and debugging
-  - Jobs that do hold little state, such as jobs that consist only of record-at-a-time functions (Map, FlatMap, Filter, ...). The Kafka Consumer requires very little state.
+  - 本地开发和调试。
+  - 状态很小的 Job，例如：由每次只处理一条记录的函数（Map、FlatMap、Filter 等）构成的 Job。Kafka Consumer 仅仅需要非常小的状态。
 
 
-### The FsStateBackend
+### FsStateBackend
 
-The *FsStateBackend* is configured with a file system URL (type, address, path), such as "hdfs://namenode:40010/flink/checkpoints" or "file:///data/flink/checkpoints".
+*FsStateBackend* 需要配置一个文件系统的 URL（类型、地址、路径），例如："hdfs://namenode:40010/flink/checkpoints" 或 "file:///data/flink/checkpoints"。
 
-The FsStateBackend holds in-flight data in the TaskManager's memory. Upon checkpointing, it writes state snapshots into files in the configured file system and directory. Minimal metadata is stored in the JobManager's memory (or, in high-availability mode, in the metadata checkpoint).
+FsStateBackend 将正在运行中的状态数据保存在 TaskManager 的内存中。CheckPoint 时，将状态快照写入到配置的文件系统目录中。
+少量的元数据信息存储到 JobManager 的内存中（高可用模式下，将其写入到 CheckPoint 的元数据文件中）。
 
-The FsStateBackend uses *asynchronous snapshots by default* to avoid blocking the processing pipeline while writing state checkpoints. To disable this feature, users can instantiate a `FsStateBackend` with the corresponding boolean flag in the constructor set to `false`, e.g.:
+FsStateBackend 默认使用异步快照来防止 CheckPoint 写状态时对数据处理造成阻塞。
+用户可以在实例化 `FsStateBackend` 的时候，将相应布尔类型的构造参数设置为 `false` 来关闭异步快照，例如：
 
 {% highlight java %}
     new FsStateBackend(path, false);
 {% endhighlight %}
 
-The FsStateBackend is encouraged for:
+FsStateBackend 适用场景:
 
-  - Jobs with large state, long windows, large key/value states.
-  - All high-availability setups.
+  - 状态比较大、窗口比较长、key/value 状态比较大的 Job。
+  - 所有高可用的场景。
 
-### The RocksDBStateBackend
+### RocksDBStateBackend
 
-The *RocksDBStateBackend* is configured with a file system URL (type, address, path), such as "hdfs://namenode:40010/flink/checkpoints" or "file:///data/flink/checkpoints".
+*RocksDBStateBackend* 需要配置一个文件系统的 URL （类型、地址、路径），例如："hdfs://namenode:40010/flink/checkpoints" 或 "file:///data/flink/checkpoints"。
 
-The RocksDBStateBackend holds in-flight data in a [RocksDB](http://rocksdb.org) database
-that is (per default) stored in the TaskManager data directories. Upon checkpointing, the whole
-RocksDB database will be checkpointed into the configured file system and directory. Minimal
-metadata is stored in the JobManager's memory (or, in high-availability mode, in the metadata checkpoint).
+RocksDBStateBackend 将正在运行中的状态数据保存在 [RocksDB](http://rocksdb.org) 数据库中，RocksDB 数据库默认将数据存储在 TaskManager 的数据目录。
+CheckPoint 时，整个 RocksDB 数据库被 checkpoint 到配置的文件系统目录中。
+少量的元数据信息存储到 JobManager 的内存中（高可用模式下，将其存储到 CheckPoint 的元数据文件中）。 
 
-The RocksDBStateBackend always performs asynchronous snapshots.
+RocksDBStateBackend 只支持异步快照。
 
-Limitations of the RocksDBStateBackend:
+RocksDBStateBackend 的限制：
 
-  - As RocksDB's JNI bridge API is based on byte[], the maximum supported size per key and per value is 2^31 bytes each. 
-  IMPORTANT: states that use merge operations in RocksDB (e.g. ListState) can silently accumulate value sizes > 2^31 bytes and will then fail on their next retrieval. This is currently a limitation of RocksDB JNI.
+  - 由于 RocksDB 的 JNI API 构建在 byte[] 数据结构之上, 所以每个 key 和 value 最大支持 2^31 字节。
+    重要信息: RocksDB 合并操作的状态（例如：ListState）累积数据量大小可以超过 2^31 字节，但是会在下一次获取数据时失败。这是当前 RocksDB JNI 的限制。
 
-The RocksDBStateBackend is encouraged for:
+RocksDBStateBackend 的适用场景：
 
-  - Jobs with very large state, long windows, large key/value states.
-  - All high-availability setups.
+  - 状态非常大、窗口非常长、key/value 状态非常大的 Job。
+  - 所有高可用的场景。
 
-Note that the amount of state that you can keep is only limited by the amount of disk space available.
-This allows keeping very large state, compared to the FsStateBackend that keeps state in memory.
-This also means, however, that the maximum throughput that can be achieved will be lower with
-this state backend. All reads/writes from/to this backend have to go through de-/serialization to retrieve/store the state objects, which is also more expensive than always working with the
-on-heap representation as the heap-based backends are doing.
+注意，你可以保留的状态大小仅受磁盘空间的限制。与状态存储在内存中的 FsStateBackend 相比，RocksDBStateBackend 允许存储非常大的状态。
+然而，这也意味着使用 RocksDBStateBackend 将会使应用程序的最大吞吐量降低。
+所有的读写都必须序列化、反序列化操作，这个比基于堆内存的 state backend 的效率要低很多。
 
-RocksDBStateBackend is currently the only backend that offers incremental checkpoints (see [here](large_state_tuning.html)). 
+RocksDBStateBackend 是目前唯一支持增量 CheckPoint 的 State Backend (见 [这里](large_state_tuning.html))。
 
-Certain RocksDB native metrics are available but disabled by default, you can find full documentation [here]({{ site.baseurl }}/ops/config.html#rocksdb-native-metrics)
+可以使用一些 RocksDB 的本地指标(metrics)，但默认是关闭的。你能在 [这里]({{ site.baseurl }}/zh/ops/config.html#rocksdb-native-metrics) 找到关于 RocksDB 本地指标的文档。
 
-## Configuring a State Backend
+## 设置 State Backend
 
-The default state backend, if you specify nothing, is the jobmanager. If you wish to establish a different default for all jobs on your cluster, you can do so by defining a new default state backend in **flink-conf.yaml**. The default state backend can be overridden on a per-job basis, as shown below.
+如果没有明确指定，将使用 jobmanager 做为默认的 state backend。你能在 **flink-conf.yaml** 中为所有 Job 设置其他默认的 State Backend。
+每一个 Job 的 state backend 配置会覆盖默认的 state backend 配置，如下所示：
 
-### Setting the Per-job State Backend
+### 设置每个 Job 的 State Backend
 
-The per-job state backend is set on the `StreamExecutionEnvironment` of the job, as shown in the example below:
+`StreamExecutionEnvironment` 可以对每个 Job 的 State Backend 进行设置，如下所示：
 
 <div class="codetabs" markdown="1">
 <div data-lang="java" markdown="1">
@@ -146,7 +143,7 @@ env.setStateBackend(new FsStateBackend("hdfs://namenode:40010/flink/checkpoints"
 </div>
 </div>
 
-If you want to use the `RocksDBStateBackend`, then you have to add the following dependency to your Flink project.
+如果想使用 `RocksDBStateBackend`，必须添加以下依赖到 Flink 项目中。
 
 {% highlight xml %}
 <dependency>
@@ -157,18 +154,18 @@ If you want to use the `RocksDBStateBackend`, then you have to add the following
 {% endhighlight %}
 
 
-### Setting Default State Backend
+### 设置默认的（全局的） State Backend
 
-A default state backend can be configured in the `flink-conf.yaml`, using the configuration key `state.backend`.
+在 `flink-conf.yaml` 可以通过键 `state.backend` 设置默认的 State Backend。
 
-Possible values for the config entry are *jobmanager* (MemoryStateBackend), *filesystem* (FsStateBackend), *rocksdb* (RocksDBStateBackend), or the fully qualified class
-name of the class that implements the state backend factory [StateBackendFactory](https://github.com/apache/flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java),
-such as `org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory` for RocksDBStateBackend.
+可选值包括 *jobmanager* (MemoryStateBackend)、*filesystem* (FsStateBackend)、*rocksdb* (RocksDBStateBackend)，
+或使用实现了 state backend 工厂 [StateBackendFactory](https://github.com/apache/flink/blob/master/flink-runtime/src/main/java/org/apache/flink/runtime/state/StateBackendFactory.java) 的类的全限定类名，
+例如： RocksDBStateBackend 对应为 `org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory`。
 
-The `state.checkpoints.dir` option defines the directory to which all backends write checkpoint data and meta data files.
-You can find more details about the checkpoint directory structure [here](checkpoints.html#directory-structure).
+`state.checkpoints.dir` 选项指定了所有 State Backend 写 CheckPoint 数据和写元数据文件的目录。
+你能在 [这里](checkpoints.html#directory-structure) 找到关于 CheckPoint 目录结构的详细信息。
 
-A sample section in the configuration file could look as follows:
+配置文件的部分示例如下所示：
 
 {% highlight yaml %}
 # The backend that will be used to store operator state checkpoints

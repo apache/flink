@@ -22,18 +22,19 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.descriptors.Rowtime;
+import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedFieldReference;
 import org.apache.flink.table.types.DataType;
 
 import java.sql.Timestamp;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.typeLiteral;
-import static org.apache.flink.table.expressions.utils.ApiExpressionUtils.unresolvedCall;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.CAST;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -99,10 +100,11 @@ public final class ExistingField extends TimestampExtractor {
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
 				return fieldReferenceExpr;
 			case VARCHAR:
-				return unresolvedCall(
+				DataType outputType = TIMESTAMP(3).bridgedTo(Timestamp.class);
+				return new CallExpression(
 						CAST,
-						fieldReferenceExpr,
-						typeLiteral(TIMESTAMP(3).bridgedTo(Timestamp.class)));
+						Arrays.asList(fieldReferenceExpr, typeLiteral(outputType)),
+						outputType);
 			default:
 				throw new RuntimeException("Unsupport type: " + type);
 		}

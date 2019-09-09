@@ -18,56 +18,13 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
-import javax.annotation.Nonnull;
-
-import java.util.List;
-
 /**
- * A mailbox is basically a queue for inter-thread message exchange in form of {@link Runnable} objects between
- * multiple producer threads and a single consumer. This has a lifecycle of closed -> open -> (quiesced) -> closed.
+ * A mailbox is basically a queue for inter-thread message exchange in form of {@link Runnable} objects between multiple
+ * producer threads and a single consumer.
+ *
+ * <p>This interface combines the {@link MailboxReceiver} and {@link MailboxSender} side without life-cycle methods.
+ *
+ * @see TaskMailbox
  */
 public interface Mailbox extends MailboxReceiver, MailboxSender {
-
-	/**
-	 * This enum represents the states of the mailbox lifecycle.
-	 */
-	enum State {
-		OPEN, QUIESCED, CLOSED
-	}
-
-	/**
-	 * Open the mailbox. In this state, the mailbox supports put and take operations.
-	 */
-	void open();
-
-	/**
-	 * Quiesce the mailbox. In this state, the mailbox supports only take operations and all pending and future put
-	 * operations will throw {@link MailboxStateException}.
-	 */
-	void quiesce();
-
-	/**
-	 * Close the mailbox. In this state, all pending and future put operations and all pending and future take
-	 * operations will throw {@link MailboxStateException}. Returns all letters that were still enqueued.
-	 *
-	 * @return list with all letters that where enqueued in the mailbox at the time of closing.
-	 */
-	@Nonnull
-	List<Runnable> close();
-
-	/**
-	 * Adds the given action to the head of the mailbox.
-	 *
-	 * @param priorityLetter action to enqueue to the head of the mailbox.
-	 * @throws MailboxStateException if the mailbox is quiesced or closed.
-	 */
-	void putFirst(@Nonnull Runnable priorityLetter) throws MailboxStateException;
-
-	/**
-	 * Returns the current state of the mailbox as defined by the lifecycle enum {@link State}.
-	 *
-	 * @return the current state of the mailbox.
-	 */
-	@Nonnull
-	State getState();
 }

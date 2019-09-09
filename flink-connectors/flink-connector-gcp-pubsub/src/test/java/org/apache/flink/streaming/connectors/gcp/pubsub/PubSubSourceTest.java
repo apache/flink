@@ -17,6 +17,7 @@
 
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
+import org.apache.flink.api.common.io.ratelimiting.FlinkConnectorRateLimiter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -78,6 +79,8 @@ public class PubSubSourceTest {
 	private Credentials credentials;
 	@Mock
 	private PubSubSubscriber pubsubSubscriber;
+	@Mock
+	private FlinkConnectorRateLimiter rateLimiter;
 
 	private PubSubSource<String> pubSubSource;
 
@@ -91,8 +94,9 @@ public class PubSubSourceTest {
 		pubSubSource = new PubSubSource<>(deserializationSchema,
 			pubSubSubscriberFactory,
 			credentials,
-			100,
-			acknowledgeOnCheckpointFactory);
+			acknowledgeOnCheckpointFactory,
+			rateLimiter,
+			1024);
 		pubSubSource.setRuntimeContext(streamingRuntimeContext);
 	}
 
@@ -120,10 +124,15 @@ public class PubSubSourceTest {
 		when(sourceContext.getCheckpointLock()).thenReturn("some object to lock on");
 
 		pubSubSource.open(null);
-		pubSubSource.processMessage(sourceContext, asList(receivedMessage("firstAckId", pubSubMessage(FIRST_MESSAGE)),
-															receivedMessage("secondAckId", pubSubMessage(SECOND_MESSAGE))));
+		List<ReceivedMessage> receivedMessages = asList(
+			receivedMessage("firstAckId", pubSubMessage(FIRST_MESSAGE)),
+			receivedMessage("secondAckId", pubSubMessage(SECOND_MESSAGE))
+		);
+		pubSubSource.processMessage(sourceContext, receivedMessages);
 
 		//verify handling messages
+		verify(rateLimiter, times(1)).acquire(2);
+
 		verify(sourceContext, times(1)).getCheckpointLock();
 		verify(deserializationSchema, times(1)).isEndOfStream(FIRST_MESSAGE);
 		verify(deserializationSchema, times(1)).deserialize(pubSubMessage(FIRST_MESSAGE));

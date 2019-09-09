@@ -267,7 +267,6 @@ public class NetworkStackThroughputITCase extends TestLogger {
 			final int parallelism) throws Exception {
 		ClusterClient<?> client = cluster.getClusterClient();
 		client.setDetached(false);
-		client.setPrintStatusDuringExecution(false);
 
 		JobExecutionResult jer = (JobExecutionResult) client.submitJob(
 			createJobGraph(
