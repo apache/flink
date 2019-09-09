@@ -127,24 +127,30 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
     fi
 
     if [ $EXIT_CODE == 0 ]; then
-        ./tools/releasing/collect_license_files.sh ./build-target
-        diff "NOTICE-binary" "licenses-output/NOTICE-binary"
-        EXIT_CODE=$(($EXIT_CODE+$?))
-        diff -r "licenses-binary" "licenses-output/licenses-binary"
-        EXIT_CODE=$(($EXIT_CODE+$?))
+        if [[ $PROFILE == *"scala-2.11"* ]]; then
+          ./tools/releasing/collect_license_files.sh ./build-target
+          diff "NOTICE-binary" "licenses-output/NOTICE-binary"
+          EXIT_CODE=$(($EXIT_CODE+$?))
+          diff -r "licenses-binary" "licenses-output/licenses-binary"
+          EXIT_CODE=$(($EXIT_CODE+$?))
 
-        if [ $EXIT_CODE != 0 ]; then
+          if [ $EXIT_CODE != 0 ]; then
+            echo "=============================================================================="
+            echo "ERROR: binary licensing is out-of-date."
+            echo "Please update NOTICE-binary and licenses-binary:"
+            echo "Step 1: Rebuild flink"
+            echo "Step 2: Run 'tools/releasing/collect_license_files.sh build-target'"
+            echo "  This extracts all the licensing files from the distribution, and puts them in 'licenses-output'."
+            echo "  If the build-target symlink does not exist after building flink, point the tool to 'flink-dist/target/flink-<version>-bin/flink-<version>' instead."
+            echo "Step 3: Replace existing licensing"
+            echo "  Delete NOTICE-binary and the entire licenses-binary directory."
+            echo "  Copy the contents in 'licenses-output' into the root directory of the Flink project."
+            echo "Step 4: Remember to commit the changes!"
+            echo "=============================================================================="
+          fi
+        else
           echo "=============================================================================="
-          echo "ERROR: binary licensing is out-of-date."
-          echo "Please update NOTICE-binary and licenses-binary:"
-          echo "Step 1: Rebuild flink"
-          echo "Step 2: Run 'tools/releasing/collect_license_files.sh build-target'"
-          echo "  This extracts all the licensing files from the distribution, and puts them in 'licenses-output'."
-          echo "  If the build-target symlink does not exist after building flink, point the tool to 'flink-dist/target/flink-<version>-bin/flink-<version>' instead."
-          echo "Step 3: Replace existing licensing"
-          echo "  Delete NOTICE-binary and the entire licenses-binary directory."
-          echo "  Copy the contents in 'licenses-output' into the root directory of the Flink project."
-          echo "Step 4: Remember to commit the changes!"
+          echo "Ignoring the license file check because built uses different Scala version than 2.11. See FLINK-14008."
           echo "=============================================================================="
         fi
     else
