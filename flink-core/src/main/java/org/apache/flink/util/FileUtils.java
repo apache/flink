@@ -29,19 +29,34 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.FileVisitOption;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
+import java.util.function.Predicate;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -525,6 +540,123 @@ public final class FileUtils {
 		return new Path(targetDirectory, rootDir);
 	}
 
+	/**
+	 * List the {@code directory} recursively and return the files that satisfy the {@code fileFilter}.
+	 *
+	 * @param directory the directory to be listed
+	 * @param fileFilter a file filter
+	 * @return a collection of {@code File}s
+	 *
+	 * @throws IOException if an I/O error occurs while listing the files in the given directory
+	 */
+	public static Collection<File> listFilesInPath(final File directory, final Predicate<File> fileFilter) throws IOException {
+		checkNotNull(directory, "directory");
+		checkNotNull(fileFilter, "fileFilter");
+
+		if (!Files.exists(directory.toPath())) {
+			throw new IllegalArgumentException(String.format("The directory %s dose not exist.", directory));
+		}
+		if (!Files.isDirectory(directory.toPath())) {
+			throw new IllegalArgumentException(String.format("The %s is not a directory.", directory));
+		}
+
+		final FilterFileVisitor filterFileVisitor = new FilterFileVisitor(fileFilter);
+
+		Files.walkFileTree(
+			directory.toPath(),
+			EnumSet.of(FileVisitOption.FOLLOW_LINKS),
+			Integer.MAX_VALUE,
+			filterFileVisitor);
+
+		return filterFileVisitor.getFiles();
+	}
+
+	/**
+	 * Convert a collection of {@code File}s to a collection of relative path to the working dir.
+	 *
+	 * @param files a collection of files needed to be relatived
+	 * @return a collection of relative {@code File}s
+	 */
+	public static Collection<File> relativizeToWorkingDir(final Collection<File> files) {
+		checkNotNull(files, "files");
+
+		if (files.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		final java.nio.file.Path workingDirPath = Paths.get(System.getProperty("user.dir"));
+
+		final List<File> relativeFiles = new LinkedList<>();
+
+		for (File file : files) {
+			if (file.isAbsolute()) {
+				relativeFiles.add(workingDirPath.relativize(file.toPath()).toFile());
+			} else {
+				relativeFiles.add(file);
+			}
+		}
+
+		return Collections.unmodifiableCollection(relativeFiles);
+	}
+
+	/**
+	 * Convert a collection of relative {@code File}s to a collection of relative {@code URL}s.
+	 *
+	 * @param relativeFiles a collection of relative {@code File}s
+	 * @return a collection of relative URLs
+	 *
+	 * @throws MalformedURLException if error occurs while construct a url.
+	 */
+	public static Collection<URL> toRelativeURLs(final Collection<File> relativeFiles) throws MalformedURLException {
+		checkNotNull(relativeFiles, "relativeFiles");
+
+		if (relativeFiles.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		final List<URL> urls = new LinkedList<>();
+
+		for (File file : relativeFiles) {
+			checkArgument(!file.isAbsolute(), "the relative path is required");
+			urls.add(
+				new URL(
+					new URL(file.toURI().getScheme() + ":"),
+					file.getPath()
+				)
+			);
+		}
+
+		return Collections.unmodifiableCollection(urls);
+	}
+
+	private static final class FilterFileVisitor extends SimpleFileVisitor<java.nio.file.Path> {
+
+		private List<File> files;
+
+		private final Predicate<File> fileFilter;
+
+		FilterFileVisitor(Predicate<File> fileFilter) {
+			this.fileFilter = checkNotNull(fileFilter);
+		}
+
+		@Override
+		public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs) throws IOException {
+			FileVisitResult fileVisitResult = super.visitFile(file, attrs);
+
+			if (this.fileFilter.test(file.toFile())) {
+				if (files == null) {
+					files = new ArrayList<>();
+				}
+				this.files.add(file.toFile());
+			}
+
+			return fileVisitResult;
+		}
+
+		Collection<File> getFiles() {
+			return files == null ? Collections.emptyList() : Collections.unmodifiableCollection(files);
+		}
+	}
 	// ------------------------------------------------------------------------
 
 	/**
