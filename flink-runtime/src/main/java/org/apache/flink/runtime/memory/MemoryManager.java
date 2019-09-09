@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.memory;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.memory.HybridMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
@@ -109,6 +110,7 @@ public class MemoryManager {
 	 * @param memorySize The total size of the memory to be managed by this memory manager.
 	 * @param numberOfSlots The number of slots of the task manager.
 	 */
+	@VisibleForTesting
 	public MemoryManager(long memorySize, int numberOfSlots) {
 		this(memorySize, numberOfSlots, DEFAULT_PAGE_SIZE, MemoryType.HEAP, true);
 	}
@@ -224,6 +226,7 @@ public class MemoryManager {
 	 *
 	 * @return True, if the memory manager is shut down, false otherwise.
 	 */
+	@VisibleForTesting
 	public boolean isShutdown() {
 		return isShutDown;
 	}
@@ -233,6 +236,7 @@ public class MemoryManager {
 	 *
 	 * @return True, if the memory manager is empty and valid, false if it is not empty or corrupted.
 	 */
+	@VisibleForTesting
 	public boolean verifyEmpty() {
 		synchronized (lock) {
 			return isPreAllocated ?
