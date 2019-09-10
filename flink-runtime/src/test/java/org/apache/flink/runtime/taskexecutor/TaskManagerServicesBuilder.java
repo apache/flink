@@ -57,7 +57,6 @@ public class TaskManagerServicesBuilder {
 			.newBuilder()
 			.setMemorySize(MemoryManager.MIN_PAGE_SIZE)
 			.setPageSize(MemoryManager.MIN_PAGE_SIZE)
-			.setPreAllocateMemory(false)
 			.build();
 		ioManager = mock(IOManager.class);
 		shuffleEnvironment = mock(ShuffleEnvironment.class);

@@ -111,7 +111,6 @@ KEY_TASKM_MEM_MB="taskmanager.heap.mb"
 KEY_TASKM_MEM_MANAGED_SIZE="taskmanager.memory.size"
 KEY_TASKM_MEM_MANAGED_FRACTION="taskmanager.memory.fraction"
 KEY_TASKM_OFFHEAP="taskmanager.memory.off-heap"
-KEY_TASKM_MEM_PRE_ALLOCATE="taskmanager.memory.preallocate"
 
 KEY_TASKM_NET_BUF_FRACTION="taskmanager.network.memory.fraction"
 KEY_TASKM_NET_BUF_MIN="taskmanager.network.memory.min"
@@ -401,12 +400,6 @@ fi
 if [ -z "${FLINK_TM_OFFHEAP}" ]; then
     FLINK_TM_OFFHEAP=$(readFromConfig ${KEY_TASKM_OFFHEAP} "false" "${YAML_CONF}")
 fi
-
-# Define FLINK_TM_MEM_PRE_ALLOCATE if it is not already set
-if [ -z "${FLINK_TM_MEM_PRE_ALLOCATE}" ]; then
-    FLINK_TM_MEM_PRE_ALLOCATE=$(readFromConfig ${KEY_TASKM_MEM_PRE_ALLOCATE} "false" "${YAML_CONF}")
-fi
-
 
 # Define FLINK_TM_NET_BUF_FRACTION if it is not already set
 if [ -z "${FLINK_TM_NET_BUF_FRACTION}" ]; then

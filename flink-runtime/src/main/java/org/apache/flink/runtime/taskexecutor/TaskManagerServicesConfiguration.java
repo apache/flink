@@ -73,8 +73,6 @@ public class TaskManagerServicesConfiguration {
 
 	private final MemoryType memoryType;
 
-	private final boolean preAllocateMemory;
-
 	private final float memoryFraction;
 
 	private final int pageSize;
@@ -101,7 +99,6 @@ public class TaskManagerServicesConfiguration {
 			int numberOfSlots,
 			long configuredMemory,
 			MemoryType memoryType,
-			boolean preAllocateMemory,
 			float memoryFraction,
 			int pageSize,
 			long timerServiceShutdownTimeout,
@@ -122,7 +119,6 @@ public class TaskManagerServicesConfiguration {
 
 		this.configuredMemory = configuredMemory;
 		this.memoryType = checkNotNull(memoryType);
-		this.preAllocateMemory = preAllocateMemory;
 		this.memoryFraction = memoryFraction;
 		this.pageSize = pageSize;
 
@@ -207,10 +203,6 @@ public class TaskManagerServicesConfiguration {
 		return configuredMemory;
 	}
 
-	boolean isPreAllocateMemory() {
-		return preAllocateMemory;
-	}
-
 	public int getPageSize() {
 		return pageSize;
 	}
@@ -263,8 +255,6 @@ public class TaskManagerServicesConfiguration {
 
 		final QueryableStateConfiguration queryableStateConfig = QueryableStateConfiguration.fromConfiguration(configuration);
 
-		boolean preAllocateMemory = configuration.getBoolean(TaskManagerOptions.MANAGED_MEMORY_PRE_ALLOCATE);
-
 		long timerServiceShutdownTimeout = AkkaUtils.getTimeout(configuration).toMillis();
 
 		final RetryingRegistrationConfiguration retryingRegistrationConfiguration = RetryingRegistrationConfiguration.fromConfiguration(configuration);
@@ -283,7 +273,6 @@ public class TaskManagerServicesConfiguration {
 			ConfigurationParserUtils.getSlot(configuration),
 			ConfigurationParserUtils.getManagedMemorySize(configuration),
 			ConfigurationParserUtils.getMemoryType(configuration),
-			preAllocateMemory,
 			ConfigurationParserUtils.getManagedMemoryFraction(configuration),
 			ConfigurationParserUtils.getPageSize(configuration),
 			timerServiceShutdownTimeout,

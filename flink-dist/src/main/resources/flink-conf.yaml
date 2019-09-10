@@ -173,17 +173,6 @@ jobmanager.execution.failover-strategy: region
 #
 # io.tmp.dirs: /tmp
 
-# Specify whether TaskManager's managed memory should be allocated when starting
-# up (true) or when memory is requested.
-#
-# We recommend to set this value to 'true' only in setups for pure batch
-# processing (DataSet API). Streaming setups currently do not use the TaskManager's
-# managed memory: The 'rocksdb' state backend uses RocksDB's own memory management,
-# while the 'memory' and 'filesystem' backends explicitly keep data as objects
-# to save on serialization cost.
-#
-# taskmanager.memory.preallocate: false
-
 # The classloading resolve order. Possible values are 'child-first' (Flink's default)
 # and 'parent-first' (Java's default).
 #

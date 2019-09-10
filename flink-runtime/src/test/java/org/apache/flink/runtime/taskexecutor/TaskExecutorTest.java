@@ -277,7 +277,6 @@ public class TaskExecutorTest extends TestLogger {
 			.newBuilder()
 			.setMemorySize(4096)
 			.setPageSize(4096)
-			.setPreAllocateMemory(false)
 			.build();
 
 		nettyShuffleEnvironment.start();
