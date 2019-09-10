@@ -20,11 +20,8 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
@@ -34,16 +31,13 @@ import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Input reader for {@link TwoInputStreamTask}.
@@ -75,71 +69,46 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 	 * Stream status for the two inputs. We need to keep track for determining when
 	 * to forward stream status changes downstream.
 	 */
-	private StreamStatus firstStatus;
-	private StreamStatus secondStatus;
+	private StreamStatus firstStatus = StreamStatus.ACTIVE;
+	private StreamStatus secondStatus = StreamStatus.ACTIVE;
 
-	private int lastReadInputIndex;
+	/** Always try to read from the first input. */
+	private int lastReadInputIndex = 1;
 
 	private final Counter numRecordsIn;
 
 	private boolean isPrepared;
 
 	public StreamTwoInputProcessor(
-		Collection<InputGate> inputGates1,
-		Collection<InputGate> inputGates2,
-		TypeSerializer<IN1> inputSerializer1,
-		TypeSerializer<IN2> inputSerializer2,
-		StreamTask<?, ?> streamTask,
-		CheckpointingMode checkpointingMode,
-		Object lock,
-		IOManager ioManager,
-		Configuration taskManagerConfig,
-		StreamStatusMaintainer streamStatusMaintainer,
-		TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
-		TwoInputSelectionHandler inputSelectionHandler,
-		WatermarkGauge input1WatermarkGauge,
-		WatermarkGauge input2WatermarkGauge,
-		String taskName,
-		OperatorChain<?, ?> operatorChain,
-		Counter numRecordsIn) throws IOException {
+			CheckpointedInputGate[] checkpointedInputGates,
+			TypeSerializer<IN1> inputSerializer1,
+			TypeSerializer<IN2> inputSerializer2,
+			Object lock,
+			IOManager ioManager,
+			StreamStatusMaintainer streamStatusMaintainer,
+			TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
+			TwoInputSelectionHandler inputSelectionHandler,
+			WatermarkGauge input1WatermarkGauge,
+			WatermarkGauge input2WatermarkGauge,
+			OperatorChain<?, ?> operatorChain,
+			Counter numRecordsIn) {
 
-		this.streamOperator = checkNotNull(streamOperator);
-		this.inputSelectionHandler = checkNotNull(inputSelectionHandler);
-
-		this.lock = checkNotNull(lock);
-
-		InputGate unionedInputGate1 = InputGateUtil.createInputGate(inputGates1.toArray(new InputGate[0]));
-		InputGate unionedInputGate2 = InputGateUtil.createInputGate(inputGates2.toArray(new InputGate[0]));
-
-		// create a Input instance for each input
-		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedInputGatePair(
-			streamTask,
-			checkpointingMode,
-			ioManager,
-			unionedInputGate1,
-			unionedInputGate2,
-			taskManagerConfig,
-			taskName);
-		checkState(checkpointedInputGates.length == 2);
 		this.input1 = new StreamTaskNetworkInput(checkpointedInputGates[0], inputSerializer1, ioManager, 0);
 		this.input2 = new StreamTaskNetworkInput(checkpointedInputGates[1], inputSerializer2, ioManager, 1);
 
+		this.lock = checkNotNull(lock);
+		this.streamOperator = checkNotNull(streamOperator);
+		this.inputSelectionHandler = checkNotNull(inputSelectionHandler);
+
 		this.statusWatermarkValve1 = new StatusWatermarkValve(
-			unionedInputGate1.getNumberOfInputChannels(),
+			checkpointedInputGates[0].getNumberOfInputChannels(),
 			new ForwardingValveOutputHandler(streamOperator, lock, streamStatusMaintainer, input1WatermarkGauge, 0));
 		this.statusWatermarkValve2 = new StatusWatermarkValve(
-			unionedInputGate2.getNumberOfInputChannels(),
+			checkpointedInputGates[1].getNumberOfInputChannels(),
 			new ForwardingValveOutputHandler(streamOperator, lock, streamStatusMaintainer, input2WatermarkGauge, 1));
 
 		this.operatorChain = checkNotNull(operatorChain);
 		this.numRecordsIn = checkNotNull(numRecordsIn);
-
-		this.firstStatus = StreamStatus.ACTIVE;
-		this.secondStatus = StreamStatus.ACTIVE;
-
-		this.lastReadInputIndex = 1; // always try to read from the first input
-
-		this.isPrepared = false;
 	}
 
 	@Override

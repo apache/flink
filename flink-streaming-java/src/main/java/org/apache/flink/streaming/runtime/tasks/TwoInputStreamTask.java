@@ -23,11 +23,16 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
+import org.apache.flink.streaming.runtime.io.InputGateUtil;
+import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
 import org.apache.flink.streaming.runtime.io.TwoInputSelectionHandler;
 
 import java.io.IOException;
 import java.util.Collection;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link StreamTask} for executing a {@link TwoInputStreamOperator} and supporting
@@ -50,20 +55,31 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 		TwoInputSelectionHandler twoInputSelectionHandler = new TwoInputSelectionHandler(
 			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null);
 
-		this.inputProcessor = new StreamTwoInputProcessor<>(
-			inputGates1, inputGates2,
-			inputDeserializer1, inputDeserializer2,
+		InputGate unionedInputGate1 = InputGateUtil.createInputGate(inputGates1.toArray(new InputGate[0]));
+		InputGate unionedInputGate2 = InputGateUtil.createInputGate(inputGates2.toArray(new InputGate[0]));
+
+		// create a Input instance for each input
+		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedInputGatePair(
 			this,
 			getConfiguration().getCheckpointMode(),
+			getEnvironment().getIOManager(),
+			unionedInputGate1,
+			unionedInputGate2,
+			getEnvironment().getTaskManagerInfo().getConfiguration(),
+			getTaskNameWithSubtaskAndId());
+		checkState(checkpointedInputGates.length == 2);
+
+		inputProcessor = new StreamTwoInputProcessor<>(
+			checkpointedInputGates,
+			inputDeserializer1,
+			inputDeserializer2,
 			getCheckpointLock(),
 			getEnvironment().getIOManager(),
-			getEnvironment().getTaskManagerInfo().getConfiguration(),
 			getStreamStatusMaintainer(),
-			this.headOperator,
+			headOperator,
 			twoInputSelectionHandler,
 			input1WatermarkGauge,
 			input2WatermarkGauge,
-			getTaskNameWithSubtaskAndId(),
 			operatorChain,
 			setupNumRecordsInCounter(headOperator));
 	}
