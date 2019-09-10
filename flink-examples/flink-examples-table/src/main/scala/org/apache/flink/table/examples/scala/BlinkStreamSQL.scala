@@ -18,11 +18,10 @@
 
 package org.apache.flink.table.examples.scala
 
-import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
-import org.apache.flink.table.api.scala.StreamTableEnvironment
-import org.apache.flink.table.api.{EnvironmentSettings}
 import org.apache.flink.api.scala._
-import org.apache.flink.table.api.scala._
+import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.table.api.EnvironmentSettings
+import org.apache.flink.table.api.scala.{StreamTableEnvironment, _}
 
 /**
   * Simple example for demonstrating the use of SQL on a Stream Table with blink planner in Scala.
