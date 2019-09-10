@@ -29,7 +29,6 @@ public class MemoryManagerBuilder {
 	private long memorySize = DEFAULT_MEMORY_SIZE;
 	private int numberOfSlots = 1;
 	private int pageSize = DEFAULT_PAGE_SIZE;
-	private boolean preAllocateMemory = true;
 
 	private MemoryManagerBuilder() {
 
@@ -50,13 +49,8 @@ public class MemoryManagerBuilder {
 		return this;
 	}
 
-	public MemoryManagerBuilder setPreAllocateMemory(boolean preAllocateMemory) {
-		this.preAllocateMemory = preAllocateMemory;
-		return this;
-	}
-
 	public MemoryManager build() {
-		return new MemoryManager(memorySize, numberOfSlots, pageSize, MemoryType.HEAP, preAllocateMemory);
+		return new MemoryManager(memorySize, numberOfSlots, pageSize, MemoryType.HEAP);
 	}
 
 	public static MemoryManagerBuilder newBuilder() {

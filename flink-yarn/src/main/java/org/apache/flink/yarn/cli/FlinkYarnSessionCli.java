@@ -133,9 +133,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	private final Option help;
 
 	/**
-	 * @deprecated Streaming mode has been deprecated without replacement. Set the
-	 * {@link TaskManagerOptions#MANAGED_MEMORY_PRE_ALLOCATE} configuration
-	 * key to true to get the previous batch mode behaviour.
+	 * @deprecated Streaming mode has been deprecated without replacement.
 	 */
 	@Deprecated
 	private final Option streaming;

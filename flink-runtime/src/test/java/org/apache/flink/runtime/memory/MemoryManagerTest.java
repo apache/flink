@@ -34,7 +34,7 @@ import java.util.Random;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the memory manager, in the mode where it pre-allocates all memory.
+ * Tests for the memory manager.
  */
 public class MemoryManagerTest {
 
