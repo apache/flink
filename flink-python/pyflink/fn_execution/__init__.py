@@ -15,27 +15,3 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
-[tox]
-# tox (https://tox.readthedocs.io/) is a tool for running tests
-# in multiple virtualenvs. This configuration file will run the
-# test suite on all supported python versions.
-# new environments will be excluded by default unless explicitly added to envlist.
-envlist = py27, py35, py36, py37
-
-[testenv]
-whitelist_externals=
-    /bin/bash
-deps =
-    pytest
-commands =
-    python --version
-    pytest
-    bash ./dev/run_pip_test.sh
-
-[flake8]
-# We follow PEP 8 (https://www.python.org/dev/peps/pep-0008/) with one exception: lines can be
-# up to 100 characters in length, not 79.
-ignore=E226,E241,E305,E402,E722,E731,E741,W503,W504
-max-line-length=100
-exclude=.tox/*,dev/*,lib/*,target/*,build/*,dist/*,pyflink/shell.py,pyflink/fn_execution/tests/process_mode_test_data.py
