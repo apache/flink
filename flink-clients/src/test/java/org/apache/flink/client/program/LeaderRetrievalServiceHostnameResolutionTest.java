@@ -20,9 +20,8 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.runtime.jobmaster.JobMaster;
-import org.apache.flink.runtime.util.StandaloneUtils;
-import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.runtime.concurrent.UnsupportedOperationExecutor;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.BeforeClass;
@@ -32,7 +31,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeTrue;
 
 /**
  * Tests that verify that the LeaderRetrievalService correctly handles non-resolvable host names
@@ -44,26 +42,35 @@ public class LeaderRetrievalServiceHostnameResolutionTest extends TestLogger {
 
 	@BeforeClass
 	public static void check() {
-		checkPreconditions();
+		// the test can only work if the invalid URL cannot be resolves
+		// some internet providers resolve unresolvable URLs to navigational aid servers,
+		// voiding this test.
+		try {
+			//noinspection ResultOfMethodCallIgnored
+			InetAddress.getByName(nonExistingHostname);
+			fail("Non-existing hostname should not be resolved");
+		} catch (UnknownHostException e) {
+			// expected
+		}
 	}
 
-	/*
+	/**
 	 * Tests that the StandaloneLeaderRetrievalService resolves host names if specified.
 	 */
 	@Test
-	public void testUnresolvableHostname1() throws UnknownHostException, ConfigurationException {
+	public void testUnresolvableHostname1() throws Exception {
 		Configuration config = new Configuration();
 
 		config.setString(JobManagerOptions.ADDRESS, nonExistingHostname);
 		config.setInteger(JobManagerOptions.PORT, 17234);
 
-		StandaloneUtils.createLeaderRetrievalService(
+		HighAvailabilityServicesUtils.createHighAvailabilityServices(
 			config,
-			false,
-			JobMaster.JOB_MANAGER_NAME);
+			UnsupportedOperationExecutor.INSTANCE,
+			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 	}
 
-	/*
+	/**
 	 * Tests that the StandaloneLeaderRetrievalService does not resolve host names by default.
 	 */
 	@Test
@@ -75,30 +82,14 @@ public class LeaderRetrievalServiceHostnameResolutionTest extends TestLogger {
 			config.setString(JobManagerOptions.ADDRESS, nonExistingHostname);
 			config.setInteger(JobManagerOptions.PORT, 17234);
 
-			StandaloneUtils.createLeaderRetrievalService(
+			HighAvailabilityServicesUtils.createHighAvailabilityServices(
 				config,
-				true,
-				JobMaster.JOB_MANAGER_NAME);
+				UnsupportedOperationExecutor.INSTANCE,
+				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION);
+
 			fail("This should fail with an UnknownHostException");
-		}
-		catch (UnknownHostException e) {
+		} catch (UnknownHostException e) {
 			// that is what we want!
 		}
-	}
-
-	private static void checkPreconditions() {
-		// the test can only work if the invalid URL cannot be resolves
-		// some internet providers resolve unresolvable URLs to navigational aid servers,
-		// voiding this test.
-		boolean throwsException;
-		try {
-			//noinspection ResultOfMethodCallIgnored
-			InetAddress.getByName(nonExistingHostname);
-			throwsException = false;
-		}
-		catch (UnknownHostException e) {
-			throwsException = true;
-		}
-		assumeTrue(throwsException);
 	}
 }
