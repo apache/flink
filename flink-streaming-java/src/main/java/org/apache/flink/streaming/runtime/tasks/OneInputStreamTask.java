@@ -24,8 +24,12 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
+import org.apache.flink.streaming.runtime.io.InputGateUtil;
+import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 
@@ -74,20 +78,26 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
 
 		if (numberOfInputs > 0) {
 			InputGate[] inputGates = getEnvironment().getAllInputGates();
-
-			inputProcessor = new StreamOneInputProcessor<>(
-				inputGates,
-				inSerializer,
+			InputGate inputGate = InputGateUtil.createInputGate(inputGates);
+			CheckpointedInputGate checkpointedInputGate = InputProcessorUtil.createCheckpointedInputGate(
 				this,
 				configuration.getCheckpointMode(),
+				getEnvironment().getIOManager(),
+				inputGate,
+				getEnvironment().getTaskManagerInfo().getConfiguration(),
+				getTaskNameWithSubtaskAndId());
+
+			TaskIOMetricGroup taskIOMetricGroup = getEnvironment().getMetricGroup().getIOMetricGroup();
+			taskIOMetricGroup.gauge("checkpointAlignmentTime", checkpointedInputGate::getAlignmentDurationNanos);
+
+			inputProcessor = new StreamOneInputProcessor<>(
+				checkpointedInputGate,
+				inSerializer,
 				getCheckpointLock(),
 				getEnvironment().getIOManager(),
-				getEnvironment().getTaskManagerInfo().getConfiguration(),
 				getStreamStatusMaintainer(),
 				headOperator,
-				getEnvironment().getMetricGroup().getIOMetricGroup(),
 				inputWatermarkGauge,
-				getTaskNameWithSubtaskAndId(),
 				operatorChain,
 				setupNumRecordsInCounter(headOperator));
 		}

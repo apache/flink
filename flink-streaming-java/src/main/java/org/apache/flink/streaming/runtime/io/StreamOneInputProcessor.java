@@ -20,12 +20,8 @@ package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
-import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
-import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
@@ -35,7 +31,6 @@ import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
-import org.apache.flink.streaming.runtime.tasks.StreamTask;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +39,6 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Input reader for {@link org.apache.flink.streaming.runtime.tasks.OneInputStreamTask}.
@@ -86,44 +80,27 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 	private final Counter numRecordsIn;
 
 	public StreamOneInputProcessor(
-			InputGate[] inputGates,
+			CheckpointedInputGate checkpointedInputGate,
 			TypeSerializer<IN> inputSerializer,
-			StreamTask<?, ?> checkpointedTask,
-			CheckpointingMode checkpointMode,
 			Object lock,
 			IOManager ioManager,
-			Configuration taskManagerConfig,
 			StreamStatusMaintainer streamStatusMaintainer,
 			OneInputStreamOperator<IN, ?> streamOperator,
-			TaskIOMetricGroup metrics,
 			WatermarkGauge watermarkGauge,
-			String taskName,
 			OperatorChain<?, ?> operatorChain,
-			Counter numRecordsIn) throws IOException {
+			Counter numRecordsIn) {
 
-		InputGate inputGate = InputGateUtil.createInputGate(inputGates);
-
-		CheckpointedInputGate barrierHandler = InputProcessorUtil.createCheckpointedInputGate(
-			checkpointedTask,
-			checkpointMode,
-			ioManager,
-			inputGate,
-			taskManagerConfig,
-			taskName);
-		this.input = new StreamTaskNetworkInput(barrierHandler, inputSerializer, ioManager, 0);
+		this.input = new StreamTaskNetworkInput(checkpointedInputGate, inputSerializer, ioManager, 0);
 
 		this.lock = checkNotNull(lock);
-
 		this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
 		this.streamOperator = checkNotNull(streamOperator);
 
 		this.statusWatermarkValve = new StatusWatermarkValve(
-			inputGate.getNumberOfInputChannels(),
+			checkpointedInputGate.getNumberOfInputChannels(),
 			new ForwardingValveOutputHandler(streamOperator, lock));
 
-		this.watermarkGauge = watermarkGauge;
-		metrics.gauge("checkpointAlignmentTime", barrierHandler::getAlignmentDurationNanos);
-
+		this.watermarkGauge = checkNotNull(watermarkGauge);
 		this.operatorChain = checkNotNull(operatorChain);
 		this.numRecordsIn = checkNotNull(numRecordsIn);
 	}
