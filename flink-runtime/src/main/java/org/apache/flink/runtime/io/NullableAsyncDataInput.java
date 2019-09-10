@@ -27,7 +27,7 @@ import javax.annotation.Nullable;
  * {@link PullingAsyncDataInput#pollNext()}.
  */
 @Internal
-public interface NullableAsyncDataInput<T> extends AvailabilityListener {
+public interface NullableAsyncDataInput<T> extends AvailabilityProvider {
 	/**
 	 * Poll the next element. This method should be non blocking.
 	 *

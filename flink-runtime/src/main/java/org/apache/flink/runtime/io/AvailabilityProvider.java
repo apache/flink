@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
  * {@link CompletableFuture}. For usage check out for example {@link PullingAsyncDataInput}.
  */
 @Internal
-public interface AvailabilityListener {
+public interface AvailabilityProvider {
 	/**
 	 * Constant that allows to avoid volatile checks {@link CompletableFuture#isDone()}. Check
 	 * {@link #isAvailable()} for more explanation.
@@ -45,8 +45,8 @@ public interface AvailabilityListener {
 	 * this method should do the following check:
 	 * <pre>
 	 * {@code
-	 *	AvailabilityListener input = ...;
-	 *	if (input.isAvailable() == AvailabilityListener.AVAILABLE || input.isAvailable().isDone()) {
+	 *	AvailabilityProvider input = ...;
+	 *	if (input.isAvailable() == AvailabilityProvider.AVAILABLE || input.isAvailable().isDone()) {
 	 *		// do something;
 	 *	}
 	 * }
