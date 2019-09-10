@@ -19,11 +19,13 @@
 package org.apache.flink.runtime.memory;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.HybridMemorySegment;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.util.MathUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,58 +110,22 @@ public class MemoryManager {
 	 * @param preAllocateMemory True, if the memory manager should immediately allocate all memory, false
 	 *                          if it should allocate and release the memory as needed.
 	 */
-	public MemoryManager(long memorySize, int numberOfSlots, int pageSize,
-							MemoryType memoryType, boolean preAllocateMemory) {
-		// sanity checks
-		if (memoryType == null) {
-			throw new NullPointerException();
-		}
-		if (memorySize <= 0) {
-			throw new IllegalArgumentException("Size of total memory must be positive.");
-		}
-		if (pageSize < MIN_PAGE_SIZE) {
-			throw new IllegalArgumentException("The page size must be at least " + MIN_PAGE_SIZE + " bytes.");
-		}
-		if (!MathUtils.isPowerOf2(pageSize)) {
-			throw new IllegalArgumentException("The given page size is not a power of two.");
-		}
+	public MemoryManager(
+			long memorySize,
+			int numberOfSlots,
+			int pageSize,
+			MemoryType memoryType,
+			boolean preAllocateMemory) {
+		sanityCheck(memorySize, pageSize, memoryType, preAllocateMemory);
 
+		this.allocatedSegments = new HashMap<>();
 		this.memorySize = memorySize;
 		this.numberOfSlots = numberOfSlots;
-
-		// assign page size and bit utilities
 		this.pageSize = pageSize;
-
-		final long numPagesLong = memorySize / pageSize;
-		if (numPagesLong > Integer.MAX_VALUE) {
-			throw new IllegalArgumentException("The given number of memory bytes (" + memorySize
-					+ ") corresponds to more than MAX_INT pages.");
-		}
-		this.totalNumPages = (int) numPagesLong;
-		if (this.totalNumPages < 1) {
-			throw new IllegalArgumentException("The given amount of memory amounted to less than one page.");
-		}
-
-		this.allocatedSegments = new HashMap<Object, Set<MemorySegment>>();
 		this.isPreAllocated = preAllocateMemory;
-
+		this.totalNumPages = calculateTotalNumberOfPages(memorySize, pageSize);
 		this.numNonAllocatedPages = preAllocateMemory ? 0 : this.totalNumPages;
-		final int memToAllocate = preAllocateMemory ? this.totalNumPages : 0;
-
-		switch (memoryType) {
-			case HEAP:
-				this.memoryPool = new HybridHeapMemoryPool(memToAllocate, pageSize);
-				break;
-			case OFF_HEAP:
-				if (!preAllocateMemory) {
-					LOG.warn("It is advisable to set 'taskmanager.memory.preallocate' to true when" +
-						" the memory type 'taskmanager.memory.off-heap' is set to true.");
-				}
-				this.memoryPool = new HybridOffHeapMemoryPool(memToAllocate, pageSize);
-				break;
-			default:
-				throw new IllegalArgumentException("unrecognized memory type: " + memoryType);
-		}
+		this.memoryPool = createMemoryPool(preAllocateMemory ? this.totalNumPages : 0, pageSize, memoryType);
 
 		LOG.debug("Initialized MemoryManager with total memory size {}, number of slots {}, page size {}, " +
 				"memory type {}, pre allocate memory {} and number of non allocated pages {}.",
@@ -169,6 +135,50 @@ public class MemoryManager {
 			memoryType,
 			preAllocateMemory,
 			numNonAllocatedPages);
+	}
+
+	private static void sanityCheck(long memorySize, int pageSize, MemoryType memoryType, boolean preAllocateMemory) {
+		Preconditions.checkNotNull(memoryType);
+		Preconditions.checkArgument(memorySize > 0L, "Size of total memory must be positive.");
+		Preconditions.checkArgument(
+			pageSize >= MIN_PAGE_SIZE,
+			"The page size must be at least %d bytes.", MIN_PAGE_SIZE);
+		Preconditions.checkArgument(
+			MathUtils.isPowerOf2(pageSize),
+			"The given page size is not a power of two.");
+		warnAboutPreallocationForOffHeap(memoryType, preAllocateMemory);
+	}
+
+	private static void warnAboutPreallocationForOffHeap(MemoryType memoryType, boolean preAllocateMemory) {
+		if (memoryType == MemoryType.OFF_HEAP && !preAllocateMemory) {
+			LOG.warn("It is advisable to set '{}' to true when the memory type '{}' is set to true.",
+				TaskManagerOptions.MANAGED_MEMORY_PRE_ALLOCATE.key(),
+				TaskManagerOptions.MEMORY_OFF_HEAP.key());
+		}
+	}
+
+	private static int calculateTotalNumberOfPages(long memorySize, int pageSize) {
+		long numPagesLong = memorySize / pageSize;
+		Preconditions.checkArgument(
+			numPagesLong <= Integer.MAX_VALUE,
+			"The given number of memory bytes (%s) corresponds to more than MAX_INT pages.", memorySize);
+
+		@SuppressWarnings("NumericCastThatLosesPrecision")
+		int totalNumPages = (int) numPagesLong;
+		Preconditions.checkArgument(totalNumPages >= 1, "The given amount of memory amounted to less than one page.");
+
+		return totalNumPages;
+	}
+
+	private static MemoryPool createMemoryPool(int segmentsToAllocate, int pageSize, MemoryType memoryType) {
+		switch (memoryType) {
+			case HEAP:
+				return new HybridHeapMemoryPool(segmentsToAllocate, pageSize);
+			case OFF_HEAP:
+				return new HybridOffHeapMemoryPool(segmentsToAllocate, pageSize);
+			default:
+				throw new IllegalArgumentException("unrecognized memory type: " + memoryType);
+		}
 	}
 
 	// ------------------------------------------------------------------------
