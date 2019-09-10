@@ -50,7 +50,7 @@ import java.util.concurrent.CompletableFuture;
  * </pre>
  */
 @Internal
-public interface AsyncDataInput<T> extends AvailabilityListener {
+public interface PullingAsyncDataInput<T> extends AvailabilityListener {
 	/**
 	 * Poll the next element. This method should be non blocking.
 	 *
