@@ -19,17 +19,7 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.metrics.Counter;
-import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
+import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 
 import org.slf4j.Logger;
@@ -43,15 +33,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Input reader for {@link org.apache.flink.streaming.runtime.tasks.OneInputStreamTask}.
  *
- * <p>This internally uses a {@link StatusWatermarkValve} to keep track of {@link Watermark} and
- * {@link StreamStatus} events, and forwards them to event subscribers once the
- * {@link StatusWatermarkValve} determines the {@link Watermark} from all inputs has advanced, or
- * that a {@link StreamStatus} needs to be propagated downstream to denote a status change.
- *
- * <p>Forwarding elements, watermarks, or status status elements must be protected by synchronizing
- * on the given lock object. This ensures that we don't call methods on a
- * {@link OneInputStreamOperator} concurrently with the timer callback or other things.
- *
  * @param <IN> The type of the record that can be read with this record reader.
  */
 @Internal
@@ -59,50 +40,23 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
 	private static final Logger LOG = LoggerFactory.getLogger(StreamOneInputProcessor.class);
 
-	private final StreamTaskInput input;
+	private final StreamTaskInput<IN> input;
+	private final DataOutput<IN> output;
 
 	private final Object lock;
 
 	private final OperatorChain<?, ?> operatorChain;
 
-	// ---------------- Status and Watermark Valve ------------------
-
-	/** Valve that controls how watermarks and stream statuses are forwarded. */
-	private StatusWatermarkValve statusWatermarkValve;
-
-	private final StreamStatusMaintainer streamStatusMaintainer;
-
-	private final OneInputStreamOperator<IN, ?> streamOperator;
-
-	// ---------------- Metrics ------------------
-
-	private final WatermarkGauge watermarkGauge;
-	private final Counter numRecordsIn;
-
 	public StreamOneInputProcessor(
-			CheckpointedInputGate checkpointedInputGate,
-			TypeSerializer<IN> inputSerializer,
+			StreamTaskInput<IN> input,
+			DataOutput<IN> output,
 			Object lock,
-			IOManager ioManager,
-			StreamStatusMaintainer streamStatusMaintainer,
-			OneInputStreamOperator<IN, ?> streamOperator,
-			WatermarkGauge watermarkGauge,
-			OperatorChain<?, ?> operatorChain,
-			Counter numRecordsIn) {
+			OperatorChain<?, ?> operatorChain) {
 
-		this.input = new StreamTaskNetworkInput(checkpointedInputGate, inputSerializer, ioManager, 0);
-
+		this.input = checkNotNull(input);
+		this.output = checkNotNull(output);
 		this.lock = checkNotNull(lock);
-		this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
-		this.streamOperator = checkNotNull(streamOperator);
-
-		this.statusWatermarkValve = new StatusWatermarkValve(
-			checkpointedInputGate.getNumberOfInputChannels(),
-			new ForwardingValveOutputHandler(streamOperator, lock));
-
-		this.watermarkGauge = checkNotNull(watermarkGauge);
 		this.operatorChain = checkNotNull(operatorChain);
-		this.numRecordsIn = checkNotNull(numRecordsIn);
 	}
 
 	@Override
@@ -117,77 +71,19 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 
 	@Override
 	public boolean processInput() throws Exception {
-		StreamElement recordOrMark = input.pollNextNullable();
-		if (recordOrMark != null) {
-			processElement(recordOrMark, input.getLastChannel());
-		}
-		checkFinished();
+		InputStatus status = input.emitNext(output);
 
-		return recordOrMark != null;
-	}
-
-	private void processElement(StreamElement recordOrMark, int channel) throws Exception {
-		if (recordOrMark.isRecord()) {
-			// now we can do the actual processing
-			StreamRecord<IN> record = recordOrMark.asRecord();
-			synchronized (lock) {
-				numRecordsIn.inc();
-				streamOperator.setKeyContextElement1(record);
-				streamOperator.processElement(record);
-			}
-		}
-		else if (recordOrMark.isWatermark()) {
-			// handle watermark
-			statusWatermarkValve.inputWatermark(recordOrMark.asWatermark(), channel);
-		} else if (recordOrMark.isStreamStatus()) {
-			// handle stream status
-			statusWatermarkValve.inputStreamStatus(recordOrMark.asStreamStatus(), channel);
-		} else if (recordOrMark.isLatencyMarker()) {
-			// handle latency marker
-			synchronized (lock) {
-				streamOperator.processLatencyMarker(recordOrMark.asLatencyMarker());
-			}
-		} else {
-			throw new UnsupportedOperationException("Unknown type of StreamElement");
-		}
-	}
-
-	private void checkFinished() throws Exception {
-		if (input.isFinished()) {
+		if (status == InputStatus.END_OF_INPUT) {
 			synchronized (lock) {
 				operatorChain.endInput(1);
 			}
 		}
+
+		return status == InputStatus.MORE_AVAILABLE;
 	}
 
 	@Override
 	public void close() throws IOException {
 		input.close();
-	}
-
-	private class ForwardingValveOutputHandler implements StatusWatermarkValve.ValveOutputHandler {
-		private final OneInputStreamOperator<IN, ?> operator;
-		private final Object lock;
-
-		private ForwardingValveOutputHandler(final OneInputStreamOperator<IN, ?> operator, final Object lock) {
-			this.operator = checkNotNull(operator);
-			this.lock = checkNotNull(lock);
-		}
-
-		@Override
-		public void handleWatermark(Watermark watermark) throws Exception {
-			synchronized (lock) {
-				watermarkGauge.setCurrentWatermark(watermark.getTimestamp());
-				operator.processWatermark(watermark);
-			}
-		}
-
-		@SuppressWarnings("unchecked")
-		@Override
-		public void handleStreamStatus(StreamStatus streamStatus) {
-			synchronized (lock) {
-				streamStatusMaintainer.toggleStreamStatus(streamStatus);
-			}
-		}
 	}
 }

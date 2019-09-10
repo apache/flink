@@ -24,8 +24,9 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
-import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
@@ -33,6 +34,7 @@ import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -48,22 +50,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProcessor {
 
-	private final TwoInputStreamOperator<IN1, IN2, ?> streamOperator;
-
 	private final TwoInputSelectionHandler inputSelectionHandler;
 
 	private final Object lock;
 
-	private final StreamTaskInput input1;
-	private final StreamTaskInput input2;
+	private final StreamTaskInput<IN1> input1;
+	private final StreamTaskInput<IN2> input2;
 
 	private final OperatorChain<?, ?> operatorChain;
 
-	/**
-	 * Valves that control how watermarks and stream statuses from the 2 inputs are forwarded.
-	 */
-	private final StatusWatermarkValve statusWatermarkValve1;
-	private final StatusWatermarkValve statusWatermarkValve2;
+	private final DataOutput<IN1> output1;
+	private final DataOutput<IN2> output2;
 
 	/**
 	 * Stream status for the two inputs. We need to keep track for determining when
@@ -74,8 +71,6 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
 	/** Always try to read from the first input. */
 	private int lastReadInputIndex = 1;
-
-	private final Counter numRecordsIn;
 
 	private boolean isPrepared;
 
@@ -93,22 +88,63 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 			OperatorChain<?, ?> operatorChain,
 			Counter numRecordsIn) {
 
-		this.input1 = new StreamTaskNetworkInput(checkpointedInputGates[0], inputSerializer1, ioManager, 0);
-		this.input2 = new StreamTaskNetworkInput(checkpointedInputGates[1], inputSerializer2, ioManager, 1);
-
 		this.lock = checkNotNull(lock);
-		this.streamOperator = checkNotNull(streamOperator);
 		this.inputSelectionHandler = checkNotNull(inputSelectionHandler);
 
-		this.statusWatermarkValve1 = new StatusWatermarkValve(
-			checkpointedInputGates[0].getNumberOfInputChannels(),
-			new ForwardingValveOutputHandler(streamOperator, lock, streamStatusMaintainer, input1WatermarkGauge, 0));
-		this.statusWatermarkValve2 = new StatusWatermarkValve(
-			checkpointedInputGates[1].getNumberOfInputChannels(),
-			new ForwardingValveOutputHandler(streamOperator, lock, streamStatusMaintainer, input2WatermarkGauge, 1));
+		this.output1 = new StreamTaskNetworkOutput<>(
+			streamOperator,
+			record -> processRecord1(record, streamOperator, numRecordsIn),
+			lock,
+			streamStatusMaintainer,
+			input1WatermarkGauge,
+			0);
+		this.output2 = new StreamTaskNetworkOutput<>(
+			streamOperator,
+			record -> processRecord2(record, streamOperator, numRecordsIn),
+			lock,
+			streamStatusMaintainer,
+			input2WatermarkGauge,
+			1);
+
+		this.input1 = new StreamTaskNetworkInput<>(
+			checkpointedInputGates[0],
+			inputSerializer1,
+			ioManager,
+			new StatusWatermarkValve(checkpointedInputGates[0].getNumberOfInputChannels(), output1),
+			0);
+		this.input2 = new StreamTaskNetworkInput<>(
+			checkpointedInputGates[1],
+			inputSerializer2,
+			ioManager,
+			new StatusWatermarkValve(checkpointedInputGates[1].getNumberOfInputChannels(), output2),
+			1);
 
 		this.operatorChain = checkNotNull(operatorChain);
-		this.numRecordsIn = checkNotNull(numRecordsIn);
+	}
+
+	private void processRecord1(
+			StreamRecord<IN1> record,
+			TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
+			Counter numRecordsIn) throws Exception {
+
+		streamOperator.setKeyContextElement1(record);
+		streamOperator.processElement1(record);
+		postProcessRecord(numRecordsIn);
+	}
+
+	private void processRecord2(
+			StreamRecord<IN2> record,
+			TwoInputStreamOperator<IN1, IN2, ?> streamOperator,
+			Counter numRecordsIn) throws Exception {
+
+		streamOperator.setKeyContextElement2(record);
+		streamOperator.processElement2(record);
+		postProcessRecord(numRecordsIn);
+	}
+
+	private void postProcessRecord(Counter numRecordsIn) {
+		numRecordsIn.inc();
+		inputSelectionHandler.nextSelection();
 	}
 
 	@Override
@@ -140,30 +176,23 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		}
 		lastReadInputIndex = readingInputIndex;
 
-		StreamElement recordOrMark;
+		InputStatus status;
 		if (readingInputIndex == 0) {
-			recordOrMark = input1.pollNextNullable();
-			if (recordOrMark != null) {
-				processElement1(recordOrMark, input1.getLastChannel());
-			}
-			checkFinished(input1, lastReadInputIndex);
+			status = input1.emitNext(output1);
 		} else {
-			recordOrMark = input2.pollNextNullable();
-			if (recordOrMark != null) {
-				processElement2(recordOrMark, input2.getLastChannel());
-			}
-			checkFinished(input2, lastReadInputIndex);
+			status = input2.emitNext(output2);
 		}
+		checkFinished(status, lastReadInputIndex);
 
-		if (recordOrMark == null) {
+		if (status != InputStatus.MORE_AVAILABLE) {
 			inputSelectionHandler.setUnavailableInput(readingInputIndex);
 		}
 
-		return recordOrMark != null;
+		return status == InputStatus.MORE_AVAILABLE;
 	}
 
-	private void checkFinished(StreamTaskInput input, int inputIndex) throws Exception {
-		if (input.isFinished()) {
+	private void checkFinished(InputStatus status, int inputIndex) throws Exception {
+		if (status == InputStatus.END_OF_INPUT) {
 			synchronized (lock) {
 				operatorChain.endInput(getInputId(inputIndex));
 				inputSelectionHandler.nextSelection();
@@ -232,52 +261,6 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		}
 	}
 
-	private void processElement1(StreamElement recordOrMark, int channel) throws Exception {
-		if (recordOrMark.isRecord()) {
-			StreamRecord<IN1> record = recordOrMark.asRecord();
-			synchronized (lock) {
-				numRecordsIn.inc();
-				streamOperator.setKeyContextElement1(record);
-				streamOperator.processElement1(record);
-				inputSelectionHandler.nextSelection();
-			}
-		}
-		else if (recordOrMark.isWatermark()) {
-			statusWatermarkValve1.inputWatermark(recordOrMark.asWatermark(), channel);
-		} else if (recordOrMark.isStreamStatus()) {
-			statusWatermarkValve1.inputStreamStatus(recordOrMark.asStreamStatus(), channel);
-		} else if (recordOrMark.isLatencyMarker()) {
-			synchronized (lock) {
-				streamOperator.processLatencyMarker1(recordOrMark.asLatencyMarker());
-			}
-		} else {
-			throw new UnsupportedOperationException("Unknown type of StreamElement on input1");
-		}
-	}
-
-	private void processElement2(StreamElement recordOrMark, int channel) throws Exception {
-		if (recordOrMark.isRecord()) {
-			StreamRecord<IN2> record = recordOrMark.asRecord();
-			synchronized (lock) {
-				numRecordsIn.inc();
-				streamOperator.setKeyContextElement2(record);
-				streamOperator.processElement2(record);
-				inputSelectionHandler.nextSelection();
-			}
-		}
-		else if (recordOrMark.isWatermark()) {
-			statusWatermarkValve2.inputWatermark(recordOrMark.asWatermark(), channel);
-		} else if (recordOrMark.isStreamStatus()) {
-			statusWatermarkValve2.inputStreamStatus(recordOrMark.asStreamStatus(), channel);
-		} else if (recordOrMark.isLatencyMarker()) {
-			synchronized (lock) {
-				streamOperator.processLatencyMarker2(recordOrMark.asLatencyMarker());
-			}
-		} else {
-			throw new UnsupportedOperationException("Unknown type of StreamElement on input2");
-		}
-	}
-
 	private void prepareForProcessing() {
 		// Note: the first call to nextSelection () on the operator must be made after this operator
 		// is opened to ensure that any changes about the input selection in its open()
@@ -318,37 +301,52 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		return inputIndex + 1;
 	}
 
-	private class ForwardingValveOutputHandler implements StatusWatermarkValve.ValveOutputHandler {
+	/**
+	 * The network data output implementation used for processing stream elements
+	 * from {@link StreamTaskNetworkInput} in two input selective processor.
+	 */
+	private class StreamTaskNetworkOutput<T> implements DataOutput<T> {
 
 		private final TwoInputStreamOperator<IN1, IN2, ?> operator;
 
+		/** The function way is only used for frequent record processing as for JIT optimization. */
+		private final ThrowingConsumer<StreamRecord<T>, Exception> recordConsumer;
+
 		private final Object lock;
 
+		/** The maintainer toggles the current stream status as well as retrieves it. */
 		private final StreamStatusMaintainer streamStatusMaintainer;
 
 		private final WatermarkGauge inputWatermarkGauge;
 
+		/** The input index to indicate how to process elements by two input operator. */
 		private final int inputIndex;
 
-		private ForwardingValveOutputHandler(
-			TwoInputStreamOperator<IN1, IN2, ?> operator,
-			Object lock,
-			StreamStatusMaintainer streamStatusMaintainer,
-			WatermarkGauge inputWatermarkGauge,
-			int inputIndex) {
+		private StreamTaskNetworkOutput(
+				TwoInputStreamOperator<IN1, IN2, ?> operator,
+				ThrowingConsumer<StreamRecord<T>, Exception> recordConsumer,
+				Object lock,
+				StreamStatusMaintainer streamStatusMaintainer,
+				WatermarkGauge inputWatermarkGauge,
+				int inputIndex) {
 
 			this.operator = checkNotNull(operator);
+			this.recordConsumer = checkNotNull(recordConsumer);
 			this.lock = checkNotNull(lock);
-
 			this.streamStatusMaintainer = checkNotNull(streamStatusMaintainer);
-
-			this.inputWatermarkGauge = inputWatermarkGauge;
-
+			this.inputWatermarkGauge = checkNotNull(inputWatermarkGauge);
 			this.inputIndex = inputIndex;
 		}
 
 		@Override
-		public void handleWatermark(Watermark watermark) throws Exception {
+		public void emitRecord(StreamRecord<T> record) throws Exception {
+			synchronized (lock) {
+				recordConsumer.accept(record);
+			}
+		}
+
+		@Override
+		public void emitWatermark(Watermark watermark) throws Exception {
 			synchronized (lock) {
 				inputWatermarkGauge.setCurrentWatermark(watermark.getTimestamp());
 				if (inputIndex == 0) {
@@ -360,7 +358,7 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		}
 
 		@Override
-		public void handleStreamStatus(StreamStatus streamStatus) {
+		public void emitStreamStatus(StreamStatus streamStatus) {
 			synchronized (lock) {
 				final StreamStatus anotherStreamStatus;
 				if (inputIndex == 0) {
@@ -380,6 +378,17 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 						// we're idle once both inputs are idle
 						streamStatusMaintainer.toggleStreamStatus(StreamStatus.IDLE);
 					}
+				}
+			}
+		}
+
+		@Override
+		public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
+			synchronized (lock) {
+				if (inputIndex == 0) {
+					operator.processLatencyMarker1(latencyMarker);
+				} else {
+					operator.processLatencyMarker2(latencyMarker);
 				}
 			}
 		}
