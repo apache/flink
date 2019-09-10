@@ -18,18 +18,30 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-
-import java.io.Closeable;
+import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
 
 /**
- * Basic interface for inputs of stream operators.
+ * An {@link InputStatus} indicates one input state which might be currently
+ * available, not available or already finished. It is returned while calling
+ * {@link PushingAsyncDataInput#emitNext(DataOutput)}.
  */
 @Internal
-public interface StreamTaskInput<T> extends PushingAsyncDataInput<T>, Closeable {
-	int UNSPECIFIED = -1;
+public enum InputStatus {
 
 	/**
-	 * Returns the input index of this input.
+	 * Indicator that more data is available and the input can be called immediately again
+	 * to emit more data.
 	 */
-	int getInputIndex();
+	MORE_AVAILABLE,
+
+	/**
+	 * Indicator that no data is currently available, but more data will be available in the
+	 * future again.
+	 */
+	NOTHING_AVAILABLE,
+
+	/**
+	 * Indicator that the input has reached the end of data.
+	 */
+	END_OF_INPUT
 }
