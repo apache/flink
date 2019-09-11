@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.cache.DistributedCache.DistributedCacheEntry;
 import org.apache.flink.api.common.operators.GenericDataSinkBase;
 import org.apache.flink.api.common.operators.Operator;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.util.Visitable;
 import org.apache.flink.util.Visitor;
 
@@ -46,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * operators of the data flow can be reached via backwards traversal</p>.
  */
 @Internal
-public class Plan implements Visitable<Operator<?>> {
+public class Plan implements Visitable<Operator<?>>, Pipeline {
 
 	/**
 	 * A collection of all sinks in the plan. Since the plan is traversed from the sinks to the
