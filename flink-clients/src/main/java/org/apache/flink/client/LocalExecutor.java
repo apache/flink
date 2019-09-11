@@ -21,26 +21,25 @@ package org.apache.flink.client;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.optimizer.DataStatistics;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.JobExecutorService;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 
+import java.util.Collections;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A PlanExecutor that runs Flink programs on a local embedded Flink runtime instance.
  *
- * <p>By simply calling the {@link #executePlan(org.apache.flink.api.common.Plan)} method,
+ * <p>By simply calling the {@link #executePlan(Pipeline)} method,
  * this executor still start up and shut down again immediately after the program finished.</p>
  *
  * <p>To use this executor to execute many dataflow programs that constitute one job together,
@@ -59,22 +58,29 @@ public class LocalExecutor extends PlanExecutor {
 		this.baseConfiguration = checkNotNull(conf);
 	}
 
-	private JobExecutorService createJobExecutorService(Configuration configuration) throws Exception {
+	private JobExecutorService createJobExecutorService(
+			JobGraph jobGraph, Configuration configuration) throws Exception {
 		if (!configuration.contains(RestOptions.BIND_PORT)) {
 			configuration.setString(RestOptions.BIND_PORT, "0");
 		}
 
-		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
-			.setConfiguration(configuration)
-			.setNumTaskManagers(
-				configuration.getInteger(
-					ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
-					ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER))
-			.setRpcServiceSharing(RpcServiceSharing.SHARED)
-			.setNumSlotsPerTaskManager(
-				configuration.getInteger(
-					TaskManagerOptions.NUM_TASK_SLOTS, 1))
-			.build();
+		int numTaskManagers = configuration.getInteger(
+				ConfigConstants.LOCAL_NUMBER_TASK_MANAGER,
+				ConfigConstants.DEFAULT_LOCAL_NUMBER_TASK_MANAGER);
+
+		// we have to use the maximum parallelism as a default here, otherwise streaming
+		// pipelines would not run
+		int numSlotsPerTaskManager = configuration.getInteger(
+				TaskManagerOptions.NUM_TASK_SLOTS,
+				jobGraph.getMaximumParallelism());
+
+		final MiniClusterConfiguration miniClusterConfiguration =
+				new MiniClusterConfiguration.Builder()
+				.setConfiguration(configuration)
+				.setNumTaskManagers(numTaskManagers)
+				.setRpcServiceSharing(RpcServiceSharing.SHARED)
+				.setNumSlotsPerTaskManager(numSlotsPerTaskManager)
+				.build();
 
 		final MiniCluster miniCluster = new MiniCluster(miniClusterConfiguration);
 		miniCluster.start();
@@ -91,50 +97,38 @@ public class LocalExecutor extends PlanExecutor {
 	 * after the job finished. If the job runs in session mode, the executor is kept alive until
 	 * no more references to the executor exist.</p>
 	 *
-	 * @param plan The plan of the program to execute.
+	 * @param pipeline The pipeline of the program to execute.
 	 * @return The net runtime of the program, in milliseconds.
 	 *
 	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
 	 *                   caused an exception.
 	 */
 	@Override
-	public JobExecutionResult executePlan(Plan plan) throws Exception {
-		checkNotNull(plan);
+	public JobExecutionResult executePlan(Pipeline pipeline) throws Exception {
+		checkNotNull(pipeline);
 
-		final Configuration jobExecutorServiceConfiguration = configureExecution(plan);
+		// This is a quirk in how LocalEnvironment used to work. It sets the default parallelism
+		// to <num taskmanagers> * <num task slots>. Might be questionable but we keep the behaviour
+		// for now.
+		if (pipeline instanceof Plan) {
+			Plan plan = (Plan) pipeline;
+			final int slotsPerTaskManager = baseConfiguration.getInteger(
+					TaskManagerOptions.NUM_TASK_SLOTS, plan.getMaximumParallelism());
+			final int numTaskManagers = baseConfiguration.getInteger(
+					ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
 
-		try (final JobExecutorService executorService = createJobExecutorService(jobExecutorServiceConfiguration)) {
+			plan.setDefaultParallelism(slotsPerTaskManager * numTaskManagers);
+		}
 
-			Optimizer pc = new Optimizer(new DataStatistics(), jobExecutorServiceConfiguration);
-			OptimizedPlan op = pc.compile(plan);
+		JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(pipeline,
+				baseConfiguration,
+				1);
 
-			JobGraphGenerator jgg = new JobGraphGenerator(jobExecutorServiceConfiguration);
-			JobGraph jobGraph = jgg.compileJobGraph(op, plan.getJobId());
+		jobGraph.setAllowQueuedScheduling(true);
 
+		try (final JobExecutorService executorService = createJobExecutorService(jobGraph,
+				baseConfiguration)) {
 			return executorService.executeJobBlocking(jobGraph);
 		}
-	}
-
-	private Configuration configureExecution(final Plan plan) {
-		final Configuration executorConfiguration = createExecutorServiceConfig(plan);
-		setPlanParallelism(plan, executorConfiguration);
-		return executorConfiguration;
-	}
-
-	private Configuration createExecutorServiceConfig(final Plan plan) {
-		final Configuration newConfiguration = new Configuration();
-		newConfiguration.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, plan.getMaximumParallelism());
-		newConfiguration.addAll(baseConfiguration);
-		return newConfiguration;
-	}
-
-	private void setPlanParallelism(final Plan plan, final Configuration executorServiceConfig) {
-		// TODO: Set job's default parallelism to max number of slots
-		final int slotsPerTaskManager = executorServiceConfig.getInteger(
-				TaskManagerOptions.NUM_TASK_SLOTS, plan.getMaximumParallelism());
-		final int numTaskManagers = executorServiceConfig.getInteger(
-				ConfigConstants.LOCAL_NUMBER_TASK_MANAGER, 1);
-
-		plan.setDefaultParallelism(slotsPerTaskManager * numTaskManagers);
 	}
 }

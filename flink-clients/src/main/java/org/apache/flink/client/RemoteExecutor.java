@@ -19,14 +19,14 @@
 package org.apache.flink.client;
 
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import java.net.InetSocketAddress;
 import java.net.URL;
@@ -114,19 +114,31 @@ public class RemoteExecutor extends PlanExecutor {
 	// ------------------------------------------------------------------------
 
 	@Override
-	public JobExecutionResult executePlan(Plan plan) throws Exception {
+	public JobExecutionResult executePlan(Pipeline plan) throws Exception {
 		checkNotNull(plan);
 
-		try (ClusterClient<?> client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor")) {
-			ClassLoader classLoader = ClientUtils.buildUserCodeClassLoader(jarFiles, globalClasspaths, getClass().getClassLoader());
-
-			return client.run(
+		JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(
 				plan,
+				clientConfiguration,
+				getDefaultParallelism());
+
+		ClientUtils.addJarFiles(jobGraph, jarFiles);
+		jobGraph.setClasspaths(globalClasspaths);
+
+		ClassLoader userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(
 				jarFiles,
-				globalClasspaths,
-				classLoader,
-				defaultParallelism,
-				SavepointRestoreSettings.none()).getJobExecutionResult();
+				this.globalClasspaths,
+				getClass().getClassLoader());
+
+		return executePlanWithJars(jobGraph, userCodeClassLoader);
+	}
+
+	private JobExecutionResult executePlanWithJars(JobGraph jobGraph, ClassLoader classLoader) throws Exception {
+		checkNotNull(jobGraph);
+		checkNotNull(classLoader);
+
+		try (ClusterClient<?>  client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor")) {
+			return client.submitJob(jobGraph, classLoader).getJobExecutionResult();
 		}
 	}
 }
