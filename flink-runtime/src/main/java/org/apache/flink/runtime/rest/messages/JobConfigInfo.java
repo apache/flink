@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.runtime.rest.handler.job.JobConfigHandler;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -205,6 +208,27 @@ public class JobConfigInfo implements ResponseBody {
 			this.globalJobParameters = Preconditions.checkNotNull(globalJobParameters);
 		}
 
+		public String getExecutionMode() {
+			return executionMode;
+		}
+
+		public String getRestartStrategy() {
+			return restartStrategy;
+		}
+
+		public int getParallelism() {
+			return parallelism;
+		}
+
+		@JsonIgnore
+		public boolean isObjectResuse() {
+			return isObjectResuse;
+		}
+
+		public Map<String, String> getGlobalJobParameters() {
+			return globalJobParameters;
+		}
+
 		@Override
 		public boolean equals(Object o) {
 			if (this == o) {
@@ -224,6 +248,15 @@ public class JobConfigInfo implements ResponseBody {
 		@Override
 		public int hashCode() {
 			return Objects.hash(executionMode, restartStrategy, parallelism, isObjectResuse, globalJobParameters);
+		}
+
+		public static ExecutionConfigInfo from(ArchivedExecutionConfig archivedExecutionConfig) {
+			return new ExecutionConfigInfo(
+				archivedExecutionConfig.getExecutionMode(),
+				archivedExecutionConfig.getRestartStrategyDescription(),
+				archivedExecutionConfig.getParallelism(),
+				archivedExecutionConfig.getObjectReuseEnabled(),
+				ConfigurationUtils.hideSensitiveValues(archivedExecutionConfig.getGlobalJobParameters()));
 		}
 	}
 }
