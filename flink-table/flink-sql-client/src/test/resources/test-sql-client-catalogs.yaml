@@ -81,7 +81,7 @@ tables:
         type: VARCHAR
     connector:
       type: filesystem
-      path: "$VAR_SOURCE_PATH1"
+      path: "$VAR_SOURCE_PATH2"
     format:
       type: csv
       fields:

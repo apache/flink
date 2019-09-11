@@ -480,11 +480,14 @@ public class LocalExecutorITCase extends TestLogger {
 	@Test
 	public void testUseCatalogAndUseDatabase() throws Exception {
 		final String csvOutputPath = new File(tempFolder.newFolder().getAbsolutePath(), "test-out.csv").toURI().toString();
-		final URL url = getClass().getClassLoader().getResource("test-data-1.csv");
-		Objects.requireNonNull(url);
+		final URL url1 = getClass().getClassLoader().getResource("test-data.csv");
+		final URL url2 = getClass().getClassLoader().getResource("test-data-1.csv");
+		Objects.requireNonNull(url1);
+		Objects.requireNonNull(url2);
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_PLANNER", planner);
-		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_SOURCE_PATH1", url1.getPath());
+		replaceVars.put("$VAR_SOURCE_PATH2", url2.getPath());
 		replaceVars.put("$VAR_EXECUTION_TYPE", "streaming");
 		replaceVars.put("$VAR_SOURCE_SINK_PATH", csvOutputPath);
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
@@ -535,11 +538,14 @@ public class LocalExecutorITCase extends TestLogger {
 	public void testParameterizedTypes() throws Exception {
 		// only blink planner supports parameterized types
 		Assume.assumeTrue(planner.equals("blink"));
-		final URL url = getClass().getClassLoader().getResource("test-data-1.csv");
-		Objects.requireNonNull(url);
+		final URL url1 = getClass().getClassLoader().getResource("test-data.csv");
+		final URL url2 = getClass().getClassLoader().getResource("test-data-1.csv");
+		Objects.requireNonNull(url1);
+		Objects.requireNonNull(url2);
 		final Map<String, String> replaceVars = new HashMap<>();
 		replaceVars.put("$VAR_PLANNER", planner);
-		replaceVars.put("$VAR_SOURCE_PATH1", url.getPath());
+		replaceVars.put("$VAR_SOURCE_PATH1", url1.getPath());
+		replaceVars.put("$VAR_SOURCE_PATH2", url2.getPath());
 		replaceVars.put("$VAR_EXECUTION_TYPE", "batch");
 		replaceVars.put("$VAR_UPDATE_MODE", "update-mode: append");
 		replaceVars.put("$VAR_MAX_ROWS", "100");
