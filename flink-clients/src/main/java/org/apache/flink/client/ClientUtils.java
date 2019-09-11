@@ -18,7 +18,9 @@
 
 package org.apache.flink.client;
 
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,6 +34,20 @@ import java.util.jar.JarFile;
  */
 public enum ClientUtils {
 	;
+
+	/**
+	 * Adds the given jar files to the {@link JobGraph} via {@link JobGraph#addJar}. This will
+	 * throw an exception if a jar URL is not valid.
+	 */
+	public static void addJarFiles(JobGraph jobGraph, List<URL> jarFilesToAttach) {
+		for (URL jar : jarFilesToAttach) {
+			try {
+				jobGraph.addJar(new Path(jar.toURI()));
+			} catch (URISyntaxException e) {
+				throw new RuntimeException("URL is invalid. This should not happen.", e);
+			}
+		}
+	}
 
 	public static void checkJarFile(URL jar) throws IOException {
 		File jarFile;

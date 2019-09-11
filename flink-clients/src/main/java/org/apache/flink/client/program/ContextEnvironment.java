@@ -21,9 +21,11 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.FlinkPipelineTranslationUtil;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import java.net.URL;
@@ -64,17 +66,21 @@ public class ContextEnvironment extends ExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		verifyExecuteIsCalledOnceWhenInDetachedMode();
 
-		final Plan plan = createProgramPlan(jobName);
-		final JobSubmissionResult jobSubmissionResult = client.run(
-			plan,
-			jarFilesToAttach,
-			classpathsToAttach,
-			userCodeClassLoader,
-			getParallelism(),
-			savepointSettings);
+		Plan plan = createProgramPlan(jobName);
 
-		lastJobExecutionResult = jobSubmissionResult.getJobExecutionResult();
-		return lastJobExecutionResult;
+		JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(
+				plan,
+				client.getFlinkConfiguration(),
+				getParallelism());
+
+		ClientUtils.addJarFiles(jobGraph, this.jarFilesToAttach);
+		jobGraph.setClasspaths(this.classpathsToAttach);
+
+		this.lastJobExecutionResult = client
+				.submitJob(jobGraph, this.userCodeClassLoader)
+				.getJobExecutionResult();
+
+		return this.lastJobExecutionResult;
 	}
 
 	private void verifyExecuteIsCalledOnceWhenInDetachedMode() {

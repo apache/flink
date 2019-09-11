@@ -19,6 +19,7 @@
 package org.apache.flink.api.common;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.configuration.Configuration;
 
 import java.net.URL;
@@ -62,7 +63,7 @@ public abstract class PlanExecutor {
 	 * 
 	 * @throws Exception Thrown, if job submission caused an exception.
 	 */
-	public abstract JobExecutionResult executePlan(Plan plan) throws Exception;
+	public abstract JobExecutionResult executePlan(Pipeline plan) throws Exception;
 
 	// ------------------------------------------------------------------------
 	//  Executor Factories
