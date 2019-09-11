@@ -44,6 +44,33 @@ tables:
           type: VARCHAR
       line-delimiter: "\n"
       comment-prefix: "#"
+  - name: TestView1
+    type: view
+    query: SELECT scalarUDF(IntegerField1) FROM default_catalog.default_database.TableNumber1
+  - name: TableNumber2
+    # Test backwards compatibility ("source" -> "source-table")
+    type: source
+    $VAR_UPDATE_MODE
+    schema:
+      - name: IntegerField2
+        type: INT
+      - name: StringField2
+        type: VARCHAR
+    connector:
+      type: filesystem
+      path: "$VAR_SOURCE_PATH2"
+    format:
+      type: csv
+      fields:
+        - name: IntegerField2
+          type: INT
+        - name: StringField2
+          type: VARCHAR
+      line-delimiter: "\n"
+      comment-prefix: "#"
+  - name: TestView2
+    type: view
+    query: SELECT * FROM default_catalog.default_database.TestView1
 
 functions:
   - name: scalarUDF
