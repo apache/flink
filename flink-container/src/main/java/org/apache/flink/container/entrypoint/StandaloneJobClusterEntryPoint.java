@@ -32,13 +32,18 @@ import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory
 import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.configuration.ConfigConstants.DEFAULT_JOB_DIRECTORY_NAME;
+import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_HOME_DIR;
 
 /**
  * {@link JobClusterEntrypoint} which is started with a job in a predefined
@@ -74,10 +79,19 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 	}
 
 	@Override
-	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
+	protected DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) throws IOException {
+		if (System.getenv(ENV_FLINK_HOME_DIR) == null) {
+			throw new FlinkRuntimeException("Does not specify the FLINK_HOME environment var");
+		}
+		final File jobDir = new File(System.getenv(ENV_FLINK_HOME_DIR), DEFAULT_JOB_DIRECTORY_NAME);
 		return DefaultDispatcherResourceManagerComponentFactory.createJobComponentFactory(
 			StandaloneResourceManagerFactory.INSTANCE,
-			new ClassPathJobGraphRetriever(jobId, savepointRestoreSettings, programArguments, jobClassName));
+			new ClassPathJobGraphRetriever(
+				jobId,
+				savepointRestoreSettings,
+				programArguments,
+				jobClassName,
+				jobDir.exists() ? jobDir : null));
 	}
 
 	public static void main(String[] args) {
