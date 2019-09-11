@@ -65,7 +65,7 @@ export HADOOP_CLASSPATH=`hadoop classpath`
 3. Extract the Flink distribution and you are ready to deploy [Flink jobs via YARN](yarn_setup.html) after **setting the Hadoop config directory**:
 
 {% highlight bash %}
-HADOOP_CONF_DIR=/etc/hadoop/conf ./bin/flink run -m yarn-cluster -yn 1 examples/streaming/WordCount.jar
+HADOOP_CONF_DIR=/etc/hadoop/conf ./bin/flink run -m yarn-cluster examples/streaming/WordCount.jar
 {% endhighlight %}
 
 {% top %}
