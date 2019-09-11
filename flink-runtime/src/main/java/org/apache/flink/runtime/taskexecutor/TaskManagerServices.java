@@ -368,10 +368,9 @@ public class TaskManagerServices {
 
 		// now start the memory manager
 		return new MemoryManager(
-			memorySize,
+			Collections.singletonMap(memType, memorySize),
 			taskManagerServicesConfiguration.getNumberOfSlots(),
-			taskManagerServicesConfiguration.getPageSize(),
-			memType);
+			taskManagerServicesConfiguration.getPageSize());
 	}
 
 	/**

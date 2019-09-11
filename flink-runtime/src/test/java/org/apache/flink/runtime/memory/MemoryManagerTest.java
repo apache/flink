@@ -19,7 +19,9 @@
 package org.apache.flink.runtime.memory;
 
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.memory.MemoryManager.AllocationRequest;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 
 import org.junit.After;
@@ -28,9 +30,16 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
+import static org.apache.flink.runtime.memory.MemoryManager.AllocationRequest.ofAllTypes;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.number.OrderingComparison.lessThanOrEqualTo;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
@@ -54,7 +63,8 @@ public class MemoryManagerTest {
 	public void setUp() {
 		this.memoryManager = MemoryManagerBuilder
 			.newBuilder()
-			.setMemorySize(MEMORY_SIZE)
+			.setMemorySize(MemoryType.HEAP, MEMORY_SIZE / 2)
+			.setMemorySize(MemoryType.OFF_HEAP, MEMORY_SIZE / 2)
 			.setPageSize(PAGE_SIZE)
 			.build();
 		this.random = new Random(RANDOM_SEED);
@@ -161,12 +171,7 @@ public class MemoryManagerTest {
 
 			List<MemorySegment> segs = this.memoryManager.allocatePages(mockInvoke, NUM_PAGES);
 
-			try {
-				this.memoryManager.allocatePages(mockInvoke, 1);
-				Assert.fail("Expected MemoryAllocationException.");
-			} catch (MemoryAllocationException maex) {
-				// expected
-			}
+			testCannotAllocateAnymore(ofAllTypes(mockInvoke, 1));
 
 			Assert.assertTrue("The previously allocated segments were not valid any more.",
 																	allMemorySegmentsValid(segs));
@@ -177,6 +182,21 @@ public class MemoryManagerTest {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+
+	@Test
+	public void doubleReleaseReturnsMemoryOnlyOnce() throws MemoryAllocationException {
+		final AbstractInvokable mockInvoke = new DummyInvokable();
+
+		Collection<MemorySegment> segs = this.memoryManager.allocatePages(ofAllTypes(mockInvoke, NUM_PAGES));
+		MemorySegment segment = segs.iterator().next();
+
+		this.memoryManager.release(segment);
+		this.memoryManager.release(segment);
+
+		testCannotAllocateAnymore(ofAllTypes(mockInvoke, 2));
+
+		this.memoryManager.releaseAll(mockInvoke);
 	}
 
 	private boolean allMemorySegmentsValid(List<MemorySegment> memSegs) {
@@ -195,5 +215,49 @@ public class MemoryManagerTest {
 			}
 		}
 		return true;
+	}
+
+	@Test
+	@SuppressWarnings("NumericCastThatLosesPrecision")
+	public void testAllocateMixedMemoryType() throws MemoryAllocationException {
+		int totalHeapPages = (int) memoryManager.getMemorySizeByType(MemoryType.HEAP) / PAGE_SIZE;
+		int totalOffHeapPages = (int) memoryManager.getMemorySizeByType(MemoryType.OFF_HEAP) / PAGE_SIZE;
+		int pagesToAllocate =  totalHeapPages + totalOffHeapPages / 2;
+
+		Object owner = new Object();
+		Collection<MemorySegment> segments = memoryManager.allocatePages(ofAllTypes(owner, pagesToAllocate));
+		Map<MemoryType, Integer> split = calcMemoryTypeSplitForSegments(segments);
+
+		assertThat(split.get(MemoryType.HEAP), lessThanOrEqualTo(totalHeapPages));
+		assertThat(split.get(MemoryType.OFF_HEAP), lessThanOrEqualTo(totalOffHeapPages));
+		assertThat(split.get(MemoryType.HEAP) + split.get(MemoryType.OFF_HEAP), is(pagesToAllocate));
+
+		memoryManager.release(segments);
+	}
+
+	private static Map<MemoryType, Integer> calcMemoryTypeSplitForSegments(Iterable<MemorySegment> segments) {
+		int heapPages = 0;
+		int offHeapPages = 0;
+		for (MemorySegment memorySegment : segments) {
+			if (memorySegment.isOffHeap()) {
+				offHeapPages++;
+			} else {
+				heapPages++;
+			}
+		}
+		Map<MemoryType, Integer> split = new EnumMap<>(MemoryType.class);
+		split.put(MemoryType.HEAP, heapPages);
+		split.put(MemoryType.OFF_HEAP, offHeapPages);
+		return split;
+	}
+
+	private void testCannotAllocateAnymore(AllocationRequest request) {
+		try {
+			memoryManager.allocatePages(request);
+			Assert.fail("Expected MemoryAllocationException. " +
+				"We should not be able to allocate after allocating or(and) reserving all memory of a certain type.");
+		} catch (MemoryAllocationException maex) {
+			// expected
+		}
 	}
 }
