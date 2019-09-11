@@ -28,9 +28,9 @@ tables:
     type: source-table
     $VAR_UPDATE_MODE
     schema:
-      - name: dec
-        type: DECIMAL
-      - name: vch
+      - name: IntegerField1
+        type: INT
+      - name: StringField1
         type: VARCHAR
     connector:
       type: filesystem
@@ -38,9 +38,9 @@ tables:
     format:
       type: csv
       fields:
-        - name: dec
-          type: DECIMAL
-        - name: vch
+        - name: IntegerField1
+          type: INT
+        - name: StringField1
           type: VARCHAR
       line-delimiter: "\n"
       comment-prefix: "#"
@@ -71,6 +71,26 @@ tables:
   - name: TestView2
     type: view
     query: SELECT * FROM default_catalog.default_database.TestView1
+  - name: TableNumber3
+    type: source-table
+    $VAR_UPDATE_MODE
+    schema:
+      - name: DecimalField
+        type: DECIMAL
+      - name: StringField
+        type: VARCHAR
+    connector:
+      type: filesystem
+      path: "$VAR_SOURCE_PATH1"
+    format:
+      type: csv
+      fields:
+        - name: DecimalField
+          type: DECIMAL
+        - name: StringField
+          type: VARCHAR
+      line-delimiter: "\n"
+      comment-prefix: "#"
 
 functions:
   - name: scalarUDF

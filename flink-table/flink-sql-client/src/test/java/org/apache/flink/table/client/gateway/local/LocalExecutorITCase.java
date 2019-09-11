@@ -554,7 +554,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 		// make sure legacy types still work
 		executor.useCatalog(session, "default_catalog");
-		resultID = executor.executeQuery(session, "select * from TableNumber1").getResultId();
+		resultID = executor.executeQuery(session, "select * from TableNumber3").getResultId();
 		retrieveTableResult(executor, session, resultID);
 	}
 
