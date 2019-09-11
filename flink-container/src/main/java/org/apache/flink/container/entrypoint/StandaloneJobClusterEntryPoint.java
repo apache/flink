@@ -77,7 +77,7 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 	protected DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration) {
 		return new JobDispatcherResourceManagerComponentFactory(
 			StandaloneResourceManagerFactory.INSTANCE,
-			new ClassPathJobGraphRetriever(jobId, savepointRestoreSettings, programArguments, jobClassName));
+			new ClassPathJobGraphRetriever(jobId, savepointRestoreSettings, programArguments, jobClassName, null));
 	}
 
 	public static void main(String[] args) {

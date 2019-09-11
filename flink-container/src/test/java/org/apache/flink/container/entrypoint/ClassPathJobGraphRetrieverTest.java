@@ -27,14 +27,24 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.commons.collections.CollectionUtils;
+import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
@@ -44,6 +54,7 @@ import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link ClassPathJobGraphRetriever}.
@@ -54,6 +65,62 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 	public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	private static final String[] PROGRAM_ARGUMENTS = {"--arg", "suffix"};
+
+	private static URL testJobForUserClassLoaderJarURL = null;
+	private static URL testJobDependedJarURL = null;
+
+	private Path userDirHasEntryClass;
+	private Path userJarHasEntryClass;
+	private Path userEntryClassDependJarAtUserDirHasEntryClass;
+	private Path textAtUserDirHasEntryClass;
+
+	private Path userDirHasNotEntryClass;
+	private Path userJarHasNotEntryClass;
+	private Path userEntryClassDependJarAtUserDirHasNotEntryClass;
+	private Path textAtUserDirHasNotEntryClass;
+
+
+
+
+	private static final String testEntryClassName = "TestJobContainerForClassLoader";
+
+	@Before
+	public void init() throws IOException {
+
+		if (testJobForUserClassLoaderJarURL == null && testJobDependedJarURL == null) {
+			testJobForUserClassLoaderJarURL =
+				Paths.get("target", "maven-test-user-jar.jar").toFile().toURI().toURL();
+			testJobDependedJarURL =
+				Paths.get("target", "maven-test-user-jar-depend.jar").toFile().toURI().toURL();
+		}
+
+		userDirHasEntryClass = temporaryFolder.newFolder("_test_user_dir_has_entry_class").toPath();
+		userJarHasEntryClass = userDirHasEntryClass.resolve("user-jar-has-entry-class.jar");
+		userEntryClassDependJarAtUserDirHasEntryClass =
+			userDirHasEntryClass.resolve("user-entry-class-depended-jar-at-user-dir-has-entry-class.jar");
+		textAtUserDirHasEntryClass =
+			userDirHasEntryClass.resolve("text-at-user-dir-has-entry-class.txt");
+
+		userDirHasNotEntryClass = temporaryFolder.newFolder("_test_user_dir_has_not_entry_class").toPath();
+		userJarHasNotEntryClass =
+			userDirHasNotEntryClass.resolve("user-jar-has-not-entry-class.jar");
+		userEntryClassDependJarAtUserDirHasNotEntryClass =
+			userDirHasNotEntryClass.resolve("user-entry-class-depend-jar-at-dir-has-not-entry-class.jar");
+		textAtUserDirHasNotEntryClass =
+			userDirHasNotEntryClass.resolve("text-at-user-dir-has-not-entry-class.txt");
+		buildENV();
+	}
+
+	private void buildENV() throws IOException {
+		Files.copy(testJobForUserClassLoaderJarURL.openStream(), userJarHasEntryClass);
+		Files.copy(testJobDependedJarURL.openStream(), userEntryClassDependJarAtUserDirHasEntryClass);
+		Files.createFile(textAtUserDirHasEntryClass);
+
+		Files.createFile(userJarHasNotEntryClass);
+		Files.copy(testJobDependedJarURL.openStream(), userEntryClassDependJarAtUserDirHasNotEntryClass);
+		Files.createFile(textAtUserDirHasNotEntryClass);
+
+	}
 
 	@Test
 	public void testJobGraphRetrieval() throws FlinkException {
@@ -66,7 +133,8 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 			jobId,
 			SavepointRestoreSettings.none(),
 			PROGRAM_ARGUMENTS,
-			TestJob.class.getCanonicalName());
+			TestJob.class.getCanonicalName(),
+			null);
 
 		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(configuration);
 
@@ -76,7 +144,7 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 	}
 
 	@Test
-	public void testJobGraphRetrievalFromJar() throws FlinkException, FileNotFoundException {
+	public void testJobGraphRetrievalFromJar() throws FlinkException, IOException {
 		final File testJar = TestJob.getTestJobJar();
 		final ClassPathJobGraphRetriever classPathJobGraphRetriever = new ClassPathJobGraphRetriever(
 			new JobID(),
@@ -84,7 +152,8 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 			PROGRAM_ARGUMENTS,
 			// No class name specified, but the test JAR "is" on the class path
 			null,
-			() -> Collections.singleton(testJar));
+			() -> Collections.singleton(testJar),
+			null);
 
 		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(new Configuration());
 
@@ -92,7 +161,7 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 	}
 
 	@Test
-	public void testJobGraphRetrievalJobClassNameHasPrecedenceOverClassPath() throws FlinkException, FileNotFoundException {
+	public void testJobGraphRetrievalJobClassNameHasPrecedenceOverClassPath() throws FlinkException {
 		final File testJar = new File("non-existing");
 
 		final ClassPathJobGraphRetriever classPathJobGraphRetriever = new ClassPathJobGraphRetriever(
@@ -102,7 +171,8 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 			// Both a class name is specified and a JAR "is" on the class path
 			// The class name should have precedence.
 			TestJob.class.getCanonicalName(),
-			() -> Collections.singleton(testJar));
+			() -> Collections.singleton(testJar),
+			null);
 
 		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(new Configuration());
 
@@ -119,7 +189,8 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 			jobId,
 			savepointRestoreSettings,
 			PROGRAM_ARGUMENTS,
-			TestJob.class.getCanonicalName());
+			TestJob.class.getCanonicalName(),
+			null);
 
 		final JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(configuration);
 
@@ -158,6 +229,87 @@ public class ClassPathJobGraphRetrieverTest extends TestLogger {
 		Iterable<File> jarFiles = setClassPathAndGetJarsOnClassPath(classPath);
 
 		assertThat(jarFiles, contains(file1, file2));
+	}
+
+	@Test
+	public void testJobGraphRetrievalFailFromUserClassPath() {
+
+		final ClassPathJobGraphRetriever classPathJobGraphRetriever = new ClassPathJobGraphRetriever(
+			new JobID(),
+			SavepointRestoreSettings.none(),
+			PROGRAM_ARGUMENTS,
+			null,
+			// only find the entry class from job dir
+			() -> Arrays.asList(new File(testJobForUserClassLoaderJarURL.getPath()), new File(testJobDependedJarURL.getPath())),
+			userDirHasNotEntryClass.toString());
+		try {
+			classPathJobGraphRetriever.retrieveJobGraph(new Configuration());
+		} catch (FlinkException e) {
+			StringWriter errors = new StringWriter();
+			e.printStackTrace(new PrintWriter(errors));
+			assertTrue(errors.toString().contains("Failed to find job JAR on class path"));
+			return;
+		}
+
+		Assert.fail("This case should throw exception !");
+	}
+
+	@Test
+	public void testJobGraphRetrievalFromUserClassPath() throws IOException, FlinkException {
+
+		List<URL> expectedURLs = Arrays.asList(userJarHasEntryClass.toUri().toURL(),
+			userEntryClassDependJarAtUserDirHasEntryClass.toUri().toURL());
+
+		final ClassPathJobGraphRetriever classPathJobGraphRetriever = new ClassPathJobGraphRetriever(
+			new JobID(),
+			SavepointRestoreSettings.none(),
+			PROGRAM_ARGUMENTS,
+			null,
+			Collections::emptyList,
+			userDirHasEntryClass.toString());
+		JobGraph jobGraph = classPathJobGraphRetriever.retrieveJobGraph(new Configuration());
+		assertTrue(CollectionUtils.isEqualCollection(expectedURLs, jobGraph.getClasspaths()));
+	}
+
+	@Test
+	public void testJobGraphRetrievalFromUserClassPathWithClassNameSpecify() throws IOException {
+
+		List<URL> expectedURLs = Arrays.asList(
+			userJarHasEntryClass.toUri().toURL(),
+			userEntryClassDependJarAtUserDirHasEntryClass.toUri().toURL());
+
+		final ClassPathJobGraphRetriever classPathJobGraphRetriever = new ClassPathJobGraphRetriever(
+			new JobID(),
+			SavepointRestoreSettings.none(),
+			PROGRAM_ARGUMENTS,
+			testEntryClassName,
+			Collections::emptyList,
+			userDirHasEntryClass.toString()
+		);
+		assertTrue(CollectionUtils.isEqualCollection(expectedURLs, classPathJobGraphRetriever.getUserClassPaths()));
+	}
+
+	@Test
+	public void testJobGraphRetrievalFailWithClassNameSpecify() {
+
+		final ClassPathJobGraphRetriever classPathJobGraphRetriever = new ClassPathJobGraphRetriever(
+			new JobID(),
+			SavepointRestoreSettings.none(),
+			PROGRAM_ARGUMENTS,
+			testEntryClassName,
+			Collections::emptyList,
+			userDirHasNotEntryClass.toString()
+		);
+		try {
+			classPathJobGraphRetriever.retrieveJobGraph(new Configuration());
+		} catch (FlinkException e) {
+			StringWriter errors = new StringWriter();
+			e.printStackTrace(new PrintWriter(errors));
+			assertTrue(errors.toString().contains("java.lang.ClassNotFoundException: " + testEntryClassName));
+			return;
+		}
+
+		Assert.fail("This case should throw class not found exception!!");
 	}
 
 	private static String javaClassPath(String... entries) {
