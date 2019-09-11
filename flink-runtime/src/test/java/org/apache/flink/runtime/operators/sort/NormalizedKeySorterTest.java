@@ -25,8 +25,8 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.TestData;
 import org.apache.flink.runtime.operators.testutils.TestData.TupleGenerator.KeyMode;
@@ -58,7 +58,11 @@ public class NormalizedKeySorterTest {
 
 	@Before
 	public void beforeTest() {
-		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1, MEMORY_PAGE_SIZE, MemoryType.HEAP, true);
+		this.memoryManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(MEMORY_SIZE)
+			.setPageSize(MEMORY_PAGE_SIZE)
+			.build();
 	}
 
 	@After

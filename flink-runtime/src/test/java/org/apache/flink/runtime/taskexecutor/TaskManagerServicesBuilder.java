@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.taskexecutor;
 
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.memory.MemoryManager;
@@ -53,12 +53,12 @@ public class TaskManagerServicesBuilder {
 
 	public TaskManagerServicesBuilder() {
 		taskManagerLocation = new LocalTaskManagerLocation();
-		memoryManager = new MemoryManager(
-			MemoryManager.MIN_PAGE_SIZE,
-			1,
-			MemoryManager.MIN_PAGE_SIZE,
-			MemoryType.HEAP,
-			false);
+		memoryManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(MemoryManager.MIN_PAGE_SIZE)
+			.setPageSize(MemoryManager.MIN_PAGE_SIZE)
+			.setPreAllocateMemory(false)
+			.build();
 		ioManager = mock(IOManager.class);
 		shuffleEnvironment = mock(ShuffleEnvironment.class);
 		kvStateService = new KvStateService(new KvStateRegistry(), null, null);

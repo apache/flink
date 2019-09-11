@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.memory;
 
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 
@@ -53,7 +52,11 @@ public class MemoryManagerTest {
 
 	@Before
 	public void setUp() {
-		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
+		this.memoryManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(MEMORY_SIZE)
+			.setPageSize(PAGE_SIZE)
+			.build();
 		this.random = new Random(RANDOM_SEED);
 	}
 

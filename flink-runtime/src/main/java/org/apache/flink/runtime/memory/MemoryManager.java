@@ -105,17 +105,6 @@ public class MemoryManager {
 
 
 	/**
-	 * Creates a memory manager with the given capacity, using the default page size.
-	 *
-	 * @param memorySize The total size of the memory to be managed by this memory manager.
-	 * @param numberOfSlots The number of slots of the task manager.
-	 */
-	@VisibleForTesting
-	public MemoryManager(long memorySize, int numberOfSlots) {
-		this(memorySize, numberOfSlots, DEFAULT_PAGE_SIZE, MemoryType.HEAP, true);
-	}
-
-	/**
 	 * Creates a memory manager with the given capacity and given page size.
 	 *
 	 * @param memorySize The total size of the memory to be managed by this memory manager.

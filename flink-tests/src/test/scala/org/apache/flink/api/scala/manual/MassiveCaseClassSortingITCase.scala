@@ -27,11 +27,10 @@ import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.api.java.typeutils.runtime.RuntimeSerializerFactory
 import org.apache.flink.api.scala._
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync
-import org.apache.flink.runtime.memory.MemoryManager
+import org.apache.flink.runtime.memory.MemoryManagerBuilder
 import org.apache.flink.runtime.operators.sort.UnilateralSortMerger
 import org.apache.flink.runtime.operators.testutils.DummyInvokable
 import org.apache.flink.util.{MutableObjectIterator, TestLogger}
-
 import org.junit.Assert._
 
 /**
@@ -90,7 +89,7 @@ class MassiveCaseClassSortingITCase extends TestLogger {
           0,
           new ExecutionConfig)
         
-        val mm = new MemoryManager(1024 * 1024, 1)
+        val mm = MemoryManagerBuilder.newBuilder.setMemorySize(1024 * 1024).build
         val ioMan = new IOManagerAsync()
         
         sorter = new UnilateralSortMerger[StringTuple](mm, ioMan, inputIterator,

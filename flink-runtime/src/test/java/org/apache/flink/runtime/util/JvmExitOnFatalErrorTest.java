@@ -43,6 +43,7 @@ import org.apache.flink.runtime.filecache.FileCache;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.taskexecutor.NoOpPartitionProducerStateChecker;
@@ -161,7 +162,7 @@ public class JvmExitOnFatalErrorTest {
 				final TaskInformation taskInformation = new TaskInformation(
 						jobVertexId, "Test Task", 1, 1, OomInvokable.class.getName(), new Configuration());
 
-				final MemoryManager memoryManager = new MemoryManager(1024 * 1024, 1);
+				final MemoryManager memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build();
 				final IOManager ioManager = new IOManagerAsync();
 
 				final ShuffleEnvironment<?, ?> shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();

@@ -26,7 +26,6 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.core.memory.MemoryType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.TransientBlobKey;
@@ -71,6 +70,7 @@ import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.query.KvStateRegistry;
@@ -273,12 +273,12 @@ public class TaskExecutorTest extends TestLogger {
 			ioManager.getSpillingDirectories(),
 			Executors.directExecutor());
 
-		final MemoryManager memoryManager = new MemoryManager(
-			4096,
-			1,
-			4096,
-			MemoryType.HEAP,
-			false);
+		final MemoryManager memoryManager = MemoryManagerBuilder
+			.newBuilder()
+			.setMemorySize(4096)
+			.setPageSize(4096)
+			.setPreAllocateMemory(false)
+			.build();
 
 		nettyShuffleEnvironment.start();
 
