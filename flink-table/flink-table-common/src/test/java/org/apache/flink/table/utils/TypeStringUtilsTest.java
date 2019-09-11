@@ -123,6 +123,13 @@ public class TypeStringUtilsTest {
 				Types.BIG_DEC, Types.BYTE),
 			TypeStringUtils.readTypeInfo("ROW(`he         \nllo` DECIMAL, world TINYINT)"));
 
+		// test type definition with lowercase
+		assertEquals(
+			Types.ROW_NAMED(
+				new String[] {"hello", "world"},
+				Types.BIG_DEC, Types.BYTE),
+			TypeStringUtils.readTypeInfo("ROW(hello DECIMAL, world tinyint)"));
+
 		// test nesting
 		testReadAndWrite(
 			"ROW<singleton ROW<f0 INT>, twoField ROW<`Field 1` ROW<f0 DECIMAL>, `Field``s 2` VARCHAR>>",

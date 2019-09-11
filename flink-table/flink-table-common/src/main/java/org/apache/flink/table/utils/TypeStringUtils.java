@@ -271,7 +271,7 @@ public class TypeStringUtils {
 
 		private TypeInformation<?> convertType() {
 			final TypeInformation<?> typeInfo;
-			switch (token().literal) {
+			switch (token().literal.toUpperCase()) {
 				case VARCHAR:
 				case STRING:
 					return Types.STRING;
