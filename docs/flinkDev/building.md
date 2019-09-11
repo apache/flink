@@ -127,8 +127,7 @@ mvn clean install -Dhadoop.version=2.6.5-custom
 
 After this step is complete, follow the steps for [Pre-bundled versions](#pre-bundled-versions).
 
-To build Flink against a vendor specific Hadoop version, additionally activate -Pvendor-repos` profile when building
-`flink-shaded:
+To build Flink against a vendor specific Hadoop version, additionally `activate -Pvendor-repos` profile when building flink-shaded:
 
 {% highlight bash %}
 mvn clean install -DskipTests -Pvendor-repos -Dhadoop.version=2.6.0-cdh5.16.1
