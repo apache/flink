@@ -55,7 +55,7 @@ public class ConfigurationUtilsTest extends TestLogger {
 	}
 
 	@Test
-	public void testHideSensitiveValues() {
+		public void testHideSensitiveValues() {
 		final Map<String, String> keyValuePairs = new HashMap<>();
 		keyValuePairs.put("foobar", "barfoo");
 		final String secretKey1 = "secret.key";
