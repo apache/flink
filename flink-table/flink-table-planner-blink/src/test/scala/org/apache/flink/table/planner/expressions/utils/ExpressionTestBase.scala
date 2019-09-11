@@ -240,12 +240,18 @@ abstract class ExpressionTestBase {
     // create RelNode from Table API expression
     val relNode = relBuilder
         .queryOperation(tEnv.scan(tableName).select(tableApiExpr).getQueryOperation).build()
+
     addTestExpr(relNode, expected, tableApiExpr.asSummaryString())
   }
 
   def testSqlNullable(nullUdf: String): Unit = {
     addSqlTestExpr(
       s"CASE WHEN ($nullUdf) is null THEN '$nullable' ELSE '$notNullable' END", nullable)
+  }
+
+  //add test for checking expression result is null for sql directly
+  def testSqlCalResNullable(nullUdf:String): Unit = {
+    addSqlTestExpr(s" $nullUdf ",nullable)
   }
 
   def testSqlApi(
@@ -263,6 +269,12 @@ abstract class ExpressionTestBase {
     val retStrExpr = ifThenElse(
       ExpressionParser.parseExpression(nullExprString).isNull, nullable, notNullable)
     addTableApiTestExpr(retStrExpr, nullable)
+  }
+
+  //add test for checking expression result is null for table API directly
+  def testTableCalResNullable(nullExpr: Expression, nullExprString: String): Unit ={
+    addTableApiTestExpr(nullExpr, nullable)
+    addTableApiTestExpr(nullExprString, nullable)
   }
 
   def testData: Row
