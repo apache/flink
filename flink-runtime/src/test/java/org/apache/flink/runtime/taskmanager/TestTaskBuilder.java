@@ -43,6 +43,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionConsumableNo
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.operators.testutils.MockInputSplitProvider;
@@ -187,7 +188,7 @@ public final class TestTaskBuilder {
 			resultPartitions,
 			inputGates,
 			0,
-			new MemoryManager(1024 * 1024, 1),
+			MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024).build(),
 			mock(IOManager.class),
 			shuffleEnvironment,
 			kvStateService,

@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
@@ -94,7 +95,7 @@ public class BinaryExternalSorterTest {
 	@SuppressWarnings("unchecked")
 	@Before
 	public void beforeTest() {
-		this.memoryManager = new MemoryManager(MEMORY_SIZE, 1);
+		this.memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(MEMORY_SIZE).build();
 		this.serializer = new BinaryRowSerializer(2);
 		this.conf.setInteger(ExecutionConfigOptions.TABLE_EXEC_SORT_MAX_NUM_FILE_HANDLES, 128);
 	}
@@ -121,7 +122,7 @@ public class BinaryExternalSorterTest {
 		LOG.debug("initializing sortmerger");
 
 		//there are two sort buffer if sortMemory > 100 * 1024 * 1024.
-		MemoryManager memoryManager = new MemoryManager(1024 * 1024 * 101, 1);
+		MemoryManager memoryManager = MemoryManagerBuilder.newBuilder().setMemorySize(1024 * 1024 * 101).build();
 		long minMemorySize = memoryManager.computeNumberOfPages(1) * MemoryManager.DEFAULT_PAGE_SIZE;
 		BinaryExternalSorter sorter = new BinaryExternalSorter(
 				new Object(),
