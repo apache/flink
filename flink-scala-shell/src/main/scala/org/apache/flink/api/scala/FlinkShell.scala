@@ -49,7 +49,6 @@ object FlinkShell {
 
   /** YARN configuration object */
   case class YarnConfig(
-    containers: Option[Int] = None,
     jobManagerMemory: Option[String] = None,
     name: Option[String] = None,
     queue: Option[String] = None,
@@ -93,10 +92,6 @@ object FlinkShell {
       cmd("yarn") action {
         (_, c) => c.copy(executionMode = ExecutionMode.YARN, yarnConfig = None)
       } text "Starts Flink scala shell connecting to a yarn cluster" children(
-        opt[Int]("container") abbr ("n") valueName ("arg") action {
-          (x, c) =>
-            c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(containers = Some(x))))
-        } text "Number of YARN container to allocate (= Number of TaskManagers)",
         opt[String]("jobManagerMemory") abbr ("jm") valueName ("arg") action {
           (x, c) =>
             c.copy(yarnConfig = Some(ensureYarnConfig(c).copy(jobManagerMemory = Some(x))))
@@ -246,13 +241,6 @@ object FlinkShell {
     val args = ArrayBuffer[String](
       "-m", "yarn-cluster"
     )
-
-    // number of task managers is required.
-    yarnConfig.containers match {
-      case Some(containers) => args ++= Seq("-yn", containers.toString)
-      case None =>
-        throw new IllegalArgumentException("Number of taskmanagers must be specified.")
-    }
 
     // set configuration from user input
     yarnConfig.jobManagerMemory.foreach((jmMem) => args ++= Seq("-yjm", jmMem.toString))

@@ -81,13 +81,13 @@ public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
 
 		// test detached mode
 		{
-			String[] parameters = {"-m", "yarn-cluster", "-yn", "1", "-p", "2", "-d", testJarPath};
+			String[] parameters = {"-m", "yarn-cluster", "-p", "2", "-d", testJarPath};
 			verifyCliFrontend(yarnCLI, parameters, 2, true);
 		}
 
 		// test detached mode
 		{
-			String[] parameters = {"-m", "yarn-cluster", "-yn", "1", "-p", "2", "-yd", testJarPath};
+			String[] parameters = {"-m", "yarn-cluster", "-p", "2", "-yd", testJarPath};
 			verifyCliFrontend(yarnCLI, parameters, 2, true);
 		}
 	}
