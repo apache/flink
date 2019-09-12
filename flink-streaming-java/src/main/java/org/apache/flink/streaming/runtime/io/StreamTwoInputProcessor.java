@@ -184,10 +184,6 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		}
 		checkFinished(status, lastReadInputIndex);
 
-		if (status != InputStatus.MORE_AVAILABLE) {
-			inputSelectionHandler.setUnavailableInput(readingInputIndex);
-		}
-
 		return status == InputStatus.MORE_AVAILABLE;
 	}
 
@@ -253,11 +249,15 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 	}
 
 	private void updateAvailability() {
-		if (!input1.isFinished() && input1.isAvailable() == AVAILABLE) {
-			inputSelectionHandler.setAvailableInput(input1.getInputIndex());
-		}
-		if (!input2.isFinished() && input2.isAvailable() == AVAILABLE) {
-			inputSelectionHandler.setAvailableInput(input2.getInputIndex());
+		updateAvailability(input1);
+		updateAvailability(input2);
+	}
+
+	private void updateAvailability(StreamTaskInput input) {
+		if (!input.isFinished() && input.isAvailable() == AVAILABLE) {
+			inputSelectionHandler.setAvailableInput(input.getInputIndex());
+		} else {
+			inputSelectionHandler.setUnavailableInput(input.getInputIndex());
 		}
 	}
 
