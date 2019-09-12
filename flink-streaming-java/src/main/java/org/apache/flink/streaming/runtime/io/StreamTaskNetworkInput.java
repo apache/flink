@@ -74,8 +74,6 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 
 	private RecordDeserializer<DeserializationDelegate<StreamElement>> currentRecordDeserializer = null;
 
-	private boolean isFinished = false;
-
 	@SuppressWarnings("unchecked")
 	public StreamTaskNetworkInput(
 			CheckpointedInputGate checkpointedInputGate,
@@ -137,7 +135,6 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 				processBufferOrEvent(bufferOrEvent.get());
 			} else {
 				if (checkpointedInputGate.isFinished()) {
-					isFinished = true;
 					checkState(checkpointedInputGate.isAvailable().isDone(), "Finished BarrierHandler should be available");
 					if (!checkpointedInputGate.isEmpty()) {
 						throw new IllegalStateException("Trailing data in checkpoint barrier handler.");
@@ -190,11 +187,6 @@ public final class StreamTaskNetworkInput<T> implements StreamTaskInput<T> {
 	@Override
 	public int getInputIndex() {
 		return inputIndex;
-	}
-
-	@Override
-	public boolean isFinished() {
-		return isFinished;
 	}
 
 	@Override

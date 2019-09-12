@@ -58,4 +58,9 @@ public interface PullingAsyncDataInput<T> extends AvailabilityProvider {
 	 * if {@link #isFinished()} returns true. Otherwise {@code Optional.of(element)}.
 	 */
 	Optional<T> pollNext() throws Exception;
+
+	/**
+	 * @return true if is finished and for example end of input was reached, false otherwise.
+	 */
+	boolean isFinished();
 }

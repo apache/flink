@@ -34,11 +34,6 @@ public interface AvailabilityProvider {
 	CompletableFuture<?> AVAILABLE = CompletableFuture.completedFuture(null);
 
 	/**
-	 * @return true if is finished and for example end of input was reached, false otherwise.
-	 */
-	boolean isFinished();
-
-	/**
 	 * Check if this instance is available for further processing.
 	 *
 	 * <p>When hot looping to avoid volatile access in {@link CompletableFuture#isDone()} user of
@@ -55,7 +50,7 @@ public interface AvailabilityProvider {
 	 * @return a future that is completed if there are more records available. If there are more
 	 * records available immediately, {@link #AVAILABLE} should be returned. Previously returned
 	 * not completed futures should become completed once there is more input available or if
-	 * the input {@link #isFinished()}.
+	 * the input is finished.
 	 */
 	CompletableFuture<?> isAvailable();
 }

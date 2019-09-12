@@ -60,17 +60,12 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 	}
 
 	@Override
-	public boolean isFinished() {
-		return input.isFinished();
-	}
-
-	@Override
 	public CompletableFuture<?> isAvailable() {
 		return input.isAvailable();
 	}
 
 	@Override
-	public boolean processInput() throws Exception {
+	public InputStatus processInput() throws Exception {
 		InputStatus status = input.emitNext(output);
 
 		if (status == InputStatus.END_OF_INPUT) {
@@ -79,7 +74,7 @@ public final class StreamOneInputProcessor<IN> implements StreamInputProcessor {
 			}
 		}
 
-		return status == InputStatus.MORE_AVAILABLE;
+		return status;
 	}
 
 	@Override
