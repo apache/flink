@@ -148,6 +148,8 @@ under the License.
 		<hivemetastore.hadoop.version>2.7.5</hivemetastore.hadoop.version>
 		<jamicmp.referenceVersion>1.8.0</jamicmp.referenceVersion>
 		<japicmp.outputDir>tools/japicmp-output</japicmp.outputDir>
+		<scheduler.type>legacy</scheduler.type>
+		<test.groups></test.groups>
 	</properties>
 
 	<dependencies>
@@ -637,6 +639,18 @@ under the License.
 	</dependencyManagement>
 
 	<profiles>
+		<profile>
+			<id>scheduler-ng</id>
+			<properties>
+				<scheduler.type>ng</scheduler.type>
+				<test.groups>org.apache.flink.testutils.junit.category.AlsoRunWithSchedulerNG</test.groups>
+			</properties>
+			<activation>
+				<property>
+					<name>scheduler-ng</name>
+				</property>
+			</activation>
+		</profile>
 
 		<profile>
 			<id>scala-2.11</id>
@@ -1424,11 +1438,13 @@ under the License.
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>2.22.1</version>
 				<configuration>
+					<groups>${test.groups}</groups>
 					<forkCount>${flink.forkCount}</forkCount>
 					<reuseForks>${flink.reuseForks}</reuseForks>
 					<systemPropertyVariables>
 						<forkNumber>0${surefire.forkNumber}</forkNumber>
 						<log4j.configuration>${log4j.configuration}</log4j.configuration>
+						<schedulerType>${scheduler.type}</schedulerType>
 					</systemPropertyVariables>
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseG1GC</argLine>
 				</configuration>

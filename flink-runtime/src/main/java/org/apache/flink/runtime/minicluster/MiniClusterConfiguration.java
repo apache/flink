@@ -38,6 +38,8 @@ import static org.apache.flink.runtime.minicluster.RpcServiceSharing.SHARED;
  */
 public class MiniClusterConfiguration {
 
+	static final String SCHEDULER_TYPE_KEY = "schedulerType";
+
 	private final UnmodifiableConfiguration configuration;
 
 	private final int numTaskManagers;
@@ -57,10 +59,20 @@ public class MiniClusterConfiguration {
 			RpcServiceSharing rpcServiceSharing,
 			@Nullable String commonBindAddress) {
 
-		this.configuration = new UnmodifiableConfiguration(Preconditions.checkNotNull(configuration));
+		this.configuration = generateConfiguration(Preconditions.checkNotNull(configuration));
 		this.numTaskManagers = numTaskManagers;
 		this.rpcServiceSharing = Preconditions.checkNotNull(rpcServiceSharing);
 		this.commonBindAddress = commonBindAddress;
+	}
+
+	private UnmodifiableConfiguration generateConfiguration(final Configuration configuration) {
+		final String schedulerType = System.getProperty(SCHEDULER_TYPE_KEY, JobManagerOptions.SCHEDULER.defaultValue());
+
+		if (!configuration.contains(JobManagerOptions.SCHEDULER)) {
+			configuration.setString(JobManagerOptions.SCHEDULER, schedulerType);
+		}
+
+		return new UnmodifiableConfiguration(configuration);
 	}
 
 	// ------------------------------------------------------------------------
