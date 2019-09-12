@@ -36,9 +36,11 @@ import org.apache.flink.runtime.util.SignalHandler;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.nio.file.Paths;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_HOME_DIR;
 
 /**
  * {@link JobClusterEntrypoint} which is started with a job in a predefined
@@ -60,6 +62,8 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 	@Nullable
 	private final String jobClassName;
 
+	private static final String DEFAULT_FLINK_HOME = "/opt/flink";
+
 	private StandaloneJobClusterEntryPoint(
 			Configuration configuration,
 			@Nonnull JobID jobId,
@@ -77,7 +81,9 @@ public final class StandaloneJobClusterEntryPoint extends JobClusterEntrypoint {
 	protected DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration) {
 		return new JobDispatcherResourceManagerComponentFactory(
 			StandaloneResourceManagerFactory.INSTANCE,
-			new ClassPathJobGraphRetriever(jobId, savepointRestoreSettings, programArguments, jobClassName, null));
+			new ClassPathJobGraphRetriever(jobId, savepointRestoreSettings, programArguments, jobClassName,
+				Paths.get(System.getenv(ENV_FLINK_HOME_DIR) == null ? DEFAULT_FLINK_HOME : System.getenv(ENV_FLINK_HOME_DIR),
+					ClassPathJobGraphRetriever.DEFAULT_JOB_DIR).toString()));
 	}
 
 	public static void main(String[] args) {
