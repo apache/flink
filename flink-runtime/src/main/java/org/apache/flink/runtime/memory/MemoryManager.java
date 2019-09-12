@@ -242,9 +242,9 @@ public class MemoryManager {
 	 *                                   of memory pages any more.
 	 */
 	public List<MemorySegment> allocatePages(Object owner, int numPages) throws MemoryAllocationException {
-		final ArrayList<MemorySegment> segs = new ArrayList<MemorySegment>(numPages);
-		allocatePages(owner, segs, numPages);
-		return segs;
+		List<MemorySegment> segments = new ArrayList<>(numPages);
+		allocatePages(owner, segments, numPages);
+		return segments;
 	}
 
 	/**
@@ -526,6 +526,7 @@ public class MemoryManager {
 			throw new IllegalArgumentException("The fraction of memory to allocate must within (0, 1].");
 		}
 
+		//noinspection NumericCastThatLosesPrecision
 		return (int) (totalNumPages * fraction / numberOfSlots);
 	}
 
