@@ -261,8 +261,10 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		this.shuffleMaster = checkNotNull(shuffleMaster);
 
-		this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
-		this.schedulerNG = createScheduler(jobManagerJobMetricGroup);
+		JobManagerJobMetricGroup jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
+		SchedulerNG schedulerNG = createScheduler(jobManagerJobMetricGroup);
+		assignScheduler(schedulerNG, jobManagerJobMetricGroup);
+
 		this.jobStatusListener = null;
 
 		this.resourceManagerConnection = null;
@@ -810,15 +812,24 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			log);
 	}
 
-	private void assignScheduler(
+	private void reassignScheduler(
 			SchedulerNG newScheduler,
 			JobManagerJobMetricGroup newJobManagerJobMetricGroup) {
 		validateRunsInMainThread();
 		checkState(schedulerNG.requestJobStatus().isTerminalState());
 		checkState(jobManagerJobMetricGroup == null);
 
-		schedulerNG = newScheduler;
-		jobManagerJobMetricGroup = newJobManagerJobMetricGroup;
+		assignScheduler(newScheduler, newJobManagerJobMetricGroup);
+	}
+
+	private void assignScheduler(
+			SchedulerNG scheduler,
+			JobManagerJobMetricGroup jobManagerJobMetricGroup) {
+
+		this.schedulerNG = scheduler;
+		this.jobManagerJobMetricGroup = jobManagerJobMetricGroup;
+
+		log.info("Scheduler {} is used for job {}.", schedulerNG, jobGraph.getJobID());
 	}
 
 	private void resetAndStartScheduler() throws Exception {
@@ -837,7 +848,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			schedulerAssignedFuture = schedulerNG.getTerminationFuture().handle(
 				(ignored, throwable) -> {
 					newScheduler.setMainThreadExecutor(getMainThreadExecutor());
-					assignScheduler(newScheduler, newJobManagerJobMetricGroup);
+					reassignScheduler(newScheduler, newJobManagerJobMetricGroup);
 					return null;
 				}
 			);
