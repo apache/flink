@@ -29,9 +29,9 @@ import java.io.Closeable;
 @Internal
 public interface StreamInputProcessor extends AvailabilityProvider, Closeable {
 	/**
-	 * @return true if {@link StreamInputProcessor} estimates that more records can be processed
-	 * immediately. Otherwise false, which means that there are no more records available at the
-	 * moment and the caller should check {@link #isFinished()} and/or {@link #isAvailable()}.
+	 * @return input status to estimate whether more records can be processed immediately or not.
+	 * If there are no more records available at the moment and the caller should check finished
+	 * state and/or {@link #isAvailable()}.
 	 */
-	boolean processInput() throws Exception;
+	InputStatus processInput() throws Exception;
 }

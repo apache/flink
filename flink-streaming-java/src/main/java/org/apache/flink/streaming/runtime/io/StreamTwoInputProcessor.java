@@ -62,6 +62,10 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 	private final DataOutput<IN1> output1;
 	private final DataOutput<IN2> output2;
 
+	/** Input status to keep track for determining whether the input is finished or not. */
+	private InputStatus firstInputStatus = InputStatus.MORE_AVAILABLE;
+	private InputStatus secondInputStatus = InputStatus.MORE_AVAILABLE;
+
 	/**
 	 * Stream status for the two inputs. We need to keep track for determining when
 	 * to forward stream status changes downstream.
@@ -148,11 +152,6 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 	}
 
 	@Override
-	public boolean isFinished() {
-		return input1.isFinished() && input2.isFinished();
-	}
-
-	@Override
 	public CompletableFuture<?> isAvailable() {
 		if (inputSelectionHandler.areAllInputsSelected()) {
 			return isAnyInputAvailable();
@@ -163,28 +162,42 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 	}
 
 	@Override
-	public boolean processInput() throws Exception {
-		if (!isPrepared) {
+	public InputStatus processInput() throws Exception {
+		int readingInputIndex;
+		if (isPrepared) {
+			readingInputIndex = selectNextReadingInputIndex();
+			assert readingInputIndex != -1;
+		} else {
 			// the preparations here are not placed in the constructor because all work in it
 			// must be executed after all operators are opened.
-			prepareForProcessing();
+			readingInputIndex = selectFirstReadingInputIndex();
+			if (readingInputIndex == -1) {
+				return InputStatus.NOTHING_AVAILABLE;
+			}
 		}
 
-		int readingInputIndex = selectNextReadingInputIndex();
-		if (readingInputIndex == -1) {
-			return false;
-		}
 		lastReadInputIndex = readingInputIndex;
 
-		InputStatus status;
 		if (readingInputIndex == 0) {
-			status = input1.emitNext(output1);
+			firstInputStatus = input1.emitNext(output1);
+			checkFinished(firstInputStatus, lastReadInputIndex);
 		} else {
-			status = input2.emitNext(output2);
+			secondInputStatus = input2.emitNext(output2);
+			checkFinished(secondInputStatus, lastReadInputIndex);
 		}
-		checkFinished(status, lastReadInputIndex);
 
-		return status == InputStatus.MORE_AVAILABLE;
+		return getInputStatus();
+	}
+
+	private int selectFirstReadingInputIndex() throws IOException {
+		// Note: the first call to nextSelection () on the operator must be made after this operator
+		// is opened to ensure that any changes about the input selection in its open()
+		// method take effect.
+		inputSelectionHandler.nextSelection();
+
+		isPrepared = true;
+
+		return selectNextReadingInputIndex();
 	}
 
 	private void checkFinished(InputStatus status, int inputIndex) throws Exception {
@@ -194,6 +207,24 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 				inputSelectionHandler.nextSelection();
 			}
 		}
+	}
+
+	private InputStatus getInputStatus() {
+		if (firstInputStatus == InputStatus.END_OF_INPUT && secondInputStatus == InputStatus.END_OF_INPUT) {
+			return InputStatus.END_OF_INPUT;
+		}
+
+		if (inputSelectionHandler.areAllInputsSelected()) {
+			if (firstInputStatus == InputStatus.MORE_AVAILABLE || secondInputStatus == InputStatus.MORE_AVAILABLE) {
+				return InputStatus.MORE_AVAILABLE;
+			} else {
+				return InputStatus.NOTHING_AVAILABLE;
+			}
+		}
+
+		InputStatus selectedStatus = inputSelectionHandler.isFirstInputSelected() ? firstInputStatus : secondInputStatus;
+		InputStatus otherStatus = inputSelectionHandler.isFirstInputSelected() ? secondInputStatus : firstInputStatus;
+		return selectedStatus == InputStatus.END_OF_INPUT ? otherStatus : selectedStatus;
 	}
 
 	@Override
@@ -240,49 +271,41 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 		if (inputSelectionHandler.areAllInputsSelected()) {
 			return;
 		}
-		if (inputSelectionHandler.isFirstInputSelected() && input1.isFinished()) {
+		if (inputSelectionHandler.isFirstInputSelected() && firstInputStatus == InputStatus.END_OF_INPUT) {
 			throw new IOException("Can not make a progress: only first input is selected but it is already finished");
 		}
-		if (inputSelectionHandler.isSecondInputSelected() && input2.isFinished()) {
+		if (inputSelectionHandler.isSecondInputSelected() && secondInputStatus == InputStatus.END_OF_INPUT) {
 			throw new IOException("Can not make a progress: only second input is selected but it is already finished");
 		}
 	}
 
 	private void updateAvailability() {
-		updateAvailability(input1);
-		updateAvailability(input2);
+		updateAvailability(firstInputStatus, input1);
+		updateAvailability(secondInputStatus, input2);
 	}
 
-	private void updateAvailability(StreamTaskInput input) {
-		if (!input.isFinished() && input.isAvailable() == AVAILABLE) {
+	private void updateAvailability(InputStatus status, StreamTaskInput input) {
+		if (status == InputStatus.MORE_AVAILABLE || (status != InputStatus.END_OF_INPUT && input.isAvailable() == AVAILABLE)) {
 			inputSelectionHandler.setAvailableInput(input.getInputIndex());
 		} else {
 			inputSelectionHandler.setUnavailableInput(input.getInputIndex());
 		}
 	}
 
-	private void prepareForProcessing() {
-		// Note: the first call to nextSelection () on the operator must be made after this operator
-		// is opened to ensure that any changes about the input selection in its open()
-		// method take effect.
-		inputSelectionHandler.nextSelection();
-
-		isPrepared = true;
-	}
-
 	private void checkAndSetAvailable(int inputIndex) {
 		StreamTaskInput input = getInput(inputIndex);
-		if (!input.isFinished() && input.isAvailable().isDone()) {
+		InputStatus status = (inputIndex == 0 ? firstInputStatus : secondInputStatus);
+		if (status != InputStatus.END_OF_INPUT && input.isAvailable().isDone()) {
 			inputSelectionHandler.setAvailableInput(inputIndex);
 		}
 	}
 
 	private CompletableFuture<?> isAnyInputAvailable() {
-		if (input1.isFinished()) {
+		if (firstInputStatus == InputStatus.END_OF_INPUT) {
 			return input2.isAvailable();
 		}
 
-		if (input2.isFinished()) {
+		if (secondInputStatus == InputStatus.END_OF_INPUT) {
 			return input1.isAvailable();
 		}
 

@@ -58,6 +58,7 @@ import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
+import org.apache.flink.streaming.runtime.io.InputStatus;
 import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
@@ -279,14 +280,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	 * @throws Exception on any problems in the action.
 	 */
 	protected void processInput(DefaultActionContext context) throws Exception {
-		if (!inputProcessor.processInput()) {
-			if (inputProcessor.isFinished()) {
-				context.allActionsCompleted();
-			}
-			else {
-				SuspendedMailboxDefaultAction suspendedDefaultAction = context.suspendDefaultAction();
-				inputProcessor.isAvailable().thenRun(suspendedDefaultAction::resume);
-			}
+		InputStatus status = inputProcessor.processInput();
+		if (status == InputStatus.END_OF_INPUT) {
+			context.allActionsCompleted();
+		}
+		else if (status == InputStatus.NOTHING_AVAILABLE){
+			SuspendedMailboxDefaultAction suspendedDefaultAction = context.suspendDefaultAction();
+			inputProcessor.isAvailable().thenRun(suspendedDefaultAction::resume);
 		}
 	}
 

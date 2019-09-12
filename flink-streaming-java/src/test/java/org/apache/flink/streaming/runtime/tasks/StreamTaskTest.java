@@ -109,6 +109,7 @@ import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
+import org.apache.flink.streaming.runtime.io.InputStatus;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
@@ -1150,17 +1151,12 @@ public class StreamTaskTest extends TestLogger {
 		}
 
 		@Override
-		public boolean processInput() throws Exception {
-			return false;
+		public InputStatus processInput() throws Exception {
+			return isFinished ? InputStatus.END_OF_INPUT : InputStatus.NOTHING_AVAILABLE;
 		}
 
 		@Override
 		public void close() throws IOException {
-		}
-
-		@Override
-		public boolean isFinished() {
-			return isFinished;
 		}
 
 		@Override
