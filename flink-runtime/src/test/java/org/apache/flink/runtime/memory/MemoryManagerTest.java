@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Random;
 
 import static org.apache.flink.runtime.memory.MemoryManager.AllocationRequest.ofAllTypes;
+import static org.apache.flink.runtime.memory.MemoryManager.AllocationRequest.ofType;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.number.OrderingComparison.lessThanOrEqualTo;
 import static org.junit.Assert.assertThat;
@@ -251,12 +252,68 @@ public class MemoryManagerTest {
 		return split;
 	}
 
+	@Test
+	public void testMemoryReservation() throws MemoryReservationException {
+		Object owner = new Object();
+
+		memoryManager.reserveMemory(owner, MemoryType.HEAP, PAGE_SIZE);
+		memoryManager.reserveMemory(owner, MemoryType.OFF_HEAP, memoryManager.getMemorySizeByType(MemoryType.OFF_HEAP));
+
+		memoryManager.releaseMemory(owner, MemoryType.HEAP, PAGE_SIZE);
+		memoryManager.releaseAllMemory(owner, MemoryType.OFF_HEAP);
+	}
+
+	@Test
+	public void testCannotReserveBeyondTheLimit() throws MemoryReservationException {
+		Object owner = new Object();
+		memoryManager.reserveMemory(owner, MemoryType.OFF_HEAP, memoryManager.getMemorySizeByType(MemoryType.OFF_HEAP));
+		testCannotReserveAnymore(MemoryType.OFF_HEAP, 1L);
+		memoryManager.releaseAllMemory(owner, MemoryType.OFF_HEAP);
+	}
+
+	@Test
+	public void testMemoryTooBigReservation() {
+		long size = memoryManager.getMemorySizeByType(MemoryType.HEAP) + PAGE_SIZE;
+		testCannotReserveAnymore(MemoryType.HEAP, size);
+	}
+
+	@Test
+	public void testMemoryAllocationAndReservation() throws MemoryAllocationException, MemoryReservationException {
+		MemoryType type = MemoryType.OFF_HEAP;
+		@SuppressWarnings("NumericCastThatLosesPrecision")
+		int totalPagesForType = (int) memoryManager.getMemorySizeByType(type) / PAGE_SIZE;
+
+		// allocate half memory for segments
+		Object owner1 = new Object();
+		memoryManager.allocatePages(ofType(owner1, totalPagesForType / 2, MemoryType.OFF_HEAP));
+
+		// reserve the other half of memory
+		Object owner2 = new Object();
+		memoryManager.reserveMemory(owner2, type, (long) PAGE_SIZE * totalPagesForType / 2);
+
+		testCannotAllocateAnymore(ofType(new Object(), 1, type));
+		testCannotReserveAnymore(type, 1L);
+
+		memoryManager.releaseAll(owner1);
+		memoryManager.releaseAllMemory(owner2, type);
+	}
+
 	private void testCannotAllocateAnymore(AllocationRequest request) {
 		try {
 			memoryManager.allocatePages(request);
 			Assert.fail("Expected MemoryAllocationException. " +
 				"We should not be able to allocate after allocating or(and) reserving all memory of a certain type.");
 		} catch (MemoryAllocationException maex) {
+			// expected
+		}
+	}
+
+	private void testCannotReserveAnymore(MemoryType type, long size) {
+		try {
+			memoryManager.reserveMemory(new Object(), type, size);
+			Assert.fail("Expected MemoryAllocationException. " +
+				"We should not be able to any more memory after allocating or(and) reserving all memory of a certain type.");
+		} catch (MemoryReservationException maex) {
 			// expected
 		}
 	}
