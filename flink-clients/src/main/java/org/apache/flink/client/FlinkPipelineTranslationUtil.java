@@ -47,6 +47,42 @@ public final class FlinkPipelineTranslationUtil {
 					defaultParallelism);
 		}
 
-		throw new RuntimeException("Cannot find transmogrifier for given pipeline: " + pipeline);
+		FlinkPipelineTranslator streamGraphTranslator = reflectStreamGraphTranslator();
+
+		if (!streamGraphTranslator.canTranslate(pipeline)) {
+			throw new RuntimeException("Translator " + streamGraphTranslator + " cannot translate "
+					+ "the given pipeline " + pipeline + ".");
+		}
+
+		return streamGraphTranslator.translate(pipeline,
+				optimizerConfiguration,
+				defaultParallelism);
+	}
+
+	private static FlinkPipelineTranslator reflectStreamGraphTranslator() {
+		// Try our luck with StreamGraph translation. We have to load a StreamGraphTranslator
+		// via reflection because the dependencies of flink-streaming-java are inverted compared
+		// to flink-java. For flink-java does not depend on runtime, clients or optimizer and
+		// we have the translation code in clients/optimizer. On the other hand,
+		// flink-streaming-java depends on runtime and clients.
+
+		Class<?> streamGraphTranslatorClass;
+		try {
+			streamGraphTranslatorClass = Class.forName(
+					"org.apache.flink.streaming.api.graph.StreamGraphTranslator",
+					true,
+					FlinkPipelineTranslationUtil.class.getClassLoader());
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException("Could not load StreamGraphTranslator.", e);
+		}
+
+		FlinkPipelineTranslator streamGraphTranslator;
+		try {
+			streamGraphTranslator =
+					(FlinkPipelineTranslator) streamGraphTranslatorClass.newInstance();
+		} catch (InstantiationException | IllegalAccessException e) {
+			throw new RuntimeException("Could not instantiate StreamGraphTranslator.", e);
+		}
+		return streamGraphTranslator;
 	}
 }
