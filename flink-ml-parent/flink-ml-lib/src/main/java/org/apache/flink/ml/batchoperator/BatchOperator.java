@@ -23,6 +23,7 @@ import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.batchoperator.source.TableSourceBatchOp;
 import org.apache.flink.ml.common.AlgoOperator;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +31,7 @@ import java.util.List;
 /**
  * Base class of batch algorithm operators.
  */
-public abstract class BatchOperator<T extends BatchOperator <T>> extends AlgoOperator<T> {
+public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOperator<T> {
 
 	public BatchOperator() {
 		super();
@@ -40,47 +41,40 @@ public abstract class BatchOperator<T extends BatchOperator <T>> extends AlgoOpe
 		super(params);
 	}
 
-	public static BatchOperator sourceFrom(Table table) {
-		return new TableSourceBatchOp(table);
+	public <B extends BatchOperator<?>> B link(B next) {
+		return linkTo(next);
 	}
+
+	public <B extends BatchOperator<?>> B linkTo(B next) {
+		next.linkFrom(this);
+		return next;
+	}
+
+	public abstract T linkFrom(BatchOperator<?>... inputs);
 
 	@Override
 	public String toString() {
 		return getOutput().toString();
 	}
 
-	public <B extends BatchOperator> B link(B next) {
-		return linkTo(next);
+	public static BatchOperator<?> sourceFrom(Table table) {
+		return new TableSourceBatchOp(table);
 	}
 
-	public <B extends BatchOperator> B linkTo(B next) {
-		next.linkFrom(this);
-		return (B) next;
+	protected void checkOpSize(int size, BatchOperator<?>... inputs) {
+		Preconditions.checkNotNull(inputs, "Operators should not be null.");
+		Preconditions.checkState(inputs.length == size, "The size of operators should be equal to "
+			+ size + ", current: " + inputs.length);
 	}
 
-	public abstract T linkFrom(BatchOperator in);
-
-	public T linkFrom(BatchOperator in1, BatchOperator in2) {
-		List <BatchOperator> ls = new ArrayList();
-		ls.add(in1);
-		ls.add(in2);
-		return linkFrom(ls);
+	protected void checkRequiredOpSize(int size, BatchOperator<?>... inputs) {
+		Preconditions.checkNotNull(inputs, "Operators should not be null.");
+		Preconditions.checkState(inputs.length >= size, "The size of operators should be equal or greater than "
+			+ size + ", current: " + inputs.length);
 	}
 
-	public T linkFrom(BatchOperator in1, BatchOperator in2, BatchOperator in3) {
-		List <BatchOperator> ls = new ArrayList();
-		ls.add(in1);
-		ls.add(in2);
-		ls.add(in3);
-		return linkFrom(ls);
+	protected BatchOperator<?> checkAndGetFirst(BatchOperator<?> ... inputs) {
+		checkOpSize(1, inputs);
+		return inputs[0];
 	}
-
-	public T linkFrom(List <BatchOperator> ins) {
-		if (null != ins && ins.size() == 1) {
-			return linkFrom(ins.get(0));
-		} else {
-			throw new RuntimeException("Not support more than 1 inputs!");
-		}
-	}
-
 }

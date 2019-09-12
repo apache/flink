@@ -37,11 +37,11 @@ import java.io.Serializable;
  */
 public abstract class AlgoOperator<T extends AlgoOperator <T>> implements WithParams<T>, Serializable {
 
-	protected Params params;
+	private Params params;
 
-	protected Table output = null;
+	private Table output = null;
 
-	protected Table[] sideOutputs = null;
+	private Table[] sideOutputs = null;
 
 	protected AlgoOperator() {
 		this(null);
@@ -52,14 +52,6 @@ public abstract class AlgoOperator<T extends AlgoOperator <T>> implements WithPa
 			this.params = new Params();
 		} else {
 			this.params = params.clone();
-		}
-	}
-
-	public static AlgoOperator sourceFrom(Table table) {
-		if (((TableImpl) table).getTableEnvironment() instanceof StreamTableEnvironment) {
-			return new TableSourceStreamOp(table);
-		} else {
-			return new TableSourceBatchOp(table);
 		}
 	}
 
@@ -75,12 +67,16 @@ public abstract class AlgoOperator<T extends AlgoOperator <T>> implements WithPa
 		return this.output;
 	}
 
-	protected void setOutput(Table output) {
-		this.output = output;
-	}
-
 	public Table[] getSideOutputs() {
 		return this.sideOutputs;
+	}
+
+	protected void setSideOutputs(Table[] sideOutputs) {
+		this.sideOutputs = sideOutputs;
+	}
+
+	protected void setOutput(Table output) {
+		this.output = output;
 	}
 
 	public String[] getColNames() {
@@ -92,7 +88,6 @@ public abstract class AlgoOperator<T extends AlgoOperator <T>> implements WithPa
 	}
 
 	public TableSchema getSchema() {
-		return getOutput().getSchema();
+		return this.getOutput().getSchema();
 	}
-
 }

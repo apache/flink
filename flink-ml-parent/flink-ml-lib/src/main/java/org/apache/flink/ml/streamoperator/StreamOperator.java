@@ -23,6 +23,7 @@ import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.common.AlgoOperator;
 import org.apache.flink.ml.streamoperator.source.TableSourceStreamOp;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +31,7 @@ import java.util.List;
 /**
  * Base class of streaming algorithm operators.
  */
-public abstract class StreamOperator<T extends StreamOperator <T>> extends AlgoOperator<T> {
+public abstract class StreamOperator<T extends StreamOperator <T>> extends AlgoOperator <T> {
 
 	public StreamOperator() {
 		super();
@@ -40,47 +41,41 @@ public abstract class StreamOperator<T extends StreamOperator <T>> extends AlgoO
 		super(params);
 	}
 
-	public static StreamOperator sourceFrom(Table table) {
-		return new TableSourceStreamOp(table);
+	public <S extends StreamOperator<?>> S link(S next) {
+		return linkTo(next);
 	}
+
+	public <S extends StreamOperator<?>> S linkTo(S next) {
+		next.linkFrom(this);
+		return next;
+	}
+
+	public abstract T linkFrom(StreamOperator<?>... inputs);
 
 	@Override
 	public String toString() {
 		return getOutput().toString();
 	}
 
-	public <S extends StreamOperator> S link(S next) {
-		return linkTo(next);
+	public static StreamOperator<?> sourceFrom(Table table) {
+		return new TableSourceStreamOp(table);
 	}
 
-	public <S extends StreamOperator> S linkTo(S next) {
-		next.linkFrom(this);
-		return (S) next;
+	protected void checkOpSize(int size, StreamOperator<?>... inputs) {
+		Preconditions.checkNotNull(inputs, "Operators should not be null.");
+		Preconditions.checkState(inputs.length == size, "The size of operators should be equal to "
+			+ size + ", current: " + inputs.length);
 	}
 
-	public abstract T linkFrom(StreamOperator in);
-
-	public T linkFrom(StreamOperator in1, StreamOperator in2) {
-		List <StreamOperator> ls = new ArrayList();
-		ls.add(in1);
-		ls.add(in2);
-		return linkFrom(ls);
+	protected void checkRequiredOpSize(int size, StreamOperator<?>... inputs) {
+		Preconditions.checkNotNull(inputs, "Operators should not be null.");
+		Preconditions.checkState(inputs.length >= size, "The size of operators should be equal or greater than "
+			+ size + ", current: " + inputs.length);
 	}
 
-	public T linkFrom(StreamOperator in1, StreamOperator in2, StreamOperator in3) {
-		List <StreamOperator> ls = new ArrayList();
-		ls.add(in1);
-		ls.add(in2);
-		ls.add(in3);
-		return linkFrom(ls);
-	}
-
-	public T linkFrom(List <StreamOperator> ins) {
-		if (null != ins && ins.size() == 1) {
-			return linkFrom(ins.get(0));
-		} else {
-			throw new RuntimeException("Not support more than 1 inputs!");
-		}
+	protected StreamOperator<?> checkAndGetFirst(StreamOperator<?> ... inputs) {
+		checkOpSize(1, inputs);
+		return inputs[0];
 	}
 
 }

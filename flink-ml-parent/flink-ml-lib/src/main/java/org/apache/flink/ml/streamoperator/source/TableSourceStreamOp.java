@@ -26,18 +26,17 @@ import org.apache.flink.table.api.Table;
 /**
  * Transform the Table to SourceStreamOp.
  */
-public final class TableSourceStreamOp extends StreamOperator<TableSourceStreamOp> {
-
+public final class TableSourceStreamOp extends StreamOperator <TableSourceStreamOp> {
 	public TableSourceStreamOp(Table table) {
 		super(null);
 		if (null == table) {
 			throw new RuntimeException();
 		}
-		this.output = table;
+		this.setOutput(table);
 	}
 
 	@Override
-	public TableSourceStreamOp linkFrom(StreamOperator in) {
+	public TableSourceStreamOp linkFrom(StreamOperator<?>... inputs) {
 		throw new UnsupportedOperationException("Not supported.");
 	}
 

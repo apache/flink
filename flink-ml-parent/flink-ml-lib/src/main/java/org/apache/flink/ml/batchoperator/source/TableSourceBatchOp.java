@@ -25,19 +25,20 @@ import org.apache.flink.table.api.Table;
 /**
  * Transform the Table to SourceBatchOp.
  */
-public final class TableSourceBatchOp extends BatchOperator<TableSourceBatchOp> {
+public final class TableSourceBatchOp extends BatchOperator <TableSourceBatchOp> {
 
 	public TableSourceBatchOp(Table table) {
 		super(null);
 		if (null == table) {
 			throw new RuntimeException();
 		}
-		this.output = table;
+		this.setOutput(table);
 	}
 
 	@Override
-	public TableSourceBatchOp linkFrom(BatchOperator in) {
+	public TableSourceBatchOp linkFrom(BatchOperator<?>... inputs) {
 		throw new UnsupportedOperationException("Not supported.");
 	}
 
 }
+
