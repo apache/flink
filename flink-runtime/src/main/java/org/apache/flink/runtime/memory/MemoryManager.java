@@ -52,13 +52,16 @@ import static org.apache.flink.core.memory.MemorySegmentFactory.allocateUnpooled
 import static org.apache.flink.core.memory.MemorySegmentFactory.allocateUnpooledSegment;
 
 /**
- * The memory manager governs the memory that Flink uses for sorting, hashing, and caching. Memory
- * is represented in segments of equal size. Operators allocate the memory by requesting a number
- * of memory segments.
+ * The memory manager governs the memory that Flink uses for sorting, hashing, and caching. Memory is represented
+ * either in {@link MemorySegment}s of equal size and arbitrary type or in reserved chunks of certain size and {@link MemoryType}.
+ * Operators allocate the memory either by requesting a number of memory segments or by reserving chunks.
+ * Any allocated memory has to be released to be reused later.
  *
- * <p>The memory may be represented as on-heap byte arrays or as off-heap memory regions
- * (both via {@link HybridMemorySegment}). Which kinds of memory the MemoryManager serves and their sizes can
- * be passed as an argument to the initialization. Releasing a memory segment will make it re-claimable
+ * <p>Which {@link MemoryType}s the MemoryManager serves and their total sizes can be passed as an argument
+ * to the constructor.
+ *
+ * <p>The memory segments may be represented as on-heap byte arrays or as off-heap memory regions
+ * (both via {@link HybridMemorySegment}). Releasing a memory segment will make it re-claimable
  * by the garbage collector.
  */
 public class MemoryManager {
@@ -74,6 +77,9 @@ public class MemoryManager {
 
 	/** Memory segments allocated per memory owner. */
 	private final Map<Object, Set<MemorySegment>> allocatedSegments;
+
+	/** Reserved memory per memory owner. */
+	private final Map<Object, Map<MemoryType, Long>> reservedMemory;
 
 	/** Number of slots of the task manager. */
 	private final int numberOfSlots;
@@ -99,6 +105,7 @@ public class MemoryManager {
 		}
 
 		this.allocatedSegments = new ConcurrentHashMap<>();
+		this.reservedMemory = new ConcurrentHashMap<>();
 		this.numberOfSlots = numberOfSlots;
 		this.budgetByType = new KeyedBudgetManager<>(memorySizeByType, pageSize);
 		verifyIntTotalNumberOfPages(memorySizeByType, budgetByType.maxTotalNumberOfPages());
@@ -148,6 +155,7 @@ public class MemoryManager {
 		if (!isShutDown) {
 			// mark as shutdown and release memory
 			isShutDown = true;
+			reservedMemory.clear();
 			budgetByType.releaseAll();
 
 			// go over all allocated segments and release them
@@ -438,6 +446,108 @@ public class MemoryManager {
 		budgetByType.releaseBudgetForKeys(releasedMemory);
 
 		segments.clear();
+	}
+
+	/**
+	 * Reserves memory of a certain type for an owner from this memory manager.
+	 *
+	 * @param owner The owner to associate with the memory reservation, for the fallback release.
+	 * @param memoryType type of memory to reserve (heap / off-heap).
+	 * @param size size of memory to reserve.
+	 * @throws MemoryReservationException Thrown, if this memory manager does not have the requested amount
+	 *                                    of memory any more.
+	 */
+	public void reserveMemory(Object owner, MemoryType memoryType, long size) throws MemoryReservationException {
+		checkMemoryReservationPreconditions(owner, memoryType, size);
+		if (size == 0L) {
+			return;
+		}
+
+		long acquiredMemory = budgetByType.acquireBudgetForKey(memoryType, size);
+		if (acquiredMemory < size) {
+			throw new MemoryReservationException(
+				String.format("Could not allocate %d bytes. Only %d bytes are remaining.", size, acquiredMemory));
+		}
+
+		reservedMemory.compute(owner, (o, reservations) -> {
+			Map<MemoryType, Long> newReservations = reservations;
+			if (reservations == null) {
+				newReservations = new EnumMap<>(MemoryType.class);
+				newReservations.put(memoryType, size);
+			} else {
+				reservations.compute(
+					memoryType,
+					(mt, currentlyReserved) -> currentlyReserved == null ? size : currentlyReserved + size);
+			}
+			return newReservations;
+		});
+
+		Preconditions.checkState(!isShutDown, "Memory manager has been concurrently shut down.");
+	}
+
+	/**
+	 * Releases memory of a certain type from an owner to this memory manager.
+	 *
+	 * @param owner The owner to associate with the memory reservation, for the fallback release.
+	 * @param memoryType type of memory to release (heap / off-heap).
+	 * @param size size of memory to release.
+	 */
+	public void releaseMemory(Object owner, MemoryType memoryType, long size) {
+		checkMemoryReservationPreconditions(owner, memoryType, size);
+		if (size == 0L) {
+			return;
+		}
+
+		reservedMemory.compute(owner, (o, reservations) -> {
+			if (reservations != null) {
+				reservations.compute(
+					memoryType,
+					(mt, currentlyReserved) -> {
+						if (currentlyReserved == null || currentlyReserved < size) {
+							LOG.warn(
+								"Trying to release more memory {} than it was reserved {} so far for the owner {}",
+								size,
+								currentlyReserved == null ? 0 : currentlyReserved,
+								owner);
+							//noinspection ReturnOfNull
+							return null;
+						} else {
+							return currentlyReserved - size;
+						}
+					});
+			}
+			//noinspection ReturnOfNull
+			return reservations == null || reservations.isEmpty() ? null : reservations;
+		});
+		budgetByType.releaseBudgetForKey(memoryType, size);
+	}
+
+	private void checkMemoryReservationPreconditions(Object owner, MemoryType memoryType, long size) {
+		Preconditions.checkNotNull(owner, "The memory owner must not be null.");
+		Preconditions.checkNotNull(memoryType, "The memory type must not be null.");
+		Preconditions.checkState(!isShutDown, "Memory manager has been shut down.");
+		Preconditions.checkArgument(size >= 0L, "The memory size (%s) has to have non-negative size", size);
+	}
+
+	/**
+	 * Releases all memory of a certain type from an owner to this memory manager.
+	 *
+	 * @param owner The owner to associate with the memory reservation, for the fallback release.
+	 * @param memoryType type of memory to release (heap / off-heap).
+	 */
+	public void releaseAllMemory(Object owner, MemoryType memoryType) {
+		checkMemoryReservationPreconditions(owner, memoryType, 0L);
+
+		reservedMemory.compute(owner, (o, reservations) -> {
+			if (reservations != null) {
+				Long size = reservations.remove(memoryType);
+				if (size != null) {
+					budgetByType.releaseBudgetForKey(memoryType, size);
+				}
+			}
+			//noinspection ReturnOfNull
+			return reservations == null || reservations.isEmpty() ? null : reservations;
+		});
 	}
 
 	// ------------------------------------------------------------------------
