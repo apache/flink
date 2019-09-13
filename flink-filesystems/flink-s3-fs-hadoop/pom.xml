@@ -106,11 +106,6 @@ under the License.
 									<pattern>com.amazon</pattern>
 									<shadedPattern>org.apache.flink.fs.s3base.shaded.com.amazon</shadedPattern>
 								</relocation>
-								<!-- relocated S3 hadoop dependencies -->
-								<relocation>
-									<pattern>javax.xml.bind</pattern>
-									<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.javax.xml.bind</shadedPattern>
-								</relocation>
 								<!-- shade Flink's Hadoop FS utility classes -->
 								<relocation>
 									<pattern>org.apache.flink.runtime.util</pattern>
@@ -146,6 +141,63 @@ under the License.
 					<version>2.3.0</version>
 				</dependency>
 			</dependencies>
+
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-shade-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>shade-flink</id>
+								<phase>package</phase>
+								<goals>
+									<goal>shade</goal>
+								</goals>
+								<configuration>
+									<shadeTestJar>false</shadeTestJar>
+									<artifactSet>
+										<includes>
+											<include>*:*</include>
+										</includes>
+									</artifactSet>
+									<relocations>
+										<!-- relocate the references to Hadoop to match the shaded Hadoop config -->
+										<relocation>
+											<pattern>org.apache.hadoop</pattern>
+											<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop</shadedPattern>
+										</relocation>
+										<!-- relocate the AWS dependencies -->
+										<relocation>
+											<pattern>com.amazon</pattern>
+											<shadedPattern>org.apache.flink.fs.s3base.shaded.com.amazon</shadedPattern>
+										</relocation>
+
+										<!-- relocated S3 hadoop dependencies -->
+										<relocation>
+											<pattern>javax.xml.bind</pattern>
+											<shadedPattern>org.apache.flink.fs.s3hadoop.shaded.javax.xml.bind</shadedPattern>
+										</relocation>
+										<!-- shade Flink's Hadoop FS utility classes -->
+										<relocation>
+											<pattern>org.apache.flink.runtime.util</pattern>
+											<shadedPattern>org.apache.flink.fs.s3hadoop.common</shadedPattern>
+										</relocation>
+									</relocations>
+									<filters>
+										<filter>
+											<artifact>*</artifact>
+											<excludes>
+												<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
+											</excludes>
+										</filter>
+									</filters>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 	</profiles>
 

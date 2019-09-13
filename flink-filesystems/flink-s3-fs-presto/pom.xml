@@ -271,10 +271,6 @@ under the License.
 									<shadedPattern>org.apache.flink.fs.s3presto.shaded.io.airlift</shadedPattern>
 								</relocation>
 								<relocation>
-									<pattern>javax.xml.bind</pattern>
-									<shadedPattern>org.apache.flink.fs.s3presto.shaded.javax.xml.bind</shadedPattern>
-								</relocation>
-								<relocation>
 									<pattern>org.HdrHistogram</pattern>
 									<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.HdrHistogram</shadedPattern>
 								</relocation>
@@ -342,6 +338,130 @@ under the License.
 					<version>2.3.0</version>
 				</dependency>
 			</dependencies>
+
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-enforcer-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>ban-openjdk.jol</id>
+								<goals>
+									<goal>enforce</goal>
+								</goals>
+								<configuration>
+									<rules>
+										<bannedDependencies>
+											<excludes>
+												<!-- Incompatible license -->
+												<exclude>org.openjdk.jol:*</exclude>
+											</excludes>
+										</bannedDependencies>
+									</rules>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-shade-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>shade-flink</id>
+								<phase>package</phase>
+								<goals>
+									<goal>shade</goal>
+								</goals>
+								<configuration>
+									<shadeTestJar>false</shadeTestJar>
+									<artifactSet>
+										<includes>
+											<include>*:*</include>
+										</includes>
+									</artifactSet>
+									<relocations>
+										<!-- relocate the references to Hadoop to match the pre-shaded hadoop artifact -->
+										<relocation>
+											<pattern>org.apache.hadoop</pattern>
+											<shadedPattern>org.apache.flink.fs.shaded.hadoop3.org.apache.hadoop</shadedPattern>
+										</relocation>
+										<!-- relocate the AWS dependencies -->
+										<relocation>
+											<pattern>com.amazon</pattern>
+											<shadedPattern>org.apache.flink.fs.s3base.shaded.com.amazon</shadedPattern>
+										</relocation>
+										<!-- relocate S3 presto and dependencies -->
+										<relocation>
+											<pattern>com.facebook</pattern>
+											<shadedPattern>org.apache.flink.fs.s3presto.shaded.com.facebook</shadedPattern>
+										</relocation>
+										<relocation>
+											<pattern>com.fasterxml</pattern>
+											<shadedPattern>org.apache.flink.fs.s3presto.shaded.com.fasterxml</shadedPattern>
+										</relocation>
+										<relocation>
+											<pattern>io.airlift</pattern>
+											<shadedPattern>org.apache.flink.fs.s3presto.shaded.io.airlift</shadedPattern>
+										</relocation>
+										<relocation>
+											<pattern>javax.xml.bind</pattern>
+											<shadedPattern>org.apache.flink.fs.s3presto.shaded.javax.xml.bind</shadedPattern>
+										</relocation>
+										<relocation>
+											<pattern>org.HdrHistogram</pattern>
+											<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.HdrHistogram</shadedPattern>
+										</relocation>
+										<relocation>
+											<pattern>org.joda</pattern>
+											<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.joda</shadedPattern>
+										</relocation>
+										<relocation>
+											<pattern>org.weakref</pattern>
+											<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.weakref</shadedPattern>
+										</relocation>
+										<relocation>
+											<pattern>org.openjdk</pattern>
+											<shadedPattern>org.apache.flink.fs.s3presto.shaded.org.openjdk</shadedPattern>
+										</relocation>
+										<relocation>
+											<pattern>com.google</pattern>
+											<shadedPattern>org.apache.flink.fs.s3presto.shaded.com.google</shadedPattern>
+										</relocation>
+
+										<!-- shade Flink's Hadoop FS utility classes -->
+										<relocation>
+											<pattern>org.apache.flink.runtime.util</pattern>
+											<shadedPattern>org.apache.flink.fs.s3presto.common</shadedPattern>
+										</relocation>
+									</relocations>
+									<filters>
+										<filter>
+											<artifact>*</artifact>
+											<excludes>
+												<exclude>META-INF/maven/org.weakref/**</exclude>
+												<exclude>META-INF/maven/org.hdrhistogram/**</exclude>
+												<exclude>META-INF/maven/joda-time/**</exclude>
+												<exclude>META-INF/maven/io.airlift/**</exclude>
+												<exclude>META-INF/maven/com*/**</exclude>
+												<exclude>META-INF/maven/org.apache.flink/force-shading/**</exclude>
+												<exclude>META-INF/LICENSE.txt</exclude>
+											</excludes>
+										</filter>
+										<filter>
+											<artifact>com.facebook.presto.hadoop:hadoop-apache2</artifact>
+											<includes>
+												<include>com/facebook/presto/hadoop/**</include>
+											</includes>
+										</filter>
+									</filters>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 	</profiles>
 
