@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -105,6 +106,42 @@ public class AbstractUserClassPathJobGraphRetrieverTest {
 			new TestJobGraphRetrieverTest(jobDir.toString());
 
 		assertTrue(CollectionUtils.isEqualCollection(expectedUrls, testJobGraphRetrieverTest.getUserClassPaths()));
+	}
+
+	@Test
+	public void testGetUserClassPathWithRelativeJobDir() throws IOException {
+		Path jobRelativeDir = Paths.get("_job_dir");
+		Path jobRelativeSubDir = Paths.get("_job_dir", "_sub_dir");
+		Path jarFile1 = Paths.get(jobRelativeDir.toString(), "file1.jar");
+		Path jarFile2 = Paths.get(jobRelativeSubDir.toString(), "file2.jar");
+
+		URL context = new URL(jobRelativeDir.toUri().getScheme() + ":");
+		List<URL> expectedURLs = Arrays.asList(
+			new URL(context, jarFile1.toString()), new URL(context, jarFile2.toString()));
+
+		try {
+			if (!Files.exists(jobRelativeDir)) {
+				Files.createDirectory(jobRelativeDir);
+			}
+			if (!Files.exists(jobRelativeSubDir)) {
+				Files.createDirectory(jobRelativeSubDir);
+			}
+			if (!Files.exists(jarFile1)) {
+				Files.createFile(jarFile1);
+			}
+			if (!Files.exists(jarFile2)) {
+				Files.createFile(jarFile2);
+			}
+
+			TestJobGraphRetrieverTest testJobGraphRetrieverTest =
+				new TestJobGraphRetrieverTest(jobRelativeDir.toString());
+			assertTrue(CollectionUtils.isEqualCollection(expectedURLs, testJobGraphRetrieverTest.getUserClassPaths()));
+		} finally {
+			Files.deleteIfExists(jarFile1);
+			Files.deleteIfExists(jarFile2);
+			Files.deleteIfExists(jobRelativeSubDir);
+			Files.deleteIfExists(jobRelativeDir);
+		}
 	}
 
 }

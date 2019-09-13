@@ -93,10 +93,16 @@ public abstract class AbstractUserClassPathJobGraphRetriever implements JobGraph
 				throws IOException {
 				FileVisitResult fileVisitResult = super.visitFile(file, attrs);
 				if (file.getFileName().toString().endsWith(".jar")) {
-					log.debug("add " + file.toUri().toURL() + " to user classpath");
-					jarURLs.add(file.toUri().toURL());
+					log.info("add " + file.toString() + " to user classpath");
+					if (file.isAbsolute()) {
+						jarURLs.add(file.toUri().toURL());
+					} else {
+						jarURLs.add(
+							new URL(new URL(file.getFileName().toUri().getScheme() + ":"), file.toString())
+						);
+					}
 				}
-					return fileVisitResult;
+				return fileVisitResult;
 			}
 		});
 
