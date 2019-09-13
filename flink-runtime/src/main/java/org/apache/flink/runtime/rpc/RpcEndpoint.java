@@ -327,7 +327,6 @@ public abstract class RpcEndpoint implements RpcGateway, AutoCloseableAsync {
 	//  Asynchronous executions
 	// ------------------------------------------------------------------------
 
-
 	/**
 	 * Execute the runnable in the main thread of the underlying RPC endpoint.
 	 *
