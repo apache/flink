@@ -25,18 +25,24 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FlinkException;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * {@link JobGraphRetriever} implementation which retrieves the {@link JobGraph} from
  * a file on disk.
  */
-public class FileJobGraphRetriever implements JobGraphRetriever {
+public class FileJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever {
 
 	public static final ConfigOption<String> JOB_GRAPH_FILE_PATH = ConfigOptions
 		.key("internal.jobgraph-path")
@@ -45,7 +51,8 @@ public class FileJobGraphRetriever implements JobGraphRetriever {
 	@Nonnull
 	private final String jobGraphFile;
 
-	public FileJobGraphRetriever(@Nonnull String jobGraphFile) {
+	public FileJobGraphRetriever(@Nonnull String jobGraphFile, @Nullable File usrLibDir) throws IOException {
+		super(usrLibDir);
 		this.jobGraphFile = jobGraphFile;
 	}
 
@@ -55,8 +62,15 @@ public class FileJobGraphRetriever implements JobGraphRetriever {
 
 		try (FileInputStream input = new FileInputStream(fp);
 			ObjectInputStream obInput = new ObjectInputStream(input)) {
+			final JobGraph jobGraph = (JobGraph) obInput.readObject();
 
-			return (JobGraph) obInput.readObject();
+			final List<URL> userClassPaths = new ArrayList<>();
+			if (jobGraph.getClasspaths() != null) {
+				userClassPaths.addAll(jobGraph.getClasspaths());
+			}
+			userClassPaths.addAll(getUserClassPaths());
+			jobGraph.setClasspaths(userClassPaths);
+			return jobGraph;
 		} catch (FileNotFoundException e) {
 			throw new FlinkException("Could not find the JobGraph file.", e);
 		} catch (ClassNotFoundException | IOException e) {
@@ -64,7 +78,12 @@ public class FileJobGraphRetriever implements JobGraphRetriever {
 		}
 	}
 
-	public static FileJobGraphRetriever createFrom(Configuration configuration) {
-		return new FileJobGraphRetriever(configuration.getString(JOB_GRAPH_FILE_PATH));
+	public static FileJobGraphRetriever createFrom(Configuration configuration) throws IOException {
+		return new FileJobGraphRetriever(configuration.getString(JOB_GRAPH_FILE_PATH), null);
+	}
+
+	public static FileJobGraphRetriever createFrom(Configuration configuration, @Nullable File usrLibDir) throws IOException {
+		checkNotNull(configuration, "configuration");
+		return new FileJobGraphRetriever(configuration.getString(JOB_GRAPH_FILE_PATH), usrLibDir);
 	}
 }
