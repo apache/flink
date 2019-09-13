@@ -24,6 +24,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.util.FlinkException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import java.io.File;
@@ -31,12 +34,18 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * {@link JobGraphRetriever} implementation which retrieves the {@link JobGraph} from
  * a file on disk.
  */
-public class FileJobGraphRetriever implements JobGraphRetriever {
+public class FileJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever {
+	private static final Logger LOG = LoggerFactory.getLogger(FileJobGraphRetriever.class);
+
 
 	public static final ConfigOption<String> JOB_GRAPH_FILE_PATH = ConfigOptions
 		.key("internal.jobgraph-path")
@@ -46,6 +55,7 @@ public class FileJobGraphRetriever implements JobGraphRetriever {
 	private final String jobGraphFile;
 
 	public FileJobGraphRetriever(@Nonnull String jobGraphFile) {
+		super(DEFAULT_JOB_DIR);
 		this.jobGraphFile = jobGraphFile;
 	}
 
@@ -55,8 +65,22 @@ public class FileJobGraphRetriever implements JobGraphRetriever {
 
 		try (FileInputStream input = new FileInputStream(fp);
 			ObjectInputStream obInput = new ObjectInputStream(input)) {
+			JobGraph jobGraph = (JobGraph) obInput.readObject();
 
-			return (JobGraph) obInput.readObject();
+			if (!getUserClassPaths().isEmpty()) {
+				if (jobGraph.getClasspaths() != null && !jobGraph.getClasspaths().isEmpty()) {
+					final List<URL> list = new ArrayList<>();
+					list.addAll(jobGraph.getClasspaths());
+					list.addAll(getUserClassPaths());
+					jobGraph.setClasspaths(list);
+				} else {
+					jobGraph.setClasspaths(getUserClassPaths());
+				}
+				final String userClassPaths = jobGraph.getClasspaths().
+					stream().map(URL::toString).collect(Collectors.joining(":"));
+				LOG.info("the user classpath: " + userClassPaths);
+			}
+			return jobGraph;
 		} catch (FileNotFoundException e) {
 			throw new FlinkException("Could not find the JobGraph file.", e);
 		} catch (ClassNotFoundException | IOException e) {
