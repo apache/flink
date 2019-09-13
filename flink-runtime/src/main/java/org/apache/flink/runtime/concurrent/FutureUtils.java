@@ -64,6 +64,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class FutureUtils {
 
+	private static final CompletableFuture<Void> COMPLETED_VOID_FUTURE = CompletableFuture.completedFuture(null);
+
+	/**
+	 * Returns a completed future of type {@link Void}.
+	 *
+	 * @return a completed future of type {@link Void}
+	 */
+	public static CompletableFuture<Void> completedVoidFuture() {
+		return COMPLETED_VOID_FUTURE;
+	}
+
 	// ------------------------------------------------------------------------
 	//  retrying operations
 	// ------------------------------------------------------------------------
