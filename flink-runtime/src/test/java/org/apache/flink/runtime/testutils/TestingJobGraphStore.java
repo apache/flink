@@ -65,7 +65,8 @@ public class TestingJobGraphStore implements JobGraphStore {
 			BiFunctionWithException<JobID, Map<JobID, JobGraph>, JobGraph, ? extends Exception> recoverJobGraphFunction,
 			ThrowingConsumer<JobGraph, ? extends Exception> putJobGraphConsumer,
 			ThrowingConsumer<JobID, ? extends Exception> removeJobGraphConsumer,
-			ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer) {
+			ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer,
+			Collection<JobGraph> initialJobGraphs) {
 		this.startConsumer = startConsumer;
 		this.stopRunnable = stopRunnable;
 		this.jobIdsFunction = jobIdsFunction;
@@ -73,6 +74,10 @@ public class TestingJobGraphStore implements JobGraphStore {
 		this.putJobGraphConsumer = putJobGraphConsumer;
 		this.removeJobGraphConsumer = removeJobGraphConsumer;
 		this.releaseJobGraphConsumer = releaseJobGraphConsumer;
+
+		for (JobGraph initialJobGraph : initialJobGraphs) {
+			storedJobs.put(initialJobGraph.getJobID(), initialJobGraph);
+		}
 	}
 
 	@Override
@@ -146,6 +151,8 @@ public class TestingJobGraphStore implements JobGraphStore {
 
 		private ThrowingConsumer<JobID, ? extends Exception> releaseJobGraphConsumer = ignored -> {};
 
+		private Collection<JobGraph> initialJobGraphs = Collections.emptyList();
+
 		private Builder() {}
 
 		public Builder setStartConsumer(ThrowingConsumer<JobGraphListener, ? extends Exception> startConsumer) {
@@ -183,6 +190,11 @@ public class TestingJobGraphStore implements JobGraphStore {
 			return this;
 		}
 
+		public Builder setInitialJobGraphs(Collection<JobGraph> initialJobGraphs) {
+			this.initialJobGraphs = initialJobGraphs;
+			return this;
+		}
+
 		public TestingJobGraphStore build() {
 			return new TestingJobGraphStore(
 				startConsumer,
@@ -191,7 +203,8 @@ public class TestingJobGraphStore implements JobGraphStore {
 				recoverJobGraphFunction,
 				putJobGraphConsumer,
 				removeJobGraphConsumer,
-				releaseJobGraphConsumer);
+				releaseJobGraphConsumer,
+				initialJobGraphs);
 		}
 	}
 
