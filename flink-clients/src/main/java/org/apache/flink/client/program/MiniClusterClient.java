@@ -61,7 +61,10 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 
 		if (isDetached()) {
 			try {
-				return jobSubmissionResultFuture.get();
+				final JobSubmissionResult jobSubmissionResult = jobSubmissionResultFuture.get();
+
+				lastJobExecutionResult = new DetachedJobExecutionResult(jobSubmissionResult.getJobID());
+				return lastJobExecutionResult;
 			} catch (InterruptedException | ExecutionException e) {
 				ExceptionUtils.checkInterrupted(e);
 
@@ -81,7 +84,8 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 			}
 
 			try {
-				return jobResult.toJobExecutionResult(classLoader);
+				lastJobExecutionResult = jobResult.toJobExecutionResult(classLoader);
+				return lastJobExecutionResult;
 			} catch (JobExecutionException | IOException | ClassNotFoundException e) {
 				throw new ProgramInvocationException("Job failed", jobGraph.getJobID(), e);
 			}

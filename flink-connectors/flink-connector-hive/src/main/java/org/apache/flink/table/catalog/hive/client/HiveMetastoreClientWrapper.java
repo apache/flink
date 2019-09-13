@@ -237,4 +237,8 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		hiveShim.alterPartition(client, databaseName, tableName, partition);
 	}
 
+	public String getHiveVersion() {
+		return hiveVersion;
+	}
+
 }

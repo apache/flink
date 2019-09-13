@@ -20,10 +20,7 @@ package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.EnvironmentContext;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
 import org.apache.hadoop.hive.metastore.api.MetaException;
@@ -36,22 +33,7 @@ import java.lang.reflect.Method;
 /**
  * Shim for Hive version 2.1.0.
  */
-public class HiveShimV210 extends HiveShimV122 {
-
-	@Override
-	public IMetaStoreClient getHiveMetastoreClient(HiveConf hiveConf) {
-		try {
-			Class<?>[] constructorArgTypes = {HiveConf.class};
-			Object[] constructorArgs = {hiveConf};
-			Method method = RetryingMetaStoreClient.class.getMethod("getProxy", HiveConf.class,
-				constructorArgTypes.getClass(), constructorArgs.getClass(), String.class);
-			// getProxy is a static method
-			return (IMetaStoreClient) method.invoke(null, hiveConf, constructorArgTypes, constructorArgs,
-				HiveMetaStoreClient.class.getName());
-		} catch (Exception ex) {
-			throw new CatalogException("Failed to create Hive Metastore client", ex);
-		}
-	}
+public class HiveShimV210 extends HiveShimV201 {
 
 	@Override
 	public void alterPartition(IMetaStoreClient client, String databaseName, String tableName, Partition partition)

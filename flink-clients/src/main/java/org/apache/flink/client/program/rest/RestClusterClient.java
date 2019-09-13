@@ -26,6 +26,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.client.program.DetachedJobExecutionResult;
 import org.apache.flink.client.program.NewClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
@@ -219,7 +220,12 @@ public class RestClusterClient<T> extends ClusterClient<T> implements NewCluster
 
 		if (isDetached()) {
 			try {
-				return jobSubmissionFuture.get();
+				final JobSubmissionResult jobSubmissionResult = jobSubmissionFuture.get();
+
+				log.warn("Job was executed in detached mode, the results will be available on completion.");
+
+				this.lastJobExecutionResult = new DetachedJobExecutionResult(jobSubmissionResult.getJobID());
+				return lastJobExecutionResult;
 			} catch (Exception e) {
 				throw new ProgramInvocationException("Could not submit job",
 					jobGraph.getJobID(), ExceptionUtils.stripExecutionException(e));

@@ -236,7 +236,7 @@ public class CoreOptions {
 			.key("fs.default-scheme")
 			.noDefaultValue()
 			.withDescription("The default filesystem scheme, used for paths that do not declare a scheme explicitly." +
-				" May contain an authority, e.g. host:port in case of a HDFS NameNode.");
+				" May contain an authority, e.g. host:port in case of an HDFS NameNode.");
 
 	/**
 	 * Specifies whether file output writers should overwrite existing files by default.

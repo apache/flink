@@ -45,9 +45,9 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 
 	private final boolean isDetached;
 
-	private ExecutionEnvironment lastEnvCreated;
+	private final SavepointRestoreSettings savepointSettings;
 
-	private SavepointRestoreSettings savepointSettings;
+	private boolean alreadyCalled;
 
 	public ContextEnvironmentFactory(ClusterClient<?> client, List<URL> jarFilesToAttach,
 			List<URL> classpathsToAttach, ClassLoader userCodeClassLoader, int defaultParallelism,
@@ -59,24 +59,25 @@ public class ContextEnvironmentFactory implements ExecutionEnvironmentFactory {
 		this.defaultParallelism = defaultParallelism;
 		this.isDetached = isDetached;
 		this.savepointSettings = savepointSettings;
+		this.alreadyCalled = false;
 	}
 
 	@Override
 	public ExecutionEnvironment createExecutionEnvironment() {
-		if (isDetached && lastEnvCreated != null) {
-			throw new InvalidProgramException("Multiple environments cannot be created in detached mode");
-		}
+		verifyCreateIsCalledOnceWhenInDetachedMode();
 
-		lastEnvCreated = isDetached
-			? new DetachedEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings)
-			: new ContextEnvironment(client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings);
+		final ContextEnvironment environment = new ContextEnvironment(
+				client, jarFilesToAttach, classpathsToAttach, userCodeClassLoader, savepointSettings, isDetached);
 		if (defaultParallelism > 0) {
-			lastEnvCreated.setParallelism(defaultParallelism);
+			environment.setParallelism(defaultParallelism);
 		}
-		return lastEnvCreated;
+		return environment;
 	}
 
-	public ExecutionEnvironment getLastEnvCreated() {
-		return lastEnvCreated;
+	private void verifyCreateIsCalledOnceWhenInDetachedMode() {
+		if (isDetached && alreadyCalled) {
+			throw new InvalidProgramException("Multiple environments cannot be created in detached mode");
+		}
+		alreadyCalled = true;
 	}
 }

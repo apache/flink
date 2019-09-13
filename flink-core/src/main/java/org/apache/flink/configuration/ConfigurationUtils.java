@@ -23,6 +23,8 @@ import org.apache.flink.api.common.time.Time;
 import javax.annotation.Nonnull;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -141,6 +143,30 @@ public class ConfigurationUtils {
 		}
 
 		return configuration;
+	}
+
+	/**
+	 * Replaces values whose keys are sensitive according to {@link GlobalConfiguration#isSensitive(String)}
+	 * with {@link GlobalConfiguration#HIDDEN_CONTENT}.
+	 *
+	 * <p>This can be useful when displaying configuration values.
+	 *
+	 * @param keyValuePairs for which to hide sensitive values
+	 * @return A map where all sensitive value are hidden
+	 */
+	@Nonnull
+	public static Map<String, String> hideSensitiveValues(Map<String, String> keyValuePairs) {
+		final HashMap<String, String> result = new HashMap<>();
+
+		for (Map.Entry<String, String> keyValuePair : keyValuePairs.entrySet()) {
+			if (GlobalConfiguration.isSensitive(keyValuePair.getKey())) {
+				result.put(keyValuePair.getKey(), GlobalConfiguration.HIDDEN_CONTENT);
+			} else {
+				result.put(keyValuePair.getKey(), keyValuePair.getValue());
+			}
+		}
+
+		return result;
 	}
 
 	@Nonnull

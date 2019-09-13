@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.rest.messages;
 
+import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.runtime.rest.handler.job.JobConfigHandler;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -186,7 +189,7 @@ public class JobConfigInfo implements ResponseBody {
 		private final int parallelism;
 
 		@JsonProperty(FIELD_NAME_OBJECT_REUSE_MODE)
-		private final boolean isObjectResuse;
+		private final boolean isObjectReuse;
 
 		@JsonProperty(FIELD_NAME_GLOBAL_JOB_PARAMETERS)
 		private final Map<String, String> globalJobParameters;
@@ -196,13 +199,34 @@ public class JobConfigInfo implements ResponseBody {
 				@JsonProperty(FIELD_NAME_EXECUTION_MODE) String executionMode,
 				@JsonProperty(FIELD_NAME_RESTART_STRATEGY) String restartStrategy,
 				@JsonProperty(FIELD_NAME_PARALLELISM) int parallelism,
-				@JsonProperty(FIELD_NAME_OBJECT_REUSE_MODE) boolean isObjectResuse,
+				@JsonProperty(FIELD_NAME_OBJECT_REUSE_MODE) boolean isObjectReuse,
 				@JsonProperty(FIELD_NAME_GLOBAL_JOB_PARAMETERS) Map<String, String> globalJobParameters) {
 			this.executionMode = Preconditions.checkNotNull(executionMode);
 			this.restartStrategy = Preconditions.checkNotNull(restartStrategy);
 			this.parallelism = parallelism;
-			this.isObjectResuse = isObjectResuse;
+			this.isObjectReuse = isObjectReuse;
 			this.globalJobParameters = Preconditions.checkNotNull(globalJobParameters);
+		}
+
+		public String getExecutionMode() {
+			return executionMode;
+		}
+
+		public String getRestartStrategy() {
+			return restartStrategy;
+		}
+
+		public int getParallelism() {
+			return parallelism;
+		}
+
+		@JsonIgnore
+		public boolean isObjectReuse() {
+			return isObjectReuse;
+		}
+
+		public Map<String, String> getGlobalJobParameters() {
+			return globalJobParameters;
 		}
 
 		@Override
@@ -215,7 +239,7 @@ public class JobConfigInfo implements ResponseBody {
 			}
 			ExecutionConfigInfo that = (ExecutionConfigInfo) o;
 			return parallelism == that.parallelism &&
-				isObjectResuse == that.isObjectResuse &&
+				isObjectReuse == that.isObjectReuse &&
 				Objects.equals(executionMode, that.executionMode) &&
 				Objects.equals(restartStrategy, that.restartStrategy) &&
 				Objects.equals(globalJobParameters, that.globalJobParameters);
@@ -223,7 +247,16 @@ public class JobConfigInfo implements ResponseBody {
 
 		@Override
 		public int hashCode() {
-			return Objects.hash(executionMode, restartStrategy, parallelism, isObjectResuse, globalJobParameters);
+			return Objects.hash(executionMode, restartStrategy, parallelism, isObjectReuse, globalJobParameters);
+		}
+
+		public static ExecutionConfigInfo from(ArchivedExecutionConfig archivedExecutionConfig) {
+			return new ExecutionConfigInfo(
+				archivedExecutionConfig.getExecutionMode(),
+				archivedExecutionConfig.getRestartStrategyDescription(),
+				archivedExecutionConfig.getParallelism(),
+				archivedExecutionConfig.getObjectReuseEnabled(),
+				ConfigurationUtils.hideSensitiveValues(archivedExecutionConfig.getGlobalJobParameters()));
 		}
 	}
 }

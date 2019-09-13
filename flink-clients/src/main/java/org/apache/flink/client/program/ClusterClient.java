@@ -184,16 +184,10 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 			try {
 				// invoke main method
 				prog.invokeInteractiveModeForExecution();
-				if (lastJobExecutionResult == null && factory.getLastEnvCreated() == null) {
+				if (lastJobExecutionResult == null) {
 					throw new ProgramMissingJobException("The program didn't contain a Flink job.");
 				}
-				if (isDetached()) {
-					// in detached mode, we execute the whole user code to extract the Flink job, afterwards we run it here
-					return ((DetachedEnvironment) factory.getLastEnvCreated()).finalizeExecute();
-				} else {
-					// in blocking mode, we execute all Flink jobs contained in the user code and then return here
-					return this.lastJobExecutionResult;
-				}
+				return this.lastJobExecutionResult;
 			} finally {
 				ContextEnvironment.unsetContext();
 			}

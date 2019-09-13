@@ -858,7 +858,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 // read text file from local files system
 DataSet<String> localLines = env.readTextFile("file:///path/to/my/textfile");
 
-// read text file from a HDFS running at nnHost:nnPort
+// read text file from an HDFS running at nnHost:nnPort
 DataSet<String> hdfsLines = env.readTextFile("hdfs://nnHost:nnPort/path/to/my/textfile");
 
 // read a CSV file with three fields
@@ -999,7 +999,7 @@ val env  = ExecutionEnvironment.getExecutionEnvironment
 // read text file from local files system
 val localLines = env.readTextFile("file:///path/to/my/textfile")
 
-// read text file from a HDFS running at nnHost:nnPort
+// read text file from an HDFS running at nnHost:nnPort
 val hdfsLines = env.readTextFile("hdfs://nnHost:nnPort/path/to/my/textfile")
 
 // read a CSV file with three fields
@@ -1159,7 +1159,7 @@ DataSet<String> textData = // [...]
 // write DataSet to a file on the local file system
 textData.writeAsText("file:///my/result/on/localFS");
 
-// write DataSet to a file on a HDFS with a namenode running at nnHost:nnPort
+// write DataSet to a file on an HDFS with a namenode running at nnHost:nnPort
 textData.writeAsText("hdfs://nnHost:nnPort/my/result/on/localFS");
 
 // write DataSet to a file and overwrite the file if it exists
@@ -1261,7 +1261,7 @@ val textData: DataSet[String] = // [...]
 // write DataSet to a file on the local file system
 textData.writeAsText("file:///my/result/on/localFS")
 
-// write DataSet to a file on a HDFS with a namenode running at nnHost:nnPort
+// write DataSet to a file on an HDFS with a namenode running at nnHost:nnPort
 textData.writeAsText("hdfs://nnHost:nnPort/my/result/on/localFS")
 
 // write DataSet to a file and overwrite the file if it exists
