@@ -74,6 +74,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.getJavaCommandPath;
@@ -126,9 +127,10 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 			StandaloneResourceManagerFactory.INSTANCE);
 		DispatcherResourceManagerComponent<?> dispatcherResourceManagerComponent = null;
 
+		final ScheduledExecutorService ioExecutor = TestingUtils.defaultExecutor();
 		final HighAvailabilityServices haServices = HighAvailabilityServicesUtils.createHighAvailabilityServices(
 			config,
-			TestingUtils.defaultExecutor(),
+			ioExecutor,
 			HighAvailabilityServicesUtils.AddressResolution.NO_ADDRESS_RESOLUTION);
 
 		try {
@@ -142,6 +144,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 
 			dispatcherResourceManagerComponent = resourceManagerComponentFactory.create(
 				config,
+				ioExecutor,
 				rpcService,
 				haServices,
 				blobServerResource.getBlobServer(),

@@ -114,6 +114,7 @@ public class TestingMiniCluster extends MiniCluster {
 			result.add(
 				dispatcherResourceManagerComponentFactory.create(
 					configuration,
+					getIOExecutor(),
 					rpcServiceFactory.createRpcService(),
 					haServices,
 					blobServer,

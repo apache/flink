@@ -65,6 +65,7 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -98,6 +99,7 @@ public abstract class AbstractDispatcherResourceManagerComponentFactory<T extend
 	@Override
 	public DispatcherResourceManagerComponent<T> create(
 			Configuration configuration,
+			Executor ioExecutor,
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
 			BlobServer blobServer,

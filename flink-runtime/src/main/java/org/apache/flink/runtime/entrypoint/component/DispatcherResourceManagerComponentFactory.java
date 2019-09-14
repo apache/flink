@@ -29,6 +29,8 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
 
+import java.util.concurrent.Executor;
+
 /**
  * Factory for the {@link DispatcherResourceManagerComponent}.
  */
@@ -36,6 +38,7 @@ public interface DispatcherResourceManagerComponentFactory<T extends Dispatcher>
 
 	DispatcherResourceManagerComponent<T> create(
 		Configuration configuration,
+		Executor ioExecutor,
 		RpcService rpcService,
 		HighAvailabilityServices highAvailabilityServices,
 		BlobServer blobServer,
