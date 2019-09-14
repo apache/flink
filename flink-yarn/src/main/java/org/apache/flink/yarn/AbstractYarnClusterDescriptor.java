@@ -38,6 +38,7 @@ import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
+import org.apache.flink.runtime.entrypoint.component.AbstractUserClassPathJobGraphRetriever;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
@@ -197,7 +198,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	 * Adds the given files to the list of files to ship.
 	 *
 	 * <p>Note that any file matching "<tt>flink-dist*.jar</tt>" will be excluded from the upload by
-	 * {@link #uploadAndRegisterFiles(Collection, FileSystem, Path, ApplicationId, List, Map, StringBuilder)}
+	 * {@link #uploadAndRegisterFiles(Collection, FileSystem, Path, ApplicationId, List, Map, boolean, StringBuilder)}
 	 * since we upload the Flink uber jar ourselves and do not need to deploy it multiple times.
 	 *
 	 * @param shipFiles files to ship
@@ -753,6 +754,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			appId,
 			paths,
 			localResources,
+			false,
 			envShipFileList);
 
 		final List<String> userClassPaths = uploadAndRegisterFiles(
@@ -762,6 +764,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			appId,
 			paths,
 			localResources,
+			userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED,
 			envShipFileList);
 
 		if (userJarInclusion == YarnConfigOptions.UserJarInclusion.ORDER) {
@@ -1130,10 +1133,15 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	 * 		paths of the remote resources (uploaded resources will be added)
 	 * @param localResources
 	 * 		map of resources (uploaded resources will be added)
+	 * @param deployToJobDir
+	 * 		whether the shipFiles are deployed to the directory
+	 * 		{@value org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever#DEFAULT_JOB_DIR}
 	 * @param envShipFileList
 	 * 		list of shipped files in a format understood by {@link Utils#createTaskExecutorContext}
 	 *
-	 * @return list of class paths with the the proper resource keys from the registration
+	 * @return List of class paths with the the proper resource keys from the registration if deployToJobDir is false;
+	 *  Or EmptyList if deployToJobDir is true
+	 *
 	 */
 	static List<String> uploadAndRegisterFiles(
 			Collection<File> shipFiles,
@@ -1142,6 +1150,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			ApplicationId appId,
 			List<Path> remotePaths,
 			Map<String, LocalResource> localResources,
+			boolean deployToJobDir,
 			StringBuilder envShipFileList) throws IOException {
 		final List<Path> localPaths = new ArrayList<>();
 		final List<Path> relativePaths = new ArrayList<>();
@@ -1154,13 +1163,24 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					@Override
 					public FileVisitResult visitFile(java.nio.file.Path file, BasicFileAttributes attrs) {
 						localPaths.add(new Path(file.toUri()));
-						relativePaths.add(new Path(parentPath.relativize(file).toString()));
+						if (deployToJobDir) {
+							relativePaths.add(
+								new Path(AbstractUserClassPathJobGraphRetriever.DEFAULT_JOB_DIR,
+									parentPath.relativize(file).toString()));
+						} else {
+							relativePaths.add(new Path(parentPath.relativize(file).toString()));
+						}
 						return FileVisitResult.CONTINUE;
 					}
 				});
 			} else {
 				localPaths.add(new Path(shipFile.toURI()));
-				relativePaths.add(new Path(shipFile.getName()));
+				if (deployToJobDir) {
+					relativePaths.add(
+						new Path(AbstractUserClassPathJobGraphRetriever.DEFAULT_JOB_DIR, shipFile.getName()));
+				} else {
+					relativePaths.add(new Path(shipFile.getName()));
+				}
 			}
 		}
 
@@ -1190,12 +1210,16 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 			}
 		}
 
-		// construct classpath, we always want resource directories to go first, we also sort
-		// both resources and archives in order to make classpath deterministic
-		final ArrayList<String> classPaths = new ArrayList<>();
-		resources.stream().sorted().forEach(classPaths::add);
-		archives.stream().sorted().forEach(classPaths::add);
-		return classPaths;
+		if (deployToJobDir) { // the files deployed to job dir are not needed to add to system class path.
+			return Collections.emptyList();
+		} else {
+			// construct classpath, we always want resource directories to go first, we also sort
+			// both resources and archives in order to make classpath deterministic
+			final ArrayList<String> classPaths = new ArrayList<>();
+			resources.stream().sorted().forEach(classPaths::add);
+			archives.stream().sorted().forEach(classPaths::add);
+			return classPaths;
+		}
 	}
 
 	/**
@@ -1625,17 +1649,7 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 	}
 
 	private static YarnConfigOptions.UserJarInclusion getUserJarInclusionMode(org.apache.flink.configuration.Configuration config) {
-		throwIfUserTriesToDisableUserJarInclusionInSystemClassPath(config);
-
 		return config.getEnum(YarnConfigOptions.UserJarInclusion.class, YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
-	}
-
-	private static void throwIfUserTriesToDisableUserJarInclusionInSystemClassPath(final Configuration config) {
-		final String userJarInclusion = config.getString(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR);
-		if ("DISABLED".equalsIgnoreCase(userJarInclusion)) {
-			throw new IllegalArgumentException(String.format("Config option %s cannot be set to DISABLED anymore (see FLINK-11781)",
-				YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR.key()));
-		}
 	}
 
 	/**

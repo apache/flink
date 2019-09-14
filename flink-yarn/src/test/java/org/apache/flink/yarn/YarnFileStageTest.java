@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 
@@ -45,7 +46,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -114,7 +115,7 @@ public class YarnFileStageTest extends TestLogger {
 		final FileSystem targetFileSystem = hdfsRootPath.getFileSystem(hadoopConfig);
 		final Path targetDir = targetFileSystem.getWorkingDirectory();
 
-		testCopyFromLocalRecursive(targetFileSystem, targetDir, tempFolder, true);
+		testCopyFromLocalRecursive(targetFileSystem, targetDir, tempFolder,  false, true);
 	}
 
 	/**
@@ -126,7 +127,19 @@ public class YarnFileStageTest extends TestLogger {
 		final FileSystem targetFileSystem = hdfsRootPath.getFileSystem(hadoopConfig);
 		final Path targetDir = targetFileSystem.getWorkingDirectory();
 
-		testCopyFromLocalRecursive(targetFileSystem, targetDir, tempFolder, false);
+		testCopyFromLocalRecursive(targetFileSystem, targetDir, tempFolder, false, false);
+	}
+
+	/**
+	 * Verifies that nested directories are properly copied to the
+	 * {@value org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever#DEFAULT_JOB_DIR} directory
+	 * with a <tt>hdfs://</tt> file system (from a <tt>/absolute/path</tt> source path).
+	 */
+	@Test
+	public void testShipFilesDeployToJobDir() throws Exception {
+		final FileSystem targetFileSystem = hdfsRootPath.getFileSystem(hadoopConfig);
+		final Path targetDir = targetFileSystem.getWorkingDirectory();
+		testCopyFromLocalRecursive(targetFileSystem, targetDir, tempFolder, true, false);
 	}
 
 	/**
@@ -140,34 +153,47 @@ public class YarnFileStageTest extends TestLogger {
 	 * 		JUnit temporary folder rule to create the source directory with
 	 * @param addSchemeToLocalPath
 	 * 		whether add the <tt>file://</tt> scheme to the local path to copy from
+	 * @param deployToJobDir
+	 * 		whether the shipFiles will deploy to the directory
+	 * 	  	{@value org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever#DEFAULT_JOB_DIR}
 	 */
 	static void testCopyFromLocalRecursive(
 			FileSystem targetFileSystem,
 			Path targetDir,
 			TemporaryFolder tempFolder,
+			boolean deployToJobDir,
 			boolean addSchemeToLocalPath) throws Exception {
 
 		// directory must not yet exist
 		assertFalse(targetFileSystem.exists(targetDir));
 
+		final Path singleFilePath; // the file is not in the srcDir directory
+		final String singleFileName = "single.jar";
+		final String singleFileContent = "single file content";
+		final String singleFileAbsolutePath = tempFolder.getRoot().getAbsolutePath() + "/" + singleFileName;
+
 		final File srcDir = tempFolder.newFolder();
 		final Path srcPath;
 		if (addSchemeToLocalPath) {
 			srcPath = new Path("file://" + srcDir.getAbsolutePath());
+			singleFilePath = new Path("file://" + singleFileAbsolutePath);
+
 		} else {
 			srcPath = new Path(srcDir.getAbsolutePath());
+			singleFilePath = new Path(singleFileAbsolutePath);
 		}
 
 		HashMap<String /* (relative) path */, /* contents */ String> srcFiles = new HashMap<>(4);
 
 		// create and fill source files
-		srcFiles.put("1", "Hello 1");
-		srcFiles.put("2", "Hello 2");
-		srcFiles.put("nested/3", "Hello nested/3");
-		srcFiles.put("nested/4/5", "Hello nested/4/5");
-		srcFiles.put("test.jar", "JAR Content");
+		srcFiles.put(srcDir.getName() + "/1", "Hello 1");
+		srcFiles.put(srcDir.getName() + "/2", "Hello 2");
+		srcFiles.put(srcDir.getName() + "/nested/3", "Hello nested/3");
+		srcFiles.put(srcDir.getName() + "/nested/4/5", "Hello nested/4/5");
+		srcFiles.put(srcDir.getName() + "/test.jar", "JAR Content");
+
 		for (Map.Entry<String, String> src : srcFiles.entrySet()) {
-			File file = new File(srcDir, src.getKey());
+			File file = new File(tempFolder.getRoot().toString(), src.getKey());
 			//noinspection ResultOfMethodCallIgnored
 			file.getParentFile().mkdirs();
 			try (DataOutputStream out = new DataOutputStream(new FileOutputStream(file))) {
@@ -175,50 +201,75 @@ public class YarnFileStageTest extends TestLogger {
 			}
 		}
 
+		//create and fill the single file which is not in the srcDir
+		try (DataOutputStream out = new DataOutputStream(new FileOutputStream(new File(singleFileAbsolutePath)))) {
+			out.writeUTF(singleFileContent);
+		}
 		// copy the created directory recursively:
 		try {
 			List<Path> remotePaths = new ArrayList<>();
 			HashMap<String, LocalResource> localResources = new HashMap<>();
 			final List<String> classpath = AbstractYarnClusterDescriptor.uploadAndRegisterFiles(
-				Collections.singletonList(new File(srcPath.toUri().getPath())),
+				Arrays.asList(new File(srcPath.toUri().getPath()), new File(singleFilePath.toUri().getPath())),
 				targetFileSystem,
 				targetDir,
 				ApplicationId.newInstance(0, 0),
 				remotePaths,
 				localResources,
+				deployToJobDir,
 				new StringBuilder());
 
-			assertThat(
-				classpath,
-				Matchers.containsInAnyOrder(
-					srcDir.getName(),
-					srcDir.getName() + "/nested",
-					srcDir.getName() + "/nested/4",
-					srcDir.getName() + "/test.jar"));
+			if (deployToJobDir) {
+				//the classpath is empty if deployToJobDir is true.
+				assertEquals(0, classpath.size());
+			} else {
+				assertThat(
+					classpath,
+					Matchers.containsInAnyOrder(
+						srcDir.getName(),
+						srcDir.getName() + "/nested",
+						srcDir.getName() + "/nested/4",
+						srcDir.getName() + "/test.jar",
+						singleFilePath.getName()));
+			}
 
-			assertEquals(srcFiles.size(), localResources.size());
+			assertEquals(srcFiles.size() + 1 /* include the singleFile */, localResources.size());
 
-			Path workDir = ConverterUtils
-				.getPathFromYarnURL(localResources.get(srcPath.getName() + "/1").getResource())
-				.getParent();
+			Path workDir;
+			if (deployToJobDir) {
+				workDir = ConverterUtils
+					.getPathFromYarnURL(
+						localResources.get(
+							FileJobGraphRetriever.DEFAULT_JOB_DIR + "/" + singleFilePath.getName()).getResource())
+					.getParent();
+			} else {
+				workDir = ConverterUtils
+					.getPathFromYarnURL(
+						localResources.get(singleFilePath.getName()).getResource())
+					.getParent();
+			}
+
+			HashMap<String /* (relative) path */, /* contents */ String> allExpectedFileContents =
+				new HashMap<>(5);
+			// merge the contents of the single file and all files in the srcPath directory
+			allExpectedFileContents.putAll(srcFiles);
+			allExpectedFileContents.put(singleFilePath.getName(), singleFileContent);
 
 			RemoteIterator<LocatedFileStatus> targetFilesIterator =
 				targetFileSystem.listFiles(workDir, true);
 			HashMap<String /* (relative) path */, /* contents */ String> targetFiles =
-				new HashMap<>(4);
+				new HashMap<>(5);
 
 			final int workDirPrefixLength =
 				workDir.toString().length() + 1; // one more for the concluding "/"
 			while (targetFilesIterator.hasNext()) {
 				LocatedFileStatus targetFile = targetFilesIterator.next();
-
 				int retries = 5;
 				do {
 					try (FSDataInputStream in = targetFileSystem.open(targetFile.getPath())) {
 						String absolutePathString = targetFile.getPath().toString();
 						String relativePath = absolutePathString.substring(workDirPrefixLength);
 						targetFiles.put(relativePath, in.readUTF());
-
 						assertEquals("extraneous data in file " + relativePath, -1, in.read());
 						break;
 					} catch (FileNotFoundException e) {
@@ -231,7 +282,7 @@ public class YarnFileStageTest extends TestLogger {
 				} while ((retries--) > 0);
 			}
 
-			assertThat(targetFiles, equalTo(srcFiles));
+			assertThat(targetFiles, equalTo(allExpectedFileContents));
 		} finally {
 			// clean up
 			targetFileSystem.delete(targetDir, true);

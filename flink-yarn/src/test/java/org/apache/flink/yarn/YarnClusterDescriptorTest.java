@@ -91,23 +91,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	public static void tearDownClass() {
 		yarnClient.stop();
 	}
-
-	/**
-	 * @see <a href="https://issues.apache.org/jira/browse/FLINK-11781">FLINK-11781</a>
-	 */
-	@Test
-	public void testThrowsExceptionIfUserTriesToDisableUserJarInclusionInSystemClassPath() {
-		final Configuration configuration = new Configuration();
-		configuration.setString(YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR, "DISABLED");
-
-		try {
-			createYarnClusterDescriptor(configuration);
-			fail("Expected exception not thrown");
-		} catch (final IllegalArgumentException e) {
-			assertThat(e.getMessage(), containsString("cannot be set to DISABLED anymore"));
-		}
-	}
-
+	
 	@Test
 	public void testFailIfTaskSlotsHigherThanMaxVcores() throws ClusterDeploymentException {
 		final Configuration flinkConfiguration = new Configuration();
