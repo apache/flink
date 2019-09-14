@@ -40,7 +40,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerRunnerImpl;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
@@ -104,7 +104,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	private final Configuration configuration;
 
-	private final JobGraphStore jobGraphStore;
+	private final JobGraphWriter jobGraphWriter;
 	private final RunningJobsRegistry runningJobsRegistry;
 
 	private final HighAvailabilityServices highAvailabilityServices;
@@ -142,7 +142,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			String endpointId,
 			Collection<JobGraph> recoveredJobs,
 			DispatcherServices dispatcherServices,
-			JobGraphStore jobGraphStore) throws Exception {
+			JobGraphWriter jobGraphWriter) throws Exception {
 		super(rpcService, endpointId, null);
 		Preconditions.checkNotNull(dispatcherServices);
 
@@ -152,7 +152,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		this.heartbeatServices = dispatcherServices.getHeartbeatServices();
 		this.blobServer = dispatcherServices.getBlobServer();
 		this.fatalErrorHandler = dispatcherServices.getFatalErrorHandler();
-		this.jobGraphStore = Preconditions.checkNotNull(jobGraphStore);
+		this.jobGraphWriter = Preconditions.checkNotNull(jobGraphWriter);
 		this.jobManagerMetricGroup = dispatcherServices.getJobManagerMetricGroup();
 		this.metricServiceQueryAddress = dispatcherServices.getMetricQueryServiceAddress();
 
@@ -339,13 +339,13 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	private CompletableFuture<Void> persistAndRunJob(JobGraph jobGraph) throws Exception {
-		jobGraphStore.putJobGraph(jobGraph);
+		jobGraphWriter.putJobGraph(jobGraph);
 
 		final CompletableFuture<Void> runJobFuture = runJob(jobGraph);
 
 		return runJobFuture.whenComplete(BiConsumerWithException.unchecked((Object ignored, Throwable throwable) -> {
 			if (throwable != null) {
-				jobGraphStore.removeJobGraph(jobGraph.getJobID());
+				jobGraphWriter.removeJobGraph(jobGraph.getJobID());
 			}
 		}));
 	}
@@ -667,7 +667,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		boolean cleanupHABlobs = false;
 		if (cleanupHA) {
 			try {
-				jobGraphStore.removeJobGraph(jobId);
+				jobGraphWriter.removeJobGraph(jobId);
 
 				// only clean up the HA blobs if we could remove the job from HA storage
 				cleanupHABlobs = true;
@@ -682,7 +682,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			}
 		} else {
 			try {
-				jobGraphStore.releaseJobGraph(jobId);
+				jobGraphWriter.releaseJobGraph(jobId);
 			} catch (Exception e) {
 				log.warn("Could not properly release job {} from submitted job graph store.", jobId, e);
 			}
