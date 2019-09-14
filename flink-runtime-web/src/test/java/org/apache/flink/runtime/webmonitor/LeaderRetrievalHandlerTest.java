@@ -66,7 +66,7 @@ public class LeaderRetrievalHandlerTest extends TestLogger {
 		final Time timeout = Time.seconds(10L);
 		final CompletableFuture<RestfulGateway> gatewayFuture = new CompletableFuture<>();
 		final GatewayRetriever<RestfulGateway> gatewayRetriever = () -> gatewayFuture;
-		final RestfulGateway gateway = TestingRestfulGateway.newBuilder().build();
+		final RestfulGateway gateway = new TestingRestfulGateway.Builder().build();
 
 		final TestingHandler testingHandler = new TestingHandler(
 			gatewayRetriever,

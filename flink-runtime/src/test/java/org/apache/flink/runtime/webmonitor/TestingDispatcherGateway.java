@@ -135,7 +135,7 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 	/**
 	 * Builder for the {@link TestingDispatcherGateway}.
 	 */
-	public static final class Builder extends TestingRestfulGateway.Builder {
+	public static final class Builder extends TestingRestfulGateway.AbstractBuilder<Builder> {
 
 		private Function<JobGraph, CompletableFuture<Acknowledge>> submitFunction;
 		private Supplier<CompletableFuture<Collection<JobID>>> listFunction;
@@ -159,9 +159,14 @@ public final class TestingDispatcherGateway extends TestingRestfulGateway implem
 		}
 
 		@Override
-		public TestingRestfulGateway.Builder setRequestJobFunction(Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction) {
+		public Builder setRequestJobFunction(Function<JobID, CompletableFuture<ArchivedExecutionGraph>> requestJobFunction) {
 			// signature clash
 			throw new UnsupportedOperationException("Use setRequestArchivedJobFunction() instead.");
+		}
+
+		@Override
+		protected Builder self() {
+			return this;
 		}
 
 		public Builder setBlobServerPort(int blobServerPort) {
