@@ -277,6 +277,11 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 	}
 
 	private void handleAddedJobGraph(JobID jobId) {
+		LOG.debug(
+			"Job {} has been added to the {} by another process.",
+			jobId,
+			jobGraphStore.getClass().getSimpleName());
+
 		// serialize all ongoing recovery operations
 		onGoingRecoveryOperation = onGoingRecoveryOperation
 			.thenApplyAsync(
@@ -317,6 +322,11 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 	}
 
 	private void handleRemovedJobGraph(JobID jobId) {
+		LOG.debug(
+			"Job {} has been removed from the {} by another process.",
+			jobId,
+			jobGraphStore.getClass().getSimpleName());
+
 		onGoingRecoveryOperation = onGoingRecoveryOperation
 			.thenCompose(ignored -> removeJobGraphIfRunning(jobId).orElse(FutureUtils.completedVoidFuture()))
 			.handle(this::onErrorIfRunning);
