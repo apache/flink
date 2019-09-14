@@ -32,18 +32,31 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class CatalogFunctionImpl implements CatalogFunction {
 	private final String className; // Fully qualified class name of the function
+	private final Language language;
 	private final Map<String, String> properties;
+	private final boolean isSystem;
 
 	public CatalogFunctionImpl(String className, Map<String, String> properties) {
-		checkArgument(!StringUtils.isNullOrWhitespaceOnly(className), "className cannot be null or empty");
+		this(className, Language.JAVA, properties, false);
+	}
 
+	public CatalogFunctionImpl(String className, Language language, Map<String, String> properties, boolean isSystem) {
+		checkArgument(!StringUtils.isNullOrWhitespaceOnly(className), "className cannot be null or empty");
+		checkArgument(language != null, "language cannot be null");
 		this.className = className;
+		this.language = language;
 		this.properties = checkNotNull(properties, "properties cannot be null");
+		this.isSystem = isSystem;
 	}
 
 	@Override
 	public String getClassName() {
 		return this.className;
+	}
+
+	@Override
+	public Language getLanguage() {
+		return this.language;
 	}
 
 	@Override
@@ -53,7 +66,12 @@ public class CatalogFunctionImpl implements CatalogFunction {
 
 	@Override
 	public CatalogFunction copy() {
-		return new CatalogFunctionImpl(getClassName(), new HashMap<>(getProperties()));
+		return new CatalogFunctionImpl(getClassName(), getLanguage(), new HashMap<>(getProperties()), isSystem);
+	}
+
+	@Override
+	public Boolean isSystemFunction() {
+		return isSystem;
 	}
 
 	@Override

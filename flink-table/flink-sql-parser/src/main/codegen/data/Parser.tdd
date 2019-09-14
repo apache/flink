@@ -29,6 +29,8 @@
     "org.apache.flink.sql.parser.ddl.SqlCreateTable.TableCreationContext",
     "org.apache.flink.sql.parser.ddl.SqlCreateView",
     "org.apache.flink.sql.parser.ddl.SqlDropView",
+    "org.apache.flink.sql.parser.ddl.SqlCreateFunction",
+    "org.apache.flink.sql.parser.ddl.SqlDropFunction",
     "org.apache.flink.sql.parser.ddl.SqlTableColumn",
     "org.apache.flink.sql.parser.ddl.SqlTableOption",
     "org.apache.flink.sql.parser.ddl.SqlWatermark",
@@ -342,7 +344,6 @@
     "SUBCLASS_ORIGIN"
     "SUBSTITUTE"
     "TABLE_NAME"
-    "TEMPORARY"
     "TIES"
     "TIMESTAMPADD"
     "TIMESTAMPDIFF"
@@ -431,6 +432,7 @@
   # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.
   # Each must accept arguments "(SqlParserPos pos, boolean replace)".
   createStatementParserMethods: [
+    "SqlCreateFunction",
     "SqlCreateTable",
     "SqlCreateView",
     "SqlCreateDatabase"
@@ -439,6 +441,7 @@
   # List of methods for parsing extensions to "DROP" calls.
   # Each must accept arguments "(Span s)".
   dropStatementParserMethods: [
+    "SqlDropFunction",
     "SqlDropTable",
     "SqlDropView",
     "SqlDropDatabase"

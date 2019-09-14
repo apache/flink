@@ -543,6 +543,43 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
 	}
 
 	@Test
+	public void testCreateFunction() {
+		check("CREATE TEMPORARY FUNCTION catalog1.db1.function1 AS 'org.apache.fink.function.function1'",
+			"CREATE TEMPORARY FUNCTION `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
+
+		check("CREATE TEMPORARY SYSTEM FUNCTION catalog1.db1.function1 AS 'org.apache.fink.function.function1'",
+			"CREATE TEMPORARY SYSTEM FUNCTION `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
+
+		check("CREATE TEMPORARY FUNCTION db1.function1 AS 'org.apache.fink.function.function1'",
+			"CREATE TEMPORARY FUNCTION `DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
+
+		check("CREATE TEMPORARY FUNCTION function1 AS 'org.apache.fink.function.function1'",
+			"CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1'");
+
+		check("CREATE TEMPORARY FUNCTION IF NOT EXISTS catalog1.db1.function1 AS 'org.apache.fink.function.function1'",
+			"CREATE TEMPORARY FUNCTION IF NOT EXISTS `CATALOG1`.`DB1`.`FUNCTION1` AS 'org.apache.fink.function.function1'");
+
+		check("CREATE TEMPORARY FUNCTION function1 AS 'org.apache.fink.function.function1' LANGUAGE 'JAVA'",
+			"CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.fink.function.function1' LANGUAGE 'JAVA'");
+
+	}
+
+	@Test
+	public void testDropTemporaryFunction() {
+		check("DROP TEMPORARY FUNCTION catalog1.db1.function1",
+			"DROP TEMPORARY FUNCTION `CATALOG1`.`DB1`.`FUNCTION1`");
+
+		check("DROP TEMPORARY SYSTEM FUNCTION catalog1.db1.function1",
+			"DROP TEMPORARY SYSTEM FUNCTION `CATALOG1`.`DB1`.`FUNCTION1`");
+
+		check("DROP TEMPORARY FUNCTION IF EXISTS catalog1.db1.function1",
+			"DROP TEMPORARY FUNCTION IF EXISTS `CATALOG1`.`DB1`.`FUNCTION1`");
+
+		check("DROP TEMPORARY FUNCTION IF EXISTS catalog1.db1.function1 LANGUAGE 'JAVA'",
+			"DROP TEMPORARY FUNCTION IF EXISTS `CATALOG1`.`DB1`.`FUNCTION1` LANGUAGE 'JAVA'");
+	}
+
+	@Test
 	public void testInsertPartitionSpecs() {
 		conformance0 = FlinkSqlConformance.HIVE;
 		final String sql1 = "insert into emps(x,y) partition (x='ab', y='bc') select * from emps";

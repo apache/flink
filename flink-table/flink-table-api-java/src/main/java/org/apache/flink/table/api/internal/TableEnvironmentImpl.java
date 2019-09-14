@@ -58,7 +58,9 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.TableSourceQueryOperation;
+import org.apache.flink.table.operations.ddl.CreateFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.operations.ddl.DropFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropTableOperation;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.sinks.TableSink;
@@ -473,10 +475,21 @@ public class TableEnvironmentImpl implements TableEnvironment {
 			catalogManager.dropTable(
 				dropTableOperation.getTableIdentifier(),
 				dropTableOperation.isIfExists());
+		} else if (operation instanceof CreateFunctionOperation) {
+			CreateFunctionOperation createFunctionOperation = (CreateFunctionOperation) operation;
+			catalogManager.createFunction(
+				createFunctionOperation.getCatalogFunction(),
+				createFunctionOperation.getFunctionIdentifier(),
+				createFunctionOperation.isIgnoreIfExists());
+		} else if (operation instanceof DropFunctionOperation) {
+			DropFunctionOperation dropFunctionOperation = (DropFunctionOperation) operation;
+			catalogManager.dropFunction(
+				dropFunctionOperation.getFunctionIdentifier(),
+				dropFunctionOperation.isIfExists());
 		} else {
 			throw new TableException(
 				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
-					"type INSERT, CREATE TABLE, DROP TABLE");
+					"type INSERT, CREATE TABLE, DROP TABLE, CREATE FUNCTION, DROP FUNCTION");
 		}
 	}
 

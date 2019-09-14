@@ -24,6 +24,8 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
+import org.apache.flink.table.catalog.exceptions.FunctionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.util.StringUtils;
@@ -548,6 +550,35 @@ public class CatalogManager {
 	}
 
 	/**
+	 * Create a function in a given fully qualified path.
+	 *
+	 * @param catalogFunction  The function to put in the given path
+	 * @param objectIdentifier  The fully qualified path of the function to create.
+	 * @param ignoreIfExists If false exception will be thrown if the function already exist
+	 */
+	public void createFunction(CatalogFunction catalogFunction, ObjectIdentifier objectIdentifier, boolean ignoreIfExists) {
+		execute(
+			(catalog, path) -> catalog.createFunction(path, catalogFunction, ignoreIfExists),
+			objectIdentifier,
+			ignoreIfExists,
+			"CreateFunction");
+	}
+
+	/**
+	 * Drops a function in a given fully qualified path.
+	 *
+	 * @param objectIdentifier The fully qualified path of the function to create.
+	 * @param ignoreIfNotExists  If false exception will be thrown if the function to be dropped doesn't exist
+	 */
+	public void dropFunction(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+		execute(
+			(catalog, path) -> catalog.dropFunction(path, ignoreIfNotExists),
+			objectIdentifier,
+			ignoreIfNotExists,
+			"DropFunction");
+	}
+
+	/**
 	 * A command that modifies given {@link Catalog} in an {@link ObjectPath}. This unifies error handling
 	 * across different commands.
 	 */
@@ -564,7 +595,8 @@ public class CatalogManager {
 		if (catalog.isPresent()) {
 			try {
 				command.execute(catalog.get(), objectIdentifier.toObjectPath());
-			} catch (TableAlreadyExistException | TableNotExistException | DatabaseNotExistException e) {
+			} catch (TableAlreadyExistException | TableNotExistException | DatabaseNotExistException |
+				FunctionAlreadyExistException | FunctionNotExistException e) {
 				throw new ValidationException(getErrorMessage(objectIdentifier, commandName), e);
 			} catch (Exception e) {
 				throw new TableException(getErrorMessage(objectIdentifier, commandName), e);

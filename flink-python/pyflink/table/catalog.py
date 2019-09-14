@@ -757,6 +757,22 @@ class CatalogFunction(object):
         """
         return self._j_catalog_function.getClassName()
 
+    def get_language(self):
+        """
+        Get the language of the function definition.
+
+        :return: The Language enum of the functin class.
+        """
+        return self._j_catalog_function.getLanguage()
+
+    def is_system_function(self):
+        """
+        Whether the function is a system function.
+
+        :return: Whether the function is a system function.
+        """
+        return self._j_catalog_function.isSystemFunction()
+
     def get_properties(self):
         """
         Get the properties of the function.

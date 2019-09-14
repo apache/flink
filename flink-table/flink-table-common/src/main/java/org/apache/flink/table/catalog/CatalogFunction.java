@@ -34,6 +34,20 @@ public interface CatalogFunction {
 	String getClassName();
 
 	/**
+	 * Get the function language.
+	 *
+	 * @return the language of the class
+	 */
+	Language getLanguage();
+
+	/**
+	 * Get Whether it is system function.
+	 *
+	 * @return Whether it is system function
+	 */
+	Boolean isSystemFunction();
+
+	/**
 	 * Get the properties of the function.
 	 *
 	 * @return the properties of the function

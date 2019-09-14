@@ -29,7 +29,7 @@ import org.apache.flink.table.expressions.resolver.lookups.TableReferenceLookup
 import org.apache.flink.table.factories.{TableFactoryService, TableFactoryUtil, TableSinkFactory}
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableFunction, UserDefinedAggregateFunction, _}
 import org.apache.flink.table.module.{Module, ModuleManager}
-import org.apache.flink.table.operations.ddl.{CreateTableOperation, DropTableOperation}
+import org.apache.flink.table.operations.ddl.{CreateFunctionOperation, CreateTableOperation, DropTableOperation, DropFunctionOperation}
 import org.apache.flink.table.operations.utils.OperationTreeBuilder
 import org.apache.flink.table.operations.{CatalogQueryOperation, TableSourceQueryOperation, _}
 import org.apache.flink.table.planner.{ParserImpl, PlanningConfigurationBuilder}
@@ -485,9 +485,19 @@ abstract class TableEnvImpl(
         catalogManager.dropTable(
           dropTableOperation.getTableIdentifier,
           dropTableOperation.isIfExists)
-      case _ => throw new TableException(
-        "Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
-          "type INSERT, CREATE TABLE, DROP TABLE")
+      case createFunctionOperation: CreateFunctionOperation =>
+        catalogManager.createFunction(
+          createFunctionOperation.getCatalogFunction,
+          createFunctionOperation.getFunctionIdentifier,
+          createFunctionOperation.isIgnoreIfExists)
+      case dropFunctionOperation: DropFunctionOperation =>
+        catalogManager.dropFunction(
+          dropFunctionOperation.getFunctionIdentifier,
+          dropFunctionOperation.isIfExists)
+      case _ =>
+        throw new TableException(
+          "Unsupported SQL query! sqlUpdate() only accepts SQL statements of " +
+            "type INSERT, CREATE TABLE, DROP TABLE, CREATE FUNCTION, DROP FUNCTION.")
     }
   }
 
