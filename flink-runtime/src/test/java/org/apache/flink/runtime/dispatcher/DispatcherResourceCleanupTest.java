@@ -75,6 +75,7 @@ import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -200,6 +201,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		dispatcher = new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + UUID.randomUUID(),
+			Collections.emptyList(),
 			configuration,
 			highAvailabilityServices,
 			() -> CompletableFuture.completedFuture(resourceManagerGateway),

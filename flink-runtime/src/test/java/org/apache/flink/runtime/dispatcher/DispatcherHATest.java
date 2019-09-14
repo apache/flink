@@ -314,6 +314,7 @@ public class DispatcherHATest extends TestLogger {
 		return new HATestingDispatcher(
 			rpcService,
 			UUID.randomUUID().toString(),
+			Collections.emptyList(),
 			configuration,
 			highAvailabilityServices,
 			() -> CompletableFuture.completedFuture(resourceManagerGateway),
@@ -345,6 +346,7 @@ public class DispatcherHATest extends TestLogger {
 		HATestingDispatcher(
 				RpcService rpcService,
 				String endpointId,
+				Collection<JobGraph> recoveredJobs,
 				Configuration configuration,
 				HighAvailabilityServices highAvailabilityServices,
 				GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
@@ -359,6 +361,7 @@ public class DispatcherHATest extends TestLogger {
 			super(
 				rpcService,
 				endpointId,
+				recoveredJobs,
 				configuration,
 				highAvailabilityServices,
 				resourceManagerGatewayRetriever,
