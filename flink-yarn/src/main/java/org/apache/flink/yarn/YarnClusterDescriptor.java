@@ -729,6 +729,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		addEnvironmentFoldersToShipFiles(systemShipFiles);
 
+		checkShipDirectories(userJarInclusion, systemShipFiles);
+
 		// Set-up ApplicationSubmissionContext for the application
 
 		final ApplicationId appId = appContext.getApplicationId();
@@ -1512,6 +1514,40 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 						appContext.getClass().getCanonicalName(), KEEP_CONTAINERS_METHOD_NAME);
 			}
 		}
+	}
+
+	/**
+	 * Check if there is a directory name is same as
+	 * {@link ConfigConstants#DEFAULT_JOB_DIRECTORY_NAME} in the
+	 * shipDirectories. Throw a RuntimeException if there is one and userJarInclusion == DISABLED.
+	 *
+	 * @param userJarInclusion
+	 * 		whether the system class path includes the user jar
+	 * @param shipDirectories
+	 * 		the file set needed to be checked.
+	 * @throws RuntimeException if the check does not passed
+	 */
+	void checkShipDirectories(YarnConfigOptions.UserJarInclusion userJarInclusion, Set<File> shipDirectories)
+		throws RuntimeException {
+
+		if (shipDirectories == null || shipDirectories.isEmpty() ||
+			userJarInclusion != YarnConfigOptions.UserJarInclusion.DISABLED) {
+			return;
+		}
+		for (File file : shipDirectories) {
+			java.nio.file.Path path = file.toPath();
+			if (!file.isDirectory() || path.getNameCount() <= 0) {
+				continue;
+			}
+
+			if (path.getName(path.getNameCount() - 1).toString().equals(ConfigConstants.DEFAULT_JOB_DIRECTORY_NAME)) {
+				throw new RuntimeException(String.format("This is an illegal ship directory : %s." +
+					" When setting the \"yarn.per-job-cluster.include-user-jar\" to %s" +
+					" the name of ship directory can not be %s.",
+					file, YarnConfigOptions.UserJarInclusion.DISABLED, ConfigConstants.DEFAULT_JOB_DIRECTORY_NAME));
+			}
+		}
+		return;
 	}
 
 	private static class YarnDeploymentException extends RuntimeException {

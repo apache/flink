@@ -30,6 +30,8 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -45,6 +47,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -514,6 +517,68 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		yarnClusterDescriptor.close();
 
 		assertTrue(closableYarnClient.isInState(Service.STATE.STOPPED));
+	}
+
+	@Test
+	public void testValidShipDirectoryName() throws IOException {
+
+		final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor();
+
+		// /a_{FileJobGraphRetriever.DEFAULT_JOB_DIR} is valid and subdirectory of it is not checked
+		final java.nio.file.Path validShipDirectory1 =
+			temporaryFolder.newFolder("a_" + ConfigConstants.DEFAULT_JOB_DIRECTORY_NAME).toPath();
+		Files.createDirectories(validShipDirectory1.resolve(ConfigConstants.DEFAULT_JOB_DIRECTORY_NAME));
+
+		// files under ship directory is not checked
+		final java.nio.file.Path validShipDirectory2 = temporaryFolder.newFolder("a").toPath();
+		Files.createFile(validShipDirectory2.resolve(ConfigConstants.DEFAULT_JOB_DIRECTORY_NAME));
+
+		// only the last part of the path is checked
+		// so this is the valid ship directory /a/b/{FileJobGraphRetriever.DEFAULT_JOB_DIR}/x
+		final java.nio.file.Path validShipDirectory3 = Paths.get(
+			"a",
+			"b",
+			ConfigConstants.DEFAULT_JOB_DIRECTORY_NAME,  "x");
+
+		final java.nio.file.Path validFile = temporaryFolder.newFile(ConfigConstants.DEFAULT_JOB_DIRECTORY_NAME).toPath();
+
+		final Set<File> validShipDirectories = Sets.newHashSet(
+			validShipDirectory1.toFile(),
+			validShipDirectory2.toFile(),
+			validFile.toFile(),
+			validShipDirectory3.toFile());
+
+		yarnClusterDescriptor.checkShipDirectories(YarnConfigOptions.UserJarInclusion.DISABLED, validShipDirectories);
+		yarnClusterDescriptor.checkShipDirectories(YarnConfigOptions.UserJarInclusion.FIRST, validShipDirectories);
+	}
+
+	@Test
+	public void testIllegalShipDirectoryName() throws IOException {
+
+		final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor();
+
+		final java.nio.file.Path  illegalShipDirectoryName = Paths.get(
+			temporaryFolder.newFolder("a").toString(),
+			ConfigConstants.DEFAULT_JOB_DIRECTORY_NAME);
+
+		Files.createDirectory(illegalShipDirectoryName);
+
+		try {
+			yarnClusterDescriptor.checkShipDirectories(
+				YarnConfigOptions.UserJarInclusion.DISABLED,
+				Sets.newHashSet(illegalShipDirectoryName.toFile()));
+			fail("this test should throw exception!");
+		} catch (RuntimeException exception) {
+			assertTrue(exception.getMessage().contains("This is an illegal ship directory"));
+		}
+		try {
+			yarnClusterDescriptor.checkShipDirectories(
+				YarnConfigOptions.UserJarInclusion.FIRST,
+				Sets.newHashSet(illegalShipDirectoryName.toFile()));
+		} catch (RuntimeException exception) {
+			fail("this test should not throw the exception");
+		}
+
 	}
 
 	private YarnClusterDescriptor createYarnClusterDescriptor() {
