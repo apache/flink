@@ -214,6 +214,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 			clusterComponent = dispatcherResourceManagerComponentFactory.create(
 				configuration,
+				ioExecutor,
 				commonRpcService,
 				haServices,
 				blobServer,

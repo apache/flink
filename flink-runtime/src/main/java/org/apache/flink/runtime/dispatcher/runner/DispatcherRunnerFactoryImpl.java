@@ -23,6 +23,8 @@ import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import java.util.concurrent.Executor;
+
 /**
  * Factory which creates a {@link DispatcherRunnerImpl} which runs a {@link StandaloneDispatcher}.
  */
@@ -37,6 +39,7 @@ public class DispatcherRunnerFactoryImpl implements DispatcherRunnerFactory {
 	@Override
 	public DispatcherRunnerImpl createDispatcherRunner(
 			RpcService rpcService,
+			Executor ioExecutor,
 			PartialDispatcherServices partialDispatcherServices) throws Exception {
 		return new DispatcherRunnerImpl(dispatcherFactory, rpcService, partialDispatcherServices);
 	}

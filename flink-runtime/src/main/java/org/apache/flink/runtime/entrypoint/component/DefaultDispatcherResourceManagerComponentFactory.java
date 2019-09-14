@@ -71,6 +71,7 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -101,6 +102,7 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 	@Override
 	public DispatcherResourceManagerComponent create(
 			Configuration configuration,
+			Executor ioExecutor,
 			RpcService rpcService,
 			HighAvailabilityServices highAvailabilityServices,
 			BlobServer blobServer,
@@ -199,6 +201,7 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 			log.debug("Starting Dispatcher.");
 			dispatcherRunner = dispatcherRunnerFactory.createDispatcherRunner(
 				rpcService,
+				ioExecutor,
 				partialDispatcherServices);
 
 			log.debug("Starting ResourceManager.");
