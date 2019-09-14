@@ -28,7 +28,7 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
+import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.VoidHistoryServerArchivist;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
@@ -142,7 +142,7 @@ public class ZooKeeperDispatcherRunnerImplTest extends TestLogger {
 				.setJobMasterLeaderRetrieverFunction(jobId -> ZooKeeperUtils.createLeaderRetrievalService(client, configuration))
 				.build()) {
 
-			final PartialDispatcherServices partialDispatcherServices = new PartialDispatcherServices(
+			final PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore = new PartialDispatcherServicesWithJobGraphStore(
 				configuration,
 				highAvailabilityServices,
 				() -> new CompletableFuture<>(),
@@ -152,11 +152,12 @@ public class ZooKeeperDispatcherRunnerImplTest extends TestLogger {
 				new MemoryArchivedExecutionGraphStore(),
 				fatalErrorHandler,
 				VoidHistoryServerArchivist.INSTANCE,
-				null);
+				null,
+				highAvailabilityServices.getJobGraphStore());
 
 			final JobGraph jobGraph = createJobGraphWithBlobs();
 
-			try (final DispatcherRunnerImpl dispatcherRunner = new DispatcherRunnerImpl(SessionDispatcherFactory.INSTANCE, rpcService, partialDispatcherServices)) {
+			try (final DispatcherRunnerImpl dispatcherRunner = new DispatcherRunnerImpl(SessionDispatcherFactory.INSTANCE, rpcService, partialDispatcherServicesWithJobGraphStore)) {
 				// initial run
 				DispatcherGateway dispatcherGateway = grantLeadership(dispatcherLeaderElectionService, dispatcherLeaderRetriever, dispatcherRunner);
 

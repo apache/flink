@@ -34,7 +34,7 @@ public interface DispatcherFactory {
 	 */
 	Dispatcher createDispatcher(
 		@Nonnull RpcService rpcService,
-		@Nonnull PartialDispatcherServices partialDispatcherServices) throws Exception;
+		@Nonnull PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception;
 
 	default String generateEndpointIdWithUUID() {
 		return getEndpointId() + UUID.randomUUID();

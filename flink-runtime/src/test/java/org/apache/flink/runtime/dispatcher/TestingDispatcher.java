@@ -71,6 +71,7 @@ class TestingDispatcher extends Dispatcher {
 				VoidHistoryServerArchivist.INSTANCE,
 				metricQueryServiceAddress,
 				jobManagerMetricGroup,
+				highAvailabilityServices.getJobGraphStore(),
 				jobManagerRunnerFactory),
 			highAvailabilityServices.getJobGraphStore());
 

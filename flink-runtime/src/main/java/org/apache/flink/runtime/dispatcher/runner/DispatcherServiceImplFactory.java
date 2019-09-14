@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
+import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -54,7 +55,7 @@ class DispatcherServiceImplFactory implements DispatcherLeaderProcessImpl.Dispat
 		try {
 			dispatcher = dispatcherFactory.createDispatcher(
 				rpcService,
-				partialDispatcherServices);
+				PartialDispatcherServicesWithJobGraphStore.from(partialDispatcherServices, jobGraphStore));
 		} catch (Exception e) {
 			throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);
 		}

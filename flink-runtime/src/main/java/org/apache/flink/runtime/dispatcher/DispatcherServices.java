@@ -22,6 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -66,6 +67,9 @@ public class DispatcherServices {
 	private final String metricQueryServiceAddress;
 
 	@Nonnull
+	private final JobGraphStore jobGraphStore;
+
+	@Nonnull
 	private final JobManagerRunnerFactory jobManagerRunnerFactory;
 
 	public DispatcherServices(
@@ -79,6 +83,7 @@ public class DispatcherServices {
 			@Nonnull HistoryServerArchivist historyServerArchivist,
 			@Nullable String metricQueryServiceAddress,
 			@Nonnull JobManagerMetricGroup jobManagerMetricGroup,
+			@Nonnull JobGraphStore jobGraphStore,
 			@Nonnull JobManagerRunnerFactory jobManagerRunnerFactory) {
 		this.configuration = configuration;
 		this.highAvailabilityServices = highAvailabilityServices;
@@ -90,6 +95,7 @@ public class DispatcherServices {
 		this.historyServerArchivist = historyServerArchivist;
 		this.metricQueryServiceAddress = metricQueryServiceAddress;
 		this.jobManagerMetricGroup = jobManagerMetricGroup;
+		this.jobGraphStore = jobGraphStore;
 		this.jobManagerRunnerFactory = jobManagerRunnerFactory;
 	}
 
@@ -144,24 +150,30 @@ public class DispatcherServices {
 	}
 
 	@Nonnull
+	public JobGraphStore getJobGraphStore() {
+		return jobGraphStore;
+	}
+
+	@Nonnull
 	JobManagerRunnerFactory getJobManagerRunnerFactory() {
 		return jobManagerRunnerFactory;
 	}
 
 	public static DispatcherServices from(
-		@Nonnull PartialDispatcherServices partialDispatcherServices,
-		@Nonnull JobManagerRunnerFactory jobManagerRunnerFactory) {
+			@Nonnull PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore,
+			@Nonnull JobManagerRunnerFactory jobManagerRunnerFactory) {
 		return new DispatcherServices(
-			partialDispatcherServices.getConfiguration(),
-			partialDispatcherServices.getHighAvailabilityServices(),
-			partialDispatcherServices.getResourceManagerGatewayRetriever(),
-			partialDispatcherServices.getBlobServer(),
-			partialDispatcherServices.getHeartbeatServices(),
-			partialDispatcherServices.getArchivedExecutionGraphStore(),
-			partialDispatcherServices.getFatalErrorHandler(),
-			partialDispatcherServices.getHistoryServerArchivist(),
-			partialDispatcherServices.getMetricQueryServiceAddress(),
-			partialDispatcherServices.getJobManagerMetricGroupFactory().create(),
+			partialDispatcherServicesWithJobGraphStore.getConfiguration(),
+			partialDispatcherServicesWithJobGraphStore.getHighAvailabilityServices(),
+			partialDispatcherServicesWithJobGraphStore.getResourceManagerGatewayRetriever(),
+			partialDispatcherServicesWithJobGraphStore.getBlobServer(),
+			partialDispatcherServicesWithJobGraphStore.getHeartbeatServices(),
+			partialDispatcherServicesWithJobGraphStore.getArchivedExecutionGraphStore(),
+			partialDispatcherServicesWithJobGraphStore.getFatalErrorHandler(),
+			partialDispatcherServicesWithJobGraphStore.getHistoryServerArchivist(),
+			partialDispatcherServicesWithJobGraphStore.getMetricQueryServiceAddress(),
+			partialDispatcherServicesWithJobGraphStore.getJobManagerMetricGroupFactory().create(),
+			partialDispatcherServicesWithJobGraphStore.getJobGraphStore(),
 			jobManagerRunnerFactory);
 	}
 }

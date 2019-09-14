@@ -29,11 +29,11 @@ public enum SessionDispatcherFactory implements DispatcherFactory {
 	@Override
 	public StandaloneDispatcher createDispatcher(
 			RpcService rpcService,
-			PartialDispatcherServices partialDispatcherServices) throws Exception {
+			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		// create the default dispatcher
 		return new StandaloneDispatcher(
 			rpcService,
 			getEndpointId(),
-			DispatcherServices.from(partialDispatcherServices, DefaultJobManagerRunnerFactory.INSTANCE));
+			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE));
 	}
 }
