@@ -26,9 +26,12 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.service.Service;
@@ -45,6 +48,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,9 +58,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static junit.framework.TestCase.assertTrue;
-import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /**
@@ -91,7 +93,7 @@ public class YarnClusterDescriptorTest extends TestLogger {
 	public static void tearDownClass() {
 		yarnClient.stop();
 	}
-	
+
 	@Test
 	public void testFailIfTaskSlotsHigherThanMaxVcores() throws ClusterDeploymentException {
 		final Configuration flinkConfiguration = new Configuration();
@@ -516,6 +518,63 @@ public class YarnClusterDescriptorTest extends TestLogger {
 		yarnClusterDescriptor.close();
 
 		assertTrue(closableYarnClient.isInState(Service.STATE.STOPPED));
+	}
+
+	@Test
+	public void testValidShipDirectoryName() throws IOException {
+
+		YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor();
+
+		// /a_{FileJobGraphRetriever.DEFAULT_JOB_DIR} is valid and subdirectory of it is not checked
+		java.nio.file.Path validShipDirectory1 =
+			temporaryFolder.newFolder("a_" + FileJobGraphRetriever.DEFAULT_JOB_DIR).toPath();
+		Files.createDirectories(validShipDirectory1.resolve(FileJobGraphRetriever.DEFAULT_JOB_DIR));
+
+		// files under ship directory is not checked
+		java.nio.file.Path validShipDirectory2 = temporaryFolder.newFolder("a").toPath();
+		Files.createFile(validShipDirectory2.resolve(FileJobGraphRetriever.DEFAULT_JOB_DIR));
+
+		// only the last part of the path is checked
+		// so this is the valid ship directory /a/b/{FileJobGraphRetriever.DEFAULT_JOB_DIR}/x
+		java.nio.file.Path validShipDirectory3 = Paths.get("a",
+			"b", FileJobGraphRetriever.DEFAULT_JOB_DIR,  "x");
+
+		java.nio.file.Path validFile = temporaryFolder.newFile(FileJobGraphRetriever.DEFAULT_JOB_DIR).toPath();
+
+		Set<File> validShipDirectories =
+			Sets.newHashSet(validShipDirectory1.toFile(),
+				validShipDirectory2.toFile(),
+				validFile.toFile(),
+				validShipDirectory3.toFile());
+		yarnClusterDescriptor.checkShipDirectories(YarnConfigOptions.UserJarInclusion.DISABLED,
+			validShipDirectories);
+		yarnClusterDescriptor.checkShipDirectories(YarnConfigOptions.UserJarInclusion.FIRST,
+			validShipDirectories);
+	}
+
+	@Test
+	public void testIllegalShipDirectoryName() throws IOException {
+
+		YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor();
+
+		java.nio.file.Path  illegalShipDirectoryName = Paths.get(temporaryFolder.newFolder("a").toString(),
+			FileJobGraphRetriever.DEFAULT_JOB_DIR);
+		Files.createDirectory(illegalShipDirectoryName);
+
+		try {
+			yarnClusterDescriptor.checkShipDirectories(YarnConfigOptions.UserJarInclusion.DISABLED,
+				Sets.newHashSet(illegalShipDirectoryName.toFile()));
+			fail("this test should throw exception!");
+		} catch (RuntimeException exception) {
+			assertTrue(exception.getMessage().contains("this is an illegal ship directory"));
+		}
+		try {
+			yarnClusterDescriptor.checkShipDirectories(YarnConfigOptions.UserJarInclusion.FIRST,
+				Sets.newHashSet(illegalShipDirectoryName.toFile()));
+		} catch (RuntimeException exception) {
+			fail("this test should not throw the exception");
+		}
+
 	}
 
 	private YarnClusterDescriptor createYarnClusterDescriptor() {

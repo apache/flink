@@ -39,6 +39,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.AbstractUserClassPathJobGraphRetriever;
+import org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
@@ -701,6 +702,8 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 		}
 
 		addEnvironmentFoldersToShipFiles(systemShipFiles);
+
+		checkShipDirectories(userJarInclusion, systemShipFiles);
 
 		// Set-up ApplicationSubmissionContext for the application
 
@@ -1502,6 +1505,39 @@ public abstract class AbstractYarnClusterDescriptor implements ClusterDescriptor
 					appContext.getClass().getCanonicalName(), KEEP_CONTAINERS_METHOD_NAME);
 			}
 		}
+	}
+
+	/**
+	 * Check if there is a directory name is same as
+	 * {@value org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever#DEFAULT_JOB_DIR} in the
+	 * shipDirectories. Throw a RuntimeException if there is one and userJarInclusion == DISABLED.
+	 *
+	 * @param userJarInclusion
+	 * 		whether the system class path includes the user jar
+	 * @param shipDirectories
+	 * 		the file set needed to be checked.
+	 * @throws RuntimeException
+	 */
+	void checkShipDirectories(YarnConfigOptions.UserJarInclusion userJarInclusion, Set<File> shipDirectories)
+		throws RuntimeException {
+		if (shipDirectories == null || shipDirectories.isEmpty() ||
+			userJarInclusion != YarnConfigOptions.UserJarInclusion.DISABLED) {
+			return;
+		}
+		for (File file : shipDirectories) {
+			java.nio.file.Path path = file.toPath();
+			if (!file.isDirectory() || path.getNameCount() <= 0) {
+				continue;
+			}
+
+			if (path.getName(path.getNameCount() - 1).toString().equals(FileJobGraphRetriever.DEFAULT_JOB_DIR)) {
+				throw new RuntimeException("this is an illegal ship directory : " + file +
+					". When setting the \"yarn.per-job-cluster.include-user-jar\" to " +
+					YarnConfigOptions.UserJarInclusion.DISABLED.toString() +
+					" the name of ship directory can not be " + FileJobGraphRetriever.DEFAULT_JOB_DIR);
+			}
+		}
+		return;
 	}
 
 	private static class YarnDeploymentException extends RuntimeException {
