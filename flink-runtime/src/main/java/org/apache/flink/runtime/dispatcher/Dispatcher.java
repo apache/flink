@@ -69,7 +69,6 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiConsumerWithException;
-import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.CheckedSupplier;
 import org.apache.flink.util.function.FunctionUtils;
 import org.apache.flink.util.function.FunctionWithException;
@@ -711,64 +710,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		return FutureUtils.completeAll(values);
 	}
 
-	/**
-	 * Recovers all jobs persisted via the submitted job graph store.
-	 */
-	@VisibleForTesting
-	Collection<JobGraph> recoverJobs() throws Exception {
-		log.info("Recovering all persisted jobs.");
-		final Collection<JobID> jobIds = jobGraphStore.getJobIds();
-
-		final Collection<JobGraph> jobGraphs;
-
-		try {
-			jobGraphs = recoverJobGraphs(jobIds);
-		} catch (Exception e) {
-			// release all recovered job graphs
-			for (JobID jobId : jobIds) {
-				try {
-					jobGraphStore.releaseJobGraph(jobId);
-				} catch (Exception ie) {
-					e.addSuppressed(ie);
-				}
-			}
-			throw e;
-		}
-
-		return deduplicateJobs(jobGraphs);
-	}
-
-	private Collection<JobGraph> deduplicateJobs(Collection<JobGraph> jobGraphs) {
-		final HashSet<JobGraph> result = new HashSet<>(recoveredJobs);
-
-		result.addAll(jobGraphs);
-
-		return result;
-	}
-
-	@Nonnull
-	private Collection<JobGraph> recoverJobGraphs(Collection<JobID> jobIds) throws Exception {
-		final List<JobGraph> jobGraphs = new ArrayList<>(jobIds.size());
-
-		for (JobID jobId : jobIds) {
-			final JobGraph jobGraph = recoverJob(jobId);
-
-			if (jobGraph == null) {
-				throw new FlinkJobNotFoundException(jobId);
-			}
-
-			jobGraphs.add(jobGraph);
-		}
-
-		return jobGraphs;
-	}
-
-	@Nullable
-	private JobGraph recoverJob(JobID jobId) throws Exception {
-		log.debug("Recover job {}.", jobId);
-		return jobGraphStore.recoverJobGraph(jobId);
-	}
-
 	protected void onFatalError(Throwable throwable) {
 		fatalErrorHandler.onFatalError(throwable);
 	}
@@ -892,26 +833,14 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			() -> {
 				log.info("Dispatcher {} was granted leadership with fencing token {}", getAddress(), newLeaderSessionID);
 
-				final CompletableFuture<Collection<JobGraph>> recoveredJobsFuture = recoveryOperation.thenApplyAsync(
-					FunctionUtils.uncheckedFunction(ignored -> recoverJobs()),
-					getRpcService().getExecutor());
+				final CompletableFuture<Boolean> fencingTokenFuture = tryAcceptLeadershipAndRunJobs(newLeaderSessionID, recoveredJobs);
 
-				final CompletableFuture<Boolean> fencingTokenFuture = recoveredJobsFuture.thenComposeAsync(
-					(Collection<JobGraph> recoveredJobs) -> tryAcceptLeadershipAndRunJobs(newLeaderSessionID, recoveredJobs),
-					getUnfencedMainThreadExecutor());
-
-				final CompletableFuture<Void> confirmationFuture = fencingTokenFuture.thenCombineAsync(
-					recoveredJobsFuture,
-					BiFunctionWithException.unchecked((Boolean confirmLeadership, Collection<JobGraph> recoveredJobs) -> {
+				final CompletableFuture<Void> confirmationFuture = fencingTokenFuture.thenAcceptAsync(
+					(Boolean confirmLeadership) -> {
 						if (confirmLeadership) {
 							leaderElectionService.confirmLeadership(newLeaderSessionID, getAddress());
-						} else {
-							for (JobGraph recoveredJob : recoveredJobs) {
-								jobGraphStore.releaseJobGraph(recoveredJob.getJobID());
-							}
 						}
-						return null;
-					}),
+					},
 					getRpcService().getExecutor());
 
 				confirmationFuture.whenComplete(
