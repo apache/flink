@@ -99,7 +99,7 @@ import java.util.stream.Collectors;
  * about the state of the Flink session cluster.
  */
 public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> implements
-	DispatcherGateway, LeaderContender, JobGraphStore.JobGraphListener {
+	DispatcherGateway, LeaderContender {
 
 	public static final String DISPATCHER_NAME = "dispatcher";
 
@@ -201,7 +201,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	private void startDispatcherServices() throws Exception {
 		try {
-			jobGraphStore.start(this);
 			leaderElectionService.start(this);
 
 			registerDispatcherMetrics(jobManagerMetricGroup);
@@ -239,12 +238,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		Exception exception = null;
 		try {
 			jobManagerSharedServices.shutdown();
-		} catch (Exception e) {
-			exception = ExceptionUtils.firstOrSuppressed(e, exception);
-		}
-
-		try {
-			jobGraphStore.stop();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
@@ -1008,79 +1001,5 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	@Override
 	public void handleError(final Exception exception) {
 		onFatalError(new DispatcherException("Received an error from the LeaderElectionService.", exception));
-	}
-
-	//------------------------------------------------------
-	// JobGraphListener
-	//------------------------------------------------------
-
-	@Override
-	public void onAddedJobGraph(final JobID jobId) {
-		runAsync(
-			() -> {
-				if (!jobManagerRunnerFutures.containsKey(jobId)) {
-					// IMPORTANT: onAddedJobGraph can generate false positives and, thus, we must expect that
-					// the specified job is already removed from the JobGraphStore. In this case,
-					// JobGraphStore.recoverJob returns null.
-					final CompletableFuture<Optional<JobGraph>> recoveredJob = recoveryOperation.thenApplyAsync(
-						FunctionUtils.uncheckedFunction(ignored -> Optional.ofNullable(recoverJob(jobId))),
-						getRpcService().getExecutor());
-
-					final DispatcherId dispatcherId = getFencingToken();
-					final CompletableFuture<Void> submissionFuture = recoveredJob.thenComposeAsync(
-						(Optional<JobGraph> jobGraphOptional) -> jobGraphOptional.map(
-							FunctionUtils.uncheckedFunction(jobGraph -> tryRunRecoveredJobGraph(jobGraph, dispatcherId).thenAcceptAsync(
-								FunctionUtils.uncheckedConsumer((Boolean isRecoveredJobRunning) -> {
-										if (!isRecoveredJobRunning) {
-											jobGraphStore.releaseJobGraph(jobId);
-										}
-									}),
-									getRpcService().getExecutor())))
-							.orElse(CompletableFuture.completedFuture(null)),
-						getUnfencedMainThreadExecutor());
-
-					submissionFuture.whenComplete(
-						(Void ignored, Throwable throwable) -> {
-							if (throwable != null) {
-								onFatalError(
-									new DispatcherException(
-										String.format("Could not start the added job %s", jobId),
-										ExceptionUtils.stripCompletionException(throwable)));
-							}
-						});
-
-					recoveryOperation = submissionFuture;
-				}
-			});
-	}
-
-	private CompletableFuture<Boolean> tryRunRecoveredJobGraph(JobGraph jobGraph, DispatcherId dispatcherId) throws Exception {
-		if (leaderElectionService.hasLeadership(dispatcherId.toUUID())) {
-			final JobID jobId = jobGraph.getJobID();
-			if (jobManagerRunnerFutures.containsKey(jobId)) {
-				// we must not release the job graph lock since it can only be locked once and
-				// is currently being executed. Once we support multiple locks, we must release
-				// the JobGraph here
-				log.debug("Ignore added JobGraph because the job {} is already running.", jobId);
-				return CompletableFuture.completedFuture(true);
-			} else if (runningJobsRegistry.getJobSchedulingStatus(jobId) != RunningJobsRegistry.JobSchedulingStatus.DONE) {
-				return waitForTerminatingJobManager(jobId, jobGraph, this::runJob).thenApply(ignored -> true);
-			} else {
-				log.debug("Ignore added JobGraph because the job {} has already been completed.", jobId);
-			}
-		}
-
-		return CompletableFuture.completedFuture(false);
-	}
-
-	@Override
-	public void onRemovedJobGraph(final JobID jobId) {
-		runAsync(() -> {
-			try {
-				removeJobAndRegisterTerminationFuture(jobId, false);
-			} catch (final Exception e) {
-				onFatalError(new DispatcherException(String.format("Could not remove job %s.", jobId), e));
-			}
-		});
 	}
 }

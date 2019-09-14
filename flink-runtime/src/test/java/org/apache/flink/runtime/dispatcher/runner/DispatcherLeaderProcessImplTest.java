@@ -18,20 +18,27 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.BiFunctionWithException;
 
+import org.hamcrest.core.Is;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Collection;
@@ -54,7 +61,7 @@ import static org.junit.Assert.fail;
  */
 public class DispatcherLeaderProcessImplTest extends TestLogger {
 
-	private static final JobGraph PERSISTED_JOB_GRAPH = new JobGraph("Persisted JobGraph");
+	private static final JobGraph JOB_GRAPH = new JobGraph("JobGraph");
 
 	private static ExecutorService ioExecutor;
 
@@ -106,7 +113,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 	@Test
 	public void start_triggersJobGraphRecoveryAndDispatcherServiceCreation() throws Exception {
 		jobGraphStore = TestingJobGraphStore.newBuilder()
-			.setInitialJobGraphs(Collections.singleton(PERSISTED_JOB_GRAPH))
+			.setInitialJobGraphs(Collections.singleton(JOB_GRAPH))
 			.build();
 
 		final CompletableFuture<Collection<JobGraph>> recoveredJobGraphsFuture = new CompletableFuture<>();
@@ -126,7 +133,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 			final Collection<JobGraph> recoveredJobGraphs = recoveredJobGraphsFuture.get();
 
 			assertThat(recoveredJobGraphs, hasSize(1));
-			assertThat(recoveredJobGraphs, containsInAnyOrder(PERSISTED_JOB_GRAPH));
+			assertThat(recoveredJobGraphs, containsInAnyOrder(JOB_GRAPH));
 		}
 	}
 
@@ -237,6 +244,109 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 				fail("No dispatcher service should be created after the process has been stopped.");
 			} catch (TimeoutException expected) {}
 		}
+	}
+
+	@Test
+	public void onRemovedJobGraph_cancelsRunningJob() throws Exception {
+		jobGraphStore = TestingJobGraphStore.newBuilder()
+			.setInitialJobGraphs(Collections.singleton(JOB_GRAPH))
+			.build();
+
+		final CompletableFuture<JobID> cancelJobFuture = new CompletableFuture<>();
+		final TestingDispatcherGateway testingDispatcherGateway = new TestingDispatcherGateway.Builder()
+			.setCancelJobFunction(
+				jobToCancel -> {
+					cancelJobFuture.complete(jobToCancel);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				})
+			.build();
+
+		dispatcherServiceFactory = createDispatcherServiceFactoryFor(testingDispatcherGateway);
+
+		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+			dispatcherLeaderProcess.start();
+
+			// wait for the dispatcher process to be created
+			dispatcherLeaderProcess.getDispatcherGateway().get();
+
+			// now remove the Job from the JobGraphStore and notify the dispatcher service
+			jobGraphStore.removeJobGraph(JOB_GRAPH.getJobID());
+			dispatcherLeaderProcess.onRemovedJobGraph(JOB_GRAPH.getJobID());
+
+			assertThat(cancelJobFuture.get(), is(JOB_GRAPH.getJobID()));
+		}
+	}
+
+	@Test
+	public void onAddedJobGraph_submitsRecoveredJob() throws Exception {
+		final CompletableFuture<JobGraph> submittedJobFuture = new CompletableFuture<>();
+		final TestingDispatcherGateway testingDispatcherGateway = new TestingDispatcherGateway.Builder()
+			.setSubmitFunction(
+				submittedJob -> {
+					submittedJobFuture.complete(submittedJob);
+					return CompletableFuture.completedFuture(Acknowledge.get());
+				})
+			.build();
+
+		dispatcherServiceFactory = createDispatcherServiceFactoryFor(testingDispatcherGateway);
+
+		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+			dispatcherLeaderProcess.start();
+
+			// wait first for the dispatcher service to be created
+			dispatcherLeaderProcess.getDispatcherGateway().get();
+
+			jobGraphStore.putJobGraph(JOB_GRAPH);
+			dispatcherLeaderProcess.onAddedJobGraph(JOB_GRAPH.getJobID());
+
+			final JobGraph submittedJobGraph = submittedJobFuture.get();
+
+			assertThat(submittedJobGraph.getJobID(), is(JOB_GRAPH.getJobID()));
+		}
+	}
+
+	@Test
+	public void onAddedJobGraph_failingRecovery_propagatesTheFailure() throws Exception {
+		final FlinkException expectedFailure = new FlinkException("Expected failure");
+		jobGraphStore = TestingJobGraphStore.newBuilder()
+			.setRecoverJobGraphFunction(
+				(ignoredA, ignoredB) -> {
+					throw expectedFailure;
+				})
+			.build();
+
+		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+			dispatcherLeaderProcess.start();
+
+			// wait first for the dispatcher service to be created
+			dispatcherLeaderProcess.getDispatcherGateway().get();
+
+			jobGraphStore.putJobGraph(JOB_GRAPH);
+			dispatcherLeaderProcess.onAddedJobGraph(JOB_GRAPH.getJobID());
+
+			final CompletableFuture<Throwable> errorFuture = fatalErrorHandler.getErrorFuture();
+			final Throwable throwable = errorFuture.get();
+			Assert.assertThat(ExceptionUtils.findThrowable(throwable, expectedFailure::equals).isPresent(), Is.is(true));
+
+			assertThat(dispatcherLeaderProcess.getState(), is(DispatcherLeaderProcessImpl.State.STOPPED));
+
+			fatalErrorHandler.clearError();
+		}
+	}
+
+	@Test
+	@Ignore
+	public void onAddedJobGraph_falsePositive_willBeIgnored() {
+		fail("Needs to be implemented once the proper deduplication mechanism is in place.");
+	}
+
+	private TestingDispatcherServiceFactory createDispatcherServiceFactoryFor(TestingDispatcherGateway testingDispatcherGateway) {
+		return TestingDispatcherServiceFactory.newBuilder()
+			.setCreateFunction(
+				(ignoredA, ignoredB) -> TestingDispatcherService.newBuilder()
+					.setDispatcherGateway(testingDispatcherGateway)
+					.build())
+			.build();
 	}
 
 	private DispatcherLeaderProcessImpl createDispatcherLeaderProcess() {
