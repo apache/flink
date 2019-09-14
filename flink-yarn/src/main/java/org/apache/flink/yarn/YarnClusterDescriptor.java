@@ -112,6 +112,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR;
 import static org.apache.flink.configuration.ConfigConstants.ENV_FLINK_LIB_DIR;
 import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever.JOB_GRAPH_FILE_PATH;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -743,6 +744,19 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		// Plugin files only need to be shipped and should not be added to classpath.
 		addPluginsFoldersToShipFiles(shipOnlyFiles);
 
+		if (userJarInclusion == YarnConfigOptions.UserJarInclusion.DISABLED) {
+			shipFiles.stream()
+				.filter(File::isDirectory)
+				.map(File::getName)
+				.filter(name -> name.equals(DEFAULT_FLINK_USR_LIB_DIR))
+				.findAny()
+				.ifPresent(name -> {
+					throw new IllegalArgumentException(String.format("This is an illegal ship directory : %s. " +
+							"When setting the \"yarn.per-job-cluster.include-user-jar\" to %s " +
+							"the name of ship directory can not be %s.",
+						name, YarnConfigOptions.UserJarInclusion.DISABLED, ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR));
+				});
+		}
 		// Set-up ApplicationSubmissionContext for the application
 
 		final ApplicationId appId = appContext.getApplicationId();
