@@ -63,7 +63,7 @@ import org.apache.flink.runtime.state.CheckpointStorageLocation;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.runtime.testutils.InMemoryJobGraphStore;
+import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -135,7 +135,7 @@ public class DispatcherTest extends TestLogger {
 
 	private TestingFatalErrorHandler fatalErrorHandler;
 
-	private FaultyJobGraphStore submittedJobGraphStore;
+	private TestingJobGraphStore jobGraphStore;
 
 	private TestingLeaderElectionService dispatcherLeaderElectionService;
 
@@ -179,14 +179,14 @@ public class DispatcherTest extends TestLogger {
 
 		fatalErrorHandler = new TestingFatalErrorHandler();
 		heartbeatServices = new HeartbeatServices(1000L, 10000L);
-		submittedJobGraphStore = new FaultyJobGraphStore();
+		jobGraphStore = TestingJobGraphStore.newBuilder().build();
 
 		dispatcherLeaderElectionService = new TestingLeaderElectionService();
 		jobMasterLeaderElectionService = new TestingLeaderElectionService();
 
 		haServices = new TestingHighAvailabilityServices();
 		haServices.setDispatcherLeaderElectionService(dispatcherLeaderElectionService);
-		haServices.setJobGraphStore(submittedJobGraphStore);
+		haServices.setJobGraphStore(jobGraphStore);
 		haServices.setJobMasterLeaderElectionService(TEST_JOB_ID, jobMasterLeaderElectionService);
 		haServices.setCheckpointRecoveryFactory(new StandaloneCheckpointRecoveryFactory());
 		haServices.setResourceManagerLeaderRetriever(new SettableLeaderRetrievalService());
@@ -314,14 +314,17 @@ public class DispatcherTest extends TestLogger {
 	 */
 	@Test
 	public void testLeaderElection() throws Exception {
-		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch));
-
 		CompletableFuture<Void> jobIdsFuture = new CompletableFuture<>();
-		submittedJobGraphStore.setJobIdsFunction(
-			(Collection<JobID> jobIds) -> {
-				jobIdsFuture.complete(null);
-				return jobIds;
-			});
+		final JobGraphStore jobGraphStore = TestingJobGraphStore.newBuilder()
+			.setJobIdsFunction(
+				(Collection<JobID> jobIds) -> {
+					jobIdsFuture.complete(null);
+					return jobIds;
+				})
+			.build();
+
+		haServices.setJobGraphStore(jobGraphStore);
+		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch));
 
 		electDispatcher();
 
@@ -344,16 +347,16 @@ public class DispatcherTest extends TestLogger {
 		dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 		jobMasterLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
-		final JobGraph jobGraph = submittedJobGraphStore.recoverJobGraph(TEST_JOB_ID);
+		final JobGraph jobGraph = jobGraphStore.recoverJobGraph(TEST_JOB_ID);
 
 		// pretend that other Dispatcher has removed job from submittedJobGraphStore
-		submittedJobGraphStore.removeJobGraph(TEST_JOB_ID);
+		jobGraphStore.removeJobGraph(TEST_JOB_ID);
 		dispatcher.onRemovedJobGraph(TEST_JOB_ID);
 		assertThat(dispatcherGateway.listJobs(TIMEOUT).get(), empty());
 
 		// pretend that other Dispatcher has added a job to submittedJobGraphStore
 		runningJobsRegistry.clearJob(TEST_JOB_ID);
-		submittedJobGraphStore.putJobGraph(jobGraph);
+		jobGraphStore.putJobGraph(jobGraph);
 		dispatcher.onAddedJobGraph(TEST_JOB_ID);
 		createdJobManagerRunnerLatch.await();
 		assertThat(dispatcherGateway.listJobs(TIMEOUT).get(), hasSize(1));
@@ -361,14 +364,20 @@ public class DispatcherTest extends TestLogger {
 
 	@Test
 	public void testOnAddedJobGraphRecoveryFailure() throws Exception {
-		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch));
-
 		final FlinkException expectedFailure = new FlinkException("Expected failure");
-		submittedJobGraphStore.setRecoveryFailure(expectedFailure);
+		final JobGraphStore jobGraphStore = TestingJobGraphStore.newBuilder()
+			.setRecoverJobGraphFunction(
+				(ignoredA, ignoredB) -> {
+					throw expectedFailure;
+				})
+			.build();
+
+		haServices.setJobGraphStore(jobGraphStore);
+		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch));
 
 		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
-		submittedJobGraphStore.putJobGraph(jobGraph);
+		jobGraphStore.putJobGraph(jobGraph);
 		dispatcher.onAddedJobGraph(TEST_JOB_ID);
 
 		final CompletableFuture<Throwable> errorFuture = fatalErrorHandler.getErrorFuture();
@@ -386,7 +395,7 @@ public class DispatcherTest extends TestLogger {
 
 		dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
-		submittedJobGraphStore.putJobGraph(jobGraph);
+		jobGraphStore.putJobGraph(jobGraph);
 		runningJobsRegistry.setJobFinished(TEST_JOB_ID);
 		dispatcher.onAddedJobGraph(TEST_JOB_ID);
 
@@ -460,7 +469,7 @@ public class DispatcherTest extends TestLogger {
 		dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
 
 		// check that the job has been persisted
-		assertThat(submittedJobGraphStore.getJobIds(), contains(jobGraph.getJobID()));
+		assertThat(jobGraphStore.getJobIds(), contains(jobGraph.getJobID()));
 
 		jobMasterLeaderElectionService.isLeader(UUID.randomUUID()).get();
 
@@ -557,13 +566,16 @@ public class DispatcherTest extends TestLogger {
 	 */
 	@Test
 	public void testFatalErrorAfterJobIdRecoveryFailure() throws Exception {
-		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch));
-
 		final FlinkException testException = new FlinkException("Test exception");
-		submittedJobGraphStore.setJobIdsFunction(
-			(Collection<JobID> jobIds) -> {
-				throw testException;
-			});
+		final JobGraphStore jobGraphStore = TestingJobGraphStore.newBuilder()
+			.setJobIdsFunction(
+				(Collection<JobID> jobIds) -> {
+					throw testException;
+				})
+			.build();
+
+		haServices.setJobGraphStore(jobGraphStore);
+		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch));
 
 		electDispatcher();
 
@@ -582,17 +594,19 @@ public class DispatcherTest extends TestLogger {
 	@Test
 	public void testFatalErrorAfterJobRecoveryFailure() throws Exception {
 		final FlinkException testException = new FlinkException("Test exception");
+		final TestingJobGraphStore jobGraphStore = TestingJobGraphStore.newBuilder()
+			.setRecoverJobGraphFunction(
+				(JobID jobId, Map<JobID, JobGraph> jobGraphs) -> {
+					throw testException;
+				})
+			.build();
 
+		haServices.setJobGraphStore(jobGraphStore);
 		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, new ExpectedJobIdJobManagerRunnerFactory(TEST_JOB_ID, createdJobManagerRunnerLatch));
 
 		dispatcher.waitUntilStarted();
 
-		submittedJobGraphStore.putJobGraph(jobGraph);
-
-		submittedJobGraphStore.setRecoverJobGraphFunction(
-			(JobID jobId, Map<JobID, JobGraph> jobGraphs) -> {
-				throw testException;
-			});
+		jobGraphStore.putJobGraph(jobGraph);
 
 		electDispatcher();
 
@@ -618,7 +632,7 @@ public class DispatcherTest extends TestLogger {
 
 		final JobGraph failingJobGraph = createFailingJobGraph(testException);
 
-		submittedJobGraphStore.putJobGraph(failingJobGraph);
+		jobGraphStore.putJobGraph(failingJobGraph);
 
 		electDispatcher();
 
@@ -708,7 +722,7 @@ public class DispatcherTest extends TestLogger {
 
 	@Test
 	public void testPersistedJobGraphWhenDispatcherIsShutDown() throws Exception {
-		final InMemoryJobGraphStore submittedJobGraphStore = new InMemoryJobGraphStore();
+		final TestingJobGraphStore submittedJobGraphStore = TestingJobGraphStore.newBuilder().build();
 		haServices.setJobGraphStore(submittedJobGraphStore);
 
 		dispatcher = createAndStartDispatcher(heartbeatServices, haServices, DefaultJobManagerRunnerFactory.INSTANCE);
