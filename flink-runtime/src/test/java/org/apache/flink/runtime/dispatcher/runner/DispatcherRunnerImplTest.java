@@ -28,7 +28,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.JobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
-import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
+import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
 import org.apache.flink.runtime.dispatcher.SingleJobJobGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
 import org.apache.flink.runtime.dispatcher.TestingJobManagerRunnerFactory;
@@ -109,7 +109,7 @@ public class DispatcherRunnerImplTest extends TestLogger {
 			.setDispatcherLeaderElectionService(dispatcherLeaderElectionService)
 			.build()) {
 
-			final PartialDispatcherServices partialDispatcherServices = new PartialDispatcherServices(
+			final PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore = new PartialDispatcherServicesWithJobGraphStore(
 				configuration,
 				highAvailabilityServices,
 				CompletableFuture::new,
@@ -119,13 +119,14 @@ public class DispatcherRunnerImplTest extends TestLogger {
 				new MemoryArchivedExecutionGraphStore(),
 				fatalErrorHandler,
 				VoidHistoryServerArchivist.INSTANCE,
-				null);
+				null,
+				highAvailabilityServices.getJobGraphStore());
 
 			final TestingJobManagerRunnerFactory jobManagerRunnerFactory = new TestingJobManagerRunnerFactory(1);
 			try (final DispatcherRunnerImpl dispatcherRunner = new DispatcherRunnerImpl(
 				new TestingDispatcherFactory(jobManagerRunnerFactory),
 				rpcService,
-				partialDispatcherServices)) {
+				partialDispatcherServicesWithJobGraphStore)) {
 				// initial run
 				grantLeadership(dispatcherLeaderElectionService, dispatcherRunner);
 				final TestingJobManagerRunner testingJobManagerRunner = jobManagerRunnerFactory.takeCreatedJobManagerRunner();
@@ -169,8 +170,8 @@ public class DispatcherRunnerImplTest extends TestLogger {
 		}
 
 		@Override
-		public Dispatcher createDispatcher(@Nonnull RpcService rpcService, @Nonnull PartialDispatcherServices partialDispatcherServices) throws Exception {
-			return new StandaloneDispatcher(rpcService, getEndpointId(), DispatcherServices.from(partialDispatcherServices, jobManagerRunnerFactory));
+		public Dispatcher createDispatcher(@Nonnull RpcService rpcService, @Nonnull PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
+			return new StandaloneDispatcher(rpcService, getEndpointId(), DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, jobManagerRunnerFactory));
 		}
 	}
 }

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -114,7 +115,7 @@ public class MiniDispatcherTest extends TestLogger {
 	@Before
 	public void setup() throws Exception {
 		dispatcherLeaderElectionService = new TestingLeaderElectionService();
-		highAvailabilityServices = new TestingHighAvailabilityServices();
+		highAvailabilityServices = new TestingHighAvailabilityServicesBuilder().build();
 		testingFatalErrorHandler = new TestingFatalErrorHandler();
 
 		highAvailabilityServices.setDispatcherLeaderElectionService(dispatcherLeaderElectionService);
@@ -240,6 +241,7 @@ public class MiniDispatcherTest extends TestLogger {
 				VoidHistoryServerArchivist.INSTANCE,
 				null,
 				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+				highAvailabilityServices.getJobGraphStore(),
 				testingJobManagerRunnerFactory),
 			jobGraph,
 			executionMode);

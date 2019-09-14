@@ -23,7 +23,7 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
-import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
+import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
@@ -46,11 +46,11 @@ class DispatcherRunnerImpl implements DispatcherRunner {
 	DispatcherRunnerImpl(
 		DispatcherFactory dispatcherFactory,
 		RpcService rpcService,
-		PartialDispatcherServices partialDispatcherServices) throws Exception {
+		PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		this.dispatcher = dispatcherFactory.createDispatcher(
 			rpcService,
-			partialDispatcherServices);
-		this.leaderRetrievalService = partialDispatcherServices.getHighAvailabilityServices().getDispatcherLeaderRetriever();
+			partialDispatcherServicesWithJobGraphStore);
+		this.leaderRetrievalService = partialDispatcherServicesWithJobGraphStore.getHighAvailabilityServices().getDispatcherLeaderRetriever();
 		this.leaderRetriever = new LeaderRetriever();
 
 		leaderRetrievalService.start(leaderRetriever);

@@ -42,8 +42,8 @@ public class JobDispatcherFactory implements DispatcherFactory {
 	@Override
 	public MiniDispatcher createDispatcher(
 			@Nonnull RpcService rpcService,
-			@Nonnull PartialDispatcherServices partialDispatcherServices) throws Exception {
-		final Configuration configuration = partialDispatcherServices.getConfiguration();
+			@Nonnull PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
+		final Configuration configuration = partialDispatcherServicesWithJobGraphStore.getConfiguration();
 		final JobGraph jobGraph = jobGraphRetriever.retrieveJobGraph(configuration);
 
 		final String executionModeValue = configuration.getString(EXECUTION_MODE);
@@ -53,7 +53,7 @@ public class JobDispatcherFactory implements DispatcherFactory {
 		return new MiniDispatcher(
 			rpcService,
 			getEndpointId(),
-			DispatcherServices.from(partialDispatcherServices, DefaultJobManagerRunnerFactory.INSTANCE),
+			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE),
 			jobGraph,
 			executionMode);
 	}

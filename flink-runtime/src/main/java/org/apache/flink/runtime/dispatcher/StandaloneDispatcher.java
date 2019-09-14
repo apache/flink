@@ -36,6 +36,6 @@ public class StandaloneDispatcher extends Dispatcher {
 			rpcService,
 			endpointId,
 			dispatcherServices,
-			dispatcherServices.getHighAvailabilityServices().getJobGraphStore());
+			dispatcherServices.getJobGraphStore());
 	}
 }
