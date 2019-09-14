@@ -23,7 +23,7 @@ import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -50,13 +50,13 @@ class DispatcherServiceImplFactory implements DispatcherLeaderProcessImpl.Dispat
 	}
 
 	@Override
-	public DispatcherLeaderProcessImpl.DispatcherService create(Collection<JobGraph> recoveredJobs, JobGraphStore jobGraphStore) {
+	public DispatcherLeaderProcessImpl.DispatcherService create(Collection<JobGraph> recoveredJobs, JobGraphWriter jobGraphWriter) {
 		final Dispatcher dispatcher;
 		try {
 			dispatcher = dispatcherFactory.createDispatcher(
 				rpcService,
 				recoveredJobs,
-				PartialDispatcherServicesWithJobGraphStore.from(partialDispatcherServices, jobGraphStore));
+				PartialDispatcherServicesWithJobGraphStore.from(partialDispatcherServices, jobGraphWriter));
 		} catch (Exception e) {
 			throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);
 		}

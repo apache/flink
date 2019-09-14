@@ -19,21 +19,21 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 
 import java.util.Collection;
 import java.util.function.BiFunction;
 
 class TestingDispatcherServiceFactory implements DispatcherLeaderProcessImpl.DispatcherServiceFactory {
-	private final BiFunction<Collection<JobGraph>, JobGraphStore, DispatcherLeaderProcessImpl.DispatcherService> createFunction;
+	private final BiFunction<Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction;
 
-	private TestingDispatcherServiceFactory(BiFunction<Collection<JobGraph>, JobGraphStore, DispatcherLeaderProcessImpl.DispatcherService> createFunction) {
+	private TestingDispatcherServiceFactory(BiFunction<Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction) {
 		this.createFunction = createFunction;
 	}
 
 	@Override
-	public DispatcherLeaderProcessImpl.DispatcherService create(Collection<JobGraph> recoveredJobs, JobGraphStore jobGraphStore) {
-		return createFunction.apply(recoveredJobs, jobGraphStore);
+	public DispatcherLeaderProcessImpl.DispatcherService create(Collection<JobGraph> recoveredJobs, JobGraphWriter jobGraphWriter) {
+		return createFunction.apply(recoveredJobs, jobGraphWriter);
 	}
 
 	public static Builder newBuilder() {
@@ -41,11 +41,11 @@ class TestingDispatcherServiceFactory implements DispatcherLeaderProcessImpl.Dis
 	}
 
 	public static class Builder {
-		private BiFunction<Collection<JobGraph>, JobGraphStore, DispatcherLeaderProcessImpl.DispatcherService> createFunction = (ignoredA, ignoredB) -> TestingDispatcherService.newBuilder().build();
+		private BiFunction<Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction = (ignoredA, ignoredB) -> TestingDispatcherService.newBuilder().build();
 
 		private Builder() {}
 
-		Builder setCreateFunction(BiFunction<Collection<JobGraph>, JobGraphStore, DispatcherLeaderProcessImpl.DispatcherService> createFunction) {
+		Builder setCreateFunction(BiFunction<Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction) {
 			this.createFunction = createFunction;
 			return this;
 		}

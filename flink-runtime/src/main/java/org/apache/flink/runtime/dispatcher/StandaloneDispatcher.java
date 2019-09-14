@@ -40,6 +40,6 @@ public class StandaloneDispatcher extends Dispatcher {
 			endpointId,
 			recoveredJobs,
 			dispatcherServices,
-			dispatcherServices.getJobGraphStore());
+			dispatcherServices.getJobGraphWriter());
 	}
 }
