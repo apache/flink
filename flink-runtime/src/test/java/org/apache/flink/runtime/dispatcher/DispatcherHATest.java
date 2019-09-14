@@ -42,7 +42,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.runtime.testutils.InMemoryJobGraphStore;
+import org.apache.flink.runtime.testutils.TestingJobGraphStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ExceptionUtils;
@@ -207,13 +207,14 @@ public class DispatcherHATest extends TestLogger {
 	 */
 	@Test
 	public void testJobRecoveryWhenChangingLeadership() throws Exception {
-		final InMemoryJobGraphStore submittedJobGraphStore = new InMemoryJobGraphStore();
-
 		final CompletableFuture<JobID> recoveredJobFuture = new CompletableFuture<>();
-		submittedJobGraphStore.setRecoverJobGraphFunction((jobID, jobIDSubmittedJobGraphMap) -> {
-			recoveredJobFuture.complete(jobID);
-			return jobIDSubmittedJobGraphMap.get(jobID);
-		});
+		final TestingJobGraphStore submittedJobGraphStore = TestingJobGraphStore.newBuilder()
+			.setRecoverJobGraphFunction(
+				(jobID, jobIDSubmittedJobGraphMap) -> {
+					recoveredJobFuture.complete(jobID);
+					return jobIDSubmittedJobGraphMap.get(jobID);
+				})
+			.build();
 
 		final TestingLeaderElectionService leaderElectionService = new TestingLeaderElectionService();
 
