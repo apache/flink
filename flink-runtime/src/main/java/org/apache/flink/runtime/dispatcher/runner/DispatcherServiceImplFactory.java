@@ -55,6 +55,7 @@ class DispatcherServiceImplFactory implements DispatcherLeaderProcessImpl.Dispat
 		try {
 			dispatcher = dispatcherFactory.createDispatcher(
 				rpcService,
+				recoveredJobs,
 				PartialDispatcherServicesWithJobGraphStore.from(partialDispatcherServices, jobGraphStore));
 		} catch (Exception e) {
 			throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);

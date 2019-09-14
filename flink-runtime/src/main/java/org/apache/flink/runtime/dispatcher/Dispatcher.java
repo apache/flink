@@ -117,6 +117,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	private final FatalErrorHandler fatalErrorHandler;
 
 	private final Map<JobID, CompletableFuture<JobManagerRunner>> jobManagerRunnerFutures;
+	private final Collection<JobGraph> recoveredJobs;
 
 	private final LeaderElectionService leaderElectionService;
 
@@ -140,6 +141,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	public Dispatcher(
 			RpcService rpcService,
 			String endpointId,
+			Collection<JobGraph> recoveredJobs,
 			DispatcherServices dispatcherServices,
 			JobGraphStore jobGraphStore) throws Exception {
 		super(rpcService, endpointId, null);
@@ -174,6 +176,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		this.jobManagerTerminationFutures = new HashMap<>(2);
 
 		this.shutDownFuture = new CompletableFuture<>();
+
+		this.recoveredJobs = new HashSet<>(recoveredJobs);
 	}
 
 	//------------------------------------------------------
@@ -715,8 +719,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		log.info("Recovering all persisted jobs.");
 		final Collection<JobID> jobIds = jobGraphStore.getJobIds();
 
+		final Collection<JobGraph> jobGraphs;
+
 		try {
-			return recoverJobGraphs(jobIds);
+			jobGraphs = recoverJobGraphs(jobIds);
 		} catch (Exception e) {
 			// release all recovered job graphs
 			for (JobID jobId : jobIds) {
@@ -728,6 +734,16 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			}
 			throw e;
 		}
+
+		return deduplicateJobs(jobGraphs);
+	}
+
+	private Collection<JobGraph> deduplicateJobs(Collection<JobGraph> jobGraphs) {
+		final HashSet<JobGraph> result = new HashSet<>(recoveredJobs);
+
+		result.addAll(jobGraphs);
+
+		return result;
 	}
 
 	@Nonnull

@@ -25,6 +25,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -34,6 +35,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -47,6 +49,7 @@ class TestingDispatcher extends Dispatcher {
 	TestingDispatcher(
 		RpcService rpcService,
 		String endpointId,
+		Collection<JobGraph> recoveredJobs,
 		Configuration configuration,
 		HighAvailabilityServices highAvailabilityServices,
 		GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
@@ -60,6 +63,7 @@ class TestingDispatcher extends Dispatcher {
 		super(
 			rpcService,
 			endpointId,
+			recoveredJobs,
 			new DispatcherServices(
 				configuration,
 				highAvailabilityServices,

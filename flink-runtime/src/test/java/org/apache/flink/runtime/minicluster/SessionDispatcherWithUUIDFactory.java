@@ -23,9 +23,12 @@ import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import javax.annotation.Nonnull;
+
+import java.util.Collection;
 
 /**
  * {@link DispatcherFactory} which creates a {@link StandaloneDispatcher} which has an
@@ -37,11 +40,13 @@ public enum SessionDispatcherWithUUIDFactory implements DispatcherFactory {
 	@Override
 	public StandaloneDispatcher createDispatcher(
 			@Nonnull RpcService rpcService,
+			@Nonnull Collection<JobGraph> recoveredJobs,
 			@Nonnull PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		// create the default dispatcher
 		return new StandaloneDispatcher(
 			rpcService,
 			generateEndpointIdWithUUID(),
+			recoveredJobs,
 			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE));
 	}
 }

@@ -26,6 +26,8 @@ import org.apache.flink.runtime.rpc.RpcService;
 
 import javax.annotation.Nonnull;
 
+import java.util.Collection;
+
 import static org.apache.flink.runtime.entrypoint.ClusterEntrypoint.EXECUTION_MODE;
 
 /**
@@ -42,6 +44,7 @@ public class JobDispatcherFactory implements DispatcherFactory {
 	@Override
 	public MiniDispatcher createDispatcher(
 			@Nonnull RpcService rpcService,
+			@Nonnull Collection<JobGraph> recoveredJobs,
 			@Nonnull PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		final Configuration configuration = partialDispatcherServicesWithJobGraphStore.getConfiguration();
 		final JobGraph jobGraph = jobGraphRetriever.retrieveJobGraph(configuration);

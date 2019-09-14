@@ -18,10 +18,12 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcService;
 
 import javax.annotation.Nonnull;
 
+import java.util.Collection;
 import java.util.UUID;
 
 /**
@@ -34,6 +36,7 @@ public interface DispatcherFactory {
 	 */
 	Dispatcher createDispatcher(
 		@Nonnull RpcService rpcService,
+		@Nonnull Collection<JobGraph> recoveredJobs,
 		@Nonnull PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception;
 
 	default String generateEndpointIdWithUUID() {

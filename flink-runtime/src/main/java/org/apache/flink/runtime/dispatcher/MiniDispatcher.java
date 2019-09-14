@@ -30,6 +30,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.FlinkException;
 
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -55,6 +56,7 @@ public class MiniDispatcher extends Dispatcher {
 		super(
 			rpcService,
 			endpointId,
+			Collections.singleton(jobGraph),
 			dispatcherServices,
 			new SingleJobJobGraphStore(jobGraph));
 

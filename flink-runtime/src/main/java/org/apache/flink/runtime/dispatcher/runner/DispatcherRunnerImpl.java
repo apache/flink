@@ -30,6 +30,7 @@ import org.apache.flink.runtime.webmonitor.retriever.LeaderRetriever;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -49,6 +50,7 @@ class DispatcherRunnerImpl implements DispatcherRunner {
 		PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		this.dispatcher = dispatcherFactory.createDispatcher(
 			rpcService,
+			Collections.emptyList(),
 			partialDispatcherServicesWithJobGraphStore);
 		this.leaderRetrievalService = partialDispatcherServicesWithJobGraphStore.getHighAvailabilityServices().getDispatcherLeaderRetriever();
 		this.leaderRetriever = new LeaderRetriever();

@@ -64,6 +64,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -334,6 +335,7 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 		return new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName() + UUID.randomUUID(),
+			Collections.emptyList(),
 			configuration,
 			highAvailabilityServices,
 			() -> CompletableFuture.completedFuture(resourceManagerGateway),
