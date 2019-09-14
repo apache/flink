@@ -227,6 +227,10 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		}
 	}
 
+	protected Executor getIOExecutor() {
+		return ioExecutor;
+	}
+
 	@VisibleForTesting
 	@Nonnull
 	protected Collection<DispatcherResourceManagerComponent> getDispatcherResourceManagerComponents() {
@@ -388,6 +392,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 		return Collections.singleton(
 			dispatcherResourceManagerComponentFactory.create(
 				configuration,
+				ioExecutor,
 				rpcServiceFactory.createRpcService(),
 				haServices,
 				blobServer,

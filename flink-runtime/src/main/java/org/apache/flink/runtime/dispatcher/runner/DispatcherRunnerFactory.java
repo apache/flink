@@ -21,10 +21,15 @@ package org.apache.flink.runtime.dispatcher.runner;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.rpc.RpcService;
 
+import java.util.concurrent.Executor;
+
 /**
  * Factory interface for the {@link DispatcherRunner}.
  */
 public interface DispatcherRunnerFactory {
 
-	DispatcherRunner createDispatcherRunner(RpcService rpcService, PartialDispatcherServices partialDispatcherServices) throws Exception;
+	DispatcherRunner createDispatcherRunner(
+		RpcService rpcService,
+		Executor ioExecutor,
+		PartialDispatcherServices partialDispatcherServices) throws Exception;
 }
