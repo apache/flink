@@ -50,12 +50,14 @@ public class MiniDispatcher extends Dispatcher {
 	public MiniDispatcher(
 			RpcService rpcService,
 			String endpointId,
+			DispatcherId fencingToken,
 			DispatcherServices dispatcherServices,
 			JobGraph jobGraph,
 			JobClusterEntrypoint.ExecutionMode executionMode) throws Exception {
 		super(
 			rpcService,
 			endpointId,
+			fencingToken,
 			Collections.singleton(jobGraph),
 			dispatcherServices,
 			new SingleJobJobGraphStore(jobGraph));

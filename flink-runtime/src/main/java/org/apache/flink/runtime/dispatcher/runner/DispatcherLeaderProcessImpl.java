@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
@@ -158,7 +159,10 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 	}
 
 	private void createDispatcher(Collection<JobGraph> jobGraphs) {
-		dispatcher = dispatcherFactory.create(jobGraphs, jobGraphStore);
+		dispatcher = dispatcherFactory.create(
+			DispatcherId.fromUuid(leaderSessionId),
+			jobGraphs,
+			jobGraphStore);
 		dispatcherGatewayFuture.complete(dispatcher.getGateway());
 	}
 
@@ -411,7 +415,10 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 	// ------------------------------------------------------------
 
 	interface DispatcherServiceFactory {
-		DispatcherService create(Collection<JobGraph> recoveredJobs, JobGraphWriter jobGraphWriter);
+		DispatcherService create(
+			DispatcherId fencingToken,
+			Collection<JobGraph> recoveredJobs,
+			JobGraphWriter jobGraphWriter);
 	}
 
 	interface DispatcherService extends AutoCloseableAsync {

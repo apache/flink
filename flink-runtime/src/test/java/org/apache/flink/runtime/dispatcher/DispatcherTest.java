@@ -216,6 +216,7 @@ public class DispatcherTest extends TestLogger {
 		return new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
+			DispatcherId.generate(),
 			Collections.emptyList(),
 			configuration,
 			haServices,

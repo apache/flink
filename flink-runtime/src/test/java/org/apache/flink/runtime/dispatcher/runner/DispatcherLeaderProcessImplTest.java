@@ -30,7 +30,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.function.BiFunctionWithException;
+import org.apache.flink.util.function.TriFunctionWithException;
 
 import org.hamcrest.core.Is;
 import org.junit.After;
@@ -119,7 +119,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 		final CompletableFuture<Collection<JobGraph>> recoveredJobGraphsFuture = new CompletableFuture<>();
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
 			.setCreateFunction(
-				(recoveredJobGraphs, jobGraphStore) -> {
+				(fencingToken, recoveredJobGraphs, jobGraphStore) -> {
 					recoveredJobGraphsFuture.complete(recoveredJobGraphs);
 					return TestingDispatcherService.newBuilder().build();
 				}
@@ -147,7 +147,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 		final CompletableFuture<Void> dispatcherServiceTerminationFuture = new CompletableFuture<>();
 		final OneShotLatch dispatcherServiceShutdownLatch = new OneShotLatch();
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
-			.setCreateFunction((ignoredA, ignoredB) -> TestingDispatcherService.newBuilder()
+			.setCreateFunction((ignoredA, ignoredB, ignoredC) -> TestingDispatcherService.newBuilder()
 				.setTerminationFutureSupplier(() -> {
 					dispatcherServiceShutdownLatch.trigger();
 					return dispatcherServiceTerminationFuture;
@@ -187,7 +187,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 
 		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
 			.setCreateFunction(
-				BiFunctionWithException.unchecked((ignoredA, ignoredB) -> {
+				TriFunctionWithException.unchecked((ignoredA, ignoredB, ignoredC) -> {
 					createDispatcherServiceLatch.await();
 					return TestingDispatcherService.newBuilder()
 						.setDispatcherGateway(dispatcherGateway)
@@ -224,7 +224,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 
 		this.dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
 			.setCreateFunction(
-				(ignoredA, ignoredB) -> {
+				(ignoredA, ignoredB, ignoredC) -> {
 					createDispatcherService.trigger();
 					return TestingDispatcherService.newBuilder().build();
 				})
@@ -343,7 +343,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 	private TestingDispatcherServiceFactory createDispatcherServiceFactoryFor(TestingDispatcherGateway testingDispatcherGateway) {
 		return TestingDispatcherServiceFactory.newBuilder()
 			.setCreateFunction(
-				(ignoredA, ignoredB) -> TestingDispatcherService.newBuilder()
+				(ignoredA, ignoredB, ignoredC) -> TestingDispatcherService.newBuilder()
 					.setDispatcherGateway(testingDispatcherGateway)
 					.build())
 			.build();

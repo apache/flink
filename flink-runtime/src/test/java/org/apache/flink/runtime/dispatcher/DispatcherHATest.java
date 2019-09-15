@@ -314,6 +314,7 @@ public class DispatcherHATest extends TestLogger {
 		return new HATestingDispatcher(
 			rpcService,
 			UUID.randomUUID().toString(),
+			DispatcherId.generate(),
 			Collections.emptyList(),
 			configuration,
 			highAvailabilityServices,
@@ -346,6 +347,7 @@ public class DispatcherHATest extends TestLogger {
 		HATestingDispatcher(
 				RpcService rpcService,
 				String endpointId,
+				DispatcherId fencingToken,
 				Collection<JobGraph> recoveredJobs,
 				Configuration configuration,
 				HighAvailabilityServices highAvailabilityServices,
@@ -361,6 +363,7 @@ public class DispatcherHATest extends TestLogger {
 			super(
 				rpcService,
 				endpointId,
+				fencingToken,
 				recoveredJobs,
 				configuration,
 				highAvailabilityServices,

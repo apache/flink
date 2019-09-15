@@ -32,12 +32,14 @@ public enum SessionDispatcherFactory implements DispatcherFactory {
 	@Override
 	public StandaloneDispatcher createDispatcher(
 			RpcService rpcService,
+			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
 			PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
 		// create the default dispatcher
 		return new StandaloneDispatcher(
 			rpcService,
 			getEndpointId(),
+			fencingToken,
 			recoveredJobs,
 			DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, DefaultJobManagerRunnerFactory.INSTANCE));
 	}

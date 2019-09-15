@@ -33,11 +33,13 @@ public class StandaloneDispatcher extends Dispatcher {
 	public StandaloneDispatcher(
 			RpcService rpcService,
 			String endpointId,
+			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
 			DispatcherServices dispatcherServices) throws Exception {
 		super(
 			rpcService,
 			endpointId,
+			fencingToken,
 			recoveredJobs,
 			dispatcherServices,
 			dispatcherServices.getJobGraphWriter());

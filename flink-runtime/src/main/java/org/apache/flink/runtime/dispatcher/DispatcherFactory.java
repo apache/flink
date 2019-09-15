@@ -36,6 +36,7 @@ public interface DispatcherFactory {
 	 */
 	Dispatcher createDispatcher(
 		@Nonnull RpcService rpcService,
+		@Nonnull DispatcherId fencingToken,
 		@Nonnull Collection<JobGraph> recoveredJobs,
 		@Nonnull PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception;
 

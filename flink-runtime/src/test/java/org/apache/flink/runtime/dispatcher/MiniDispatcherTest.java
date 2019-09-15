@@ -230,6 +230,7 @@ public class MiniDispatcherTest extends TestLogger {
 		return new MiniDispatcher(
 			rpcService,
 			UUID.randomUUID().toString(),
+			DispatcherId.generate(),
 			new DispatcherServices(
 				configuration,
 				highAvailabilityServices,
