@@ -201,6 +201,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		dispatcher = new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + UUID.randomUUID(),
+			DispatcherId.generate(),
 			Collections.emptyList(),
 			configuration,
 			highAvailabilityServices,

@@ -18,22 +18,26 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
+import org.apache.flink.util.function.TriFunction;
 
 import java.util.Collection;
-import java.util.function.BiFunction;
 
 class TestingDispatcherServiceFactory implements DispatcherLeaderProcessImpl.DispatcherServiceFactory {
-	private final BiFunction<Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction;
+	private final TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction;
 
-	private TestingDispatcherServiceFactory(BiFunction<Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction) {
+	private TestingDispatcherServiceFactory(TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction) {
 		this.createFunction = createFunction;
 	}
 
 	@Override
-	public DispatcherLeaderProcessImpl.DispatcherService create(Collection<JobGraph> recoveredJobs, JobGraphWriter jobGraphWriter) {
-		return createFunction.apply(recoveredJobs, jobGraphWriter);
+	public DispatcherLeaderProcessImpl.DispatcherService create(
+			DispatcherId fencingToken,
+			Collection<JobGraph> recoveredJobs,
+			JobGraphWriter jobGraphWriter) {
+		return createFunction.apply(fencingToken, recoveredJobs, jobGraphWriter);
 	}
 
 	public static Builder newBuilder() {
@@ -41,11 +45,11 @@ class TestingDispatcherServiceFactory implements DispatcherLeaderProcessImpl.Dis
 	}
 
 	public static class Builder {
-		private BiFunction<Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction = (ignoredA, ignoredB) -> TestingDispatcherService.newBuilder().build();
+		private TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction = (ignoredA, ignoredB, ignoredC) -> TestingDispatcherService.newBuilder().build();
 
 		private Builder() {}
 
-		Builder setCreateFunction(BiFunction<Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction) {
+		Builder setCreateFunction(TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction) {
 			this.createFunction = createFunction;
 			return this;
 		}

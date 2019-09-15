@@ -49,6 +49,7 @@ class TestingDispatcher extends Dispatcher {
 	TestingDispatcher(
 		RpcService rpcService,
 		String endpointId,
+		DispatcherId fencingToken,
 		Collection<JobGraph> recoveredJobs,
 		Configuration configuration,
 		HighAvailabilityServices highAvailabilityServices,
@@ -63,6 +64,7 @@ class TestingDispatcher extends Dispatcher {
 		super(
 			rpcService,
 			endpointId,
+			fencingToken,
 			recoveredJobs,
 			new DispatcherServices(
 				configuration,
@@ -102,12 +104,6 @@ class TestingDispatcher extends Dispatcher {
 	CompletableFuture<Void> getJobTerminationFuture(@Nonnull JobID jobId, @Nonnull Time timeout) {
 		return callAsyncWithoutFencing(
 			() -> getJobTerminationFuture(jobId),
-			timeout).thenCompose(Function.identity());
-	}
-
-	CompletableFuture<Void> getRecoverOperationFuture(@Nonnull Time timeout) {
-		return callAsyncWithoutFencing(
-			this::getRecoveryOperation,
 			timeout).thenCompose(Function.identity());
 	}
 
