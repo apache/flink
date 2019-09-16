@@ -48,8 +48,7 @@ example, you want to use Flink to integrate `2.3.1` hive version in sql client, 
 hive-version to `2.3.4` in YAML config. Similarly pass the version string when creating 
 HiveCatalog instance via Table API.
 
-Users are welcome to try out different versions with this workaround. Since only `2.3.4` and `1.2
-.1` have been tested, there might be unexpected issues. We will test and support more versions in future releases.
+Users are welcome to try out different versions with this workaround. Since only `2.3.4` and `1.2.1` have been tested, there might be unexpected issues. We will test and support more versions in future releases.
 
 ### Depedencies 
 
