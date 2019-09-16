@@ -23,11 +23,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.ZooKeeperCompletedCheckpointStore;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmanager.ZooKeeperJobGraphStore;
@@ -362,24 +362,7 @@ public class ZooKeeperUtils {
 			Configuration configuration,
 			String prefix) throws IOException {
 
-		return new FileSystemStateStorageHelper<T>(getClusterHighAvailabilityStoragePath(configuration), prefix);
-	}
-
-	/**
-	 * Get high availability storage path of current flink cluster.
-	 * @param configuration {@link Configuration} object
-	 * @return high availability storage path of current flink cluster
-	 */
-	private static String getClusterHighAvailabilityStoragePath(Configuration configuration) {
-		String rootPath = configuration.getValue(HighAvailabilityOptions.HA_STORAGE_PATH);
-
-		if (rootPath == null || StringUtils.isBlank(rootPath)) {
-			throw new IllegalConfigurationException("Missing high-availability storage path for metadata." +
-					" Specify via configuration key '" + HighAvailabilityOptions.HA_STORAGE_PATH + "'.");
-		} else {
-			final String clusterId = configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
-			return new Path(rootPath, clusterId).toString();
-		}
+		return new FileSystemStateStorageHelper<>(HighAvailabilityServicesUtils.getClusterHighAvailableStoragePath(configuration), prefix);
 	}
 
 	public static String generateZookeeperPath(String root, String namespace) {

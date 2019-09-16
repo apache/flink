@@ -21,8 +21,10 @@ package org.apache.flink.runtime.highavailability;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
@@ -48,6 +50,7 @@ import java.net.UnknownHostException;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
 
 /**
  * Utils class to instantiate {@link HighAvailabilityServices} implementations.
@@ -203,6 +206,48 @@ public class HighAvailabilityServicesUtils {
 		final String protocol = enableSSL ? "https://" : "http://";
 
 		return String.format("%s%s:%s", protocol, address, port);
+	}
+
+	/**
+	 * Gets the cluster high available storage path from the provided configuration.
+	 *
+	 * <p>The format is {@code HA_STORAGE_PATH/HA_CLUSTER_ID}.
+	 *
+	 * @param configuration containing the configuration values
+	 * @return Path under which all highly available cluster artifacts are being stored
+	 */
+	public static Path getClusterHighAvailableStoragePath(Configuration configuration) {
+		final String storagePath = configuration.getValue(
+			HighAvailabilityOptions.HA_STORAGE_PATH);
+
+		if (isNullOrWhitespaceOnly(storagePath)) {
+			throw new IllegalConfigurationException("Configuration is missing the mandatory parameter: " +
+				HighAvailabilityOptions.HA_STORAGE_PATH);
+		}
+
+		final Path path;
+		try {
+			path = new Path(storagePath);
+		} catch (Exception e) {
+			throw new IllegalConfigurationException("Invalid path for highly available storage (" +
+				HighAvailabilityOptions.HA_STORAGE_PATH.key() + ')', e);
+		}
+
+		final String clusterId = configuration.getValue(HighAvailabilityOptions.HA_CLUSTER_ID);
+
+		final Path clusterStoragePath;
+
+		try {
+			clusterStoragePath = new Path(path, clusterId);
+		} catch (Exception e) {
+			throw new IllegalConfigurationException(
+				String.format("Cannot create cluster high available storage path '%s/%s'. This indicates that an invalid cluster id (%s) has been specified.",
+					storagePath,
+					clusterId,
+					HighAvailabilityOptions.HA_CLUSTER_ID.key()),
+				e);
+		}
+		return clusterStoragePath;
 	}
 
 	private static HighAvailabilityServices createCustomHAServices(Configuration config, Executor executor) throws FlinkException {
