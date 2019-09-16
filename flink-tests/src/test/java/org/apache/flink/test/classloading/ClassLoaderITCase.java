@@ -146,7 +146,6 @@ public class ClassLoaderITCase extends TestLogger {
 	@Test
 	public void testCustomSplitJobWithCustomClassLoaderJar() throws IOException, ProgramInvocationException {
 
-		System.out.println(System.getProperty("user.dir"));
 		PackagedProgram inputSplitTestProg = new PackagedProgram(new File(INPUT_SPLITS_PROG_JAR_FILE));
 
 		TestEnvironment.setAsContext(
