@@ -35,7 +35,7 @@ fi
 # Add pyflink & py4j to PYTHONPATH
 PYFLINK_ZIP="$FLINK_OPT_DIR/python/pyflink.zip"
 if [[ ! ${PYTHONPATH} =~ ${PYFLINK_ZIP} ]]; then
-    export PYTHONPATH="$FLINK_OPT_DIR/python/pyflink.zip:$PYTHONPATH"
+    export PYTHONPATH="$PYFLINK_ZIP:$PYTHONPATH"
 fi
 PY4J_ZIP=`echo "$FLINK_OPT_DIR"/python/py4j-*-src.zip`
 if [[ ! ${PYTHONPATH} =~ ${PY4J_ZIP} ]]; then

@@ -15,13 +15,15 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import glob
+import hashlib
+import json
 import os
 import socket
 import subprocess
 import sys
 import tempfile
 import time
+from stat import ST_MODE
 
 import grpc
 from apache_beam.portability.api.beam_artifact_api_pb2 import GetManifestResponse, ArtifactChunk
@@ -41,16 +43,7 @@ from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 class PythonBootTests(PyFlinkTestCase):
 
-    def check_installed_package(self, prefix_dir, package_names):
-        packages_dir = [path for path
-                        in glob.glob(os.path.join(prefix_dir, "lib", "*", "site-packages", "*"))]
-        for package_name in package_names:
-            self.assertTrue(
-                any([os.path.basename(dir_name).startswith(package_name)
-                     for dir_name in packages_dir]),
-                "%s not in the install packages list!" % package_name)
-
-    def test_python_boot(self):
+    def setUp(self):
         manifest_response = json_format.Parse(manifest, GetManifestResponse())
         artifact_chunks = dict()
         for file_name in file_data:
@@ -92,12 +85,34 @@ class PythonBootTests(PyFlinkTestCase):
             server.start()
             return server, port
 
-        artifact_server, artifact_port = start_test_artifact_server()
-        provision_server, provision_port = start_test_provision_server()
+        self.artifact_server, self.artifact_port = start_test_artifact_server()
+        self.provision_server, self.provision_port = start_test_provision_server()
 
-        env = dict(os.environ)
-        env["python"] = sys.executable
-        env["FLINK_BOOT_TESTING"] = "1"
+        self.env = dict(os.environ)
+        self.env["python"] = sys.executable
+        self.env["FLINK_BOOT_TESTING"] = "1"
+
+    def check_downloaded_files(self, staged_dir, manifest):
+        expected_files_data = json.loads(manifest)["manifest"]["artifact"]
+        files = os.listdir(staged_dir)
+        self.assertEqual(len(expected_files_data), len(files))
+        checked = 0
+        for file_name in files:
+            for file_data in expected_files_data:
+                if file_name == file_data["name"]:
+                    self.assertEqual(
+                        oct(os.stat(os.path.join(staged_dir, file_name))[ST_MODE])[-3:],
+                        str(file_data["permissions"]))
+                    with open(os.path.join(staged_dir, file_name), "rb") as f:
+                        sha256obj = hashlib.sha256()
+                        sha256obj.update(f.read())
+                        hash_value = sha256obj.hexdigest()
+                    self.assertEqual(hash_value, file_data["sha256"])
+                    checked += 1
+                    break
+        self.assertEqual(checked, len(files))
+
+    def test_python_boot(self):
 
         tmp_dir = tempfile.mkdtemp(str(time.time()))
         print("Using %s as the semi_persist_dir." % tmp_dir)
@@ -108,22 +123,18 @@ class PythonBootTests(PyFlinkTestCase):
                 "--logging_endpoint",
                 "localhost:0000",
                 "--artifact_endpoint",
-                "localhost:%d" % artifact_port,
+                "localhost:%d" % self.artifact_port,
                 "--provision_endpoint",
-                "localhost:%d" % provision_port,
+                "localhost:%d" % self.provision_port,
                 "--control_endpoint",
                 "localhost:0000",
                 "--semi_persist_dir",
                 tmp_dir]
-        try:
-            exit_code = subprocess.call(args, stdout=sys.stdout, stderr=sys.stderr, env=env)
-            self.assertTrue(exit_code == 0, "the boot.py exited with non-zero code.")
-            self.check_installed_package(tmp_dir, ["python_package1",  # in requirements.txt
-                                                   "python_package2",  # in requirements.txt
-                                                   "python_package3",  # in extra_packages.txt
-                                                   "apache_beam",  # mocked beam sdk
-                                                   "python_package5",  # mocked data flow sdk
-                                                   "UNKNOWN"])  # users code
-        finally:
-            artifact_server.stop(0)
-            provision_server.stop(0)
+
+        exit_code = subprocess.call(args, stdout=sys.stdout, stderr=sys.stderr, env=self.env)
+        self.assertTrue(exit_code == 0, "the boot.py exited with non-zero code.")
+        self.check_downloaded_files(os.path.join(tmp_dir, "staged"), manifest)
+
+    def tearDown(self):
+        self.artifact_server.stop(0)
+        self.provision_server.stop(0)

@@ -22,10 +22,9 @@ project of Apache Beam, see in:
 
 https://github.com/apache/beam/blob/release-2.14.0/sdks/python/container/boot.go
 
-Its original version is implemented by golang and involves unnecessary dependencies, so we
-re-implemented and modified it in python to support running in process mode and
-custom operators.
-
+It is implemented in golang and will introduce unnecessary dependencies if used in pure python
+project.
+So we add a python implementation which will be used when the python worker runs in process mode.
 It downloads and installs users' python artifacts, then launches the python SDK harness of
 Apache Beam.
 
@@ -119,7 +118,8 @@ with grpc.insecure_channel(artifact_endpoint) as channel:
                 sha256obj.update(f.read())
                 hash_value = sha256obj.hexdigest()
             if hash_value == sha256:
-                logging.info("file exist and has same sha256 hash value, skip...")
+                logging.info("the file: %s already exists and its sha256 hash value: %s is the "
+                             "same as the expected hash value, skipped." % (file_path, sha256))
                 continue
             else:
                 os.remove(file_path)
@@ -134,25 +134,9 @@ with grpc.insecure_channel(artifact_endpoint) as channel:
                 f.write(artifact_chunk.data)
             hash_value = sha256obj.hexdigest()
         if hash_value != sha256:
-            raise Exception("sha256 not consist!")
-        os.chmod(file_path, permissions)
-
-acceptable_whl_specs = [".whl"]
-
-
-def find_beam_sdk_whl():
-    """
-    Find apache beam sdk wheel package in downloaded files. If found, it will be installed.
-
-    :return: the file name of apache beam sdk wheel package.
-    """
-    for filename in files:
-        if filename.startswith("apache_beam"):
-            for acceptable_whl_spec in acceptable_whl_specs:
-                if filename.endswith(acceptable_whl_spec):
-                    logging.info("Found Apache Beam SDK wheel: %s" % filename)
-                    return filename
-    return ""
+            raise Exception("the sha256 hash value: %s of the downloaded file: %s is not the same"
+                            " as the expected hash value: %s" % (hash_value, file_path, sha256))
+        os.chmod(file_path, int(str(permissions), 8))
 
 
 def python_location():
@@ -174,7 +158,7 @@ def pip_command():
 
     If the environment variable "pip" exists, using its value.
 
-    :return: The pip executable file location. Default value is "/usr/local/bin/pip".
+    :return: The pip executable file location. Default value is "{python_location() -m pip}".
     """
     if "pip" in os.environ:
         return [os.environ["pip"]]
@@ -184,156 +168,6 @@ def pip_command():
 
 pip = pip_command()
 python_path = python_location()
-
-
-def add_test_params(args):
-    if "FLINK_BOOT_TESTING" in os.environ and os.environ["FLINK_BOOT_TESTING"] == "1":
-        # do not install those test packages in users' site-packages dir when testing
-        args.append("--prefix")
-        args.append(semi_persist_dir)
-        args.append("-I")
-    return args
-
-
-def pip_install_package(files, dir, name, force, optional, extras):
-    """
-    Pip install the specified python package.
-
-    :param files: The list of the downloaded file names.
-    :type files: list[str]
-    :param dir:  The path of the python package directory.
-    :type dir: str
-    :param name:  The file name of the python package.
-    :type name: str
-    :param force: Force install regardless of whether the package already installed.
-    :type force: bool
-    :param optional: If the specified python package not exists and this param is True,
-                     return 0. If the specified python package not exists and this param
-                     is False, raise an Exception.
-    :type optional: bool
-    :param extras: Specifies the extras_requires param of pip.
-    :type extras: list[str]
-    :return: 0 if install success or no need to install.
-    """
-    for filename in files:
-        if filename == name:
-            package = name
-            if extras is not None and len(extras) > 0:
-                package += "[" + ",".join(extras) + "]"
-            if force:
-                args = ["install", "--upgrade", "--force-reinstall", "--no-deps",
-                        os.path.join(dir, package)]
-                args[0:0] = pip
-                args = add_test_params(args)
-                exit_code = call(args, stdout=sys.stdout, stderr=sys.stderr)
-                if exit_code > 0:
-                    raise Exception("execute %s error! exit code: %d" % (" ".join(args),
-                                                                         exit_code))
-                args = ["install", os.path.join(dir, package)]
-                args[0:0] = pip
-                args = add_test_params(args)
-                exit_code = call(args, stdout=sys.stdout, stderr=sys.stderr)
-                if exit_code > 0:
-                    raise Exception("execute %s error! exit code: %d" % (" ".join(args),
-                                                                         exit_code))
-            else:
-                args = ["install", os.path.join(dir, package)]
-                args[0:0] = pip
-                args = add_test_params(args)
-                exit_code = call(args, stdout=sys.stdout, stderr=sys.stderr)
-                if exit_code > 0:
-                    raise Exception("execute %s error! exit code: %d" % (" ".join(args),
-                                                                         exit_code))
-            return exit_code
-    if optional:
-        return 0
-    raise Exception("package '" + name + "' not found")
-
-
-# try to install user-provided apache beam sdk
-sdk_whl_file = find_beam_sdk_whl()
-if sdk_whl_file != "":
-    try:
-        exit_code = pip_install_package(files, staged_dir, sdk_whl_file, False, False, ["gcp"])
-    except Exception as e:
-        print(e)
-
-# try to install the user-provided dataflow python sdk
-sdk_src_file = "dataflow_python_sdk.tar"
-if os.path.exists(os.path.join(staged_dir, sdk_src_file)):
-    pip_install_package(files, staged_dir, sdk_src_file, False, False, ["gcp"])
-
-
-def pip_install_requirements(files, dir, name):
-    """
-    Install the libraries listed in the specified requirement file.
-    Note that it will not install those libraries from central repositories.
-    The artifacts of the libraries must exist in the downloaded files,
-    but their dependencies can be installed from central repositories.
-    More detail see :class:`apache_beam.options.pipeline_options.SetupOptions`.
-
-    :param files: The list of the downloaded file names.
-    :type files: list[str]
-    :param dir: The path of the requirement file directory.
-    :type dir: str
-    :param name: The requirement file name.
-    :return: 0 if install success.
-    """
-    for filename in files:
-        if filename == name:
-            args = ["install", "-r", os.path.join(dir, name), "--no-index", "--no-deps",
-                    "--find-links", dir]
-            args[0:0] = pip
-            args = add_test_params(args)
-            exit_code = call(args, stdout=sys.stdout, stderr=sys.stderr)
-            if exit_code > 0:
-                raise Exception("execute %s error! exit code: %d" % (" ".join(args), exit_code))
-            args = ["install", "-r", os.path.join(dir, name), "--find-links", dir]
-            args[0:0] = pip
-            args = add_test_params(args)
-            exit_code = call(args, stdout=sys.stdout, stderr=sys.stderr)
-            if exit_code > 0:
-                raise Exception("execute %s error! exit code: %d" % (" ".join(args), exit_code))
-            return 0
-    return 0
-
-
-# install all the libraries listed in the requirements.txt
-pip_install_requirements(files, staged_dir, "requirements.txt")
-
-
-def install_extra_packages(files, extra_packages_file, dir):
-    """
-    Force install extra packages listed in the specified file.
-    Each line in the extra_packages_file is a file name(*.tar.gz, *.tar, *.whl and *.zip).
-    More detail see :class:`apache_beam.options.pipeline_options.SetupOptions`.
-
-    :param files: The dict of the names of downloaded files.
-    :type files: list[str]
-    :param extra_packages_file: The file name of the extra_packages_file.
-    :type extra_packages_file: str
-    :param dir: The path of the extra_packages_file directory.
-    :type dir: str
-    :return: 0 if install success.
-    """
-    for filename in files:
-        if filename == extra_packages_file:
-            with open(os.path.join(dir, extra_packages_file), "r") as f:
-                while True:
-                    text_line = f.readline().strip()
-                    if text_line:
-                        pip_install_package(files, dir, text_line, True, False, None)
-                    else:
-                        break
-            return 0
-    return 0
-
-
-# install extra packages listed in the extra_packages.txt
-install_extra_packages(files, "extra_packages.txt", staged_dir)
-
-# install the packages created from user-provided setup.py
-pip_install_package(files, staged_dir, "workflow.tar.gz", False, True, None)
 
 os.environ["WORKER_ID"] = worker_id
 os.environ["PIPELINE_OPTIONS"] = options
