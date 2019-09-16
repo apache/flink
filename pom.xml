@@ -1782,6 +1782,7 @@ under the License.
 					<configuration>
 						<args>
 							<arg>-nobootcp</arg>
+							<arg>-target:jvm-${java.version}</arg>
 						</args>
 						<jvmArgs>
 							<arg>-Xss2m</arg>
