@@ -239,6 +239,11 @@ public abstract class RecordEmitter<T extends TimestampedValue> implements Runna
 			}
 			if (record == null) {
 				this.emptyQueues.put(min, true);
+			} else if (nextQueue != null && nextQueue.headTimestamp > min.headTimestamp) {
+				// if we stopped emitting due to reaching max timestamp,
+				// the next queue may not be the new min
+				heads.offer(nextQueue);
+				nextQueue = min;
 			} else {
 				heads.offer(min);
 			}
