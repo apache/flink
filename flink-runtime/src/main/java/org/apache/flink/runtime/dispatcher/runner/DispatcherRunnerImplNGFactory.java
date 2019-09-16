@@ -39,7 +39,7 @@ public class DispatcherRunnerImplNGFactory implements DispatcherRunnerFactory {
 	}
 
 	@Override
-	public DispatcherRunner createDispatcherRunner(
+	public DispatcherRunnerImplNG createDispatcherRunner(
 			LeaderElectionService leaderElectionService,
 			FatalErrorHandler fatalErrorHandler,
 			JobGraphStoreFactory jobGraphStoreFactory,
