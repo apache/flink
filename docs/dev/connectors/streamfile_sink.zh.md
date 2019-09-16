@@ -30,10 +30,10 @@ under the License.
 
 为了处理无界的流数据，Streaming File Sink 会将数据写入到桶中。如何分桶是可以配置的，默认策略是基于时间的分桶，这种策略每个小时创建并写入一个新的桶，从而得到流数据在特定时间间隔内接收记录所对应的文件。
 
-对于每一个接收桶数据的 Sink Subtask ，在桶中至少会存在一个正在接收数据的部分文件（part file）。其余的部分文件（part file）将根据滚动策略创建，滚动策略是可以配置的。默认的策略是根据文件大小和超时时间来滚动文件。超时时间指打开文件的最长持续时间，以及文件关闭后的最长非活动时间。
+桶目录中包含多个实际输出数据的部分文件（part file），对于每一个接收桶数据的 Sink Subtask ，至少存在一个部分文件（part file）。额外的部分文件（part file）将根据滚动策略创建，滚动策略是可以配置的。默认的策略是根据文件大小和超时时间来滚动文件。超时时间指打开文件的最长持续时间，以及文件关闭前的最长非活动时间。
 
  <div class="alert alert-info">
-     <b>重要:</b> 使用 Streaming File Sink 时需要启用 Checkpoint ，每次做 Checkpoint 时滚动文件。如果 Checkpoint 被禁用，部分文件（part file）将永远处于 'in-progress' 或 'pending' 状态，下游系统无法安全地读取。
+     <b>重要:</b> 使用 StreamingFileSink 时需要启用 Checkpoint ，每次做 Checkpoint 时写入完成。如果 Checkpoint 被禁用，部分文件（part file）将永远处于 'in-progress' 或 'pending' 状态，下游系统无法安全地读取。
  </div>
 
  <img src="{{ site.baseurl }}/fig/streamfilesink_bucketing.png" class="center" style="width: 100%;" />
@@ -54,7 +54,7 @@ Flink 有两个内置的 BucketAssigners ：
 
 ### 滚动策略
 
-滚动策略 [RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html) 定义了指定的文件在何时关闭（closed）并将其变为 Pending 状态，随后变为 Finished 状态。与 Checkpoint 间隔（处于 Pending 状态的文件会在下一次 Checkpoint 变为 Finished 状态）结合使用，可以控制部分文件（part file）对下游读取者可用的速度以及大小和数量。
+滚动策略 [RollingPolicy]({{ site.javadocs_baseurl }}/api/java/org/apache/flink/streaming/api/functions/sink/filesystem/RollingPolicy.html) 定义了指定的文件在何时关闭（closed）并将其变为 Pending 状态，随后变为 Finished 状态。处于 Pending 状态的文件会在下一次 Checkpoint 时变为 Finished 状态，通过设置 Checkpoint 间隔时间，可以控制部分文件（part file）对下游读取者可用的速度、大小和数量。
 
 Flink 有两个内置的滚动策略：
 
@@ -76,9 +76,9 @@ Flink 有两个内置的滚动策略：
  - **In-progress / Pending**：`part-subtaskIndex-partFileIndex.inprogress.uid`
  - **Finished** ：`part-subtaskIndex-partFileIndex`
 
-对于任何给定的 Subtask （按照它们的创建顺序），部分文件（part file）的索引严格递增。但是，这些索引并不总是连续的。当作业重启时，所有 Subtask 部分文件（part file）索引的值将是 `max part index + 1` 。
+对于任何给定的 Subtask ，部分文件（part file）的索引按创建顺序严格递增。但是，这些索引并不总是连续的。当作业重启时，所有 Subtask 部分文件（part file）索引的值将是 `max part index + 1` 。
 
-对于每个活动的桶，写入 Subtask 在任何时候都只有一个处于 In-progress 状态的部分文件（part file），但是可能有几个 Penging 和 Finished 状态的部分文件（part file）。
+对于每个活动的桶，Writer 在任何时候都只有一个处于 In-progress 状态的部分文件（part file），但是可能有几个 Penging 和 Finished 状态的部分文件（part file）。
 
 **部分文件（part file）例子**
 
