@@ -18,6 +18,8 @@
 
 package org.apache.flink.client;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 
 import java.io.File;
@@ -54,7 +56,12 @@ public enum ClientUtils {
 		}
 	}
 
-	public static ClassLoader buildUserCodeClassLoader(List<URL> jars, List<URL> classpaths, ClassLoader parent) {
+	public static ClassLoader buildUserCodeClassLoader(
+		List<URL> jars,
+		List<URL> classpaths,
+		ClassLoader parent,
+		String resolverOrder,
+		String[] alwaysParentFirstLoaderPatterns) {
 		URL[] urls = new URL[jars.size() + classpaths.size()];
 		for (int i = 0; i < jars.size(); i++) {
 			urls[i] = jars.get(i);
@@ -62,6 +69,25 @@ public enum ClientUtils {
 		for (int i = 0; i < classpaths.size(); i++) {
 			urls[i + jars.size()] = classpaths.get(i);
 		}
-		return FlinkUserCodeClassLoaders.parentFirst(urls, parent);
+		return FlinkUserCodeClassLoaders.create(
+			FlinkUserCodeClassLoaders.ResolveOrder.fromString(resolverOrder),
+			urls,
+			parent,
+			alwaysParentFirstLoaderPatterns
+		);
+	}
+
+	public static ClassLoader buildUserCodeClassLoader(
+		List<URL> jars,
+		List<URL> classpaths,
+		ClassLoader parent) {
+		String[] defaultAlwaysParentLoaderFirstPatterns =
+			CoreOptions.getParentFirstLoaderPatterns(new Configuration());
+		return buildUserCodeClassLoader(
+			jars,
+			classpaths,
+			parent,
+			CoreOptions.CLASSLOADER_RESOLVE_ORDER.defaultValue(),
+			defaultAlwaysParentLoaderFirstPatterns);
 	}
 }
