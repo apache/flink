@@ -23,6 +23,7 @@ import org.apache.flink.configuration.description.Description;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -193,6 +194,31 @@ public class ConfigOption<T> {
 	 */
 	public T defaultValue() {
 		return defaultValue;
+	}
+
+	/**
+	 * Checks whether this option has deprecated keys.
+	 * @return True if the option has deprecated keys, false if not.
+	 * @deprecated Replaced by {@link #hasFallbackKeys()}
+	 */
+	@Deprecated
+	public boolean hasDeprecatedKeys() {
+		return fallbackKeys == EMPTY ? false :
+			Arrays.stream(fallbackKeys).anyMatch(FallbackKey::isDeprecated);
+	}
+
+	/**
+	 * Gets the deprecated keys, in the order to be checked.
+	 * @return The option's deprecated keys.
+	 * @deprecated Replaced by {@link #fallbackKeys()}
+	 */
+	@Deprecated
+	public Iterable<String> deprecatedKeys() {
+		return fallbackKeys == EMPTY ? Collections.<String>emptyList() :
+			Arrays.stream(fallbackKeys)
+				.filter(FallbackKey::isDeprecated)
+				.map(FallbackKey::getKey)
+				.collect(Collectors.toList());
 	}
 
 	/**
