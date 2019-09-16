@@ -103,7 +103,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("LOG10(10)", "1.0")
     testSqlApi("LOG2(8)", "3.0")
     testSqlApi("LOG(E())", "1.0")
-    testSqlApi("LOG(3,27)", "3.0")
+    testSqlApi("LOG(3,27)", "3.0000000000000004")
     testSqlApi("EXP(1)", "2.718281828459045")
     testSqlApi("CEIL(2.5)", "3")
     testSqlApi("CEILING(2.5)", "3")
