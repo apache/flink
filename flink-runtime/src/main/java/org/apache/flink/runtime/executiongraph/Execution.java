@@ -1179,11 +1179,11 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 	//  Internal Actions
 	// --------------------------------------------------------------------------------------------
 
-	private boolean processFail(Throwable t, boolean isCallback) {
-		return processFail(t, isCallback, null, null, true);
+	private void processFail(Throwable t, boolean isCallback) {
+		processFail(t, isCallback, null, null, true);
 	}
 
-	private boolean processFail(Throwable t, boolean isCallback, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics, boolean releasePartitions) {
+	private void processFail(Throwable t, boolean isCallback, Map<String, Accumulator<?, ?>> userAccumulators, IOMetrics metrics, boolean releasePartitions) {
 		// damn, we failed. This means only that we keep our books and notify our parent JobExecutionVertex
 		// the actual computation on the task manager is cleaned up by the TaskManager that noticed the failure
 
@@ -1195,7 +1195,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 
 			if (current == FAILED) {
 				// already failed. It is enough to remember once that we failed (its sad enough)
-				return false;
+				return;
 			}
 
 			if (current == CANCELED || current == FINISHED) {
@@ -1203,12 +1203,12 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("Ignoring transition of vertex {} to {} while being {}.", getVertexWithAttempt(), FAILED, current);
 				}
-				return false;
+				return;
 			}
 
 			if (current == CANCELING) {
 				completeCancelling(userAccumulators, metrics, true);
-				return false;
+				return;
 			}
 
 			if (transitionState(current, FAILED, t)) {
@@ -1237,7 +1237,7 @@ public class Execution implements AccessExecution, Archiveable<ArchivedExecution
 				}
 
 				// leave the loop
-				return true;
+				return;
 			}
 		}
 	}
