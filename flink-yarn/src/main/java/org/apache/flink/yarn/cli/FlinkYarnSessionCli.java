@@ -39,7 +39,6 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ShutdownHookUtil;
-import org.apache.flink.yarn.AbstractYarnClusterDescriptor;
 import org.apache.flink.yarn.YarnClusterDescriptor;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
@@ -263,13 +262,13 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		this.yarnConfiguration = new YarnConfiguration();
 	}
 
-	private AbstractYarnClusterDescriptor createDescriptor(
+	private YarnClusterDescriptor createDescriptor(
 			Configuration configuration,
 			YarnConfiguration yarnConfiguration,
 			String configurationDirectory,
 			CommandLine cmd) {
 
-		AbstractYarnClusterDescriptor yarnClusterDescriptor = getClusterDescriptor(
+		YarnClusterDescriptor yarnClusterDescriptor = getClusterDescriptor(
 			configuration,
 			yarnConfiguration,
 			configurationDirectory);
@@ -436,7 +435,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 	}
 
 	@Override
-	public AbstractYarnClusterDescriptor createClusterDescriptor(CommandLine commandLine) throws FlinkException {
+	public YarnClusterDescriptor createClusterDescriptor(CommandLine commandLine) throws FlinkException {
 		final Configuration effectiveConfiguration = applyCommandLineOptionsToConfiguration(commandLine);
 
 		return createDescriptor(
@@ -576,7 +575,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 			return 0;
 		}
 
-		final AbstractYarnClusterDescriptor yarnClusterDescriptor = createClusterDescriptor(cmd);
+		final YarnClusterDescriptor yarnClusterDescriptor = createClusterDescriptor(cmd);
 
 		try {
 			// Query cluster for metrics
@@ -962,7 +961,7 @@ public class FlinkYarnSessionCli extends AbstractCustomCommandLine<ApplicationId
 		return new File(propertiesFileLocation, YARN_PROPERTIES_FILE + currentUser);
 	}
 
-	private AbstractYarnClusterDescriptor getClusterDescriptor(
+	private YarnClusterDescriptor getClusterDescriptor(
 			Configuration configuration,
 			YarnConfiguration yarnConfiguration,
 			String configurationDirectory) {

@@ -85,7 +85,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 		CommandLine cmd = parser.parse(options, new String[]{"run", "-j", "fake.jar",
 				"-D", "akka.ask.timeout=5 min", "-D", "env.java.opts=-DappName=foobar", "-D", "security.ssl.internal.key-password=changeit"});
 
-		AbstractYarnClusterDescriptor flinkYarnDescriptor = cli.createClusterDescriptor(cmd);
+		YarnClusterDescriptor flinkYarnDescriptor = cli.createClusterDescriptor(cmd);
 
 		Assert.assertNotNull(flinkYarnDescriptor);
 
@@ -110,7 +110,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		final CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
 
-		AbstractYarnClusterDescriptor descriptor = yarnCLI.createClusterDescriptor(commandLine);
+		YarnClusterDescriptor descriptor = yarnCLI.createClusterDescriptor(commandLine);
 
 		final ClusterSpecification clusterSpecification = yarnCLI.getClusterSpecification(commandLine);
 
@@ -132,7 +132,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		final CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
 
-		AbstractYarnClusterDescriptor descriptor = yarnCLI.createClusterDescriptor(commandLine);
+		YarnClusterDescriptor descriptor = yarnCLI.createClusterDescriptor(commandLine);
 
 		// each task manager has 3 slots but the parallelism is 7. Thus the slots should be increased.
 		assertTrue(descriptor.isDetachedMode());
@@ -152,7 +152,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
 
-		AbstractYarnClusterDescriptor descriptor = yarnCLI.createClusterDescriptor(commandLine);
+		YarnClusterDescriptor descriptor = yarnCLI.createClusterDescriptor(commandLine);
 
 		assertEquals(zkNamespaceCliInput, descriptor.getZookeeperNamespace());
 	}
@@ -171,7 +171,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		CommandLine commandLine = yarnCLI.parseCommandLineOptions(params, true);
 
-		AbstractYarnClusterDescriptor descriptor = yarnCLI.createClusterDescriptor(commandLine);
+		YarnClusterDescriptor descriptor = yarnCLI.createClusterDescriptor(commandLine);
 
 		assertEquals(nodeLabelCliInput, descriptor.getNodeLabel());
 	}
@@ -246,7 +246,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString()}, true);
 
-		final AbstractYarnClusterDescriptor clusterDescriptor = flinkYarnSessionCli.createClusterDescriptor(commandLine);
+		final YarnClusterDescriptor clusterDescriptor = flinkYarnSessionCli.createClusterDescriptor(commandLine);
 
 		final Configuration clusterDescriptorConfiguration = clusterDescriptor.getFlinkConfiguration();
 
@@ -267,7 +267,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(new String[] {"-yid", TEST_YARN_APPLICATION_ID.toString(), "-yz", overrideZkNamespace}, true);
 
-		final AbstractYarnClusterDescriptor clusterDescriptor = flinkYarnSessionCli.createClusterDescriptor(commandLine);
+		final YarnClusterDescriptor clusterDescriptor = flinkYarnSessionCli.createClusterDescriptor(commandLine);
 
 		final Configuration clusterDescriptorConfiguration = clusterDescriptor.getFlinkConfiguration();
 
@@ -462,7 +462,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		final CommandLine commandLine = flinkYarnSessionCli.parseCommandLineOptions(args, false);
 
-		AbstractYarnClusterDescriptor flinkYarnDescriptor = flinkYarnSessionCli.createClusterDescriptor(commandLine);
+		YarnClusterDescriptor flinkYarnDescriptor = flinkYarnSessionCli.createClusterDescriptor(commandLine);
 
 		assertEquals(2, flinkYarnDescriptor.shipFiles.size());
 
