@@ -46,7 +46,7 @@ import java.util.concurrent.ExecutionException;
 /**
  * Client to interact with a {@link MiniCluster}.
  */
-public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClusterId> implements NewClusterClient {
+public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClusterId> {
 
 	private final MiniCluster miniCluster;
 

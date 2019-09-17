@@ -27,7 +27,6 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.DetachedJobExecutionResult;
-import org.apache.flink.client.program.NewClusterClient;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
 import org.apache.flink.client.program.rest.retry.WaitStrategy;
@@ -128,7 +127,7 @@ import java.util.stream.Collectors;
 /**
  * A {@link ClusterClient} implementation that communicates via HTTP REST requests.
  */
-public class RestClusterClient<T> extends ClusterClient<T> implements NewClusterClient {
+public class RestClusterClient<T> extends ClusterClient<T> {
 
 	private final RestClusterClientConfiguration restClusterClientConfiguration;
 

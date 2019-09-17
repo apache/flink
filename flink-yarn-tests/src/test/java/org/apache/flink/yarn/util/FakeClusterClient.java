@@ -25,11 +25,13 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.util.OptionalFailure;
 
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
@@ -61,14 +63,17 @@ public class FakeClusterClient extends ClusterClient<ApplicationId> {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}
 
+	@Override
 	public CompletableFuture<JobStatus> getJobStatus(JobID jobId) {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}
 
+	@Override
 	public void cancel(JobID jobId) {
 		// no op
 	}
 
+	@Override
 	public String cancelWithSavepoint(JobID jobId, @Nullable String savepointDirectory) {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}
@@ -78,19 +83,33 @@ public class FakeClusterClient extends ClusterClient<ApplicationId> {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}
 
+	@Override
 	public CompletableFuture<String> triggerSavepoint(JobID jobId, @Nullable String savepointDirectory) {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}
 
+	@Override
 	public CompletableFuture<Acknowledge> disposeSavepoint(String savepointPath) {
 		return CompletableFuture.completedFuture(Acknowledge.get());
 	}
 
+	@Override
 	public CompletableFuture<Collection<JobStatusMessage>> listJobs() {
 		return CompletableFuture.completedFuture(Collections.emptyList());
 	}
 
+	@Override
 	public Map<String, OptionalFailure<Object>> getAccumulators(JobID jobID, ClassLoader loader) {
 		return Collections.emptyMap();
+	}
+
+	@Override
+	public CompletableFuture<JobSubmissionResult> submitJob(@Nonnull JobGraph jobGraph) {
+		throw new UnsupportedOperationException("Not needed in test.");
+	}
+
+	@Override
+	public CompletableFuture<JobResult> requestJobResult(@Nonnull JobID jobId) {
+		throw new UnsupportedOperationException("Not needed in test.");
 	}
 }
