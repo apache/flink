@@ -1637,7 +1637,7 @@
           "type" : "array",
           "items" : {
             "type" : "object",
-            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexDetailsInfo:VertexTaskDetail",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexDetailsInfo:SubtaskExecutionAttemptDetailsInfo",
             "properties" : {
               "subtask" : {
                 "type" : "integer"
@@ -1691,11 +1691,11 @@
                   }
                 }
               },
-              "start_time" : {
-                "type" : "integer"
-              },
               "taskmanager-id" : {
                 "type" : "string"
+              },
+              "start_time" : {
+                "type" : "integer"
               }
             }
           }
@@ -1967,9 +1967,6 @@
         "duration" : {
           "type" : "integer"
         },
-        "taskmanager-id" : {
-          "type" : "string"
-        },
         "metrics" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:IOMetricsInfo",
@@ -1999,6 +1996,12 @@
               "type" : "boolean"
             }
           }
+        },
+        "taskmanager-id" : {
+          "type" : "string"
+        },
+        "start_time" : {
+          "type" : "integer"
         }
       }
     }
@@ -2050,9 +2053,6 @@
         "duration" : {
           "type" : "integer"
         },
-        "taskmanager-id" : {
-          "type" : "string"
-        },
         "metrics" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:metrics:IOMetricsInfo",
@@ -2082,6 +2082,12 @@
               "type" : "boolean"
             }
           }
+        },
+        "taskmanager-id" : {
+          "type" : "string"
+        },
+        "start_time" : {
+          "type" : "integer"
         }
       }
     }
