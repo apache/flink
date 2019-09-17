@@ -93,21 +93,21 @@ class PythonBootTests(PyFlinkTestCase):
         self.env["FLINK_BOOT_TESTING"] = "1"
 
     def check_downloaded_files(self, staged_dir, manifest):
-        expected_files_data = json.loads(manifest)["manifest"]["artifact"]
+        expected_files_info = json.loads(manifest)["manifest"]["artifact"]
         files = os.listdir(staged_dir)
-        self.assertEqual(len(expected_files_data), len(files))
+        self.assertEqual(len(expected_files_info), len(files))
         checked = 0
         for file_name in files:
-            for file_data in expected_files_data:
-                if file_name == file_data["name"]:
+            for file_info in expected_files_info:
+                if file_name == file_info["name"]:
                     self.assertEqual(
                         oct(os.stat(os.path.join(staged_dir, file_name))[ST_MODE])[-3:],
-                        str(file_data["permissions"]))
+                        str(file_info["permissions"]))
                     with open(os.path.join(staged_dir, file_name), "rb") as f:
                         sha256obj = hashlib.sha256()
                         sha256obj.update(f.read())
                         hash_value = sha256obj.hexdigest()
-                    self.assertEqual(hash_value, file_data["sha256"])
+                    self.assertEqual(hash_value, file_info["sha256"])
                     checked += 1
                     break
         self.assertEqual(checked, len(files))

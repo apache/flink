@@ -23,11 +23,9 @@ project of Apache Beam, see in:
 https://github.com/apache/beam/blob/release-2.14.0/sdks/python/container/boot.go
 
 It is implemented in golang and will introduce unnecessary dependencies if used in pure python
-project.
-So we add a python implementation which will be used when the python worker runs in process mode.
-It downloads and installs users' python artifacts, then launches the python SDK harness of
-Apache Beam.
-
+project. So we add a python implementation which will be used when the python worker runs in
+process mode. It downloads and installs users' python artifacts, then launches the python SDK
+harness of Apache Beam.
 """
 import argparse
 import hashlib
@@ -138,36 +136,7 @@ with grpc.insecure_channel(artifact_endpoint) as channel:
                             " as the expected hash value: %s" % (hash_value, file_path, sha256))
         os.chmod(file_path, int(str(permissions), 8))
 
-
-def python_location():
-    """
-    Returns the python executable file location.
-    If the environment variable "python" exists, using its value.
-
-    :return: The python executable file location. Default value is "python".
-    """
-    if "python" in os.environ:
-        return os.environ["python"]
-    else:
-        return "python"
-
-
-def pip_command():
-    """
-    Returns the pip command.
-
-    If the environment variable "pip" exists, using its value.
-
-    :return: The pip executable file location. Default value is "{python_location() -m pip}".
-    """
-    if "pip" in os.environ:
-        return [os.environ["pip"]]
-    else:
-        return [python_location(), "-m", "pip"]
-
-
-pip = pip_command()
-python_path = python_location()
+python_path = sys.executable
 
 os.environ["WORKER_ID"] = worker_id
 os.environ["PIPELINE_OPTIONS"] = options
