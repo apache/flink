@@ -34,6 +34,7 @@ import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestReporter;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
@@ -45,7 +46,7 @@ import static org.junit.Assert.assertTrue;
 /**
  * Tests for the {@link AbstractMetricGroup}.
  */
-public class AbstractMetricGroupTest {
+public class AbstractMetricGroupTest extends TestLogger {
 	/**
 	 * Verifies that no {@link NullPointerException} is thrown when {@link AbstractMetricGroup#getAllVariables()} is
 	 * called and the parent is null.
