@@ -20,6 +20,7 @@ package org.apache.flink.runtime.rest.messages;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.rest.messages.job.SubtaskExecutionAttemptDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
 
 import java.util.ArrayList;
@@ -47,8 +48,8 @@ public class JobVertexDetailsInfoTest extends RestResponseMarshallingTestBase<Jo
 			random.nextBoolean(),
 			random.nextLong(),
 			random.nextBoolean());
-		List<JobVertexDetailsInfo.VertexTaskDetail> vertexTaskDetailList = new ArrayList<>();
-		vertexTaskDetailList.add(new JobVertexDetailsInfo.VertexTaskDetail(
+		List<SubtaskExecutionAttemptDetailsInfo> vertexTaskDetailList = new ArrayList<>();
+		vertexTaskDetailList.add(new SubtaskExecutionAttemptDetailsInfo(
 			0,
 			ExecutionState.CREATED,
 			random.nextInt(),
@@ -58,7 +59,7 @@ public class JobVertexDetailsInfoTest extends RestResponseMarshallingTestBase<Jo
 			1L,
 			jobVertexMetrics,
 			"taskmanagerId1"));
-		vertexTaskDetailList.add(new JobVertexDetailsInfo.VertexTaskDetail(
+		vertexTaskDetailList.add(new SubtaskExecutionAttemptDetailsInfo(
 			1,
 			ExecutionState.FAILED,
 			random.nextInt(),
@@ -68,7 +69,7 @@ public class JobVertexDetailsInfoTest extends RestResponseMarshallingTestBase<Jo
 			1L,
 			jobVertexMetrics,
 			"taskmanagerId2"));
-		vertexTaskDetailList.add(new JobVertexDetailsInfo.VertexTaskDetail(
+		vertexTaskDetailList.add(new SubtaskExecutionAttemptDetailsInfo(
 			2,
 			ExecutionState.FINISHED,
 			random.nextInt(),
