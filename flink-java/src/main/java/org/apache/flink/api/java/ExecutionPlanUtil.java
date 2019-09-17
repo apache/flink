@@ -22,6 +22,8 @@ package org.apache.flink.api.java;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.Plan;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /**
  * A utility for extracting an execution plan (as JSON) from a {@link Plan}.
  */
@@ -34,6 +36,7 @@ public class ExecutionPlanUtil {
 	 * Extracts the execution plan (as JSON) from the given {@link Plan}.
 	 */
 	public static String getExecutionPlanAsJSON(Plan plan) {
+		checkNotNull(plan);
 		ExecutionPlanJSONGenerator jsonGenerator = getJSONGenerator();
 		return jsonGenerator.getExecutionPlan(plan);
 	}
@@ -52,8 +55,7 @@ public class ExecutionPlanUtil {
 
 	private static Class<? extends ExecutionPlanJSONGenerator> loadJSONGeneratorClass(String className) {
 		try {
-			Class<?> generatorClass = Class.forName(
-					"org.apache.flink.optimizer.plandump.ExecutionPlanJSONGenerator");
+			Class<?> generatorClass = Class.forName(className);
 			return generatorClass.asSubclass(ExecutionPlanJSONGenerator.class);
 		} catch (ClassNotFoundException cnfe) {
 			throw new RuntimeException("Could not load the plan generator class (" + className
@@ -71,6 +73,10 @@ public class ExecutionPlanUtil {
 	 */
 	@Internal
 	public interface ExecutionPlanJSONGenerator {
+
+		/**
+		 * Returns the execution plan as a JSON string.
+		 */
 		String getExecutionPlan(Plan plan);
 	}
 }

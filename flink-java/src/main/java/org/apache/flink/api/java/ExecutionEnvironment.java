@@ -771,7 +771,7 @@ public abstract class ExecutionEnvironment {
 	 * @throws Exception Thrown, if the compiler could not be instantiated.
 	 */
 	public String getExecutionPlan() throws Exception {
-		Plan p = createProgramPlan(null, false);
+		Plan p = createProgramPlan(getDefaultName(), false);
 		return ExecutionPlanUtil.getExecutionPlanAsJSON(p);
 	}
 
@@ -869,6 +869,8 @@ public abstract class ExecutionEnvironment {
 	 */
 	@Internal
 	public Plan createProgramPlan(String jobName, boolean clearSinks) {
+		checkNotNull(jobName);
+
 		if (this.sinks.isEmpty()) {
 			if (wasExecuted) {
 				throw new RuntimeException("No new data sinks have been defined since the " +
@@ -879,10 +881,6 @@ public abstract class ExecutionEnvironment {
 						"A program needs at least one sink that consumes data. " +
 						"Examples are writing the data set or printing it.");
 			}
-		}
-
-		if (jobName == null) {
-			jobName = getDefaultName();
 		}
 
 		OperatorTranslation translator = new OperatorTranslation();
