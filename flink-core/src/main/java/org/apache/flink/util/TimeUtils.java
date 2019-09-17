@@ -20,10 +20,12 @@ package org.apache.flink.util;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -136,15 +138,13 @@ public class TimeUtils {
 		}
 
 		public static String getAllUnits() {
-			return String.join(", ", new String[]{
-				"DAYS: (" + String.join(" | ", DAYS.getLabels()) + ")",
-				"HOURS: (" + String.join(" | ", HOURS.getLabels()) + ")",
-				"MINUTES: (" + String.join(" | ", MINUTES.getLabels()) + ")",
-				"SECONDS: (" + String.join(" | ", SECONDS.getLabels()) + ")",
-				"MILLISECONDS: (" + String.join(" | ", MILLISECONDS.getLabels()) + ")",
-				"MICROSECONDS: (" + String.join(" | ", MICROSECONDS.getLabels()) + ")",
-				"NANOSECONDS: (" + String.join(" | ", NANOSECONDS.getLabels()) + ")"
-			});
+			return Arrays.stream(TimeUnit.values())
+				.map(TimeUnit::createTimeUnitString)
+				.collect(Collectors.joining(", "));
+		}
+
+		private static String createTimeUnitString(TimeUnit timeUnit) {
+			return timeUnit.name() + ": (" + String.join(" | ", timeUnit.getLabels()) + ")";
 		}
 	}
 }
