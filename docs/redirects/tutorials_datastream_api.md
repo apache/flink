@@ -1,7 +1,7 @@
 ---
 title: "DataStream API"
 layout: redirect
-redirect: /getting-started/tutorials/datastream_api.html
+redirect: /getting-started/walkthroughs/datastream_api.html
 permalink: /tutorials/datastream_api.html
 ---
 <!--

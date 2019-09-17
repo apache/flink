@@ -23,21 +23,35 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-
-
 This documentation is for Apache Flink version {{ site.version_title }}. These pages were built at: {% build_time %}.
 
 Apache Flink is an open source platform for distributed stream and batch data processing. Flink’s core is a streaming dataflow engine that provides data distribution, communication, and fault tolerance for distributed computations over data streams. Flink builds batch processing on top of the streaming engine, overlaying native iteration support, managed memory, and program optimization.
 
 ## First Steps
 
-- **Concepts**: Start with the basic concepts of Flink's [Dataflow Programming Model](concepts/programming-model.html) and [Distributed Runtime Environment](concepts/runtime.html). This will help you understand other parts of the documentation, including the setup and programming guides. We recommend you read these sections first.
+* **Code Walkthroughs**: Follow step-by-step guides and implement a simple application or query in one of Flink's APIs. 
+  * [Implement a DataStream application](./getting-started/walkthroughs/datastream_api.html)
+  * [Write a Table API query](./getting-started/walkthroughs/table_api.html)
 
-- **Tutorials**: 
-  * [Implement and run a DataStream application](./getting-started/tutorials/datastream_api.html)
+* **Docker Playgrounds**: Set up a sandboxed Flink environment in just a few minutes to explore and play with Flink.
+  * [Run and manage Flink streaming applications](./getting-started/docker-playgrounds/flink-operations-playground.html)
+
+* **Tutorials**: Install Flink on your local machine.
   * [Setup a local Flink cluster](./getting-started/tutorials/local_setup.html)
 
-- **Programming Guides**: You can read our guides about [basic API concepts](dev/api_concepts.html) and the [DataStream API](dev/datastream_api.html) or the [DataSet API](dev/batch/index.html) to learn how to write your first Flink programs.
+* **Concepts**: Learn about Flink's basic concepts to better understand the documentation.
+  * [Dataflow Programming Model](concepts/programming-model.html)
+  * [Distributed Runtime](concepts/runtime.html)
+  * [Glossary](concepts/glossary.html)
+
+## API References
+
+The API references list and explain all features of Flink's APIs.
+
+* [Basic API Concepts](dev/api_concepts.html)
+* [DataStream API](dev/datastream_api.html)
+* [DataSet API](dev/batch/index.html)
+* [Table API &amp; SQL](dev/table/index.html)
 
 ## Deployment
 
