@@ -19,7 +19,9 @@
 package org.apache.flink.table.functions.python;
 
 import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.functions.python.coders.BaseRowCoder;
+import org.apache.flink.table.runtime.runners.python.AbstractPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.BaseRowPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.typeutils.coders.BaseRowCoder;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.sdk.coders.Coder;
@@ -123,6 +125,6 @@ public class BaseRowPythonScalarFunctionRunnerTest extends AbstractPythonScalarF
 			pythonEnv,
 			inputType,
 			outputType,
-			System.getProperty("java.io.tmpdir"));
+			new String[] {System.getProperty("java.io.tmpdir")});
 	}
 }

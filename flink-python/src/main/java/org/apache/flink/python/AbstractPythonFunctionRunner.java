@@ -49,6 +49,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -92,9 +93,9 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 	private final StateRequestHandler stateRequestHandler;
 
 	/**
-	 * Temporary directory to store the retrieval token.
+	 * Temporary directories to store the retrieval token.
 	 */
-	private final String tempDir;
+	private final String[] tempDirs;
 
 	/**
 	 * The file of the retrieval token representing the entirety of the staged artifacts.
@@ -146,12 +147,12 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 		FnDataReceiver<OUT> resultReceiver,
 		PythonEnv pythonEnv,
 		StateRequestHandler stateRequestHandler,
-		String tempDir) {
+		String[] tempDirs) {
 		this.taskName = Preconditions.checkNotNull(taskName);
 		this.resultReceiver = Preconditions.checkNotNull(resultReceiver);
 		this.pythonEnv = Preconditions.checkNotNull(pythonEnv);
 		this.stateRequestHandler = Preconditions.checkNotNull(stateRequestHandler);
-		this.tempDir = Preconditions.checkNotNull(tempDir);
+		this.tempDirs = Preconditions.checkNotNull(tempDirs);
 	}
 
 	@Override
@@ -249,23 +250,22 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 	}
 
 	private String createEmptyRetrievalToken() throws Exception {
-		// try to find a unique file name for the spilling channel
+		// try to find a unique file name for the retrieval token
 		final Random rnd = new Random();
 		for (int attempt = 0; attempt < 10; attempt++) {
-			retrievalToken = new File(tempDir, randomString(rnd) + ".json");
-			if (!retrievalToken.exists()) {
-				break;
+			String directory = tempDirs[rnd.nextInt(tempDirs.length)];
+			retrievalToken = new File(directory, randomString(rnd) + ".json");
+			if (retrievalToken.createNewFile()) {
+				final DataOutputStream dos = new DataOutputStream(new FileOutputStream(retrievalToken));
+				dos.writeBytes("{\"manifest\": {}}");
+				dos.flush();
+				dos.close();
+				return retrievalToken.getAbsolutePath();
 			}
 		}
-		if (retrievalToken.exists()) {
-			throw new IOException(
-				"Could not find a unique file name in '" + tempDir + "' for retrieval token.");
-		}
-		final DataOutputStream dos = new DataOutputStream(new FileOutputStream(retrievalToken));
-		dos.writeBytes("{\"manifest\": {}}");
-		dos.flush();
-		dos.close();
-		return retrievalToken.getAbsolutePath();
+
+		throw new IOException(
+			"Could not find a unique file name in '" + Arrays.toString(tempDirs) + "' for retrieval token.");
 	}
 
 	private static String randomString(Random random) {

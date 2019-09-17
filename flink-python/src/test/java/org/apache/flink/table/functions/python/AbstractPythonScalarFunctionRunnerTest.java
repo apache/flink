@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.functions.python;
 
+import org.apache.flink.table.runtime.runners.python.AbstractPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 

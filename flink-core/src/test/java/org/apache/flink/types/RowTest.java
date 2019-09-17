@@ -79,4 +79,28 @@ public class RowTest {
 		expected.setField(2, "hello world");
 		assertEquals(expected, projected);
 	}
+
+	@Test
+	public void testRowJoin() {
+		Row row1 = new Row(2);
+		row1.setField(0, 1);
+		row1.setField(1, "hello");
+
+		Row row2 = new Row(2);
+		row2.setField(0, null);
+		row2.setField(1, new Tuple2<>(2, "hi"));
+
+		Row row3 = new Row(1);
+		row3.setField(0, "hello world");
+
+		Row joinedRow = Row.join(row1, row2, row3);
+
+		Row expected = new Row(5);
+		expected.setField(0, 1);
+		expected.setField(1, "hello");
+		expected.setField(2, null);
+		expected.setField(3, new Tuple2<>(2, "hi"));
+		expected.setField(4, "hello world");
+		assertEquals(expected, joinedRow);
+	}
 }
