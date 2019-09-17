@@ -239,7 +239,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	@Test
 	public void testResourceComputation() throws Exception {
 		runTest(() -> {
-			addTestAppender(AbstractYarnClusterDescriptor.class, Level.WARN);
+			addTestAppender(YarnClusterDescriptor.class, Level.WARN);
 			LOG.info("Starting testResourceComputation()");
 			runWithArgs(new String[]{
 				"-j", flinkUberjar.getAbsolutePath(),
@@ -271,7 +271,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 	@Test
 	public void testfullAlloc() throws Exception {
 		runTest(() -> {
-			addTestAppender(AbstractYarnClusterDescriptor.class, Level.WARN);
+			addTestAppender(YarnClusterDescriptor.class, Level.WARN);
 			LOG.info("Starting testfullAlloc()");
 			runWithArgs(new String[]{
 				"-j", flinkUberjar.getAbsolutePath(),

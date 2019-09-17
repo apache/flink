@@ -93,7 +93,6 @@ public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
 	}
 
 	private static class TestingFlinkYarnSessionCli extends FlinkYarnSessionCli {
-		@SuppressWarnings("unchecked")
 		private final ClusterClient<ApplicationId> clusterClient;
 		private final String configurationDirectory;
 
@@ -109,34 +108,15 @@ public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
 		}
 
 		@Override
-		public AbstractYarnClusterDescriptor createClusterDescriptor(CommandLine commandLine)
+		public YarnClusterDescriptor createClusterDescriptor(CommandLine commandLine)
 			throws FlinkException {
-			AbstractYarnClusterDescriptor parent = super.createClusterDescriptor(commandLine);
-			return new NonDeployingDetachedYarnClusterDescriptor(
+			YarnClusterDescriptor parent = super.createClusterDescriptor(commandLine);
+			return new NonDeployingYarnClusterDescriptor(
 					parent.getFlinkConfiguration(),
 					(YarnConfiguration) parent.getYarnClient().getConfig(),
 					configurationDirectory,
 					parent.getYarnClient(),
 					clusterClient);
-		}
-	}
-
-	private static class NonDeployingDetachedYarnClusterDescriptor extends NonDeployingYarnClusterDescriptor {
-
-		NonDeployingDetachedYarnClusterDescriptor(
-			Configuration flinkConfiguration,
-			YarnConfiguration yarnConfiguration, String configurationDirectory,
-			YarnClient yarnClient,
-			ClusterClient<ApplicationId> clusterClient) {
-			super(flinkConfiguration, yarnConfiguration, configurationDirectory, yarnClient,
-				clusterClient);
-		}
-
-		@Override
-		public ClusterClient<ApplicationId> deployJobCluster(
-				ClusterSpecification clusterSpecification, JobGraph jobGraph, boolean detached) {
-			assertTrue(detached);
-			return super.deployJobCluster(clusterSpecification, jobGraph, true);
 		}
 	}
 
