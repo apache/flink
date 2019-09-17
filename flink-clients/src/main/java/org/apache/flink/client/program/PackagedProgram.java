@@ -169,8 +169,6 @@ public class PackagedProgram {
 	 *        The resolver order when loading the main class in user jar
 	 * @param alwaysParentFirstLoaderPatterns
 	 *        Patterns indicate to load class with parent loader first
-	 * @param conf
-	 *        flink configuration which are used to decide classloader resolver order and etc.
 	 * @param args
 	 *        Optional. The arguments used to create the pact plan, depend on
 	 *        implementation of the pact plan. See getDescription().
