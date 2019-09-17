@@ -557,7 +557,7 @@ public final class OperationTreeBuilder {
 								.subList(1, unresolvedCall.getChildren().size())
 								.stream()
 								.map(ex -> ExpressionUtils.extractValue(ex, String.class)
-									.orElseThrow(() -> new TableException("Expected string literal as alias.")))
+									.<TableException>orElseThrow(() -> new TableException("Expected string literal as alias.")))
 								.collect(Collectors.toList());
 		}
 

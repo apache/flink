@@ -97,7 +97,7 @@ public final class ProjectionOperationFactory {
 		final Set<String> names = new LinkedHashSet<>();
 
 		extractNames(namedExpressions).stream()
-			.map(name -> name.orElseThrow(() -> new TableException("Could not name a field in a projection.")))
+			.map(name -> name.<TableException>orElseThrow(() -> new TableException("Could not name a field in a projection.")))
 			.forEach(name -> {
 				if (!names.add(name)) {
 					throw new ValidationException("Ambiguous column name: " + name);
