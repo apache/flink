@@ -55,17 +55,17 @@ public class SystemProcessingTimeService implements TimerService {
 	/** The executor service that schedules and calls the triggers of this task. */
 	private final ScheduledThreadPoolExecutor timerService;
 
-	private final ScheduledCallbackExecutionContext callbackExecutionContext;
+	private final ExceptionHandler exceptionHandler;
 	private final AtomicInteger status;
 
 	@VisibleForTesting
-	SystemProcessingTimeService(ScheduledCallbackExecutionContext callbackExecutionContext) {
-		this(callbackExecutionContext, null);
+	SystemProcessingTimeService(ExceptionHandler exceptionHandler) {
+		this(exceptionHandler, null);
 	}
 
-	SystemProcessingTimeService(ScheduledCallbackExecutionContext callbackExecutionContext, ThreadFactory threadFactory) {
+	SystemProcessingTimeService(ExceptionHandler exceptionHandler, ThreadFactory threadFactory) {
 
-		this.callbackExecutionContext = checkNotNull(callbackExecutionContext);
+		this.exceptionHandler = checkNotNull(exceptionHandler);
 		this.status = new AtomicInteger(STATUS_ALIVE);
 
 		if (threadFactory == null) {
@@ -250,24 +250,23 @@ public class SystemProcessingTimeService implements TimerService {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * A context to which {@link ProcessingTimeCallback} would be passed to be invoked when a timer is up.
+	 * An exception handler, called when {@link ProcessingTimeCallback} throws an exception.
 	 */
-	interface ScheduledCallbackExecutionContext {
-
-		void invoke(ProcessingTimeCallback callback, long timestamp);
+	interface ExceptionHandler {
+		void handleException(Exception ex);
 	}
 
 	private Runnable wrapOnTimerCallback(ProcessingTimeCallback callback, long timestamp) {
-		return new ScheduledTask(status, callbackExecutionContext, callback, timestamp, 0);
+		return new ScheduledTask(status, exceptionHandler, callback, timestamp, 0);
 	}
 
 	private Runnable wrapOnTimerCallback(ProcessingTimeCallback callback, long nextTimestamp, long period) {
-		return new ScheduledTask(status, callbackExecutionContext, callback, nextTimestamp, period);
+		return new ScheduledTask(status, exceptionHandler, callback, nextTimestamp, period);
 	}
 
 	private static final class ScheduledTask implements Runnable {
 		private final AtomicInteger serviceStatus;
-		private final ScheduledCallbackExecutionContext callbackExecutionContext;
+		private final ExceptionHandler exceptionHandler;
 		private final ProcessingTimeCallback callback;
 
 		private long nextTimestamp;
@@ -275,12 +274,12 @@ public class SystemProcessingTimeService implements TimerService {
 
 		ScheduledTask(
 				AtomicInteger serviceStatus,
-				ScheduledCallbackExecutionContext callbackExecutionContext,
+				ExceptionHandler exceptionHandler,
 				ProcessingTimeCallback callback,
 				long timestamp,
 				long period) {
 			this.serviceStatus = serviceStatus;
-			this.callbackExecutionContext = callbackExecutionContext;
+			this.exceptionHandler = exceptionHandler;
 			this.callback = callback;
 			this.nextTimestamp = timestamp;
 			this.period = period;
@@ -291,7 +290,11 @@ public class SystemProcessingTimeService implements TimerService {
 			if (serviceStatus.get() != STATUS_ALIVE) {
 				return;
 			}
-			callbackExecutionContext.invoke(callback, nextTimestamp);
+			try {
+				callback.onProcessingTime(nextTimestamp);
+			} catch (Exception ex) {
+				exceptionHandler.handleException(ex);
+			}
 			nextTimestamp += period;
 		}
 	}

@@ -42,7 +42,9 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
@@ -148,8 +150,8 @@ public class StreamTaskTestHarness<OUT> {
 		return mockEnv;
 	}
 
-	public ProcessingTimeService getProcessingTimeService() {
-		return taskThread.task.getProcessingTimeService();
+	public TimerService getTimerService() {
+		return taskThread.task.getTimerService();
 	}
 
 	/**
@@ -418,9 +420,15 @@ public class StreamTaskTestHarness<OUT> {
 	}
 
 	public StreamConfigChainer setupOperatorChain(OperatorID headOperatorId, StreamOperator<?> headOperator) {
+		return setupOperatorChain(headOperatorId, SimpleOperatorFactory.of(headOperator));
+	}
+
+	public StreamConfigChainer setupOperatorChain(OperatorID headOperatorId, StreamOperatorFactory<?> headOperatorFactory) {
 		Preconditions.checkState(!setupCalled, "This harness was already setup.");
 		setupCalled = true;
-		return new StreamConfigChainer(headOperatorId, headOperator, getStreamConfig());
+		StreamConfig streamConfig = getStreamConfig();
+		streamConfig.setStreamOperatorFactory(headOperatorFactory);
+		return new StreamConfigChainer(headOperatorId, streamConfig);
 	}
 
 	// ------------------------------------------------------------------------

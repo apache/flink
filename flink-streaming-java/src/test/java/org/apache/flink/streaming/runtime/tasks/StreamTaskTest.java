@@ -849,9 +849,10 @@ public class StreamTaskTest extends TestLogger {
 	public void testRecordWriterClosedOnStreamOperatorFactoryDeserializationError() throws Exception {
 		Configuration taskConfiguration = new Configuration();
 		StreamConfig streamConfig = new StreamConfig(taskConfiguration);
+		streamConfig.setStreamOperatorFactory(new UnusedOperatorFactory());
 
 		// Make sure that there is some output edge in the config so that some RecordWriter is created
-		StreamConfigChainer cfg = new StreamConfigChainer(new OperatorID(42, 42), new UnusedOperatorFactory(), streamConfig);
+		StreamConfigChainer cfg = new StreamConfigChainer(new OperatorID(42, 42), streamConfig);
 		cfg.chain(
 			new OperatorID(44, 44),
 			new UnusedOperatorFactory(),
@@ -1442,11 +1443,11 @@ public class StreamTaskTest extends TestLogger {
 			checkTaskThreadInfo();
 
 			// Create a time trigger to validate that it would also be invoked in the task's thread.
-			getProcessingTimeService().registerTimer(0, new ProcessingTimeCallback() {
+			getProcessingTimeService(0).registerTimer(0, new ProcessingTimeCallback() {
 				@Override
 				public void onProcessingTime(long timestamp) throws Exception {
-					hasTimerTriggered = true;
 					checkTaskThreadInfo();
+					hasTimerTriggered = true;
 				}
 			});
 		}

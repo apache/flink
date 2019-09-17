@@ -379,7 +379,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				ThreadFactory timerThreadFactory =
 					new DispatcherThreadFactory(TRIGGER_THREAD_GROUP, "Time Trigger for " + getName());
 
-				timerService = new SystemProcessingTimeService(new TimerInvocationContext(), timerThreadFactory);
+				timerService = new SystemProcessingTimeService(
+					this::handleTimerException,
+					timerThreadFactory);
 			}
 
 			operatorChain = new OperatorChain<>(this, recordWriters);
@@ -980,14 +982,18 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	}
 
 	/**
-	 * Returns the {@link ProcessingTimeService} responsible for telling the current
-	 * processing time and registering timers.
+	 * Returns the {@link TimerService} responsible for telling the current processing time and registering actual timers.
 	 */
-	public ProcessingTimeService getProcessingTimeService() {
-		if (timerService == null) {
-			throw new IllegalStateException("The timer service has not been initialized.");
-		}
+	@VisibleForTesting
+	TimerService getTimerService() {
+		Preconditions.checkState(timerService != null, "The timer service has not been initialized.");
 		return timerService;
+	}
+
+	public ProcessingTimeService getProcessingTimeService(int operatorIndex) {
+		Preconditions.checkState(timerService != null, "The timer service has not been initialized.");
+		MailboxExecutor mailboxExecutor = mailboxProcessor.getMailboxExecutor(operatorIndex);
+		return new ProcessingTimeServiceImpl(timerService, callback -> deferCallbackToMailbox(mailboxExecutor, callback));
 	}
 
 	/**
@@ -1436,29 +1442,26 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		return output;
 	}
 
-	private class TimerInvocationContext implements SystemProcessingTimeService.ScheduledCallbackExecutionContext {
-		@Override
-		public void invoke(ProcessingTimeCallback callback, long timestamp) {
+	private void handleTimerException(Exception ex) {
+		handleAsyncException("Caught exception while processing timer.", new TimerException(ex));
+	}
+
+	private ProcessingTimeCallback deferCallbackToMailbox(MailboxExecutor mailboxExecutor, ProcessingTimeCallback callback) {
+		return timestamp -> {
+			mailboxExecutor.execute(
+				() -> invokeProcessingTimeCallback(callback, timestamp),
+				"Timer callback for %s @ %d",
+				callback,
+				timestamp);
+		};
+	}
+
+	private void invokeProcessingTimeCallback(ProcessingTimeCallback callback, long timestamp) {
+		synchronized (getCheckpointLock()) {
 			try {
-				mailboxProcessor.getMailboxExecutor(TaskMailbox.MAX_PRIORITY).execute(
-					() -> invokeProcessingTimeCallback(callback, timestamp),
-					"Timer callback for %s @ %d",
-					callback,
-					timestamp);
+				callback.onProcessingTime(timestamp);
 			} catch (Throwable t) {
 				handleAsyncException("Caught exception while processing timer.", new TimerException(t));
-			}
-		}
-
-		private void invokeProcessingTimeCallback(ProcessingTimeCallback callback, long timestamp) {
-			synchronized (getCheckpointLock()) {
-				try {
-					callback.onProcessingTime(timestamp);
-				} catch (Throwable t) {
-					handleAsyncException(
-							"Caught exception while processing timer.",
-							new TimerException(t));
-				}
 			}
 		}
 	}

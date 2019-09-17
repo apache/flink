@@ -33,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -363,15 +362,13 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 	private static SystemProcessingTimeService createSystemProcessingTimeService(CompletableFuture<Throwable> errorFuture) {
 		Preconditions.checkArgument(!errorFuture.isDone());
 
-		return new SystemProcessingTimeService(new TestOnTimerCompletablyCallbackContext(errorFuture));
+		return new SystemProcessingTimeService(errorFuture::complete);
 	}
 
 	private static SystemProcessingTimeService createSystemProcessingTimeService(AtomicReference<Throwable> errorRef) {
-
 		Preconditions.checkArgument(errorRef.get() == null);
 
-		return new SystemProcessingTimeService(
-			new TestOnTimerCallbackContext(ex -> errorRef.compareAndSet(null, ex)));
+		return new SystemProcessingTimeService(ex -> errorRef.compareAndSet(null, ex));
 	}
 
 	private static SystemProcessingTimeService createBlockingSystemProcessingTimeService(
@@ -382,8 +379,7 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 
 		Preconditions.checkState(!check.get());
 
-		final SystemProcessingTimeService timeService = new SystemProcessingTimeService(
-			new TestOnTimerCallbackContext(exception -> {}));
+		final SystemProcessingTimeService timeService = new SystemProcessingTimeService(exception -> {});
 
 		timeService.scheduleAtFixedRate(
 			timestamp -> {
@@ -412,39 +408,5 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 		}
 
 		return timeService;
-	}
-
-	private static class TestOnTimerCallbackContext implements SystemProcessingTimeService.ScheduledCallbackExecutionContext {
-		private final Consumer<Throwable> exceptionHandler;
-
-		TestOnTimerCallbackContext(Consumer<Throwable> exceptionHandler) {
-			this.exceptionHandler = exceptionHandler;
-		}
-
-		@Override
-		public void invoke(ProcessingTimeCallback callback, long timestamp) {
-			try {
-				callback.onProcessingTime(timestamp);
-			} catch (Throwable t) {
-				exceptionHandler.accept(t);
-			}
-		}
-	}
-
-	private static class TestOnTimerCompletablyCallbackContext implements SystemProcessingTimeService.ScheduledCallbackExecutionContext {
-		private final CompletableFuture<Throwable> completableExceptionHandler;
-
-		TestOnTimerCompletablyCallbackContext(CompletableFuture<Throwable> completableExceptionHandler) {
-			this.completableExceptionHandler = completableExceptionHandler;
-		}
-
-		@Override
-		public void invoke(ProcessingTimeCallback callback, long timestamp) {
-			try {
-				callback.onProcessingTime(timestamp);
-			} catch (Throwable t) {
-				completableExceptionHandler.complete(t);
-			}
-		}
 	}
 }
