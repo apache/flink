@@ -22,7 +22,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
@@ -32,9 +34,26 @@ public class MiniClusterConfigurationTest extends TestLogger {
 
 	private static final String TEST_SCHEDULER_NAME = "test-scheduler";
 
+	private static String priorSchedulerType;
+
+	@BeforeClass
+	public static void setUp() {
+		priorSchedulerType = System.getProperty(MiniClusterConfiguration.SCHEDULER_TYPE_KEY);
+		System.setProperty(MiniClusterConfiguration.SCHEDULER_TYPE_KEY, TEST_SCHEDULER_NAME);
+	}
+
+	@AfterClass
+	public static void tearDown() {
+		if (priorSchedulerType != null) {
+			System.setProperty(MiniClusterConfiguration.SCHEDULER_TYPE_KEY, priorSchedulerType);
+			priorSchedulerType = null;
+		} else {
+			System.clearProperty(MiniClusterConfiguration.SCHEDULER_TYPE_KEY);
+		}
+	}
+
 	@Test
 	public void testSchedulerType_setViaSystemProperty() {
-		System.setProperty(MiniClusterConfiguration.SCHEDULER_TYPE_KEY, TEST_SCHEDULER_NAME);
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder().build();
 
 		Assert.assertEquals(
@@ -47,7 +66,6 @@ public class MiniClusterConfigurationTest extends TestLogger {
 		final Configuration config = new Configuration();
 		config.setString(JobManagerOptions.SCHEDULER, JobManagerOptions.SCHEDULER.defaultValue());
 
-		System.setProperty(MiniClusterConfiguration.SCHEDULER_TYPE_KEY, TEST_SCHEDULER_NAME);
 		final MiniClusterConfiguration miniClusterConfiguration = new MiniClusterConfiguration.Builder()
 			.setConfiguration(config)
 			.build();
