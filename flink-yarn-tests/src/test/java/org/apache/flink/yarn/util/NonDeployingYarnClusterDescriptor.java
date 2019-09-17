@@ -55,12 +55,8 @@ public class NonDeployingYarnClusterDescriptor extends YarnClusterDescriptor {
 
 	@Override
 	protected ClusterClient<ApplicationId> createYarnClusterClient(
-			YarnClusterDescriptor descriptor,
-			int numberTaskManagers,
-			int slotsPerTaskManager,
-			ApplicationReport report,
-			Configuration flinkConfiguration,
-			boolean perJobCluster) {
+		ApplicationReport report,
+		Configuration flinkConfiguration) {
 		return clusterClient;
 	}
 

@@ -373,12 +373,11 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			flinkConfiguration.setInteger(RestOptions.PORT, port);
 
 			return createYarnClusterClient(
-				this,
-				-1, // we don't know the number of task managers of a started Flink cluster
-				-1, // we don't know how many slots each task manager has for a started Flink cluster
+				// we don't know the number of task managers of a started Flink cluster
+				// we don't know how many slots each task manager has for a started Flink cluster
 				report,
-				flinkConfiguration,
-				false);
+				flinkConfiguration
+			);
 		} catch (Exception e) {
 			throw new ClusterRetrieveException("Couldn't retrieve Yarn cluster", e);
 		}
@@ -557,12 +556,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
 		// the Flink cluster is deployed in YARN. Represent cluster
 		return createYarnClusterClient(
-			this,
-			validClusterSpecification.getNumberTaskManagers(),
-			validClusterSpecification.getSlotsPerTaskManager(),
 			report,
-			flinkConfiguration,
-			true);
+			flinkConfiguration
+		);
 	}
 
 	private ClusterSpecification validateClusterResources(
@@ -1676,12 +1672,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	 * Creates a YarnClusterClient; may be overridden in tests.
 	 */
 	protected ClusterClient<ApplicationId> createYarnClusterClient(
-		YarnClusterDescriptor descriptor,
-		int numberTaskManagers,
-		int slotsPerTaskManager,
 		ApplicationReport report,
-		Configuration flinkConfiguration,
-		boolean perJobCluster) throws Exception {
+		Configuration flinkConfiguration) throws Exception {
 		return new RestClusterClient<>(
 			flinkConfiguration,
 			report.getApplicationId());
