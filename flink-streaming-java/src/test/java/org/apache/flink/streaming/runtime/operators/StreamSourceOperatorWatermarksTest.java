@@ -155,7 +155,8 @@ public class StreamSourceOperatorWatermarksTest {
 
 		final List<StreamElement> output = new ArrayList<>();
 
-		StreamSourceContexts.getSourceContext(TimeCharacteristic.IngestionTime,
+		StreamSourceContexts.getSourceContext(
+			TimeCharacteristic.IngestionTime,
 			operator.getContainingTask().getProcessingTimeService(),
 			operator.getContainingTask().getCheckpointLock(),
 			operator.getContainingTask().getStreamStatusMaintainer(),
@@ -184,17 +185,19 @@ public class StreamSourceOperatorWatermarksTest {
 	// ------------------------------------------------------------------------
 
 	@SuppressWarnings("unchecked")
-	private static <T> void setupSourceOperator(StreamSource<T, ?> operator,
+	private static <T> void setupSourceOperator(
+			StreamSource<T, ?> operator,
 			TimeCharacteristic timeChar,
 			long watermarkInterval) throws Exception {
 		setupSourceOperator(operator, timeChar, watermarkInterval, new TestProcessingTimeService());
 	}
 
 	@SuppressWarnings("unchecked")
-	private static <T> void setupSourceOperator(StreamSource<T, ?> operator,
-												TimeCharacteristic timeChar,
-												long watermarkInterval,
-												final ProcessingTimeService timeProvider) throws Exception {
+	private static <T> void setupSourceOperator(
+			StreamSource<T, ?> operator,
+			TimeCharacteristic timeChar,
+			long watermarkInterval,
+			final ProcessingTimeService timeProvider) throws Exception {
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setAutoWatermarkInterval(watermarkInterval);
