@@ -587,7 +587,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 		testHarness.waitForTaskRunning();
 
 		SystemProcessingTimeService timeService = (SystemProcessingTimeService)
-				testHarness.getTask().getProcessingTimeService();
+				testHarness.getTimerService();
 
 		// verify that the timer service is running
 		Assert.assertTrue(timeService.isAlive());
@@ -647,7 +647,7 @@ public class OneInputStreamTaskTest extends TestLogger {
 
 			// verify that the timer service is still running
 			Assert.assertTrue(
-					((SystemProcessingTimeService) getContainingTask().getProcessingTimeService())
+					((SystemProcessingTimeService) getContainingTask().getTimerService())
 					.isAlive());
 			super.close();
 		}

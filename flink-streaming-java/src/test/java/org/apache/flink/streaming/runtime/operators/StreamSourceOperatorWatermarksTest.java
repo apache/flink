@@ -38,9 +38,9 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 import org.apache.flink.streaming.runtime.streamstatus.StreamStatusMaintainer;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
+import org.apache.flink.streaming.runtime.tasks.TimerService;
 import org.apache.flink.streaming.util.CollectorOutput;
 import org.apache.flink.streaming.util.MockStreamTask;
 import org.apache.flink.streaming.util.MockStreamTaskBuilder;
@@ -197,7 +197,7 @@ public class StreamSourceOperatorWatermarksTest {
 			StreamSource<T, ?> operator,
 			TimeCharacteristic timeChar,
 			long watermarkInterval,
-			final ProcessingTimeService timeProvider) throws Exception {
+			final TimerService timeProvider) throws Exception {
 
 		ExecutionConfig executionConfig = new ExecutionConfig();
 		executionConfig.setAutoWatermarkInterval(watermarkInterval);
@@ -217,7 +217,7 @@ public class StreamSourceOperatorWatermarksTest {
 			.setConfig(cfg)
 			.setExecutionConfig(executionConfig)
 			.setStreamStatusMaintainer(streamStatusMaintainer)
-			.setProcessingTimeService(timeProvider)
+			.setTimerService(timeProvider)
 			.build();
 
 		operator.setup(mockTask, cfg, (Output<StreamRecord<T>>) mock(Output.class));
