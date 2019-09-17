@@ -21,12 +21,13 @@
   [nzSize]="'small'"
   [nzLoading]="isLoading"
   [nzData]="listOfTask"
-  [nzScroll]="{x:'1430px',y:'calc( 100% - 35px )'}"
+  [nzScroll]="{x:'1440px',y:'calc( 100% - 35px )'}"
   [nzFrontPagination]="false"
   [nzShowPagination]="false">
   <thead (nzSortChange)="sort($event)" nzSingleSort>
     <tr>
-      <th nzWidth="80px" nzLeft="0px">ID</th>
+      <th nzWidth="40px" nzLeft="0px">ID</th>
+      <th nzWidth="50px" nzLeft="40px">LOG</th>
       <th nzSortKey="metrics.read-bytes" nzShowSort nzWidth="140px">Bytes Received</th>
       <th nzSortKey="metrics.read-records" nzShowSort nzWidth="150px">Records Received</th>
       <th nzSortKey="metrics.write-bytes" nzShowSort nzWidth="120px">Bytes Sent</th>
@@ -41,8 +42,14 @@
   </thead>
   <tbody>
     <tr *ngFor="let task of listOfTask; trackBy:trackTaskBy;">
-      <td nzLeft="0">
+      <td nzLeft="0" nzWidth="40px">
         {{ task.subtask }}
+      </td>
+      <td nzLeft="40px">
+        <span *ngIf="!task['resource-id'] || task['resource-id'] === '(unassigned)'; else hrefTpl">-</span>
+        <ng-template #hrefTpl>
+          <a [routerLink]="['/task-manager',task['resource-id'],'logs']" target="_blank">LOG {{ task.subtask }}</a>
+        </ng-template>
       </td>
       <td>
         <span *ngIf="task.metrics['read-bytes-complete'];else loadingTemplate">
