@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
@@ -123,6 +124,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	/** True if the descriptor must not shut down the YarnClient. */
 	private final boolean sharedYarnClient;
 
+	/** Lazily initialized list of files to ship. */
+	private final List<File> shipFiles = new LinkedList<>();
+
 	private String yarnQueue;
 
 	private String configurationDirectory;
@@ -130,9 +134,6 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	private Path flinkJarPath;
 
 	private String dynamicPropertiesEncoded;
-
-	/** Lazily initialized list of files to ship. */
-	protected List<File> shipFiles = new LinkedList<>();
 
 	private final Configuration flinkConfiguration;
 
@@ -160,9 +161,14 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		this.sharedYarnClient = sharedYarnClient;
 
 		this.flinkConfiguration = Preconditions.checkNotNull(flinkConfiguration);
-		userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
+		this.userJarInclusion = getUserJarInclusionMode(flinkConfiguration);
 
 		this.configurationDirectory = Preconditions.checkNotNull(configurationDirectory);
+	}
+
+	@VisibleForTesting
+	List<File> getShipFiles() {
+		return shipFiles;
 	}
 
 	public YarnClient getYarnClient() {
@@ -456,7 +462,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 	 * @param jobGraph A job graph which is deployed with the Flink cluster, {@code null} if none
 	 * @param detached True if the cluster should be started in detached mode
 	 */
-	protected ClusterClient<ApplicationId> deployInternal(
+	private ClusterClient<ApplicationId> deployInternal(
 			ClusterSpecification clusterSpecification,
 			String applicationName,
 			String yarnClusterEntrypoint,
@@ -559,7 +565,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			true);
 	}
 
-	protected ClusterSpecification validateClusterResources(
+	private ClusterSpecification validateClusterResources(
 		ClusterSpecification clusterSpecification,
 		int yarnMinAllocationMB,
 		Resource maximumResourceCapability,
@@ -674,7 +680,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		}
 	}
 
-	public ApplicationReport startAppMaster(
+	private ApplicationReport startAppMaster(
 			Configuration configuration,
 			String applicationName,
 			String yarnClusterEntrypoint,
@@ -1551,7 +1557,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		}
 	}
 
-	protected void addEnvironmentFoldersToShipFiles(Collection<File> effectiveShipFiles) {
+	void addEnvironmentFoldersToShipFiles(Collection<File> effectiveShipFiles) {
 		addLibFoldersToShipFiles(effectiveShipFiles);
 		addPluginsFoldersToShipFiles(effectiveShipFiles);
 	}
@@ -1569,7 +1575,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				throw new YarnDeploymentException("The environment variable '" + ENV_FLINK_LIB_DIR +
 						"' is set to '" + libDir + "' but the directory doesn't exist.");
 			}
-		} else if (this.shipFiles.isEmpty()) {
+		} else if (shipFiles.isEmpty()) {
 			LOG.warn("Environment variable '{}' not set and ship files have not been provided manually. " +
 					"Not shipping any library files.", ENV_FLINK_LIB_DIR);
 		}
@@ -1588,7 +1594,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		}
 	}
 
-	protected ContainerLaunchContext setupApplicationMasterContainer(
+	ContainerLaunchContext setupApplicationMasterContainer(
 			String yarnClusterEntrypoint,
 			boolean hasLogback,
 			boolean hasLog4j,

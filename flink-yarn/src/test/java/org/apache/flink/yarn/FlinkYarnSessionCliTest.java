@@ -464,7 +464,7 @@ public class FlinkYarnSessionCliTest extends TestLogger {
 
 		YarnClusterDescriptor flinkYarnDescriptor = flinkYarnSessionCli.createClusterDescriptor(commandLine);
 
-		assertEquals(2, flinkYarnDescriptor.shipFiles.size());
+		assertEquals(2, flinkYarnDescriptor.getShipFiles().size());
 
 	}
 
