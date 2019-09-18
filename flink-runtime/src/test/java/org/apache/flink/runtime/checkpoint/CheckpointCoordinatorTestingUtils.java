@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -49,12 +50,21 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Delayed;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -468,5 +478,116 @@ public class CheckpointCoordinatorTestingUtils {
 			when(v.getJobVertex()).thenReturn(vertex);
 		}
 		return vertex;
+	}
+
+	static class TestingScheduledServiceWithRecordingScheduledTasks implements ScheduledExecutor {
+
+		private final ScheduledExecutor scheduledExecutor;
+
+		private final Set<UUID> tasksScheduledOnce;
+
+		public TestingScheduledServiceWithRecordingScheduledTasks(ScheduledExecutor scheduledExecutor) {
+			this.scheduledExecutor = checkNotNull(scheduledExecutor);
+			tasksScheduledOnce = new HashSet<>();
+		}
+
+		public int getNumScheduledOnceTasks() {
+			synchronized (tasksScheduledOnce) {
+				return tasksScheduledOnce.size();
+			}
+		}
+
+		@Override
+		public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+			final UUID id = UUID.randomUUID();
+			synchronized (tasksScheduledOnce) {
+				tasksScheduledOnce.add(id);
+			}
+			return new TestingScheduledFuture<>(id, scheduledExecutor.schedule(() -> {
+				synchronized (tasksScheduledOnce) {
+					tasksScheduledOnce.remove(id);
+				}
+				command.run();
+			}, delay, unit));
+		}
+
+		@Override
+		public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
+			final UUID id = UUID.randomUUID();
+			synchronized (tasksScheduledOnce) {
+				tasksScheduledOnce.add(id);
+			}
+			return new TestingScheduledFuture<>(id, scheduledExecutor.schedule(() -> {
+				synchronized (tasksScheduledOnce) {
+					tasksScheduledOnce.remove(id);
+				}
+				return callable.call();
+			}, delay, unit));
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
+			return scheduledExecutor.scheduleAtFixedRate(command, initialDelay, period, unit);
+		}
+
+		@Override
+		public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit) {
+			return scheduledExecutor.scheduleWithFixedDelay(command, initialDelay, delay, unit);
+		}
+
+		@Override
+		public void execute(Runnable command) {
+			scheduledExecutor.execute(command);
+		}
+
+		private class TestingScheduledFuture<V> implements ScheduledFuture<V> {
+
+			private final ScheduledFuture<V> scheduledFuture;
+
+			private final UUID id;
+
+			public TestingScheduledFuture(UUID id, ScheduledFuture<V> scheduledFuture) {
+				this.id = checkNotNull(id);
+				this.scheduledFuture = checkNotNull(scheduledFuture);
+			}
+
+			@Override
+			public long getDelay(TimeUnit unit) {
+				return scheduledFuture.getDelay(unit);
+			}
+
+			@Override
+			public int compareTo(Delayed o) {
+				return scheduledFuture.compareTo(o);
+			}
+
+			@Override
+			public boolean cancel(boolean mayInterruptIfRunning) {
+				synchronized (tasksScheduledOnce) {
+					tasksScheduledOnce.remove(id);
+				}
+				return scheduledFuture.cancel(mayInterruptIfRunning);
+			}
+
+			@Override
+			public boolean isCancelled() {
+				return scheduledFuture.isCancelled();
+			}
+
+			@Override
+			public boolean isDone() {
+				return scheduledFuture.isDone();
+			}
+
+			@Override
+			public V get() throws InterruptedException, ExecutionException {
+				return scheduledFuture.get();
+			}
+
+			@Override
+			public V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+				return scheduledFuture.get(timeout, unit);
+			}
+		}
 	}
 }

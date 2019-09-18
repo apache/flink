@@ -34,11 +34,13 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.util.TestingScheduledExecutor;
 import org.apache.flink.util.SerializableObject;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 import org.mockito.hamcrest.MockitoHamcrest;
@@ -62,6 +64,10 @@ import static org.mockito.Mockito.when;
 public class CheckpointStateRestoreTest {
 
 	private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
+
+	@Rule
+	public final TestingScheduledExecutor testingScheduledExecutor =
+		new TestingScheduledExecutor();
 
 	private CheckpointFailureManager failureManager;
 
@@ -127,6 +133,7 @@ public class CheckpointStateRestoreTest {
 				new StandaloneCompletedCheckpointStore(1),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
+				testingScheduledExecutor.getScheduledExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
@@ -211,6 +218,7 @@ public class CheckpointStateRestoreTest {
 				new StandaloneCompletedCheckpointStore(1),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
+				testingScheduledExecutor.getScheduledExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
@@ -276,6 +284,7 @@ public class CheckpointStateRestoreTest {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
+			testingScheduledExecutor.getScheduledExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
 import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -41,7 +42,6 @@ import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.runtime.state.StateBackend;
-import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
@@ -62,7 +62,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -145,8 +144,9 @@ public class CheckpointCoordinator {
 	/** The maximum number of checkpoints that may be in progress at the same time. */
 	private final int maxConcurrentCheckpointAttempts;
 
-	/** The timer that handles the checkpoint timeouts and triggers periodic checkpoints. */
-	private final ScheduledThreadPoolExecutor timer;
+	/** The timer that handles the checkpoint timeouts and triggers periodic checkpoints.
+	 * It must be single-threaded. Eventually it will be replaced by main thread executor. */
+	private final ScheduledExecutor timer;
 
 	/** The master checkpoint hooks executed by this checkpoint coordinator. */
 	private final HashMap<String, MasterTriggerRestoreHook<?>> masterHooks;
@@ -200,6 +200,7 @@ public class CheckpointCoordinator {
 			CompletedCheckpointStore completedCheckpointStore,
 			StateBackend checkpointStateBackend,
 			Executor executor,
+			ScheduledExecutor timer,
 			SharedStateRegistryFactory sharedStateRegistryFactory,
 			CheckpointFailureManager failureManager) {
 
@@ -239,13 +240,7 @@ public class CheckpointCoordinator {
 		this.recentPendingCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
 		this.masterHooks = new HashMap<>();
 
-		this.timer = new ScheduledThreadPoolExecutor(1,
-				new DispatcherThreadFactory(Thread.currentThread().getThreadGroup(), "Checkpoint Timer"));
-
-		// make sure the timer internally cleans up and does not hold onto stale scheduled tasks
-		this.timer.setRemoveOnCancelPolicy(true);
-		this.timer.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
-		this.timer.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+		this.timer = timer;
 
 		this.checkpointProperties = CheckpointProperties.forCheckpoint(chkConfig.getCheckpointRetentionPolicy());
 
@@ -335,9 +330,6 @@ public class CheckpointCoordinator {
 				// shut down the hooks
 				MasterHooks.close(masterHooks.values(), LOG);
 				masterHooks.clear();
-
-				// shut down the thread that handles the timeouts and pending triggers
-				timer.shutdownNow();
 
 				// clear and discard all pending checkpoints
 				for (PendingCheckpoint pending : pendingCheckpoints.values()) {
@@ -995,11 +987,6 @@ public class CheckpointCoordinator {
 				timer.execute(new ScheduledTrigger());
 			}
 		}
-	}
-
-	@VisibleForTesting
-	int getNumScheduledTasks() {
-		return timer.getQueue().size();
 	}
 
 	// --------------------------------------------------------------------------------------------
