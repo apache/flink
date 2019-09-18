@@ -48,7 +48,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTest.mockExecutionVertex;
+import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockExecutionVertex;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -353,7 +353,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * This test makes sure that the checkpoint is already registered by the time
+	 * This test makes sure that the checkpoint is already registered by the time.
 	 * that the hooks are called
 	 */
 	@Test

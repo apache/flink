@@ -49,6 +49,9 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tests for failure of checkpoint coordinator.
+ */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(PendingCheckpoint.class)
 public class CheckpointCoordinatorFailureTest extends TestLogger {
@@ -62,7 +65,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 		JobID jid = new JobID();
 
 		final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
-		final ExecutionVertex vertex = CheckpointCoordinatorTest.mockExecutionVertex(executionAttemptId);
+		final ExecutionVertex vertex = CheckpointCoordinatorTestingUtils.mockExecutionVertex(executionAttemptId);
 
 		final long triggerTimestamp = 1L;
 
