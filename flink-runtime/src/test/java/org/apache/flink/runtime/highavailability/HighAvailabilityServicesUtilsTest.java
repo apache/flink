@@ -20,20 +20,30 @@ package org.apache.flink.runtime.highavailability;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThat;
 
 /**
  * Tests for the {@link HighAvailabilityServicesUtils} class.
  */
 public class HighAvailabilityServicesUtilsTest extends TestLogger {
+
+	@ClassRule
+	public static TemporaryFolder temporaryFolder = new TemporaryFolder();
 
 	@Test
 	public void testCreateCustomHAServices() throws Exception {
@@ -85,6 +95,21 @@ public class HighAvailabilityServicesUtilsTest extends TestLogger {
 
 		// expect
 		HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(config, executor);
+	}
+
+	@Test
+	public void testGetClusterHighAvailableStoragePath() throws IOException {
+		final String haStorageRootDirectory = temporaryFolder.newFolder().getAbsolutePath();
+		final String clusterId = UUID.randomUUID().toString();
+		final Configuration configuration = new Configuration();
+
+		configuration.setString(HighAvailabilityOptions.HA_STORAGE_PATH, haStorageRootDirectory);
+		configuration.setString(HighAvailabilityOptions.HA_CLUSTER_ID, clusterId);
+
+		final Path clusterHighAvailableStoragePath = HighAvailabilityServicesUtils.getClusterHighAvailableStoragePath(configuration);
+
+		final Path expectedPath = new Path(haStorageRootDirectory, clusterId);
+		assertThat(clusterHighAvailableStoragePath, is(expectedPath));
 	}
 
 	/**

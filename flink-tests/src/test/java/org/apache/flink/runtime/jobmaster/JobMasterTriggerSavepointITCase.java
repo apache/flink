@@ -49,8 +49,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -227,7 +229,7 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(final CheckpointMetaData checkpointMetaData, final CheckpointOptions checkpointOptions, final boolean advanceToEndOfEventTime) {
+		public Future<Boolean> triggerCheckpointAsync(final CheckpointMetaData checkpointMetaData, final CheckpointOptions checkpointOptions, final boolean advanceToEndOfEventTime) {
 			final TaskStateSnapshot checkpointStateHandles = new TaskStateSnapshot();
 			checkpointStateHandles.putSubtaskStateByOperatorID(
 				OperatorID.fromJobVertexID(getEnvironment().getJobVertexId()),
@@ -240,11 +242,12 @@ public class JobMasterTriggerSavepointITCase extends AbstractTestBase {
 
 			triggerCheckpointLatch.countDown();
 
-			return true;
+			return CompletableFuture.completedFuture(true);
 		}
 
 		@Override
-		public void notifyCheckpointComplete(final long checkpointId) {
+		public Future<Void> notifyCheckpointCompleteAsync(final long checkpointId) {
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 

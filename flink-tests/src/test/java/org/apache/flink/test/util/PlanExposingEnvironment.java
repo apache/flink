@@ -16,32 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.program;
+package org.apache.flink.test.util;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironmentFactory;
-import org.apache.flink.optimizer.Optimizer;
-import org.apache.flink.optimizer.dag.DataSinkNode;
-
-import java.util.List;
+import org.apache.flink.client.program.OptimizerPlanEnvironment;
 
 /**
  * Environment to extract the pre-optimized plan.
  */
-public final class PreviewPlanEnvironment extends ExecutionEnvironment {
+public final class PlanExposingEnvironment extends ExecutionEnvironment {
 
-	List<DataSinkNode> previewPlan;
-
-	String preview;
-
-	Plan plan;
+	private Plan plan;
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
 		this.plan = createProgramPlan(jobName);
-		this.previewPlan = Optimizer.createPreOptimizedPlan(plan);
 
 		// do not go on with anything now!
 		throw new OptimizerPlanEnvironment.ProgramAbortException();
@@ -49,10 +41,6 @@ public final class PreviewPlanEnvironment extends ExecutionEnvironment {
 
 	@Override
 	public String getExecutionPlan() throws Exception {
-		Plan plan = createProgramPlan("unused");
-		this.previewPlan = Optimizer.createPreOptimizedPlan(plan);
-
-		// do not go on with anything now!
 		throw new OptimizerPlanEnvironment.ProgramAbortException();
 	}
 
@@ -60,7 +48,7 @@ public final class PreviewPlanEnvironment extends ExecutionEnvironment {
 		ExecutionEnvironmentFactory factory = new ExecutionEnvironmentFactory() {
 			@Override
 			public ExecutionEnvironment createExecutionEnvironment() {
-				return PreviewPlanEnvironment.this;
+				return PlanExposingEnvironment.this;
 			}
 		};
 		initializeContextEnvironment(factory);
@@ -68,10 +56,6 @@ public final class PreviewPlanEnvironment extends ExecutionEnvironment {
 
 	public void unsetAsContext() {
 		resetContextEnvironment();
-	}
-
-	public void setPreview(String preview) {
-		this.preview = preview;
 	}
 
 	public Plan getPlan() {

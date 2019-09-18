@@ -55,6 +55,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -332,16 +333,14 @@ public class SourceStreamTaskTest {
 		}
 	}
 
-	/**
-	 * This calls triggerInterrupt on the given task with the given interval.
-	 */
+	/** This calls triggerCheckpointAsync on the given task with the given interval. */
 	private static class Checkpointer implements Callable<Boolean> {
 		private final int numCheckpoints;
 		private final int checkpointInterval;
 		private final AtomicLong checkpointId;
 		private final StreamTask<Tuple2<Long, Integer>, ?> sourceTask;
 
-		public Checkpointer(int numCheckpoints, int checkpointInterval, StreamTask<Tuple2<Long, Integer>, ?> task) {
+		Checkpointer(int numCheckpoints, int checkpointInterval, StreamTask<Tuple2<Long, Integer>, ?> task) {
 			this.numCheckpoints = numCheckpoints;
 			checkpointId = new AtomicLong(0);
 			sourceTask = task;
@@ -352,8 +351,15 @@ public class SourceStreamTaskTest {
 		public Boolean call() throws Exception {
 			for (int i = 0; i < numCheckpoints; i++) {
 				long currentCheckpointId = checkpointId.getAndIncrement();
-				CheckpointMetaData checkpointMetaData = new CheckpointMetaData(currentCheckpointId, 0L);
-				sourceTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
+				try {
+					sourceTask.triggerCheckpointAsync(
+						new CheckpointMetaData(currentCheckpointId, 0L),
+						CheckpointOptions.forCheckpointWithDefaultLocation(),
+						false);
+				} catch (RejectedExecutionException e) {
+					// We are late with a checkpoint, the mailbox is already closed.
+					return false;
+				}
 				Thread.sleep(checkpointInterval);
 			}
 			return true;

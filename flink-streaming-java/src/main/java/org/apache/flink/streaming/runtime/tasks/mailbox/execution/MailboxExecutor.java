@@ -22,6 +22,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.Mailbox;
 
 import javax.annotation.Nonnull;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -53,7 +54,11 @@ public interface MailboxExecutor extends Executor {
 	 * quiesced or closed.
 	 */
 	default @Nonnull Future<?> submit(@Nonnull Runnable command) {
-		FutureTask<?> future = new FutureTask<>(Executors.callable(command, null));
+		return submit(Executors.callable(command, null));
+	}
+
+	default @Nonnull <T> Future<T> submit(@Nonnull Callable<T> task) {
+		FutureTask<T> future = new FutureTask<>(task);
 		execute(future);
 		return future;
 	}

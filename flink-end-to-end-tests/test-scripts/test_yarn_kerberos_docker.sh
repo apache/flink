@@ -175,7 +175,7 @@ start_time=$(date +%s)
 # it's important to run this with higher parallelism, otherwise we might risk that
 # JM and TM are on the same YARN node and that we therefore don't test the keytab shipping
 if docker exec -it master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
-   /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -yn 3 -ys 1 -ytm 1000 -yjm 1000 \
+   /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -ys 1 -ytm 1000 -yjm 1000 \
    -p 3 /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar $INPUT_ARGS --output $OUTPUT_PATH";
 then
     docker exec -it master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
@@ -202,7 +202,7 @@ docker exec -it master bash -c "echo \"\" > /home/hadoop-user/$FLINK_DIRNAME/con
 # verify that it doesn't work if we don't configure a keytab
 OUTPUT=$(docker exec -it master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     /home/hadoop-user/$FLINK_DIRNAME/bin/flink run \
-    -m yarn-cluster -yn 3 -ys 1 -ytm 1000 -yjm 1000 -p 3 \
+    -m yarn-cluster -ys 1 -ytm 1000 -yjm 1000 -p 3 \
     /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar --output $OUTPUT_PATH")
 echo "$OUTPUT"
 

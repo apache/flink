@@ -66,10 +66,15 @@ class LaunchCoordinator(
       .withLeaseRejectAction(new Action1[VirtualMachineLease]() {
         def call(lease: VirtualMachineLease) {
           LOG.info(s"Declined offer ${lease.getId} from ${lease.hostname()} "
-            + s"of ${lease.memoryMB()} MB, ${lease.cpuCores()} cpus.")
+            + s"of memory ${lease.memoryMB()} MB, ${lease.cpuCores()} cpus, "
+            + s"${lease.getScalarValue("gpus")} gpus, "
+            + s"of disk: ${lease.diskMB()} MB, network: ${lease.networkMbps()} Mbps")
           schedulerDriver.declineOffer(lease.getOffer.getId)
         }
-      }).build
+      })
+      // avoid situations where we have lots of expired offers and we only expire a few at a time
+      .withRejectAllExpiredOffers()
+      .build
   }
 
   override def postStop(): Unit = {
@@ -150,15 +155,18 @@ class LaunchCoordinator(
     case Event(offers: ResourceOffers, data: GatherData) =>
       val leases = offers.offers().asScala.map(new Offer(_))
       if(LOG.isInfoEnabled) {
-        val (cpus, gpus, mem) = leases.foldLeft((0.0,0.0,0.0)) {
-          (z,o) => (z._1 + o.cpuCores(), z._2 + o.gpus(), z._3 + o.memoryMB())
+        val (cpus, gpus, mem, disk, network) = leases.foldLeft((0.0,0.0,0.0, 0.0, 0.0)) {
+          (z,o) => (z._1 + o.cpuCores(), z._2 + o.gpus(), z._3 + o.memoryMB(),
+            z._4 + o.diskMB(), z._5 + o.networkMbps())
         }
-        LOG.info(s"Received offer(s) of $mem MB, $cpus cpus, $gpus gpus:")
+        LOG.info(s"Received offer(s) of $mem MB, $cpus cpus, $gpus gpus, " +
+          s"$disk disk MB, $network Mbps")
         for(l <- leases) {
           val reservations = l.getResources.asScala.map(_.getRole).toSet
           LOG.info(
             s"  ${l.getId} from ${l.hostname()} of ${l.memoryMB()} MB," +
             s" ${l.cpuCores()} cpus, ${l.gpus()} gpus" +
+            s" ${l.diskMB()} disk MB, ${l.networkMbps()} Mbps" +
             s" for ${reservations.mkString("[", ",", "]")}")
         }
       }
@@ -180,7 +188,8 @@ class LaunchCoordinator(
         for(vm <- optimizer.getVmCurrentStates.asScala) {
           val lease = vm.getCurrAvailableResources
           LOG.info(s"  ${vm.getHostname} has ${lease.memoryMB()} MB," +
-            s" ${lease.cpuCores()} cpus, ${lease.getScalarValue("gpus")} gpus")
+            s" ${lease.cpuCores()} cpus, ${lease.getScalarValue("gpus")} gpus" +
+            s" ${lease.diskMB()} disk MB, ${lease.networkMbps()} Mbps")
         }
       }
       log.debug(result.toString)

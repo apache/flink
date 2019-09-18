@@ -50,7 +50,6 @@ public class TaskMailboxImplTest {
 	@Before
 	public void setUp() {
 		taskMailbox = new TaskMailboxImpl();
-		taskMailbox.open();
 	}
 
 	@After
@@ -111,7 +110,7 @@ public class TaskMailboxImplTest {
 	@Test
 	public void testConcurrentPutTakeNonBlockingAndWait() throws Exception {
 		testPutTake((mailbox -> {
-					Optional<Runnable> optionalLetter = mailbox.tryTakeMail();
+				Optional<Runnable> optionalLetter = mailbox.tryTakeMail();
 				while (!optionalLetter.isPresent()) {
 					optionalLetter = mailbox.tryTakeMail();
 				}
@@ -187,7 +186,7 @@ public class TaskMailboxImplTest {
 	}
 
 	private void testUnblocksInternal(
-		RunnableWithException testMethod,
+			RunnableWithException testMethod,
 			Consumer<TaskMailbox> unblockMethod) throws InterruptedException {
 		final Thread[] blockedThreads = new Thread[8];
 		final Exception[] exceptions = new Exception[blockedThreads.length];
@@ -279,7 +278,6 @@ public class TaskMailboxImplTest {
 		@Before
 		public void setUp() {
 			taskMailbox = new TaskMailboxImpl();
-			taskMailbox.open();
 		}
 
 		@After

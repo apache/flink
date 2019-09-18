@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.streaming.runtime.operators.TestProcessingTimeServiceTest.ReferenceSettingExceptionHandler;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 
@@ -33,10 +32,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -45,99 +50,17 @@ import static org.junit.Assert.fail;
  */
 public class SystemProcessingTimeServiceTest extends TestLogger {
 
-	@Test
-	public void testTriggerHoldsLock() throws Exception {
-
-		final Object lock = new Object();
-		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
-
-		final SystemProcessingTimeService timer = new SystemProcessingTimeService(
-				new ReferenceSettingExceptionHandler(errorRef), lock);
-
-		try {
-			assertEquals(0, timer.getNumTasksScheduled());
-
-			// schedule something
-			ScheduledFuture<?> future = timer.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
-				@Override
-				public void onProcessingTime(long timestamp) {
-					assertTrue(Thread.holdsLock(lock));
-				}
-			});
-
-			// wait until the execution is over
-			future.get();
-			assertEquals(0, timer.getNumTasksScheduled());
-
-			// check that no asynchronous error was reported
-			if (errorRef.get() != null) {
-				throw new Exception(errorRef.get());
-			}
-		}
-		finally {
-			timer.shutdownService();
-		}
-	}
-
-	/**
-	 * Tests that the schedule at fixed rate callback is called under the given lock.
-	 */
-	@Test
-	public void testScheduleAtFixedRateHoldsLock() throws Exception {
-
-		final Object lock = new Object();
-		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
-
-		final SystemProcessingTimeService timer = new SystemProcessingTimeService(
-			new ReferenceSettingExceptionHandler(errorRef), lock);
-
-		final OneShotLatch awaitCallback = new OneShotLatch();
-
-		try {
-			assertEquals(0, timer.getNumTasksScheduled());
-
-			// schedule something
-			ScheduledFuture<?> future = timer.scheduleAtFixedRate(
-				new ProcessingTimeCallback() {
-					@Override
-					public void onProcessingTime(long timestamp) {
-						assertTrue(Thread.holdsLock(lock));
-
-						awaitCallback.trigger();
-					}
-				},
-				0L,
-				100L);
-
-			// wait until the first execution is active
-			awaitCallback.await();
-
-			// cancel periodic callback
-			future.cancel(true);
-
-			// check that no asynchronous error was reported
-			if (errorRef.get() != null) {
-				throw new Exception(errorRef.get());
-			}
-		}
-		finally {
-			timer.shutdownService();
-		}
-	}
-
 	/**
 	 * Tests that SystemProcessingTimeService#scheduleAtFixedRate is actually triggered multiple
 	 * times.
 	 */
 	@Test(timeout = 10000)
 	public void testScheduleAtFixedRate() throws Exception {
-		final Object lock = new Object();
 		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 		final long period = 10L;
 		final int countDown = 3;
 
-		final SystemProcessingTimeService timer = new SystemProcessingTimeService(
-			new ReferenceSettingExceptionHandler(errorRef), lock);
+		final SystemProcessingTimeService timer = createSystemProcessingTimeService(errorRef);
 
 		final CountDownLatch countDownLatch = new CountDownLatch(countDown);
 
@@ -166,12 +89,10 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 	 */
 	@Test
 	public void testQuiesceAndAwaitingCancelsScheduledAtFixRateFuture() throws Exception {
-		final Object lock = new Object();
 		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 		final long period = 10L;
 
-		final SystemProcessingTimeService timer = new SystemProcessingTimeService(
-			new ReferenceSettingExceptionHandler(errorRef), lock);
+		final SystemProcessingTimeService timer = createSystemProcessingTimeService(errorRef);
 
 		try {
 			ScheduledFuture<?> scheduledFuture = timer.scheduleAtFixedRate(new ProcessingTimeCallback() {
@@ -223,8 +144,7 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 		final Object lock = new Object();
 		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 
-		final SystemProcessingTimeService timer = new SystemProcessingTimeService(
-				new ReferenceSettingExceptionHandler(errorRef), lock);
+		final SystemProcessingTimeService timer = createSystemProcessingTimeService(errorRef);
 
 		try {
 			assertFalse(timer.isTerminated());
@@ -232,9 +152,8 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 			final OneShotLatch latch = new OneShotLatch();
 
 			// the task should trigger immediately and should block until terminated with interruption
-			timer.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
-				@Override
-				public void onProcessingTime(long timestamp) throws Exception {
+			timer.registerTimer(System.currentTimeMillis(), timestamp -> {
+				synchronized (lock) {
 					latch.trigger();
 					Thread.sleep(100000000);
 				}
@@ -242,45 +161,39 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 
 			latch.await();
 			timer.shutdownService();
-
-			// can only enter this scope after the triggerable is interrupted
-			//noinspection SynchronizationOnLocalVariableOrMethodParameter
 			synchronized (lock) {
 				assertTrue(timer.isTerminated());
+
+				// The shutdownService() may not necessary wait for active tasks to finish properly.
+				// From the ScheduledThreadPoolExecutor Java docs:
+				// 	There are no guarantees beyond best-effort attempts to stop processing actively executing tasks.
+				// 	This implementation cancels tasks via {@link Thread#interrupt}, so any task that
+				// 	fails to respond to interrupts may never terminate.
+				assertThat(errorRef.get(), is(anyOf(nullValue(), instanceOf(InterruptedException.class))));
+				assertEquals(0, timer.getNumTasksScheduled());
 			}
 
+			errorRef.set(null);
+
 			try {
-				timer.registerTimer(System.currentTimeMillis() + 1000, new ProcessingTimeCallback() {
-					@Override
-					public void onProcessingTime(long timestamp) {}
-				});
+				timer.registerTimer(System.currentTimeMillis() + 1000, timestamp -> fail("should not be called"));
 
 				fail("should result in an exception");
 			}
 			catch (IllegalStateException e) {
 				// expected
 			}
+			assertThat(errorRef.get(), is(nullValue()));
 
 			try {
-				timer.scheduleAtFixedRate(
-					new ProcessingTimeCallback() {
-						@Override
-						public void onProcessingTime(long timestamp) {}
-					},
-					0L,
-					100L);
+				timer.scheduleAtFixedRate(timestamp -> fail("should not be called"), 0L, 100L);
 
 				fail("should result in an exception");
 			}
 			catch (IllegalStateException e) {
 				// expected
 			}
-
-			// obviously, we have an asynchronous interrupted exception
-			assertNotNull(errorRef.get());
-			assertTrue(errorRef.get().getCause() instanceof InterruptedException);
-
-			assertEquals(0, timer.getNumTasksScheduled());
+			assertThat(errorRef.get(), is(nullValue()));
 		}
 		finally {
 			timer.shutdownService();
@@ -290,11 +203,9 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 	@Test
 	public void testQuiescing() throws Exception {
 
-		final Object lock = new Object();
 		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 
-		final SystemProcessingTimeService timer = new SystemProcessingTimeService(
-				new ReferenceSettingExceptionHandler(errorRef), lock);
+		final SystemProcessingTimeService timer = createSystemProcessingTimeService(errorRef);
 
 		try {
 			final OneShotLatch latch = new OneShotLatch();
@@ -349,31 +260,22 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 	@Test
 	public void testFutureCancellation() throws Exception {
 
-		final Object lock = new Object();
 		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
 
-		final SystemProcessingTimeService timer = new SystemProcessingTimeService(
-				new ReferenceSettingExceptionHandler(errorRef), lock);
+		final SystemProcessingTimeService timer = createSystemProcessingTimeService(errorRef);
 
 		try {
 			assertEquals(0, timer.getNumTasksScheduled());
 
 			// schedule something
-			ScheduledFuture<?> future = timer.registerTimer(System.currentTimeMillis() + 100000000, new ProcessingTimeCallback() {
-				@Override
-				public void onProcessingTime(long timestamp) {}
-			});
+			ScheduledFuture<?> future = timer.registerTimer(System.currentTimeMillis() + 100000000, timestamp -> {});
 			assertEquals(1, timer.getNumTasksScheduled());
 
 			future.cancel(false);
 
 			assertEquals(0, timer.getNumTasksScheduled());
 
-			future = timer.scheduleAtFixedRate(
-				new ProcessingTimeCallback() {
-					@Override
-					public void onProcessingTime(long timestamp) throws Exception {}
-				}, 10000000000L, 50L);
+			future = timer.scheduleAtFixedRate(timestamp -> {}, 10000000000L, 50L);
 
 			assertEquals(1, timer.getNumTasksScheduled());
 
@@ -392,69 +294,13 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 	}
 
 	@Test
-	public void testExceptionReporting() throws InterruptedException {
-		final AtomicBoolean exceptionWasThrown = new AtomicBoolean(false);
-		final OneShotLatch latch = new OneShotLatch();
-		final Object lock = new Object();
-
-		ProcessingTimeService timeServiceProvider = new SystemProcessingTimeService(
-				new AsyncExceptionHandler() {
-					@Override
-					public void handleAsyncException(String message, Throwable exception) {
-						exceptionWasThrown.set(true);
-						latch.trigger();
-					}
-				}, lock);
-
-		timeServiceProvider.registerTimer(System.currentTimeMillis(), new ProcessingTimeCallback() {
-			@Override
-			public void onProcessingTime(long timestamp) throws Exception {
-				throw new Exception("Exception in Timer");
-			}
-		});
-
-		latch.await();
-		assertTrue(exceptionWasThrown.get());
-	}
-
-	@Test
-	public void testExceptionReportingScheduleAtFixedRate() throws InterruptedException {
-		final AtomicBoolean exceptionWasThrown = new AtomicBoolean(false);
-		final OneShotLatch latch = new OneShotLatch();
-		final Object lock = new Object();
-
-		ProcessingTimeService timeServiceProvider = new SystemProcessingTimeService(
-			new AsyncExceptionHandler() {
-				@Override
-				public void handleAsyncException(String message, Throwable exception) {
-					exceptionWasThrown.set(true);
-					latch.trigger();
-				}
-			}, lock);
-
-		timeServiceProvider.scheduleAtFixedRate(
-			new ProcessingTimeCallback() {
-			@Override
-			public void onProcessingTime(long timestamp) throws Exception {
-				throw new Exception("Exception in Timer");
-			}
-		},
-			0L,
-			100L);
-
-		latch.await();
-		assertTrue(exceptionWasThrown.get());
-	}
-
-	@Test
 	public void testShutdownAndWaitPending() {
 
-		final Object lock = new Object();
 		final OneShotLatch blockUntilTriggered = new OneShotLatch();
 		final AtomicBoolean timerExecutionFinished = new AtomicBoolean(false);
 
 		final SystemProcessingTimeService timeService =
-			createBlockingSystemProcessingTimeService(lock, blockUntilTriggered, timerExecutionFinished);
+			createBlockingSystemProcessingTimeService(blockUntilTriggered, timerExecutionFinished);
 
 		Assert.assertFalse(timeService.isTerminated());
 
@@ -481,12 +327,11 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 
 	@Test
 	public void testShutdownServiceUninterruptible() {
-		final Object lock = new Object();
 		final OneShotLatch blockUntilTriggered = new OneShotLatch();
 		final AtomicBoolean timerFinished = new AtomicBoolean(false);
 
 		final SystemProcessingTimeService timeService =
-			createBlockingSystemProcessingTimeService(lock, blockUntilTriggered, timerFinished);
+			createBlockingSystemProcessingTimeService(blockUntilTriggered, timerFinished);
 
 		Assert.assertFalse(timeService.isTerminated());
 
@@ -530,19 +375,24 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 		Assert.assertTrue(timerFinished.get());
 	}
 
+	private static SystemProcessingTimeService createSystemProcessingTimeService(AtomicReference<Throwable> errorRef) {
+
+		Preconditions.checkArgument(errorRef.get() == null);
+
+		return new SystemProcessingTimeService(
+			new TestOnTimerCallbackContext(ex -> errorRef.compareAndSet(null, ex)));
+	}
+
 	private static SystemProcessingTimeService createBlockingSystemProcessingTimeService(
-		final Object lock,
-		final OneShotLatch blockUntilTriggered,
-		final AtomicBoolean check) {
+			final OneShotLatch blockUntilTriggered,
+			final AtomicBoolean check) {
 
 		final OneShotLatch waitUntilTimerStarted = new OneShotLatch();
 
 		Preconditions.checkState(!check.get());
 
 		final SystemProcessingTimeService timeService = new SystemProcessingTimeService(
-			(message, exception) -> {
-			},
-			lock);
+			new TestOnTimerCallbackContext(exception -> {}));
 
 		timeService.scheduleAtFixedRate(
 			timestamp -> {
@@ -571,5 +421,22 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 		}
 
 		return timeService;
+	}
+
+	private static class TestOnTimerCallbackContext implements SystemProcessingTimeService.ScheduledCallbackExecutionContext {
+		private final Consumer<Throwable> exceptionHandler;
+
+		TestOnTimerCallbackContext(Consumer<Throwable> exceptionHandler) {
+			this.exceptionHandler = exceptionHandler;
+		}
+
+		@Override
+		public void invoke(ProcessingTimeCallback callback, long timestamp) {
+			try {
+				callback.onProcessingTime(timestamp);
+			} catch (Throwable t) {
+				exceptionHandler.accept(t);
+			}
+		}
 	}
 }

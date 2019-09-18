@@ -173,7 +173,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 					"-yj", flinkUberjar.getAbsolutePath(),
 					"-yt", flinkLibFolder.getAbsolutePath(),
 					"-yt", flinkShadedHadoopDir.getAbsolutePath(),
-					"-yn", "1",
 					"-ys", "2", //test that the job is executed with a DOP of 2
 					"-yjm", "768m",
 					"-ytm", "1024m", exampleJarLocation.getAbsolutePath()},
@@ -218,7 +217,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 					"-yj", flinkUberjar.getAbsolutePath(),
 					"-yt", flinkLibFolder.getAbsolutePath(),
 					"-yt", flinkShadedHadoopDir.getAbsolutePath(),
-					"-yn", "1",
 					"-ys", "2", //test that the job is executed with a DOP of 2
 					"-yjm", "768m",
 					"-ytm", taskManagerMemoryMB + "m",
@@ -402,7 +400,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				runWithArgs(new String[]{"-j", flinkUberjar.getAbsolutePath(),
 					"-t", flinkLibFolder.getAbsolutePath(),
 					"-t", flinkShadedHadoopDir.getAbsolutePath(),
-					"-n", "1",
 					"-jm", "768m",
 					"-tm", "1024m",
 					"-qu", "doesntExist"}, "to unknown queue: doesntExist", null, RunTypes.YARN_SESSION, 1);
@@ -431,7 +428,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 					"-yj", flinkUberjar.getAbsolutePath(),
 					"-yt", flinkLibFolder.getAbsolutePath(),
 					"-yt", flinkShadedHadoopDir.getAbsolutePath(),
-					"-yn", "1",
 					"-ys", "2",
 					"-yjm", "768m",
 					"-ytm", "1024m", exampleJarLocation.getAbsolutePath()},
@@ -505,7 +501,6 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 				"-yj", flinkUberjar.getAbsolutePath(),
 				"-yt", flinkLibFolder.getAbsolutePath(),
 				"-yt", flinkShadedHadoopDir.getAbsolutePath(),
-				"-yn", "1",
 				"-yjm", "768m",
 				// test if the cutoff is passed correctly (only useful when larger than the value
 				// of containerized.heap-cutoff-min (default: 600MB)

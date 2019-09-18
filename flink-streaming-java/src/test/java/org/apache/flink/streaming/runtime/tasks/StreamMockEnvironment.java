@@ -53,12 +53,15 @@ import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
 
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -102,7 +105,8 @@ public class StreamMockEnvironment implements Environment {
 
 	private final GlobalAggregateManager aggregateManager;
 
-	private volatile boolean wasFailedExternally = false;
+	@Nullable
+	private Consumer<Throwable> externalExceptionHandler;
 
 	private TaskEventDispatcher taskEventDispatcher = mock(TaskEventDispatcher.class);
 
@@ -193,6 +197,10 @@ public class StreamMockEnvironment implements Environment {
 			t.printStackTrace();
 			fail(t.getMessage());
 		}
+	}
+
+	public void setExternalExceptionHandler(Consumer<Throwable> externalExceptionHandler) {
+		this.externalExceptionHandler = externalExceptionHandler;
 	}
 
 	@Override
@@ -325,11 +333,9 @@ public class StreamMockEnvironment implements Environment {
 
 	@Override
 	public void failExternally(Throwable cause) {
-		this.wasFailedExternally = true;
-	}
-
-	public boolean wasFailedExternally() {
-		return wasFailedExternally;
+		if (externalExceptionHandler != null) {
+			externalExceptionHandler.accept(cause);
+		}
 	}
 
 	@Override

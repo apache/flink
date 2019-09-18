@@ -54,6 +54,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -304,7 +305,7 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) throws Exception {
+		public Future<Boolean> triggerCheckpointAsync(CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions, boolean advanceToEndOfEventTime) {
 			final long checkpointId = checkpointMetaData.getCheckpointId();
 			final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
 
@@ -317,17 +318,17 @@ public class JobMasterStopWithSavepointIT extends AbstractTestBase {
 			if (taskIndex == 0) {
 				checkpointsToWaitFor.countDown();
 			}
-			return super.triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
+			return super.triggerCheckpointAsync(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime);
 		}
 
 		@Override
-		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
 			final long taskIndex = getEnvironment().getTaskInfo().getIndexOfThisSubtask();
 			if (checkpointId == synchronousSavepointId && taskIndex == 0) {
 				throw new RuntimeException("Expected Exception");
 			}
 
-			super.notifyCheckpointComplete(checkpointId);
+			return super.notifyCheckpointCompleteAsync(checkpointId);
 		}
 	}
 

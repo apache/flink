@@ -48,7 +48,6 @@ public class MailboxExecutorImplTest {
 	@Before
 	public void setUp() throws Exception {
 		this.mailbox = new TaskMailboxImpl();
-		this.mailbox.open();
 		this.mailboxExecutor = new MailboxExecutorImpl(mailbox.getDownstreamMailbox(DEFAULT_PRIORITY));
 		this.otherThreadExecutor = Executors.newSingleThreadScheduledExecutor();
 	}

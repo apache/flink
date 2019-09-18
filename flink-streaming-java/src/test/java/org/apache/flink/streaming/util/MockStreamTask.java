@@ -82,7 +82,6 @@ public class MockStreamTask<OUT, OP extends StreamOperator<OUT>> extends StreamT
 
 	@Override
 	public void init() {
-		this.mailboxProcessor.open();
 	}
 
 	@Override
