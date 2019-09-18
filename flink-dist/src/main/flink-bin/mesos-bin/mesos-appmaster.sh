@@ -31,6 +31,13 @@ CC_CLASSPATH=`manglePathList $(constructFlinkClassPath):$INTERNAL_HADOOP_CLASSPA
 
 log="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-mesos-appmaster-${HOSTNAME}.log"
 log_setting="-Dlog.file="$log" -Dlog4j.configuration=file:"$FLINK_CONF_DIR"/log4j.properties -Dlogback.configurationFile=file:"$FLINK_CONF_DIR"/logback.xml"
+gclog="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-mesos-appmaster-${HOSTNAME}.gc_log"
+
+FLINK_HEAPDUMP_NAME="flink-${FLINK_IDENT_STRING}-mesos-appmaster-${HOSTNAME}.hprof"
+rm -rf ${FLINK_JVM_HEAPDUMP_DIRECTORY}/${FLINK_HEAPDUMP_NAME}
+setGCLoggingOpts $gclog
+setHeapdumpOpts $FLINK_HEAPDUMP_NAME $log
+JVM_ARGS=("${FLINK_JVM_GC_LOGGING_OPTS[@]}" "${FLINK_JVM_HEAPDUMP_OPTS[@]}" "${JVM_ARGS[@]}")
 
 ENTRY_POINT=org.apache.flink.mesos.entrypoint.MesosSessionClusterEntrypoint
 

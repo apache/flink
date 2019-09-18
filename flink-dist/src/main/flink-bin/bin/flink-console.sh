@@ -56,7 +56,20 @@ case $SERVICE in
     ;;
 esac
 
+if [ "$FLINK_IDENT_STRING" = "" ]; then
+    FLINK_IDENT_STRING="$USER"
+fi
+
 FLINK_TM_CLASSPATH=`constructFlinkClassPath`
+
+FLINK_LOG_PREFIX="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-${SERVICE}"
+gclog="${FLINK_LOG_PREFIX}.gc_log"
+
+FLINK_HEAPDUMP_NAME="flink-${FLINK_IDENT_STRING}-${SERVICE}.hprof"
+rm -rf ${FLINK_JVM_HEAPDUMP_DIRECTORY}/${FLINK_HEAPDUMP_NAME}
+setGCLoggingOpts $gclog
+setHeapdumpOpts $FLINK_HEAPDUMP_NAME $log
+JVM_ARGS=("${FLINK_JVM_GC_LOGGING_OPTS[@]}" "${FLINK_JVM_HEAPDUMP_OPTS[@]}" "${JVM_ARGS[@]}")
 
 log_setting=("-Dlog4j.configuration=file:${FLINK_CONF_DIR}/log4j-console.properties" "-Dlogback.configurationFile=file:${FLINK_CONF_DIR}/logback-console.xml")
 
@@ -65,7 +78,7 @@ JAVA_VERSION=$(${JAVA_RUN} -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"
 # Only set JVM 8 arguments if we have correctly extracted the version
 if [[ ${JAVA_VERSION} =~ ${IS_NUMBER} ]]; then
     if [ "$JAVA_VERSION" -lt 18 ]; then
-        JVM_ARGS="$JVM_ARGS -XX:MaxPermSize=256m"
+        JVM_ARGS=("${JVM_ARGS[@]}" "-XX:MaxPermSize=256m")
     fi
 fi
 

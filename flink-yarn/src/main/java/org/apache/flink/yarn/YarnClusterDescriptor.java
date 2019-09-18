@@ -893,6 +893,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		final boolean hasLog4j = logConfigFilePath != null && logConfigFilePath.endsWith(CONFIG_FILE_LOG4J_NAME);
 
 		final ContainerLaunchContext amContainer = setupApplicationMasterContainer(
+				appId.toString(),
 				yarnClusterEntrypoint,
 				hasLogback,
 				hasLog4j,
@@ -1516,7 +1517,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 		pluginsDir.ifPresent(effectiveShipFiles::add);
 	}
 
-	ContainerLaunchContext setupApplicationMasterContainer(
+	protected ContainerLaunchContext setupApplicationMasterContainer(
+			String appId,
 			String yarnClusterEntrypoint,
 			boolean hasLogback,
 			boolean hasLog4j,
@@ -1524,8 +1526,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 			int jobManagerMemoryMb) {
 		// ------------------ Prepare Application Master Container  ------------------------------
 
-		// respect custom JVM options in the YAML file
-		String javaOpts = flinkConfiguration.getString(CoreOptions.FLINK_JVM_OPTIONS);
+		String javaOpts = BootstrapTools.getJvmOpts(
+			appId, "jobmanager", ApplicationConstants.LOG_DIR_EXPANSION_VAR, flinkConfiguration);
 		if (flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS).length() > 0) {
 			javaOpts += " " + flinkConfiguration.getString(CoreOptions.FLINK_JM_JVM_OPTIONS);
 		}

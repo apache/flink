@@ -85,6 +85,13 @@ id=$([ -f "$pid" ] && echo $(wc -l < "$pid") || echo "0")
 FLINK_LOG_PREFIX="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-${DAEMON}-${id}-${HOSTNAME}"
 log="${FLINK_LOG_PREFIX}.log"
 out="${FLINK_LOG_PREFIX}.out"
+gclog="${FLINK_LOG_PREFIX}.gc_log"
+
+FLINK_HEAPDUMP_NAME="flink-${FLINK_IDENT_STRING}-${DAEMON}-${id}-${HOSTNAME}.hprof"
+rm -rf ${FLINK_JVM_HEAPDUMP_DIRECTORY}/${FLINK_HEAPDUMP_NAME}
+setGCLoggingOpts $gclog
+setHeapdumpOpts $FLINK_HEAPDUMP_NAME $log
+JVM_ARGS=("${FLINK_JVM_GC_LOGGING_OPTS[@]}" "${FLINK_JVM_HEAPDUMP_OPTS[@]}" "${JVM_ARGS[@]}")
 
 log_setting=("-Dlog.file=${log}" "-Dlog4j.configuration=file:${FLINK_CONF_DIR}/log4j.properties" "-Dlogback.configurationFile=file:${FLINK_CONF_DIR}/logback.xml")
 
@@ -93,7 +100,7 @@ JAVA_VERSION=$(${JAVA_RUN} -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"
 # Only set JVM 8 arguments if we have correctly extracted the version
 if [[ ${JAVA_VERSION} =~ ${IS_NUMBER} ]]; then
     if [ "$JAVA_VERSION" -lt 18 ]; then
-        JVM_ARGS="$JVM_ARGS -XX:MaxPermSize=256m"
+        JVM_ARGS=("${JVM_ARGS[@]}" "-XX:MaxPermSize=256m")
     fi
 fi
 
@@ -124,7 +131,7 @@ case $STARTSTOP in
         FLINK_ENV_JAVA_OPTS=$(eval echo ${FLINK_ENV_JAVA_OPTS})
 
         echo "Starting $DAEMON daemon on host $HOSTNAME."
-        $JAVA_RUN $JVM_ARGS ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}" > "$out" 200<&- 2>&1 < /dev/null &
+        $JAVA_RUN "${JVM_ARGS[@]}" ${FLINK_ENV_JAVA_OPTS} "${log_setting[@]}" -classpath "`manglePathList "$FLINK_TM_CLASSPATH:$INTERNAL_HADOOP_CLASSPATHS"`" ${CLASS_TO_RUN} "${ARGS[@]}" > "$out" 200<&- 2>&1 < /dev/null &
 
         mypid=$!
 
