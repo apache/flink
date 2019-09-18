@@ -95,7 +95,6 @@ class GroupWindowValidationTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
 
     table
-      // row interval is not valid for session windows
       .window(Tumble over 10 on 'long as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count)
@@ -158,7 +157,6 @@ class GroupWindowValidationTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
 
     table
-      // row interval is not valid for session windows
       .window(Slide over 10 every 10.milli  on 'long as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count)
@@ -207,7 +205,6 @@ class GroupWindowValidationTest extends TableTestBase {
     val table = util.addTable[(Long, Int, String)]('long.rowtime, 'int, 'string)
 
     table
-      // row interval is not valid for session windows
       .window(Session withGap 10 on 'long as 'w)
       .groupBy('w, 'string)
       .select('string, 'int.count)

@@ -80,7 +80,6 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
       "Tumbling window expects a size literal of a day-time interval or BIGINT type.")
 
     table
-      // row interval is not valid for session windows
       .window(Tumble over 10 on 'rowtime as 'w)
       .groupBy('string, 'w)
       .flatAggregate(top3('int))
@@ -174,7 +173,6 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
       "A session window expects a gap literal of a day-time interval type.")
 
     table
-      // row interval is not valid for session windows
       .window(Session withGap 10 on 'proctime as 'w)
       .groupBy('string, 'w)
       .flatAggregate(top3('int))
