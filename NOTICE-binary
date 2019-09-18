@@ -7986,15 +7986,113 @@ The Apache Software Foundation (http://www.apache.org/).
 flink-python
 Copyright 2014-2019 The Apache Software Foundation
 
+This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- com.fasterxml.jackson.core:jackson-annotations:2.9.9
+- com.fasterxml.jackson.core:jackson-core:2.9.9
+- com.fasterxml.jackson.core:jackson-databind:2.9.9
+- com.google.api.grpc:proto-google-common-protos:1.12.0
+- com.google.code.gson:gson:2.7
+- com.google.guava:guava:26.0-jre
+- io.grpc:grpc-auth:1.21.0
+- io.grpc:grpc-core:1.21.0
+- io.grpc:grpc-context:1.21.0
+- io.grpc:grpc-netty:1.21.0
+- io.grpc:grpc-protobuf:1.21.0
+- io.grpc:grpc-stub:1.21.0
+- io.grpc:grpc-testing:1.21.0
+- io.netty:netty-buffer:4.1.34.Final
+- io.netty:netty-codec:4.1.34.Final
+- io.netty:netty-codec-http:4.1.34.Final
+- io.netty:netty-codec-http2:4.1.34.Final
+- io.netty:netty-codec-socks:4.1.34.Final
+- io.netty:netty-common:4.1.34.Final
+- io.netty:netty-handler:4.1.34.Final
+- io.netty:netty-handler-proxy:4.1.34.Final
+- io.netty:netty-resolver:4.1.34.Final
+- io.netty:netty-transport:4.1.34.Final
+- io.netty:netty-transport-native-epoll:4.1.34.Final
+- io.netty:netty-transport-native-unix-common:4.1.34.Final
+- io.netty:netty-tcnative-boringssl-static:2.0.22.Final
+- io.opencensus:opencensus-api:0.21.0
+- io.opencensus:opencensus-contrib-grpc-metrics:0.21.0
+- joda-time:joda-time:2.5
+- org.apache.beam:beam-model-fn-execution:2.15.0
+- org.apache.beam:beam-model-job-management:2.15.0
+- org.apache.beam:beam-model-pipeline:2.15.0
+- org.apache.beam:beam-runners-core-construction-java:2.15.0
+- org.apache.beam:beam-runners-java-fn-execution:2.15.0
+- org.apache.beam:beam-sdks-java-core:2.15.0
+- org.apache.beam:beam-sdks-java-fn-execution:2.15.0
+- org.apache.beam:beam-vendor-sdks-java-extensions-protobuf:2.15.0
+- org.apache.beam:beam-vendor-guava-26_0-jre:0.1
+- org.apache.beam:beam-vendor-grpc-1_21_0:0.1
+
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details
 
 - net.sf.py4j:py4j:0.10.8.1
+- com.google.protobuf:protobuf-java:3.7.1
+- com.google.protobuf:protobuf-java-util:3.7.1
+- com.google.auth:google-auth-library-credentials:0.13.0
 
 This project bundles the following dependencies under the MIT license. (https://opensource.org/licenses/MIT)
 See bundled license files for details.
 
 - net.razorvine:pyrolite:4.13
+
+Apache Beam
+Copyright 2016-2018 The Apache Software Foundation
+
+Based on source code originally developed by
+Google (http://www.google.com/).
+
+This product includes software developed at
+Google (http://www.google.com/).
+
+# Jackson JSON processor
+
+Jackson is a high-performance, Free/Open Source JSON processing library.
+It was originally written by Tatu Saloranta (tatu.saloranta@iki.fi), and has
+been in development since 2007.
+It is currently developed by a community of developers, as well as supported
+commercially by FasterXML.com.
+
+## Licensing
+
+Jackson core and extension components may licensed under different licenses.
+To find the details that apply to this artifact see the accompanying LICENSE file.
+For more information, including possible other licensing options, contact
+FasterXML.com (http://fasterxml.com).
+
+## Credits
+
+A list of contributors may be found from CREDITS file, which is included
+in some artifacts (usually source distributions); but is always available
+from the source code management (SCM) system project uses.
+
+Jackson core and extension components may be licensed under different licenses.
+To find the details that apply to this artifact see the accompanying LICENSE file.
+For more information, including possible other licensing options, contact
+FasterXML.com (http://fasterxml.com).
+
+=============================================================================
+= NOTICE file corresponding to section 4d of the Apache License Version 2.0 =
+=============================================================================
+This product includes software developed by
+Joda.org (http://www.joda.org/).
+
+Apache Commons Compress
+Copyright 2002-2018 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (https://www.apache.org/).
+
+The files in the package org.apache.commons.compress.archivers.sevenz
+were derived from the LZMA SDK, version 9.20 (C/ and CPP/7zip/),
+which has been placed in the public domain:
+
+"LZMA SDK is placed in the public domain." (http://www.7-zip.org/sdk.html)
 
 // ------------------------------------------------------------------
 // NOTICE file corresponding to the section 4d of The Apache License,
