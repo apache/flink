@@ -70,18 +70,23 @@ semi_persist_dir = args.semi_persist_dir
 
 if worker_id == "":
     logging.fatal("No id provided.")
+    exit(1)
 
 if logging_endpoint == "":
     logging.fatal("No logging endpoint provided.")
+    exit(1)
 
 if artifact_endpoint == "":
     logging.fatal("No artifact endpoint provided.")
+    exit(1)
 
 if provision_endpoint == "":
     logging.fatal("No provision endpoint provided.")
+    exit(1)
 
 if control_endpoint == "":
     logging.fatal("No control endpoint provided.")
+    exit(1)
 
 logging.info("Initializing python harness: %s" % " ".join(sys.argv))
 
@@ -94,7 +99,6 @@ with grpc.insecure_channel(provision_endpoint) as channel:
     options = json_format.MessageToJson(info.pipeline_options)
 
 staged_dir = os.path.join(semi_persist_dir, "staged")
-files = []
 
 # download files
 with grpc.insecure_channel(artifact_endpoint) as channel:
@@ -106,7 +110,6 @@ with grpc.insecure_channel(artifact_endpoint) as channel:
     # download files and check hash values
     for artifact in artifacts:
         name = artifact.name
-        files.append(name)
         permissions = artifact.permissions
         sha256 = artifact.sha256
         file_path = os.path.join(staged_dir, name)
@@ -116,7 +119,7 @@ with grpc.insecure_channel(artifact_endpoint) as channel:
                 sha256obj.update(f.read())
                 hash_value = sha256obj.hexdigest()
             if hash_value == sha256:
-                logging.info("the file: %s already exists and its sha256 hash value: %s is the "
+                logging.info("The file: %s already exists and its sha256 hash value: %s is the "
                              "same as the expected hash value, skipped." % (file_path, sha256))
                 continue
             else:
@@ -132,11 +135,9 @@ with grpc.insecure_channel(artifact_endpoint) as channel:
                 f.write(artifact_chunk.data)
             hash_value = sha256obj.hexdigest()
         if hash_value != sha256:
-            raise Exception("the sha256 hash value: %s of the downloaded file: %s is not the same"
+            raise Exception("The sha256 hash value: %s of the downloaded file: %s is not the same"
                             " as the expected hash value: %s" % (hash_value, file_path, sha256))
         os.chmod(file_path, int(str(permissions), 8))
-
-python_path = sys.executable
 
 os.environ["WORKER_ID"] = worker_id
 os.environ["PIPELINE_OPTIONS"] = options
@@ -151,5 +152,5 @@ env = dict(os.environ)
 if "FLINK_BOOT_TESTING" in os.environ and os.environ["FLINK_BOOT_TESTING"] == "1":
     exit(0)
 
-call([python_path, "-m", "apache_beam.runners.worker.sdk_worker_main"],
+call([sys.executable, "-m", "apache_beam.runners.worker.sdk_worker_main"],
      stdout=sys.stdout, stderr=sys.stderr, env=env)

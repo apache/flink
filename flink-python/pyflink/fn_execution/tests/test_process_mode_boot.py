@@ -18,6 +18,7 @@
 import hashlib
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -92,6 +93,9 @@ class PythonBootTests(PyFlinkTestCase):
         self.env["python"] = sys.executable
         self.env["FLINK_BOOT_TESTING"] = "1"
 
+        self.tmp_dir = None
+        self.runner_path = os.path.join(os.environ["FLINK_HOME"], "bin", "pyflink-udf-runner.sh")
+
     def check_downloaded_files(self, staged_dir, manifest):
         expected_files_info = json.loads(manifest)["manifest"]["artifact"]
         files = os.listdir(staged_dir)
@@ -113,28 +117,51 @@ class PythonBootTests(PyFlinkTestCase):
         self.assertEqual(checked, len(files))
 
     def test_python_boot(self):
+        self.tmp_dir = tempfile.mkdtemp(str(time.time()))
+        print("Using %s as the semi_persist_dir." % self.tmp_dir)
 
-        tmp_dir = tempfile.mkdtemp(str(time.time()))
-        print("Using %s as the semi_persist_dir." % tmp_dir)
-
-        args = [os.path.join(os.environ["FLINK_HOME"], "bin", "pyflink-udf-runner.sh"),
-                "--id",
-                "1",
-                "--logging_endpoint",
-                "localhost:0000",
-                "--artifact_endpoint",
-                "localhost:%d" % self.artifact_port,
-                "--provision_endpoint",
-                "localhost:%d" % self.provision_port,
-                "--control_endpoint",
-                "localhost:0000",
-                "--semi_persist_dir",
-                tmp_dir]
+        args = [self.runner_path, "--id", "1",
+                "--logging_endpoint", "localhost:0000",
+                "--artifact_endpoint", "localhost:%d" % self.artifact_port,
+                "--provision_endpoint", "localhost:%d" % self.provision_port,
+                "--control_endpoint", "localhost:0000",
+                "--semi_persist_dir", self.tmp_dir]
 
         exit_code = subprocess.call(args, stdout=sys.stdout, stderr=sys.stderr, env=self.env)
         self.assertTrue(exit_code == 0, "the boot.py exited with non-zero code.")
-        self.check_downloaded_files(os.path.join(tmp_dir, "staged"), manifest)
+        self.check_downloaded_files(os.path.join(self.tmp_dir, "staged"), manifest)
+
+    def test_param_validation(self):
+        args = [self.runner_path]
+        exit_message = subprocess.check_output(args, env=self.env).decode("utf-8")
+        self.assertTrue(exit_message.endswith("No id provided.\n"))
+
+        args = [self.runner_path, "--id", "1"]
+        exit_message = subprocess.check_output(args, env=self.env).decode("utf-8")
+        self.assertTrue(exit_message.endswith("No logging endpoint provided.\n"))
+
+        args = [self.runner_path, "--id", "1", "--logging_endpoint", "localhost:0000"]
+        exit_message = subprocess.check_output(args, env=self.env).decode("utf-8")
+        self.assertTrue(exit_message.endswith("No artifact endpoint provided.\n"))
+
+        args = [self.runner_path, "--id", "1",
+                "--logging_endpoint", "localhost:0000",
+                "--artifact_endpoint", "localhost:%d" % self.artifact_port]
+        exit_message = subprocess.check_output(args, env=self.env).decode("utf-8")
+        self.assertTrue(exit_message.endswith("No provision endpoint provided.\n"))
+
+        args = [self.runner_path, "--id", "1",
+                "--logging_endpoint", "localhost:0000",
+                "--artifact_endpoint", "localhost:%d" % self.artifact_port,
+                "--provision_endpoint", "localhost:%d" % self.provision_port]
+        exit_message = subprocess.check_output(args, env=self.env).decode("utf-8")
+        self.assertTrue(exit_message.endswith("No control endpoint provided.\n"))
 
     def tearDown(self):
         self.artifact_server.stop(0)
         self.provision_server.stop(0)
+        try:
+            if self.tmp_dir is not None:
+                shutil.rmtree(self.tmp_dir)
+        except:
+            pass

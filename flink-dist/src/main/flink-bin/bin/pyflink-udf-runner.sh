@@ -28,7 +28,7 @@ if [[ "$FLINK_IDENT_STRING" = "" ]]; then
     FLINK_IDENT_STRING="$USER"
 fi
 
-if [[ -z "$python" ]]; then
+if [[ "$python" = "" ]]; then
     python="python"
 fi
 
@@ -44,4 +44,4 @@ fi
 
 log="$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-python-udf-boot-$HOSTNAME.log"
 
-${python} -m pyflink.fn_execution.boot $@ 2>&1 | tee ${log}
+${python} -m pyflink.fn_execution.boot $@ 2>&1 | tee -a ${log}
