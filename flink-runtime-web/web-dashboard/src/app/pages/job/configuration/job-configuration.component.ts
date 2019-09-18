@@ -17,9 +17,9 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
-import { JobConfigInterface } from 'interfaces';
+import { JobConfigInterface } from '@flink-runtime-web/interfaces';
 import { flatMap } from 'rxjs/operators';
-import { JobService } from 'services';
+import { JobService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job-configuration',

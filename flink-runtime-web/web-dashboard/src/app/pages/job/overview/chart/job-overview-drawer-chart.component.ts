@@ -27,8 +27,8 @@ import {
 } from '@angular/core';
 import { Subject } from 'rxjs';
 import { distinctUntilChanged, filter, flatMap, takeUntil } from 'rxjs/operators';
-import { JobService, MetricsService } from 'services';
-import { JobChartComponent } from 'share/customize/job-chart/job-chart.component';
+import { JobService, MetricsService } from '@flink-runtime-web/services';
+import { JobChartComponent } from '@flink-runtime-web/share/customize/job-chart/job-chart.component';
 
 @Component({
   selector: 'flink-job-overview-drawer-chart',

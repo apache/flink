@@ -18,7 +18,7 @@
 
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ShareModule } from 'share/share.module';
+import { ShareModule } from '@flink-runtime-web/share/share.module';
 import { OverviewRoutingModule } from './overview-routing.module';
 import { OverviewComponent } from './overview.component';
 import { OverviewStatisticComponent } from './statistic/overview-statistic.component';

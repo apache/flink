@@ -17,7 +17,7 @@
  */
 
 import { Pipe, PipeTransform } from '@angular/core';
-import { ConfigService } from 'services';
+import { ConfigService } from '@flink-runtime-web/services';
 
 @Pipe({
   name: 'humanizeWatermark'

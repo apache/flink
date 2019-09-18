@@ -17,10 +17,10 @@
  */
 
 import { Component, ChangeDetectionStrategy, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { NodesItemCorrectInterface } from 'interfaces';
+import { NodesItemCorrectInterface } from '@flink-runtime-web/interfaces';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { JobService } from 'services';
+import { JobService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job-overview-drawer-detail',

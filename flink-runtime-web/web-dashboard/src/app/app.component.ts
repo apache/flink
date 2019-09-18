@@ -20,8 +20,8 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { fromEvent, merge } from 'rxjs';
 import { filter, first, map, startWith, tap } from 'rxjs/operators';
-import { StatusService } from 'services';
-import { MonacoEditorService } from 'share/common/monaco-editor/monaco-editor.service';
+import { StatusService } from '@flink-runtime-web/services';
+import { MonacoEditorService } from '@flink-runtime-web/share/common/monaco-editor/monaco-editor.service';
 
 @Component({
   selector: 'flink-root',

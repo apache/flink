@@ -20,7 +20,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnIni
 import { ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { JobService, StatusService } from 'services';
+import { JobService, StatusService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job',

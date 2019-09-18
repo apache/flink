@@ -1,28 +1,11 @@
 {
   "compileOnSave": false,
-  "files": [
-    "node_modules/monaco-editor/monaco.d.ts",
-    "node_modules/@antv/g2/src/index.d.ts"
-  ],
+  "files": ["node_modules/monaco-editor/monaco.d.ts", "node_modules/@antv/g2/src/index.d.ts"],
   "compilerOptions": {
     "baseUrl": "./",
     "downlevelIteration": true,
     "paths": {
-      "services": [
-        "src/app/services"
-      ],
-      "config": [
-        "src/app/app.config.ts"
-      ],
-      "interfaces": [
-        "src/app/interfaces"
-      ],
-      "utils": [
-        "src/app/utils"
-      ],
-      "share/*": [
-        "src/app/share/*"
-      ]
+      "@flink-runtime-web/*": ["./src/app/*", "./src/environments/*"]
     },
     "outDir": "./dist/out-tsc",
     "sourceMap": true,
@@ -33,13 +16,8 @@
     "experimentalDecorators": true,
     "importHelpers": true,
     "target": "es2015",
-    "typeRoots": [
-      "node_modules/@types"
-    ],
-    "lib": [
-      "es2018",
-      "dom"
-    ],
+    "typeRoots": ["node_modules/@types"],
+    "lib": ["es2018", "dom"],
     "noUnusedParameters": true,
     "noUnusedLocals": true,
     "noImplicitAny": true,

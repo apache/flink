@@ -19,9 +19,9 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { deepFind } from 'utils';
-import { VertexTaskManagerDetailInterface } from 'interfaces';
-import { JobService } from 'services';
+import { deepFind } from '@flink-runtime-web/utils';
+import { VertexTaskManagerDetailInterface } from '@flink-runtime-web/interfaces';
+import { JobService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job-overview-drawer-taskmanagers',

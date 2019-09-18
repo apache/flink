@@ -20,7 +20,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { EMPTY, of, ReplaySubject } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { TaskManagerListInterface, TaskManagerDetailInterface } from 'interfaces';
+import { TaskManagerListInterface, TaskManagerDetailInterface } from '@flink-runtime-web/interfaces';
 import { ConfigService } from './config.service';
 
 @Injectable({
@@ -64,7 +64,9 @@ export class TaskManagerService {
    * @param taskManagerId
    */
   loadStdout(taskManagerId: string) {
-    return this.httpClient.get(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/stdout`, { responseType: 'text' });
+    return this.httpClient.get(`${this.configService.BASE_URL}/taskmanagers/${taskManagerId}/stdout`, {
+      responseType: 'text'
+    });
   }
 
   constructor(private httpClient: HttpClient, private configService: ConfigService) {}

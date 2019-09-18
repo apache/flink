@@ -21,7 +21,7 @@ import { Injectable } from '@angular/core';
 import { EMPTY } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { ConfigService } from './config.service';
-import { OverviewInterface } from 'interfaces';
+import { OverviewInterface } from '@flink-runtime-web/interfaces';
 
 @Injectable({
   providedIn: 'root'
@@ -33,6 +33,8 @@ export class OverviewService {
    * Get cluster overview status
    */
   loadOverview() {
-    return this.httpClient.get<OverviewInterface>(`${this.configService.BASE_URL}/overview`).pipe(catchError(() => EMPTY));
+    return this.httpClient
+      .get<OverviewInterface>(`${this.configService.BASE_URL}/overview`)
+      .pipe(catchError(() => EMPTY));
   }
 }

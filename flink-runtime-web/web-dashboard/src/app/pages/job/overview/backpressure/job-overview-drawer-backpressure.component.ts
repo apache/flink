@@ -19,8 +19,12 @@
 import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil, tap } from 'rxjs/operators';
-import { JobBackpressureInterface, JobBackpressureSubtaskInterface, NodesItemCorrectInterface } from 'interfaces';
-import { JobService } from 'services';
+import {
+  JobBackpressureInterface,
+  JobBackpressureSubtaskInterface,
+  NodesItemCorrectInterface
+} from '@flink-runtime-web/interfaces';
+import { JobService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job-overview-drawer-backpressure',

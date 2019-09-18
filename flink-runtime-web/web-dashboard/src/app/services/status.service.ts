@@ -22,7 +22,7 @@ import { NavigationEnd, Router } from '@angular/router';
 import { EMPTY, fromEvent, interval, merge, Subject } from 'rxjs';
 import { debounceTime, filter, map, mapTo, share, startWith, switchMap, tap } from 'rxjs/operators';
 import { ConfigService } from './config.service';
-import { ConfigurationInterface } from 'interfaces';
+import { ConfigurationInterface } from '@flink-runtime-web/interfaces';
 
 @Injectable({
   providedIn: 'root'

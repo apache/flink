@@ -18,7 +18,12 @@
 
 import { HttpClient, HttpRequest, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { JarListInterface, NodesItemCorrectInterface, PlanInterface, VerticesLinkInterface } from 'interfaces';
+import {
+  JarListInterface,
+  NodesItemCorrectInterface,
+  PlanInterface,
+  VerticesLinkInterface
+} from '@flink-runtime-web/interfaces';
 import { of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { ConfigService } from './config.service';
@@ -97,7 +102,9 @@ export class JarService {
     if (allowNonRestoredState) {
       params = params.append('allowNonRestoredState', allowNonRestoredState);
     }
-    return this.httpClient.post<{ jobid: string }>(`${this.configService.BASE_URL}/jars/${jarId}/run`, requestParam, { params });
+    return this.httpClient.post<{ jobid: string }>(`${this.configService.BASE_URL}/jars/${jarId}/run`, requestParam, {
+      params
+    });
   }
 
   /**

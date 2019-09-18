@@ -19,9 +19,9 @@
 import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { deepFind } from 'utils';
-import { JobSubTaskInterface } from 'interfaces';
-import { JobService } from 'services';
+import { deepFind } from '@flink-runtime-web/utils';
+import { JobSubTaskInterface } from '@flink-runtime-web/interfaces';
+import { JobService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job-overview-drawer-subtasks',

@@ -20,11 +20,11 @@ import { HttpEventType } from '@angular/common/http';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { Router } from '@angular/router';
-import { JarFilesItemInterface } from 'interfaces';
+import { JarFilesItemInterface } from '@flink-runtime-web/interfaces';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { JarService, StatusService } from 'services';
-import { DagreComponent } from 'share/common/dagre/dagre.component';
+import { JarService, StatusService } from '@flink-runtime-web/services';
+import { DagreComponent } from '@flink-runtime-web/share/common/dagre/dagre.component';
 
 @Component({
   selector: 'flink-submit',

@@ -17,7 +17,7 @@
  */
 
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
-import { ConfigService } from 'services';
+import { ConfigService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job-badge',

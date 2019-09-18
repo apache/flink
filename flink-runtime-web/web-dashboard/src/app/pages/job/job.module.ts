@@ -19,7 +19,7 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ShareModule } from 'share/share.module';
+import { ShareModule } from '@flink-runtime-web/share/share.module';
 import { JobCheckpointsDetailComponent } from './checkpoints/detail/job-checkpoints-detail.component';
 import { JobCheckpointsComponent } from './checkpoints/job-checkpoints.component';
 import { JobCheckpointsSubtaskComponent } from './checkpoints/subtask/job-checkpoints-subtask.component';

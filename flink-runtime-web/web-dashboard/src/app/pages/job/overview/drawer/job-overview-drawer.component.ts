@@ -20,7 +20,7 @@ import { Component, ChangeDetectionStrategy, OnInit, OnDestroy } from '@angular/
 import { ActivatedRoute, Router } from '@angular/router';
 import { combineLatest, Subject } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
-import { JobService } from 'services';
+import { JobService } from '@flink-runtime-web/services';
 import { trigger, animate, style, transition } from '@angular/animations';
 
 @Component({

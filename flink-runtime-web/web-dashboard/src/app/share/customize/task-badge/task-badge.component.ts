@@ -17,8 +17,8 @@
  */
 
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
-import { TaskStatusInterface } from 'interfaces';
-import { ConfigService } from 'services';
+import { TaskStatusInterface } from '@flink-runtime-web/interfaces';
+import { ConfigService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-task-badge',

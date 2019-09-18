@@ -37,7 +37,7 @@ import {
   TaskStatusInterface,
   UserAccumulatorsInterface,
   VerticesLinkInterface
-} from 'interfaces';
+} from '@flink-runtime-web/interfaces';
 import { combineLatest, EMPTY, ReplaySubject } from 'rxjs';
 import { catchError, filter, flatMap, map } from 'rxjs/operators';
 import { ConfigService } from './config.service';
@@ -100,20 +100,22 @@ export class JobService {
    * Get job list
    */
   loadJobs() {
-    return this.httpClient.get<JobOverviewInterface>(`${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/overview`).pipe(
-      map(data => {
-        data.jobs.forEach(job => {
-          for (const key in job.tasks) {
-            const upperCaseKey = key.toUpperCase() as (keyof TaskStatusInterface);
-            job.tasks[upperCaseKey] = job.tasks[key as (keyof TaskStatusInterface)];
-            delete job.tasks[key as (keyof TaskStatusInterface)];
-          }
-          job.completed = ['FINISHED', 'FAILED', 'CANCELED'].indexOf(job.state) > -1;
-        });
-        return data.jobs || [];
-      }),
-      catchError(() => EMPTY)
-    );
+    return this.httpClient
+      .get<JobOverviewInterface>(`${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/overview`)
+      .pipe(
+        map(data => {
+          data.jobs.forEach(job => {
+            for (const key in job.tasks) {
+              const upperCaseKey = key.toUpperCase() as (keyof TaskStatusInterface);
+              job.tasks[upperCaseKey] = job.tasks[key as (keyof TaskStatusInterface)];
+              delete job.tasks[key as (keyof TaskStatusInterface)];
+            }
+            job.completed = ['FINISHED', 'FAILED', 'CANCELED'].indexOf(job.state) > -1;
+          });
+          return data.jobs || [];
+        }),
+        catchError(() => EMPTY)
+      );
   }
 
   /**
@@ -121,7 +123,9 @@ export class JobService {
    * @param jobId
    */
   loadJobConfig(jobId: string) {
-    return this.httpClient.get<JobConfigInterface>(`${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/${jobId}/config`);
+    return this.httpClient.get<JobConfigInterface>(
+      `${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/${jobId}/config`
+    );
   }
 
   /**
@@ -129,10 +133,12 @@ export class JobService {
    * @param jobId
    */
   loadJob(jobId: string) {
-    return this.httpClient.get<JobDetailInterface>(`${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/${jobId}`).pipe(
-      map(job => this.convertJob(job)),
-      catchError(() => EMPTY)
-    );
+    return this.httpClient
+      .get<JobDetailInterface>(`${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/${jobId}`)
+      .pipe(
+        map(job => this.convertJob(job)),
+        catchError(() => EMPTY)
+      );
   }
 
   /**
@@ -170,7 +176,9 @@ export class JobService {
    * @param jobId
    */
   loadExceptions(jobId: string) {
-    return this.httpClient.get<JobExceptionInterface>(`${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/${jobId}/exceptions`);
+    return this.httpClient.get<JobExceptionInterface>(
+      `${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/${jobId}/exceptions`
+    );
   }
 
   /**
@@ -203,7 +211,9 @@ export class JobService {
    * @param vertexId
    */
   loadSubTaskTimes(jobId: string, vertexId: string) {
-    return this.httpClient.get<JobSubTaskTimeInterface>(`${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/${jobId}/vertices/${vertexId}/subtasktimes`);
+    return this.httpClient.get<JobSubTaskTimeInterface>(
+      `${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/${jobId}/vertices/${vertexId}/subtasktimes`
+    );
   }
 
   /**
@@ -222,7 +232,9 @@ export class JobService {
    * @param jobId
    */
   loadCheckpointStats(jobId: string) {
-    return this.httpClient.get<CheckPointInterface>(`${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/${jobId}/checkpoints`);
+    return this.httpClient.get<CheckPointInterface>(
+      `${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/${jobId}/checkpoints`
+    );
   }
 
   /**
@@ -230,7 +242,9 @@ export class JobService {
    * @param jobId
    */
   loadCheckpointConfig(jobId: string) {
-    return this.httpClient.get<CheckPointConfigInterface>(`${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/${jobId}/checkpoints/config`);
+    return this.httpClient.get<CheckPointConfigInterface>(
+      `${this.configService.BASE_URL}/${this.configService.JOB_PREFIX}/${jobId}/checkpoints/config`
+    );
   }
 
   /**

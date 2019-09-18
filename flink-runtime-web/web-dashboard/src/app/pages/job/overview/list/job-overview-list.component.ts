@@ -17,8 +17,8 @@
  */
 
 import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy, ElementRef } from '@angular/core';
-import { deepFind } from 'utils';
-import { NodesItemCorrectInterface } from 'interfaces';
+import { deepFind } from '@flink-runtime-web/utils';
+import { NodesItemCorrectInterface } from '@flink-runtime-web/interfaces';
 
 @Component({
   selector: 'flink-job-overview-list',

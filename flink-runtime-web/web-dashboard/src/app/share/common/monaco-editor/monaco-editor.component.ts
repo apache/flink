@@ -19,7 +19,7 @@
 import { AfterViewInit, Component, ElementRef, ChangeDetectionStrategy, Input, OnDestroy } from '@angular/core';
 import { fromEvent, merge, Subject } from 'rxjs';
 import { debounceTime, takeUntil } from 'rxjs/operators';
-import { MonacoEditorService } from 'share/common/monaco-editor/monaco-editor.service';
+import { MonacoEditorService } from '@flink-runtime-web/share/common/monaco-editor/monaco-editor.service';
 import IStandaloneCodeEditor = monaco.editor.IStandaloneCodeEditor;
 
 @Component({

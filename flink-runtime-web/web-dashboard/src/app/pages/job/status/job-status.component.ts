@@ -17,10 +17,10 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit } from '@angular/core';
-import { JobDetailCorrectInterface } from 'interfaces';
+import { JobDetailCorrectInterface } from '@flink-runtime-web/interfaces';
 import { Subject } from 'rxjs';
 import { distinctUntilKeyChanged, takeUntil } from 'rxjs/operators';
-import { JobService } from 'services';
+import { JobService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job-status',

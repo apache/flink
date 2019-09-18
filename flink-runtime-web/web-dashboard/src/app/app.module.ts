@@ -67,8 +67,8 @@ import {
   PicCenterOutline
 } from '@ant-design/icons-angular/icons';
 
-import { StatusService } from 'services';
-import { ConfigurationInterface } from 'interfaces';
+import { StatusService } from '@flink-runtime-web/services';
+import { ConfigurationInterface } from '@flink-runtime-web/interfaces';
 import { AppInterceptor } from './app.interceptor';
 
 registerLocaleData(en);

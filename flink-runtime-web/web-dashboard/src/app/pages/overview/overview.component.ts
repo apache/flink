@@ -17,10 +17,10 @@
  */
 
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
-import { JobsItemInterface } from 'interfaces';
+import { JobsItemInterface } from '@flink-runtime-web/interfaces';
 import { Observable, Subject } from 'rxjs';
 import { flatMap, share, takeUntil } from 'rxjs/operators';
-import { StatusService, JobService } from 'services';
+import { StatusService, JobService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-overview',

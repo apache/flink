@@ -22,9 +22,9 @@ import {
   CheckPointHistoryInterface,
   CheckPointInterface,
   JobDetailCorrectInterface
-} from 'interfaces';
+} from '@flink-runtime-web/interfaces';
 import { distinctUntilChanged } from 'rxjs/operators';
-import { JobService } from 'services';
+import { JobService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job-checkpoints',

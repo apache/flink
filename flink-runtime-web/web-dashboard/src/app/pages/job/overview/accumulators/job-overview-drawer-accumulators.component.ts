@@ -19,8 +19,8 @@
 import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
-import { SubTaskAccumulatorsInterface, UserAccumulatorsInterface } from 'interfaces';
-import { JobService } from 'services';
+import { SubTaskAccumulatorsInterface, UserAccumulatorsInterface } from '@flink-runtime-web/interfaces';
+import { JobService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job-overview-drawer-accumulators',

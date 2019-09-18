@@ -32,7 +32,7 @@ import {
 
 import { select } from 'd3-selection';
 import { zoomIdentity } from 'd3-zoom';
-import { NodesItemCorrectInterface, NodesItemLinkInterface } from 'interfaces';
+import { NodesItemCorrectInterface, NodesItemLinkInterface } from '@flink-runtime-web/interfaces';
 import { LayoutNode, NzGraph } from './graph';
 import { NodeComponent } from './node.component';
 import { SvgContainerComponent } from './svg-container.component';
