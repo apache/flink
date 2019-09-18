@@ -79,9 +79,9 @@ public class CheckpointStateRestoreTest {
 	public void testSetState() {
 		try {
 
-			KeyGroupRange keyGroupRange = KeyGroupRange.of(0,0);
+			KeyGroupRange keyGroupRange = KeyGroupRange.of(0, 0);
 			List<SerializableObject> testStates = Collections.singletonList(new SerializableObject());
-			final KeyedStateHandle serializedKeyGroupStates = CheckpointCoordinatorTest.generateKeyGroupState(keyGroupRange, testStates);
+			final KeyedStateHandle serializedKeyGroupStates = CheckpointCoordinatorTestingUtils.generateKeyGroupState(keyGroupRange, testStates);
 
 			final JobID jid = new JobID();
 			final JobVertexID statefulId = new JobVertexID();
