@@ -65,8 +65,13 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		verifyExecuteIsCalledOnceWhenInDetachedMode();
 
 		final Plan plan = createProgramPlan(jobName);
-		final JobWithJars job = new JobWithJars(plan, jarFilesToAttach, classpathsToAttach, userCodeClassLoader);
-		final JobSubmissionResult jobSubmissionResult = client.run(job, getParallelism(), savepointSettings);
+		final JobSubmissionResult jobSubmissionResult = client.run(
+			plan,
+			jarFilesToAttach,
+			classpathsToAttach,
+			userCodeClassLoader,
+			getParallelism(),
+			savepointSettings);
 
 		lastJobExecutionResult = jobSubmissionResult.getJobExecutionResult();
 		return lastJobExecutionResult;

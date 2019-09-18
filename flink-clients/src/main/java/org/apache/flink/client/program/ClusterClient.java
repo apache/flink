@@ -197,38 +197,24 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 		}
 	}
 
-	public JobSubmissionResult run(JobWithJars program, int parallelism) throws ProgramInvocationException {
-		return run(program, parallelism, SavepointRestoreSettings.none());
+	public JobSubmissionResult run(
+		Plan plan,
+		List<URL> libraries,
+		List<URL> classpaths,
+		ClassLoader classLoader,
+		int parallelism,
+		SavepointRestoreSettings savepointSettings) throws CompilerException, ProgramInvocationException {
+
+		OptimizedPlan optPlan = getOptimizedPlan(compiler, plan, parallelism);
+		return run(optPlan, libraries, classpaths, classLoader, savepointSettings);
 	}
 
-	/**
-	 * Runs a program on the Flink cluster to which this client is connected. The call blocks until the
-	 * execution is complete, and returns afterwards.
-	 *
-	 * @param jobWithJars The program to be executed.
-	 * @param parallelism The default parallelism to use when running the program. The default parallelism is used
-	 *                    when the program does not set a parallelism by itself.
-	 *
-	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
-	 * @throws ProgramInvocationException Thrown, if the program could not be instantiated from its jar file,
-	 *                                    or if the submission failed. That might be either due to an I/O problem,
-	 *                                    i.e. the job-manager is unreachable, or due to the fact that the
-	 *                                    parallel execution failed.
-	 */
-	public JobSubmissionResult run(JobWithJars jobWithJars, int parallelism, SavepointRestoreSettings savepointSettings)
-			throws CompilerException, ProgramInvocationException {
-		ClassLoader classLoader = jobWithJars.getUserCodeClassLoader();
-		if (classLoader == null) {
-			throw new IllegalArgumentException("The given JobWithJars does not provide a usercode class loader.");
-		}
-
-		OptimizedPlan optPlan = getOptimizedPlan(compiler, jobWithJars, parallelism);
-		return run(optPlan, jobWithJars.getJarFiles(), jobWithJars.getClasspaths(), classLoader, savepointSettings);
-	}
-
-	public JobSubmissionResult run(FlinkPlan compiledPlan,
-			List<URL> libraries, List<URL> classpaths, ClassLoader classLoader, SavepointRestoreSettings savepointSettings)
-			throws ProgramInvocationException {
+	public JobSubmissionResult run(
+		FlinkPlan compiledPlan,
+		List<URL> libraries,
+		List<URL> classpaths,
+		ClassLoader classLoader,
+		SavepointRestoreSettings savepointSettings) throws ProgramInvocationException {
 		JobGraph job = getJobGraph(flinkConfig, compiledPlan, libraries, classpaths, savepointSettings);
 		return submitJob(job, classLoader);
 	}
@@ -314,18 +300,6 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 	// ------------------------------------------------------------------------
 	//  Internal translation methods
 	// ------------------------------------------------------------------------
-
-	/**
-	 * Creates the optimized plan for a given program, using this client's compiler.
-	 *
-	 * @param prog The program to be compiled.
-	 * @return The compiled and optimized plan, as returned by the compiler.
-	 * @throws CompilerException Thrown, if the compiler encounters an illegal situation.
-	 */
-	private static OptimizedPlan getOptimizedPlan(Optimizer compiler, JobWithJars prog, int parallelism)
-			throws CompilerException, ProgramInvocationException {
-		return getOptimizedPlan(compiler, prog.getPlan(), parallelism);
-	}
 
 	public static JobGraph getJobGraph(Configuration flinkConfig, PackagedProgram prog, FlinkPlan optPlan, SavepointRestoreSettings savepointSettings) throws ProgramInvocationException {
 		return getJobGraph(flinkConfig, optPlan, prog.getAllLibraries(), prog.getClasspaths(), savepointSettings);
