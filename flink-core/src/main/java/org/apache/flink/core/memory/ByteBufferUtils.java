@@ -29,6 +29,8 @@ import java.nio.ByteBuffer;
  * byte buffer's position.
  *
  * <p/> This class partially refers to org.apache.hadoop.hbase.util.ByteBufferUtils.
+ *
+ * @see <a href=https://github.com/apache/hbase/blob/master/hbase-common/src/main/java/org/apache/hadoop/hbase/util/ByteBufferUtils.java>github source</a>
  */
 public class ByteBufferUtils {
 

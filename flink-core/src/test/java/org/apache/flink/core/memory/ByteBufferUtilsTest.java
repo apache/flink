@@ -35,6 +35,8 @@ import static org.hamcrest.Matchers.lessThan;
  * Tests for {@link ByteBufferUtils}.
  */
 public class ByteBufferUtilsTest extends TestLogger {
+	private final byte[] leftBufferBytes = new byte[]{'a', 'b', 'c', 'd', 'e'};
+	private final byte[] rightBufferBytes = new byte[]{'b', 'c', 'd', 'e', 'f'};
 
 	@Test
 	public void testDirectBBWriteAndRead() {
@@ -77,78 +79,27 @@ public class ByteBufferUtilsTest extends TestLogger {
 	}
 
 	private void testCompareTo(boolean isLeftBBDirect, boolean isRightBuffer, boolean isRightDirect) {
-		testEquals(isLeftBBDirect, isRightBuffer, isRightDirect);
-		testLessThan(isLeftBBDirect, isRightBuffer, isRightDirect);
-		testGreaterThan(isLeftBBDirect, isRightBuffer, isRightDirect);
-	}
-
-	private void testEquals(boolean isLeftBBDirect, boolean isRightBuffer, boolean isRightDirect) {
-		byte[] leftBufferBytes = new byte[]{'a', 'b', 'c', 'd', 'e'};
-		byte[] rightBufferBytes = new byte[]{'b', 'c', 'd', 'e', 'f'};
-		ByteBuffer left = isLeftBBDirect
-			? ByteBuffer.allocateDirect(leftBufferBytes.length).put(leftBufferBytes)
-			: ByteBuffer.wrap(leftBufferBytes);
-		ByteBuffer right = null;
+		ByteBuffer left = getByteBuffer(isLeftBBDirect, leftBufferBytes);
 		if (isRightBuffer) {
-			right = isRightDirect
-				? ByteBuffer.allocateDirect(rightBufferBytes.length).put(rightBufferBytes)
-				: ByteBuffer.wrap(rightBufferBytes);
-		}
-		if (right != null) {
-			Assert.assertThat(
-				ByteBufferUtils.compareTo(left, 1, 4, right, 0, 4),
+			ByteBuffer right = getByteBuffer(isRightDirect, rightBufferBytes);
+			Assert.assertThat(ByteBufferUtils.compareTo(left, 1, 4, right, 0, 4),
 				is(0));
-		} else {
-			Assert.assertThat(
-				ByteBufferUtils.compareTo(left, 1, 4, rightBufferBytes, 0, 4),
-				is(0));
-		}
-	}
-
-	private void testLessThan(boolean isLeftBBDirect, boolean isRightBuffer, boolean isRightDirect) {
-		byte[] leftBufferBytes = new byte[]{'a', 'b', 'c', 'd', 'e'};
-		byte[] rightBufferBytes = new byte[]{'b', 'c', 'd', 'e', 'f'};
-		ByteBuffer left = isLeftBBDirect
-			? ByteBuffer.allocateDirect(leftBufferBytes.length).put(leftBufferBytes)
-			: ByteBuffer.wrap(leftBufferBytes);
-		ByteBuffer right = null;
-		if (isRightBuffer) {
-			right = isRightDirect
-				? ByteBuffer.allocateDirect(rightBufferBytes.length).put(rightBufferBytes)
-				: ByteBuffer.wrap(rightBufferBytes);
-		}
-		if (right != null) {
-			Assert.assertThat(
-				ByteBufferUtils.compareTo(left, 1, 4, right, 1, 4),
+			Assert.assertThat(ByteBufferUtils.compareTo(left, 1, 4, right, 1, 4),
 				lessThan(0));
-		} else {
-			Assert.assertThat(
-				ByteBufferUtils.compareTo(left, 1, 4, rightBufferBytes, 1, 4),
-				lessThan(0));
-		}
-	}
-
-	private void testGreaterThan(boolean isLeftBBDirect, boolean isRightBuffer, boolean isRightDirect) {
-		byte[] leftBufferBytes = new byte[]{'a', 'b', 'c', 'd', 'e'};
-		byte[] rightBufferBytes = new byte[]{'b', 'c', 'd', 'e', 'f'};
-		ByteBuffer left = isLeftBBDirect
-			? ByteBuffer.allocateDirect(leftBufferBytes.length).put(leftBufferBytes)
-			: ByteBuffer.wrap(leftBufferBytes);
-		ByteBuffer right = null;
-		if (isRightBuffer) {
-			right = isRightDirect
-				? ByteBuffer.allocateDirect(rightBufferBytes.length).put(rightBufferBytes)
-				: ByteBuffer.wrap(rightBufferBytes);
-		}
-		if (right != null) {
-			Assert.assertThat(
-				ByteBufferUtils.compareTo(left, 1, 4, right, 0, 3),
+			Assert.assertThat(ByteBufferUtils.compareTo(left, 1, 4, right, 0, 3),
 				greaterThan(0));
 		} else {
-			Assert.assertThat(
-				ByteBufferUtils.compareTo(left, 1, 4, rightBufferBytes, 0, 3),
+			Assert.assertThat(ByteBufferUtils.compareTo(left, 1, 4, rightBufferBytes, 0, 4),
+				is(0));
+			Assert.assertThat(ByteBufferUtils.compareTo(left, 1, 4, rightBufferBytes, 1, 4),
+				lessThan(0));
+			Assert.assertThat(ByteBufferUtils.compareTo(left, 1, 4, rightBufferBytes, 0, 3),
 				greaterThan(0));
 		}
+	}
+
+	private ByteBuffer getByteBuffer(boolean isBBDirect, byte[] value) {
+		return isBBDirect ? ByteBuffer.allocateDirect(value.length).put(value) : ByteBuffer.wrap(value);
 	}
 
 	private void testWithDifferentOffset(boolean direct) {

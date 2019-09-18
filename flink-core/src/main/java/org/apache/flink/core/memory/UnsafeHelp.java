@@ -33,6 +33,7 @@ import java.security.PrivilegedAction;
 
 /**
  * Unsafe helper class, mainly refers to org.apache.hadoop.hbase.util.UnsafeAccess.
+ * @see <a href=https://github.com/apache/hbase/blob/master/hbase-common/src/main/java/org/apache/hadoop/hbase/util/UnsafeAccess.java>github source</a>
  */
 public class UnsafeHelp {
 	private static final Logger LOG = LoggerFactory.getLogger(UnsafeHelp.class);

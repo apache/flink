@@ -64,19 +64,19 @@ import static org.apache.flink.runtime.state.heap.SkipListUtils.NIL_VALUE_POINTE
  * @param <N> type of namespace
  * @param <S> type of state
  */
-public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> implements AutoCloseable {
+public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> implements AutoCloseable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CopyOnWriteSkipListStateMap.class);
 
 	/**
 	 * Default max number of logically-removed keys to delete one time.
 	 */
-	private static final int DEFAULT_MAX_KEYS_TO_DELETE_ONE_TIME = 3;
+	static final int DEFAULT_MAX_KEYS_TO_DELETE_ONE_TIME = 3;
 
 	/**
 	 * Default ratio of the logically-removed keys to trigger deletion when snapshot.
 	 */
-	private static final float DEFAULT_LOGICAL_REMOVED_KEYS_RATIO = 0.2f;
+	static final float DEFAULT_LOGICAL_REMOVED_KEYS_RATIO = 0.2f;
 
 	/**
 	 * The serializer used to serialize the key and namespace to bytes stored in skip list.
@@ -164,15 +164,6 @@ public class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S> impl
 	 * used to synchronize with snapshots.
 	 */
 	private final ResourceGuard resourceGuard;
-
-	public CopyOnWriteSkipListStateMap(
-			@Nonnull TypeSerializer<K> keySerializer,
-			@Nonnull TypeSerializer<N> namespaceSerializer,
-			@Nonnull TypeSerializer<S> stateSerializer,
-			@Nonnull Allocator spaceAllocator) {
-		this(keySerializer, namespaceSerializer, stateSerializer, spaceAllocator,
-			DEFAULT_MAX_KEYS_TO_DELETE_ONE_TIME, DEFAULT_LOGICAL_REMOVED_KEYS_RATIO);
-	}
 
 	public CopyOnWriteSkipListStateMap(
 			@Nonnull TypeSerializer<K> keySerializer,

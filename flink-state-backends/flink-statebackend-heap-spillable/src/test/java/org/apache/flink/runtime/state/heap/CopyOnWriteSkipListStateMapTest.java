@@ -57,6 +57,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static org.apache.flink.runtime.state.heap.CopyOnWriteSkipListStateMap.DEFAULT_LOGICAL_REMOVED_KEYS_RATIO;
+import static org.apache.flink.runtime.state.heap.CopyOnWriteSkipListStateMap.DEFAULT_MAX_KEYS_TO_DELETE_ONE_TIME;
 import static org.apache.flink.runtime.state.heap.SkipListUtils.NIL_NODE;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
@@ -87,11 +89,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testInitStateMap() {
-		TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
-		TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
-		TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = new CopyOnWriteSkipListStateMap<>(
-			keySerializer, namespaceSerializer, stateSerializer, spaceAllocator);
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
 
 		assertTrue(stateMap.isEmpty());
 		assertEquals(0, stateMap.size());
@@ -125,11 +123,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testBasicOperations() throws Exception {
-		TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
-		TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
-		TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = new CopyOnWriteSkipListStateMap<>(
-			keySerializer, namespaceSerializer, stateSerializer, spaceAllocator);
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
 
 		ThreadLocalRandom random = ThreadLocalRandom.current();
 		// map to store expected states, namespace -> key -> state
@@ -873,10 +867,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
 		TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
 		// set logicalRemovedKeysRatio to 0 so that all logically removed states will be deleted when snapshot
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = new CopyOnWriteSkipListStateMap<>(keySerializer,
-			namespaceSerializer,
-			stateSerializer,
-			spaceAllocator);
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
 
 		// firstly build value chain and snapshots as follows
 		//  ------      ------      ------      ------
@@ -1016,8 +1007,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
 		TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
 		// set logicalRemovedKeysRatio to 0 so that all logically removed states will be deleted when snapshot
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = new CopyOnWriteSkipListStateMap<>(
-			keySerializer, namespaceSerializer, stateSerializer, spaceAllocator);
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
 
 		StateSnapshotTransformer<String> transformer = new StateSnapshotTransformer<String>() {
 			@Nullable
@@ -1140,12 +1130,8 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	 */
 	@Test
 	public void testStateIncrementalVisitor() {
-		TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
-		TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
-		TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
 		// set logicalRemovedKeysRatio to 0 so that all logically removed states will be deleted when snapshot
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = new CopyOnWriteSkipListStateMap<>(
-			keySerializer, namespaceSerializer, stateSerializer, spaceAllocator);
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
 
 		// map to store expected states, namespace -> key -> state
 		Map<Long, Map<Integer, String>> referenceStates = new HashMap<>();
@@ -1201,8 +1187,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
 		TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
 		TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = new CopyOnWriteSkipListStateMap<>(
-			keySerializer, namespaceSerializer, stateSerializer, spaceAllocator);
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
 		final int key = 10;
 		final long namespace = 0L;
 		final String valueString = "test";
@@ -1444,5 +1429,15 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 			valuePointer = SkipListUtils.helpGetNextValuePointer(valuePointer, spaceAllocator);
 		}
 		return values;
+	}
+
+	private CopyOnWriteSkipListStateMap<Integer, Long, String> createStateMapForTesting() {
+		return new CopyOnWriteSkipListStateMap<>(
+			IntSerializer.INSTANCE,
+			LongSerializer.INSTANCE,
+			StringSerializer.INSTANCE,
+			spaceAllocator,
+			DEFAULT_MAX_KEYS_TO_DELETE_ONE_TIME,
+			DEFAULT_LOGICAL_REMOVED_KEYS_RATIO);
 	}
 }
