@@ -91,7 +91,7 @@ public class MesosSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
 		// TM configuration
 		taskManagerParameters = MesosEntrypointUtils.createTmParameters(config, LOG);
-		taskManagerContainerSpec = MesosEntrypointUtils.createContainerSpec(config, dynamicProperties);
+		taskManagerContainerSpec = MesosEntrypointUtils.createSessionClusterContainerSpec(config, dynamicProperties);
 	}
 
 	@Override

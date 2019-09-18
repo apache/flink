@@ -52,7 +52,8 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FlinkDistributionOverlay.class);
 
-	static final Path TARGET_ROOT = new Path("flink");
+	static final String TARGET_ROOT_STR = "./";
+	static final Path TARGET_ROOT = new Path(TARGET_ROOT_STR);
 
 	final File flinkBinPath;
 	final File flinkConfPath;
@@ -69,7 +70,7 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 	@Override
 	public void configure(ContainerSpecification container) throws IOException {
 
-		container.getEnvironmentVariables().put(ENV_FLINK_HOME_DIR, TARGET_ROOT.toString());
+		container.getEnvironmentVariables().put(ENV_FLINK_HOME_DIR, TARGET_ROOT_STR);
 
 		// add the paths to the container specification.
 		addPathRecursively(flinkBinPath, TARGET_ROOT, container);
@@ -108,7 +109,6 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 			flinkConfPath = getObligatoryFileFromEnvironment(ENV_FLINK_CONF_DIR);
 			flinkLibPath = getObligatoryFileFromEnvironment(ENV_FLINK_LIB_DIR);
 			flinkPluginsPath = getObligatoryFileFromEnvironment(ENV_FLINK_PLUGINS_DIR);
-
 			return this;
 		}
 

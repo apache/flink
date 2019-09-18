@@ -28,7 +28,9 @@ import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.overlays.CompositeContainerOverlay;
+import org.apache.flink.runtime.clusterframework.overlays.ContainerOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.FlinkDistributionOverlay;
+import org.apache.flink.runtime.clusterframework.overlays.FlinkJobOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.HadoopConfOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.HadoopUserOverlay;
 import org.apache.flink.runtime.clusterframework.overlays.KeytabOverlay;
@@ -39,6 +41,9 @@ import org.apache.mesos.Protos;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -120,7 +125,7 @@ public class MesosEntrypointUtils {
 		return taskManagerParameters;
 	}
 
-	public static ContainerSpecification createContainerSpec(Configuration configuration, Configuration dynamicProperties)
+	static ContainerSpecification createJobClusterContainerSpec(Configuration configuration, Configuration dynamicProperties)
 		throws Exception {
 		// generate a container spec which conveys the artifacts/vars needed to launch a TM
 		ContainerSpecification spec = new ContainerSpecification();
@@ -128,34 +133,82 @@ public class MesosEntrypointUtils {
 		// propagate the AM dynamic configuration to the TM
 		spec.getDynamicConfiguration().addAll(dynamicProperties);
 
-		applyOverlays(configuration, spec);
+		applyJobClusterOverlays(configuration, spec);
+
+		return spec;
+	}
+
+	static ContainerSpecification createSessionClusterContainerSpec(Configuration configuration, Configuration dynamicProperties)
+		throws Exception {
+		// generate a container spec which conveys the artifacts/vars needed to launch a TM
+		ContainerSpecification spec = new ContainerSpecification();
+
+		// propagate the AM dynamic configuration to the TM
+		spec.getDynamicConfiguration().addAll(dynamicProperties);
+
+		applySessionClusterOverlays(configuration, spec);
 
 		return spec;
 	}
 
 	/**
-	 * Generate a container specification as a TaskManager template.
+	 * Generate a container specification as a TaskManager template for the job cluster.
 	 *
 	 * <p>This code is extremely Mesos-specific and registers all the artifacts that the TaskManager
 	 * needs (such as JAR file, config file, ...) and all environment variables into a container specification.
 	 * The Mesos fetcher then ensures that those artifacts will be copied into the task's sandbox directory.
 	 * A lightweight HTTP server serves the artifacts to the fetcher.
 	 */
-	public static void applyOverlays(
-		Configuration configuration, ContainerSpecification containerSpec) throws IOException {
+	private static void applyJobClusterOverlays(Configuration configuration, ContainerSpecification containerSpec)
+		throws IOException {
+		// create the perjob overlays
+		CompositeContainerOverlay overlay = new CompositeContainerOverlay(buildOverlays(configuration, true));
+		// apply the overlays
+		overlay.configure(containerSpec);
+	}
 
-		// create the overlays that will produce the specification
-		CompositeContainerOverlay overlay = new CompositeContainerOverlay(
-			FlinkDistributionOverlay.newBuilder().fromEnvironment(configuration).build(),
+
+	/**
+	 * Generate a container specification as a TaskManager template for the session cluster.
+	 *
+	 * <p>This code is extremely Mesos-specific and registers all the artifacts that the TaskManager
+	 * needs (such as JAR file, config file, ...) and all environment variables into a container specification.
+	 * The Mesos fetcher then ensures that those artifacts will be copied into the task's sandbox directory.
+	 * A lightweight HTTP server serves the artifacts to the fetcher.
+	 */
+	private static void applySessionClusterOverlays(Configuration configuration, ContainerSpecification containerSpec)
+		throws IOException {
+		// create the session overlays
+		CompositeContainerOverlay overlay = new CompositeContainerOverlay(buildOverlays(configuration, false));
+		// apply the overlays
+		overlay.configure(containerSpec);
+	}
+
+
+	/**
+	 * Build the overlays for the containers.
+	 *
+	 * @param configuration The Flink configuration.
+	 * @param isJobCluster Whether current is per job mode.
+	 * @return List of overlays used to generate a container specification
+	 * @throws IOException Fail to build the overlays.
+	 */
+	static List<ContainerOverlay> buildOverlays(Configuration configuration, boolean isJobCluster) throws IOException {
+		final List<ContainerOverlay> taskManagerContainerOverlays = new LinkedList<>(Arrays.asList(
 			HadoopConfOverlay.newBuilder().fromEnvironment(configuration).build(),
 			HadoopUserOverlay.newBuilder().fromEnvironment(configuration).build(),
 			KeytabOverlay.newBuilder().fromEnvironment(configuration).build(),
 			Krb5ConfOverlay.newBuilder().fromEnvironment(configuration).build(),
 			SSLStoreOverlay.newBuilder().fromEnvironment(configuration).build()
-		);
-
-		// apply the overlays
-		overlay.configure(containerSpec);
+		));
+		if (isJobCluster) {
+			taskManagerContainerOverlays.add(
+				FlinkJobOverlay.newBuilder().fromEnvironment(configuration).build());
+		} else {
+			taskManagerContainerOverlays.add(
+				FlinkDistributionOverlay.newBuilder().fromEnvironment(configuration).build());
+		}
+		return taskManagerContainerOverlays;
 	}
 
 	/**

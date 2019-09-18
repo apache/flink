@@ -92,7 +92,7 @@ public class MesosJobClusterEntrypoint extends JobClusterEntrypoint {
 
 		// TM configuration
 		taskManagerParameters = MesosEntrypointUtils.createTmParameters(config, LOG);
-		taskManagerContainerSpec = MesosEntrypointUtils.createContainerSpec(config, dynamicProperties);
+		taskManagerContainerSpec = MesosEntrypointUtils.createJobClusterContainerSpec(config, dynamicProperties);
 	}
 
 	@Override
