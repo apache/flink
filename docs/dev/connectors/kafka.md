@@ -665,11 +665,11 @@ into a Kafka topic.
 
 #### Kafka 0.11 and newer
 
-With Flink's checkpointing enabled, the `FlinkKafkaProducer011` (`FlinkKafkaProducer` for Kafka >= 1.0.0 versions) can provide
+With Flink's checkpointing enabled, the `FlinkKafkaProducer011` (`FlinkKafkaProducer` for Kafka >= 0.11.x versions) can provide
 exactly-once delivery guarantees.
 
 Besides enabling Flink's checkpointing, you can also choose three different modes of operating
-chosen by passing appropriate `semantic` parameter to the `FlinkKafkaProducer011` (`FlinkKafkaProducer` for Kafka >= 1.0.0 versions):
+chosen by passing appropriate `semantic` parameter to the `FlinkKafkaProducer011` (`FlinkKafkaProducer` for Kafka >= 0.11.x versions):
 
  * `Semantic.NONE`: Flink will not guarantee anything. Produced records can be lost or they can
  be duplicated.
