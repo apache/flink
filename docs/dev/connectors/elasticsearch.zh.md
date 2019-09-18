@@ -55,6 +55,11 @@ of the Elasticsearch installation:
         <td>1.6.0</td>
         <td>6 and later versions</td>
     </tr>
+    <tr>
+        <td>flink-connector-elasticsearch7{{ site.scala_version_suffix }}</td>
+        <td>1.10.0</td>
+        <td>7 and later versions</td>
+    </tr>
   </tbody>
 </table>
 
