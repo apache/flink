@@ -20,7 +20,6 @@ package org.apache.flink.test.checkpointing;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
@@ -192,9 +191,6 @@ public class WatermarkCheckpointingITCase extends TestLogger {
 
 		Configuration config = new Configuration();
 		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "48m");
-		// the default network buffers size (10% of heap max =~ 150MB) seems to much for this test case
-		config.setString(TaskManagerOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(80L << 20)); // 80 MB
-		config.setString(AkkaOptions.FRAMESIZE, String.valueOf(MAX_MEM_STATE_SIZE) + "b");
 
 		if (zkServer != null) {
 			config.setString(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
