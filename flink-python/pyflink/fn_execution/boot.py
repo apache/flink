@@ -68,25 +68,18 @@ provision_endpoint = args.provision_endpoint
 control_endpoint = args.control_endpoint
 semi_persist_dir = args.semi_persist_dir
 
-if worker_id == "":
-    logging.fatal("No id provided.")
-    exit(1)
 
-if logging_endpoint == "":
-    logging.fatal("No logging endpoint provided.")
-    exit(1)
+def check_not_empty(check_str, error_message):
+    if check_str == "":
+        logging.fatal(error_message)
+        exit(1)
 
-if artifact_endpoint == "":
-    logging.fatal("No artifact endpoint provided.")
-    exit(1)
 
-if provision_endpoint == "":
-    logging.fatal("No provision endpoint provided.")
-    exit(1)
-
-if control_endpoint == "":
-    logging.fatal("No control endpoint provided.")
-    exit(1)
+check_not_empty(worker_id, "No id provided.")
+check_not_empty(logging_endpoint, "No logging endpoint provided.")
+check_not_empty(artifact_endpoint, "No artifact endpoint provided.")
+check_not_empty(provision_endpoint, "No provision endpoint provided.")
+check_not_empty(control_endpoint, "No control endpoint provided.")
 
 logging.info("Initializing python harness: %s" % " ".join(sys.argv))
 
