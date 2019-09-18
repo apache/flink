@@ -32,7 +32,9 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.util.TestingScheduledExecutor;
 
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -68,6 +70,10 @@ import static org.mockito.Mockito.when;
  * Tests for the user-defined hooks that the checkpoint coordinator can call.
  */
 public class CheckpointCoordinatorMasterHooksTest {
+
+	@Rule
+	public final TestingScheduledExecutor testingScheduledExecutor =
+		new TestingScheduledExecutor();
 
 	// ------------------------------------------------------------------------
 	//  hook registration
@@ -421,7 +427,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 	//  utilities
 	// ------------------------------------------------------------------------
 
-	private static CheckpointCoordinator instantiateCheckpointCoordinator(JobID jid, ExecutionVertex... ackVertices) {
+	private CheckpointCoordinator instantiateCheckpointCoordinator(JobID jid, ExecutionVertex... ackVertices) {
 		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
 			10000000L,
 			600000L,
@@ -441,6 +447,7 @@ public class CheckpointCoordinatorMasterHooksTest {
 				new StandaloneCompletedCheckpointStore(10),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
+				testingScheduledExecutor.getScheduledExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
 				new CheckpointFailureManager(
 					0,

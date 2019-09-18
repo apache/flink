@@ -31,8 +31,10 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.util.TestingScheduledExecutor;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -55,6 +57,10 @@ import static org.mockito.Mockito.when;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(PendingCheckpoint.class)
 public class CheckpointCoordinatorFailureTest extends TestLogger {
+
+	@Rule
+	public final TestingScheduledExecutor testingScheduledExecutor =
+		new TestingScheduledExecutor();
 
 	/**
 	 * Tests that a failure while storing a completed checkpoint in the completed checkpoint store
@@ -93,6 +99,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 			new FailingCompletedCheckpointStore(),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
+			testingScheduledExecutor.getScheduledExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 

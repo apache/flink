@@ -28,9 +28,11 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.util.TestingScheduledExecutor;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -52,6 +54,10 @@ import static org.mockito.Mockito.doAnswer;
  */
 public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 	private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
+
+	@Rule
+	public final TestingScheduledExecutor testingScheduledExecutor =
+		new TestingScheduledExecutor();
 
 	private CheckpointFailureManager failureManager;
 
@@ -122,6 +128,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
+				testingScheduledExecutor.getScheduledExecutor(),
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
@@ -216,6 +223,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(2),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
+			testingScheduledExecutor.getScheduledExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
@@ -276,6 +284,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
+			testingScheduledExecutor.getScheduledExecutor(),
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 

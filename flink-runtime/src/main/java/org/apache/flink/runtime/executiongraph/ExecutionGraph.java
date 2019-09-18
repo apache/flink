@@ -45,6 +45,7 @@ import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils.ConjunctFuture;
+import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
@@ -79,6 +80,7 @@ import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StateBackend;
+import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.types.Either;
 import org.apache.flink.util.ExceptionUtils;
@@ -113,6 +115,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -319,7 +322,12 @@ public class ExecutionGraph implements AccessExecutionGraph {
 	// ------ Fields that are relevant to the execution and need to be cleared before archiving  -------
 
 	/** The coordinator for checkpoints, if snapshot checkpoints are enabled. */
+	@Nullable
 	private CheckpointCoordinator checkpointCoordinator;
+
+	/** TODO, replace it with main thread executor. */
+	@Nullable
+	private ScheduledExecutorService checkpointCoordinatorTimer;
 
 	/** Checkpoint stats tracker separate from the coordinator in order to be
 	 * available after archiving. */
@@ -604,6 +612,12 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			}
 		);
 
+		checkState(checkpointCoordinatorTimer == null);
+
+		checkpointCoordinatorTimer = Executors.newSingleThreadScheduledExecutor(
+			new DispatcherThreadFactory(
+				Thread.currentThread().getThreadGroup(), "Checkpoint Timer"));
+
 		// create the coordinator that triggers and commits checkpoints and holds the state
 		checkpointCoordinator = new CheckpointCoordinator(
 			jobInformation.getJobId(),
@@ -615,6 +629,7 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			checkpointStore,
 			checkpointStateBackend,
 			ioExecutor,
+			new ScheduledExecutorServiceAdapter(checkpointCoordinatorTimer),
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
@@ -1558,6 +1573,10 @@ public class ExecutionGraph implements AccessExecutionGraph {
 			this.checkpointCoordinator = null;
 			if (coord != null) {
 				coord.shutdown(status);
+			}
+			if (checkpointCoordinatorTimer != null) {
+				checkpointCoordinatorTimer.shutdownNow();
+				checkpointCoordinatorTimer = null;
 			}
 		}
 		catch (Exception e) {
