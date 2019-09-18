@@ -142,6 +142,13 @@ public class BufferConsumer implements Closeable {
 	}
 
 	/**
+	 * Returns true if there is new data available for reading.
+	 */
+	public boolean isDataAvailable() {
+		return currentReaderPosition < writerPosition.getLatest();
+	}
+
+	/**
 	 * Cached reading wrapper around {@link PositionMarker}.
 	 *
 	 * <p>Writer ({@link BufferBuilder}) and reader ({@link BufferConsumer}) caches must be implemented independently
@@ -166,6 +173,10 @@ public class BufferConsumer implements Closeable {
 
 		public int getCached() {
 			return PositionMarker.getAbsolute(cachedPosition);
+		}
+
+		private int getLatest() {
+			return PositionMarker.getAbsolute(positionMarker.get());
 		}
 
 		private void update() {
