@@ -49,6 +49,7 @@ under the License.
 		<module>flink-connector-elasticsearch2</module>
 		<module>flink-connector-elasticsearch5</module>
 		<module>flink-connector-elasticsearch6</module>
+		<module>flink-connector-elasticsearch7</module>
 		<module>flink-connector-hive</module>
 		<module>flink-connector-rabbitmq</module>
 		<module>flink-connector-twitter</module>
@@ -58,6 +59,7 @@ under the License.
 		<module>flink-connector-kafka</module>
 		<module>flink-connector-gcp-pubsub</module>
 		<module>flink-connector-kinesis</module>
+		<module>flink-sql-connector-elasticsearch7</module>
 	</modules>
 
 	<!-- override these root dependencies as 'provided', so they don't end up

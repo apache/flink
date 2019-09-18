@@ -18,26 +18,26 @@ specific language governing permissions and limitations
 under the License.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-			xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-			xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
+		<groupId>org.apache.flink</groupId>
 		<version>1.10-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-connector-elasticsearch6_${scala.binary.version}</artifactId>
-	<name>flink-connector-elasticsearch6</name>
+	<artifactId>flink-connector-elasticsearch7_${scala.binary.version}</artifactId>
+	<name>flink-connector-elasticsearch7</name>
 
 	<packaging>jar</packaging>
 
 	<!-- Allow users to pass custom connector versions -->
 	<properties>
-		<elasticsearch.version>6.3.1</elasticsearch.version>
+		<elasticsearch.version>7.3.2</elasticsearch.version>
 	</properties>
 
 	<dependencies>
@@ -64,24 +64,11 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<!-- Dependency for Elasticsearch 6.x REST Client -->
+		<!-- Dependency for Elasticsearch 7.x REST Client -->
 		<dependency>
 			<groupId>org.elasticsearch.client</groupId>
 			<artifactId>elasticsearch-rest-high-level-client</artifactId>
 			<version>${elasticsearch.version}</version>
-		</dependency>
-
-		<!--
-			Elasticsearch 5.x uses Log4j2 and no longer detects logging implementations, making
-			Log4j2 a strict dependency. The following is added so that the Log4j2 API in
-			Elasticsearch 5.x is routed to SLF4J. This way, user projects can remain flexible
-			in the logging implementation preferred.
-		-->
-
-		<dependency>
-			<groupId>org.apache.logging.log4j</groupId>
-			<artifactId>log4j-to-slf4j</artifactId>
-			<version>2.9.1</version>
 		</dependency>
 
 		<!-- Table ecosystem -->
@@ -126,7 +113,7 @@ under the License.
 		</dependency>
 
 		<!--
-   			 Including elasticsearch transport dependency for tests. Netty3 is not here anymore in 6.x
+   			 Including elasticsearch transport dependency for tests. Netty3 is not here anymore in 7.x
 		-->
 
 		<dependency>
@@ -187,6 +174,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.12.2</version>
 				<configuration>
 					<systemPropertyVariables>
 						<jna.nosys>true</jna.nosys>
