@@ -28,15 +28,11 @@ import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.FunctionUtils;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -47,36 +43,18 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 /**
  * Process which encapsulates the job recovery logic and life cycle management of a
  * {@link Dispatcher}.
  */
-public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, JobGraphStore.JobGraphListener {
-
-	private static final Logger LOG = LoggerFactory.getLogger(DispatcherLeaderProcessImpl.class);
-
-	private final Object lock = new Object();
-
-	private final UUID leaderSessionId;
+public class DispatcherLeaderProcessImpl extends  AbstractDispatcherLeaderProcess implements JobGraphStore.JobGraphListener {
 
 	private final DispatcherServiceFactory dispatcherFactory;
 
 	private final JobGraphStore jobGraphStore;
 
 	private final Executor ioExecutor;
-
-	private final FatalErrorHandler fatalErrorHandler;
-
-	private final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture;
-
-	private final CompletableFuture<String> confirmLeaderSessionFuture;
-
-	private final CompletableFuture<Void> terminationFuture;
-
-	private State state;
 
 	@Nullable
 	private DispatcherService dispatcher;
@@ -89,36 +67,17 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 			JobGraphStore jobGraphStore,
 			Executor ioExecutor,
 			FatalErrorHandler fatalErrorHandler) {
-		this.leaderSessionId = leaderSessionId;
+		super(leaderSessionId, fatalErrorHandler);
+
 		this.dispatcherFactory = dispatcherFactory;
 		this.jobGraphStore = jobGraphStore;
 		this.ioExecutor = ioExecutor;
-		this.fatalErrorHandler = fatalErrorHandler;
 
-		this.dispatcherGatewayFuture = new CompletableFuture<>();
-		this.confirmLeaderSessionFuture = dispatcherGatewayFuture.thenApply(RestfulGateway::getAddress);
-		this.terminationFuture = new CompletableFuture<>();
-
-		this.state = State.CREATED;
 		this.dispatcher = null;
 	}
 
-	State getState() {
-		synchronized (lock) {
-			return state;
-		}
-	}
-
 	@Override
-	public void start() {
-		runIfStateIs(
-			State.CREATED,
-			this::startInternal);
-	}
-
-	private void startInternal() {
-		LOG.info("Start {}.", getClass().getSimpleName());
-		state = State.RUNNING;
+	protected void onStart() {
 		startServices();
 
 		onGoingRecoveryOperation = recoverJobsAsync()
@@ -139,31 +98,16 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 		}
 	}
 
-	private <T> Void onErrorIfRunning(T ignored, Throwable throwable) {
-		synchronized (lock) {
-			if (state != State.RUNNING) {
-				return null;
-			}
-		}
-
-		if (throwable != null) {
-			closeAsync();
-			fatalErrorHandler.onFatalError(throwable);
-		}
-
-		return null;
-	}
-
 	private void createDispatcherIfRunning(Collection<JobGraph> jobGraphs) {
 		runIfStateIs(State.RUNNING, () -> createDispatcher(jobGraphs));
 	}
 
 	private void createDispatcher(Collection<JobGraph> jobGraphs) {
 		dispatcher = dispatcherFactory.create(
-			DispatcherId.fromUuid(leaderSessionId),
+			DispatcherId.fromUuid(getLeaderSessionId()),
 			jobGraphs,
 			jobGraphStore);
-		dispatcherGatewayFuture.complete(dispatcher.getGateway());
+		completeDispatcherGatewayFuture(dispatcher.getGateway());
 	}
 
 	private CompletableFuture<Collection<JobGraph>> recoverJobsAsync() {
@@ -178,7 +122,7 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 	}
 
 	private Collection<JobGraph> recoverJobs() {
-		LOG.info("Recover all persisted job graphs.");
+		log.info("Recover all persisted job graphs.");
 		final Collection<JobID> jobIds = getJobIds();
 		final Collection<JobGraph> recoveredJobGraphs = new ArrayList<>();
 
@@ -186,7 +130,7 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 			recoveredJobGraphs.add(recoverJob(jobId));
 		}
 
-		LOG.info("Successfully recovered {} persisted job graphs.", recoveredJobGraphs.size());
+		log.info("Successfully recovered {} persisted job graphs.", recoveredJobGraphs.size());
 
 		return recoveredJobGraphs;
 	}
@@ -202,7 +146,7 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 	}
 
 	private JobGraph recoverJob(JobID jobId) {
-		LOG.info("Trying to recover job with job id {}.", jobId);
+		log.info("Trying to recover job with job id {}.", jobId);
 		try {
 			return jobGraphStore.recoverJobGraph(jobId);
 		} catch (Exception e) {
@@ -213,31 +157,8 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 	}
 
 	@Override
-	public UUID getLeaderSessionId() {
-		return leaderSessionId;
-	}
-
-	@Override
-	public CompletableFuture<DispatcherGateway> getDispatcherGateway() {
-		return dispatcherGatewayFuture;
-	}
-
-	@Override
-	public CompletableFuture<String> getConfirmLeaderSessionFuture() {
-		return confirmLeaderSessionFuture;
-	}
-
-	@Override
-	public CompletableFuture<Void> closeAsync() {
-		runIfStateIsNot(
-			State.STOPPED,
-			this::closeInternal);
-
-		return terminationFuture;
-	}
-
-	private void closeInternal() {
-		LOG.info("Stopping {}.", getClass().getSimpleName());
+	protected CompletableFuture<Void> onClose() {
+		log.info("Stopping {}.", getClass().getSimpleName());
 		final CompletableFuture<Void> dispatcherTerminationFuture;
 
 		if (dispatcher != null) {
@@ -246,16 +167,10 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 			dispatcherTerminationFuture = FutureUtils.completedVoidFuture();
 		}
 
-		final CompletableFuture<Void> stopServicesFuture = FutureUtils.runAfterwardsAsync(
+		return FutureUtils.runAfterwardsAsync(
 			dispatcherTerminationFuture,
 			this::stopServices,
 			ioExecutor);
-
-		FutureUtils.forward(
-			stopServicesFuture,
-			terminationFuture);
-
-		state = State.STOPPED;
 	}
 
 	private void stopServices() throws Exception {
@@ -282,7 +197,7 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 	}
 
 	private void handleAddedJobGraph(JobID jobId) {
-		LOG.debug(
+		log.debug(
 			"Job {} has been added to the {} by another process.",
 			jobId,
 			jobGraphStore.getClass().getSimpleName());
@@ -312,7 +227,7 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 	}
 
 	private DispatcherGateway getDispatcherGatewayInternal() {
-		return Preconditions.checkNotNull(dispatcherGatewayFuture.getNow(null));
+		return Preconditions.checkNotNull(getDispatcherGateway().getNow(null));
 	}
 
 	private Optional<JobGraph> recoverJobIfRunning(JobID jobId) {
@@ -327,7 +242,7 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 	}
 
 	private void handleRemovedJobGraph(JobID jobId) {
-		LOG.debug(
+		log.debug(
 			"Job {} has been removed from the {} by another process.",
 			jobId,
 			jobGraphStore.getClass().getSimpleName());
@@ -368,48 +283,6 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 			fatalErrorHandler);
 	}
 
-	// ---------------------------------------------------------------
-	// Internal helper methods
-	// ---------------------------------------------------------------
-
-	private <V> Optional<V> supplyUnsynchronizedIfRunning(Supplier<V> supplier) {
-		synchronized (lock) {
-			if (state != State.RUNNING) {
-				return Optional.empty();
-			}
-		}
-
-		return Optional.of(supplier.get());
-	}
-
-	private <V> Optional<V> supplyIfRunning(Supplier<V> supplier) {
-		synchronized (lock) {
-			if (state != State.RUNNING) {
-				return Optional.empty();
-			}
-
-			return Optional.of(supplier.get());
-		}
-	}
-
-	private void runIfStateIs(State expectedState, Runnable action) {
-		runIfState(expectedState::equals, action);
-	}
-
-	private void runIfStateIsNot(State notExpectedState, Runnable action) {
-		runIfState(
-			state -> !notExpectedState.equals(state),
-			action);
-	}
-
-	private void runIfState(Predicate<State> actionPredicate, Runnable action) {
-		synchronized (lock) {
-			if (actionPredicate.test(state)) {
-				action.run();
-			}
-		}
-	}
-
 	// ------------------------------------------------------------
 	// Internal classes
 	// ------------------------------------------------------------
@@ -423,11 +296,5 @@ public class DispatcherLeaderProcessImpl implements DispatcherLeaderProcess, Job
 
 	interface DispatcherService extends AutoCloseableAsync {
 		DispatcherGateway getGateway();
-	}
-
-	enum State {
-		CREATED,
-		RUNNING,
-		STOPPED
 	}
 }
