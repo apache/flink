@@ -135,8 +135,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 			String endpointId,
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
-			DispatcherServices dispatcherServices,
-			JobGraphWriter jobGraphWriter) throws Exception {
+			DispatcherServices dispatcherServices) throws Exception {
 		super(rpcService, endpointId, fencingToken);
 		Preconditions.checkNotNull(dispatcherServices);
 
@@ -146,7 +145,7 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		this.heartbeatServices = dispatcherServices.getHeartbeatServices();
 		this.blobServer = dispatcherServices.getBlobServer();
 		this.fatalErrorHandler = dispatcherServices.getFatalErrorHandler();
-		this.jobGraphWriter = Preconditions.checkNotNull(jobGraphWriter);
+		this.jobGraphWriter = dispatcherServices.getJobGraphWriter();
 		this.jobManagerMetricGroup = dispatcherServices.getJobManagerMetricGroup();
 		this.metricServiceQueryAddress = dispatcherServices.getMetricQueryServiceAddress();
 
