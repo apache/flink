@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
@@ -225,7 +226,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	) throws ProgramInvocationException {
 		StreamGraph streamGraph = streamExecutionEnvironment.getStreamGraph(jobName);
 		return executeRemotely(streamGraph,
-			streamExecutionEnvironment.getClass().getClassLoader(),
 			streamExecutionEnvironment.getConfig(),
 			jarFiles,
 			host,
@@ -242,7 +242,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	 * @throws ProgramInvocationException
 	 */
 	private static JobExecutionResult executeRemotely(StreamGraph streamGraph,
-		ClassLoader envClassLoader,
 		ExecutionConfig executionConfig,
 		List<URL> jarFiles,
 		String host,
@@ -254,8 +253,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		if (LOG.isInfoEnabled()) {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
-
-		ClassLoader userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(jarFiles, globalClasspaths, envClassLoader);
 
 		Configuration configuration = new Configuration();
 		configuration.addAll(clientConfiguration);
@@ -274,13 +271,18 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 				streamGraph.getJobGraph().getJobID(), e);
 		}
 
-		if (savepointRestoreSettings == null) {
-			savepointRestoreSettings = SavepointRestoreSettings.none();
+		if (savepointRestoreSettings != null) {
+			streamGraph.setSavepointRestoreSettings(savepointRestoreSettings);
 		}
 
 		try {
-			return client.run(streamGraph, jarFiles, globalClasspaths, userCodeClassLoader, savepointRestoreSettings)
-				.getJobExecutionResult();
+			final PlanExecutor executor = PlanExecutor.createRemoteExecutor(
+					host,
+					port,
+					clientConfiguration,
+					jarFiles,
+					globalClasspaths);
+			return executor.executePlan(streamGraph).getJobExecutionResult();
 		}
 		catch (ProgramInvocationException e) {
 			throw e;
@@ -318,7 +320,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	@Deprecated
 	protected JobExecutionResult executeRemotely(StreamGraph streamGraph, List<URL> jarFiles) throws ProgramInvocationException {
 		return executeRemotely(streamGraph,
-			this.getClass().getClassLoader(),
 			getConfig(),
 			jarFiles,
 			host,
