@@ -394,7 +394,7 @@ fi
 
 # Define FLINK_TM_MEM_MANAGED_FRACTION if it is not already set
 if [ -z "${FLINK_TM_MEM_MANAGED_FRACTION}" ]; then
-    FLINK_TM_MEM_MANAGED_FRACTION=$(readFromConfig ${KEY_TASKM_MEM_MANAGED_FRACTION} 0.7 "${YAML_CONF}")
+    FLINK_TM_MEM_MANAGED_FRACTION=$(readFromConfig ${KEY_TASKM_MEM_MANAGED_FRACTION} 0.6 "${YAML_CONF}")
 fi
 
 # Define FLINK_TM_OFFHEAP if it is not already set

@@ -205,7 +205,7 @@ public class TaskManagerOptions {
 	 */
 	public static final ConfigOption<Float> MANAGED_MEMORY_FRACTION =
 			key("taskmanager.memory.fraction")
-			.defaultValue(0.7f)
+			.defaultValue(0.6f)
 			.withDescription(new Description.DescriptionBuilder()
 				.text("The relative amount of memory (after subtracting the amount of memory used by network" +
 					" buffers) that the task manager reserves for sorting, hash tables, and caching of intermediate results." +
