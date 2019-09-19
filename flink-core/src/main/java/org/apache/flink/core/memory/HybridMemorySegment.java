@@ -20,6 +20,8 @@ package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
 
+import javax.annotation.Nullable;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -30,7 +32,9 @@ import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
 
 /**
- * This class represents a piece of memory managed by Flink. The memory can be on-heap or off-heap,
+ * This class represents a piece of memory managed by Flink.
+ *
+ * <p>The memory can be on-heap, off-heap direct or off-heap unsafe,
  * this is transparently handled by this class.
  *
  * <p>This class specializes byte access and byte copy calls for heap memory, while reusing the
@@ -44,28 +48,34 @@ import java.nio.ReadOnlyBufferException;
  */
 @Internal
 public final class HybridMemorySegment extends MemorySegment {
-
 	/**
-	 * The direct byte buffer that allocated the off-heap memory. This memory segment holds a
+	 * The direct byte buffer that wraps the off-heap memory. This memory segment holds a
 	 * reference to that buffer, so as long as this memory segment lives, the memory will not be
 	 * released.
 	 */
+	@Nullable
 	private final ByteBuffer offHeapBuffer;
 
+	/** The cleaner is called to free the underlying native memory. */
+	@Nullable
+	private final Runnable cleaner;
+
 	/**
-	 * Creates a new memory segment that represents the memory backing the given direct byte buffer.
-	 * Note that the given ByteBuffer must be direct {@link java.nio.ByteBuffer#allocateDirect(int)},
-	 * otherwise this method with throw an IllegalArgumentException.
-	 *
-	 * <p>The memory segment references the given owner.
-	 *
-	 * @param buffer The byte buffer whose memory is represented by this memory segment.
-	 * @param owner The owner references by this memory segment.
-	 * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
-	 */
-	HybridMemorySegment(ByteBuffer buffer, Object owner) {
+	  * Creates a new memory segment that represents the memory backing the given direct byte buffer.
+	  * Note that the given ByteBuffer must be direct {@link java.nio.ByteBuffer#allocateDirect(int)},
+	  * otherwise this method with throw an IllegalArgumentException.
+	  *
+	  * <p>The memory segment references the given owner.
+	  *
+	  * @param buffer The byte buffer whose memory is represented by this memory segment.
+	  * @param owner The owner references by this memory segment.
+	  * @param cleaner optional action to run upon freeing the segment.
+	  * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
+	  */
+	HybridMemorySegment(ByteBuffer buffer, @Nullable Object owner, @Nullable Runnable cleaner) {
 		super(checkBufferAndGetAddress(buffer), buffer.capacity(), owner);
 		this.offHeapBuffer = buffer;
+		this.cleaner = cleaner;
 	}
 
 	/**
@@ -79,6 +89,7 @@ public final class HybridMemorySegment extends MemorySegment {
 	HybridMemorySegment(byte[] buffer, Object owner) {
 		super(buffer, owner);
 		this.offHeapBuffer = null;
+		this.cleaner = null;
 	}
 
 	// -------------------------------------------------------------------------
@@ -118,6 +129,14 @@ public final class HybridMemorySegment extends MemorySegment {
 		}
 		else {
 			throw new IllegalStateException("segment has been freed");
+		}
+	}
+
+	@Override
+	public void free() {
+		super.free();
+		if (cleaner != null) {
+			cleaner.run();
 		}
 	}
 

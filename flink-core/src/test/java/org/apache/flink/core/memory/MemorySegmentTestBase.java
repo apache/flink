@@ -326,6 +326,10 @@ public abstract class MemorySegmentTestBase {
 		MemorySegment seg1 = createSegment(pageSize);
 		MemorySegment seg2 = createSegment(pageSize);
 
+		byte[] referenceArray = new byte[pageSize];
+		seg1.put(0, referenceArray);
+		seg2.put(0, referenceArray);
+
 		int i = new Random().nextInt(pageSize - 8);
 
 		seg1.put(i, (byte) 10);
@@ -1665,6 +1669,7 @@ public abstract class MemorySegmentTestBase {
 		{
 			final MemorySegment segment = createSegment(pageSize);
 			byte[] expected = new byte[pageSize];
+			segment.put(0, expected, 0, pageSize);
 
 			for (int i = 0; i < 200; i++) {
 				int numBytes = random.nextInt(pageSize - 10) + 1;

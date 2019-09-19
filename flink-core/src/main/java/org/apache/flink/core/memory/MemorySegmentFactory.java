@@ -95,7 +95,24 @@ public final class MemorySegmentFactory {
 	 */
 	public static MemorySegment allocateUnpooledOffHeapMemory(int size, Object owner) {
 		ByteBuffer memory = ByteBuffer.allocateDirect(size);
-		return new HybridMemorySegment(memory, owner);
+		return new HybridMemorySegment(memory, owner, null);
+	}
+
+	/**
+	 * Allocates an off-heap unsafe memory and creates a new memory segment to represent that memory.
+	 *
+	 * <p>Creation of this segment schedules its memory freeing operation when its java wrapping object is about
+	 * to be garbage collected, similar to {@link java.nio.DirectByteBuffer#DirectByteBuffer(int)}.
+	 * The difference is that this memory allocation is out of option -XX:MaxDirectMemorySize limitation.
+	 *
+	 * @param size The size of the off-heap unsafe memory segment to allocate.
+	 * @param owner The owner to associate with the off-heap unsafe memory segment.
+	 * @return A new memory segment, backed by off-heap unsafe memory.
+	 */
+	public static MemorySegment allocateOffHeapUnsafeMemory(int size, Object owner) {
+		long address = MemoryUtils.allocateUnsafe(size);
+		ByteBuffer offHeapBuffer = MemoryUtils.wrapUnsafeMemoryWithByteBuffer(address, size);
+		return new HybridMemorySegment(offHeapBuffer, owner, MemoryUtils.createMemoryGcCleaner(offHeapBuffer, address));
 	}
 
 	/**
@@ -109,7 +126,7 @@ public final class MemorySegmentFactory {
 	 * @return A new memory segment representing the given off-heap memory.
 	 */
 	public static MemorySegment wrapOffHeapMemory(ByteBuffer memory) {
-		return new HybridMemorySegment(memory, null);
+		return new HybridMemorySegment(memory, null, null);
 	}
 
 }

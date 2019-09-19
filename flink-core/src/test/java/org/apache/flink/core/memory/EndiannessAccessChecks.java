@@ -45,6 +45,11 @@ public class EndiannessAccessChecks {
 		testBigAndLittleEndianAccessUnaligned(MemorySegmentFactory.allocateUnpooledOffHeapMemory(11111));
 	}
 
+	@Test
+	public void testHybridOffHeapUnsafeSegment() {
+		testBigAndLittleEndianAccessUnaligned(MemorySegmentFactory.allocateOffHeapUnsafeMemory(11111, null));
+	}
+
 	private void testBigAndLittleEndianAccessUnaligned(MemorySegment segment) {
 		final Random rnd = new Random();
 

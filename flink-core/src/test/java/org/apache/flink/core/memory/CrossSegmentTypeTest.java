@@ -158,7 +158,8 @@ public class CrossSegmentTypeTest {
 		MemorySegment[] segments = {
 			new HeapMemorySegment(new byte[size]),
 			MemorySegmentFactory.allocateUnpooledSegment(size),
-			MemorySegmentFactory.allocateUnpooledOffHeapMemory(size)
+			MemorySegmentFactory.allocateUnpooledOffHeapMemory(size),
+			MemorySegmentFactory.allocateOffHeapUnsafeMemory(size, null)
 		};
 		return segments;
 	}
