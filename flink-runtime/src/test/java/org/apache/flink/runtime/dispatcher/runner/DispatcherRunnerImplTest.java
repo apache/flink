@@ -124,7 +124,7 @@ public class DispatcherRunnerImplTest extends TestLogger {
 
 			final TestingJobManagerRunnerFactory jobManagerRunnerFactory = new TestingJobManagerRunnerFactory(1);
 
-			final DispatcherRunnerImplNGFactory dispatcherRunnerFactory = new DispatcherRunnerImplNGFactory(new TestingDispatcherFactory(jobManagerRunnerFactory));
+			final DispatcherRunnerImplNGFactory dispatcherRunnerFactory = DispatcherRunnerImplNGFactory.createSessionRunner(new TestingDispatcherFactory(jobManagerRunnerFactory));
 
 			try (final DispatcherRunner dispatcherRunner = createDispatcherRunner(
 					rpcService,

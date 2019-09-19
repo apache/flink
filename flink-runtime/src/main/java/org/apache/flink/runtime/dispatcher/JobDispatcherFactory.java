@@ -20,9 +20,10 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
-import org.apache.flink.runtime.entrypoint.component.JobGraphRetriever;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rpc.RpcService;
+
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 
 import javax.annotation.Nonnull;
 
@@ -33,13 +34,8 @@ import static org.apache.flink.runtime.entrypoint.ClusterEntrypoint.EXECUTION_MO
 /**
  * {@link DispatcherFactory} which creates a {@link MiniDispatcher}.
  */
-public class JobDispatcherFactory implements DispatcherFactory {
-
-	private final JobGraphRetriever jobGraphRetriever;
-
-	public JobDispatcherFactory(JobGraphRetriever jobGraphRetriever) {
-		this.jobGraphRetriever = jobGraphRetriever;
-	}
+public enum JobDispatcherFactory implements DispatcherFactory {
+	INSTANCE;
 
 	@Override
 	public MiniDispatcher createDispatcher(
@@ -47,11 +43,10 @@ public class JobDispatcherFactory implements DispatcherFactory {
 			@Nonnull DispatcherId fencingToken,
 			@Nonnull Collection<JobGraph> recoveredJobs,
 			@Nonnull PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
+		final JobGraph jobGraph = Iterables.getOnlyElement(recoveredJobs);
+
 		final Configuration configuration = partialDispatcherServicesWithJobGraphStore.getConfiguration();
-		final JobGraph jobGraph = jobGraphRetriever.retrieveJobGraph(configuration);
-
 		final String executionModeValue = configuration.getString(EXECUTION_MODE);
-
 		final ClusterEntrypoint.ExecutionMode executionMode = ClusterEntrypoint.ExecutionMode.valueOf(executionModeValue);
 
 		return new MiniDispatcher(
