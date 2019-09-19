@@ -228,7 +228,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 			return null;
 		}
 
-		return helpGetNodeState(node);
+		return getNodeStateHelper(node);
 	}
 
 	@Override
@@ -289,7 +289,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		int keyLen = keyByteBuffer.limit();
 
 		long node = getNode(keyByteBuffer, 0, keyLen);
-		S oldState = node == NIL_NODE ? null : helpGetNodeState(node);
+		S oldState = node == NIL_NODE ? null : getNodeStateHelper(node);
 		S newState = transformation.apply(oldState, value);
 		byte[] stateBytes = skipListValueSerializer.serialize(newState);
 		putNode(keyByteBuffer, 0, keyLen, stateBytes, false);
@@ -345,15 +345,15 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 			}
 
 			prevNode = currentNode;
-			currentNode = helpGetNextNode(currentNode, 0);
+			currentNode = nextNode;
 		}
 
 		return NIL_NODE;
 	}
 
 	/**
-	 * Put the key into the skip list. If the key does not exist before, a new node
-	 * will be created. If the key exists before, the old state will be returned.
+	 * Put the key into the skip list. If the key does not exist before, a new node will be created.
+	 * If the key exists before, return the old state or null depending on {@code returnOldState}.
 	 *
 	 * @param keyByteBuffer  byte buffer storing the key.
 	 * @param keyOffset      offset of the key.
@@ -1056,7 +1056,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * Return the state of the node. null will be returned if the node is removed.
 	 */
 	@VisibleForTesting
-	S helpGetNodeState(long node) {
+	S getNodeStateHelper(long node) {
 		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
 		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
 		ByteBuffer byteBuffer = chunk.getByteBuffer(offsetInChunk);
