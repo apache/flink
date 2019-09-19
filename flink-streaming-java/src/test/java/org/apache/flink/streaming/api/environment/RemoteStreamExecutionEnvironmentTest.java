@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.client.RemoteExecutor;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
@@ -39,7 +40,8 @@ import static org.mockito.Mockito.when;
  * Tests for the {@link RemoteStreamEnvironment}.
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({RemoteStreamEnvironment.class})
+// TODO: I don't like that I have to do this
+@PrepareForTest({RemoteStreamEnvironment.class, RemoteExecutor.class})
 public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 
 	/**
@@ -53,8 +55,7 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 		JobExecutionResult expectedResult = new JobExecutionResult(null, 0, null);
 
 		RestClusterClient mockedClient = Mockito.mock(RestClusterClient.class);
-		when(mockedClient.run(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
-			.thenReturn(expectedResult);
+		when(mockedClient.submitJob(Mockito.any(), Mockito.any())).thenReturn(expectedResult);
 
 		PowerMockito.whenNew(RestClusterClient.class).withAnyArguments().thenAnswer((invocation) -> {
 				Object[] args = invocation.getArguments();
@@ -85,8 +86,7 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 		JobExecutionResult expectedResult = new JobExecutionResult(null, 0, null);
 
 		PowerMockito.whenNew(RestClusterClient.class).withAnyArguments().thenReturn(mockedClient);
-		when(mockedClient.run(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.eq(restoreSettings)))
-			.thenReturn(expectedResult);
+		when(mockedClient.submitJob(Mockito.any(), Mockito.any())).thenReturn(expectedResult);
 
 		JobExecutionResult actualResult = env.execute("fakeJobName");
 		Assert.assertEquals(expectedResult, actualResult);
