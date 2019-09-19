@@ -19,6 +19,7 @@
 package org.apache.flink.yarn;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterDescriptor;
@@ -783,6 +784,22 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 				? Collections.emptySet()
 				// add user code jars from the provided JobGraph
 				: jobGraph.getUserJars().stream().map(f -> f.toUri()).map(File::new).collect(Collectors.toSet());
+
+		// only for per job mode
+		if (jobGraph != null) {
+			for (Map.Entry<String, DistributedCache.DistributedCacheEntry> entry : jobGraph.getUserArtifacts().entrySet()) {
+				org.apache.flink.core.fs.Path path = new org.apache.flink.core.fs.Path(entry.getValue().filePath);
+				// only upload local files
+				if (!path.getFileSystem().isDistributedFS()) {
+					Path localPath = new Path(path.getPath());
+					Tuple2<Path, Long> remoteFileInfo =
+						Utils.uploadLocalFileToRemote(fs, appId.toString(), localPath, homeDir, entry.getKey());
+					jobGraph.setUserArtifactRemotePath(entry.getKey(), remoteFileInfo.f0.toString());
+				}
+			}
+
+			jobGraph.writeUserArtifactEntriesToConfiguration();
+		}
 
 		// local resource map for Yarn
 		final Map<String, LocalResource> localResources = new HashMap<>(2 + systemShipFiles.size() + userJarFiles.size());
