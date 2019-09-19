@@ -19,7 +19,10 @@ package org.apache.flink.streaming.api.environment;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.program.ContextEnvironment;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 
 /**
@@ -43,9 +46,20 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 		transformations.clear();
 
-		// execute the programs
-		return ctx.getClient()
-				.run(streamGraph, ctx.getJars(), ctx.getClasspaths(), ctx.getUserCodeClassLoader(), ctx.getSavepointRestoreSettings())
+		JobGraph jobGraph = FlinkPipelineTranslationUtil.getJobGraph(
+				streamGraph,
+				ctx.getClient().getFlinkConfiguration(),
+				getParallelism());
+
+		ClientUtils.addJarFiles(jobGraph, ctx.getJars());
+		jobGraph.setClasspaths(ctx.getClasspaths());
+
+		// running from the CLI will override the savepoint restore settings
+		jobGraph.setSavepointRestoreSettings(ctx.getSavepointRestoreSettings());
+
+		return ctx
+				.getClient()
+				.submitJob(jobGraph, ctx.getUserCodeClassLoader())
 				.getJobExecutionResult();
 	}
 }
