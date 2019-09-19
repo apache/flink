@@ -17,27 +17,29 @@
  * under the License.
  */
 
-package org.apache.flink.ml.batchoperator.source;
+package org.apache.flink.ml.params.shared;
 
-import org.apache.flink.ml.batchoperator.BatchOperator;
-import org.apache.flink.table.api.Table;
+import org.apache.flink.ml.api.misc.param.ParamInfo;
+import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
+import org.apache.flink.ml.api.misc.param.WithParams;
+import org.apache.flink.ml.common.MLEnvironmentFactory;
 
 /**
- * Transform the Table to SourceBatchOp.
+ * An interface for classes with a parameter specifying the id of MLEnvironment.
  */
-public final class TableSourceBatchOp extends BatchOperator<TableSourceBatchOp> {
+public interface HasMLEnvironmentId<T> extends WithParams<T> {
 
-	public TableSourceBatchOp(Table table) {
-		super(null);
-		if (null == table) {
-			throw new RuntimeException();
-		}
-		this.setOutput(table);
+	ParamInfo<Long> ML_ENVIRONMENT_ID = ParamInfoFactory
+		.createParamInfo("MLEnvironmentId", Long.class)
+		.setDescription("ID of ML environment.")
+		.setHasDefaultValue(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID)
+		.build();
+
+	default Long getMLEnvironmentId() {
+		return get(ML_ENVIRONMENT_ID);
 	}
 
-	@Override
-	public TableSourceBatchOp linkFrom(BatchOperator<?>... inputs) {
-		throw new UnsupportedOperationException("Table source operator should not have any upstream to link from.");
+	default T setMLEnvironmentId(Long value) {
+		return set(ML_ENVIRONMENT_ID, value);
 	}
-
 }

@@ -19,10 +19,11 @@
 
 package org.apache.flink.ml.pipeline;
 
+import org.apache.flink.ml.api.core.Transformer;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.batchoperator.BatchOperator;
 import org.apache.flink.ml.batchoperator.source.TableSourceBatchOp;
-import org.apache.flink.ml.common.MLSession;
+import org.apache.flink.ml.common.MLEnvironmentFactory;
 import org.apache.flink.ml.streamoperator.StreamOperator;
 import org.apache.flink.ml.streamoperator.source.TableSourceStreamOp;
 import org.apache.flink.table.api.Table;
@@ -31,34 +32,25 @@ import org.apache.flink.table.api.internal.TableImpl;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 
 /**
- * Abstract class for a transformer that transform one data into another.
- * A transformer is a {@link PipelineStage} that transforms an input {@link Table} to a result
- * {@link Table}.
+ * The base class for transformer implementations.
  *
- * @param <T> The class type of the {@link Transformer} implementation itself, used by {@link
+ * @param <T> The class type of the {@link TransformerBase} implementation itself, used by {@link
  *            org.apache.flink.ml.api.misc.param.WithParams}
  */
-public abstract class Transformer<T extends Transformer <T>>
-	extends PipelineStage <T> implements org.apache.flink.ml.api.core.Transformer <T> {
+public abstract class TransformerBase<T extends TransformerBase<T>>
+	extends PipelineStageBase<T> implements Transformer<T> {
 
-	public Transformer() {
+	public TransformerBase() {
 		super();
 	}
 
-	public Transformer(Params params) {
+	public TransformerBase(Params params) {
 		super(params);
 	}
 
-	/**
-	 * Applies the transformer on the input table, and returns the result table.
-	 *
-	 * @param tEnv  the table environment to which the input table is bound.
-	 * @param input the table to be transformed
-	 * @return the transformed table
-	 */
 	@Override
 	public Table transform(TableEnvironment tEnv, Table input) {
-		MLSession.setTableEnvironment(tEnv, input);
+		MLEnvironmentFactory.get(getMLEnvironmentId()).setTableEnvironment(tEnv, input);
 		return transform(input);
 	}
 
@@ -73,9 +65,17 @@ public abstract class Transformer<T extends Transformer <T>>
 			throw new IllegalArgumentException("Input CAN NOT BE null!");
 		}
 		if (((TableImpl) input).getTableEnvironment() instanceof StreamTableEnvironment) {
-			return transform(new TableSourceStreamOp(input)).getOutput();
+			TableSourceStreamOp source = new TableSourceStreamOp(input);
+			if (this.params.contains(ML_ENVIRONMENT_ID)) {
+				source.setMLEnvironmentId(this.params.get(ML_ENVIRONMENT_ID));
+			}
+			return transform(source).getOutput();
 		} else {
-			return transform(new TableSourceBatchOp(input)).getOutput();
+			TableSourceBatchOp source = new TableSourceBatchOp(input);
+			if (this.params.contains(ML_ENVIRONMENT_ID)) {
+				source.setMLEnvironmentId(this.params.get(ML_ENVIRONMENT_ID));
+			}
+			return transform(source).getOutput();
 		}
 	}
 

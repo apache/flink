@@ -19,31 +19,43 @@
 
 package org.apache.flink.ml.pipeline;
 
+import org.apache.flink.ml.api.core.Model;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.table.api.Table;
 
 /**
- * Abstract class for a machine learning model.
+ * The base class for a machine learning model.
  *
- * @param <M> The class type of the {@link Model} implementation itself
+ * @param <M> The class type of the {@link ModelBase} implementation itself
  */
-public abstract class Model<M extends Model <M>> extends Transformer <M>
-	implements org.apache.flink.ml.api.core.Model <M> {
+public abstract class ModelBase<M extends ModelBase<M>> extends TransformerBase<M>
+	implements Model<M> {
 
 	protected Table modelData;
 
-	public Model() {
+	public ModelBase() {
 		super();
 	}
 
-	public Model(Params params) {
+	public ModelBase(Params params) {
 		super(params);
 	}
 
+	/**
+	 * Get model data as Table representation.
+	 *
+	 * @return the Table
+	 */
 	public Table getModelData() {
 		return this.modelData;
 	}
 
+	/**
+	 * Set the model data using the Table.
+	 *
+	 * @param modelData the Table.
+	 * @return {@link ModelBase} itself
+	 */
 	public M setModelData(Table modelData) {
 		this.modelData = modelData;
 		return (M) this;

@@ -37,54 +37,51 @@ import java.util.Arrays;
 public class MLSessionTest {
 	@Test
 	public void setTableEnvironment() {
-		synchronized (MLSession.class) {
-			// set up execution environment
-			ExecutionEnvironment env = MLSession.getExecutionEnvironment();
-			MLSession.setExecutionEnvironment(env);
+		MLEnvironment mlEnvironment = new MLEnvironment();
+		ExecutionEnvironment env = MLEnvironmentFactory.getDefault().getExecutionEnvironment();
+		mlEnvironment.setExecutionEnvironment(env);
 
-			BatchTableEnvironment tEnv = MLSession.getBatchTableEnvironment();
+		BatchTableEnvironment tEnv = MLEnvironmentFactory.getDefault().getBatchTableEnvironment();
 
-			DataSet <String> input = env.fromElements("a");
+		DataSet<String> input = env.fromElements("a");
 
-			// register the DataSet as table "TestStringDataSet"
-			tEnv.registerDataSet("TestStringDataSet", input, "word");
+		// register the DataSet as table "TestStringDataSet"
+		tEnv.registerDataSet("TestStringDataSet", input, "word");
 
-			// run a SQL query on the Table and retrieve the result as a new Table
-			Table table = tEnv.sqlQuery("SELECT word FROM TestStringDataSet");
+		// run a SQL query on the Table and retrieve the result as a new Table
+		Table table = tEnv.sqlQuery("SELECT word FROM TestStringDataSet");
 
-			MLSession.setTableEnvironment(tEnv, table);
+		mlEnvironment.setTableEnvironment(tEnv, table);
 
-			MLSession.getBatchTableEnvironment().registerDataSet("TestStringDataSetB", input, "word");
-			Table tableB = tEnv.sqlQuery("SELECT word FROM TestStringDataSetB");
+		MLEnvironmentFactory.getDefault().getBatchTableEnvironment().registerDataSet("TestStringDataSetB", input, "word");
+		Table tableB = tEnv.sqlQuery("SELECT word FROM TestStringDataSetB");
 
-			MLSession.setTableEnvironment(tEnv, tableB);
-		}
+		mlEnvironment.setTableEnvironment(tEnv, tableB);
 	}
 
 	@Test
 	public void setStreamTableEnvironment() {
-		synchronized (MLSession.class) {
-			// set up execution environment
-			StreamExecutionEnvironment env = MLSession.getStreamExecutionEnvironment();
-			MLSession.setStreamExecutionEnvironment(env);
+		// set up execution environment
+		MLEnvironment mlEnvironment = new MLEnvironment();
+		StreamExecutionEnvironment env = MLEnvironmentFactory.getDefault().getStreamExecutionEnvironment();
+		mlEnvironment.setStreamExecutionEnvironment(env);
 
-			StreamTableEnvironment tEnv = MLSession.getStreamTableEnvironment();
+		StreamTableEnvironment tEnv = MLEnvironmentFactory.getDefault().getStreamTableEnvironment();
 
-			DataStream <String> orderA = env.fromCollection(Arrays.asList("beer", "pen"));
+		DataStream<String> orderA = env.fromCollection(Arrays.asList("beer", "pen"));
 
-			// register the DataStream as table "OrderA"
-			tEnv.registerDataStream("OrderA", orderA, "product");
+		// register the DataStream as table "OrderA"
+		tEnv.registerDataStream("OrderA", orderA, "product");
 
-			// run a SQL query on the Table and retrieve the result as a new Table
-			Table table = tEnv.sqlQuery("SELECT * FROM OrderA");
+		// run a SQL query on the Table and retrieve the result as a new Table
+		Table table = tEnv.sqlQuery("SELECT * FROM OrderA");
 
-			MLSession.setTableEnvironment(tEnv, table);
+		mlEnvironment.setTableEnvironment(tEnv, table);
 
-			MLSession.getStreamTableEnvironment().registerDataStream("OrderB", orderA, "product");
+		MLEnvironmentFactory.getDefault().getStreamTableEnvironment().registerDataStream("OrderB", orderA, "product");
 
-			Table tableB = tEnv.sqlQuery("SELECT * FROM OrderA");
+		Table tableB = tEnv.sqlQuery("SELECT * FROM OrderA");
 
-			MLSession.setTableEnvironment(tEnv, tableB);
-		}
+		mlEnvironment.setTableEnvironment(tEnv, tableB);
 	}
 }

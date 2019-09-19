@@ -21,27 +21,27 @@ package org.apache.flink.ml.pipeline;
 
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.api.misc.param.WithParams;
+import org.apache.flink.ml.params.shared.HasMLEnvironmentId;
 
 /**
- * Abstract class for a stage in a pipeline, either an [[Estimator]] or a [[Transformer]].
+ * The base class for a stage in a pipeline, either an [[Estimator]] or a [[Transformer]].
  *
  * <p>Each pipeline stage is with parameters, and requires a public empty constructor for
- * restoration in Pipeline. It implement the {@link org.apache.flink.ml.api.core.PipelineStage}
- * and hold a {@link Params} as its member, thus the subclasses could do not care about
- * {@link WithParams#getParams()}
+ * restoration in Pipeline. It hold a {@link Params} as its member, thus the subclasses
+ * could do not care about {@link WithParams#getParams()}
  *
- * @param <S> The class type of the {@link PipelineStage} implementation itself, used by {@link
+ * @param <S> The class type of the {@link PipelineStageBase} implementation itself, used by {@link
  *            org.apache.flink.ml.api.misc.param.WithParams} and Cloneable.
  */
-public abstract class PipelineStage<S extends PipelineStage <S>>
-	implements WithParams <S>, Cloneable {
+public abstract class PipelineStageBase<S extends PipelineStageBase<S>>
+	implements WithParams <S>, HasMLEnvironmentId<S>, Cloneable {
 	protected Params params;
 
-	public PipelineStage() {
+	public PipelineStageBase() {
 		this(null);
 	}
 
-	public PipelineStage(Params params) {
+	public PipelineStageBase(Params params) {
 		if (null == params) {
 			this.params = new Params();
 		} else {
@@ -59,9 +59,8 @@ public abstract class PipelineStage<S extends PipelineStage <S>>
 
 	@Override
 	public S clone() throws CloneNotSupportedException {
-		PipelineStage result = (PipelineStage) super.clone();
+		PipelineStageBase result = (PipelineStageBase) super.clone();
 		result.params = this.params.clone();
 		return (S) result;
 	}
-
 }

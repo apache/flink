@@ -22,11 +22,11 @@ package org.apache.flink.ml.streamoperator.source;
 import org.apache.flink.ml.streamoperator.StreamOperator;
 import org.apache.flink.table.api.Table;
 
-
 /**
  * Transform the Table to SourceStreamOp.
  */
-public final class TableSourceStreamOp extends StreamOperator <TableSourceStreamOp> {
+public final class TableSourceStreamOp extends StreamOperator<TableSourceStreamOp> {
+
 	public TableSourceStreamOp(Table table) {
 		super(null);
 		if (null == table) {
@@ -37,7 +37,6 @@ public final class TableSourceStreamOp extends StreamOperator <TableSourceStream
 
 	@Override
 	public TableSourceStreamOp linkFrom(StreamOperator<?>... inputs) {
-		throw new UnsupportedOperationException("Not supported.");
+		throw new UnsupportedOperationException("Table source operator should not have any upstream to link from.");
 	}
-
 }

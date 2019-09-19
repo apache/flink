@@ -25,38 +25,96 @@ import org.apache.flink.ml.streamoperator.source.TableSourceStreamOp;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.util.Preconditions;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
- * Base class of streaming algorithm operators.
+ * Base class of streaming algorithm operators extends {@link AlgoOperator}.
+ *
+ * <p>This class is extended to support the data transmission between the StreamOperator.
  */
-public abstract class StreamOperator<T extends StreamOperator <T>> extends AlgoOperator <T> {
+public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOperator<T> {
 
 	public StreamOperator() {
 		super();
 	}
 
+	/**
+	 * The constructor of StreamOperator with {@link Params}.
+	 *
+	 * @param params the initial Params.
+	 */
 	public StreamOperator(Params params) {
 		super(params);
 	}
 
+	/**
+	 * Abbreviation of {@link #linkTo(StreamOperator)}.
+	 */
 	public <S extends StreamOperator<?>> S link(S next) {
 		return linkTo(next);
 	}
 
+	/**
+	 * Link to another {@link StreamOperator}.
+	 *
+	 * <p>Link the <code>next</code> to a new StreamOperator using this as input.
+	 *
+	 * <p>For example:
+	 *
+	 * <pre>
+	 * {@code
+	 * StreamOperator a = ...;
+	 * StreamOperator b = ...;
+	 *
+	 * StreamOperator c = a.linkTo(b)
+	 * }
+	 * </pre>
+	 *
+	 * <p>the <code>c</code> in upper code indict the linked
+	 * <code>b</code> which use <code>a</code> as input.
+	 *
+	 * @see #linkFrom(StreamOperator[])
+	 *
+	 * @param next the linked StreamOperator
+	 * @param <S>  type of StreamOpearator returned
+	 * @return the linked next
+	 */
 	public <S extends StreamOperator<?>> S linkTo(S next) {
 		next.linkFrom(this);
 		return next;
 	}
 
+	/**
+	 * Link from others {@link StreamOperator}.
+	 *
+	 * <p>Link this object to a new StreamOperator using the inputs.
+	 *
+	 * <p>For example:
+	 *
+	 * <pre>
+	 * {@code
+	 * StreamOperator a = ...;
+	 * StreamOperator b = ...;
+	 * StreamOperator c = ...;
+	 *
+	 * StreamOperator d = c.linkFrom(a, b)
+	 * }
+	 * </pre>
+	 *
+	 * <p>the <code>d</code> in upper code indict the linked
+	 * <code>c</code> which use a and b as its inputs.
+	 *
+	 * <p>note: It is not recommended to linkFrom itself or link the same group inputs twice.
+	 *
+	 * @param inputs the linked inputs
+	 * @return the linked this object
+	 */
 	public abstract T linkFrom(StreamOperator<?>... inputs);
 
-	@Override
-	public String toString() {
-		return getOutput().toString();
-	}
-
+	/**
+	 * create a new StreamOperator from table.
+	 *
+	 * @param table the input table
+	 * @return the new StreamOperator
+	 */
 	public static StreamOperator<?> sourceFrom(Table table) {
 		return new TableSourceStreamOp(table);
 	}
@@ -73,9 +131,8 @@ public abstract class StreamOperator<T extends StreamOperator <T>> extends AlgoO
 			+ size + ", current: " + inputs.length);
 	}
 
-	protected StreamOperator<?> checkAndGetFirst(StreamOperator<?> ... inputs) {
+	protected StreamOperator<?> checkAndGetFirst(StreamOperator<?>... inputs) {
 		checkOpSize(1, inputs);
 		return inputs[0];
 	}
-
 }
