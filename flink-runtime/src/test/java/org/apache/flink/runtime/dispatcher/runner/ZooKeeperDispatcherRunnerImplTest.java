@@ -156,7 +156,7 @@ public class ZooKeeperDispatcherRunnerImplTest extends TestLogger {
 
 			final JobGraph jobGraph = createJobGraphWithBlobs();
 
-			final DispatcherRunnerImplNGFactory dispatcherRunnerImplNGFactory = new DispatcherRunnerImplNGFactory(SessionDispatcherFactory.INSTANCE);
+			final DispatcherRunnerImplNGFactory dispatcherRunnerImplNGFactory = DispatcherRunnerImplNGFactory.createSessionRunner(SessionDispatcherFactory.INSTANCE);
 
 			try (final DispatcherRunner dispatcherRunner = createDispatcherRunner(
 				rpcService,

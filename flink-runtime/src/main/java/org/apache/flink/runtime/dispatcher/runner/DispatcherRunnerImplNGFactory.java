@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
+import org.apache.flink.runtime.entrypoint.component.JobGraphRetriever;
 import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -32,10 +33,10 @@ import java.util.concurrent.Executor;
  * instances.
  */
 public class DispatcherRunnerImplNGFactory implements DispatcherRunnerFactory {
-	private final DispatcherFactory dispatcherFactory;
+	private final DispatcherLeaderProcessFactoryFactory dispatcherLeaderProcessFactoryFactory;
 
-	public DispatcherRunnerImplNGFactory(DispatcherFactory dispatcherFactory) {
-		this.dispatcherFactory = dispatcherFactory;
+	private DispatcherRunnerImplNGFactory(DispatcherLeaderProcessFactoryFactory dispatcherLeaderProcessFactoryFactory) {
+		this.dispatcherLeaderProcessFactoryFactory = dispatcherLeaderProcessFactoryFactory;
 	}
 
 	@Override
@@ -47,20 +48,26 @@ public class DispatcherRunnerImplNGFactory implements DispatcherRunnerFactory {
 			RpcService rpcService,
 			PartialDispatcherServices partialDispatcherServices) throws Exception {
 
-		final DispatcherLeaderProcessImpl.DispatcherServiceFactory dispatcherServiceFactory = new DispatcherServiceImplFactory(
-			dispatcherFactory,
-			rpcService,
-			partialDispatcherServices);
-
-		final DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory = new DispatcherLeaderProcessImplFactory(
-			dispatcherServiceFactory,
+		final DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory = dispatcherLeaderProcessFactoryFactory.createFactory(
 			jobGraphStoreFactory,
 			ioExecutor,
+			rpcService,
+			partialDispatcherServices,
 			fatalErrorHandler);
 
 		return new DispatcherRunnerImplNG(
 			leaderElectionService,
 			fatalErrorHandler,
 			dispatcherLeaderProcessFactory);
+	}
+
+	public static DispatcherRunnerImplNGFactory createSessionRunner(DispatcherFactory dispatcherFactory) {
+		return new DispatcherRunnerImplNGFactory(
+			SessionDispatcherLeaderProcessFactoryFactory.create(dispatcherFactory));
+	}
+
+	public static DispatcherRunnerImplNGFactory createJobRunner(JobGraphRetriever jobGraphRetriever) {
+		return new DispatcherRunnerImplNGFactory(
+			JobDispatcherLeaderProcessFactoryFactory.create(jobGraphRetriever));
 	}
 }
