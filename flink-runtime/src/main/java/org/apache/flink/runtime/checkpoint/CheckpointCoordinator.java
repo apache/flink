@@ -1249,7 +1249,7 @@ public class CheckpointCoordinator {
 	}
 
 	/**
-	 * If too many checkpoints are currently in progress, we need to mark that a request is queued
+	 * If too many checkpoints are currently in progress, we need to mark that a request is queued.
 	 *
 	 * @throws CheckpointException If too many checkpoints are currently in progress.
 	 */
@@ -1265,7 +1265,7 @@ public class CheckpointCoordinator {
 	}
 
 	/**
-	 * Make sure the minimum interval between checkpoints has passed
+	 * Make sure the minimum interval between checkpoints has passed.
 	 *
 	 * @throws CheckpointException If the minimum interval between checkpoints has not passed.
 	 */
