@@ -130,7 +130,7 @@ public final class Utils {
 	}
 
 	/**
-	 * Copy a local file to a remote file system.
+	 * Copy a local file to a remote file system and register as Local Resource.
 	 *
 	 * @param fs
 	 * 		remote filesystem
@@ -146,6 +146,36 @@ public final class Utils {
 	 * @return Path to remote file (usually hdfs)
 	 */
 	static Tuple2<Path, LocalResource> setupLocalResource(
+		FileSystem fs,
+		String appId,
+		Path localSrcPath,
+		Path homedir,
+		String relativeTargetPath) throws IOException {
+
+		File localFile = new File(localSrcPath.toUri().getPath());
+		Tuple2<Path, Long> remoteFileInfo = uploadLocalFileToRemote(fs, appId, localSrcPath, homedir, relativeTargetPath);
+		// now create the resource instance
+		LocalResource resource = registerLocalResource(remoteFileInfo.f0, localFile.length(), remoteFileInfo.f1);
+		return Tuple2.of(remoteFileInfo.f0, resource);
+	}
+
+	/**
+	 * Copy a local file to a remote file system.
+	 *
+	 * @param fs
+	 * 		remote filesystem
+	 * @param appId
+	 * 		application ID
+	 * @param localSrcPath
+	 * 		path to the local file
+	 * @param homedir
+	 * 		remote home directory base (will be extended)
+	 * @param relativeTargetPath
+	 * 		relative target path of the file (will be prefixed be the full home directory we set up)
+	 *
+	 * @return Path to remote file (usually hdfs)
+	 */
+	static Tuple2<Path, Long> uploadLocalFileToRemote(
 		FileSystem fs,
 		String appId,
 		Path localSrcPath,
@@ -202,10 +232,7 @@ public final class Utils {
 			dstModificationTime = localFile.lastModified();
 			LOG.debug("Failed to fetch remote modification time from {}, using local timestamp {}", dst, dstModificationTime);
 		}
-
-		// now create the resource instance
-		LocalResource resource = registerLocalResource(dst, localFile.length(), dstModificationTime);
-		return Tuple2.of(dst, resource);
+		return new Tuple2<>(dst, dstModificationTime);
 	}
 
 	/**

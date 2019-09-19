@@ -38,6 +38,7 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.service.Service;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -999,6 +1000,29 @@ public abstract class YarnTestBase extends TestLogger {
 
 	public static boolean isOnTravis() {
 		return System.getenv("TRAVIS") != null && System.getenv("TRAVIS").equals("true");
+	}
+
+	protected void waitApplicationFinishedElseKillIt(
+		ApplicationId applicationId,
+		Duration timeout,
+		YarnClusterDescriptor yarnClusterDescriptor,
+		int sleepIntervalInMS) throws Exception {
+		Deadline deadline = Deadline.now().plus(timeout);
+		YarnApplicationState state = getYarnClient().getApplicationReport(applicationId).getYarnApplicationState();
+
+		while (state != YarnApplicationState.FINISHED) {
+			if (state == YarnApplicationState.FAILED || state == YarnApplicationState.KILLED) {
+				Assert.fail("Application became FAILED or KILLED while expecting FINISHED");
+			}
+
+			if (deadline.isOverdue()) {
+				yarnClusterDescriptor.killCluster(applicationId);
+				Assert.fail("Application didn't finish before timeout");
+			}
+
+			sleep(sleepIntervalInMS);
+			state = getYarnClient().getApplicationReport(applicationId).getYarnApplicationState();
+		}
 	}
 
 	/**
