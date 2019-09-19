@@ -59,8 +59,7 @@ public class MiniDispatcher extends Dispatcher {
 			endpointId,
 			fencingToken,
 			Collections.singleton(jobGraph),
-			dispatcherServices,
-			new SingleJobJobGraphStore(jobGraph));
+			dispatcherServices);
 
 		this.executionMode = checkNotNull(executionMode);
 	}

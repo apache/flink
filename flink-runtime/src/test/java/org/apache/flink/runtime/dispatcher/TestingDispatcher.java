@@ -78,8 +78,7 @@ class TestingDispatcher extends Dispatcher {
 				metricQueryServiceAddress,
 				jobManagerMetricGroup,
 				highAvailabilityServices.getJobGraphStore(),
-				jobManagerRunnerFactory),
-			highAvailabilityServices.getJobGraphStore());
+				jobManagerRunnerFactory));
 
 		this.startFuture = new CompletableFuture<>();
 	}

@@ -41,7 +41,6 @@ public class StandaloneDispatcher extends Dispatcher {
 			endpointId,
 			fencingToken,
 			recoveredJobs,
-			dispatcherServices,
-			dispatcherServices.getJobGraphWriter());
+			dispatcherServices);
 	}
 }
