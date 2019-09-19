@@ -56,12 +56,7 @@ public class RestartStrategyOptions {
 						"%s, %s: Failure rate restart strategy. More details can be found %s.",
 						code("failurerate"),
 						code("failure-rate"),
-						link("../dev/task_failure_recovery.html#failure-rate-restart-strategy", "here")),
-					text(
-						"%s: Fully qualified name of %s factory which has has a method %s.",
-						code("org.foobar.MyRestartStrategyFactoryFactory"),
-						code("RestartStrategyFactory"),
-						code("RestartStrategyFactory createFactory(Configuration configuration)"))
+						link("../dev/task_failure_recovery.html#failure-rate-restart-strategy", "here"))
 				)
 				.text(
 					"If checkpointing is disabled, the default value is %s. " +
