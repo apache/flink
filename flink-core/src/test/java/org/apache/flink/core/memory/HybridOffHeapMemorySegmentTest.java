@@ -19,8 +19,6 @@
 package org.apache.flink.core.memory;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.nio.ByteBuffer;
 
@@ -32,27 +30,16 @@ import static org.junit.Assert.fail;
 /**
  * Tests for the {@link HybridMemorySegment} in off-heap mode.
  */
-@RunWith(Parameterized.class)
-public class HybridOffHeapMemorySegmentTest extends MemorySegmentTestBase {
+public abstract class HybridOffHeapMemorySegmentTest extends MemorySegmentTestBase {
 
-	public HybridOffHeapMemorySegmentTest(int pageSize) {
+	HybridOffHeapMemorySegmentTest(int pageSize) {
 		super(pageSize);
-	}
-
-	@Override
-	MemorySegment createSegment(int size) {
-		return MemorySegmentFactory.allocateUnpooledOffHeapMemory(size);
-	}
-
-	@Override
-	MemorySegment createSegment(int size, Object owner) {
-		return MemorySegmentFactory.allocateUnpooledOffHeapMemory(size, owner);
 	}
 
 	@Test
 	public void testHybridHeapSegmentSpecifics() {
-		final ByteBuffer buffer = ByteBuffer.allocateDirect(411);
-		HybridMemorySegment seg = new HybridMemorySegment(buffer, null);
+		HybridMemorySegment seg = (HybridMemorySegment) createSegment(411);
+		ByteBuffer buffer = seg.getOffHeapBuffer();
 
 		assertFalse(seg.isFreed());
 		assertTrue(seg.isOffHeap());
