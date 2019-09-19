@@ -181,14 +181,45 @@ public class HiveTableSourceTest {
 		String abstractSyntaxTree = explain[1];
 		String optimizedLogicalPlan = explain[2];
 		String physicalExecutionPlan = explain[3];
-		assertTrue(abstractSyntaxTree.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: false, PartitionNums: 2]"));
-		assertTrue(optimizedLogicalPlan.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1]"));
-		assertTrue(physicalExecutionPlan.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1]"));
+		assertTrue(abstractSyntaxTree.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: false, PartitionNums: 2"));
+		assertTrue(optimizedLogicalPlan.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
+		assertTrue(physicalExecutionPlan.contains("HiveTableSource(year, value, pt) TablePath: source_db.test_table_pt_1, PartitionPruned: true, PartitionNums: 1"));
 		// second check execute results
 		List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) src)).asJava();
 		assertEquals(2, rows.size());
 		Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
 		assertArrayEquals(new String[]{"2014,3,0", "2014,4,0"}, rowStrings);
+	}
+
+	@Test
+	public void testProjectionPushDown() throws Exception {
+		hiveShell.execute("create table src(x int,y string) partitioned by (p1 bigint, p2 string)");
+		final String catalogName = "hive";
+		try {
+			hiveShell.insertInto("default", "src")
+					.addRow(1, "a", 2013, "2013")
+					.addRow(2, "b", 2013, "2013")
+					.addRow(3, "c", 2014, "2014")
+					.commit();
+			TableEnvironment tableEnv = HiveTestUtils.createTableEnv();
+			tableEnv.registerCatalog(catalogName, hiveCatalog);
+			Table table = tableEnv.sqlQuery("select p1, count(y) from hive.`default`.src group by p1");
+			String[] explain = tableEnv.explain(table).split("==.*==\n");
+			assertEquals(4, explain.length);
+			String logicalPlan = explain[2];
+			String physicalPlan = explain[3];
+			String expectedExplain =
+					"HiveTableSource(x, y, p1, p2) TablePath: default.src, PartitionPruned: false, PartitionNums: 2, ProjectedFields: [2, 1]";
+			assertTrue(logicalPlan.contains(expectedExplain));
+			assertTrue(physicalPlan.contains(expectedExplain));
+
+			List<Row> rows = JavaConverters.seqAsJavaListConverter(TableUtil.collect((TableImpl) table)).asJava();
+			assertEquals(2, rows.size());
+			Object[] rowStrings = rows.stream().map(Row::toString).sorted().toArray();
+			assertArrayEquals(new String[]{"2013,2", "2014,1"}, rowStrings);
+		} finally {
+			hiveShell.execute("drop table src");
+		}
 	}
 
 }
