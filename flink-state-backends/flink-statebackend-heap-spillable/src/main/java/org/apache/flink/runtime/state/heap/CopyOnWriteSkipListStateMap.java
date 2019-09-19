@@ -21,6 +21,8 @@ package org.apache.flink.runtime.state.heap;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.core.memory.ByteBufferUtils;
 import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateTransformationFunction;
@@ -49,6 +51,7 @@ import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -222,22 +225,16 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	public S get(K key, N namespace) {
 		updateStat();
 
-		long node = getNodeInternal(key, namespace);
-
-		if (node == NIL_NODE) {
-			return null;
-		}
-
-		return getNodeStateHelper(node);
+		return getNodeInternal(key, namespace);
 	}
 
 	@Override
 	public boolean containsKey(K key, N namespace) {
 		updateStat();
 
-		long node = getNodeInternal(key, namespace);
+		S node = getNodeInternal(key, namespace);
 
-		return node != NIL_NODE;
+		return node != null;
 	}
 
 	@Override
@@ -288,8 +285,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		ByteBuffer keyByteBuffer = getKeyByteBuffer(key, namespace);
 		int keyLen = keyByteBuffer.limit();
 
-		long node = getNode(keyByteBuffer, 0, keyLen);
-		S oldState = node == NIL_NODE ? null : getNodeStateHelper(node);
+		S oldState = getNode(keyByteBuffer, 0, keyLen);
 		S newState = transformation.apply(oldState, value);
 		byte[] stateBytes = skipListValueSerializer.serialize(newState);
 		putNode(keyByteBuffer, 0, keyLen, stateBytes, false);
@@ -303,52 +299,16 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * @param keyByteBuffer byte buffer storing the key.
 	 * @param keyOffset     offset of the key.
 	 * @param keyLen        length of the key.
-	 * @return id of the node. NIL_NODE will be returned if key does no exist.
+	 * @return the state. Null will be returned if key does not exist.
 	 */
 	@VisibleForTesting
-	long getNode(ByteBuffer keyByteBuffer, int keyOffset, int keyLen) {
-		int deleteCount = 0;
-		long prevNode = findPredecessor(keyByteBuffer, keyOffset, 1);
-		long currentNode  = helpGetNextNode(prevNode, 0);
-		long nextNode;
-
-		int c;
-		while (currentNode != NIL_NODE) {
-			nextNode = helpGetNextNode(currentNode, 0);
-
-			boolean isRemoved = isNodeRemoved(currentNode);
-			if (isRemoved) {
-				// remove the node physically when there is no snapshot running
-				if (highestRequiredSnapshotVersion == 0 && deleteCount < numKeysToDeleteOneTime) {
-					doPhysicalRemove(currentNode, prevNode, nextNode);
-					logicallyRemovedNodes.remove(currentNode);
-					totalSize--;
-					deleteCount++;
-				} else {
-					prevNode = currentNode;
-				}
-				currentNode = nextNode;
-				continue;
-			}
-
-			c = compareByteBufferAndNode(keyByteBuffer, keyOffset, keyLen, currentNode);
-
-			// find the key
-			if (c == 0) {
-				return currentNode;
-			}
-
-			// the key is less than the current node, and nodes after current
-			// node can not be equal to the key.
-			if (c < 0) {
-				break;
-			}
-
-			prevNode = currentNode;
-			currentNode = nextNode;
-		}
-
-		return NIL_NODE;
+	S getNode(ByteBuffer keyByteBuffer, int keyOffset, int keyLen) {
+		Tuple4<Long, Long, Boolean, S> result =  iterateAndProcess(keyByteBuffer, keyOffset, keyLen,
+			(tuple3, isRemoved) -> {
+				long currentNode = tuple3.f1;
+				return isRemoved ? null : getNodeStateHelper(currentNode);
+			});
+		return result.f2 ? result.f3 : null;
 	}
 
 	/**
@@ -364,71 +324,43 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 */
 	@VisibleForTesting
 	S putNode(ByteBuffer keyByteBuffer, int keyOffset, int keyLen, byte[] value, boolean returnOldState) {
-		int deleteCount = 0;
-		long prevNode = findPredecessor(keyByteBuffer, keyOffset, 1);
-		long currentNode = helpGetNextNode(prevNode, 0);
-		long nextNode;
+		Tuple4<Long, Long, Boolean, S> result =  iterateAndProcess(keyByteBuffer, keyOffset, keyLen,
+			(tuple3, isRemoved) -> {
+				long currentNode = tuple3.f1;
+				int version = SkipListUtils.helpGetNodeLatestVersion(currentNode, spaceAllocator);
+				boolean needCopyOnWrite = version < highestRequiredSnapshotVersion;
+				long oldValuePointer;
 
-		int c;
-		for ( ; ; ) {
-			if (currentNode != NIL_NODE) {
-				nextNode = helpGetNextNode(currentNode, 0);
+				if (needCopyOnWrite) {
+					oldValuePointer = updateValueWithCopyOnWrite(currentNode, value);
+				} else {
+					oldValuePointer = updateValueWithReplace(currentNode, value);
+				}
 
-				boolean isRemoved = isNodeRemoved(currentNode);
-
-				// note that the key may be put again before the node is physically removed,
-				// so the node still need to compare with the key although they can not be
-				// physically removed here
-				if (isRemoved && highestRequiredSnapshotVersion == 0 && deleteCount < numKeysToDeleteOneTime) {
-					doPhysicalRemove(currentNode, prevNode, nextNode);
+				NodeStatus oldStatus = helpSetNodeStatus(currentNode, NodeStatus.PUT);
+				if (oldStatus == NodeStatus.REMOVE) {
 					logicallyRemovedNodes.remove(currentNode);
-					totalSize--;
-					deleteCount++;
-					currentNode = nextNode;
-					continue;
 				}
 
-				c = compareByteBufferAndNode(keyByteBuffer, keyOffset, keyLen, currentNode);
-
-				if (c > 0) {
-					prevNode = currentNode;
-					currentNode = nextNode;
-					continue;
+				S oldState = null;
+				if (returnOldState) {
+					oldState = helpGetState(oldValuePointer);
 				}
 
-				if (c == 0) {
-					int version = SkipListUtils.helpGetNodeLatestVersion(currentNode, spaceAllocator);
-					boolean needCopyOnWrite = version < highestRequiredSnapshotVersion;
-					long oldValuePointer;
-
-					if (needCopyOnWrite) {
-						oldValuePointer = updateValueWithCopyOnWrite(currentNode, value);
-					} else {
-						oldValuePointer = updateValueWithReplace(currentNode, value);
-					}
-
-					NodeStatus oldStatus = helpSetNodeStatus(currentNode, NodeStatus.PUT);
-					if (oldStatus == NodeStatus.REMOVE) {
-						logicallyRemovedNodes.remove(currentNode);
-					}
-
-					S oldState = null;
-					if (returnOldState) {
-						oldState = helpGetState(oldValuePointer);
-					}
-
-					// for the replace, old value space need to free
-					if (!needCopyOnWrite) {
-						spaceAllocator.free(oldValuePointer);
-					}
-
-					return oldState;
+				// for the replace, old value space need to free
+				if (!needCopyOnWrite) {
+					spaceAllocator.free(oldValuePointer);
 				}
-			}
 
-			// if current node is NIL_NODE or larger than the key, a new node will be inserted
-			break;
+				return oldState;
+			});
+
+		if (result.f2) {
+			return result.f3;
 		}
+
+		long prevNode = result.f0;
+		long currentNode = result.f1;
 
 		int level = getRandomIndexLevel();
 		levelIndexHeader.updateLevel(level);
@@ -465,6 +397,75 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * @return the old state. Null will be returned if key does not exist or returnOldState is false.
 	 */
 	private S removeNode(ByteBuffer keyByteBuffer, int keyOffset, int keyLen, boolean returnOldState) {
+		Tuple4<Long, Long, Boolean, S> result = iterateAndProcess(keyByteBuffer, keyOffset, keyLen,
+			(tuple3, isRemoved) -> {
+				long prevNode = tuple3.f0;
+				long currentNode = tuple3.f1;
+				long nextNode = tuple3.f2;
+				// if the node has been logically removed, and can not be physically
+				// removed here, just return null
+				if (isRemoved && highestRequiredSnapshotVersion != 0) {
+					return null;
+				}
+
+				long oldValuePointer;
+				boolean oldValueNeedFree;
+
+				if (highestRequiredSnapshotVersion == 0) {
+					// do physically remove only when there is no snapshot running
+					oldValuePointer = doPhysicalRemoveAndGetValue(currentNode, prevNode, nextNode);
+					// the node has been logically removed, and remove it from the set
+					if (isRemoved) {
+						logicallyRemovedNodes.remove(currentNode);
+					}
+					oldValueNeedFree = true;
+					totalSize--;
+				} else {
+					int version = SkipListUtils.helpGetNodeLatestVersion(currentNode, spaceAllocator);
+					if (version < highestRequiredSnapshotVersion) {
+						// the newest-version value may be used by snapshots, and update it with copy-on-write
+						oldValuePointer = updateValueWithCopyOnWrite(currentNode, null);
+						oldValueNeedFree = false;
+					} else {
+						// replace the newest-version value.
+						oldValuePointer = updateValueWithReplace(currentNode, null);
+						oldValueNeedFree = true;
+					}
+
+					helpSetNodeStatus(currentNode, NodeStatus.REMOVE);
+					logicallyRemovedNodes.add(currentNode);
+				}
+
+				S oldState = null;
+				if (returnOldState) {
+					oldState = helpGetState(oldValuePointer);
+				}
+
+				if (oldValueNeedFree) {
+					spaceAllocator.free(oldValuePointer);
+				}
+
+				return oldState;
+			});
+		return result.f2 ? result.f3 : null;
+	}
+
+	/**
+	 * Iterator the skip list and perform given function.
+	 *
+	 * @param keyByteBuffer byte buffer storing the key.
+	 * @param keyOffset offset of the key.
+	 * @param keyLen length of the key.
+	 * @param function the function to apply when the skip list contains the given key, which accepts two
+	 *                 parameters: a tuple3 of [previous_node, current_node, next_node] and a boolean indicating
+	 *                 whether the node with same key has been logically removed, and returns a state.
+	 * @return a tuple4 of [previous_node, current_node, key_found, state_by_applying_function]
+	 */
+	private Tuple4<Long, Long, Boolean, S> iterateAndProcess(
+			ByteBuffer keyByteBuffer,
+			int keyOffset,
+			int keyLen,
+			BiFunction<Tuple3<Long, Long, Long>, Boolean, S> function) {
 		int deleteCount = 0;
 		long prevNode = findPredecessor(keyByteBuffer, keyOffset, 1);
 		long currentNode = helpGetNextNode(prevNode, 0);
@@ -487,62 +488,19 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 			c = compareByteBufferAndNode(keyByteBuffer, keyOffset, keyLen, currentNode);
 
 			if (c < 0) {
+				// The given key is less than the current node, break the loop
 				break;
-			}
-
-			if (c > 0) {
+			} else if (c > 0) {
+				// The given key is larger than the current node, continue
 				prevNode = currentNode;
 				currentNode = nextNode;
-				continue;
-			}
-
-			// if the node has been logically removed, and can not be physically
-			// removed here, just return null
-			if (isRemoved && highestRequiredSnapshotVersion != 0) {
-				return null;
-			}
-
-			long oldValuePointer;
-			boolean oldValueNeedFree;
-
-			if (highestRequiredSnapshotVersion == 0) {
-				// do physically remove only when there is no snapshot running
-				oldValuePointer = doPhysicalRemoveAndGetValue(currentNode, prevNode, nextNode);
-				// the node has been logically removed, and remove it from the set
-				if (isRemoved) {
-					logicallyRemovedNodes.remove(currentNode);
-				}
-				oldValueNeedFree = true;
-				totalSize--;
 			} else {
-				int version = SkipListUtils.helpGetNodeLatestVersion(currentNode, spaceAllocator);
-				if (version < highestRequiredSnapshotVersion) {
-					// the newest-version value may be used by snapshots, and update it with copy-on-write
-					oldValuePointer = updateValueWithCopyOnWrite(currentNode, null);
-					oldValueNeedFree = false;
-				} else {
-					// replace the newest-version value.
-					oldValuePointer = updateValueWithReplace(currentNode, null);
-					oldValueNeedFree = true;
-				}
-
-				helpSetNodeStatus(currentNode, NodeStatus.REMOVE);
-				logicallyRemovedNodes.add(currentNode);
+				// The given key is equal to the current node, apply the function
+				S state = function.apply(new Tuple3<>(prevNode, currentNode, nextNode), isRemoved);
+				return new Tuple4<>(prevNode, currentNode, true, state);
 			}
-
-			S oldState = null;
-			if (returnOldState) {
-				oldState = helpGetState(oldValuePointer);
-			}
-
-			if (oldValueNeedFree) {
-				spaceAllocator.free(oldValuePointer);
-			}
-
-			return oldState;
 		}
-
-		return null;
+		return new Tuple4<>(prevNode, currentNode, false, null);
 	}
 
 	/**
@@ -986,7 +944,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * @param namespace the namespace.
 	 * @return id of the node. NIL_NODE will be returned if key does no exist.
 	 */
-	private long getNodeInternal(K key, N namespace) {
+	private S getNodeInternal(K key, N namespace) {
 		ByteBuffer keyByteBuffer = getKeyByteBuffer(key, namespace);
 		int keyLen = keyByteBuffer.limit();
 
