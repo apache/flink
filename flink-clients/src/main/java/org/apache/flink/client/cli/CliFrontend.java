@@ -794,7 +794,15 @@ public class CliFrontend {
 			jarFile = getJarFile(jarFilePath);
 		}
 
-		PackagedProgram program = new PackagedProgram(jarFile, classpaths, entryPointClass, configuration, programArgs);
+		final String[] alwaysParentFirstLoaderPatterns = CoreOptions.getParentFirstLoaderPatterns(configuration);
+		final String classLoaderResolverOrder = configuration.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
+		PackagedProgram program = new PackagedProgram(
+			jarFile,
+			classpaths,
+			entryPointClass,
+			classLoaderResolverOrder,
+			alwaysParentFirstLoaderPatterns,
+			programArgs);
 		program.setSavepointRestoreSettings(options.getSavepointRestoreSettings());
 
 		return program;

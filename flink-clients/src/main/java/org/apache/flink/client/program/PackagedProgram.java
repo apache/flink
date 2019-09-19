@@ -211,6 +211,7 @@ public class PackagedProgram {
 		// now that we have an entry point, we can extract the nested jar files (if any)
 		this.extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
 		this.classpaths = classpaths;
+
 		if (classLoaderResolverOrder == null) {
 			classLoaderResolverOrder = CoreOptions.CLASSLOADER_RESOLVE_ORDER.defaultValue();
 		}

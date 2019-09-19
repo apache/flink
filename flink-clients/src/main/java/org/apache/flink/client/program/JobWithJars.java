@@ -107,7 +107,14 @@ public class JobWithJars {
 	 */
 	public ClassLoader getUserCodeClassLoader() {
 		if (this.userCodeClassLoader == null) {
-			this.userCodeClassLoader = buildUserCodeClassLoader(jarFiles, classpaths, getClass().getClassLoader(), new Configuration());
+			String[] defaultAlwaysParentLoaderFirstPatterns =
+				CoreOptions.getParentFirstLoaderPatterns(new Configuration());
+			this.userCodeClassLoader = buildUserCodeClassLoader(
+				jarFiles,
+				classpaths,
+				getClass().getClassLoader(),
+				CoreOptions.CLASSLOADER_RESOLVE_ORDER.defaultValue(),
+				defaultAlwaysParentLoaderFirstPatterns);
 		}
 		return this.userCodeClassLoader;
 	}
@@ -137,7 +144,8 @@ public class JobWithJars {
 		List<URL> jars,
 		List<URL> classpaths,
 		ClassLoader parent,
-		Configuration conf) {
+		String resolverOrder,
+		String[] alwaysParentFirstLoaderPatterns) {
 		URL[] urls = new URL[jars.size() + classpaths.size()];
 		for (int i = 0; i < jars.size(); i++) {
 			urls[i] = jars.get(i);
@@ -145,13 +153,24 @@ public class JobWithJars {
 		for (int i = 0; i < classpaths.size(); i++) {
 			urls[i + jars.size()] = classpaths.get(i);
 		}
-		final String[] alwaysParentFirstLoaderPatterns = CoreOptions.getParentFirstLoaderPatterns(conf);
-		final String classLoaderResovlerOrder = conf.getString(CoreOptions.CLASSLOADER_RESOLVE_ORDER);
 		return FlinkUserCodeClassLoaders.create(
-			FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResovlerOrder),
+			FlinkUserCodeClassLoaders.ResolveOrder.fromString(resolverOrder),
 			urls,
 			parent,
-			alwaysParentFirstLoaderPatterns
-		);
+			alwaysParentFirstLoaderPatterns);
+	}
+
+	public static ClassLoader buildUserCodeClassLoader(
+		List<URL> jars,
+		List<URL> classpaths,
+		ClassLoader parent) {
+		String[] defaultAlwaysParentLoaderFirstPatterns =
+			CoreOptions.getParentFirstLoaderPatterns(new Configuration());
+		return buildUserCodeClassLoader(
+			jars,
+			classpaths,
+			parent,
+			CoreOptions.CLASSLOADER_RESOLVE_ORDER.defaultValue(),
+			defaultAlwaysParentLoaderFirstPatterns);
 	}
 }
