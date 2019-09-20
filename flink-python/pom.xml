@@ -97,9 +97,15 @@ under the License.
 						</goals>
 						<configuration>
 							<target>
-								<delete>
+								<delete includeEmptyDirs="true">
 									<fileset dir="${project.basedir}/pyflink"
-											 includes="**/*.pyc"/>
+											 includes="**/*.pyc,**/__pycache__"/>
+									<fileset dir="${project.basedir}/pyflink">
+										<and>
+											<size value="0"/>
+											<type type="dir"/>
+										</and>
+									</fileset>
 								</delete>
 								<delete file="${project.basedir}/lib/pyflink.zip"/>
 								<delete dir="${project.basedir}/target"/>
@@ -114,9 +120,15 @@ under the License.
 						</goals>
 						<configuration>
 							<target>
-								<delete>
+								<delete includeEmptyDirs="true">
 									<fileset dir="${project.basedir}/pyflink"
-											 includes="**/*.pyc"/>
+											 includes="**/*.pyc,**/__pycache__"/>
+									<fileset dir="${project.basedir}/pyflink">
+										<and>
+											<size value="0"/>
+											<type type="dir"/>
+										</and>
+									</fileset>
 								</delete>
 								<delete file="${project.basedir}/lib/pyflink.zip"/>
 								<zip destfile="${project.basedir}/lib/pyflink.zip">
