@@ -89,8 +89,8 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 	// indices of fields to be returned, with projection applied (if any)
 	// TODO: push projection into underlying input format that supports it
 	private int[] fields;
-	// Pre-computed partition values that are needed to generate a row.
-	private transient List<Object> partitionValues;
+	// Remember whether a row instance is reused. No need to set partition fields for reused rows
+	private transient boolean rowReused;
 
 	public HiveTableInputFormat(
 			JobConf jobConf,
@@ -143,15 +143,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 		} catch (Exception e) {
 			throw new FlinkHiveException("Error happens when deserialize from storage file.", e);
 		}
-		if (!partitionColNames.isEmpty()) {
-			partitionValues = new ArrayList<>();
-			for (int field : fields) {
-				if (field > structFields.size()) {
-					String partition = partitionColNames.get(field - structFields.size());
-					partitionValues.add(hiveTablePartition.getPartitionSpec().get(partition));
-				}
-			}
-		}
+		rowReused = false;
 	}
 
 	@Override
@@ -218,33 +210,40 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 	}
 
 	@Override
-	public Row nextRecord(Row ignore) throws IOException {
+	public Row nextRecord(Row reuse) throws IOException {
 		if (reachedEnd()) {
 			return null;
 		}
-		Row row = new Row(fields.length);
 		try {
 			//Use HiveDeserializer to deserialize an object out of a Writable blob
 			Object hiveRowStruct = deserializer.deserialize(value);
-			int partitionValueIndex = 0;
 			for (int i = 0; i < fields.length; i++) {
-				// non-partition column
+				// set non-partition columns
 				if (fields[i] < structFields.size()) {
 					StructField structField = structFields.get(fields[i]);
 					Object object = HiveInspectors.toFlinkObject(structField.getFieldObjectInspector(),
 							structObjectInspector.getStructFieldData(hiveRowStruct, structField));
-					row.setField(i, object);
-				} else {
-					// partition column
-					row.setField(i, partitionValues.get(partitionValueIndex++));
+					reuse.setField(i, object);
 				}
 			}
-		} catch (Exception e){
+		} catch (Exception e) {
 			logger.error("Error happens when converting hive data type to flink data type.");
 			throw new FlinkHiveException(e);
 		}
+		if (!rowReused) {
+			// set partition columns
+			if (!partitionColNames.isEmpty()) {
+				for (int i = 0; i < fields.length; i++) {
+					if (fields[i] >= structFields.size()) {
+						String partition = partitionColNames.get(fields[i] - structFields.size());
+						reuse.setField(i, hiveTablePartition.getPartitionSpec().get(partition));
+					}
+				}
+			}
+			rowReused = true;
+		}
 		this.fetched = false;
-		return row;
+		return reuse;
 	}
 
 	// --------------------------------------------------------------------------------------------

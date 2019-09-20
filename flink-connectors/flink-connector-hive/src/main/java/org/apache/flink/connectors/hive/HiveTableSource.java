@@ -120,8 +120,8 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 		String[] names = new String[projectedFields.length];
 		DataType[] types = new DataType[projectedFields.length];
 		for (int i = 0; i < projectedFields.length; i++) {
-			names[i] = originSchema.getFieldNames()[projectedFields[i]];
-			types[i] = originSchema.getFieldDataTypes()[projectedFields[i]];
+			names[i] = originSchema.getFieldName(projectedFields[i]).get();
+			types[i] = originSchema.getFieldDataType(projectedFields[i]).get();
 		}
 		return TableSchema.builder().fields(names, types).build().toRowDataType();
 	}
