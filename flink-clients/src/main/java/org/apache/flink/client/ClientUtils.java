@@ -47,7 +47,6 @@ public enum ClientUtils {
 			throw new IOException("JAR file can't be read '" + jarFile.getAbsolutePath() + '\'');
 		}
 
-		//noinspection EmptyTryBlock
 		try (JarFile ignored = new JarFile(jarFile)) {
 			// verify that we can open the Jar file
 		} catch (IOException e) {
