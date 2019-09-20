@@ -78,7 +78,6 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVEHISTORYFILELOC;
-import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_WAREHOUSE_SUBDIR_INHERIT_PERMS;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.LOCALSCRATCHDIR;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTORECONNECTURLKEY;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREWAREHOUSE;
@@ -359,8 +358,9 @@ public class FlinkStandaloneHiveRunner extends BlockJUnit4ClassRunner {
 		args.add(hiveCmdLineConfig(SCRATCHDIR.varname, outsideConf.getVar(SCRATCHDIR)));
 		args.add(hiveCmdLineConfig(LOCALSCRATCHDIR.varname, outsideConf.getVar(LOCALSCRATCHDIR)));
 		args.add(hiveCmdLineConfig(HIVEHISTORYFILELOC.varname, outsideConf.getVar(HIVEHISTORYFILELOC)));
-		args.add(hiveCmdLineConfig(HIVE_WAREHOUSE_SUBDIR_INHERIT_PERMS.varname,
-				String.valueOf(outsideConf.getBoolVar(HIVE_WAREHOUSE_SUBDIR_INHERIT_PERMS))));
+		// The following config is removed in Hive 3.1.0.
+		args.add(hiveCmdLineConfig("hive.warehouse.subdir.inherit.perms",
+				String.valueOf(outsideConf.getBoolean("hive.warehouse.subdir.inherit.perms", true))));
 		args.add(hiveCmdLineConfig("hadoop.tmp.dir", outsideConf.get("hadoop.tmp.dir")));
 		args.add(hiveCmdLineConfig("test.log.dir", outsideConf.get("test.log.dir")));
 		String metaStorageUrl = "jdbc:derby:memory:" + UUID.randomUUID().toString();

@@ -196,16 +196,6 @@ class ExecutionConfigTests(PyFlinkTestCase):
 
         self.assertTrue(self.execution_config.is_object_reuse_enabled())
 
-    def test_disable_enable_sysout_logging(self):
-
-        self.execution_config.disable_sysout_logging()
-
-        self.assertFalse(self.execution_config.is_sysout_logging_enabled())
-
-        self.execution_config.enable_sysout_logging()
-
-        self.assertTrue(self.execution_config.is_sysout_logging_enabled())
-
     def test_get_set_global_job_parameters(self):
 
         self.execution_config.set_global_job_parameters({"hello": "world"})

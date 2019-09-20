@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
 import org.apache.flink.table.functions.hive.conversion.HiveObjectConversion;
@@ -56,9 +57,11 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 	private transient GenericUDFUtils.ConversionHelper conversionHelper;
 	private transient HiveObjectConversion[] conversions;
 	private transient boolean allIdentityConverter;
+	private transient HiveShim hiveShim;
 
-	public HiveSimpleUDF(HiveFunctionWrapper<UDF> hiveFunctionWrapper) {
+	public HiveSimpleUDF(HiveFunctionWrapper<UDF> hiveFunctionWrapper, HiveShim hiveShim) {
 		super(hiveFunctionWrapper);
+		this.hiveShim = hiveShim;
 		LOG.info("Creating HiveSimpleUDF from '{}'", this.hiveFunctionWrapper.getClassName());
 	}
 
@@ -127,7 +130,7 @@ public class HiveSimpleUDF extends HiveScalarFunction<UDF> {
 				.getResolver().getEvalMethod(argTypeInfo).getReturnType();
 
 			return HiveInspectors.toFlinkType(
-				HiveInspectors.getObjectInspector(returnType));
+				HiveInspectors.getObjectInspector(hiveShim, returnType));
 		} catch (UDFArgumentException e) {
 			throw new FlinkHiveUDFException(e);
 		}

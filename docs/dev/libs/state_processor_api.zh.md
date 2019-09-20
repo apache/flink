@@ -290,7 +290,7 @@ class ReaderFunction extends KeyedStateReaderFunction<Integer, KeyedState> {
   }
  
   @Override
-  public void processKey(
+  public void readKey(
     Integer key,
     Context ctx,
     Collector<KeyedState> out) throws Exception {

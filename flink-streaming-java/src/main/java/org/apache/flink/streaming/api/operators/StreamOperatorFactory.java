@@ -59,11 +59,6 @@ public interface StreamOperatorFactory<OUT> extends Serializable {
 	}
 
 	/**
-	 * Test whether the operator is selective reading one.
-	 */
-	boolean isOperatorSelectiveReading();
-
-	/**
 	 * If the stream operator need access to the output type information at {@link StreamGraph}
 	 * generation. This can be useful for cases where the output type is specified by the returns
 	 * method and, thus, after the stream operator has been created.
@@ -97,4 +92,9 @@ public interface StreamOperatorFactory<OUT> extends Serializable {
 	 * @param executionConfig The execution config for this parallel execution.
 	 */
 	default void setInputType(TypeInformation<?> type, ExecutionConfig executionConfig) {}
+
+	/**
+	 * Returns the runtime class of the stream operator.
+	 */
+	Class<? extends StreamOperator> getStreamOperatorClass(ClassLoader classLoader);
 }

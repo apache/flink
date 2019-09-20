@@ -18,24 +18,20 @@
 
 package org.apache.flink.table.utils
 
-import java.util.Optional
-
 import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
-import org.apache.flink.table.catalog.{Catalog, ExternalCatalog}
+import org.apache.flink.table.catalog.Catalog
 import org.apache.flink.table.descriptors.{ConnectTableDescriptor, ConnectorDescriptor}
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 
+import java.util.Optional
+
 class MockTableEnvironment extends TableEnvironment {
 
   override def fromTableSource(source: TableSource[_]): Table = ???
-
-  override def registerExternalCatalog(name: String, externalCatalog: ExternalCatalog): Unit = ???
-
-  override def getRegisteredExternalCatalog(name: String): ExternalCatalog = ???
 
   override def registerFunction(name: String, function: ScalarFunction): Unit = ???
 
@@ -61,6 +57,8 @@ class MockTableEnvironment extends TableEnvironment {
   override def listTables(): Array[String] = ???
 
   override def listUserDefinedFunctions(): Array[String] = ???
+
+  override def listFunctions(): Array[String] = ???
 
   override def explain(table: Table): String = ???
 

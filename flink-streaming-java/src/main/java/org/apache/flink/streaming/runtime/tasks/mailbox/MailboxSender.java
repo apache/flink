@@ -33,4 +33,13 @@ public interface MailboxSender {
 	 * @throws MailboxStateException if the mailbox is quiesced or closed.
 	 */
 	void putMail(@Nonnull Runnable letter) throws  MailboxStateException;
+
+	/**
+	 * Adds the given action to the head of the mailbox.
+	 *
+	 * @param priorityLetter action to enqueue to the head of the mailbox.
+	 * @throws MailboxStateException if the mailbox is quiesced or closed.
+	 */
+	void putFirst(@Nonnull Runnable priorityLetter) throws MailboxStateException;
+
 }

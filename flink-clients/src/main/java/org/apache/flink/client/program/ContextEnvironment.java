@@ -19,12 +19,11 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.optimizer.plan.OptimizedPlan;
-import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import java.net.URL;
@@ -35,52 +34,54 @@ import java.util.List;
  */
 public class ContextEnvironment extends ExecutionEnvironment {
 
-	protected final ClusterClient<?> client;
+	private final ClusterClient<?> client;
 
-	protected final List<URL> jarFilesToAttach;
+	private final boolean detached;
 
-	protected final List<URL> classpathsToAttach;
+	private final List<URL> jarFilesToAttach;
 
-	protected final ClassLoader userCodeClassLoader;
+	private final List<URL> classpathsToAttach;
 
-	protected final SavepointRestoreSettings savepointSettings;
+	private final ClassLoader userCodeClassLoader;
+
+	private final SavepointRestoreSettings savepointSettings;
+
+	private boolean alreadyCalled;
 
 	public ContextEnvironment(ClusterClient<?> remoteConnection, List<URL> jarFiles, List<URL> classpaths,
-				ClassLoader userCodeClassLoader, SavepointRestoreSettings savepointSettings) {
+				ClassLoader userCodeClassLoader, SavepointRestoreSettings savepointSettings, boolean detached) {
 		this.client = remoteConnection;
 		this.jarFilesToAttach = jarFiles;
 		this.classpathsToAttach = classpaths;
 		this.userCodeClassLoader = userCodeClassLoader;
 		this.savepointSettings = savepointSettings;
+
+		this.detached = detached;
+		this.alreadyCalled = false;
 	}
 
 	@Override
 	public JobExecutionResult execute(String jobName) throws Exception {
-		Plan p = createProgramPlan(jobName);
-		JobWithJars toRun = new JobWithJars(p, this.jarFilesToAttach, this.classpathsToAttach,
-				this.userCodeClassLoader);
-		this.lastJobExecutionResult = client.run(toRun, getParallelism(), savepointSettings).getJobExecutionResult();
-		return this.lastJobExecutionResult;
+		verifyExecuteIsCalledOnceWhenInDetachedMode();
+
+		final Plan plan = createProgramPlan(jobName);
+		final JobWithJars job = new JobWithJars(plan, jarFilesToAttach, classpathsToAttach, userCodeClassLoader);
+		final JobSubmissionResult jobSubmissionResult = client.run(job, getParallelism(), savepointSettings);
+
+		lastJobExecutionResult = jobSubmissionResult.getJobExecutionResult();
+		return lastJobExecutionResult;
 	}
 
-	@Override
-	public String getExecutionPlan() throws Exception {
-		Plan plan = createProgramPlan("unnamed job");
-
-		OptimizedPlan op = ClusterClient.getOptimizedPlan(client.compiler, plan, getParallelism());
-		PlanJSONDumpGenerator gen = new PlanJSONDumpGenerator();
-		return gen.getOptimizerPlanAsJSON(op);
-	}
-
-	@Override
-	public void startNewSession() throws Exception {
-		jobID = JobID.generate();
+	private void verifyExecuteIsCalledOnceWhenInDetachedMode() {
+		if (alreadyCalled && detached) {
+			throw new InvalidProgramException(DetachedJobExecutionResult.DETACHED_MESSAGE + DetachedJobExecutionResult.EXECUTE_TWICE_MESSAGE);
+		}
+		alreadyCalled = true;
 	}
 
 	@Override
 	public String toString() {
-		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism())
-				+ ") : " + getIdString();
+		return "Context Environment (parallelism = " + (getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT ? "default" : getParallelism()) + ")";
 	}
 
 	public ClusterClient<?> getClient() {

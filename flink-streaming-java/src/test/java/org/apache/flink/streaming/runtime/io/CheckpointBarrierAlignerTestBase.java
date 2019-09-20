@@ -46,6 +46,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.Future;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -1297,10 +1298,10 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		}
 
 		@Override
-		public boolean triggerCheckpoint(
+		public Future<Boolean> triggerCheckpointAsync(
 				CheckpointMetaData checkpointMetaData,
 				CheckpointOptions checkpointOptions,
-				boolean advanceToEndOfEventTime) throws Exception {
+				boolean advanceToEndOfEventTime) {
 			throw new UnsupportedOperationException("should never be called");
 		}
 
@@ -1324,7 +1325,7 @@ public abstract class CheckpointBarrierAlignerTestBase {
 		public void abortCheckpointOnBarrier(long checkpointId, Throwable cause) {}
 
 		@Override
-		public void notifyCheckpointComplete(long checkpointId) throws Exception {
+		public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
 			throw new UnsupportedOperationException("should never be called");
 		}
 	}

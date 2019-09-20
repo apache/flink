@@ -137,9 +137,9 @@ public class HistoryServer {
 		this(config, new CountDownLatch(0));
 	}
 
-	public HistoryServer(Configuration config, CountDownLatch numFinishedPolls) throws IOException, FlinkException {
+	public HistoryServer(Configuration config, CountDownLatch numArchivedJobs) throws IOException, FlinkException {
 		Preconditions.checkNotNull(config);
-		Preconditions.checkNotNull(numFinishedPolls);
+		Preconditions.checkNotNull(numArchivedJobs);
 
 		this.config = config;
 		if (HistoryServerUtils.isSSLEnabled(config)) {
@@ -184,7 +184,7 @@ public class HistoryServer {
 		}
 
 		long refreshIntervalMillis = config.getLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL);
-		archiveFetcher = new HistoryServerArchiveFetcher(refreshIntervalMillis, refreshDirs, webDir, numFinishedPolls);
+		archiveFetcher = new HistoryServerArchiveFetcher(refreshIntervalMillis, refreshDirs, webDir, numArchivedJobs);
 
 		this.shutdownHook = ShutdownHookUtil.addShutdownHook(
 			HistoryServer.this::stop,
@@ -277,7 +277,7 @@ public class HistoryServer {
 
 	private void createDashboardConfigFile() throws IOException {
 		try (FileWriter fw = createOrGetFile(webDir, "config")) {
-			fw.write(createConfigJson(DashboardConfiguration.from(webRefreshIntervalMillis, ZonedDateTime.now())));
+			fw.write(createConfigJson(DashboardConfiguration.from(webRefreshIntervalMillis, ZonedDateTime.now(), false)));
 			fw.flush();
 		} catch (IOException ioe) {
 			LOG.error("Failed to write config file.");

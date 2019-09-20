@@ -66,9 +66,9 @@ import static org.junit.Assert.fail;
  * IMPORTANT! Remember to close environment after usage!
  */
 public class MockEnvironment implements Environment, AutoCloseable {
-	
+
 	private final TaskInfo taskInfo;
-	
+
 	private final ExecutionConfig executionConfig;
 
 	private final MemoryManager memManager;
@@ -107,9 +107,9 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 	private final TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
-	private Optional<Class<Throwable>> expectedExternalFailureCause = Optional.empty();
+	private Optional<Class<? extends Throwable>> expectedExternalFailureCause = Optional.empty();
 
-	private Optional<Throwable> actualExternalFailureCause = Optional.empty();
+	private Optional<? extends Throwable> actualExternalFailureCause = Optional.empty();
 
 	private final TaskMetricGroup taskMetricGroup;
 
@@ -163,7 +163,6 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
 		this.taskMetricGroup = taskMetricGroup;
 	}
-
 
 	public IteratorWrappingTestSingleInputGate<Record> addInput(MutableObjectIterator<Record> inputIterator) {
 		try {
@@ -346,11 +345,11 @@ public class MockEnvironment implements Environment, AutoCloseable {
 		ioManager.close();
 	}
 
-	public void setExpectedExternalFailureCause(Class<Throwable> expectedThrowableClass) {
+	public void setExpectedExternalFailureCause(Class<? extends Throwable> expectedThrowableClass) {
 		this.expectedExternalFailureCause = Optional.of(expectedThrowableClass);
 	}
 
-	public Optional<Throwable> getActualExternalFailureCause() {
+	public Optional<? extends Throwable> getActualExternalFailureCause() {
 		return actualExternalFailureCause;
 	}
 }

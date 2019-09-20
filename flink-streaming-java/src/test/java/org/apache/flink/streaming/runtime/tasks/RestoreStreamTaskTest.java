@@ -268,7 +268,7 @@ public class RestoreStreamTaskTest extends TestLogger {
 
 		testHarness.taskStateManager.setWaitForReportLatch(new OneShotLatch());
 
-		while (!streamTask.triggerCheckpoint(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation(), false)) {}
+		streamTask.triggerCheckpointAsync(checkpointMetaData, CheckpointOptions.forCheckpointWithDefaultLocation(), false);
 
 		testHarness.taskStateManager.getWaitForReportLatch().await();
 		long reportedCheckpointId = testHarness.taskStateManager.getReportedCheckpointId();

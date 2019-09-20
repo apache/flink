@@ -47,7 +47,6 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
-import org.apache.flink.streaming.runtime.tasks.TwoInputSelectableStreamTask;
 import org.apache.flink.streaming.runtime.tasks.TwoInputStreamTask;
 import org.apache.flink.util.OutputTag;
 
@@ -56,10 +55,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -283,8 +278,7 @@ public class StreamGraph extends StreamingPlan {
 			TypeInformation<OUT> outTypeInfo,
 			String operatorName) {
 
-		Class<? extends AbstractInvokable> vertexClass = taskOperatorFactory.isOperatorSelectiveReading() ?
-			TwoInputSelectableStreamTask.class : TwoInputStreamTask.class;
+		Class<? extends AbstractInvokable> vertexClass = TwoInputStreamTask.class;
 
 		addNode(vertexID, slotSharingGroup, coLocationGroup, vertexClass, taskOperatorFactory, operatorName);
 
@@ -723,17 +717,8 @@ public class StreamGraph extends StreamingPlan {
 	/**
 	 * Gets the assembled {@link JobGraph} with a given job id.
 	 */
-	@SuppressWarnings("deprecation")
 	@Override
 	public JobGraph getJobGraph(@Nullable JobID jobID) {
-		// temporarily forbid checkpointing for iterative jobs
-		if (isIterative() && checkpointConfig.isCheckpointingEnabled() && !checkpointConfig.isForceCheckpointing()) {
-			throw new UnsupportedOperationException(
-				"Checkpointing is currently not supported by default for iterative jobs, as we cannot guarantee exactly once semantics. "
-					+ "State checkpoints happen normally, but records in-transit during the snapshot will be lost upon failure. "
-					+ "\nThe user can force enable state checkpoints with the reduced guarantees by calling: env.enableCheckpointing(interval,true)");
-		}
-
 		return StreamingJobGraphGenerator.createJobGraph(this, jobID);
 	}
 
@@ -744,21 +729,6 @@ public class StreamGraph extends StreamingPlan {
 		}
 		catch (Exception e) {
 			throw new RuntimeException("JSON plan creation failed", e);
-		}
-	}
-
-	@Override
-	public void dumpStreamingPlanAsJSON(File file) throws IOException {
-		PrintWriter pw = null;
-		try {
-			pw = new PrintWriter(new FileOutputStream(file), false);
-			pw.write(getStreamingPlanAsJSON());
-			pw.flush();
-
-		} finally {
-			if (pw != null) {
-				pw.close();
-			}
 		}
 	}
 }

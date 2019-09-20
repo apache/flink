@@ -107,7 +107,7 @@ public class BucketsTest {
 
 		final RollingPolicy<String, String> onCheckpointRP =
 				DefaultRollingPolicy
-						.create()
+						.builder()
 						.withMaxPartSize(7L) // roll with 2 elements
 						.build();
 
@@ -316,7 +316,7 @@ public class BucketsTest {
 				new VerifyingBucketAssigner(timestamp, watermark, processingTime),
 				new DefaultBucketFactoryImpl<>(),
 				new RowWisePartWriter.Factory<>(new SimpleStringEncoder<>()),
-				DefaultRollingPolicy.create().build(),
+				DefaultRollingPolicy.builder().build(),
 				2,
 				new PartFileConfig()
 		);

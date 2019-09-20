@@ -229,7 +229,6 @@ public class HiveStatsUtil {
 				return ColumnStatisticsData.dateStats(dateStats);
 			}
 		} else if (type.equals(LogicalTypeRoot.VARBINARY)
-				|| type.equals(LogicalTypeRoot.BINARY)
 				|| type.equals(LogicalTypeRoot.BINARY)) {
 			if (colStat instanceof CatalogColumnStatisticsDataBinary) {
 				CatalogColumnStatisticsDataBinary binaryColumnStatsData = (CatalogColumnStatisticsDataBinary) colStat;

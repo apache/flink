@@ -18,16 +18,19 @@
 package org.apache.flink.streaming.connectors.kafka;
 
 import org.apache.flink.test.util.SecureTestEnvironment;
+import org.apache.flink.testutils.junit.FailsOnJava11;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Kafka Secure Connection (kerberos) IT test case.
  */
+@Category(FailsOnJava11.class)
 public class Kafka09SecuredRunITCase extends KafkaConsumerTestBase {
 
 	protected static final Logger LOG = LoggerFactory.getLogger(Kafka09SecuredRunITCase.class);

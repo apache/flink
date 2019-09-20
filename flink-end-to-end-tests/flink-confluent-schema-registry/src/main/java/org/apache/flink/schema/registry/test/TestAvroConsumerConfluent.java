@@ -59,7 +59,6 @@ public class TestAvroConsumerConfluent {
 		String schemaRegistryUrl = parameterTool.getRequired("schema-registry-url");
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		env.getConfig().disableSysoutLogging();
 
 		DataStreamSource<User> input = env
 			.addSource(

@@ -33,7 +33,8 @@ public class FlinkKafkaProducerMigrationOperatorTest extends FlinkKafkaProducerM
 	@Parameterized.Parameters(name = "Migration Savepoint: {0}")
 	public static Collection<MigrationVersion> parameters() {
 		return Arrays.asList(
-			MigrationVersion.v1_8);
+			MigrationVersion.v1_8,
+			MigrationVersion.v1_9);
 	}
 
 	public FlinkKafkaProducerMigrationOperatorTest(MigrationVersion testMigrateVersion) {

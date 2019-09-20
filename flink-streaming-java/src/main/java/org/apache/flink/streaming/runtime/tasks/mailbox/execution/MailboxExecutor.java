@@ -22,7 +22,11 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.Mailbox;
 
 import javax.annotation.Nonnull;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
@@ -39,6 +43,25 @@ public interface MailboxExecutor extends Executor {
 	 */
 	@Override
 	void execute(@Nonnull Runnable command) throws RejectedExecutionException;
+
+	/**
+	 * Submits the given command for execution in the future in the mailbox thread and returns a Future representing
+	 * that command. The Future's {@code get} method will return {@code null} upon <em>successful</em> completion.
+	 *
+	 * @param command the command to submit
+	 * @return a Future representing pending completion of the task
+	 * @throws RejectedExecutionException if this task cannot be accepted for execution, e.g. because the mailbox is
+	 * quiesced or closed.
+	 */
+	default @Nonnull Future<?> submit(@Nonnull Runnable command) {
+		return submit(Executors.callable(command, null));
+	}
+
+	default @Nonnull <T> Future<T> submit(@Nonnull Callable<T> task) {
+		FutureTask<T> future = new FutureTask<>(task);
+		execute(future);
+		return future;
+	}
 
 	/**
 	 * This methods starts running the command at the head of the mailbox and is intended to be used by the mailbox

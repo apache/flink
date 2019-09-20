@@ -116,11 +116,12 @@ public class HistoryServerTest extends TestLogger {
 		}
 		createLegacyArchive(jmDirectory.toPath());
 
-		CountDownLatch numFinishedPolls = new CountDownLatch(1);
+		CountDownLatch numExpectedArchivedJobs = new CountDownLatch(numJobs + 1);
 
 		Configuration historyServerConfig = new Configuration();
 		historyServerConfig.setString(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS, jmDirectory.toURI().toString());
 		historyServerConfig.setString(HistoryServerOptions.HISTORY_SERVER_WEB_DIR, hsDirectory.getAbsolutePath());
+		historyServerConfig.setLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL, 100L);
 
 		historyServerConfig.setInteger(HistoryServerOptions.HISTORY_SERVER_WEB_PORT, 0);
 
@@ -131,11 +132,11 @@ public class HistoryServerTest extends TestLogger {
 			archives = jmDirectory.listFiles();
 		}
 
-		HistoryServer hs = new HistoryServer(historyServerConfig, numFinishedPolls);
+		HistoryServer hs = new HistoryServer(historyServerConfig, numExpectedArchivedJobs);
 		try {
 			hs.start();
 			String baseUrl = "http://localhost:" + hs.getWebPort();
-			numFinishedPolls.await(10L, TimeUnit.SECONDS);
+			numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS);
 
 			ObjectMapper mapper = new ObjectMapper();
 			String response = getFromHTTP(baseUrl + JobsOverviewHeaders.URL);

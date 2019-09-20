@@ -340,11 +340,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 		Throwable jobManagerDisconnectThrowable = null;
 
-		if (resourceManagerConnection != null) {
-			resourceManagerConnection.close();
-		}
-
 		FlinkException cause = new FlinkException("The TaskExecutor is shutting down.");
+
+		closeResourceManagerConnection(cause);
+
 		for (JobManagerConnection jobManagerConnection : jobManagerConnections.values()) {
 			try {
 				disassociateFromJobManager(jobManagerConnection, cause);
@@ -618,7 +617,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				task.startTaskThread();
 				taskCompletionTracker.trackTaskCompletion(task);
 
-				setupResultPartitionBookkeeping(tdd, task.getTerminationFuture());
+				setupResultPartitionBookkeeping(
+					tdd.getJobId(),
+					tdd.getProducedPartitions(),
+					task.getTerminationFuture());
 				return CompletableFuture.completedFuture(Acknowledge.get());
 			} else {
 				final String message = "TaskManager already contains a task for id " +
@@ -632,31 +634,27 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 		}
 	}
 
-	private void setupResultPartitionBookkeeping(TaskDeploymentDescriptor tdd, CompletableFuture<ExecutionState> terminationFuture) {
-		final List<ResultPartitionID> partitionsRequiringRelease = tdd.getProducedPartitions().stream()
-			// only blocking partitions require explicit release call
-			.filter(d -> d.getPartitionType().isBlocking())
-			.map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
-			// partitions without local resources don't store anything on the TaskExecutor
-			.filter(d -> d.storesLocalResourcesOn().isPresent())
-			.map(ShuffleDescriptor::getResultPartitionID)
-			.collect(Collectors.toList());
+	private void setupResultPartitionBookkeeping(
+			JobID jobId,
+			Collection<ResultPartitionDeploymentDescriptor> producedResultPartitions,
+			CompletableFuture<ExecutionState> terminationFuture) {
+		final List<ResultPartitionID> partitionsRequiringRelease = filterPartitionsRequiringRelease(producedResultPartitions);
 
-		partitionTable.startTrackingPartitions(tdd.getJobId(), partitionsRequiringRelease);
+		partitionTable.startTrackingPartitions(jobId, partitionsRequiringRelease);
 
 		final CompletableFuture<ExecutionState> taskTerminationWithResourceCleanupFuture =
 			terminationFuture.thenApplyAsync(
 				executionState -> {
 					if (executionState != ExecutionState.FINISHED) {
-						partitionTable.stopTrackingPartitions(tdd.getJobId(), partitionsRequiringRelease);
+						partitionTable.stopTrackingPartitions(jobId, partitionsRequiringRelease);
 					}
 					return executionState;
 				},
 				getMainThreadExecutor());
 
 		taskResultPartitionCleanupFuturesPerJob.compute(
-			tdd.getJobId(),
-			(jobID, completableFutures) -> {
+			jobId,
+			(ignored, completableFutures) -> {
 				if (completableFutures == null) {
 					completableFutures = new ArrayList<>(4);
 				}
@@ -664,6 +662,17 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 				completableFutures.add(taskTerminationWithResourceCleanupFuture);
 				return completableFutures;
 			});
+	}
+
+	private List<ResultPartitionID> filterPartitionsRequiringRelease(Collection<ResultPartitionDeploymentDescriptor> producedResultPartitions) {
+		return producedResultPartitions.stream()
+			// only blocking partitions require explicit release call
+			.filter(d -> d.getPartitionType().isBlocking())
+			.map(ResultPartitionDeploymentDescriptor::getShuffleDescriptor)
+			// partitions without local resources don't store anything on the TaskExecutor
+			.filter(d -> d.storesLocalResourcesOn().isPresent())
+			.map(ShuffleDescriptor::getResultPartitionID)
+			.collect(Collectors.toList());
 	}
 
 	@Override
@@ -948,7 +957,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	@Override
 	public void disconnectResourceManager(Exception cause) {
-		reconnectToResourceManager(cause);
+		if (isRunning()) {
+			reconnectToResourceManager(cause);
+		}
 	}
 
 	// ======================================================================
@@ -976,6 +987,7 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
 	private void reconnectToResourceManager(Exception cause) {
 		closeResourceManagerConnection(cause);
+		startRegistrationTimeout();
 		tryConnectToResourceManager();
 	}
 
@@ -1088,8 +1100,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 			resourceManagerConnection.close();
 			resourceManagerConnection = null;
 		}
-
-		startRegistrationTimeout();
 	}
 
 	private void startRegistrationTimeout() {

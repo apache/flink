@@ -35,16 +35,11 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalException;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
-import org.apache.flink.runtime.util.LeaderConnectionInfo;
-import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.Preconditions;
@@ -52,6 +47,7 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.net.URISyntaxException;
@@ -68,7 +64,7 @@ import scala.concurrent.duration.FiniteDuration;
  *
  * @param <T> type of the cluster id
  */
-public abstract class ClusterClient<T> {
+public abstract class ClusterClient<T> implements AutoCloseable {
 
 	protected final Logger log = LoggerFactory.getLogger(getClass());
 
@@ -80,15 +76,6 @@ public abstract class ClusterClient<T> {
 
 	/** Timeout for futures. */
 	protected final FiniteDuration timeout;
-
-	/** Service factory for high available. */
-	protected final HighAvailabilityServices highAvailabilityServices;
-
-	private final boolean sharedHaServices;
-
-	/** Flag indicating whether to sysout print execution updates. */
-	private boolean printStatusDuringExecution = true;
-
 	/**
 	 * For interactive invocations, the job results are only available after the ContextEnvironment has
 	 * been run inside the user JAR. We pass the Client to every instance of the ContextEnvironment
@@ -109,87 +96,24 @@ public abstract class ClusterClient<T> {
 	 * if that is not possible.
 	 *
 	 * @param flinkConfig The config used to obtain the job-manager's address, and used to configure the optimizer.
-	 *
-	 * @throws Exception we cannot create the high availability services
 	 */
-	public ClusterClient(Configuration flinkConfig) throws Exception {
-		this(
-			flinkConfig,
-			HighAvailabilityServicesUtils.createHighAvailabilityServices(
-				flinkConfig,
-				Executors.directExecutor(),
-				HighAvailabilityServicesUtils.AddressResolution.TRY_ADDRESS_RESOLUTION),
-			false);
-	}
-
-	/**
-	 * Creates a instance that submits the programs to the JobManager defined in the
-	 * configuration. This method will try to resolve the JobManager hostname and throw an exception
-	 * if that is not possible.
-	 *
-	 * @param flinkConfig The config used to obtain the job-manager's address, and used to configure the optimizer.
-	 * @param highAvailabilityServices HighAvailabilityServices to use for leader retrieval
-	 * @param sharedHaServices true if the HighAvailabilityServices are shared and must not be shut down
-	 */
-	public ClusterClient(
-			Configuration flinkConfig,
-			HighAvailabilityServices highAvailabilityServices,
-			boolean sharedHaServices) {
+	public ClusterClient(Configuration flinkConfig) {
 		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), flinkConfig);
-
 		this.timeout = AkkaUtils.getClientTimeout(flinkConfig);
-
-		this.highAvailabilityServices = Preconditions.checkNotNull(highAvailabilityServices);
-		this.sharedHaServices = sharedHaServices;
 	}
 
-	// ------------------------------------------------------------------------
-	//  Startup & Shutdown
-	// ------------------------------------------------------------------------
-
 	/**
-	 * Shuts down the client. This stops the internal actor system and actors.
+	 * User overridable hook to close the client, possibly closes internal services.
+	 * @deprecated use the {@link #close()} instead. This method stays for backwards compatibility.
 	 */
 	public void shutdown() throws Exception {
-		synchronized (this) {
-			if (!sharedHaServices && highAvailabilityServices != null) {
-				highAvailabilityServices.close();
-			}
-		}
+		close();
 	}
 
-	// ------------------------------------------------------------------------
-	//  Configuration
-	// ------------------------------------------------------------------------
+	@Override
+	public void close() throws Exception {
 
-	/**
-	 * Configures whether the client should print progress updates during the execution to {@code System.out}.
-	 * All updates are logged via the SLF4J loggers regardless of this setting.
-	 *
-	 * @param print True to print updates to standard out during execution, false to not print them.
-	 */
-	public void setPrintStatusDuringExecution(boolean print) {
-		this.printStatusDuringExecution = print;
-	}
-
-	/**
-	 * @return whether the client will print progress updates during the execution to {@code System.out}
-	 */
-	public boolean getPrintStatusDuringExecution() {
-		return this.printStatusDuringExecution;
-	}
-
-	/**
-	 * Gets the current cluster connection info (may change in case of a HA setup).
-	 *
-	 * @return The the connection info to the leader component of the cluster
-	 * @throws LeaderRetrievalException if the leader could not be retrieved
-	 */
-	public LeaderConnectionInfo getClusterConnectionInfo() throws LeaderRetrievalException {
-		return LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
-			highAvailabilityServices.getDispatcherLeaderRetriever(),
-			timeout);
 	}
 
 	// ------------------------------------------------------------------------
@@ -207,19 +131,13 @@ public abstract class ClusterClient<T> {
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 		try {
 			Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
-			if (prog.isUsingProgramEntryPoint()) {
-				return getOptimizedPlan(compiler, prog.getPlanWithJars(), parallelism);
-			} else if (prog.isUsingInteractiveMode()) {
-				// temporary hack to support the optimizer plan preview
-				OptimizerPlanEnvironment env = new OptimizerPlanEnvironment(compiler);
-				if (parallelism > 0) {
-					env.setParallelism(parallelism);
-				}
 
-				return env.getOptimizedPlan(prog);
-			} else {
-				throw new RuntimeException("Couldn't determine program mode.");
+			// temporary hack to support the optimizer plan preview
+			OptimizerPlanEnvironment env = new OptimizerPlanEnvironment(compiler);
+			if (parallelism > 0) {
+				env.setParallelism(parallelism);
 			}
+			return env.getOptimizedPlan(prog);
 		} finally {
 			Thread.currentThread().setContextClassLoader(contextClassLoader);
 		}
@@ -255,41 +173,25 @@ public abstract class ClusterClient<T> {
 		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
 		try {
 			Thread.currentThread().setContextClassLoader(prog.getUserCodeClassLoader());
-			if (prog.isUsingProgramEntryPoint()) {
-				final JobWithJars jobWithJars = prog.getPlanWithJars();
-				return run(jobWithJars, parallelism, prog.getSavepointSettings());
-			}
-			else if (prog.isUsingInteractiveMode()) {
-				log.info("Starting program in interactive mode (detached: {})", isDetached());
 
-				final List<URL> libraries = prog.getAllLibraries();
+			log.info("Starting program (detached: {})", isDetached());
 
-				ContextEnvironmentFactory factory = new ContextEnvironmentFactory(this, libraries,
-				prog.getClasspaths(), prog.getUserCodeClassLoader(), parallelism, isDetached(),
-				prog.getSavepointSettings());
-				ContextEnvironment.setAsContext(factory);
+			final List<URL> libraries = prog.getAllLibraries();
 
-				try {
-					// invoke main method
-					prog.invokeInteractiveModeForExecution();
-					if (lastJobExecutionResult == null && factory.getLastEnvCreated() == null) {
-						throw new ProgramMissingJobException("The program didn't contain a Flink job.");
-					}
-					if (isDetached()) {
-						// in detached mode, we execute the whole user code to extract the Flink job, afterwards we run it here
-						return ((DetachedEnvironment) factory.getLastEnvCreated()).finalizeExecute();
-					}
-					else {
-						// in blocking mode, we execute all Flink jobs contained in the user code and then return here
-						return this.lastJobExecutionResult;
-					}
+			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(this, libraries,
+					prog.getClasspaths(), prog.getUserCodeClassLoader(), parallelism, isDetached(),
+					prog.getSavepointSettings());
+			ContextEnvironment.setAsContext(factory);
+
+			try {
+				// invoke main method
+				prog.invokeInteractiveModeForExecution();
+				if (lastJobExecutionResult == null) {
+					throw new ProgramMissingJobException("The program didn't contain a Flink job.");
 				}
-				finally {
-					ContextEnvironment.unsetContext();
-				}
-			}
-			else {
-				throw new ProgramInvocationException("PackagedProgram does not have a valid invocation mode.");
+				return this.lastJobExecutionResult;
+			} finally {
+				ContextEnvironment.unsetContext();
 			}
 		}
 		finally {
@@ -324,11 +226,6 @@ public abstract class ClusterClient<T> {
 
 		OptimizedPlan optPlan = getOptimizedPlan(compiler, jobWithJars, parallelism);
 		return run(optPlan, jobWithJars.getJarFiles(), jobWithJars.getClasspaths(), classLoader, savepointSettings);
-	}
-
-	public JobSubmissionResult run(
-			FlinkPlan compiledPlan, List<URL> libraries, List<URL> classpaths, ClassLoader classLoader) throws ProgramInvocationException {
-		return run(compiledPlan, libraries, classpaths, classLoader, SavepointRestoreSettings.none());
 	}
 
 	public JobSubmissionResult run(FlinkPlan compiledPlan,
@@ -505,8 +402,23 @@ public abstract class ClusterClient<T> {
 	 * @param jobGraph The JobGraph to be submitted
 	 * @return JobSubmissionResult
 	 */
-	public abstract JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader)
-		throws ProgramInvocationException;
+	public abstract JobSubmissionResult submitJob(JobGraph jobGraph, ClassLoader classLoader) throws ProgramInvocationException;
+
+	/**
+	 * Submit the given {@link JobGraph} to the cluster.
+	 *
+	 * @param jobGraph to submit
+	 * @return Future which is completed with the {@link JobSubmissionResult}
+	 */
+	public abstract CompletableFuture<JobSubmissionResult> submitJob(@Nonnull JobGraph jobGraph);
+
+	/**
+	 * Request the {@link JobResult} for the given {@link JobID}.
+	 *
+	 * @param jobId for which to request the {@link JobResult}
+	 * @return Future which is completed with the {@link JobResult}
+	 */
+	public abstract CompletableFuture<JobResult> requestJobResult(@Nonnull JobID jobId);
 
 	public void shutDownCluster() {
 		throw new UnsupportedOperationException("The " + getClass().getSimpleName() + " does not support shutDownCluster.");

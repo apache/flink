@@ -55,8 +55,7 @@ public class DataGenerators {
 			final int numElements,
 			final boolean randomizeOrder) throws Exception {
 		env.setParallelism(numPartitions);
-		env.getConfig().disableSysoutLogging();
-		env.setRestartStrategy(RestartStrategies.noRestart());
+				env.setRestartStrategy(RestartStrategies.noRestart());
 
 		DataStream<Integer> stream = env.addSource(
 				new RichParallelSourceFunction<Integer>() {

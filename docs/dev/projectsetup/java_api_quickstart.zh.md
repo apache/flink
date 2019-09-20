@@ -323,7 +323,7 @@ __注意：__ 如果你使用其他类而不是 *StreamingJob* 作为应用程�
 开始编写应用！
 
 如果你准备编写流处理应用，正在寻找灵感来写什么，
-可以看看[流处理应用程序教程]({{ site.baseurl }}/zh/getting-started/tutorials/datastream_api.html#writing-a-flink-program)
+可以看看[流处理应用程序教程]({{ site.baseurl }}/zh/getting-started/walkthroughs/datastream_api.html)
 
 如果你准备编写批处理应用，正在寻找灵感来写什么，
 可以看看[批处理应用程序示例]({{ site.baseurl }}/zh/dev/batch/examples.html)

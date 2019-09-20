@@ -62,7 +62,7 @@ public class TestUtils {
 
 		final RollingPolicy<Tuple2<String, Integer>, String> rollingPolicy =
 				DefaultRollingPolicy
-						.create()
+						.builder()
 						.withMaxPartSize(partMaxSize)
 						.withRolloverInterval(inactivityInterval)
 						.withInactivityInterval(inactivityInterval)

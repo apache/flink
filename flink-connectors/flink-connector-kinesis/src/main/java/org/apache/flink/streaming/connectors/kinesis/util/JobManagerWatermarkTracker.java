@@ -144,7 +144,9 @@ public class JobManagerWatermarkTracker extends WatermarkTracker {
 				WatermarkState ws = e.getValue();
 				if (ws.lastUpdated + updateTimeoutMillis < currentTime) {
 					// ignore outdated entry
-					updateTimeoutCount++;
+					if (ws.watermark < Long.MAX_VALUE) {
+						updateTimeoutCount++;
+					}
 					continue;
 				}
 				globalWatermark = Math.min(ws.watermark, globalWatermark);

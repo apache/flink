@@ -177,7 +177,6 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<String> stream = env.addSource(new SourceFunction<String>() {
 			private static final long serialVersionUID = 1L;
@@ -216,7 +215,6 @@ public class Kafka09ITCase extends KafkaConsumerTestBase {
 		env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(1);
 		env.getConfig().setRestartStrategy(RestartStrategies.noRestart());
-		env.getConfig().disableSysoutLogging();
 
 		// ---------- RateLimiter config -------------
 		final long globalRate = 10; // bytes/second

@@ -115,10 +115,6 @@ under the License.
 					<artifactId>commons-lang</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>com.zaxxer</groupId>
-					<artifactId>HikariCP</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>co.cask.tephra</groupId>
 					<artifactId>tephra-api</artifactId>
 				</exclusion>
@@ -616,7 +612,7 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
-        <dependency>
+		<dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-test-utils_${scala.binary.version}</artifactId>
             <version>${project.version}</version>
@@ -665,6 +661,31 @@ under the License.
 			</properties>
 		</profile>
 		<profile>
+			<id>hive-2.0.0</id>
+			<properties>
+				<hive.version>2.0.0</hive.version>
+			</properties>
+		</profile>
+		<profile>
+			<id>hive-2.1.1</id>
+			<properties>
+				<hive.version>2.1.1</hive.version>
+			</properties>
+		</profile>
+		<profile>
+			<id>hive-2.2.0</id>
+			<properties>
+				<hive.version>2.2.0</hive.version>
+			</properties>
+		</profile>
+		<profile>
+			<id>hive-3.1.1</id>
+			<properties>
+				<hive.version>3.1.1</hive.version>
+			</properties>
+
+		</profile>
+		<profile>
 			<id>skip-hive-tests</id>
 			<build>
 				<plugins>
@@ -673,25 +694,6 @@ under the License.
 						<artifactId>maven-surefire-plugin</artifactId>
 						<configuration>
 							<skipTests>true</skipTests>
-						</configuration>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-		<profile>
-			<id>java9</id>
-			<activation>
-				<jdk>9</jdk>
-			</activation>
-
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-surefire-plugin</artifactId>
-						<configuration>
-							<!-- hive does not support Java 9 -->
-							<skip>true</skip>
 						</configuration>
 					</plugin>
 				</plugins>

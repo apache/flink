@@ -228,3 +228,20 @@ case class StreamRecordTimestamp() extends LeafExpression {
 
   override private[flink] def resultType = Types.LONG
 }
+
+/**
+  * Special reference which represent a local field, such as aggregate buffers or constants.
+  * We are stored as class members, so the field can be referenced directly.
+  * We should use an unique name to locate the field.
+  */
+case class PlannerLocalReference(
+    name: String,
+    resultType: TypeInformation[_]) extends Attribute {
+
+  override def toString = s"'$name"
+
+  override private[flink] def withName(newName: String): Attribute = {
+    if (newName == name) this
+    else PlannerLocalReference(newName, resultType)
+  }
+}

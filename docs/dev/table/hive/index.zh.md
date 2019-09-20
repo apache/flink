@@ -40,7 +40,15 @@ You do not need to modify your existing Hive Metastore or change the data placem
 
 ## Supported Hive Version's
 
-Flink supports Hive `2.3.4` and `1.2.1` and relies on Hive's compatibility guarantee's for other versions.
+Flink supports Hive `2.3.4` and `1.2.1` and relies on Hive's compatibility guarantee's for other minor versions.
+
+If you use a different minor Hive version such as `1.2.2` or `2.3.1`, it should also be ok to 
+choose the closest version `1.2.1` (for `1.2.2`) or `2.3.4` (for `2.3.1`) to workaround. For 
+example, you want to use Flink to integrate `2.3.1` hive version in sql client, just set the 
+hive-version to `2.3.4` in YAML config. Similarly pass the version string when creating 
+HiveCatalog instance via Table API.
+
+Users are welcome to try out different versions with this workaround. Since only `2.3.4` and `1.2.1` have been tested, there might be unexpected issues. We will test and support more versions in future releases.
 
 ### Depedencies 
 
@@ -51,7 +59,7 @@ To integrate with Hive, users need the following dependencies in their project.
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-hive_{{ site.scala_version_suffix }}</artifactId>
+  <artifactId>flink-connector-hive{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
   <scope>provided</scope>
 </dependency>
@@ -60,7 +68,7 @@ To integrate with Hive, users need the following dependencies in their project.
 
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-hadoop-compatibility-{{site.version}}</artifactId>
+  <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
   <scope>provided</scope>
 </dependency>
@@ -69,8 +77,8 @@ To integrate with Hive, users need the following dependencies in their project.
 
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-shaded-hadoop-2-uber-2.7.5-{{site.version}}</artifactId>
-  <version>{{site.version}}</version>
+  <artifactId>flink-shaded-hadoop-2-uber</artifactId>
+  <version>2.7.5-{{ site.shaded_version }}</version>
   <scope>provided</scope>
 </dependency>
 
@@ -87,7 +95,7 @@ To integrate with Hive, users need the following dependencies in their project.
 {% highlight xml %}
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-connector-hive_{{ site.scala_version_suffix }}</artifactId>
+  <artifactId>flink-connector-hive{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
   <scope>provided</scope>
 </dependency>
@@ -96,7 +104,7 @@ To integrate with Hive, users need the following dependencies in their project.
 
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-hadoop-compatibility-{{site.version}}</artifactId>
+  <artifactId>flink-hadoop-compatibility{{ site.scala_version_suffix }}</artifactId>
   <version>{{site.version}}</version>
   <scope>provided</scope>
 </dependency>
@@ -105,8 +113,8 @@ To integrate with Hive, users need the following dependencies in their project.
 
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-shaded-hadoop-2-uber-2.6.5-{{site.version}}</artifactId>
-  <version>{{site.version}}</version>
+  <artifactId>flink-shaded-hadoop-2-uber</artifactId>
+  <version>2.6.5-{{ site.shaded_version }}</version>
   <scope>provided</scope>
 </dependency>
 
@@ -146,7 +154,7 @@ String hiveConfDir     = "/opt/hive-conf";
 String version         = "2.3.4"; // or 1.2.1
 
 HiveCatalog hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version);
-tableEnv.registerCatalog(hive);
+tableEnv.registerCatalog("myhive", hive);
 {% endhighlight %}
 </div>
 <div data-lang="Scala" markdown="1">
@@ -158,7 +166,7 @@ val hiveConfDir     = "/opt/hive-conf"
 val version         = "2.3.4" // or 1.2.1
 
 val hive = new HiveCatalog(name, defaultDatabase, hiveConfDir, version)
-tableEnv.registerCatalog(hive)
+tableEnv.registerCatalog("myhive", hive)
 {% endhighlight %}
 </div>
 <div data-lang="YAML" markdown="1">

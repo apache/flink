@@ -111,7 +111,7 @@ INFO ... - ResourceManager akka.tcp://flink@localhost:6123/user/resourcemanager 
 INFO ... - Starting the SlotManager.
 INFO ... - Dispatcher akka.tcp://flink@localhost:6123/user/dispatcher was granted leadership ...
 INFO ... - Recovering all persisted jobs.
-INFO ... - Registering TaskManager ... under ... at the SlotManager.
+INFO ... - Registering TaskManager ... at ResourceManager
 {% endhighlight %}
 
 ## Read the Code

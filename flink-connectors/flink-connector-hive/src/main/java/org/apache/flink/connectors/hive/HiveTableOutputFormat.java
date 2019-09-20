@@ -46,7 +46,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.common.FileUtils;
-import org.apache.hadoop.hive.common.HiveStatsUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.MetaException;
@@ -224,12 +223,13 @@ public class HiveTableOutputFormat extends HadoopOutputFormatCommonBase<Row> imp
 			}
 			if (isPartitioned) {
 				if (isDynamicPartition) {
-					FileStatus[] generatedParts = HiveStatsUtils.getFileStatusRecurse(stagingDir,
+					HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
+					FileStatus[] generatedParts = hiveShim.getFileStatusRecurse(stagingDir,
 						partitionColumns.size() - hiveTablePartition.getPartitionSpec().size(), fs);
 					for (FileStatus part : generatedParts) {
 						commitJob(part.getPath().toString());
 						LinkedHashMap<String, String> fullPartSpec = new LinkedHashMap<>();
-						Warehouse.makeSpecFromName(fullPartSpec, part.getPath());
+						hiveShim.makeSpecFromName(fullPartSpec, part.getPath());
 						loadPartition(part.getPath(), table, fullPartSpec, client);
 					}
 				} else {

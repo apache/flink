@@ -251,6 +251,7 @@ public class CheckpointCoordinator {
 
 		try {
 			this.checkpointStorage = checkpointStateBackend.createCheckpointStorage(job);
+			checkpointStorage.initializeBaseLocations();
 		} catch (IOException e) {
 			throw new FlinkRuntimeException("Failed to create checkpoint storage at checkpoint coordinator side.", e);
 		}

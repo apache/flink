@@ -201,11 +201,17 @@ class LaunchCoordinatorTest
     */
   def taskSchedulerBuilder(optimizer: TaskScheduler) = new TaskSchedulerBuilder {
     var leaseRejectAction: Action1[VirtualMachineLease] = null
+    var rejectAllExpiredOffers: Boolean = false
     override def withLeaseRejectAction(
         action: Action1[VirtualMachineLease]): TaskSchedulerBuilder = {
       leaseRejectAction = action
       this
     }
+    override def withRejectAllExpiredOffers(): TaskSchedulerBuilder = {
+      rejectAllExpiredOffers = true
+      this
+    }
+
     override def build(): TaskScheduler = optimizer
   }
 

@@ -26,6 +26,7 @@ import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.calcite.FlinkRelBuilder;
 import org.apache.flink.table.calcite.FlinkTypeFactory;
 import org.apache.flink.table.catalog.CatalogReader;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.AggFunctionCall;
 import org.apache.flink.table.expressions.Aggregation;
 import org.apache.flink.table.expressions.CallExpression;
@@ -263,7 +264,12 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
 		@Override
 		public RelNode visit(CatalogQueryOperation catalogTable) {
-			return relBuilder.scan(catalogTable.getTablePath()).build();
+			ObjectIdentifier objectIdentifier = catalogTable.getObjectIdentifier();
+			return relBuilder.scan(
+				objectIdentifier.getCatalogName(),
+				objectIdentifier.getDatabaseName(),
+				objectIdentifier.getObjectName()
+			).build();
 		}
 
 		@Override

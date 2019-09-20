@@ -19,7 +19,13 @@
 package org.apache.flink.util;
 
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -29,14 +35,28 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class TimeUtils {
 
+	private static final Map<String, ChronoUnit> LABEL_TO_UNIT_MAP = Collections.unmodifiableMap(initMap());
+
 	/**
 	 * Parse the given string to a java {@link Duration}.
-	 * The string is like "123ms", "321s", "12min" and such.
+	 * The string is in format "{length value}{time unit label}", e.g. "123ms", "321 s".
+	 * If no time unit label is specified, it will be considered as milliseconds.
+	 *
+	 * <p>Supported time unit labels are:
+	 * <ul>
+	 *     <li>DAYS： "d", "day"</li>
+	 *     <li>HOURS： "h", "hour"</li>
+	 *     <li>MINUTES： "min", "minute"</li>
+	 *     <li>SECONDS： "s", "sec", "second"</li>
+	 *     <li>MILLISECONDS： "ms", "milli", "millisecond"</li>
+	 *     <li>MICROSECONDS： "µs", "micro", "microsecond"</li>
+	 *     <li>NANOSECONDS： "ns", "nano", "nanosecond"</li>
+	 * </ul>
 	 *
 	 * @param text string to parse.
 	 */
 	public static Duration parseDuration(String text) {
-		checkNotNull(text, "text");
+		checkNotNull(text);
 
 		final String trimmed = text.trim();
 		checkArgument(!trimmed.isEmpty(), "argument is an empty- or whitespace-only string");
@@ -50,7 +70,7 @@ public class TimeUtils {
 		}
 
 		final String number = trimmed.substring(0, pos);
-		final String unit = trimmed.substring(pos).trim().toLowerCase(Locale.US);
+		final String unitLabel = trimmed.substring(pos).trim().toLowerCase(Locale.US);
 
 		if (number.isEmpty()) {
 			throw new NumberFormatException("text does not start with a number");
@@ -64,65 +84,67 @@ public class TimeUtils {
 				"' cannot be re represented as 64bit number (numeric overflow).");
 		}
 
-		final long multiplier;
-		if (unit.isEmpty()) {
-			multiplier = 1L;
+		if (unitLabel.isEmpty()) {
+			return Duration.of(value, ChronoUnit.MILLIS);
+		}
+
+		ChronoUnit unit = LABEL_TO_UNIT_MAP.get(unitLabel);
+		if (unit != null) {
+			return Duration.of(value, unit);
 		} else {
-			if (matchTimeUnit(unit, TimeUnit.MILLISECONDS)) {
-				multiplier = 1L;
-			} else if (matchTimeUnit(unit, TimeUnit.SECONDS)) {
-				multiplier = 1000L;
-			} else if (matchTimeUnit(unit, TimeUnit.MINUTES)) {
-				multiplier = 1000L * 60L;
-			} else if (matchTimeUnit(unit, TimeUnit.HOURS)) {
-				multiplier = 1000L * 60L * 60L;
-			} else {
-				throw new IllegalArgumentException("Time interval unit '" + unit +
-					"' does not match any of the recognized units: " + TimeUnit.getAllUnits());
-			}
+			throw new IllegalArgumentException("Time interval unit label '" + unitLabel +
+				"' does not match any of the recognized units: " + TimeUnit.getAllUnits());
 		}
-
-		final long result = value * multiplier;
-
-		// check for overflow
-		if (result / multiplier != value) {
-			throw new IllegalArgumentException("The value '" + text +
-				"' cannot be re represented as 64bit number of bytes (numeric overflow).");
-		}
-
-		return Duration.ofMillis(result);
 	}
 
-	private static boolean matchTimeUnit(String text, TimeUnit unit) {
-		return text.equals(unit.getUnit());
+	private static Map<String, ChronoUnit> initMap() {
+		Map<String, ChronoUnit> labelToUnit = new HashMap<>();
+		for (TimeUnit timeUnit : TimeUnit.values()) {
+			for (String label : timeUnit.getLabels()) {
+				labelToUnit.put(label, timeUnit.getUnit());
+			}
+		}
+		return labelToUnit;
 	}
 
 	/**
 	 * Enum which defines time unit, mostly used to parse value from configuration file.
 	 */
 	private enum TimeUnit {
-		MILLISECONDS("ms"),
-		SECONDS("s"),
-		MINUTES("min"),
-		HOURS("h");
 
-		private String unit;
+		DAYS(ChronoUnit.DAYS, "d", "day"),
+		HOURS(ChronoUnit.HOURS, "h", "hour"),
+		MINUTES(ChronoUnit.MINUTES, "min", "minute"),
+		SECONDS(ChronoUnit.SECONDS, "s", "sec", "second"),
+		MILLISECONDS(ChronoUnit.MILLIS, "ms", "milli", "millisecond"),
+		MICROSECONDS(ChronoUnit.MICROS, "µs", "micro", "microsecond"),
+		NANOSECONDS(ChronoUnit.NANOS, "ns", "nano", "nanosecond");
 
-		TimeUnit(String unit) {
+		private String[] labels;
+
+		private ChronoUnit unit;
+
+		TimeUnit(ChronoUnit unit, String... labels) {
 			this.unit = unit;
+			this.labels = labels;
 		}
 
-		public String getUnit() {
+		public String[] getLabels() {
+			return labels;
+		}
+
+		public ChronoUnit getUnit() {
 			return unit;
 		}
 
 		public static String getAllUnits() {
-			return String.join(" | ", new String[]{
-				MILLISECONDS.getUnit(),
-				SECONDS.getUnit(),
-				MINUTES.getUnit(),
-				HOURS.getUnit()
-			});
+			return Arrays.stream(TimeUnit.values())
+				.map(TimeUnit::createTimeUnitString)
+				.collect(Collectors.joining(", "));
+		}
+
+		private static String createTimeUnitString(TimeUnit timeUnit) {
+			return timeUnit.name() + ": (" + String.join(" | ", timeUnit.getLabels()) + ")";
 		}
 	}
 }

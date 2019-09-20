@@ -18,14 +18,16 @@
 
 package org.apache.flink.runtime.executiongraph.restart;
 
+import java.time.Duration;
+
 /**
  * Default restart strategy that resolves either to {@link NoRestartStrategy} or {@link FixedDelayRestartStrategy}
  * depending if checkpointing was enabled.
  */
 public class NoOrFixedIfCheckpointingEnabledRestartStrategyFactory extends RestartStrategyFactory {
-	private static final long DEFAULT_RESTART_DELAY = 0;
-
 	private static final long serialVersionUID = -1809462525812787862L;
+
+	private static final long DEFAULT_RESTART_DELAY = Duration.ofSeconds(1L).toMillis();
 
 	@Override
 	public RestartStrategy createRestartStrategy() {

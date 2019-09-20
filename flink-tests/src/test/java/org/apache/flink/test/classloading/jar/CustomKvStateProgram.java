@@ -50,8 +50,7 @@ public class CustomKvStateProgram {
 
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setParallelism(parallelism);
-		env.getConfig().disableSysoutLogging();
-		env.enableCheckpointing(checkpointingInterval);
+				env.enableCheckpointing(checkpointingInterval);
 		env.setStateBackend(new FsStateBackend(checkpointPath));
 
 		DataStream<Integer> source = env.addSource(new InfiniteIntegerSource());

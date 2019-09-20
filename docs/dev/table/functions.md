@@ -767,7 +767,7 @@ boolean IS NOT TRUE
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>boolean</i> is FALSE or UNKNOWN; returns FALSE if <i>boolean</i> is FALSE.</p>
+        <p>Returns TRUE if <i>boolean</i> is FALSE or UNKNOWN; returns FALSE if <i>boolean</i> is TRUE.</p>
       </td>
     </tr>
 
@@ -870,7 +870,7 @@ BOOLEAN.isNotTrue
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>BOOLEAN</i> is FALSE or UNKNOWN; returns FALSE if <i>BOOLEAN</i> is FALSE.</p>
+        <p>Returns TRUE if <i>BOOLEAN</i> is FALSE or UNKNOWN; returns FALSE if <i>BOOLEAN</i> is TRUE.</p>
       </td>
     </tr>
 
@@ -962,7 +962,7 @@ BOOLEAN.isNotTrue
 {% endhighlight %}
       </td>
       <td>
-        <p>Returns TRUE if <i>BOOLEAN</i> is FALSE or UNKNOWN; returns FALSE if <i>BOOLEAN</i> is FALSE.</p>
+        <p>Returns TRUE if <i>BOOLEAN</i> is FALSE or UNKNOWN; returns FALSE if <i>BOOLEAN</i> is TRUE.</p>
       </td>
     </tr>
 
@@ -1466,6 +1466,18 @@ TRUNCATE(numeric1, integer2)
         <p>E.g. <code>truncate(42.345, 2)</code> to 42.34. and <code>truncate(42.345)</code> to 42.0.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+PI()
+{% endhighlight %}
+      </td>
+      <td>
+      <p>Returns the value of π (pi).</p>
+      <p>Only supported in blink planner.</p>
+      </td>
+    </tr> 
         
   </tbody>
 </table>
@@ -2689,6 +2701,180 @@ TO_BASE64(string)
         <p>E.g., <code>TO_BASE64('hello world')</code> returns "aGVsbG8gd29ybGQ=".</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+ASCII(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the numeric value of the first character of <i>string</i>. Returns NULL if <i>string</i> is NULL.</p>
+        <p>Only supported in blink planner.</p>
+        <p>E.g., <code>ascii('abc')</code> returns 97, and <code>ascii(CAST(NULL AS VARCHAR))</code> returns NULL.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+CHR(integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the ASCII character having the binary equivalent to <i>integer</i>. If <i>integer</i> is larger than 255, we will get the modulus of <i>integer</i> divided by 255 first, and returns <i>CHR</i> of the modulus. Returns NULL if <i>integer</i> is NULL.</p>
+        <p>Only supported in blink planner.</p>
+        <p>E.g., <code>chr(97)</code> returns a, <code>chr(353)</code> returns a, and <code>ascii(CAST(NULL AS VARCHAR))</code> returns NULL.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+DECODE(binary, string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Decodes the first argument into a String using the provided character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+ENCODE(string1, string2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Encodes the <i>string1</i> into a BINARY using the provided <i>string2</i> character set (one of 'US-ASCII', 'ISO-8859-1', 'UTF-8', 'UTF-16BE', 'UTF-16LE', 'UTF-16'). If either argument is null, the result will also be null.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+INSTR(string1, string2)
+{% endhighlight %}
+      </td>
+      <td>
+        Returns the position of the first occurrence of <i>string2</i> in <i>string1</i>. Returns NULL if any of arguments is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LEFT(string, integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the leftmost <i>integer</i> characters from the <i>string</i>. Returns EMPTY String if <i>integer</i> is negative. Returns NULL if any argument is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+RIGHT(string, integer)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the rightmost <i>integer</i> characters from the <i>string</i>. Returns EMPTY String if <i>integer</i> is negative. Returns NULL if any argument is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LOCATE(string1, string2[, integer])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the position of the first occurrence of <i>string1</i> in <i>string2</i> after position <i>integer</i>. Returns 0 if not found. Returns NULL if any of arguments is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+PARSE_URL(string1, string2[, string3])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the specified part from the URL. Valid values for <i>string2</i> include 'HOST', 'PATH', 'QUERY', 'REF', 'PROTOCOL', 'AUTHORITY', 'FILE', and 'USERINFO'. Returns NULL if any of arguments is NULL.</p>
+        <p>E.g., <code>parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'HOST')</code>, returns 'facebook.com'.</p>
+        <p>Also a value of a particular key in QUERY can be extracted by providing the key as the third argument <i>string3</i>.</p>
+        <p>E.g., <code>parse_url('http://facebook.com/path1/p.php?k1=v1&k2=v2#Ref1', 'QUERY', 'k1')</code> returns 'v1'. </p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+REGEXP(string1, string2)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns TRUE if any (possibly empty) substring of <i>string1</i> matches the Java regular expression <i>string2</i>, otherwise FALSE. Returns NULL if any of arguments is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+REVERSE(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the reversed string. Returns NULL if <i>string</i> is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+SPLIT_INDEX(string1, string2, integer1)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Splits <i>string1</i> by the delimiter <i>string2</i>, returns the <i>integer</i>th (zero-based) string of the split strings. Returns NULL if <i>integer</i> is negative. Returns NULL if any of arguments is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+STR_TO_MAP(string1[, string2, string3]])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a map after splitting the <i>string1</i> into key/value pairs using delimiters. <i>string2</i> is the pair delimiter, default is ','. And <i>string3</i> is the key-value delimiter, default is '='.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+SUBSTR(string[, integer1[, integer2]])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a substring of string starting from position integer1 with length integer2 (to the end by default).</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+        
   </tbody>
 </table>
 </div>
@@ -3513,7 +3699,8 @@ DATE_FORMAT(timestamp, string)
 {% endhighlight %}
       </td>
       <td>
-        <p><span class="label label-danger">Attention</span> This function has serious bugs and should not be used for now. Please implement a custom UDF instead or use EXTRACT as a workaround.</p>
+        <p><span class="label label-danger">Attention for old planner</span> This function has serious bugs and should not be used for now. Please implement a custom UDF instead or use EXTRACT as a workaround.</p>
+        <p>For blink planner, this converts <i>timestamp</i> to a value of string in the format specified by the date format <i>string</i>. The format string is compatible with Java's <a href="https://docs.oracle.com/javase/8/docs/api/java/text/SimpleDateFormat.html">SimpleDateFormat</a>.</p>
       </td>
     </tr>
 
@@ -3538,6 +3725,92 @@ TIMESTAMPDIFF(timepointunit, timepoint1, timepoint2)
       <td>
         <p>Returns the (signed) number of <i>timepointunit</i> between <i>timepoint1</i> and <i>timepoint2</i>. The unit for the interval is given by the first argument, which should be one of the following values: <code>SECOND</code>, <code>MINUTE</code>, <code>HOUR</code>, <code>DAY</code>, <code>MONTH</code>, or <code>YEAR</code>. See also the <a href="#time-interval-and-point-unit-specifiers">Time Interval and Point Unit Specifiers table</a>.</p>
         <p>E.g., <code>TIMESTAMPDIFF(DAY, TIMESTAMP '2003-01-02 10:00:00', TIMESTAMP '2003-01-03 10:00:00')</code> leads to <code>1</code>.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+      {% highlight text %}
+CONVERT_TZ(string1, string2, string3)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts a datetime <i>string1</i> (with default ISO timestamp format 'yyyy-MM-dd HH:mm:ss') from time zone <i>string2</i> to time zone <i>string3</i>. The format of time zone should be either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-8:00".</p>
+        <p>E.g., <code>CONVERT('1970-01-01 00:00:00', 'UTC', 'America/Los_Angeles')</code> returns '1969-12-31 16:00:00'.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+        
+    <tr>
+      <td>
+      {% highlight text %}
+FROM_UNIXTIME(numeric[, string])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns a representation of the <i>numeric</i> argument as a value in <i>string</i> format (default is 'YYYY-MM-DD hh:mm:ss'). <i>numeric</i> is an internal timestamp value representing seconds since '1970-01-01 00:00:00' UTC, such as produced by the UNIX_TIMESTAMP() function. The return value is expressed in the session time zone (specified in TableConfig).</p>
+        <p>E.g., <code>FROM_UNIXTIME(44)</code> returns '1970-01-01 09:00:44' if in UTC time zone, but returns '1970-01-01 09:00:44' if in 'Asia/Tokyo' time zone.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+      {% highlight text %}
+UNIX_TIMESTAMP()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Gets current Unix timestamp in seconds. This function is not deterministic.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+    
+    <tr>
+      <td>
+      {% highlight text %}
+UNIX_TIMESTAMP(string1[, string2])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts date time string <i>string1</i> in format <i>string2</i> (by default: yyyy-MM-dd HH:mm:ss if not specified) to Unix timestamp (in seconds), using the specified timezone in table config.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+        
+    <tr>
+      <td>
+      {% highlight text %}
+TO_DATE(string1[, string2])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts a date string <i>string1</i> with format <i>string2</i> (by default 'yyyy-MM-dd') to a date.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr> 
+       
+    <tr>
+      <td>
+      {% highlight text %}
+TO_TIMESTAMP(string1[, string2])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Converts date time string <i>string1</i> with format <i>string2</i> (by default: 'yyyy-MM-dd HH:mm:ss') under the session time zone (specified by TableConfig) to a timestamp.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+        
+    <tr>
+      <td>
+      {% highlight text %}
+NOW()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the current SQL timestamp in the UTC time zone. This function is not deterministic.</p>
+        <p>Only supported in blink planner.</p>
       </td>
     </tr>
 
@@ -4181,6 +4454,56 @@ COALESCE(value1, value2 [, value3 ]* )
         <p>E.g., <code>COALESCE(NULL, 5)</code> returns 5.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+IF(condition, true_value, false_value)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the <i>true_value</i> if <i>condition</i> is met, otherwise <i>false_value</i>.</p>
+        <p>Only supported in blink planner.</p>
+        <p>E.g., <code>IF(5 > 3, 5, 3)</code> returns 5.</p>
+      </td>
+    </tr>    
+
+    <tr>
+      <td>
+        {% highlight text %}
+IS_ALPHA(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if all characters in <i>string</i> are letter, otherwise false.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>    
+
+    <tr>
+      <td>
+        {% highlight text %}
+IS_DECIMAL(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if <i>string</i> can be parsed to a valid numeric, otherwise false.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>    
+
+    <tr>
+      <td>
+        {% highlight text %}
+IS_DIGIT(string)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns true if all characters in <i>string</i> are digit, otherwise false.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+    
   </tbody>
 </table>
 </div>
@@ -5367,6 +5690,116 @@ COLLECT([ ALL | DISTINCT ] expression)
           <p>By default or with keyword ALL, returns a multiset of <i>expression</i> across all input rows. NULL values will be ignored. Use DISTINCT for one unique instance of each value.</p>
       </td>
     </tr>
+    
+    <tr>
+      <td>
+        {% highlight text %}
+VARIANCE([ ALL | DISTINCT ] expression)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Synonyms for VAR_SAMP().</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+RANK()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the rank of a value in a group of values. The result is one plus the number of rows preceding or equal to the current row in the ordering of the partition. The values will produce gaps in the sequence.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+DENSE_RANK()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the rank of a value in a group of values. The result is one plus the previously assigned rank value. Unlike the function rank, dense_rank will not produce gaps in the ranking sequence.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+ROW_NUMBER()
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Assigns a unique, sequential number to each row, starting with one, according to the ordering of rows within the window partition.</p>
+        <p>ROW_NUMBER and RANK are similar. ROW_NUMBER numbers all rows sequentially (for example 1, 2, 3, 4, 5). RANK provides the same numeric value for ties (for example 1, 2, 2, 4, 5).</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LEAD(expression [, offset] [, default] )
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the value of <i>expression</i> at the <i>offset</i>th row after the current row in the window. The default value of <i>offset</i> is 1 and the default value of <i>default</i> is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LAG(expression [, offset] [, default])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the value of <i>expression</i> at the <i>offset</i>th row after the current row in the window. The default value of <i>offset</i> is 1 and the default value of <i>default</i> is NULL.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+        
+    <tr>
+      <td>
+        {% highlight text %}
+FIRST_VALUE(expression)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the first value in an ordered set of values.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LAST_VALUE(expression)
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Returns the last value in an ordered set of values.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+
+    <tr>
+      <td>
+        {% highlight text %}
+LISTAGG(expression [, separator])
+{% endhighlight %}
+      </td>
+      <td>
+        <p>Concatenates the values of string expressions and places separator values between them. The separator is not added at the end of string. The default value of <i>separator</i> is ','.</p>
+        <p>Only supported in blink planner.</p>
+      </td>
+    </tr>
+           
   </tbody>
 </table>
 
@@ -5640,123 +6073,6 @@ FIELD.collect
 </table>
 </div>
 </div>
-
-{% top %}
-
-Date Format Specifiers
-----------------------
-
-The following table lists specifiers for date format functions.
-
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th class="text-left" style="width: 40%">Specifier</th>
-      <th class="text-center">Description</th>
-    </tr>
-  </thead>
-  <tbody>
-  <tr><td>{% highlight text %}%a{% endhighlight %}</td>
-  <td>Abbreviated weekday name (<code>Sun</code> .. <code>Sat</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%b{% endhighlight %}</td>
-  <td>Abbreviated month name (<code>Jan</code> .. <code>Dec</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%c{% endhighlight %}</td>
-  <td>Month, numeric (<code>1</code> .. <code>12</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%D{% endhighlight %}</td>
-  <td>Day of the month with English suffix (<code>0th</code>, <code>1st</code>, <code>2nd</code>, <code>3rd</code>, ...)</td>
-  </tr>
-  <tr><td>{% highlight text %}%d{% endhighlight %}</td>
-  <td>Day of the month, numeric (<code>01</code> .. <code>31</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%e{% endhighlight %}</td>
-  <td>Day of the month, numeric (<code>1</code> .. <code>31</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%f{% endhighlight %}</td>
-  <td>Fraction of second (6 digits for printing: <code>000000</code> .. <code>999000</code>; 1 - 9 digits for parsing: <code>0</code> .. <code>999999999</code>) (Timestamp is truncated to milliseconds.) </td>
-  </tr>
-  <tr><td>{% highlight text %}%H{% endhighlight %}</td>
-  <td>Hour (<code>00</code> .. <code>23</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%h{% endhighlight %}</td>
-  <td>Hour (<code>01</code> .. <code>12</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%I{% endhighlight %}</td>
-  <td>Hour (<code>01</code> .. <code>12</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%i{% endhighlight %}</td>
-  <td>Minutes, numeric (<code>00</code> .. <code>59</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%j{% endhighlight %}</td>
-  <td>Day of year (<code>001</code> .. <code>366</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%k{% endhighlight %}</td>
-  <td>Hour (<code>0</code> .. <code>23</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%l{% endhighlight %}</td>
-  <td>Hour (<code>1</code> .. <code>12</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%M{% endhighlight %}</td>
-  <td>Month name (<code>January</code> .. <code>December</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%m{% endhighlight %}</td>
-  <td>Month, numeric (<code>01</code> .. <code>12</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%p{% endhighlight %}</td>
-  <td><code>AM</code> or <code>PM</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%r{% endhighlight %}</td>
-  <td>Time, 12-hour (<code>hh:mm:ss</code> followed by <code>AM</code> or <code>PM</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%S{% endhighlight %}</td>
-  <td>Seconds (<code>00</code> .. <code>59</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%s{% endhighlight %}</td>
-  <td>Seconds (<code>00</code> .. <code>59</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%T{% endhighlight %}</td>
-  <td>Time, 24-hour (<code>hh:mm:ss</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%U{% endhighlight %}</td>
-  <td>Week (<code>00</code> .. <code>53</code>), where Sunday is the first day of the week</td>
-  </tr>
-  <tr><td>{% highlight text %}%u{% endhighlight %}</td>
-  <td>Week (<code>00</code> .. <code>53</code>), where Monday is the first day of the week</td>
-  </tr>
-  <tr><td>{% highlight text %}%V{% endhighlight %}</td>
-  <td>Week (<code>01</code> .. <code>53</code>), where Sunday is the first day of the week; used with <code>%X</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%v{% endhighlight %}</td>
-  <td>Week (<code>01</code> .. <code>53</code>), where Monday is the first day of the week; used with <code>%x</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%W{% endhighlight %}</td>
-  <td>Weekday name (<code>Sunday</code> .. <code>Saturday</code>)</td>
-  </tr>
-  <tr><td>{% highlight text %}%w{% endhighlight %}</td>
-  <td>Day of the week (<code>0</code> .. <code>6</code>), where Sunday is the first day of the week</td>
-  </tr>
-  <tr><td>{% highlight text %}%X{% endhighlight %}</td>
-  <td>Year for the week where Sunday is the first day of the week, numeric, four digits; used with <code>%V</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%x{% endhighlight %}</td>
-  <td>Year for the week, where Monday is the first day of the week, numeric, four digits; used with <code>%v</code></td>
-  </tr>
-  <tr><td>{% highlight text %}%Y{% endhighlight %}</td>
-  <td>Year, numeric, four digits</td>
-  </tr>
-  <tr><td>{% highlight text %}%y{% endhighlight %}</td>
-  <td>Year, numeric (two digits) </td>
-  </tr>
-  <tr><td>{% highlight text %}%%{% endhighlight %}</td>
-  <td>A literal <code>%</code> character</td>
-  </tr>
-  <tr><td>{% highlight text %}%x{% endhighlight %}</td>
-  <td><code>x</code>, for any <code>x</code> not listed above</td>
-  </tr>
-  </tbody>
-</table>
 
 {% top %}
 

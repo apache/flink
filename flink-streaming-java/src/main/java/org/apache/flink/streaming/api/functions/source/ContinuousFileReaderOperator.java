@@ -209,7 +209,7 @@ public class ContinuousFileReaderOperator<OUT> extends AbstractStreamOperator<OU
 
 	private void waitSplitReaderFinished() throws InterruptedException {
 		// make sure that we hold the checkpointing lock
-		Thread.holdsLock(checkpointLock);
+		assert Thread.holdsLock(checkpointLock);
 
 		// close the reader to signal that no more splits will come. By doing this,
 		// the reader will exit as soon as it finishes processing the already pending splits.

@@ -47,6 +47,7 @@ mvn clean package -nsu > compile-output.txt
 
 if [[ `grep -c "BUILD FAILURE" compile-output.txt` -eq '1' ]]; then
     echo "Failure: The walk-through did not successfully compile"
+    cat compile-output.txt
     exit 1
 fi
 

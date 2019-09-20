@@ -24,6 +24,7 @@ import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.StandaloneClusterDescriptor;
 import org.apache.flink.client.deployment.StandaloneClusterId;
+import org.apache.flink.client.program.DetachedJobExecutionResult;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -123,7 +124,6 @@ import static org.apache.flink.util.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -187,8 +187,7 @@ public class RestClusterClientTest extends TestLogger {
 			clientConfig,
 			createRestClient(),
 			StandaloneClusterId.getInstance(),
-			(attempt) -> 0,
-			null);
+			(attempt) -> 0);
 	}
 
 	@Nonnull
@@ -239,7 +238,7 @@ public class RestClusterClientTest extends TestLogger {
 				restClusterClient.cancel(jobId);
 				Assert.assertTrue(terminationHandler.jobCanceled);
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}
@@ -262,10 +261,10 @@ public class RestClusterClientTest extends TestLogger {
 
 				// if the detached mode didn't work, then we would not reach this point because the execution result
 				// retrieval would have failed.
-				assertThat(jobSubmissionResult, is(not(instanceOf(JobExecutionResult.class))));
+				assertThat(jobSubmissionResult, is(instanceOf(DetachedJobExecutionResult.class)));
 				assertThat(jobSubmissionResult.getJobID(), is(jobId));
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 
@@ -384,7 +383,7 @@ public class RestClusterClientTest extends TestLogger {
 					assertThat(cause.get().getMessage(), equalTo("expected"));
 				}
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}
@@ -433,7 +432,7 @@ public class RestClusterClientTest extends TestLogger {
 					}
 				}
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}
@@ -505,7 +504,7 @@ public class RestClusterClientTest extends TestLogger {
 				JobStatusMessage job2 = jobDetailsIterator.next();
 				Assert.assertNotEquals("The job status should not be equal.", job1.getJobState(), job2.getJobState());
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}
@@ -529,7 +528,7 @@ public class RestClusterClientTest extends TestLogger {
 					assertEquals("testValue", accumulators.get("testKey").get().toString());
 				}
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}
@@ -584,7 +583,7 @@ public class RestClusterClientTest extends TestLogger {
 
 				restClusterClient.sendRequest(PingRestHandlerHeaders.INSTANCE).get();
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}
@@ -599,7 +598,7 @@ public class RestClusterClientTest extends TestLogger {
 			} catch (final ProgramInvocationException expected) {
 				// expected
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}
@@ -636,7 +635,7 @@ public class RestClusterClientTest extends TestLogger {
 			}  catch (Exception e) {
 				assertThat(ExceptionUtils.findThrowableWithMessage(e, exceptionMessage).isPresent(), is(true));
 			} finally {
-				restClusterClient.shutdown();
+				restClusterClient.close();
 			}
 		}
 	}

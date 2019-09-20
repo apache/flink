@@ -27,15 +27,12 @@ import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.types.Row;
 
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
-
-import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 
 /**
  * Utility classes to construct a {@link CatalogManager} with a given structure.
- * It does create tables ({@link TestTable} and {@link ExternalTestTable} which
- * {@link Object#equals(Object)} method compares the fully qualified paths.
+ * It does create tables ({@link TestTable} which {@link Object#equals(Object)} method
+ * compares the fully qualified paths.
  *
  * <p>Example:
  * <pre>{@code
@@ -47,17 +44,14 @@ import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CO
  *          table("tab2")
  *      )
  *  )
- *  .externalCatalog(
- *      "extCat1",
- *      table("tab1"),
- *      extCatalog(
- *          "extCat2",
- *          extCatalog("extCat3",
- *              table("tab1")
- *          ),
- *      table("tab1")
- *  )
- * ).build();
+ *  .catalog(
+ *      "cat1",
+ *      database(
+ *          "default",
+ *          table("tab1"),
+ *          table("tab2")
+ *      )
+ *  ).build();
  * }</pre>
  */
 public class CatalogStructureBuilder {
@@ -77,10 +71,6 @@ public class CatalogStructureBuilder {
 
 	public static TableBuilder table(String name) {
 		return new TableBuilder(name);
-	}
-
-	public static ExternalCatalogEntry extCatalog(String name, ExternalCatalogEntry... entries) {
-		return new ExternalCatalogBuilder(name, entries);
 	}
 
 	public CatalogStructureBuilder builtin(DatabaseBuilder defaultDb, DatabaseBuilder... databases) throws Exception {
@@ -123,57 +113,8 @@ public class CatalogStructureBuilder {
 		}
 	}
 
-	public CatalogStructureBuilder externalCatalog(String name, ExternalCatalogEntry... entries) throws Exception {
-		new ExternalCatalogBuilder(name, entries).build(catalogManager);
-		return this;
-	}
-
 	public CatalogManager build() {
 		return catalogManager;
-	}
-
-	/**
-	 * Helper class for creating mock {@link ExternalCatalog} in a {@link CatalogStructureBuilder}.
-	 */
-	public static class ExternalCatalogBuilder implements ExternalCatalogEntry {
-
-		private final String name;
-		private final ExternalCatalogEntry[] entries;
-
-		private ExternalCatalogBuilder(String name, ExternalCatalogEntry[] entries) {
-			this.entries = entries;
-			this.name = name;
-		}
-
-		public void build(CrudExternalCatalog catalog, String path) throws Exception {
-			catalog.createSubCatalog(name, buildCurrentCatalog(path), false);
-		}
-
-		private InMemoryExternalCatalog buildCurrentCatalog(String path) throws Exception {
-			InMemoryExternalCatalog thisCatalog = new InMemoryExternalCatalog(name);
-			final String currentPath;
-			if (path != null) {
-				currentPath = path + "." + name;
-			} else {
-				currentPath = name;
-			}
-			for (ExternalCatalogEntry entry : entries) {
-				if (entry instanceof ExternalCatalogBuilder) {
-					((ExternalCatalogBuilder) entry).build(thisCatalog, currentPath);
-				} else if (entry instanceof TableBuilder){
-					TableBuilder tableBuilder = (TableBuilder) entry;
-					thisCatalog.createTable(
-						tableBuilder.getName(),
-						tableBuilder.buildExternalTable(currentPath),
-						false);
-				}
-			}
-			return thisCatalog;
-		}
-
-		public void build(CatalogManager catalogManager) throws Exception {
-			catalogManager.registerExternalCatalog(name, buildCurrentCatalog(null));
-		}
 	}
 
 	/**
@@ -203,10 +144,9 @@ public class CatalogStructureBuilder {
 	}
 
 	/**
-	 * Helper class for creating mock {@link CatalogTable} & {@link ExternalCatalogTable}
-	 * in a {@link CatalogStructureBuilder}.
+	 * Helper class for creating mock {@link CatalogTable} in a {@link CatalogStructureBuilder}.
 	 */
-	public static class TableBuilder implements ExternalCatalogEntry {
+	public static class TableBuilder {
 		private final String name;
 
 		TableBuilder(String name) {
@@ -219,51 +159,6 @@ public class CatalogStructureBuilder {
 
 		public TestTable build(String path) {
 			return new TestTable(path + "." + name);
-		}
-
-		public ExternalTestTable buildExternalTable(String path) {
-			return new ExternalTestTable(path + "." + name);
-		}
-	}
-
-	/**
-	 * Marker interface to make {@link ExternalCatalogBuilder#extCatalog(String, ExternalCatalogEntry...)}
-	 * accept both {@link ExternalCatalogBuilder} and {@link TableBuilder}.
-	 */
-	@Deprecated
-	public interface ExternalCatalogEntry {
-	}
-
-	private static class ExternalTestTable extends ExternalCatalogTable {
-		private final String fullyQualifiedName;
-
-		public ExternalTestTable(String fullyQualifiedName) {
-			super(false, true, true, false, new HashMap<>());
-			this.fullyQualifiedName = fullyQualifiedName;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-			if (o == null || getClass() != o.getClass()) {
-				return false;
-			}
-			ExternalTestTable that = (ExternalTestTable) o;
-			return Objects.equals(fullyQualifiedName, that.fullyQualifiedName);
-		}
-
-		@Override
-		public Map<String, String> toProperties() {
-			Map<String, String> properties = new HashMap<>();
-			properties.put(CONNECTOR_TYPE, TestExternalTableSourceFactory.TEST_EXTERNAL_CONNECTOR_TYPE);
-			return properties;
-		}
-
-		@Override
-		public int hashCode() {
-			return Objects.hash(fullyQualifiedName);
 		}
 	}
 

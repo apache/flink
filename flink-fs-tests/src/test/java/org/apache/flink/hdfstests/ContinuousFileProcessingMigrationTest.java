@@ -81,7 +81,8 @@ public class ContinuousFileProcessingMigrationTest {
 			Tuple2.of(MigrationVersion.v1_5, 1533639934000L),
 			Tuple2.of(MigrationVersion.v1_6, 1534696817000L),
 			Tuple2.of(MigrationVersion.v1_7, 1544024599000L),
-			Tuple2.of(MigrationVersion.v1_8, 1555215710000L));
+			Tuple2.of(MigrationVersion.v1_8, 1555215710000L),
+			Tuple2.of(MigrationVersion.v1_9, 1567499868000L));
 	}
 
 	/**

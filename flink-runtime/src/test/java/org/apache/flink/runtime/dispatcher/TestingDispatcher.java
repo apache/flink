@@ -62,7 +62,7 @@ class TestingDispatcher extends Dispatcher {
 			endpointId,
 			configuration,
 			highAvailabilityServices,
-			highAvailabilityServices.getSubmittedJobGraphStore(),
+			highAvailabilityServices.getJobGraphStore(),
 			resourceManagerGatewayRetriever,
 			blobServer,
 			heartbeatServices,

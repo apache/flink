@@ -445,8 +445,9 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 
 			LaunchableMesosWorker launchable = createLaunchableMesosWorker(worker.taskID());
 
-			LOG.info("Scheduling Mesos task {} with ({} MB, {} cpus).",
-				launchable.taskID().getValue(), launchable.taskRequest().getMemory(), launchable.taskRequest().getCPUs());
+			LOG.info("Scheduling Mesos task {} with ({} MB, {} cpus, {} gpus, {} disk MB, {} Mbps).",
+				launchable.taskID().getValue(), launchable.taskRequest().getMemory(), launchable.taskRequest().getCPUs(),
+				launchable.taskRequest().getScalarRequests().get("gpus"), launchable.taskRequest().getDisk(), launchable.taskRequest().getNetworkMbps());
 
 			// tell the task monitor about the new plans
 			taskMonitor.tell(new TaskMonitor.TaskGoalStateUpdated(extractGoalState(worker)), selfActor);
@@ -753,6 +754,12 @@ public class MesosResourceManager extends ResourceManager<RegisteredMesosWorkerN
 			@Override
 			public TaskSchedulerBuilder withLeaseRejectAction(Action1<VirtualMachineLease> action) {
 				builder.withLeaseRejectAction(action);
+				return this;
+			}
+
+			@Override
+			public TaskSchedulerBuilder withRejectAllExpiredOffers() {
+				builder.withRejectAllExpiredOffers();
 				return this;
 			}
 

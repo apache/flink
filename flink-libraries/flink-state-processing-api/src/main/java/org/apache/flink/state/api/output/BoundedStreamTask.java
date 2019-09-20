@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactoryUtil;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -71,13 +72,17 @@ class BoundedStreamTask<IN, OUT, OP extends OneInputStreamOperator<IN, OUT> & Bo
 
 		// re-initialize the operator with the correct collector.
 		StreamOperatorFactory<OUT> operatorFactory = configuration.getStreamOperatorFactory(getUserCodeClassLoader());
-		headOperator = operatorFactory.createStreamOperator(this, configuration, new CollectorWrapper<>(collector));
+		headOperator = StreamOperatorFactoryUtil.createOperator(
+				operatorFactory,
+				this,
+				configuration,
+				new CollectorWrapper<>(collector));
 		headOperator.initializeState();
 		headOperator.open();
 	}
 
 	@Override
-	protected void performDefaultAction(DefaultActionContext context) throws Exception {
+	protected void processInput(DefaultActionContext context) throws Exception {
 		if (input.hasNext()) {
 			reuse.replace(input.next());
 			headOperator.setKeyContextElement1(reuse);
