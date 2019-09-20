@@ -89,6 +89,8 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 	// indices of fields to be returned, with projection applied (if any)
 	// TODO: push projection into underlying input format that supports it
 	private int[] fields;
+	// Pre-computed partition values that are needed to generate a row.
+	private transient List<Object> partitionValues;
 
 	public HiveTableInputFormat(
 			JobConf jobConf,
@@ -140,6 +142,15 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 			structFields = structObjectInspector.getAllStructFieldRefs();
 		} catch (Exception e) {
 			throw new FlinkHiveException("Error happens when deserialize from storage file.", e);
+		}
+		if (!partitionColNames.isEmpty()) {
+			partitionValues = new ArrayList<>();
+			for (int field : fields) {
+				if (field > structFields.size()) {
+					String partition = partitionColNames.get(field - structFields.size());
+					partitionValues.add(hiveTablePartition.getPartitionSpec().get(partition));
+				}
+			}
 		}
 	}
 
@@ -215,6 +226,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 		try {
 			//Use HiveDeserializer to deserialize an object out of a Writable blob
 			Object hiveRowStruct = deserializer.deserialize(value);
+			int partitionValueIndex = 0;
 			for (int i = 0; i < fields.length; i++) {
 				// non-partition column
 				if (fields[i] < structFields.size()) {
@@ -224,8 +236,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<Row, HiveT
 					row.setField(i, object);
 				} else {
 					// partition column
-					String partition = partitionColNames.get(fields[i] - structFields.size());
-					row.setField(i, hiveTablePartition.getPartitionSpec().get(partition));
+					row.setField(i, partitionValues.get(partitionValueIndex++));
 				}
 			}
 		} catch (Exception e){
