@@ -57,20 +57,6 @@ public final class HybridMemorySegment extends MemorySegment {
 	 * Note that the given ByteBuffer must be direct {@link java.nio.ByteBuffer#allocateDirect(int)},
 	 * otherwise this method with throw an IllegalArgumentException.
 	 *
-	 * <p>The owner referenced by this memory segment is null.
-	 *
-	 * @param buffer The byte buffer whose memory is represented by this memory segment.
-	 * @throws IllegalArgumentException Thrown, if the given ByteBuffer is not direct.
-	 */
-	HybridMemorySegment(ByteBuffer buffer) {
-		this(buffer, null);
-	}
-
-	/**
-	 * Creates a new memory segment that represents the memory backing the given direct byte buffer.
-	 * Note that the given ByteBuffer must be direct {@link java.nio.ByteBuffer#allocateDirect(int)},
-	 * otherwise this method with throw an IllegalArgumentException.
-	 *
 	 * <p>The memory segment references the given owner.
 	 *
 	 * @param buffer The byte buffer whose memory is represented by this memory segment.
@@ -80,17 +66,6 @@ public final class HybridMemorySegment extends MemorySegment {
 	HybridMemorySegment(ByteBuffer buffer, Object owner) {
 		super(checkBufferAndGetAddress(buffer), buffer.capacity(), owner);
 		this.offHeapBuffer = buffer;
-	}
-
-	/**
-	 * Creates a new memory segment that represents the memory of the byte array.
-	 *
-	 * <p>The owner referenced by this memory segment is null.
-	 *
-	 * @param buffer The byte array whose memory is represented by this memory segment.
-	 */
-	HybridMemorySegment(byte[] buffer) {
-		this(buffer, null);
 	}
 
 	/**

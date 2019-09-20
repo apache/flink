@@ -42,19 +42,19 @@ public class OperationsOnFreedSegmentTest {
 	@Test
 	public void testSingleSegmentOperationsHeapSegment() throws Exception {
 		testOpsOnFreedSegment(new HeapMemorySegment(new byte[PAGE_SIZE]));
-		testOpsOnFreedSegment(new HybridMemorySegment(new byte[PAGE_SIZE]));
-		testOpsOnFreedSegment(new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE)));
+		testOpsOnFreedSegment(MemorySegmentFactory.wrap(new byte[PAGE_SIZE]));
+		testOpsOnFreedSegment(MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE));
 	}
 
 	@Test
 	public void testCompare() {
 		MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment aliveHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment aliveHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
+		MemorySegment aliveHybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
+		MemorySegment aliveHybridOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
 
 		MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment freedHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment freedHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
+		MemorySegment freedHybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
+		MemorySegment freedHybridOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
 		freedHeap.free();
 		freedHybridHeap.free();
 		freedHybridOffHeap.free();
@@ -87,12 +87,12 @@ public class OperationsOnFreedSegmentTest {
 	@Test
 	public void testCopyTo() {
 		MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment aliveHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment aliveHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
+		MemorySegment aliveHybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
+		MemorySegment aliveHybridOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
 
 		MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment freedHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment freedHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
+		MemorySegment freedHybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
+		MemorySegment freedHybridOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
 		freedHeap.free();
 		freedHybridHeap.free();
 		freedHybridOffHeap.free();
@@ -125,12 +125,12 @@ public class OperationsOnFreedSegmentTest {
 	@Test
 	public void testSwap() {
 		MemorySegment aliveHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment aliveHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment aliveHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
+		MemorySegment aliveHybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
+		MemorySegment aliveHybridOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
 
 		MemorySegment freedHeap = new HeapMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment freedHybridHeap = new HybridMemorySegment(new byte[PAGE_SIZE]);
-		MemorySegment freedHybridOffHeap = new HybridMemorySegment(ByteBuffer.allocateDirect(PAGE_SIZE));
+		MemorySegment freedHybridHeap = MemorySegmentFactory.wrap(new byte[PAGE_SIZE]);
+		MemorySegment freedHybridOffHeap = MemorySegmentFactory.allocateUnpooledOffHeapMemory(PAGE_SIZE);
 		freedHeap.free();
 		freedHybridHeap.free();
 		freedHybridOffHeap.free();
