@@ -118,4 +118,30 @@ public class MesosOptions {
 				"All port keys will dynamically get a port assigned through Mesos.")
 			.build());
 
+	/**
+	 * Config parameter to configure the amount of time to wait for unused expired Mesos
+	 * offers before they are declined.
+	 */
+	public static final ConfigOption<Long> UNUSED_OFFER_EXPIRATION =
+		key("mesos.resourcemanager.unused-offer-expiration")
+			.defaultValue(120000L)
+			.withDescription(
+				Description.builder()
+					.text("Amount of time to wait for unused expired offers before declining them. " +
+						"This ensures your scheduler will not hoard unuseful offers.")
+					.build());
+
+	/**
+	 * Config parameter to configure the amount of time refuse a particular offer for.
+	 * This ensures the same resource offer isn't resent immediately after declining.
+	 */
+	public static final ConfigOption<Long> DECLINED_OFFER_REFUSE_DURATION =
+		key("mesos.resourcemanager.declined-offer-refuse-duration")
+			.defaultValue(5000L)
+			.withDescription(
+				Description.builder()
+					.text("Amount of time to ask the Mesos master to not resend a " +
+						"declined resource offer again. This ensures a declined resource offer " +
+						"isn't resent immediately after being declined")
+					.build());
 }
