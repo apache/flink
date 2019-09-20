@@ -21,7 +21,6 @@ package org.apache.flink.table.client.gateway.local;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.table.client.gateway.SqlExecutionException;
 import org.apache.flink.table.client.gateway.local.result.Result;
@@ -122,7 +121,7 @@ public class ProgramDeployer<C> implements Runnable {
 			// get result
 			if (awaitJobResult) {
 				// we need to hard cast for now
-				final JobExecutionResult jobResult = ((RestClusterClient<T>) clusterClient)
+				final JobExecutionResult jobResult = clusterClient
 						.requestJobResult(jobGraph.getJobID())
 						.get()
 						.toJobExecutionResult(context.getClassLoader()); // throws exception if job fails
