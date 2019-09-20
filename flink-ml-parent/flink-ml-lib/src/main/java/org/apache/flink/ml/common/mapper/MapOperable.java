@@ -23,11 +23,13 @@ import org.apache.flink.types.Row;
 
 /**
  * Interface for the map operation of Row type data.
+ *
+ * <p>MapOperable maps a row to a new row.
  */
-public interface MapOpInterface {
+public interface MapOperable {
 
 	/**
-	 * map operation method.
+	 * map operation method that maps a row to a new row.
 	 * @param row the input Row type data
 	 * @return one Row type data
 	 * @throws Exception This method may throw exceptions. Throwing

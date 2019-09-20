@@ -28,21 +28,19 @@ import java.io.Serializable;
 
 /**
  * Abstract class for flatMappers.
- * FlatMapper transform one Row type data into zero, one, or more Row type result data.
- * Operations that produce multiple strictly one Row type result data per Row type data
- * can also use the {@link Mapper}.
+ * FlatMapper maps a row to zero, one or multiple rows.
  */
 public abstract class FlatMapper implements Serializable {
 
-    /**
-     * schema of the input.
-     */
+	/**
+	 * schema of the input.
+	 */
 	protected TableSchema dataSchema;
 
-    /**
-     * params used for FlatMapper.
-     * User can set the params before the FlatMapper is executed.
-     */
+	/**
+	 * params used for FlatMapper.
+	 * User can set the params before that the FlatMapper is executed.
+	 */
 	protected Params params;
 
 	public FlatMapper(TableSchema dataSchema, Params params) {
@@ -51,27 +49,15 @@ public abstract class FlatMapper implements Serializable {
 	}
 
 	/**
-	 * The core method of the FlatMapper. Takes an element from the input data set and transforms
-	 * it into zero, one, or more elements.
+	 * The core method of the FlatMapper.
+	 * Takes a row from the input and maps it to multiple rows.
 	 *
 	 * @param row    The input row.
-	 * @param output The collector for returning result values.
+	 * @param output The collector for returning the result values.
 	 * @throws Exception This method may throw exceptions. Throwing an exception will cause the operation
-	 * to fail.
+	 *                   to fail.
 	 */
 	public abstract void flatMap(Row row, Collector<Row> output) throws Exception;
-
-    /**
-	 * Wrapper method for the iterable input.
-	 * @param rows the input rows.
-	 * @param output the output collector
-	 * @throws Exception if {@link #flatMap(Row, Collector)} throws exception.
-	 */
-	public void flatMap(Iterable <Row> rows, Collector<Row> output) throws Exception {
-		for (Row row : rows) {
-			flatMap(row, output);
-		}
-	}
 
 	/**
 	 * Get the table schema(includes column names and types) of the calculation result.
@@ -84,8 +70,8 @@ public abstract class FlatMapper implements Serializable {
 	 * Generate new instance of given FlatMapper class.
 	 *
 	 * @param flatMapperClassName Name of the FlatMapper class
-	 * @param dataSchema The schema of input Table type data.
-	 * @param params The parameters for the instance construction.
+	 * @param dataSchema          The schema of input Table type data.
+	 * @param params              The parameters for the instance construction.
 	 * @return new instance of given FlatMapper class
 	 * @throws Exception if flatMapperClass is not the class of {@link FlatMapper}
 	 */
@@ -101,8 +87,8 @@ public abstract class FlatMapper implements Serializable {
 	 * Generate new instance of given FlatMapper class.
 	 *
 	 * @param flatMapperClass FlatMapper class of the new instance
-	 * @param dataSchema The schema of input Table type data.
-	 * @param params the parameters for the instance construction.
+	 * @param dataSchema      The schema of input Table type data.
+	 * @param params          the parameters for the instance construction.
 	 * @return new instance of given FlatMapper class
 	 * @throws Exception if flatMapperClass is not the class of {@link FlatMapper}
 	 */
@@ -110,7 +96,7 @@ public abstract class FlatMapper implements Serializable {
 		Class flatMapperClass,
 		TableSchema dataSchema,
 		Params params) throws Exception {
-
+		
 		if (FlatMapper.class.isAssignableFrom(flatMapperClass)) {
 			return (FlatMapper) flatMapperClass.getConstructor(TableSchema.class, Params.class)
 				.newInstance(dataSchema, params);

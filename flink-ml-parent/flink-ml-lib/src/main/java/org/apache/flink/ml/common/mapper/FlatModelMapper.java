@@ -27,9 +27,19 @@ import java.util.List;
 
 /**
  * Abstract class for flatMappers with model.
- * FlatModelMapper transform one Row type data into zero, one, or more Row type result data.
- * Operations that produce multiple strictly one Row type result data per Row type data
- * can also use the {@link ModelMapper}.
+ *
+ * <p>The general process of transform the input use machine learning model is:
+ * <ul>
+ *     <li>1. load the model into memory.</li>
+ *     <li>2. process the input using the model.</li>
+ * </ul>
+ * So, different from the {@link FlatMapper}, this class has a new abstract method
+ * named {@link #loadModel(List)} that load the model and transform it to the
+ * memory structure.
+ *
+ * <p>The model is the machine learning model that use the Table as
+ * its representation(serialized to Table from the memory
+ * or deserialized from Table to memory).
  */
 public abstract class FlatModelMapper extends FlatMapper {
 
@@ -48,7 +58,7 @@ public abstract class FlatModelMapper extends FlatMapper {
 	 *
 	 * @param modelRows the list of Row type data
 	 */
-	public abstract void loadModel(List <Row> modelRows);
+	public abstract void loadModel(List<Row> modelRows);
 
 	/**
 	 * Generate new instance of given FlatModelMapper class without model data.
@@ -85,7 +95,7 @@ public abstract class FlatModelMapper extends FlatMapper {
 		TableSchema modelScheme,
 		TableSchema dataSchema,
 		Params params,
-		List <Row> modelRows) throws Exception {
+		List<Row> modelRows) throws Exception {
 
 		return of(Class.forName(flatModelMapperClassName), modelScheme, dataSchema, params, modelRows);
 	}
@@ -105,7 +115,7 @@ public abstract class FlatModelMapper extends FlatMapper {
 		TableSchema modelScheme,
 		TableSchema dataSchema,
 		Params params,
-		List <Row> modelRows) throws Exception {
+		List<Row> modelRows) throws Exception {
 
 		if (FlatModelMapper.class.isAssignableFrom(flatModelMapperClass)) {
 			FlatModelMapper flatModelMapper = (FlatModelMapper) flatModelMapperClass
@@ -125,5 +135,4 @@ public abstract class FlatModelMapper extends FlatMapper {
 
 		}
 	}
-
 }

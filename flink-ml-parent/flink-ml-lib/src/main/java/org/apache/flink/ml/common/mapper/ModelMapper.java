@@ -26,18 +26,17 @@ import org.apache.flink.util.Collector;
 
 /**
  * Abstract class for mappers with model.
- * ModelMapper transforms one Row type data into one Row type result data.
- * Operations that produce zero, one or more Row type result data per Row type data
- * can also use the {@link FlatModelMapper}.
  */
-public abstract class ModelMapper extends FlatModelMapper implements MapOpInterface {
+public abstract class ModelMapper extends FlatModelMapper implements MapOperable {
 
 	public ModelMapper(TableSchema modelScheme, TableSchema dataSchema, Params params) {
 		super(modelScheme, dataSchema, params);
 	}
 
 	/**
-	 * Wrapper method for the {@link FlatModelMapper}.
+	 * This method override the {@link FlatModelMapper#flatMap(Row, Collector)} to map a row
+	 * to a new row which collected to {@link Collector}.
+	 *
 	 * @param row the input row.
 	 * @param output the output collector
 	 * @throws Exception if {@link Collector#collect(Object)} throws exception.
