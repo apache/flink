@@ -80,6 +80,7 @@ public class HiveTableSource extends InputFormatTableSource<Row> implements Part
 		partitionPruned = false;
 	}
 
+	// A constructor mainly used to create copies during optimizations like partition pruning and projection push down.
 	private HiveTableSource(JobConf jobConf, ObjectPath tablePath, CatalogTable catalogTable,
 							List<HiveTablePartition> allHivePartitions,
 							String hiveVersion,
