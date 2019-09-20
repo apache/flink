@@ -258,8 +258,6 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 
 		// to avoid starvation, if the input selection is ALL and availableInputsMask is not ALL,
 		// always try to check and set the availability of another input
-		// TODO: because this can be a costly operation (checking volatile inside CompletableFuture`
-		//  this might be optimized to only check once per processed NetworkBuffer
 		if (inputSelectionHandler.shouldSetAvailableForAnotherInput()) {
 			checkAndSetAvailable(1 - readingInputIndex);
 		}
@@ -293,9 +291,15 @@ public final class StreamTwoInputProcessor<IN1, IN2> implements StreamInputProce
 	}
 
 	private void checkAndSetAvailable(int inputIndex) {
-		StreamTaskInput input = getInput(inputIndex);
 		InputStatus status = (inputIndex == 0 ? firstInputStatus : secondInputStatus);
-		if (status != InputStatus.END_OF_INPUT && input.isAvailable().isDone()) {
+		if (status == InputStatus.END_OF_INPUT) {
+			return;
+		}
+		CompletableFuture<?> inputAvailable = getInput(inputIndex).isAvailable();
+		// TODO: inputAvailable.isDone() can be a costly operation (checking volatile). If one of
+		// the input is constantly available and another is not, we will be checking this volatile
+		// once per every record. This might be optimized to only check once per processed NetworkBuffer
+		if (inputAvailable == AVAILABLE || inputAvailable.isDone()) {
 			inputSelectionHandler.setAvailableInput(inputIndex);
 		}
 	}
