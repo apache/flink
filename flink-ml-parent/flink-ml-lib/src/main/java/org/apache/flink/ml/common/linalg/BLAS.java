@@ -19,6 +19,8 @@
 
 package org.apache.flink.ml.common.linalg;
 
+import org.apache.flink.util.Preconditions;
+
 /**
  * A utility class that provides BLAS routines over matrices and vectors.
  */
@@ -145,5 +147,39 @@ public class BLAS {
 		final int lda = matA.numRows();
 		final String ta = transA ? "T" : "N";
 		NATIVE_BLAS.dgemv(ta, m, n, alpha, matA.getData(), lda, x.getData(), 1, beta, y.getData(), 1);
+	}
+
+	/**
+	 * y := alpha * A * x + beta * y .
+	 */
+	public static void gemv(double alpha, DenseMatrix matA, boolean transA,
+							SparseVector x, double beta, DenseVector y) {
+		if (transA) {
+			Preconditions.checkArgument(matA.numCols() == y.size() && matA.numRows() == x.size(),
+				"Matrix and vector size mismatched.");
+		} else {
+			Preconditions.checkArgument(matA.numRows() == y.size() && matA.numCols() == x.size(),
+				"Matrix and vector size mismatched.");
+		}
+		final int m = matA.numRows();
+		final int n = matA.numCols();
+		if (transA) {
+			int start = 0;
+			for (int i = 0; i < n; i++) {
+				double s = 0.;
+				for (int j = 0; j < x.indices.length; j++) {
+					s += x.values[j] * matA.data[start + x.indices[j]];
+				}
+				y.data[i] = beta * y.data[i] + alpha * s;
+				start += m;
+			}
+		} else {
+			scal(beta, y);
+			for (int i = 0; i < x.indices.length; i++) {
+				int index = x.indices[i];
+				double value = alpha * x.values[i];
+				F2J_BLAS.daxpy(m, value, matA.data, index * m, 1, y.data, 0, 1);
+			}
+		}
 	}
 }
