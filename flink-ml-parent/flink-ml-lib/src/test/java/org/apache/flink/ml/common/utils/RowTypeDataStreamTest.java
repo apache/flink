@@ -21,7 +21,7 @@ package org.apache.flink.ml.common.utils;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.ml.common.MLSession;
+import org.apache.flink.ml.common.MLEnvironmentFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
@@ -43,38 +43,39 @@ public class RowTypeDataStreamTest {
 
 	@Test
 	public void test() throws Exception {
-		StreamExecutionEnvironment env = MLSession.getStreamExecutionEnvironment();
+		StreamExecutionEnvironment env = MLEnvironmentFactory.getDefault().getStreamExecutionEnvironment();
 
-		DataStream <Row> input = env.fromElements(Row.of("a"));
+		DataStream<Row> input = env.fromElements(Row.of("a"));
 
-		Table table1 = RowTypeDataStream.toTable(input, new String[] {"word"});
+		Table table1 = RowTypeDataStream.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"word"});
 		Assert.assertEquals(
-			new TableSchema(new String[] {"word"}, new TypeInformation[] {TypeInformation.of(String.class)}),
+			new TableSchema(new String[]{"word"}, new TypeInformation[]{TypeInformation.of(String.class)}),
 			table1.getSchema()
 		);
 
 		input = input.map(new GenericTypeMap());
 		Table table2 = RowTypeDataStream.toTable(
+			MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID,
 			input,
-			new String[] {"word"},
-			new TypeInformation[] {TypeInformation.of(Integer.class)}
+			new String[]{"word"},
+			new TypeInformation[]{TypeInformation.of(Integer.class)}
 		);
 		Assert.assertEquals(
-			new TableSchema(new String[] {"word"}, new TypeInformation[] {TypeInformation.of(Integer.class)}),
+			new TableSchema(new String[]{"word"}, new TypeInformation[]{TypeInformation.of(Integer.class)}),
 			table2.getSchema()
 		);
 
 		thrown.expect(ValidationException.class);
-		RowTypeDataStream.toTable(input, new String[] {"f0"});
+		RowTypeDataStream.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"f0"});
 
-		DataStream <Row> output = RowTypeDataStream.fromTable(table1);
+		DataStream<Row> output = RowTypeDataStream.fromTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, table1);
 
 		output.print();
 
 		env.execute();
 	}
 
-	private static class GenericTypeMap implements MapFunction <Row, Row> {
+	private static class GenericTypeMap implements MapFunction<Row, Row> {
 
 		@Override
 		public Row map(Row value) throws Exception {

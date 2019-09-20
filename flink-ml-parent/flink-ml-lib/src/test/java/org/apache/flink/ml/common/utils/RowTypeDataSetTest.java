@@ -23,7 +23,7 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.ml.common.MLSession;
+import org.apache.flink.ml.common.MLEnvironmentFactory;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
@@ -34,6 +34,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -44,39 +45,45 @@ public class RowTypeDataSetTest {
 	public ExpectedException thrown = ExpectedException.none();
 
 	@Test
-	public void test() throws Exception {
-		ExecutionEnvironment env = MLSession.getExecutionEnvironment();
+	public void testForceTypeSchema() {
+		ExecutionEnvironment env = MLEnvironmentFactory.getDefault().getExecutionEnvironment();
 
-		DataSet <Row> input = env.fromElements(Row.of("a"));
-
-		Table table1 = RowTypeDataSet.toTable(input, new String[] {"word"});
-		Assert.assertEquals(
-			new TableSchema(new String[] {"word"}, new TypeInformation[] {TypeInformation.of(String.class)}),
-			table1.getSchema()
-		);
-
-		input = env.fromElements(Row.of("s1"));
-		input = input.map(new GenericTypeMap());
-		Table table2 = RowTypeDataSet.toTable(
+		DataSet<Row> input = env.fromElements(Row.of("s1")).map(new GenericTypeMap());
+		Table table2 = RowTypeDataSet.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID,
 			input,
-			new String[] {"word"},
-			new TypeInformation[] {TypeInformation.of(Integer.class)}
+			new String[]{"word"},
+			new TypeInformation[]{TypeInformation.of(Integer.class)}
 		);
 		Assert.assertEquals(
-			new TableSchema(new String[] {"word"}, new TypeInformation[] {TypeInformation.of(Integer.class)}),
+			new TableSchema(new String[]{"word"}, new TypeInformation[]{TypeInformation.of(Integer.class)}),
 			table2.getSchema()
 		);
-
-		thrown.expect(ValidationException.class);
-		RowTypeDataSet.toTable(input, new String[] {"f0"});
-
-		DataSet <Row> output = RowTypeDataSet.fromTable(table1);
-		List <Row> list = output.collect();
-		Assert.assertEquals(list.size(), 1);
-		Assert.assertEquals(list.get(0), Row.of("a"));
 	}
 
-	private static class GenericTypeMap implements MapFunction <Row, Row> {
+	@Test
+	public void testExceptionWithoutTypeSchema() {
+		thrown.expect(ValidationException.class);
+		ExecutionEnvironment env = MLEnvironmentFactory.getDefault().getExecutionEnvironment();
+		DataSet<Row> input = env.fromElements(Row.of("s1")).map(new GenericTypeMap());
+		RowTypeDataSet.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"f0"});
+	}
+
+	@Test
+	public void testBasicConvert() throws Exception {
+		ExecutionEnvironment env = MLEnvironmentFactory.getDefault().getExecutionEnvironment();
+
+		DataSet<Row> input = env.fromElements(Row.of("a"));
+
+		Table table1 = RowTypeDataSet.toTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, input, new String[]{"word"});
+		Assert.assertEquals(
+			new TableSchema(new String[]{"word"}, new TypeInformation[]{TypeInformation.of(String.class)}),
+			table1.getSchema()
+		);
+		List<Row> list = RowTypeDataSet.fromTable(MLEnvironmentFactory.DEFAULT_ML_ENVIRONMENT_ID, table1).collect();
+		Assert.assertEquals(Collections.singletonList(Row.of("a")), list);
+	}
+
+	private static class GenericTypeMap implements MapFunction<Row, Row> {
 
 		@Override
 		public Row map(Row value) throws Exception {

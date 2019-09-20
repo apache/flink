@@ -22,7 +22,8 @@ package org.apache.flink.ml.common.utils;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
-import org.apache.flink.ml.common.MLSession;
+import org.apache.flink.ml.common.MLEnvironment;
+import org.apache.flink.ml.common.MLEnvironmentFactory;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
@@ -32,51 +33,45 @@ import org.apache.flink.types.Row;
  * Provide functions of conversions between DataStream and Table.
  */
 public class RowTypeDataStream {
-
 	/**
 	 * Convert the given Table to {@link DataStream DataStream&lt;Row&gt;}.
 	 *
+	 * @param sessionId the sessionId of {@link MLEnvironmentFactory}
 	 * @param table the Table to convert.
 	 * @return the converted DataStream.
 	 */
-	public static DataStream <Row> fromTable(Table table) {
-		return MLSession.getStreamTableEnvironment().toAppendStream(table, Row.class);
+	public static DataStream <Row> fromTable(Long sessionId, Table table) {
+		return MLEnvironmentFactory.get(sessionId).getStreamTableEnvironment().toAppendStream(table, Row.class);
 	}
 
 	/**
 	 * Convert the given DataStream to Table with specified TableSchema.
 	 *
+	 * @param sessionId the sessionId of {@link MLEnvironmentFactory}
 	 * @param data   the DataStream to convert.
 	 * @param schema the specified TableSchema.
 	 * @return the converted Table.
 	 */
-	public static Table toTable(DataStream <Row> data, TableSchema schema) {
-		return toTable(data, schema.getFieldNames(), schema.getFieldTypes());
+	public static Table toTable(Long sessionId, DataStream <Row> data, TableSchema schema) {
+		return toTable(sessionId, data, schema.getFieldNames(), schema.getFieldTypes());
 	}
 
 	/**
 	 * Convert the given DataStream to Table with specified colNames.
 	 *
+	 * @param sessionId sessionId the sessionId of {@link MLEnvironmentFactory}.
 	 * @param data     the DataStream to convert.
 	 * @param colNames the specified colNames.
 	 * @return the converted Table.
 	 */
-	public static Table toTable(DataStream <Row> data, String[] colNames) {
-		if (null == colNames || colNames.length == 0) {
-			return MLSession.getStreamTableEnvironment().fromDataStream(data);
-		} else {
-			StringBuilder sbd = new StringBuilder();
-			sbd.append(colNames[0]);
-			for (int i = 1; i < colNames.length; i++) {
-				sbd.append(",").append(colNames[i]);
-			}
-			return MLSession.getStreamTableEnvironment().fromDataStream(data, sbd.toString());
-		}
+	public static Table toTable(Long sessionId, DataStream <Row> data, String[] colNames) {
+		return toTable(MLEnvironmentFactory.get(sessionId), data, colNames);
 	}
 
 	/**
 	 * Convert the given DataStream to Table with specified colNames and colTypes.
 	 *
+	 * @param sessionId sessionId the sessionId of {@link MLEnvironmentFactory}.
 	 * @param data     the DataStream to convert.
 	 * @param colNames the specified colNames.
 	 * @param colTypes the specified colTypes. This variable is used only when the
@@ -84,15 +79,51 @@ public class RowTypeDataStream {
 	 *                 automatically what the produced type is.
 	 * @return the converted Table.
 	 */
-	public static Table toTable(DataStream <Row> data, String[] colNames, TypeInformation <?>[] colTypes) {
+	public static Table toTable(Long sessionId, DataStream <Row> data, String[] colNames, TypeInformation <?>[] colTypes) {
+		return toTable(MLEnvironmentFactory.get(sessionId), data, colNames, colTypes);
+	}
+
+	/**
+	 * Convert the given DataStream to Table with specified colNames.
+	 *
+	 * @param session the MLEnvironment using to convert DataSet to Table.
+	 * @param data     the DataStream to convert.
+	 * @param colNames the specified colNames.
+	 * @return the converted Table.
+	 */
+	public static Table toTable(MLEnvironment session, DataStream <Row> data, String[] colNames) {
+		if (null == colNames || colNames.length == 0) {
+			return session.getStreamTableEnvironment().fromDataStream(data);
+		} else {
+			StringBuilder sbd = new StringBuilder();
+			sbd.append(colNames[0]);
+			for (int i = 1; i < colNames.length; i++) {
+				sbd.append(",").append(colNames[i]);
+			}
+			return session.getStreamTableEnvironment().fromDataStream(data, sbd.toString());
+		}
+	}
+
+	/**
+	 * Convert the given DataStream to Table with specified colNames and colTypes.
+	 *
+	 * @param session the MLEnvironment using to convert DataSet to Table.
+	 * @param data     the DataStream to convert.
+	 * @param colNames the specified colNames.
+	 * @param colTypes the specified colTypes. This variable is used only when the
+	 *                 DataSet is produced by a function and Flink cannot determine
+	 *                 automatically what the produced type is.
+	 * @return the converted Table.
+	 */
+	public static Table toTable(MLEnvironment session, DataStream <Row> data, String[] colNames, TypeInformation <?>[] colTypes) {
 		try {
-			return toTable(data, colNames);
+			return toTable(session, data, colNames);
 		} catch (Exception ex) {
 			if (null == colTypes) {
 				throw ex;
 			} else {
 				DataStream <Row> t = getDataSetWithExplicitTypeDefine(data, colNames, colTypes);
-				return toTable(t, colNames);
+				return toTable(session, t, colNames);
 			}
 		}
 	}
