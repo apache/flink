@@ -96,7 +96,7 @@ public abstract class FlatMapper implements Serializable {
 		Class flatMapperClass,
 		TableSchema dataSchema,
 		Params params) throws Exception {
-		
+
 		if (FlatMapper.class.isAssignableFrom(flatMapperClass)) {
 			return (FlatMapper) flatMapperClass.getConstructor(TableSchema.class, Params.class)
 				.newInstance(dataSchema, params);
