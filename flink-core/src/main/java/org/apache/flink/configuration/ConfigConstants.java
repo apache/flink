@@ -53,9 +53,7 @@ public final class ConfigConstants {
 	/**
 	 * Defines the restart strategy to be used. It can be "off", "none", "disable" to be disabled or
 	 * it can be "fixeddelay", "fixed-delay" to use the FixedDelayRestartStrategy or it can
-	 * be "failurerate", "failure-rate" to use FailureRateRestartStrategy. You can also
-	 * specify a class name which implements the RestartStrategy interface and has a static
-	 * create method which takes a Configuration object.
+	 * be "failurerate", "failure-rate" to use FailureRateRestartStrategy.
 	 *
 	 * @deprecated use {@link RestartStrategyOptions#RESTART_STRATEGY} instead.
 	 */
