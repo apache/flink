@@ -1637,7 +1637,7 @@
           "type" : "array",
           "items" : {
             "type" : "object",
-            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:JobVertexDetailsInfo:SubtaskExecutionAttemptDetailsInfo",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:SubtaskExecutionAttemptDetailsInfo",
             "properties" : {
               "subtask" : {
                 "type" : "integer"
