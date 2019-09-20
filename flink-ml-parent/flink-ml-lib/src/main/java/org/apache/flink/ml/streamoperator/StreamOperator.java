@@ -26,9 +26,9 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Base class of streaming algorithm operators extends {@link AlgoOperator}.
+ * Base class of stream algorithm operators.
  *
- * <p>This class is extended to support the data transmission between the StreamOperator.
+ * <p>This class is extended to support the data transmission between the StreamOperators.
  */
 public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOperator<T> {
 
@@ -55,7 +55,7 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 	/**
 	 * Link to another {@link StreamOperator}.
 	 *
-	 * <p>Link the <code>next</code> to a new StreamOperator using this as input.
+	 * <p>Link the <code>next</code> to StreamOperator using this as its input.
 	 *
 	 * <p>For example:
 	 *
@@ -68,13 +68,13 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 	 * }
 	 * </pre>
 	 *
-	 * <p>the <code>c</code> in upper code indict the linked
+	 * <p>the <code>c</code> in upper code is the linked
 	 * <code>b</code> which use <code>a</code> as input.
 	 *
 	 * @see #linkFrom(StreamOperator[])
 	 *
 	 * @param next the linked StreamOperator
-	 * @param <S>  type of StreamOpearator returned
+	 * @param <S>  type of StreamOperator returned
 	 * @return the linked next
 	 */
 	public <S extends StreamOperator<?>> S linkTo(S next) {
@@ -85,7 +85,7 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 	/**
 	 * Link from others {@link StreamOperator}.
 	 *
-	 * <p>Link this object to a new StreamOperator using the inputs.
+	 * <p>Link this object to StreamOperator using the StreamOperators as its input.
 	 *
 	 * <p>For example:
 	 *
@@ -99,10 +99,10 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 	 * }
 	 * </pre>
 	 *
-	 * <p>the <code>d</code> in upper code indict the linked
+	 * <p>the <code>d</code> in upper code is the linked
 	 * <code>c</code> which use a and b as its inputs.
 	 *
-	 * <p>note: It is not recommended to linkFrom itself or link the same group inputs twice.
+	 * <p>note: It is not recommended to linkFrom itself or linkFrom the same group inputs twice.
 	 *
 	 * @param inputs the linked inputs
 	 * @return the linked this object

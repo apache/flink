@@ -85,8 +85,6 @@ public abstract class AlgoOperator<T extends AlgoOperator <T>>
 
 	/**
 	 * Returns the table held by operator.
-	 *
-	 * @return the table
 	 */
 	public Table getOutput() {
 		return this.output;
@@ -94,8 +92,6 @@ public abstract class AlgoOperator<T extends AlgoOperator <T>>
 
 	/**
 	 * Returns the side outputs.
-	 *
-	 * @return the side outputs.
 	 */
 	public Table[] getSideOutputs() {
 		return this.sideOutputs;
@@ -120,37 +116,26 @@ public abstract class AlgoOperator<T extends AlgoOperator <T>>
 	}
 
 	/**
-	 * Get the column names of the output table.
-	 *
-	 * @return the column names.
+	 * Returns the column names of the output table.
 	 */
 	public String[] getColNames() {
 		return getSchema().getFieldNames();
 	}
 
 	/**
-	 * Get the column types of the output table.
-	 *
-	 * @return the column types.
+	 * Returns the column types of the output table.
 	 */
 	public TypeInformation <?>[] getColTypes() {
 		return getSchema().getFieldTypes();
 	}
 
 	/**
-	 * Get the schema of the output table.
-	 *
-	 * @return the schema.
+	 * Returns the schema of the output table.
 	 */
 	public TableSchema getSchema() {
 		return this.getOutput().getSchema();
 	}
 
-	/**
-	 * Returns the name of output table.
-	 *
-	 * @return the name of output table.
-	 */
 	@Override
 	public String toString() {
 		return getOutput().toString();

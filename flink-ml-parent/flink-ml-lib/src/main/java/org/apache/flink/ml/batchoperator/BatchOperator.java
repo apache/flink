@@ -26,9 +26,9 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Base class of batch algorithm operators extends {@link AlgoOperator}.
+ * Base class of batch algorithm operators.
  *
- * <p>This class is extended to support the data transmission between the BatchOperator.
+ * <p>This class is extended to support the data transmission between the BatchOperators.
  */
 public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOperator<T> {
 
@@ -54,7 +54,7 @@ public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOper
 	/**
 	 * Link to another {@link BatchOperator}.
 	 *
-	 * <p>Link the <code>next</code> to a new BatchOperator using this as input.
+	 * <p>Link the <code>next</code> to BatchOperator using this as its input.
 	 *
 	 * <p>For example:
 	 *
@@ -67,7 +67,7 @@ public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOper
 	 * }
 	 * </pre>
 	 *
-	 * <p>the <code>c</code> in upper code indict the linked
+	 * <p>the <code>c</code> in upper code is the linked
 	 * <code>b</code> which use <code>a</code> as input.
 	 *
 	 * @see #linkFrom(BatchOperator[])
@@ -84,7 +84,7 @@ public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOper
 	/**
 	 * Link from others {@link BatchOperator}.
 	 *
-	 * <p>Link this object to a new BatchOperator using the inputs.
+	 * <p>Link this object to BatchOperator using the BatchOperators as its input.
 	 *
 	 * <p>For example:
 	 *
@@ -98,10 +98,10 @@ public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOper
 	 * }
 	 * </pre>
 	 *
-	 * <p>the <code>d</code> in upper code indict the linked
+	 * <p>the <code>d</code> in upper code is the linked
 	 * <code>c</code> which use a and b as its inputs.
 	 *
-	 * <p>note: It is not recommended to linkFrom itself or link the same group inputs twice.
+	 * <p>note: It is not recommended to linkFrom itself or linkFrom the same group inputs twice.
 	 *
 	 * @param inputs the linked inputs
 	 * @return the linked this object
