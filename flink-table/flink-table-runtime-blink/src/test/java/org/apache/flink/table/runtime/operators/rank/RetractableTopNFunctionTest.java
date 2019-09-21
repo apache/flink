@@ -219,4 +219,38 @@ public class RetractableTopNFunctionTest extends TopNFunctionTestBase {
 				.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
 	}
 
+	@Test
+	public void testCleanIdleState() throws Exception {
+		AbstractTopNFunction func = createFunction(RankType.ROW_NUMBER, new ConstantRankRange(1, 2), true,
+			true);
+		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = createTestHarness(func);
+		testHarness.open();
+		// register cleanup timer with 20L
+		testHarness.setProcessingTime(0L);
+		testHarness.processElement(record("book", 1L, 12));
+		testHarness.processElement(record("fruit", 5L, 22));
+
+		// register cleanup timer with 29L
+		testHarness.setProcessingTime(9L);
+		testHarness.processElement(retractRecord("book", 1L, 12));
+		testHarness.processElement(record("fruit", 4L, 11));
+
+		// trigger the first cleanup timer and register cleanup timer with 4000
+		testHarness.setProcessingTime(20L);
+		testHarness.processElement(record("fruit", 8L, 100));
+		testHarness.processElement(record("book", 1L, 12));
+		testHarness.close();
+
+		List<Object> expectedOutput = new ArrayList<>();
+		expectedOutput.add(record("book", 1L, 12, 1L));
+		expectedOutput.add(record("fruit", 5L, 22, 1L));
+		expectedOutput.add(deleteRecord("book", 1L, 12, 1L));
+		expectedOutput.add(deleteRecord("fruit", 5L, 22, 1L));
+		expectedOutput.add(record("fruit", 5L, 22, 2L));
+		expectedOutput.add(record("fruit", 4L, 11, 1L));
+		// after idle state expired
+		expectedOutput.add(record("fruit", 8L, 100, 1L));
+		expectedOutput.add(record("book", 1L, 12, 1L));
+		assertorWithRowNumber.assertOutputEqualsSorted("output wrong.", expectedOutput, testHarness.getOutput());
+	}
 }
