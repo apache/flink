@@ -86,8 +86,23 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 			this.bundleStarted = new AtomicBoolean(false);
 
 			this.maxBundleSize = getOperatorConfig().getConfiguration().getInteger(PythonOptions.MAX_BUNDLE_SIZE);
+			if (this.maxBundleSize <= 0) {
+				this.maxBundleSize = PythonOptions.MAX_BUNDLE_SIZE.defaultValue();
+				LOG.error("Invalid value for the maximum bundle size. Using default value of " +
+					this.maxBundleSize + '.');
+			} else {
+				LOG.info("The maximum bundle size is configured to {}.", this.maxBundleSize);
+			}
+
 			this.maxBundleTimeMills =
 				getOperatorConfig().getConfiguration().getLong(PythonOptions.MAX_BUNDLE_TIME_MILLS);
+			if (this.maxBundleTimeMills <= 0L) {
+				this.maxBundleTimeMills = PythonOptions.MAX_BUNDLE_TIME_MILLS.defaultValue();
+				LOG.error("Invalid value for the maximum bundle time. Using default value of " +
+					this.maxBundleTimeMills + '.');
+			} else {
+				LOG.info("The maximum bundle time is configured to {} milliseconds.", this.maxBundleTimeMills);
+			}
 
 			this.pythonFunctionRunner = createPythonFunctionRunner();
 			this.pythonFunctionRunner.open();
@@ -182,9 +197,13 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 		if (mark.getTimestamp() == Long.MAX_VALUE) {
 			invokeFinishBundle();
 			super.processWatermark(mark);
+		} else if (!bundleStarted.get()) {
+			// forward the watermark immediately if the bundle is already finished.
+			super.processWatermark(mark);
 		} else {
 			// It is not safe to advance the output watermark yet, so add a hold on the current
 			// output watermark.
+
 			bundleFinishedCallback =
 				() -> {
 					try {

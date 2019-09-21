@@ -34,7 +34,9 @@ public class PythonOptions {
 	public static final ConfigOption<Integer> MAX_BUNDLE_SIZE = ConfigOptions
 		.key("python.fn-execution.bundle.size")
 		.defaultValue(1000)
-		.withDescription("The maximum number of elements to include in a bundle.");
+		.withDescription("The maximum number of elements to include in a bundle. The elements " +
+			"are processed asynchronously. One bundle of elements are processed before " +
+			"processing the next bundle of elements");
 
 	/**
 	 * The maximum time to wait before finalising a bundle (in milliseconds).

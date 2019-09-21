@@ -21,27 +21,19 @@ package org.apache.flink.table.runtime.operators.python;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.PythonOptions;
-import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.dataformat.BaseRow;
+import org.apache.flink.table.dataformat.util.BaseRowUtil;
 import org.apache.flink.table.functions.python.AbstractPythonScalarFunctionRunnerTest;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
-import org.apache.flink.table.runtime.util.StreamRecordUtils;
-import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.VarCharType;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.Collection;
+
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.baserow;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryrow;
 
 /**
  * Tests for {@link BaseRowPythonScalarFunctionOperator}. These test that:
@@ -52,7 +44,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *     <li>Watermarks are buffered and only sent to downstream when finishedBundle is triggered</li>
  * </ul>
  */
-public class BaseRowPythonScalarFunctionOperatorTest {
+public class BaseRowPythonScalarFunctionOperatorTest
+		extends PythonScalarFunctionOperatorTestBase<BaseRow, BaseRow, BaseRow, BaseRow> {
 
 	private final BaseRowHarnessAssertor assertor = new BaseRowHarnessAssertor(new TypeInformation[]{
 		Types.STRING,
@@ -60,83 +53,14 @@ public class BaseRowPythonScalarFunctionOperatorTest {
 		Types.LONG
 	});
 
-	@Test
-	public void testRetractionFieldKept() throws Exception {
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = getTestHarness();
-
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
-		testHarness.open();
-
-		StreamRecord<BaseRow> row1 = StreamRecordUtils.record("c1", "c2", 0L);
-		expectedOutput.add(row1);
-		testHarness.processElement(row1);
-
-		StreamRecord<BaseRow> row2 = StreamRecordUtils.retractRecord("c3", "c4", 1L);
-		expectedOutput.add(row2);
-		testHarness.processElement(row2);
-
-		StreamRecord<BaseRow> row3 = StreamRecordUtils.retractRecord("c5", "c6", 2L);
-		expectedOutput.add(row3);
-		testHarness.processElement(row3);
-		testHarness.close();
-
-		assertor.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
-
-	@Test
-	public void testFinishedBundleTriggeredOnCheckpoint() throws Exception {
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = getTestHarness();
-		testHarness.getEnvironment().getTaskConfiguration().setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
-		testHarness.open();
-
-		StreamRecord<BaseRow> row = StreamRecordUtils.record("c1", "c2", 0L);
-		expectedOutput.add(row);
-		testHarness.processElement(row);
-
-		// checkpoint trigger finishBundle
-		testHarness.prepareSnapshotPreBarrier(0L);
-
-		assertor.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
-
-	@Test
-	public void testWatermarkProcessedOnFinishedBundle() throws Exception {
-		OneInputStreamOperatorTestHarness<BaseRow, BaseRow> testHarness = getTestHarness();
-		testHarness.getEnvironment().getTaskConfiguration().setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
-		testHarness.open();
-
-		StreamRecord<BaseRow> row = StreamRecordUtils.record("c1", "c2", 0L);
-		testHarness.processElement(row);
-		testHarness.processWatermark(initialTime + 2);
-		assertor.assertOutputEquals("Watermark has been processed", expectedOutput, testHarness.getOutput());
-
-		// checkpoint trigger finishBundle
-		testHarness.prepareSnapshotPreBarrier(0L);
-
-		expectedOutput.add(row);
-		expectedOutput.add(new Watermark(initialTime + 2));
-
-		assertor.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
-
-	private OneInputStreamOperatorTestHarness<BaseRow, BaseRow> getTestHarness() throws Exception {
-		RowType inputType = new RowType(Arrays.asList(
-			new RowType.RowField("f1", new VarCharType()),
-			new RowType.RowField("f2", new VarCharType()),
-			new RowType.RowField("f3", new BigIntType())));
-		RowType outputType = new RowType(Arrays.asList(
-			new RowType.RowField("f1", new VarCharType()),
-			new RowType.RowField("f2", new VarCharType()),
-			new RowType.RowField("f3", new BigIntType())));
-		PassThroughPythonScalarFunctionOperator operator = new PassThroughPythonScalarFunctionOperator(
+	@Override
+	public AbstractPythonScalarFunctionOperator<BaseRow, BaseRow, BaseRow, BaseRow> getTestOperator(
+		PythonFunctionInfo[] scalarFunctions,
+		RowType inputType,
+		RowType outputType,
+		int[] udfInputOffsets,
+		int forwardedFieldCnt) {
+		return new PassThroughPythonScalarFunctionOperator(
 			new PythonFunctionInfo[] {
 				new PythonFunctionInfo(
 					AbstractPythonScalarFunctionRunnerTest.DummyPythonFunction.INSTANCE,
@@ -147,49 +71,20 @@ public class BaseRowPythonScalarFunctionOperatorTest {
 			new int[]{2},
 			2
 		);
-
-		return new OneInputStreamOperatorTestHarness<>(operator);
 	}
 
-	private static class PassThroughPythonFunctionRunner implements PythonFunctionRunner<BaseRow> {
-
-		private boolean bundleStarted;
-		private final List<BaseRow> bufferedElements;
-		private final FnDataReceiver<BaseRow> resultReceiver;
-
-		PassThroughPythonFunctionRunner(FnDataReceiver<BaseRow> resultReceiver) {
-			this.resultReceiver = Preconditions.checkNotNull(resultReceiver);
-			bundleStarted = false;
-			bufferedElements = new ArrayList<>();
+	@Override
+	public BaseRow newRow(boolean accumulateMsg, Object... fields) {
+		if (accumulateMsg) {
+			return baserow(fields);
+		} else {
+			return BaseRowUtil.setRetract(baserow(fields));
 		}
+	}
 
-		@Override
-		public void open() {}
-
-		@Override
-		public void close() {}
-
-		@Override
-		public void startBundle() {
-			Preconditions.checkState(!bundleStarted);
-			bundleStarted = true;
-		}
-
-		@Override
-		public void finishBundle() throws Exception {
-			Preconditions.checkState(bundleStarted);
-			bundleStarted = false;
-
-			for (BaseRow element : bufferedElements) {
-				resultReceiver.accept(element);
-			}
-			bufferedElements.clear();
-		}
-
-		@Override
-		public void processElement(BaseRow element) {
-			bufferedElements.add(element);
-		}
+	@Override
+	public void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual) {
+		assertor.assertOutputEquals(message, expected, actual);
 	}
 
 	private static class PassThroughPythonScalarFunctionOperator extends BaseRowPythonScalarFunctionOperator {
@@ -206,7 +101,14 @@ public class BaseRowPythonScalarFunctionOperatorTest {
 		@Override
 		public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
 			FnDataReceiver<BaseRow> resultReceiver) {
-			return new PassThroughPythonFunctionRunner(resultReceiver);
+			return new PassThroughPythonFunctionRunner<BaseRow>(resultReceiver) {
+				@Override
+				public BaseRow copy(BaseRow element) {
+					BaseRow row = binaryrow(element.getLong(0));
+					row.setHeader(element.getHeader());
+					return row;
+				}
+			};
 		}
 	}
 }

@@ -19,27 +19,16 @@
 package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.python.PythonFunctionRunner;
-import org.apache.flink.python.PythonOptions;
-import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
-import org.apache.flink.table.functions.python.AbstractPythonScalarFunctionRunnerTest;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.types.CRow;
-import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.Collection;
+import java.util.Queue;
 
 /**
  * Tests for {@link PythonScalarFunctionOperator}. These test that:
@@ -50,135 +39,27 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *     <li>Watermarks are buffered and only sent to downstream when finishedBundle is triggered</li>
  * </ul>
  */
-public class PythonScalarFunctionOperatorTest {
+public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperatorTestBase<CRow, CRow, Row, Row> {
 
-	@Test
-	public void testRetractionFieldKept() throws Exception {
-		OneInputStreamOperatorTestHarness<CRow, CRow> testHarness = getTestHarness();
-
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
-		testHarness.open();
-
-		testHarness.processElement(new StreamRecord<>(new CRow(Row.of("c1", "c2", 0L), true), initialTime + 1));
-		testHarness.processElement(new StreamRecord<>(new CRow(Row.of("c3", "c4", 1L), false), initialTime + 2));
-		testHarness.processElement(new StreamRecord<>(new CRow(Row.of("c5", "c6", 2L), false), initialTime + 3));
-		testHarness.close();
-
-		expectedOutput.add(new StreamRecord<>(new CRow(Row.of("c1", "c2", 0L), true)));
-		expectedOutput.add(new StreamRecord<>(new CRow(Row.of("c3", "c4", 1L), false)));
-		expectedOutput.add(new StreamRecord<>(new CRow(Row.of("c5", "c6", 2L), false)));
-
-		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+	@Override
+	public AbstractPythonScalarFunctionOperator<CRow, CRow, Row, Row> getTestOperator(
+		PythonFunctionInfo[] scalarFunctions,
+		RowType inputType,
+		RowType outputType,
+		int[] udfInputOffsets,
+		int forwardedFieldCnt) {
+		return new PassThroughPythonScalarFunctionOperator(
+			scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFieldCnt);
 	}
 
-	@Test
-	public void testFinishedBundleTriggeredOnCheckpoint() throws Exception {
-		OneInputStreamOperatorTestHarness<CRow, CRow> testHarness = getTestHarness();
-		testHarness.getEnvironment().getTaskConfiguration().setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
-		testHarness.open();
-
-		testHarness.processElement(new StreamRecord<>(new CRow(Row.of("c1", "c2", 0L), true), initialTime + 1));
-
-		// checkpoint trigger finishBundle
-		testHarness.prepareSnapshotPreBarrier(0L);
-
-		expectedOutput.add(new StreamRecord<>(new CRow(Row.of("c1", "c2", 0L), true)));
-
-		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+	@Override
+	public CRow newRow(boolean accumulateMsg, Object... fields) {
+		return new CRow(Row.of(fields), accumulateMsg);
 	}
 
-	@Test
-	public void testWatermarkProcessedOnFinishedBundle() throws Exception {
-		OneInputStreamOperatorTestHarness<CRow, CRow> testHarness = getTestHarness();
-		testHarness.getEnvironment().getTaskConfiguration().setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-
-		long initialTime = 0L;
-		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
-
-		testHarness.open();
-
-		testHarness.processElement(new StreamRecord<>(new CRow(Row.of("c1", "c2", 0L), true), initialTime + 1));
-		testHarness.processWatermark(initialTime + 2);
-		TestHarnessUtil.assertOutputEquals("Watermark has been processed", expectedOutput, testHarness.getOutput());
-
-		// checkpoint trigger finishBundle
-		testHarness.prepareSnapshotPreBarrier(0L);
-
-		expectedOutput.add(new StreamRecord<>(new CRow(Row.of("c1", "c2", 0L), true)));
-		expectedOutput.add(new Watermark(initialTime + 2));
-
-		TestHarnessUtil.assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
-	}
-
-	private OneInputStreamOperatorTestHarness<CRow, CRow> getTestHarness() throws Exception {
-		RowType inputType = new RowType(Arrays.asList(
-			new RowType.RowField("f1", new VarCharType()),
-			new RowType.RowField("f2", new VarCharType()),
-			new RowType.RowField("f3", new BigIntType())));
-		RowType outputType = new RowType(Arrays.asList(
-			new RowType.RowField("f1", new VarCharType()),
-			new RowType.RowField("f2", new VarCharType()),
-			new RowType.RowField("f3", new BigIntType())));
-		PassThroughPythonScalarFunctionOperator operator = new PassThroughPythonScalarFunctionOperator(
-			new PythonFunctionInfo[] {
-				new PythonFunctionInfo(
-					AbstractPythonScalarFunctionRunnerTest.DummyPythonFunction.INSTANCE,
-					new Integer[]{0})
-			},
-			inputType,
-			outputType,
-			new int[]{2},
-			2
-		);
-
-		return new OneInputStreamOperatorTestHarness<>(operator);
-	}
-
-	private static class PassThroughPythonFunctionRunner implements PythonFunctionRunner<Row> {
-
-		private boolean bundleStarted;
-		private final List<Row> bufferedElements;
-		private final FnDataReceiver<Row> resultReceiver;
-
-		PassThroughPythonFunctionRunner(FnDataReceiver<Row> resultReceiver) {
-			this.resultReceiver = Preconditions.checkNotNull(resultReceiver);
-			bundleStarted = false;
-			bufferedElements = new ArrayList<>();
-		}
-
-		@Override
-		public void open() {}
-
-		@Override
-		public void close() {}
-
-		@Override
-		public void startBundle() {
-			Preconditions.checkState(!bundleStarted);
-			bundleStarted = true;
-		}
-
-		@Override
-		public void finishBundle() throws Exception {
-			Preconditions.checkState(bundleStarted);
-			bundleStarted = false;
-
-			for (Row element : bufferedElements) {
-				resultReceiver.accept(element);
-			}
-			bufferedElements.clear();
-		}
-
-		@Override
-		public void processElement(Row element) {
-			bufferedElements.add(element);
-		}
+	@Override
+	public void assertOutputEquals(String message, Collection<Object> expected, Collection<Object> actual) {
+		TestHarnessUtil.assertOutputEquals(message, (Queue<Object>) expected, (Queue<Object>) actual);
 	}
 
 	private static class PassThroughPythonScalarFunctionOperator extends PythonScalarFunctionOperator {
@@ -195,7 +76,12 @@ public class PythonScalarFunctionOperatorTest {
 		@Override
 		public PythonFunctionRunner<Row> createPythonFunctionRunner(
 			FnDataReceiver<Row> resultReceiver) {
-			return new PassThroughPythonFunctionRunner(resultReceiver);
+			return new PassThroughPythonFunctionRunner<Row>(resultReceiver) {
+				@Override
+				public Row copy(Row element) {
+					return Row.copy(element);
+				}
+			};
 		}
 	}
 }

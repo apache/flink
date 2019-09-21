@@ -19,11 +19,11 @@
 package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.functions.python.PythonScalarFunctionRunner;
@@ -32,35 +32,15 @@ import org.apache.flink.table.runtime.types.CRowTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Collector;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
-import java.util.concurrent.LinkedBlockingQueue;
-
 /**
- * The {@link PythonScalarFunctionOperator} is responsible for executing Python {@link ScalarFunction}s.
- * It executes the Python {@link ScalarFunction}s in separate Python execution environment.
- *
- * <p>The inputs are assumed as the following format:
- * {{{
- *   +------------------+--------------+
- *   | forwarded fields | extra fields |
- *   +------------------+--------------+
- * }}}.
- *
- * <p>The Python UDFs may take input columns directly from the input row or the execution result of Java UDFs:
- * 1) The input columns from the input row can be referred from the 'forwarded fields';
- * 2) The Java UDFs will be computed and the execution results can be referred from the 'extra fields'.
- *
- * <p>The outputs will be as the following format:
- * {{{
- *   +------------------+-------------------------+
- *   | forwarded fields | scalar function results |
- *   +------------------+-------------------------+
- * }}}.
+ * The Python {@link ScalarFunction} operator for the legacy planner.
  */
 @Internal
-public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOperator<CRow, CRow> {
+public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOperator<CRow, CRow, Row, Row> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -68,17 +48,6 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 	 * The collector used to collect records.
 	 */
 	private transient StreamRecordCRowWrappingCollector cRowWrapper;
-
-	/**
-	 * The queue holding the input elements for which the execution results have not been received.
-	 */
-	private transient LinkedBlockingQueue<CRow> forwardedInputQueue;
-
-	/**
-	 * The queue holding the user-defined function execution results. The execution results are in
-	 * the same order as the input elements.
-	 */
-	private transient LinkedBlockingQueue<Row> udfResultQueue;
 
 	/**
 	 * The type serializer for the forwarded fields.
@@ -98,12 +67,10 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 	public void open() throws Exception {
 		super.open();
 		this.cRowWrapper = new StreamRecordCRowWrappingCollector(output);
-		this.forwardedInputQueue = new LinkedBlockingQueue<>();
-		this.udfResultQueue = new LinkedBlockingQueue<>();
 
 		CRowTypeInfo forwardedInputTypeInfo = new CRowTypeInfo(new RowTypeInfo(
-			getInputType().getFields().stream()
-				.limit(getForwardedFieldCnt())
+			inputType.getFields().stream()
+				.limit(forwardedFieldCnt)
 				.map(RowType.RowField::getType)
 				.map(TypeConversions::fromLogicalToDataType)
 				.map(TypeConversions::fromDataTypeToLegacyInfo)
@@ -113,11 +80,16 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 
 	@Override
 	public void bufferInput(CRow input) {
-		CRow forwardedFields = new CRow(getForwardedRow(input.row()), input.change());
+		CRow forwardedFieldsRow = new CRow(getForwardedRow(input.row()), input.change());
 		if (getExecutionConfig().isObjectReuseEnabled()) {
-			forwardedFields = forwardedInputSerializer.copy(forwardedFields);
+			forwardedFieldsRow = forwardedInputSerializer.copy(forwardedFieldsRow);
 		}
-		forwardedInputQueue.add(forwardedFields);
+		forwardedInputQueue.add(forwardedFieldsRow);
+	}
+
+	@Override
+	public Row getUdfInput(CRow element) {
+		return Row.project(element.row(), udfInputOffsets);
 	}
 
 	@Override
@@ -132,67 +104,55 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 	}
 
 	@Override
-	public PythonFunctionRunner<CRow> createPythonFunctionRunner() {
-		final FnDataReceiver<Row> udfResultReceiver = input -> {
-			// handover to queue, do not block the result receiver thread
-			udfResultQueue.put(input);
-		};
-
-		return new PythonScalarFunctionRunnerWrapper(createPythonFunctionRunner(udfResultReceiver));
-	}
-
-	@VisibleForTesting
-	PythonFunctionRunner<Row> createPythonFunctionRunner(
-		FnDataReceiver<Row> resultReceiver) {
+	public PythonFunctionRunner<Row> createPythonFunctionRunner(FnDataReceiver<Row> resultReceiver) {
 		return new PythonScalarFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
-			getScalarFunctions(),
-			getScalarFunctions()[0].getPythonFunction().getPythonEnv(),
-			getUdfInputType(),
-			getUdfOutputType(),
+			scalarFunctions,
+			scalarFunctions[0].getPythonFunction().getPythonEnv(),
+			udfInputType,
+			udfOutputType,
 			getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories()[0]);
 	}
 
 	private Row getForwardedRow(Row input) {
-		int[] inputs = new int[getForwardedFieldCnt()];
-		for (int i = 0; i < inputs.length; i++) {
-			inputs[i] = i;
+		Row row = new Row(forwardedFieldCnt);
+		for (int i = 0; i < row.getArity(); i++) {
+			row.setField(i, input.getField(i));
 		}
-		return Row.project(input, inputs);
+		return row;
 	}
 
-	private class PythonScalarFunctionRunnerWrapper implements PythonFunctionRunner<CRow> {
+	/**
+	 * The collector is used to convert a {@link Row} to a {@link CRow}.
+	 */
+	private static class StreamRecordCRowWrappingCollector implements Collector<Row> {
 
-		private final PythonFunctionRunner<Row> pythonFunctionRunner;
+		private final Collector<StreamRecord<CRow>> out;
+		private final CRow reuseCRow = new CRow();
 
-		PythonScalarFunctionRunnerWrapper(PythonFunctionRunner<Row> pythonFunctionRunner) {
-			this.pythonFunctionRunner = pythonFunctionRunner;
+		/**
+		 * For Table API & SQL jobs, the timestamp field is not used.
+		 */
+		private final StreamRecord<CRow> reuseStreamRecord = new StreamRecord<>(reuseCRow);
+
+		StreamRecordCRowWrappingCollector(Collector<StreamRecord<CRow>> out) {
+			this.out = out;
+		}
+
+		public void setChange(boolean change) {
+			this.reuseCRow.change_$eq(change);
 		}
 
 		@Override
-		public void open() throws Exception {
-			pythonFunctionRunner.open();
+		public void collect(Row record) {
+			reuseCRow.row_$eq(record);
+			out.collect(reuseStreamRecord);
 		}
 
 		@Override
-		public void close() throws Exception {
-			pythonFunctionRunner.close();
-		}
-
-		@Override
-		public void startBundle() throws Exception {
-			pythonFunctionRunner.startBundle();
-		}
-
-		@Override
-		public void finishBundle() throws Exception {
-			pythonFunctionRunner.finishBundle();
-		}
-
-		@Override
-		public void processElement(CRow element) throws Exception {
-			pythonFunctionRunner.processElement(Row.project(element.row(), getUdfInputOffsets()));
+		public void close() {
+			out.close();
 		}
 	}
 }

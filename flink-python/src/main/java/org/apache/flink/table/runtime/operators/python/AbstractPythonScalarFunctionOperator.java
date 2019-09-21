@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.api.operators.python.AbstractPythonFunctionOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.ScalarFunction;
@@ -26,54 +27,90 @@ import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
+
 import java.util.Arrays;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
 /**
- * Base class for all stream operators to execute Python {@link ScalarFunction}s.
+ * Base class for all stream operators to execute Python {@link ScalarFunction}s. It executes the Python
+ * {@link ScalarFunction}s in separate Python execution environment.
+ *
+ * <p>The inputs are assumed as the following format:
+ * {{{
+ *   +------------------+--------------+
+ *   | forwarded fields | extra fields |
+ *   +------------------+--------------+
+ * }}}.
+ *
+ * <p>The Python UDFs may take input columns directly from the input row or the execution result of Java UDFs:
+ * 1) The input columns from the input row can be referred from the 'forwarded fields';
+ * 2) The Java UDFs will be computed and the execution results can be referred from the 'extra fields'.
+ *
+ * <p>The outputs will be as the following format:
+ * {{{
+ *   +------------------+-------------------------+
+ *   | forwarded fields | scalar function results |
+ *   +------------------+-------------------------+
+ * }}}.
  *
  * @param <IN> Type of the input elements.
- * @param <OUT> Type of the execution results.
+ * @param <OUT> Type of the output elements.
+ * @param <UDFIN> Type of the UDF input type.
+ * @param <UDFOUT> Type of the UDF input type.
  */
 @Internal
-public abstract class AbstractPythonScalarFunctionOperator<IN, OUT> extends AbstractPythonFunctionOperator<IN, OUT> {
+public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOUT>
+		extends AbstractPythonFunctionOperator<IN, OUT> {
 
 	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The Python {@link ScalarFunction}s to be executed.
 	 */
-	private final PythonFunctionInfo[] scalarFunctions;
+	protected final PythonFunctionInfo[] scalarFunctions;
 
 	/**
 	 * The input logical type.
 	 */
-	private final RowType inputType;
+	protected final RowType inputType;
 
 	/**
 	 * The output logical type.
 	 */
-	private final RowType outputType;
+	protected final RowType outputType;
 
 	/**
 	 * The offsets of udf inputs.
 	 */
-	private final int[] udfInputOffsets;
+	protected final int[] udfInputOffsets;
 
 	/**
 	 * The number of forwarded fields in the input element.
 	 */
-	private final int forwardedFieldCnt;
+	protected final int forwardedFieldCnt;
 
 	/**
 	 * The udf input logical type.
 	 */
-	private transient RowType udfInputType;
+	protected transient RowType udfInputType;
 
 	/**
 	 * The udf output logical type.
 	 */
-	private transient RowType udfOutputType;
+	protected transient RowType udfOutputType;
+
+	/**
+	 * The queue holding the input elements for which the execution results have not been received.
+	 */
+	protected transient LinkedBlockingQueue<IN> forwardedInputQueue;
+
+	/**
+	 * The queue holding the user-defined function execution results. The execution results are in
+	 * the same order as the input elements.
+	 */
+	protected transient LinkedBlockingQueue<UDFOUT> udfResultQueue;
 
 	AbstractPythonScalarFunctionOperator(
 		PythonFunctionInfo[] scalarFunctions,
@@ -90,6 +127,8 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT> extends Abst
 
 	@Override
 	public void open() throws Exception {
+		forwardedInputQueue = new LinkedBlockingQueue<>();
+		udfResultQueue = new LinkedBlockingQueue<>();
 		udfInputType = new RowType(
 			Arrays.stream(udfInputOffsets)
 				.mapToObj(i -> inputType.getFields().get(i))
@@ -105,51 +144,57 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT> extends Abst
 		emitResults();
 	}
 
+	@Override
+	public PythonFunctionRunner<IN> createPythonFunctionRunner() {
+		final FnDataReceiver<UDFOUT> udfResultReceiver = input -> {
+			// handover to queue, do not block the result receiver thread
+			udfResultQueue.put(input);
+		};
+
+		return new ProjectUdfInputPythonScalarFunctionRunner(createPythonFunctionRunner(udfResultReceiver));
+	}
+
 	/**
 	 * Buffers the specified input, it will be used to construct
 	 * the operator result together with the udf execution result.
 	 */
 	public abstract void bufferInput(IN input);
 
-	/**
-	 * Returns the Python scalar functions.
-	 */
-	public PythonFunctionInfo[] getScalarFunctions() {
-		return scalarFunctions;
-	}
+	public abstract UDFIN getUdfInput(IN element);
 
-	/**
-	 * Returns the input logical type.
-	 */
-	public RowType getInputType() {
-		return inputType;
-	}
+	public abstract PythonFunctionRunner<UDFIN> createPythonFunctionRunner(FnDataReceiver<UDFOUT> resultReceiver);
 
-	/**
-	 * Returns the offsets of udf inputs.
-	 */
-	public int[] getUdfInputOffsets() {
-		return udfInputOffsets;
-	}
+	private class ProjectUdfInputPythonScalarFunctionRunner implements PythonFunctionRunner<IN> {
 
-	/**
-	 * Returns the output logical type.
-	 */
-	public int getForwardedFieldCnt() {
-		return forwardedFieldCnt;
-	}
+		private final PythonFunctionRunner<UDFIN> pythonFunctionRunner;
 
-	/**
-	 * Returns the udf input logical type.
-	 */
-	public RowType getUdfInputType() {
-		return udfInputType;
-	}
+		ProjectUdfInputPythonScalarFunctionRunner(PythonFunctionRunner<UDFIN> pythonFunctionRunner) {
+			this.pythonFunctionRunner = pythonFunctionRunner;
+		}
 
-	/**
-	 * Returns the udf output logical type.
-	 */
-	public RowType getUdfOutputType() {
-		return udfOutputType;
+		@Override
+		public void open() throws Exception {
+			pythonFunctionRunner.open();
+		}
+
+		@Override
+		public void close() throws Exception {
+			pythonFunctionRunner.close();
+		}
+
+		@Override
+		public void startBundle() throws Exception {
+			pythonFunctionRunner.startBundle();
+		}
+
+		@Override
+		public void finishBundle() throws Exception {
+			pythonFunctionRunner.finishBundle();
+		}
+
+		@Override
+		public void processElement(IN element) throws Exception {
+			pythonFunctionRunner.processElement(getUdfInput(element));
+		}
 	}
 }

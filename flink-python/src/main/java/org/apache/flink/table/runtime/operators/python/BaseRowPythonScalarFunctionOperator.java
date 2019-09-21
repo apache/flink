@@ -19,8 +19,8 @@
 package org.apache.flink.table.runtime.operators.python;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.python.PythonFunctionRunner;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
@@ -33,35 +33,16 @@ import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Collector;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
-import java.util.concurrent.LinkedBlockingQueue;
-
 /**
- * The {@link BaseRowPythonScalarFunctionOperator} is responsible for executing Python {@link ScalarFunction}s.
- * It executes the Python {@link ScalarFunction}s in separate Python execution environment.
- *
- * <p>The inputs are assumed as the following format:
- * {{{
- *   +------------------+--------------+
- *   | forwarded fields | extra fields |
- *   +------------------+--------------+
- * }}}.
- *
- * <p>The Python UDFs may take input columns directly from the input row or the execution result of Java UDFs:
- * 1) The input columns from the input row can be referred from the 'forwarded fields';
- * 2) The Java UDFs will be computed and the execution results can be referred from the 'extra fields'.
- *
- * <p>The outputs will be as the following format:
- * {{{
- *   +------------------+-------------------------+
- *   | forwarded fields | scalar function results |
- *   +------------------+-------------------------+
- * }}}.
+ * The Python {@link ScalarFunction} operator for the blink planner.
  */
 @Internal
-public class BaseRowPythonScalarFunctionOperator extends AbstractPythonScalarFunctionOperator<BaseRow, BaseRow> {
+public class BaseRowPythonScalarFunctionOperator
+		extends AbstractPythonScalarFunctionOperator<BaseRow, BaseRow, BaseRow, BaseRow> {
 
 	private static final long serialVersionUID = 1L;
 
@@ -69,17 +50,6 @@ public class BaseRowPythonScalarFunctionOperator extends AbstractPythonScalarFun
 	 * The collector used to collect records.
 	 */
 	private transient StreamRecordBaseRowWrappingCollector baseRowWrapper;
-
-	/**
-	 * The queue holding the input elements for which the execution results have not been received.
-	 */
-	private transient LinkedBlockingQueue<BaseRow> forwardedInputQueue;
-
-	/**
-	 * The queue holding the user-defined function execution results. The execution results are in
-	 * the same order as the input elements.
-	 */
-	private transient LinkedBlockingQueue<BaseRow> udfResultQueue;
 
 	/**
 	 * The JoinedRow reused holding the execution result.
@@ -109,8 +79,6 @@ public class BaseRowPythonScalarFunctionOperator extends AbstractPythonScalarFun
 	public void open() throws Exception {
 		super.open();
 		baseRowWrapper = new StreamRecordBaseRowWrappingCollector(output);
-		forwardedInputQueue = new LinkedBlockingQueue<>();
-		udfResultQueue = new LinkedBlockingQueue<>();
 		reuseJoinedRow = new JoinedRow();
 
 		udfInputProjection = createUdfInputProjection();
@@ -126,6 +94,11 @@ public class BaseRowPythonScalarFunctionOperator extends AbstractPythonScalarFun
 	}
 
 	@Override
+	public BaseRow getUdfInput(BaseRow element) {
+		return udfInputProjection.apply(element);
+	}
+
+	@Override
 	@SuppressWarnings("ConstantConditions")
 	public void emitResults() {
 		BaseRow udfResult;
@@ -137,25 +110,14 @@ public class BaseRowPythonScalarFunctionOperator extends AbstractPythonScalarFun
 	}
 
 	@Override
-	public PythonFunctionRunner<BaseRow> createPythonFunctionRunner() {
-		final FnDataReceiver<BaseRow> udfResultReceiver = input -> {
-			// handover to queue, do not block the result receiver thread
-			udfResultQueue.put(input);
-		};
-
-		return new PythonScalarFunctionRunnerWrapper(createPythonFunctionRunner(udfResultReceiver));
-	}
-
-	@VisibleForTesting
-	PythonFunctionRunner<BaseRow> createPythonFunctionRunner(
-		FnDataReceiver<BaseRow> resultReceiver) {
+	public PythonFunctionRunner<BaseRow> createPythonFunctionRunner(FnDataReceiver<BaseRow> resultReceiver) {
 		return new BaseRowPythonScalarFunctionRunner(
 			getRuntimeContext().getTaskName(),
 			resultReceiver,
-			getScalarFunctions(),
-			getScalarFunctions()[0].getPythonFunction().getPythonEnv(),
-			getUdfInputType(),
-			getUdfOutputType(),
+			scalarFunctions,
+			scalarFunctions[0].getPythonFunction().getPythonEnv(),
+			udfInputType,
+			udfOutputType,
 			getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories()[0]);
 	}
 
@@ -163,62 +125,54 @@ public class BaseRowPythonScalarFunctionOperator extends AbstractPythonScalarFun
 		final GeneratedProjection generatedProjection = ProjectionCodeGenerator.generateProjection(
 			CodeGeneratorContext.apply(new TableConfig()),
 			"UdfInputProjection",
-			getInputType(),
-			getUdfInputType(),
-			getUdfInputOffsets());
+			inputType,
+			udfInputType,
+			udfInputOffsets);
 		// noinspection unchecked
 		return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
 	}
 
 	private Projection<BaseRow, BinaryRow> createForwardedFieldProjection() {
-		final int[] fields = new int[getForwardedFieldCnt()];
+		final int[] fields = new int[forwardedFieldCnt];
 		for (int i = 0; i < fields.length; i++) {
 			fields[i] = i;
 		}
 
-		final RowType forwardedFieldType = new RowType(getInputType().getFields().subList(0, getForwardedFieldCnt()));
+		final RowType forwardedFieldType = new RowType(inputType.getFields().subList(0, forwardedFieldCnt));
 		final GeneratedProjection generatedProjection = ProjectionCodeGenerator.generateProjection(
 			CodeGeneratorContext.apply(new TableConfig()),
 			"ForwardedFieldProjection",
-			getInputType(),
+			inputType,
 			forwardedFieldType,
 			fields);
 		// noinspection unchecked
 		return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
 	}
 
-	private class PythonScalarFunctionRunnerWrapper implements PythonFunctionRunner<BaseRow> {
+	/**
+	 * The collector is used to convert a {@link BaseRow} to a {@link StreamRecord}.
+	 */
+	private static class StreamRecordBaseRowWrappingCollector implements Collector<BaseRow> {
 
-		private final PythonFunctionRunner<BaseRow> pythonFunctionRunner;
+		private final Collector<StreamRecord<BaseRow>> out;
 
-		PythonScalarFunctionRunnerWrapper(PythonFunctionRunner<BaseRow> pythonFunctionRunner) {
-			this.pythonFunctionRunner = pythonFunctionRunner;
+		/**
+		 * For Table API & SQL jobs, the timestamp field is not used.
+		 */
+		private final StreamRecord<BaseRow> reuseStreamRecord = new StreamRecord<>(null);
+
+		StreamRecordBaseRowWrappingCollector(Collector<StreamRecord<BaseRow>> out) {
+			this.out = out;
 		}
 
 		@Override
-		public void open() throws Exception {
-			pythonFunctionRunner.open();
+		public void collect(BaseRow record) {
+			out.collect(reuseStreamRecord.replace(record));
 		}
 
 		@Override
-		public void close() throws Exception {
-			pythonFunctionRunner.close();
-		}
-
-		@Override
-		public void startBundle() throws Exception {
-			pythonFunctionRunner.startBundle();
-		}
-
-		@Override
-		public void finishBundle() throws Exception {
-			pythonFunctionRunner.finishBundle();
-		}
-
-		@Override
-		public void processElement(BaseRow element) throws Exception {
-			// always copy the projection result as the generated Projection reuses the projection result
-			pythonFunctionRunner.processElement(udfInputProjection.apply(element).copy());
+		public void close() {
+			out.close();
 		}
 	}
 }
