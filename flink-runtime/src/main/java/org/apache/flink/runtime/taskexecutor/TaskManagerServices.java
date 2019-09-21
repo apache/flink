@@ -36,6 +36,7 @@ import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceLoader;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
+import org.apache.flink.runtime.taskexecutor.slot.TaskSlot;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TimerService;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
@@ -50,6 +51,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -257,19 +260,13 @@ public class TaskManagerServices {
 
 		// this call has to happen strictly after the network stack has been initialized
 		final MemoryManager memoryManager = createMemoryManager(taskManagerServicesConfiguration);
-		final long managedMemorySize = memoryManager.getMemorySize();
 
 		final BroadcastVariableManager broadcastVariableManager = new BroadcastVariableManager();
 
-		final int numOfSlots = taskManagerServicesConfiguration.getNumberOfSlots();
-		final List<ResourceProfile> resourceProfiles =
-			Collections.nCopies(numOfSlots, computeSlotResourceProfile(numOfSlots, managedMemorySize));
-
-		final TimerService<AllocationID> timerService = new TimerService<>(
-			new ScheduledThreadPoolExecutor(1),
+		final TaskSlotTable taskSlotTable = createTaskSlotTable(
+			taskManagerServicesConfiguration.getNumberOfSlots(),
+			memoryManager.getMemorySize(),
 			taskManagerServicesConfiguration.getTimerServiceShutdownTimeout());
-
-		final TaskSlotTable taskSlotTable = new TaskSlotTable(resourceProfiles, timerService);
 
 		final JobManagerTable jobManagerTable = new JobManagerTable();
 
@@ -300,6 +297,30 @@ public class TaskManagerServices {
 			jobLeaderService,
 			taskStateManager,
 			taskEventDispatcher);
+	}
+
+	private static TaskSlotTable createTaskSlotTable(
+			int numberOfSlots,
+			long managedMemorySize,
+			long timerServiceShutdownTimeout) {
+		final List<ResourceProfile> resourceProfiles =
+			Collections.nCopies(numberOfSlots, computeSlotResourceProfile(numberOfSlots, managedMemorySize));
+		final TimerService<AllocationID> timerService = new TimerService<>(
+			new ScheduledThreadPoolExecutor(1),
+			timerServiceShutdownTimeout);
+		return new TaskSlotTable(createTaskSlotsFromResources(resourceProfiles), timerService);
+	}
+
+	private static List<TaskSlot> createTaskSlotsFromResources(Collection<ResourceProfile> resourceProfiles) {
+		int numberSlots = resourceProfiles.size();
+		Preconditions.checkArgument(0 < numberSlots, "The number of task slots must be greater than 0.");
+		List<TaskSlot> taskSlots = new ArrayList<>(numberSlots);
+		int index = 0;
+		for (ResourceProfile resourceProfile: resourceProfiles) {
+			taskSlots.add(new TaskSlot(index, resourceProfile));
+			++index;
+		}
+		return taskSlots;
 	}
 
 	private static ShuffleEnvironment<?, ?> createShuffleEnvironment(

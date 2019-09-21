@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
@@ -35,8 +34,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -82,24 +81,15 @@ public class TaskSlotTable implements TimeoutListener<AllocationID> {
 	private boolean started;
 
 	public TaskSlotTable(
-		final Collection<ResourceProfile> resourceProfiles,
+		final List<TaskSlot> taskSlots,
 		final TimerService<AllocationID> timerService) {
 
-		int numberSlots = resourceProfiles.size();
+		int numberSlots = taskSlots.size();
 
 		Preconditions.checkArgument(0 < numberSlots, "The number of task slots must be greater than 0.");
 
+		this.taskSlots = new ArrayList<>(taskSlots);
 		this.timerService = Preconditions.checkNotNull(timerService);
-
-		taskSlots = Arrays.asList(new TaskSlot[numberSlots]);
-
-		int index = 0;
-
-		// create the task slots for the given resource profiles
-		for (ResourceProfile resourceProfile: resourceProfiles) {
-			taskSlots.set(index, new TaskSlot(index, resourceProfile));
-			++index;
-		}
 
 		allocationIDTaskSlotMap = new HashMap<>(numberSlots);
 

@@ -2024,7 +2024,7 @@ public class TaskExecutorTest extends TestLogger {
 		private final Queue<SlotReport> slotReports;
 
 		private TestingTaskSlotTable(Queue<SlotReport> slotReports) {
-			super(TaskSlotUtils.createDefaultSlotProfiles(1), new TimerService<>(TestingUtils.defaultExecutor(), 10000L));
+			super(TaskSlotUtils.createDefaultSlots(1), new TimerService<>(TestingUtils.defaultExecutor(), 10000L));
 			this.slotReports = slotReports;
 		}
 
@@ -2041,7 +2041,7 @@ public class TaskExecutorTest extends TestLogger {
 		private AllocateSlotNotifyingTaskSlotTable(
 				TimerService<AllocationID> timerService,
 				OneShotLatch allocateSlotLatch) {
-			super(TaskSlotUtils.createDefaultSlotProfiles(1), timerService);
+			super(TaskSlotUtils.createDefaultSlots(1), timerService);
 			this.allocateSlotLatch = allocateSlotLatch;
 		}
 
@@ -2059,7 +2059,7 @@ public class TaskExecutorTest extends TestLogger {
 		private final CountDownLatch slotsToActivate;
 
 		private ActivateSlotNotifyingTaskSlotTable(int numberOfDefaultSlots, TimerService<AllocationID> timerService, CountDownLatch slotsToActivate) {
-			super(TaskSlotUtils.createDefaultSlotProfiles(numberOfDefaultSlots), timerService);
+			super(TaskSlotUtils.createDefaultSlots(numberOfDefaultSlots), timerService);
 			this.slotsToActivate = slotsToActivate;
 		}
 

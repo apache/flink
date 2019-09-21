@@ -68,7 +68,7 @@ public class TaskSlot {
 	/** Allocation id of this slot; null if not allocated. */
 	private AllocationID allocationId;
 
-	TaskSlot(final int index, final ResourceProfile resourceProfile) {
+	public TaskSlot(final int index, final ResourceProfile resourceProfile) {
 		Preconditions.checkArgument(0 <= index, "The index must be greater than 0.");
 		this.index = index;
 		this.resourceProfile = Preconditions.checkNotNull(resourceProfile);
