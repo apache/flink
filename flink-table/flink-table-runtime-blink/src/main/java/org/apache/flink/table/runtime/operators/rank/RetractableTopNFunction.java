@@ -117,6 +117,9 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 
 	@Override
 	public void processElement(BaseRow input, Context ctx, Collector<BaseRow> out) throws Exception {
+		long currentTime = ctx.timerService().currentProcessingTime();
+		// register state-cleanup timer
+		registerProcessingCleanupTimer(ctx, currentTime);
 		initRankEnd(input);
 		SortedMap<BaseRow, Long> sortedMap = treeMap.value();
 		if (sortedMap == null) {
@@ -169,6 +172,13 @@ public class RetractableTopNFunction extends AbstractTopNFunction {
 
 		}
 		treeMap.update(sortedMap);
+	}
+
+	@Override
+	public void onTimer(long timestamp, OnTimerContext ctx, Collector<BaseRow> out) throws Exception {
+		if (stateCleaningEnabled) {
+			cleanupState(dataState, treeMap);
+		}
 	}
 
 	// ------------- ROW_NUMBER-------------------------------
