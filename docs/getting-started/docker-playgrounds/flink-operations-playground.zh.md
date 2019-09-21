@@ -815,3 +815,7 @@ lost.
 Job. When disabled, the Job will assign events to windows based on the wall-clock time instead of 
 the timestamp of the `ClickEvent`. Consequently, the number of events per window will not be exactly
 one thousand anymore. 
+
+*Click Event Count* also has another option, turned off by default, that you can enable to explore the behavior of this job under backpressure. You can add this option in the command of the *client* container in `docker-compose.yaml`.
+
+* `--backpressure` adds an additional operator into the middle of the job that causes severe backpressure during even-numbered minutes (e.g., during 10:12, but not during 10:13). This can be observed by inspecting various [network metrics]({{ site.baseurl }}/monitoring/metrics.html#default-shuffle-service) such as `outputQueueLength` and `outPoolUsage`, and/or by using the [backpressure monitoring]({{ site.baseurl }}/monitoring/back_pressure.html#monitoring-back-pressure) available in the WebUI.
