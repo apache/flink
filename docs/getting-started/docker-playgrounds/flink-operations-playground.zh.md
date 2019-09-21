@@ -794,7 +794,7 @@ curl localhost:8081/jobs/<jod-id>
 }
 {% endhighlight %}
 
-Please consult the [REST API reference](https://ci.apache.org/projects/flink/flink-docs-release-1.8/monitoring/rest_api.html#api)
+Please consult the [REST API reference]({{ site.baseurl }}/monitoring/rest_api.html#api)
 for a complete list of possible queries including how to query metrics of different scopes (e.g. 
 TaskManager metrics);
 
