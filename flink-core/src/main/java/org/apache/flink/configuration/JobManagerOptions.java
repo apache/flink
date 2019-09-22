@@ -157,6 +157,14 @@ public class JobManagerOptions {
 		.withDescription("The time in seconds after which a completed job expires and is purged from the job store.");
 
 	/**
+	 * The max number of completed jobs that can be kept in the job store.
+	 */
+	public static final ConfigOption<Integer> JOB_STORE_MAX_CAPACITY =
+		key("jobstore.max-capacity")
+			.defaultValue(Integer.MAX_VALUE)
+			.withDescription("The max number of completed jobs that can be kept in the job store.");
+
+	/**
 	 * The timeout in milliseconds for requesting a slot from Slot Pool.
 	 */
 	public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =

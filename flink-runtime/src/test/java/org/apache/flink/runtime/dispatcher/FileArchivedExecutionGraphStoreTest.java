@@ -54,7 +54,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for the {@link FileArchivedExecutionGraphStore}.
@@ -136,7 +138,7 @@ public class FileArchivedExecutionGraphStoreTest extends TestLogger {
 		final int numberExecutionGraphs = 10;
 		final Collection<ArchivedExecutionGraph> executionGraphs = generateTerminalExecutionGraphs(numberExecutionGraphs);
 
-		final Collection<JobDetails> jobDetails = executionGraphs.stream().map(WebMonitorUtils::createDetailsForJob).collect(Collectors.toList());
+		final Collection<JobDetails> jobDetails = generateJobDetails(executionGraphs);
 
 		final File rootDir = temporaryFolder.newFolder();
 
@@ -165,6 +167,7 @@ public class FileArchivedExecutionGraphStoreTest extends TestLogger {
 		try (final FileArchivedExecutionGraphStore executionGraphStore = new FileArchivedExecutionGraphStore(
 			rootDir,
 			expirationTime,
+			Integer.MAX_VALUE,
 			10000L,
 			scheduledExecutor,
 			manualTicker)) {
@@ -227,6 +230,7 @@ public class FileArchivedExecutionGraphStoreTest extends TestLogger {
 		try (final FileArchivedExecutionGraphStore executionGraphStore = new FileArchivedExecutionGraphStore(
 			rootDir,
 			Time.hours(1L),
+			Integer.MAX_VALUE,
 			100L << 10,
 			TestingUtils.defaultScheduledExecutor(),
 			Ticker.systemTicker())) {
@@ -259,6 +263,47 @@ public class FileArchivedExecutionGraphStoreTest extends TestLogger {
 		}
 	}
 
+	/**
+	 * Tests that the size of {@link FileArchivedExecutionGraphStore} is no more than the configured max capacity
+	 * and the old execution graphs will be purged if the total added number exceeds the max capacity.
+	 */
+	@Test
+	public void testMaximumCapacity() throws IOException {
+		final File rootDir = temporaryFolder.newFolder();
+
+		final int maxCapacity = 10;
+		final int numberExecutionGraphs = 10;
+
+		final Collection<ArchivedExecutionGraph> oldExecutionGraphs = generateTerminalExecutionGraphs(numberExecutionGraphs);
+		final Collection<ArchivedExecutionGraph> newExecutionGraphs = generateTerminalExecutionGraphs(numberExecutionGraphs);
+
+		final Collection<JobDetails> jobDetails = generateJobDetails(newExecutionGraphs);
+
+		try (final FileArchivedExecutionGraphStore executionGraphStore = new FileArchivedExecutionGraphStore(
+			rootDir,
+			Time.hours(1L),
+			maxCapacity,
+			10000L,
+			TestingUtils.defaultScheduledExecutor(),
+			Ticker.systemTicker())) {
+
+			for (ArchivedExecutionGraph executionGraph : oldExecutionGraphs) {
+				executionGraphStore.put(executionGraph);
+				// no more than the configured maximum capacity
+				assertTrue(executionGraphStore.size() <= maxCapacity);
+			}
+
+			for (ArchivedExecutionGraph executionGraph : newExecutionGraphs) {
+				executionGraphStore.put(executionGraph);
+				// equals to the configured maximum capacity
+				assertEquals(maxCapacity, executionGraphStore.size());
+			}
+
+			// the older execution graphs are purged
+			assertThat(executionGraphStore.getAvailableJobDetails(), Matchers.containsInAnyOrder(jobDetails.toArray()));
+		}
+	}
+
 	private Collection<ArchivedExecutionGraph> generateTerminalExecutionGraphs(int number) {
 		final Collection<ArchivedExecutionGraph> executionGraphs = new ArrayList<>(number);
 
@@ -277,6 +322,7 @@ public class FileArchivedExecutionGraphStoreTest extends TestLogger {
 		return new FileArchivedExecutionGraphStore(
 			storageDirectory,
 			Time.hours(1L),
+			Integer.MAX_VALUE,
 			10000L,
 			TestingUtils.defaultScheduledExecutor(),
 			Ticker.systemTicker());
@@ -317,5 +363,9 @@ public class FileArchivedExecutionGraphStoreTest extends TestLogger {
 
 	private static Matcher<ArchivedExecutionGraph> matchesPartiallyWith(ArchivedExecutionGraph executionGraph) {
 		return new PartialArchivedExecutionGraphMatcher(executionGraph);
+	}
+
+	private static Collection<JobDetails> generateJobDetails(Collection<ArchivedExecutionGraph> executionGraphs) {
+		return executionGraphs.stream().map(WebMonitorUtils::createDetailsForJob).collect(Collectors.toList());
 	}
 }
