@@ -2317,6 +2317,9 @@
                 "additionalProperties" : {
                   "type" : "integer"
                 }
+              },
+              "taskmanager-id" : {
+                "type" : "string"
               }
             }
           }
