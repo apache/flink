@@ -36,7 +36,6 @@ import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.testdata.KMeansData;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.test.util.TestEnvironment;
-import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -48,7 +47,6 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
@@ -199,7 +197,6 @@ public class ClassLoaderITCase extends TestLogger {
 	}
 
 	@Test
-	@Category(FailsOnJava11.class)
 	public void testCheckpointedStreamingClassloaderJobWithCustomClassLoader() throws IOException, ProgramInvocationException {
 		// checkpointed streaming job with custom classes for the checkpoint (FLINK-2543)
 		// the test also ensures that user specific exceptions are serializable between JobManager <--> JobClient.
@@ -217,18 +214,19 @@ public class ClassLoaderITCase extends TestLogger {
 			// Program should terminate with a 'SuccessException':
 			// the exception class is contained in the user-jar, but is not present on the maven classpath
 			// the deserialization of the exception should thus fail here
-			try {
-				Optional<Throwable> exception = ExceptionUtils.findThrowable(e,
-					candidate -> candidate.getClass().getCanonicalName().equals("org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram.SuccessException"));
+			Optional<Throwable> exception = ExceptionUtils.findThrowable(e,
+				candidate -> candidate.getClass().getName().equals("org.apache.flink.test.classloading.jar.CheckpointedStreamingProgram$SuccessException"));
 
-				// if we reach this point we either failed due to another exception,
-				// or the deserialization of the user-exception did not fail
-				if (!exception.isPresent()) {
-					throw e;
-				} else {
-					Assert.fail("Deserialization of user exception should have failed.");
-				}
-			} catch (NoClassDefFoundError expected) {
+			if (!exception.isPresent()) {
+				// if this is achieved, either we failed due to another exception or the user-specific
+				// exception is not serialized between JobManager and JobClient.
+				throw e;
+			}
+
+			try {
+				Class.forName(exception.get().getClass().getName());
+				Assert.fail("Deserialization of user exception should have failed.");
+			} catch (ClassNotFoundException expected) {
 				// expected
 			}
 		}
