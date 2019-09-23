@@ -558,7 +558,7 @@ public class AbstractStreamOperatorTest {
 					new MemCheckpointStreamFactory(Integer.MAX_VALUE));
 			fail("Exception expected.");
 		} catch (Exception e) {
-			assertEquals(failingException, e.getCause());
+			assertEquals(failingException.getMessage(), e.getCause().getMessage());
 		}
 	}
 
@@ -636,7 +636,7 @@ public class AbstractStreamOperatorTest {
 					new MemCheckpointStreamFactory(Integer.MAX_VALUE));
 			fail("Exception expected.");
 		} catch (Exception e) {
-			assertEquals(failingException, e.getCause());
+			assertEquals(failingException.getMessage(), e.getCause().getMessage());
 		}
 
 		// verify that the context has been closed, the operator snapshot result has been cancelled
