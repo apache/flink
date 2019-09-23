@@ -97,7 +97,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -430,15 +429,15 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 						componentsTerminationFuture,
 						this::closeMetricSystem);
 
-					// shut down the RpcServices
-					final CompletableFuture<Void> rpcServicesTerminationFuture = metricSystemTerminationFuture
-						.thenCompose((Void ignored) -> terminateRpcServices());
+					final CompletableFuture<Void> rpcServicesTerminationFuture = FutureUtils.composeAfterwards(
+						metricSystemTerminationFuture,
+						this::terminateRpcServices);
 
 					final CompletableFuture<Void> remainingServicesTerminationFuture = FutureUtils.runAfterwards(
 						rpcServicesTerminationFuture,
 						this::terminateMiniClusterServices);
 
-					final CompletableFuture<Void> executorsTerminationFuture = FutureUtils.runAfterwards(
+					final CompletableFuture<Void> executorsTerminationFuture = FutureUtils.composeAfterwards(
 						remainingServicesTerminationFuture,
 						() -> terminateExecutors(shutdownTimeoutMillis));
 
@@ -832,7 +831,7 @@ public class MiniCluster implements JobExecutorService, AutoCloseableAsync {
 	}
 
 	@Nonnull
-	private CompletionStage<Void> terminateRpcServices() {
+	private CompletableFuture<Void> terminateRpcServices() {
 		synchronized (lock) {
 			final int numRpcServices = 1 + rpcServices.size();
 
