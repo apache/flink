@@ -25,11 +25,11 @@ import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TimeUtils;
 
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.concurrent.CompletableFuture;
-
-import scala.concurrent.duration.Duration;
 
 /**
  * Restart strategy which tries to restart the given {@link ExecutionGraph} when failure rate exceeded
@@ -94,8 +94,8 @@ public class FailureRateRestartStrategy implements RestartStrategy {
 		String failuresIntervalString = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_FAILURE_RATE_INTERVAL);
 		String delayString = configuration.getString(RestartStrategyOptions.RESTART_STRATEGY_FAILURE_RATE_DELAY);
 
-		Duration failuresInterval = Duration.apply(failuresIntervalString);
-		Duration delay = Duration.apply(delayString);
+		Duration failuresInterval = TimeUtils.parseDuration(failuresIntervalString);
+		Duration delay = TimeUtils.parseDuration(delayString);
 
 		return new FailureRateRestartStrategyFactory(maxFailuresPerInterval, Time.milliseconds(failuresInterval.toMillis()), Time.milliseconds(delay.toMillis()));
 	}
