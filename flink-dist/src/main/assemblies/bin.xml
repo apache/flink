@@ -115,6 +115,13 @@ under the License.
 			<fileMode>755</fileMode>
 		</fileSet>
 
+		<!-- copy python scripts -->
+		<fileSet>
+			<directory>../flink-python/bin/</directory>
+			<outputDirectory>bin</outputDirectory>
+			<fileMode>0755</fileMode>
+		</fileSet>
+
 		<!-- copy SQL client -->
 		<fileSet>
 			<directory>../flink-table/flink-sql-client/bin/</directory>
