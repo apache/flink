@@ -57,6 +57,7 @@ public class BufferBuilderAndConsumerTest {
 	@Test
 	public void append() {
 		BufferBuilder bufferBuilder = createBufferBuilder();
+		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 
 		int[] intsToWrite = new int[] {0, 1, 2, 3, 42};
 		ByteBuffer bytesToWrite = toByteBuffer(intsToWrite);
@@ -66,7 +67,7 @@ public class BufferBuilderAndConsumerTest {
 		assertEquals(bytesToWrite.limit(), bytesToWrite.position());
 		assertFalse(bufferBuilder.isFull());
 
-		assertContent(bufferBuilder.createBufferConsumer(), intsToWrite);
+		assertContent(bufferConsumer, intsToWrite);
 	}
 
 	@Test
@@ -116,11 +117,21 @@ public class BufferBuilderAndConsumerTest {
 		assertContent(bufferConsumer, 42);
 	}
 
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void creatingBufferConsumerTwice() {
 		BufferBuilder bufferBuilder = createBufferBuilder();
-		bufferBuilder.createBufferConsumer();
-		bufferBuilder.createBufferConsumer();
+		BufferConsumer bufferConsumer1 = bufferBuilder.createBufferConsumer();
+
+		assertEquals(0, bufferConsumer1.getCurrentReaderPosition());
+		assertContent(bufferConsumer1);
+
+		ByteBuffer bytesToWrite = toByteBuffer(0, 1);
+		bufferBuilder.appendAndCommit(bytesToWrite);
+		BufferConsumer bufferConsumer2 = bufferBuilder.createBufferConsumer();
+		bufferBuilder.appendAndCommit(toByteBuffer(2));
+
+		assertEquals(bytesToWrite.position(), bufferConsumer2.getCurrentReaderPosition());
+		assertContent(bufferConsumer2, 2);
 	}
 
 	@Test

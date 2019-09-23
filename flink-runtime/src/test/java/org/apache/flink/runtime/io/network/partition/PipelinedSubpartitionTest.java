@@ -46,7 +46,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -160,6 +160,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 				}
 
 				final BufferBuilder bufferBuilder = bufferProvider.requestBufferBuilderBlocking();
+				final BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 				int segmentSize = bufferBuilder.getMaxCapacity();
 
 				MemorySegment segment = MemorySegmentFactory.allocateUnpooledSegment(segmentSize);
@@ -176,7 +177,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 				numberOfBuffers++;
 
-				return new BufferConsumerAndChannel(bufferBuilder.createBufferConsumer(), 0);
+				return new BufferConsumerAndChannel(bufferConsumer, 0);
 			}
 		};
 
@@ -250,8 +251,8 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 	private void testCleanupReleasedPartition(boolean createView) throws Exception {
 		PipelinedSubpartition partition = createSubpartition();
 
-		BufferConsumer buffer1 = createFilledBufferConsumer(4096);
-		BufferConsumer buffer2 = createFilledBufferConsumer(4096);
+		BufferConsumer buffer1 = createFilledFinishedBufferConsumer(4096);
+		BufferConsumer buffer2 = createFilledFinishedBufferConsumer(4096);
 		boolean buffer1Recycled;
 		boolean buffer2Recycled;
 		try {
@@ -306,7 +307,7 @@ public class PipelinedSubpartitionTest extends SubpartitionTestBase {
 
 	private void verifyViewReleasedAfterParentRelease(ResultSubpartition partition) throws Exception {
 		// Add a bufferConsumer
-		BufferConsumer bufferConsumer = createFilledBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
+		BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(BufferBuilderTestUtils.BUFFER_SIZE);
 		partition.add(bufferConsumer);
 		partition.finish();
 
