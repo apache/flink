@@ -43,11 +43,6 @@
             <td>Whether the quarantine monitor for task managers shall be started. The quarantine monitor shuts down the actor system if it detects that it has quarantined another actor system or if it has been quarantined by another actor system.</td>
         </tr>
         <tr>
-            <td><h5>taskmanager.heap.size</h5></td>
-            <td style="word-wrap: break-word;">"1024m"</td>
-            <td>JVM heap size for the TaskManagers, which are the parallel workers of the system. On YARN setups, this value is automatically configured to the size of the TaskManager's YARN container, minus a certain tolerance value.</td>
-        </tr>
-        <tr>
             <td><h5>taskmanager.host</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>The address of the network interface that the TaskManager binds to. This option can be used to define explicitly a binding address. Because different TaskManagers need different values for this option, usually it is specified in an additional non-shared TaskManager-specific config file.</td>
