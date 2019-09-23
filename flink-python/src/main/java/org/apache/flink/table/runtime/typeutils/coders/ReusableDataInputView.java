@@ -16,36 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions.python.coders;
+package org.apache.flink.table.runtime.typeutils.coders;
 
-import org.apache.flink.types.Row;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.memory.DataInputView;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VarLongCoder;
+import java.io.InputStream;
 
 /**
- * Tests for {@link RowCoder}.
+ * An implementation of {@link DataInputView} that allows the instance
+ * to be re-used with another underlying input stream.
  */
-public class RowCoderTest extends CoderTestBase<Row> {
+@Internal
+public class ReusableDataInputView extends DataInputViewStreamWrapper {
 
-	@Override
-	protected Coder<Row> createCoder() {
-		Coder<?>[] fieldCoders = {
-			VarLongCoder.of(),
-			VarLongCoder.of()};
-		return new RowCoder(fieldCoders);
+	public ReusableDataInputView() {
+		super(null);
 	}
 
-	@Override
-	protected Row[] getTestData() {
-		Row row1 = new Row(2);
-		row1.setField(0, 1L);
-		row1.setField(1, -1L);
-
-		Row row2 = new Row(2);
-		row2.setField(0, 2L);
-		row2.setField(1, null);
-
-		return new Row[]{row1, row2};
+	public void resetInputStream(InputStream in) {
+		this.in = in;
 	}
 }

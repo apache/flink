@@ -19,7 +19,10 @@
 package org.apache.flink.streaming.runtime.streamstatus;
 
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Test;
 
@@ -49,7 +52,7 @@ public class StatusWatermarkValveTest {
 	 */
 	@Test
 	public void testSingleInputIncreasingWatermarks() throws Exception {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(1, valveOutput);
 
 		valve.inputWatermark(new Watermark(0), 0);
@@ -66,7 +69,7 @@ public class StatusWatermarkValveTest {
 	 */
 	@Test
 	public void testSingleInputDecreasingWatermarksYieldsNoOutput() throws Exception {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(1, valveOutput);
 
 		valve.inputWatermark(new Watermark(25), 0);
@@ -86,7 +89,7 @@ public class StatusWatermarkValveTest {
 	 */
 	@Test
 	public void testSingleInputStreamStatusToggling() throws Exception {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(1, valveOutput);
 
 		valve.inputStreamStatus(StreamStatus.ACTIVE, 0);
@@ -109,7 +112,7 @@ public class StatusWatermarkValveTest {
 	 */
 	@Test
 	public void testSingleInputWatermarksIntactDuringIdleness() throws Exception {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(1, valveOutput);
 
 		valve.inputWatermark(new Watermark(25), 0);
@@ -137,7 +140,7 @@ public class StatusWatermarkValveTest {
 	 */
 	@Test
 	public void testMultipleInputYieldsWatermarkOnlyWhenAllChannelsReceivesWatermarks() throws Exception {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(0), 0);
@@ -156,7 +159,7 @@ public class StatusWatermarkValveTest {
 	 */
 	@Test
 	public void testMultipleInputIncreasingWatermarks() throws Exception {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(0), 0);
@@ -190,7 +193,7 @@ public class StatusWatermarkValveTest {
 	 */
 	@Test
 	public void testMultipleInputDecreasingWatermarksYieldsNoOutput() throws Exception {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(25), 0);
@@ -210,7 +213,7 @@ public class StatusWatermarkValveTest {
 	 */
 	@Test
 	public void testMultipleInputStreamStatusToggling() throws Exception {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(2, valveOutput);
 
 		// this also implicitly verifies that all input channels start as active
@@ -244,7 +247,7 @@ public class StatusWatermarkValveTest {
 	 */
 	@Test
 	public void testMultipleInputWatermarkAdvancingWithPartiallyIdleChannels() throws Exception {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(15), 0);
@@ -273,7 +276,7 @@ public class StatusWatermarkValveTest {
 	 */
 	@Test
 	public void testMultipleInputWatermarkAdvancingAsChannelsIndividuallyBecomeIdle() throws Exception {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(25), 0);
@@ -301,7 +304,7 @@ public class StatusWatermarkValveTest {
 	 */
 	@Test
 	public void testMultipleInputFlushMaxWatermarkAndStreamStatusOnceAllInputsBecomeIdle() throws Exception {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		// -------------------------------------------------------------------------------------------
@@ -339,7 +342,7 @@ public class StatusWatermarkValveTest {
 	 */
 	@Test
 	public void testMultipleInputWatermarkRealignmentAfterResumeActive() throws Exception {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(10), 0);
@@ -380,7 +383,7 @@ public class StatusWatermarkValveTest {
 	 */
 	@Test
 	public void testNoOutputWhenAllActiveChannelsAreUnaligned() throws Exception {
-		BufferedValveOutputHandler valveOutput = new BufferedValveOutputHandler();
+		StatusWatermarkOutput valveOutput = new StatusWatermarkOutput();
 		StatusWatermarkValve valve = new StatusWatermarkValve(3, valveOutput);
 
 		valve.inputWatermark(new Watermark(10), 0);
@@ -403,22 +406,32 @@ public class StatusWatermarkValveTest {
 		assertEquals(null, valveOutput.popLastSeenOutput());
 	}
 
-	private class BufferedValveOutputHandler implements StatusWatermarkValve.ValveOutputHandler {
+	private static class StatusWatermarkOutput implements PushingAsyncDataInput.DataOutput {
+
 		private BlockingQueue<StreamElement> allOutputs = new LinkedBlockingQueue<>();
 
 		@Override
-		public void handleWatermark(Watermark watermark) {
+		public void emitWatermark(Watermark watermark) {
 			allOutputs.add(watermark);
 		}
 
 		@Override
-		public void handleStreamStatus(StreamStatus streamStatus) {
+		public void emitStreamStatus(StreamStatus streamStatus) {
 			allOutputs.add(streamStatus);
+		}
+
+		@Override
+		public void emitRecord(StreamRecord record) {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void emitLatencyMarker(LatencyMarker latencyMarker) {
+			throw new UnsupportedOperationException();
 		}
 
 		public StreamElement popLastSeenOutput() {
 			return allOutputs.poll();
 		}
 	}
-
 }

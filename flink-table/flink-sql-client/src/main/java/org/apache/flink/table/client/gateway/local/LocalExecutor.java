@@ -20,12 +20,12 @@ package org.apache.flink.table.client.gateway.local;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.client.cli.CliFrontendParser;
 import org.apache.flink.client.cli.CustomCommandLine;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.core.fs.FileSystem;
@@ -581,7 +581,7 @@ public class LocalExecutor implements Executor {
 		try {
 			// find jar files
 			for (URL url : jars) {
-				JobWithJars.checkJarFile(url);
+				ClientUtils.checkJarFile(url);
 				dependencies.add(url);
 			}
 
@@ -601,7 +601,7 @@ public class LocalExecutor implements Executor {
 					// only consider jars
 					if (f.isFile() && f.getAbsolutePath().toLowerCase().endsWith(".jar")) {
 						final URL url = f.toURI().toURL();
-						JobWithJars.checkJarFile(url);
+						ClientUtils.checkJarFile(url);
 						dependencies.add(url);
 					}
 				}

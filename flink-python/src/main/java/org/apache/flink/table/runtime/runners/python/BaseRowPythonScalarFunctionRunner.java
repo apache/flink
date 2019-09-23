@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions.python;
+package org.apache.flink.table.runtime.runners.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.python.PythonEnv;
+import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.typeutils.BeamTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.sdk.coders.Coder;
@@ -41,8 +44,8 @@ public class BaseRowPythonScalarFunctionRunner extends AbstractPythonScalarFunct
 		PythonEnv pythonEnv,
 		RowType inputType,
 		RowType outputType,
-		String tempDir) {
-		super(taskName, resultReceiver, scalarFunctions, pythonEnv, inputType, outputType, tempDir);
+		String[] tempDirs) {
+		super(taskName, resultReceiver, scalarFunctions, pythonEnv, inputType, outputType, tempDirs);
 	}
 
 	@Override

@@ -545,6 +545,13 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
 	}
 
 	/**
+	 * Calls {@link StreamOperator#prepareSnapshotPreBarrier(long)}.
+	 */
+	public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
+		operator.prepareSnapshotPreBarrier(checkpointId);
+	}
+
+	/**
 	 * Calls {@link StreamOperator#snapshotState(long, long, CheckpointOptions, org.apache.flink.runtime.state.CheckpointStreamFactory)}.
 	 */
 	public OperatorSubtaskState snapshot(long checkpointId, long timestamp) throws Exception {

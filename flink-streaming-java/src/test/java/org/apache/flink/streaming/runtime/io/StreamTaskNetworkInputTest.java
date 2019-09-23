@@ -32,9 +32,14 @@ import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.SerializationDelegate;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
 
 import org.junit.After;
 import org.junit.Test;
@@ -44,9 +49,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -74,17 +82,20 @@ public class StreamTaskNetworkInputTest {
 
 		List<BufferOrEvent> buffers = Collections.singletonList(new BufferOrEvent(buffer, 0, false));
 
-		StreamTaskNetworkInput input = new StreamTaskNetworkInput(
+		VerifyRecordsDataOutput output = new VerifyRecordsDataOutput<>();
+		StreamTaskNetworkInput input = new StreamTaskNetworkInput<>(
 			new CheckpointedInputGate(
 				new MockInputGate(1, buffers, false),
 				new EmptyBufferStorage(),
 				new CheckpointBarrierTracker(1)),
 			LongSerializer.INSTANCE,
 			ioManager,
+			new StatusWatermarkValve(1, output),
 			0);
 
-		assertHasNextElement(input);
-		assertHasNextElement(input);
+		assertHasNextElement(input, output);
+		assertHasNextElement(input, output);
+		assertEquals(2, output.getNumberOfEmittedRecords());
 	}
 
 	@Test
@@ -101,20 +112,21 @@ public class StreamTaskNetworkInputTest {
 		}
 
 		TestRecordDeserializer[] copiedDeserializers = Arrays.copyOf(deserializers, deserializers.length);
-		StreamTaskNetworkInput input = new StreamTaskNetworkInput(
+		DataOutput output = new NoOpDataOutput<>();
+		StreamTaskNetworkInput input = new StreamTaskNetworkInput<>(
 			new CheckpointedInputGate(
 				inputGate.getInputGate(),
 				new EmptyBufferStorage(),
 				new CheckpointBarrierTracker(1)),
 			inSerializer,
-			ioManager,
+			new StatusWatermarkValve(1, output),
 			0,
 			deserializers);
 
 		for (int i = 0; i < numInputChannels; i++) {
 			assertNotNull(deserializers[i]);
 			inputGate.sendEvent(EndOfPartitionEvent.INSTANCE, i);
-			input.pollNextNullable();
+			input.emitNext(output);
 			assertNull(deserializers[i]);
 			assertTrue(copiedDeserializers[i].isCleared());
 		}
@@ -131,11 +143,10 @@ public class StreamTaskNetworkInputTest {
 		assertFalse(serializer.copyToBufferBuilder(bufferBuilder).isFullBuffer());
 	}
 
-	private static void assertHasNextElement(StreamTaskNetworkInput input) throws Exception {
+	private static void assertHasNextElement(StreamTaskNetworkInput input, DataOutput output) throws Exception {
 		assertTrue(input.isAvailable().isDone());
-		StreamElement element = input.pollNextNullable();
-		assertNotNull(element);
-		assertTrue(element.isRecord());
+		InputStatus status = input.emitNext(output);
+		assertThat(status, is(InputStatus.MORE_AVAILABLE));
 	}
 
 	private static class TestRecordDeserializer
@@ -154,6 +165,39 @@ public class StreamTaskNetworkInputTest {
 
 		public boolean isCleared() {
 			return cleared;
+		}
+	}
+
+	private static class NoOpDataOutput<T> implements DataOutput<T> {
+
+		@Override
+		public void emitRecord(StreamRecord<T> record) {
+		}
+
+		@Override
+		public void emitWatermark(Watermark watermark) {
+		}
+
+		@Override
+		public void emitStreamStatus(StreamStatus streamStatus) {
+		}
+
+		@Override
+		public void emitLatencyMarker(LatencyMarker latencyMarker) {
+		}
+	}
+
+	private static class VerifyRecordsDataOutput<T> extends NoOpDataOutput<T> {
+
+		private int numberOfEmittedRecords;
+
+		@Override
+		public void emitRecord(StreamRecord<T> record) {
+			numberOfEmittedRecords++;
+		}
+
+		int getNumberOfEmittedRecords() {
+			return numberOfEmittedRecords;
 		}
 	}
 }

@@ -136,7 +136,7 @@ will show you how to interact with the Flink Cluster and demonstrate some of Fli
 
 ### Flink WebUI
 
-The most natural starting point to observe your Flink Cluster is the Web UI exposed under 
+The most natural starting point to observe your Flink Cluster is the WebUI exposed under 
 [http://localhost:8081](http://localhost:8081). If everything went well, you'll see that the cluster initially consists of 
 one TaskManager and executes a Job called *Click Event Count*.
 
@@ -802,8 +802,8 @@ TaskManager metrics);
 
 ## Variants
 
-You might have noticed that the *Click Event Count* was always started with `--checkpointing` and 
-`--event-time` program arguments. By omitting these in the command of the *client* container in the 
+You might have noticed that the *Click Event Count* application was always started with `--checkpointing` 
+and `--event-time` program arguments. By omitting these in the command of the *client* container in the 
 `docker-compose.yaml`, you can change the behavior of the Job.
 
 * `--checkpointing` enables [checkpoint]({{ site.baseurl }}/internals/stream_checkpointing.html), 
@@ -815,3 +815,14 @@ lost.
 Job. When disabled, the Job will assign events to windows based on the wall-clock time instead of 
 the timestamp of the `ClickEvent`. Consequently, the number of events per window will not be exactly
 one thousand anymore. 
+
+The *Click Event Count* application also has another option, turned off by default, that you can 
+enable to explore the behavior of this job under backpressure. You can add this option in the 
+command of the *client* container in `docker-compose.yaml`.
+
+* `--backpressure` adds an additional operator into the middle of the job that causes severe backpressure 
+during even-numbered minutes (e.g., during 10:12, but not during 10:13). This can be observed by 
+inspecting various [network metrics]({{ site.baseurl }}/monitoring/metrics.html#default-shuffle-service) 
+such as `outputQueueLength` and `outPoolUsage`, and/or by using the 
+[backpressure monitoring]({{ site.baseurl }}/monitoring/back_pressure.html#monitoring-back-pressure) 
+available in the WebUI.

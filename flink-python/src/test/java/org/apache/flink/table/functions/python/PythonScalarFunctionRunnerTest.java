@@ -19,7 +19,9 @@
 package org.apache.flink.table.functions.python;
 
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.table.functions.python.coders.RowCoder;
+import org.apache.flink.table.runtime.runners.python.AbstractPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.PythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.typeutils.coders.RowCoder;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
@@ -251,7 +253,7 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			pythonEnv,
 			inputType,
 			outputType,
-			System.getProperty("java.io.tmpdir"));
+			new String[] {System.getProperty("java.io.tmpdir")});
 	}
 
 	private AbstractPythonScalarFunctionRunner<Row, Row> createUDFRunner(
@@ -274,7 +276,7 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			rowType,
 			rowType,
 			jobBundleFactory,
-			System.getProperty("java.io.tmpdir"));
+			new String[] {System.getProperty("java.io.tmpdir")});
 	}
 
 	private static class PythonScalarFunctionRunnerTestHarness extends PythonScalarFunctionRunner {
@@ -288,8 +290,8 @@ public class PythonScalarFunctionRunnerTest extends AbstractPythonScalarFunction
 			PythonEnv pythonEnv,
 			RowType inputType, RowType outputType,
 			JobBundleFactory jobBundleFactory,
-			String tempDir) {
-			super(taskName, resultReceiver, scalarFunctions, pythonEnv, inputType, outputType, tempDir);
+			String[] tempDirs) {
+			super(taskName, resultReceiver, scalarFunctions, pythonEnv, inputType, outputType, tempDirs);
 			this.jobBundleFactory = jobBundleFactory;
 		}
 

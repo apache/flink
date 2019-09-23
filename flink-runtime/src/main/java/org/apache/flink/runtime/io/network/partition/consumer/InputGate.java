@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.runtime.event.TaskEvent;
-import org.apache.flink.runtime.io.AsyncDataInput;
+import org.apache.flink.runtime.io.PullingAsyncDataInput;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -69,7 +69,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * will have an input gate attached to it. This will provide its input, which will consist of one
  * subpartition from each partition of the intermediate result.
  */
-public abstract class InputGate implements AsyncDataInput<BufferOrEvent>, AutoCloseable {
+public abstract class InputGate implements PullingAsyncDataInput<BufferOrEvent>, AutoCloseable {
 
 	protected CompletableFuture<?> isAvailable = new CompletableFuture<>();
 
