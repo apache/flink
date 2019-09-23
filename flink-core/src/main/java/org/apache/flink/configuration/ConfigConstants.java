@@ -252,7 +252,7 @@ public final class ConfigConstants {
 	 * memory manager (in megabytes). If not set, a relative fraction will be allocated, as defined
 	 * by {@link #TASK_MANAGER_MEMORY_FRACTION_KEY}.
 	 *
-	 * @deprecated Use {@link TaskManagerOptions#MANAGED_MEMORY_SIZE} instead
+	 * @deprecated Use {@link TaskManagerOptions#LEGACY_MANAGED_MEMORY_SIZE} instead
 	 */
 	@Deprecated
 	public static final String TASK_MANAGER_MEMORY_SIZE_KEY = "taskmanager.memory.size";
@@ -260,7 +260,7 @@ public final class ConfigConstants {
 	/**
 	 * The config parameter defining the fraction of free memory allocated by the memory manager.
 	 *
-	 * @deprecated Use {@link TaskManagerOptions#MANAGED_MEMORY_FRACTION} instead
+	 * @deprecated Use {@link TaskManagerOptions#LEGACY_MANAGED_MEMORY_FRACTION} instead
 	 */
 	@Deprecated
 	public static final String TASK_MANAGER_MEMORY_FRACTION_KEY = "taskmanager.memory.fraction";
@@ -1427,7 +1427,7 @@ public final class ConfigConstants {
 	/**
 	 * Config key has been deprecated. Therefore, no default value required.
 	 *
-	 * @deprecated {@link TaskManagerOptions#MANAGED_MEMORY_FRACTION} provides the default value now
+	 * @deprecated {@link TaskManagerOptions#LEGACY_MANAGED_MEMORY_FRACTION} provides the default value now
 	 */
 	@Deprecated
 	public static final float DEFAULT_MEMORY_MANAGER_MEMORY_FRACTION = 0.7f;

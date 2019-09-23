@@ -67,7 +67,7 @@ public class TaskManagerServicesConfiguration {
 	/**
 	 * Managed memory (in megabytes).
 	 *
-	 * @see TaskManagerOptions#MANAGED_MEMORY_SIZE
+	 * @see TaskManagerOptions#LEGACY_MANAGED_MEMORY_SIZE
 	 */
 	private final long configuredMemory;
 
@@ -201,7 +201,7 @@ public class TaskManagerServicesConfiguration {
 	 *
 	 * @return managed memory or a default value (currently <tt>-1</tt>) if not configured
 	 *
-	 * @see TaskManagerOptions#MANAGED_MEMORY_SIZE
+	 * @see TaskManagerOptions#LEGACY_MANAGED_MEMORY_SIZE
 	 */
 	long getConfiguredMemory() {
 		return configuredMemory;

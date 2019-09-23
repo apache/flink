@@ -115,7 +115,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 		config.setString(HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, zooKeeperResource.getConnectString());
 		config.setString(HighAvailabilityOptions.HA_STORAGE_PATH, temporaryFolder.newFolder().getAbsolutePath());
 		config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "4m");
+		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "4m");
 		config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_NUM_BUFFERS, 100);
 		config.setInteger(RestOptions.PORT, 0);
 

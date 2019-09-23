@@ -231,8 +231,8 @@ public class NettyShuffleEnvironmentConfiguration {
 	 *
 	 * <p>The following configuration parameters are involved:
 	 * <ul>
-	 *  <li>{@link TaskManagerOptions#MANAGED_MEMORY_SIZE},</li>
-	 *  <li>{@link TaskManagerOptions#MANAGED_MEMORY_FRACTION},</li>
+	 *  <li>{@link TaskManagerOptions#LEGACY_MANAGED_MEMORY_SIZE},</li>
+	 *  <li>{@link TaskManagerOptions#LEGACY_MANAGED_MEMORY_FRACTION},</li>
 	 *  <li>{@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_MEMORY_FRACTION},</li>
 	 * 	<li>{@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MIN},</li>
 	 * 	<li>{@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MAX}, and</li>

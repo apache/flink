@@ -116,7 +116,7 @@ public class ClassLoaderITCase extends TestLogger {
 				FOLDER.newFolder().getAbsoluteFile().toURI().toString());
 
 		// required as we otherwise run out of memory
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "80m");
+		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "80m");
 
 		miniClusterResource = new MiniClusterResource(
 			new MiniClusterResourceConfiguration.Builder()

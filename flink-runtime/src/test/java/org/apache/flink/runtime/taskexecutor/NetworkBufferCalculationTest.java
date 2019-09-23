@@ -46,32 +46,32 @@ public class NetworkBufferCalculationTest extends TestLogger {
 		final long networkBufMax = 1L << 30; // 1GB
 
 		config = getConfig(
-			Long.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()),
-			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
+			Long.valueOf(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE.defaultValue()),
+			TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.1f, networkBufMin, networkBufMax, MemoryType.HEAP);
 		assertEquals(100L << 20,
 			NettyShuffleEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 900L << 20)); // 900MB
 
 		config = getConfig(
-			Long.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()),
-			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
+			Long.valueOf(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE.defaultValue()),
+			TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.2f, networkBufMin, networkBufMax, MemoryType.HEAP);
 		assertEquals(200L << 20,
 			NettyShuffleEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 800L << 20)); // 800MB
 
 		config = getConfig(
-			Long.valueOf(TaskManagerOptions.MANAGED_MEMORY_SIZE.defaultValue()),
-			TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
+			Long.valueOf(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE.defaultValue()),
+			TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.6f, networkBufMin, networkBufMax, MemoryType.HEAP);
 		assertEquals(600L << 20,
 			NettyShuffleEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 400L << 20)); // 400MB
 
-		config = getConfig(10, TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
+		config = getConfig(10, TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION.defaultValue(),
 			0.1f, networkBufMin, networkBufMax, MemoryType.OFF_HEAP);
 		assertEquals(100L << 20,
 			NettyShuffleEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 890L << 20)); // 890MB
 
-		config = getConfig(10, TaskManagerOptions.MANAGED_MEMORY_FRACTION.defaultValue(),
+		config = getConfig(10, TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION.defaultValue(),
 				0.6f, networkBufMin, networkBufMax, MemoryType.OFF_HEAP);
 		assertEquals(615L << 20,
 			NettyShuffleEnvironmentConfiguration.calculateNewNetworkBufferMemory(config, 400L << 20)); // 400MB
@@ -84,8 +84,8 @@ public class NetworkBufferCalculationTest extends TestLogger {
 	/**
 	 * Returns a configuration for the tests.
 	 *
-	 * @param managedMemory         see {@link TaskManagerOptions#MANAGED_MEMORY_SIZE}
-	 * @param managedMemoryFraction see {@link TaskManagerOptions#MANAGED_MEMORY_FRACTION}
+	 * @param managedMemory         see {@link TaskManagerOptions#LEGACY_MANAGED_MEMORY_SIZE}
+	 * @param managedMemoryFraction see {@link TaskManagerOptions#LEGACY_MANAGED_MEMORY_FRACTION}
 	 * @param networkBufFraction	see {@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_MEMORY_FRACTION}
 	 * @param networkBufMin			see {@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MIN}
 	 * @param networkBufMax			see {@link NettyShuffleEnvironmentOptions#NETWORK_BUFFERS_MEMORY_MAX}
@@ -103,8 +103,8 @@ public class NetworkBufferCalculationTest extends TestLogger {
 
 		final Configuration configuration = new Configuration();
 
-		configuration.setLong(TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), managedMemory);
-		configuration.setFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION.key(), managedMemoryFraction);
+		configuration.setLong(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE.key(), managedMemory);
+		configuration.setFloat(TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION.key(), managedMemoryFraction);
 		configuration.setFloat(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key(), networkBufFraction);
 		configuration.setLong(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN.key(), networkBufMin);
 		configuration.setLong(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key(), networkBufMax);

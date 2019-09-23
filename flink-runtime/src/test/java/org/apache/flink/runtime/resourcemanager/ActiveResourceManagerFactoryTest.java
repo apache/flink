@@ -89,7 +89,7 @@ public class ActiveResourceManagerFactoryTest extends TestLogger {
 				ClusterInformation clusterInformation,
 				@Nullable String webInterfaceUrl,
 				ResourceManagerMetricGroup resourceManagerMetricGroup) {
-			assertThat(configuration.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE), is(true));
+			assertThat(configuration.contains(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE), is(true));
 
 			return null;
 		}
