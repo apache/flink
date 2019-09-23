@@ -19,6 +19,7 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ProgramDescription;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.InstantiationUtil;
@@ -198,7 +199,7 @@ public class PackagedProgram {
 		// now that we have an entry point, we can extract the nested jar files (if any)
 		this.extractedTempLibraries = jarFileUrl == null ? Collections.emptyList() : extractContainedLibraries(jarFileUrl);
 		this.classpaths = classpaths;
-		this.userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(getAllLibraries(), classpaths, getClass().getClassLoader());
+		this.userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(getAllLibraries(), classpaths, getClass().getClassLoader());
 
 		// load the entry point class
 		this.mainClass = loadMainClass(entryPointClassName, userCodeClassLoader);
@@ -623,7 +624,7 @@ public class PackagedProgram {
 
 	private static void checkJarFile(URL jarfile) throws ProgramInvocationException {
 		try {
-			JobWithJars.checkJarFile(jarfile);
+			ClientUtils.checkJarFile(jarfile);
 		}
 		catch (IOException e) {
 			throw new ProgramInvocationException(e.getMessage(), e);

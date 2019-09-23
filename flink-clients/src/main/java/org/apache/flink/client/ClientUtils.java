@@ -16,99 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client.program;
+package org.apache.flink.client;
 
-import org.apache.flink.api.common.Plan;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.jar.JarFile;
 
 /**
- * A JobWithJars is a Flink dataflow plan, together with a bunch of JAR files that contain
- * the classes of the functions and libraries necessary for the execution.
+ * Utility functions for Flink client.
  */
-public class JobWithJars {
-
-	private Plan plan;
-
-	private List<URL> jarFiles;
-
-	/**
-	 * classpaths that are needed during user code execution.
-	 */
-	private List<URL> classpaths;
-
-	private ClassLoader userCodeClassLoader;
-
-	public JobWithJars(Plan plan, List<URL> jarFiles, List<URL> classpaths) throws IOException {
-		this.plan = plan;
-		this.jarFiles = new ArrayList<URL>(jarFiles.size());
-		this.classpaths = new ArrayList<URL>(classpaths.size());
-
-		for (URL jarFile: jarFiles) {
-			checkJarFile(jarFile);
-			this.jarFiles.add(jarFile);
-		}
-
-		for (URL path: classpaths) {
-			this.classpaths.add(path);
-		}
-	}
-
-	public JobWithJars(Plan plan, URL jarFile) throws IOException {
-		this.plan = plan;
-
-		checkJarFile(jarFile);
-		this.jarFiles = Collections.singletonList(jarFile);
-		this.classpaths = Collections.<URL>emptyList();
-	}
-
-	JobWithJars(Plan plan, List<URL> jarFiles, List<URL> classpaths, ClassLoader userCodeClassLoader) {
-		this.plan = plan;
-		this.jarFiles = jarFiles;
-		this.classpaths = classpaths;
-		this.userCodeClassLoader = userCodeClassLoader;
-	}
-
-	/**
-	 * Returns the plan.
-	 */
-	public Plan getPlan() {
-		return this.plan;
-	}
-
-	/**
-	 * Returns list of jar files that need to be submitted with the plan.
-	 */
-	public List<URL> getJarFiles() {
-		return this.jarFiles;
-	}
-
-	/**
-	 * Returns list of classpaths that need to be submitted with the plan.
-	 */
-	public List<URL> getClasspaths() {
-		return classpaths;
-	}
-
-	/**
-	 * Gets the {@link java.lang.ClassLoader} that must be used to load user code classes.
-	 *
-	 * @return The user code ClassLoader.
-	 */
-	public ClassLoader getUserCodeClassLoader() {
-		if (this.userCodeClassLoader == null) {
-			this.userCodeClassLoader = buildUserCodeClassLoader(jarFiles, classpaths, getClass().getClassLoader());
-		}
-		return this.userCodeClassLoader;
-	}
+public enum ClientUtils {
+	;
 
 	public static void checkJarFile(URL jar) throws IOException {
 		File jarFile;

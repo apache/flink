@@ -23,8 +23,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
@@ -191,7 +191,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			try {
 				URL jarFileUrl = new File(jarFile).getAbsoluteFile().toURI().toURL();
 				this.jarFiles.add(jarFileUrl);
-				JobWithJars.checkJarFile(jarFileUrl);
+				ClientUtils.checkJarFile(jarFileUrl);
 			} catch (MalformedURLException e) {
 				throw new IllegalArgumentException("JAR file path is invalid '" + jarFile + "'", e);
 			} catch (IOException e) {
@@ -255,7 +255,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
 
-		ClassLoader userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, globalClasspaths, envClassLoader);
+		ClassLoader userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(jarFiles, globalClasspaths, envClassLoader);
 
 		Configuration configuration = new Configuration();
 		configuration.addAll(clientConfiguration);
