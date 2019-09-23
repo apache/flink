@@ -44,7 +44,7 @@ public class TaskManagerOptions {
 	/**
 	 * JVM heap size for the TaskManagers with memory size.
 	 */
-	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
+	@Deprecated
 	public static final ConfigOption<String> TASK_MANAGER_HEAP_MEMORY =
 			key("taskmanager.heap.size")
 			.defaultValue("1024m")
@@ -191,6 +191,7 @@ public class TaskManagerOptions {
 	 * Amount of memory to be allocated by the task manager's memory manager. If not
 	 * set, a relative fraction will be allocated, as defined by {@link #LEGACY_MANAGED_MEMORY_FRACTION}.
 	 */
+	@Deprecated
 	public static final ConfigOption<String> LEGACY_MANAGED_MEMORY_SIZE =
 			key("taskmanager.memory.size")
 			.defaultValue("0")
@@ -203,6 +204,7 @@ public class TaskManagerOptions {
 	 * Fraction of free memory allocated by the memory manager if {@link #LEGACY_MANAGED_MEMORY_SIZE} is
 	 * not set.
 	 */
+	@Deprecated
 	public static final ConfigOption<Float> LEGACY_MANAGED_MEMORY_FRACTION =
 			key("taskmanager.memory.fraction")
 			.defaultValue(0.7f)
@@ -220,6 +222,7 @@ public class TaskManagerOptions {
 	 * Memory allocation method (JVM heap or off-heap), used for managed memory of the TaskManager
 	 * as well as the network buffers.
 	 **/
+	@Deprecated
 	public static final ConfigOption<Boolean> MEMORY_OFF_HEAP =
 			key("taskmanager.memory.off-heap")
 			.defaultValue(false)
@@ -259,6 +262,189 @@ public class TaskManagerOptions {
 					text("\"name\" - uses hostname as binding address"),
 					text("\"ip\" - uses host's ip address as binding address"))
 				.build());
+
+	// ------------------------------------------------------------------------
+	//  Memory Options
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Total Process Memory size for the TaskExecutors.
+	 */
+	public static final ConfigOption<String> TOTAL_PROCESS_MEMORY =
+		key("taskmanager.memory.total-process.size")
+			.noDefaultValue()
+			.withDescription("Total Process Memory size for the TaskExecutors. This includes all the memory that a"
+				+ " TaskExecutor consumes, consisting of Total Flink Memory, JVM Metaspace, and JVM Overhead. On"
+				+ " containerized setups, this should be set to the container memory.");
+
+	/**
+	 * Total Flink Memory size for the TaskExecutors.
+	 */
+	@Documentation.CommonOption(position = Documentation.CommonOption.POSITION_MEMORY)
+	public static final ConfigOption<String> TOTAL_FLINK_MEMORY =
+		key("taskmanager.memory.total-flink.size")
+		.noDefaultValue()
+		.withDeprecatedKeys(TASK_MANAGER_HEAP_MEMORY.key())
+		.withDescription("Total Flink Memory size for the TaskExecutors. This includes all the memory that a"
+			+ " TaskExecutor consumes, except for JVM Metaspace and JVM Overhead. It consists of Framework Heap Memory,"
+			+ " Task Heap Memory, Task Off-Heap Memory, Managed Memory, and Shuffle Memory.");
+
+	/**
+	 * Framework Heap Memory size for TaskExecutors.
+	 */
+	public static final ConfigOption<String> FRAMEWORK_HEAP_MEMORY =
+		key("taskmanager.memory.framework.heap.size")
+			.defaultValue("128m")
+			.withDescription("Framework Heap Memory size for TaskExecutors. This is the size of JVM heap memory reserved"
+				+ " for TaskExecutor framework, which will not be allocated to task slots.");
+
+	/**
+	 * Task Heap Memory size for TaskExecutors.
+	 */
+	public static final ConfigOption<String> TASK_HEAP_MEMORY =
+		key("taskmanager.memory.task.heap.size")
+			.noDefaultValue()
+			.withDescription("Task Heap Memory size for TaskExecutors. This is the size of JVM heap memory reserved for"
+				+ " user code. If not specified, it will be derived as Total Flink Memory minus Framework Heap Memory,"
+				+ " Task Off-Heap Memory, (On-Heap and Off-Heap) Managed Memory and Shuffle Memory.");
+
+	/**
+	 * Task Off-Heap Memory size for TaskExecutors.
+	 */
+	public static final ConfigOption<String> TASK_OFF_HEAP_MEMORY =
+		key("taskmanager.memory.task.off-heap.size")
+			.defaultValue("0b")
+			.withDescription("Task Heap Memory size for TaskExecutors. This is the size of off heap memory (JVM direct"
+				+ " memory or native memory) reserved for user code.");
+
+	/**
+	 * Managed Memory size for TaskExecutors.
+	 */
+	public static final ConfigOption<String> MANAGED_MEMORY_SIZE =
+		key("taskmanager.memory.managed.size")
+			.noDefaultValue()
+			.withDeprecatedKeys(LEGACY_MANAGED_MEMORY_SIZE.key())
+			.withDescription("Managed Memory size for TaskExecutors. This is the size of memory managed by the memory"
+				+ " manager, including both On-Heap Managed Memory and Off-Heap Managed Memory, reserved for sorting,"
+				+ " hash tables, caching of intermediate results and state backends. Memory consumers can either"
+				+ " allocate memory from the memory manager in the form of MemorySegments, or reserve bytes from the"
+				+ " memory manager and keep their memory usage within that boundary. If unspecified, it will be derived"
+				+ " to make up the configured fraction of the Total Flink Memory.");
+
+	/**
+	 * Fraction of Total Flink Memory to be used as Managed Memory, if {@link #MANAGED_MEMORY_SIZE} is not specified.
+	 */
+	public static final ConfigOption<Float> MANAGED_MEMORY_FRACTION =
+		key("taskmanager.memory.managed.fraction")
+			.defaultValue(0.5f)
+			.withDescription("Fraction of Total Flink Memory to be used as Managed Memory, if Managed Memory size is not"
+				+ " explicitly specified.");
+
+	/**
+	 * Off-Heap Managed Memory size for TaskExecutors.
+	 */
+	public static final ConfigOption<String> MANAGED_MEMORY_OFFHEAP_SIZE =
+		key("taskmanager.memory.managed.off-heap.size")
+			.noDefaultValue()
+			.withDescription("Off-Heap Managed Memory size for TaskExecutors. This is the part of Managed Memory that is"
+				+ " off-heap, while the remaining is on-heap. If unspecified, it will be derived to make up the"
+				+ " configured fraction of the Managed Memory size.");
+
+	/**
+	 * Fraction of Managed Memory that Off-Heap Managed Memory takes.
+	 */
+	public static final ConfigOption<Float> MANAGED_MEMORY_OFFHEAP_FRACTION =
+		key("taskmanager.memory.managed.off-heap.fraction")
+			.defaultValue(-1.0f)
+			.withDescription("Fraction of Managed Memory that Off-Heap Managed Memory takes, if Off-Heap Managed Memory"
+				+ " size is not explicitly specified. If the fraction is not explicitly specified (or configured with"
+				+ " negative values), it will be derived from the legacy config option '"
+				+ TaskManagerOptions.MEMORY_OFF_HEAP.key() + "', to use either all on-heap memory or all off-heap memory"
+				+ " for Managed Memory.");
+
+	/**
+	 * Min Shuffle Memory size for TaskExecutors.
+	 */
+	public static final ConfigOption<String> SHUFFLE_MEMORY_MIN =
+		key("taskmanager.memory.shuffle.min")
+			.defaultValue("64m")
+			.withDeprecatedKeys(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN.key())
+			.withDescription("Min Shuffle Memory size for TaskExecutors. Shuffle Memory is off-heap memory reserved for"
+				+ " ShuffleEnvironment (e.g., network buffers). Shuffle Memory size is derived to make up the configured"
+				+ " fraction of the Total Flink Memory. If the derived size is less/greater than the configured min/max"
+				+ " size, the min/max size will be used. The exact size of Shuffle Memory can be explicitly specified by"
+				+ " setting the min/max to the same value.");
+
+	/**
+	 * Max Shuffle Memory size for TaskExecutors.
+	 */
+	public static final ConfigOption<String> SHUFFLE_MEMORY_MAX =
+		key("taskmanager.memory.shuffle.max")
+			.defaultValue("1g")
+			.withDeprecatedKeys(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key())
+			.withDescription("Max Shuffle Memory size for TaskExecutors. Shuffle Memory is off-heap memory reserved for"
+				+ " ShuffleEnvironment (e.g., network buffers). Shuffle Memory size is derived to make up the configured"
+				+ " fraction of the Total Flink Memory. If the derived size is less/greater than the configured min/max"
+				+ " size, the min/max size will be used. The exact size of Shuffle Memory can be explicitly specified by"
+				+ " setting the min/max to the same value.");
+
+	/**
+	 * Fraction of Total Flink Memory to be used as Shuffle Memory.
+	 */
+	public static final ConfigOption<Float> SHUFFLE_MEMORY_FRACTION =
+		key("taskmanager.memory.shuffle.fraction")
+			.defaultValue(0.1f)
+			.withDeprecatedKeys(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key())
+			.withDescription("Fraction of Total Flink Memory to be used as Shuffle Memory. Shuffle Memory is off-heap"
+				+ " memory reserved for ShuffleEnvironment (e.g., network buffers). Shuffle Memory size is derived to"
+				+ " make up the configured fraction of the Total Flink Memory. If the derived size is less/greater than"
+				+ " the configured min/max size, the min/max size will be used. The exact size of Shuffle Memory can be"
+				+ " explicitly specified by setting the min/max size to the same value.");
+
+	/**
+	 * JVM Metaspace Size for the TaskExecutors.
+	 */
+	public static final ConfigOption<String> JVM_METASPACE =
+		key("taskmanager.memory.jvm-metaspace.size")
+			.defaultValue("192m")
+			.withDescription("JVM Metaspace Size for the TaskExecutors.");
+
+	/**
+	 * Min JVM Overhead size for the TaskExecutors.
+	 */
+	public static final ConfigOption<String> JVM_OVERHEAD_MIN =
+		key("taskmanager.memory.jvm-overhead.min")
+			.defaultValue("128m")
+			.withDescription("Min JVM Overhead size for the TaskExecutors. This is off-heap memory reserved for JVM"
+				+ " overhead, such as thread stack space, I/O direct memory, compile cache, etc. The size of JVM"
+				+ " Overhead is derived to make up the configured fraction of the Total Process Memory. If the derived"
+				+ " size is less/greater than the configured min/max size, the min/max size will be used. The exact size"
+				+ " of JVM Overhead can be explicitly specified by setting the min/max size to the same value.");
+
+	/**
+	 * Max JVM Overhead size for the TaskExecutors.
+	 */
+	public static final ConfigOption<String> JVM_OVERHEAD_MAX =
+		key("taskmanager.memory.jvm-overhead.max")
+			.defaultValue("1g")
+			.withDescription("Max JVM Overhead size for the TaskExecutors. This is off-heap memory reserved for JVM"
+				+ " overhead, such as thread stack space, I/O direct memory, compile cache, etc. The size of JVM"
+				+ " Overhead is derived to make up the configured fraction of the Total Process Memory. If the derived"
+				+ " size is less/greater than the configured min/max size, the min/max size will be used. The exact size"
+				+ " of JVM Overhead can be explicitly specified by setting the min/max size to the same value.");
+
+	/**
+	 * Fraction of Total Process Memory to be reserved for JVM Overhead.
+	 */
+	public static final ConfigOption<Float> JVM_OVERHEAD_FRACTION =
+		key("taskmanager.memory.jvm-overhead.fraction")
+			.defaultValue(0.1f)
+			.withDescription("Fraction of Total Process Memory to be reserved for JVM Overhead. This is off-heap memory"
+				+ " reserved for JVM overhead, such as thread stack space, I/O direct memory, compile cache, etc. The"
+				+ " size of JVM Overhead is derived to make up the configured fraction of the Total Process Memory. If"
+				+ " the derived size is less/greater than the configured min/max size, the min/max size will be used."
+				+ " The exact size of JVM Overhead can be explicitly specified by setting the min/max size to the same"
+				+ " value.");
 
 	// ------------------------------------------------------------------------
 	//  Task Options

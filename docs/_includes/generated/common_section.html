@@ -13,9 +13,9 @@
             <td>JVM heap size for the JobManager.</td>
         </tr>
         <tr>
-            <td><h5>taskmanager.heap.size</h5></td>
-            <td style="word-wrap: break-word;">"1024m"</td>
-            <td>JVM heap size for the TaskManagers, which are the parallel workers of the system. On YARN setups, this value is automatically configured to the size of the TaskManager's YARN container, minus a certain tolerance value.</td>
+            <td><h5>taskmanager.memory.total-flink.size</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Total Flink Memory size for the TaskExecutors. This includes all the memory that a TaskExecutor consumes, except for JVM Metaspace and JVM Overhead. It consists of Framework Heap Memory, Task Heap Memory, Task Off-Heap Memory, Managed Memory, and Shuffle Memory.</td>
         </tr>
         <tr>
             <td><h5>parallelism.default</h5></td>
