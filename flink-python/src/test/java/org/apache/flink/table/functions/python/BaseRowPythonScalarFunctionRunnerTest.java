@@ -125,6 +125,6 @@ public class BaseRowPythonScalarFunctionRunnerTest extends AbstractPythonScalarF
 			pythonEnv,
 			inputType,
 			outputType,
-			System.getProperty("java.io.tmpdir"));
+			new String[] {System.getProperty("java.io.tmpdir")});
 	}
 }

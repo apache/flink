@@ -167,7 +167,7 @@ public abstract class AbstractPythonScalarFunctionRunner<IN, OUT> extends Abstra
 	 * Gets the proto representation of the Python user-defined functions to be executed.
 	 */
 	@VisibleForTesting
-	FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
+	public FlinkFnApi.UserDefinedFunctions getUserDefinedFunctionsProto() {
 		FlinkFnApi.UserDefinedFunctions.Builder builder = FlinkFnApi.UserDefinedFunctions.newBuilder();
 		for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
 			builder.addUdfs(getUserDefinedFunctionProto(pythonFunctionInfo));
