@@ -16,26 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions.python.coders;
+package org.apache.flink.table.runtime.typeutils.coders;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.memory.DataInputView;
-import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.core.memory.DataOutputView;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 
-import java.io.InputStream;
+import java.io.OutputStream;
 
 /**
- * An implementation of {@link DataInputView} that allows the instance
- * to be re-used with another underlying input stream.
+ * An implementation of {@link DataOutputView} that allows the instance
+ * to be re-used with another underlying output stream.
  */
 @Internal
-public class ReusableDataInputView extends DataInputViewStreamWrapper {
+public class ReusableDataOutputView extends DataOutputViewStreamWrapper {
 
-	public ReusableDataInputView() {
+	public ReusableDataOutputView() {
 		super(null);
 	}
 
-	public void resetInputStream(InputStream in) {
-		this.in = in;
+	public void reset(OutputStream out) {
+		this.out = out;
 	}
 }

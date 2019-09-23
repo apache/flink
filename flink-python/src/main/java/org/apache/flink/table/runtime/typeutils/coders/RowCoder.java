@@ -16,14 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions.python.coders;
+package org.apache.flink.table.runtime.typeutils.coders;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.memory.DataOutputView;
-import org.apache.flink.table.dataformat.BaseRow;
-import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.dataformat.TypeGetterSetters;
-import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.beam.sdk.coders.Coder;
@@ -35,29 +31,28 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.api.java.typeutils.runtime.NullMaskUtils.readIntoNullMask;
+import static org.apache.flink.api.java.typeutils.runtime.NullMaskUtils.writeNullMask;
 
 /**
- * A {@link Coder} for {@link BaseRow}. It should be noted that the header will not be encoded.
+ * A {@link Coder} for {@link Row}.
  */
 @Internal
-public class BaseRowCoder extends Coder<BaseRow> {
+public class RowCoder extends Coder<Row> {
 
 	private static final long serialVersionUID = 1L;
 
 	private final Coder<Object>[] fieldCoders;
-	private final LogicalType[] fieldTypes;
 
-	private transient ReusableDataInputView reusableInputStream;
-	private transient ReusableDataOutputView reusableOutputStream;
+	private transient ReusableDataInputView reuseInputStream;
+	private transient ReusableDataOutputView reuseOutputStream;
 
 	private transient boolean[] nullMask;
 
 	@SuppressWarnings("unchecked")
-	public BaseRowCoder(Coder<?>[] fieldCoders, LogicalType[] fieldTypes) {
+	public RowCoder(Coder<?>[] fieldCoders) {
 		this.fieldCoders = (Coder<Object>[]) Preconditions.checkNotNull(fieldCoders);
-		this.fieldTypes = Preconditions.checkNotNull(fieldTypes);
-		this.reusableInputStream = new ReusableDataInputView();
-		this.reusableOutputStream = new ReusableDataOutputView();
+		this.reuseInputStream = new ReusableDataInputView();
+		this.reuseOutputStream = new ReusableDataOutputView();
 		this.nullMask = new boolean[fieldCoders.length];
 	}
 
@@ -66,7 +61,7 @@ public class BaseRowCoder extends Coder<BaseRow> {
 	}
 
 	@Override
-	public void encode(BaseRow row, OutputStream outStream) throws IOException {
+	public void encode(Row row, OutputStream outStream) throws IOException {
 		int len = fieldCoders.length;
 
 		if (row.getArity() != len) {
@@ -74,30 +69,31 @@ public class BaseRowCoder extends Coder<BaseRow> {
 		}
 
 		// write a null mask
-		reusableOutputStream.reset(outStream);
-		writeNullMask(len, row, reusableOutputStream);
+		reuseOutputStream.reset(outStream);
+		writeNullMask(len, row, reuseOutputStream);
 
 		for (int i = 0; i < row.getArity(); i++) {
-			if (!row.isNullAt(i)) {
-				// TODO: support BaseRow natively in Python, then we can eliminate the redundant serialize/deserialize
-				fieldCoders[i].encode(TypeGetterSetters.get(row, i, fieldTypes[i]), outStream);
+			Object o = row.getField(i);
+			if (o != null) {
+				fieldCoders[i].encode(o, outStream);
 			}
 		}
 	}
 
 	@Override
-	public BaseRow decode(InputStream inStream) throws IOException {
+	public Row decode(InputStream inStream) throws IOException {
 		int len = fieldCoders.length;
 
 		// read null mask
-		reusableInputStream.resetInputStream(inStream);
-		readIntoNullMask(len, reusableInputStream, nullMask);
+		reuseInputStream.resetInputStream(inStream);
+		readIntoNullMask(len, reuseInputStream, nullMask);
 
-		GenericRow row = new GenericRow(fieldCoders.length);
-		for (int i = 0; i < row.getArity(); i++) {
+		Row row = new Row(len);
+		for (int i = 0; i < len; i++) {
 			if (nullMask[i]) {
 				row.setField(i, null);
-			} else {
+			}
+			else {
 				row.setField(i, fieldCoders[i].decode(inStream));
 			}
 		}
@@ -115,32 +111,5 @@ public class BaseRowCoder extends Coder<BaseRow> {
 	@Override
 	public boolean consistentWithEquals() {
 		return true;
-	}
-
-	private static void writeNullMask(int len, BaseRow value, DataOutputView target) throws IOException {
-		int b = 0x00;
-		int bytePos = 0;
-
-		int fieldPos = 0;
-		int numPos = 0;
-		while (fieldPos < len) {
-			b = 0x00;
-			// set bits in byte
-			bytePos = 0;
-			numPos = Math.min(8, len - fieldPos);
-			while (bytePos < numPos) {
-				b = b << 1;
-				// set bit if field is null
-				if (value.isNullAt(fieldPos + bytePos)) {
-					b |= 0x01;
-				}
-				bytePos += 1;
-			}
-			fieldPos += numPos;
-			// shift bits if last byte is not completely filled
-			b <<= (8 - bytePos);
-			// write byte
-			target.writeByte(b);
-		}
 	}
 }

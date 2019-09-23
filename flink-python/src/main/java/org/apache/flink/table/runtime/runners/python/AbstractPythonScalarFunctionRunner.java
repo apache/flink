@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions.python;
+package org.apache.flink.table.runtime.runners.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -24,6 +24,9 @@ import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.AbstractPythonFunctionRunner;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.functions.python.PythonEnv;
+import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.typeutils.BeamTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
@@ -78,8 +81,8 @@ public abstract class AbstractPythonScalarFunctionRunner<IN, OUT> extends Abstra
 		PythonEnv pythonEnv,
 		RowType inputType,
 		RowType outputType,
-		String tempDir) {
-		super(taskName, resultReceiver, pythonEnv, StateRequestHandler.unsupported(), tempDir);
+		String[] tempDirs) {
+		super(taskName, resultReceiver, pythonEnv, StateRequestHandler.unsupported(), tempDirs);
 		this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);

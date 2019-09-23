@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions.python;
+package org.apache.flink.table.runtime.typeutils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.table.functions.python.coders.BaseRowCoder;
-import org.apache.flink.table.functions.python.coders.RowCoder;
+import org.apache.flink.table.runtime.typeutils.coders.BaseRowCoder;
+import org.apache.flink.table.runtime.typeutils.coders.RowCoder;
 import org.apache.flink.table.types.logical.AnyType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;

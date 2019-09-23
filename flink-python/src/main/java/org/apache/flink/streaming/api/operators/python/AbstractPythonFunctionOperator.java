@@ -35,8 +35,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Internal
 public abstract class AbstractPythonFunctionOperator<IN, OUT>
-	extends AbstractStreamOperator<OUT>
-	implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
+		extends AbstractStreamOperator<OUT>
+		implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
 
 	private static final long serialVersionUID = 1L;
 
@@ -203,7 +203,6 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 		} else {
 			// It is not safe to advance the output watermark yet, so add a hold on the current
 			// output watermark.
-
 			bundleFinishedCallback =
 				() -> {
 					try {
@@ -260,15 +259,13 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 		if (bundleStarted.compareAndSet(true, false)) {
 			pythonFunctionRunner.finishBundle();
 
-			synchronized (getContainingTask().getCheckpointLock()) {
-				emitResults();
-				elementCount = 0;
-				lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
-				// callback only after current bundle was fully finalized
-				if (bundleFinishedCallback != null) {
-					bundleFinishedCallback.run();
-					bundleFinishedCallback = null;
-				}
+			emitResults();
+			elementCount = 0;
+			lastFinishBundleTime = getProcessingTimeService().getCurrentProcessingTime();
+			// callback only after current bundle was fully finalized
+			if (bundleFinishedCallback != null) {
+				bundleFinishedCallback.run();
+				bundleFinishedCallback = null;
 			}
 		}
 	}

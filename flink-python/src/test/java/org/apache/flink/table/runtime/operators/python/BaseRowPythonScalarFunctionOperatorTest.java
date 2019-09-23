@@ -23,7 +23,6 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
-import org.apache.flink.table.functions.python.AbstractPythonScalarFunctionRunnerTest;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.runtime.util.BaseRowHarnessAssertor;
 import org.apache.flink.table.types.logical.RowType;
@@ -36,13 +35,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.baserow;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryrow;
 
 /**
- * Tests for {@link BaseRowPythonScalarFunctionOperator}. These test that:
- *
- * <ul>
- *     <li>Retraction flag is correctly forwarded to the downstream</li>
- *     <li>FinishBundle is called when checkpoint is encountered</li>
- *     <li>Watermarks are buffered and only sent to downstream when finishedBundle is triggered</li>
- * </ul>
+ * Tests for {@link BaseRowPythonScalarFunctionOperator}.
  */
 public class BaseRowPythonScalarFunctionOperatorTest
 		extends PythonScalarFunctionOperatorTestBase<BaseRow, BaseRow, BaseRow, BaseRow> {
@@ -61,15 +54,11 @@ public class BaseRowPythonScalarFunctionOperatorTest
 		int[] udfInputOffsets,
 		int forwardedFieldCnt) {
 		return new PassThroughPythonScalarFunctionOperator(
-			new PythonFunctionInfo[] {
-				new PythonFunctionInfo(
-					AbstractPythonScalarFunctionRunnerTest.DummyPythonFunction.INSTANCE,
-					new Integer[]{0})
-			},
+			scalarFunctions,
 			inputType,
 			outputType,
-			new int[]{2},
-			2
+			udfInputOffsets,
+			forwardedFieldCnt
 		);
 	}
 

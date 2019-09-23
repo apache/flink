@@ -89,6 +89,8 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L)));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.close();
 	}
 
 	@Test
@@ -109,6 +111,8 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 1L)));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.close();
 	}
 
 	@Test
@@ -128,6 +132,8 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 		testHarness.setProcessingTime(1000L);
 		expectedOutput.add(new StreamRecord<>(newRow(true, "c1", "c2", 0L)));
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.close();
 	}
 
 	@Test
@@ -169,14 +175,12 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 		expectedOutput.add(new Watermark(initialTime + 2));
 
 		assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
+
+		testHarness.close();
 	}
 
 	private OneInputStreamOperatorTestHarness<IN, OUT> getTestHarness() throws Exception {
-		RowType inputType = new RowType(Arrays.asList(
-			new RowType.RowField("f1", new VarCharType()),
-			new RowType.RowField("f2", new VarCharType()),
-			new RowType.RowField("f3", new BigIntType())));
-		RowType outputType = new RowType(Arrays.asList(
+		RowType dataType = new RowType(Arrays.asList(
 			new RowType.RowField("f1", new VarCharType()),
 			new RowType.RowField("f2", new VarCharType()),
 			new RowType.RowField("f3", new BigIntType())));
@@ -186,8 +190,8 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 					AbstractPythonScalarFunctionRunnerTest.DummyPythonFunction.INSTANCE,
 					new Integer[]{0})
 			},
-			inputType,
-			outputType,
+			dataType,
+			dataType,
 			new int[]{2},
 			2
 		);

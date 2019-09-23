@@ -31,13 +31,7 @@ import java.util.Collection;
 import java.util.Queue;
 
 /**
- * Tests for {@link PythonScalarFunctionOperator}. These test that:
- *
- * <ul>
- *     <li>Retraction flag is correctly forwarded to the downstream</li>
- *     <li>FinishBundle is called when checkpoint is encountered</li>
- *     <li>Watermarks are buffered and only sent to downstream when finishedBundle is triggered</li>
- * </ul>
+ * Tests for {@link PythonScalarFunctionOperator}.
  */
 public class PythonScalarFunctionOperatorTest extends PythonScalarFunctionOperatorTestBase<CRow, CRow, Row, Row> {
 

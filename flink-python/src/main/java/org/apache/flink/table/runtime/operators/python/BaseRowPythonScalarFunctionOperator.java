@@ -26,12 +26,12 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.JoinedRow;
 import org.apache.flink.table.functions.ScalarFunction;
-import org.apache.flink.table.functions.python.BaseRowPythonScalarFunctionRunner;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
+import org.apache.flink.table.runtime.runners.python.BaseRowPythonScalarFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Collector;
 
@@ -118,7 +118,7 @@ public class BaseRowPythonScalarFunctionOperator
 			scalarFunctions[0].getPythonFunction().getPythonEnv(),
 			udfInputType,
 			udfOutputType,
-			getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories()[0]);
+			getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories());
 	}
 
 	private Projection<BaseRow, BinaryRow> createUdfInputProjection() {

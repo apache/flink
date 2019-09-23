@@ -26,7 +26,7 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
-import org.apache.flink.table.functions.python.PythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.PythonScalarFunctionRunner;
 import org.apache.flink.table.runtime.types.CRow;
 import org.apache.flink.table.runtime.types.CRowTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -112,7 +112,7 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 			scalarFunctions[0].getPythonFunction().getPythonEnv(),
 			udfInputType,
 			udfOutputType,
-			getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories()[0]);
+			getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories());
 	}
 
 	private Row getForwardedRow(Row input) {

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.functions.python.coders;
+package org.apache.flink.table.runtime.typeutils.coders;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.table.dataformat.BaseRow;

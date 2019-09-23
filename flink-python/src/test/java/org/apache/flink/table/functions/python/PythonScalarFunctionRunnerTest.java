@@ -19,7 +19,9 @@
 package org.apache.flink.table.functions.python;
 
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.table.functions.python.coders.RowCoder;
+import org.apache.flink.table.runtime.runners.python.AbstractPythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.PythonScalarFunctionRunner;
+import org.apache.flink.table.runtime.typeutils.coders.RowCoder;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.Row;
