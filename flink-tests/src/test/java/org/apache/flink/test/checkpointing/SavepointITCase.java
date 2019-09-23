@@ -664,7 +664,7 @@ public class SavepointITCase extends TestLogger {
 
 		Configuration config = getFileBasedCheckpointsConfig();
 		config.addAll(jobGraph.getJobConfiguration());
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "0");
+		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "0");
 
 		MiniClusterWithClientResource cluster = new MiniClusterWithClientResource(
 			new MiniClusterResourceConfiguration.Builder()

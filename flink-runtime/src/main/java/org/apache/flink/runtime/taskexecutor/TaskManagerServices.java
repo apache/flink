@@ -433,7 +433,7 @@ public class TaskManagerServices {
 			final long managedMemorySize = getManagedMemoryFromHeapAndManaged(config, heapAndManagedMemory);
 
 			ConfigurationParserUtils.checkConfigParameter(managedMemorySize < heapAndManagedMemory, managedMemorySize,
-				TaskManagerOptions.MANAGED_MEMORY_SIZE.key(),
+				TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE.key(),
 					"Managed memory size too large for " + (networkReservedMemory >> 20) +
 						" MB network buffer memory and a total of " + totalJavaMemorySizeMB +
 						" MB JVM memory");
@@ -460,20 +460,20 @@ public class TaskManagerServices {
 	 * All values are in bytes.
 	 */
 	public static long getManagedMemoryFromHeapAndManaged(Configuration config, long heapAndManagedMemory) {
-		if (config.contains(TaskManagerOptions.MANAGED_MEMORY_SIZE)) {
+		if (config.contains(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE)) {
 			// take the configured absolute value
-			final String sizeValue = config.getString(TaskManagerOptions.MANAGED_MEMORY_SIZE);
+			final String sizeValue = config.getString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE);
 			try {
 				return MemorySize.parse(sizeValue, MEGA_BYTES).getBytes();
 			}
 			catch (IllegalArgumentException e) {
 				throw new IllegalConfigurationException(
-					"Could not read " + TaskManagerOptions.MANAGED_MEMORY_SIZE.key(), e);
+					"Could not read " + TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE.key(), e);
 			}
 		}
 		else {
 			// calculate managed memory size via fraction
-			final float fraction = config.getFloat(TaskManagerOptions.MANAGED_MEMORY_FRACTION);
+			final float fraction = config.getFloat(TaskManagerOptions.LEGACY_MANAGED_MEMORY_FRACTION);
 			return (long) (fraction * heapAndManagedMemory);
 		}
 	}

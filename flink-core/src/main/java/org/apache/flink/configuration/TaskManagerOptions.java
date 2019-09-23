@@ -189,9 +189,9 @@ public class TaskManagerOptions {
 
 	/**
 	 * Amount of memory to be allocated by the task manager's memory manager. If not
-	 * set, a relative fraction will be allocated, as defined by {@link #MANAGED_MEMORY_FRACTION}.
+	 * set, a relative fraction will be allocated, as defined by {@link #LEGACY_MANAGED_MEMORY_FRACTION}.
 	 */
-	public static final ConfigOption<String> MANAGED_MEMORY_SIZE =
+	public static final ConfigOption<String> LEGACY_MANAGED_MEMORY_SIZE =
 			key("taskmanager.memory.size")
 			.defaultValue("0")
 			.withDescription("The amount of memory (in megabytes) that the task manager reserves on-heap or off-heap" +
@@ -200,10 +200,10 @@ public class TaskManagerOptions {
 				" the task manager JVM as specified by taskmanager.memory.fraction.");
 
 	/**
-	 * Fraction of free memory allocated by the memory manager if {@link #MANAGED_MEMORY_SIZE} is
+	 * Fraction of free memory allocated by the memory manager if {@link #LEGACY_MANAGED_MEMORY_SIZE} is
 	 * not set.
 	 */
-	public static final ConfigOption<Float> MANAGED_MEMORY_FRACTION =
+	public static final ConfigOption<Float> LEGACY_MANAGED_MEMORY_FRACTION =
 			key("taskmanager.memory.fraction")
 			.defaultValue(0.7f)
 			.withDescription(new Description.DescriptionBuilder()
@@ -212,8 +212,8 @@ public class TaskManagerOptions {
 					" For example, a value of %s means that a task manager reserves 80% of its memory" +
 					" (on-heap or off-heap depending on taskmanager.memory.off-heap)" +
 					" for internal data buffers, leaving 20% of free memory for the task manager's heap for objects" +
-					" created by user-defined functions. This parameter is only evaluated, if " + MANAGED_MEMORY_SIZE.key() +
-					" is not set.", code("0.8"))
+					" created by user-defined functions. This parameter is only evaluated, if " +
+					LEGACY_MANAGED_MEMORY_SIZE.key() + " is not set.", code("0.8"))
 				.build());
 
 	/**

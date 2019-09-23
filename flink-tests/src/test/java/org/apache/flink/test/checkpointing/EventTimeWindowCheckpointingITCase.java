@@ -209,7 +209,7 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
 		final File haDir = temporaryFolder.newFolder();
 
 		Configuration config = new Configuration();
-		config.setString(TaskManagerOptions.MANAGED_MEMORY_SIZE, "48m");
+		config.setString(TaskManagerOptions.LEGACY_MANAGED_MEMORY_SIZE, "48m");
 		// the default network buffers size (10% of heap max =~ 150MB) seems to much for this test case
 		config.setString(NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX, String.valueOf(80L << 20)); // 80 MB
 		config.setString(AkkaOptions.FRAMESIZE, String.valueOf(MAX_MEM_STATE_SIZE) + "b");
