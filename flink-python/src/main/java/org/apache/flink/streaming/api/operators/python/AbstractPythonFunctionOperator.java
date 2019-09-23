@@ -27,6 +27,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
+import java.util.Map;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -85,7 +86,11 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 		try {
 			this.bundleStarted = new AtomicBoolean(false);
 
-			this.maxBundleSize = getOperatorConfig().getConfiguration().getInteger(PythonOptions.MAX_BUNDLE_SIZE);
+			Map<String, String> jobParams = getExecutionConfig().getGlobalJobParameters().toMap();
+
+			this.maxBundleSize = Integer.valueOf(jobParams.getOrDefault(
+				PythonOptions.MAX_BUNDLE_SIZE.key(),
+				String.valueOf(PythonOptions.MAX_BUNDLE_SIZE.defaultValue())));
 			if (this.maxBundleSize <= 0) {
 				this.maxBundleSize = PythonOptions.MAX_BUNDLE_SIZE.defaultValue();
 				LOG.error("Invalid value for the maximum bundle size. Using default value of " +
@@ -94,8 +99,9 @@ public abstract class AbstractPythonFunctionOperator<IN, OUT>
 				LOG.info("The maximum bundle size is configured to {}.", this.maxBundleSize);
 			}
 
-			this.maxBundleTimeMills =
-				getOperatorConfig().getConfiguration().getLong(PythonOptions.MAX_BUNDLE_TIME_MILLS);
+			this.maxBundleTimeMills = Long.valueOf(jobParams.getOrDefault(
+				PythonOptions.MAX_BUNDLE_TIME_MILLS.key(),
+				String.valueOf(PythonOptions.MAX_BUNDLE_TIME_MILLS.defaultValue())));
 			if (this.maxBundleTimeMills <= 0L) {
 				this.maxBundleTimeMills = PythonOptions.MAX_BUNDLE_TIME_MILLS.defaultValue();
 				LOG.error("Invalid value for the maximum bundle time. Using default value of " +
