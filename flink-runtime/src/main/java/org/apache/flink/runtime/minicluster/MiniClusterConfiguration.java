@@ -30,8 +30,6 @@ import org.apache.flink.util.StringUtils;
 
 import javax.annotation.Nullable;
 
-import scala.concurrent.duration.FiniteDuration;
-
 import static org.apache.flink.runtime.minicluster.RpcServiceSharing.SHARED;
 
 /**
@@ -104,8 +102,7 @@ public class MiniClusterConfiguration {
 	}
 
 	public Time getRpcTimeout() {
-		FiniteDuration duration = AkkaUtils.getTimeout(configuration);
-		return Time.of(duration.length(), duration.unit());
+		return AkkaUtils.getTimeoutAsTime(configuration);
 	}
 
 	public UnmodifiableConfiguration getConfiguration() {

@@ -52,12 +52,11 @@ import javax.annotation.Nullable;
 
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-
-import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Encapsulates the functionality necessary to submit a program to a remote cluster.
@@ -75,7 +74,7 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 	protected final Configuration flinkConfig;
 
 	/** Timeout for futures. */
-	protected final FiniteDuration timeout;
+	protected final Duration timeout;
 	/**
 	 * For interactive invocations, the job results are only available after the ContextEnvironment has
 	 * been run inside the user JAR. We pass the Client to every instance of the ContextEnvironment

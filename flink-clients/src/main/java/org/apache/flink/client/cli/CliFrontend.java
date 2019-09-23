@@ -73,6 +73,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -83,8 +84,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import scala.concurrent.duration.FiniteDuration;
 
 /**
  * Implementation of a simple command line frontend for executing programs.
@@ -113,7 +112,7 @@ public class CliFrontend {
 
 	private final Options customCommandLineOptions;
 
-	private final FiniteDuration clientTimeout;
+	private final Duration clientTimeout;
 
 	private final int defaultParallelism;
 

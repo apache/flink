@@ -39,11 +39,10 @@ import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -152,7 +151,7 @@ public class JobManagerSharedServices {
 				FlinkUserCodeClassLoaders.ResolveOrder.fromString(classLoaderResolveOrder),
 				alwaysParentFirstLoaderPatterns);
 
-		final FiniteDuration timeout;
+		final Duration timeout;
 		try {
 			timeout = AkkaUtils.getTimeout(config);
 		} catch (NumberFormatException e) {

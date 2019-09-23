@@ -109,6 +109,14 @@ public class TimeUtils {
 	}
 
 	/**
+	 * @param duration to convert to string
+	 * @return duration string in millis
+	 */
+	public static String getStringInMillis(final Duration duration) {
+		return duration.toMillis() + TimeUnit.MILLISECONDS.labels.get(0);
+	}
+
+	/**
 	 * Enum which defines time unit, mostly used to parse value from configuration file.
 	 */
 	private enum TimeUnit {

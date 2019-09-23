@@ -20,6 +20,9 @@ package org.apache.flink.util;
 
 import org.junit.Test;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -165,5 +168,12 @@ public class TimeUtilsTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testParseDurationNumberOverflow() {
 		TimeUtils.parseDuration("100000000000000000000000000000000 ms");
+	}
+
+	@Test
+	public void testGetStringInMillis() {
+		assertEquals("4567ms", TimeUtils.getStringInMillis(Duration.ofMillis(4567L)));
+		assertEquals("4567000ms", TimeUtils.getStringInMillis(Duration.ofSeconds(4567L)));
+		assertEquals("4ms", TimeUtils.getStringInMillis(Duration.of(4567L, ChronoUnit.MICROS)));
 	}
 }
