@@ -22,13 +22,9 @@ package org.apache.flink.ml.common;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.api.misc.param.WithParams;
-import org.apache.flink.ml.batchoperator.source.TableSourceBatchOp;
 import org.apache.flink.ml.params.shared.HasMLEnvironmentId;
-import org.apache.flink.ml.streamoperator.source.TableSourceStreamOp;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.api.internal.TableImpl;
-import org.apache.flink.table.api.java.StreamTableEnvironment;
 
 import java.io.Serializable;
 
@@ -77,9 +73,6 @@ public abstract class AlgoOperator<T extends AlgoOperator <T>>
 
 	@Override
 	public Params getParams() {
-		if (null == this.params) {
-			this.params = new Params();
-		}
 		return this.params;
 	}
 
@@ -139,18 +132,5 @@ public abstract class AlgoOperator<T extends AlgoOperator <T>>
 	@Override
 	public String toString() {
 		return getOutput().toString();
-	}
-
-	/**
-	 * create a new AlgoOperator from table.
-	 * @param table the input table
-	 * @return the new AlgoOperator
-	 */
-	public static AlgoOperator<?> sourceFrom(Table table) {
-		if (((TableImpl) table).getTableEnvironment() instanceof StreamTableEnvironment) {
-			return new TableSourceStreamOp(table);
-		} else {
-			return new TableSourceBatchOp(table);
-		}
 	}
 }
