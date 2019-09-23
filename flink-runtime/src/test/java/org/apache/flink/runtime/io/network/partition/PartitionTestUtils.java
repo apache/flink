@@ -31,7 +31,7 @@ import org.hamcrest.Matchers;
 
 import java.io.IOException;
 
-import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
+import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledFinishedBufferConsumer;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
@@ -117,7 +117,7 @@ public enum PartitionTestUtils {
 			int numberOfBuffers,
 			int bufferSize) throws IOException {
 		for (int i = 0; i < numberOfBuffers; i++) {
-			partition.addBufferConsumer(createFilledBufferConsumer(bufferSize, bufferSize), 0);
+			partition.addBufferConsumer(createFilledFinishedBufferConsumer(bufferSize), 0);
 		}
 		partition.finish();
 	}

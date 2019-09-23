@@ -46,9 +46,9 @@ public class RecordWriterBuilder {
 
 	public RecordWriter build(ResultPartitionWriter writer) {
 		if (selector.isBroadcast()) {
-			return new BroadcastRecordWriter(writer, selector, timeout, taskName);
+			return new BroadcastRecordWriter(writer, timeout, taskName);
 		} else {
-			return new RecordWriter(writer, selector, timeout, taskName);
+			return new ChannelSelectorRecordWriter(writer, selector, timeout, taskName);
 		}
 	}
 }

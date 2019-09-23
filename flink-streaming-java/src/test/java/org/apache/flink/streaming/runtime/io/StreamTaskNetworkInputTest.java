@@ -25,9 +25,9 @@ import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpanningRecordSerializer;
 import org.apache.flink.runtime.io.network.api.serialization.SpillingAdaptiveSpanningRecordDeserializer;
-import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilder;
 import org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils;
+import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.StreamTestSingleInputGate;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
@@ -74,13 +74,12 @@ public class StreamTaskNetworkInputTest {
 	@Test
 	public void testIsAvailableWithBufferedDataInDeserializer() throws Exception {
 		BufferBuilder bufferBuilder = BufferBuilderTestUtils.createEmptyBufferBuilder(PAGE_SIZE);
+		BufferConsumer bufferConsumer = bufferBuilder.createBufferConsumer();
 
 		serializeRecord(42L, bufferBuilder);
 		serializeRecord(44L, bufferBuilder);
 
-		Buffer buffer = bufferBuilder.createBufferConsumer().build();
-
-		List<BufferOrEvent> buffers = Collections.singletonList(new BufferOrEvent(buffer, 0, false));
+		List<BufferOrEvent> buffers = Collections.singletonList(new BufferOrEvent(bufferConsumer.build(), 0, false));
 
 		VerifyRecordsDataOutput output = new VerifyRecordsDataOutput<>();
 		StreamTaskNetworkInput input = new StreamTaskNetworkInput<>(

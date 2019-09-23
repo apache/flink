@@ -83,6 +83,16 @@ import static org.mockito.Mockito.when;
  */
 public class RecordWriterTest {
 
+	private final boolean isBroadcastWriter;
+
+	public RecordWriterTest() {
+		this(false);
+	}
+
+	RecordWriterTest(boolean isBroadcastWriter) {
+		this.isBroadcastWriter = isBroadcastWriter;
+	}
+
 	@Rule
 	public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -132,7 +142,7 @@ public class RecordWriterTest {
 
 			ResultPartitionWriter partitionWriter = new RecyclingPartitionWriter(bufferProvider);
 
-			final RecordWriter<IntValue> recordWriter = new RecordWriterBuilder().build(partitionWriter);
+			final RecordWriter<IntValue> recordWriter = createRecordWriter(partitionWriter);
 
 			Future<?> result = executor.submit(new Callable<Void>() {
 				@Override
@@ -184,7 +194,7 @@ public class RecordWriterTest {
 		ResultPartitionWriter partitionWriter =
 			spy(new RecyclingPartitionWriter(new TestPooledBufferProvider(1, 16)));
 
-		RecordWriter<IntValue> recordWriter = new RecordWriterBuilder().build(partitionWriter);
+		RecordWriter<IntValue> recordWriter = createRecordWriter(partitionWriter);
 
 		// Fill a buffer, but don't write it out.
 		recordWriter.emit(new IntValue(0));
@@ -214,7 +224,7 @@ public class RecordWriterTest {
 		TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, bufferSize);
 
 		ResultPartitionWriter partitionWriter = new CollectingPartitionWriter(queues, bufferProvider);
-		RecordWriter<ByteArrayIO> writer = new RecordWriterBuilder().build(partitionWriter);
+		RecordWriter<ByteArrayIO> writer = createRecordWriter(partitionWriter);
 		CheckpointBarrier barrier = new CheckpointBarrier(Integer.MAX_VALUE + 919192L, Integer.MAX_VALUE + 18828228L, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		// No records emitted yet, broadcast should not request a buffer
@@ -251,53 +261,66 @@ public class RecordWriterTest {
 		TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, bufferSize);
 
 		ResultPartitionWriter partitionWriter = new CollectingPartitionWriter(queues, bufferProvider);
-		RecordWriter<ByteArrayIO> writer = new RecordWriterBuilder().build(partitionWriter);
+		RecordWriter<ByteArrayIO> writer = createRecordWriter(partitionWriter);
 		CheckpointBarrier barrier = new CheckpointBarrier(Integer.MAX_VALUE + 1292L, Integer.MAX_VALUE + 199L, CheckpointOptions.forCheckpointWithDefaultLocation());
 
 		// Emit records on some channels first (requesting buffers), then
 		// broadcast the event. The record buffers should be emitted first, then
 		// the event. After the event, no new buffer should be requested.
 
-		// (i) Smaller than the buffer size (single buffer request => 1)
+		// (i) Smaller than the buffer size
 		byte[] bytes = new byte[bufferSize / 2];
 		rand.nextBytes(bytes);
 
 		writer.emit(new ByteArrayIO(bytes));
 
-		// (ii) Larger than the buffer size (two buffer requests => 1 + 2)
+		// (ii) Larger than the buffer size
 		bytes = new byte[bufferSize + 1];
 		rand.nextBytes(bytes);
 
 		writer.emit(new ByteArrayIO(bytes));
 
-		// (iii) Exactly the buffer size (single buffer request => 1 + 2 + 1)
+		// (iii) Exactly the buffer size
 		bytes = new byte[bufferSize - lenBytes];
 		rand.nextBytes(bytes);
 
 		writer.emit(new ByteArrayIO(bytes));
 
-		// (iv) Nothing on the 4th channel (no buffer request => 1 + 2 + 1 + 0 = 4)
-
-		// (v) Broadcast the event
+		// (iv) Broadcast the event
 		writer.broadcastEvent(barrier);
 
-		assertEquals(4, bufferProvider.getNumberOfCreatedBuffers());
+		if (isBroadcastWriter) {
+			assertEquals(3, bufferProvider.getNumberOfCreatedBuffers());
 
-		BufferOrEvent boe;
-		assertEquals(2, queues[0].size()); // 1 buffer + 1 event
-		assertTrue(parseBuffer(queues[0].remove(), 0).isBuffer());
-		assertEquals(3, queues[1].size()); // 2 buffers + 1 event
-		assertTrue(parseBuffer(queues[1].remove(), 1).isBuffer());
-		assertTrue(parseBuffer(queues[1].remove(), 1).isBuffer());
-		assertEquals(2, queues[2].size()); // 1 buffer + 1 event
-		assertTrue(parseBuffer(queues[2].remove(), 2).isBuffer());
-		assertEquals(1, queues[3].size()); // 0 buffers + 1 event
+			for (int i = 0; i < numberOfChannels; i++) {
+				assertEquals(4, queues[i].size()); // 3 buffer + 1 event
 
-		// every queue's last element should be the event
-		for (int i = 0; i < numberOfChannels; i++) {
-			boe = parseBuffer(queues[i].remove(), i);
-			assertTrue(boe.isEvent());
-			assertEquals(barrier, boe.getEvent());
+				for (int j = 0; j < 3; j++) {
+					assertTrue(parseBuffer(queues[i].remove(), 0).isBuffer());
+				}
+
+				BufferOrEvent boe = parseBuffer(queues[i].remove(), i);
+				assertTrue(boe.isEvent());
+				assertEquals(barrier, boe.getEvent());
+			}
+		} else {
+			assertEquals(4, bufferProvider.getNumberOfCreatedBuffers());
+
+			assertEquals(2, queues[0].size()); // 1 buffer + 1 event
+			assertTrue(parseBuffer(queues[0].remove(), 0).isBuffer());
+			assertEquals(3, queues[1].size()); // 2 buffers + 1 event
+			assertTrue(parseBuffer(queues[1].remove(), 1).isBuffer());
+			assertTrue(parseBuffer(queues[1].remove(), 1).isBuffer());
+			assertEquals(2, queues[2].size()); // 1 buffer + 1 event
+			assertTrue(parseBuffer(queues[2].remove(), 2).isBuffer());
+			assertEquals(1, queues[3].size()); // 0 buffers + 1 event
+
+			// every queue's last element should be the event
+			for (int i = 0; i < numberOfChannels; i++) {
+				BufferOrEvent boe = parseBuffer(queues[i].remove(), i);
+				assertTrue(boe.isEvent());
+				assertEquals(barrier, boe.getEvent());
+			}
 		}
 	}
 
@@ -313,7 +336,7 @@ public class RecordWriterTest {
 
 		ResultPartitionWriter partition =
 			new CollectingPartitionWriter(queues, new TestPooledBufferProvider(Integer.MAX_VALUE));
-		RecordWriter<?> writer = new RecordWriterBuilder().build(partition);
+		RecordWriter<?> writer = createRecordWriter(partition);
 
 		writer.broadcastEvent(EndOfPartitionEvent.INSTANCE);
 
@@ -353,20 +376,45 @@ public class RecordWriterTest {
 	}
 
 	/**
-	 * Tests that records are broadcast via {@link ChannelSelector} and
-	 * {@link RecordWriter#emit(IOReadableWritable)}.
-	 */
-	@Test
-	public void testEmitRecordWithBroadcastPartitioner() throws Exception {
-		emitRecordWithBroadcastPartitionerOrBroadcastEmitRecord(false);
-	}
-
-	/**
 	 * Tests that records are broadcast via {@link RecordWriter#broadcastEmit(IOReadableWritable)}.
 	 */
 	@Test
 	public void testBroadcastEmitRecord() throws Exception {
-		emitRecordWithBroadcastPartitionerOrBroadcastEmitRecord(true);
+		final int numberOfChannels = 4;
+		final int bufferSize = 32;
+		final int numValues = 8;
+		final int serializationLength = 4;
+
+		@SuppressWarnings("unchecked")
+		final Queue<BufferConsumer>[] queues = new Queue[numberOfChannels];
+		for (int i = 0; i < numberOfChannels; i++) {
+			queues[i] = new ArrayDeque<>();
+		}
+
+		final TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, bufferSize);
+		final ResultPartitionWriter partitionWriter = new CollectingPartitionWriter(queues, bufferProvider);
+		final RecordWriter<SerializationTestType> writer = createRecordWriter(partitionWriter);
+		final RecordDeserializer<SerializationTestType> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<>(
+			new String[]{ tempFolder.getRoot().getAbsolutePath() });
+
+		final ArrayDeque<SerializationTestType> serializedRecords = new ArrayDeque<>();
+		final Iterable<SerializationTestType> records = Util.randomRecords(numValues, SerializationTestTypeFactory.INT);
+		for (SerializationTestType record : records) {
+			serializedRecords.add(record);
+			writer.broadcastEmit(record);
+		}
+
+		final int numRequiredBuffers = numValues / (bufferSize / (4 + serializationLength));
+		if (isBroadcastWriter) {
+			assertEquals(numRequiredBuffers, bufferProvider.getNumberOfCreatedBuffers());
+		} else {
+			assertEquals(numRequiredBuffers * numberOfChannels, bufferProvider.getNumberOfCreatedBuffers());
+		}
+
+		for (int i = 0; i < numberOfChannels; i++) {
+			assertEquals(numRequiredBuffers, queues[i].size());
+			verifyDeserializationResults(queues[i], deserializer, serializedRecords.clone(), numRequiredBuffers, numValues);
+		}
 	}
 
 	private void verifyBroadcastBufferOrEventIndependence(boolean broadcastEvent) throws Exception {
@@ -375,7 +423,7 @@ public class RecordWriterTest {
 
 		ResultPartitionWriter partition =
 			new CollectingPartitionWriter(queues, new TestPooledBufferProvider(Integer.MAX_VALUE));
-		RecordWriter<IntValue> writer = new RecordWriterBuilder().build(partition);
+		RecordWriter<IntValue> writer = createRecordWriter(partition);
 
 		if (broadcastEvent) {
 			writer.broadcastEvent(EndOfPartitionEvent.INSTANCE);
@@ -396,59 +444,32 @@ public class RecordWriterTest {
 		assertEquals("Buffer 2 shares the same reader index as buffer 1", 0, buffer2.getReaderIndex());
 	}
 
+	protected void verifyDeserializationResults(
+			Queue<BufferConsumer> queue,
+			RecordDeserializer<SerializationTestType> deserializer,
+			ArrayDeque<SerializationTestType> expectedRecords,
+			int numRequiredBuffers,
+			int numValues) throws Exception {
+		int assertRecords = 0;
+		for (int j = 0; j < numRequiredBuffers; j++) {
+			Buffer buffer = buildSingleBuffer(queue.remove());
+			deserializer.setNextBuffer(buffer);
+
+			assertRecords += DeserializationUtils.deserializeRecords(expectedRecords, deserializer);
+		}
+		Assert.assertEquals(numValues, assertRecords);
+	}
+
 	/**
-	 * The results of emitting records via BroadcastPartitioner or broadcasting records directly are the same,
-	 * that is all the target channels can receive the whole outputs.
-	 *
-	 * @param isBroadcastEmit whether using {@link RecordWriter#broadcastEmit(IOReadableWritable)} or not
+	 * Creates the {@link RecordWriter} instance based on whether it is a broadcast writer.
 	 */
-	private void emitRecordWithBroadcastPartitionerOrBroadcastEmitRecord(boolean isBroadcastEmit) throws Exception {
-		final int numberOfChannels = 4;
-		final int bufferSize = 32;
-		final int numValues = 8;
-		final int serializationLength = 4;
-
-		@SuppressWarnings("unchecked")
-		final Queue<BufferConsumer>[] queues = new Queue[numberOfChannels];
-		for (int i = 0; i < numberOfChannels; i++) {
-			queues[i] = new ArrayDeque<>();
-		}
-
-		final TestPooledBufferProvider bufferProvider = new TestPooledBufferProvider(Integer.MAX_VALUE, bufferSize);
-		final ResultPartitionWriter partitionWriter = new CollectingPartitionWriter(queues, bufferProvider);
-		final ChannelSelector selector = new OutputEmitter(ShipStrategyType.BROADCAST, 0);
-		final RecordWriter<SerializationTestType> writer = new RecordWriterBuilder()
-			.setChannelSelector(selector)
-			.setTimeout(0)
-			.build(partitionWriter);
-		final RecordDeserializer<SerializationTestType> deserializer = new SpillingAdaptiveSpanningRecordDeserializer<>(
-			new String[]{ tempFolder.getRoot().getAbsolutePath() });
-
-		final ArrayDeque<SerializationTestType> serializedRecords = new ArrayDeque<>();
-		final Iterable<SerializationTestType> records = Util.randomRecords(numValues, SerializationTestTypeFactory.INT);
-		for (SerializationTestType record : records) {
-			serializedRecords.add(record);
-
-			if (isBroadcastEmit) {
-				writer.broadcastEmit(record);
-			} else {
-				writer.emit(record);
-			}
-		}
-
-		final int requiredBuffers = numValues / (bufferSize / (4 + serializationLength));
-		for (int i = 0; i < numberOfChannels; i++) {
-			assertEquals(requiredBuffers, queues[i].size());
-
-			final ArrayDeque<SerializationTestType> expectedRecords = serializedRecords.clone();
-			int assertRecords = 0;
-			for (int j = 0; j < requiredBuffers; j++) {
-				Buffer buffer = buildSingleBuffer(queues[i].remove());
-				deserializer.setNextBuffer(buffer);
-
-				assertRecords += DeserializationUtils.deserializeRecords(expectedRecords, deserializer);
-			}
-			Assert.assertEquals(numValues, assertRecords);
+	private RecordWriter createRecordWriter(ResultPartitionWriter writer) {
+		if (isBroadcastWriter) {
+			return new RecordWriterBuilder()
+				.setChannelSelector(new OutputEmitter(ShipStrategyType.BROADCAST, 0))
+				.build(writer);
+		} else {
+			return new RecordWriterBuilder().build(writer);
 		}
 	}
 
@@ -459,7 +480,7 @@ public class RecordWriterTest {
 	/**
 	 * Partition writer that collects the added buffers/events in multiple queue.
 	 */
-	private static class CollectingPartitionWriter implements ResultPartitionWriter {
+	static class CollectingPartitionWriter implements ResultPartitionWriter {
 		private final Queue<BufferConsumer>[] queues;
 		private final BufferProvider bufferProvider;
 		private final ResultPartitionID partitionId = new ResultPartitionID();
@@ -470,7 +491,7 @@ public class RecordWriterTest {
 		 * @param queues one queue per outgoing channel
 		 * @param bufferProvider buffer provider
 		 */
-		private CollectingPartitionWriter(Queue<BufferConsumer>[] queues, BufferProvider bufferProvider) {
+		CollectingPartitionWriter(Queue<BufferConsumer>[] queues, BufferProvider bufferProvider) {
 			this.queues = queues;
 			this.bufferProvider = bufferProvider;
 		}
