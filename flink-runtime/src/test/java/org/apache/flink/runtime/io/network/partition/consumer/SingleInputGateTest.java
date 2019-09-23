@@ -605,7 +605,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 
 	/**
 	 * Tests that if the {@link PartitionNotFoundException} is set onto one {@link InputChannel},
-	 * then it would be thrown directly via {@link SingleInputGate#getNextBufferOrEvent()}. So we
+	 * then it would be thrown directly via {@link SingleInputGate#getNext()}. So we
 	 * could confirm the {@link SingleInputGate} would not swallow or transform the original exception.
 	 */
 	@Test
