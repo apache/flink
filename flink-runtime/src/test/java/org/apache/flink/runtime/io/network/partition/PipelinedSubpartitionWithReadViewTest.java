@@ -308,7 +308,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 		final int numberOfAddedBuffers = 5;
 
 		for (int i = 1; i <= numberOfAddedBuffers; i++) {
-			final BufferBuilder bufferBuilder = createFilledBufferBuilder(1024, 10);
+			final BufferBuilder bufferBuilder = createFilledBufferBuilder(BUFFER_SIZE);
 			subpartition.add(bufferBuilder.createBufferConsumer());
 
 			if (i < numberOfAddedBuffers || isFinished) {
