@@ -20,6 +20,7 @@ package org.apache.flink.runtime.akka
 
 import java.io.IOException
 import java.net._
+import java.time
 import java.util.concurrent.{Callable, CompletableFuture, TimeUnit}
 
 import akka.actor._
@@ -31,6 +32,7 @@ import org.apache.flink.runtime.clusterframework.BootstrapTools.{FixedThreadPool
 import org.apache.flink.runtime.concurrent.FutureUtils
 import org.apache.flink.runtime.net.SSLUtils
 import org.apache.flink.util.NetUtils
+import org.apache.flink.util.TimeUtils
 import org.apache.flink.util.function.FunctionUtils
 import org.jboss.netty.channel.ChannelException
 import org.jboss.netty.logging.{InternalLoggerFactory, Slf4JLoggerFactory}
@@ -48,8 +50,6 @@ import scala.language.postfixOps
  */
 object AkkaUtils {
   val LOG: Logger = LoggerFactory.getLogger(AkkaUtils.getClass)
-
-  val INF_TIMEOUT: FiniteDuration = 21474835 seconds
 
   val FLINK_ACTOR_SYSTEM_NAME = "flink"
 
@@ -728,15 +728,13 @@ object AkkaUtils {
     }
   }
 
-  def getTimeout(config: Configuration): FiniteDuration = {
-    val duration = Duration(config.getString(AkkaOptions.ASK_TIMEOUT))
-
-    new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
+  def getTimeout(config: Configuration): time.Duration = {
+    return TimeUtils.parseDuration(config.getString(AkkaOptions.ASK_TIMEOUT))
   }
 
   def getTimeoutAsTime(config: Configuration): Time = {
     try {
-      val duration = Duration(config.getString(AkkaOptions.ASK_TIMEOUT))
+      val duration = getTimeout(config)
 
       Time.milliseconds(duration.toMillis)
     } catch {
@@ -746,38 +744,17 @@ object AkkaUtils {
   }
 
   def getDefaultTimeout: Time = {
-    val duration = Duration(AkkaOptions.ASK_TIMEOUT.defaultValue())
+    val duration = TimeUtils.parseDuration(AkkaOptions.ASK_TIMEOUT.defaultValue())
 
     Time.milliseconds(duration.toMillis)
   }
 
-  def getDefaultTimeoutAsFiniteDuration: FiniteDuration = {
-    val timeout = getDefaultTimeout
-
-    new FiniteDuration(timeout.toMilliseconds, TimeUnit.MILLISECONDS)
+  def getLookupTimeout(config: Configuration): time.Duration = {
+    return TimeUtils.parseDuration(config.getString(AkkaOptions.LOOKUP_TIMEOUT))
   }
 
-  def getLookupTimeout(config: Configuration): FiniteDuration = {
-    val duration = Duration(config.getString(AkkaOptions.LOOKUP_TIMEOUT))
-
-    new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
-  }
-
-  def getDefaultLookupTimeout: FiniteDuration = {
-    val duration = Duration(AkkaOptions.LOOKUP_TIMEOUT.defaultValue())
-    new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
-  }
-
-  def getClientTimeout(config: Configuration): FiniteDuration = {
-    val duration = Duration(config.getString(AkkaOptions.CLIENT_TIMEOUT))
-
-    new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
-  }
-
-  def getDefaultClientTimeout: FiniteDuration = {
-    val duration = Duration(AkkaOptions.CLIENT_TIMEOUT.defaultValue())
-
-    new FiniteDuration(duration.toMillis, TimeUnit.MILLISECONDS)
+  def getClientTimeout(config: Configuration): time.Duration = {
+    return TimeUtils.parseDuration(config.getString(AkkaOptions.CLIENT_TIMEOUT))
   }
 
   /** Returns the address of the given [[ActorSystem]]. The [[Address]] object contains

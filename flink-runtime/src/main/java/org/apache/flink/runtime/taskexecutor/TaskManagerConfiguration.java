@@ -186,9 +186,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 		final String[] tmpDirPaths = ConfigurationUtils.parseTempDirectories(configuration);
 
 		final Time timeout;
-
 		try {
-			timeout = Time.milliseconds(AkkaUtils.getTimeout(configuration).toMillis());
+			timeout = AkkaUtils.getTimeoutAsTime(configuration);
 		} catch (Exception e) {
 			throw new IllegalArgumentException(
 				"Invalid format for '" + AkkaOptions.ASK_TIMEOUT.key() +
