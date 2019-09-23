@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.runtime.jobgraph.JobStatus;
-import org.apache.flink.util.FlinkRuntimeException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,31 +54,26 @@ public interface CompletedCheckpointStore {
 	 * added.
 	 */
 	default CompletedCheckpoint getLatestCheckpoint(boolean isPreferCheckpointForRecovery) throws Exception {
-		if (getAllCheckpoints().isEmpty()) {
+		List<CompletedCheckpoint> allCheckpoints = getAllCheckpoints();
+		if (allCheckpoints.isEmpty()) {
 			return null;
 		}
 
-		CompletedCheckpoint candidate = getAllCheckpoints().get(getAllCheckpoints().size() - 1);
-		if (isPreferCheckpointForRecovery && getAllCheckpoints().size() > 1) {
-			List<CompletedCheckpoint> allCheckpoints;
-			try {
-				allCheckpoints = getAllCheckpoints();
-				ListIterator<CompletedCheckpoint> listIterator = allCheckpoints.listIterator(allCheckpoints.size() - 1);
-				while (listIterator.hasPrevious()) {
-					CompletedCheckpoint prev = listIterator.previous();
-					if (!prev.getProperties().isSavepoint()) {
-						candidate = prev;
-						LOG.info("Found a completed checkpoint before the latest savepoint, will use it to recover!");
-						break;
-					}
+		CompletedCheckpoint lastCompleted = allCheckpoints.get(allCheckpoints.size() - 1);
+
+		if (isPreferCheckpointForRecovery && allCheckpoints.size() > 1 && lastCompleted.getProperties().isSavepoint()) {
+			ListIterator<CompletedCheckpoint> listIterator = allCheckpoints.listIterator(allCheckpoints.size() - 1);
+			while (listIterator.hasPrevious()) {
+				CompletedCheckpoint prev = listIterator.previous();
+				if (!prev.getProperties().isSavepoint()) {
+					LOG.info("Found a completed checkpoint ({}) before the latest savepoint, will use it to recover!", prev);
+					return prev;
 				}
-			} catch (Exception e) {
-				LOG.error("Method getAllCheckpoints caused exception : ", e);
-				throw new FlinkRuntimeException(e);
 			}
+			LOG.info("Did not find earlier checkpoint, using latest savepoint to recover.");
 		}
 
-		return candidate;
+		return lastCompleted;
 	}
 
 	/**
