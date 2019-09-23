@@ -112,10 +112,6 @@ public enum PartitionTestUtils {
 			true);
 	}
 
-	public static ResultPartitionDeploymentDescriptor createPartitionDeploymentDescriptor() {
-		return createPartitionDeploymentDescriptor(ResultPartitionType.BLOCKING);
-	}
-
 	public static void writeBuffers(
 			ResultPartitionWriter partition,
 			int numberOfBuffers,
