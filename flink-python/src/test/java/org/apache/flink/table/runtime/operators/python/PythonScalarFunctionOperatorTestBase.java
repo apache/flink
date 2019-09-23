@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.python;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
@@ -74,7 +75,10 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 	@Test
 	public void testFinishBundleTriggeredOnCheckpoint() throws Exception {
 		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness();
-		testHarness.getEnvironment().getTaskConfiguration().setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+
+		Configuration conf = new Configuration();
+		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+		testHarness.getExecutionConfig().setGlobalJobParameters(conf);
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -96,7 +100,9 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 	@Test
 	public void testFinishBundleTriggeredByCount() throws Exception {
 		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness();
-		testHarness.getEnvironment().getTaskConfiguration().setInteger(PythonOptions.MAX_BUNDLE_SIZE, 2);
+		Configuration conf = new Configuration();
+		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 2);
+		testHarness.getExecutionConfig().setGlobalJobParameters(conf);
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -118,8 +124,10 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 	@Test
 	public void testFinishBundleTriggeredByTime() throws Exception {
 		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness();
-		testHarness.getEnvironment().getTaskConfiguration().setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-		testHarness.getEnvironment().getTaskConfiguration().setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
+		Configuration conf = new Configuration();
+		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+		conf.setLong(PythonOptions.MAX_BUNDLE_TIME_MILLS, 1000L);
+		testHarness.getExecutionConfig().setGlobalJobParameters(conf);
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -139,7 +147,9 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 	@Test
 	public void testFinishBundleTriggeredByClose() throws Exception {
 		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness();
-		testHarness.getEnvironment().getTaskConfiguration().setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+		Configuration conf = new Configuration();
+		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+		testHarness.getExecutionConfig().setGlobalJobParameters(conf);
 
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
@@ -157,8 +167,9 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 	@Test
 	public void testWatermarkProcessedOnFinishBundle() throws Exception {
 		OneInputStreamOperatorTestHarness<IN, OUT> testHarness = getTestHarness();
-		testHarness.getEnvironment().getTaskConfiguration().setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
-
+		Configuration conf = new Configuration();
+		conf.setInteger(PythonOptions.MAX_BUNDLE_SIZE, 10);
+		testHarness.getExecutionConfig().setGlobalJobParameters(conf);
 		long initialTime = 0L;
 		ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
 
