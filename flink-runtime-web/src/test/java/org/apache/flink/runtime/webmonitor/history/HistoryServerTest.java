@@ -24,6 +24,7 @@ import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -54,6 +55,7 @@ import java.io.InputStream;
 import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
@@ -125,9 +127,13 @@ public class HistoryServerTest extends TestLogger {
 
 		CountDownLatch numExpectedArchivedJobs = new CountDownLatch(numJobs + numLegacyJobs);
 
-		Configuration historyServerConfig = createTestConfiguration();
+		Configuration historyServerConfig = createTestConfiguration(false);
 
-		HistoryServer hs = new HistoryServer(historyServerConfig, numExpectedArchivedJobs);
+		HistoryServer hs = new HistoryServer(historyServerConfig, (event) -> {
+			if (event.getType() == HistoryServerArchiveFetcher.ArchiveEventType.CREATED) {
+				numExpectedArchivedJobs.countDown();
+			}
+		});
 
 		try {
 			hs.start();
@@ -135,7 +141,75 @@ public class HistoryServerTest extends TestLogger {
 			numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS);
 
 			Assert.assertEquals(numJobs + numLegacyJobs, getJobsOverview(baseUrl).getJobs().size());
+		} finally {
+			hs.stop();
+		}
+	}
 
+	@Test
+	public void testCleanExpiredJob() throws Exception {
+		runArchiveExpirationTest(true);
+	}
+
+	@Test
+	public void testRemainExpiredJob() throws Exception {
+		runArchiveExpirationTest(false);
+	}
+
+	private void runArchiveExpirationTest(boolean cleanupExpiredJobs) throws Exception {
+		int numExpiredJobs = cleanupExpiredJobs ? 1 : 0;
+		int numJobs = 3;
+		for (int x = 0; x < numJobs; x++) {
+			runJob();
+		}
+		waitForArchivesCreation(numJobs);
+
+		CountDownLatch numExpectedArchivedJobs = new CountDownLatch(numJobs);
+		CountDownLatch numExpectedExpiredJobs = new CountDownLatch(numExpiredJobs);
+
+		Configuration historyServerConfig = createTestConfiguration(cleanupExpiredJobs);
+
+		HistoryServer hs =
+			new HistoryServer(
+				historyServerConfig,
+				(event) -> {
+					switch (event.getType()){
+						case CREATED:
+							numExpectedArchivedJobs.countDown();
+							break;
+						case DELETED:
+							numExpectedExpiredJobs.countDown();
+							break;
+					}
+				});
+
+		try {
+			hs.start();
+			String baseUrl = "http://localhost:" + hs.getWebPort();
+			numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS);
+
+			Collection<JobDetails> jobs = getJobsOverview(baseUrl).getJobs();
+			Assert.assertEquals(numJobs, jobs.size());
+
+			String jobIdToDelete = jobs.stream()
+				.findFirst()
+				.map(JobDetails::getJobId)
+				.map(JobID::toString)
+				.orElseThrow(() -> new IllegalStateException("Expected at least one existing job"));
+
+			// delete one archive from jm
+			Files.deleteIfExists(jmDirectory.toPath().resolve(jobIdToDelete));
+
+			numExpectedExpiredJobs.await(10L, TimeUnit.SECONDS);
+
+			// check that archive is present in hs
+			Collection<JobDetails> jobsAfterDeletion = getJobsOverview(baseUrl).getJobs();
+			Assert.assertEquals(numJobs - numExpiredJobs, jobsAfterDeletion.size());
+			Assert.assertEquals(1 - numExpiredJobs, jobsAfterDeletion.stream()
+				.map(JobDetails::getJobId)
+				.map(JobID::toString)
+				.filter(jobId -> jobId.equals(jobIdToDelete))
+				.count());
 		} finally {
 			hs.stop();
 		}
@@ -150,17 +224,19 @@ public class HistoryServerTest extends TestLogger {
 		}
 	}
 
-	private Configuration createTestConfiguration() {
+	private Configuration createTestConfiguration(boolean cleanupExpiredJobs) {
 		Configuration historyServerConfig = new Configuration();
 		historyServerConfig.setString(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS, jmDirectory.toURI().toString());
 		historyServerConfig.setString(HistoryServerOptions.HISTORY_SERVER_WEB_DIR, hsDirectory.getAbsolutePath());
 		historyServerConfig.setLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL, 100L);
 
+		historyServerConfig.setBoolean(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS, cleanupExpiredJobs);
+
 		historyServerConfig.setInteger(HistoryServerOptions.HISTORY_SERVER_WEB_PORT, 0);
 		return historyServerConfig;
 	}
 
-	private MultipleJobsDetails getJobsOverview(String baseUrl) throws Exception {
+	private static MultipleJobsDetails getJobsOverview(String baseUrl) throws Exception {
 		String response = getFromHTTP(baseUrl + JobsOverviewHeaders.URL);
 		return OBJECT_MAPPER.readValue(response, MultipleJobsDetails.class);
 	}
@@ -172,7 +248,7 @@ public class HistoryServerTest extends TestLogger {
 		env.execute();
 	}
 
-	public static String getFromHTTP(String url) throws Exception {
+	static String getFromHTTP(String url) throws Exception {
 		URL u = new URL(url);
 		HttpURLConnection connection = (HttpURLConnection) u.openConnection();
 		connection.setConnectTimeout(100000);

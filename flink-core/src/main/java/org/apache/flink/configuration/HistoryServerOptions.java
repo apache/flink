@@ -47,6 +47,16 @@ public class HistoryServerOptions {
 				" directory via `jobmanager.archive.fs.dir`.");
 
 	/**
+	 * If this option is enabled then deleted job archives are also deleted from HistoryServer.
+	 */
+	public static final ConfigOption<Boolean> HISTORY_SERVER_CLEANUP_EXPIRED_JOBS =
+		key("historyserver.archive.clean-expired-jobs")
+			.defaultValue(false)
+			.withDescription(
+				String.format("Whether HistoryServer should cleanup jobs" +
+					" that are no longer present `%s`.", HISTORY_SERVER_ARCHIVE_DIRS.key()));
+
+	/**
 	 * The local directory used by the HistoryServer web-frontend.
 	 */
 	public static final ConfigOption<String> HISTORY_SERVER_WEB_DIR =
