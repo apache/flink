@@ -364,10 +364,10 @@ object AkkaUtils {
   }
 
   private def validateHeartbeat(pauseParamName: String,
-                                pauseValue: String,
+                                pauseValue: time.Duration,
                                 intervalParamName: String,
-                                intervalValue: String): Unit = {
-    if (TimeUtils.parseDuration(pauseValue).compareTo(TimeUtils.parseDuration(intervalValue)) <= 0) {
+                                intervalValue: time.Duration): Unit = {
+    if (pauseValue.compareTo(intervalValue) <= 0) {
       throw new IllegalConfigurationException(
         "%s [%s] must greater than %s [%s]",
         pauseParamName,
@@ -399,25 +399,32 @@ object AkkaUtils {
 
     val akkaAskTimeout = getTimeout(configuration)
 
-    val startupTimeout = configuration.getString(
-      AkkaOptions.STARTUP_TIMEOUT,
-      TimeUtils.getStringInMillis(akkaAskTimeout.multipliedBy(10L)))
+    val startupTimeout = TimeUtils.getStringInMillis(
+      TimeUtils.parseDuration(
+        configuration.getString(
+          AkkaOptions.STARTUP_TIMEOUT,
+          TimeUtils.getStringInMillis(akkaAskTimeout.multipliedBy(10L)))))
 
-    val transportHeartbeatInterval = configuration.getString(
-      AkkaOptions.TRANSPORT_HEARTBEAT_INTERVAL)
+    val transportHeartbeatIntervalDuration = TimeUtils.parseDuration(
+      configuration.getString(AkkaOptions.TRANSPORT_HEARTBEAT_INTERVAL))
 
-    val transportHeartbeatPause = configuration.getString(
-      AkkaOptions.TRANSPORT_HEARTBEAT_PAUSE)
+    val transportHeartbeatPauseDuration = TimeUtils.parseDuration(
+      configuration.getString(AkkaOptions.TRANSPORT_HEARTBEAT_PAUSE))
 
     validateHeartbeat(
       AkkaOptions.TRANSPORT_HEARTBEAT_PAUSE.key(),
-      transportHeartbeatPause,
+      transportHeartbeatPauseDuration,
       AkkaOptions.TRANSPORT_HEARTBEAT_INTERVAL.key(),
-      transportHeartbeatInterval)
+      transportHeartbeatIntervalDuration)
+
+    val transportHeartbeatInterval = TimeUtils.getStringInMillis(transportHeartbeatIntervalDuration)
+
+    val transportHeartbeatPause = TimeUtils.getStringInMillis(transportHeartbeatPauseDuration)
 
     val transportThreshold = configuration.getDouble(AkkaOptions.TRANSPORT_THRESHOLD)
 
-    val akkaTCPTimeout = configuration.getString(AkkaOptions.TCP_TIMEOUT)
+    val akkaTCPTimeout = TimeUtils.getStringInMillis(
+      TimeUtils.parseDuration(configuration.getString(AkkaOptions.TCP_TIMEOUT)))
 
     val akkaFramesize = configuration.getString(AkkaOptions.FRAMESIZE)
 
