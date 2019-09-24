@@ -32,14 +32,15 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 
-import java.util.Collections;
+import java.net.URL;
+import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A PlanExecutor that runs Flink programs on a local embedded Flink runtime instance.
  *
- * <p>By simply calling the {@link #executePlan(Pipeline)} method,
+ * <p>By simply calling the {@link #executePlan(Pipeline, List, List)} method,
  * this executor still start up and shut down again immediately after the program finished.</p>
  *
  * <p>To use this executor to execute many dataflow programs that constitute one job together,
@@ -90,21 +91,11 @@ public class LocalExecutor extends PlanExecutor {
 		return miniCluster;
 	}
 
-	/**
-	 * Executes the given program on a local runtime and waits for the job to finish.
-	 *
-	 * <p>If the executor has not been started before, this starts the executor and shuts it down
-	 * after the job finished. If the job runs in session mode, the executor is kept alive until
-	 * no more references to the executor exist.</p>
-	 *
-	 * @param pipeline The pipeline of the program to execute.
-	 * @return The net runtime of the program, in milliseconds.
-	 *
-	 * @throws Exception Thrown, if either the startup of the local execution context, or the execution
-	 *                   caused an exception.
-	 */
 	@Override
-	public JobExecutionResult executePlan(Pipeline pipeline) throws Exception {
+	public JobExecutionResult executePlan(
+			Pipeline pipeline,
+			List<URL> jarFiles,
+			List<URL> globalClasspaths) throws Exception {
 		checkNotNull(pipeline);
 
 		// This is a quirk in how LocalEnvironment used to work. It sets the default parallelism

@@ -27,6 +27,8 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import javax.annotation.Nonnull;
 
+import java.util.Collections;
+
 /**
  * The LocalStreamEnvironment is a StreamExecutionEnvironment that runs the program locally,
  * multi-threaded, in the JVM where the environment is instantiated. It spawns an embedded
@@ -76,7 +78,7 @@ public class LocalStreamEnvironment extends StreamExecutionEnvironment {
 	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 		try {
 			final PlanExecutor executor = PlanExecutor.createLocalExecutor(configuration);
-			return executor.executePlan(streamGraph);
+			return executor.executePlan(streamGraph, Collections.emptyList(), Collections.emptyList());
 		} finally {
 			transformations.clear();
 		}

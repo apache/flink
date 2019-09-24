@@ -34,6 +34,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.util.Collections;
 
 /**
  * Integration tests for {@link LocalExecutor}.
@@ -62,7 +63,7 @@ public class LocalExecutorITCase extends TestLogger {
 
 			Plan wcPlan = getWordCountPlan(inFile, outFile, parallelism);
 			wcPlan.setExecutionConfig(new ExecutionConfig());
-			executor.executePlan(wcPlan);
+			executor.executePlan(wcPlan, Collections.emptyList(), Collections.emptyList());
 		} catch (Exception e) {
 			e.printStackTrace();
 			Assert.fail(e.getMessage());

@@ -23,7 +23,6 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.configuration.Configuration;
 
 import java.net.URL;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -59,11 +58,20 @@ public abstract class PlanExecutor {
 	 * immediately shut down after the execution.</p>
 	 *
 	 * @param plan The plan of the program to execute.
+	 * @param jarFiles A list of jar files that contain the user-defined function (UDF) classes
+	 * 		and all classes used from within the UDFs.
+	 * @param globalClasspaths A list of URLs that are added to the classpath of each user code
+	 * 		classloader of the program. Paths must specify a protocol (e.g. file://) and be
+	 * 		accessible
+	 * 		on all nodes.
 	 * @return The execution result, containing for example the net runtime of the program, and the
 	 * 		accumulators.
 	 * @throws Exception Thrown, if job submission caused an exception.
 	 */
-	public abstract JobExecutionResult executePlan(Pipeline plan) throws Exception;
+	public abstract JobExecutionResult executePlan(
+			Pipeline plan,
+			List<URL> jarFiles,
+			List<URL> globalClasspaths) throws Exception;
 
 	// ------------------------------------------------------------------------
 	//  Executor Factories
@@ -93,20 +101,10 @@ public abstract class PlanExecutor {
 	 * @param hostname The address of the JobManager to send the program to.
 	 * @param port The port of the JobManager to send the program to.
 	 * @param clientConfiguration The configuration for the client (Akka, default.parallelism).
-	 * @param jarFiles A list of jar files that contain the user-defined function (UDF) classes
-	 * 		and all classes used from within the UDFs.
-	 * @param globalClasspaths A list of URLs that are added to the classpath of each user code
-	 * 		classloader of the program. Paths must specify a protocol (e.g. file://) and be
-	 * 		accessible
-	 * 		on all nodes.
 	 * @return A remote executor.
 	 */
 	public static PlanExecutor createRemoteExecutor(
-			String hostname,
-			int port,
-			Configuration clientConfiguration,
-			List<URL> jarFiles,
-			List<URL> globalClasspaths) {
+			String hostname, int port, Configuration clientConfiguration) {
 		if (hostname == null) {
 			throw new IllegalArgumentException("The hostname must not be null.");
 		}
@@ -116,20 +114,14 @@ public abstract class PlanExecutor {
 
 		Class<? extends PlanExecutor> reClass = loadExecutorClass(REMOTE_EXECUTOR_CLASS);
 
-		List<URL> files = (jarFiles == null) ? Collections.<URL>emptyList() : jarFiles;
-		List<URL> paths = (globalClasspaths == null) ? Collections.<URL>emptyList() :
-				globalClasspaths;
-
 		try {
-			return (clientConfiguration == null) ? reClass
-					.getConstructor(String.class, int.class, List.class)
-					.newInstance(hostname, port, files) : reClass
-					.getConstructor(String.class,
-							int.class,
-							Configuration.class,
-							List.class,
-							List.class)
-					.newInstance(hostname, port, clientConfiguration, files, paths);
+			if (clientConfiguration == null) {
+				return reClass.getConstructor(String.class, int.class).newInstance(hostname, port);
+			} else {
+				return reClass
+						.getConstructor(String.class, int.class, Configuration.class)
+						.newInstance(hostname, port, clientConfiguration);
+			}
 		} catch (Throwable t) {
 			throw new RuntimeException(
 					"An error occurred while loading the remote executor (" + REMOTE_EXECUTOR_CLASS + ").",

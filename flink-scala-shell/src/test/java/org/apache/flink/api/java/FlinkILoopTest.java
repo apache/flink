@@ -39,6 +39,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import java.net.URL;
 import java.util.List;
 
 import scala.Option;
@@ -68,18 +69,13 @@ public class FlinkILoopTest extends TestLogger {
 		BDDMockito.given(PlanExecutor.createRemoteExecutor(
 			Matchers.anyString(),
 			Matchers.anyInt(),
-			Matchers.any(Configuration.class),
-			Matchers.any(java.util.List.class),
-			Matchers.any(java.util.List.class)
+			Matchers.any(Configuration.class)
 		)).willAnswer(new Answer<PlanExecutor>() {
 			@Override
 			public PlanExecutor answer(InvocationOnMock invocation) throws Throwable {
 				testPlanExecutor.setHost((String) invocation.getArguments()[0]);
 				testPlanExecutor.setPort((Integer) invocation.getArguments()[1]);
 				testPlanExecutor.setConfiguration((Configuration) invocation.getArguments()[2]);
-				testPlanExecutor.setJars((List<String>) invocation.getArguments()[3]);
-				testPlanExecutor.setGlobalClasspaths((List<String>) invocation.getArguments()[4]);
-
 				return testPlanExecutor;
 			}
 		});
@@ -128,7 +124,8 @@ public class FlinkILoopTest extends TestLogger {
 		private List<String> globalClasspaths;
 
 		@Override
-		public JobExecutionResult executePlan(Pipeline plan) throws Exception {
+		public JobExecutionResult executePlan(
+				Pipeline plan, List<URL> jarFiles, List<URL> globalClasspaths) throws Exception {
 			return null;
 		}
 
