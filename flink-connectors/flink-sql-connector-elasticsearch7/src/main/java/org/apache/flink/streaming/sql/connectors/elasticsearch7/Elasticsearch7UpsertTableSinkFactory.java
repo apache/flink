@@ -66,7 +66,6 @@ public class Elasticsearch7UpsertTableSinkFactory extends ElasticsearchUpsertTab
 			schema,
 			hosts,
 			index,
-			docType,
 			keyDelimiter,
 			keyNullLiteral,
 			serializationSchema,

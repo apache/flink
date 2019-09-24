@@ -128,7 +128,6 @@ public class Elasticsearch7UpsertTableSinkFactoryTest extends ElasticsearchUpser
 			schema,
 			hosts,
 			index,
-			docType,
 			keyDelimiter,
 			keyNullLiteral,
 			serializationSchema,

@@ -72,13 +72,41 @@ public class Elasticsearch7UpsertTableSink extends ElasticsearchUpsertTableSinkB
 			TableSchema schema,
 			List<Host> hosts,
 			String index,
-			String docType,
 			String keyDelimiter,
 			String keyNullLiteral,
 			SerializationSchema<Row> serializationSchema,
 			XContentType contentType,
 			ActionRequestFailureHandler failureHandler,
 			Map<SinkOption, String> sinkOptions) {
+
+		super(
+			isAppendOnly,
+			schema,
+			hosts,
+			index,
+			"",
+			keyDelimiter,
+			keyNullLiteral,
+			serializationSchema,
+			contentType,
+			failureHandler,
+			sinkOptions,
+			UPDATE_REQUEST_FACTORY);
+	}
+
+	@VisibleForTesting
+	Elasticsearch7UpsertTableSink(
+		boolean isAppendOnly,
+		TableSchema schema,
+		List<Host> hosts,
+		String index,
+		String docType,
+		String keyDelimiter,
+		String keyNullLiteral,
+		SerializationSchema<Row> serializationSchema,
+		XContentType contentType,
+		ActionRequestFailureHandler failureHandler,
+		Map<SinkOption, String> sinkOptions) {
 
 		super(
 			isAppendOnly,
@@ -115,7 +143,6 @@ public class Elasticsearch7UpsertTableSink extends ElasticsearchUpsertTableSinkB
 			schema,
 			hosts,
 			index,
-			docType,
 			keyDelimiter,
 			keyNullLiteral,
 			serializationSchema,
@@ -235,7 +262,7 @@ public class Elasticsearch7UpsertTableSink extends ElasticsearchUpsertTableSinkB
 				String key,
 				XContentType contentType,
 				byte[] document) {
-			return new UpdateRequest(index, docType, key)
+			return new UpdateRequest(index, key)
 				.doc(document, contentType)
 				.upsert(document, contentType);
 		}
@@ -246,13 +273,13 @@ public class Elasticsearch7UpsertTableSink extends ElasticsearchUpsertTableSinkB
 				String docType,
 				XContentType contentType,
 				byte[] document) {
-			return new IndexRequest(index, docType)
+			return new IndexRequest(index)
 				.source(document, contentType);
 		}
 
 		@Override
 		public DeleteRequest createDeleteRequest(String index, String docType, String key) {
-			return new DeleteRequest(index, docType, key);
+			return new DeleteRequest(index, key);
 		}
 	}
 }
