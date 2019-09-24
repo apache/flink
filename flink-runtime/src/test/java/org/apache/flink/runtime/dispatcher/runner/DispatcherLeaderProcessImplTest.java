@@ -307,6 +307,37 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 	}
 
 	@Test
+	public void onAddedJobGraph_ifNotRunning_isBeingIgnored() throws Exception {
+		final CompletableFuture<JobID> recoveredJobFuture = new CompletableFuture<>();
+		jobGraphStore = TestingJobGraphStore.newBuilder()
+			.setRecoverJobGraphFunction(
+				(jobId, jobGraphs) -> {
+					recoveredJobFuture.complete(jobId);
+					return jobGraphs.get(jobId);
+				})
+			.build();
+
+		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+			dispatcherLeaderProcess.start();
+
+			// wait until the process has started the dispatcher
+			dispatcherLeaderProcess.getDispatcherGateway().get();
+
+			// now add the job graph
+			jobGraphStore.putJobGraph(JOB_GRAPH);
+
+			dispatcherLeaderProcess.closeAsync();
+
+			dispatcherLeaderProcess.onAddedJobGraph(JOB_GRAPH.getJobID());
+
+			try {
+				recoveredJobFuture.get(10L, TimeUnit.MILLISECONDS);
+				fail("onAddedJobGraph should be ignored if the leader process is not running.");
+			} catch (TimeoutException expected) {}
+		}
+	}
+
+	@Test
 	public void onAddedJobGraph_failingRecovery_propagatesTheFailure() throws Exception {
 		final FlinkException expectedFailure = new FlinkException("Expected failure");
 		jobGraphStore = TestingJobGraphStore.newBuilder()
