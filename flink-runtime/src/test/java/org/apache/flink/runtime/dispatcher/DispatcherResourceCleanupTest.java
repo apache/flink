@@ -39,7 +39,7 @@ import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
-import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobNotFinishedException;
@@ -128,7 +128,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 	private CompletableFuture<BlobKey> storedHABlobFuture;
 	private CompletableFuture<JobID> deleteAllHABlobsFuture;
 	private CompletableFuture<JobID> cleanupJobFuture;
-	private TestingJobGraphStore jobGraphStore;
+	private JobGraphWriter jobGraphWriter = NoOpJobGraphWriter.INSTANCE;
 
 	@BeforeClass
 	public static void setupClass() {
@@ -150,8 +150,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		clearedJobLatch = new OneShotLatch();
 		runningJobsRegistry = new SingleRunningJobsRegistry(jobId, clearedJobLatch);
 		highAvailabilityServices.setRunningJobsRegistry(runningJobsRegistry);
-		jobGraphStore = TestingJobGraphStore.newBuilder().withAutomaticStart().build();
-		highAvailabilityServices.setJobGraphStore(jobGraphStore);
 
 		storedHABlobFuture = new CompletableFuture<>();
 		deleteAllHABlobsFuture = new CompletableFuture<>();
@@ -211,7 +209,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 				fatalErrorHandler,
 				VoidHistoryServerArchivist.INSTANCE,
 				null,
-				highAvailabilityServices.getJobGraphStore(),
+				jobGraphWriter,
 				jobManagerRunnerFactory));
 
 		dispatcher.start();
@@ -483,7 +481,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 	@Test
 	public void testHABlobsAreNotRemovedIfHAJobGraphRemovalFails() throws Exception {
-		final JobGraphStore jobGraphStore = TestingJobGraphStore.newBuilder()
+		jobGraphWriter = TestingJobGraphStore.newBuilder()
 			.setRemoveJobGraphConsumer(
 				ignored -> {
 					throw new Exception("Failed to Remove future");
@@ -491,7 +489,6 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 			.withAutomaticStart()
 			.build();
 
-		highAvailabilityServices.setJobGraphStore(jobGraphStore);
 		final TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob();
 
 		ArchivedExecutionGraph executionGraph = new ArchivedExecutionGraphBuilder()
