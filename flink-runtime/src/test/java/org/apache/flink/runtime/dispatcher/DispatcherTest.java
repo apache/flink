@@ -235,21 +235,25 @@ public class DispatcherTest extends TestLogger {
 		TestingDispatcher build() throws Exception {
 			TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
 
+			final MemoryArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
 			return new TestingDispatcher(
 				rpcService,
 				Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName(),
 				DispatcherId.generate(),
 				initialJobGraphs,
-				configuration,
-				haServices,
-				() -> CompletableFuture.completedFuture(resourceManagerGateway),
-				blobServer,
-				heartbeatServices,
-				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
-				null,
-				new MemoryArchivedExecutionGraphStore(),
-				jobManagerRunnerFactory,
-				fatalErrorHandler);
+				new DispatcherServices(
+					configuration,
+					haServices,
+					() -> CompletableFuture.completedFuture(resourceManagerGateway),
+					blobServer,
+					heartbeatServices,
+					UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+					archivedExecutionGraphStore,
+					fatalErrorHandler,
+					VoidHistoryServerArchivist.INSTANCE,
+					null,
+					haServices.getJobGraphStore(),
+					jobManagerRunnerFactory));
 		}
 	}
 

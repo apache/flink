@@ -193,21 +193,26 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
 	private void startDispatcher(JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
 		TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
+		final MemoryArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
 		dispatcher = new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + UUID.randomUUID(),
 			DispatcherId.generate(),
 			Collections.emptyList(),
-			configuration,
-			highAvailabilityServices,
-			() -> CompletableFuture.completedFuture(resourceManagerGateway),
-			blobServer,
-			new HeartbeatServices(1000L, 1000L),
-			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
-			null,
-			new MemoryArchivedExecutionGraphStore(),
-			jobManagerRunnerFactory,
-			fatalErrorHandler);
+			new DispatcherServices(
+				configuration,
+				highAvailabilityServices,
+				() -> CompletableFuture.completedFuture(resourceManagerGateway),
+				blobServer,
+				heartbeatServices,
+				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+				archivedExecutionGraphStore,
+				fatalErrorHandler,
+				VoidHistoryServerArchivist.INSTANCE,
+				null,
+				highAvailabilityServices.getJobGraphStore(),
+				jobManagerRunnerFactory));
 
 		dispatcher.start();
 
