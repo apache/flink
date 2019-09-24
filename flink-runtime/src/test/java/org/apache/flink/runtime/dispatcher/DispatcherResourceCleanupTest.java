@@ -404,6 +404,16 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		assertThat(blobFile.exists(), is(true));
 	}
 
+	@Test
+	public void testDispatcherTerminationTerminatesRunningJobMasters() throws Exception {
+		final TestingJobManagerRunnerFactory jobManagerRunnerFactory = startDispatcherAndSubmitJob();
+
+		dispatcher.closeAsync().get();
+
+		final TestingJobManagerRunner jobManagerRunner = jobManagerRunnerFactory.takeCreatedJobManagerRunner();
+		assertThat(jobManagerRunner.getTerminationFuture().isDone(), is(true));
+	}
+
 	/**
 	 * Tests that terminating the Dispatcher will wait for all JobMasters to be terminated.
 	 */

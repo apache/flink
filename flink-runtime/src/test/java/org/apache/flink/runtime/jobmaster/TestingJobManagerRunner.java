@@ -90,4 +90,8 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 	public void completeTerminationFuture() {
 		terminationFuture.complete(null);
 	}
+
+	public CompletableFuture<Void> getTerminationFuture() {
+		return terminationFuture;
+	}
 }
