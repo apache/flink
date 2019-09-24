@@ -31,8 +31,8 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
-import scala.concurrent.Await;
 import scala.concurrent.Future;
 import scala.concurrent.Promise;
 import scala.concurrent.duration.FiniteDuration;
@@ -58,24 +58,7 @@ public class LeaderRetrievalUtils {
 	public static LeaderConnectionInfo retrieveLeaderConnectionInfo(
 			LeaderRetrievalService leaderRetrievalService,
 			Time timeout) throws LeaderRetrievalException {
-		return retrieveLeaderConnectionInfo(leaderRetrievalService, FutureUtils.toFiniteDuration(timeout));
-	}
 
-	/**
-	 * Retrieves the leader akka url and the current leader session ID. The values are stored in a
-	 * {@link LeaderConnectionInfo} instance.
-	 *
-	 * @param leaderRetrievalService Leader retrieval service to retrieve the leader connection
-	 *                               information
-	 * @param timeout Timeout when to give up looking for the leader
-	 * @return LeaderConnectionInfo containing the leader's akka URL and the current leader session
-	 * ID
-	 * @throws LeaderRetrievalException
-	 */
-	public static LeaderConnectionInfo retrieveLeaderConnectionInfo(
-			LeaderRetrievalService leaderRetrievalService,
-			FiniteDuration timeout
-	) throws LeaderRetrievalException {
 		LeaderConnectionInfoListener listener = new LeaderConnectionInfoListener();
 
 		try {
@@ -83,10 +66,10 @@ public class LeaderRetrievalUtils {
 
 			Future<LeaderConnectionInfo> connectionInfoFuture = listener.getLeaderConnectionInfoFuture();
 
-			return Await.result(connectionInfoFuture, timeout);
+			return FutureUtils.toJava(connectionInfoFuture).get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 		} catch (Exception e) {
 			throw new LeaderRetrievalException("Could not retrieve the leader address and leader " +
-					"session ID.", e);
+				"session ID.", e);
 		} finally {
 			try {
 				leaderRetrievalService.stop();
@@ -160,9 +143,9 @@ public class LeaderRetrievalUtils {
 			}
 		}
 	}
-	
+
 	// ------------------------------------------------------------------------
-	
+
 	/**
 	 * Private constructor to prevent instantiation.
 	 */

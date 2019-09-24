@@ -30,6 +30,7 @@ import akka.dispatch.OnComplete;
 
 import javax.annotation.Nonnull;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -55,7 +56,6 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import scala.concurrent.Future;
-import scala.concurrent.duration.FiniteDuration;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -833,23 +833,13 @@ public class FutureUtils {
 	}
 
 	/**
-	 * Converts Flink time into a {@link FiniteDuration}.
+	 * Converts Flink time into a {@link Duration}.
 	 *
-	 * @param time to convert into a FiniteDuration
-	 * @return FiniteDuration with the length of the given time
+	 * @param time to convert into a Duration
+	 * @return Duration with the length of the given time
 	 */
-	public static FiniteDuration toFiniteDuration(Time time) {
-		return new FiniteDuration(time.toMilliseconds(), TimeUnit.MILLISECONDS);
-	}
-
-	/**
-	 * Converts {@link FiniteDuration} into Flink time.
-	 *
-	 * @param finiteDuration to convert into Flink time
-	 * @return Flink time with the length of the given finite duration
-	 */
-	public static Time toTime(FiniteDuration finiteDuration) {
-		return Time.milliseconds(finiteDuration.toMillis());
+	public static Duration toDuration(Time time) {
+		return Duration.ofMillis(time.toMilliseconds());
 	}
 
 	// ------------------------------------------------------------------------
