@@ -86,8 +86,8 @@ public class AbstractServerTest extends TestLogger {
 	@Test
 	public void testPortRangeSuccess() throws Throwable {
 
-		// this is shared between the two servers.
-		AtomicKvStateRequestStats serverStats = new AtomicKvStateRequestStats();
+		AtomicKvStateRequestStats serverStats1 = new AtomicKvStateRequestStats();
+		AtomicKvStateRequestStats serverStats2 = new AtomicKvStateRequestStats();
 		AtomicKvStateRequestStats clientStats = new AtomicKvStateRequestStats();
 
 		final int portRangeStart = 7777;
@@ -95,8 +95,8 @@ public class AbstractServerTest extends TestLogger {
 		List<Integer> portList = IntStream.range(portRangeStart, portRangeEnd + 1).boxed().collect(Collectors.toList());
 
 		try (
-				TestServer server1 = new TestServer("Test Server 1", serverStats, portList.iterator());
-				TestServer server2 = new TestServer("Test Server 2", serverStats, portList.iterator());
+				TestServer server1 = new TestServer("Test Server 1", serverStats1, portList.iterator());
+				TestServer server2 = new TestServer("Test Server 2", serverStats2, portList.iterator());
 				TestClient client = new TestClient(
 						"Test Client",
 						1,
@@ -116,14 +116,17 @@ public class AbstractServerTest extends TestLogger {
 			TestMessage response2 = client.sendRequest(server2.getServerAddress(), new TestMessage("pong")).join();
 			Assert.assertEquals(server2.getServerName() + "-pong", response2.getMessage());
 
-			// the client connects to both servers and the stats object is shared.
-			Assert.assertEquals(2L, serverStats.getNumConnections());
+			Assert.assertEquals(1L, serverStats1.getNumConnections());
+			Assert.assertEquals(1L, serverStats2.getNumConnections());
 
 			Assert.assertEquals(2L, clientStats.getNumConnections());
 			Assert.assertEquals(0L, clientStats.getNumFailed());
 			Assert.assertEquals(2L, clientStats.getNumSuccessful());
 			Assert.assertEquals(2L, clientStats.getNumRequests());
 		}
+
+		Assert.assertEquals(0L, serverStats1.getNumConnections());
+		Assert.assertEquals(0L, serverStats2.getNumConnections());
 
 		Assert.assertEquals(0L, clientStats.getNumConnections());
 		Assert.assertEquals(0L, clientStats.getNumFailed());
@@ -184,10 +187,6 @@ public class AbstractServerTest extends TestLogger {
 		@Override
 		public void close() throws Exception {
 			shutdownServer().get();
-			if (requestStats instanceof AtomicKvStateRequestStats) {
-				AtomicKvStateRequestStats stats = (AtomicKvStateRequestStats) requestStats;
-				Assert.assertEquals(0L, stats.getNumConnections());
-			}
 			Assert.assertTrue(getQueryExecutor().isTerminated());
 			Assert.assertTrue(isEventGroupShutdown());
 		}
