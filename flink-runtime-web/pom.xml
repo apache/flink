@@ -101,6 +101,12 @@ under the License.
 			<artifactId>curator-test</artifactId>
 			<version>${curator.version}</version>
 			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.zookeeper</groupId>
+					<artifactId>zookeeper</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
