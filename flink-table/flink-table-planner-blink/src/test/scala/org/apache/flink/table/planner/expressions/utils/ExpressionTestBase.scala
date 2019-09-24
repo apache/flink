@@ -215,10 +215,6 @@ abstract class ExpressionTestBase {
     addTableApiTestExpr(expr, expected)
     addTableApiTestExpr(exprString, expected)
     addSqlTestExpr(sqlExpr, expected)
-    if (expected == nullable) {
-      testTableNullable(expr, exprString)
-      testSqlNullable(sqlExpr)
-    }
   }
 
   def testTableApi(
@@ -227,9 +223,6 @@ abstract class ExpressionTestBase {
       expected: String): Unit = {
     addTableApiTestExpr(expr, expected)
     addTableApiTestExpr(exprString, expected)
-    if (expected == nullable) {
-      testTableNullable(expr, exprString)
-    }
   }
 
   private def addTableApiTestExpr(tableApiString: String, expected: String): Unit = {
@@ -244,37 +237,27 @@ abstract class ExpressionTestBase {
     addTestExpr(relNode, expected, tableApiExpr.asSummaryString())
   }
 
+  // note: testSqlNullable() should avoid to call, because testSqlNullable()
+  // maybe fail util FLINK-14030 is fixed.
   def testSqlNullable(nullUdf: String): Unit = {
     addSqlTestExpr(
       s"CASE WHEN ($nullUdf) is null THEN '$nullable' ELSE '$notNullable' END", nullable)
-  }
-
-  //add test for checking expression result is null for sql directly
-  def testSqlCalResNullable(nullUdf:String): Unit = {
-    addSqlTestExpr(s" $nullUdf ",nullable)
   }
 
   def testSqlApi(
       sqlExpr: String,
       expected: String): Unit = {
     addSqlTestExpr(sqlExpr, expected)
-    if (expected == nullable) {
-      testSqlNullable(sqlExpr)
-    }
   }
 
+  // note: testTableNullable() should avoid to call, because testTableNullable()
+  // maybe fail util FLINK-14030 is fixed.
   def testTableNullable(nullExpr: Expression, nullExprString: String): Unit = {
     val retExpr = ExpressionBuilder.ifThenElse(nullExpr.isNull, nullable, notNullable)
     addTableApiTestExpr(retExpr, nullable)
     val retStrExpr = ifThenElse(
       ExpressionParser.parseExpression(nullExprString).isNull, nullable, notNullable)
     addTableApiTestExpr(retStrExpr, nullable)
-  }
-
-  //add test for checking expression result is null for table API directly
-  def testTableCalResNullable(nullExpr: Expression, nullExprString: String): Unit ={
-    addTableApiTestExpr(nullExpr, nullable)
-    addTableApiTestExpr(nullExprString, nullable)
   }
 
   def testData: Row

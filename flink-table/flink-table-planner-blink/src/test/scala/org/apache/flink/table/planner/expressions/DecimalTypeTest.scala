@@ -468,48 +468,32 @@ class DecimalTypeTest extends ExpressionTestBase {
       "f15 - f16",
       "-100.0000000000012345678901234567")
 
-    // testAllApis(
-    //  'f17 + 'f18,
-    //  "f17 + f18",
-    //  "f17 + f18",
-    //  "null")
-    // note: testAllApis unit test will run fail because planner make a conversion
-    // from [ifThenElse(isNull(plus(f17, f18)), 'null', 'not null')]
-    // to [CASE(OR(IS NULL($17), IS NULL($18)), _UTF-16LE'null', _UTF-16LE'not null')]
-    // which is not a equivalence conversion. The result of expression 'f17 + 'f18  should be null
-    // when the result overflows even if its two operands both are not null. It is a
-    // mistake in optimizer and need to fix in FLINK-14030.
-
     // 10 digits integral part
-    testTableCalResNullable(
+    testAllApis(
       'f17 + 'f18,
-      "f17 + f18")
+      "f17 + f18",
+      "f17 + f18",
+      "null")
 
-    testSqlCalResNullable(
-      "f17 + f18")
-
-    testTableCalResNullable(
+    testAllApis(
       'f17 - 'f18,
-      "f17 - f18")
-
-    testSqlCalResNullable(
-      "f17 - f18")
+      "f17 - f18",
+      "f17 - f18",
+      "null")
 
     // requires 39 digits
-    testTableCalResNullable(
+    testAllApis(
       'f19 + 'f19,
-      "f19 + f19")
-
-    testSqlCalResNullable(
-      "f19 + f19")
+      "f19 + f19",
+      "f19 + f19",
+      "null")
 
     // overflows in subexpression
-    testTableCalResNullable(
+    testAllApis(
       'f19 + 'f19 - 'f19,
-      "f19 + f19 -f19")
-
-    testSqlCalResNullable(
-      "f19 + f19 - f19")
+      "f19 + f19 - f19",
+      "f19 + f19 - f19",
+      "null")
   }
 
   @Test
@@ -591,20 +575,20 @@ class DecimalTypeTest extends ExpressionTestBase {
     )
 
     // result overflow
-    testTableCalResNullable(
+    testAllApis(
       'f29 * 'f29,
-      "f29 * f29")
-
-    testSqlCalResNullable(
-      "f29 * f29")
+      "f29 * f29",
+      "f29 * f29",
+      "null"
+    )
 
     //(60,40)=>(38,38), no space for integral part
-    testTableCalResNullable(
+    testAllApis(
       'f30 * 'f30,
-      "f30 * f30")
-
-    testSqlCalResNullable(
-      "f30 * f30")
+      "f30 * f30",
+      "f30 * f30",
+      "null"
+    )
   }
 
   @Test
@@ -638,33 +622,38 @@ class DecimalTypeTest extends ExpressionTestBase {
 
     // INT => DECIMAL(10,0)
     // approximate / exact => approximate
-    testAllApis('f36 / 'f37,
+    testAllApis(
+      'f36 / 'f37,
       "f36 / f37",
       "f36 / f37",
       "0.5000000000000")
 
-    testAllApis('f37 / 'f36,
+
+    testAllApis(
+      'f37 / 'f36,
       "f37 / f36",
       "f37 / f36",
       "2.00000000000")
 
-    testAllApis('f36 / 'f38,
+
+    testAllApis(
+      'f36 / 'f38,
       "f36 / f38",
       "f36 / f38",
       (1.0/3.0).toString)
 
-    testAllApis('f38 / 'f36,
+    testAllApis(
+      'f38 / 'f36,
       "f38 / f36",
       "f38 / f36",
       (3.0/1.0).toString)
 
     // result overflow, because result type integral part is reduced
-    testTableCalResNullable(
+    testAllApis(
       'f39 / 'f40,
-      "f39 / f40")
-
-    testSqlCalResNullable(
-      "f39 / f40")
+      "f39 / f40",
+      "f39 / f40",
+      "null")
   }
 
   @Test
