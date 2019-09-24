@@ -365,16 +365,19 @@ public class DispatcherHATest extends TestLogger {
 				endpointId,
 				fencingToken,
 				recoveredJobs,
-				configuration,
-				highAvailabilityServices,
-				resourceManagerGatewayRetriever,
-				blobServer,
-				heartbeatServices,
-				jobManagerMetricGroup,
-				metricQueryServiceAddress,
-				archivedExecutionGraphStore,
-				jobManagerRunnerFactory,
-				fatalErrorHandler);
+				new DispatcherServices(
+					configuration,
+					highAvailabilityServices,
+					resourceManagerGatewayRetriever,
+					blobServer,
+					heartbeatServices,
+					jobManagerMetricGroup,
+					archivedExecutionGraphStore,
+					fatalErrorHandler,
+					VoidHistoryServerArchivist.INSTANCE,
+					metricQueryServiceAddress,
+					highAvailabilityServices.getJobGraphStore(),
+					jobManagerRunnerFactory));
 			this.fencingTokens = fencingTokens;
 		}
 

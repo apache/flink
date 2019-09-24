@@ -332,20 +332,25 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 	@Nonnull
 	private TestingDispatcher createDispatcher(HighAvailabilityServices highAvailabilityServices, JobManagerRunnerFactory jobManagerRunnerFactory) throws Exception {
 		TestingResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
+		final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
+		final MemoryArchivedExecutionGraphStore archivedExecutionGraphStore = new MemoryArchivedExecutionGraphStore();
 		return new TestingDispatcher(
 			rpcService,
 			Dispatcher.DISPATCHER_NAME + '_' + name.getMethodName() + UUID.randomUUID(),
 			DispatcherId.generate(),
 			Collections.emptyList(),
-			configuration,
-			highAvailabilityServices,
-			() -> CompletableFuture.completedFuture(resourceManagerGateway),
-			blobServer,
-			new HeartbeatServices(1000L, 1000L),
-			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
-			null,
-			new MemoryArchivedExecutionGraphStore(),
-			jobManagerRunnerFactory,
-			testingFatalErrorHandler);
+			new DispatcherServices(
+				configuration,
+				highAvailabilityServices,
+				() -> CompletableFuture.completedFuture(resourceManagerGateway),
+				blobServer,
+				heartbeatServices,
+				UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+				archivedExecutionGraphStore,
+				testingFatalErrorHandler,
+				VoidHistoryServerArchivist.INSTANCE,
+				null,
+				highAvailabilityServices.getJobGraphStore(),
+				jobManagerRunnerFactory));
 	}
 }

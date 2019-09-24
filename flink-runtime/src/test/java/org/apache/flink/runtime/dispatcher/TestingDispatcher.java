@@ -20,20 +20,11 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.heartbeat.HeartbeatServices;
-import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
-import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -47,38 +38,17 @@ class TestingDispatcher extends Dispatcher {
 	private final CompletableFuture<Void> startFuture;
 
 	TestingDispatcher(
-		RpcService rpcService,
-		String endpointId,
-		DispatcherId fencingToken,
-		Collection<JobGraph> recoveredJobs,
-		Configuration configuration,
-		HighAvailabilityServices highAvailabilityServices,
-		GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-		BlobServer blobServer,
-		HeartbeatServices heartbeatServices,
-		JobManagerMetricGroup jobManagerMetricGroup,
-		@Nullable String metricQueryServiceAddress,
-		ArchivedExecutionGraphStore archivedExecutionGraphStore,
-		JobManagerRunnerFactory jobManagerRunnerFactory,
-		FatalErrorHandler fatalErrorHandler) throws Exception {
+			RpcService rpcService,
+			String endpointId,
+			DispatcherId fencingToken,
+			Collection<JobGraph> recoveredJobs,
+			DispatcherServices dispatcherServices) throws Exception {
 		super(
 			rpcService,
 			endpointId,
 			fencingToken,
 			recoveredJobs,
-			new DispatcherServices(
-				configuration,
-				highAvailabilityServices,
-				resourceManagerGatewayRetriever,
-				blobServer,
-				heartbeatServices,
-				archivedExecutionGraphStore,
-				fatalErrorHandler,
-				VoidHistoryServerArchivist.INSTANCE,
-				metricQueryServiceAddress,
-				jobManagerMetricGroup,
-				highAvailabilityServices.getJobGraphStore(),
-				jobManagerRunnerFactory));
+			dispatcherServices);
 
 		this.startFuture = new CompletableFuture<>();
 	}
