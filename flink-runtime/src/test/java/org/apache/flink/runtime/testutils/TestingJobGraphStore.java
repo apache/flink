@@ -21,6 +21,7 @@ package org.apache.flink.runtime.testutils;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionWithException;
@@ -153,6 +154,8 @@ public class TestingJobGraphStore implements JobGraphStore {
 
 		private Collection<JobGraph> initialJobGraphs = Collections.emptyList();
 
+		private boolean startJobGraphStore = false;
+
 		private Builder() {}
 
 		public Builder setStartConsumer(ThrowingConsumer<JobGraphListener, ? extends Exception> startConsumer) {
@@ -195,8 +198,13 @@ public class TestingJobGraphStore implements JobGraphStore {
 			return this;
 		}
 
+		public Builder withAutomaticStart() {
+			this.startJobGraphStore = true;
+			return this;
+		}
+
 		public TestingJobGraphStore build() {
-			return new TestingJobGraphStore(
+			final TestingJobGraphStore jobGraphStore = new TestingJobGraphStore(
 				startConsumer,
 				stopRunnable,
 				jobIdsFunction,
@@ -205,6 +213,16 @@ public class TestingJobGraphStore implements JobGraphStore {
 				removeJobGraphConsumer,
 				releaseJobGraphConsumer,
 				initialJobGraphs);
+
+			if (startJobGraphStore) {
+				try {
+					jobGraphStore.start(null);
+				} catch (Exception e) {
+					ExceptionUtils.rethrow(e);
+				}
+			}
+
+			return jobGraphStore;
 		}
 	}
 
