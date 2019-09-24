@@ -155,8 +155,8 @@ public class RemoteEnvironment extends ExecutionEnvironment {
 	public JobExecutionResult execute(String jobName) throws Exception {
 		final Plan p = createProgramPlan(jobName);
 
-		final PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, clientConfiguration, jarFiles, globalClasspaths);
-		lastJobExecutionResult = executor.executePlan(p);
+		final PlanExecutor executor = PlanExecutor.createRemoteExecutor(host, port, clientConfiguration);
+		lastJobExecutionResult = executor.executePlan(p, jarFiles, globalClasspaths);
 		return lastJobExecutionResult;
 	}
 

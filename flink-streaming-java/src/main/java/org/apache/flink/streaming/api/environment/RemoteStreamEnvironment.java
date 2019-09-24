@@ -279,10 +279,9 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			final PlanExecutor executor = PlanExecutor.createRemoteExecutor(
 					host,
 					port,
-					clientConfiguration,
-					jarFiles,
-					globalClasspaths);
-			return executor.executePlan(streamGraph).getJobExecutionResult();
+					clientConfiguration);
+
+			return executor.executePlan(streamGraph, jarFiles, globalClasspaths).getJobExecutionResult();
 		}
 		catch (ProgramInvocationException e) {
 			throw e;

@@ -26,6 +26,8 @@ import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
 import org.apache.flink.configuration.Configuration;
 
+import java.util.Collections;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -73,7 +75,10 @@ public class LocalEnvironment extends ExecutionEnvironment {
 		final Plan p = createProgramPlan(jobName);
 
 		final PlanExecutor executor = PlanExecutor.createLocalExecutor(configuration);
-		lastJobExecutionResult = executor.executePlan(p);
+		lastJobExecutionResult = executor.executePlan(
+				p,
+				Collections.emptyList(),
+				Collections.emptyList());
 		return lastJobExecutionResult;
 	}
 
