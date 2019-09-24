@@ -265,7 +265,9 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 	 * @throws Exception if something goes wrong
 	 */
 	static DispatcherGateway retrieveDispatcherGateway(RpcService rpcService, HighAvailabilityServices haServices) throws Exception {
-		final LeaderConnectionInfo leaderConnectionInfo = LeaderRetrievalUtils.retrieveLeaderConnectionInfo(haServices.getDispatcherLeaderRetriever(), Time.seconds(10L));
+		final LeaderConnectionInfo leaderConnectionInfo = LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
+			haServices.getDispatcherLeaderRetriever(),
+			Duration.ofSeconds(10L));
 
 		return rpcService.connect(
 			leaderConnectionInfo.getAddress(),

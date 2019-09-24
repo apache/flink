@@ -62,6 +62,7 @@ import org.junit.rules.TestName;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -293,7 +294,9 @@ public class ZooKeeperHADispatcherTest extends TestLogger {
 				dispatcher1.start();
 				dispatcher2.start();
 
-				final LeaderConnectionInfo leaderConnectionInfo = LeaderRetrievalUtils.retrieveLeaderConnectionInfo(haServices.getDispatcherLeaderRetriever(), TIMEOUT);
+				final LeaderConnectionInfo leaderConnectionInfo = LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
+					haServices.getDispatcherLeaderRetriever(),
+					Duration.ofMillis(TIMEOUT.toMilliseconds()));
 
 				final DispatcherGateway dispatcherGateway = rpcService.connect(leaderConnectionInfo.getAddress(), DispatcherId.fromUuid(leaderConnectionInfo.getLeaderSessionID()), DispatcherGateway.class).get();
 

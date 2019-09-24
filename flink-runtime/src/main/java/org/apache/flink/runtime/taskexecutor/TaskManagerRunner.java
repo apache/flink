@@ -69,6 +69,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.Callable;
@@ -426,7 +427,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			final Configuration configuration,
 			final HighAvailabilityServices haServices) throws LeaderRetrievalException {
 
-		final Time lookupTimeout = Time.milliseconds(AkkaUtils.getLookupTimeout(configuration).toMillis());
+		final Duration lookupTimeout = AkkaUtils.getLookupTimeout(configuration);
 
 		final InetAddress taskManagerAddress = LeaderRetrievalUtils.findConnectingAddress(
 			haServices.getResourceManagerLeaderRetriever(),

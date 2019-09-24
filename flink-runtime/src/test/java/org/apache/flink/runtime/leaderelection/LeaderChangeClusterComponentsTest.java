@@ -21,7 +21,6 @@ package org.apache.flink.runtime.leaderelection;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.highavailability.nonha.embedded.TestingEmbeddedHaServices;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -157,7 +156,11 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 		highAvailabilityServices.grantResourceManagerLeadership();
 
 		// wait for the ResourceManager to confirm the leadership
-		assertThat(LeaderRetrievalUtils.retrieveLeaderConnectionInfo(highAvailabilityServices.getResourceManagerLeaderRetriever(), Time.minutes(TESTING_TIMEOUT.toMinutes())).getLeaderSessionID(), is(notNullValue()));
+		assertThat(
+			LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
+				highAvailabilityServices.getResourceManagerLeaderRetriever(),
+				TESTING_TIMEOUT).getLeaderSessionID(),
+			is(notNullValue()));
 
 		waitUntilTaskExecutorsHaveConnected(NUM_TMS, deadline);
 	}
