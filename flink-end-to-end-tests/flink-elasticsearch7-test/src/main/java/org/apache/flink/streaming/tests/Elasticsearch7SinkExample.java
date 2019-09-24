@@ -48,9 +48,9 @@ public class Elasticsearch7SinkExample {
 
 		final ParameterTool parameterTool = ParameterTool.fromArgs(args);
 
-		if (parameterTool.getNumberOfParameters() < 3) {
+		if (parameterTool.getNumberOfParameters() < 2) {
 			System.out.println("Missing parameters!\n" +
-				"Usage: --numRecords <numRecords> --index <index> --type <type>");
+				"Usage: --numRecords <numRecords> --index <index>");
 			return;
 		}
 
@@ -79,14 +79,14 @@ public class Elasticsearch7SinkExample {
 			});
 
 		esSinkBuilder.setFailureHandler(
-			new CustomFailureHandler(parameterTool.getRequired("index"), parameterTool.getRequired("type")));
+			new CustomFailureHandler(parameterTool.getRequired("index")));
 
 		// this instructs the sink to emit after every element, otherwise they would be buffered
 		esSinkBuilder.setBulkFlushMaxActions(1);
 
 		source.addSink(esSinkBuilder.build());
 
-		env.execute("Elasticsearch 6.x end to end sink test example");
+		env.execute("Elasticsearch 7.x end to end sink test example");
 	}
 
 	private static class CustomFailureHandler implements ActionRequestFailureHandler {
@@ -94,11 +94,9 @@ public class Elasticsearch7SinkExample {
 		private static final long serialVersionUID = 942269087742453482L;
 
 		private final String index;
-		private final String type;
 
-		CustomFailureHandler(String index, String type) {
+		CustomFailureHandler(String index) {
 			this.index = index;
-			this.type = type;
 		}
 
 		@Override
@@ -110,7 +108,6 @@ public class Elasticsearch7SinkExample {
 				indexer.add(
 					Requests.indexRequest()
 						.index(index)
-						.type(type)
 						.id(((IndexRequest) action).id())
 						.source(json));
 			} else {
@@ -131,12 +128,10 @@ public class Elasticsearch7SinkExample {
 			type = ":intentional invalid type:";
 		} else {
 			index = parameterTool.getRequired("index");
-			type = parameterTool.getRequired("type");
 		}
 
 		return Requests.indexRequest()
 			.index(index)
-			.type(type)
 			.id(element)
 			.source(json);
 	}
