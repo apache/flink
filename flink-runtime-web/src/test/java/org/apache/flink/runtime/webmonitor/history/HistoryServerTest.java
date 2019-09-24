@@ -41,7 +41,7 @@ import org.apache.commons.io.IOUtils;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
@@ -68,12 +68,13 @@ import java.util.concurrent.TimeUnit;
 @Category(AlsoRunWithSchedulerNG.class)
 public class HistoryServerTest extends TestLogger {
 
-	@ClassRule
-	public static final TemporaryFolder TMP = new TemporaryFolder();
-
 	private static final JsonFactory JACKSON_FACTORY = new JsonFactory()
 		.enable(JsonGenerator.Feature.AUTO_CLOSE_TARGET)
 		.disable(JsonGenerator.Feature.AUTO_CLOSE_JSON_CONTENT);
+	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+	@Rule
+	public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
 	private MiniClusterWithClientResource cluster;
 	private File jmDirectory;
@@ -89,8 +90,8 @@ public class HistoryServerTest extends TestLogger {
 
 	@Before
 	public void setUp() throws Exception {
-		jmDirectory = TMP.newFolder("jm_" + versionLessThan14);
-		hsDirectory = TMP.newFolder("hs_" + versionLessThan14);
+		jmDirectory = tmpFolder.newFolder("jm_" + versionLessThan14);
+		hsDirectory = tmpFolder.newFolder("hs_" + versionLessThan14);
 
 		Configuration clusterConfig = new Configuration();
 		clusterConfig.setString(JobManagerOptions.ARCHIVE_DIR, jmDirectory.toURI().toString());
@@ -117,38 +118,51 @@ public class HistoryServerTest extends TestLogger {
 		for (int x = 0; x < numJobs; x++) {
 			runJob();
 		}
+		final int numLegacyJobs = 1;
 		createLegacyArchive(jmDirectory.toPath());
 
-		CountDownLatch numExpectedArchivedJobs = new CountDownLatch(numJobs + 1);
+		waitForArchivesCreation(numJobs + numLegacyJobs);
 
+		CountDownLatch numExpectedArchivedJobs = new CountDownLatch(numJobs + numLegacyJobs);
+
+		Configuration historyServerConfig = createTestConfiguration();
+
+		HistoryServer hs = new HistoryServer(historyServerConfig, numExpectedArchivedJobs);
+
+		try {
+			hs.start();
+			String baseUrl = "http://localhost:" + hs.getWebPort();
+			numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS);
+
+			Assert.assertEquals(numJobs + numLegacyJobs, getJobsOverview(baseUrl).getJobs().size());
+
+		} finally {
+			hs.stop();
+		}
+	}
+
+	private void waitForArchivesCreation(int numJobs) throws InterruptedException {
+		// the job is archived asynchronously after env.execute() returns
+		File[] archives = jmDirectory.listFiles();
+		while (archives == null || archives.length != numJobs) {
+			Thread.sleep(50);
+			archives = jmDirectory.listFiles();
+		}
+	}
+
+	private Configuration createTestConfiguration() {
 		Configuration historyServerConfig = new Configuration();
 		historyServerConfig.setString(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_DIRS, jmDirectory.toURI().toString());
 		historyServerConfig.setString(HistoryServerOptions.HISTORY_SERVER_WEB_DIR, hsDirectory.getAbsolutePath());
 		historyServerConfig.setLong(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL, 100L);
 
 		historyServerConfig.setInteger(HistoryServerOptions.HISTORY_SERVER_WEB_PORT, 0);
+		return historyServerConfig;
+	}
 
-		// the job is archived asynchronously after env.execute() returns
-		File[] archives = jmDirectory.listFiles();
-		while (archives == null || archives.length != numJobs + 1) {
-			Thread.sleep(50);
-			archives = jmDirectory.listFiles();
-		}
-
-		HistoryServer hs = new HistoryServer(historyServerConfig, numExpectedArchivedJobs);
-		try {
-			hs.start();
-			String baseUrl = "http://localhost:" + hs.getWebPort();
-			numExpectedArchivedJobs.await(10L, TimeUnit.SECONDS);
-
-			ObjectMapper mapper = new ObjectMapper();
-			String response = getFromHTTP(baseUrl + JobsOverviewHeaders.URL);
-			MultipleJobsDetails overview = mapper.readValue(response, MultipleJobsDetails.class);
-
-			Assert.assertEquals(numJobs + 1, overview.getJobs().size());
-		} finally {
-			hs.stop();
-		}
+	private MultipleJobsDetails getJobsOverview(String baseUrl) throws Exception {
+		String response = getFromHTTP(baseUrl + JobsOverviewHeaders.URL);
+		return OBJECT_MAPPER.readValue(response, MultipleJobsDetails.class);
 	}
 
 	private static void runJob() throws Exception {
@@ -174,15 +188,15 @@ public class HistoryServerTest extends TestLogger {
 		return IOUtils.toString(is, connection.getContentEncoding() != null ? connection.getContentEncoding() : "UTF-8");
 	}
 
-	private static void createLegacyArchive(Path directory) throws IOException {
-		JobID jobID = JobID.generate();
+	private static String createLegacyArchive(Path directory) throws IOException {
+		JobID jobId = JobID.generate();
 
 		StringWriter sw = new StringWriter();
 		try (JsonGenerator gen = JACKSON_FACTORY.createGenerator(sw)) {
 			try (JsonObject root = new JsonObject(gen)) {
 				try (JsonArray finished = new JsonArray(gen, "finished")) {
 					try (JsonObject job = new JsonObject(gen)) {
-						gen.writeStringField("jid", jobID.toString());
+						gen.writeStringField("jid", jobId.toString());
 						gen.writeStringField("name", "testjob");
 						gen.writeStringField("state", JobStatus.FINISHED.name());
 
@@ -215,7 +229,9 @@ public class HistoryServerTest extends TestLogger {
 
 		ArchivedJson archivedJson = new ArchivedJson("/joboverview", json);
 
-		FsJobArchivist.archiveJob(new org.apache.flink.core.fs.Path(directory.toUri()), jobID, Collections.singleton(archivedJson));
+		FsJobArchivist.archiveJob(new org.apache.flink.core.fs.Path(directory.toUri()), jobId, Collections.singleton(archivedJson));
+
+		return jobId.toString();
 	}
 
 	private static final class JsonObject implements AutoCloseable {
