@@ -54,6 +54,7 @@ under the License.
 		<module>tools/force-shading</module>
 		<module>flink-annotations</module>
 		<module>flink-shaded-curator</module>
+		<module>flink-shaded-zookeeper</module>
 		<module>flink-core</module>
 		<module>flink-java</module>
 		<module>flink-scala</module>
@@ -119,7 +120,7 @@ under the License.
 		<scala.version>2.11.12</scala.version>
 		<scala.binary.version>2.11</scala.binary.version>
 		<chill.version>0.7.6</chill.version>
-		<zookeeper.version>3.4.10</zookeeper.version>
+		<zookeeper.version>3.5.5</zookeeper.version>
 		<curator.version>2.12.0</curator.version>
 		<jackson.version>2.9.8</jackson.version>
 		<metrics.version>3.1.5</metrics.version>
@@ -583,29 +584,9 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>org.apache.zookeeper</groupId>
-				<artifactId>zookeeper</artifactId>
-				<version>${zookeeper.version}</version>
-				<exclusions>
-					<exclusion>
-						<groupId>log4j</groupId>
-						<artifactId>log4j</artifactId>
-					</exclusion>
-					<exclusion>
-						<groupId>org.slf4j</groupId>
-						<artifactId>slf4j-log4j12</artifactId>
-					</exclusion>
-					<!-- Netty is only needed for ZK servers, not clients -->
-					<exclusion>
-						<groupId>io.netty</groupId>
-						<artifactId>netty</artifactId>
-					</exclusion>
-					<!-- jline is optional for ZK console shell -->
-					<exclusion>
-						<groupId>jline</groupId>
-						<artifactId>jline</artifactId>
-					</exclusion>
-				</exclusions>
+				<groupId>org.apache.flink</groupId>
+				<artifactId>flink-shaded-zookeeper</artifactId>
+				<version>${project.version}</version>
 			</dependency>
 
 			<!-- We have to define the versions for httpcore and httpclient here such that a consistent
@@ -1061,9 +1042,9 @@ under the License.
 
 			<dependencies>
 				<dependency>
-					<groupId>org.apache.zookeeper</groupId>
-					<artifactId>zookeeper</artifactId>
-					<version>${zookeeper.version}</version>
+					<groupId>org.apache.flink</groupId>
+					<artifactId>flink-shaded-zookeeper</artifactId>
+					<version>${project.version}</version>
 					<exclusions>
 						<!--
 							exclude netty, because MapR's Zookeeper distribution has

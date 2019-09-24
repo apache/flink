@@ -244,8 +244,9 @@ under the License.
 			well to make sure our managed version is used -->
 
 		<dependency>
-			<groupId>org.apache.zookeeper</groupId>
-			<artifactId>zookeeper</artifactId>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-shaded-zookeeper</artifactId>
+			<version>${project.version}</version>
 		</dependency>
 
 		<dependency>
@@ -538,7 +539,7 @@ under the License.
 									<include>com.typesafe.akka:akka-remote_*</include>
 									<include>io.netty:netty</include>
 									<include>org.uncommons.maths:uncommons-maths</include>
-									<include>org.apache.zookeeper:*</include>
+									<include>org.apache.flink:flink-shaded-zookeeper</include>
 								</includes>
 							</artifactSet>
 							<relocations combine.children="append">
