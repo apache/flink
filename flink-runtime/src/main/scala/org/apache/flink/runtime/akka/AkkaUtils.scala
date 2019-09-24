@@ -729,7 +729,7 @@ object AkkaUtils {
   }
 
   def getTimeout(config: Configuration): time.Duration = {
-    return TimeUtils.parseDuration(config.getString(AkkaOptions.ASK_TIMEOUT))
+    TimeUtils.parseDuration(config.getString(AkkaOptions.ASK_TIMEOUT))
   }
 
   def getTimeoutAsTime(config: Configuration): Time = {
@@ -750,11 +750,11 @@ object AkkaUtils {
   }
 
   def getLookupTimeout(config: Configuration): time.Duration = {
-    return TimeUtils.parseDuration(config.getString(AkkaOptions.LOOKUP_TIMEOUT))
+    TimeUtils.parseDuration(config.getString(AkkaOptions.LOOKUP_TIMEOUT))
   }
 
   def getClientTimeout(config: Configuration): time.Duration = {
-    return TimeUtils.parseDuration(config.getString(AkkaOptions.CLIENT_TIMEOUT))
+    TimeUtils.parseDuration(config.getString(AkkaOptions.CLIENT_TIMEOUT))
   }
 
   /** Returns the address of the given [[ActorSystem]]. The [[Address]] object contains
