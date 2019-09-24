@@ -207,4 +207,14 @@ class AkkaUtilsTest
     akkaConfig.getString("akka.remote.netty.tcp.hostname") should
       equal(NetUtils.unresolvedHostToNormalizedString(ipv6AddressString))
   }
+
+  test("getAkkaConfig should set startup timeout to be 10 times of ask timeout by default") {
+    val configuration = new Configuration()
+    configuration.setString(AkkaOptions.ASK_TIMEOUT.key(), "100ms")
+
+    val akkaConfig = AkkaUtils.getAkkaConfig(configuration, Some(("localhost", 31337)))
+
+    akkaConfig.getString("akka.remote.startup-timeout") should
+      equal("1000ms")
+  }
 }

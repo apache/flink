@@ -21,7 +21,7 @@ package org.apache.flink.runtime.akka
 import java.io.IOException
 import java.net._
 import java.time
-import java.util.concurrent.{Callable, CompletableFuture, TimeUnit}
+import java.util.concurrent.{Callable, CompletableFuture}
 
 import akka.actor._
 import akka.pattern.{ask => akkaAsk}
@@ -367,9 +367,9 @@ object AkkaUtils {
                                 pauseValue: String,
                                 intervalParamName: String,
                                 intervalValue: String): Unit = {
-    if (Duration.apply(pauseValue).lteq(Duration.apply(intervalValue))) {
+    if (TimeUtils.parseDuration(pauseValue).compareTo(TimeUtils.parseDuration(intervalValue)) <= 0) {
       throw new IllegalConfigurationException(
-        "%s [%s] must greater then %s [%s]",
+        "%s [%s] must greater than %s [%s]",
         pauseParamName,
         pauseValue,
         intervalParamName,
@@ -397,11 +397,11 @@ object AkkaUtils {
 
     val normalizedExternalHostname = NetUtils.unresolvedHostToNormalizedString(externalHostname)
 
-    val akkaAskTimeout = Duration(configuration.getString(AkkaOptions.ASK_TIMEOUT))
+    val akkaAskTimeout = getTimeout(configuration)
 
     val startupTimeout = configuration.getString(
       AkkaOptions.STARTUP_TIMEOUT,
-      (akkaAskTimeout * 10).toString)
+      TimeUtils.getStringInMillis(akkaAskTimeout.multipliedBy(10L)))
 
     val transportHeartbeatInterval = configuration.getString(
       AkkaOptions.TRANSPORT_HEARTBEAT_INTERVAL)
