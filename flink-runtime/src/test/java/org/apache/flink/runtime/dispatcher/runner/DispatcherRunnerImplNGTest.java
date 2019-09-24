@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
@@ -132,6 +133,34 @@ public class DispatcherRunnerImplNGTest extends TestLogger {
 
 			assertThat(firstDispatcherGatewayFuture.get(), is(firstDispatcherGateway));
 			assertThat(secondDispatcherGatewayFuture.get(), is(secondDispatcherGateway));
+		}
+	}
+
+	@Test
+	public void revokeLeadership_withExistingLeader_stopsLeaderProcess() throws Exception {
+		final UUID leaderSessionId = UUID.randomUUID();
+
+		final CompletableFuture<Void> startFuture = new CompletableFuture<>();
+		final CompletableFuture<Void> stopFuture = new CompletableFuture<>();
+		testingDispatcherLeaderProcessFactory = TestingDispatcherLeaderProcessFactory.from(
+			TestingDispatcherLeaderProcess.newBuilder(leaderSessionId)
+				.setStartConsumer(startFuture::complete)
+				.setCloseAsyncSupplier(
+					() -> {
+						stopFuture.complete(null);
+						return FutureUtils.completedVoidFuture();
+					})
+				.build());
+		try (final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner()) {
+			testingLeaderElectionService.isLeader(leaderSessionId);
+
+			// wait until the leader process has been started
+			startFuture.get();
+
+			testingLeaderElectionService.notLeader();
+
+			// verify that the leader gets stopped
+			stopFuture.get();
 		}
 	}
 

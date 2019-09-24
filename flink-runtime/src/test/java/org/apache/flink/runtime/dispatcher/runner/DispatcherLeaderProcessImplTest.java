@@ -43,6 +43,7 @@ import org.junit.Test;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -329,6 +330,45 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 			Assert.assertThat(ExceptionUtils.findThrowable(throwable, expectedFailure::equals).isPresent(), Is.is(true));
 
 			assertThat(dispatcherLeaderProcess.getState(), is(DispatcherLeaderProcessImpl.State.STOPPED));
+
+			fatalErrorHandler.clearError();
+		}
+	}
+
+	@Test
+	public void recoverJobs_withRecoveryFailure_failsFatally() throws Exception {
+		final FlinkException testException = new FlinkException("Test exception");
+		jobGraphStore = TestingJobGraphStore.newBuilder()
+			.setRecoverJobGraphFunction(
+				(JobID jobId, Map<JobID, JobGraph> jobGraphs) -> {
+					throw testException;
+				})
+			.setInitialJobGraphs(Collections.singleton(JOB_GRAPH))
+			.build();
+
+		runJobRecoveryFailureTest(testException);
+	}
+
+	@Test
+	public void recoverJobs_withJobIdRecoveryFailure_failsFatally() throws Exception {
+		final FlinkException testException = new FlinkException("Test exception");
+		jobGraphStore = TestingJobGraphStore.newBuilder()
+			.setJobIdsFunction(
+				ignored -> {
+					throw testException;
+				})
+			.build();
+
+		runJobRecoveryFailureTest(testException);
+	}
+
+	private void runJobRecoveryFailureTest(FlinkException testException) throws Exception {
+		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+			dispatcherLeaderProcess.start();
+
+			// we expect that a fatal error occurred
+			final Throwable error = fatalErrorHandler.getErrorFuture().get();
+			Assert.assertThat(ExceptionUtils.findThrowableWithMessage(error, testException.getMessage()).isPresent(), is(true));
 
 			fatalErrorHandler.clearError();
 		}
