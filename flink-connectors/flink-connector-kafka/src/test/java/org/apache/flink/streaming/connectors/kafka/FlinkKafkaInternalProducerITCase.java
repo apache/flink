@@ -28,7 +28,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.errors.InvalidTxnStateException;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -170,7 +169,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
 		kafkaProducer.flush();
 	}
 
-	@Test(timeout = 30000L, expected = InvalidTxnStateException.class)
+	@Test(timeout = 30000L)
 	public void testProducerWhenCommitEmptyPartitionsToOutdatedTxnCoordinator() throws Exception {
 		String topic = "flink-kafka-producer-txn-coordinator-changed";
 		createTestTopic(topic, 1, 2);
