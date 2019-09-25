@@ -33,7 +33,6 @@ import org.apache.flink.optimizer.plan.OptimizedPlan;
 import org.apache.flink.optimizer.plan.StreamingPlan;
 import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.optimizer.plantranslate.JobGraphGenerator;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -52,7 +51,6 @@ import javax.annotation.Nullable;
 
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -71,10 +69,8 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 	final Optimizer compiler;
 
 	/** Configuration of the client. */
-	protected final Configuration flinkConfig;
+	private final Configuration flinkConfig;
 
-	/** Timeout for futures. */
-	protected final Duration timeout;
 	/**
 	 * For interactive invocations, the job results are only available after the ContextEnvironment has
 	 * been run inside the user JAR. We pass the Client to every instance of the ContextEnvironment
@@ -99,7 +95,6 @@ public abstract class ClusterClient<T> implements AutoCloseable {
 	public ClusterClient(Configuration flinkConfig) {
 		this.flinkConfig = Preconditions.checkNotNull(flinkConfig);
 		this.compiler = new Optimizer(new DataStatistics(), new DefaultCostEstimator(), flinkConfig);
-		this.timeout = AkkaUtils.getClientTimeout(flinkConfig);
 	}
 
 	/**
