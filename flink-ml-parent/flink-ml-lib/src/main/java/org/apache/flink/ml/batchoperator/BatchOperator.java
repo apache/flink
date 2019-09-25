@@ -45,16 +45,9 @@ public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOper
 	}
 
 	/**
-	 * Abbreviation of {@link #linkTo(BatchOperator)}.
-	 */
-	public <B extends BatchOperator<?>> B link(B next) {
-		return linkTo(next);
-	}
-
-	/**
 	 * Link to another {@link BatchOperator}.
 	 *
-	 * <p>Link the <code>next</code> to BatchOperator using this as its input.
+	 * <p>Link the <code>next</code> to a new BatchOperator using this as input.
 	 *
 	 * <p>For example:
 	 *
@@ -62,21 +55,19 @@ public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOper
 	 * {@code
 	 * BatchOperator a = ...;
 	 * BatchOperator b = ...;
-	 *
-	 * BatchOperator c = a.linkTo(b)
+	 * BatchOperator c = a.link(b)
 	 * }
 	 * </pre>
 	 *
-	 * <p>the <code>c</code> in upper code is the linked
+	 * <p>the <code>c</code> in upper code indict the linked
 	 * <code>b</code> which use <code>a</code> as input.
 	 *
-	 * @see #linkFrom(BatchOperator[])
-	 *
 	 * @param next the linked BatchOperator
-	 * @param <B> type of BatchOperator returned
+	 * @param <B>  type of BatchOperator returned
 	 * @return the linked next
+	 * @see #linkFrom(BatchOperator[])
 	 */
-	public <B extends BatchOperator<?>> B linkTo(B next) {
+	public <B extends BatchOperator<?>> B link(B next) {
 		next.linkFrom(this);
 		return next;
 	}

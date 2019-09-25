@@ -46,16 +46,9 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 	}
 
 	/**
-	 * Abbreviation of {@link #linkTo(StreamOperator)}.
-	 */
-	public <S extends StreamOperator<?>> S link(S next) {
-		return linkTo(next);
-	}
-
-	/**
 	 * Link to another {@link StreamOperator}.
 	 *
-	 * <p>Link the <code>next</code> to StreamOperator using this as its input.
+	 * <p>Link the <code>next</code> to a new StreamOperator using this as input.
 	 *
 	 * <p>For example:
 	 *
@@ -64,20 +57,19 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 	 * StreamOperator a = ...;
 	 * StreamOperator b = ...;
 	 *
-	 * StreamOperator c = a.linkTo(b)
+	 * StreamOperator c = a.link(b)
 	 * }
 	 * </pre>
 	 *
-	 * <p>the <code>c</code> in upper code is the linked
+	 * <p>the <code>c</code> in upper code indict the linked
 	 * <code>b</code> which use <code>a</code> as input.
 	 *
-	 * @see #linkFrom(StreamOperator[])
-	 *
 	 * @param next the linked StreamOperator
-	 * @param <S>  type of StreamOperator returned
+	 * @param <S>  type of StreamOpearator returned
 	 * @return the linked next
+	 * @see #linkFrom(StreamOperator[])
 	 */
-	public <S extends StreamOperator<?>> S linkTo(S next) {
+	public <S extends StreamOperator<?>> S link(S next) {
 		next.linkFrom(this);
 		return next;
 	}

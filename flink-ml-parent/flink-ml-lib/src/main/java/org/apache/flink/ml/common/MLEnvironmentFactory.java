@@ -23,6 +23,13 @@ import java.util.HashMap;
 
 /**
  * Factory to get the MLEnvironment using a MLEnvironmentId.
+ *
+ * <p>The MLEnvironmentFactory manages the multiple MLEnvironments by the MLEnvironmentId.
+ * Two steps that the user use the Factory:
+ * <ul>
+ *     <li>1. call the {@link #getNewMLEnvironmentId()} to get a new MLEnvironmentId</li>
+ *     <li>2. call the {@link #get(Long)} to get the MLEnvironment from factory using the got MLEnvironmentId</li>
+ * </ul>
  */
 public class MLEnvironmentFactory {
 
@@ -42,18 +49,22 @@ public class MLEnvironmentFactory {
 	private static HashMap<Long, MLEnvironment> map = new HashMap<>();
 
 	/**
-	 * Get the MLEnvironment use a MLEnvironmentId.
-	 * If it can not find MLEnvironment using the mlEnvId, it will create a new MLEnvironment,
-	 * set it to the Map and return the new MLEnvironment.
+	 * Get the MLEnvironment using a MLEnvironmentId.
 	 *
 	 * @param mlEnvId the MLEnvironmentId
 	 * @return the MLEnvironment
 	 */
 	public static synchronized MLEnvironment get(Long mlEnvId) {
 		if (!map.containsKey(mlEnvId)) {
-			map.put(mlEnvId, new MLEnvironment());
+			throw new RuntimeException("There is no Environment in factory. " +
+				"Maybe you could call `getNewMLEnvironmentId` to create a new MLEnvironmentId");
 		}
+
 		return map.get(mlEnvId);
+	}
+
+	static {
+		map.put(DEFAULT_ML_ENVIRONMENT_ID, new MLEnvironment());
 	}
 
 	/**
@@ -66,14 +77,12 @@ public class MLEnvironmentFactory {
 	}
 
 	/**
-	 * Create a unique MLEnvironment id.
+	 * Create a unique MLEnvironment id and set a new MLEnvironment in the factory.
 	 *
 	 * @return the MLEnvironment id.
 	 */
 	public static synchronized Long getNewMLEnvironmentId() {
-		while (map.containsKey(id)) {
-			id++;
-		}
+		map.put(id, new MLEnvironment());
 		return id++;
 	}
 
