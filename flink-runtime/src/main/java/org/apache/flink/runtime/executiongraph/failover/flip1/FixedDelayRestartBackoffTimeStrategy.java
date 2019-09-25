@@ -57,6 +57,10 @@ public class FixedDelayRestartBackoffTimeStrategy implements RestartBackoffTimeS
 		return backoffTimeMS;
 	}
 
+	public int getMaxNumberRestartAttempts() {
+		return maxNumberRestartAttempts;
+	}
+
 	@Override
 	public void notifyFailure(Throwable cause) {
 		currentRestartAttempt++;
