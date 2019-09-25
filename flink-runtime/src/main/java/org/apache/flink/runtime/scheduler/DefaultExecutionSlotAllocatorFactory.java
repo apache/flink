@@ -19,8 +19,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
-import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
+import org.apache.flink.runtime.executiongraph.SlotProviderStrategy;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -29,20 +28,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class DefaultExecutionSlotAllocatorFactory implements ExecutionSlotAllocatorFactory {
 
-	private final SlotProvider slotProvider;
+	private final SlotProviderStrategy slotProvider;
 
-	private final Time allocationTimeout;
-
-	public DefaultExecutionSlotAllocatorFactory(
-		final SlotProvider slotProvider,
-		final Time allocationTimeout) {
-
+	public DefaultExecutionSlotAllocatorFactory(final SlotProviderStrategy slotProvider) {
 		this.slotProvider = checkNotNull(slotProvider);
-		this.allocationTimeout = checkNotNull(allocationTimeout);
 	}
 
 	@Override
 	public ExecutionSlotAllocator createInstance(final InputsLocationsRetriever inputsLocationsRetriever) {
-		return new DefaultExecutionSlotAllocator(slotProvider, inputsLocationsRetriever, allocationTimeout);
+		return new DefaultExecutionSlotAllocator(slotProvider, inputsLocationsRetriever);
 	}
 }
