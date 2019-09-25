@@ -34,8 +34,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
-import static org.hamcrest.Matchers.anyOf;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
@@ -154,26 +152,24 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 			// the task should trigger immediately and should block until terminated with interruption
 			timer.registerTimer(System.currentTimeMillis(), timestamp -> {
 				synchronized (lock) {
-					latch.trigger();
-					Thread.sleep(100000000);
+					try {
+						latch.trigger();
+						Thread.sleep(100000000);
+						fail("should be interrupted");
+					} catch (InterruptedException ignored) {
+					}
 				}
 			});
 
 			latch.await();
 			timer.shutdownService();
+
+			// can only enter this scope after the task is interrupted
 			synchronized (lock) {
 				assertTrue(timer.isTerminated());
-
-				// The shutdownService() may not necessary wait for active tasks to finish properly.
-				// From the ScheduledThreadPoolExecutor Java docs:
-				// 	There are no guarantees beyond best-effort attempts to stop processing actively executing tasks.
-				// 	This implementation cancels tasks via {@link Thread#interrupt}, so any task that
-				// 	fails to respond to interrupts may never terminate.
-				assertThat(errorRef.get(), is(anyOf(nullValue(), instanceOf(InterruptedException.class))));
+				assertThat(errorRef.get(), is(nullValue()));
 				assertEquals(0, timer.getNumTasksScheduled());
 			}
-
-			errorRef.set(null);
 
 			try {
 				timer.registerTimer(System.currentTimeMillis() + 1000, timestamp -> fail("should not be called"));
