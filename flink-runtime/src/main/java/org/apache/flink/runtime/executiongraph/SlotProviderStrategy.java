@@ -35,7 +35,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Strategy to switch between different {@link SlotProvider} allocation strategies.
  */
-abstract class SlotProviderStrategy {
+public abstract class SlotProviderStrategy {
 
 	protected final SlotProvider slotProvider;
 
@@ -58,7 +58,7 @@ abstract class SlotProviderStrategy {
 	 * @param slotProfile profile of the requested slot
 	 * @return The future of the allocation
 	 */
-	abstract CompletableFuture<LogicalSlot> allocateSlot(
+	public abstract CompletableFuture<LogicalSlot> allocateSlot(
 		SlotRequestId slotRequestId,
 		ScheduledUnit scheduledUnit,
 		SlotProfile slotProfile);
@@ -70,14 +70,14 @@ abstract class SlotProviderStrategy {
 	 * @param slotSharingGroupId identifying the slot request to cancel
 	 * @param cause of the cancellation
 	 */
-	void cancelSlotRequest(
+	public void cancelSlotRequest(
 		SlotRequestId slotRequestId,
 		@Nullable SlotSharingGroupId slotSharingGroupId,
 		Throwable cause) {
 		slotProvider.cancelSlotRequest(slotRequestId, slotSharingGroupId, cause);
 	}
 
-	static SlotProviderStrategy from(
+	public static SlotProviderStrategy from(
 		ScheduleMode scheduleMode,
 		SlotProvider slotProvider,
 		Time allocationTimeout,
