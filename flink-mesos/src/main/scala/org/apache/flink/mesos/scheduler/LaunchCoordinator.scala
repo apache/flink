@@ -19,22 +19,24 @@
 package org.apache.flink.mesos.scheduler
 
 import java.util.Collections
+import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorRef, FSM, Props}
 import com.netflix.fenzo._
 import com.netflix.fenzo.functions.Action1
 import grizzled.slf4j.Logger
-import org.apache.flink.api.java.tuple.{Tuple2=>FlinkTuple2}
+import org.apache.flink.api.java.tuple.{Tuple2 => FlinkTuple2}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.mesos.Utils
 import org.apache.flink.mesos.scheduler.LaunchCoordinator._
 import org.apache.flink.mesos.scheduler.messages._
 import org.apache.flink.mesos.util.MesosResourceAllocation
-import org.apache.mesos.{SchedulerDriver, Protos}
+import org.apache.mesos.{Protos, SchedulerDriver}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{Map => MutableMap}
 import scala.concurrent.duration._
+import org.apache.flink.mesos.configuration.MesosOptions._
 
 /**
   * The launch coordinator handles offer processing, including
@@ -54,6 +56,15 @@ class LaunchCoordinator(
 
   val LOG = Logger(getClass)
 
+  val declineOfferFilters: Protos.Filters =
+    Protos.Filters.newBuilder()
+      .setRefuseSeconds(
+        Duration(config.getLong(DECLINED_OFFER_REFUSE_DURATION), TimeUnit.MILLISECONDS).toSeconds)
+      .build()
+
+  val unusedOfferExpirationDuration: Long =
+    Duration(config.getLong(UNUSED_OFFER_EXPIRATION), TimeUnit.MILLISECONDS).toSeconds
+
   /**
     * The task placement optimizer.
     *
@@ -68,13 +79,13 @@ class LaunchCoordinator(
           LOG.info(s"Declined offer ${lease.getId} from ${lease.hostname()} "
             + s"of memory ${lease.memoryMB()} MB, ${lease.cpuCores()} cpus, "
             + s"${lease.getScalarValue("gpus")} gpus, "
-            + s"of disk: ${lease.diskMB()} MB, network: ${lease.networkMbps()} Mbps")
-          schedulerDriver.declineOffer(lease.getOffer.getId)
+            + s"of disk: ${lease.diskMB()} MB, network: ${lease.networkMbps()} Mbps "
+            + s"for the next ${declineOfferFilters.getRefuseSeconds} seconds")
+          schedulerDriver.declineOffer(lease.getOffer.getId, declineOfferFilters)
         }
       })
-      // avoid situations where we have lots of expired offers and we only expire a few at a time
-      .withRejectAllExpiredOffers()
-      .build
+      .withLeaseOfferExpirySecs(unusedOfferExpirationDuration)
+      .withRejectAllExpiredOffers().build
   }
 
   override def postStop(): Unit = {
@@ -114,7 +125,9 @@ class LaunchCoordinator(
     case Event(offers: ResourceOffers, data: GatherData) =>
       // decline any offers that come in
       schedulerDriver.suppressOffers()
-      for(offer <- offers.offers().asScala) { schedulerDriver.declineOffer(offer.getId) }
+      for(offer <- offers.offers().asScala) {
+        schedulerDriver.declineOffer(offer.getId, declineOfferFilters)
+      }
       stay()
 
     case Event(msg: Launch, data: GatherData) =>

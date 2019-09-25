@@ -23,6 +23,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -112,24 +113,47 @@ public class TimeUtils {
 	 */
 	private enum TimeUnit {
 
-		DAYS(ChronoUnit.DAYS, "d", "day"),
-		HOURS(ChronoUnit.HOURS, "h", "hour"),
-		MINUTES(ChronoUnit.MINUTES, "min", "minute"),
-		SECONDS(ChronoUnit.SECONDS, "s", "sec", "second"),
-		MILLISECONDS(ChronoUnit.MILLIS, "ms", "milli", "millisecond"),
-		MICROSECONDS(ChronoUnit.MICROS, "µs", "micro", "microsecond"),
-		NANOSECONDS(ChronoUnit.NANOS, "ns", "nano", "nanosecond");
+		DAYS(ChronoUnit.DAYS, singular("d"), plural("day")),
+		HOURS(ChronoUnit.HOURS, singular("h"), plural("hour")),
+		MINUTES(ChronoUnit.MINUTES, singular("min"), plural("minute")),
+		SECONDS(ChronoUnit.SECONDS, singular("s"), plural("sec"), plural("second")),
+		MILLISECONDS(ChronoUnit.MILLIS, singular("ms"), plural("milli"), plural("millisecond")),
+		MICROSECONDS(ChronoUnit.MICROS, singular("µs"), plural("micro"), plural("microsecond")),
+		NANOSECONDS(ChronoUnit.NANOS, singular("ns"), plural("nano"), plural("nanosecond"));
 
-		private String[] labels;
+		private static final String PLURAL_SUFFIX = "s";
 
-		private ChronoUnit unit;
+		private final List<String> labels;
 
-		TimeUnit(ChronoUnit unit, String... labels) {
+		private final ChronoUnit unit;
+
+		TimeUnit(ChronoUnit unit, String[]... labels) {
 			this.unit = unit;
-			this.labels = labels;
+			this.labels = Arrays.stream(labels).flatMap(ls -> Arrays.stream(ls)).collect(Collectors.toList());
 		}
 
-		public String[] getLabels() {
+		/**
+		 * @param label the original label
+		 * @return the singular format of the original label
+		 */
+		private static String[] singular(String label) {
+			return new String[] {
+				label
+			};
+		}
+
+		/**
+		 * @param label the original label
+		 * @return both the singular format and plural format of the original label
+		 */
+		private static String[] plural(String label) {
+			return new String[] {
+				label,
+				label + PLURAL_SUFFIX
+			};
+		}
+
+		public List<String> getLabels() {
 			return labels;
 		}
 
