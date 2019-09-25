@@ -542,6 +542,36 @@ class TableEnvironment(object):
             .loadClass(function_class_name).newInstance()
         self._j_tenv.registerFunction(name, java_function)
 
+    def register_function(self, name, function):
+        """
+        Registers a python user-defined function under a unique name. Replaces already existing
+        user-defined function under this name.
+
+        Example:
+        ::
+
+            >>> table_env.register_function(
+            ...     "add_one", udf(lambda i: i + 1, DataTypes.BIGINT(), DataTypes.BIGINT()))
+
+            >>> @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()],
+            ...      result_type=DataTypes.BIGINT())
+            ... def add(i, j):
+            ...     return i + j
+            >>> table_env.register_function("add", add)
+
+            >>> class SubtractOne(ScalarFunction):
+            ...     def eval(self, i):
+            ...         return i - 1
+            >>> table_env.register_function(
+            ...     "subtract_one", udf(SubtractOne(), DataTypes.BIGINT(), DataTypes.BIGINT()))
+
+        :param name: The name under which the function is registered.
+        :type name: str
+        :param function: The python user-defined function to register.
+        :type function: UserDefinedFunctionWrapper
+        """
+        self._j_tenv.registerFunction(name, function._judf)
+
     def execute(self, job_name):
         """
         Triggers the program execution. The environment will execute all parts of

@@ -31,12 +31,41 @@ import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.typeutils.{MapTypeInfo, ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.core.io.InputSplit
 import org.apache.flink.table.api.{TableSchema, Types}
+import org.apache.flink.table.codegen.PythonFunctionCodeGenerator
+import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.functions.python.PythonEnv
 import org.apache.flink.table.sources.InputFormatTableSource
 import org.apache.flink.types.Row
 
 import scala.collection.JavaConversions._
 
 object PythonTableUtils {
+
+  /**
+    * Creates a [[ScalarFunction]] for the specified Python ScalarFunction.
+    *
+    * @param funcName class name of the user-defined function. Must be a valid Java class identifier
+    * @param serializedScalarFunction serialized Python scalar function
+    * @param inputTypes input data types
+    * @param resultType expected result type
+    * @param deterministic the determinism of the function's results
+    * @param pythonEnv the Python execution environment
+    * @return A generated Java ScalarFunction representation for the specified Python ScalarFunction
+    */
+  def createPythonScalarFunction(
+      funcName: String,
+      serializedScalarFunction: Array[Byte],
+      inputTypes: Array[TypeInformation[_]],
+      resultType: TypeInformation[_],
+      deterministic: Boolean,
+      pythonEnv: PythonEnv): ScalarFunction =
+    PythonFunctionCodeGenerator.generateScalarFunction(
+      funcName,
+      serializedScalarFunction,
+      inputTypes,
+      resultType,
+      deterministic,
+      pythonEnv)
 
   /**
     * Wrap the unpickled python data with an InputFormat. It will be passed to

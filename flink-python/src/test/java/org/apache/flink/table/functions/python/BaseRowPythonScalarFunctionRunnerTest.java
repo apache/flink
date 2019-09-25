@@ -116,7 +116,7 @@ public class BaseRowPythonScalarFunctionRunnerTest extends AbstractPythonScalarF
 			// ignore the execution results
 		};
 
-		final PythonEnv pythonEnv = new PythonEnv("", "", PythonEnv.ExecType.PROCESS);
+		final PythonEnv pythonEnv = new PythonEnv(PythonEnv.ExecType.PROCESS);
 
 		return new BaseRowPythonScalarFunctionRunner(
 			"testPythonRunner",
