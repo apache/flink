@@ -19,14 +19,21 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.util.AutoCloseableAsync;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -49,6 +56,8 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 
 	private final CompletableFuture<Void> terminationFuture;
 
+	private final CompletableFuture<ApplicationStatus> shutDownFuture;
+
 	private State state;
 
 	AbstractDispatcherLeaderProcess(UUID leaderSessionId, FatalErrorHandler fatalErrorHandler) {
@@ -58,6 +67,7 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 		this.dispatcherGatewayFuture = new CompletableFuture<>();
 		this.confirmLeaderSessionFuture = dispatcherGatewayFuture.thenApply(RestfulGateway::getAddress);
 		this.terminationFuture = new CompletableFuture<>();
+		this.shutDownFuture = new CompletableFuture<>();
 
 		this.state = State.CREATED;
 	}
@@ -98,6 +108,11 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 	}
 
 	@Override
+	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
+		return shutDownFuture;
+	}
+
+	@Override
 	public final CompletableFuture<Void> closeAsync() {
 		runIfStateIsNot(
 			State.STOPPED,
@@ -120,8 +135,15 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 		return FutureUtils.completedVoidFuture();
 	}
 
-	protected void completeDispatcherGatewayFuture(DispatcherGateway dispatcherGateway) {
-		dispatcherGatewayFuture.complete(dispatcherGateway);
+	protected final void completeDispatcherSetup(DispatcherService dispatcherService) {
+		runIfStateIs(
+			State.RUNNING,
+			() -> completeDispatcherSetupInternal(dispatcherService));
+	}
+
+	private void completeDispatcherSetupInternal(DispatcherService dispatcherService) {
+		dispatcherGatewayFuture.complete(dispatcherService.getGateway());
+		FutureUtils.forward(dispatcherService.getShutDownFuture(), shutDownFuture);
 	}
 
 	final <V> Optional<V> supplyUnsynchronizedIfRunning(Supplier<V> supplier) {
@@ -181,5 +203,24 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 		CREATED,
 		RUNNING,
 		STOPPED
+	}
+
+	// ------------------------------------------------------------
+	// Internal classes
+	// ------------------------------------------------------------
+
+	interface DispatcherServiceFactory {
+		DispatcherService create(
+			DispatcherId fencingToken,
+			Collection<JobGraph> recoveredJobs,
+			JobGraphWriter jobGraphWriter);
+	}
+
+	interface DispatcherService extends AutoCloseableAsync {
+		DispatcherGateway getGateway();
+
+		CompletableFuture<Void> onRemovedJobGraph(JobID jobId);
+
+		CompletableFuture<ApplicationStatus> getShutDownFuture();
 	}
 }

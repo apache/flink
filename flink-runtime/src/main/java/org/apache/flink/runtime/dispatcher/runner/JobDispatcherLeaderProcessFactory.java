@@ -27,14 +27,14 @@ import java.util.UUID;
  * Factory for the {@link JobDispatcherLeaderProcess}.
  */
 public class JobDispatcherLeaderProcessFactory implements DispatcherLeaderProcessFactory {
-	private final DispatcherLeaderProcessImpl.DispatcherServiceFactory dispatcherServiceFactory;
+	private final AbstractDispatcherLeaderProcess.DispatcherServiceFactory dispatcherServiceFactory;
 
 	private final JobGraph jobGraph;
 
 	private final FatalErrorHandler fatalErrorHandler;
 
 	JobDispatcherLeaderProcessFactory(
-			DispatcherLeaderProcessImpl.DispatcherServiceFactory dispatcherServiceFactory,
+			AbstractDispatcherLeaderProcess.DispatcherServiceFactory dispatcherServiceFactory,
 			JobGraph jobGraph,
 			FatalErrorHandler fatalErrorHandler) {
 		this.dispatcherServiceFactory = dispatcherServiceFactory;

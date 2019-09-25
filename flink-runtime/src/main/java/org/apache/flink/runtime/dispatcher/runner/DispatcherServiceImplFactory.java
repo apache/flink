@@ -33,7 +33,7 @@ import java.util.Collection;
 /**
  * Factory for the {@link DispatcherServiceImpl}.
  */
-class DispatcherServiceImplFactory implements DispatcherLeaderProcessImpl.DispatcherServiceFactory {
+class DispatcherServiceImplFactory implements AbstractDispatcherLeaderProcess.DispatcherServiceFactory {
 
 	private final DispatcherFactory dispatcherFactory;
 
@@ -51,7 +51,7 @@ class DispatcherServiceImplFactory implements DispatcherLeaderProcessImpl.Dispat
 	}
 
 	@Override
-	public DispatcherLeaderProcessImpl.DispatcherService create(
+	public AbstractDispatcherLeaderProcess.DispatcherService create(
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
 			JobGraphWriter jobGraphWriter) {

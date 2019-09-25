@@ -156,18 +156,6 @@ public class DispatcherRunnerImplNG implements DispatcherRunner, LeaderContender
 
 	private void createAndAssignNewDispatcherLeaderProcess(UUID leaderSessionID) {
 		dispatcherLeaderProcess = createNewDispatcherLeaderProcess(leaderSessionID);
-
-		final CompletableFuture<DispatcherGateway> newDispatcherGatewayFuture = dispatcherLeaderProcess.getDispatcherGateway();
-		FutureUtils.forward(newDispatcherGatewayFuture, dispatcherGatewayFuture);
-		dispatcherGatewayFuture = newDispatcherGatewayFuture;
-
-		FutureUtils.assertNoException(
-			dispatcherLeaderProcess.getConfirmLeaderSessionFuture().thenAccept(
-				leaderAddress -> {
-					if (leaderElectionService.hasLeadership(leaderSessionID)) {
-						leaderElectionService.confirmLeadership(leaderSessionID, leaderAddress);
-					}
-				}));
 	}
 
 	private void stopDispatcherLeaderProcess() {
@@ -180,7 +168,46 @@ public class DispatcherRunnerImplNG implements DispatcherRunner, LeaderContender
 
 	private DispatcherLeaderProcess createNewDispatcherLeaderProcess(UUID leaderSessionID) {
 		LOG.debug("Create new {} with leader session id {}.", DispatcherLeaderProcess.class.getSimpleName(), leaderSessionID);
-		return dispatcherLeaderProcessFactory.create(leaderSessionID);
+
+		final DispatcherLeaderProcess newDispatcherLeaderProcess = dispatcherLeaderProcessFactory.create(leaderSessionID);
+
+		forwardDispatcherGatewayFuture(newDispatcherLeaderProcess);
+		forwardShutDownFuture(newDispatcherLeaderProcess);
+		forwardConfirmLeaderSessionFuture(leaderSessionID, newDispatcherLeaderProcess);
+
+		return newDispatcherLeaderProcess;
+	}
+
+	private void forwardDispatcherGatewayFuture(DispatcherLeaderProcess newDispatcherLeaderProcess) {
+		final CompletableFuture<DispatcherGateway> newDispatcherGatewayFuture = newDispatcherLeaderProcess.getDispatcherGateway();
+		FutureUtils.forward(newDispatcherGatewayFuture, dispatcherGatewayFuture);
+		dispatcherGatewayFuture = newDispatcherGatewayFuture;
+	}
+
+	private void forwardShutDownFuture(DispatcherLeaderProcess newDispatcherLeaderProcess) {
+		newDispatcherLeaderProcess.getShutDownFuture().whenComplete(
+			(applicationStatus, throwable) -> {
+				synchronized (lock) {
+					// ignore if no longer running or if leader processes is no longer valid
+					if (isRunning && this.dispatcherLeaderProcess == newDispatcherLeaderProcess) {
+						if (throwable != null) {
+							shutDownFuture.completeExceptionally(throwable);
+						} else {
+							shutDownFuture.complete(applicationStatus);
+						}
+					}
+				}
+			});
+	}
+
+	private void forwardConfirmLeaderSessionFuture(UUID leaderSessionID, DispatcherLeaderProcess newDispatcherLeaderProcess) {
+		FutureUtils.assertNoException(
+			newDispatcherLeaderProcess.getConfirmLeaderSessionFuture().thenAccept(
+				leaderAddress -> {
+					if (leaderElectionService.hasLeadership(leaderSessionID)) {
+						leaderElectionService.confirmLeadership(leaderSessionID, leaderAddress);
+					}
+				}));
 	}
 
 	@Override

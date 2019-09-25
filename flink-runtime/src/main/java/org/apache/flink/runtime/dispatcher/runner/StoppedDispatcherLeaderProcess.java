@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 
 import java.util.UUID;
@@ -32,7 +33,8 @@ public enum StoppedDispatcherLeaderProcess implements DispatcherLeaderProcess {
 
 	private static final CompletableFuture<Void> TERMINATION_FUTURE = CompletableFuture.completedFuture(null);
 	private static final UUID LEADER_SESSION_ID = new UUID(0L, 0L);
-	private static final CompletableFuture<String> NEVER_COMPLETED_FUTURE = new CompletableFuture<>();
+	private static final CompletableFuture<String> NEVER_COMPLETED_LEADER_SESSION_FUTURE = new CompletableFuture<>();
+	private static final CompletableFuture<ApplicationStatus> NEVER_COMPLETED_SHUTDOWN_FUTURE = new CompletableFuture<>();
 
 	@Override
 	public void start() {
@@ -51,7 +53,12 @@ public enum StoppedDispatcherLeaderProcess implements DispatcherLeaderProcess {
 
 	@Override
 	public CompletableFuture<String> getConfirmLeaderSessionFuture() {
-		return NEVER_COMPLETED_FUTURE;
+		return NEVER_COMPLETED_LEADER_SESSION_FUTURE;
+	}
+
+	@Override
+	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
+		return NEVER_COMPLETED_SHUTDOWN_FUTURE;
 	}
 
 	@Override

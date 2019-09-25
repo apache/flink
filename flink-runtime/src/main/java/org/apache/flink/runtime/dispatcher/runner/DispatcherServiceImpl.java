@@ -19,12 +19,13 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 
 import java.util.concurrent.CompletableFuture;
 
-class DispatcherServiceImpl implements DispatcherLeaderProcessImpl.DispatcherService {
+class DispatcherServiceImpl implements AbstractDispatcherLeaderProcess.DispatcherService {
 
 	private final Dispatcher dispatcher;
 	private final DispatcherGateway dispatcherGateway;
@@ -42,6 +43,11 @@ class DispatcherServiceImpl implements DispatcherLeaderProcessImpl.DispatcherSer
 	@Override
 	public CompletableFuture<Void> onRemovedJobGraph(JobID jobId) {
 		return dispatcher.onRemovedJobGraph(jobId);
+	}
+
+	@Override
+	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
+		return dispatcher.getShutDownFuture();
 	}
 
 	@Override

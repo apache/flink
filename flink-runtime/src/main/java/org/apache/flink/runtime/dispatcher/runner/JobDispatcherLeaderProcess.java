@@ -33,15 +33,15 @@ import java.util.concurrent.CompletableFuture;
  */
 public class JobDispatcherLeaderProcess extends AbstractDispatcherLeaderProcess {
 
-	private final DispatcherLeaderProcessImpl.DispatcherServiceFactory dispatcherServiceFactory;
+	private final DispatcherServiceFactory dispatcherServiceFactory;
 
 	private final JobGraph jobGraph;
 
-	private DispatcherLeaderProcessImpl.DispatcherService dispatcherService;
+	private DispatcherService dispatcherService;
 
 	JobDispatcherLeaderProcess(
 			UUID leaderSessionId,
-			DispatcherLeaderProcessImpl.DispatcherServiceFactory dispatcherServiceFactory,
+			DispatcherServiceFactory dispatcherServiceFactory,
 			JobGraph jobGraph,
 			FatalErrorHandler fatalErrorHandler) {
 		super(leaderSessionId, fatalErrorHandler);
@@ -56,7 +56,7 @@ public class JobDispatcherLeaderProcess extends AbstractDispatcherLeaderProcess 
 			Collections.singleton(jobGraph),
 			ThrowingJobGraphWriter.INSTANCE);
 
-		completeDispatcherGatewayFuture(dispatcherService.getGateway());
+		completeDispatcherSetup(dispatcherService);
 	}
 
 	@Override

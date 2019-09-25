@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
@@ -27,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-class TestingDispatcherService implements DispatcherLeaderProcessImpl.DispatcherService {
+class TestingDispatcherService implements AbstractDispatcherLeaderProcess.DispatcherService {
 
 	private final Object lock = new Object();
 
@@ -37,15 +38,19 @@ class TestingDispatcherService implements DispatcherLeaderProcessImpl.Dispatcher
 
 	private final DispatcherGateway dispatcherGateway;
 
+	private final CompletableFuture<ApplicationStatus> shutDownFuture;
+
 	private CompletableFuture<Void> terminationFuture;
 
 	private TestingDispatcherService(
-		Supplier<CompletableFuture<Void>> terminationFutureSupplier,
-		Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction,
-		DispatcherGateway dispatcherGateway) {
-			this.terminationFutureSupplier = terminationFutureSupplier;
-			this.onRemovedJobGraphFunction = onRemovedJobGraphFunction;
-			this.dispatcherGateway = dispatcherGateway;
+			Supplier<CompletableFuture<Void>> terminationFutureSupplier,
+			Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction,
+			DispatcherGateway dispatcherGateway,
+			CompletableFuture<ApplicationStatus> shutDownFuture) {
+		this.terminationFutureSupplier = terminationFutureSupplier;
+		this.onRemovedJobGraphFunction = onRemovedJobGraphFunction;
+		this.dispatcherGateway = dispatcherGateway;
+		this.shutDownFuture = shutDownFuture;
 	}
 
 	@Override
@@ -56,6 +61,11 @@ class TestingDispatcherService implements DispatcherLeaderProcessImpl.Dispatcher
 	@Override
 	public CompletableFuture<Void> onRemovedJobGraph(JobID jobId) {
 		return onRemovedJobGraphFunction.apply(jobId);
+	}
+
+	@Override
+	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
+		return shutDownFuture;
 	}
 
 	@Override
@@ -81,6 +91,8 @@ class TestingDispatcherService implements DispatcherLeaderProcessImpl.Dispatcher
 
 		private DispatcherGateway dispatcherGateway = new TestingDispatcherGateway.Builder().build();
 
+		private CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
+
 		private Builder() {}
 
 		public Builder setTerminationFutureSupplier(Supplier<CompletableFuture<Void>> terminationFutureSupplier) {
@@ -98,8 +110,13 @@ class TestingDispatcherService implements DispatcherLeaderProcessImpl.Dispatcher
 			return this;
 		}
 
+		public Builder setShutDownFuture(CompletableFuture<ApplicationStatus> shutDownFuture) {
+			this.shutDownFuture = shutDownFuture;
+			return this;
+		}
+
 		public TestingDispatcherService build() {
-			return new TestingDispatcherService(terminationFutureSupplier, onRemovedJobGraphFunction, dispatcherGateway);
+			return new TestingDispatcherService(terminationFutureSupplier, onRemovedJobGraphFunction, dispatcherGateway, shutDownFuture);
 		}
 	}
 }
