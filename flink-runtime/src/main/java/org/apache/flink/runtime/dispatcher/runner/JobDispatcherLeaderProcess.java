@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.ThrowingJobGraphWriter;
@@ -26,7 +25,6 @@ import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
 import java.util.Collections;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * {@link DispatcherLeaderProcess} implementation for the per-job mode.
@@ -36,8 +34,6 @@ public class JobDispatcherLeaderProcess extends AbstractDispatcherLeaderProcess 
 	private final DispatcherServiceFactory dispatcherServiceFactory;
 
 	private final JobGraph jobGraph;
-
-	private DispatcherService dispatcherService;
 
 	JobDispatcherLeaderProcess(
 			UUID leaderSessionId,
@@ -51,20 +47,11 @@ public class JobDispatcherLeaderProcess extends AbstractDispatcherLeaderProcess 
 
 	@Override
 	protected void onStart() {
-		dispatcherService = dispatcherServiceFactory.create(
+		final DispatcherService dispatcherService = dispatcherServiceFactory.create(
 			DispatcherId.fromUuid(getLeaderSessionId()),
 			Collections.singleton(jobGraph),
 			ThrowingJobGraphWriter.INSTANCE);
 
 		completeDispatcherSetup(dispatcherService);
-	}
-
-	@Override
-	protected CompletableFuture<Void> onClose() {
-		if (dispatcherService != null) {
-			return dispatcherService.closeAsync();
-		} else {
-			return FutureUtils.completedVoidFuture();
-		}
 	}
 }

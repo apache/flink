@@ -29,9 +29,12 @@ import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.util.AutoCloseableAsync;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -59,6 +62,9 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 	private final CompletableFuture<ApplicationStatus> shutDownFuture;
 
 	private State state;
+
+	@Nullable
+	private DispatcherService dispatcherService;
 
 	AbstractDispatcherLeaderProcess(UUID leaderSessionId, FatalErrorHandler fatalErrorHandler) {
 		this.leaderSessionId = leaderSessionId;
@@ -112,6 +118,10 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 		return shutDownFuture;
 	}
 
+	protected final Optional<DispatcherService> getDispatcherService() {
+		return Optional.ofNullable(dispatcherService);
+	}
+
 	@Override
 	public final CompletableFuture<Void> closeAsync() {
 		runIfStateIsNot(
@@ -122,11 +132,27 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 	}
 
 	private void closeInternal() {
+		log.info("Stopping {}.", getClass().getSimpleName());
+
+		final CompletableFuture<Void> dispatcherServiceTerminationFuture = closeDispatcherService();
+
+		final CompletableFuture<Void> onCloseTerminationFuture = FutureUtils.composeAfterwards(
+			dispatcherServiceTerminationFuture,
+			this::onClose);
+
 		FutureUtils.forward(
-			onClose(),
-			terminationFuture);
+			onCloseTerminationFuture,
+			this.terminationFuture);
 
 		state = State.STOPPED;
+	}
+
+	private CompletableFuture<Void> closeDispatcherService() {
+		if (dispatcherService != null) {
+			return dispatcherService.closeAsync();
+		} else {
+			return FutureUtils.completedVoidFuture();
+		}
 	}
 
 	protected abstract void onStart();
@@ -135,15 +161,17 @@ abstract class AbstractDispatcherLeaderProcess implements DispatcherLeaderProces
 		return FutureUtils.completedVoidFuture();
 	}
 
-	protected final void completeDispatcherSetup(DispatcherService dispatcherService) {
+	final void completeDispatcherSetup(DispatcherService dispatcherService) {
 		runIfStateIs(
 			State.RUNNING,
 			() -> completeDispatcherSetupInternal(dispatcherService));
 	}
 
-	private void completeDispatcherSetupInternal(DispatcherService dispatcherService) {
-		dispatcherGatewayFuture.complete(dispatcherService.getGateway());
-		FutureUtils.forward(dispatcherService.getShutDownFuture(), shutDownFuture);
+	private void completeDispatcherSetupInternal(DispatcherService createdDispatcherService) {
+		Preconditions.checkState(dispatcherService == null, "The DispatcherService can only be set once.");
+		dispatcherService = createdDispatcherService;
+		dispatcherGatewayFuture.complete(createdDispatcherService.getGateway());
+		FutureUtils.forward(createdDispatcherService.getShutDownFuture(), shutDownFuture);
 	}
 
 	final <V> Optional<V> supplyUnsynchronizedIfRunning(Supplier<V> supplier) {
