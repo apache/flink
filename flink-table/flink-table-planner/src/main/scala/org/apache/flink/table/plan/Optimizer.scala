@@ -87,20 +87,20 @@ abstract class Optimizer(
   }
 
   /**
-    * Returns the logical Python optimization rule set for this optimizer
+    * Returns the logical rewrite rule set for this optimizer
     * including a custom RuleSet configuration.
     */
-  protected def getPythonLogicalOptRuleSet: RuleSet = {
-    materializedConfig.pythonLogicalOptRuleSet match {
+  protected def getLogicalRewriteRuleSet: RuleSet = {
+    materializedConfig.logicalRewriteRuleSet match {
 
       case None =>
-        getBuiltInPythonLogicalOptRuleSet
+        getBuiltInLogicalRewriteRuleSet
 
       case Some(ruleSet) =>
-        if (materializedConfig.replacesLogicalOptRuleSet) {
+        if (materializedConfig.replacesLogicalRewriteRuleSet) {
           ruleSet
         } else {
-          RuleSets.ofList((getBuiltInPythonLogicalOptRuleSet.asScala ++ ruleSet.asScala).asJava)
+          RuleSets.ofList((getBuiltInLogicalRewriteRuleSet.asScala ++ ruleSet.asScala).asJava)
         }
     }
   }
@@ -137,10 +137,10 @@ abstract class Optimizer(
   }
 
   /**
-    * Returns the built-in Python logical optimization rules that are defined by the optimizer.
+    * Returns the built-in logical rewrite rules that are defined by the optimizer.
     */
-  protected def getBuiltInPythonLogicalOptRuleSet: RuleSet = {
-    FlinkRuleSets.LOGICAL_PYTHON_OPT_RULES
+  protected def getBuiltInLogicalRewriteRuleSet: RuleSet = {
+    FlinkRuleSets.LOGICAL_REWRITE_RULES
   }
 
   /**
@@ -179,12 +179,12 @@ abstract class Optimizer(
     }
   }
 
-  protected def optimizePythonLogicalPlan(relNode: RelNode): RelNode = {
-    val logicalOptRuleSet = getPythonLogicalOptRuleSet
-    if (logicalOptRuleSet.iterator().hasNext) {
+  protected def optimizeLogicalRewritePlan(relNode: RelNode): RelNode = {
+    val logicalRewriteRuleSet = getLogicalRewriteRuleSet
+    if (logicalRewriteRuleSet.iterator().hasNext) {
       runHepPlannerSimultaneously(
         HepMatchOrder.TOP_DOWN,
-        logicalOptRuleSet,
+        logicalRewriteRuleSet,
         relNode,
         relNode.getTraitSet)
     } else {

@@ -145,9 +145,9 @@ object FlinkRuleSets {
   )
 
   /**
-    * RuleSet to optimize plans for Python UDF execution
+    * RuleSet to do rewrite on FlinkLogicalRel
     */
-  val LOGICAL_PYTHON_OPT_RULES: RuleSet = RuleSets.ofList(
+  val LOGICAL_REWRITE_RULES: RuleSet = RuleSets.ofList(
     PythonScalarFunctionSplitRule.INSTANCE
   )
 

@@ -42,7 +42,7 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
       unaryNode(
         "DataStreamPythonCalc",
         streamTableNode(table),
-        term("select", "a", "b", "c", "pyFunc1(a, b) AS f0")
+        term("select", "pyFunc1(a, b) AS f0")
       ),
       term("select", "+(f0, 1) AS _c0")
     )
@@ -64,7 +64,7 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
       unaryNode(
         "DataStreamPythonCalc",
         streamTableNode(table),
-        term("select", "a", "b", "c", "pyFunc1(a, b) AS f0")
+        term("select", "c", "pyFunc1(a, b) AS f0")
       ),
       term("select", "f0 AS _c0", "+(c, 1) AS _c1")
     )
@@ -88,7 +88,7 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
       unaryNode(
         "DataStreamPythonCalc",
         streamTableNode(table),
-        term("select", "a", "b", "c", "pyFunc1(a, b) AS f0", "pyFunc2(a, c) AS f1")
+        term("select", "c", "pyFunc1(a, b) AS f0", "pyFunc2(a, c) AS f1")
         ),
       term("select", "f0 AS _c0", "+(c, 1) AS _c1"),
       term("where", ">(f1, 0)")
@@ -115,9 +115,9 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
         unaryNode(
           "DataStreamPythonCalc",
           streamTableNode(table),
-          term("select", "a", "b", "c", "pyFunc1(a, c) AS f0")
+          term("select", "b", "c", "a", "pyFunc1(a, c) AS f0")
         ),
-        term("select", "a", "b", "c", "+(a, f0) AS f0")
+        term("select", "b", "c", "+(a, f0) AS f0")
       ),
       term("select", "pyFunc3(pyFunc2(f0, b), c) AS _c0")
     )
@@ -138,6 +138,28 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
       "DataStreamPythonCalc",
       streamTableNode(table),
       term("select", "pyFunc1(a, b) AS _c0")
+      )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testFieldNameUniquify(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'f0, 'f1, 'f2)
+    util.tableEnv.registerFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
+
+    val resultTable = table
+      .select("pyFunc1(f1, f2), f0 + 1")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        streamTableNode(table),
+        term("select", "f0", "pyFunc1(f1, f2) AS f00")
+        ),
+      term("select", "f00 AS _c0", "+(f0, 1) AS _c1")
       )
 
     util.verifyTable(resultTable, expected)

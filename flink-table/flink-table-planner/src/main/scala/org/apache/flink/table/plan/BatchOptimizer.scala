@@ -54,8 +54,7 @@ class BatchOptimizer(
     val decorPlan = RelDecorrelator.decorrelateQuery(expandedPlan)
     val normalizedPlan = optimizeNormalizeLogicalPlan(decorPlan)
     val logicalPlan = optimizeLogicalPlan(normalizedPlan)
-    val pythonizedLogicalPlan = optimizePythonLogicalPlan(logicalPlan)
-    optimizePhysicalPlan(pythonizedLogicalPlan, FlinkConventions.DATASET)
+    optimizePhysicalPlan(logicalPlan, FlinkConventions.DATASET)
   }
 
   /**

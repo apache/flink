@@ -44,8 +44,7 @@ class DataStreamPythonCalcRule
   }
 
   def convert(rel: RelNode): RelNode = {
-    val calc: FlinkLogicalCalc =
-      rel.asInstanceOf[FlinkLogicalCalc]
+    val calc: FlinkLogicalCalc = rel.asInstanceOf[FlinkLogicalCalc]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.DATASTREAM)
     val convInput: RelNode = RelOptRule.convert(calc.getInput, FlinkConventions.DATASTREAM)
 

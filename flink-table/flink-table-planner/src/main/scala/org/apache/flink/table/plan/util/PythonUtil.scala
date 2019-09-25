@@ -41,7 +41,7 @@ object PythonUtil {
   }
 
   /**
-    * Checks whether there is a Python function in a RexNode.
+    * Checks whether it contains the specified kind of function in a RexNode.
     *
     * @param expectedLanguage the expected kind of function to find
     * @param recursive whether check the inputs
@@ -61,14 +61,8 @@ object PythonUtil {
 
     override def visitNode(rexNode: RexNode): Boolean = false
 
-    private def findInternal(actualLanguage: FunctionLanguage, call: RexCall): Boolean = {
-      if (actualLanguage == expectedLanguage) {
-        true
-      } else if (recursive) {
-        call.getOperands.exists(_.accept(this))
-      } else {
-        false
-      }
-    }
+    private def findInternal(actualLanguage: FunctionLanguage, call: RexCall): Boolean =
+      actualLanguage == expectedLanguage ||
+        (recursive && call.getOperands.exists(_.accept(this)))
   }
 }
