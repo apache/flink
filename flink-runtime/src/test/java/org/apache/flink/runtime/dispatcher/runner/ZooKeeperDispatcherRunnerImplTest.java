@@ -75,7 +75,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for the interaction between the {@link DispatcherRunnerImpl} and ZooKeeper.
+ * Tests for the interaction between the {@link DispatcherRunnerImplNG} and ZooKeeper.
  */
 public class ZooKeeperDispatcherRunnerImplTest extends TestLogger {
 
