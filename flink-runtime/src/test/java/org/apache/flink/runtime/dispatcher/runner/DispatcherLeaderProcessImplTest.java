@@ -20,6 +20,9 @@ package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
+import org.apache.flink.runtime.client.JobSubmissionException;
+import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -30,6 +33,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.ThrowingConsumer;
 import org.apache.flink.util.function.TriFunctionWithException;
 
 import org.hamcrest.core.Is;
@@ -38,7 +42,6 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Collection;
@@ -55,6 +58,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -406,9 +410,61 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 	}
 
 	@Test
-	@Ignore
-	public void onAddedJobGraph_falsePositive_willBeIgnored() {
-		fail("Needs to be implemented once the proper deduplication mechanism is in place.");
+	public void onAddedJobGraph_failingRecoveredJobSubmission_failsFatally() throws Exception {
+		final TestingDispatcherGateway dispatcherGateway = new TestingDispatcherGateway.Builder()
+			.setSubmitFunction(jobGraph -> FutureUtils.completedExceptionally(new JobSubmissionException(jobGraph.getJobID(), "test exception")))
+			.build();
+
+		runOnAddedJobGraphTest(dispatcherGateway, this::verifyOnAddedJobGraphResultFailsFatally);
+	}
+
+	private void verifyOnAddedJobGraphResultFailsFatally(TestingFatalErrorHandler fatalErrorHandler) {
+			final Throwable actualCause = fatalErrorHandler.getErrorFuture().join();
+
+			assertTrue(ExceptionUtils.findThrowable(actualCause, JobSubmissionException.class).isPresent());
+
+			fatalErrorHandler.clearError();
+	}
+
+	@Test
+	public void onAddedJobGraph_duplicateJobSubmissionDueToFalsePositive_willBeIgnored() throws Exception {
+		final TestingDispatcherGateway dispatcherGateway = new TestingDispatcherGateway.Builder()
+			.setSubmitFunction(jobGraph -> FutureUtils.completedExceptionally(new DuplicateJobSubmissionException(jobGraph.getJobID())))
+			.build();
+
+		runOnAddedJobGraphTest(dispatcherGateway, this::verifyOnAddedJobGraphResultDidNotFail);
+	}
+
+	private void runOnAddedJobGraphTest(TestingDispatcherGateway dispatcherGateway, ThrowingConsumer<TestingFatalErrorHandler, Exception> verificationLogic) throws Exception {
+		jobGraphStore = TestingJobGraphStore.newBuilder()
+			.setInitialJobGraphs(Collections.singleton(JOB_GRAPH))
+			.build();
+		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
+			.setCreateFunction((dispatcherId, jobGraphs, jobGraphWriter) -> {
+				assertThat(jobGraphs, containsInAnyOrder(JOB_GRAPH));
+
+				return TestingDispatcherService.newBuilder()
+					.setDispatcherGateway(dispatcherGateway)
+					.build();
+			})
+			.build();
+
+		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+			dispatcherLeaderProcess.start();
+
+			dispatcherLeaderProcess.getDispatcherGateway().get();
+
+			dispatcherLeaderProcess.onAddedJobGraph(JOB_GRAPH.getJobID());
+
+			verificationLogic.accept(fatalErrorHandler);
+		}
+	}
+
+	private void verifyOnAddedJobGraphResultDidNotFail(TestingFatalErrorHandler fatalErrorHandler) throws Exception {
+		try {
+			fatalErrorHandler.getErrorFuture().get(10L, TimeUnit.MILLISECONDS);
+			fail("Expected that duplicate job submissions due to false job recoveries are ignored.");
+		} catch (TimeoutException expected) {}
 	}
 
 	private TestingDispatcherServiceFactory createDispatcherServiceFactoryFor(TestingDispatcherGateway testingDispatcherGateway) {
