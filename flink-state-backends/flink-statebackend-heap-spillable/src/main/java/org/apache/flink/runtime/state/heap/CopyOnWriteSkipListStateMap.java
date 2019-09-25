@@ -419,7 +419,6 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 						logicallyRemovedNodes.remove(currentNode);
 					}
 					oldValueNeedFree = true;
-					totalSize--;
 				} else {
 					int version = SkipListUtils.helpGetNodeLatestVersion(currentNode, spaceAllocator);
 					if (version < highestRequiredSnapshotVersion) {
@@ -483,7 +482,6 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 				doPhysicalRemove(currentNode, prevNode, nextNode);
 				logicallyRemovedNodes.remove(currentNode);
 				currentNode = nextNode;
-				totalSize--;
 				deleteCount++;
 				continue;
 			}
@@ -622,15 +620,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * @param nextNode next node at the level 0.
 	 */
 	private void doPhysicalRemove(long node, long prevNode, long nextNode) {
-		// set next node of prevNode at level 0 to nextNode
-		helpSetNextNode(prevNode, nextNode, 0);
-
-		// remove the level index for the node
-		SkipListUtils.removeLevelIndex(node, spaceAllocator, levelIndexHeader);
-
-		// free space used by key and value
-		long valuePointer = SkipListUtils.helpGetValuePointer(node, spaceAllocator);
-		this.spaceAllocator.free(node);
+		// free space used by key and level index
+		long valuePointer = deleteNodeMeta(node, prevNode, nextNode);
+		// free space used by value
 		SkipListUtils.removeAllValues(valuePointer, spaceAllocator);
 	}
 
@@ -646,17 +638,38 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * @return newest-version value pointer.
 	 */
 	private long doPhysicalRemoveAndGetValue(long node, long prevNode, long nextNode) {
+		// free space used by key and level index
+		long valuePointer = deleteNodeMeta(node, prevNode, nextNode);
+		// free space used by values except for the newest-version
+		long nextValuePointer = SkipListUtils.helpGetNextValuePointer(valuePointer, spaceAllocator);
+		SkipListUtils.removeAllValues(nextValuePointer, spaceAllocator);
+
+		return valuePointer;
+	}
+
+	/**
+	 * Physically delte the meta of the node, including the node level index, the node key, and reduce the total size of
+	 * the skip list.
+	 *
+	 * @param node node to remove.
+	 * @param prevNode previous node at the level 0.
+	 * @param nextNode next node at the level 0.
+	 * @return value pointer of the node.
+	 */
+	private long deleteNodeMeta(long node, long prevNode, long nextNode) {
 		// set next node of prevNode at level 0 to nextNode
 		helpSetNextNode(prevNode, nextNode, 0);
 
 		// remove the level index for the node
 		SkipListUtils.removeLevelIndex(node, spaceAllocator, levelIndexHeader);
 
-		// free space used by key and value
+		// free space used by key
 		long valuePointer = SkipListUtils.helpGetValuePointer(node, spaceAllocator);
-		long nextValuePointer = SkipListUtils.helpGetNextValuePointer(valuePointer, spaceAllocator);
 		this.spaceAllocator.free(node);
-		SkipListUtils.removeAllValues(nextValuePointer, spaceAllocator);
+
+		// reduce total size of the skip list
+		// note that we regard the node to be removed once its meta is deleted
+		totalSize--;
 
 		return valuePointer;
 	}
@@ -820,7 +833,6 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		while (count < maxNodes && nodeIterator.hasNext()) {
 			deleteNode(nodeIterator.next());
 			nodeIterator.remove();
-			totalSize--;
 			count++;
 		}
 	}
