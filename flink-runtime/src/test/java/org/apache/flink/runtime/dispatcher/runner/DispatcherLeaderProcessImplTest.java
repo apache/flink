@@ -252,21 +252,22 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 	}
 
 	@Test
-	public void onRemovedJobGraph_cancelsRunningJob() throws Exception {
+	public void onRemovedJobGraph_terminatesRunningJob() throws Exception {
 		jobGraphStore = TestingJobGraphStore.newBuilder()
 			.setInitialJobGraphs(Collections.singleton(JOB_GRAPH))
 			.build();
 
-		final CompletableFuture<JobID> cancelJobFuture = new CompletableFuture<>();
-		final TestingDispatcherGateway testingDispatcherGateway = new TestingDispatcherGateway.Builder()
-			.setCancelJobFunction(
-				jobToCancel -> {
-					cancelJobFuture.complete(jobToCancel);
-					return CompletableFuture.completedFuture(Acknowledge.get());
-				})
+		final CompletableFuture<JobID> terminateJobFuture = new CompletableFuture<>();
+		final TestingDispatcherService testingDispatcherService = TestingDispatcherService.newBuilder()
+			.setOnRemovedJobGraphFunction(jobID -> {
+				terminateJobFuture.complete(jobID);
+				return FutureUtils.completedVoidFuture();
+			})
 			.build();
 
-		dispatcherServiceFactory = createDispatcherServiceFactoryFor(testingDispatcherGateway);
+		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
+			.setCreateFunction((dispatcherId, jobGraphs, jobGraphWriter) -> testingDispatcherService)
+			.build();
 
 		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
 			dispatcherLeaderProcess.start();
@@ -278,7 +279,36 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 			jobGraphStore.removeJobGraph(JOB_GRAPH.getJobID());
 			dispatcherLeaderProcess.onRemovedJobGraph(JOB_GRAPH.getJobID());
 
-			assertThat(cancelJobFuture.get(), is(JOB_GRAPH.getJobID()));
+			assertThat(terminateJobFuture.get(), is(JOB_GRAPH.getJobID()));
+		}
+	}
+
+	@Test
+	public void onRemovedJobGraph_failingRemovalCall_failsFatally() throws Exception {
+		final FlinkException testException = new FlinkException("Test exception");
+
+		final TestingDispatcherService testingDispatcherService = TestingDispatcherService.newBuilder()
+			.setOnRemovedJobGraphFunction(jobID -> FutureUtils.completedExceptionally(testException))
+			.build();
+
+		dispatcherServiceFactory = TestingDispatcherServiceFactory.newBuilder()
+			.setCreateFunction((dispatcherId, jobGraphs, jobGraphWriter) -> testingDispatcherService)
+			.build();
+
+		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+			dispatcherLeaderProcess.start();
+
+			// wait for the dispatcher process to be created
+			dispatcherLeaderProcess.getDispatcherGateway().get();
+
+			// now notify the dispatcher service
+			dispatcherLeaderProcess.onRemovedJobGraph(JOB_GRAPH.getJobID());
+
+			final Throwable fatalError = fatalErrorHandler.getErrorFuture().join();
+
+			assertTrue(ExceptionUtils.findThrowable(fatalError, cause -> cause.equals(testException)).isPresent());
+
+			fatalErrorHandler.clearError();
 		}
 	}
 

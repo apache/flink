@@ -272,12 +272,11 @@ public class DispatcherLeaderProcessImpl extends  AbstractDispatcherLeaderProces
 	}
 
 	private CompletableFuture<Void> removeJobGraph(JobID jobId) {
-		final DispatcherGateway dispatcherGateway = getDispatcherGatewayInternal();
-
-		// TODO: replace cancel with other fail method
-		return dispatcherGateway
-			.cancelJob(jobId, RpcUtils.INF_TIMEOUT)
-			.thenApply(FunctionUtils.nullFn());
+		if (dispatcher == null) {
+			return FutureUtils.completedVoidFuture();
+		} else {
+			return dispatcher.onRemovedJobGraph(jobId);
+		}
 	}
 
 	// ---------------------------------------------------------------
@@ -311,5 +310,7 @@ public class DispatcherLeaderProcessImpl extends  AbstractDispatcherLeaderProces
 
 	interface DispatcherService extends AutoCloseableAsync {
 		DispatcherGateway getGateway();
+
+		CompletableFuture<Void> onRemovedJobGraph(JobID jobId);
 	}
 }

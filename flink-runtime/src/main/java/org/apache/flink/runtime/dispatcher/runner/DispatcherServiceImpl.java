@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 
@@ -36,6 +37,11 @@ class DispatcherServiceImpl implements DispatcherLeaderProcessImpl.DispatcherSer
 	@Override
 	public DispatcherGateway getGateway() {
 		return dispatcherGateway;
+	}
+
+	@Override
+	public CompletableFuture<Void> onRemovedJobGraph(JobID jobId) {
+		return dispatcher.onRemovedJobGraph(jobId);
 	}
 
 	@Override

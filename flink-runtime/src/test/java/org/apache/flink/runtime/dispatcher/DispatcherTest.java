@@ -594,6 +594,29 @@ public class DispatcherTest extends TestLogger {
 		dispatcher.getShutDownFuture().get();
 	}
 
+	@Test
+	public void testOnRemovedJobGraphDoesNotCleanUpHAFiles() throws Exception {
+		final CompletableFuture<JobID> removeJobGraphFuture = new CompletableFuture<>();
+		final TestingJobGraphStore testingJobGraphStore = TestingJobGraphStore.newBuilder()
+			.setRemoveJobGraphConsumer(removeJobGraphFuture::complete)
+			.build();
+
+		dispatcher = new TestingDispatcherBuilder()
+			.setInitialJobGraphs(Collections.singleton(jobGraph))
+			.setJobGraphWriter(testingJobGraphStore)
+			.build();
+		dispatcher.start();
+
+		final CompletableFuture<Void> processFuture = dispatcher.onRemovedJobGraph(jobGraph.getJobID());
+
+		processFuture.join();
+
+		try {
+			removeJobGraphFuture.get(10L, TimeUnit.MILLISECONDS);
+			fail("onRemovedJobGraph should not remove the job from the JobGraphStore.");
+		} catch (TimeoutException expected) {}
+	}
+
 	private static final class BlockingJobManagerRunnerFactory extends TestingJobManagerRunnerFactory {
 
 		@Nonnull

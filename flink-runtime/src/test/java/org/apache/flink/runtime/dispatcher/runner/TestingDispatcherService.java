@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 class TestingDispatcherService implements DispatcherLeaderProcessImpl.DispatcherService {
@@ -31,18 +33,29 @@ class TestingDispatcherService implements DispatcherLeaderProcessImpl.Dispatcher
 
 	private final Supplier<CompletableFuture<Void>> terminationFutureSupplier;
 
+	private final Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction;
+
 	private final DispatcherGateway dispatcherGateway;
 
 	private CompletableFuture<Void> terminationFuture;
 
-	private TestingDispatcherService(Supplier<CompletableFuture<Void>> terminationFutureSupplier, DispatcherGateway dispatcherGateway) {
-		this.terminationFutureSupplier = terminationFutureSupplier;
-		this.dispatcherGateway = dispatcherGateway;
+	private TestingDispatcherService(
+		Supplier<CompletableFuture<Void>> terminationFutureSupplier,
+		Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction,
+		DispatcherGateway dispatcherGateway) {
+			this.terminationFutureSupplier = terminationFutureSupplier;
+			this.onRemovedJobGraphFunction = onRemovedJobGraphFunction;
+			this.dispatcherGateway = dispatcherGateway;
 	}
 
 	@Override
 	public DispatcherGateway getGateway() {
 		return dispatcherGateway;
+	}
+
+	@Override
+	public CompletableFuture<Void> onRemovedJobGraph(JobID jobId) {
+		return onRemovedJobGraphFunction.apply(jobId);
 	}
 
 	@Override
@@ -64,6 +77,8 @@ class TestingDispatcherService implements DispatcherLeaderProcessImpl.Dispatcher
 
 		private Supplier<CompletableFuture<Void>> terminationFutureSupplier = FutureUtils::completedVoidFuture;
 
+		private Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction = ignored -> FutureUtils.completedVoidFuture();
+
 		private DispatcherGateway dispatcherGateway = new TestingDispatcherGateway.Builder().build();
 
 		private Builder() {}
@@ -78,8 +93,13 @@ class TestingDispatcherService implements DispatcherLeaderProcessImpl.Dispatcher
 			return this;
 		}
 
+		public Builder setOnRemovedJobGraphFunction(Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction) {
+			this.onRemovedJobGraphFunction = onRemovedJobGraphFunction;
+			return this;
+		}
+
 		public TestingDispatcherService build() {
-			return new TestingDispatcherService(terminationFutureSupplier, dispatcherGateway);
+			return new TestingDispatcherService(terminationFutureSupplier, onRemovedJobGraphFunction, dispatcherGateway);
 		}
 	}
 }
