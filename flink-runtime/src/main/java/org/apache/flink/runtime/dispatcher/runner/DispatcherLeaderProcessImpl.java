@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -42,6 +43,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 /**
@@ -220,10 +222,23 @@ public class DispatcherLeaderProcessImpl extends  AbstractDispatcherLeaderProces
 	private CompletableFuture<Void> submitAddedJob(JobGraph jobGraph) {
 		final DispatcherGateway dispatcherGateway = getDispatcherGatewayInternal();
 
-		// TODO: Filter out duplicate job submissions which can happen with the JobGraphListener
 		return dispatcherGateway
 			.submitJob(jobGraph, RpcUtils.INF_TIMEOUT)
-			.thenApply(FunctionUtils.nullFn());
+			.thenApply(FunctionUtils.nullFn())
+			.exceptionally(this::filterOutDuplicateJobSubmissionException);
+	}
+
+	private Void filterOutDuplicateJobSubmissionException(Throwable throwable) {
+		final Throwable strippedException = ExceptionUtils.stripCompletionException(throwable);
+		if (strippedException instanceof DuplicateJobSubmissionException) {
+			final DuplicateJobSubmissionException duplicateJobSubmissionException = (DuplicateJobSubmissionException) strippedException;
+
+			log.debug("Ignore recovered job {} because the job is currently being executed.", duplicateJobSubmissionException.getJobID(), duplicateJobSubmissionException);
+
+			return null;
+		} else {
+			throw new CompletionException(throwable);
+		}
 	}
 
 	private DispatcherGateway getDispatcherGatewayInternal() {
