@@ -20,7 +20,6 @@ package org.apache.flink.runtime.executiongraph.utils;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.concurrent.FutureUtils;
@@ -55,7 +54,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 
 	private BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer = (ignore1, ignore2) -> { };
 
-	private Consumer<Tuple6<ExecutionAttemptID, JobID, Long, Long, CheckpointOptions, Boolean>> checkpointConsumer = ignore -> { };
+	private CheckpointConsumer checkpointConsumer = null;
 
 	public void setSubmitConsumer(Consumer<TaskDeploymentDescriptor> submitConsumer) {
 		this.submitConsumer = submitConsumer;
@@ -73,7 +72,7 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 		this.releasePartitionsConsumer = releasePartitionsConsumer;
 	}
 
-	public void setCheckpointConsumer(Consumer<Tuple6<ExecutionAttemptID, JobID, Long, Long, CheckpointOptions, Boolean>> checkpointConsumer) {
+	public void setCheckpointConsumer(CheckpointConsumer checkpointConsumer) {
 		this.checkpointConsumer = checkpointConsumer;
 	}
 
@@ -130,7 +129,15 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 			long timestamp,
 			CheckpointOptions checkpointOptions,
 			boolean advanceToEndOfEventTime) {
-		checkpointConsumer.accept(Tuple6.of(executionAttemptID, jobId, checkpointId, timestamp, checkpointOptions, advanceToEndOfEventTime));
+		if (checkpointConsumer != null) {
+			checkpointConsumer.accept(
+				executionAttemptID,
+				jobId,
+				checkpointId,
+				timestamp,
+				checkpointOptions,
+				advanceToEndOfEventTime);
+		}
 	}
 
 	@Override
@@ -142,5 +149,19 @@ public class SimpleAckingTaskManagerGateway implements TaskManagerGateway {
 		} else {
 			return CompletableFuture.completedFuture(Acknowledge.get());
 		}
+	}
+
+	/**
+	 * Consumer that accepts checkpoint trigger information.
+	 */
+	public interface CheckpointConsumer {
+
+		void accept(
+			ExecutionAttemptID executionAttemptID,
+			JobID jobId,
+			long checkpointId,
+			long timestamp,
+			CheckpointOptions checkpointOptions,
+			boolean advanceToEndOfEventTime);
 	}
 }

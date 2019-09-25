@@ -92,8 +92,9 @@ public class FailoverStrategyCheckpointCoordinatorTest extends TestLogger {
 
 		checkpointCoordinator.startCheckpointScheduler();
 		assertTrue(checkpointCoordinator.isCurrentPeriodicTriggerAvailable());
-		manualThreadExecutor.triggerAll();
-		manualThreadExecutor.triggerScheduledTasks();
+		// only trigger the periodic scheduling
+		// we can't trigger all scheduled task, because there is also a cancellation scheduled
+		manualThreadExecutor.triggerPeriodicScheduledTasks();
 		assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
 
 		for (int i = 1; i < maxConcurrentCheckpoints; i++) {

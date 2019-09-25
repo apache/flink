@@ -408,46 +408,57 @@ public class CheckpointCoordinator {
 
 		checkNotNull(checkpointProperties);
 
-		try {
-			PendingCheckpoint pendingCheckpoint = triggerCheckpoint(
+		// TODO, call triggerCheckpoint directly after removing timer thread
+		// for now, execute the trigger in timer thread to avoid competition
+		final CompletableFuture<CompletedCheckpoint> resultFuture = new CompletableFuture<>();
+		timer.execute(() -> {
+			try {
+				triggerCheckpoint(
 					timestamp,
 					checkpointProperties,
 					targetLocation,
 					false,
-					advanceToEndOfEventTime);
-
-			return pendingCheckpoint.getCompletionFuture();
-		} catch (CheckpointException e) {
-			Throwable cause = new CheckpointException("Failed to trigger savepoint.", e.getCheckpointFailureReason());
-			return FutureUtils.completedExceptionally(cause);
-		}
+					advanceToEndOfEventTime).
+				whenComplete((completedCheckpoint, throwable) -> {
+					if (throwable == null) {
+						resultFuture.complete(completedCheckpoint);
+					} else {
+						resultFuture.completeExceptionally(throwable);
+					}
+				});
+			} catch (CheckpointException e) {
+				Throwable cause = new CheckpointException("Failed to trigger savepoint.", e.getCheckpointFailureReason());
+				resultFuture.completeExceptionally(cause);
+			}
+		});
+		return resultFuture;
 	}
 
 	/**
 	 * Triggers a new standard checkpoint and uses the given timestamp as the checkpoint
-	 * timestamp.
+	 * timestamp. The return value is a future. It completes when the checkpoint triggered finishes
+	 * or an error occurred.
 	 *
 	 * @param timestamp The timestamp for the checkpoint.
 	 * @param isPeriodic Flag indicating whether this triggered checkpoint is
 	 * periodic. If this flag is true, but the periodic scheduler is disabled,
 	 * the checkpoint will be declined.
-	 * @return <code>true</code> if triggering the checkpoint succeeded.
+	 * @return a future to the completed checkpoint.
 	 */
-	public boolean triggerCheckpoint(long timestamp, boolean isPeriodic) {
+	public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(long timestamp, boolean isPeriodic) {
 		try {
-			triggerCheckpoint(timestamp, checkpointProperties, null, isPeriodic, false);
-			return true;
+			return triggerCheckpoint(timestamp, checkpointProperties, null, isPeriodic, false);
 		} catch (CheckpointException e) {
 			long latestGeneratedCheckpointId = getCheckpointIdCounter().get();
 			// here we can not get the failed pending checkpoint's id,
 			// so we pass the negative latest generated checkpoint id as a special flag
 			failureManager.handleJobLevelCheckpointException(e, -1 * latestGeneratedCheckpointId);
-			return false;
+			return FutureUtils.completedExceptionally(e);
 		}
 	}
 
 	@VisibleForTesting
-	public PendingCheckpoint triggerCheckpoint(
+	public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(
 			long timestamp,
 			CheckpointProperties props,
 			@Nullable String externalSavepointLocation,
@@ -643,7 +654,7 @@ public class CheckpointCoordinator {
 				}
 
 				numUnsuccessfulCheckpointsTriggers.set(0);
-				return checkpoint;
+				return checkpoint.getCompletionFuture();
 			}
 			catch (Throwable t) {
 				// guard the map against concurrent modifications
@@ -668,7 +679,6 @@ public class CheckpointCoordinator {
 
 				throw new CheckpointException(CheckpointFailureReason.EXCEPTION, t);
 			}
-
 		} // end trigger lock
 	}
 

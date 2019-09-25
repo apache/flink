@@ -38,15 +38,15 @@ public class TestingScheduledExecutor extends ExternalResource {
 	private ScheduledExecutorService innerExecutorService;
 
 	public TestingScheduledExecutor() {
-			this(500L);
-		}
+		this(500L);
+	}
 
 	public TestingScheduledExecutor(long shutdownTimeoutMillis) {
 		this.shutdownTimeoutMillis = shutdownTimeoutMillis;
 	}
 
 	@Override
-	protected void before() {
+	public void before() {
 		this.innerExecutorService = Executors.newSingleThreadScheduledExecutor();
 		this.scheduledExecutor = new ScheduledExecutorServiceAdapter(innerExecutorService);
 	}
@@ -56,7 +56,7 @@ public class TestingScheduledExecutor extends ExternalResource {
 		ExecutorUtils.gracefulShutdown(shutdownTimeoutMillis, TimeUnit.MILLISECONDS, innerExecutorService);
 	}
 
-	public ScheduledExecutor getScheduledExecutor() {
+	protected ScheduledExecutor getScheduledExecutor() {
 		return scheduledExecutor;
 	}
 }
