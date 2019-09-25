@@ -179,7 +179,8 @@ public class YARNITCase extends YarnTestBase {
 						Assert.assertEquals(replication, fileStatus.getReplication());
 					}
 
-					waitApplicationFinishedElseKillIt(applicationId, yarnAppTerminateTimeout, yarnClusterDescriptor);
+					// Longer timeout for testing file replication
+					waitApplicationFinishedElseKillIt(applicationId, Duration.ofSeconds(60), yarnClusterDescriptor);
 				}
 			}
 		});
