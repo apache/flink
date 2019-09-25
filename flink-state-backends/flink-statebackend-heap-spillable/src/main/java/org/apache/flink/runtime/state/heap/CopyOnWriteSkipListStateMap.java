@@ -32,12 +32,10 @@ import org.apache.flink.runtime.state.heap.space.SpaceUtils;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ResourceGuard;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
-
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -874,18 +872,16 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 */
 	long getValueForSnapshot(long node, int snapshotVersion) {
 		long snapshotValuePointer = NIL_VALUE_POINTER;
-		long valuePointer = SkipListUtils.helpGetValuePointer(node, spaceAllocator);
-
-		while (valuePointer != NIL_VALUE_POINTER) {
-			int version = SkipListUtils.helpGetValueVersion(valuePointer, spaceAllocator);
-
+		ValueVersionIterator versionIterator = new ValueVersionIterator(node);
+		long valuePointer;
+		while (versionIterator.hasNext()) {
+			valuePointer = versionIterator.getValuePointer();
+			int version = versionIterator.next();
 			// the first value whose version is less than snapshotVersion
 			if (version < snapshotVersion) {
 				snapshotValuePointer = valuePointer;
 				break;
 			}
-
-			valuePointer = SkipListUtils.helpGetNextValuePointer(valuePointer, spaceAllocator);
 		}
 
 		return snapshotValuePointer;
@@ -904,12 +900,13 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		boolean isPruning = pruningValueNodes.add(node);
 		try {
 			long snapshotValuePointer = NIL_VALUE_POINTER;
-			long valuePointer = SkipListUtils.helpGetValuePointer(node, spaceAllocator);
-			while (valuePointer != NIL_VALUE_POINTER) {
-				int version = SkipListUtils.helpGetValueVersion(valuePointer, spaceAllocator);
-
+			long valuePointer;
+			ValueVersionIterator versionIterator = new ValueVersionIterator(node);
+			while (versionIterator.hasNext()){
+				valuePointer = versionIterator.getValuePointer();
+				int version = versionIterator.next();
 				// find the first value whose version is less than snapshotVersion
-				if (version < snapshotVersion && snapshotValuePointer == NIL_VALUE_POINTER) {
+				if ( snapshotValuePointer == NIL_VALUE_POINTER && version < snapshotVersion) {
 					snapshotValuePointer = valuePointer;
 					if (!isPruning) {
 						break;
@@ -927,8 +924,6 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 					}
 					break;
 				}
-
-				valuePointer = SkipListUtils.helpGetNextValuePointer(valuePointer, spaceAllocator);
 			}
 
 			return snapshotValuePointer;
@@ -1482,6 +1477,33 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		@Override
 		public void update(StateEntry<K, N, S> stateEntry, S newValue) {
 			CopyOnWriteSkipListStateMap.this.put(stateEntry.getKey(), stateEntry.getNamespace(), newValue);
+		}
+	}
+
+	/**
+	 * Iterate versions of the given node.
+	 */
+	class ValueVersionIterator implements Iterator<Integer> {
+		long valuePointer;
+
+		ValueVersionIterator(long node) {
+			valuePointer = SkipListUtils.helpGetValuePointer(node, spaceAllocator);
+		}
+
+		@Override
+		public boolean hasNext() {
+			return valuePointer != NIL_VALUE_POINTER;
+		}
+
+		@Override
+		public Integer next() {
+			int version = SkipListUtils.helpGetValueVersion(valuePointer, spaceAllocator);
+			valuePointer = SkipListUtils.helpGetNextValuePointer(valuePointer, spaceAllocator);
+			return version;
+		}
+
+		long getValuePointer() {
+			return valuePointer;
 		}
 	}
 
