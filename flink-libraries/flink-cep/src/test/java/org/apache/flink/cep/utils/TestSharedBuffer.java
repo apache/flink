@@ -222,7 +222,7 @@ public class TestSharedBuffer<V> extends SharedBuffer<V> {
 				@Override
 				public boolean isEmpty() throws Exception {
 					if (values == null) {
-						return false;
+						return true;
 					}
 
 					return values.isEmpty();

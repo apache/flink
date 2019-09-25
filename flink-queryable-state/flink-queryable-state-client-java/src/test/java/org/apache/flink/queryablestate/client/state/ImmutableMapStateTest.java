@@ -68,7 +68,6 @@ public class ImmutableMapStateTest {
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testPut() throws Exception {
-		assertFalse(mapState.isEmpty());
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);
@@ -82,7 +81,6 @@ public class ImmutableMapStateTest {
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testPutAll() throws Exception {
-		assertFalse(mapState.isEmpty());
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);
@@ -100,7 +98,6 @@ public class ImmutableMapStateTest {
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testUpdate() throws Exception {
-		assertFalse(mapState.isEmpty());
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);
@@ -114,7 +111,6 @@ public class ImmutableMapStateTest {
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testIterator() throws Exception {
-		assertFalse(mapState.isEmpty());
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);
@@ -131,7 +127,6 @@ public class ImmutableMapStateTest {
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testIterable() throws Exception {
-		assertFalse(mapState.isEmpty());
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);
@@ -150,7 +145,6 @@ public class ImmutableMapStateTest {
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testKeys() throws Exception {
-		assertFalse(mapState.isEmpty());
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);
@@ -167,7 +161,6 @@ public class ImmutableMapStateTest {
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testValues() throws Exception {
-		assertFalse(mapState.isEmpty());
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);
@@ -184,7 +177,6 @@ public class ImmutableMapStateTest {
 
 	@Test(expected = UnsupportedOperationException.class)
 	public void testClear() throws Exception {
-		assertFalse(mapState.isEmpty());
 		assertTrue(mapState.contains(1L));
 		long value = mapState.get(1L);
 		assertEquals(5L, value);
@@ -194,5 +186,10 @@ public class ImmutableMapStateTest {
 		assertEquals(5L, value);
 
 		mapState.clear();
+	}
+
+	@Test
+	public void testIsEmpty() throws Exception {
+		assertFalse(mapState.isEmpty());
 	}
 }
