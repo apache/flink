@@ -850,4 +850,10 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 		jobManagerMetricGroup.gauge(MetricNames.NUM_RUNNING_JOBS,
 			() -> (long) jobManagerRunnerFutures.size());
 	}
+
+	public CompletableFuture<Void> onRemovedJobGraph(JobID jobId) {
+		return CompletableFuture.runAsync(
+			() -> removeJobAndRegisterTerminationFuture(jobId, false),
+			getMainThreadExecutor());
+	}
 }
