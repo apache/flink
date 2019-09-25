@@ -29,6 +29,7 @@ import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.blob.TestingBlobStore;
 import org.apache.flink.runtime.blob.TestingBlobStoreBuilder;
+import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -370,9 +371,9 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 		try {
 			try {
 				submissionFuture.get();
-				fail("Expected a JobSubmissionFailure.");
+				fail("Expected a DuplicateJobSubmissionFailure.");
 			} catch (ExecutionException ee) {
-				assertThat(ExceptionUtils.findThrowable(ee, JobSubmissionException.class).isPresent(), is(true));
+				assertThat(ExceptionUtils.findThrowable(ee, DuplicateJobSubmissionException.class).isPresent(), is(true));
 			}
 
 			assertThatHABlobsHaveNotBeenRemoved();
