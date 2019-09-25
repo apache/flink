@@ -47,7 +47,7 @@ public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOper
 	/**
 	 * Link to another {@link BatchOperator}.
 	 *
-	 * <p>Link the <code>next</code> to a new BatchOperator using this as input.
+	 * <p>Link the <code>next</code> to BatchOperator using this as its input.
 	 *
 	 * <p>For example:
 	 *
@@ -59,7 +59,7 @@ public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOper
 	 * }
 	 * </pre>
 	 *
-	 * <p>the <code>c</code> in upper code indict the linked
+	 * <p>the <code>c</code> in upper code is the linked
 	 * <code>b</code> which use <code>a</code> as input.
 	 *
 	 * @param next the linked BatchOperator

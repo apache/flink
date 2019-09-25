@@ -48,7 +48,7 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 	/**
 	 * Link to another {@link StreamOperator}.
 	 *
-	 * <p>Link the <code>next</code> to a new StreamOperator using this as input.
+	 * <p>Link the <code>next</code> to StreamOperator using this as its input.
 	 *
 	 * <p>For example:
 	 *
@@ -61,7 +61,7 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 	 * }
 	 * </pre>
 	 *
-	 * <p>the <code>c</code> in upper code indict the linked
+	 * <p>the <code>c</code> in upper code is the linked
 	 * <code>b</code> which use <code>a</code> as input.
 	 *
 	 * @param next the linked StreamOperator
