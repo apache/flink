@@ -18,17 +18,24 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.mock.Whitebox;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
+import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway.CheckpointConsumer;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.LogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.state.ChainedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeOffsets;
@@ -42,6 +49,9 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Assert;
+import org.mockito.invocation.InvocationOnMock;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -50,23 +60,20 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Delayed;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -306,7 +313,7 @@ public class CheckpointCoordinatorTestingUtils {
 	static ExecutionJobVertex mockExecutionJobVertex(
 		JobVertexID jobVertexID,
 		int parallelism,
-		int maxParallelism) {
+		int maxParallelism) throws Exception {
 
 		return mockExecutionJobVertex(
 			jobVertexID,
@@ -320,7 +327,7 @@ public class CheckpointCoordinatorTestingUtils {
 		JobVertexID jobVertexID,
 		List<OperatorID> jobVertexIDs,
 		int parallelism,
-		int maxParallelism) {
+		int maxParallelism) throws Exception {
 		final ExecutionJobVertex executionJobVertex = mock(ExecutionJobVertex.class);
 
 		ExecutionVertex[] executionVertices = new ExecutionVertex[parallelism];
@@ -348,12 +355,39 @@ public class CheckpointCoordinatorTestingUtils {
 		return executionJobVertex;
 	}
 
-	static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID) {
+	static ExecutionVertex mockExecutionVertex(ExecutionAttemptID attemptID) throws Exception {
+		return mockExecutionVertex(attemptID, (LogicalSlot) null);
+	}
+
+	static ExecutionVertex mockExecutionVertex(
+		ExecutionAttemptID attemptID,
+		CheckpointConsumer checkpointConsumer) throws Exception {
+
+		final SimpleAckingTaskManagerGateway taskManagerGateway = new SimpleAckingTaskManagerGateway();
+		taskManagerGateway.setCheckpointConsumer(checkpointConsumer);
+		return mockExecutionVertex(attemptID, taskManagerGateway);
+	}
+
+	static ExecutionVertex mockExecutionVertex(
+		ExecutionAttemptID attemptID,
+		TaskManagerGateway taskManagerGateway) throws Exception {
+
+		TestingLogicalSlotBuilder slotBuilder = new TestingLogicalSlotBuilder();
+		slotBuilder.setTaskManagerGateway(taskManagerGateway);
+		LogicalSlot	slot = slotBuilder.createTestingLogicalSlot();
+		return mockExecutionVertex(attemptID, slot);
+	}
+
+	static ExecutionVertex mockExecutionVertex(
+		ExecutionAttemptID attemptID,
+		@Nullable LogicalSlot slot) throws Exception {
+
 		JobVertexID jobVertexID = new JobVertexID();
 		return mockExecutionVertex(
 			attemptID,
 			jobVertexID,
 			Collections.singletonList(OperatorID.fromJobVertexID(jobVertexID)),
+			slot,
 			1,
 			1,
 			ExecutionState.RUNNING);
@@ -366,7 +400,28 @@ public class CheckpointCoordinatorTestingUtils {
 		int parallelism,
 		int maxParallelism,
 		ExecutionState state,
-		ExecutionState ... successiveStates) {
+		ExecutionState ... successiveStates) throws Exception {
+
+		return mockExecutionVertex(
+			attemptID,
+			jobVertexID,
+			jobVertexIDs,
+			null,
+			parallelism,
+			maxParallelism,
+			state,
+			successiveStates);
+	}
+
+	static ExecutionVertex mockExecutionVertex(
+		ExecutionAttemptID attemptID,
+		JobVertexID jobVertexID,
+		List<OperatorID> jobVertexIDs,
+		@Nullable LogicalSlot slot,
+		int parallelism,
+		int maxParallelism,
+		ExecutionState state,
+		ExecutionState ... successiveStates) throws Exception {
 
 		ExecutionVertex vertex = mock(ExecutionVertex.class);
 
@@ -378,6 +433,15 @@ public class CheckpointCoordinatorTestingUtils {
 			1L,
 			Time.milliseconds(500L)
 		));
+		if (slot != null) {
+			// is there a better way to do this?
+			//noinspection unchecked
+			AtomicReferenceFieldUpdater<Execution, LogicalSlot> slotUpdater =
+				(AtomicReferenceFieldUpdater<Execution, LogicalSlot>)
+					Whitebox.getInternalState(exec, "ASSIGNED_SLOT_UPDATER");
+			slotUpdater.compareAndSet(exec, null, slot);
+		}
+
 		when(exec.getAttemptId()).thenReturn(attemptID);
 		when(exec.getState()).thenReturn(state, successiveStates);
 
@@ -455,6 +519,29 @@ public class CheckpointCoordinatorTestingUtils {
 		return mock;
 	}
 
+	static Execution mockExecution(CheckpointConsumer checkpointConsumer) {
+		ExecutionVertex executionVertex = mock(ExecutionVertex.class);
+		final JobID jobId = new JobID();
+		when(executionVertex.getJobId()).thenReturn(jobId);
+		Execution mock = mock(Execution.class);
+		ExecutionAttemptID executionAttemptID = new ExecutionAttemptID();
+		when(mock.getAttemptId()).thenReturn(executionAttemptID);
+		when(mock.getState()).thenReturn(ExecutionState.RUNNING);
+		when(mock.getVertex()).thenReturn(executionVertex);
+		doAnswer((InvocationOnMock invocation) -> {
+			final Object[] args = invocation.getArguments();
+			checkpointConsumer.accept(
+				executionAttemptID,
+				jobId,
+				(long) args[0],
+				(long) args[1],
+				(CheckpointOptions) args[2],
+				false);
+			return null;
+		}).when(mock).triggerCheckpoint(anyLong(), anyLong(), any(CheckpointOptions.class));
+		return mock;
+	}
+
 	static ExecutionVertex mockExecutionVertex(Execution execution, JobVertexID vertexId, int subtask, int parallelism) {
 		ExecutionVertex mock = mock(ExecutionVertex.class);
 		when(mock.getJobvertexId()).thenReturn(vertexId);
@@ -478,116 +565,5 @@ public class CheckpointCoordinatorTestingUtils {
 			when(v.getJobVertex()).thenReturn(vertex);
 		}
 		return vertex;
-	}
-
-	static class TestingScheduledServiceWithRecordingScheduledTasks implements ScheduledExecutor {
-
-		private final ScheduledExecutor scheduledExecutor;
-
-		private final Set<UUID> tasksScheduledOnce;
-
-		public TestingScheduledServiceWithRecordingScheduledTasks(ScheduledExecutor scheduledExecutor) {
-			this.scheduledExecutor = checkNotNull(scheduledExecutor);
-			tasksScheduledOnce = new HashSet<>();
-		}
-
-		public int getNumScheduledOnceTasks() {
-			synchronized (tasksScheduledOnce) {
-				return tasksScheduledOnce.size();
-			}
-		}
-
-		@Override
-		public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
-			final UUID id = UUID.randomUUID();
-			synchronized (tasksScheduledOnce) {
-				tasksScheduledOnce.add(id);
-			}
-			return new TestingScheduledFuture<>(id, scheduledExecutor.schedule(() -> {
-				synchronized (tasksScheduledOnce) {
-					tasksScheduledOnce.remove(id);
-				}
-				command.run();
-			}, delay, unit));
-		}
-
-		@Override
-		public <V> ScheduledFuture<V> schedule(Callable<V> callable, long delay, TimeUnit unit) {
-			final UUID id = UUID.randomUUID();
-			synchronized (tasksScheduledOnce) {
-				tasksScheduledOnce.add(id);
-			}
-			return new TestingScheduledFuture<>(id, scheduledExecutor.schedule(() -> {
-				synchronized (tasksScheduledOnce) {
-					tasksScheduledOnce.remove(id);
-				}
-				return callable.call();
-			}, delay, unit));
-		}
-
-		@Override
-		public ScheduledFuture<?> scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit) {
-			return scheduledExecutor.scheduleAtFixedRate(command, initialDelay, period, unit);
-		}
-
-		@Override
-		public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit) {
-			return scheduledExecutor.scheduleWithFixedDelay(command, initialDelay, delay, unit);
-		}
-
-		@Override
-		public void execute(Runnable command) {
-			scheduledExecutor.execute(command);
-		}
-
-		private class TestingScheduledFuture<V> implements ScheduledFuture<V> {
-
-			private final ScheduledFuture<V> scheduledFuture;
-
-			private final UUID id;
-
-			public TestingScheduledFuture(UUID id, ScheduledFuture<V> scheduledFuture) {
-				this.id = checkNotNull(id);
-				this.scheduledFuture = checkNotNull(scheduledFuture);
-			}
-
-			@Override
-			public long getDelay(TimeUnit unit) {
-				return scheduledFuture.getDelay(unit);
-			}
-
-			@Override
-			public int compareTo(Delayed o) {
-				return scheduledFuture.compareTo(o);
-			}
-
-			@Override
-			public boolean cancel(boolean mayInterruptIfRunning) {
-				synchronized (tasksScheduledOnce) {
-					tasksScheduledOnce.remove(id);
-				}
-				return scheduledFuture.cancel(mayInterruptIfRunning);
-			}
-
-			@Override
-			public boolean isCancelled() {
-				return scheduledFuture.isCancelled();
-			}
-
-			@Override
-			public boolean isDone() {
-				return scheduledFuture.isDone();
-			}
-
-			@Override
-			public V get() throws InterruptedException, ExecutionException {
-				return scheduledFuture.get();
-			}
-
-			@Override
-			public V get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
-				return scheduledFuture.get(timeout, unit);
-			}
-		}
 	}
 }

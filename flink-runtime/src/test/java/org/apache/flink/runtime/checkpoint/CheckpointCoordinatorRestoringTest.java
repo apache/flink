@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -39,7 +40,6 @@ import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.RecoverableCompletedCheckpointStore;
-import org.apache.flink.runtime.util.TestingScheduledExecutor;
 import org.apache.flink.util.SerializableObject;
 import org.apache.flink.util.TestLogger;
 
@@ -76,6 +76,8 @@ import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUt
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.mockSubtaskState;
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.verifyStateRestore;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -90,9 +92,7 @@ import static org.mockito.Mockito.when;
 public class CheckpointCoordinatorRestoringTest extends TestLogger {
 	private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
 
-	@Rule
-	public final TestingScheduledExecutor testingScheduledExecutor =
-		new TestingScheduledExecutor();
+	private ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor;
 
 	private CheckpointFailureManager failureManager;
 
@@ -104,6 +104,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 		failureManager = new CheckpointFailureManager(
 			0,
 			NoOpFailJobCall.INSTANCE);
+		manuallyTriggeredScheduledExecutor = new ManuallyTriggeredScheduledExecutor();
 	}
 
 	/**
@@ -163,14 +164,15 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			store,
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			testingScheduledExecutor.getScheduledExecutor(),
+			manuallyTriggeredScheduledExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
+		manuallyTriggeredScheduledExecutor.triggerAll();
 
-		assertTrue(coord.getPendingCheckpoints().keySet().size() == 1);
+		assertEquals(1, coord.getPendingCheckpoints().size());
 		long checkpointId = Iterables.getOnlyElement(coord.getPendingCheckpoints().keySet());
 
 		List<KeyGroupRange> keyGroupPartitions1 = StateAssignmentOperation.createKeyGroupPartitions(maxParallelism1, parallelism1);
@@ -296,12 +298,15 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 				store,
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				testingScheduledExecutor.getScheduledExecutor(),
+				manuallyTriggeredScheduledExecutor,
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
 			//trigger a checkpoint and wait to become a completed checkpoint
-			assertTrue(coord.triggerCheckpoint(timestamp, false));
+			final CompletableFuture<CompletedCheckpoint> checkpointFuture =
+				coord.triggerCheckpoint(timestamp, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertFalse(checkpointFuture.isCompletedExceptionally());
 
 			long checkpointId = checkpointIDCounter.getLast();
 
@@ -344,11 +349,12 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 					StateObjectCollection.singleton(serializedKeyGroupStatesForSavepoint),
 					StateObjectCollection.empty()));
 
+			manuallyTriggeredScheduledExecutor.triggerAll();
 			checkpointId = checkpointIDCounter.getLast();
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statefulExec1.getAttemptId(), checkpointId, new CheckpointMetrics(), subtaskStatesForSavepoint), TASK_MANAGER_LOCATION_INFO);
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, statelessExec1.getAttemptId(), checkpointId), TASK_MANAGER_LOCATION_INFO);
 
-			assertTrue(savepointFuture.isDone());
+			assertNotNull(savepointFuture.get());
 
 			//restore and jump the latest savepoint
 			coord.restoreLatestCheckpointedState(map, true, false);
@@ -446,14 +452,15 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			testingScheduledExecutor.getScheduledExecutor(),
+			manuallyTriggeredScheduledExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
+		manuallyTriggeredScheduledExecutor.triggerAll();
 
-		assertTrue(coord.getPendingCheckpoints().keySet().size() == 1);
+		assertEquals(1, coord.getPendingCheckpoints().size());
 		long checkpointId = Iterables.getOnlyElement(coord.getPendingCheckpoints().keySet());
 
 		List<KeyGroupRange> keyGroupPartitions1 =
@@ -624,14 +631,15 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			testingScheduledExecutor.getScheduledExecutor(),
+			manuallyTriggeredScheduledExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
+		manuallyTriggeredScheduledExecutor.triggerAll();
 
-		assertTrue(coord.getPendingCheckpoints().keySet().size() == 1);
+		assertEquals(1, coord.getPendingCheckpoints().size());
 		long checkpointId = Iterables.getOnlyElement(coord.getPendingCheckpoints().keySet());
 
 		List<KeyGroupRange> keyGroupPartitions1 = StateAssignmentOperation.createKeyGroupPartitions(maxParallelism1, parallelism1);
@@ -879,7 +887,7 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
 			standaloneCompletedCheckpointStore,
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			testingScheduledExecutor.getScheduledExecutor(),
+			manuallyTriggeredScheduledExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 

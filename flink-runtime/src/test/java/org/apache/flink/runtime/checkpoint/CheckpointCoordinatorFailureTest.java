@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobStatus;
@@ -31,10 +32,8 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.runtime.util.TestingScheduledExecutor;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -58,10 +57,6 @@ import static org.mockito.Mockito.when;
 @PrepareForTest(PendingCheckpoint.class)
 public class CheckpointCoordinatorFailureTest extends TestLogger {
 
-	@Rule
-	public final TestingScheduledExecutor testingScheduledExecutor =
-		new TestingScheduledExecutor();
-
 	/**
 	 * Tests that a failure while storing a completed checkpoint in the completed checkpoint store
 	 * will properly fail the originating pending checkpoint and clean upt the completed checkpoint.
@@ -69,6 +64,9 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 	@Test
 	public void testFailingCompletedCheckpointStoreAdd() throws Exception {
 		JobID jid = new JobID();
+
+		final ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor =
+			new ManuallyTriggeredScheduledExecutor();
 
 		final ExecutionAttemptID executionAttemptId = new ExecutionAttemptID();
 		final ExecutionVertex vertex = CheckpointCoordinatorTestingUtils.mockExecutionVertex(executionAttemptId);
@@ -99,11 +97,13 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 			new FailingCompletedCheckpointStore(),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			testingScheduledExecutor.getScheduledExecutor(),
+			manuallyTriggeredScheduledExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
 		coord.triggerCheckpoint(triggerTimestamp, false);
+
+		manuallyTriggeredScheduledExecutor.triggerAll();
 
 		assertEquals(1, coord.getNumberOfPendingCheckpoints());
 

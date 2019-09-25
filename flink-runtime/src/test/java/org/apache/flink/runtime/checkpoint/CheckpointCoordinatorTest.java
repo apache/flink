@@ -21,8 +21,8 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.TestingScheduledServiceWithRecordingScheduledTasks;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
@@ -50,7 +50,6 @@ import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.testutils.RecoverableCompletedCheckpointStore;
-import org.apache.flink.runtime.util.TestingScheduledExecutor;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -76,6 +75,7 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -106,11 +106,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 	private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
 
-	@Rule
-	public final TestingScheduledExecutor testingScheduledExecutor =
-		new TestingScheduledExecutor();
-
 	private CheckpointFailureManager failureManager;
+
+	private ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor;
 
 	@Rule
 	public TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -120,6 +118,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		failureManager = new CheckpointFailureManager(
 			0,
 			NoOpFailJobCall.INSTANCE);
+		manuallyTriggeredScheduledExecutor = new ManuallyTriggeredScheduledExecutor();
 	}
 
 	@Test
@@ -158,7 +157,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(1),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				testingScheduledExecutor.getScheduledExecutor(),
+				manuallyTriggeredScheduledExecutor,
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
@@ -167,7 +166,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// trigger the first checkpoint. this should not succeed
-			assertFalse(coord.triggerCheckpoint(timestamp, false));
+			final CompletableFuture<CompletedCheckpoint> checkpointFuture =
+				coord.triggerCheckpoint(timestamp, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertTrue(checkpointFuture.isCompletedExceptionally());
 
 			// still, nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -226,7 +228,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(1),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				testingScheduledExecutor.getScheduledExecutor(),
+				manuallyTriggeredScheduledExecutor,
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
@@ -235,7 +237,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// trigger the first checkpoint. this should not succeed
-			assertFalse(coord.triggerCheckpoint(timestamp, false));
+			final CompletableFuture<CompletedCheckpoint> checkpointFuture =
+				coord.triggerCheckpoint(timestamp, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertTrue(checkpointFuture.isCompletedExceptionally());
 
 			// still, nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -285,7 +290,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(1),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				testingScheduledExecutor.getScheduledExecutor(),
+				manuallyTriggeredScheduledExecutor,
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
@@ -294,7 +299,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// trigger the first checkpoint. this should not succeed
-			assertFalse(coord.triggerCheckpoint(timestamp, false));
+			final CompletableFuture<CompletedCheckpoint> checkpointFuture =
+				coord.triggerCheckpoint(timestamp, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertTrue(checkpointFuture.isCompletedExceptionally());
 
 			// still, nothing should be happening
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -309,7 +317,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 	}
 
 	@Test
-	public void testTriggerAndDeclineCheckpointThenFailureManagerThrowsException() {
+	public void testTriggerAndDeclineCheckpointThenFailureManagerThrowsException() throws Exception {
 		final JobID jid = new JobID();
 		final long timestamp = System.currentTimeMillis();
 
@@ -335,15 +343,15 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				}
 			});
 
-		final TestingScheduledServiceWithRecordingScheduledTasks scheduledExecutorService =
-			new TestingScheduledServiceWithRecordingScheduledTasks(testingScheduledExecutor.getScheduledExecutor());
-
 		// set up the coordinator
-		CheckpointCoordinator coord = getCheckpointCoordinator(jid, vertex1, vertex2, checkpointFailureManager, scheduledExecutorService);
+		CheckpointCoordinator coord = getCheckpointCoordinator(jid, vertex1, vertex2, checkpointFailureManager, manuallyTriggeredScheduledExecutor);
 
 		try {
 			// trigger the checkpoint. this should succeed
-			assertTrue(coord.triggerCheckpoint(timestamp, false));
+			final CompletableFuture<CompletedCheckpoint> checkPointFuture =
+				coord.triggerCheckpoint(timestamp, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertFalse(checkPointFuture.isCompletedExceptionally());
 
 			long checkpointId = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
 			PendingCheckpoint checkpoint = coord.getPendingCheckpoints().get(checkpointId);
@@ -389,23 +397,24 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 			ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
-			final TestingScheduledServiceWithRecordingScheduledTasks scheduledExecutorService =
-				new TestingScheduledServiceWithRecordingScheduledTasks(testingScheduledExecutor.getScheduledExecutor());
 			// set up the coordinator and validate the initial state
-			CheckpointCoordinator coord = getCheckpointCoordinator(jid, vertex1, vertex2, failureManager, scheduledExecutorService);
+			CheckpointCoordinator coord = getCheckpointCoordinator(jid, vertex1, vertex2, failureManager, manuallyTriggeredScheduledExecutor);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// trigger the first checkpoint. this should succeed
-			assertTrue(coord.triggerCheckpoint(timestamp, false));
+			final CompletableFuture<CompletedCheckpoint> checkpointFuture =
+				coord.triggerCheckpoint(timestamp, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertFalse(checkpointFuture.isCompletedExceptionally());
 
 			// validate that we have a pending checkpoint
 			assertEquals(1, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// we have one task scheduled that will cancel after timeout
-			assertEquals(1, scheduledExecutorService.getNumScheduledOnceTasks());
+			assertEquals(1, manuallyTriggeredScheduledExecutor.getScheduledTasks().size());
 
 			long checkpointId = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
 			PendingCheckpoint checkpoint = coord.getPendingCheckpoints().get(checkpointId);
@@ -442,7 +451,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			assertTrue(checkpoint.isDiscarded());
 
 			// the canceler is also removed
-			assertEquals(0, scheduledExecutorService.getNumScheduledOnceTasks());
+			assertEquals(0, manuallyTriggeredScheduledExecutor.getScheduledTasks().size());
 
 			// validate that we have no new pending checkpoint
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
@@ -478,26 +487,29 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			final ExecutionAttemptID attemptID2 = new ExecutionAttemptID();
 			ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 			ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
-
-			final TestingScheduledServiceWithRecordingScheduledTasks scheduledExecutorService =
-				new TestingScheduledServiceWithRecordingScheduledTasks(testingScheduledExecutor.getScheduledExecutor());
 			// set up the coordinator and validate the initial state
-			CheckpointCoordinator coord = getCheckpointCoordinator(jid, vertex1, vertex2, failureManager, scheduledExecutorService);
+			CheckpointCoordinator coord = getCheckpointCoordinator(jid, vertex1, vertex2, failureManager, manuallyTriggeredScheduledExecutor);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
-			assertEquals(0, scheduledExecutorService.getNumScheduledOnceTasks());
+			assertEquals(0, manuallyTriggeredScheduledExecutor.getScheduledTasks().size());
 
 			// trigger the first checkpoint. this should succeed
-			assertTrue(coord.triggerCheckpoint(timestamp, false));
+			final CompletableFuture<CompletedCheckpoint> checkpointFuture1 =
+				coord.triggerCheckpoint(timestamp, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertFalse(checkpointFuture1.isCompletedExceptionally());
 
 			// trigger second checkpoint, should also succeed
-			assertTrue(coord.triggerCheckpoint(timestamp + 2, false));
+			final CompletableFuture<CompletedCheckpoint> checkpointFuture2 =
+				coord.triggerCheckpoint(timestamp + 2, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertFalse(checkpointFuture2.isCompletedExceptionally());
 
 			// validate that we have a pending checkpoint
 			assertEquals(2, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
-			assertEquals(2, scheduledExecutorService.getNumScheduledOnceTasks());
+			assertEquals(2, manuallyTriggeredScheduledExecutor.getScheduledTasks().size());
 
 			Iterator<Map.Entry<Long, PendingCheckpoint>> it = coord.getPendingCheckpoints().entrySet().iterator();
 			long checkpoint1Id = it.next().getKey();
@@ -544,7 +556,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			// validate that we have only one pending checkpoint left
 			assertEquals(1, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
-			assertEquals(1, scheduledExecutorService.getNumScheduledOnceTasks());
+			assertEquals(1, manuallyTriggeredScheduledExecutor.getScheduledTasks().size());
 
 			// validate that it is the same second checkpoint from earlier
 			long checkpointIdNew = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
@@ -587,22 +599,23 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 			ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
-			final TestingScheduledServiceWithRecordingScheduledTasks scheduledExecutorService =
-				new TestingScheduledServiceWithRecordingScheduledTasks(testingScheduledExecutor.getScheduledExecutor());
 			// set up the coordinator and validate the initial state
-			CheckpointCoordinator coord = getCheckpointCoordinator(jid, vertex1, vertex2, failureManager, scheduledExecutorService);
+			CheckpointCoordinator coord = getCheckpointCoordinator(jid, vertex1, vertex2, failureManager, manuallyTriggeredScheduledExecutor);
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
-			assertEquals(0, scheduledExecutorService.getNumScheduledOnceTasks());
+			assertEquals(0, manuallyTriggeredScheduledExecutor.getScheduledTasks().size());
 
 			// trigger the first checkpoint. this should succeed
-			assertTrue(coord.triggerCheckpoint(timestamp, false));
+			final CompletableFuture<CompletedCheckpoint> checkpointFuture =
+				coord.triggerCheckpoint(timestamp, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertFalse(checkpointFuture.isCompletedExceptionally());
 
 			// validate that we have a pending checkpoint
 			assertEquals(1, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
-			assertEquals(1, scheduledExecutorService.getNumScheduledOnceTasks());
+			assertEquals(1, manuallyTriggeredScheduledExecutor.getScheduledTasks().size());
 
 			long checkpointId = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
 			PendingCheckpoint checkpoint = coord.getPendingCheckpoints().get(checkpointId);
@@ -659,7 +672,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 
 			// the canceler should be removed now
-			assertEquals(0, scheduledExecutorService.getNumScheduledOnceTasks());
+			assertEquals(0, manuallyTriggeredScheduledExecutor.getScheduledTasks().size());
 
 			// validate that the subtasks states have registered their shared states.
 			{
@@ -684,6 +697,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			// ---------------
 			final long timestampNew = timestamp + 7;
 			coord.triggerCheckpoint(timestampNew, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
 
 			long checkpointIdNew = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, checkpointIdNew), TASK_MANAGER_LOCATION_INFO);
@@ -691,7 +705,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(1, coord.getNumberOfRetainedSuccessfulCheckpoints());
-			assertEquals(0, scheduledExecutorService.getNumScheduledOnceTasks());
+			assertEquals(0, manuallyTriggeredScheduledExecutor.getScheduledTasks().size());
 
 			CompletedCheckpoint successNew = coord.getSuccessfulCheckpoints().get(0);
 			assertEquals(jid, successNew.getJobId());
@@ -763,7 +777,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				testingScheduledExecutor.getScheduledExecutor(),
+				manuallyTriggeredScheduledExecutor,
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
@@ -771,7 +785,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// trigger the first checkpoint. this should succeed
-			assertTrue(coord.triggerCheckpoint(timestamp1, false));
+			final CompletableFuture<CompletedCheckpoint> checkpointFuture1 =
+				coord.triggerCheckpoint(timestamp1, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertFalse(checkpointFuture1.isCompletedExceptionally());
 
 			assertEquals(1, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -788,7 +805,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 			// start the second checkpoint
 			// trigger the first checkpoint. this should succeed
-			assertTrue(coord.triggerCheckpoint(timestamp2, false));
+			final CompletableFuture<CompletedCheckpoint> checkpointFuture2 =
+				coord.triggerCheckpoint(timestamp2, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertFalse(checkpointFuture2.isCompletedExceptionally());
 
 			assertEquals(2, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -901,7 +921,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(10),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				testingScheduledExecutor.getScheduledExecutor(),
+				manuallyTriggeredScheduledExecutor,
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
@@ -909,7 +929,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
 
 			// trigger the first checkpoint. this should succeed
-			assertTrue(coord.triggerCheckpoint(timestamp1, false));
+			final CompletableFuture<CompletedCheckpoint> checkpointFuture1 =
+				coord.triggerCheckpoint(timestamp1, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertFalse(checkpointFuture1.isCompletedExceptionally());
 
 			assertEquals(1, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -941,7 +964,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 			// start the second checkpoint
 			// trigger the first checkpoint. this should succeed
-			assertTrue(coord.triggerCheckpoint(timestamp2, false));
+			final CompletableFuture<CompletedCheckpoint> checkpointFuture2 =
+				coord.triggerCheckpoint(timestamp2, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertFalse(checkpointFuture2.isCompletedExceptionally());
 
 			assertEquals(2, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -1072,12 +1098,15 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				testingScheduledExecutor.getScheduledExecutor(),
+				manuallyTriggeredScheduledExecutor,
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
 			// trigger a checkpoint, partially acknowledged
-			assertTrue(coord.triggerCheckpoint(timestamp, false));
+			final CompletableFuture<CompletedCheckpoint> checkpointFuture =
+				coord.triggerCheckpoint(timestamp, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertFalse(checkpointFuture.isCompletedExceptionally());
 			assertEquals(1, coord.getNumberOfPendingCheckpoints());
 
 			PendingCheckpoint checkpoint = coord.getPendingCheckpoints().values().iterator().next();
@@ -1091,17 +1120,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID1, checkpoint.getCheckpointId(), new CheckpointMetrics(), taskOperatorSubtaskStates1), TASK_MANAGER_LOCATION_INFO);
 
-			// wait until the checkpoint must have expired.
-			// we check every 250 msecs conservatively for 5 seconds
-			// to give even slow build servers a very good chance of completing this
-			long deadline = System.currentTimeMillis() + 5000;
-			do {
-				Thread.sleep(250);
-			}
-			while (!checkpoint.isDiscarded() &&
-					coord.getNumberOfPendingCheckpoints() > 0 &&
-					System.currentTimeMillis() < deadline);
-
+			// triggers cancelling
+			manuallyTriggeredScheduledExecutor.triggerScheduledTasks();
 			assertTrue("Checkpoint was not canceled by the timeout", checkpoint.isDiscarded());
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 			assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -1157,11 +1177,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				testingScheduledExecutor.getScheduledExecutor(),
+				manuallyTriggeredScheduledExecutor,
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
-			assertTrue(coord.triggerCheckpoint(timestamp, false));
+			final CompletableFuture<CompletedCheckpoint> checkpointFuture =
+				coord.triggerCheckpoint(timestamp, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertFalse(checkpointFuture.isCompletedExceptionally());
 
 			long checkpointId = coord.getPendingCheckpoints().keySet().iterator().next();
 
@@ -1228,11 +1251,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			testingScheduledExecutor.getScheduledExecutor(),
+			manuallyTriggeredScheduledExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
-		assertTrue(coord.triggerCheckpoint(timestamp, false));
+		final CompletableFuture<CompletedCheckpoint> checkpointFuture =
+			coord.triggerCheckpoint(timestamp, false);
+		manuallyTriggeredScheduledExecutor.triggerAll();
+		assertFalse(checkpointFuture.isCompletedExceptionally());
 
 		assertEquals(1, coord.getNumberOfPendingCheckpoints());
 
@@ -1334,10 +1360,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 		ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
-		final TestingScheduledServiceWithRecordingScheduledTasks scheduledExecutorService =
-			new TestingScheduledServiceWithRecordingScheduledTasks(testingScheduledExecutor.getScheduledExecutor());
 		// set up the coordinator and validate the initial state
-		CheckpointCoordinator coord = getCheckpointCoordinator(jid, vertex1, vertex2, failureManager, scheduledExecutorService);
+		CheckpointCoordinator coord = getCheckpointCoordinator(jid, vertex1, vertex2, failureManager, manuallyTriggeredScheduledExecutor);
 
 		assertEquals(0, coord.getNumberOfPendingCheckpoints());
 		assertEquals(0, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -1345,6 +1369,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		// trigger the first checkpoint. this should succeed
 		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
 		CompletableFuture<CompletedCheckpoint> savepointFuture = coord.triggerSavepoint(timestamp, savepointDir);
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		assertFalse(savepointFuture.isDone());
 
 		// validate that we have a pending savepoint
@@ -1394,7 +1419,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		// the checkpoint is internally converted to a successful checkpoint and the
 		// pending checkpoint object is disposed
 		assertTrue(pending.isDiscarded());
-		assertTrue(savepointFuture.isDone());
+		assertNotNull(savepointFuture.get());
 
 		// the now we should have a completed checkpoint
 		assertEquals(1, coord.getNumberOfRetainedSuccessfulCheckpoints());
@@ -1423,6 +1448,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		// ---------------
 		final long timestampNew = timestamp + 7;
 		savepointFuture = coord.triggerSavepoint(timestampNew, savepointDir);
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		assertFalse(savepointFuture.isDone());
 
 		long checkpointIdNew = coord.getPendingCheckpoints().entrySet().iterator().next().getKey();
@@ -1437,7 +1463,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		assertEquals(timestampNew, successNew.getTimestamp());
 		assertEquals(checkpointIdNew, successNew.getCheckpointID());
 		assertTrue(successNew.getOperatorStates().isEmpty());
-		assertTrue(savepointFuture.isDone());
+		assertNotNull(savepointFuture.get());
 
 		// validate that the first savepoint does not discard its private states.
 		verify(subtaskState1, never()).discardState();
@@ -1494,7 +1520,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(10),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			testingScheduledExecutor.getScheduledExecutor(),
+			manuallyTriggeredScheduledExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
@@ -1502,13 +1528,21 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		// Trigger savepoint and checkpoint
 		CompletableFuture<CompletedCheckpoint> savepointFuture1 = coord.triggerSavepoint(timestamp, savepointDir);
+
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		long savepointId1 = counter.getLast();
 		assertEquals(1, coord.getNumberOfPendingCheckpoints());
 
-		assertTrue(coord.triggerCheckpoint(timestamp + 1, false));
+		CompletableFuture<CompletedCheckpoint> checkpointFuture1 =
+			coord.triggerCheckpoint(timestamp + 1, false);
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		assertEquals(2, coord.getNumberOfPendingCheckpoints());
+		assertFalse(checkpointFuture1.isCompletedExceptionally());
 
-		assertTrue(coord.triggerCheckpoint(timestamp + 2, false));
+		CompletableFuture<CompletedCheckpoint> checkpointFuture2 =
+			coord.triggerCheckpoint(timestamp + 2, false);
+		manuallyTriggeredScheduledExecutor.triggerAll();
+		assertFalse(checkpointFuture2.isCompletedExceptionally());
 		long checkpointId2 = counter.getLast();
 		assertEquals(3, coord.getNumberOfPendingCheckpoints());
 
@@ -1522,11 +1556,16 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		assertFalse(coord.getPendingCheckpoints().get(savepointId1).isDiscarded());
 		assertFalse(savepointFuture1.isDone());
 
-		assertTrue(coord.triggerCheckpoint(timestamp + 3, false));
+		CompletableFuture<CompletedCheckpoint> checkpointFuture3 =
+			coord.triggerCheckpoint(timestamp + 3, false);
+		manuallyTriggeredScheduledExecutor.triggerAll();
+		assertFalse(checkpointFuture3.isCompletedExceptionally());
 		assertEquals(2, coord.getNumberOfPendingCheckpoints());
 
 		CompletableFuture<CompletedCheckpoint> savepointFuture2 = coord.triggerSavepoint(timestamp + 4, savepointDir);
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		long savepointId2 = counter.getLast();
+		assertFalse(savepointFuture2.isCompletedExceptionally());
 		assertEquals(3, coord.getNumberOfPendingCheckpoints());
 
 		// 2nd savepoint should subsume the last checkpoint, but not the 1st savepoint
@@ -1538,7 +1577,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		assertFalse(coord.getPendingCheckpoints().get(savepointId1).isDiscarded());
 
 		assertFalse(savepointFuture1.isDone());
-		assertTrue(savepointFuture2.isDone());
+		assertNotNull(savepointFuture2.get());
 
 		// Ack first savepoint
 		coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, attemptID1, savepointId1), TASK_MANAGER_LOCATION_INFO);
@@ -1546,7 +1585,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		assertEquals(0, coord.getNumberOfPendingCheckpoints());
 		assertEquals(3, coord.getNumberOfRetainedSuccessfulCheckpoints());
-		assertTrue(savepointFuture1.isDone());
+		assertNotNull(savepointFuture1.get());
 	}
 
 	private void testMaxConcurrentAttempts(int maxConcurrentAttempts) {
@@ -1595,22 +1634,15 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				testingScheduledExecutor.getScheduledExecutor(),
+				manuallyTriggeredScheduledExecutor,
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
 			coord.startCheckpointScheduler();
 
-			// after a while, there should be exactly as many checkpoints
-			// as concurrently permitted
-			long now = System.currentTimeMillis();
-			long timeout = now + 60000;
-			long minDuration = now + 100;
-			do {
-				Thread.sleep(20);
+			for (int i = 0; i < maxConcurrentAttempts; i++) {
+				manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
 			}
-			while ((now = System.currentTimeMillis()) < minDuration ||
-					(numCalls.get() < maxConcurrentAttempts && now < timeout));
 
 			assertEquals(maxConcurrentAttempts, numCalls.get());
 
@@ -1620,18 +1652,17 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			// now, once we acknowledge one checkpoint, it should trigger the next one
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID, 1L), TASK_MANAGER_LOCATION_INFO);
 
-			// this should have immediately triggered a new checkpoint
-			now = System.currentTimeMillis();
-			timeout = now + 60000;
-			do {
-				Thread.sleep(20);
-			}
-			while (numCalls.get() < maxConcurrentAttempts + 1 && now < timeout);
+			final Collection<ScheduledFuture<?>> periodicScheduledTasks =
+				manuallyTriggeredScheduledExecutor.getPeriodicScheduledTask();
+			assertEquals(1, periodicScheduledTasks.size());
+			final ScheduledFuture scheduledFuture = periodicScheduledTasks.iterator().next();
+
+			manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
 
 			assertEquals(maxConcurrentAttempts + 1, numCalls.get());
 
 			// no further checkpoints should happen
-			Thread.sleep(200);
+			manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
 			assertEquals(maxConcurrentAttempts + 1, numCalls.get());
 
 			coord.shutdown(JobStatus.FINISHED);
@@ -1676,22 +1707,16 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				testingScheduledExecutor.getScheduledExecutor(),
+				manuallyTriggeredScheduledExecutor,
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
 			coord.startCheckpointScheduler();
 
-			// after a while, there should be exactly as many checkpoints
-			// as concurrently permitted
-			long now = System.currentTimeMillis();
-			long timeout = now + 60000;
-			long minDuration = now + 100;
 			do {
-				Thread.sleep(20);
+				manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
 			}
-			while ((now = System.currentTimeMillis()) < minDuration ||
-					(coord.getNumberOfPendingCheckpoints() < maxConcurrentAttempts && now < timeout));
+			while (coord.getNumberOfPendingCheckpoints() < maxConcurrentAttempts);
 
 			// validate that the pending checkpoints are there
 			assertEquals(maxConcurrentAttempts, coord.getNumberOfPendingCheckpoints());
@@ -1704,12 +1729,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			coord.receiveAcknowledgeMessage(new AcknowledgeCheckpoint(jid, ackAttemptID, 2L), TASK_MANAGER_LOCATION_INFO);
 
 			// after a while, there should be the new checkpoints
-			final long newTimeout = System.currentTimeMillis() + 60000;
 			do {
-				Thread.sleep(20);
+				manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
 			}
-			while (coord.getPendingCheckpoints().get(4L) == null &&
-					System.currentTimeMillis() < newTimeout);
+			while (coord.getNumberOfPendingCheckpoints() < maxConcurrentAttempts);
 
 			// do the final check
 			assertEquals(maxConcurrentAttempts, coord.getNumberOfPendingCheckpoints());
@@ -1760,26 +1783,21 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				testingScheduledExecutor.getScheduledExecutor(),
+				manuallyTriggeredScheduledExecutor,
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
 			coord.startCheckpointScheduler();
 
+			manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
 			// no checkpoint should have started so far
-			Thread.sleep(200);
 			assertEquals(0, coord.getNumberOfPendingCheckpoints());
 
 			// now move the state to RUNNING
 			currentState.set(ExecutionState.RUNNING);
 
 			// the coordinator should start checkpointing now
-			final long timeout = System.currentTimeMillis() + 10000;
-			do {
-				Thread.sleep(20);
-			}
-			while (System.currentTimeMillis() < timeout &&
-					coord.getNumberOfPendingCheckpoints() == 0);
+			manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
 
 			assertTrue(coord.getNumberOfPendingCheckpoints() > 0);
 		}
@@ -1795,6 +1813,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 	@Test
 	public void testConcurrentSavepoints() throws Exception {
 		JobID jobId = new JobID();
+		int numSavepoints = 5;
 
 		final ExecutionAttemptID attemptID1 = new ExecutionAttemptID();
 		ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
@@ -1820,13 +1839,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(2),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			testingScheduledExecutor.getScheduledExecutor(),
+			manuallyTriggeredScheduledExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
 		List<CompletableFuture<CompletedCheckpoint>> savepointFutures = new ArrayList<>();
-
-		int numSavepoints = 5;
 
 		String savepointDir = tmpFolder.newFolder().getAbsolutePath();
 
@@ -1840,6 +1857,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			assertFalse(savepointFuture.isDone());
 		}
 
+		manuallyTriggeredScheduledExecutor.triggerAll();
+
 		// ACK all savepoints
 		long checkpointId = checkpointIDCounter.getLast();
 		for (int i = 0; i < numSavepoints; i++, checkpointId--) {
@@ -1848,7 +1867,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		// After ACKs, all should be completed
 		for (CompletableFuture<CompletedCheckpoint> savepointFuture : savepointFutures) {
-			assertTrue(savepointFuture.isDone());
+			assertNotNull(savepointFuture.get());
 		}
 	}
 
@@ -1881,7 +1900,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(2),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			testingScheduledExecutor.getScheduledExecutor(),
+			manuallyTriggeredScheduledExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
@@ -1927,11 +1946,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(1),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				testingScheduledExecutor.getScheduledExecutor(),
+				manuallyTriggeredScheduledExecutor,
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
-			assertTrue(coord.triggerCheckpoint(timestamp, false));
+			CompletableFuture<CompletedCheckpoint> checkpointFuture =
+				coord.triggerCheckpoint(timestamp, false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
+			assertFalse(checkpointFuture.isCompletedExceptionally());
 
 			for (PendingCheckpoint checkpoint : coord.getPendingCheckpoints().values()) {
 				CheckpointProperties props = checkpoint.getProps();
@@ -2140,7 +2162,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 	 * Tests that the pending checkpoint stats callbacks are created.
 	 */
 	@Test
-	public void testCheckpointStatsTrackerPendingCheckpointCallback() {
+	public void testCheckpointStatsTrackerPendingCheckpointCallback() throws Exception {
 		final long timestamp = System.currentTimeMillis();
 		ExecutionVertex vertex1 = mockExecutionVertex(new ExecutionAttemptID());
 
@@ -2164,7 +2186,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			testingScheduledExecutor.getScheduledExecutor(),
+			manuallyTriggeredScheduledExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
@@ -2175,7 +2197,10 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			.thenReturn(mock(PendingCheckpointStats.class));
 
 		// Trigger a checkpoint and verify callback
-		assertTrue(coord.triggerCheckpoint(timestamp, false));
+		CompletableFuture<CompletedCheckpoint> checkpointFuture =
+			coord.triggerCheckpoint(timestamp, false);
+		manuallyTriggeredScheduledExecutor.triggerAll();
+		assertFalse(checkpointFuture.isCompletedExceptionally());
 
 		verify(tracker, times(1))
 			.reportPendingCheckpoint(eq(1L), eq(timestamp), eq(CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION)));
@@ -2210,7 +2235,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			store,
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			testingScheduledExecutor.getScheduledExecutor(),
+			manuallyTriggeredScheduledExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
@@ -2280,7 +2305,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 			store,
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			testingScheduledExecutor.getScheduledExecutor(),
+			manuallyTriggeredScheduledExecutor,
 				deleteExecutor -> {
 					SharedStateRegistry instance = new SharedStateRegistry(deleteExecutor);
 					createdSharedStateRegistries.add(instance);
@@ -2421,8 +2446,6 @@ public class CheckpointCoordinatorTest extends TestLogger {
 		final ExecutionVertex vertex1 = mockExecutionVertex(attemptID1);
 		final ExecutionVertex vertex2 = mockExecutionVertex(attemptID2);
 
-		final TestingScheduledServiceWithRecordingScheduledTasks scheduledExecutorService =
-			new TestingScheduledServiceWithRecordingScheduledTasks(testingScheduledExecutor.getScheduledExecutor());
 		// set up the coordinator and validate the initial state
 		final CheckpointCoordinator coordinator = getCheckpointCoordinator(jobId, vertex1, vertex2,
 				new CheckpointFailureManager(
@@ -2439,11 +2462,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
 							throw new AssertionError("This method should not be called for the test.");
 						}
 					}),
-			scheduledExecutorService);
+			manuallyTriggeredScheduledExecutor);
 
 		final CompletableFuture<CompletedCheckpoint> savepointFuture = coordinator
 				.triggerSynchronousSavepoint(10L, false, "test-dir");
 
+		manuallyTriggeredScheduledExecutor.triggerAll();
 		final PendingCheckpoint syncSavepoint = declineSynchronousSavepoint(jobId, coordinator, attemptID1, expectedRootCause);
 
 		assertTrue(syncSavepoint.isDiscarded());
@@ -2519,8 +2543,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
 		// trigger the checkpoint
 		coord.triggerCheckpoint(timestamp, false);
+		manuallyTriggeredScheduledExecutor.triggerAll();
 
-		assertTrue(coord.getPendingCheckpoints().keySet().size() == 1);
+		assertEquals(1, coord.getPendingCheckpoints().size());
 		long checkpointId = Iterables.getOnlyElement(coord.getPendingCheckpoints().keySet());
 
 		for (int index = 0; index < jobVertex1.getParallelism(); index++) {

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.concurrent.Executors;
+import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -28,11 +29,9 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
-import org.apache.flink.runtime.util.TestingScheduledExecutor;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -55,9 +54,7 @@ import static org.mockito.Mockito.doAnswer;
 public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 	private static final String TASK_MANAGER_LOCATION_INFO = "Unknown location";
 
-	@Rule
-	public final TestingScheduledExecutor testingScheduledExecutor =
-		new TestingScheduledExecutor();
+	private ManuallyTriggeredScheduledExecutor manuallyTriggeredScheduledExecutor;
 
 	private CheckpointFailureManager failureManager;
 
@@ -66,6 +63,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 		failureManager = new CheckpointFailureManager(
 			0,
 			NoOpFailJobCall.INSTANCE);
+		manuallyTriggeredScheduledExecutor = new ManuallyTriggeredScheduledExecutor();
 	}
 
 	@Test
@@ -128,51 +126,39 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 				new StandaloneCompletedCheckpointStore(2),
 				new MemoryStateBackend(),
 				Executors.directExecutor(),
-				testingScheduledExecutor.getScheduledExecutor(),
+				manuallyTriggeredScheduledExecutor,
 				SharedStateRegistry.DEFAULT_FACTORY,
 				failureManager);
 
 			coord.startCheckpointScheduler();
 
-			long timeout = System.currentTimeMillis() + 60000;
 			do {
-				Thread.sleep(20);
+				manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
 			}
-			while (timeout > System.currentTimeMillis() && numCalls.get() < 5);
-			assertTrue(numCalls.get() >= 5);
+			while (numCalls.get() < 5);
+			assertEquals(5, numCalls.get());
 
 			coord.stopCheckpointScheduler();
 
-			// for 400 ms, no further calls may come.
-			// there may be the case that one trigger was fired and about to
-			// acquire the lock, such that after cancelling it will still do
-			// the remainder of its work
-			int numCallsSoFar = numCalls.get();
-			Thread.sleep(400);
-			assertTrue(numCallsSoFar == numCalls.get() ||
-				numCallsSoFar + 1 == numCalls.get());
+			// no further calls may come.
+			manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+			assertEquals(5, numCalls.get());
 
 			// start another sequence of periodic scheduling
 			numCalls.set(0);
 			coord.startCheckpointScheduler();
 
-			timeout = System.currentTimeMillis() + 60000;
 			do {
-				Thread.sleep(20);
+				manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
 			}
-			while (timeout > System.currentTimeMillis() && numCalls.get() < 5);
-			assertTrue(numCalls.get() >= 5);
+			while (numCalls.get() < 5);
+			assertEquals(5, numCalls.get());
 
 			coord.stopCheckpointScheduler();
 
-			// for 400 ms, no further calls may come
-			// there may be the case that one trigger was fired and about to
-			// acquire the lock, such that after cancelling it will still do
-			// the remainder of its work
-			numCallsSoFar = numCalls.get();
-			Thread.sleep(400);
-			assertTrue(numCallsSoFar == numCalls.get() ||
-				numCallsSoFar + 1 == numCalls.get());
+			// no further calls may come
+			manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+			assertEquals(5, numCalls.get());
 
 			coord.shutdown(JobStatus.FINISHED);
 		}
@@ -203,9 +189,10 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 		}).when(executionAttempt).triggerCheckpoint(anyLong(), anyLong(), any(CheckpointOptions.class));
 
 		final long delay = 50;
+		final long checkpointInterval = 12;
 
 		CheckpointCoordinatorConfiguration chkConfig = new CheckpointCoordinatorConfiguration(
-			12,           // periodic interval is 12 ms
+			checkpointInterval,           // periodic interval is 12 ms
 			200_000,     // timeout is very long (200 s)
 			delay,       // 50 ms delay between checkpoints
 			1,
@@ -223,12 +210,13 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(2),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			testingScheduledExecutor.getScheduledExecutor(),
+			manuallyTriggeredScheduledExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
 		try {
 			coord.startCheckpointScheduler();
+			manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
 
 			// wait until the first checkpoint was triggered
 			Long firstCallId = triggerCalls.take();
@@ -240,6 +228,12 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 			final long ackTime = System.nanoTime();
 			coord.receiveAcknowledgeMessage(ackMsg, TASK_MANAGER_LOCATION_INFO);
 
+			manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+			while (triggerCalls.isEmpty()) {
+				// sleeps for a while to simulate periodic scheduling
+				Thread.sleep(checkpointInterval);
+				manuallyTriggeredScheduledExecutor.triggerPeriodicScheduledTasks();
+			}
 			// wait until the next checkpoint is triggered
 			Long nextCallId = triggerCalls.take();
 			final long nextCheckpointTime = System.nanoTime();
@@ -284,7 +278,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 			new StandaloneCompletedCheckpointStore(1),
 			new MemoryStateBackend(),
 			Executors.directExecutor(),
-			testingScheduledExecutor.getScheduledExecutor(),
+			manuallyTriggeredScheduledExecutor,
 			SharedStateRegistry.DEFAULT_FACTORY,
 			failureManager);
 
@@ -296,6 +290,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 				null,
 				true,
 				false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
 			fail("The triggerCheckpoint call expected an exception");
 		} catch (CheckpointException e) {
 			assertEquals(CheckpointFailureReason.PERIODIC_SCHEDULER_SHUTDOWN, e.getCheckpointFailureReason());
@@ -309,6 +304,7 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
 				null,
 				false,
 				false);
+			manuallyTriggeredScheduledExecutor.triggerAll();
 		} catch (CheckpointException e) {
 			fail("Unexpected exception : " + e.getCheckpointFailureReason().message());
 		}
