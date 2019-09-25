@@ -23,8 +23,10 @@ import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.executiongraph.SlotProviderStrategy;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.jobgraph.ScheduleMode;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationConstraint;
 import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
@@ -278,7 +280,13 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 	}
 
 	private DefaultExecutionSlotAllocator createExecutionSlotAllocator(InputsLocationsRetriever inputsLocationsRetriever) {
-		return new DefaultExecutionSlotAllocator(slotProvider, inputsLocationsRetriever, Time.seconds(10));
+		return new DefaultExecutionSlotAllocator(
+			SlotProviderStrategy.from(
+				ScheduleMode.EAGER,
+				slotProvider,
+				Time.seconds(10),
+				true),
+			inputsLocationsRetriever);
 	}
 
 	private List<ExecutionVertexSchedulingRequirements> createSchedulingRequirements(ExecutionVertexID... executionVertexIds) {
