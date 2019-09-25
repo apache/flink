@@ -1,7 +1,7 @@
 ---
-title: Glossary
+title: 词汇表
 nav-pos: 3
-nav-title: Glossary
+nav-title: 词汇表
 nav-parent_id: concepts
 ---
 <!--
@@ -25,142 +25,92 @@ under the License.
 
 #### Flink Application Cluster
 
-A Flink Application Cluster is a dedicated [Flink Cluster](#flink-cluster) that only
-executes a single [Flink Job](#flink-job). The lifetime of the
-[Flink Cluster](#flink-cluster) is bound to the lifetime of the Flink Job. Formerly
-Flink Application Clusters were also known as Flink Clusters in *job mode*. Compare to
-[Flink Session Cluster](#flink-session-cluster).
+Flink Application Cluster 是一个专用的 [Flink Cluster](#flink-cluster)，它仅用于执行单个 [Flink Job](#flink-job)。[Flink Cluster](#flink-cluster)的生命周期与 [Flink Job](#flink-job)的生命周期绑定在一起。以前，Flink Application Cluster 也称为*job mode*的 Flink Cluster。和 [Flink Session Cluster](#flink-session-cluster) 作对比。
 
 #### Flink Cluster
 
-A distributed system consisting of (typically) one [Flink Master](#flink-master) and one or more
-[Flink TaskManager](#flink-taskmanager) processes.
+一般情况下，Flink 集群是由一个 [Flink Master](#flink-master) 和一个或多个 [Flink TaskManager](#flink-taskmanager) 进程组成的分布式系统。
 
 #### Event
 
-An event is a statement about a change of the state of the domain modelled by the
-application. Events can be input and/or output of a stream or batch processing application.
-Events are special types of [records](#Record).
+Event 是对应用程序建模的域的状态更改的声明。它可以同时为流或批处理应用程序的 input 和 output，也可以单独是 input 或者 output 中的一种。Event 是特殊类型的 [Record](#record)。
 
 #### ExecutionGraph
 
-see [Physical Graph](#physical-graph)
+见 [Physical Graph](#physical-graph)。
 
 #### Function
 
-Functions are implemented by the user and encapsulate the
-application logic of a Flink program. Most Functions are wrapped by a corresponding
-[Operator](#operator).
+Function 是由用户实现的，并封装了 Flink 程序的应用程序逻辑。大多数 Function 都由相应的 [Operator](#operator) 封装。
 
 #### Instance
 
-The term *instance* is used to describe a specific instance of a specific type (usually
-[Operator](#operator) or [Function](#function)) during runtime. As Apache Flink is mostly written in
-Java, this corresponds to the definition of *Instance* or *Object* in Java. In the context of Apache
-Flink, the term *parallel instance* is also frequently used to emphasize that multiple instances of
-the same [Operator](#operator) or [Function](#function) type are running in parallel.
+Instance 常用于描述运行时的特定类型(通常是 [Operator](#operator) 或者 [Function](#function))的一个具体实例。由于 Apache Flink 主要是用 Java 编写的，所以，这与 Java 中的 *Instance* 或 *Object* 的定义相对应。在 Apache Flink 的上下文中，*parallel instance* 也常用于强调同一 [Operator](#operator) 或者 [Function](#function) 的多个 instance 以并行的方式运行。
 
 #### Flink Job
 
-A Flink Job is the runtime representation of a Flink program. A Flink Job can either be submitted
-to a long running [Flink Session Cluster](#flink-session-cluster) or it can be started as a
-self-contained [Flink Application Cluster](#flink-application-cluster).
+Flink Job 代表运行时的 Flink 程序。Flink Job 可以提交到长时间运行的 [Flink Session Cluster](#flink-session-cluster)，也可以作为独立的 [Flink Application Cluster](#flink-application-cluster) 启动。
 
 #### JobGraph
 
-see [Logical Graph](#logical-graph)
+见 [Logical Graph](#logical-graph)。
 
 #### Flink JobManager
 
-JobManagers are one of the components running in the [Flink Master](#flink-master). A JobManager is
-responsible for supervising the execution of the [Tasks](#task) of a single job. Historically, the
-whole [Flink Master](#flink-master) was called JobManager.
+JobManager 是在 [Flink Master](#flink-master) 运行中的组件之一。JobManager 负责监督单个作业 [Task](#task) 的执行。以前，整个 [Flink Master](#flink-master) 都叫做 JobManager。
 
 #### Logical Graph
 
-A logical graph is a directed graph describing the high-level logic of a stream processing program.
-The nodes are [Operators](#operator) and the edges indicate input/output-relationships or
-data streams or data sets.
+Logical Graph 是一种描述流处理程序的高阶逻辑有向图。节点是[Operator](#operator)，边代表输入/输出关系、数据流和数据集中的之一。
 
 #### Managed State
 
-Managed State describes application state which has been registered with the framework. For
-Managed State, Apache Flink will take care about persistence and rescaling among other things.
+Managed State 描述了已在框架中注册的应用程序的托管状态。对于托管状态，Apache Flink 会负责持久化和重伸缩等事宜。
 
 #### Flink Master
 
-The Flink Master is the master of a [Flink Cluster](#flink-cluster). It contains three distinct
-components: Flink Resource Manager, Flink Dispatcher and one [Flink JobManager](#flink-jobmanager)
-per running [Flink Job](#flink-job).
+Flink Master 是 [Flink Cluster](#flink-cluster) 的主节点。它包含三个不同的组件：Flink Resource Manager、Flink Dispatcher、运行每个 [Flink Job](#flink-job) 的 [Flink JobManager](#flink-jobmanager)。
 
 #### Operator
 
-Node of a [Logical Graph](#logical-graph). An Operator performs a certain operation, which is
-usually executed by a [Function](#function). Sources and Sinks are special Operators for data
-ingestion and data egress.
+[Logical Graph](#logical-graph) 的节点。算子执行某种操作，该操作通常由 [Function](#function) 执行。Source 和 Sink 是数据输入和数据输出的特殊算子。
 
 #### Operator Chain
 
-An Operator Chain consists of two or more consecutive [Operators](#operator) without any
-repartitioning in between. Operators within the same Operator Chain forward records to each other
-directly without going through serialization or Flink's network stack.
+算子链由两个或多个连续的 [Operator](#operator) 组成，两者之间没有任何的重新分区。同一算子链内的算子可以彼此直接传递 record，而无需通过序列化或 Flink 的网络栈。
 
 #### Partition
 
-A partition is an independent subset of the overall data stream or data set. A data stream or
-data set is divided into partitions by assigning each [record](#Record) to one or more partitions.
-Partitions of data streams or data sets are consumed by [Tasks](#task) during runtime. A
-transformation which changes the way a data stream or data set is partitioned is often called
-repartitioning.
+分区是整个数据流或数据集的独立子集。通过将每个 [Record](#record) 分配给一个或多个分区，来把数据流或数据集划分为多个分区。在运行期间，[Task](#task) 会消费数据流或数据集的分区。改变数据流或数据集分区方式的转换通常称为重分区。
 
 #### Physical Graph
 
-A physical graph is the result of translating a [Logical Graph](#logical-graph) for execution in a
-distributed runtime. The nodes are [Tasks](#task) and the edges indicate input/output-relationships
-or [partitions](#partition) of data streams or data sets.
+Physical graph 是一个在分布式运行时，把 [Logical Graph](#logical-graph) 转换为可执行的结果。节点是 [Task](#task)，边表示数据流或数据集的输入/输出关系或 [partition](#partition)。
 
 #### Record
 
-Records are the constituent elements of a data set or data stream. [Operators](#operator) and
-[Functions](#Function) receive records as input and emit records as output.
+Record 是数据集或数据流的组成元素。[Operator](#operator) 和 [Function](#Function)接收 record 作为输入，并将 record 作为输出发出。
 
 #### Flink Session Cluster
 
-A long-running [Flink Cluster](#flink-cluster) which accepts multiple [Flink Jobs](#flink-job) for
-execution. The lifetime of this Flink Cluster is not bound to the lifetime of any Flink Job.
-Formerly, a Flink Session Cluster was also known as a Flink Cluster in *session mode*. Compare to
-[Flink Application Cluster](#flink-application-cluster).
+长时间运行的 [Flink Cluster](#flink-cluster)，它可以接受多个 [Flink Job](#flink-job) 的执行。此 [Flink Cluster](#flink-cluster) 的生命周期不受任何 [Flink Job](#flink-job) 生命周期的约束限制。以前，Flink Session Cluster 也称为 *session mode* 的 [Flink Cluster](#flink-cluster)，和 [Flink Application Cluster](#flink-application-cluster) 相对应。
 
 #### State Backend
 
-For stream processing programs, the State Backend of a [Flink Job](#flink-job) determines how its
-[state](#managed-state) is stored on each TaskManager (Java Heap of TaskManager or (embedded)
-RocksDB) as well as where it is written upon a checkpoint (Java Heap of
-[Flink Master](#flink-master) or Filesystem).
+对于流处理程序，[Flink Job](#flink-job) 的 State Backend 决定了其 [state](#managed-state) 是如何存储在每个 TaskManager 上的（ TaskManager 的 Java 堆栈或嵌入式 RocksDB），以及它在 checkpoint 时的写入位置（ [Flink Master](#flink-master) 的 Java 堆或者 Filesystem）。
 
 #### Sub-Task
 
-A Sub-Task is a [Task](#task) responsible for processing a [partition](#partition) of
-the data stream. The term "Sub-Task" emphasizes that there are multiple parallel Tasks for the same
-[Operator](#operator) or [Operator Chain](#operator-chain).
+Sub-Task 是负责处理数据流 [Partition](#partition) 的 [Task](#task)。"Sub-Task"强调的是同一个 [Operator](#operator) 或者 [Operator Chain](#operator-chain) 具有多个并行的 Task 。
 
 #### Task
 
-Node of a [Physical Graph](#physical-graph). A task is the basic unit of work, which is executed by
-Flink's runtime. Tasks encapsulate exactly one parallel instance of an
-[Operator](#operator) or [Operator Chain](#operator-chain).
+Task 是 [Physical Graph](#physical-graph) 的节点。它是基本的工作单元，由 Flink 的 runtime 来执行。Task 正好封装了一个 [Operator](#operator) 或者 [Operator Chain](#operator-chain) 的 *parallel instance*。 
 
 #### Flink TaskManager
 
-TaskManagers are the worker processes of a [Flink Cluster](#flink-cluster). [Tasks](#task) are
-scheduled to TaskManagers for execution. They communicate with each other to exchange data between
-subsequent Tasks.
+TaskManager 是 [Flink Cluster](#flink-cluster) 的工作进程。[Task](#task) 被调度到 TaskManager 上执行。TaskManager 相互通信，只为在后续的 Task 之间交换数据。
 
 #### Transformation
 
-A Transformation is applied on one or more data streams or data sets and results in one or more
-output data streams or data sets. A transformation might change a data stream or data set on a
-per-record basis, but might also only change its partitioning or perform an aggregation. While
-[Operators](#operator) and [Functions](#function)) are the "physical" parts of Flink's API,
-Transformations are only an API concept. Specifically, most - but not all - transformations are
-implemented by certain [Operators](#operator).
+Transformation 应用于一个或多个数据流或数据集，并产生一个或多个输出数据流或数据集。Transformation 可能会在每个记录的基础上更改数据流或数据集，但也可以只更改其分区或执行聚合。虽然 [Operator](#operator) 和 [Function](#function) 是 Flink API 的“物理”部分，但 Transformation 只是一个 API 概念。具体来说，大多数（但不是全部）Transformation 是由某些 [Operator](#operator) 实现的。
