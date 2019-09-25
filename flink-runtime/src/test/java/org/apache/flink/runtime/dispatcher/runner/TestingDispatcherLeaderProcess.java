@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 
 import java.util.UUID;
@@ -32,6 +33,7 @@ class TestingDispatcherLeaderProcess implements DispatcherLeaderProcess {
 	private final Consumer<Void> startConsumer;
 	private final Supplier<CompletableFuture<Void>> closeAsyncSupplier;
 	private final CompletableFuture<String> confirmLeaderSessionFuture;
+	private final CompletableFuture<ApplicationStatus> shutDownFuture;
 
 	private CompletableFuture<Void> terminationFuture = null;
 
@@ -40,12 +42,14 @@ class TestingDispatcherLeaderProcess implements DispatcherLeaderProcess {
 			CompletableFuture<DispatcherGateway> dispatcherGatewayFuture,
 			Consumer<Void> startConsumer,
 			Supplier<CompletableFuture<Void>> closeAsyncSupplier,
-			CompletableFuture<String> confirmLeaderSessionFuture) {
+			CompletableFuture<String> confirmLeaderSessionFuture,
+			CompletableFuture<ApplicationStatus> shutDownFuture) {
 		this.leaderSessionId = leaderSessionId;
 		this.dispatcherGatewayFuture = dispatcherGatewayFuture;
 		this.startConsumer = startConsumer;
 		this.closeAsyncSupplier = closeAsyncSupplier;
 		this.confirmLeaderSessionFuture = confirmLeaderSessionFuture;
+		this.shutDownFuture = shutDownFuture;
 	}
 
 	@Override
@@ -66,6 +70,11 @@ class TestingDispatcherLeaderProcess implements DispatcherLeaderProcess {
 	@Override
 	public CompletableFuture<String> getConfirmLeaderSessionFuture() {
 		return confirmLeaderSessionFuture;
+	}
+
+	@Override
+	public CompletableFuture<ApplicationStatus> getShutDownFuture() {
+		return shutDownFuture;
 	}
 
 	@Override
@@ -91,6 +100,7 @@ class TestingDispatcherLeaderProcess implements DispatcherLeaderProcess {
 		private Supplier<CompletableFuture<Void>> closeAsyncSupplier = () -> CompletableFuture.completedFuture(null);
 
 		private CompletableFuture<String> confirmLeaderSessionFuture = CompletableFuture.completedFuture("Unknown address");
+		private CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
 
 		private Builder(UUID leaderSessionId) {
 			this.leaderSessionId = leaderSessionId;
@@ -116,13 +126,19 @@ class TestingDispatcherLeaderProcess implements DispatcherLeaderProcess {
 			return this;
 		}
 
+		public Builder setShutDownFuture(CompletableFuture<ApplicationStatus> shutDownFuture) {
+			this.shutDownFuture = shutDownFuture;
+			return this;
+		}
+
 		public TestingDispatcherLeaderProcess build() {
 			return new TestingDispatcherLeaderProcess(
 				leaderSessionId,
 				dispatcherGatewayFuture,
 				startConsumer,
 				closeAsyncSupplier,
-				confirmLeaderSessionFuture);
+				confirmLeaderSessionFuture,
+				shutDownFuture);
 		}
 	}
 }

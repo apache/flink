@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -37,4 +38,6 @@ interface DispatcherLeaderProcess extends AutoCloseableAsync {
 	CompletableFuture<DispatcherGateway> getDispatcherGateway();
 
 	CompletableFuture<String> getConfirmLeaderSessionFuture();
+
+	CompletableFuture<ApplicationStatus> getShutDownFuture();
 }

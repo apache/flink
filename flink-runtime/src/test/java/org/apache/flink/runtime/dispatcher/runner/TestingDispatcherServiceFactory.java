@@ -25,15 +25,15 @@ import org.apache.flink.util.function.TriFunction;
 
 import java.util.Collection;
 
-class TestingDispatcherServiceFactory implements DispatcherLeaderProcessImpl.DispatcherServiceFactory {
-	private final TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction;
+class TestingDispatcherServiceFactory implements AbstractDispatcherLeaderProcess.DispatcherServiceFactory {
+	private final TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherService> createFunction;
 
-	private TestingDispatcherServiceFactory(TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction) {
+	private TestingDispatcherServiceFactory(TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherService> createFunction) {
 		this.createFunction = createFunction;
 	}
 
 	@Override
-	public DispatcherLeaderProcessImpl.DispatcherService create(
+	public AbstractDispatcherLeaderProcess.DispatcherService create(
 			DispatcherId fencingToken,
 			Collection<JobGraph> recoveredJobs,
 			JobGraphWriter jobGraphWriter) {
@@ -45,11 +45,11 @@ class TestingDispatcherServiceFactory implements DispatcherLeaderProcessImpl.Dis
 	}
 
 	public static class Builder {
-		private TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction = (ignoredA, ignoredB, ignoredC) -> TestingDispatcherService.newBuilder().build();
+		private TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherService> createFunction = (ignoredA, ignoredB, ignoredC) -> TestingDispatcherService.newBuilder().build();
 
 		private Builder() {}
 
-		Builder setCreateFunction(TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, DispatcherLeaderProcessImpl.DispatcherService> createFunction) {
+		Builder setCreateFunction(TriFunction<DispatcherId, Collection<JobGraph>, JobGraphWriter, AbstractDispatcherLeaderProcess.DispatcherService> createFunction) {
 			this.createFunction = createFunction;
 			return this;
 		}

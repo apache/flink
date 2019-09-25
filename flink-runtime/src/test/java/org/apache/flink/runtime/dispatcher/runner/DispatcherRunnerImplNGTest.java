@@ -39,6 +39,7 @@ import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 /**
@@ -71,15 +72,14 @@ public class DispatcherRunnerImplNGTest extends TestLogger {
 	}
 
 	@Test
-	public void closeAsync_withUncompletedShutDownFuture_completesShutDownFuture() throws Exception {
+	public void closeAsync_doesNotCompleteUncompletedShutDownFuture() throws Exception {
 		final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner();
 
 		final CompletableFuture<Void> terminationFuture = dispatcherRunner.closeAsync();
 		terminationFuture.get();
 
 		final CompletableFuture<ApplicationStatus> shutDownFuture = dispatcherRunner.getShutDownFuture();
-		assertThat(shutDownFuture.isDone(), is(true));
-		assertThat(shutDownFuture.get(), is(ApplicationStatus.UNKNOWN));
+		assertThat(shutDownFuture.isDone(), is(false));
 	}
 
 	@Test
@@ -133,6 +133,90 @@ public class DispatcherRunnerImplNGTest extends TestLogger {
 
 			assertThat(firstDispatcherGatewayFuture.get(), is(firstDispatcherGateway));
 			assertThat(secondDispatcherGatewayFuture.get(), is(secondDispatcherGateway));
+		}
+	}
+
+	@Test
+	public void getShutDownFuture_whileRunning_forwardsDispatcherLeaderProcessShutDownRequest() throws Exception {
+		final UUID leaderSessionId = UUID.randomUUID();
+		final CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
+		final TestingDispatcherLeaderProcess testingDispatcherLeaderProcess = TestingDispatcherLeaderProcess.newBuilder(leaderSessionId)
+			.setShutDownFuture(shutDownFuture)
+			.build();
+		testingDispatcherLeaderProcessFactory = TestingDispatcherLeaderProcessFactory.from(testingDispatcherLeaderProcess);
+
+		try (final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner()) {
+			testingLeaderElectionService.isLeader(leaderSessionId);
+
+			final CompletableFuture<ApplicationStatus> dispatcherShutDownFuture = dispatcherRunner.getShutDownFuture();
+
+			assertFalse(dispatcherShutDownFuture.isDone());
+
+			final ApplicationStatus finalApplicationStatus = ApplicationStatus.UNKNOWN;
+			shutDownFuture.complete(finalApplicationStatus);
+
+			assertThat(dispatcherShutDownFuture.get(), is(finalApplicationStatus));
+		}
+	}
+
+	@Test
+	public void getShutDownFuture_afterClose_ignoresDispatcherLeaderProcessShutDownRequest() throws Exception {
+		final UUID leaderSessionId = UUID.randomUUID();
+		final CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
+		final TestingDispatcherLeaderProcess testingDispatcherLeaderProcess = TestingDispatcherLeaderProcess.newBuilder(leaderSessionId)
+			.setShutDownFuture(shutDownFuture)
+			.build();
+		testingDispatcherLeaderProcessFactory = TestingDispatcherLeaderProcessFactory.from(testingDispatcherLeaderProcess);
+
+		try (final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner()) {
+			testingLeaderElectionService.isLeader(leaderSessionId);
+
+			final CompletableFuture<ApplicationStatus> dispatcherShutDownFuture = dispatcherRunner.getShutDownFuture();
+
+			assertFalse(dispatcherShutDownFuture.isDone());
+
+			dispatcherRunner.closeAsync();
+
+			final ApplicationStatus finalApplicationStatus = ApplicationStatus.UNKNOWN;
+			shutDownFuture.complete(finalApplicationStatus);
+
+			try {
+				dispatcherShutDownFuture.get(10L, TimeUnit.MILLISECONDS);
+				fail("The dispatcher runner should no longer react to the dispatcher leader process's shut down request if it has been terminated.");
+			} catch (TimeoutException expected) {}
+		}
+	}
+
+	@Test
+	public void getShutDownFuture_newLeader_ignoresOldDispatcherLeaderProcessShutDownRequest() throws Exception {
+		final UUID firstLeaderSessionId = UUID.randomUUID();
+		final UUID secondLeaderSessionId = UUID.randomUUID();
+		final CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
+		final TestingDispatcherLeaderProcess firstTestingDispatcherLeaderProcess = TestingDispatcherLeaderProcess.newBuilder(firstLeaderSessionId)
+			.setShutDownFuture(shutDownFuture)
+			.build();
+		final TestingDispatcherLeaderProcess secondTestingDispatcherLeaderProcess = TestingDispatcherLeaderProcess.newBuilder(secondLeaderSessionId)
+			.build();
+		testingDispatcherLeaderProcessFactory = TestingDispatcherLeaderProcessFactory.from(
+			firstTestingDispatcherLeaderProcess,
+			secondTestingDispatcherLeaderProcess);
+
+		try (final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner()) {
+			testingLeaderElectionService.isLeader(firstLeaderSessionId);
+
+			final CompletableFuture<ApplicationStatus> dispatcherShutDownFuture = dispatcherRunner.getShutDownFuture();
+
+			assertFalse(dispatcherShutDownFuture.isDone());
+
+			testingLeaderElectionService.isLeader(secondLeaderSessionId);
+
+			final ApplicationStatus finalApplicationStatus = ApplicationStatus.UNKNOWN;
+			shutDownFuture.complete(finalApplicationStatus);
+
+			try {
+				dispatcherShutDownFuture.get(10L, TimeUnit.MILLISECONDS);
+				fail("The dispatcher runner should no longer react to the dispatcher leader process's shut down request if it has been terminated.");
+			} catch (TimeoutException expected) {}
 		}
 	}
 

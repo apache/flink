@@ -26,10 +26,8 @@ import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
-import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
@@ -105,11 +103,14 @@ public class DispatcherLeaderProcessImpl extends  AbstractDispatcherLeaderProces
 	}
 
 	private void createDispatcher(Collection<JobGraph> jobGraphs) {
+		Preconditions.checkState(dispatcher == null);
+
 		dispatcher = dispatcherFactory.create(
 			DispatcherId.fromUuid(getLeaderSessionId()),
 			jobGraphs,
 			jobGraphStore);
-		completeDispatcherGatewayFuture(dispatcher.getGateway());
+
+		completeDispatcherSetup(dispatcher);
 	}
 
 	private CompletableFuture<Collection<JobGraph>> recoverJobsAsync() {
@@ -295,22 +296,5 @@ public class DispatcherLeaderProcessImpl extends  AbstractDispatcherLeaderProces
 			jobGraphStore,
 			ioExecutor,
 			fatalErrorHandler);
-	}
-
-	// ------------------------------------------------------------
-	// Internal classes
-	// ------------------------------------------------------------
-
-	interface DispatcherServiceFactory {
-		DispatcherService create(
-			DispatcherId fencingToken,
-			Collection<JobGraph> recoveredJobs,
-			JobGraphWriter jobGraphWriter);
-	}
-
-	interface DispatcherService extends AutoCloseableAsync {
-		DispatcherGateway getGateway();
-
-		CompletableFuture<Void> onRemovedJobGraph(JobID jobId);
 	}
 }

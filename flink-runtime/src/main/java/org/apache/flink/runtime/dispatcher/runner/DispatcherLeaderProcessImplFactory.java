@@ -29,13 +29,13 @@ import java.util.concurrent.Executor;
  */
 class DispatcherLeaderProcessImplFactory implements DispatcherLeaderProcessFactory {
 
-	private final DispatcherLeaderProcessImpl.DispatcherServiceFactory dispatcherServiceFactory;
+	private final AbstractDispatcherLeaderProcess.DispatcherServiceFactory dispatcherServiceFactory;
 	private final JobGraphStoreFactory jobGraphStoreFactory;
 	private final Executor ioExecutor;
 	private final FatalErrorHandler fatalErrorHandler;
 
 	DispatcherLeaderProcessImplFactory(
-			DispatcherLeaderProcessImpl.DispatcherServiceFactory dispatcherServiceFactory,
+			AbstractDispatcherLeaderProcess.DispatcherServiceFactory dispatcherServiceFactory,
 			JobGraphStoreFactory jobGraphStoreFactory,
 			Executor ioExecutor,
 			FatalErrorHandler fatalErrorHandler) {
