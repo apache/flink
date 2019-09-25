@@ -19,6 +19,10 @@
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.FailureRateRestartStrategyConfiguration;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.FallbackRestartStrategyConfiguration;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.FixedDelayRestartStrategyConfiguration;
+import org.apache.flink.api.common.restartstrategy.RestartStrategies.NoRestartStrategyConfiguration;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.executiongraph.restart.NoOrFixedIfCheckpointingEnabledRestartStrategyFactory;
@@ -71,16 +75,16 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
 	private static Optional<RestartBackoffTimeStrategy.Factory> getJobRestartStrategyFactory(
 			final RestartStrategies.RestartStrategyConfiguration restartStrategyConfiguration) {
 
-		if (restartStrategyConfiguration instanceof RestartStrategies.NoRestartStrategyConfiguration) {
+		if (restartStrategyConfiguration instanceof NoRestartStrategyConfiguration) {
 			return Optional.of(NoRestartBackoffTimeStrategy.NoRestartBackoffTimeStrategyFactory.INSTANCE);
-		} else if (restartStrategyConfiguration instanceof RestartStrategies.FixedDelayRestartStrategyConfiguration) {
+		} else if (restartStrategyConfiguration instanceof FixedDelayRestartStrategyConfiguration) {
 			final RestartStrategies.FixedDelayRestartStrategyConfiguration fixedDelayConfig =
 				(RestartStrategies.FixedDelayRestartStrategyConfiguration) restartStrategyConfiguration;
 
 			return Optional.of(new FixedDelayRestartBackoffTimeStrategy.FixedDelayRestartBackoffTimeStrategyFactory(
 				fixedDelayConfig.getRestartAttempts(),
 				fixedDelayConfig.getDelayBetweenAttemptsInterval().toMilliseconds()));
-		} else if (restartStrategyConfiguration instanceof RestartStrategies.FailureRateRestartStrategyConfiguration) {
+		} else if (restartStrategyConfiguration instanceof FailureRateRestartStrategyConfiguration) {
 			final RestartStrategies.FailureRateRestartStrategyConfiguration failureRateConfig =
 				(RestartStrategies.FailureRateRestartStrategyConfiguration) restartStrategyConfiguration;
 
@@ -88,7 +92,7 @@ public final class RestartBackoffTimeStrategyFactoryLoader {
 				failureRateConfig.getMaxFailureRate(),
 				failureRateConfig.getFailureInterval().toMilliseconds(),
 				failureRateConfig.getDelayBetweenAttemptsInterval().toMilliseconds()));
-		} else if (restartStrategyConfiguration instanceof RestartStrategies.FallbackRestartStrategyConfiguration) {
+		} else if (restartStrategyConfiguration instanceof FallbackRestartStrategyConfiguration) {
 			return Optional.empty();
 		} else {
 			throw new IllegalArgumentException("Unknown restart strategy configuration " +

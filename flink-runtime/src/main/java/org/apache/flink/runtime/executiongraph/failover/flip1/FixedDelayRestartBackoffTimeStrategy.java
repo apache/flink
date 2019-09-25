@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.util.TimeUtils;
@@ -58,8 +57,7 @@ public class FixedDelayRestartBackoffTimeStrategy implements RestartBackoffTimeS
 		return backoffTimeMS;
 	}
 
-	@VisibleForTesting
-	int getMaxNumberRestartAttempts() {
+	public int getMaxNumberRestartAttempts() {
 		return maxNumberRestartAttempts;
 	}
 
