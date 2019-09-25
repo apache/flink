@@ -475,6 +475,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		while (currentNode != NIL_NODE) {
 			nextNode = helpGetNextNode(currentNode, 0);
 
+			// Check whether the current code is already logically removed to save some comparisons on key,
+			// with the cost of an additional remove-then-add operation if the to-be-removed node has the same key
+			// with the to-be-put one.
 			boolean isRemoved = isNodeRemoved(currentNode);
 			if (isRemoved && highestRequiredSnapshotVersion == 0 && deleteCount < numKeysToDeleteOneTime) {
 				doPhysicalRemove(currentNode, prevNode, nextNode);
@@ -541,10 +544,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * equal to, or greater than the second.
 	 */
 	private int compareNamespaceAndNode(ByteBuffer namespaceByteBuffer, int namespaceOffset, int namespaceLen, long targetNode) {
-		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(targetNode));
-		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(targetNode);
-		ByteBuffer targetKeyByteBuffer = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(targetNode);
+		ByteBuffer targetKeyByteBuffer = tuple2.f0;
+		int offsetInByteBuffer = tuple2.f1;
 
 		int level = SkipListUtils.getLevel(targetKeyByteBuffer, offsetInByteBuffer);
 		int targetKeyOffset = offsetInByteBuffer + SkipListUtils.getKeyDataOffset(level);
@@ -567,10 +569,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		int totalValueLen = SkipListUtils.getValueMetaLen() + valueSize;
 		long valuePointer = spaceAllocator.allocate(totalValueLen);
 
-		Chunk nodeChunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
-		int offsetInNodeChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer nodeByteBuffer = nodeChunk.getByteBuffer(offsetInNodeChunk);
-		int offsetInNodeByteBuffer = nodeChunk.getOffsetInByteBuffer(offsetInNodeChunk);
+		Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(node);
+		ByteBuffer nodeByteBuffer = tuple2.f0;
+		int offsetInNodeByteBuffer = tuple2.f1;
 		long oldValuePointer = SkipListUtils.getValuePointer(nodeByteBuffer, offsetInNodeByteBuffer);
 
 		doWriteValue(valuePointer, value, stateMapVersion, node, oldValuePointer);
@@ -597,10 +598,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		int totalValueLen = SkipListUtils.getValueMetaLen() + valueSize;
 		long valuePointer = spaceAllocator.allocate(totalValueLen);
 
-		Chunk nodeChunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
-		int offsetInNodeChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer nodeByteBuffer = nodeChunk.getByteBuffer(offsetInNodeChunk);
-		int offsetInNodeByteBuffer = nodeChunk.getOffsetInByteBuffer(offsetInNodeChunk);
+		Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(node);
+		ByteBuffer nodeByteBuffer = tuple2.f0;
+		int offsetInNodeByteBuffer = tuple2.f1;
 
 		long oldValuePointer = SkipListUtils.getValuePointer(nodeByteBuffer, offsetInNodeByteBuffer);
 		long nextValuePointer = SkipListUtils.helpGetNextValuePointer(oldValuePointer, spaceAllocator);
@@ -707,10 +707,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		int keyLen,
 		long valuePointer,
 		long nextNode) {
-		Chunk chunk = this.spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
-		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(node);
+		ByteBuffer bb = tuple2.f0;
+		int offsetInByteBuffer = tuple2.f1;
 
 		SkipListUtils.putLevelAndNodeStatus(bb, offsetInByteBuffer, level, NodeStatus.PUT);
 		SkipListUtils.putKeyLen(bb, offsetInByteBuffer, keyLen);
@@ -734,10 +733,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		int version,
 		long keyPointer,
 		long nextValuePointer) {
-		Chunk chunk = this.spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(valuePointer));
-		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(valuePointer);
-		ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(valuePointer);
+		ByteBuffer bb = tuple2.f0;
+		int offsetInByteBuffer = tuple2.f1;
 
 		SkipListUtils.putValueVersion(bb, offsetInByteBuffer, version);
 		SkipListUtils.putKeyPointer(bb, offsetInByteBuffer, keyPointer);
@@ -997,10 +995,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * Set node status to the given new status, and return old status.
 	 */
 	private NodeStatus helpSetNodeStatus(long node, NodeStatus newStatus) {
-		Chunk chunk = this.spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
-		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(node);
+		ByteBuffer bb = tuple2.f0;
+		int offsetInByteBuffer = tuple2.f1;
 		NodeStatus oldStatus = SkipListUtils.getNodeStatus(bb, offsetInByteBuffer);
 		if (oldStatus != newStatus) {
 			int level = SkipListUtils.getLevel(bb, offsetInByteBuffer);
@@ -1015,10 +1012,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 */
 	@VisibleForTesting
 	S getNodeStateHelper(long node) {
-		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
-		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer byteBuffer = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(node);
+		ByteBuffer byteBuffer = tuple2.f0;
+		int offsetInByteBuffer = tuple2.f1;
 		long valuePointer = SkipListUtils.getValuePointer(byteBuffer, offsetInByteBuffer);
 
 		return helpGetState(valuePointer);
@@ -1031,10 +1027,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * @return a tuple of byte arrays of serialized key and namespace
 	 */
 	Tuple2<byte[], byte[]> helpGetBytesForKeyAndNamespace(long node) {
-		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
-		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer byteBuffer = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(node);
+		ByteBuffer byteBuffer = tuple2.f0;
+		int offsetInByteBuffer = tuple2.f1;
 
 		int level = SkipListUtils.getLevel(byteBuffer, offsetInByteBuffer);
 		int keyDataOffset = offsetInByteBuffer + SkipListUtils.getKeyDataOffset(level);
@@ -1049,10 +1044,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * @return byte array of serialized value.
 	 */
 	byte[] helpGetBytesForState(long valuePointer) {
-		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(valuePointer));
-		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(valuePointer);
-		ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(valuePointer);
+		ByteBuffer bb = tuple2.f0;
+		int offsetInByteBuffer = tuple2.f1;
 
 		int valueLen = SkipListUtils.getValueLen(bb, offsetInByteBuffer);
 		byte[] valueBytes = new byte[valueLen];
@@ -1066,10 +1060,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * Returns the key of the node.
 	 */
 	private K helpGetKey(long node) {
-		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
-		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer byteBuffer = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(node);
+		ByteBuffer byteBuffer = tuple2.f0;
+		int offsetInByteBuffer = tuple2.f1;
 
 		int level = SkipListUtils.getLevel(byteBuffer, offsetInByteBuffer);
 		int keyDataLen = SkipListUtils.getKeyLen(byteBuffer, offsetInByteBuffer);
@@ -1087,10 +1080,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 			return null;
 		}
 
-		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(valuePointer));
-		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(valuePointer);
-		ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(valuePointer);
+		ByteBuffer bb = tuple2.f0;
+		int offsetInByteBuffer = tuple2.f1;
 
 		int valueLen = SkipListUtils.getValueLen(bb, offsetInByteBuffer);
 		if (valueLen == 0) {
@@ -1115,10 +1107,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * Returns the state entry of the node.
 	 */
 	private StateEntry<K, N, S> helpGetStateEntry(long node) {
-		Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
-		int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-		ByteBuffer byteBuffer = chunk.getByteBuffer(offsetInChunk);
-		int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+		Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(node);
+		ByteBuffer byteBuffer = tuple2.f0;
+		int offsetInByteBuffer = tuple2.f1;
 
 		int level = SkipListUtils.getLevel(byteBuffer, offsetInByteBuffer);
 		int keyDataLen = SkipListUtils.getKeyLen(byteBuffer, offsetInByteBuffer);
@@ -1318,6 +1309,14 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		}
 	}
 
+	private Tuple2<ByteBuffer, Integer> getNodeByteBufferAndOffset(long node) {
+		Chunk nodeChunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
+		int offsetInNodeChunk = SpaceUtils.getChunkOffsetByAddress(node);
+		ByteBuffer nodeByteBuffer = nodeChunk.getByteBuffer(offsetInNodeChunk);
+		int offsetInNodeByteBuffer = nodeChunk.getOffsetInByteBuffer(offsetInNodeChunk);
+		return new Tuple2<>(nodeByteBuffer, offsetInNodeByteBuffer);
+	}
+
 	/**
 	 * Iterates nodes with the given namespace.
 	 */
@@ -1412,10 +1411,9 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 		}
 
 		private void setKeyByteBuffer(long node) {
-			Chunk chunk = spaceAllocator.getChunkById(SpaceUtils.getChunkIdByAddress(node));
-			int offsetInChunk = SpaceUtils.getChunkOffsetByAddress(node);
-			ByteBuffer bb = chunk.getByteBuffer(offsetInChunk);
-			int offsetInByteBuffer = chunk.getOffsetInByteBuffer(offsetInChunk);
+			Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(node);
+			ByteBuffer bb = tuple2.f0;
+			int offsetInByteBuffer = tuple2.f1;
 
 			int level = SkipListUtils.getLevel(bb, offsetInByteBuffer);
 			int keyLen = SkipListUtils.getKeyLen(bb, offsetInByteBuffer);
