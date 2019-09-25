@@ -76,19 +76,7 @@ public class Elasticsearch6ApiCallBridge implements ElasticsearchApiCallBridge<R
 		RestHighLevelClient rhlClient = new RestHighLevelClient(builder);
 
 		if (LOG.isInfoEnabled()) {
-			LOG.info("Pinging Elasticsearch cluster via hosts {} ...", httpHosts);
-		}
-
-		if (!rhlClient.ping()) {
-
-			//close the resthighlevel client if ping is not successful
-			IOUtils.closeQuietly(rhlClient);
-
-			throw new RuntimeException("There are no reachable Elasticsearch nodes!");
-		}
-
-		if (LOG.isInfoEnabled()) {
-			LOG.info("Created Elasticsearch RestHighLevelClient connected to {}", httpHosts.toString());
+			LOG.info("Created Elasticsearch RestHighLevelClient with {}", httpHosts.toString());
 		}
 
 		return rhlClient;

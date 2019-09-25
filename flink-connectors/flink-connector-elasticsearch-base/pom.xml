@@ -70,6 +70,13 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<!-- Dependency for Elasticsearch 6.x REST Client -->
+		<dependency>
+			<groupId>org.elasticsearch.client</groupId>
+			<artifactId>elasticsearch-rest-high-level-client</artifactId>
+			<version>6.3.1</version>
+		</dependency>
+
 		<!-- Table ecosystem -->
 		<!-- Projects depending on this project won't depend on flink-table-*. -->
 		<dependency>

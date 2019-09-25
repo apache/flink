@@ -34,6 +34,7 @@ import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
@@ -300,6 +301,14 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
 		bulkProcessor = buildBulkProcessor(new BulkProcessorListener());
 		requestIndexer = callBridge.createBulkProcessorIndexer(bulkProcessor, flushOnCheckpoint, numPendingRequests);
 		failureRequestIndexer = new BufferingNoOpRequestIndexer();
+
+		if(client instanceof RestHighLevelClient) {
+			RestHighLevelClient rhlClient = (RestHighLevelClient) client;
+			if(!rhlClient.ping()) {
+				rhlClient.close();
+				throw new RuntimeException("There are no reachable Elasticsearch nodes!");
+			}
+		}
 	}
 
 	@Override
