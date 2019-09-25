@@ -23,14 +23,16 @@ import org.junit.Test;
 import static org.junit.Assert.assertNotEquals;
 
 /**
- * Tests for the {@link MemoryArchitecture}.
+ * Tests for the {@link ProcessorArchitecture}.
  */
-public class MemoryArchitectureTest {
+public class ProcessorArchitectureTest {
 
 	@Test
 	public void testArchitectureNotUnknown() {
-		final MemoryArchitecture arch = MemoryArchitecture.get();
+		final ProcessorArchitecture arch = ProcessorArchitecture.getCurrentOperatingSystemArch();
+		final ProcessorArchitecture size = ProcessorArchitecture.getCurrentOperatingSystemSize();
 
-		assertNotEquals(MemoryArchitecture.UNKNOWN, arch);
+		assertNotEquals(ProcessorArchitecture.UNKNOWN, arch);
+		assertNotEquals(ProcessorArchitecture.UNKNOWN, size);
 	}
 }

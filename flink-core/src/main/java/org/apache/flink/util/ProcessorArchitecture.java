@@ -26,10 +26,16 @@ import java.util.List;
  * Note that this might be different than the actual operating system's architecture, for example
  * when installing a 32 bit JRE in a 64 bit OS.
  */
-public enum MemoryArchitecture {
+public enum ProcessorArchitecture {
+	/**
+	 * X86 platform.
+	 */
+	X86,
 
-	// constants here start with an underscore because Java identifier cannot start with a
-	// numeric character and alternatives like 'BIT_64' are not as readable
+	/**
+	 * arm platform.
+	 */
+	ARM,
 
 	/**
 	 * 32 bit memory address size.
@@ -46,18 +52,25 @@ public enum MemoryArchitecture {
 	 */
 	UNKNOWN;
 
-	// ------------------------------------------------------------------------
 
-	private static final MemoryArchitecture current = getInternal();
+	private static final ProcessorArchitecture arch = readArchFromSystemProperties();
+	private static final ProcessorArchitecture size = readSizeFromSystemProperties();
 
-	/**
-	 * Gets the processor architecture of this process.
-	 */
-	public static MemoryArchitecture get() {
-		return current;
+	private static ProcessorArchitecture readArchFromSystemProperties() {
+		final List<String> namesX86 = Arrays.asList("amd64", "x86_64", "x86", "i386", "i486", "i586", "i686");
+		final List<String> namesArm = Arrays.asList("arm", "aarch64");
+		final String arch = System.getProperty("os.arch");
+
+		if (namesX86.contains(arch)) {
+			return X86;
+		} else if (namesArm.contains(arch)) {
+			return ARM;
+		} else {
+			return UNKNOWN;
+		}
 	}
 
-	private static MemoryArchitecture getInternal() {
+	private static ProcessorArchitecture readSizeFromSystemProperties() {
 		// putting these into the method to avoid having objects on the heap that are not needed
 		// any more after initialization
 		final List<String> names64bit = Arrays.asList("amd64", "x86_64", "aarch64");
@@ -66,12 +79,19 @@ public enum MemoryArchitecture {
 
 		if (names64bit.contains(arch)) {
 			return _64_BIT;
-		}
-		else if (names32bit.contains(arch)) {
+		} else if (names32bit.contains(arch)) {
 			return _32_BIT;
-		}
-		else {
+		} else {
 			return UNKNOWN;
 		}
 	}
+
+	public static ProcessorArchitecture getCurrentOperatingSystemArch() {
+		return arch;
+	}
+
+	public static ProcessorArchitecture getCurrentOperatingSystemSize() {
+		return size;
+	}
+
 }
