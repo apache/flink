@@ -107,12 +107,12 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	/**
 	 * The current version of this map. Used for copy-on-write mechanics.
 	 */
-	private int stateMapVersion;
+	private volatile int stateMapVersion;
 
 	/**
 	 * The highest version of this map that is still required by any unreleased snapshot.
 	 */
-	private int highestRequiredSnapshotVersion;
+	private volatile int highestRequiredSnapshotVersion;
 
 	/**
 	 * Snapshots no more than this version must have been finished, but there may be some
@@ -867,7 +867,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * Returns the value pointer used by the snapshot of the given version.
 	 *
 	 * @param snapshotVersion version of snapshot.
-	 * @return the value pointer used by the given snapshot. NIL_VALUE_POINTER
+	 * @return the value pointer of the version used by the given snapshot. NIL_VALUE_POINTER
 	 * 	will be returned if there is no value for this snapshot.
 	 */
 	long getValueForSnapshot(long node, int snapshotVersion) {
@@ -892,7 +892,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	 * and useless version values will be pruned.
 	 *
 	 * @param snapshotVersion version of snapshot.
-	 * @return the value pointer used by the given snapshot. NIL_VALUE_POINTER
+	 * @return the value pointer of the version used by the given snapshot. NIL_VALUE_POINTER
 	 * 	will be returned if there is no value for this snapshot.
 	 */
 	long getAndPruneValueForSnapshot(long node, int snapshotVersion) {
@@ -1017,8 +1017,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 	/**
 	 * Return the state of the node. null will be returned if the node is removed.
 	 */
-	@VisibleForTesting
-	S getNodeStateHelper(long node) {
+	private S getNodeStateHelper(long node) {
 		Tuple2<ByteBuffer, Integer> tuple2 = getNodeByteBufferAndOffset(node);
 		ByteBuffer byteBuffer = tuple2.f0;
 		int offsetInByteBuffer = tuple2.f1;
