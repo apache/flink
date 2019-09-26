@@ -1182,7 +1182,7 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 
 	@Nonnull
 	@Override
-	public StateMapSnapshot<K, N, S, ? extends StateMap<K, N, S>> stateSnapshot() {
+	public CopyOnWriteSkipListStateMapSnapshot<K, N, S> stateSnapshot() {
 		tryToDeleteNodesPhysically();
 
 		ResourceGuard.Lease lease;

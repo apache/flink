@@ -39,7 +39,6 @@ import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -60,10 +59,12 @@ import java.util.concurrent.ThreadLocalRandom;
 import static org.apache.flink.runtime.state.heap.CopyOnWriteSkipListStateMap.DEFAULT_LOGICAL_REMOVED_KEYS_RATIO;
 import static org.apache.flink.runtime.state.heap.CopyOnWriteSkipListStateMap.DEFAULT_MAX_KEYS_TO_DELETE_ONE_TIME;
 import static org.apache.flink.runtime.state.heap.SkipListUtils.NIL_NODE;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -72,6 +73,9 @@ import static org.junit.Assert.assertTrue;
 public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 
 	private TestAllocator spaceAllocator;
+	private final TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
+	private final TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
+	private final TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
 
 	@Before
 	public void setUp() {
@@ -337,20 +341,10 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	/**
 	 *  Tests copy-on-write contracts.
 	 */
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testCopyOnWriteContracts() throws IOException {
-		TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
-		TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
-		TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
 		// do not remove states physically when get, put, remove and snapshot
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = new CopyOnWriteSkipListStateMap<>(
-			keySerializer,
-			namespaceSerializer,
-			stateSerializer,
-			spaceAllocator,
-			0,
-			1.0f);
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting(0, 1.0f);
 
 		StateSnapshotTransformer<String> transformer = new StateSnapshotTransformer<String>() {
 			@Nullable
@@ -380,11 +374,10 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 
 		// take snapshot 1 which is an empty snapshot
 		Map<Long, Map<Integer, String>> expectedSnapshot1 = snapshotReferenceStates(referenceStates);
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot1 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot1 = stateMap.stateSnapshot();
 		assertEquals(1, stateMap.getHighestRequiredSnapshotVersion());
 		assertEquals(1, stateMap.getSnapshotVersions().size());
-		assertEquals(true, stateMap.getSnapshotVersions().contains(1));
+		assertThat(stateMap.getSnapshotVersions(), contains(1));
 		assertEquals(1, stateMap.getResourceGuard().getLeaseCount());
 		verifySnapshotWithoutTransform(
 			expectedSnapshot1, snapshot1, keySerializer, namespaceSerializer, stateSerializer);
@@ -409,12 +402,11 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 
 		// take snapshot 2
 		Map<Long, Map<Integer, String>> expectedSnapshot2 = snapshotReferenceStates(referenceStates);
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot2 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot2 = stateMap.stateSnapshot();
 		assertEquals(2, stateMap.getStateMapVersion());
 		assertEquals(2, stateMap.getHighestRequiredSnapshotVersion());
 		assertEquals(1, stateMap.getSnapshotVersions().size());
-		assertEquals(true, stateMap.getSnapshotVersions().contains(2));
+		assertThat(stateMap.getSnapshotVersions(), contains(2));
 		assertEquals(1, stateMap.getResourceGuard().getLeaseCount());
 
 		// 1. test put -> put -> remove for (key 1, namespace 1)
@@ -588,12 +580,11 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 
 		// validates snapshot will not include logically removed states
 		Map<Long, Map<Integer, String>> expectedSnapshot3 = snapshotReferenceStates(referenceStates);
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot3 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot3 = stateMap.stateSnapshot();
 		assertEquals(3, stateMap.getStateMapVersion());
 		assertEquals(3, stateMap.getHighestRequiredSnapshotVersion());
 		assertEquals(1, stateMap.getSnapshotVersions().size());
-		assertEquals(true, stateMap.getSnapshotVersions().contains(3));
+		assertThat(stateMap.getSnapshotVersions(), contains(3));
 		assertEquals(1, stateMap.getResourceGuard().getLeaseCount());
 
 		// verify that logically removed states are not deleted in sync part of snapshot
@@ -624,8 +615,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		verifyState(referenceStates, stateMap);
 
 		Map<Long, Map<Integer, String>> expectedSnapshot4 = snapshotReferenceStates(referenceStates);
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot4 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot4 = stateMap.stateSnapshot();
 
 		// remove all states
 		for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
@@ -667,19 +657,9 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	/**
 	 * Tests that remove states physically when get, put and remove.
 	 */
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testPhysicallyRemoveWhenGetPutAndRemove() throws IOException {
-		TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
-		TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
-		TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = new CopyOnWriteSkipListStateMap<>(
-			keySerializer,
-			namespaceSerializer,
-			stateSerializer,
-			spaceAllocator,
-			2,
-			1.0f);
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting(2, 1.0f);
 
 		// map to store expected states, namespace -> key -> state
 		Map<Long, Map<Integer, String>> referenceStates = new HashMap<>();
@@ -778,20 +758,10 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	/**
 	 * Tests that remove states physically during sync part of snapshot.
 	 */
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testPhysicallyRemoveDuringSyncPartOfSnapshot() throws IOException {
-		TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
-		TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
-		TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
 		// set logicalRemovedKeysRatio to 0 so that all logically removed states will be deleted when snapshot
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = new CopyOnWriteSkipListStateMap<>(
-			keySerializer,
-			namespaceSerializer,
-			stateSerializer,
-			spaceAllocator,
-			0,
-			0.0f);
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting(0, 0.0f);
 
 		// map to store expected states, namespace -> key -> state
 		Map<Long, Map<Integer, String>> referenceStates = new HashMap<>();
@@ -810,8 +780,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		assertEquals(totalStateSize * 2, spaceAllocator.getTotalSpaceNumber());
 
 		Map<Long, Map<Integer, String>> expectedSnapshot1 = snapshotReferenceStates(referenceStates);
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot1 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot1 = stateMap.stateSnapshot();
 
 		// remove all states logically
 		for (int i = 1; i <= 100; i++) {
@@ -835,14 +804,14 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		verifyState(referenceStates, stateMap);
 
 		Map<Long, Map<Integer, String>> expectedSnapshot2 = snapshotReferenceStates(referenceStates);
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot2 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot2 = stateMap.stateSnapshot();
 
 		// all state should be removed physically
-		totalSizeIncludingLogicallyRemovedStates = 0;
+		int totalSizeIncludingLogicallyRemovedStatesAfterSecondSnapshot = 0;
 		assertEquals(totalStateSize, stateMap.totalSize());
-		assertEquals(totalSizeIncludingLogicallyRemovedStates, stateMap.totalSize());
-		assertEquals(totalSizeIncludingLogicallyRemovedStates, stateMap.getLogicallyRemovedNodes().size());
+		assertEquals(totalSizeIncludingLogicallyRemovedStatesAfterSecondSnapshot, stateMap.totalSize());
+		assertEquals(totalSizeIncludingLogicallyRemovedStatesAfterSecondSnapshot,
+			stateMap.getLogicallyRemovedNodes().size());
 		assertEquals(0, spaceAllocator.getTotalSpaceNumber());
 
 		verifySnapshotWithoutTransform(
@@ -860,12 +829,8 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	/**
 	 * Tests that snapshots prune useless values.
 	 */
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testSnapshotPruneValues() throws IOException {
-		TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
-		TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
-		TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
 		// set logicalRemovedKeysRatio to 0 so that all logically removed states will be deleted when snapshot
 		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
 
@@ -887,40 +852,34 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		long node = stateMap.getLevelIndexHeader().getNextNode(0);
 
 		// take snapshot1
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot1 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot1 = stateMap.stateSnapshot();
 
 		// build v1
 		stateMap.put(1, 1L, "1");
 		referenceValues.add(0, "1");
 
 		// take snapshot2
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot2 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot2 = stateMap.stateSnapshot();
 
 		// build v2
 		stateMap.put(1, 1L, "2");
 		referenceValues.add(0, "2");
 
 		// take snapshot3
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot3 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot3 = stateMap.stateSnapshot();
 
 		// build v3
 		stateMap.put(1, 1L, "3");
 		referenceValues.add(0, "3");
 
 		// take snapshot4
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot4 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot4 = stateMap.stateSnapshot();
 
 		// take snapshot5
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot5 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot5 = stateMap.stateSnapshot();
 
 		// take snapshot6
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot6 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot6 = stateMap.stateSnapshot();
 
 		assertEquals(6, stateMap.getStateMapVersion());
 		assertEquals(6, stateMap.getHighestRequiredSnapshotVersion());
@@ -1000,12 +959,8 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	/**
 	 * Tests concurrent snapshots.
 	 */
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testConcurrentSnapshots() throws IOException {
-		TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
-		TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
-		TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
 		// set logicalRemovedKeysRatio to 0 so that all logically removed states will be deleted when snapshot
 		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
 
@@ -1042,8 +997,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 
 		// create snapshot1
 		Map<Long, Map<Integer, String>> expectedSnapshot1 = snapshotReferenceStates(referenceStates);
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot1 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot1 = stateMap.stateSnapshot();
 
 		// update states
 		updateStateForConcurrentSnapshots(referenceStates, stateMap, 1);
@@ -1051,8 +1005,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 
 		// create snapshot2
 		Map<Long, Map<Integer, String>> expectedSnapshot2 = snapshotReferenceStates(referenceStates);
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot2 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot2 = stateMap.stateSnapshot();
 
 		// update states
 		updateStateForConcurrentSnapshots(referenceStates, stateMap, 2);
@@ -1060,8 +1013,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 
 		// create snapshot3
 		Map<Long, Map<Integer, String>> expectedSnapshot3 = snapshotReferenceStates(referenceStates);
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot3 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot3 = stateMap.stateSnapshot();
 
 		// update states
 		updateStateForConcurrentSnapshots(referenceStates, stateMap, 3);
@@ -1083,8 +1035,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 
 		// create snapshot4
 		Map<Long, Map<Integer, String>> expectedSnapshot4 = snapshotReferenceStates(referenceStates);
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot4 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot4 = stateMap.stateSnapshot();
 
 		// update states
 		updateStateForConcurrentSnapshots(referenceStates, stateMap, 5);
@@ -1108,8 +1059,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 
 		// create snapshot5
 		Map<Long, Map<Integer, String>> expectedSnapshot5 = snapshotReferenceStates(referenceStates);
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot5 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot5 = stateMap.stateSnapshot();
 
 		// complete snapshot5
 		verifySnapshotWithTransform(
@@ -1184,9 +1134,6 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 
 	@Test
 	public void testPutAndGetNode() {
-		TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
-		TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
-		TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
 		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
 		final int key = 10;
 		final long namespace = 0L;
@@ -1201,10 +1148,9 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		byte[] value = skipListValueSerializer.serialize(valueString);
 		stateMap.putNode(keyByteBuffer, 1, keyLen, value, false);
 		String state = stateMap.getNode(keyByteBuffer, 1, keyLen);
-		Assert.assertThat(state, is(valueString));
+		assertThat(state, is(valueString));
 	}
 
-	@SuppressWarnings("unchecked")
 	private void prepareLogicallyRemovedStates(
 		Map<Long, Map<Integer, String>> referenceStates,
 		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap,
@@ -1221,8 +1167,7 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 		verifyState(referenceStates, stateMap);
 
 		Map<Long, Map<Integer, String>> expectedSnapshot1 = snapshotReferenceStates(referenceStates);
-		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot1 =
-			(CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String>) stateMap.stateSnapshot();
+		CopyOnWriteSkipListStateMapSnapshot<Integer, Long, String> snapshot1 = stateMap.stateSnapshot();
 
 		// remove all states logically
 		for (int i = 1; i <= 100; i += 2) {
@@ -1230,7 +1175,6 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 			stateMap.remove(i, (long) i);
 			removeFromReferenceState(referenceStates, i, (long) i);
 		}
-		assertEquals(0, totalStateSize);
 		verifyState(referenceStates, stateMap);
 
 		verifySnapshotWithoutTransform(
@@ -1431,12 +1375,20 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	}
 
 	private CopyOnWriteSkipListStateMap<Integer, Long, String> createStateMapForTesting() {
-		return new CopyOnWriteSkipListStateMap<>(
-			IntSerializer.INSTANCE,
-			LongSerializer.INSTANCE,
-			StringSerializer.INSTANCE,
-			spaceAllocator,
+		return createStateMapForTesting(
 			DEFAULT_MAX_KEYS_TO_DELETE_ONE_TIME,
 			DEFAULT_LOGICAL_REMOVED_KEYS_RATIO);
+	}
+
+	private CopyOnWriteSkipListStateMap<Integer, Long, String> createStateMapForTesting(
+			int keysToDelete,
+			float logicalKeysRemoveRatio) {
+		return new CopyOnWriteSkipListStateMap<>(
+			keySerializer,
+			namespaceSerializer,
+			stateSerializer,
+			spaceAllocator,
+			keysToDelete,
+			logicalKeysRemoveRatio);
 	}
 }
