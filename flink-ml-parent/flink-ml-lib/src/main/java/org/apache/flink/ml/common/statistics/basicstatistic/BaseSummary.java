@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.flink.ml.statistics.basicstatistic;
+package org.apache.flink.ml.common.statistics.basicstatistic;
 
 /**
  * Summarizer is the base class which used to store summarizer result.
