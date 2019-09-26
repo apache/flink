@@ -87,9 +87,9 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 	protected final int[] udfInputOffsets;
 
 	/**
-	 * The number of forwarded fields in the input element.
+	 * The offset of the fields which should be forwarded.
 	 */
-	protected final int forwardedFieldCnt;
+	protected final int[] forwardedFields;
 
 	/**
 	 * The udf input logical type.
@@ -117,12 +117,12 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 		RowType inputType,
 		RowType outputType,
 		int[] udfInputOffsets,
-		int forwardedFieldCnt) {
+		int[] forwardedFields) {
 		this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
 		this.inputType = Preconditions.checkNotNull(inputType);
 		this.outputType = Preconditions.checkNotNull(outputType);
 		this.udfInputOffsets = Preconditions.checkNotNull(udfInputOffsets);
-		this.forwardedFieldCnt = forwardedFieldCnt;
+		this.forwardedFields = Preconditions.checkNotNull(forwardedFields);
 	}
 
 	@Override
@@ -133,7 +133,7 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN, UDFOU
 			Arrays.stream(udfInputOffsets)
 				.mapToObj(i -> inputType.getFields().get(i))
 				.collect(Collectors.toList()));
-		udfOutputType = new RowType(outputType.getFields().subList(forwardedFieldCnt, outputType.getFieldCount()));
+		udfOutputType = new RowType(outputType.getFields().subList(forwardedFields.length, outputType.getFieldCount()));
 		super.open();
 	}
 
