@@ -19,7 +19,7 @@
 
 package org.apache.flink.ml.params.dataproc.vector;
 
-import org.apache.flink.ml.params.mode.SISOFlatMapperParams;
+import org.apache.flink.ml.params.mapper.SISOFlatMapperParams;
 import org.apache.flink.ml.params.shared.HasHandleInvalid;
 import org.apache.flink.ml.params.shared.HasSize;
 
