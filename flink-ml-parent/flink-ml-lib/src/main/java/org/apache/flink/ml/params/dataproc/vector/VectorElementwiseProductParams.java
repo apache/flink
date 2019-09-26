@@ -21,7 +21,7 @@ package org.apache.flink.ml.params.dataproc.vector;
 
 import org.apache.flink.ml.api.misc.param.ParamInfo;
 import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
-import org.apache.flink.ml.params.mode.SISOMapperParams;
+import org.apache.flink.ml.params.mapper.SISOMapperParams;
 
 /**
  * parameters of vector element wise product.
