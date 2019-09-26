@@ -20,7 +20,6 @@
 package org.apache.flink.ml.params.nlp;
 
 import org.apache.flink.ml.params.mapper.SISOModelMapperParams;
-import org.apache.flink.ml.params.nlp.HasBinary;
 
 /**
  * Params for DocHashIDFVectorizerPredict.
