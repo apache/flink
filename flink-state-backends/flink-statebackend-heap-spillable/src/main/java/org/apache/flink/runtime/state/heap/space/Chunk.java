@@ -21,19 +21,22 @@ package org.apache.flink.runtime.state.heap.space;
 import java.nio.ByteBuffer;
 
 /**
- * Chunk is a contiguous byteBuffer. or logically contiguous space .
- * for example: a Chunk is 1G space, maybe it's one big file, or multi 4M on-heap ByteBuffer
+ * Chunk is a logically contiguous space backed by one or multiple {@link ByteBuffer}.
+ * <p/>
+ * For example: a Chunk of 1G size may be backed by one {@link java.nio.MappedByteBuffer} from a memory-mapped 1G file,
+ * or multiple {@link java.nio.HeapByteBuffer}/{@link java.nio.DirectByteBuffer}.
  */
 public interface Chunk {
 	/**
-	 * Try to allocate size bytes from the chunk. spaceSizeInfo will record occupied space size.
+	 * Try to allocate size bytes from the chunk.
 	 *
+	 * @param len size of bytes to allocate.
 	 * @return the offset of the successful allocation, or -1 to indicate not-enough-space
 	 */
 	int allocate(int len);
 
 	/**
-	 * release the space addressed by interChunkOffset. spaceSizeInfo will record occupied space size.
+	 * release the space addressed by interChunkOffset.
 	 *
 	 * @param interChunkOffset offset of the chunk
 	 */
@@ -52,7 +55,7 @@ public interface Chunk {
 	ByteBuffer getByteBuffer(int chunkOffset);
 
 	/**
-	 * @param offsetInChunk virtual and globle adrress in chunk
+	 * @param offsetInChunk virtual and global address in chunk
 	 * @return chunk maybe compose of multi ByteBuffers, return the offset in certain ByteBuffer.
 	 */
 	int getOffsetInByteBuffer(int offsetInChunk);

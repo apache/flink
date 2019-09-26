@@ -213,8 +213,12 @@ public class SkipListUtils {
 	 * @param level on which level to get the previous key pointer of the node.
 	 */
 	public static long getPrevIndexNode(ByteBuffer byteBuffer, int offset, int totalLevel, int level) {
-		int of = offset + INDEX_NEXT_OFFSET_BY_LEVEL_ARRAY[totalLevel] + level * Long.BYTES;
+		int of = getIndexOffset(offset, totalLevel, level);
 		return ByteBufferUtils.toLong(byteBuffer, of);
+	}
+
+	private static int getIndexOffset(int offset, int totalLevel, int level) {
+		return offset + INDEX_NEXT_OFFSET_BY_LEVEL_ARRAY[totalLevel] + level * Long.BYTES;
 	}
 
 	/**
@@ -228,7 +232,7 @@ public class SkipListUtils {
 	 */
 	public static void putPrevIndexNode(
 		ByteBuffer byteBuffer, int offset, int totalLevel, int level, long prevKeyPointer) {
-		int of = offset + INDEX_NEXT_OFFSET_BY_LEVEL_ARRAY[totalLevel] + level * Long.BYTES;
+		int of = getIndexOffset(offset, totalLevel, level);
 		ByteBufferUtils.putLong(byteBuffer, of, prevKeyPointer);
 	}
 
