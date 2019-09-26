@@ -21,7 +21,7 @@ package org.apache.flink.ml.params.nlp;
 
 import org.apache.flink.ml.api.misc.param.ParamInfo;
 import org.apache.flink.ml.api.misc.param.ParamInfoFactory;
-import org.apache.flink.ml.params.mode.SISOModelMapperParams;
+import org.apache.flink.ml.params.mapper.SISOModelMapperParams;
 
 /**
  * Params for DocCountVectorizerPredict.
