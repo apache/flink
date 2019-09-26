@@ -84,10 +84,12 @@ public class InfluxdbReporter extends AbstractReporter<MeasurementInfo> implemen
 
 		int connectTimeout = getInteger(config, CONNECT_TIMEOUT);
 		int writeTimeout = getInteger(config, WRITE_TIMEOUT);
-		OkHttpClient.Builder client = new OkHttpClient.Builder().connectTimeout(connectTimeout, TimeUnit.MICROSECONDS).writeTimeout(writeTimeout, TimeUnit.MICROSECONDS);
+		OkHttpClient.Builder client = new OkHttpClient.Builder()
+			.connectTimeout(connectTimeout, TimeUnit.MILLISECONDS)
+			.writeTimeout(writeTimeout, TimeUnit.MILLISECONDS);
 
 		if (username != null && password != null) {
-			influxDB = InfluxDBFactory.connect(url, username, password, client, InfluxDB.ResponseFormat.JSON);
+			influxDB = InfluxDBFactory.connect(url, username, password, client);
 		} else {
 			influxDB = InfluxDBFactory.connect(url, client);
 		}

@@ -659,8 +659,8 @@ Parameters:
 - `username` - (optional) InfluxDB username used for authentication
 - `password` - (optional) InfluxDB username's password used for authentication
 - `retentionPolicy` - (optional) InfluxDB retention policy, defaults to retention policy defined on the server for the db
-- `connectTimeout` - (optional) the InfluxDB connect timeout, defaults to connect timeout is 10000 ms
-- `writeTimeout` - (optional) the InfluxDB write timeout, defaults to write timeout is 10000 ms
+- `connectTimeout` - (optional) the InfluxDB client connect timeout in milliseconds, default is 10000 ms
+- `writeTimeout` - (optional) the InfluxDB client write timeout in milliseconds, default is 10000 ms
 
 Example configuration:
 
@@ -673,8 +673,8 @@ metrics.reporter.influxdb.db: flink
 metrics.reporter.influxdb.username: flink-metrics
 metrics.reporter.influxdb.password: qwerty
 metrics.reporter.influxdb.retentionPolicy: one_hour
-metrics.reporter.influxdb.connectTimeout: 10000
-metrics.reporter.influxdb.writeTimeout: 10000
+metrics.reporter.influxdb.connectTimeout: 60000
+metrics.reporter.influxdb.writeTimeout: 60000
 
 {% endhighlight %}
 

@@ -126,8 +126,6 @@ public class InfluxdbReporterTest extends TestLogger {
 		metricConfig.setProperty(InfluxdbReporterOptions.PORT.key(), String.valueOf(wireMockRule.port()));
 		metricConfig.setProperty(InfluxdbReporterOptions.DB.key(), TEST_INFLUXDB_DB);
 		metricConfig.setProperty(InfluxdbReporterOptions.RETENTION_POLICY.key(), retentionPolicy);
-		metricConfig.setProperty(InfluxdbReporterOptions.CONNECT_TIMEOUT.key(), "10000");
-		metricConfig.setProperty(InfluxdbReporterOptions.WRITE_TIMEOUT.key(), "10000");
 
 		return new MetricRegistryImpl(
 			MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
