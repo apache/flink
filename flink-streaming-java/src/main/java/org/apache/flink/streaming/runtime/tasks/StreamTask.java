@@ -200,9 +200,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 	/** Thread pool for async snapshot workers. */
 	private ExecutorService asyncOperationsThreadPool;
 
-	/** Handler for exceptions during checkpointing in the stream task. Used in synchronous part of the checkpoint. */
-	private CheckpointExceptionHandler checkpointExceptionHandler;
-
 	private final List<RecordWriter<SerializationDelegate<StreamRecord<OUT>>>> recordWriters;
 
 	protected final MailboxProcessor mailboxProcessor;
@@ -374,11 +371,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			LOG.debug("Initializing {}.", getName());
 
 			asyncOperationsThreadPool = Executors.newCachedThreadPool(new ExecutorThreadFactory("AsyncOperations", uncaughtExceptionHandler));
-
-			CheckpointExceptionHandlerFactory cpExceptionHandlerFactory = createCheckpointExceptionHandlerFactory();
-
-			checkpointExceptionHandler = cpExceptionHandlerFactory
-				.createCheckpointExceptionHandler(getEnvironment());
 
 			stateBackend = createStateBackend();
 			checkpointStorage = stateBackend.createCheckpointStorage(getEnvironment().getJobID());
@@ -974,10 +966,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 				LOG);
 	}
 
-	protected CheckpointExceptionHandlerFactory createCheckpointExceptionHandlerFactory() {
-		return new CheckpointExceptionHandlerFactory();
-	}
-
 	/**
 	 * Returns the {@link ProcessingTimeService} responsible for telling the current
 	 * processing time and registering timers.
@@ -1186,7 +1174,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 					// We only report the exception for the original cause of fail and cleanup.
 					// Otherwise this followup exception could race the original exception in failing the task.
 					try {
-						owner.checkpointExceptionHandler.tryHandleCheckpointException(checkpointMetaData, checkpointException);
+						owner.getEnvironment().declineCheckpoint(checkpointMetaData.getCheckpointId(), checkpointException);
 					} catch (Exception unhandled) {
 						AsynchronousException asyncException = new AsynchronousException(unhandled);
 						owner.handleAsyncException("Failure in asynchronous checkpoint materialization", asyncException);
@@ -1348,12 +1336,12 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 				if (checkpointOptions.getCheckpointType().isSynchronous()) {
 					// in the case of a synchronous checkpoint, we always rethrow the exception,
-					// so that the task fails (as if we had the FailingCheckpointExceptionHandler).
+					// so that the task fails.
 					// this is because the intention is always to stop the job after this checkpointing
 					// operation, and without the failure, the task would go back to normal execution.
 					throw ex;
 				} else {
-					owner.checkpointExceptionHandler.tryHandleCheckpointException(checkpointMetaData, ex);
+					owner.getEnvironment().declineCheckpoint(checkpointMetaData.getCheckpointId(), ex);
 				}
 			}
 		}
