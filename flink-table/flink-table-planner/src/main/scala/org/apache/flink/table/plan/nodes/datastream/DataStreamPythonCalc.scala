@@ -62,6 +62,7 @@ class DataStreamPythonCalc(
   override def translateToPlan(
       planner: StreamPlanner,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
+    // Will add the implementation in FLINK-14018 as it's not testable for now.
     null
   }
 }

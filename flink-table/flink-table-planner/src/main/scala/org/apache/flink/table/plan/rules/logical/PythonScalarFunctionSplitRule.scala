@@ -28,7 +28,6 @@ import org.apache.flink.table.functions.utils.ScalarSqlFunction
 import org.apache.flink.table.plan.nodes.logical.FlinkLogicalCalc
 import org.apache.flink.table.plan.util.PythonUtil.containsFunctionOf
 import org.apache.flink.table.plan.util.{InputRefVisitor, RexDefaultVisitor}
-import org.apache.flink.table.plan.rules.logical.PythonScalarFunctionSplitRule.extractRefInputFields
 
 import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
@@ -47,8 +46,15 @@ class PythonScalarFunctionSplitRule extends RelOptRule(
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
     val program = calc.getProgram
-    program.getExprList.exists(containsFunctionOf(_, FunctionLanguage.PYTHON)) &&
-    program.getExprList.exists(containsFunctionOf(_, FunctionLanguage.JVM))
+
+    // This rule matches if one of the following cases is met:
+    // 1. There are Python functions and Java functions mixed in the Calc
+    // 2. There are Python functions in the condition of the Calc
+    (program.getExprList.exists(containsFunctionOf(_, FunctionLanguage.PYTHON)) &&
+      program.getExprList.exists(containsFunctionOf(_, FunctionLanguage.JVM))) ||
+    Option(program.getCondition)
+      .map(program.expandLocalRef)
+      .exists(containsFunctionOf(_, FunctionLanguage.PYTHON))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
@@ -58,19 +64,21 @@ class PythonScalarFunctionSplitRule extends RelOptRule(
     val program = calc.getProgram
     val extractedRexCalls = new mutable.ArrayBuffer[RexCall]()
 
-    val outerCallContainsJavaFunction =
+    val convertPythonFunction =
       program.getProjectList
         .map(program.expandLocalRef)
         .exists(containsFunctionOf(_, FunctionLanguage.JVM, recursive = false)) ||
       Option(program.getCondition)
         .map(program.expandLocalRef)
-        .exists(containsFunctionOf(_, FunctionLanguage.JVM, recursive = false))
+        .exists(expr =>
+          containsFunctionOf(expr, FunctionLanguage.JVM, recursive = false) ||
+            containsFunctionOf(expr, FunctionLanguage.PYTHON))
 
     val extractedFunctionOffset = input.getRowType.getFieldCount
     val splitter = new ScalarFunctionSplitter(
       extractedFunctionOffset,
       extractedRexCalls,
-      outerCallContainsJavaFunction)
+      convertPythonFunction)
 
     val newProjects = program.getProjectList
       .map(program.expandLocalRef)
@@ -116,6 +124,26 @@ class PythonScalarFunctionSplitRule extends RelOptRule(
 
     call.transformTo(topCalc)
   }
+
+  /**
+    * Extracts the indices of the input fields referred by the specified projects and condition.
+    */
+  private def extractRefInputFields(
+      projects: Seq[RexNode],
+      condition: Option[RexNode],
+      inputFieldsCount: Int): Array[Int] = {
+    val visitor = new InputRefVisitor
+
+    // extract referenced input fields from projections
+    projects.foreach(exp => exp.accept(visitor))
+
+    // extract referenced input fields from condition
+    condition.foreach(_.accept(visitor))
+
+    // fields of indexes greater than inputFieldsCount is the extracted functions and
+    // should be filtered as they are not from the original input
+    visitor.getFields.filter(_ < inputFieldsCount)
+  }
 }
 
 private class ScalarFunctionSplitter(
@@ -158,7 +186,7 @@ private class ScalarFunctionSplitter(
   * @param extractedFunctionOffset the original start offset of the extracted functions
   * @param accessedFields the accessed fields which will be forwarded
   */
-class ExtractedFunctionInputRewriter(
+private class ExtractedFunctionInputRewriter(
     extractedFunctionOffset: Int,
     accessedFields: Array[Int])
   extends RexDefaultVisitor[RexNode] {
@@ -188,24 +216,4 @@ class ExtractedFunctionInputRewriter(
 
 object PythonScalarFunctionSplitRule {
   val INSTANCE: RelOptRule = new PythonScalarFunctionSplitRule
-
-  /**
-    * Extracts the indices of the input fields referred by the specified projects and condition.
-    */
-  def extractRefInputFields(
-      projects: Seq[RexNode],
-      condition: Option[RexNode],
-      inputFieldsCount: Int): Array[Int] = {
-    val visitor = new InputRefVisitor
-
-    // extract referenced input fields from projections
-    projects.foreach(exp => exp.accept(visitor))
-
-    // extract referenced input fields from condition
-    condition.foreach(_.accept(visitor))
-
-    // fields of indexes greater than inputFieldsCount is the extracted functions and
-    // should be filtered as they are not from the original input
-    visitor.getFields.filter(_ < inputFieldsCount)
-  }
 }

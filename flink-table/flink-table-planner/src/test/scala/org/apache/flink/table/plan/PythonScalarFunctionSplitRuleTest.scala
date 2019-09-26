@@ -51,7 +51,7 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
   }
 
   @Test
-  def testPythonFunctionMixWithJavaFunction(): Unit = {
+  def testPythonFunctionMixedWithJavaFunction(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
     util.tableEnv.registerFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
@@ -73,7 +73,7 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
   }
 
   @Test
-  def testPythonFunctionInWhereClause(): Unit = {
+  def testPythonFunctionMixedWithJavaFunctionInWhereClause(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
     util.tableEnv.registerFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
@@ -92,6 +92,31 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
         ),
       term("select", "f0 AS _c0", "+(c, 1) AS _c1"),
       term("where", ">(f1, 0)")
+      )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testPythonFunctionInWhereClause(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pyFunc1", new PythonScalarFunction("pyFunc1"))
+    util.tableEnv.registerFunction("pyFunc2", new BooleanPythonScalarFunction("pyFunc2"))
+
+    val resultTable = table
+      .where("pyFunc2(a, c)")
+      .select("pyFunc1(a, b)")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        streamTableNode(table),
+        term("select", "pyFunc1(a, b) AS f0", "pyFunc2(a, c) AS f1")
+      ),
+      term("select", "f0 AS _c0"),
+      term("where", "f1")
     )
 
     util.verifyTable(resultTable, expected)
@@ -144,6 +169,30 @@ class PythonScalarFunctionSplitRuleTest extends TableTestBase {
   }
 
   @Test
+  def testOnlyOnePythonFunctionInWhereClause(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Int, Int)]("MyTable", 'a, 'b, 'c)
+    util.tableEnv.registerFunction("pyFunc1", new BooleanPythonScalarFunction("pyFunc1"))
+
+    val resultTable = table
+      .where("pyFunc1(a, c)")
+      .select("a, b")
+
+    val expected = unaryNode(
+      "DataStreamCalc",
+      unaryNode(
+        "DataStreamPythonCalc",
+        streamTableNode(table),
+        term("select", "a", "b", "pyFunc1(a, c) AS f0")
+      ),
+      term("select", "a", "b"),
+      term("where", "f0")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
+
+  @Test
   def testFieldNameUniquify(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Int, Int)]("MyTable", 'f0, 'f1, 'f2)
@@ -171,6 +220,17 @@ class PythonScalarFunction(name: String) extends ScalarFunction {
 
   override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
     BasicTypeInfo.INT_TYPE_INFO
+
+  override def getLanguage: FunctionLanguage = FunctionLanguage.PYTHON
+
+  override def toString: String = name
+}
+
+class BooleanPythonScalarFunction(name: String) extends ScalarFunction {
+  def eval(i: Int, j: Int): Int = i + j
+
+  override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
+    BasicTypeInfo.BOOLEAN_TYPE_INFO
 
   override def getLanguage: FunctionLanguage = FunctionLanguage.PYTHON
 
