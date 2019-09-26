@@ -19,7 +19,7 @@
 
 package org.apache.flink.ml.params.nlp;
 
-import org.apache.flink.ml.params.mode.SISOMapperParams;
+import org.apache.flink.ml.params.mapper.SISOMapperParams;
 
 /**
  * Params for NGram.
