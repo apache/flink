@@ -19,7 +19,7 @@
 
 package org.apache.flink.ml.params.dataproc.vector;
 
-import org.apache.flink.ml.params.mode.SISOMapperParams;
+import org.apache.flink.ml.params.mapper.SISOMapperParams;
 import org.apache.flink.ml.params.shared.HasDegreeDv2;
 
 /**
