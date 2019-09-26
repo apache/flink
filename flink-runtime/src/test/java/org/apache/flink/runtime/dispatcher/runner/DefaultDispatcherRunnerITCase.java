@@ -21,18 +21,29 @@ package org.apache.flink.runtime.dispatcher.runner;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.dispatcher.DispatcherServices;
+import org.apache.flink.runtime.dispatcher.JobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.MemoryArchivedExecutionGraphStore;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
+import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
+import org.apache.flink.runtime.dispatcher.SingleJobJobGraphStore;
+import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
+import org.apache.flink.runtime.dispatcher.TestingJobManagerRunnerFactory;
 import org.apache.flink.runtime.dispatcher.VoidHistoryServerArchivist;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServicesBuilder;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmaster.TestingJobManagerRunner;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.minicluster.SessionDispatcherWithUUIDFactory;
+import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
 import org.apache.flink.runtime.testingUtils.TestingUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -45,19 +56,28 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
  * Integration tests for the {@link DefaultDispatcherRunner}.
  */
 public class DefaultDispatcherRunnerITCase extends TestLogger {
+
+	private static final Logger LOG = LoggerFactory.getLogger(DefaultDispatcherRunnerITCase.class);
 
 	private static final Time TIMEOUT = Time.seconds(10L);
 
@@ -79,8 +99,11 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 
 	private PartialDispatcherServices partialDispatcherServices;
 
+	private DefaultDispatcherRunnerFactory dispatcherRunnerFactory;
+
 	@Before
 	public void setup() {
+		dispatcherRunnerFactory = DefaultDispatcherRunnerFactory.createSessionRunner(SessionDispatcherWithUUIDFactory.INSTANCE);
 		jobGraph = createJobGraph();
 		dispatcherLeaderElectionService = new TestingLeaderElectionService();
 		fatalErrorHandler = new TestingFatalErrorHandler();
@@ -92,7 +115,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 			CompletableFuture::new,
 			blobServerResource.getBlobServer(),
 			new TestingHeartbeatServices(),
-			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+			UnregisteredMetricGroups::createUnregisteredJobManagerMetricGroup,
 			new MemoryArchivedExecutionGraphStore(),
 			fatalErrorHandler,
 			VoidHistoryServerArchivist.INSTANCE,
@@ -131,6 +154,65 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 		}
 	}
 
+	/**
+	 * See FLINK-11843. This is a probabilistic test which needs to be executed several times to fail.
+	 */
+	@Test
+	public void leaderChange_withBlockingJobManagerTermination_doesNotAffectNewLeader() throws Exception {
+		final TestingJobManagerRunnerFactory jobManagerRunnerFactory = new TestingJobManagerRunnerFactory(1);
+		dispatcherRunnerFactory = DefaultDispatcherRunnerFactory.createSessionRunner(new TestingDispatcherFactory(jobManagerRunnerFactory));
+		jobGraphStore = new SingleJobJobGraphStore(jobGraph);
+
+		try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
+
+			// initial run
+			dispatcherLeaderElectionService.isLeader(UUID.randomUUID()).get();
+			final TestingJobManagerRunner testingJobManagerRunner = jobManagerRunnerFactory.takeCreatedJobManagerRunner();
+
+			dispatcherLeaderElectionService.notLeader();
+
+			LOG.info("Re-grant leadership first time.");
+			dispatcherLeaderElectionService.isLeader(UUID.randomUUID());
+
+			// give the Dispatcher some time to recover jobs
+			Thread.sleep(1L);
+
+			dispatcherLeaderElectionService.notLeader();
+
+			LOG.info("Re-grant leadership second time.");
+			final UUID leaderSessionId = UUID.randomUUID();
+			final CompletableFuture<UUID> leaderFuture = dispatcherLeaderElectionService.isLeader(leaderSessionId);
+			assertThat(leaderFuture.isDone(), is(false));
+
+			LOG.info("Complete the termination of the first job manager runner.");
+			testingJobManagerRunner.completeTerminationFuture();
+
+			assertThat(leaderFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS), is(equalTo(leaderSessionId)));
+		}
+	}
+
+	private static class TestingDispatcherFactory implements DispatcherFactory {
+		private final JobManagerRunnerFactory jobManagerRunnerFactory;
+
+		private TestingDispatcherFactory(JobManagerRunnerFactory jobManagerRunnerFactory) {
+			this.jobManagerRunnerFactory = jobManagerRunnerFactory;
+		}
+
+		@Override
+		public Dispatcher createDispatcher(
+			@Nonnull RpcService rpcService,
+			@Nonnull DispatcherId fencingToken,
+			@Nonnull Collection<JobGraph> recoveredJobs,
+			@Nonnull PartialDispatcherServicesWithJobGraphStore partialDispatcherServicesWithJobGraphStore) throws Exception {
+			return new StandaloneDispatcher(
+				rpcService,
+				generateEndpointIdWithUUID(),
+				fencingToken,
+				recoveredJobs,
+				DispatcherServices.from(partialDispatcherServicesWithJobGraphStore, jobManagerRunnerFactory));
+		}
+	}
+
 	private static JobGraph createJobGraph() {
 		final JobVertex testVertex = new JobVertex("testVertex");
 		testVertex.setInvokableClass(NoOpInvokable.class);
@@ -141,9 +223,7 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 	}
 
 	private DefaultDispatcherRunner createDispatcherRunner() throws Exception {
-		final DefaultDispatcherRunnerFactory runnerFactory = DefaultDispatcherRunnerFactory.createSessionRunner(SessionDispatcherWithUUIDFactory.INSTANCE);
-
-		return runnerFactory.createDispatcherRunner(
+		return dispatcherRunnerFactory.createDispatcherRunner(
 			dispatcherLeaderElectionService,
 			fatalErrorHandler,
 			() -> jobGraphStore,
