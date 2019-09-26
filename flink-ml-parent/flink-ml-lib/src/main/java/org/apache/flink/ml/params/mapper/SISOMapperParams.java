@@ -17,10 +17,10 @@
  * under the License.
  */
 
-package org.apache.flink.ml.params.mode;
+package org.apache.flink.ml.params.mapper;
 
 /**
- * Parameters for SISOModelMapper.
+ * Parameters for SISOMapper.
  */
-public interface SISOModelMapperParams<T> extends SISOMapperParams<T> {
+public interface SISOMapperParams<T> extends SISOFlatMapperParams<T> {
 }

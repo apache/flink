@@ -17,17 +17,17 @@
  * under the License.
  */
 
-package org.apache.flink.ml.params.mode;
+package org.apache.flink.ml.params.mapper;
 
-import org.apache.flink.ml.params.shared.colname.HasOutputColDefaultAsNull;
+import org.apache.flink.ml.params.shared.colname.HasOutputCol;
 import org.apache.flink.ml.params.shared.colname.HasReservedCols;
-import org.apache.flink.ml.params.shared.colname.HasSelectedCol;
+import org.apache.flink.ml.params.shared.colname.HasSelectedCols;
 
 /**
- * Params for SISOFlatMapper, include selectedCol, outputCol and reservedCol.
+ * Parameters for MISOMapper.
  */
-public interface SISOFlatMapperParams<T> extends
-	HasSelectedCol<T>,
-	HasOutputColDefaultAsNull<T>,
+public interface MISOMapperParams<T> extends
+	HasSelectedCols<T>,
+	HasOutputCol<T>,
 	HasReservedCols<T> {
 }

@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.common.utils.OutputColsHelper;
 import org.apache.flink.ml.common.utils.TableUtil;
-import org.apache.flink.ml.params.mode.SISOFlatMapperParams;
+import org.apache.flink.ml.params.mapper.SISOFlatMapperParams;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
