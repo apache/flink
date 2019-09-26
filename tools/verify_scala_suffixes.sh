@@ -42,23 +42,38 @@
 # Some example output:
 #
 ### Example of a dependency-free module:
-# [INFO] ------------------------------------------------------------------------
-# [INFO] Building flink-java 1.0-SNAPSHOT
-# [INFO] ------------------------------------------------------------------------
+# [INFO] --------------------< org.apache.flink:flink-java >---------------------
+# [INFO] Building flink-java 1.10-SNAPSHOT                               [10/166]
+# [INFO] --------------------------------[ jar ]---------------------------------
 # [INFO]
-# [INFO] --- maven-dependency-plugin:2.8:tree (default-cli) @ flink-java ---
+# [INFO] --- maven-dependency-plugin:3.1.1:tree (default-cli) @ flink-java ---
 # [INFO]
 
 ### Example of a Scala dependent module:
-# [INFO] ------------------------------------------------------------------------
-# [INFO] Building flink-storm 1.0-SNAPSHOT
-# [INFO] ------------------------------------------------------------------------
+# [INFO] -----------------< org.apache.flink:flink-scala_2.11 >------------------
+# [INFO] Building flink-scala 1.10-SNAPSHOT                              [16/166]
+# [INFO] --------------------------------[ jar ]---------------------------------
 # [INFO]
-# [INFO] --- maven-dependency-plugin:2.8:tree (default-cli) @ flink-storm ---
-# [INFO] org.apache.flink:flink-storm:jar:1.0-SNAPSHOT
-# [INFO] \- org.apache.flink:flink-streaming-java:jar:1.0-SNAPSHOT:compile
-# [INFO]    \- org.apache.flink:flink-runtime:jar:1.0-SNAPSHOT:compile
-# [INFO]       \- org.scala-lang:scala-library:jar:2.10.4:compile
+# [INFO] --- maven-dependency-plugin:3.1.1:tree (default-cli) @ flink-scala_2.11 ---
+# [INFO] org.apache.flink:flink-scala_2.11:jar:1.10-SNAPSHOT
+# [INFO] +- org.scala-lang:scala-reflect:jar:2.11.12:compile
+# [INFO] +- org.scala-lang:scala-library:jar:2.11.12:compile
+# [INFO] +- org.scala-lang:scala-compiler:jar:2.11.12:compile
+# [INFO] |  +- org.scala-lang.modules:scala-xml_2.11:jar:1.0.5:compile
+# [INFO] |  \- org.scala-lang.modules:scala-parser-combinators_2.11:jar:1.1.1:compile
+# [INFO] +- org.scalatest:scalatest_2.11:jar:3.0.0:test
+# [INFO] |  \- org.scalactic:scalactic_2.11:jar:3.0.0:test
+# [INFO] +- com.twitter:chill_2.11:jar:0.7.6:test
+# [INFO] \- org.apache.flink:flink-runtime_2.11:jar:1.10-SNAPSHOT:test
+# [INFO]    +- com.typesafe.akka:akka-actor_2.11:jar:2.5.21:test
+# [INFO]    |  \- org.scala-lang.modules:scala-java8-compat_2.11:jar:0.7.0:test
+# [INFO]    +- com.typesafe.akka:akka-remote_2.11:jar:2.5.21:test
+# [INFO]    +- com.typesafe.akka:akka-stream_2.11:jar:2.5.21:test
+# [INFO]    |  \- com.typesafe:ssl-config-core_2.11:jar:0.3.7:test
+# [INFO]    +- com.typesafe.akka:akka-protobuf_2.11:jar:2.5.21:test
+# [INFO]    +- com.typesafe.akka:akka-slf4j_2.11:jar:2.5.21:test
+# [INFO]    +- org.clapper:grizzled-slf4j_2.11:jar:1.3.2:test
+# [INFO]    \- com.github.scopt:scopt_2.11:jar:3.5.0:test
 # [INFO]
 
 MAVEN_ARGUMENTS=${1:-""}
