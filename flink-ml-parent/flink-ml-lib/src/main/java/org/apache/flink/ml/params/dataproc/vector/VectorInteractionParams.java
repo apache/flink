@@ -19,7 +19,7 @@
 
 package org.apache.flink.ml.params.dataproc.vector;
 
-import org.apache.flink.ml.params.mode.MISOMapperParams;
+import org.apache.flink.ml.params.mapper.MISOMapperParams;
 
 /**
  * parameters of vector interaction.
