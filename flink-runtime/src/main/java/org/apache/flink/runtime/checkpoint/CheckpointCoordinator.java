@@ -856,7 +856,7 @@ public class CheckpointCoordinator {
 		try {
 			try {
 				completedCheckpoint = pendingCheckpoint.finalizeCheckpoint();
-				failureManager.handleCheckpointSuccess(pendingCheckpoint.getCheckpointId());
+				failureManager.handleCheckpointSuccess();
 			}
 			catch (Exception e1) {
 				// abort the current pending checkpoint if we fails to finalize the pending checkpoint.

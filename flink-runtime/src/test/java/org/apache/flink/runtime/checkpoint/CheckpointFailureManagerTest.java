@@ -61,7 +61,7 @@ public class CheckpointFailureManagerTest extends TestLogger {
 			new CheckpointException(CheckpointFailureReason.JOB_FAILOVER_REGION), 3);
 
 		//reset
-		failureManager.handleCheckpointSuccess(4);
+		failureManager.handleCheckpointSuccess();
 
 		failureManager.handleJobLevelCheckpointException(
 			new CheckpointException(CheckpointFailureReason.CHECKPOINT_EXPIRED), 5);
