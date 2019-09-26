@@ -27,4 +27,4 @@ We can enter the directory where this README.md file is located and run test cas
 
 ## Python Requirements
 
-PyFlink depends on Py4J (currently version 0.10.8.1).
+PyFlink depends on Py4J (currently version 0.10.8.1) and CloudPickle (currently version 1.2.2).
