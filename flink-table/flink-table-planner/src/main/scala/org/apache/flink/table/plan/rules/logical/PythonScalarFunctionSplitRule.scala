@@ -80,16 +80,9 @@ class PythonScalarFunctionSplitRule extends RelOptRule(
       extractedRexCalls,
       convertPythonFunction)
 
-    val newProjects = program.getProjectList
-      .map(program.expandLocalRef)
-      .map(_.accept(splitter))
-
-    val newCondition = Option(program.getCondition)
-      .map(program.expandLocalRef)
-      .map(_.accept(splitter))
-
-    val accessedFields = extractRefInputFields(
-      newProjects, newCondition, extractedFunctionOffset)
+    val newProjects = program.getProjectList.map(program.expandLocalRef(_).accept(splitter))
+    val newCondition = Option(program.getCondition).map(program.expandLocalRef(_).accept(splitter))
+    val accessedFields = extractRefInputFields(newProjects, newCondition, extractedFunctionOffset)
 
     val bottomCalcProjects =
       accessedFields.map(RexInputRef.of(_, input.getRowType)) ++ extractedRexCalls
@@ -109,8 +102,7 @@ class PythonScalarFunctionSplitRule extends RelOptRule(
         bottomCalcFieldNames,
         rexBuilder))
 
-    val inputRewriter = new ExtractedFunctionInputRewriter(
-      extractedFunctionOffset, accessedFields)
+    val inputRewriter = new ExtractedFunctionInputRewriter(extractedFunctionOffset, accessedFields)
     val topCalc = new FlinkLogicalCalc(
       calc.getCluster,
       calc.getTraitSet,

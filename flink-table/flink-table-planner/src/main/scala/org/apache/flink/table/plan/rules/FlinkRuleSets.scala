@@ -19,7 +19,6 @@
 package org.apache.flink.table.plan.rules
 
 import org.apache.calcite.rel.core.RelFactories
-import org.apache.calcite.rel.rules
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.tools.{RuleSet, RuleSets}
 import org.apache.flink.table.plan.nodes.logical._
@@ -243,7 +242,7 @@ object FlinkRuleSets {
     DataStreamTableAggregateRule.INSTANCE,
     DataStreamGroupWindowTableAggregateRule.INSTANCE,
     DataStreamPythonCalcRule.INSTANCE
-    )
+  )
 
   /**
     * RuleSet to decorate plans for stream / DataStream execution

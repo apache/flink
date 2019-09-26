@@ -227,7 +227,7 @@ class PythonScalarFunction(name: String) extends ScalarFunction {
 }
 
 class BooleanPythonScalarFunction(name: String) extends ScalarFunction {
-  def eval(i: Int, j: Int): Int = i + j
+  def eval(i: Int, j: Int): Boolean = i + j > 1
 
   override def getResultType(signature: Array[Class[_]]): TypeInformation[_] =
     BasicTypeInfo.BOOLEAN_TYPE_INFO
