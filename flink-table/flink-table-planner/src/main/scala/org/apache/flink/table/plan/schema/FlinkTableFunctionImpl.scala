@@ -80,8 +80,15 @@ class FlinkTableFunctionImpl[T](
     val builder = flinkTypeFactory.builder
     fieldNames
       .zip(fieldTypes)
-      .foreach { f =>
-        builder.add(f._1, flinkTypeFactory.createTypeFromTypeInfo(f._2, isNullable = true))
+      .foreach {
+        case (fieldName, typeInfo) =>
+          val isNullable = !FlinkTypeFactory.isTimeIndicatorType(typeInfo)
+          builder
+            .add(
+              fieldName,
+              flinkTypeFactory
+                .createTypeFromTypeInfo(typeInfo, isNullable = isNullable)
+            )
       }
     builder.build
   }
