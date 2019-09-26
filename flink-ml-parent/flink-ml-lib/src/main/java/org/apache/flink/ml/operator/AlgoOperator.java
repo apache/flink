@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.flink.ml.common;
+package org.apache.flink.ml.operator;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.ml.api.misc.param.Params;
@@ -32,6 +32,23 @@ import java.io.Serializable;
  * Base class for algorithm operators.
  *
  * <p>Hold a Table as its output.
+ *
+ * <p>For `output` field. The AlgoOperator may have one or more result tables,
+ * in most cases, it has only one result. The output is the main operation result
+ * table, and the other results are kept in the sideOutputs.
+ *
+ * <p>For example:
+ * AlgoA and AlgoB, AlgoB takes the AlgoA’s results as its inputs,
+ * we can write the code like this:
+ * <pre>
+ * {@code
+ * AlgoB.linkFrom(AlgoA)
+ * AlgoA.getOutput()
+ * }
+ * </pre>
+ * The code provides the main result of AlgoA, and AlgoA.getSideOutputs()
+ * provides the other results of AlgoA. AlgoB will take the AlgoA’s results as its
+ * inputs by calling AlgoA.getOutput() and AlgoA.getSideOutputs().
  *
  * @param <T> The class type of the {@link AlgoOperator} implementation itself
  */
@@ -55,6 +72,16 @@ public abstract class AlgoOperator<T extends AlgoOperator <T>>
 
 	/**
 	 * Construct the operator with empty Params.
+	 *
+	 * <p>For how using this constructor, there is an example:
+	 * SplitBatchOp is widely used in ML data pre-processing,
+	 * which splits one dataset into two dataset: training set and validation set.
+	 * It is very convenient for us to write code like this:
+	 * <pre>
+	 * {@code
+	 * new SplitBatchOp().setSplitRatio(0.9)
+	 * }
+	 * </pre>
 	 */
 	protected AlgoOperator() {
 		this(null);

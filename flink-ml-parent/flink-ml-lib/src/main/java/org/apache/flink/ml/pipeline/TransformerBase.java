@@ -21,11 +21,11 @@ package org.apache.flink.ml.pipeline;
 
 import org.apache.flink.ml.api.core.Transformer;
 import org.apache.flink.ml.api.misc.param.Params;
-import org.apache.flink.ml.batchoperator.BatchOperator;
-import org.apache.flink.ml.batchoperator.source.TableSourceBatchOp;
 import org.apache.flink.ml.common.MLEnvironmentFactory;
-import org.apache.flink.ml.streamoperator.StreamOperator;
-import org.apache.flink.ml.streamoperator.source.TableSourceStreamOp;
+import org.apache.flink.ml.operator.batch.BatchOperator;
+import org.apache.flink.ml.operator.batch.source.TableSourceBatchOp;
+import org.apache.flink.ml.operator.stream.StreamOperator;
+import org.apache.flink.ml.operator.stream.source.TableSourceStreamOp;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableImpl;
@@ -86,7 +86,7 @@ public abstract class TransformerBase<T extends TransformerBase<T>>
 	 * @param input the input batch data from BatchOperator
 	 * @return the transformed batch result data
 	 */
-	public abstract BatchOperator transform(BatchOperator input);
+	protected abstract BatchOperator transform(BatchOperator input);
 
 	/**
 	 * Applies the transformer on the input streaming data from StreamOperator, and returns the streaming result data
@@ -95,6 +95,6 @@ public abstract class TransformerBase<T extends TransformerBase<T>>
 	 * @param input the input streaming data from StreamOperator
 	 * @return the transformed streaming result data
 	 */
-	public abstract StreamOperator transform(StreamOperator input);
+	protected abstract StreamOperator transform(StreamOperator input);
 
 }

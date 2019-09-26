@@ -17,17 +17,17 @@
  * under the License.
  */
 
-package org.apache.flink.ml.streamoperator.source;
+package org.apache.flink.ml.operator.batch.source;
 
-import org.apache.flink.ml.streamoperator.StreamOperator;
+import org.apache.flink.ml.operator.batch.BatchOperator;
 import org.apache.flink.table.api.Table;
 
 /**
- * Transform the Table to SourceStreamOp.
+ * Transform the Table to SourceBatchOp.
  */
-public final class TableSourceStreamOp extends StreamOperator<TableSourceStreamOp> {
+public final class TableSourceBatchOp extends BatchOperator<TableSourceBatchOp> {
 
-	public TableSourceStreamOp(Table table) {
+	public TableSourceBatchOp(Table table) {
 		super(null);
 		if (null == table) {
 			throw new RuntimeException();
@@ -36,7 +36,8 @@ public final class TableSourceStreamOp extends StreamOperator<TableSourceStreamO
 	}
 
 	@Override
-	public TableSourceStreamOp linkFrom(StreamOperator<?>... inputs) {
+	public TableSourceBatchOp linkFrom(BatchOperator<?>... inputs) {
 		throw new UnsupportedOperationException("Table source operator should not have any upstream to link from.");
 	}
+
 }

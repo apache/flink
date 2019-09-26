@@ -32,9 +32,9 @@ import org.junit.Test;
 import java.util.Arrays;
 
 /**
- * MLSessionTest.
+ * Test cases for MLEnvironment.
  */
-public class MLSessionTest {
+public class MLEnvironmentTest {
 	@Test
 	public void setTableEnvironment() {
 		MLEnvironment mlEnvironment = new MLEnvironment();

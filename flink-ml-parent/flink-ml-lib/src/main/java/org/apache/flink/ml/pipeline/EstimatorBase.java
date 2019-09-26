@@ -21,11 +21,11 @@ package org.apache.flink.ml.pipeline;
 
 import org.apache.flink.ml.api.core.Estimator;
 import org.apache.flink.ml.api.misc.param.Params;
-import org.apache.flink.ml.batchoperator.BatchOperator;
-import org.apache.flink.ml.batchoperator.source.TableSourceBatchOp;
 import org.apache.flink.ml.common.MLEnvironmentFactory;
-import org.apache.flink.ml.streamoperator.StreamOperator;
-import org.apache.flink.ml.streamoperator.source.TableSourceStreamOp;
+import org.apache.flink.ml.operator.batch.BatchOperator;
+import org.apache.flink.ml.operator.batch.source.TableSourceBatchOp;
+import org.apache.flink.ml.operator.stream.StreamOperator;
+import org.apache.flink.ml.operator.stream.source.TableSourceStreamOp;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableImpl;
@@ -85,7 +85,7 @@ public abstract class EstimatorBase<E extends EstimatorBase<E, M>, M extends Mod
 	 * @param input the table with records to train the Model.
 	 * @return a model trained to fit on the given Table.
 	 */
-	public abstract M fit(BatchOperator input);
+	protected abstract M fit(BatchOperator input);
 
 	/**
 	 * Online learning and produce {@link ModelBase} series which fit the streaming records from the given {@link
@@ -94,7 +94,7 @@ public abstract class EstimatorBase<E extends EstimatorBase<E, M>, M extends Mod
 	 * @param input the StreamOperator with streaming records to online train the Model series.
 	 * @return the model series trained to fit on the streaming data from given StreamOperator.
 	 */
-	public M fit(StreamOperator input) {
+	protected M fit(StreamOperator input) {
 		throw new UnsupportedOperationException("NOT supported yet!");
 	}
 

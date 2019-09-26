@@ -17,77 +17,75 @@
  * under the License.
  */
 
-package org.apache.flink.ml.streamoperator;
+package org.apache.flink.ml.operator.batch;
 
 import org.apache.flink.ml.api.misc.param.Params;
-import org.apache.flink.ml.common.AlgoOperator;
-import org.apache.flink.ml.streamoperator.source.TableSourceStreamOp;
+import org.apache.flink.ml.operator.AlgoOperator;
+import org.apache.flink.ml.operator.batch.source.TableSourceBatchOp;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.util.Preconditions;
 
 /**
- * Base class of stream algorithm operators.
+ * Base class of batch algorithm operators.
  *
- * <p>This class is extended to support the data transmission between the StreamOperators.
+ * <p>This class is extended to support the data transmission between the BatchOperators.
  */
-public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOperator<T> {
+public abstract class BatchOperator<T extends BatchOperator<T>> extends AlgoOperator<T> {
 
-	public StreamOperator() {
+	public BatchOperator() {
 		super();
 	}
 
 	/**
-	 * The constructor of StreamOperator with {@link Params}.
-	 *
+	 * The constructor of BatchOperator with {@link Params}.
 	 * @param params the initial Params.
 	 */
-	public StreamOperator(Params params) {
+	public BatchOperator(Params params) {
 		super(params);
 	}
 
 	/**
-	 * Link to another {@link StreamOperator}.
+	 * Link to another {@link BatchOperator}.
 	 *
-	 * <p>Link the <code>next</code> to StreamOperator using this as its input.
+	 * <p>Link the <code>next</code> to BatchOperator using this as its input.
 	 *
 	 * <p>For example:
 	 *
 	 * <pre>
 	 * {@code
-	 * StreamOperator a = ...;
-	 * StreamOperator b = ...;
-	 *
-	 * StreamOperator c = a.link(b)
+	 * BatchOperator a = ...;
+	 * BatchOperator b = ...;
+	 * BatchOperator c = a.link(b)
 	 * }
 	 * </pre>
 	 *
 	 * <p>the <code>c</code> in upper code is the linked
 	 * <code>b</code> which use <code>a</code> as input.
 	 *
-	 * @param next the linked StreamOperator
-	 * @param <S>  type of StreamOpearator returned
+	 * @param next the linked BatchOperator
+	 * @param <B>  type of BatchOperator returned
 	 * @return the linked next
-	 * @see #linkFrom(StreamOperator[])
+	 * @see #linkFrom(BatchOperator[])
 	 */
-	public <S extends StreamOperator<?>> S link(S next) {
+	public <B extends BatchOperator<?>> B link(B next) {
 		next.linkFrom(this);
 		return next;
 	}
 
 	/**
-	 * Link from others {@link StreamOperator}.
+	 * Link from others {@link BatchOperator}.
 	 *
-	 * <p>Link this object to StreamOperator using the StreamOperators as its input.
+	 * <p>Link this object to BatchOperator using the BatchOperators as its input.
 	 *
 	 * <p>For example:
 	 *
 	 * <pre>
 	 * {@code
-	 * StreamOperator a = ...;
-	 * StreamOperator b = ...;
-	 * StreamOperator c = ...;
+	 * BatchOperator a = ...;
+	 * BatchOperator b = ...;
+	 * BatchOperator c = ...;
 	 *
-	 * StreamOperator d = c.linkFrom(a, b)
+	 * BatchOperator d = c.linkFrom(a, b)
 	 * }
 	 * </pre>
 	 *
@@ -99,31 +97,30 @@ public abstract class StreamOperator<T extends StreamOperator<T>> extends AlgoOp
 	 * @param inputs the linked inputs
 	 * @return the linked this object
 	 */
-	public abstract T linkFrom(StreamOperator<?>... inputs);
+	public abstract T linkFrom(BatchOperator<?>... inputs);
 
 	/**
-	 * create a new StreamOperator from table.
-	 *
+	 * create a new BatchOperator from table.
 	 * @param table the input table
-	 * @return the new StreamOperator
+	 * @return the new BatchOperator
 	 */
-	public static StreamOperator<?> sourceFrom(Table table) {
-		return new TableSourceStreamOp(table);
+	public static BatchOperator<?> sourceFrom(Table table) {
+		return new TableSourceBatchOp(table);
 	}
 
-	protected void checkOpSize(int size, StreamOperator<?>... inputs) {
+	protected void checkOpSize(int size, BatchOperator<?>... inputs) {
 		Preconditions.checkNotNull(inputs, "Operators should not be null.");
 		Preconditions.checkState(inputs.length == size, "The size of operators should be equal to "
 			+ size + ", current: " + inputs.length);
 	}
 
-	protected void checkRequiredOpSize(int size, StreamOperator<?>... inputs) {
+	protected void checkRequiredOpSize(int size, BatchOperator<?>... inputs) {
 		Preconditions.checkNotNull(inputs, "Operators should not be null.");
 		Preconditions.checkState(inputs.length >= size, "The size of operators should be equal or greater than "
 			+ size + ", current: " + inputs.length);
 	}
 
-	protected StreamOperator<?> checkAndGetFirst(StreamOperator<?>... inputs) {
+	protected BatchOperator<?> checkAndGetFirst(BatchOperator<?> ... inputs) {
 		checkOpSize(1, inputs);
 		return inputs[0];
 	}

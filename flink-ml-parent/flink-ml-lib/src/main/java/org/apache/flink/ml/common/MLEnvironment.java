@@ -27,6 +27,7 @@ import org.apache.flink.table.api.java.BatchTableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.Preconditions;
 
 /**
  * MLEnvironment hold the execution environment.
@@ -159,7 +160,8 @@ public class MLEnvironment {
 					this.streamEnv = ((StreamTableEnvironmentImpl) streamTableEnv).execEnv();
 				}
 			}
-		} else {
+		} else if (tEnv instanceof BatchTableEnvironment) {
+			Preconditions.checkNotNull(table, "Table should not be null when set the BatchTableEnvironment");
 			ExecutionEnvironment env =
 				((BatchTableEnvironment) tEnv).toDataSet(table, Row.class).getExecutionEnvironment();
 			if ((batchTableEnv != null && tEnv != batchTableEnv)
@@ -172,6 +174,10 @@ public class MLEnvironment {
 					this.env = env;
 				}
 			}
+		} else {
+			throw new IllegalArgumentException("The TableEnvironment should be StreamTableEnvironment " +
+				"or BatchTableEnvironment. The exception here may be a bug. " +
+				"please fire a issues on jira of flink.");
 		}
 	}
 }
