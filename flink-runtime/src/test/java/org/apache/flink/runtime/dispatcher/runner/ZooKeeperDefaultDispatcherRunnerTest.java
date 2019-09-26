@@ -75,11 +75,11 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for the interaction between the {@link DispatcherRunnerImplNG} and ZooKeeper.
+ * Tests for the interaction between the {@link DefaultDispatcherRunner} and ZooKeeper.
  */
-public class ZooKeeperDispatcherRunnerImplTest extends TestLogger {
+public class ZooKeeperDefaultDispatcherRunnerTest extends TestLogger {
 
-	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperDispatcherRunnerImplTest.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ZooKeeperDefaultDispatcherRunnerTest.class);
 
 	private static final Time TESTING_TIMEOUT = Time.seconds(10L);
 
@@ -156,14 +156,14 @@ public class ZooKeeperDispatcherRunnerImplTest extends TestLogger {
 
 			final JobGraph jobGraph = createJobGraphWithBlobs();
 
-			final DispatcherRunnerImplNGFactory dispatcherRunnerImplNGFactory = DispatcherRunnerImplNGFactory.createSessionRunner(SessionDispatcherFactory.INSTANCE);
+			final DefaultDispatcherRunnerFactory defaultDispatcherRunnerFactory = DefaultDispatcherRunnerFactory.createSessionRunner(SessionDispatcherFactory.INSTANCE);
 
 			try (final DispatcherRunner dispatcherRunner = createDispatcherRunner(
 				rpcService,
 				dispatcherLeaderElectionService,
 				() -> createZooKeeperJobGraphStore(client),
 				partialDispatcherServices,
-				dispatcherRunnerImplNGFactory)) {
+				defaultDispatcherRunnerFactory)) {
 
 				// initial run
 				DispatcherGateway dispatcherGateway = grantLeadership(dispatcherLeaderElectionService, dispatcherLeaderRetriever, dispatcherRunner);

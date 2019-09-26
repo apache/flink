@@ -31,9 +31,9 @@ import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
+import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactory;
-import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerImplNGFactory;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -265,7 +265,7 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 	public static DefaultDispatcherResourceManagerComponentFactory createSessionComponentFactory(
 			ResourceManagerFactory<?> resourceManagerFactory) {
 		return new DefaultDispatcherResourceManagerComponentFactory(
-			DispatcherRunnerImplNGFactory.createSessionRunner(SessionDispatcherFactory.INSTANCE),
+			DefaultDispatcherRunnerFactory.createSessionRunner(SessionDispatcherFactory.INSTANCE),
 			resourceManagerFactory,
 			SessionRestEndpointFactory.INSTANCE);
 	}
@@ -274,7 +274,7 @@ public class DefaultDispatcherResourceManagerComponentFactory implements Dispatc
 			ResourceManagerFactory<?> resourceManagerFactory,
 			JobGraphRetriever jobGraphRetriever) {
 		return new DefaultDispatcherResourceManagerComponentFactory(
-			DispatcherRunnerImplNGFactory.createJobRunner(jobGraphRetriever),
+			DefaultDispatcherRunnerFactory.createJobRunner(jobGraphRetriever),
 			resourceManagerFactory,
 			JobRestEndpointFactory.INSTANCE);
 	}

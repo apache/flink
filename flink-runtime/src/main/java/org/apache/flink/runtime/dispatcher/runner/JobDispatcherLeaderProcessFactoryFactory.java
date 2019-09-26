@@ -57,13 +57,13 @@ public class JobDispatcherLeaderProcessFactoryFactory implements DispatcherLeade
 			throw new FlinkRuntimeException("Could not retrieve the JobGraph.", e);
 		}
 
-		final DispatcherServiceImplFactory dispatcherServiceImplFactory = new DispatcherServiceImplFactory(
+		final DefaultDispatcherServiceFactory defaultDispatcherServiceFactory = new DefaultDispatcherServiceFactory(
 			JobDispatcherFactory.INSTANCE,
 			rpcService,
 			partialDispatcherServices);
 
 		return new JobDispatcherLeaderProcessFactory(
-			dispatcherServiceImplFactory,
+			defaultDispatcherServiceFactory,
 			jobGraph,
 			fatalErrorHandler);
 	}

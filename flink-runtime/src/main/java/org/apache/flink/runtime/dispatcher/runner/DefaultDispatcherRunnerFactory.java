@@ -29,18 +29,18 @@ import org.apache.flink.runtime.rpc.RpcService;
 import java.util.concurrent.Executor;
 
 /**
- * {@link DispatcherRunnerFactory} implementation which creates {@link DispatcherRunnerImplNG}
+ * {@link DispatcherRunnerFactory} implementation which creates {@link DefaultDispatcherRunner}
  * instances.
  */
-public class DispatcherRunnerImplNGFactory implements DispatcherRunnerFactory {
+public class DefaultDispatcherRunnerFactory implements DispatcherRunnerFactory {
 	private final DispatcherLeaderProcessFactoryFactory dispatcherLeaderProcessFactoryFactory;
 
-	private DispatcherRunnerImplNGFactory(DispatcherLeaderProcessFactoryFactory dispatcherLeaderProcessFactoryFactory) {
+	private DefaultDispatcherRunnerFactory(DispatcherLeaderProcessFactoryFactory dispatcherLeaderProcessFactoryFactory) {
 		this.dispatcherLeaderProcessFactoryFactory = dispatcherLeaderProcessFactoryFactory;
 	}
 
 	@Override
-	public DispatcherRunnerImplNG createDispatcherRunner(
+	public DefaultDispatcherRunner createDispatcherRunner(
 			LeaderElectionService leaderElectionService,
 			FatalErrorHandler fatalErrorHandler,
 			JobGraphStoreFactory jobGraphStoreFactory,
@@ -55,19 +55,19 @@ public class DispatcherRunnerImplNGFactory implements DispatcherRunnerFactory {
 			partialDispatcherServices,
 			fatalErrorHandler);
 
-		return new DispatcherRunnerImplNG(
+		return new DefaultDispatcherRunner(
 			leaderElectionService,
 			fatalErrorHandler,
 			dispatcherLeaderProcessFactory);
 	}
 
-	public static DispatcherRunnerImplNGFactory createSessionRunner(DispatcherFactory dispatcherFactory) {
-		return new DispatcherRunnerImplNGFactory(
+	public static DefaultDispatcherRunnerFactory createSessionRunner(DispatcherFactory dispatcherFactory) {
+		return new DefaultDispatcherRunnerFactory(
 			SessionDispatcherLeaderProcessFactoryFactory.create(dispatcherFactory));
 	}
 
-	public static DispatcherRunnerImplNGFactory createJobRunner(JobGraphRetriever jobGraphRetriever) {
-		return new DispatcherRunnerImplNGFactory(
+	public static DefaultDispatcherRunnerFactory createJobRunner(JobGraphRetriever jobGraphRetriever) {
+		return new DefaultDispatcherRunnerFactory(
 			JobDispatcherLeaderProcessFactoryFactory.create(jobGraphRetriever));
 	}
 }
