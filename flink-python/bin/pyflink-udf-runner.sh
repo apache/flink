@@ -58,6 +58,12 @@ if [[ ! ${PYTHONPATH} =~ ${PY4J_ZIP} ]]; then
     export PYTHONPATH="$PY4J_ZIP:$PYTHONPATH"
 fi
 
+# Add cloudpickle to PYTHONPATH
+CLOUDPICKLE_ZIP=`echo "$FLINK_OPT_DIR"/python/cloudpickle-*-src.zip`
+if [[ ! ${PYTHONPATH} =~ ${CLOUDPICKLE_ZIP} ]]; then
+    export PYTHONPATH="$CLOUDPICKLE_ZIP:$PYTHONPATH"
+fi
+
 log="$FLINK_LOG_DIR/flink-$FLINK_IDENT_STRING-python-udf-boot-$HOSTNAME.log"
 
 ${python} -m pyflink.fn_execution.boot $@ 2>&1 | tee -a ${log}
