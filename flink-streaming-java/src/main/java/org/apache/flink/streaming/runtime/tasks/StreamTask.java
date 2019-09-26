@@ -723,32 +723,41 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 			CheckpointOptions checkpointOptions,
 			boolean advanceToEndOfEventTime) {
 
-		return mailboxProcessor.getMainMailboxExecutor().submit(() -> {
-			try {
-				// No alignment if we inject a checkpoint
-				CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
-					.setBytesBufferedInAlignment(0L)
-					.setAlignmentDurationNanos(0L);
+		return mailboxProcessor.getMainMailboxExecutor().submit(
+				() -> triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime),
+				"checkpoint %s with %s",
+			checkpointMetaData,
+			checkpointOptions);
+	}
 
-				boolean success = performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics, advanceToEndOfEventTime);
-				if (!success) {
-					declineCheckpoint(checkpointMetaData.getCheckpointId());
-				}
-				return success;
-			} catch (Exception e) {
-				// propagate exceptions only if the task is still in "running" state
-				if (isRunning) {
-					Exception exception = new Exception("Could not perform checkpoint " + checkpointMetaData.getCheckpointId() +
-						" for operator " + getName() + '.', e);
-					handleCheckpointException(exception);
-					throw exception;
-				} else {
-					LOG.debug("Could not perform checkpoint {} for operator {} while the " +
-						"invokable was not in state running.", checkpointMetaData.getCheckpointId(), getName(), e);
-					return false;
-				}
+	private boolean triggerCheckpoint(
+			CheckpointMetaData checkpointMetaData,
+			CheckpointOptions checkpointOptions,
+			boolean advanceToEndOfEventTime) throws Exception {
+		try {
+			// No alignment if we inject a checkpoint
+			CheckpointMetrics checkpointMetrics = new CheckpointMetrics()
+				.setBytesBufferedInAlignment(0L)
+				.setAlignmentDurationNanos(0L);
+
+			boolean success = performCheckpoint(checkpointMetaData, checkpointOptions, checkpointMetrics, advanceToEndOfEventTime);
+			if (!success) {
+				declineCheckpoint(checkpointMetaData.getCheckpointId());
 			}
-		});
+			return success;
+		} catch (Exception e) {
+			// propagate exceptions only if the task is still in "running" state
+			if (isRunning) {
+				Exception exception = new Exception("Could not perform checkpoint " + checkpointMetaData.getCheckpointId() +
+					" for operator " + getName() + '.', e);
+				handleCheckpointException(exception);
+				throw exception;
+			} else {
+				LOG.debug("Could not perform checkpoint {} for operator {} while the " +
+					"invokable was not in state running.", checkpointMetaData.getCheckpointId(), getName(), e);
+				return false;
+			}
+		}
 	}
 
 	@Override
@@ -875,37 +884,37 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
 	@Override
 	public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
-		return mailboxProcessor.getMailboxExecutor(TaskMailbox.MAX_PRIORITY).submit(() -> {
-			try {
-				boolean success = false;
-				synchronized (lock) {
-					if (isRunning) {
-						LOG.debug("Notification of complete checkpoint for task {}", getName());
+		return mailboxProcessor.getMailboxExecutor(TaskMailbox.MAX_PRIORITY).submit(
+				() -> notifyCheckpointComplete(checkpointId),
+				"checkpoint %d complete", checkpointId);
+	}
 
-						for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
-							if (operator != null) {
-								operator.notifyCheckpointComplete(checkpointId);
-							}
+	private void notifyCheckpointComplete(long checkpointId) {
+		try {
+			boolean success = false;
+			synchronized (lock) {
+				if (isRunning) {
+					LOG.debug("Notification of complete checkpoint for task {}", getName());
+
+					for (StreamOperator<?> operator : operatorChain.getAllOperators()) {
+						if (operator != null) {
+							operator.notifyCheckpointComplete(checkpointId);
 						}
-						success = true;
-					} else {
-						LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", getName());
 					}
+					success = true;
+				} else {
+					LOG.debug("Ignoring notification of complete checkpoint for not-running task {}", getName());
 				}
-				getEnvironment().getTaskStateManager().notifyCheckpointComplete(checkpointId);
-				if (success && isSynchronousSavepointId(checkpointId)) {
-					finishTask();
-					// Reset to "notify" the internal synchronous savepoint mailbox loop.
-					resetSynchronousSavepointId();
-				}
-				return null;
-			} catch (Exception e) {
-				handleException(new RuntimeException(
-					"Error while confirming checkpoint",
-					e));
-				throw e;
 			}
-		});
+			getEnvironment().getTaskStateManager().notifyCheckpointComplete(checkpointId);
+			if (success && isSynchronousSavepointId(checkpointId)) {
+				finishTask();
+				// Reset to "notify" the internal synchronous savepoint mailbox loop.
+				resetSynchronousSavepointId();
+			}
+		} catch (Exception e) {
+			handleException(new RuntimeException("Error while confirming checkpoint", e));
+		}
 	}
 
 	private void tryShutdownTimerService() {
@@ -1426,17 +1435,25 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 		@Override
 		public void invoke(ProcessingTimeCallback callback, long timestamp) {
 			try {
-				mailboxProcessor.getMailboxExecutor(TaskMailbox.MAX_PRIORITY).execute(() -> {
-					synchronized (getCheckpointLock()) {
-						try {
-							callback.onProcessingTime(timestamp);
-						} catch (Throwable t) {
-							handleAsyncException("Caught exception while processing timer.", new TimerException(t));
-						}
-					}
-				});
+				mailboxProcessor.getMailboxExecutor(TaskMailbox.MAX_PRIORITY).execute(
+					() -> invokeProcessingTimeCallback(callback, timestamp),
+					"Timer callback for %s @ %d",
+					callback,
+					timestamp);
 			} catch (Throwable t) {
 				handleAsyncException("Caught exception while processing timer.", new TimerException(t));
+			}
+		}
+
+		private void invokeProcessingTimeCallback(ProcessingTimeCallback callback, long timestamp) {
+			synchronized (getCheckpointLock()) {
+				try {
+					callback.onProcessingTime(timestamp);
+				} catch (Throwable t) {
+					handleAsyncException(
+							"Caught exception while processing timer.",
+							new TimerException(t));
+				}
 			}
 		}
 	}

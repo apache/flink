@@ -81,8 +81,8 @@ public interface TaskMailbox {
 	/**
 	 * Returns a mailbox view bound to the given priority.
 	 *
-	 * <p>Enqueuing letters (e.g., {@link Mailbox#putMail(Runnable)} and {@link Mailbox#putFirst(Runnable)}) will mark these letters
-	 * to belong to the bound operator.
+	 * <p>Enqueuing letters (e.g., {@link Mailbox#putMail(Runnable, Object description)} and
+	 * {@link Mailbox#putFirst(Runnable, Object description)}) will mark these letters to belong to the bound operator.
 	 *
 	 * <p>Similarly, only letters from the operator or any downstream operator are retrieved by {@link Mailbox#tryTakeMail()}
 	 * and {@link Mailbox#takeMail()}.
@@ -102,19 +102,31 @@ public interface TaskMailbox {
 	/**
 	 * Enqueues the given letter to the mailbox and blocks until there is capacity for a successful put.
 	 *
+	 * <p>An optional description can be added to ease debugging and error-reporting. Any object can be passed on which
+	 * {@link Object#toString()} is lazily invoked. In most cases, it should be a {@link String} or
+	 * {@link org.apache.flink.streaming.runtime.tasks.mailbox.LazyString}. If no explicit description is taken, the
+	 * command itself is used and {@code toString()} will be invoked on it.
+	 *
 	 * @param letter the letter to enqueue.
 	 * @param priority the priority of the letter.
+	 * @param description the optional description for the command that is used for debugging and error-reporting.
 	 * @throws MailboxStateException if the mailbox is quiesced or closed.
 	 */
-	void putMail(@Nonnull Runnable letter, int priority) throws MailboxStateException;
+	void putMail(@Nonnull Runnable letter, int priority, Object description) throws MailboxStateException;
 
 	/**
 	 * Adds the given action to the head of the mailbox.
 	 *
+	 * <p>An optional description can be added to ease debugging and error-reporting. Any object can be passed on which
+	 * {@link Object#toString()} is lazily invoked. In most cases, it should be a {@link String} or
+	 * {@link org.apache.flink.streaming.runtime.tasks.mailbox.LazyString}. If no explicit description is taken, the
+	 * command itself is used and {@code toString()} will be invoked on it.
+	 *
 	 * @param priorityLetter action to enqueue to the head of the mailbox.
+	 * @param description the optional description for the command that is used for debugging and error-reporting.
 	 * @throws MailboxStateException if the mailbox is quiesced or closed.
 	 */
-	void putFirst(@Nonnull Runnable priorityLetter) throws MailboxStateException;
+	void putFirst(@Nonnull Runnable priorityLetter, Object description) throws MailboxStateException;
 
 	/**
 	 * Returns an optional with either the oldest letter with a minimum priority from the mailbox (head of queue) if the

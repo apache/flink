@@ -779,7 +779,7 @@ public class StreamTaskTest extends TestLogger {
 
 				@Override
 				protected void processInput(DefaultActionContext context) throws Exception {
-					mailboxProcessor.getMailboxExecutor(0).execute(latch::trigger);
+					mailboxProcessor.getMailboxExecutor(0).execute(latch::trigger, "trigger");
 					context.allActionsCompleted();
 				}
 			});

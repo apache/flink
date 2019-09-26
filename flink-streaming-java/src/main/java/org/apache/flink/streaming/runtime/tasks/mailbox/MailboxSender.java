@@ -29,17 +29,29 @@ public interface MailboxSender {
 	/**
 	 * Enqueues the given letter to the mailbox and blocks until there is capacity for a successful put.
 	 *
+	 * <p>An optional description can be added to ease debugging and error-reporting. Any object can be passed on which
+	 * {@link Object#toString()} is lazily invoked. In most cases, it should be a {@link String} or
+	 * {@link org.apache.flink.streaming.runtime.tasks.mailbox.LazyString}. If no explicit description is taken, the
+	 * command itself is used and {@code toString()} will be invoked on it.
+	 *
 	 * @param letter the letter to enqueue.
+	 * @param description the optional description for the command that is used for debugging and error-reporting.
 	 * @throws MailboxStateException if the mailbox is quiesced or closed.
 	 */
-	void putMail(@Nonnull Runnable letter) throws  MailboxStateException;
+	void putMail(@Nonnull Runnable letter, Object description) throws  MailboxStateException;
 
 	/**
 	 * Adds the given action to the head of the mailbox.
 	 *
+	 * <p>An optional description can be added to ease debugging and error-reporting. Any object can be passed on which
+	 * {@link Object#toString()} is lazily invoked. In most cases, it should be a {@link String} or
+	 * {@link org.apache.flink.streaming.runtime.tasks.mailbox.LazyString}. If no explicit description is taken, the
+	 * command itself is used and {@code toString()} will be invoked on it.
+	 *
 	 * @param priorityLetter action to enqueue to the head of the mailbox.
+	 * @param description the optional description for the command that is used for debugging and error-reporting.
 	 * @throws MailboxStateException if the mailbox is quiesced or closed.
 	 */
-	void putFirst(@Nonnull Runnable priorityLetter) throws MailboxStateException;
+	void putFirst(@Nonnull Runnable priorityLetter, Object description) throws MailboxStateException;
 
 }

@@ -18,7 +18,6 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
-import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
@@ -65,10 +64,10 @@ public class TaskMailboxImplTest {
 		Runnable instanceC = () -> {};
 		Runnable instanceD = () -> {};
 
-		taskMailbox.putMail(instanceC, DEFAULT_PRIORITY);
-		taskMailbox.putFirst(instanceB);
-		taskMailbox.putMail(instanceD, DEFAULT_PRIORITY);
-		taskMailbox.putFirst(instanceA);
+		taskMailbox.putMail(instanceC, DEFAULT_PRIORITY, "instanceC, DEFAULT_PRIORITY");
+		taskMailbox.putFirst(instanceB, "instanceB");
+		taskMailbox.putMail(instanceD, DEFAULT_PRIORITY, "instanceD, DEFAULT_PRIORITY");
+		taskMailbox.putFirst(instanceA, "instanceA");
 
 		Assert.assertSame(instanceA, taskMailbox.takeMail(DEFAULT_PRIORITY));
 		Assert.assertSame(instanceB, taskMailbox.takeMail(DEFAULT_PRIORITY));
@@ -86,7 +85,7 @@ public class TaskMailboxImplTest {
 		for (int i = 0; i < 10; ++i) {
 			Runnable letter = NO_OP;
 			testObjects.add(letter);
-			taskMailbox.putMail(letter, DEFAULT_PRIORITY);
+			taskMailbox.putMail(letter, DEFAULT_PRIORITY, "letter, DEFAULT_PRIORITY");
 			Assert.assertTrue(taskMailbox.hasMail());
 		}
 
@@ -101,7 +100,7 @@ public class TaskMailboxImplTest {
 	 */
 	@Test
 	public void testConcurrentPutTakeBlocking() throws Exception {
-		testPutTake(Mailbox::takeMail, Mailbox::putMail);
+		testPutTake(Mailbox::takeMail);
 	}
 
 	/**
@@ -115,8 +114,7 @@ public class TaskMailboxImplTest {
 					optionalLetter = mailbox.tryTakeMail();
 				}
 				return optionalLetter.get();
-			}),
-			MailboxSender::putMail);
+			}));
 	}
 
 	/**
@@ -139,8 +137,8 @@ public class TaskMailboxImplTest {
 
 	@Test
 	public void testLifeCycleQuiesce() throws Exception {
-		taskMailbox.putMail(NO_OP, DEFAULT_PRIORITY);
-		taskMailbox.putMail(NO_OP, DEFAULT_PRIORITY);
+		taskMailbox.putMail(NO_OP, DEFAULT_PRIORITY, "NO_OP, DEFAULT_PRIORITY");
+		taskMailbox.putMail(NO_OP, DEFAULT_PRIORITY, "NO_OP, DEFAULT_PRIORITY");
 		taskMailbox.quiesce();
 		testLifecyclePuttingInternal();
 		taskMailbox.takeMail(DEFAULT_PRIORITY);
@@ -168,21 +166,21 @@ public class TaskMailboxImplTest {
 
 	private void testLifecyclePuttingInternal() throws Exception {
 		try {
-			taskMailbox.putMail(NO_OP, DEFAULT_PRIORITY);
+			taskMailbox.putMail(NO_OP, DEFAULT_PRIORITY, "NO_OP, DEFAULT_PRIORITY");
 			Assert.fail();
 		} catch (MailboxStateException ignore) {
 		}
 		try {
-			taskMailbox.putFirst(NO_OP);
+			taskMailbox.putFirst(NO_OP, "NO_OP");
 			Assert.fail();
 		} catch (MailboxStateException ignore) {
 		}
 	}
 
 	private void testAllPuttingUnblocksInternal(Consumer<TaskMailbox> unblockMethod) throws InterruptedException {
-		testUnblocksInternal(() -> taskMailbox.putMail(NO_OP, DEFAULT_PRIORITY), unblockMethod);
+		testUnblocksInternal(() -> taskMailbox.putMail(NO_OP, DEFAULT_PRIORITY, "NO_OP, DEFAULT_PRIORITY"), unblockMethod);
 		setUp();
-		testUnblocksInternal(() -> taskMailbox.putFirst(NO_OP), unblockMethod);
+		testUnblocksInternal(() -> taskMailbox.putFirst(NO_OP, "NO_OP"), unblockMethod);
 	}
 
 	private void testUnblocksInternal(
@@ -225,9 +223,7 @@ public class TaskMailboxImplTest {
 	/**
 	 * Test producer-consumer pattern through the mailbox in a concurrent setting (n-writer / 1-reader).
 	 */
-	private void testPutTake(
-			FunctionWithException<Mailbox, Runnable, Exception> takeMethod,
-			BiConsumerWithException<Mailbox, Runnable, Exception> putMethod) throws Exception {
+	private void testPutTake(FunctionWithException<Mailbox, Runnable, Exception> takeMethod) throws Exception {
 		final int numThreads = 10;
 		final int numLettersPerThread = 1000;
 		final int[] results = new int[numThreads];
@@ -245,7 +241,7 @@ public class TaskMailboxImplTest {
 			final int threadId = i;
 			writerThreads[i] = new Thread(ThrowingRunnable.unchecked(() -> {
 				for (int k = 0; k < numLettersPerThread; ++k) {
-					putMethod.accept(mailbox, () -> ++results[threadId]);
+					mailbox.putMail(() -> ++results[threadId], "result " + k);
 				}
 			}));
 		}
@@ -258,7 +254,7 @@ public class TaskMailboxImplTest {
 			writerThread.join();
 		}
 
-		taskMailbox.putMail(POISON_LETTER, DEFAULT_PRIORITY);
+		taskMailbox.putMail(POISON_LETTER, DEFAULT_PRIORITY, "POISON_LETTER, DEFAULT_PRIORITY");
 
 		readerThread.join();
 		for (int perThreadResult : results) {
@@ -293,10 +289,10 @@ public class TaskMailboxImplTest {
 			Runnable instanceC = () -> {};
 			Runnable instanceD = () -> {};
 
-			taskMailbox.getDownstreamMailbox(1).putMail(instanceC);
-			taskMailbox.getDownstreamMailbox(2).putMail(instanceB);
-			taskMailbox.getDownstreamMailbox(1).putMail(instanceD);
-			taskMailbox.getDownstreamMailbox(2).putFirst(instanceA);
+			taskMailbox.getDownstreamMailbox(1).putMail(instanceC, "instanceC");
+			taskMailbox.getDownstreamMailbox(2).putMail(instanceB, "instanceB");
+			taskMailbox.getDownstreamMailbox(1).putMail(instanceD, "instanceD");
+			taskMailbox.getDownstreamMailbox(2).putFirst(instanceA, "instanceA");
 
 			Assert.assertSame(instanceA, taskMailbox.getDownstreamMailbox(2).takeMail());
 			Assert.assertSame(instanceB, taskMailbox.getDownstreamMailbox(2).takeMail());
@@ -316,10 +312,10 @@ public class TaskMailboxImplTest {
 			Runnable instanceC = () -> {};
 			Runnable instanceD = () -> {};
 
-			taskMailbox.getDownstreamMailbox(1).putMail(instanceC);
-			taskMailbox.getDownstreamMailbox(2).putMail(instanceB);
-			taskMailbox.getDownstreamMailbox(1).putMail(instanceD);
-			taskMailbox.getDownstreamMailbox(2).putFirst(instanceA);
+			taskMailbox.getDownstreamMailbox(1).putMail(instanceC, "instanceC");
+			taskMailbox.getDownstreamMailbox(2).putMail(instanceB, "instanceB");
+			taskMailbox.getDownstreamMailbox(1).putMail(instanceD, "instanceD");
+			taskMailbox.getDownstreamMailbox(2).putFirst(instanceA, "instanceA");
 
 			// same order for non-priority and priority on top
 			Assert.assertSame(instanceA, taskMailbox.takeMail(TaskMailbox.MIN_PRIORITY));
