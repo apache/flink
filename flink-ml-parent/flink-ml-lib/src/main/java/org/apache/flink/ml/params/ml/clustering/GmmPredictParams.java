@@ -20,7 +20,7 @@
 package org.apache.flink.ml.params.ml.clustering;
 
 import org.apache.flink.ml.api.misc.param.WithParams;
-import org.apache.flink.ml.params.mode.RichModelMapperParams;
+import org.apache.flink.ml.params.mapper.RichModelMapperParams;
 import org.apache.flink.ml.params.shared.colname.HasVectorCol;
 
 /**
