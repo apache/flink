@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.common.linalg.SparseVector;
 import org.apache.flink.ml.common.utils.VectorTypes;
+import org.apache.flink.ml.params.nlp.DocHashIDFVectorizerPredictParams;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 

@@ -17,9 +17,9 @@
  * under the License.
  */
 
-package org.apache.flink.ml.common.nlp;
+package org.apache.flink.ml.params.nlp;
 
-import org.apache.flink.ml.params.mode.SISOModelMapperParams;
+import org.apache.flink.ml.params.mapper.SISOModelMapperParams;
 import org.apache.flink.ml.params.nlp.HasBinary;
 
 /**
