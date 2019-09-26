@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.flink.ml.statistics.basicstatistic;
+package org.apache.flink.ml.common.statistics.basicstatistic;
 
 import org.apache.flink.ml.common.linalg.DenseVector;
 import org.apache.flink.ml.common.utils.TableUtil;
