@@ -24,16 +24,10 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.taskexecutor.TaskManagerServices;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
-import org.apache.flink.util.OperatingSystem;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Assume;
-import org.junit.Before;
 import org.junit.Test;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.Random;
 
 import static org.hamcrest.CoreMatchers.allOf;
@@ -51,7 +45,7 @@ import static org.junit.Assert.assertThat;
  * <tt>double</tt> precision but our Java code restrains to <tt>float</tt> because we actually do
  * not need high precision.
  */
-public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
+public class TaskManagerHeapSizeCalculationJavaBashTest extends JavaBashTestBase {
 
 	/** Key that is used by <tt>config.sh</tt>. */
 	private static final String KEY_TASKM_MEM_SIZE = "taskmanager.heap.size";
@@ -63,12 +57,6 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 	 * testing.
 	 */
 	private static final int NUM_RANDOM_TESTS = 20;
-
-	@Before
-	public void checkOperatingSystem() {
-		Assume.assumeTrue("This test checks shell scripts which are not available on Windows.",
-			!OperatingSystem.isWindows());
-	}
 
 	/**
 	 * Tests that {@link NettyShuffleEnvironmentConfiguration#calculateNetworkBufferMemory(long, Configuration)}
@@ -308,26 +296,6 @@ public class TaskManagerHeapSizeCalculationJavaBashTest extends TestLogger {
 				") with configuration: " + config.toString(), scriptHeapSizeMB,
 			allOf(greaterThanOrEqualTo(javaHeapSizeMB - absoluteTolerance),
 				lessThanOrEqualTo(javaHeapSizeMB + absoluteTolerance)));
-	}
-
-	/**
-	 * Executes the given shell script wrapper and returns its output.
-	 *
-	 * @param command  command to run
-	 *
-	 * @return raw script output
-	 */
-	private String executeScript(final String[] command) throws IOException {
-		ProcessBuilder pb = new ProcessBuilder(command);
-		pb.redirectErrorStream(true);
-		Process process = pb.start();
-		BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-		StringBuilder sb = new StringBuilder();
-		String s;
-		while ((s = reader.readLine()) != null) {
-			sb.append(s);
-		}
-		return sb.toString();
 	}
 
 }
