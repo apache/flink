@@ -776,3 +776,17 @@ calculateTaskManagerHeapSizeMB() {
 
     echo ${tm_heap_size_mb}
 }
+
+runBashJavaUtilsCmd() {
+    local cmd=$1
+    local class_path=$2
+    local conf_dir=$3
+
+    local output="`${JAVA_RUN} -classpath ${class_path} org.apache.flink.runtime.util.BashJavaUtils ${cmd} --configDir ${conf_dir} 2> /dev/null`"
+    if [[ $? -ne 0 ]]; then
+        echo "[ERROR] Cannot run BashJavaUtils to execute command ${cmd}."
+        exit 1
+    fi
+
+    echo ${output}
+}
