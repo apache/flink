@@ -37,6 +37,9 @@ import org.apache.flink.util.Collector;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
+import java.util.Arrays;
+import java.util.stream.Collectors;
+
 /**
  * The Python {@link ScalarFunction} operator for the blink planner.
  */
@@ -71,8 +74,8 @@ public class BaseRowPythonScalarFunctionOperator
 		RowType inputType,
 		RowType outputType,
 		int[] udfInputOffsets,
-		int forwardedFieldCnt) {
-		super(scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFieldCnt);
+		int[] forwardedFields) {
+		super(scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 	}
 
 	@Override
@@ -133,18 +136,16 @@ public class BaseRowPythonScalarFunctionOperator
 	}
 
 	private Projection<BaseRow, BinaryRow> createForwardedFieldProjection() {
-		final int[] fields = new int[forwardedFieldCnt];
-		for (int i = 0; i < fields.length; i++) {
-			fields[i] = i;
-		}
-
-		final RowType forwardedFieldType = new RowType(inputType.getFields().subList(0, forwardedFieldCnt));
+		final RowType forwardedFieldType = new RowType(
+			Arrays.stream(forwardedFields)
+				.mapToObj(i -> inputType.getFields().get(i))
+				.collect(Collectors.toList()));
 		final GeneratedProjection generatedProjection = ProjectionCodeGenerator.generateProjection(
 			CodeGeneratorContext.apply(new TableConfig()),
 			"ForwardedFieldProjection",
 			inputType,
 			forwardedFieldType,
-			fields);
+			forwardedFields);
 		// noinspection unchecked
 		return generatedProjection.newInstance(Thread.currentThread().getContextClassLoader());
 	}

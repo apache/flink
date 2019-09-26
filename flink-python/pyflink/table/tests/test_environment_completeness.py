@@ -41,8 +41,7 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, unittest.Te
         # registerCatalog, getCatalog and listTables should be supported when catalog supported in
         # python. getCompletionHints has been deprecated. It will be removed in the next release.
         # TODO add TableEnvironment#create method with EnvironmentSettings as a parameter
-        return {'registerCatalog', 'getCatalog', 'registerFunction', 'listTables',
-                'getCompletionHints', 'create'}
+        return {'registerCatalog', 'getCatalog', 'listTables', 'getCompletionHints', 'create'}
 
 
 if __name__ == '__main__':

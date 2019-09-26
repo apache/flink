@@ -327,6 +327,26 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<artifactId>exec-maven-plugin</artifactId>
+				<groupId>org.codehaus.mojo</groupId>
+				<version>1.5.0</version>
+				<executions>
+					<execution>
+						<id>Protos Generation</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>exec</goal>
+						</goals>
+						<configuration>
+							<executable>python</executable>
+							<arguments>
+								<argument>${basedir}/pyflink/gen_protos.py</argument>
+							</arguments>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 </project>

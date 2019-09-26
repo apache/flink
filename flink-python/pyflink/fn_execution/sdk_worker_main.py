@@ -16,26 +16,15 @@
 # limitations under the License.
 ################################################################################
 
-[tox]
-# tox (https://tox.readthedocs.io/) is a tool for running tests
-# in multiple virtualenvs. This configuration file will run the
-# test suite on all supported python versions.
-# new environments will be excluded by default unless explicitly added to envlist.
-envlist = py27, py35, py36, py37
+import sys
 
-[testenv]
-whitelist_externals=
-    /bin/bash
-deps =
-    pytest
-commands =
-    python --version
-    pytest
-    bash ./dev/run_pip_test.sh
+# force to register the operations to SDK Harness
+import pyflink.fn_execution.operations # noqa # pylint:  disable=unused-import
 
-[flake8]
-# We follow PEP 8 (https://www.python.org/dev/peps/pep-0008/) with one exception: lines can be
-# up to 100 characters in length, not 79.
-ignore=E226,E241,E305,E402,E722,E731,E741,W503,W504
-max-line-length=100
-exclude=.tox/*,dev/*,lib/*,target/*,build/*,dist/*,pyflink/shell.py,.eggs/*,pyflink/fn_execution/tests/process_mode_test_data.py,pyflink/fn_execution/*_pb2.py
+# force to register the coders to SDK Harness
+import pyflink.fn_execution.coders # noqa # pylint: disable=unused-import
+
+import apache_beam.runners.worker.sdk_worker_main
+
+if __name__ == '__main__':
+    apache_beam.runners.worker.sdk_worker_main.main(sys.argv)

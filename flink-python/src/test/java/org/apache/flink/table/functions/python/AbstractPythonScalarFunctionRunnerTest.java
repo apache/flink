@@ -121,7 +121,7 @@ public abstract class AbstractPythonScalarFunctionRunnerTest<IN, OUT>  {
 
 		@Override
 		public PythonEnv getPythonEnv() {
-			return new PythonEnv("", "", PythonEnv.ExecType.PROCESS);
+			return new PythonEnv(PythonEnv.ExecType.PROCESS);
 		}
 	}
 }

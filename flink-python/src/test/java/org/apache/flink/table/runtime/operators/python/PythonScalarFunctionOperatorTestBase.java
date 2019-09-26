@@ -204,7 +204,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 			dataType,
 			dataType,
 			new int[]{2},
-			2
+			new int[]{0, 1}
 		);
 
 		return new OneInputStreamOperatorTestHarness<>(operator);
@@ -215,7 +215,7 @@ public abstract class PythonScalarFunctionOperatorTestBase<IN, OUT, UDFIN, UDFOU
 		RowType inputType,
 		RowType outputType,
 		int[] udfInputOffsets,
-		int forwardedFieldCnt);
+		int[] forwardedFields);
 
 	public abstract IN newRow(boolean accumulateMsg, Object... fields);
 

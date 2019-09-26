@@ -20,6 +20,7 @@ package org.apache.flink.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
 import org.apache.flink.table.functions.python.PythonEnv;
@@ -50,8 +51,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 
 /**
@@ -280,14 +279,15 @@ public abstract class AbstractPythonFunctionRunner<IN, OUT> implements PythonFun
 	 */
 	protected RunnerApi.Environment createPythonExecutionEnvironment() {
 		if (pythonEnv.getExecType() == PythonEnv.ExecType.PROCESS) {
-			final Map<String, String> env = new HashMap<>(2);
-			env.put("python", pythonEnv.getPythonExec());
+			String flinkHomePath = System.getenv(ConfigConstants.ENV_FLINK_HOME_DIR);
+			String pythonWorkerCommand =
+				flinkHomePath + File.separator + "bin" + File.separator + "pyflink-udf-runner.sh";
 
 			return Environments.createProcessEnvironment(
 				"",
 				"",
-				pythonEnv.getPythonWorkerCmd(),
-				env);
+				pythonWorkerCommand,
+				null);
 		} else {
 			throw new UnsupportedOperationException(String.format(
 				"Execution type '%s' is not supported.", pythonEnv.getExecType()));

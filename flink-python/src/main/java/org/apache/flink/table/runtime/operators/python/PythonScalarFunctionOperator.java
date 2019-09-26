@@ -36,6 +36,8 @@ import org.apache.flink.util.Collector;
 
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
+import java.util.Arrays;
+
 /**
  * The Python {@link ScalarFunction} operator for the legacy planner.
  */
@@ -59,8 +61,8 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 		RowType inputType,
 		RowType outputType,
 		int[] udfInputOffsets,
-		int forwardedFieldCnt) {
-		super(scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFieldCnt);
+		int[] forwardedFields) {
+		super(scalarFunctions, inputType, outputType, udfInputOffsets, forwardedFields);
 	}
 
 	@Override
@@ -69,8 +71,8 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 		this.cRowWrapper = new StreamRecordCRowWrappingCollector(output);
 
 		CRowTypeInfo forwardedInputTypeInfo = new CRowTypeInfo(new RowTypeInfo(
-			inputType.getFields().stream()
-				.limit(forwardedFieldCnt)
+			Arrays.stream(forwardedFields)
+				.mapToObj(i -> inputType.getFields().get(i))
 				.map(RowType.RowField::getType)
 				.map(TypeConversions::fromLogicalToDataType)
 				.map(TypeConversions::fromDataTypeToLegacyInfo)
@@ -80,7 +82,7 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 
 	@Override
 	public void bufferInput(CRow input) {
-		CRow forwardedFieldsRow = new CRow(getForwardedRow(input.row()), input.change());
+		CRow forwardedFieldsRow = new CRow(Row.project(input.row(), forwardedFields), input.change());
 		if (getExecutionConfig().isObjectReuseEnabled()) {
 			forwardedFieldsRow = forwardedInputSerializer.copy(forwardedFieldsRow);
 		}
@@ -113,14 +115,6 @@ public class PythonScalarFunctionOperator extends AbstractPythonScalarFunctionOp
 			udfInputType,
 			udfOutputType,
 			getContainingTask().getEnvironment().getTaskManagerInfo().getTmpDirectories());
-	}
-
-	private Row getForwardedRow(Row input) {
-		Row row = new Row(forwardedFieldCnt);
-		for (int i = 0; i < row.getArity(); i++) {
-			row.setField(i, input.getField(i));
-		}
-		return row;
 	}
 
 	/**
