@@ -27,7 +27,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import java.util.concurrent.Executor;
 
 /**
- * Factory for the {@link DispatcherLeaderProcessImplFactory}.
+ * Factory for the {@link SessionDispatcherLeaderProcessFactory}.
  */
 public class SessionDispatcherLeaderProcessFactoryFactory implements DispatcherLeaderProcessFactoryFactory {
 
@@ -44,12 +44,12 @@ public class SessionDispatcherLeaderProcessFactoryFactory implements DispatcherL
 			RpcService rpcService,
 			PartialDispatcherServices partialDispatcherServices,
 			FatalErrorHandler fatalErrorHandler) {
-		final AbstractDispatcherLeaderProcess.DispatcherServiceFactory dispatcherServiceFactory = new DispatcherServiceImplFactory(
+		final AbstractDispatcherLeaderProcess.DispatcherServiceFactory dispatcherServiceFactory = new DefaultDispatcherServiceFactory(
 			dispatcherFactory,
 			rpcService,
 			partialDispatcherServices);
 
-		return new DispatcherLeaderProcessImplFactory(
+		return new SessionDispatcherLeaderProcessFactory(
 			dispatcherServiceFactory,
 			jobGraphStoreFactory,
 			ioExecutor,

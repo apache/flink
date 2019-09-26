@@ -69,7 +69,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 /**
- * Tests for the {@link DispatcherRunnerImplNG}.
+ * Tests for the {@link DefaultDispatcherRunner}.
  */
 public class DispatcherRunnerImplTest extends TestLogger {
 
@@ -124,7 +124,7 @@ public class DispatcherRunnerImplTest extends TestLogger {
 
 			final TestingJobManagerRunnerFactory jobManagerRunnerFactory = new TestingJobManagerRunnerFactory(1);
 
-			final DispatcherRunnerImplNGFactory dispatcherRunnerFactory = DispatcherRunnerImplNGFactory.createSessionRunner(new TestingDispatcherFactory(jobManagerRunnerFactory));
+			final DefaultDispatcherRunnerFactory dispatcherRunnerFactory = DefaultDispatcherRunnerFactory.createSessionRunner(new TestingDispatcherFactory(jobManagerRunnerFactory));
 
 			try (final DispatcherRunner dispatcherRunner = createDispatcherRunner(
 					rpcService,

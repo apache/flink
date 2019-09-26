@@ -62,9 +62,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link DispatcherLeaderProcessImpl}.
+ * Tests for the {@link SessionDispatcherLeaderProcess}.
  */
-public class DispatcherLeaderProcessImplTest extends TestLogger {
+public class SessionDispatcherLeaderProcessTest extends TestLogger {
 
 	private static final JobGraph JOB_GRAPH = new JobGraph("JobGraph");
 
@@ -107,12 +107,12 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 
 	@Test
 	public void start_afterClose_doesNotHaveAnEffect() throws Exception {
-		final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess();
+		final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess();
 
 		dispatcherLeaderProcess.close();
 		dispatcherLeaderProcess.start();
 
-		assertThat(dispatcherLeaderProcess.getState(), is(DispatcherLeaderProcessImpl.State.STOPPED));
+		assertThat(dispatcherLeaderProcess.getState(), is(SessionDispatcherLeaderProcess.State.STOPPED));
 	}
 
 	@Test
@@ -131,9 +131,9 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 			)
 			.build();
 
-		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
 			dispatcherLeaderProcess.start();
-			assertThat(dispatcherLeaderProcess.getState(), is(DispatcherLeaderProcessImpl.State.RUNNING));
+			assertThat(dispatcherLeaderProcess.getState(), is(SessionDispatcherLeaderProcess.State.RUNNING));
 
 			final Collection<JobGraph> recoveredJobGraphs = recoveredJobGraphsFuture.get();
 
@@ -160,7 +160,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 				.build())
 			.build();
 
-		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
 			dispatcherLeaderProcess.start();
 
 			// wait for the creation of the DispatcherService
@@ -200,7 +200,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 				}))
 			.build();
 
-		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
 			final CompletableFuture<String> confirmLeaderSessionFuture = dispatcherLeaderProcess.getConfirmLeaderSessionFuture();
 
 			dispatcherLeaderProcess.start();
@@ -235,7 +235,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 				})
 			.build();
 
-		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
 			dispatcherLeaderProcess.start();
 
 			jobRecoveryStarted.await();
@@ -269,7 +269,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 			.setCreateFunction((dispatcherId, jobGraphs, jobGraphWriter) -> testingDispatcherService)
 			.build();
 
-		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
 			dispatcherLeaderProcess.start();
 
 			// wait for the dispatcher process to be created
@@ -295,7 +295,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 			.setCreateFunction((dispatcherId, jobGraphs, jobGraphWriter) -> testingDispatcherService)
 			.build();
 
-		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
 			dispatcherLeaderProcess.start();
 
 			// wait for the dispatcher process to be created
@@ -325,7 +325,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 
 		dispatcherServiceFactory = createDispatcherServiceFactoryFor(testingDispatcherGateway);
 
-		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
 			dispatcherLeaderProcess.start();
 
 			// wait first for the dispatcher service to be created
@@ -351,7 +351,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 				})
 			.build();
 
-		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
 			dispatcherLeaderProcess.start();
 
 			// wait until the process has started the dispatcher
@@ -381,7 +381,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 				})
 			.build();
 
-		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
 			dispatcherLeaderProcess.start();
 
 			// wait first for the dispatcher service to be created
@@ -394,7 +394,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 			final Throwable throwable = errorFuture.get();
 			Assert.assertThat(ExceptionUtils.findThrowable(throwable, expectedFailure::equals).isPresent(), Is.is(true));
 
-			assertThat(dispatcherLeaderProcess.getState(), is(DispatcherLeaderProcessImpl.State.STOPPED));
+			assertThat(dispatcherLeaderProcess.getState(), is(SessionDispatcherLeaderProcess.State.STOPPED));
 
 			fatalErrorHandler.clearError();
 		}
@@ -428,7 +428,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 	}
 
 	private void runJobRecoveryFailureTest(FlinkException testException) throws Exception {
-		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
 			dispatcherLeaderProcess.start();
 
 			// we expect that a fatal error occurred
@@ -479,7 +479,7 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 			})
 			.build();
 
-		try (final DispatcherLeaderProcessImpl dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
+		try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess = createDispatcherLeaderProcess()) {
 			dispatcherLeaderProcess.start();
 
 			dispatcherLeaderProcess.getDispatcherGateway().get();
@@ -506,8 +506,8 @@ public class DispatcherLeaderProcessImplTest extends TestLogger {
 			.build();
 	}
 
-	private DispatcherLeaderProcessImpl createDispatcherLeaderProcess() {
-		return DispatcherLeaderProcessImpl.create(
+	private SessionDispatcherLeaderProcess createDispatcherLeaderProcess() {
+		return SessionDispatcherLeaderProcess.create(
 			leaderSessionId,
 			dispatcherServiceFactory,
 			jobGraphStore,

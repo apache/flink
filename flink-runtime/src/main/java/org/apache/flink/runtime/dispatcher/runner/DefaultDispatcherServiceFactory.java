@@ -31,9 +31,9 @@ import org.apache.flink.util.FlinkRuntimeException;
 import java.util.Collection;
 
 /**
- * Factory for the {@link DispatcherServiceImpl}.
+ * Factory for the {@link DefaultDispatcherService}.
  */
-class DispatcherServiceImplFactory implements AbstractDispatcherLeaderProcess.DispatcherServiceFactory {
+class DefaultDispatcherServiceFactory implements AbstractDispatcherLeaderProcess.DispatcherServiceFactory {
 
 	private final DispatcherFactory dispatcherFactory;
 
@@ -41,7 +41,7 @@ class DispatcherServiceImplFactory implements AbstractDispatcherLeaderProcess.Di
 
 	private final PartialDispatcherServices partialDispatcherServices;
 
-	DispatcherServiceImplFactory(
+	DefaultDispatcherServiceFactory(
 			DispatcherFactory dispatcherFactory,
 			RpcService rpcService,
 			PartialDispatcherServices partialDispatcherServices) {
@@ -68,6 +68,6 @@ class DispatcherServiceImplFactory implements AbstractDispatcherLeaderProcess.Di
 
 		dispatcher.start();
 
-		return DispatcherServiceImpl.from(dispatcher);
+		return DefaultDispatcherService.from(dispatcher);
 	}
 }

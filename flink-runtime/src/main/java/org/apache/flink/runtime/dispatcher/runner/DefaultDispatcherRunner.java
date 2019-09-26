@@ -37,9 +37,9 @@ import java.util.concurrent.CompletableFuture;
  * Runner for the {@link org.apache.flink.runtime.dispatcher.Dispatcher} which is responsible for the
  * leader election.
  */
-public class DispatcherRunnerImplNG implements DispatcherRunner, LeaderContender {
+public class DefaultDispatcherRunner implements DispatcherRunner, LeaderContender {
 
-	private static final Logger LOG = LoggerFactory.getLogger(DispatcherRunnerImplNG.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DefaultDispatcherRunner.class);
 
 	private final Object lock = new Object();
 
@@ -61,7 +61,7 @@ public class DispatcherRunnerImplNG implements DispatcherRunner, LeaderContender
 
 	private CompletableFuture<DispatcherGateway> dispatcherGatewayFuture;
 
-	DispatcherRunnerImplNG(
+	DefaultDispatcherRunner(
 			LeaderElectionService leaderElectionService,
 			FatalErrorHandler fatalErrorHandler,
 			DispatcherLeaderProcessFactory dispatcherLeaderProcessFactory) throws Exception {

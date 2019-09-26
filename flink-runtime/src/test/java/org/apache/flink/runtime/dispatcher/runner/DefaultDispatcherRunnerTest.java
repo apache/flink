@@ -43,9 +43,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 /**
- * Tests for the {@link DispatcherRunnerImplNG}.
+ * Tests for the {@link DefaultDispatcherRunner}.
  */
-public class DispatcherRunnerImplNGTest extends TestLogger {
+public class DefaultDispatcherRunnerTest extends TestLogger {
 
 	private TestingLeaderElectionService testingLeaderElectionService;
 	private TestingFatalErrorHandler testingFatalErrorHandler;
@@ -73,7 +73,7 @@ public class DispatcherRunnerImplNGTest extends TestLogger {
 
 	@Test
 	public void closeAsync_doesNotCompleteUncompletedShutDownFuture() throws Exception {
-		final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner();
+		final DefaultDispatcherRunner dispatcherRunner = createDispatcherRunner();
 
 		final CompletableFuture<Void> terminationFuture = dispatcherRunner.closeAsync();
 		terminationFuture.get();
@@ -91,7 +91,7 @@ public class DispatcherRunnerImplNGTest extends TestLogger {
 			.build();
 
 		testingDispatcherLeaderProcessFactory = TestingDispatcherLeaderProcessFactory.from(testingDispatcherLeaderProcess);
-		try (final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner()) {
+		try (final DefaultDispatcherRunner dispatcherRunner = createDispatcherRunner()) {
 
 			final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture = dispatcherRunner.getDispatcherGateway();
 
@@ -121,7 +121,7 @@ public class DispatcherRunnerImplNGTest extends TestLogger {
 			firstDispatcherLeaderProcess,
 			secondDispatcherLeaderProcess);
 
-		try (final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner()) {
+		try (final DefaultDispatcherRunner dispatcherRunner = createDispatcherRunner()) {
 			testingLeaderElectionService.isLeader(firstLeaderSessionId);
 
 			final CompletableFuture<DispatcherGateway> firstDispatcherGatewayFuture = dispatcherRunner.getDispatcherGateway();
@@ -145,7 +145,7 @@ public class DispatcherRunnerImplNGTest extends TestLogger {
 			.build();
 		testingDispatcherLeaderProcessFactory = TestingDispatcherLeaderProcessFactory.from(testingDispatcherLeaderProcess);
 
-		try (final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner()) {
+		try (final DefaultDispatcherRunner dispatcherRunner = createDispatcherRunner()) {
 			testingLeaderElectionService.isLeader(leaderSessionId);
 
 			final CompletableFuture<ApplicationStatus> dispatcherShutDownFuture = dispatcherRunner.getShutDownFuture();
@@ -168,7 +168,7 @@ public class DispatcherRunnerImplNGTest extends TestLogger {
 			.build();
 		testingDispatcherLeaderProcessFactory = TestingDispatcherLeaderProcessFactory.from(testingDispatcherLeaderProcess);
 
-		try (final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner()) {
+		try (final DefaultDispatcherRunner dispatcherRunner = createDispatcherRunner()) {
 			testingLeaderElectionService.isLeader(leaderSessionId);
 
 			final CompletableFuture<ApplicationStatus> dispatcherShutDownFuture = dispatcherRunner.getShutDownFuture();
@@ -201,7 +201,7 @@ public class DispatcherRunnerImplNGTest extends TestLogger {
 			firstTestingDispatcherLeaderProcess,
 			secondTestingDispatcherLeaderProcess);
 
-		try (final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner()) {
+		try (final DefaultDispatcherRunner dispatcherRunner = createDispatcherRunner()) {
 			testingLeaderElectionService.isLeader(firstLeaderSessionId);
 
 			final CompletableFuture<ApplicationStatus> dispatcherShutDownFuture = dispatcherRunner.getShutDownFuture();
@@ -235,7 +235,7 @@ public class DispatcherRunnerImplNGTest extends TestLogger {
 						return FutureUtils.completedVoidFuture();
 					})
 				.build());
-		try (final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner()) {
+		try (final DefaultDispatcherRunner dispatcherRunner = createDispatcherRunner()) {
 			testingLeaderElectionService.isLeader(leaderSessionId);
 
 			// wait until the leader process has been started
@@ -260,7 +260,7 @@ public class DispatcherRunnerImplNGTest extends TestLogger {
 			firstTestingDispatcherLeaderProcess.asTestingDispatcherLeaderProcess(),
 			secondTestingDispatcherLeaderProcess.asTestingDispatcherLeaderProcess());
 
-		try (final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner()) {
+		try (final DefaultDispatcherRunner dispatcherRunner = createDispatcherRunner()) {
 			testingLeaderElectionService.isLeader(firstLeaderSessionId);
 
 			assertThat(firstTestingDispatcherLeaderProcess.isStarted(), is(true));
@@ -278,7 +278,7 @@ public class DispatcherRunnerImplNGTest extends TestLogger {
 	public void grantLeadership_validLeader_confirmsLeaderSession() throws Exception {
 		final UUID leaderSessionId = UUID.randomUUID();
 
-		try (final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner()) {
+		try (final DefaultDispatcherRunner dispatcherRunner = createDispatcherRunner()) {
 			testingLeaderElectionService.isLeader(leaderSessionId);
 
 			final CompletableFuture<LeaderConnectionInfo> confirmationFuture = testingLeaderElectionService.getConfirmationFuture();
@@ -298,7 +298,7 @@ public class DispatcherRunnerImplNGTest extends TestLogger {
 
 		testingDispatcherLeaderProcessFactory = TestingDispatcherLeaderProcessFactory.from(testingDispatcherLeaderProcess);
 
-		try (final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner()) {
+		try (final DefaultDispatcherRunner dispatcherRunner = createDispatcherRunner()) {
 			testingLeaderElectionService.isLeader(leaderSessionId);
 
 			testingLeaderElectionService.notLeader();
@@ -339,7 +339,7 @@ public class DispatcherRunnerImplNGTest extends TestLogger {
 			secondDispatcherLeaderProcess,
 			thirdDispatcherLeaderProcess);
 
-		final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner();
+		final DefaultDispatcherRunner dispatcherRunner = createDispatcherRunner();
 
 		try {
 			testingLeaderElectionService.isLeader(firstLeaderSession);
@@ -406,8 +406,8 @@ public class DispatcherRunnerImplNGTest extends TestLogger {
 			.build();
 	}
 
-	private DispatcherRunnerImplNG createDispatcherRunner() throws Exception {
-		return new DispatcherRunnerImplNG(
+	private DefaultDispatcherRunner createDispatcherRunner() throws Exception {
+		return new DefaultDispatcherRunner(
 			testingLeaderElectionService,
 			testingFatalErrorHandler,
 			testingDispatcherLeaderProcessFactory);

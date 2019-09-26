@@ -55,9 +55,9 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
 /**
- * Integration tests for the {@link DispatcherRunnerImplNG}.
+ * Integration tests for the {@link DefaultDispatcherRunner}.
  */
-public class DispatcherRunnerImplNGITCase extends TestLogger {
+public class DefaultDispatcherRunnerITCase extends TestLogger {
 
 	private static final Time TIMEOUT = Time.seconds(10L);
 
@@ -108,7 +108,7 @@ public class DispatcherRunnerImplNGITCase extends TestLogger {
 
 	@Test
 	public void leaderChange_afterJobSubmission_recoversSubmittedJob() throws Exception {
-		try (final DispatcherRunnerImplNG dispatcherRunner = createDispatcherRunner()) {
+		try (final DefaultDispatcherRunner dispatcherRunner = createDispatcherRunner()) {
 			final UUID firstLeaderSessionId = UUID.randomUUID();
 
 			dispatcherLeaderElectionService.isLeader(firstLeaderSessionId);
@@ -140,8 +140,8 @@ public class DispatcherRunnerImplNGITCase extends TestLogger {
 		return testJob;
 	}
 
-	private DispatcherRunnerImplNG createDispatcherRunner() throws Exception {
-		final DispatcherRunnerImplNGFactory runnerFactory = DispatcherRunnerImplNGFactory.createSessionRunner(SessionDispatcherWithUUIDFactory.INSTANCE);
+	private DefaultDispatcherRunner createDispatcherRunner() throws Exception {
+		final DefaultDispatcherRunnerFactory runnerFactory = DefaultDispatcherRunnerFactory.createSessionRunner(SessionDispatcherWithUUIDFactory.INSTANCE);
 
 		return runnerFactory.createDispatcherRunner(
 			dispatcherLeaderElectionService,

@@ -25,16 +25,16 @@ import java.util.UUID;
 import java.util.concurrent.Executor;
 
 /**
- * Factory for the {@link DispatcherLeaderProcessImpl}.
+ * Factory for the {@link SessionDispatcherLeaderProcess}.
  */
-class DispatcherLeaderProcessImplFactory implements DispatcherLeaderProcessFactory {
+class SessionDispatcherLeaderProcessFactory implements DispatcherLeaderProcessFactory {
 
 	private final AbstractDispatcherLeaderProcess.DispatcherServiceFactory dispatcherServiceFactory;
 	private final JobGraphStoreFactory jobGraphStoreFactory;
 	private final Executor ioExecutor;
 	private final FatalErrorHandler fatalErrorHandler;
 
-	DispatcherLeaderProcessImplFactory(
+	SessionDispatcherLeaderProcessFactory(
 			AbstractDispatcherLeaderProcess.DispatcherServiceFactory dispatcherServiceFactory,
 			JobGraphStoreFactory jobGraphStoreFactory,
 			Executor ioExecutor,
@@ -47,7 +47,7 @@ class DispatcherLeaderProcessImplFactory implements DispatcherLeaderProcessFacto
 
 	@Override
 	public DispatcherLeaderProcess create(UUID leaderSessionID) {
-		return DispatcherLeaderProcessImpl.create(
+		return SessionDispatcherLeaderProcess.create(
 			leaderSessionID,
 			dispatcherServiceFactory,
 			jobGraphStoreFactory.create(),
