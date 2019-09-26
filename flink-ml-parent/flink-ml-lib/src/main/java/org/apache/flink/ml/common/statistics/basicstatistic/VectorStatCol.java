@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.flink.ml.statistics.basicstatistic;
+package org.apache.flink.ml.common.statistics.basicstatistic;
 
 /**
  * It is median result of sparse vector summarizer.

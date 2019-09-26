@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.flink.ml.statistics;
+package org.apache.flink.ml.common.statistics;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.ml.common.linalg.DenseVector;
