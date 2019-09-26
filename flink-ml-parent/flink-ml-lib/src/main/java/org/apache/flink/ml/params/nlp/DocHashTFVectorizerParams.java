@@ -19,8 +19,8 @@
 
 package org.apache.flink.ml.params.nlp;
 
-import org.apache.flink.ml.params.ml.feature.HasNumFeatures;
 import org.apache.flink.ml.params.mapper.SISOMapperParams;
+import org.apache.flink.ml.params.ml.feature.HasNumFeatures;
 
 /**
  * Params for DocHashTFVectorizer.
