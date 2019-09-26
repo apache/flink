@@ -157,24 +157,22 @@ public class MailboxProcessor {
 	 * @param throwable to report by rethrowing from the mailbox loop.
 	 */
 	public void reportThrowable(Throwable throwable) {
-		sendPriorityLetter(() -> {
-			throw new WrappingRuntimeException(throwable);
-		});
+		sendPriorityLetter(
+			() -> {
+				throw new WrappingRuntimeException(throwable);
+			},
+			"Report throwable %s", throwable);
 	}
 
 	/**
 	 * This method must be called to end the stream task when all actions for the tasks have been performed.
 	 */
 	public void allActionsCompleted() {
-		sendPriorityLetter(mailboxPoisonLetter);
+		sendPriorityLetter(mailboxPoisonLetter, "poison letter");
 	}
 
-	private void sendPriorityLetter(Runnable priorityLetter) {
-		try {
-			mailbox.putFirst(priorityLetter);
-		} catch (MailboxStateException me) {
-			LOG.debug("Action context could not submit priority letter to mailbox.", me);
-		}
+	private void sendPriorityLetter(Runnable priorityLetter, String descriptionFormat, Object... descriptionArgs) {
+		mainMailboxExecutor.executeFirst(priorityLetter, descriptionFormat, descriptionArgs);
 	}
 
 	/**
@@ -244,7 +242,7 @@ public class MailboxProcessor {
 	private void ensureControlFlowSignalCheck() {
 		// Make sure that mailbox#hasMail is true via a dummy letter so that the flag change is noticed.
 		if (!mailbox.hasMail()) {
-			sendPriorityLetter(() -> {});
+			sendPriorityLetter(() -> {}, "signal check");
 		}
 	}
 
@@ -281,7 +279,7 @@ public class MailboxProcessor {
 			if (isMailboxThread()) {
 				resumeInternal();
 			} else {
-				sendPriorityLetter(this::resumeInternal);
+				sendPriorityLetter(this::resumeInternal, "resume default action");
 			}
 		}
 

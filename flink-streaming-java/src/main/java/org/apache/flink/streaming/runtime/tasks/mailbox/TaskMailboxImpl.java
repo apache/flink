@@ -111,11 +111,11 @@ public class TaskMailboxImpl implements TaskMailbox {
 	//------------------------------------------------------------------------------------------------------------------
 
 	@Override
-	public void putMail(@Nonnull Runnable letter, int priority) throws MailboxStateException {
+	public void putMail(@Nonnull Runnable letter, int priority, Object description) throws MailboxStateException {
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
-			putTailInternal(new Mail(letter, priority));
+			putTailInternal(new Mail(letter, priority, description));
 		} finally {
 			lock.unlock();
 		}
@@ -124,11 +124,11 @@ public class TaskMailboxImpl implements TaskMailbox {
 	//------------------------------------------------------------------------------------------------------------------
 
 	@Override
-	public void putFirst(@Nonnull Runnable priorityLetter) throws MailboxStateException {
+	public void putFirst(@Nonnull Runnable priorityLetter, Object description) throws MailboxStateException {
 		final ReentrantLock lock = this.lock;
 		lock.lock();
 		try {
-			putHeadInternal(new Mail(priorityLetter, MAX_PRIORITY));
+			putHeadInternal(new Mail(priorityLetter, MAX_PRIORITY, description));
 		} finally {
 			lock.unlock();
 		}
@@ -276,13 +276,13 @@ public class TaskMailboxImpl implements TaskMailbox {
 		}
 
 		@Override
-		public void putMail(@Nonnull Runnable letter) throws MailboxStateException {
-			TaskMailboxImpl.this.putMail(letter, priority);
+		public void putMail(@Nonnull Runnable letter, Object description) throws MailboxStateException {
+			TaskMailboxImpl.this.putMail(letter, priority, description);
 		}
 
 		@Override
-		public void putFirst(@Nonnull Runnable priorityLetter) throws MailboxStateException {
-			TaskMailboxImpl.this.putFirst(priorityLetter);
+		public void putFirst(@Nonnull Runnable priorityLetter, Object description) throws MailboxStateException {
+			TaskMailboxImpl.this.putFirst(priorityLetter, description);
 		}
 	}
 
@@ -292,10 +292,12 @@ public class TaskMailboxImpl implements TaskMailbox {
 	static class Mail {
 		private final Runnable runnable;
 		private final int priority;
+		private final Object description;
 
-		public Mail(Runnable runnable, int priority) {
+		public Mail(Runnable runnable, int priority, Object description) {
 			this.runnable = runnable;
 			this.priority = priority;
+			this.description = description == null ? runnable : description;
 		}
 
 		public int getPriority() {
@@ -304,6 +306,11 @@ public class TaskMailboxImpl implements TaskMailbox {
 
 		Runnable getRunnable() {
 			return runnable;
+		}
+
+		@Override
+		public String toString() {
+			return description.toString();
 		}
 	}
 }
