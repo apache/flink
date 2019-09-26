@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.flink.ml.params.mode;
+package org.apache.flink.ml.params.mapper;
 
 import org.apache.flink.ml.params.shared.colname.HasPredictionCol;
 import org.apache.flink.ml.params.shared.colname.HasPredictionDetailCol;

@@ -24,7 +24,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.ml.api.misc.param.Params;
 import org.apache.flink.ml.common.utils.OutputColsHelper;
-import org.apache.flink.ml.params.mode.RichModelMapperParams;
+import org.apache.flink.ml.params.mapper.RichModelMapperParams;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.types.Row;
 
