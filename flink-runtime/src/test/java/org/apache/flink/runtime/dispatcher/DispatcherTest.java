@@ -254,11 +254,11 @@ public class DispatcherTest extends TestLogger {
 					() -> CompletableFuture.completedFuture(resourceManagerGateway),
 					blobServer,
 					heartbeatServices,
-					UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 					archivedExecutionGraphStore,
 					fatalErrorHandler,
 					VoidHistoryServerArchivist.INSTANCE,
 					null,
+					UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
 					jobGraphWriter,
 					jobManagerRunnerFactory));
 		}
