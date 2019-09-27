@@ -38,6 +38,7 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.service.Service;
+import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
@@ -571,6 +572,17 @@ public abstract class YarnTestBase extends TestLogger {
 			count += containers.size();
 		}
 		return count;
+	}
+
+	public static HashMap<ContainerId, Map<ApplicationAccessType, String>> getRunningContainersAcls() {
+		HashMap<ContainerId, Map<ApplicationAccessType, String>> containers = new HashMap<>();
+		for (int nmId = 0; nmId < NUM_NODEMANAGERS; nmId++) {
+			NodeManager nm = yarnCluster.getNodeManager(nmId);
+			nm.getNMContext().getContainers().forEach((k, v) -> {
+				containers.put(k, v.getLaunchContext().getApplicationACLs());
+			});
+		}
+		return containers;
 	}
 
 	public static void startYARNSecureMode(YarnConfiguration conf, String principal, String keytab) {

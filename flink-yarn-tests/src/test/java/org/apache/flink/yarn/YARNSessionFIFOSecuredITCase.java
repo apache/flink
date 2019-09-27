@@ -28,6 +28,7 @@ import org.apache.flink.test.util.TestingSecurityContext;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
+import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.security.AMRMTokenIdentifier;
 import org.apache.hadoop.yarn.server.resourcemanager.scheduler.ResourceScheduler;
@@ -135,6 +136,11 @@ public class YARNSessionFIFOSecuredITCase extends YARNSessionFIFOITCase {
 				"The TaskManager should not have AMRMToken.",
 				taskmanagerWithAmRmToken,
 				Matchers.is(false));
+
+			getRunningContainersAcls().forEach((k, acls) -> {
+				Assert.assertEquals(VIEW_ACLS, acls.get(ApplicationAccessType.VIEW_APP));
+				Assert.assertEquals(ADMIN_ACLS, acls.get(ApplicationAccessType.MODIFY_APP));
+			});
 		});
 	}
 

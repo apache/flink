@@ -60,6 +60,9 @@ import static org.apache.flink.yarn.util.YarnTestUtils.getTestJarPath;
 public class YARNSessionFIFOITCase extends YarnTestBase {
 	private static final Logger LOG = LoggerFactory.getLogger(YARNSessionFIFOITCase.class);
 
+	protected static final String VIEW_ACLS = "user groupUser";
+	protected static final String ADMIN_ACLS = "admin groupAdmin";
+
 	/*
 	Override init with FIFO scheduler.
 	 */
@@ -120,6 +123,9 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			if (SecureTestEnvironment.getHadoopServicePrincipal() != null) {
 				args.add("-D" + SecurityOptions.KERBEROS_LOGIN_PRINCIPAL.key() + "=" + SecureTestEnvironment.getHadoopServicePrincipal());
 			}
+
+			args.add("-D" + YarnConfigOptions.APPLICATION_VIEW_ACLS.key() + "=" + VIEW_ACLS);
+			args.add("-D" + YarnConfigOptions.APPLICATION_ADMIN_ACLS.key() + "=" + ADMIN_ACLS);
 
 			args.add("--name");
 			args.add("MyCustomName");
