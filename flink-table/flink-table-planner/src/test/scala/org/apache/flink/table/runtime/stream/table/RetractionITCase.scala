@@ -110,7 +110,7 @@ class RetractionITCase extends StreamingWithStateTestBase {
       .select('count, 'count.count)
 
     val results = resultTable.toRetractStream[Row]
-    results.addSink(new StreamITCase.RetractingSink)
+    results.addSink(new StreamITCase.RetractingSink).setParallelism(1)
     env.execute()
 
     val expected = Seq("10,1")

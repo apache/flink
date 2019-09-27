@@ -20,7 +20,7 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -33,15 +33,15 @@ import java.util.Map;
 @Internal
 public class FilterQueryOperation implements QueryOperation {
 
-	private final Expression condition;
+	private final ResolvedExpression condition;
 	private final QueryOperation child;
 
-	public FilterQueryOperation(Expression condition, QueryOperation child) {
+	public FilterQueryOperation(ResolvedExpression condition, QueryOperation child) {
 		this.condition = condition;
 		this.child = child;
 	}
 
-	public Expression getCondition() {
+	public ResolvedExpression getCondition() {
 		return condition;
 	}
 

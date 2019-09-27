@@ -38,32 +38,11 @@ To use the connector, add the following Maven dependency to your project:
 </dependency>
 {% endhighlight %}
 
-**The `flink-connector-kinesis{{ site.scala_version_suffix }}` has a dependency on code licensed under the [Amazon Software License](https://aws.amazon.com/asl/) (ASL).
-Linking to the flink-connector-kinesis will include ASL licensed code into your application.**
 
-The `flink-connector-kinesis{{ site.scala_version_suffix }}` artifact is not deployed to Maven central as part of
-Flink releases because of the licensing issue. Therefore, you need to build the connector yourself from the source.
+<span class="label label-danger">Attention</span> Prior to Flink version 1.10.0 the `flink-connector-kinesis{{ site.scala_version_suffix }}` has a dependency on code licensed under the [Amazon Software License](https://aws.amazon.com/asl/).
+Linking to the prior versions of flink-connector-kinesis will include this code into your application.
 
-Download the Flink source or check it out from the git repository. Then, use the following Maven command to build the module:
-{% highlight bash %}
-mvn clean install -Pinclude-kinesis -DskipTests
-# In Maven 3.3 the shading of flink-dist doesn't work properly in one run, so we need to run mvn for flink-dist again.
-cd flink-dist
-mvn clean install -Pinclude-kinesis -DskipTests
-{% endhighlight %}
-
-<span class="label label-danger">Attention</span> For Flink versions 1.4.2 and below, the KPL client version
-used by default in the Kinesis connectors, KPL 0.12.5, is no longer supported by AWS Kinesis Streams
-(see [here](https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-upgrades.html)).
-This means that when building the Kinesis connector, you will need to specify a higher version KPL client (above 0.12.6)
-in order for the Flink Kinesis Producer to work. You can do this by specifying the preferred version via the
-`aws.kinesis-kpl.version` property, like so:
-{% highlight bash %}
-mvn clean install -Pinclude-kinesis -Daws.kinesis-kpl.version=0.12.6 -DskipTests
-{% endhighlight %}
-
-The streaming connectors are not part of the binary distribution. See how to link with them for cluster
-execution [here]({{site.baseurl}}/dev/projectsetup/dependencies.html).
+Due to the licensing issue, the `flink-connector-kinesis{{ site.scala_version_suffix }}` artifact is not deployed to Maven central for the prior versions. Please see the version specific documentation for further information.
 
 ## Using the Amazon Kinesis Streams Service
 Follow the instructions from the [Amazon Kinesis Streams Developer Guide](https://docs.aws.amazon.com/streams/latest/dev/learning-kinesis-module-one-create-stream.html)

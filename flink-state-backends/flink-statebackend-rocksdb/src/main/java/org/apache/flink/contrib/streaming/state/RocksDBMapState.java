@@ -33,6 +33,7 @@ import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StateMigrationException;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDB;
@@ -50,12 +51,10 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * {@link MapState} implementation that stores state in RocksDB.
- *
- * <p>{@link RocksDBStateBackend} must ensure that we set the
- * {@link org.rocksdb.StringAppendOperator} on the column family that we use for our state since
- * we use the {@code merge()} call.
  *
  * @param <K> The type of the key.
  * @param <N> The type of the namespace.
@@ -200,6 +199,32 @@ class RocksDBMapState<K, N, UK, UV>
 				return (entry == null ? null : entry.getValue());
 			}
 		};
+	}
+
+	@Override
+	public void migrateSerializedValue(
+		DataInputDeserializer serializedOldValueInput,
+		DataOutputSerializer serializedMigratedValueOutput,
+		TypeSerializer<Map<UK, UV>> priorSerializer,
+		TypeSerializer<Map<UK, UV>> newSerializer) throws StateMigrationException {
+
+		checkArgument(priorSerializer instanceof MapSerializer);
+		checkArgument(newSerializer instanceof MapSerializer);
+
+		TypeSerializer<UV> priorMapValueSerializer = ((MapSerializer<UK, UV>) priorSerializer).getValueSerializer();
+		TypeSerializer<UV> newMapValueSerializer = ((MapSerializer<UK, UV>) newSerializer).getValueSerializer();
+
+		try {
+			boolean isNull = serializedOldValueInput.readBoolean();
+			UV mapUserValue = null;
+			if (!isNull) {
+				mapUserValue = priorMapValueSerializer.deserialize(serializedOldValueInput);
+			}
+			serializedMigratedValueOutput.writeBoolean(mapUserValue == null);
+			newMapValueSerializer.serialize(mapUserValue, serializedMigratedValueOutput);
+		} catch (Exception e) {
+			throw new StateMigrationException("Error while trying to migrate RocksDB map state.", e);
+		}
 	}
 
 	@Override

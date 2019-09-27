@@ -152,7 +152,8 @@ public class ResourceManagerJobMasterTest extends TestLogger {
 			jobLeaderIdService,
 			new ClusterInformation("localhost", 1234),
 			testingFatalErrorHandler,
-			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup());
+			UnregisteredMetricGroups.createUnregisteredJobManagerMetricGroup(),
+			Time.minutes(5L));
 
 		resourceManager.start();
 

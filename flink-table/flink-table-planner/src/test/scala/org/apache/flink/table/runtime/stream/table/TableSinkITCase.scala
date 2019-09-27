@@ -27,7 +27,7 @@ import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
-import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink}
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.sink.SinkFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
@@ -621,7 +621,11 @@ private[flink] class TestAppendSink extends AppendStreamTableSink[Row] {
   var fTypes: Array[TypeInformation[_]] = _
 
   override def emitDataStream(s: DataStream[Row]): Unit = {
-    s.map(
+    consumeDataStream(s)
+  }
+
+  override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
+    dataStream.map(
       new MapFunction[Row, JTuple2[JBool, Row]] {
         override def map(value: Row): JTuple2[JBool, Row] = new JTuple2(true, value)
       })

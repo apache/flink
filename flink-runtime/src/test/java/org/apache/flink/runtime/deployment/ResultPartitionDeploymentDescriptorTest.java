@@ -27,6 +27,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
+import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.NetworkPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
@@ -71,13 +72,9 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 	 * Tests simple de/serialization with {@link UnknownShuffleDescriptor}.
 	 */
 	@Test
-	public void testSerializationWithUnknownShuffleDescriptor() throws Exception {
+	public void testSerializationOfUnknownShuffleDescriptor() throws IOException {
 		ShuffleDescriptor shuffleDescriptor = new UnknownShuffleDescriptor(resultPartitionID);
-
-		ResultPartitionDeploymentDescriptor copy =
-			createCopyAndVerifyResultPartitionDeploymentDescriptor(shuffleDescriptor);
-
-		ShuffleDescriptor shuffleDescriptorCopy = copy.getShuffleDescriptor();
+		ShuffleDescriptor shuffleDescriptorCopy = CommonTestUtils.createCopySerializable(shuffleDescriptor);
 		assertThat(shuffleDescriptorCopy, instanceOf(UnknownShuffleDescriptor.class));
 		assertThat(shuffleDescriptorCopy.getResultPartitionID(), is(resultPartitionID));
 		assertThat(shuffleDescriptorCopy.isUnknown(), is(true));
@@ -87,10 +84,10 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 	 * Tests simple de/serialization with {@link NettyShuffleDescriptor}.
 	 */
 	@Test
-	public void testSerializationWithNettyShuffleDescriptor() throws Exception {
+	public void testSerializationWithNettyShuffleDescriptor() throws IOException {
 		ShuffleDescriptor shuffleDescriptor = new NettyShuffleDescriptor(
 			producerLocation,
-			new NettyShuffleDescriptor.NetworkPartitionConnectionInfo(connectionID),
+			new NetworkPartitionConnectionInfo(connectionID),
 			resultPartitionID);
 
 		ResultPartitionDeploymentDescriptor copy =
@@ -102,24 +99,6 @@ public class ResultPartitionDeploymentDescriptorTest extends TestLogger {
 		assertThat(shuffleDescriptorCopy.isUnknown(), is(false));
 		assertThat(shuffleDescriptorCopy.isLocalTo(producerLocation), is(true));
 		assertThat(shuffleDescriptorCopy.getConnectionId(), is(connectionID));
-	}
-
-	@Test
-	public void testReleasedOnConsumptionFlag() {
-		for (ResultPartitionType partitionType : ResultPartitionType.values()) {
-			ResultPartitionDeploymentDescriptor partitionDescriptor = new ResultPartitionDeploymentDescriptor(
-				new PartitionDescriptor(resultId, partitionId, partitionType, numberOfSubpartitions, connectionIndex),
-				ResultPartitionID::new,
-				1,
-				true
-			);
-
-			if (partitionType == ResultPartitionType.BLOCKING) {
-				assertThat(partitionDescriptor.isReleasedOnConsumption(), is(false));
-			} else {
-				assertThat(partitionDescriptor.isReleasedOnConsumption(), is(true));
-			}
-		}
 	}
 
 	private static ResultPartitionDeploymentDescriptor createCopyAndVerifyResultPartitionDeploymentDescriptor(

@@ -18,8 +18,7 @@
 
 from py4j.protocol import Py4JJavaError
 
-from pyflink.table.window import Session, Slide, Tumble
-from pyflink.table import Over
+from pyflink.table.window import Session, Slide, Tumble, Over
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, PyFlinkBatchTableTestCase
 
 
@@ -27,13 +26,12 @@ class StreamTableWindowTests(PyFlinkStreamTableTestCase):
 
     def test_over_window(self):
         t_env = self.t_env
-        data = [(1, 1, "Hello"), (2, 2, "Hello"), (3, 4, "Hello"), (4, 8, "Hello")]
-        t = t_env.from_elements(data, ['a', 'b', 'c'])
+        t = t_env.from_elements([(1, 1, "Hello")], ['a', 'b', 'c'])
 
         result = t.over_window(Over.partition_by("c").order_by("a")
                                .preceding("2.rows").following("current_row").alias("w"))
 
-        self.assertRaisesRegexp(
+        self.assertRaisesRegex(
             Py4JJavaError, "Ordering must be defined on a time attribute",
             result.select, "b.sum over w")
 
@@ -41,39 +39,34 @@ class StreamTableWindowTests(PyFlinkStreamTableTestCase):
 class BatchTableWindowTests(PyFlinkBatchTableTestCase):
 
     def test_tumble_window(self):
-        t = self.t_env.from_elements(
-            [(1, 1, "Hello"), (2, 2, "Hello"), (3, 4, "Hello"), (4, 8, "Hello")],
-            ["a", "b", "c"])
+        t = self.t_env.from_elements([(1, 1, "Hello")], ["a", "b", "c"])
         result = t.window(Tumble.over("2.rows").on("a").alias("w"))\
             .group_by("w, c").select("b.sum")
-        actual = self.collect(result)
 
-        expected = ['3', '12']
-        self.assert_equals(actual, expected)
+        query_operation = result._j_table.getQueryOperation().getChildren().get(0)
+        self.assertEqual('[c]', query_operation.getGroupingExpressions().toString())
+        self.assertEqual('TumbleWindow(field: [a], size: [2])',
+                         query_operation.getGroupWindow().asSummaryString())
 
     def test_slide_window(self):
-        t = self.t_env.from_elements(
-            [(1000, 1, "Hello"), (2000, 2, "Hello"), (3000, 4, "Hello"), (4000, 8, "Hello")],
-            ["a", "b", "c"])
-
+        t = self.t_env.from_elements([(1000, 1, "Hello")], ["a", "b", "c"])
         result = t.window(Slide.over("2.seconds").every("1.seconds").on("a").alias("w"))\
             .group_by("w, c").select("b.sum")
-        actual = self.collect(result)
 
-        expected = ['1', '3', '6', '12', '8']
-        self.assert_equals(actual, expected)
+        query_operation = result._j_table.getQueryOperation().getChildren().get(0)
+        self.assertEqual('[c]', query_operation.getGroupingExpressions().toString())
+        self.assertEqual('SlideWindow(field: [a], slide: [1000], size: [2000])',
+                         query_operation.getGroupWindow().asSummaryString())
 
     def test_session_window(self):
-        t = self.t_env.from_elements(
-            [(1000, 1, "Hello"), (2000, 2, "Hello"), (4000, 4, "Hello"), (5000, 8, "Hello")],
-            ["a", "b", "c"])
-
+        t = self.t_env.from_elements([(1000, 1, "Hello")], ["a", "b", "c"])
         result = t.window(Session.with_gap("1.seconds").on("a").alias("w"))\
             .group_by("w, c").select("b.sum")
-        actual = self.collect(result)
 
-        expected = ['3', '12']
-        self.assert_equals(actual, expected)
+        query_operation = result._j_table.getQueryOperation().getChildren().get(0)
+        self.assertEqual('[c]', query_operation.getGroupingExpressions().toString())
+        self.assertEqual('SessionWindow(field: [a], gap: [1000])',
+                         query_operation.getGroupWindow().asSummaryString())
 
 
 if __name__ == '__main__':

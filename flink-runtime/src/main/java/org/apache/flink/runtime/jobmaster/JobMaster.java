@@ -39,6 +39,8 @@ import org.apache.flink.runtime.heartbeat.HeartbeatManager;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.HeartbeatTarget;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.io.network.partition.PartitionTracker;
+import org.apache.flink.runtime.io.network.partition.PartitionTrackerFactory;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -75,6 +77,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.AccumulatorReport;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -84,7 +87,6 @@ import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
-import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 
@@ -138,11 +140,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final BlobWriter blobWriter;
 
+	private final HeartbeatServices heartbeatServices;
+
 	private final JobManagerJobMetricGroupFactory jobMetricGroupFactory;
-
-	private final HeartbeatManager<AccumulatorReport, AllocatedSlotReport> taskManagerHeartbeatManager;
-
-	private final HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
 
 	private final ScheduledExecutorService scheduledExecutorService;
 
@@ -170,7 +170,13 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private final Map<ResourceID, Tuple2<TaskManagerLocation, TaskExecutorGateway>> registeredTaskManagers;
 
+	private final ShuffleMaster<?> shuffleMaster;
+
 	// -------- Mutable fields ---------
+
+	private HeartbeatManager<AccumulatorReport, AllocatedSlotReport> taskManagerHeartbeatManager;
+
+	private HeartbeatManager<Void, Void> resourceManagerHeartbeatManager;
 
 	private SchedulerNG schedulerNG;
 
@@ -191,6 +197,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private Map<String, Object> accumulators;
 
+	private final PartitionTracker partitionTracker;
+
 	// ------------------------------------------------------------------------
 
 	public JobMaster(
@@ -207,11 +215,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			OnCompletionActions jobCompletionActions,
 			FatalErrorHandler fatalErrorHandler,
 			ClassLoader userCodeLoader,
-			SchedulerNGFactory schedulerNGFactory) throws Exception {
+			SchedulerNGFactory schedulerNGFactory,
+			ShuffleMaster<?> shuffleMaster,
+			PartitionTrackerFactory partitionTrackerFactory) throws Exception {
 
 		super(rpcService, AkkaRpcServiceUtils.createRandomName(JOB_MANAGER_NAME));
-
-		final JobMasterGateway selfGateway = getSelfGateway(JobMasterGateway.class);
 
 		this.jobMasterConfiguration = checkNotNull(jobMasterConfiguration);
 		this.resourceId = checkNotNull(resourceId);
@@ -224,19 +232,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.fatalErrorHandler = checkNotNull(fatalErrorHandler);
 		this.userCodeLoader = checkNotNull(userCodeLoader);
 		this.schedulerNGFactory = checkNotNull(schedulerNGFactory);
+		this.heartbeatServices = checkNotNull(heartbeatServices);
 		this.jobMetricGroupFactory = checkNotNull(jobMetricGroupFactory);
-
-		this.taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
-			resourceId,
-			new TaskManagerHeartbeatListener(selfGateway),
-			rpcService.getScheduledExecutor(),
-			log);
-
-		this.resourceManagerHeartbeatManager = heartbeatServices.createHeartbeatManager(
-				resourceId,
-				new ResourceManagerHeartbeatListener(),
-				rpcService.getScheduledExecutor(),
-				log);
 
 		final String jobName = jobGraph.getName();
 		final JobID jid = jobGraph.getJobID();
@@ -250,8 +247,19 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		this.scheduler = checkNotNull(schedulerFactory).createScheduler(slotPool);
 
 		this.registeredTaskManagers = new HashMap<>(4);
+		this.partitionTracker = checkNotNull(partitionTrackerFactory)
+			.create(resourceID -> {
+				Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManagerInfo = registeredTaskManagers.get(resourceID);
+				if (taskManagerInfo == null) {
+					return Optional.empty();
+				}
+
+				return Optional.of(taskManagerInfo.f1);
+			});
 
 		this.backPressureStatsTracker = checkNotNull(jobManagerSharedServices.getBackPressureStatsTracker());
+
+		this.shuffleMaster = checkNotNull(shuffleMaster);
 
 		this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
 		this.schedulerNG = createScheduler(jobManagerJobMetricGroup);
@@ -277,7 +285,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 			rpcTimeout,
 			blobWriter,
 			jobManagerJobMetricGroup,
-			jobMasterConfiguration.getSlotRequestTimeout());
+			jobMasterConfiguration.getSlotRequestTimeout(),
+			shuffleMaster,
+			partitionTracker);
 	}
 
 	//----------------------------------------------------------------------------------------------
@@ -332,9 +342,6 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		for (ResourceID taskManagerResourceId : taskManagerResourceIds) {
 			disconnectTaskManager(taskManagerResourceId, cause);
 		}
-
-		taskManagerHeartbeatManager.stop();
-		resourceManagerHeartbeatManager.stop();
 
 		// make sure there is a graceful exit
 		suspendExecution(new FlinkException("JobManager is shutting down."));
@@ -417,6 +424,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		taskManagerHeartbeatManager.unmonitorTarget(resourceID);
 		slotPool.releaseTaskManager(resourceID, cause);
+		partitionTracker.stopTrackingPartitionsFor(resourceID);
 
 		Tuple2<TaskManagerLocation, TaskExecutorGateway> taskManagerConnection = registeredTaskManagers.remove(resourceID);
 
@@ -528,7 +536,11 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private void internalFailAllocation(AllocationID allocationId, Exception cause) {
 		final Optional<ResourceID> resourceIdOptional = slotPool.failAllocation(allocationId, cause);
-		resourceIdOptional.ifPresent(this::releaseEmptyTaskManager);
+		resourceIdOptional.ifPresent(taskManagerId -> {
+			if (!partitionTracker.isTrackingPartitionsFor(taskManagerId)) {
+				releaseEmptyTaskManager(taskManagerId);
+			}
+		});
 	}
 
 	private void releaseEmptyTaskManager(ResourceID resourceId) {
@@ -702,6 +714,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 	}
 
 	private void startJobMasterServices() throws Exception {
+		startHeartbeatServices();
+
 		// start the slot pool make sure the slot pool now accepts messages for this leader
 		slotPool.start(getFencingToken(), getAddress(), getMainThreadExecutor());
 		scheduler.start(getMainThreadExecutor());
@@ -765,7 +779,35 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		// disconnect from resource manager:
 		closeResourceManagerConnection(cause);
 
+		stopHeartbeatServices();
+
 		return Acknowledge.get();
+	}
+
+	private void stopHeartbeatServices() {
+		if (taskManagerHeartbeatManager != null) {
+			taskManagerHeartbeatManager.stop();
+			taskManagerHeartbeatManager = null;
+		}
+
+		if (resourceManagerHeartbeatManager != null) {
+			resourceManagerHeartbeatManager.stop();
+			resourceManagerHeartbeatManager = null;
+		}
+	}
+
+	private void startHeartbeatServices() {
+		taskManagerHeartbeatManager = heartbeatServices.createHeartbeatManagerSender(
+			resourceId,
+			new TaskManagerHeartbeatListener(),
+			getMainThreadExecutor(),
+			log);
+
+		resourceManagerHeartbeatManager = heartbeatServices.createHeartbeatManager(
+			resourceId,
+			new ResourceManagerHeartbeatListener(),
+			getMainThreadExecutor(),
+			log);
 	}
 
 	private void assignScheduler(
@@ -854,6 +896,9 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		validateRunsInMainThread();
 
 		if (newJobStatus.isGloballyTerminalState()) {
+			runAsync(() -> registeredTaskManagers.keySet()
+				.forEach(partitionTracker::stopTrackingAndReleasePartitionsFor));
+
 			final ArchivedExecutionGraph archivedExecutionGraph = schedulerNG.requestJob();
 			scheduledExecutorService.execute(() -> jobCompletionActions.jobReachedGloballyTerminalState(archivedExecutionGraph));
 		}
@@ -1098,29 +1143,26 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 	private class TaskManagerHeartbeatListener implements HeartbeatListener<AccumulatorReport, AllocatedSlotReport> {
 
-		private final JobMasterGateway jobMasterGateway;
-
-		private TaskManagerHeartbeatListener(JobMasterGateway jobMasterGateway) {
-			this.jobMasterGateway = Preconditions.checkNotNull(jobMasterGateway);
-		}
-
 		@Override
 		public void notifyHeartbeatTimeout(ResourceID resourceID) {
-			jobMasterGateway.disconnectTaskManager(
+			validateRunsInMainThread();
+			disconnectTaskManager(
 				resourceID,
 				new TimeoutException("Heartbeat of TaskManager with id " + resourceID + " timed out."));
 		}
 
 		@Override
 		public void reportPayload(ResourceID resourceID, AccumulatorReport payload) {
+			validateRunsInMainThread();
 			for (AccumulatorSnapshot snapshot : payload.getAccumulatorSnapshots()) {
 				schedulerNG.updateAccumulators(snapshot);
 			}
 		}
 
 		@Override
-		public CompletableFuture<AllocatedSlotReport> retrievePayload(ResourceID resourceID) {
-			return callAsync(() -> slotPool.createAllocatedSlotReport(resourceID), RpcUtils.INF_TIMEOUT);
+		public AllocatedSlotReport retrievePayload(ResourceID resourceID) {
+			validateRunsInMainThread();
+			return slotPool.createAllocatedSlotReport(resourceID);
 		}
 	}
 
@@ -1128,15 +1170,14 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 
 		@Override
 		public void notifyHeartbeatTimeout(final ResourceID resourceId) {
-			runAsync(() -> {
-				log.info("The heartbeat of ResourceManager with id {} timed out.", resourceId);
+			validateRunsInMainThread();
+			log.info("The heartbeat of ResourceManager with id {} timed out.", resourceId);
 
-				if (establishedResourceManagerConnection != null && establishedResourceManagerConnection.getResourceManagerResourceID().equals(resourceId)) {
-					reconnectToResourceManager(
-						new JobMasterException(
-							String.format("The heartbeat of ResourceManager with id %s timed out.", resourceId)));
-				}
-			});
+			if (establishedResourceManagerConnection != null && establishedResourceManagerConnection.getResourceManagerResourceID().equals(resourceId)) {
+				reconnectToResourceManager(
+					new JobMasterException(
+						String.format("The heartbeat of ResourceManager with id %s timed out.", resourceId)));
+			}
 		}
 
 		@Override
@@ -1145,8 +1186,8 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId> implements JobMast
 		}
 
 		@Override
-		public CompletableFuture<Void> retrievePayload(ResourceID resourceID) {
-			return CompletableFuture.completedFuture(null);
+		public Void retrievePayload(ResourceID resourceID) {
+			return null;
 		}
 	}
 }

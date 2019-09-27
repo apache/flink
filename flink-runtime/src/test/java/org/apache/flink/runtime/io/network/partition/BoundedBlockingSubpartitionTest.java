@@ -18,18 +18,25 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.io.disk.FileChannelManager;
+import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import javax.annotation.Nullable;
+
 import java.io.File;
 import java.io.IOException;
-import java.nio.channels.FileChannel;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 
+import static org.apache.flink.runtime.io.network.partition.PartitionTestUtils.createPartition;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
@@ -41,8 +48,22 @@ import static org.junit.Assert.fail;
  */
 public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 
+	private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
+
+	private static FileChannelManager fileChannelManager;
+
 	@ClassRule
 	public static final TemporaryFolder TMP_DIR = new TemporaryFolder();
+
+	@BeforeClass
+	public static void setUp() {
+		fileChannelManager = new FileChannelManagerImpl(new String[] {tempDir}, "testing");
+	}
+
+	@AfterClass
+	public static void shutdown() throws Exception {
+		fileChannelManager.close();
+	}
 
 	// ------------------------------------------------------------------------
 
@@ -59,47 +80,108 @@ public class BoundedBlockingSubpartitionTest extends SubpartitionTestBase {
 		partition.release();
 	}
 
+	@Test
+	public void testCloseBoundedData() throws Exception {
+		final TestingBoundedDataReader reader = new TestingBoundedDataReader();
+		final TestingBoundedData data = new TestingBoundedData(reader);
+		final BoundedBlockingSubpartitionReader bbspr = new BoundedBlockingSubpartitionReader(
+				(BoundedBlockingSubpartition) createSubpartition(), data, 10, new NoOpBufferAvailablityListener());
+
+		bbspr.releaseAllResources();
+
+		assertTrue(reader.closed);
+	}
+
 	// ------------------------------------------------------------------------
 
 	@Override
 	ResultSubpartition createSubpartition() throws Exception {
-		final ResultPartition resultPartition = PartitionTestUtils.createPartition(ResultPartitionType.BLOCKING);
-		return new BoundedBlockingSubpartition(0, resultPartition, tmpPath());
+		final ResultPartition resultPartition = createPartition(ResultPartitionType.BLOCKING, fileChannelManager);
+		return BoundedBlockingSubpartition.createWithMemoryMappedFile(
+				0, resultPartition, new File(TMP_DIR.newFolder(), "subpartition"));
 	}
 
 	@Override
 	ResultSubpartition createFailingWritesSubpartition() throws Exception {
-		final ResultPartition resultPartition = PartitionTestUtils.createPartition(ResultPartitionType.BLOCKING);
+		final ResultPartition resultPartition = createPartition(ResultPartitionType.BLOCKING, fileChannelManager);
 
 		return new BoundedBlockingSubpartition(
 				0,
 				resultPartition,
-				FailingMemory.create());
+				new FailingBoundedData());
 	}
 
 	// ------------------------------------------------------------------------
 
-	static Path tmpPath() throws IOException {
-		return new File(TMP_DIR.newFolder(), "subpartition").toPath();
-	}
-
-	// ------------------------------------------------------------------------
-
-	private static class FailingMemory extends MemoryMappedBuffers {
-
-		FailingMemory(Path path, FileChannel fc) throws IOException {
-			super(path, fc, Integer.MAX_VALUE);
-		}
+	private static class FailingBoundedData implements BoundedData {
 
 		@Override
-		void writeBuffer(Buffer buffer) throws IOException {
+		public void writeBuffer(Buffer buffer) throws IOException {
 			throw new IOException("test");
 		}
 
-		static FailingMemory create() throws IOException {
-			Path p = tmpPath();
-			FileChannel fc = FileChannel.open(p, StandardOpenOption.WRITE, StandardOpenOption.READ, StandardOpenOption.CREATE);
-			return new FailingMemory(p, fc);
+		@Override
+		public void finishWrite() throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Reader createReader(ResultSubpartitionView subpartitionView) throws IOException {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public long getSize() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void close() {}
+	}
+
+	private static class TestingBoundedData implements BoundedData {
+
+		private BoundedData.Reader reader;
+
+		private TestingBoundedData(BoundedData.Reader reader) {
+			this.reader = checkNotNull(reader);
+		}
+
+		@Override
+		public void writeBuffer(Buffer buffer) throws IOException {
+		}
+
+		@Override
+		public void finishWrite() throws IOException {
+		}
+
+		@Override
+		public Reader createReader(ResultSubpartitionView ignored) throws IOException {
+			return reader;
+		}
+
+		@Override
+		public long getSize() {
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void close() {}
+	}
+
+	private static class TestingBoundedDataReader implements BoundedData.Reader {
+
+		boolean closed;
+
+		@Nullable
+		@Override
+		public Buffer nextBuffer() throws IOException {
+			return null;
+		}
+
+		@Override
+		public void close() throws IOException {
+			closed = true;
 		}
 	}
 }

@@ -20,7 +20,7 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -34,25 +34,29 @@ import java.util.Map;
 @Internal
 public class SortQueryOperation implements QueryOperation {
 
-	private final List<Expression> order;
+	private final List<ResolvedExpression> order;
 	private final QueryOperation child;
 	private final int offset;
 	private final int fetch;
 
 	public SortQueryOperation(
-			List<Expression> order,
+			List<ResolvedExpression> order,
 			QueryOperation child) {
 		this(order, child, -1, -1);
 	}
 
-	public SortQueryOperation(List<Expression> order, QueryOperation child, int offset, int fetch) {
+	public SortQueryOperation(
+			List<ResolvedExpression> order,
+			QueryOperation child,
+			int offset,
+			int fetch) {
 		this.order = order;
 		this.child = child;
 		this.offset = offset;
 		this.fetch = fetch;
 	}
 
-	public List<Expression> getOrder() {
+	public List<ResolvedExpression> getOrder() {
 		return order;
 	}
 

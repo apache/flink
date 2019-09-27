@@ -87,7 +87,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
 
 			env
 					.addSource(new FailingSource(new EventTimeWindowCheckpointingITCase.KeyedEventTimeGenerator(numKeys, windowSize), numElementsPerKey))
@@ -148,7 +147,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
 
 			env
 				.addSource(new FailingSource(new EventTimeWindowCheckpointingITCase.KeyedEventTimeGenerator(numKeys, windowSlide), numElementsPerKey))
@@ -208,7 +206,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
 
 			env
 				.addSource(new FailingSource(new EventTimeWindowCheckpointingITCase.KeyedEventTimeGenerator(numKeys, windowSize), numElementsPerKey))
@@ -277,7 +274,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
 
 			env
 				.addSource(new FailingSource(new EventTimeWindowCheckpointingITCase.KeyedEventTimeGenerator(numKeys, windowSize), numElementsPerKey))
@@ -346,7 +342,6 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
 			env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 			env.enableCheckpointing(100);
 			env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, 0));
-			env.getConfig().disableSysoutLogging();
 
 			env
 				.addSource(new FailingSource(new EventTimeWindowCheckpointingITCase.KeyedEventTimeGenerator(numKeys, windowSlide), numElementsPerKey))

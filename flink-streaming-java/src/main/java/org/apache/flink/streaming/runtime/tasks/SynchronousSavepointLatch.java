@@ -20,6 +20,10 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.util.function.RunnableWithException;
+
+import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 /**
  * A synchronization primitive used by the {@link StreamTask} to wait
@@ -29,12 +33,17 @@ class SynchronousSavepointLatch {
 
 	private static final long NOT_SET_CHECKPOINT_ID = -1L;
 
-	// these are mutually exclusive
-	private volatile boolean waiting;
-	private volatile boolean completed;
-	private volatile boolean canceled;
+	enum CompletionResult {
+		COMPLETED,
+		CANCELED,
+	}
 
-	private volatile boolean wasAlreadyCompleted;
+	@GuardedBy("synchronizationPoint")
+	private volatile boolean waiting;
+
+	@GuardedBy("synchronizationPoint")
+	@Nullable
+	private volatile CompletionResult completionResult;
 
 	private final Object synchronizationPoint;
 
@@ -44,8 +53,6 @@ class SynchronousSavepointLatch {
 		this.synchronizationPoint = new Object();
 
 		this.waiting = false;
-		this.completed = false;
-		this.canceled = false;
 		this.checkpointId = NOT_SET_CHECKPOINT_ID;
 	}
 
@@ -59,43 +66,38 @@ class SynchronousSavepointLatch {
 		}
 	}
 
-	boolean blockUntilCheckpointIsAcknowledged() throws Exception {
+	void blockUntilCheckpointIsAcknowledged() throws InterruptedException {
 		synchronized (synchronizationPoint) {
-			if (isSet() && !isDone()) {
-				waiting = true;
-				synchronizationPoint.wait();
+			if (isSet()) {
+				while (completionResult == null) {
+					waiting = true;
+					synchronizationPoint.wait();
+				}
 				waiting = false;
 			}
-
-			if (!isCanceled() && !wasAlreadyCompleted) {
-				wasAlreadyCompleted = true;
-				return true;
-			}
-
-			return false;
 		}
 	}
 
-	void acknowledgeCheckpointAndTrigger(final long checkpointId) {
+	void acknowledgeCheckpointAndTrigger(final long checkpointId, RunnableWithException runnable) throws Exception {
 		synchronized (synchronizationPoint) {
-			if (isSet() && !isDone() && this.checkpointId == checkpointId) {
-				completed = true;
-				synchronizationPoint.notifyAll();
+			if (completionResult == null && this.checkpointId == checkpointId) {
+				completionResult = CompletionResult.COMPLETED;
+				try {
+					runnable.run();
+				} finally {
+					synchronizationPoint.notifyAll();
+				}
 			}
 		}
 	}
 
 	void cancelCheckpointLatch() {
 		synchronized (synchronizationPoint) {
-			if (!isDone()) {
-				canceled = true;
+			if (completionResult == null) {
+				completionResult = CompletionResult.CANCELED;
 				synchronizationPoint.notifyAll();
 			}
 		}
-	}
-
-	private boolean isDone () {
-		return canceled || completed;
 	}
 
 	@VisibleForTesting
@@ -105,15 +107,14 @@ class SynchronousSavepointLatch {
 
 	@VisibleForTesting
 	boolean isCompleted() {
-		return completed;
+		return completionResult == CompletionResult.COMPLETED;
 	}
 
 	@VisibleForTesting
 	boolean isCanceled() {
-		return canceled;
+		return completionResult == CompletionResult.CANCELED;
 	}
 
-	@VisibleForTesting
 	boolean isSet() {
 		return checkpointId != NOT_SET_CHECKPOINT_ID;
 	}

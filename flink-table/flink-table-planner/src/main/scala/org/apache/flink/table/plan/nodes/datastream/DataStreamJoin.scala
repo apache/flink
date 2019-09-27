@@ -24,9 +24,10 @@ import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rel.{BiRel, RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvImpl, TableException}
+import org.apache.flink.table.api.{StreamQueryConfig, TableException}
 import org.apache.flink.table.plan.nodes.CommonJoin
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 
 import scala.collection.JavaConversions._
@@ -94,19 +95,19 @@ class DataStreamJoin(
   }
 
   override def translateToPlan(
-      tableEnv: StreamTableEnvImpl,
+      planner: StreamPlanner,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     validateKeyTypes()
 
     val leftDataStream =
-      left.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
+      left.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
     val rightDataStream =
-      right.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
+      right.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
 
     val connectOperator = leftDataStream.connect(rightDataStream)
 
-    val joinTranslator = createTranslator(tableEnv)
+    val joinTranslator = createTranslator(planner)
 
     val joinOpName = joinToString(getRowType, joinCondition, joinType, getExpressionString)
     val joinOperator = joinTranslator.getJoinOperator(
@@ -146,9 +147,9 @@ class DataStreamJoin(
   }
 
   protected def createTranslator(
-      tableEnv: StreamTableEnvImpl): DataStreamJoinToCoProcessTranslator = {
+      planner: StreamPlanner): DataStreamJoinToCoProcessTranslator = {
     new DataStreamJoinToCoProcessTranslator(
-      tableEnv.getConfig,
+      planner.getConfig,
       schema.typeInfo,
       leftSchema,
       rightSchema,

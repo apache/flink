@@ -20,7 +20,7 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.types.DataType;
 
 import java.util.Collections;
@@ -29,7 +29,7 @@ import java.util.Map;
 
 /**
  * Special, internal kind of {@link ModifyOperation} that allows converting a tree of
- * {@link QueryOperation}s to a {@link StreamTransformation} of given type described with
+ * {@link QueryOperation}s to a {@link Transformation} of given type described with
  * {@link TypeInformation}. This is used to convert a relational query to a datastream.
  */
 @Internal

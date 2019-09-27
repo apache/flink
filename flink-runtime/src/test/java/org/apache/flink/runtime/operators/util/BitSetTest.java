@@ -21,16 +21,24 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+@RunWith(Parameterized.class)
 public class BitSetTest {
 
 	private BitSet bitSet;
-	int byteSize = 1024;
-	MemorySegment memorySegment = MemorySegmentFactory.allocateUnpooledSegment(byteSize);
+	int byteSize;
+	MemorySegment memorySegment;
+
+	public BitSetTest(int byteSize) {
+		this.byteSize = byteSize;
+		memorySegment = MemorySegmentFactory.allocateUnpooledSegment(byteSize);
+	}
 
 	@Before
 	public void init() {
@@ -67,7 +75,7 @@ public class BitSetTest {
 	@Test
 	public void testSetValues() {
 		int bitSize = bitSet.bitSize();
-		assertEquals(bitSize, 8 * 1024);
+		assertEquals(bitSize, 8 * byteSize);
 		for (int i = 0; i < bitSize; i++) {
 			assertFalse(bitSet.get(i));
 			if (i % 2 == 0) {
@@ -82,5 +90,10 @@ public class BitSetTest {
 				assertFalse(bitSet.get(i));
 			}
 		}
+	}
+
+	@Parameterized.Parameters(name = "byte size = {0}")
+	public static Object[] getByteSize() {
+		return new Integer[]{1000, 1024, 2019};
 	}
 }

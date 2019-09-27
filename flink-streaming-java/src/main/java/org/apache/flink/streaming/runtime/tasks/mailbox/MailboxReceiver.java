@@ -29,31 +29,22 @@ import java.util.Optional;
 public interface MailboxReceiver {
 
 	/**
-	 * Returns <code>true</code> if the mailbox contains mail.
-	 */
-	boolean hasMail();
-
-	/**
 	 * Returns an optional with either the oldest letter from the mailbox (head of queue) if the mailbox is not empty or
 	 * an empty optional otherwise.
 	 *
 	 * @return an optional with either the oldest letter from the mailbox (head of queue) if the mailbox is not empty or
 	 * an empty optional otherwise.
+	 * @throws  MailboxStateException if mailbox is already closed.
 	 */
-	Optional<Runnable> tryTakeMail();
+	Optional<Runnable> tryTakeMail() throws MailboxStateException;
 
 	/**
 	 * This method returns the oldest letter from the mailbox (head of queue) or blocks until a letter is available.
 	 *
 	 * @return the oldest letter from the mailbox (head of queue).
 	 * @throws InterruptedException on interruption.
+	 * @throws  MailboxStateException if mailbox is already closed.
 	 */
 	@Nonnull
-	Runnable takeMail() throws InterruptedException;
-
-	/**
-	 * This method blocks if the mailbox is empty until mail becomes available.
-	 * @throws InterruptedException on interruption.
-	 */
-	void waitUntilHasMail() throws InterruptedException;
+	Runnable takeMail() throws InterruptedException, MailboxStateException;
 }

@@ -89,7 +89,6 @@ class LogicalWindowTableAggregate(
       cluster,
       traitSet,
       getInput,
-      indicatorFlag,
       groupSet,
       groupSets,
       aggCalls

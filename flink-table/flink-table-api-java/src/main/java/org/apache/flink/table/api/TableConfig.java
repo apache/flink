@@ -19,21 +19,37 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.util.Preconditions;
 
 import java.math.MathContext;
-import java.util.TimeZone;
+import java.time.ZoneId;
 
 /**
- * A config to define the runtime behavior of the Table API.
+ * Configuration for the current {@link TableEnvironment} session to adjust Table & SQL API programs.
+ *
+ * <p>For common or important configuration options, this class provides getters and setters methods
+ * with detailed inline documentation.
+ *
+ * <p>For more advanced configuration, users can directly access the underlying key-value map via
+ * {@link #getConfiguration()}. Currently, key-value options are only supported for the Blink planner.
+ *
+ * <p>Note: Because options are read at different point in time when performing operations, it is
+ * recommended to set configuration options early after instantiating a table environment.
+ *
+ * @see ExecutionConfigOptions
+ * @see OptimizerConfigOptions
  */
 @PublicEvolving
 public class TableConfig {
 
 	/**
-	 * Defines the timezone for date/time/timestamp conversions.
+	 * Defines the zone id for timestamp with local time zone.
 	 */
-	private TimeZone timeZone = TimeZone.getTimeZone("UTC");
+	private ZoneId localZoneId = ZoneId.systemDefault();
 
 	/**
 	 * Defines if all fields need to be checked for NULL first.
@@ -58,29 +74,72 @@ public class TableConfig {
 	private Integer maxGeneratedCodeLength = 64000; // just an estimate
 
 	/**
-	 * Specifies the name of the initial catalog to be created when instantiating
-	 * TableEnvironment.
+	 * The minimum time until state which was not updated will be retained.
+	 * State might be cleared and removed if it was not updated for the defined period of time.
 	 */
-	private String builtInCatalogName = "default_catalog";
+	private long minIdleStateRetentionTime = 0L;
 
 	/**
-	 * Specifies the name of the default database in the initial catalog to be created when instantiating
-	 * TableEnvironment.
+	 * The maximum time until state which was not updated will be retained.
+	 * State will be cleared and removed if it was not updated for the defined period of time.
 	 */
-	private String builtInDatabaseName = "default_database";
+	private long maxIdleStateRetentionTime = 0L;
 
 	/**
-	 * Returns the timezone for date/time/timestamp conversions.
+	 * A configuration object to hold all key/value configuration.
 	 */
-	public TimeZone getTimeZone() {
-		return timeZone;
+	private Configuration configuration = new Configuration();
+
+	/**
+	 * The SQL dialect defines how to parse a SQL query. A different SQL dialect may support different
+	 * SQL grammar.
+	 */
+	private SqlDialect sqlDialect = SqlDialect.DEFAULT;
+
+	/**
+	 * Gives direct access to the underlying key-value map for advanced configuration.
+	 */
+	public Configuration getConfiguration() {
+		return configuration;
 	}
 
 	/**
-	 * Sets the timezone for date/time/timestamp conversions.
+	 * Adds the given key-value configuration to the underlying configuration. It overwrites
+	 * existing keys.
+	 *
+	 * @param configuration key-value configuration to be added
 	 */
-	public void setTimeZone(TimeZone timeZone) {
-		this.timeZone = Preconditions.checkNotNull(timeZone);
+	public void addConfiguration(Configuration configuration) {
+		Preconditions.checkNotNull(configuration);
+		this.configuration.addAll(configuration);
+	}
+
+	/**
+	 * Returns the current SQL dialect.
+	 */
+	public SqlDialect getSqlDialect() {
+		return this.sqlDialect;
+	}
+
+	/**
+	 * Sets the current SQL dialect to parse a SQL query. Flink's SQL behavior by default.
+	 */
+	public void setSqlDialect(SqlDialect sqlDialect) {
+		this.sqlDialect = sqlDialect;
+	}
+
+	/**
+	 * Returns the zone id for timestamp with local time zone.
+	 */
+	public ZoneId getLocalTimeZone() {
+		return localZoneId;
+	}
+
+	/**
+	 * Sets the zone id for timestamp with local time zone.
+	 */
+	public void setLocalTimeZone(ZoneId zoneId) {
+		this.localZoneId = Preconditions.checkNotNull(zoneId);
 	}
 
 	/**
@@ -147,35 +206,48 @@ public class TableConfig {
 	}
 
 	/**
-	 * Gets the specified name of the initial catalog to be created when instantiating
-	 * a {@link TableEnvironment}.
+	 * Specifies a minimum and a maximum time interval for how long idle state, i.e., state which
+	 * was not updated, will be retained.
+	 * State will never be cleared until it was idle for less than the minimum time and will never
+	 * be kept if it was idle for more than the maximum time.
+	 *
+	 * <p>When new data arrives for previously cleaned-up state, the new data will be handled as if it
+	 * was the first data. This can result in previous results being overwritten.
+	 *
+	 * <p>Set to 0 (zero) to never clean-up the state.
+	 *
+	 * <p>NOTE: Cleaning up state requires additional bookkeeping which becomes less expensive for
+	 * larger differences of minTime and maxTime. The difference between minTime and maxTime must be
+	 * at least 5 minutes.
+	 *
+	 * @param minTime The minimum time interval for which idle state is retained. Set to 0 (zero) to
+	 *                never clean-up the state.
+	 * @param maxTime The maximum time interval for which idle state is retained. Must be at least
+	 *                5 minutes greater than minTime. Set to 0 (zero) to never clean-up the state.
 	 */
-	public String getBuiltInCatalogName() {
-		return builtInCatalogName;
+	public void setIdleStateRetentionTime(Time minTime, Time maxTime) {
+		if (maxTime.toMilliseconds() - minTime.toMilliseconds() < 300000 &&
+			!(maxTime.toMilliseconds() == 0 && minTime.toMilliseconds() == 0)) {
+			throw new IllegalArgumentException(
+				"Difference between minTime: " + minTime.toString() + " and maxTime: " + maxTime.toString() +
+					"shoud be at least 5 minutes.");
+		}
+		minIdleStateRetentionTime = minTime.toMilliseconds();
+		maxIdleStateRetentionTime = maxTime.toMilliseconds();
 	}
 
 	/**
-	 * Specifies the name of the initial catalog to be created when instantiating
-	 * a {@link TableEnvironment}. This method has no effect if called on the {@link TableEnvironment#getConfig()}.
+	 * @return The minimum time until state which was not updated will be retained.
 	 */
-	public void setBuiltInCatalogName(String builtInCatalogName) {
-		this.builtInCatalogName = builtInCatalogName;
+	public long getMinIdleStateRetentionTime() {
+		return minIdleStateRetentionTime;
 	}
 
 	/**
-	 * Gets the specified name of the default database in the initial catalog to be created when instantiating
-	 * a {@link TableEnvironment}.
+	 * @return The maximum time until state which was not updated will be retained.
 	 */
-	public String getBuiltInDatabaseName() {
-		return builtInDatabaseName;
-	}
-
-	/**
-	 * Specifies the name of the default database in the initial catalog to be created when instantiating
-	 * a {@link TableEnvironment}. This method has no effect if called on the {@link TableEnvironment#getConfig()}.
-	 */
-	public void setBuiltInDatabaseName(String builtInDatabaseName) {
-		this.builtInDatabaseName = builtInDatabaseName;
+	public long getMaxIdleStateRetentionTime() {
+		return maxIdleStateRetentionTime;
 	}
 
 	public static TableConfig getDefault() {

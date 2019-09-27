@@ -28,18 +28,21 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 /**
- * A utility class to load failover strategies from the configuration. 
+ * A utility class to load failover strategies from the configuration.
  */
 public class FailoverStrategyLoader {
 
-	/** Config name for the {@link RestartAllStrategy} */
+	/** Config name for the {@link RestartAllStrategy}. */
 	public static final String FULL_RESTART_STRATEGY_NAME = "full";
 
-	/** Config name for the {@link RestartIndividualStrategy} */
+	/** Config name for the {@link RestartIndividualStrategy}. */
 	public static final String INDIVIDUAL_RESTART_STRATEGY_NAME = "individual";
 
-	/** Config name for the {@link RestartPipelinedRegionStrategy} */
+	/** Config name for the {@link AdaptedRestartPipelinedRegionStrategyNG}. */
 	public static final String PIPELINED_REGION_RESTART_STRATEGY_NAME = "region";
+
+	/** Config name for the {@link RestartPipelinedRegionStrategy}. */
+	public static final String LEGACY_PIPELINED_REGION_RESTART_STRATEGY_NAME = "region-legacy";
 
 	// ------------------------------------------------------------------------
 
@@ -63,6 +66,9 @@ public class FailoverStrategyLoader {
 					return new RestartAllStrategy.Factory();
 
 				case PIPELINED_REGION_RESTART_STRATEGY_NAME:
+					return new AdaptedRestartPipelinedRegionStrategyNG.Factory();
+
+				case LEGACY_PIPELINED_REGION_RESTART_STRATEGY_NAME:
 					return new RestartPipelinedRegionStrategy.Factory();
 
 				case INDIVIDUAL_RESTART_STRATEGY_NAME:

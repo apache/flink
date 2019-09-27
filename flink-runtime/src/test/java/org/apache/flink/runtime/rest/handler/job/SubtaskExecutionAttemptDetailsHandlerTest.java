@@ -23,6 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
@@ -108,6 +109,7 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			"test",
 			1,
 			1,
+			ResourceProfile.UNKNOWN,
 			emptyAccumulators);
 
 		// Change some fields so we can make it different from other sub tasks.
@@ -170,7 +172,8 @@ public class SubtaskExecutionAttemptDetailsHandlerTest extends TestLogger {
 			-1L,
 			0L,
 			-1L,
-			ioMetricsInfo
+			ioMetricsInfo,
+			"(unassigned)"
 		);
 
 		assertEquals(expectedDetailsInfo, detailsInfo);

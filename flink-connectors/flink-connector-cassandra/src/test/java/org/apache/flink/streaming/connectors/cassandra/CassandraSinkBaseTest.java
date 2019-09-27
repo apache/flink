@@ -28,6 +28,7 @@ import org.apache.flink.util.Preconditions;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.exceptions.InvalidQueryException;
 import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.junit.Assert;
@@ -36,11 +37,13 @@ import org.junit.Test;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.LinkedList;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 
+import static org.apache.flink.util.ExceptionUtils.findSerializedThrowable;
 import static org.hamcrest.number.OrderingComparison.greaterThan;
 import static org.mockito.Mockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
@@ -155,7 +158,8 @@ public class CassandraSinkBaseTest {
 
 				Assert.fail();
 			} catch (Exception e) {
-				Assert.assertTrue(e.getCause() instanceof IOException);
+				Optional<IOException> exCause = findSerializedThrowable(e, IOException.class, ClassLoader.getSystemClassLoader());
+				Assert.assertTrue(exCause.isPresent());
 			}
 		}
 	}
@@ -180,7 +184,7 @@ public class CassandraSinkBaseTest {
 				}
 			};
 			t.start();
-			while (t.getState() != Thread.State.WAITING) {
+			while (t.getState() != Thread.State.TIMED_WAITING) {
 				Thread.sleep(5);
 			}
 
@@ -212,7 +216,7 @@ public class CassandraSinkBaseTest {
 				}
 			};
 			t.start();
-			while (t.getState() != Thread.State.WAITING) {
+			while (t.getState() != Thread.State.TIMED_WAITING) {
 				Thread.sleep(5);
 			}
 
@@ -269,6 +273,26 @@ public class CassandraSinkBaseTest {
 
 			Assert.assertEquals(1, testCassandraSink.getAvailablePermits());
 			Assert.assertEquals(0, testCassandraSink.getAcquiredPermits());
+		}
+	}
+
+	@Test(timeout = DEFAULT_TEST_TIMEOUT)
+	public void testReleaseOnSendException() throws Exception {
+		final CassandraSinkBaseConfig config = CassandraSinkBaseConfig.newBuilder()
+			.setMaxConcurrentRequests(1)
+			.build();
+
+		try (TestCassandraSink testCassandraSink = createOpenedSendExceptionTestCassandraSink(config)) {
+			Assert.assertEquals(1, testCassandraSink.getAvailablePermits());
+			Assert.assertEquals(0, testCassandraSink.getAcquiredPermits());
+
+			try {
+				testCassandraSink.invoke("N/A");
+			} catch (Exception e) {
+				Assert.assertTrue(e instanceof InvalidQueryException);
+				Assert.assertEquals(1, testCassandraSink.getAvailablePermits());
+				Assert.assertEquals(0, testCassandraSink.getAcquiredPermits());
+			}
 		}
 	}
 
@@ -331,6 +355,12 @@ public class CassandraSinkBaseTest {
 		return testHarness;
 	}
 
+	private TestCassandraSink createOpenedSendExceptionTestCassandraSink(CassandraSinkBaseConfig config) {
+		final TestCassandraSink testCassandraSink = new SendExceptionTestCassandraSink(config);
+		testCassandraSink.open(new Configuration());
+		return testCassandraSink;
+	}
+
 	private static class TestCassandraSink extends CassandraSinkBase<String, ResultSet> implements AutoCloseable {
 
 		private static final ClusterBuilder builder;
@@ -377,6 +407,17 @@ public class CassandraSinkBaseTest {
 		void enqueueCompletableFuture(CompletableFuture<ResultSet> completableFuture) {
 			Preconditions.checkNotNull(completableFuture);
 			resultSetFutures.offer(ResultSetFutures.fromCompletableFuture(completableFuture));
+		}
+	}
+
+	private static class SendExceptionTestCassandraSink extends TestCassandraSink {
+		SendExceptionTestCassandraSink(CassandraSinkBaseConfig config) {
+			super(config, new NoOpCassandraFailureHandler());
+		}
+
+		@Override
+		public ListenableFuture<ResultSet> send(String value) {
+			throw new InvalidQueryException("For test purposes");
 		}
 	}
 }

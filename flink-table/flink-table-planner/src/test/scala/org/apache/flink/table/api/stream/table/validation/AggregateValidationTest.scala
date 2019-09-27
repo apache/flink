@@ -21,7 +21,7 @@ package org.apache.flink.table.api.stream.table.validation
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{ExpressionParserException, ValidationException}
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.{TableFunc0, TableTestBase}
+import org.apache.flink.table.utils.{CountMinMax, TableFunc0, TableTestBase}
 import org.junit.Test
 
 class AggregateValidationTest extends TableTestBase {
@@ -122,5 +122,24 @@ class AggregateValidationTest extends TableTestBase {
       .groupBy('a)
       // must fail. Only one AggregateFunction can be used in aggregate
       .aggregate("sum(c), count(b)")
+  }
+
+  @Test
+  def testInvalidAlias(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("List of column aliases must have same degree as " +
+      "table; the returned table of function 'minMax(b)' has 3 columns, " +
+      "whereas alias list has 2 columns")
+
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('a, 'b, 'c)
+    val minMax = new CountMinMax
+
+    util.tableEnv.registerFunction("minMax", minMax)
+    table
+      .groupBy('a)
+      // must fail. Invalid alias length
+      .aggregate("minMax(b) as (x, y)")
+      .select("x, y")
   }
 }

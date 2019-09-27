@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.legacy.utils;
 
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -78,6 +79,7 @@ public class ArchivedExecutionJobVertexBuilder {
 			name != null ? name : "task_" + RANDOM.nextInt(),
 			parallelism,
 			maxParallelism,
+			ResourceProfile.UNKNOWN,
 			archivedUserAccumulators != null ? archivedUserAccumulators : new StringifiedAccumulatorResult[0]
 		);
 	}

@@ -43,7 +43,8 @@ case $INPUT_TYPE in
         EXPECTED_RESULT_LOG_CONTAINS=("consummation,1" "of,14" "calamity,1")
     ;;
     (dummy-fs)
-        cp "${END_TO_END_DIR}/flink-plugins-test/target/flink-dummy-fs.jar" "${FLINK_DIR}/lib/"
+        source "$(dirname "$0")"/common_dummy_fs.sh
+        dummy_fs_setup
         INPUT_ARGS="--input dummy://localhost/words"
         EXPECTED_RESULT_LOG_CONTAINS=("my,1" "dear,2" "world,2")
     ;;
@@ -74,7 +75,7 @@ function start_hadoop_cluster() {
             return 1
         else
             echo "Waiting for hadoop cluster to come up. We have been trying for $time_diff seconds, retrying ..."
-            sleep 10
+            sleep 5
         fi
     done
 
@@ -86,6 +87,26 @@ function start_hadoop_cluster() {
     then
         return 1
     fi
+
+    # try and see if NodeManagers are up, otherwise the Flink job will not have enough resources
+    # to run
+    nm_running="0"
+    start_time=$(date +%s)
+    while [ "$nm_running" -lt "2" ]; do
+        current_time=$(date +%s)
+        time_diff=$((current_time - start_time))
+
+        if [ $time_diff -ge $MAX_RETRY_SECONDS ]; then
+            return 1
+        else
+            echo "We only have $nm_running NodeManagers up. We have been trying for $time_diff seconds, retrying ..."
+            sleep 1
+        fi
+
+        docker exec -it master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
+        nm_running=`docker exec -it master bash -c "yarn node -list" | grep RUNNING | wc -l`
+        docker exec -it master bash -c "kdestroy"
+    done
 
     return 0
 }
@@ -118,7 +139,7 @@ docker exec -it master bash -c "tar xzf /home/hadoop-user/$FLINK_TARBALL --direc
 FLINK_CONFIG=$(cat << END
 security.kerberos.login.keytab: /home/hadoop-user/hadoop-user.keytab
 security.kerberos.login.principal: hadoop-user
-slot.request.timeout: 60000
+slot.request.timeout: 120000
 containerized.heap-cutoff-min: 100
 END
 )
@@ -141,13 +162,20 @@ function copy_and_show_logs {
     done
     echo "Docker logs:"
     docker logs master
+
+    echo "Flink logs:"
+    docker exec -it master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
+    application_id=`docker exec -it master bash -c "yarn application -list -appStates ALL" | grep "Flink session cluster" | awk '{print \$1}'`
+    echo "Application ID: $application_id"
+    docker exec -it master bash -c "yarn logs -applicationId $application_id"
+    docker exec -it master bash -c "kdestroy"
 }
 
 start_time=$(date +%s)
 # it's important to run this with higher parallelism, otherwise we might risk that
 # JM and TM are on the same YARN node and that we therefore don't test the keytab shipping
 if docker exec -it master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
-   /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -yn 3 -ys 1 -ytm 1000 -yjm 1000 \
+   /home/hadoop-user/$FLINK_DIRNAME/bin/flink run -m yarn-cluster -ys 1 -ytm 1000 -yjm 1000 \
    -p 3 /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar $INPUT_ARGS --output $OUTPUT_PATH";
 then
     docker exec -it master bash -c "kinit -kt /home/hadoop-user/hadoop-user.keytab hadoop-user"
@@ -174,7 +202,7 @@ docker exec -it master bash -c "echo \"\" > /home/hadoop-user/$FLINK_DIRNAME/con
 # verify that it doesn't work if we don't configure a keytab
 OUTPUT=$(docker exec -it master bash -c "export HADOOP_CLASSPATH=\`hadoop classpath\` && \
     /home/hadoop-user/$FLINK_DIRNAME/bin/flink run \
-    -m yarn-cluster -yn 3 -ys 1 -ytm 1000 -yjm 1000 -p 3 \
+    -m yarn-cluster -ys 1 -ytm 1000 -yjm 1000 -p 3 \
     /home/hadoop-user/$FLINK_DIRNAME/examples/streaming/WordCount.jar --output $OUTPUT_PATH")
 echo "$OUTPUT"
 

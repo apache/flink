@@ -19,10 +19,10 @@ package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.util.SegmentsUtil;
 
 import java.nio.ByteOrder;
 
@@ -55,7 +55,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public final class BinaryRow extends BinaryFormat implements BaseRow {
 
 	public static final boolean LITTLE_ENDIAN = (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN);
-	private static final long FIRST_BYTE_ZERO = LITTLE_ENDIAN ? 0xFFF0 : 0x0FFF;
+	private static final long FIRST_BYTE_ZERO = LITTLE_ENDIAN ? ~0xFFL : ~(0xFFL << 56L);
 	public static final int HEADER_SIZE_IN_BITS = 8;
 
 	public static int calculateBitSetWidthInBytes(int arity) {
@@ -81,6 +81,7 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 			case INTERVAL_YEAR_MONTH:
 			case BIGINT:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 			case INTERVAL_DAY_TIME:
 			case FLOAT:
 			case DOUBLE:
@@ -318,13 +319,13 @@ public final class BinaryRow extends BinaryFormat implements BaseRow {
 	}
 
 	@Override
-	public BinaryArray getArray(int pos) {
+	public BaseArray getArray(int pos) {
 		assertIndexIsValid(pos);
 		return BinaryArray.readBinaryArrayFieldFromSegments(segments, offset, getLong(pos));
 	}
 
 	@Override
-	public BinaryMap getMap(int pos) {
+	public BaseMap getMap(int pos) {
 		assertIndexIsValid(pos);
 		return BinaryMap.readBinaryMapFieldFromSegments(segments, offset, getLong(pos));
 	}

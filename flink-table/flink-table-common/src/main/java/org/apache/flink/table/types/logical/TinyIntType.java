@@ -32,6 +32,8 @@ import java.util.Set;
 @PublicEvolving
 public final class TinyIntType extends LogicalType {
 
+	public static final int PRECISION = 3;
+
 	private static final String FORMAT = "TINYINT";
 
 	private static final Set<String> NULL_OUTPUT_CONVERSION = conversionSet(

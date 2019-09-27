@@ -51,6 +51,7 @@ public class EnvironmentTest {
 	@Test
 	public void testMerging() throws Exception {
 		final Map<String, String> replaceVars1 = new HashMap<>();
+		replaceVars1.put("$VAR_PLANNER", "old");
 		replaceVars1.put("$VAR_EXECUTION_TYPE", "batch");
 		replaceVars1.put("$VAR_RESULT_MODE", "table");
 		replaceVars1.put("$VAR_UPDATE_MODE", "");
@@ -76,8 +77,13 @@ public class EnvironmentTest {
 		tables.add("TestView2");
 
 		assertEquals(tables, merged.getTables().keySet());
-		assertTrue(merged.getExecution().isStreamingExecution());
+		assertTrue(merged.getExecution().inStreamingMode());
 		assertEquals(16, merged.getExecution().getMaxParallelism());
+
+		final Map<String, String> configuration = new HashMap<>();
+		configuration.put("table.optimizer.join-reorder-enabled", "true");
+
+		assertEquals(configuration, merged.getConfiguration().asMap());
 	}
 
 	@Test

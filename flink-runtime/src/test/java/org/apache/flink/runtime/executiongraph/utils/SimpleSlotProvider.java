@@ -35,6 +35,7 @@ import org.apache.flink.runtime.jobmaster.SlotContext;
 import org.apache.flink.runtime.jobmaster.SlotOwner;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -99,15 +100,14 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 				slot = slots.removeFirst();
 			}
 			if (slot != null) {
-				TestingLogicalSlot result = new TestingLogicalSlot(
-					slot.getTaskManagerLocation(),
-					slot.getTaskManagerGateway(),
-					slot.getPhysicalSlotNumber(),
-					slot.getAllocationId(),
-					slotRequestId,
-					new SlotSharingGroupId(),
-					null,
-					this);
+				TestingLogicalSlot result = new TestingLogicalSlotBuilder()
+					.setTaskManagerLocation(slot.getTaskManagerLocation())
+					.setTaskManagerGateway(slot.getTaskManagerGateway())
+					.setSlotNumber(slot.getPhysicalSlotNumber())
+					.setAllocationId(slot.getAllocationId())
+					.setSlotRequestId(slotRequestId)
+					.setSlotOwner(this)
+					.createTestingLogicalSlot();
 				allocatedSlots.put(slotRequestId, slot);
 				return CompletableFuture.completedFuture(result);
 			}

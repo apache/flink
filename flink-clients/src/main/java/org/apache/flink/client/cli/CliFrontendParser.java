@@ -107,11 +107,13 @@ public class CliFrontendParser {
 			"Namespace to create the Zookeeper sub-paths for high availability mode");
 
 	static final Option CANCEL_WITH_SAVEPOINT_OPTION = new Option(
-			"s", "withSavepoint", true, "Trigger savepoint and cancel job. The target " +
-			"directory is optional. If no directory is specified, the configured default " +
-			"directory (" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + ") is used.");
+			"s", "withSavepoint", true, "**DEPRECATION WARNING**: " +
+			"Cancelling a job with savepoint is deprecated. Use \"stop\" instead. \n Trigger" +
+			" savepoint and cancel job. The target directory is optional. If no directory is " +
+			"specified, the configured default directory (" +
+			CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + ") is used.");
 
-	public static final Option STOP_WITH_SAVEPOINT = new Option("s", "withSavepoint", true,
+	public static final Option STOP_WITH_SAVEPOINT_PATH = new Option("p", "savepointPath", true,
 			"Path to the savepoint (for example hdfs:///flink/savepoint-1537). " +
 					"If no directory is specified, the configured default will be used (\"" + CheckpointingOptions.SAVEPOINT_DIRECTORY.key() + "\").");
 
@@ -174,9 +176,9 @@ public class CliFrontendParser {
 		CANCEL_WITH_SAVEPOINT_OPTION.setArgName("targetDirectory");
 		CANCEL_WITH_SAVEPOINT_OPTION.setOptionalArg(true);
 
-		STOP_WITH_SAVEPOINT.setRequired(false);
-		STOP_WITH_SAVEPOINT.setArgName("withSavepoint");
-		STOP_WITH_SAVEPOINT.setOptionalArg(true);
+		STOP_WITH_SAVEPOINT_PATH.setRequired(false);
+		STOP_WITH_SAVEPOINT_PATH.setArgName("savepointPath");
+		STOP_WITH_SAVEPOINT_PATH.setOptionalArg(true);
 
 		STOP_AND_DRAIN.setRequired(false);
 
@@ -254,7 +256,7 @@ public class CliFrontendParser {
 
 	static Options getStopCommandOptions() {
 		return buildGeneralOptions(new Options())
-				.addOption(STOP_WITH_SAVEPOINT)
+				.addOption(STOP_WITH_SAVEPOINT_PATH)
 				.addOption(STOP_AND_DRAIN);
 	}
 
@@ -291,7 +293,7 @@ public class CliFrontendParser {
 
 	private static Options getStopOptionsWithoutDeprecatedOptions(Options options) {
 		return options
-				.addOption(STOP_WITH_SAVEPOINT)
+				.addOption(STOP_WITH_SAVEPOINT_PATH)
 				.addOption(STOP_AND_DRAIN);
 	}
 

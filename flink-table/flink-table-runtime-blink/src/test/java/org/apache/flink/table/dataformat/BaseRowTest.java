@@ -18,6 +18,10 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
+import org.apache.flink.table.runtime.typeutils.BaseMapSerializer;
+import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -97,9 +101,10 @@ public class BaseRowTest {
 		writer.writeGeneric(9, generic);
 		writer.writeDecimal(10, decimal1, 5);
 		writer.writeDecimal(11, decimal2, 20);
-		writer.writeArray(12, array);
-		writer.writeMap(13, map);
-		writer.writeRow(14, underRow, RowType.of(new IntType(), new IntType()));
+		writer.writeArray(12, array, new BaseArraySerializer(DataTypes.INT().getLogicalType(), null));
+		writer.writeMap(13, map, new BaseMapSerializer(
+			DataTypes.INT().getLogicalType(), DataTypes.INT().getLogicalType(), null));
+		writer.writeRow(14, underRow, new BaseRowSerializer(null, RowType.of(new IntType(), new IntType())));
 		writer.writeBinary(15, bytes);
 		return row;
 	}

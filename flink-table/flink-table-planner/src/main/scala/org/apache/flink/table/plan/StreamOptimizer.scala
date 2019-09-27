@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.plan
 
+import org.apache.calcite.plan.{Context, RelOptPlanner}
 import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.sql2rel.RelDecorrelator
 import org.apache.calcite.tools.{RelBuilder, RuleSet, RuleSets}
+import org.apache.flink.table.api.TableConfig
+import org.apache.flink.table.api.internal.TableEnvImpl
 import org.apache.flink.table.calcite.{CalciteConfig, RelTimeIndicatorConverter}
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.nodes.datastream.UpdateAsRetractionTrait
@@ -34,11 +37,9 @@ import scala.collection.JavaConverters._
   * An [[Optimizer]] that can be used for optimizing a streaming plan. Should be used to create an
   * optimized tree from a logical input tree.
   *
-  * @param calciteConfig provider for [[CalciteConfig]]. It is a provider because the
-  *                      [[org.apache.flink.table.api.TableConfig]] in a
-  *                      [[org.apache.flink.table.api.TableEnvImpl]] is mutable.
-  * @param planningConfigurationBuilder provider for [[org.apache.calcite.plan.RelOptPlanner]] and
-  *                                     [[org.apache.calcite.plan.Context]]
+  * @param calciteConfig                provider for [[CalciteConfig]]. It is a provider because the
+  *                                     [[TableConfig]] in a [[TableEnvImpl]] is mutable.
+  * @param planningConfigurationBuilder provider for [[RelOptPlanner]] and [[Context]]
   */
 class StreamOptimizer(
     calciteConfig: () => CalciteConfig,
@@ -63,8 +64,8 @@ class StreamOptimizer(
       RelTimeIndicatorConverter.convert(decorPlan, relBuilder.getRexBuilder)
     val normalizedPlan = optimizeNormalizeLogicalPlan(planWithMaterializedTimeAttributes)
     val logicalPlan = optimizeLogicalPlan(normalizedPlan)
-
-    val physicalPlan = optimizePhysicalPlan(logicalPlan, FlinkConventions.DATASTREAM)
+    val logicalRewritePlan = optimizeLogicalRewritePlan(logicalPlan)
+    val physicalPlan = optimizePhysicalPlan(logicalRewritePlan, FlinkConventions.DATASTREAM)
     optimizeDecoratePlan(physicalPlan, updatesAsRetraction)
   }
 

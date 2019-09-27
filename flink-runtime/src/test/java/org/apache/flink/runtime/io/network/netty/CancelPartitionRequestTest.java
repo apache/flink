@@ -109,7 +109,6 @@ public class CancelPartitionRequestTest {
 			}
 
 			verify(view, times(1)).releaseAllResources();
-			verify(view, times(0)).notifySubpartitionConsumed();
 		}
 		finally {
 			shutdown(serverAndClient);
@@ -168,7 +167,6 @@ public class CancelPartitionRequestTest {
 			NettyTestUtil.awaitClose(ch);
 
 			verify(view, times(1)).releaseAllResources();
-			verify(view, times(0)).notifySubpartitionConsumed();
 		}
 		finally {
 			shutdown(serverAndClient);
@@ -206,10 +204,6 @@ public class CancelPartitionRequestTest {
 		}
 
 		@Override
-		public void notifySubpartitionConsumed() throws IOException {
-		}
-
-		@Override
 		public boolean isReleased() {
 			return false;
 		}
@@ -222,6 +216,11 @@ public class CancelPartitionRequestTest {
 		@Override
 		public boolean isAvailable() {
 			return true;
+		}
+
+		@Override
+		public int unsynchronizedGetNumberOfQueuedBuffers() {
+			return 0;
 		}
 
 		@Override

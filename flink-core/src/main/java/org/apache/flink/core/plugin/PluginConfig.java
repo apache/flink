@@ -22,6 +22,9 @@ import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -31,6 +34,8 @@ import java.util.Optional;
  */
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class PluginConfig {
+	private static final Logger LOG = LoggerFactory.getLogger(PluginConfig.class);
+
 	private final Optional<Path> pluginsPath;
 
 	private final String[] alwaysParentFirstPatterns;
@@ -57,10 +62,14 @@ public class PluginConfig {
 	private static Optional<Path> getPluginsDirPath(Configuration configuration) {
 		String pluginsDir = configuration.getString(ConfigConstants.ENV_FLINK_PLUGINS_DIR, null);
 		if (pluginsDir == null) {
+			LOG.info("Environment variable [{}] is not set", ConfigConstants.ENV_FLINK_PLUGINS_DIR);
 			return Optional.empty();
 		}
 		File pluginsDirFile = new File(pluginsDir);
 		if (!pluginsDirFile.isDirectory()) {
+			LOG.warn("Environment variable [{}] is set to [{}] but the directory doesn't exist",
+				ConfigConstants.ENV_FLINK_PLUGINS_DIR,
+				pluginsDir);
 			return Optional.empty();
 		}
 		return Optional.of(pluginsDirFile.toPath());

@@ -28,12 +28,12 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.expressions.ApiExpressionDefaultVisitor;
-import org.apache.flink.table.expressions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
+import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
@@ -46,6 +46,7 @@ import javax.annotation.Nullable;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -293,17 +294,35 @@ public class FieldInfoUtils {
 	 * @return An array holding the field names
 	 */
 	public static <A> String[] getFieldNames(TypeInformation<A> inputType) {
+		return getFieldNames(inputType, Collections.emptyList());
+	}
+
+	/**
+	 * Returns field names for a given {@link TypeInformation}. If the input {@link TypeInformation}
+	 * is not a composite type, the result field name should not exist in the existingNames.
+	 *
+	 * @param inputType The TypeInformation extract the field names.
+	 * @param existingNames The existing field names for non-composite types that can not be used.
+	 * @param <A> The type of the TypeInformation.
+	 * @return An array holding the field names
+	 */
+	public static <A> String[] getFieldNames(TypeInformation<A> inputType, List<String> existingNames) {
 		validateInputTypeInfo(inputType);
 
-		final String[] fieldNames;
+		String[] fieldNames;
 		if (inputType instanceof CompositeType) {
 			fieldNames = ((CompositeType<A>) inputType).getFieldNames();
 		} else {
-			fieldNames = new String[]{ATOMIC_FIELD_NAME};
+			int i = 0;
+			String fieldName = ATOMIC_FIELD_NAME;
+			while ((null != existingNames) && existingNames.contains(fieldName)) {
+				fieldName = ATOMIC_FIELD_NAME + "_" + i++;
+			}
+			fieldNames = new String[]{fieldName};
 		}
 
 		if (Arrays.asList(fieldNames).contains("*")) {
-			throw new ValidationException("Field name can not be '*'.");
+			throw new TableException("Field name can not be '*'.");
 		}
 
 		return fieldNames;
@@ -439,33 +458,33 @@ public class FieldInfoUtils {
 		}
 
 		@Override
-		public FieldInfo visitUnresolvedReference(UnresolvedReferenceExpression unresolvedReference) {
+		public FieldInfo visit(UnresolvedReferenceExpression unresolvedReference) {
 			String fieldName = unresolvedReference.getName();
 			return new FieldInfo(fieldName, index, fromLegacyInfoToDataType(getTypeAt(unresolvedReference)));
 		}
 
 		@Override
-		public FieldInfo visitCall(CallExpression call) {
-			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.AS) {
-				return visitAlias(call);
-			} else if (isRowTimeExpression(call)) {
-				validateRowtimeReplacesCompatibleType(call);
-				return createTimeAttributeField(getChildAsReference(call), TimestampKind.ROWTIME, null);
-			} else if (isProcTimeExpression(call)) {
-				validateProcTimeAttributeAppended(call);
-				return createTimeAttributeField(getChildAsReference(call), TimestampKind.PROCTIME, null);
+		public FieldInfo visit(UnresolvedCallExpression unresolvedCall) {
+			if (unresolvedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.AS) {
+				return visitAlias(unresolvedCall);
+			} else if (isRowTimeExpression(unresolvedCall)) {
+				validateRowtimeReplacesCompatibleType(unresolvedCall);
+				return createTimeAttributeField(getChildAsReference(unresolvedCall), TimestampKind.ROWTIME, null);
+			} else if (isProcTimeExpression(unresolvedCall)) {
+				validateProcTimeAttributeAppended(unresolvedCall);
+				return createTimeAttributeField(getChildAsReference(unresolvedCall), TimestampKind.PROCTIME, null);
 			}
 
-			return defaultMethod(call);
+			return defaultMethod(unresolvedCall);
 		}
 
-		private FieldInfo visitAlias(CallExpression call) {
-			List<Expression> children = call.getChildren();
+		private FieldInfo visitAlias(UnresolvedCallExpression unresolvedCall) {
+			List<Expression> children = unresolvedCall.getChildren();
 			String newName = extractAlias(children.get(1));
 
 			Expression child = children.get(0);
 			if (isProcTimeExpression(child)) {
-				validateProcTimeAttributeAppended(call);
+				validateProcTimeAttributeAppended(unresolvedCall);
 				return createTimeAttributeField(getChildAsReference(child), TimestampKind.PROCTIME, newName);
 			} else {
 				throw new ValidationException(
@@ -473,17 +492,17 @@ public class FieldInfoUtils {
 			}
 		}
 
-		private void validateRowtimeReplacesCompatibleType(CallExpression call) {
+		private void validateRowtimeReplacesCompatibleType(UnresolvedCallExpression unresolvedCall) {
 			if (index < inputType.getArity()) {
-				checkRowtimeType(getTypeAt(call));
+				checkRowtimeType(getTypeAt(unresolvedCall));
 			}
 		}
 
-		private void validateProcTimeAttributeAppended(CallExpression call) {
+		private void validateProcTimeAttributeAppended(UnresolvedCallExpression unresolvedCall) {
 			if (index < inputType.getArity()) {
 				throw new ValidationException(String.format("The proctime attribute can only be appended to the" +
 					" table schema and not replace an existing field. Please move '%s' to the end of the" +
-					" schema.", call));
+					" schema.", unresolvedCall));
 			}
 		}
 
@@ -522,25 +541,25 @@ public class FieldInfoUtils {
 		}
 
 		@Override
-		public FieldInfo visitUnresolvedReference(UnresolvedReferenceExpression unresolvedReference) {
+		public FieldInfo visit(UnresolvedReferenceExpression unresolvedReference) {
 			return createFieldInfo(unresolvedReference, null);
 		}
 
 		@Override
-		public FieldInfo visitCall(CallExpression call) {
-			if (call.getFunctionDefinition() == BuiltInFunctionDefinitions.AS) {
-				return visitAlias(call);
-			} else if (isRowTimeExpression(call)) {
-				return createRowtimeFieldInfo(call, null);
-			} else if (isProcTimeExpression(call)) {
-				return createProctimeFieldInfo(call, null);
+		public FieldInfo visit(UnresolvedCallExpression unresolvedCall) {
+			if (unresolvedCall.getFunctionDefinition() == BuiltInFunctionDefinitions.AS) {
+				return visitAlias(unresolvedCall);
+			} else if (isRowTimeExpression(unresolvedCall)) {
+				return createRowtimeFieldInfo(unresolvedCall, null);
+			} else if (isProcTimeExpression(unresolvedCall)) {
+				return createProctimeFieldInfo(unresolvedCall, null);
 			}
 
-			return defaultMethod(call);
+			return defaultMethod(unresolvedCall);
 		}
 
-		private FieldInfo visitAlias(CallExpression call) {
-			List<Expression> children = call.getChildren();
+		private FieldInfo visitAlias(UnresolvedCallExpression unresolvedCall) {
+			List<Expression> children = unresolvedCall.getChildren();
 			String newName = extractAlias(children.get(1));
 
 			Expression child = children.get(0);
@@ -551,7 +570,7 @@ public class FieldInfoUtils {
 			} else if (isProcTimeExpression(child)) {
 				return createProctimeFieldInfo(child, newName);
 			} else {
-				return defaultMethod(call);
+				return defaultMethod(unresolvedCall);
 			}
 		}
 
@@ -630,13 +649,13 @@ public class FieldInfoUtils {
 	}
 
 	private static boolean isRowTimeExpression(Expression origExpr) {
-		return origExpr instanceof CallExpression &&
-			((CallExpression) origExpr).getFunctionDefinition() == BuiltInFunctionDefinitions.ROWTIME;
+		return origExpr instanceof UnresolvedCallExpression &&
+			((UnresolvedCallExpression) origExpr).getFunctionDefinition() == BuiltInFunctionDefinitions.ROWTIME;
 	}
 
 	private static boolean isProcTimeExpression(Expression origExpr) {
-		return origExpr instanceof CallExpression &&
-			((CallExpression) origExpr).getFunctionDefinition() == BuiltInFunctionDefinitions.PROCTIME;
+		return origExpr instanceof UnresolvedCallExpression &&
+			((UnresolvedCallExpression) origExpr).getFunctionDefinition() == BuiltInFunctionDefinitions.PROCTIME;
 	}
 
 	private static Optional<Integer> referenceByName(String name, CompositeType<?> ct) {

@@ -34,7 +34,7 @@ import java.util.Objects;
  * declare input and/or output types of operations.
  *
  * <p>The {@link DataType} class has two responsibilities: declaring a logical type and giving hints
- * about the physical representation of data to the optimizer. While the logical type is mandatory,
+ * about the physical representation of data to the planner. While the logical type is mandatory,
  * hints are optional but useful at the edges to other APIs.
  *
  * <p>The logical type is independent of any physical representation and is close to the "data type"

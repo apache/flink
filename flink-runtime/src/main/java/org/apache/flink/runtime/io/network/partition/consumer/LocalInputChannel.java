@@ -237,13 +237,6 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 		return isReleased;
 	}
 
-	@Override
-	void notifySubpartitionConsumed() throws IOException {
-		if (subpartitionView != null) {
-			subpartitionView.notifySubpartitionConsumed();
-		}
-	}
-
 	/**
 	 * Releases the partition reader.
 	 */
@@ -258,6 +251,17 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
 				subpartitionView = null;
 			}
 		}
+	}
+
+	@Override
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
+		ResultSubpartitionView view = subpartitionView;
+
+		if (view != null) {
+			return view.unsynchronizedGetNumberOfQueuedBuffers();
+		}
+
+		return 0;
 	}
 
 	@Override

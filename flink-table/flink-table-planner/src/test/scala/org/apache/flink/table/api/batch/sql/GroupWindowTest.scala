@@ -296,7 +296,7 @@ class GroupWindowTest extends TableTestBase {
         term("select", "EXPR$0", "CAST(w$start) AS EXPR$1"),
         term("where",
           "AND(>($f1, 0), " +
-            "=(EXTRACT(FLAG(QUARTER), CAST(w$start)), 1))")
+            "=(EXTRACT(FLAG(QUARTER), w$start), 1:BIGINT))")
       )
 
     util.verifySql(sql, expected)
@@ -336,14 +336,55 @@ class GroupWindowTest extends TableTestBase {
         ),
         term("select",
           "/(-($f0, /(*($f1, $f1), $f2)), $f2) AS EXPR$0",
-          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))) AS EXPR$1",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5)) AS EXPR$2",
-          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null, -($f2, 1))), 0.5)) " +
-            "AS EXPR$3",
+          "/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, -($f2, 1))) AS EXPR$1",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), $f2), 0.5:DECIMAL(2, 1))) AS EXPR$2",
+          "CAST(POWER(/(-($f0, /(*($f1, $f1), $f2)), CASE(=($f2, 1), null:BIGINT, " +
+            "-($f2, 1))), 0.5:DECIMAL(2, 1))) AS EXPR$3",
           "CAST(w$start) AS EXPR$4",
           "CAST(w$end) AS EXPR$5")
       )
 
     util.verifySql(sql, expected)
+  }
+
+  @Test
+  def testReturnTypeInferenceForWindowAgg(): Unit = {
+    val util = batchTestUtil()
+    val table = util.addTable[(Int, Long, String, Timestamp)]("MyTable", 'a, 'b, 'c, 'rowtime)
+
+    val innerQuery =
+      """
+        |SELECT
+        | CASE a WHEN 1 THEN 1 ELSE 99 END AS correct,
+        | rowtime
+        |FROM MyTable
+      """.stripMargin
+
+    val sqlQuery =
+      "SELECT " +
+        "  sum(correct) as s, " +
+        "  avg(correct) as a, " +
+        "  TUMBLE_START(rowtime, INTERVAL '15' MINUTE) as wStart " +
+        s"FROM ($innerQuery) " +
+        "GROUP BY TUMBLE(rowtime, INTERVAL '15' MINUTE)"
+
+    val expected =
+      unaryNode(
+        "DataSetCalc",
+        unaryNode(
+          "DataSetWindowAggregate",
+          unaryNode(
+            "DataSetCalc",
+            batchTableNode(table),
+            term("select", "CASE(=(a, 1), 1, 99) AS correct, rowtime")
+          ),
+          term("window", "TumblingGroupWindow('w$, 'rowtime, 900000.millis)"),
+          term("select", "SUM(correct) AS s, AVG(correct) AS a, start('w$) AS w$start," +
+            " end('w$) AS w$end, rowtime('w$) AS w$rowtime")
+        ),
+        term("select", "CAST(s) AS s", "CAST(a) AS a", "CAST(w$start) AS wStart")
+      )
+
+    util.verifySql(sqlQuery, expected)
   }
 }

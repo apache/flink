@@ -32,6 +32,7 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.fs.local.LocalFileSystemFactory;
 import org.apache.flink.core.plugin.PluginManager;
+import org.apache.flink.core.plugin.TemporaryClassLoaderContext;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.slf4j.Logger;
@@ -432,7 +433,10 @@ public abstract class FileSystem {
 			final FileSystemFactory factory = FS_FACTORIES.get(uri.getScheme());
 
 			if (factory != null) {
-				fs = factory.create(uri);
+				ClassLoader classLoader = factory.getClassLoader();
+				try (TemporaryClassLoaderContext classLoaderContext = new TemporaryClassLoaderContext(classLoader)) {
+					fs = factory.create(uri);
+				}
 			}
 			else {
 				try {

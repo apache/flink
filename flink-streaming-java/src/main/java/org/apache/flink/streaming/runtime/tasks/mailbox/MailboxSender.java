@@ -27,26 +27,19 @@ import javax.annotation.Nonnull;
 public interface MailboxSender {
 
 	/**
-	 * Enqueues the given letter to the mailbox, if capacity is available. On success, this returns <code>true</code>
-	 * and <code>false</code> if the mailbox was already full.
-	 *
-	 * @param letter the letter to enqueue.
-	 * @return <code>true</code> iff successful.
-	 */
-	boolean tryPutMail(@Nonnull Runnable letter);
-
-	/**
 	 * Enqueues the given letter to the mailbox and blocks until there is capacity for a successful put.
 	 *
 	 * @param letter the letter to enqueue.
-	 * @throws InterruptedException on interruption.
+	 * @throws MailboxStateException if the mailbox is quiesced or closed.
 	 */
-	void putMail(@Nonnull Runnable letter) throws InterruptedException;
+	void putMail(@Nonnull Runnable letter) throws  MailboxStateException;
 
 	/**
-	 * This method blocks until the mailbox has again capacity to enqueue new letters.
+	 * Adds the given action to the head of the mailbox.
 	 *
-	 * @throws InterruptedException on interruption.
+	 * @param priorityLetter action to enqueue to the head of the mailbox.
+	 * @throws MailboxStateException if the mailbox is quiesced or closed.
 	 */
-	void waitUntilHasCapacity() throws InterruptedException;
+	void putFirst(@Nonnull Runnable priorityLetter) throws MailboxStateException;
+
 }

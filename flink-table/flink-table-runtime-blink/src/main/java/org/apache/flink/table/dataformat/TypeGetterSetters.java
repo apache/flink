@@ -101,14 +101,14 @@ public interface TypeGetterSetters {
 	byte[] getBinary(int ordinal);
 
 	/**
-	 * Get array value, internal format is BinaryArray.
+	 * Get array value, internal format is BaseArray.
 	 */
-	BinaryArray getArray(int ordinal);
+	BaseArray getArray(int ordinal);
 
 	/**
-	 * Get map value, internal format is BinaryMap.
+	 * Get map value, internal format is BaseMap.
 	 */
-	BinaryMap getMap(int ordinal);
+	BaseMap getMap(int ordinal);
 
 	/**
 	 * Get row value, internal format is BaseRow.
@@ -175,12 +175,14 @@ public interface TypeGetterSetters {
 				return row.getInt(ordinal);
 			case BIGINT:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 			case INTERVAL_DAY_TIME:
 				return row.getLong(ordinal);
 			case FLOAT:
 				return row.getFloat(ordinal);
 			case DOUBLE:
 				return row.getDouble(ordinal);
+			case CHAR:
 			case VARCHAR:
 				return row.getString(ordinal);
 			case DECIMAL:
@@ -193,6 +195,7 @@ public interface TypeGetterSetters {
 				return row.getMap(ordinal);
 			case ROW:
 				return row.getRow(ordinal, ((RowType) type).getFieldCount());
+			case BINARY:
 			case VARBINARY:
 				return row.getBinary(ordinal);
 			case ANY:

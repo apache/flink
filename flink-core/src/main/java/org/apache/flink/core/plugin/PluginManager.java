@@ -66,7 +66,7 @@ public class PluginManager {
 	public <P extends Plugin> Iterator<P> load(Class<P> service) {
 		ArrayList<Iterator<P>> combinedIterators = new ArrayList<>(pluginDescriptors.size());
 		for (PluginDescriptor pluginDescriptor : pluginDescriptors) {
-			PluginLoader pluginLoader = new PluginLoader(pluginDescriptor, parentClassLoader, alwaysParentFirstPatterns);
+			PluginLoader pluginLoader = PluginLoader.create(pluginDescriptor, parentClassLoader, alwaysParentFirstPatterns);
 			combinedIterators.add(pluginLoader.load(service));
 		}
 		return Iterators.concat(combinedIterators.iterator());

@@ -51,6 +51,7 @@ import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.security.SecurityConfiguration;
 import org.apache.flink.runtime.security.SecurityUtils;
+import org.apache.flink.runtime.taskexecutor.partition.PartitionTable;
 import org.apache.flink.runtime.taskmanager.MemoryLogger;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.EnvironmentInformation;
@@ -68,6 +69,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.UndeclaredThrowableException;
 import java.net.InetAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.Callable;
@@ -384,7 +386,8 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			taskManagerMetricGroup.f0,
 			metricQueryServiceAddress,
 			blobCacheService,
-			fatalErrorHandler);
+			fatalErrorHandler,
+			new PartitionTable<>());
 	}
 
 	/**
@@ -424,7 +427,7 @@ public class TaskManagerRunner implements FatalErrorHandler, AutoCloseableAsync 
 			final Configuration configuration,
 			final HighAvailabilityServices haServices) throws LeaderRetrievalException {
 
-		final Time lookupTimeout = Time.milliseconds(AkkaUtils.getLookupTimeout(configuration).toMillis());
+		final Duration lookupTimeout = AkkaUtils.getLookupTimeout(configuration);
 
 		final InetAddress taskManagerAddress = LeaderRetrievalUtils.findConnectingAddress(
 			haServices.getResourceManagerLeaderRetriever(),

@@ -20,10 +20,11 @@ package org.apache.flink.table.runtime.util;
 import org.apache.flink.core.memory.MemorySegment;
 
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-import static org.apache.flink.table.util.SegmentsUtil.allocateReuseBytes;
-import static org.apache.flink.table.util.SegmentsUtil.allocateReuseChars;
+import static org.apache.flink.table.runtime.util.SegmentsUtil.allocateReuseBytes;
+import static org.apache.flink.table.runtime.util.SegmentsUtil.allocateReuseChars;
 
 /**
  * String utf-8 utils.
@@ -297,10 +298,6 @@ public class StringUtf8Utils {
 	}
 
 	public static String defaultDecodeUTF8(byte[] bytes, int offset, int len) {
-		try {
-			return new String(bytes, offset, len, "UTF-8");
-		} catch (UnsupportedEncodingException e) {
-			throw new RuntimeException("encodeUTF8 error", e);
-		}
+		return new String(bytes, offset, len, StandardCharsets.UTF_8);
 	}
 }

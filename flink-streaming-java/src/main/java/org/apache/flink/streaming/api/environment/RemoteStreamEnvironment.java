@@ -23,8 +23,8 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
-import org.apache.flink.client.program.JobWithJars;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
@@ -191,7 +191,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			try {
 				URL jarFileUrl = new File(jarFile).getAbsoluteFile().toURI().toURL();
 				this.jarFiles.add(jarFileUrl);
-				JobWithJars.checkJarFile(jarFileUrl);
+				ClientUtils.checkJarFile(jarFileUrl);
 			} catch (MalformedURLException e) {
 				throw new IllegalArgumentException("JAR file path is invalid '" + jarFile + "'", e);
 			} catch (IOException e) {
@@ -223,8 +223,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		String jobName,
 		SavepointRestoreSettings savepointRestoreSettings
 	) throws ProgramInvocationException {
-		StreamGraph streamGraph = streamExecutionEnvironment.getStreamGraph();
-		streamGraph.setJobName(jobName);
+		StreamGraph streamGraph = streamExecutionEnvironment.getStreamGraph(jobName);
 		return executeRemotely(streamGraph,
 			streamExecutionEnvironment.getClass().getClassLoader(),
 			streamExecutionEnvironment.getConfig(),
@@ -256,7 +255,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			LOG.info("Running remotely at {}:{}", host, port);
 		}
 
-		ClassLoader userCodeClassLoader = JobWithJars.buildUserCodeClassLoader(jarFiles, globalClasspaths, envClassLoader);
+		ClassLoader userCodeClassLoader = ClientUtils.buildUserCodeClassLoader(jarFiles, globalClasspaths, envClassLoader);
 
 		Configuration configuration = new Configuration();
 		configuration.addAll(clientConfiguration);
@@ -274,8 +273,6 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 			throw new ProgramInvocationException("Cannot establish connection to JobManager: " + e.getMessage(),
 				streamGraph.getJobGraph().getJobID(), e);
 		}
-
-		client.setPrintStatusDuringExecution(executionConfig.isSysoutLoggingEnabled());
 
 		if (savepointRestoreSettings == null) {
 			savepointRestoreSettings = SavepointRestoreSettings.none();
@@ -295,7 +292,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 		}
 		finally {
 			try {
-				client.shutdown();
+				client.close();
 			} catch (Exception e) {
 				LOG.warn("Could not properly shut down the cluster client.", e);
 			}
@@ -303,9 +300,7 @@ public class RemoteStreamEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws ProgramInvocationException {
-		StreamGraph streamGraph = getStreamGraph();
-		streamGraph.setJobName(jobName);
+	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 		transformations.clear();
 		return executeRemotely(streamGraph, jarFiles);
 	}

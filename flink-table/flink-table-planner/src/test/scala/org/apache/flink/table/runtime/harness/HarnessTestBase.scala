@@ -23,6 +23,7 @@ import java.util.{Comparator, Queue => JQueue}
 import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo.{LONG_TYPE_INFO, STRING_TYPE_INFO}
 import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.streaming.api.operators.{AbstractUdfStreamOperator, OneInputStreamOperator}
@@ -344,9 +345,9 @@ class HarnessTestBase extends StreamingWithStateTestBase {
   }
 
   private def extractExpectedTransformation(
-      transformation: StreamTransformation[_],
-      prefixOperatorName: String): StreamTransformation[_] = {
-    def extractFromInputs(inputs: StreamTransformation[_]*): StreamTransformation[_] = {
+      transformation: Transformation[_],
+      prefixOperatorName: String): Transformation[_] = {
+    def extractFromInputs(inputs: Transformation[_]*): Transformation[_] = {
       for (input <- inputs) {
         val t = extractExpectedTransformation(input, prefixOperatorName)
         if (t != null) {
@@ -407,12 +408,8 @@ class HarnessTestBase extends StreamingWithStateTestBase {
   }
 
   def getOperator(testHarness: OneInputStreamOperatorTestHarness[_, _])
-      : AbstractUdfStreamOperator[_, _] = {
-    val operatorField = classOf[OneInputStreamOperatorTestHarness[_, _]]
-      .getDeclaredField("oneInputOperator")
-    operatorField.setAccessible(true)
-    operatorField.get(testHarness).asInstanceOf[AbstractUdfStreamOperator[_, _]]
-  }
+  : AbstractUdfStreamOperator[_, _] =
+    testHarness.getOneInputOperator.asInstanceOf[AbstractUdfStreamOperator[_, _]]
 
   def verify(expected: JQueue[Object], actual: JQueue[Object]): Unit = {
     verify(expected, actual, new RowResultSortComparator)

@@ -22,7 +22,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{Session, Slide, Tumble, ValidationException}
 import org.apache.flink.table.runtime.utils.JavaUserDefinedAggFunctions.WeightedAvgWithMerge
 import org.apache.flink.table.api.scala._
-import org.apache.flink.table.utils.TableTestBase
+import org.apache.flink.table.utils.{CountMinMax, TableTestBase}
 import org.junit.Test
 
 class GroupWindowValidationTest extends TableTestBase {
@@ -289,5 +289,38 @@ class GroupWindowValidationTest extends TableTestBase {
     .window(Slide over 10.rows every 5.rows on 'proctime as 'w)
     .groupBy('w, 'string)
     .select('string, 'w.start, 'w.end) // invalid start/end on rows-count window
+  }
+
+  @Test
+  def testInvalidAggregateInSelection(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Aggregate functions cannot be used in the select " +
+      "right after the aggregate.")
+
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)
+    val testAgg = new CountMinMax
+
+    table
+      .window(Tumble over 2.rows on 'proctime as 'w)
+      .groupBy('string, 'w)
+      .aggregate(testAgg('int))
+      .select('string, 'f0.count)
+  }
+
+  @Test
+  def testInvalidStarInSelection(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Can not use * for window aggregate!")
+
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)
+    val testAgg = new CountMinMax
+
+    table
+      .window(Tumble over 2.rows on 'proctime as 'w)
+      .groupBy('string, 'w)
+      .aggregate(testAgg('int))
+      .select('*)
   }
 }

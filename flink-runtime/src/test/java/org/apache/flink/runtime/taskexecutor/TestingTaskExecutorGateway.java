@@ -72,7 +72,9 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	private final Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction;
 
-	private final Supplier<Boolean> canBeReleasedSupplier;
+	private final Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier;
+
+	private final BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer;
 
 	TestingTaskExecutorGateway(
 			String address,
@@ -85,7 +87,8 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 			Consumer<ResourceID> heartbeatResourceManagerConsumer,
 			Consumer<Exception> disconnectResourceManagerConsumer,
 			Function<ExecutionAttemptID, CompletableFuture<Acknowledge>> cancelTaskFunction,
-			Supplier<Boolean> canBeReleasedSupplier) {
+			Supplier<CompletableFuture<Boolean>> canBeReleasedSupplier,
+			BiConsumer<JobID, Collection<ResultPartitionID>> releasePartitionsConsumer) {
 		this.address = Preconditions.checkNotNull(address);
 		this.hostname = Preconditions.checkNotNull(hostname);
 		this.heartbeatJobManagerConsumer = Preconditions.checkNotNull(heartbeatJobManagerConsumer);
@@ -97,6 +100,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 		this.disconnectResourceManagerConsumer = disconnectResourceManagerConsumer;
 		this.cancelTaskFunction = cancelTaskFunction;
 		this.canBeReleasedSupplier = canBeReleasedSupplier;
+		this.releasePartitionsConsumer = releasePartitionsConsumer;
 	}
 
 	@Override
@@ -106,12 +110,12 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	@Override
 	public CompletableFuture<StackTraceSampleResponse> requestStackTraceSample(
-			final ExecutionAttemptID executionAttemptId,
-			final int sampleId,
-			final int numSamples,
-			final Time delayBetweenSamples,
-			final int maxStackTraceDepth,
-			final Time timeout) {
+		final ExecutionAttemptID executionAttemptId,
+		final int sampleId,
+		final int numSamples,
+		final Time delayBetweenSamples,
+		final int maxStackTraceDepth,
+		final Time timeout) {
 		throw new UnsupportedOperationException();
 	}
 
@@ -127,7 +131,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	@Override
 	public void releasePartitions(JobID jobId, Collection<ResultPartitionID> partitionIds) {
-		// noop
+		releasePartitionsConsumer.accept(jobId, partitionIds);
 	}
 
 	@Override
@@ -182,7 +186,7 @@ public class TestingTaskExecutorGateway implements TaskExecutorGateway {
 
 	@Override
 	public CompletableFuture<Boolean> canBeReleased() {
-		return CompletableFuture.completedFuture(canBeReleasedSupplier.get());
+		return canBeReleasedSupplier.get();
 	}
 
 	@Override

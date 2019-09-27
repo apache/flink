@@ -52,7 +52,7 @@ ADD $job_artifacts/* $FLINK_JOB_ARTIFACTS_DIR/
 RUN set -x && \
   ln -s $FLINK_INSTALL_PATH/flink-[0-9]* $FLINK_HOME && \
   for jar in $FLINK_JOB_ARTIFACTS_DIR/*.jar; do [ -f "$jar" ] || continue; ln -s $jar $FLINK_LIB_DIR; done && \
-  if [ -n "$python_version" ]; then ln -s $FLINK_OPT_DIR/flink-python-*-java-binding.jar $FLINK_LIB_DIR; fi && \
+  if [ -n "$python_version" ]; then ln -s $FLINK_OPT_DIR/flink-python*.jar $FLINK_LIB_DIR; fi && \
   if [ -f ${FLINK_INSTALL_PATH}/flink-shaded-hadoop* ]; then ln -s ${FLINK_INSTALL_PATH}/flink-shaded-hadoop* $FLINK_LIB_DIR; fi && \
   addgroup -S flink && adduser -D -S -H -G flink -h $FLINK_HOME flink && \
   chown -R flink:flink ${FLINK_INSTALL_PATH}/flink-* && \

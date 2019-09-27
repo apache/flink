@@ -23,13 +23,15 @@ import org.apache.flink.client.deployment.StandaloneClusterId;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.runtime.util.LeaderConnectionInfo;
+import org.apache.flink.configuration.RestOptions;
 
 import org.apache.commons.cli.CommandLine;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
+import java.net.URL;
 
 import static org.junit.Assert.assertThat;
 
@@ -52,8 +54,8 @@ public class DefaultCLITest extends CliFrontendTestBase {
 		final String localhost = "localhost";
 		final int port = 1234;
 
-		configuration.setString(JobManagerOptions.ADDRESS, localhost);
-		configuration.setInteger(JobManagerOptions.PORT, port);
+		configuration.setString(RestOptions.ADDRESS, localhost);
+		configuration.setInteger(RestOptions.PORT, port);
 
 		@SuppressWarnings("unchecked")
 		final AbstractCustomCommandLine<StandaloneClusterId> defaultCLI =
@@ -68,10 +70,10 @@ public class DefaultCLITest extends CliFrontendTestBase {
 
 		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
 
-		final LeaderConnectionInfo clusterConnectionInfo = clusterClient.getClusterConnectionInfo();
+		final URL webInterfaceUrl = new URL(clusterClient.getWebInterfaceURL());
 
-		assertThat(clusterConnectionInfo.getHostname(), Matchers.equalTo(localhost));
-		assertThat(clusterConnectionInfo.getPort(), Matchers.equalTo(port));
+		assertThat(webInterfaceUrl.getHost(), Matchers.equalTo(localhost));
+		assertThat(webInterfaceUrl.getPort(), Matchers.equalTo(port));
 	}
 
 	/**
@@ -101,10 +103,10 @@ public class DefaultCLITest extends CliFrontendTestBase {
 
 		final ClusterClient<?> clusterClient = clusterDescriptor.retrieve(defaultCLI.getClusterId(commandLine));
 
-		final LeaderConnectionInfo clusterConnectionInfo = clusterClient.getClusterConnectionInfo();
+		final URL webInterfaceUrl = new URL(clusterClient.getWebInterfaceURL());
 
-		assertThat(clusterConnectionInfo.getHostname(), Matchers.equalTo(manualHostname));
-		assertThat(clusterConnectionInfo.getPort(), Matchers.equalTo(manualPort));
+		assertThat(webInterfaceUrl.getHost(), Matchers.equalTo(manualHostname));
+		assertThat(webInterfaceUrl.getPort(), Matchers.equalTo(manualPort));
 	}
 
 }

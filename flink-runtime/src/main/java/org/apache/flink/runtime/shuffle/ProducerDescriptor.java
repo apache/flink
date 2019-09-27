@@ -63,11 +63,11 @@ public class ProducerDescriptor {
 		this.dataPort = dataPort;
 	}
 
-	ResourceID getProducerLocation() {
+	public ResourceID getProducerLocation() {
 		return producerLocation;
 	}
 
-	ExecutionAttemptID getProducerExecutionId() {
+	public ExecutionAttemptID getProducerExecutionId() {
 		return producerExecutionId;
 	}
 

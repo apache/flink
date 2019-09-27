@@ -2,7 +2,7 @@
 
 Apache Flink is an open source stream processing framework with the powerful stream- and batch-processing capabilities.
 
-Learn more about Flink at [http://flink.apache.org/](http://flink.apache.org/)
+Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
 
 This packaging allows you to write Flink programs in Python, but it is currently a very initial version and will change in future versions.
 

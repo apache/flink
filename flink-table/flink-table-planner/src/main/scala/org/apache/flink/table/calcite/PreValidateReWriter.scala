@@ -39,7 +39,7 @@ import java.util
 
 import scala.collection.JavaConversions._
 
-/** Implements [[org.apache.calcite.sql.util.SqlShuttle]]
+/** Implements [[org.apache.calcite.sql.util.SqlVisitor]]
   * interface to do some rewrite work before sql node validation. */
 class PreValidateReWriter(
     val catalogReader: CatalogReader,
@@ -105,7 +105,7 @@ object PreValidateReWriter {
       val id = sqlProperty.getKey
       val targetField = SqlValidatorUtil.getTargetField(targetRowType,
           typeFactory, id, calciteCatalogReader, relOptTable)
-      validateField(assignedFields.containsValue, id, targetField)
+      validateField(idx => !assignedFields.contains(idx), id, targetField)
       val value = sqlProperty.getValue.asInstanceOf[SqlLiteral]
       assignedFields.put(targetField.getIndex,
         maybeCast(value, value.createSqlType(typeFactory), targetField.getType, typeFactory))

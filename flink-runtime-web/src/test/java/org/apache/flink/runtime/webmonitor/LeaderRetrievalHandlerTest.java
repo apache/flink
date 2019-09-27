@@ -84,18 +84,18 @@ public class LeaderRetrievalHandlerTest extends TestLogger {
 
 		try (HttpTestClient httpClient = new HttpTestClient("localhost", bootstrap.getServerPort())) {
 			// 1. no leader gateway available --> Service unavailable
-			httpClient.sendGetRequest(restPath, FutureUtils.toFiniteDuration(timeout));
+			httpClient.sendGetRequest(restPath, FutureUtils.toDuration(timeout));
 
-			HttpTestClient.SimpleHttpResponse response = httpClient.getNextResponse(FutureUtils.toFiniteDuration(timeout));
+			HttpTestClient.SimpleHttpResponse response = httpClient.getNextResponse(FutureUtils.toDuration(timeout));
 
 			Assert.assertEquals(HttpResponseStatus.SERVICE_UNAVAILABLE, response.getStatus());
 
 			// 2. with leader
 			gatewayFuture.complete(gateway);
 
-			httpClient.sendGetRequest(restPath, FutureUtils.toFiniteDuration(timeout));
+			httpClient.sendGetRequest(restPath, FutureUtils.toDuration(timeout));
 
-			response = httpClient.getNextResponse(FutureUtils.toFiniteDuration(timeout));
+			response = httpClient.getNextResponse(FutureUtils.toDuration(timeout));
 
 			Assert.assertEquals(HttpResponseStatus.OK, response.getStatus());
 			Assert.assertEquals(RESPONSE_MESSAGE, response.getContent());

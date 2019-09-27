@@ -367,7 +367,11 @@ class PipelinedSubpartition extends ResultSubpartition {
 	@SuppressWarnings("FieldAccessNotGuarded")
 	@VisibleForTesting
 	public int getBuffersInBacklog() {
-		return buffersInBacklog;
+		if (flushRequested || isFinished) {
+			return buffersInBacklog;
+		} else {
+			return Math.max(buffersInBacklog - 1, 0);
+		}
 	}
 
 	private boolean shouldNotifyDataAvailable() {

@@ -1,0 +1,102 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testWithProjectProjectCorrelate">
+    <Resource name="sql">
+      <![CDATA[
+SELECT (SELECT min(t1.t1d) FROM t3 WHERE t3.t3a = 'test') min_t1d
+FROM   t1
+WHERE  t1a = 'test'
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(min_t1d=[$SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
+  LogicalProject($f0=[$cor0.t1d])
+    LogicalFilter(condition=[=($0, _UTF-16LE'test')])
+      LogicalTableScan(table=[[default_catalog, default_database, t3, source: [TestTableSource(t3a, t3b, t3c, t3d, t3e, t3f, t3g, t3h, t3i)]]])
+})])
++- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(t1a, t1b, t1c, t1d, t1e, t1f, t1g, t1h, t1i)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(min_t1d=[$10])
++- LogicalJoin(condition=[=($3, $9)], joinType=[left])
+   :- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(t1a, t1b, t1c, t1d, t1e, t1f, t1g, t1h, t1i)]]])
+   +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)])
+      +- LogicalProject(t1d=[$9], $f0=[$9])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
+            :  +- LogicalTableScan(table=[[default_catalog, default_database, t3, source: [TestTableSource(t3a, t3b, t3c, t3d, t3e, t3f, t3g, t3h, t3i)]]])
+            +- LogicalAggregate(group=[{0}])
+               +- LogicalProject(t1d=[$3])
+                  +- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(t1a, t1b, t1c, t1d, t1e, t1f, t1g, t1h, t1i)]]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithProjectFilterCorrelate">
+    <Resource name="sql">
+      <![CDATA[
+SELECT (SELECT min(t3d) FROM t3 WHERE t3.t3a = t1.t1a) min_t3d,
+       (SELECT max(t2h) FROM t2 WHERE t2.t2a = t1.t1a) max_t2h
+FROM   t1
+    WHERE  t1a = 'test'
+      ]]>
+    </Resource>
+    <Resource name="planBefore">
+      <![CDATA[
+LogicalProject(min_t3d=[$SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
+  LogicalProject(t3d=[$3])
+    LogicalFilter(condition=[=($0, $cor0.t1a)])
+      LogicalTableScan(table=[[default_catalog, default_database, t3, source: [TestTableSource(t3a, t3b, t3c, t3d, t3e, t3f, t3g, t3h, t3i)]]])
+})], max_t2h=[$SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
+  LogicalProject(t2h=[$7])
+    LogicalFilter(condition=[=($0, $cor1.t1a)])
+      LogicalTableScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(t2a, t2b, t2c, t2d, t2e, t2f, t2g, t2h, t2i)]]])
+})])
++- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(t1a, t1b, t1c, t1d, t1e, t1f, t1g, t1h, t1i)]]])
+]]>
+    </Resource>
+    <Resource name="planAfter">
+      <![CDATA[
+LogicalProject(min_t3d=[$9], max_t2h=[$11])
++- LogicalJoin(condition=[=($0, $10)], joinType=[left])
+   :- LogicalProject(t1a=[$0], t1b=[$1], t1c=[$2], t1d=[$3], t1e=[$4], t1f=[$5], t1g=[$6], t1h=[$7], t1i=[$8], EXPR$0=[$10])
+   :  +- LogicalJoin(condition=[=($0, $9)], joinType=[left])
+   :     :- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
+   :     :  +- LogicalTableScan(table=[[default_catalog, default_database, t1, source: [TestTableSource(t1a, t1b, t1c, t1d, t1e, t1f, t1g, t1h, t1i)]]])
+   :     +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)])
+   :        +- LogicalProject(t3a=[$0], t3d=[$3])
+   :           +- LogicalFilter(condition=[IS NOT NULL($0)])
+   :              +- LogicalTableScan(table=[[default_catalog, default_database, t3, source: [TestTableSource(t3a, t3b, t3c, t3d, t3e, t3f, t3g, t3h, t3i)]]])
+   +- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)])
+      +- LogicalProject(t2a=[$0], t2h=[$7])
+         +- LogicalFilter(condition=[IS NOT NULL($0)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, t2, source: [TestTableSource(t2a, t2b, t2c, t2d, t2e, t2f, t2g, t2h, t2i)]]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

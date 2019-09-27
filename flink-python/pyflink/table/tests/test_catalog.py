@@ -56,32 +56,32 @@ class CatalogTestBase(PyFlinkTestCase):
         self.assertEqual(cd1.get_properties(), cd2.get_properties())
 
     def check_catalog_table_equals(self, t1, t2):
-        self.assertEquals(t1.get_schema(), t2.get_schema())
-        self.assertEquals(t1.get_properties(), t2.get_properties())
-        self.assertEquals(t1.get_comment(), t2.get_comment())
+        self.assertEqual(t1.get_schema(), t2.get_schema())
+        self.assertEqual(t1.get_properties(), t2.get_properties())
+        self.assertEqual(t1.get_comment(), t2.get_comment())
 
     def check_catalog_view_equals(self, v1, v2):
-        self.assertEquals(v1.get_schema(), v1.get_schema())
-        self.assertEquals(v1.get_properties(), v2.get_properties())
-        self.assertEquals(v1.get_comment(), v2.get_comment())
+        self.assertEqual(v1.get_schema(), v1.get_schema())
+        self.assertEqual(v1.get_properties(), v2.get_properties())
+        self.assertEqual(v1.get_comment(), v2.get_comment())
 
     def check_catalog_function_equals(self, f1, f2):
-        self.assertEquals(f1.get_class_name(), f2.get_class_name())
-        self.assertEquals(f1.get_properties(), f2.get_properties())
+        self.assertEqual(f1.get_class_name(), f2.get_class_name())
+        self.assertEqual(f1.get_properties(), f2.get_properties())
 
     def check_catalog_partition_equals(self, p1, p2):
-        self.assertEquals(p1.get_properties(), p2.get_properties())
+        self.assertEqual(p1.get_properties(), p2.get_properties())
 
     @staticmethod
     def create_db():
         gateway = get_gateway()
-        j_database = gateway.jvm.GenericCatalogDatabase({"k1": "v1"}, CatalogTestBase.test_comment)
+        j_database = gateway.jvm.CatalogDatabaseImpl({"k1": "v1"}, CatalogTestBase.test_comment)
         return CatalogDatabase(j_database)
 
     @staticmethod
     def create_another_db():
         gateway = get_gateway()
-        j_database = gateway.jvm.GenericCatalogDatabase({"k2": "v2"}, "this is another database.")
+        j_database = gateway.jvm.CatalogDatabaseImpl({"k2": "v2"}, "this is another database.")
         return CatalogDatabase(j_database)
 
     @staticmethod
@@ -110,7 +110,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_table():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_table_schema()
-        j_table = gateway.jvm.GenericCatalogTable(
+        j_table = gateway.jvm.CatalogTableImpl(
             table_schema._j_table_schema, CatalogTestBase.get_batch_table_properties(),
             CatalogTestBase.test_comment)
         return CatalogBaseTable(j_table)
@@ -119,7 +119,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_another_table():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_another_table_schema()
-        j_table = gateway.jvm.GenericCatalogTable(
+        j_table = gateway.jvm.CatalogTableImpl(
             table_schema._j_table_schema, CatalogTestBase.get_batch_table_properties(),
             CatalogTestBase.test_comment)
         return CatalogBaseTable(j_table)
@@ -128,7 +128,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_stream_table():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_table_schema()
-        j_table = gateway.jvm.GenericCatalogTable(
+        j_table = gateway.jvm.CatalogTableImpl(
             table_schema._j_table_schema, CatalogTestBase.get_streaming_table_properties(),
             CatalogTestBase.test_comment)
         return CatalogBaseTable(j_table)
@@ -137,7 +137,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_partitioned_table():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_table_schema()
-        j_table = gateway.jvm.GenericCatalogTable(
+        j_table = gateway.jvm.CatalogTableImpl(
             table_schema._j_table_schema, CatalogTestBase.create_partition_keys(),
             CatalogTestBase.get_batch_table_properties(), CatalogTestBase.test_comment)
         return CatalogBaseTable(j_table)
@@ -146,7 +146,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_another_partitioned_table():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_another_table_schema()
-        j_table = gateway.jvm.GenericCatalogTable(
+        j_table = gateway.jvm.CatalogTableImpl(
             table_schema._j_table_schema, CatalogTestBase.create_partition_keys(),
             CatalogTestBase.get_batch_table_properties(), CatalogTestBase.test_comment)
         return CatalogBaseTable(j_table)
@@ -155,7 +155,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_view():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_table_schema()
-        j_view = gateway.jvm.GenericCatalogView(
+        j_view = gateway.jvm.CatalogViewImpl(
             "select * from t1",
             "select * from test-catalog.db1.t1",
             table_schema._j_table_schema,
@@ -167,7 +167,7 @@ class CatalogTestBase(PyFlinkTestCase):
     def create_another_view():
         gateway = get_gateway()
         table_schema = CatalogTestBase.create_another_table_schema()
-        j_view = gateway.jvm.GenericCatalogView(
+        j_view = gateway.jvm.CatalogViewImpl(
             "select * from t2",
             "select * from test-catalog.db2.t2",
             table_schema._j_table_schema,
@@ -178,13 +178,13 @@ class CatalogTestBase(PyFlinkTestCase):
     @staticmethod
     def create_function():
         gateway = get_gateway()
-        j_function = gateway.jvm.GenericCatalogFunction("MyFunction", {})
+        j_function = gateway.jvm.CatalogFunctionImpl("MyFunction", {})
         return CatalogFunction(j_function)
 
     @staticmethod
     def create_another_function():
         gateway = get_gateway()
-        j_function = gateway.jvm.GenericCatalogFunction("MyAnotherFunction", {})
+        j_function = gateway.jvm.CatalogFunctionImpl("MyAnotherFunction", {})
         return CatalogFunction(j_function)
 
     @staticmethod
@@ -204,8 +204,8 @@ class CatalogTestBase(PyFlinkTestCase):
     @staticmethod
     def create_partition():
         gateway = get_gateway()
-        j_partition = gateway.jvm.GenericCatalogPartition(
-            CatalogTestBase.get_batch_table_properties(), "Generic batch table")
+        j_partition = gateway.jvm.CatalogPartitionImpl(
+            CatalogTestBase.get_batch_table_properties(), "catalog partition tests")
         return CatalogPartition(j_partition)
 
     @staticmethod
@@ -246,14 +246,14 @@ class CatalogTestBase(PyFlinkTestCase):
         dbs = self.catalog.list_databases()
 
         self.check_catalog_database_equals(catalog_db, self.catalog.get_database(self.db1))
-        self.assertEquals(2, len(dbs))
-        self.assertEquals({self.db1, self.catalog.get_default_database()}, set(dbs))
+        self.assertEqual(2, len(dbs))
+        self.assertEqual({self.db1, self.catalog.get_default_database()}, set(dbs))
 
         self.catalog.create_database(self.db1, self.create_another_db(), True)
 
         self.check_catalog_database_equals(catalog_db, self.catalog.get_database(self.db1))
-        self.assertEquals(2, len(dbs))
-        self.assertEquals({self.db1, self.catalog.get_default_database()}, set(dbs))
+        self.assertEqual(2, len(dbs))
+        self.assertEqual({self.db1, self.catalog.get_default_database()}, set(dbs))
 
     def test_get_db_database_not_exist_exception(self):
         with self.assertRaises(DatabaseNotExistException):
@@ -323,12 +323,12 @@ class CatalogTestBase(PyFlinkTestCase):
         table_created = self.catalog.get_table(self.path1)
 
         self.check_catalog_table_equals(table, table_created)
-        self.assertEquals(self.test_comment, table_created.get_description())
+        self.assertEqual(self.test_comment, table_created.get_description())
 
         tables = self.catalog.list_tables(self.db1)
 
-        self.assertEquals(1, len(tables))
-        self.assertEquals(self.path1.get_object_name(), tables[0])
+        self.assertEqual(1, len(tables))
+        self.assertEqual(self.path1.get_object_name(), tables[0])
 
         self.catalog.drop_table(self.path1, False)
 
@@ -340,8 +340,8 @@ class CatalogTestBase(PyFlinkTestCase):
 
         tables = self.catalog.list_tables(self.db1)
 
-        self.assertEquals(1, len(tables))
-        self.assertEquals(self.path1.get_object_name(), tables[0])
+        self.assertEqual(1, len(tables))
+        self.assertEqual(self.path1.get_object_name(), tables[0])
 
     def test_create_table_database_not_exist_exception(self):
         self.assertFalse(self.catalog.database_exists(self.db1))
@@ -408,7 +408,7 @@ class CatalogTestBase(PyFlinkTestCase):
         new_table = self.create_another_table()
         self.catalog.alter_table(self.path1, new_table, False)
 
-        self.assertNotEquals(table, self.catalog.get_table(self.path1))
+        self.assertNotEqual(table, self.catalog.get_table(self.path1))
         self.check_catalog_table_equals(new_table, self.catalog.get_table(self.path1))
 
         self.catalog.drop_table(self.path1, False)
@@ -433,7 +433,7 @@ class CatalogTestBase(PyFlinkTestCase):
         new_view = self.create_another_view()
         self.catalog.alter_table(self.path3, new_view, False)
 
-        self.assertNotEquals(view, self.catalog.get_table(self.path3))
+        self.assertNotEqual(view, self.catalog.get_table(self.path3))
         self.check_catalog_view_equals(new_view, self.catalog.get_table(self.path3))
 
     def test_alter_table_table_not_exist_exception(self):
@@ -484,8 +484,8 @@ class CatalogTestBase(PyFlinkTestCase):
         self.catalog.create_table(self.path3, self.create_table(), False)
         self.catalog.create_table(self.path4, self.create_view(), False)
 
-        self.assertEquals(3, len(self.catalog.list_tables(self.db1)))
-        self.assertEquals(1, len(self.catalog.list_views(self.db1)))
+        self.assertEqual(3, len(self.catalog.list_tables(self.db1)))
+        self.assertEqual(1, len(self.catalog.list_views(self.db1)))
 
     def test_table_exists(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
@@ -572,10 +572,10 @@ class CatalogTestBase(PyFlinkTestCase):
         self.catalog.create_table(self.path1, self.create_view(), False)
         self.catalog.create_table(self.path3, self.create_table(), False)
 
-        self.assertEquals(2, len(self.catalog.list_tables(self.db1)))
-        self.assertEquals({self.path1.get_object_name(), self.path3.get_object_name()},
-                          set(self.catalog.list_tables(self.db1)))
-        self.assertEquals([self.path1.get_object_name()], self.catalog.list_views(self.db1))
+        self.assertEqual(2, len(self.catalog.list_tables(self.db1)))
+        self.assertEqual({self.path1.get_object_name(), self.path3.get_object_name()},
+                         set(self.catalog.list_tables(self.db1)))
+        self.assertEqual([self.path1.get_object_name()], self.catalog.list_views(self.db1))
 
     def test_rename_view(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
@@ -646,7 +646,7 @@ class CatalogTestBase(PyFlinkTestCase):
         func = self.create_function()
         self.catalog.create_function(self.path1, func, False)
 
-        self.assertEquals(self.path1.get_object_name(), self.catalog.list_functions(self.db1)[0])
+        self.assertEqual(self.path1.get_object_name(), self.catalog.list_functions(self.db1)[0])
 
     def test_list_functions_database_not_exist_exception(self):
         with self.assertRaises(DatabaseNotExistException):
@@ -754,7 +754,7 @@ class CatalogTestBase(PyFlinkTestCase):
 
         self.catalog.drop_partition(self.path1, self.create_partition_spec(), False)
 
-        self.assertEquals([], self.catalog.list_partitions(self.path1))
+        self.assertEqual([], self.catalog.list_partitions(self.path1))
 
     def test_drop_partition_table_not_exist(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
@@ -808,14 +808,14 @@ class CatalogTestBase(PyFlinkTestCase):
         self.assertIsNone(cp.get_properties().get("k"))
 
         gateway = get_gateway()
-        j_partition = gateway.jvm.GenericCatalogPartition(
-            {"is_streaming": "false", "k": "v"}, "Generic batch table")
+        j_partition = gateway.jvm.CatalogPartitionImpl(
+            {"is_streaming": "false", "k": "v"}, "catalog partition")
         another = CatalogPartition(j_partition)
         self.catalog.alter_partition(self.path1, self.create_partition_spec(), another, False)
 
         cp = self.catalog.get_partition(self.path1, self.create_partition_spec())
         self.check_catalog_partition_equals(another, cp)
-        self.assertEquals("v", cp.get_properties().get("k"))
+        self.assertEqual("v", cp.get_properties().get("k"))
 
     def test_alter_partition_table_not_exist(self):
         self.catalog.create_database(self.db1, self.create_db(), False)
@@ -922,9 +922,9 @@ class CatalogTestBase(PyFlinkTestCase):
         self.catalog.create_partition(self.path1, self.create_another_partition_spec(),
                                       self.create_partition(), False)
 
-        self.assertEquals(2,
-                          len(self.catalog.list_partitions(
-                              self.path1, self.create_partition_spec_subset())))
-        self.assertEquals(1,
-                          len(self.catalog.list_partitions(
-                              self.path1, self.create_another_partition_spec_subset())))
+        self.assertEqual(2,
+                         len(self.catalog.list_partitions(
+                             self.path1, self.create_partition_spec_subset())))
+        self.assertEqual(1,
+                         len(self.catalog.list_partitions(
+                             self.path1, self.create_another_partition_spec_subset())))

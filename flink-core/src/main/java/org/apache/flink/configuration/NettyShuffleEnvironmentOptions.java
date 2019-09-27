@@ -141,6 +141,25 @@ public class NettyShuffleEnvironmentOptions {
 				" help relieve back-pressure caused by unbalanced data distribution among the subpartitions. This value should be" +
 				" increased in case of higher round trip times between nodes and/or larger number of machines in the cluster.");
 
+	/**
+	 * The timeout for requesting exclusive buffers for each channel.
+	 */
+	@Documentation.ExcludeFromDocumentation("This option is purely implementation related, and may be removed as the implementation changes.")
+	public static final ConfigOption<Long> NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS =
+		key("taskmanager.network.memory.exclusive-buffers-request-timeout-ms")
+			.defaultValue(30000L)
+			.withDescription("The timeout for requesting exclusive buffers for each channel. Since the number of maximum buffers and " +
+					"the number of required buffers is not the same for local buffer pools, there may be deadlock cases that the upstream" +
+					"tasks have occupied all the buffers and the downstream tasks are waiting for the exclusive buffers. The timeout breaks" +
+					"the tie by failing the request of exclusive buffers and ask users to increase the number of total buffers.");
+
+	@Documentation.ExcludeFromDocumentation("This option is only used for testing at the moment.")
+	public static final ConfigOption<String> NETWORK_BOUNDED_BLOCKING_SUBPARTITION_TYPE =
+		key("taskmanager.network.bounded-blocking-subpartition-type")
+			.defaultValue("auto")
+			.withDescription("The bounded blocking subpartition type, either \"mmap\" or \"file\". The default \"auto\" means selecting the" +
+					"property type automatically based on system memory architecture.");
+
 	// ------------------------------------------------------------------------
 	//  Netty Options
 	// ------------------------------------------------------------------------
@@ -210,12 +229,12 @@ public class NettyShuffleEnvironmentOptions {
 			.withDeprecatedKeys("taskmanager.net.request-backoff.max")
 			.withDescription("Maximum backoff in milliseconds for partition requests of input channels.");
 
+	// ------------------------------------------------------------------------
+
 	@Documentation.ExcludeFromDocumentation("dev use only; likely temporary")
 	public static final ConfigOption<Boolean> FORCE_PARTITION_RELEASE_ON_CONSUMPTION =
-			key("taskmanager.network.partition.force-release-on-consumption")
-			.defaultValue(true);
-
-	// ------------------------------------------------------------------------
+		key("taskmanager.network.partition.force-release-on-consumption")
+			.defaultValue(false);
 
 	/** Not intended to be instantiated. */
 	private NettyShuffleEnvironmentOptions() {}

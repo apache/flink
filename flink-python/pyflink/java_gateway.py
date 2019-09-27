@@ -119,6 +119,8 @@ def import_flink_view(gateway):
     java_import(gateway.jvm, "org.apache.flink.table.api.dataview.*")
     java_import(gateway.jvm, "org.apache.flink.table.catalog.*")
     java_import(gateway.jvm, "org.apache.flink.table.descriptors.*")
+    java_import(gateway.jvm, "org.apache.flink.table.descriptors.python.*")
+    java_import(gateway.jvm, "org.apache.flink.table.sources.*")
     java_import(gateway.jvm, "org.apache.flink.table.sinks.*")
     java_import(gateway.jvm, "org.apache.flink.table.sources.*")
     java_import(gateway.jvm, "org.apache.flink.table.types.*")
@@ -130,3 +132,4 @@ def import_flink_view(gateway):
     java_import(gateway.jvm, "org.apache.flink.api.java.ExecutionEnvironment")
     java_import(gateway.jvm,
                 "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment")
+    java_import(gateway.jvm, "org.apache.flink.api.common.restartstrategy.RestartStrategies")

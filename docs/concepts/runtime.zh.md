@@ -26,91 +26,63 @@ under the License.
 * This will be replaced by the TOC
 {:toc}
 
-## Tasks and Operator Chains
+## 任务和算子链
 
-For distributed execution, Flink *chains* operator subtasks together into *tasks*. Each task is executed by one thread.
-Chaining operators together into tasks is a useful optimization: it reduces the overhead of thread-to-thread
-handover and buffering, and increases overall throughput while decreasing latency.
-The chaining behavior can be configured; see the [chaining docs](../dev/stream/operators/#task-chaining-and-resource-groups) for details.
+分布式计算中，Flink 将算子（operator）的 subtask *链接（chain）*成 task。每个 task 由一个线程执行。把算子链接成 tasks 能够减少线程间切换和缓冲的开销，在降低延迟的同时提高了整体吞吐量。链接操作的配置详情可参考：[chaining docs](../dev/stream/operators/#task-chaining-and-resource-groups)
 
-The sample dataflow in the figure below is executed with five subtasks, and hence with five parallel threads.
+下图的 dataflow 由五个 subtasks 执行，因此具有五个并行线程。
 
 <img src="{{ site.baseurl }}/fig/tasks_chains.svg" alt="Operator chaining into Tasks" class="offset" width="80%" />
 
 {% top %}
 
-## Job Managers, Task Managers, Clients
+## Job Managers、Task Managers、客户端（Clients）
 
-The Flink runtime consists of two types of processes:
+Flink 运行时包含两类进程：
 
-  - The **JobManagers** (also called *masters*) coordinate the distributed execution. They schedule tasks, coordinate
-    checkpoints, coordinate recovery on failures, etc.
+  - **JobManagers** （也称为 *masters*）协调分布式计算。它们负责调度任务、协调 checkpoints、协调故障恢复等。
 
-    There is always at least one Job Manager. A high-availability setup will have multiple JobManagers, one of
-    which one is always the *leader*, and the others are *standby*.
+    每个 Job 至少会有一个 JobManager。高可用部署下会有多个 JobManagers，其中一个作为 *leader*，其余处于 *standby* 状态。
 
-  - The **TaskManagers** (also called *workers*) execute the *tasks* (or more specifically, the subtasks) of a dataflow,
-    and buffer and exchange the data *streams*.
+  - **TaskManagers**（也称为 *workers*）执行 dataflow 中的 *tasks*（准确来说是 subtasks ），并且缓存和交换数据 *streams*。
 
-    There must always be at least one TaskManager.
+    每个 Job 至少会有一个 TaskManager。
 
-The JobManagers and TaskManagers can be started in various ways: directly on the machines as a [standalone cluster](../ops/deployment/cluster_setup.html), in
-containers, or managed by resource frameworks like [YARN](../ops/deployment/yarn_setup.html) or [Mesos](../ops/deployment/mesos.html).
-TaskManagers connect to JobManagers, announcing themselves as available, and are assigned work.
+JobManagers 和 TaskManagers 有多种启动方式：直接在机器上启动（该集群称为 [standalone cluster](../ops/deployment/cluster_setup.html)），在容器或资源管理框架，如 [YARN](../ops/deployment/yarn_setup.html) 或 [Mesos](../ops/deployment/mesos.html)，中启动。TaskManagers 连接到 JobManagers，通知后者自己可用，然后开始接手被分配的工作。
 
-The **client** is not part of the runtime and program execution, but is used to prepare and send a dataflow to the JobManager.
-After that, the client can disconnect, or stay connected to receive progress reports. The client runs either as part of the
-Java/Scala program that triggers the execution, or in the command line process `./bin/flink run ...`.
+**客户端**虽然不是运行时（runtime）和作业执行时的一部分，但它是被用作准备和提交 dataflow 到 JobManager 的。提交完成之后，客户端可以断开连接，也可以保持连接来接收进度报告。客户端既可以作为触发执行的 Java / Scala 程序的一部分，也可以在命令行进程中运行`./bin/flink run ...`。
 
 <img src="{{ site.baseurl }}/fig/processes.svg" alt="The processes involved in executing a Flink dataflow" class="offset" width="80%" />
 
 {% top %}
 
-## Task Slots and Resources
+## Task Slots 和资源
 
-Each worker (TaskManager) is a *JVM process*, and may execute one or more subtasks in separate threads.
-To control how many tasks a worker accepts, a worker has so called **task slots** (at least one).
+每个 worker（TaskManager）都是一个 *JVM 进程*，并且可以在不同的线程中执行一个或多个 subtasks。为了控制 worker 接收 task 的数量，worker 拥有所谓的  **task slots** （至少一个）。
 
-Each *task slot* represents a fixed subset of resources of the TaskManager. A TaskManager with three slots, for example,
-will dedicate 1/3 of its managed memory to each slot. Slotting the resources means that a subtask will not
-compete with subtasks from other jobs for managed memory, but instead has a certain amount of reserved
-managed memory. Note that no CPU isolation happens here; currently slots only separate the managed memory of tasks.
+每个 *task slots* 代表 TaskManager 的一份固定资源子集。例如，具有三个 slots 的 TaskManager 会将其管理的内存资源分成三等份给每个 slot。 划分资源意味着 subtask 之间不会竞争资源，但是也意味着它们只拥有固定的资源。注意这里并没有 CPU 隔离，当前 slots 之间只是划分任务的内存资源。
 
-By adjusting the number of task slots, users can define how subtasks are isolated from each other.
-Having one slot per TaskManager means each task group runs in a separate JVM (which can be started in a
-separate container, for example). Having multiple slots
-means more subtasks share the same JVM. Tasks in the same JVM share TCP connections (via multiplexing) and
-heartbeat messages. They may also share data sets and data structures, thus reducing the per-task overhead.
+通过调整 slot 的数量，用户可以决定 subtasks 的隔离方式。每个 TaskManager 有一个 slot 意味着每组 task 在一个单独的 JVM 中运行（例如，在一个单独的容器中启动）。拥有多个 slots 意味着多个 subtasks 共享同一个 JVM。 Tasks 在同一个 JVM 中共享 TCP 连接（通过多路复用技术）和心跳信息（heartbeat messages）。它们还可能共享数据集和数据结构，从而降低每个 task 的开销。
 
 <img src="{{ site.baseurl }}/fig/tasks_slots.svg" alt="A TaskManager with Task Slots and Tasks" class="offset" width="80%" />
 
-By default, Flink allows subtasks to share slots even if they are subtasks of different tasks, so long as
-they are from the same job. The result is that one slot may hold an entire pipeline of the
-job. Allowing this *slot sharing* has two main benefits:
+默认情况下，Flink 允许 subtasks 共享 slots，即使它们是不同 tasks 的 subtasks，只要它们来自同一个 job。因此，一个 slot 可能会负责这个 job 的整个管道（pipeline）。允许 *slot sharing* 有两个好处：
 
-  - A Flink cluster needs exactly as many task slots as the highest parallelism used in the job.
-    No need to calculate how many tasks (with varying parallelism) a program contains in total.
+  - Flink 集群需要与 job 中使用的最高并行度一样多的 slots。这样不需要计算作业总共包含多少个 tasks（具有不同并行度）。
 
-  - It is easier to get better resource utilization. Without slot sharing, the non-intensive
-    *source/map()* subtasks would block as many resources as the resource intensive *window* subtasks.
-    With slot sharing, increasing the base parallelism in our example from two to six yields full utilization of the
-    slotted resources, while making sure that the heavy subtasks are fairly distributed among the TaskManagers.
+  - 更好的资源利用率。在没有 slot sharing 的情况下，简单的 subtasks（*source/map()*）将会占用和复杂的 subtasks （*window*）一样多的资源。通过 slot sharing，将示例中的并行度从 2 增加到 6 可以充分利用 slot 的资源，同时确保繁重的 subtask 在 TaskManagers 之间公平地获取资源。
 
 <img src="{{ site.baseurl }}/fig/slot_sharing.svg" alt="TaskManagers with shared Task Slots" class="offset" width="80%" />
 
-The APIs also include a *[resource group](../dev/stream/operators/#task-chaining-and-resource-groups)* mechanism which can be used to prevent undesirable slot sharing.
+APIs 还包含了 *[resource group](../dev/stream/operators/#task-chaining-and-resource-groups)* 机制，它可以用来防止不必要的 slot sharing。
 
-As a rule-of-thumb, a good default number of task slots would be the number of CPU cores.
-With hyper-threading, each slot then takes 2 or more hardware thread contexts.
+根据经验，合理的 slots 数量应该和 CPU 核数相同。在使用超线程（hyper-threading）时，每个 slot 将会占用 2 个或更多的硬件线程上下文（hardware thread contexts）。
 
 {% top %}
 
 ## State Backends
 
-The exact data structures in which the key/values indexes are stored depends on the chosen [state backend](../ops/state/state_backends.html). One state backend
-stores data in an in-memory hash map, another state backend uses [RocksDB](http://rocksdb.org) as the key/value store.
-In addition to defining the data structure that holds the state, the state backends also implement the logic to
-take a point-in-time snapshot of the key/value state and store that snapshot as part of a checkpoint.
+key/values 索引存储的数据结构取决于 [state backend](../ops/state/state_backends.html) 的选择。一类 state backend 将数据存储在内存的哈希映射中，另一类 state backend 使用  [RocksDB](http://rocksdb.org) 作为键/值存储。除了定义保存状态（state）的数据结构之外， state backend 还实现了获取键/值状态的时间点快照的逻辑，并将该快照存储为 checkpoint 的一部分。
 
 <img src="{{ site.baseurl }}/fig/checkpoints.svg" alt="checkpoints and snapshots" class="offset" width="60%" />
 
@@ -118,10 +90,10 @@ take a point-in-time snapshot of the key/value state and store that snapshot as 
 
 ## Savepoints
 
-Programs written in the Data Stream API can resume execution from a **savepoint**. Savepoints allow both updating your programs and your Flink cluster without losing any state. 
+用 Data Stream API 编写的程序可以从 **savepoint** 继续执行。Savepoints 允许在不丢失任何状态的情况下升级程序和 Flink 集群。
 
-[Savepoints](../ops/state/savepoints.html) are **manually triggered checkpoints**, which take a snapshot of the program and write it out to a state backend. They rely on the regular checkpointing mechanism for this. During execution programs are periodically snapshotted on the worker nodes and produce checkpoints. For recovery only the last completed checkpoint is needed and older checkpoints can be safely discarded as soon as a new one is completed.
+[Savepoints](../ops/state/savepoints.html) 是**手动触发的 checkpoints**，它依靠常规的 checkpoint 机制获取程序的快照并将其写入 state backend。在执行期间，程序会定期在 worker 节点上创建快照并生成 checkpoints。对于恢复，Flink 仅需要最后完成的 checkpoint，而一旦完成了新的 checkpoint，旧的就可以被丢弃。
 
-Savepoints are similar to these periodic checkpoints except that they are **triggered by the user** and **don't automatically expire** when newer checkpoints are completed. Savepoints can be created from the [command line](../ops/cli.html#savepoints) or when cancelling a job via the [REST API](../monitoring/rest_api.html#cancel-job-with-savepoint).
+Savepoints 类似于这些定期的 checkpoints，除了它们是**由用户触发**并且在新的 checkpoint 完成时**不会自动过期**。你可以通过[命令行](../ops/cli.html#savepoints) 或在取消一个 job 时通过  [REST API](../monitoring/rest_api.html#cancel-job-with-savepoint) 来创建 Savepoints。
 
 {% top %}

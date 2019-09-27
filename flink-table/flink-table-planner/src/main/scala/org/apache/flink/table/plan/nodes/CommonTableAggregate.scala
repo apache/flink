@@ -27,8 +27,10 @@ import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.util.{ImmutableBitSet, Pair, Util}
 import org.apache.flink.table.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
+import org.apache.flink.table.typeutils.FieldInfoUtils
 
 import scala.collection.JavaConversions._
+import scala.collection.mutable.ListBuffer
 
 trait CommonTableAggregate extends CommonAggregate {
 
@@ -40,15 +42,27 @@ trait CommonTableAggregate extends CommonAggregate {
 
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val builder = typeFactory.builder
+    val groupNames = new ListBuffer[String]
 
     // group key fields
     groupSet.asList().foreach(e => {
       val field = child.getRowType.getFieldList.get(e)
+      groupNames.append(field.getName)
       builder.add(field)
     })
 
     // agg fields
-    aggCalls.get(0).`type`.getFieldList.foreach(builder.add)
+    val aggCall = aggCalls.get(0)
+    if (aggCall.`type`.isStruct) {
+      // only a structured type contains a field list.
+      aggCall.`type`.getFieldList.foreach(builder.add)
+    } else {
+      // A non-structured type does not have a field list, so get field name through
+      // TableEnvImpl.getFieldNames.
+      val name = FieldInfoUtils
+        .getFieldNames(FlinkTypeFactory.toTypeInfo(aggCall.`type`), groupNames).head
+      builder.add(name, aggCall.`type`)
+    }
     builder.build()
   }
 
@@ -60,8 +74,13 @@ trait CommonTableAggregate extends CommonAggregate {
     namedProperties: Seq[FlinkRelBuilder.NamedWindowProperty]): String = {
 
     val outFields = rowType.getFieldNames
-    val tableAggOutputArity = namedAggregates.head.left.getType.getFieldCount
-    val groupSize = grouping.size
+    val aggOutputType = namedAggregates.head.left.getType
+    val tableAggOutputArity = if (aggOutputType.isStruct) {
+      aggOutputType.getFieldCount
+    } else {
+      1
+    }
+    val groupSize = grouping.length
     val outFieldsOfTableAgg = outFields.subList(groupSize, groupSize + tableAggOutputArity)
     val tableAggOutputFields = Seq(s"(${outFieldsOfTableAgg.mkString(", ")})")
 

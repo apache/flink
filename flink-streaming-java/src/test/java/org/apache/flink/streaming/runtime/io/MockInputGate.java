@@ -33,28 +33,28 @@ import java.util.Queue;
  */
 public class MockInputGate extends InputGate {
 
-	private final int pageSize;
-
 	private final int numberOfChannels;
 
 	private final Queue<BufferOrEvent> bufferOrEvents;
 
 	private final boolean[] closed;
 
-	private int closedChannels;
+	private final boolean finishAfterLastBuffer;
 
-	public MockInputGate(int pageSize, int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
-		this.pageSize = pageSize;
+	public MockInputGate(int numberOfChannels, List<BufferOrEvent> bufferOrEvents) {
+		this(numberOfChannels, bufferOrEvents, true);
+	}
+
+	public MockInputGate(
+			int numberOfChannels,
+			List<BufferOrEvent> bufferOrEvents,
+			boolean finishAfterLastBuffer) {
 		this.numberOfChannels = numberOfChannels;
 		this.bufferOrEvents = new ArrayDeque<BufferOrEvent>(bufferOrEvents);
 		this.closed = new boolean[numberOfChannels];
+		this.finishAfterLastBuffer = finishAfterLastBuffer;
 
 		isAvailable = AVAILABLE;
-	}
-
-	@Override
-	public int getPageSize() {
-		return pageSize;
 	}
 
 	@Override
@@ -68,12 +68,15 @@ public class MockInputGate extends InputGate {
 
 	@Override
 	public boolean isFinished() {
-		return bufferOrEvents.isEmpty();
+		return finishAfterLastBuffer && bufferOrEvents.isEmpty();
 	}
 
 	@Override
 	public Optional<BufferOrEvent> getNext() {
 		BufferOrEvent next = bufferOrEvents.poll();
+		if (!finishAfterLastBuffer && bufferOrEvents.isEmpty()) {
+			resetIsAvailable();
+		}
 		if (next == null) {
 			return Optional.empty();
 		}
@@ -85,7 +88,6 @@ public class MockInputGate extends InputGate {
 		}
 		if (next.isEvent() && next.getEvent() instanceof EndOfPartitionEvent) {
 			closed[channelIdx] = true;
-			closedChannels++;
 		}
 		return Optional.of(next);
 	}
@@ -93,10 +95,6 @@ public class MockInputGate extends InputGate {
 	@Override
 	public Optional<BufferOrEvent> pollNext() {
 		return getNext();
-	}
-
-	@Override
-	public void requestPartitions() {
 	}
 
 	@Override

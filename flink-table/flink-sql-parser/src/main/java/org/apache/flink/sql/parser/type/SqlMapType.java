@@ -48,10 +48,12 @@ public class SqlMapType extends SqlIdentifier implements ExtendedSqlType {
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("MAP<");
+		writer.keyword("MAP");
+		SqlWriter.Frame frame = writer.startList(SqlWriter.FrameTypeEnum.FUN_CALL, "<", ">");
+		writer.sep(",");
 		ExtendedSqlType.unparseType(keyType, writer, leftPrec, rightPrec);
 		writer.sep(",");
 		ExtendedSqlType.unparseType(valType, writer, leftPrec, rightPrec);
-		writer.keyword(">");
+		writer.endList(frame);
 	}
 }

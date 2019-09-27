@@ -344,7 +344,7 @@ class SingleRowJoinTest extends TableTestBase {
             ),
             term("select", "SUM(a1) AS $f0")
           ),
-          term("select", "*($f0, 0.1) AS EXPR$0")
+          term("select", "*($f0, 0.1:DECIMAL(2, 1)) AS EXPR$0")
         )
 
     util.verifySql(query, expected)

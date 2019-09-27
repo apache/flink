@@ -108,10 +108,6 @@ class UnknownInputChannel extends InputChannel {
 	}
 
 	@Override
-	public void notifySubpartitionConsumed() {
-	}
-
-	@Override
 	public void releaseAllResources() throws IOException {
 		// Nothing to do here
 	}

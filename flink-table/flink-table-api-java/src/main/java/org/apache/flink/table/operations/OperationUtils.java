@@ -69,7 +69,7 @@ public class OperationUtils {
 	 * @param <T> The type of the child.
 	 * @return String representation of the given operation.
 	 */
-	static <T extends Operation> String formatWithChildren(
+	public static <T extends Operation> String formatWithChildren(
 			String operationName,
 			Map<String, Object> parameters,
 			List<T> children,

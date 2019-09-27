@@ -84,9 +84,8 @@ block_infected=0
 # a) are not deployed during a release
 # b) exist only for dev purposes
 # c) no-one should depend on them
-# exclude flink-python because there are 2 flink-python module currently, current logic goes wrong on this situation
 e2e_modules=$(find flink-end-to-end-tests -mindepth 2 -maxdepth 5 -name 'pom.xml' -printf '%h\n' | sort -u | tr '\n' ',')
-excluded_modules=\!${e2e_modules//,/,\!},!flink-docs,!flink-python,!flink-libraries/flink-python
+excluded_modules=\!${e2e_modules//,/,\!},!flink-docs
 
 echo "Analyzing modules for Scala dependencies using 'mvn dependency:tree'."
 echo "If you haven't built the project, please do so first by running \"mvn clean install -DskipTests\""
@@ -111,14 +110,14 @@ while read line; do
         block_name=""
         block_infected=0
     elif [[ $in_block -eq 1 ]]; then
-        echo $line | grep "org.scala-lang" | grep --invert-match "org.scala-lang.*:.*:.*:test" >/dev/null
+        echo $line | grep -E "org.scala-lang|- [^:]+:[^:]+_2\.1[0-9]" | grep --invert-match "org.scala-lang.*:.*:.*:test" | grep --invert-match "[^:]*:[^:]*_2\.1[0-9]:.*:.*:test" >/dev/null
         if [ $? -eq 0 ]; then
             #echo $block_name
             infected="$block_name $infected"
             block_infected=1
         fi
     fi
-done < <(mvn -nsu dependency:tree -Dincludes=org.scala-lang -pl ${excluded_modules} ${MAVEN_ARGUMENTS} | tee /dev/tty)
+done < <(mvn -nsu dependency:tree -Dincludes=org.scala-lang,:*_2.1*:: -pl ${excluded_modules} ${MAVEN_ARGUMENTS} | tee /dev/tty)
 
 
 # deduplicate and sort
@@ -142,7 +141,7 @@ echo
 echo "Checking Scala-free modules:"
 
 for module in $clean; do
-    out=`find . -maxdepth 3 -name 'pom.xml' -not -path '*target*' -exec grep "${module}_\d\+\.\d\+</artifactId>" "{}" \;`
+    out=`find . -maxdepth 3 -name 'pom.xml' -not -path '*target*' -exec grep "${module}_\\${scala.binary.version}</artifactId>" "{}" \;`
     if [[ "$out" == "" ]]; then
         printf "$GREEN OK $NC $module\n"
     else

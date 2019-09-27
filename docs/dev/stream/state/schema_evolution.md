@@ -106,4 +106,12 @@ Flink fully supports evolving schema of Avro type state, as long as the schema c
 One limitation is that Avro generated classes used as the state type cannot be relocated or have different
 namespaces when the job is restored.
 
+{% warn Attention %} Schema evolution of keys is not supported.
+
+Example: RocksDB state backend relies on binary objects identity, rather than `hashCode` method implementation. Any changes to the keys object structure could lead to non deterministic behaviour.  
+
+{% warn Attention %} **Kryo** cannot be used for schema evolution.  
+
+When Kryo is used, there is no possibility for the framework to verify if any incompatible changes have been made.
+
 {% top %}

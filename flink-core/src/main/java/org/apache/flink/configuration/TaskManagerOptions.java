@@ -242,7 +242,7 @@ public class TaskManagerOptions {
 					" When %s is set to true, then it is advised that this configuration is also" +
 					" set to true. If this configuration is set to false cleaning up of the allocated off-heap memory" +
 					" happens only when the configured JVM parameter MaxDirectMemorySize is reached by triggering a full" +
-					" GC. For streaming setups is is highly recommended to set this value to false as the core state" +
+					" GC. For streaming setups, it is highly recommended to set this value to false as the core state" +
 					" backends currently do not use the managed memory.", code(MEMORY_OFF_HEAP.key())).build());
 
 	/**
@@ -311,6 +311,15 @@ public class TaskManagerOptions {
 				" A value of -1 indicates that there is no limit.");
 
 	// ------------------------------------------------------------------------
+
+	/**
+	 * Toggle to switch between FLIP-49 and current task manager memory configurations.
+	 */
+	@Documentation.ExcludeFromDocumentation("FLIP-49 is still in development.")
+	public static final ConfigOption<Boolean> ENABLE_FLIP_49_CONFIG =
+			key("taskmanager.enable-flip-49")
+			.defaultValue(false)
+			.withDescription("Toggle to switch between FLIP-49 and current task manager memory configurations.");
 
 	/** Not intended to be instantiated. */
 	private TaskManagerOptions() {}

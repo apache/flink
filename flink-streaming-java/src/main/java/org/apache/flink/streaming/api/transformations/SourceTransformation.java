@@ -21,6 +21,7 @@ package org.apache.flink.streaming.api.transformations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
@@ -31,12 +32,12 @@ import java.util.Collections;
 
 /**
  * This represents a Source. This does not actually transform anything since it has no inputs but
- * it is the root {@code StreamTransformation} of any topology.
+ * it is the root {@code Transformation} of any topology.
  *
  * @param <T> The type of the elements that this source produces
  */
 @Internal
-public class SourceTransformation<T> extends StreamTransformation<T> {
+public class SourceTransformation<T> extends PhysicalTransformation<T> {
 
 	private final StreamOperatorFactory<T> operatorFactory;
 
@@ -78,8 +79,8 @@ public class SourceTransformation<T> extends StreamTransformation<T> {
 	}
 
 	@Override
-	public Collection<StreamTransformation<?>> getTransitivePredecessors() {
-		return Collections.<StreamTransformation<?>>singleton(this);
+	public Collection<Transformation<?>> getTransitivePredecessors() {
+		return Collections.singleton(this);
 	}
 
 	@Override

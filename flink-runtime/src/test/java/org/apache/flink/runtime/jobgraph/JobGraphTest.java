@@ -324,9 +324,9 @@ public class JobGraphTest extends TestLogger {
 	}
 
 	@Test
-	public void checkpointingIsEnabledIfIntervalIsPositive() {
+	public void checkpointingIsEnabledIfIntervalIsqAndLegal() {
 		final JobGraph jobGraph = new JobGraph();
-		jobGraph.setSnapshotSettings(createCheckpointSettingsWithInterval(1));
+		jobGraph.setSnapshotSettings(createCheckpointSettingsWithInterval(10));
 
 		assertTrue(jobGraph.isCheckpointingEnabled());
 	}
@@ -347,7 +347,8 @@ public class JobGraphTest extends TestLogger {
 			Integer.MAX_VALUE,
 			CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
 			true,
-			false);
+			false,
+			0);
 
 		return new JobCheckpointingSettings(
 			Collections.emptyList(),

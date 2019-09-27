@@ -24,7 +24,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.GenericRow;
 import org.apache.flink.table.dataformat.util.BaseRowUtil;
-import org.apache.flink.table.types.TypeInfoLogicalTypeConverter;
+import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
 

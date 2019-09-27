@@ -108,9 +108,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			args.add("-t");
 			args.add(flinkShadedHadoopDir.getAbsolutePath());
 
-			args.add("-n");
-			args.add("1");
-
 			args.add("-jm");
 			args.add("768m");
 
@@ -138,7 +135,7 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 			Runner clusterRunner =
 				startWithArgs(
 					args.toArray(new String[args.size()]),
-					"Flink JobManager is now running on", RunTypes.YARN_SESSION);
+					"JobManager Web Interface:", RunTypes.YARN_SESSION);
 
 			// before checking any strings outputted by the CLI, first give it time to return
 			clusterRunner.join();
@@ -254,7 +251,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				"-j", flinkUberjar.getAbsolutePath(),
 				"-t", flinkLibFolder.getAbsolutePath(),
 				"-t", flinkShadedHadoopDir.getAbsolutePath(),
-				"-n", "5",
 				"-jm", "256m",
 				"-tm", "1585m"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
 			LOG.info("Finished testResourceComputation()");
@@ -287,7 +283,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 				"-j", flinkUberjar.getAbsolutePath(),
 				"-t", flinkLibFolder.getAbsolutePath(),
 				"-t", flinkShadedHadoopDir.getAbsolutePath(),
-				"-n", "2",
 				"-jm", "256m",
 				"-tm", "3840m"}, "Number of connected TaskManagers changed to", null, RunTypes.YARN_SESSION, 0);
 			LOG.info("Finished testfullAlloc()");

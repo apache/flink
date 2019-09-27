@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.api.scala
 
+import org.apache.flink.annotation.PublicEvolving
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.table.api.Table
@@ -29,16 +30,17 @@ import org.apache.flink.table.expressions.Expression
   * @param inputType The [[TypeInformation]] for the type of the [[DataStream]].
   * @tparam T The type of the [[DataStream]].
   */
+@PublicEvolving
 class DataStreamConversions[T](dataStream: DataStream[T], inputType: TypeInformation[T]) {
 
   /**
     * Converts the [[DataStream]] into a [[Table]].
     *
-    * The field name of the new [[Table]] can be specified like this:
+    * The field names of the new [[Table]] can be specified like this:
     *
     * {{{
     *   val env = StreamExecutionEnvironment.getExecutionEnvironment
-    *   val tEnv = TableEnvironment.getTableEnvironment(env)
+    *   val tEnv = StreamTableEnvironment.create(env)
     *
     *   val stream: DataStream[(String, Int)] = ...
     *   val table = stream.toTable(tEnv, 'name, 'amount)

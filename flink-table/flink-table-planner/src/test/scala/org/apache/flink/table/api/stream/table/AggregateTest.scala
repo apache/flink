@@ -345,14 +345,14 @@ class AggregateTest extends TableTestBase {
   }
 
   @Test
-  def testSelectStar(): Unit = {
+  def testSelectStarAndGroupByCall(): Unit = {
     val util = streamTestUtil()
     val table = util.addTable[(Int, Long, String)](
       "MyTable", 'a, 'b, 'c)
 
     val testAgg = new CountMinMax
     val resultTable = table
-      .groupBy('b)
+      .groupBy('b % 5)
       .aggregate(testAgg('a))
       .select('*)
 
@@ -364,12 +364,12 @@ class AggregateTest extends TableTestBase {
           unaryNode(
             "DataStreamCalc",
             streamTableNode(table),
-            term("select", "a", "b")
+            term("select", "a", "MOD(b, 5) AS TMP_0")
           ),
-          term("groupBy", "b"),
-          term("select", "b", "CountMinMax(a) AS TMP_0")
+          term("groupBy", "TMP_0"),
+          term("select", "TMP_0", "CountMinMax(a) AS TMP_1")
         ),
-        term("select", "b", "TMP_0.f0 AS f0", "TMP_0.f1 AS f1", "TMP_0.f2 AS f2")
+        term("select", "TMP_0", "TMP_1.f0 AS f0", "TMP_1.f1 AS f1", "TMP_1.f2 AS f2")
       )
     util.verifyTable(resultTable, expected)
   }
@@ -427,5 +427,38 @@ class AggregateTest extends TableTestBase {
         term("select", "b", "TMP_0.f0 AS x", "TMP_0.f1 AS y")
       )
     util.verifyTable(resultTable, expected)
+  }
+
+  @Test
+  def testAggregateOnWindowedTable(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTable[(Int, Long, String)](
+      "MyTable", 'a, 'b, 'c, 'rowtime.rowtime)
+    val testAgg = new CountMinMax
+
+    val result = table
+      .window(Tumble over 15.minute on 'rowtime as 'w)
+      .groupBy('w, 'b % 3)
+      .aggregate(testAgg('a) as ('x, 'y, 'z))
+      .select('w.start, 'x, 'y)
+
+    val expected =
+      unaryNode(
+        "DataStreamCalc",
+        unaryNode(
+          "DataStreamGroupWindowAggregate",
+          unaryNode(
+            "DataStreamCalc",
+            streamTableNode(table),
+            term("select", "a", "rowtime", "MOD(b, 3) AS TMP_0")
+          ),
+          term("groupBy", "TMP_0"),
+          term("window", "TumblingGroupWindow('w, 'rowtime, 900000.millis)"),
+          term("select", "TMP_0", "CountMinMax(a) AS TMP_1", "start('w) AS EXPR$0")
+        ),
+        term("select", "EXPR$0", "TMP_1.f0 AS x", "TMP_1.f1 AS y")
+      )
+
+    util.verifyTable(result, expected)
   }
 }

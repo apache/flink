@@ -221,7 +221,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		final int fetchSize = 1;
 		final long min = TEST_DATA[0].id;
 		final long max = TEST_DATA[TEST_DATA.length - fetchSize].id;
-		ParameterValuesProvider pramProvider = new NumericBetweenParametersProvider(fetchSize, min, max);
+		ParameterValuesProvider pramProvider = new NumericBetweenParametersProvider(min, max).ofBatchSize(fetchSize);
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)
@@ -257,7 +257,7 @@ public class JDBCInputFormatTest extends JDBCTestBase {
 		final long min = TEST_DATA[0].id;
 		final long max = TEST_DATA[TEST_DATA.length - 1].id;
 		final long fetchSize = max + 1; //generate a single split
-		ParameterValuesProvider pramProvider = new NumericBetweenParametersProvider(fetchSize, min, max);
+		ParameterValuesProvider pramProvider = new NumericBetweenParametersProvider(min, max).ofBatchSize(fetchSize);
 		jdbcInputFormat = JDBCInputFormat.buildJDBCInputFormat()
 				.setDrivername(DRIVER_CLASS)
 				.setDBUrl(DB_URL)

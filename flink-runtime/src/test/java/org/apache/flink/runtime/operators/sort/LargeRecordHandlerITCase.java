@@ -18,16 +18,6 @@
 
 package org.apache.flink.runtime.operators.sort;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -50,21 +40,29 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.Value;
 import org.apache.flink.util.MutableObjectIterator;
-
 import org.apache.flink.util.TestLogger;
+
 import org.junit.Test;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class LargeRecordHandlerITCase extends TestLogger {
 
 	@Test
 	public void testRecordHandlerCompositeKey() {
-		
-		final IOManager ioMan = new IOManagerAsync();
 		final int PAGE_SIZE = 4 * 1024;
 		final int NUM_PAGES = 1000;
 		final int NUM_RECORDS = 10;
 		
-		try {
+		try (final IOManager ioMan = new IOManagerAsync()) {
 			final MemoryManager memMan = new MemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
 			final AbstractInvokable owner = new DummyInvokable();
 			
@@ -145,9 +143,6 @@ public class LargeRecordHandlerITCase extends TestLogger {
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
-		finally {
-			ioMan.shutdown();
-		}
 	}
 	
 	public static final class SomeVeryLongValue implements Value {
@@ -193,15 +188,13 @@ public class LargeRecordHandlerITCase extends TestLogger {
 	
 	@Test
 	public void fileTest() {
-		
-		final IOManager ioMan = new IOManagerAsync();
 		final int PAGE_SIZE = 4 * 1024;
 		final int NUM_PAGES = 4;
 		final int NUM_RECORDS = 10;
 		
 		FileIOChannel.ID channel = null;
 		
-		try {
+		try (final IOManager ioMan = new IOManagerAsync()) {
 			final MemoryManager memMan = new MemoryManager(NUM_PAGES * PAGE_SIZE, 1, PAGE_SIZE, MemoryType.HEAP, true);
 			final AbstractInvokable owner = new DummyInvokable();
 			
@@ -259,15 +252,6 @@ public class LargeRecordHandlerITCase extends TestLogger {
 		catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
-		}
-		finally {
-			if (channel != null) {
-				try {
-					ioMan.deleteChannel(channel);
-				} catch (IOException ignored) {}
-			}
-
-			ioMan.shutdown();
 		}
 	}
 

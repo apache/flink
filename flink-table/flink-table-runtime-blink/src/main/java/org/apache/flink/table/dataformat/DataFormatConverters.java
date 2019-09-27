@@ -30,19 +30,22 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializerBase;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
+import org.apache.flink.table.runtime.types.InternalSerializers;
+import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter;
+import org.apache.flink.table.runtime.typeutils.BigDecimalTypeInfo;
+import org.apache.flink.table.runtime.typeutils.BinaryStringTypeInfo;
+import org.apache.flink.table.runtime.typeutils.DecimalTypeInfo;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
-import org.apache.flink.table.types.LogicalTypeDataTypeConverter;
 import org.apache.flink.table.types.logical.DecimalType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.TypeInformationAnyType;
 import org.apache.flink.table.types.utils.TypeConversions;
-import org.apache.flink.table.typeutils.BigDecimalTypeInfo;
-import org.apache.flink.table.typeutils.BinaryStringTypeInfo;
-import org.apache.flink.table.typeutils.DecimalTypeInfo;
 import org.apache.flink.types.Row;
+
+import org.apache.commons.lang3.ArrayUtils;
 
 import java.io.Serializable;
 import java.lang.reflect.Array;
@@ -50,6 +53,10 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -58,7 +65,7 @@ import java.util.stream.Stream;
 
 import scala.Product;
 
-import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToLegacyInfo;
+import static org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 
 /**
@@ -100,14 +107,20 @@ public class DataFormatConverters {
 		t2C.put(DataTypes.TINYINT().bridgedTo(byte.class), ByteConverter.INSTANCE);
 
 		t2C.put(DataTypes.DATE().bridgedTo(Date.class), DateConverter.INSTANCE);
+		t2C.put(DataTypes.DATE().bridgedTo(LocalDate.class), LocalDateConverter.INSTANCE);
 		t2C.put(DataTypes.DATE().bridgedTo(Integer.class), IntConverter.INSTANCE);
 		t2C.put(DataTypes.DATE().bridgedTo(int.class), IntConverter.INSTANCE);
 
 		t2C.put(DataTypes.TIME().bridgedTo(Time.class), TimeConverter.INSTANCE);
+		t2C.put(DataTypes.TIME().bridgedTo(LocalTime.class), LocalTimeConverter.INSTANCE);
 		t2C.put(DataTypes.TIME().bridgedTo(Integer.class), IntConverter.INSTANCE);
 		t2C.put(DataTypes.TIME().bridgedTo(int.class), IntConverter.INSTANCE);
 
 		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(Timestamp.class), TimestampConverter.INSTANCE);
+		t2C.put(DataTypes.TIMESTAMP(3).bridgedTo(LocalDateTime.class), LocalDateTimeConverter.INSTANCE);
+
+		t2C.put(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).bridgedTo(Long.class), LongConverter.INSTANCE);
+		t2C.put(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).bridgedTo(Instant.class), InstantConverter.INSTANCE);
 
 		t2C.put(DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(Integer.class), IntConverter.INSTANCE);
 		t2C.put(DataTypes.INTERVAL(DataTypes.MONTH()).bridgedTo(int.class), IntConverter.INSTANCE);
@@ -125,7 +138,6 @@ public class DataFormatConverters {
 	 *                   lost its specific Java format. Only DataType retains all its
 	 *                   Java format information.
 	 */
-	@SuppressWarnings("unchecked")
 	public static DataFormatConverter getConverterForDataType(DataType originDataType) {
 		DataType dataType = originDataType.nullable();
 		DataFormatConverter converter = TYPE_TO_CONVERTER.get(dataType);
@@ -136,6 +148,7 @@ public class DataFormatConverters {
 		Class<?> clazz = dataType.getConversionClass();
 		LogicalType logicalType = dataType.getLogicalType();
 		switch (logicalType.getTypeRoot()) {
+			case CHAR:
 			case VARCHAR:
 				if (clazz == String.class) {
 					return StringConverter.INSTANCE;
@@ -144,6 +157,7 @@ public class DataFormatConverters {
 				} else {
 					throw new RuntimeException("Not support class for VARCHAR: " + clazz);
 				}
+			case BINARY:
 			case VARBINARY:
 				return PrimitiveByteArrayConverter.INSTANCE;
 			case DECIMAL:
@@ -195,7 +209,7 @@ public class DataFormatConverters {
 						DataTypes.INT().bridgedTo(Integer.class));
 			case ROW:
 			case STRUCTURED_TYPE:
-				CompositeType compositeType = (CompositeType) fromDataTypeToLegacyInfo(dataType);
+				CompositeType compositeType = (CompositeType) fromDataTypeToTypeInfo(dataType);
 				DataType[] fieldTypes = Stream.iterate(0, x -> x + 1).limit(compositeType.getArity())
 						.map((Function<Integer, TypeInformation>) compositeType::getTypeAt)
 						.map(TypeConversions::fromLegacyInfoToDataType).toArray(DataType[]::new);
@@ -231,7 +245,7 @@ public class DataFormatConverters {
 				}
 				return new GenericConverter(typeInfo.createSerializer(new ExecutionConfig()));
 			default:
-				throw new RuntimeException("Not support dataType: " + originDataType);
+				throw new RuntimeException("Not support dataType: " + dataType);
 		}
 	}
 
@@ -464,7 +478,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for BinaryArray.
 	 */
-	public static final class BinaryArrayConverter extends IdentityConverter<BinaryArray> {
+	public static final class BinaryArrayConverter extends IdentityConverter<BaseArray> {
 
 		private static final long serialVersionUID = -7790350668043604641L;
 
@@ -473,7 +487,7 @@ public class DataFormatConverters {
 		private BinaryArrayConverter() {}
 
 		@Override
-		BinaryArray toExternalImpl(BaseRow row, int column) {
+		BaseArray toExternalImpl(BaseRow row, int column) {
 			return row.getArray(column);
 		}
 	}
@@ -481,7 +495,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for BinaryMap.
 	 */
-	public static final class BinaryMapConverter extends IdentityConverter<BinaryMap> {
+	public static final class BinaryMapConverter extends IdentityConverter<BaseMap> {
 
 		private static final long serialVersionUID = -9114231688474126815L;
 
@@ -490,7 +504,7 @@ public class DataFormatConverters {
 		private BinaryMapConverter() {}
 
 		@Override
-		BinaryMap toExternalImpl(BaseRow row, int column) {
+		BaseMap toExternalImpl(BaseRow row, int column) {
 			return row.getMap(column);
 		}
 	}
@@ -621,6 +635,114 @@ public class DataFormatConverters {
 	}
 
 	/**
+	 * Converter for LocalDate.
+	 */
+	public static final class LocalDateConverter extends DataFormatConverter<Integer, LocalDate> {
+
+		private static final long serialVersionUID = 1L;
+
+		public static final LocalDateConverter INSTANCE = new LocalDateConverter();
+
+		private LocalDateConverter() {}
+
+		@Override
+		Integer toInternalImpl(LocalDate value) {
+			return SqlDateTimeUtils.localDateToUnixDate(value);
+		}
+
+		@Override
+		LocalDate toExternalImpl(Integer value) {
+			return SqlDateTimeUtils.unixDateToLocalDate(value);
+		}
+
+		@Override
+		LocalDate toExternalImpl(BaseRow row, int column) {
+			return toExternalImpl(row.getInt(column));
+		}
+	}
+
+	/**
+	 * Converter for LocalTime.
+	 */
+	public static final class LocalTimeConverter extends DataFormatConverter<Integer, LocalTime> {
+
+		private static final long serialVersionUID = 1L;
+
+		public static final LocalTimeConverter INSTANCE = new LocalTimeConverter();
+
+		private LocalTimeConverter() {}
+
+		@Override
+		Integer toInternalImpl(LocalTime value) {
+			return SqlDateTimeUtils.localTimeToUnixDate(value);
+		}
+
+		@Override
+		LocalTime toExternalImpl(Integer value) {
+			return SqlDateTimeUtils.unixTimeToLocalTime(value);
+		}
+
+		@Override
+		LocalTime toExternalImpl(BaseRow row, int column) {
+			return toExternalImpl(row.getInt(column));
+		}
+	}
+
+	/**
+	 * Converter for LocalDateTime.
+	 */
+	public static final class LocalDateTimeConverter extends DataFormatConverter<Long, LocalDateTime> {
+
+		private static final long serialVersionUID = 1L;
+
+		public static final LocalDateTimeConverter INSTANCE = new LocalDateTimeConverter();
+
+		private LocalDateTimeConverter() {}
+
+		@Override
+		Long toInternalImpl(LocalDateTime value) {
+			return SqlDateTimeUtils.localDateTimeToUnixTimestamp(value);
+		}
+
+		@Override
+		LocalDateTime toExternalImpl(Long value) {
+			return SqlDateTimeUtils.unixTimestampToLocalDateTime(value);
+		}
+
+		@Override
+		LocalDateTime toExternalImpl(BaseRow row, int column) {
+			return toExternalImpl(row.getLong(column));
+		}
+	}
+
+	/**
+	 * Converter for Instant.
+	 */
+	public static final class InstantConverter extends DataFormatConverter<Long, Instant> {
+
+		private static final long serialVersionUID = 1L;
+
+		public static final InstantConverter INSTANCE = new InstantConverter();
+
+		private InstantConverter() {}
+
+		@Override
+		Long toInternalImpl(Instant value) {
+			return value.toEpochMilli();
+		}
+
+		@Override
+		Instant toExternalImpl(Long value) {
+			return Instant.ofEpochMilli(value);
+		}
+
+		@Override
+		Instant toExternalImpl(BaseRow row, int column) {
+			return toExternalImpl(row.getLong(column));
+		}
+	}
+
+	/**
 	 * Converter for date.
 	 */
 	public static final class DateConverter extends DataFormatConverter<Integer, Date> {
@@ -704,7 +826,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for primitive int array.
 	 */
-	public static final class PrimitiveIntArrayConverter extends DataFormatConverter<BinaryArray, int[]> {
+	public static final class PrimitiveIntArrayConverter extends DataFormatConverter<BaseArray, int[]> {
 
 		private static final long serialVersionUID = 1780941126232395638L;
 
@@ -713,12 +835,12 @@ public class DataFormatConverters {
 		private PrimitiveIntArrayConverter() {}
 
 		@Override
-		BinaryArray toInternalImpl(int[] value) {
-			return BinaryArray.fromPrimitiveArray(value);
+		BaseArray toInternalImpl(int[] value) {
+			return new GenericArray(value, value.length, true);
 		}
 
 		@Override
-		int[] toExternalImpl(BinaryArray value) {
+		int[] toExternalImpl(BaseArray value) {
 			return value.toIntArray();
 		}
 
@@ -731,7 +853,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for primitive boolean array.
 	 */
-	public static final class PrimitiveBooleanArrayConverter extends DataFormatConverter<BinaryArray, boolean[]> {
+	public static final class PrimitiveBooleanArrayConverter extends DataFormatConverter<BaseArray, boolean[]> {
 
 		private static final long serialVersionUID = -4037693692440282141L;
 
@@ -740,12 +862,12 @@ public class DataFormatConverters {
 		private PrimitiveBooleanArrayConverter() {}
 
 		@Override
-		BinaryArray toInternalImpl(boolean[] value) {
-			return BinaryArray.fromPrimitiveArray(value);
+		BaseArray toInternalImpl(boolean[] value) {
+			return new GenericArray(value, value.length, true);
 		}
 
 		@Override
-		boolean[] toExternalImpl(BinaryArray value) {
+		boolean[] toExternalImpl(BaseArray value) {
 			return value.toBooleanArray();
 		}
 
@@ -775,7 +897,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for primitive short array.
 	 */
-	public static final class PrimitiveShortArrayConverter extends DataFormatConverter<BinaryArray, short[]> {
+	public static final class PrimitiveShortArrayConverter extends DataFormatConverter<BaseArray, short[]> {
 
 		private static final long serialVersionUID = -1343184089311186834L;
 
@@ -784,12 +906,12 @@ public class DataFormatConverters {
 		private PrimitiveShortArrayConverter() {}
 
 		@Override
-		BinaryArray toInternalImpl(short[] value) {
-			return BinaryArray.fromPrimitiveArray(value);
+		BaseArray toInternalImpl(short[] value) {
+			return new GenericArray(value, value.length, true);
 		}
 
 		@Override
-		short[] toExternalImpl(BinaryArray value) {
+		short[] toExternalImpl(BaseArray value) {
 			return value.toShortArray();
 		}
 
@@ -802,7 +924,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for primitive long array.
 	 */
-	public static final class PrimitiveLongArrayConverter extends DataFormatConverter<BinaryArray, long[]> {
+	public static final class PrimitiveLongArrayConverter extends DataFormatConverter<BaseArray, long[]> {
 
 		private static final long serialVersionUID = 4061982985342526078L;
 
@@ -811,12 +933,12 @@ public class DataFormatConverters {
 		private PrimitiveLongArrayConverter() {}
 
 		@Override
-		BinaryArray toInternalImpl(long[] value) {
-			return BinaryArray.fromPrimitiveArray(value);
+		BaseArray toInternalImpl(long[] value) {
+			return new GenericArray(value, value.length, true);
 		}
 
 		@Override
-		long[] toExternalImpl(BinaryArray value) {
+		long[] toExternalImpl(BaseArray value) {
 			return value.toLongArray();
 		}
 
@@ -829,7 +951,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for primitive float array.
 	 */
-	public static final class PrimitiveFloatArrayConverter extends DataFormatConverter<BinaryArray, float[]> {
+	public static final class PrimitiveFloatArrayConverter extends DataFormatConverter<BaseArray, float[]> {
 
 		private static final long serialVersionUID = -3237695040861141459L;
 
@@ -838,12 +960,12 @@ public class DataFormatConverters {
 		private PrimitiveFloatArrayConverter() {}
 
 		@Override
-		BinaryArray toInternalImpl(float[] value) {
-			return BinaryArray.fromPrimitiveArray(value);
+		BaseArray toInternalImpl(float[] value) {
+			return new GenericArray(value, value.length, true);
 		}
 
 		@Override
-		float[] toExternalImpl(BinaryArray value) {
+		float[] toExternalImpl(BaseArray value) {
 			return value.toFloatArray();
 		}
 
@@ -856,7 +978,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for primitive double array.
 	 */
-	public static final class PrimitiveDoubleArrayConverter extends DataFormatConverter<BinaryArray, double[]> {
+	public static final class PrimitiveDoubleArrayConverter extends DataFormatConverter<BaseArray, double[]> {
 
 		private static final long serialVersionUID = 6333670535356315691L;
 
@@ -865,12 +987,12 @@ public class DataFormatConverters {
 		private PrimitiveDoubleArrayConverter() {}
 
 		@Override
-		BinaryArray toInternalImpl(double[] value) {
-			return BinaryArray.fromPrimitiveArray(value);
+		BaseArray toInternalImpl(double[] value) {
+			return new GenericArray(value, value.length, true);
 		}
 
 		@Override
-		double[] toExternalImpl(BinaryArray value) {
+		double[] toExternalImpl(BaseArray value) {
 			return value.toDoubleArray();
 		}
 
@@ -883,7 +1005,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for object array.
 	 */
-	public static final class ObjectArrayConverter<T> extends DataFormatConverter<BinaryArray, T[]> {
+	public static final class ObjectArrayConverter<T> extends DataFormatConverter<BaseArray, T[]> {
 
 		private static final long serialVersionUID = -7434682160639380078L;
 
@@ -891,38 +1013,83 @@ public class DataFormatConverters {
 		private final LogicalType elementType;
 		private final DataFormatConverter<Object, T> elementConverter;
 		private final int elementSize;
+		private final TypeSerializer<T> eleSer;
+		private final boolean isEleIndentity;
+
+		private transient BinaryArray reuseArray;
+		private transient BinaryArrayWriter reuseWriter;
 
 		public ObjectArrayConverter(DataType elementType) {
 			this.componentClass = (Class) elementType.getConversionClass();
 			this.elementType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(elementType);
 			this.elementConverter = DataFormatConverters.getConverterForDataType(elementType);
-			this.elementSize = BinaryArray.calculateFixLengthPartSize(elementType.getLogicalType());
+			this.elementSize = BinaryArray.calculateFixLengthPartSize(this.elementType);
+			this.eleSer = InternalSerializers.create(this.elementType, new ExecutionConfig());
+			this.isEleIndentity = elementConverter instanceof IdentityConverter;
 		}
 
 		@Override
-		BinaryArray toInternalImpl(T[] value) {
-			BinaryArray array = new BinaryArray();
-			BinaryArrayWriter writer = new BinaryArrayWriter(array, value.length, elementSize);
+		BaseArray toInternalImpl(T[] value) {
+			return isEleIndentity ? new GenericArray(value, value.length) : toBinaryArray(value);
+		}
+
+		private BaseArray toBinaryArray(T[] value) {
+			if (reuseArray == null) {
+				reuseArray = new BinaryArray();
+			}
+			if (reuseWriter == null || reuseWriter.getNumElements() != value.length) {
+				reuseWriter = new BinaryArrayWriter(reuseArray, value.length, elementSize);
+			} else {
+				reuseWriter.reset();
+			}
 			for (int i = 0; i < value.length; i++) {
 				Object field = value[i];
 				if (field == null) {
-					writer.setNullAt(i, elementType);
+					reuseWriter.setNullAt(i, elementType);
 				} else {
-					BinaryWriter.write(writer, i, elementConverter.toInternalImpl(value[i]), elementType);
+					BinaryWriter.write(reuseWriter, i, elementConverter.toInternalImpl(value[i]), elementType, eleSer);
 				}
 			}
-			writer.complete();
-			return array;
+			reuseWriter.complete();
+			return reuseArray;
 		}
 
 		@Override
-		T[] toExternalImpl(BinaryArray value) {
-			return binaryArrayToJavaArray(value, elementType, componentClass, elementConverter);
+		T[] toExternalImpl(BaseArray value) {
+			return (isEleIndentity && value instanceof GenericArray) ?
+					genericArrayToJavaArray((GenericArray) value, elementType) :
+					binaryArrayToJavaArray((BinaryArray) value, elementType, componentClass, elementConverter);
 		}
 
 		@Override
 		T[] toExternalImpl(BaseRow row, int column) {
 			return toExternalImpl(row.getArray(column));
+		}
+	}
+
+	private static <T> T[] genericArrayToJavaArray(GenericArray value, LogicalType eleType) {
+		Object array = value.getArray();
+		if (value.isPrimitiveArray()) {
+			switch (eleType.getTypeRoot()) {
+				case BOOLEAN:
+					return (T[]) ArrayUtils.toObject((boolean[]) array);
+				case TINYINT:
+					return (T[]) ArrayUtils.toObject((byte[]) array);
+				case SMALLINT:
+					return (T[]) ArrayUtils.toObject((short[]) array);
+				case INTEGER:
+					return (T[]) ArrayUtils.toObject((int[]) array);
+				case BIGINT:
+					return (T[]) ArrayUtils.toObject((long[]) array);
+				case FLOAT:
+					return (T[]) ArrayUtils.toObject((float[]) array);
+				case DOUBLE:
+					return (T[]) ArrayUtils.toObject((double[]) array);
+				default:
+					throw new RuntimeException("Not a primitive type: " + eleType);
+			}
+		} else {
+			return (T[]) array;
 		}
 	}
 
@@ -944,7 +1111,7 @@ public class DataFormatConverters {
 	/**
 	 * Converter for map.
 	 */
-	public static final class MapConverter extends DataFormatConverter<BinaryMap, Map> {
+	public static final class MapConverter extends DataFormatConverter<BaseMap, Map> {
 
 		private static final long serialVersionUID = -916429669828309919L;
 
@@ -960,6 +1127,16 @@ public class DataFormatConverters {
 		private final Class keyComponentClass;
 		private final Class valueComponentClass;
 
+		private final TypeSerializer keySer;
+		private final TypeSerializer valueSer;
+
+		private final boolean isKeyValueIndentity;
+
+		private transient BinaryArray reuseKArray;
+		private transient BinaryArrayWriter reuseKWriter;
+		private transient BinaryArray reuseVArray;
+		private transient BinaryArrayWriter reuseVWriter;
+
 		public MapConverter(DataType keyTypeInfo, DataType valueTypeInfo) {
 			this.keyType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(keyTypeInfo);
 			this.valueType = LogicalTypeDataTypeConverter.fromDataTypeToLogicalType(valueTypeInfo);
@@ -969,38 +1146,58 @@ public class DataFormatConverters {
 			this.valueElementSize = BinaryArray.calculateFixLengthPartSize(valueType);
 			this.keyComponentClass = keyTypeInfo.getConversionClass();
 			this.valueComponentClass = valueTypeInfo.getConversionClass();
+			this.isKeyValueIndentity = keyConverter instanceof IdentityConverter &&
+					valueConverter instanceof IdentityConverter;
+			this.keySer = InternalSerializers.create(this.keyType, new ExecutionConfig());
+			this.valueSer = InternalSerializers.create(this.valueType, new ExecutionConfig());
 		}
 
 		@Override
-		BinaryMap toInternalImpl(Map value) {
-			BinaryArray keyArray = new BinaryArray();
-			BinaryArrayWriter keyWriter = new BinaryArrayWriter(keyArray, value.size(), keyElementSize);
+		BaseMap toInternalImpl(Map value) {
+			return isKeyValueIndentity ? new GenericMap(value) : toBinaryMap(value);
+		}
 
-			BinaryArray valueArray = new BinaryArray();
-			BinaryArrayWriter valueWriter = new BinaryArrayWriter(valueArray, value.size(), valueElementSize);
+		private BinaryMap toBinaryMap(Map value) {
+			if (reuseKArray == null) {
+				reuseKArray = new BinaryArray();
+				reuseVArray = new BinaryArray();
+			}
+			if (reuseKWriter == null || reuseKWriter.getNumElements() != value.size()) {
+				reuseKWriter = new BinaryArrayWriter(reuseKArray, value.size(), keyElementSize);
+				reuseVWriter = new BinaryArrayWriter(reuseVArray, value.size(), valueElementSize);
+			} else {
+				reuseKWriter.reset();
+				reuseVWriter.reset();
+			}
 
 			int i = 0;
 			for (Map.Entry<Object, Object> entry : ((Map<Object, Object>) value).entrySet()) {
 				if (entry.getKey() == null) {
-					keyWriter.setNullAt(i, keyType);
+					reuseKWriter.setNullAt(i, keyType);
 				} else {
-					BinaryWriter.write(keyWriter, i, keyConverter.toInternalImpl(entry.getKey()), keyType);
+					BinaryWriter.write(reuseKWriter, i, keyConverter.toInternalImpl(entry.getKey()), keyType, keySer);
 				}
 				if (entry.getValue() == null) {
-					valueWriter.setNullAt(i, valueType);
+					reuseVWriter.setNullAt(i, valueType);
 				} else {
-					BinaryWriter.write(valueWriter, i, valueConverter.toInternalImpl(entry.getValue()), valueType);
+					BinaryWriter.write(reuseVWriter, i, valueConverter.toInternalImpl(entry.getValue()), valueType, valueSer);
 				}
 				i++;
 			}
 
-			keyWriter.complete();
-			valueWriter.complete();
-			return BinaryMap.valueOf(keyArray, valueArray);
+			reuseKWriter.complete();
+			reuseVWriter.complete();
+			return BinaryMap.valueOf(reuseKArray, reuseVArray);
 		}
 
 		@Override
-		Map toExternalImpl(BinaryMap value) {
+		Map toExternalImpl(BaseMap value) {
+			return (isKeyValueIndentity && value instanceof GenericMap) ?
+					((GenericMap) value).getMap() :
+					binaryMapToMap((BinaryMap) value);
+		}
+
+		private Map binaryMapToMap(BinaryMap value) {
 			Map<Object, Object> map = new HashMap<>();
 			Object[] keys = binaryArrayToJavaArray(value.keyArray(), keyType, keyComponentClass, keyConverter);
 			Object[] values = binaryArrayToJavaArray(value.valueArray(), valueType, valueComponentClass, valueConverter);

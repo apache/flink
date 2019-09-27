@@ -19,16 +19,6 @@
 package org.apache.flink.table.api
 
 /**
-  * Exception for all errors occurring during expression parsing.
-  */
-case class ExpressionParserException(msg: String) extends RuntimeException(msg)
-
-/**
-  * Exception for unwanted method calling on unresolved expression.
-  */
-case class UnresolvedException(msg: String) extends RuntimeException(msg)
-
-/**
   * Exception for adding an already existent table
   *
   * @param catalog    catalog name
@@ -57,34 +47,4 @@ case class CatalogAlreadyExistException(
     extends RuntimeException(s"Catalog $catalog already exists.", cause) {
 
   def this(catalog: String) = this(catalog, null)
-}
-
-/**
-  * Exception for operation on a nonexistent external catalog
-  *
-  * @param catalogName external catalog name
-  * @param cause the cause
-  */
-@deprecated
-case class ExternalCatalogNotExistException(
-    catalogName: String,
-    cause: Throwable)
-    extends RuntimeException(s"External catalog $catalogName does not exist.", cause) {
-
-  def this(catalogName: String) = this(catalogName, null)
-}
-
-/**
-  * Exception for adding an already existent external catalog
-  *
-  * @param catalogName external catalog name
-  * @param cause the cause
-  */
-@deprecated
-case class ExternalCatalogAlreadyExistException(
-    catalogName: String,
-    cause: Throwable)
-    extends RuntimeException(s"External catalog $catalogName already exists.", cause) {
-
-  def this(catalogName: String) = this(catalogName, null)
 }

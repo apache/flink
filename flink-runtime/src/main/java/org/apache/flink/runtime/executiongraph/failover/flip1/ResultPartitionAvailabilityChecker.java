@@ -22,7 +22,7 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 /**
  * This checker helps to query result partition availability.
  */
-interface ResultPartitionAvailabilityChecker {
+public interface ResultPartitionAvailabilityChecker {
 
 	/**
 	 * Returns whether the given partition is available.

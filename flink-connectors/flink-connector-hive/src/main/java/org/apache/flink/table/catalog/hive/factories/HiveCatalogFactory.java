@@ -19,27 +19,22 @@
 package org.apache.flink.table.catalog.hive.factories;
 
 import org.apache.flink.table.catalog.Catalog;
-import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.factories.CatalogFactory;
-import org.apache.flink.util.StringUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HIVE_SITE_PATH;
+import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HIVE_CONF_DIR;
 import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_HIVE_VERSION;
 import static org.apache.flink.table.catalog.hive.descriptors.HiveCatalogValidator.CATALOG_TYPE_VALUE_HIVE;
 import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_DEFAULT_DATABASE;
@@ -67,7 +62,7 @@ public class HiveCatalogFactory implements CatalogFactory {
 		// default database
 		properties.add(CATALOG_DEFAULT_DATABASE);
 
-		properties.add(CATALOG_HIVE_SITE_PATH);
+		properties.add(CATALOG_HIVE_CONF_DIR);
 
 		properties.add(CATALOG_HIVE_VERSION);
 
@@ -82,30 +77,11 @@ public class HiveCatalogFactory implements CatalogFactory {
 			descriptorProperties.getOptionalString(CATALOG_DEFAULT_DATABASE)
 				.orElse(HiveCatalog.DEFAULT_DB);
 
-		final Optional<String> hiveSitePath = descriptorProperties.getOptionalString(CATALOG_HIVE_SITE_PATH);
+		final Optional<String> hiveConfDir = descriptorProperties.getOptionalString(CATALOG_HIVE_CONF_DIR);
 
 		final String version = descriptorProperties.getOptionalString(CATALOG_HIVE_VERSION).orElse(HiveShimLoader.getHiveVersion());
 
-		return new HiveCatalog(name, defaultDatabase, loadHiveSiteUrl(hiveSitePath.orElse(null)), version);
-	}
-
-	private static URL loadHiveSiteUrl(String filePath) {
-
-		URL url = null;
-
-		if (!StringUtils.isNullOrWhitespaceOnly(filePath)) {
-			try {
-				url = new File(filePath).toURI().toURL();
-
-				LOG.info("Successfully loaded '{}'", filePath);
-
-			} catch (MalformedURLException e) {
-				throw new CatalogException(
-					String.format("Failed to get hive-site.xml from the given path '%s'", filePath), e);
-			}
-		}
-
-		return url;
+		return new HiveCatalog(name, defaultDatabase, hiveConfDir.orElse(null), version);
 	}
 
 	private static DescriptorProperties getValidatedProperties(Map<String, String> properties) {

@@ -24,10 +24,12 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.executiongraph.restart.ThrowingRestartStrategy;
+import org.apache.flink.runtime.io.network.partition.PartitionTracker;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rest.handler.legacy.backpressure.BackPressureStatsTracker;
+import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
 
@@ -52,7 +54,9 @@ public class DefaultScheduler extends LegacyScheduler {
 			final Time rpcTimeout,
 			final BlobWriter blobWriter,
 			final JobManagerJobMetricGroup jobManagerJobMetricGroup,
-			final Time slotRequestTimeout) throws Exception {
+			final Time slotRequestTimeout,
+			final ShuffleMaster<?> shuffleMaster,
+			final PartitionTracker partitionTracker) throws Exception {
 
 		super(
 			log,
@@ -68,7 +72,9 @@ public class DefaultScheduler extends LegacyScheduler {
 			new ThrowingRestartStrategy.ThrowingRestartStrategyFactory(),
 			blobWriter,
 			jobManagerJobMetricGroup,
-			slotRequestTimeout);
+			slotRequestTimeout,
+			shuffleMaster,
+			partitionTracker);
 	}
 
 	@Override

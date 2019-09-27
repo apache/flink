@@ -65,7 +65,7 @@ Apache [Hadoop YARN](http://hadoop.apache.org/) is a cluster resource management
 - at least Apache Hadoop 2.2
 - HDFS (Hadoop Distributed File System) (or another distributed file system supported by Hadoop)
 
-If you have troubles using the Flink YARN client, have a look in the [FAQ section](http://flink.apache.org/faq.html#yarn-deployment).
+If you have troubles using the Flink YARN client, have a look in the [FAQ section](https://flink.apache.org/faq.html#yarn-deployment).
 
 ### Start Flink Session
 
@@ -261,6 +261,15 @@ The user-jars position in the class path can be controlled by setting the parame
 Flink's YARN client has the following configuration parameters to control how to behave in case of container failures. These parameters can be set either from the `conf/flink-conf.yaml` or when starting the YARN session, using `-D` parameters.
 
 - `yarn.application-attempts`: The number of ApplicationMaster (+ its TaskManager containers) attempts. If this value is set to 1 (default), the entire YARN session will fail when the Application master fails. Higher values specify the number of restarts of the ApplicationMaster by YARN.
+
+## Setup for application priority on YARN
+
+Flink's YARN client has the following configuration parameters to setup application priority. These parameters can be set either from the `conf/flink-conf.yaml` or when starting the YARN session, using `-D` parameters.
+
+- `yarn.application.priority`: A non-negative integer indicating the priority for submitting a Flink YARN application. 
+It will only take effect if YARN priority scheduling setting is enabled. Larger integer corresponds with higher priority. 
+If priority is negative or set to '-1'(default), Flink will unset yarn priority setting and use cluster default priority. 
+Please refer to YARN's official documentation for specific settings required to enable priority scheduling for the targeted YARN version.
 
 ## Debugging a failed YARN session
 

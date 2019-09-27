@@ -72,7 +72,7 @@ public class OperatorChainTest {
 
 	@SafeVarargs
 	private static <T, OP extends StreamOperator<T>> OperatorChain<T, OP> setupOperatorChain(
-			OneInputStreamOperator<T, T>... operators) {
+			OneInputStreamOperator<T, T>... operators) throws Exception {
 
 		checkNotNull(operators);
 		checkArgument(operators.length > 0);

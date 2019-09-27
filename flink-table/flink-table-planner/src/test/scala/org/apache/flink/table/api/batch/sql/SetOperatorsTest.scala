@@ -105,7 +105,7 @@ class SetOperatorsTest extends TableTestBase {
                 "DataSetCalc",
                 batchTableNode(table),
                 term("select", "b"),
-                term("where", "OR(=(b, 6), =(b, 1))")
+                term("where", "OR(=(b, 6:BIGINT), =(b, 1:BIGINT))")
               ),
               term("select", "COUNT(*) AS $f0", "COUNT(b) AS $f1")
             ),
@@ -121,7 +121,7 @@ class SetOperatorsTest extends TableTestBase {
             "DataSetCalc",
             batchTableNode(table),
             term("select", "b", "true AS $f1"),
-            term("where", "OR(=(b, 6), =(b, 1))")
+            term("where", "OR(=(b, 6:BIGINT), =(b, 1:BIGINT))")
           ),
           term("groupBy", "b"),
           term("select", "b", "MIN($f1) AS $f1")
@@ -131,7 +131,7 @@ class SetOperatorsTest extends TableTestBase {
         term("joinType", "LeftOuterJoin")
       ),
       term("select", "a", "c"),
-      term("where", "OR(=($f0, 0), AND(IS NULL($f10), >=($f1, $f0), IS NOT NULL(b0)))")
+      term("where", "OR(=($f0, 0:BIGINT), AND(IS NULL($f10), >=($f1, $f0), IS NOT NULL(b0)))")
     )
 
     util.verifySql(
@@ -188,7 +188,8 @@ class SetOperatorsTest extends TableTestBase {
       unaryNode(
         "DataSetCalc",
         batchTableNode(table),
-        term("select", "CASE(>(c, 0), b, null) AS EXPR$0")
+        term("select", "CASE(>(c, 0), b, null:RecordType:peek_no_expand(INTEGER _1, " +
+          "VARCHAR(65536) _2)) AS EXPR$0")
       ),
       term("all", "true"),
       term("union", "a")
@@ -238,17 +239,17 @@ class SetOperatorsTest extends TableTestBase {
           values("DataSetValues",
             tuples(List("0")),
             "values=[ZERO]"),
-          term("select", "1 AS EXPR$0, 1 AS EXPR$1")),
+          term("select", "1 AS EXPR$0, 1:BIGINT AS EXPR$1")),
         unaryNode("DataSetCalc",
           values("DataSetValues",
             tuples(List("0")),
             "values=[ZERO]"),
-          term("select", "2 AS EXPR$0, 2 AS EXPR$1")),
+          term("select", "2 AS EXPR$0, 2:BIGINT AS EXPR$1")),
         unaryNode("DataSetCalc",
           values("DataSetValues",
             tuples(List("0")),
             "values=[ZERO]"),
-          term("select", "3 AS EXPR$0, 3 AS EXPR$1"))
+          term("select", "3 AS EXPR$0, 3:BIGINT AS EXPR$1"))
       ),
       term("all", "true"),
       term("union", "EXPR$0, EXPR$1")

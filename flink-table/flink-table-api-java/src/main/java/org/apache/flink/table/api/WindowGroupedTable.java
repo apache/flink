@@ -56,6 +56,43 @@ public interface WindowGroupedTable {
 	Table select(Expression... fields);
 
 	/**
+	 * Performs an aggregate operation on a window grouped table. You have to close the
+	 * {@link #aggregate(String)} with a select statement. The output will be flattened if the
+	 * output type is a composite type.
+	 *
+	 * <p>Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   AggregateFunction aggFunc = new MyAggregateFunction();
+	 *   tableEnv.registerFunction("aggFunc", aggFunc);
+	 *   windowGroupedTable
+	 *     .aggregate("aggFunc(a, b) as (x, y, z)")
+	 *     .select("key, window.start, x, y, z")
+	 * }
+	 * </pre>
+	 */
+	AggregatedTable aggregate(String aggregateFunction);
+
+	/**
+	 * Performs an aggregate operation on a window grouped table. You have to close the
+	 * {@link #aggregate(Expression)} with a select statement. The output will be flattened if the
+	 * output type is a composite type.
+	 *
+	 * <p>Scala Example:
+	 *
+	 * <pre>
+	 * {@code
+	 *   val aggFunc = new MyAggregateFunction
+	 *   windowGroupedTable
+	 *     .aggregate(aggFunc('a, 'b) as ('x, 'y, 'z))
+	 *     .select('key, 'window.start, 'x, 'y, 'z)
+	 * }
+	 * </pre>
+	 */
+	AggregatedTable aggregate(Expression aggregateFunction);
+
+	/**
 	 * Performs a flatAggregate operation on a window grouped table. FlatAggregate takes a
 	 * TableAggregateFunction which returns multiple rows. Use a selection after flatAggregate.
 	 *
@@ -63,7 +100,7 @@ public interface WindowGroupedTable {
 	 *
 	 * <pre>
 	 * {@code
-	 *   TableAggregateFunction tableAggFunc = new MyTableAggregateFunction
+	 *   TableAggregateFunction tableAggFunc = new MyTableAggregateFunction();
 	 *   tableEnv.registerFunction("tableAggFunc", tableAggFunc);
 	 *   windowGroupedTable
 	 *     .flatAggregate("tableAggFunc(a, b) as (x, y, z)")

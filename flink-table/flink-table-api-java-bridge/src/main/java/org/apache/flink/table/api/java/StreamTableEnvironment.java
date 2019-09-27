@@ -19,42 +19,133 @@
 package org.apache.flink.table.api.java;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.QueryConfig;
 import org.apache.flink.table.api.StreamQueryConfig;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.api.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.descriptors.ConnectorDescriptor;
 import org.apache.flink.table.descriptors.StreamTableDescriptor;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.TableAggregateFunction;
 import org.apache.flink.table.functions.TableFunction;
-
-import java.lang.reflect.Constructor;
+import org.apache.flink.table.sinks.TableSink;
 
 /**
- * The {@link TableEnvironment} for a Java {@link StreamExecutionEnvironment} that works with
- * {@link DataStream}s.
+ * This table environment is the entry point and central context for creating Table & SQL
+ * API programs that integrate with the Java-specific {@link DataStream} API.
  *
- * <p>A TableEnvironment can be used to:
+ * <p>It is unified for bounded and unbounded data processing.
+ *
+ * <p>A stream table environment is responsible for:
  * <ul>
- *     <li>convert a {@link DataStream} to a {@link Table}</li>
- *     <li>register a {@link DataStream} in the {@link TableEnvironment}'s catalog</li>
- *     <li>register a {@link Table} in the {@link TableEnvironment}'s catalog</li>
- *     <li>scan a registered table to obtain a {@link Table}</li>
- *     <li>specify a SQL query on registered tables to obtain a {@link Table}</li>
- *     <li>convert a {@link Table} into a {@link DataStream}</li>
- *     <li>explain the AST and execution plan of a {@link Table}</li>
+ *     <li>Convert a {@link DataStream} into {@link Table} and vice-versa.</li>
+ *     <li>Connecting to external systems.</li>
+ *     <li>Registering and retrieving {@link Table}s and other meta objects from a catalog.</li>
+ *     <li>Executing SQL statements.</li>
+ *     <li>Offering further configuration options.</li>
  * </ul>
+ *
+ * <p>Note: If you don't intend to use the {@link DataStream} API, {@link TableEnvironment} is meant
+ * for pure table programs.
  */
 @PublicEvolving
 public interface StreamTableEnvironment extends TableEnvironment {
+
+	/**
+	 * Creates a table environment that is the entry point and central context for creating Table & SQL
+	 * API programs that integrate with the Java-specific {@link DataStream} API.
+	 *
+	 * <p>It is unified for bounded and unbounded data processing.
+	 *
+	 * <p>A stream table environment is responsible for:
+	 * <ul>
+	 *     <li>Convert a {@link DataStream} into {@link Table} and vice-versa.</li>
+	 *     <li>Connecting to external systems.</li>
+	 *     <li>Registering and retrieving {@link Table}s and other meta objects from a catalog.</li>
+	 *     <li>Executing SQL statements.</li>
+	 *     <li>Offering further configuration options.</li>
+	 * </ul>
+	 *
+	 * <p>Note: If you don't intend to use the {@link DataStream} API, {@link TableEnvironment} is meant
+	 * for pure table programs.
+	 *
+	 * @param executionEnvironment The Java {@link StreamExecutionEnvironment} of the {@link TableEnvironment}.
+	 */
+	static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment) {
+		return create(
+			executionEnvironment,
+			EnvironmentSettings.newInstance().build());
+	}
+
+	/**
+	 * Creates a table environment that is the entry point and central context for creating Table & SQL
+	 * API programs that integrate with the Java-specific {@link DataStream} API.
+	 *
+	 * <p>It is unified for bounded and unbounded data processing.
+	 *
+	 * <p>A stream table environment is responsible for:
+	 * <ul>
+	 *     <li>Convert a {@link DataStream} into {@link Table} and vice-versa.</li>
+	 *     <li>Connecting to external systems.</li>
+	 *     <li>Registering and retrieving {@link Table}s and other meta objects from a catalog.</li>
+	 *     <li>Executing SQL statements.</li>
+	 *     <li>Offering further configuration options.</li>
+	 * </ul>
+	 *
+	 * <p>Note: If you don't intend to use the {@link DataStream} API, {@link TableEnvironment} is meant
+	 * for pure table programs.
+	 *
+	 * @param executionEnvironment The Java {@link StreamExecutionEnvironment} of the {@link TableEnvironment}.
+	 * @param settings The environment settings used to instantiate the {@link TableEnvironment}.
+	 */
+	static StreamTableEnvironment create(
+			StreamExecutionEnvironment executionEnvironment,
+			EnvironmentSettings settings) {
+		return StreamTableEnvironmentImpl.create(
+			executionEnvironment,
+			settings,
+			new TableConfig()
+		);
+	}
+
+	/**
+	 * Creates a table environment that is the entry point and central context for creating Table & SQL
+	 * API programs that integrate with the Java-specific {@link DataStream} API.
+	 *
+	 * <p>It is unified for bounded and unbounded data processing.
+	 *
+	 * <p>A stream table environment is responsible for:
+	 * <ul>
+	 *     <li>Convert a {@link DataStream} into {@link Table} and vice-versa.</li>
+	 *     <li>Connecting to external systems.</li>
+	 *     <li>Registering and retrieving {@link Table}s and other meta objects from a catalog.</li>
+	 *     <li>Executing SQL statements.</li>
+	 *     <li>Offering further configuration options.</li>
+	 * </ul>
+	 *
+	 * <p>Note: If you don't intend to use the {@link DataStream} API, {@link TableEnvironment} is meant
+	 * for pure table programs.
+	 *
+	 * @param executionEnvironment The Java {@link StreamExecutionEnvironment} of the {@link TableEnvironment}.
+	 * @param tableConfig The configuration of the {@link TableEnvironment}.
+	 * @deprecated Use {@link #create(StreamExecutionEnvironment)} and {@link #getConfig()}
+	 * for manipulating {@link TableConfig}.
+	 */
+	@Deprecated
+	static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment, TableConfig tableConfig) {
+		return StreamTableEnvironmentImpl.create(
+			executionEnvironment,
+			EnvironmentSettings.newInstance().build(),
+			tableConfig);
+	}
 
 	/**
 	 * Registers a {@link TableFunction} under a unique name in the TableEnvironment's catalog.
@@ -106,7 +197,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	 * Example:
 	 *
 	 * <pre>
-	 * {@ocde
+	 * {@code
 	 *   DataStream<Tuple2<String, Long>> stream = ...
 	 *   Table tab = tableEnv.fromDataStream(stream, "a, b");
 	 * }
@@ -362,57 +453,60 @@ public interface StreamTableEnvironment extends TableEnvironment {
 	StreamTableDescriptor connect(ConnectorDescriptor connectorDescriptor);
 
 	/**
-	 * The {@link TableEnvironment} for a Java {@link StreamExecutionEnvironment} that works with
-	 * {@link DataStream}s.
+	 * Evaluates a SQL statement such as INSERT, UPDATE or DELETE; or a DDL statement;
+	 * NOTE: Currently only SQL INSERT statements are supported.
 	 *
-	 * <p>A TableEnvironment can be used to:
-	 * <ul>
-	 *     <li>convert a {@link DataStream} to a {@link Table}</li>
-	 *     <li>register a {@link DataStream} in the {@link TableEnvironment}'s catalog</li>
-	 *     <li>register a {@link Table} in the {@link TableEnvironment}'s catalog</li>
-	 *     <li>scan a registered table to obtain a {@link Table}</li>
-	 *     <li>specify a SQL query on registered tables to obtain a {@link Table}</li>
-	 *     <li>convert a {@link Table} into a {@link DataStream}</li>
-	 *     <li>explain the AST and execution plan of a {@link Table}</li>
-	 * </ul>
+	 * <p>All tables referenced by the query must be registered in the TableEnvironment.
+	 * A {@link Table} is automatically registered when its {@link Table#toString()} method is
+	 * called, for example when it is embedded into a String.
+	 * Hence, SQL queries can directly reference a {@link Table} as follows:
 	 *
-	 * @param executionEnvironment The Java {@link StreamExecutionEnvironment} of the TableEnvironment.
+	 * <pre>
+	 * {@code
+	 *   // register the configured table sink into which the result is inserted.
+	 *   tEnv.registerTableSink("sinkTable", configuredSink);
+	 *   Table sourceTable = ...
+	 *   String tableName = sourceTable.toString();
+	 *   // sourceTable is not registered to the table environment
+	 *   tEnv.sqlUpdate(s"INSERT INTO sinkTable SELECT * FROM tableName", config);
+	 * }
+	 * </pre>
+	 *
+	 * @param stmt The SQL statement to evaluate.
+	 * @param config The {@link QueryConfig} to use.
 	 */
-	static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment) {
-		return create(executionEnvironment, new TableConfig());
-	}
+	void sqlUpdate(String stmt, StreamQueryConfig config);
 
 	/**
-	 * The {@link TableEnvironment} for a Java {@link StreamExecutionEnvironment} that works with
-	 * {@link DataStream}s.
+	 * Writes the {@link Table} to a {@link TableSink} that was registered under the specified name.
 	 *
-	 * <p>A TableEnvironment can be used to:
-	 * <ul>
-	 *     <li>convert a {@link DataStream} to a {@link Table}</li>
-	 *     <li>register a {@link DataStream} in the {@link TableEnvironment}'s catalog</li>
-	 *     <li>register a {@link Table} in the {@link TableEnvironment}'s catalog</li>
-	 *     <li>scan a registered table to obtain a {@link Table}</li>
-	 *     <li>specify a SQL query on registered tables to obtain a {@link Table}</li>
-	 *     <li>convert a {@link Table} into a {@link DataStream}</li>
-	 *     <li>explain the AST and execution plan of a {@link Table}</li>
-	 * </ul>
+	 * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or
+	 * {@link TableEnvironment#useCatalog(String)} for the rules on the path resolution.
 	 *
-	 * @param executionEnvironment The Java {@link StreamExecutionEnvironment} of the TableEnvironment.
-	 * @param tableConfig The configuration of the TableEnvironment.
+	 * @param table The Table to write to the sink.
+	 * @param queryConfig The {@link StreamQueryConfig} to use.
+	 * @param sinkPath The first part of the path of the registered {@link TableSink} to which the {@link Table} is
+	 *        written. This is to ensure at least the name of the {@link TableSink} is provided.
+	 * @param sinkPathContinued The remaining part of the path of the registered {@link TableSink} to which the
+	 *        {@link Table} is written.
 	 */
-	static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment, TableConfig tableConfig) {
-		try {
-			Class<?> clazz = Class.forName("org.apache.flink.table.api.java.StreamTableEnvImpl");
-			Constructor con = clazz.getConstructor(
-				StreamExecutionEnvironment.class,
-				TableConfig.class,
-				CatalogManager.class);
-			CatalogManager catalogManager = new CatalogManager(
-				tableConfig.getBuiltInCatalogName(),
-				new GenericInMemoryCatalog(tableConfig.getBuiltInCatalogName(), tableConfig.getBuiltInDatabaseName()));
-			return (StreamTableEnvironment) con.newInstance(executionEnvironment, tableConfig, catalogManager);
-		} catch (Throwable t) {
-			throw new TableException("Create StreamTableEnvironment failed.", t);
-		}
-	}
+	void insertInto(Table table, StreamQueryConfig queryConfig, String sinkPath, String... sinkPathContinued);
+
+	/**
+	 * Triggers the program execution. The environment will execute all parts of
+	 * the program.
+	 *
+	 * <p>The program execution will be logged and displayed with the provided name
+	 *
+	 * <p>It calls the {@link StreamExecutionEnvironment#execute(String)} on the underlying
+	 * {@link StreamExecutionEnvironment}. In contrast to the {@link TableEnvironment} this
+	 * environment translates queries eagerly. Therefore the values in {@link QueryConfig}
+	 * parameter are ignored.
+	 *
+	 * @param jobName Desired name of the job
+	 * @return The result of the job execution, containing elapsed time and accumulators.
+	 * @throws Exception which occurs during job execution.
+	 */
+	@Override
+	JobExecutionResult execute(String jobName) throws Exception;
 }

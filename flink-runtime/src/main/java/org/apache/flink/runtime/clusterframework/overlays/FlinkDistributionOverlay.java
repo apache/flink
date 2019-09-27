@@ -75,7 +75,12 @@ public class FlinkDistributionOverlay extends AbstractContainerOverlay {
 		addPathRecursively(flinkBinPath, TARGET_ROOT, container);
 		addPathRecursively(flinkConfPath, TARGET_ROOT, container);
 		addPathRecursively(flinkLibPath, TARGET_ROOT, container);
-		addPathRecursively(flinkPluginsPath, TARGET_ROOT, container);
+		if (flinkPluginsPath.isDirectory()) {
+			addPathRecursively(flinkPluginsPath, TARGET_ROOT, container);
+		}
+		else {
+			LOG.warn("The plugins directory '" + flinkPluginsPath + "' doesn't exist.");
+		}
 	}
 
 	public static Builder newBuilder() {

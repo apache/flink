@@ -21,10 +21,11 @@ package org.apache.flink.table.plan
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptPlanner.CannotPlanException
 import org.apache.calcite.plan.hep.{HepMatchOrder, HepPlanner, HepProgram, HepProgramBuilder}
-import org.apache.calcite.plan.{Convention, RelOptUtil, RelTraitSet}
+import org.apache.calcite.plan.{Context, Convention, RelOptPlanner, RelOptUtil, RelTraitSet}
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.{Programs, RuleSet, RuleSets}
-import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.api.internal.TableEnvImpl
 import org.apache.flink.table.calcite.CalciteConfig
 import org.apache.flink.table.plan.nodes.FlinkConventions
 import org.apache.flink.table.plan.rules.FlinkRuleSets
@@ -37,11 +38,9 @@ import scala.collection.JavaConverters._
   * should be used to create an optimized tree from a logical input tree.
   * See [[StreamOptimizer.optimize]] and [[BatchOptimizer.optimize]]
   *
-  * @param calciteConfig provider for [[CalciteConfig]]. It is a provider because the
-  *                      [[org.apache.flink.table.api.TableConfig]] in a
-  *                      [[org.apache.flink.table.api.TableEnvImpl]] is mutable.
-  * @param planningConfigurationBuilder provider for [[org.apache.calcite.plan.RelOptPlanner]] and
-  *                                     [[org.apache.calcite.plan.Context]]
+  * @param calciteConfig                provider for [[CalciteConfig]]. It is a provider because the
+  *                                     [[TableConfig]] in a [[TableEnvImpl]] is mutable.
+  * @param planningConfigurationBuilder provider for [[RelOptPlanner]] and [[Context]]
   */
 abstract class Optimizer(
   calciteConfig: () => CalciteConfig,
@@ -88,6 +87,25 @@ abstract class Optimizer(
   }
 
   /**
+    * Returns the logical rewrite rule set for this optimizer
+    * including a custom RuleSet configuration.
+    */
+  protected def getLogicalRewriteRuleSet: RuleSet = {
+    materializedConfig.logicalRewriteRuleSet match {
+
+      case None =>
+        getBuiltInLogicalRewriteRuleSet
+
+      case Some(ruleSet) =>
+        if (materializedConfig.replacesLogicalRewriteRuleSet) {
+          ruleSet
+        } else {
+          RuleSets.ofList((getBuiltInLogicalRewriteRuleSet.asScala ++ ruleSet.asScala).asJava)
+        }
+    }
+  }
+
+  /**
     * Returns the physical optimization rule set for this optimizer
     * including a custom RuleSet configuration.
     */
@@ -116,6 +134,13 @@ abstract class Optimizer(
     */
   protected def getBuiltInLogicalOptRuleSet: RuleSet = {
     FlinkRuleSets.LOGICAL_OPT_RULES
+  }
+
+  /**
+    * Returns the built-in logical rewrite rules that are defined by the optimizer.
+    */
+  protected def getBuiltInLogicalRewriteRuleSet: RuleSet = {
+    FlinkRuleSets.LOGICAL_REWRITE_RULES
   }
 
   /**
@@ -149,6 +174,19 @@ abstract class Optimizer(
     val normRuleSet = getNormRuleSet
     if (normRuleSet.iterator().hasNext) {
       runHepPlannerSequentially(HepMatchOrder.BOTTOM_UP, normRuleSet, relNode, relNode.getTraitSet)
+    } else {
+      relNode
+    }
+  }
+
+  protected def optimizeLogicalRewritePlan(relNode: RelNode): RelNode = {
+    val logicalRewriteRuleSet = getLogicalRewriteRuleSet
+    if (logicalRewriteRuleSet.iterator().hasNext) {
+      runHepPlannerSimultaneously(
+        HepMatchOrder.TOP_DOWN,
+        logicalRewriteRuleSet,
+        relNode,
+        relNode.getTraitSet)
     } else {
       relNode
     }

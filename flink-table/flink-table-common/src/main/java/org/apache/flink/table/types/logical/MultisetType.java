@@ -34,7 +34,7 @@ import java.util.Set;
  * ensure uniqueness.
  *
  * <p>The serialized string representation is {@code MULTISET<t>} where {@code t} is the logical type
- * of the contained elements.
+ * of the contained elements. {@code t MULTISET} is a synonym for being closer to the SQL standard.
  *
  * <p>A conversion is possible through a map that assigns each value to an integer multiplicity
  * ({@code Map<t, Integer>}).

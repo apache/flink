@@ -279,7 +279,6 @@ object AggregateUtil {
       inputFieldTypeInfo: Seq[TypeInformation[_]],
       precedingOffset: Long,
       queryConfig: StreamQueryConfig,
-      tableConfig: TableConfig,
       isRowsClause: Boolean,
       rowTimeIdx: Option[Int])
     : KeyedProcessFunction[K, CRow, CRow] = {
@@ -290,7 +289,7 @@ object AggregateUtil {
         aggregateInputType,
         inputFieldTypeInfo.length,
         needRetract,
-        tableConfig,
+        config,
         isStateBackedDataViews = true)
 
     val inputRowType = CRowTypeInfo(inputTypeInfo)

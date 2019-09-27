@@ -29,6 +29,8 @@ echo "Executing test with ${OPENSSL_LINKAGE} openSSL linkage (random selection b
 s3_setup hadoop
 set_conf_ssl "mutual" "OPENSSL" "${OPENSSL_LINKAGE}"
 set_config_key "metrics.fetcher.update-interval" "2000"
+# this test relies on global failovers
+set_config_key "jobmanager.execution.failover-strategy" "full"
 
 OUT=temp/test_streaming_file_sink-$(uuidgen)
 OUTPUT_PATH="$TEST_DATA_DIR/$OUT"

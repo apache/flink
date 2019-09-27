@@ -68,7 +68,7 @@ specifically tailored to Flink's execution model.
 ### Barriers
 
 A core element in Flink's distributed snapshotting are the *stream barriers*. These barriers are injected into the data stream and flow
-with the records as part of the data stream. Barriers never overtake records, the flow strictly in line.
+with the records as part of the data stream. Barriers never overtake records, they flow strictly in line.
 A barrier separates the records in the data stream into the set of records that goes into the
 current snapshot, and the records that go into the next snapshot. Each barrier carries the ID of the snapshot whose records it pushed in front
 of it. Barriers do not interrupt the flow of the stream and are hence very lightweight. Multiple barriers from different snapshots can be in

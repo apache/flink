@@ -510,7 +510,6 @@ public class SavepointITCase extends TestLogger {
 		env.setParallelism(parallelism);
 		env.disableOperatorChaining();
 		env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(numberOfRetries, restartDelay));
-		env.getConfig().disableSysoutLogging();
 
 		DataStream<Integer> stream = env
 			.addSource(new InfiniteTestSource())
@@ -659,8 +658,7 @@ public class SavepointITCase extends TestLogger {
 
 		iteration.closeWith(iterationBody);
 
-		StreamGraph streamGraph = env.getStreamGraph();
-		streamGraph.setJobName("Test");
+		StreamGraph streamGraph = env.getStreamGraph("Test");
 
 		JobGraph jobGraph = streamGraph.getJobGraph();
 

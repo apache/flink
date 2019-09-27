@@ -137,11 +137,6 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		client.createTable(table);
 	}
 
-	public void alter_table(String databaseName, String tableName, Table table)
-			throws InvalidOperationException, MetaException, TException {
-		client.alter_table(databaseName, tableName, table);
-	}
-
 	public void createDatabase(Database database)
 			throws InvalidObjectException, AlreadyExistsException, MetaException, TException {
 		client.createDatabase(database);
@@ -159,11 +154,6 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 	public boolean dropPartition(String databaseName, String tableName, List<String> partitionValues, boolean deleteData)
 			throws NoSuchObjectException, MetaException, TException {
 		return client.dropPartition(databaseName, tableName, partitionValues, deleteData);
-	}
-
-	public void alter_partition(String databaseName, String tableName, Partition partition)
-			throws InvalidOperationException, MetaException, TException {
-		client.alter_partition(databaseName, tableName, partition);
 	}
 
 	public void renamePartition(String databaseName, String tableName, List<String> partitionValues, Partition partition)
@@ -189,12 +179,12 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		return client.getFunctions(databaseName, pattern);
 	}
 
-	List<ColumnStatisticsObj> getTableColumnStatistics(String databaseName, String tableName, List<String> columnNames)
+	public List<ColumnStatisticsObj> getTableColumnStatistics(String databaseName, String tableName, List<String> columnNames)
 			throws NoSuchObjectException, MetaException, TException {
 		return client.getTableColumnStatistics(databaseName, tableName, columnNames);
 	}
 
-	Map<String, List<ColumnStatisticsObj>> getPartitionColumnStatistics(String dbName, String tableName,
+	public Map<String, List<ColumnStatisticsObj>> getPartitionColumnStatistics(String dbName, String tableName,
 																		List<String> partNames, List<String> colNames)
 			throws NoSuchObjectException, MetaException, TException {
 		return client.getPartitionColumnStatistics(dbName, tableName, partNames, colNames);
@@ -203,6 +193,11 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 	public boolean updateTableColumnStatistics(ColumnStatistics columnStatistics)
 			throws NoSuchObjectException, InvalidObjectException, MetaException, TException, InvalidInputException {
 		return client.updateTableColumnStatistics(columnStatistics);
+	}
+
+	public boolean updatePartitionColumnStatistics(ColumnStatistics columnStatistics)
+			throws NoSuchObjectException, InvalidObjectException, MetaException, TException, InvalidInputException {
+		return client.updatePartitionColumnStatistics(columnStatistics);
 	}
 
 	public List<Partition> listPartitions(String dbName, String tblName, List<String> partVals, short max) throws TException {
@@ -229,4 +224,21 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
 		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
 		return hiveShim.getFunction(client, databaseName, functionName);
 	}
+
+	public void alter_table(String databaseName, String tableName, Table table)
+			throws InvalidOperationException, MetaException, TException {
+		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
+		hiveShim.alterTable(client, databaseName, tableName, table);
+	}
+
+	public void alter_partition(String databaseName, String tableName, Partition partition)
+			throws InvalidOperationException, MetaException, TException {
+		HiveShim hiveShim = HiveShimLoader.loadHiveShim(hiveVersion);
+		hiveShim.alterPartition(client, databaseName, tableName, partition);
+	}
+
+	public String getHiveVersion() {
+		return hiveVersion;
+	}
+
 }

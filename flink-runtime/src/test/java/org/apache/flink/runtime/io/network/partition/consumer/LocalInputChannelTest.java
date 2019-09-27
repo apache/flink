@@ -493,7 +493,7 @@ public class LocalInputChannelTest {
 				BufferPool bufferPool,
 				ResultPartitionManager partitionManager,
 				TaskEventDispatcher taskEventDispatcher,
-				ResultPartitionID[] consumedPartitionIds) {
+				ResultPartitionID[] consumedPartitionIds) throws IOException, InterruptedException {
 
 			checkArgument(numberOfInputChannels >= 1);
 			checkArgument(numberOfExpectedBuffersPerChannel >= 1);
@@ -501,10 +501,8 @@ public class LocalInputChannelTest {
 			this.inputGate = new SingleInputGateBuilder()
 				.setConsumedSubpartitionIndex(subpartitionIndex)
 				.setNumberOfChannels(numberOfInputChannels)
+				.setBufferPoolFactory(bufferPool)
 				.build();
-
-			// Set buffer pool
-			inputGate.setBufferPool(bufferPool);
 
 			// Setup input channels
 			for (int i = 0; i < numberOfInputChannels; i++) {
@@ -515,6 +513,8 @@ public class LocalInputChannelTest {
 					.setTaskEventPublisher(taskEventDispatcher)
 					.buildLocalAndSetToGate(inputGate);
 			}
+
+			inputGate.setup();
 
 			this.numberOfInputChannels = numberOfInputChannels;
 			this.numberOfExpectedBuffersPerChannel = numberOfExpectedBuffersPerChannel;
@@ -558,5 +558,6 @@ public class LocalInputChannelTest {
 
 			return null;
 		}
+
 	}
 }

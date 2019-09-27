@@ -27,70 +27,63 @@ Important classes of Flink Table API:
     - :class:`pyflink.table.TableConfig`
       A config to define the runtime behavior of the Table API.
       It is necessary when creating :class:`TableEnvironment`.
+    - :class:`pyflink.table.EnvironmentSettings`
+      Defines all parameters that initialize a table environment.
+    - :class:`pyflink.table.StreamQueryConfig` and :class:`pyflink.table.BatchQueryConfig`
+      A query config holds parameters to configure the behavior of queries.
     - :class:`pyflink.table.TableSource`
       Defines an external data source as a table.
     - :class:`pyflink.table.TableSink`
       Specifies how to emit a table to an external system or location.
+    - :class:`pyflink.table.DataTypes`
+      Defines a list of data types available.
+    - :class:`pyflink.table.Row`
+      A row in a :class:`Table`.
+    - :class:`pyflink.table.window`
+      Helper classes for working with :class:`pyflink.table.window.GroupWindow`
+      (:class:`pyflink.table.window.Tumble`, :class:`pyflink.table.window.Session`,
+      :class:`pyflink.table.window.Slide`) and :class:`pyflink.table.window.OverWindow` window
+      (:class:`pyflink.table.window.Over`).
+    - :class:`pyflink.table.descriptors`
+      Helper classes that describes DDL information, such as how to connect to another system,
+      the format of data, the schema of table, the event time attribute in the schema, etc.
+    - :class:`pyflink.table.catalog`
+      Responsible for reading and writing metadata such as database/table/views/UDFs
+      from a registered :class:`pyflink.table.catalog.Catalog`.
+    - :class:`pyflink.table.TableSchema`
+      Represents a table's structure with field names and data types.
 """
-from pyflink.table.catalog import (Catalog, CatalogDatabase, CatalogBaseTable, CatalogPartition,
-                                   CatalogFunction, ObjectPath, CatalogPartitionSpec,
-                                   CatalogTableStatistics, CatalogColumnStatistics, HiveCatalog,
-                                   HiveCatalogDatabase, HiveCatalogFunction, HiveCatalogPartition,
-                                   HiveCatalogTable, HiveCatalogView)
-from pyflink.table.table import Table
+from __future__ import absolute_import
+
+from pyflink.table.environment_settings import EnvironmentSettings
+from pyflink.table.table import Table, GroupedTable, GroupWindowedTable, OverWindowedTable, \
+    WindowGroupedTable
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_environment import (TableEnvironment, StreamTableEnvironment,
                                              BatchTableEnvironment)
-from pyflink.table.table_sink import TableSink, CsvTableSink
-from pyflink.table.table_source import TableSource, CsvTableSource
+from pyflink.table.sinks import TableSink, CsvTableSink, WriteMode
+from pyflink.table.sources import TableSource, CsvTableSource
 from pyflink.table.types import DataTypes, UserDefinedType, Row
-from pyflink.table.window import Tumble, Session, Slide, Over
-from pyflink.table.table_descriptor import (Rowtime, Schema, OldCsv, Csv, Avro, Json, FileSystem,
-                                            Kafka, Elasticsearch)
 from pyflink.table.table_schema import TableSchema
 
 __all__ = [
     'TableEnvironment',
     'StreamTableEnvironment',
     'BatchTableEnvironment',
+    'EnvironmentSettings',
     'Table',
+    'GroupedTable',
+    'GroupWindowedTable',
+    'OverWindowedTable',
+    'WindowGroupedTable',
     'TableConfig',
     'TableSink',
     'TableSource',
+    'WriteMode',
     'CsvTableSink',
     'CsvTableSource',
     'DataTypes',
-    'Tumble',
-    'Session',
-    'Slide',
-    'Over',
-    'Rowtime',
-    'Schema',
-    'OldCsv',
-    'Csv',
-    'Avro',
-    'Json',
-    'FileSystem',
     'UserDefinedType',
     'Row',
-    'Kafka',
-    'Elasticsearch',
-    'TableSchema',
-
-    # Catalog APIs
-    'Catalog',
-    'CatalogDatabase',
-    'CatalogBaseTable',
-    'CatalogPartition',
-    'CatalogFunction',
-    'ObjectPath',
-    'CatalogPartitionSpec',
-    'CatalogTableStatistics',
-    'CatalogColumnStatistics',
-    'HiveCatalog',
-    'HiveCatalogDatabase',
-    'HiveCatalogFunction',
-    'HiveCatalogPartition',
-    'HiveCatalogTable',
-    'HiveCatalogView'
+    'TableSchema'
 ]

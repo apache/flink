@@ -43,7 +43,6 @@ import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -63,12 +62,12 @@ public class SSLUtilsTest extends TestLogger {
 
 	public static final List<String> AVAILABLE_SSL_PROVIDERS;
 	static {
-		if (OpenSsl.isAvailable()) {
+		if (System.getProperty("flink.tests.with-openssl") != null) {
+			assertTrue(
+				"openSSL not available but required (property 'flink.tests.with-openssl' is set)",
+				OpenSsl.isAvailable());
 			AVAILABLE_SSL_PROVIDERS = Arrays.asList("JDK", "OPENSSL");
 		} else {
-			assertNull(
-				"openSSL not available but required (property 'flink.tests.force-openssl' is set)",
-				System.getProperty("flink.tests.force-openssl"));
 			AVAILABLE_SSL_PROVIDERS = Collections.singletonList("JDK");
 		}
 	}

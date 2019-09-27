@@ -19,7 +19,8 @@
 package org.apache.flink.table.plan.nodes.dataset
 
 import org.apache.flink.api.java.DataSet
-import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvImpl}
+import org.apache.flink.table.api.BatchQueryConfig
+import org.apache.flink.table.api.internal.BatchTableEnvImpl
 import org.apache.flink.table.plan.nodes.FlinkRelNode
 import org.apache.flink.types.Row
 

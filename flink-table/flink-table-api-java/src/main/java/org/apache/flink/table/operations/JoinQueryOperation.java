@@ -21,7 +21,7 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -33,10 +33,11 @@ import java.util.Map;
  */
 @Internal
 public class JoinQueryOperation implements QueryOperation {
+
 	private final QueryOperation left;
 	private final QueryOperation right;
 	private final JoinType joinType;
-	private final Expression condition;
+	private final ResolvedExpression condition;
 	private final boolean correlated;
 	private final TableSchema tableSchema;
 
@@ -54,7 +55,7 @@ public class JoinQueryOperation implements QueryOperation {
 			QueryOperation left,
 			QueryOperation right,
 			JoinType joinType,
-			Expression condition,
+			ResolvedExpression condition,
 			boolean correlated) {
 		this.left = left;
 		this.right = right;
@@ -94,7 +95,7 @@ public class JoinQueryOperation implements QueryOperation {
 		return joinType;
 	}
 
-	public Expression getCondition() {
+	public ResolvedExpression getCondition() {
 		return condition;
 	}
 

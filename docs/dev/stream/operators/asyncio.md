@@ -265,5 +265,13 @@ For example, the following patterns result in a blocking `asyncInvoke(...)` func
   - Using a database client whose lookup/query method call blocks until the result has been received back
 
   - Blocking/waiting on the future-type objects returned by an asynchronous client inside the `asyncInvoke(...)` method
+  
+**The operator for AsyncFunction (AsyncWaitOperator) must currently be at the head of operator chains for consistency reasons**
+
+For the reasons given in issue `FLINK-13063`, we currently must break operator chains for the `AsyncWaitOperator` to prevent 
+potential consistency problems. This is a change to the previous behavior that supported chaining. User that
+require the old behavior and accept potential violations of the consistency guarantees can instantiate and add the 
+`AsyncWaitOperator` manually to the job graph and set the chaining strategy back to chaining via 
+`AsyncWaitOperator#setChainingStrategy(ChainingStrategy.ALWAYS)`.
 
 {% top %}

@@ -29,13 +29,19 @@ case $INPUT_TYPE in
         s3_setup hadoop
         INPUT_LOCATION="${S3_TEST_DATA_WORDS_URI}"
     ;;
+    (hadoop_with_provider)
+        source "$(dirname "$0")"/common_s3.sh
+        s3_setup_with_provider hadoop "fs.s3a.aws.credentials.provider"
+        INPUT_LOCATION="${S3_TEST_DATA_WORDS_URI}"
+    ;;
     (presto)
         source "$(dirname "$0")"/common_s3.sh
         s3_setup presto
         INPUT_LOCATION="${S3_TEST_DATA_WORDS_URI}"
     ;;
     (dummy-fs)
-        cp "${END_TO_END_DIR}/flink-plugins-test/target/flink-dummy-fs.jar" "${FLINK_DIR}/lib/"
+        source "$(dirname "$0")"/common_dummy_fs.sh
+        dummy_fs_setup
         INPUT_LOCATION="dummy://localhost/words"
     ;;
     (*)

@@ -29,6 +29,8 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -381,6 +383,7 @@ public class JobVertex implements java.io.Serializable {
 	 * 
 	 * @return The slot sharing group to associate the vertex with, or {@code null}, if not associated with one.
 	 */
+	@Nullable
 	public SlotSharingGroup getSlotSharingGroup() {
 		return slotSharingGroup;
 	}

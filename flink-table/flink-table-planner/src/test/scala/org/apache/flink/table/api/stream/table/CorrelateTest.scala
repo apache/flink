@@ -342,4 +342,27 @@ class CorrelateTest extends TableTestBase {
 
     util.verifyTable(resultTable, expected)
   }
+
+  @Test
+  def testNonCompositeResultType(): Unit = {
+    val util = streamTestUtil()
+
+    val tableFunc1 = new RichTableFunc1
+    val sourceTable = util.addTable[(Int, Long, String)]("MyTable", 'f0, 'f1, 'f2)
+    val resultTable = sourceTable
+      .joinLateral(tableFunc1('f2))
+
+    val expected = unaryNode(
+      "DataStreamCorrelate",
+      streamTableNode(sourceTable),
+      term("invocation", s"${tableFunc1.functionIdentifier}($$2)"),
+      term("correlate", "table(RichTableFunc1(f2))"),
+      term("select", "f0", "f1", "f2", "f0_0"),
+      term("rowType",
+        "RecordType(INTEGER f0, BIGINT f1, VARCHAR(65536) f2, VARCHAR(65536) f0_0)"),
+      term("joinType", "INNER")
+    )
+
+    util.verifyTable(resultTable, expected)
+  }
 }

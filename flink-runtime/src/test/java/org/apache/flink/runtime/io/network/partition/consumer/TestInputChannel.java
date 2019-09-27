@@ -155,11 +155,6 @@ public class TestInputChannel extends InputChannel {
 	}
 
 	@Override
-	void notifySubpartitionConsumed() throws IOException {
-
-	}
-
-	@Override
 	void releaseAllResources() throws IOException {
 
 	}

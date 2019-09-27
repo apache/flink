@@ -80,8 +80,8 @@ function deleteOldCaches() {
 	done
 }
 
-# delete leftover caches from previous builds
-find "$CACHE_DIR" -mindepth 1 -maxdepth 1 | grep -v "$TRAVIS_BUILD_NUMBER" | deleteOldCaches
+# delete leftover caches from previous builds; except the most recent
+find "$CACHE_DIR" -mindepth 1 -maxdepth 1 | grep -v "$TRAVIS_BUILD_NUMBER" | sort -Vr | tail -n +2 | deleteOldCaches
 
 STAGE=$1
 echo "Current stage: \"$STAGE\""
@@ -90,7 +90,7 @@ EXIT_CODE=0
 
 # Run actual compile&test steps
 if [ $STAGE == "$STAGE_COMPILE" ]; then
-	MVN="mvn clean install -nsu -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B -DskipTests $PROFILE"
+	MVN="mvn clean install -nsu -Dflink.convergence.phase=install -Pcheck-convergence -Dflink.forkCount=2 -Dflink.forkCountTestPackage=2 -Dmaven.javadoc.skip=true -B -DskipTests $PROFILE -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=warn"
 	$MVN
 	EXIT_CODE=$?
 
@@ -114,15 +114,48 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
         EXIT_CODE=$(($EXIT_CODE+$?))
         check_shaded_artifacts_s3_fs presto
         EXIT_CODE=$(($EXIT_CODE+$?))
-        check_shaded_artifacts_connector_elasticsearch ""
-        EXIT_CODE=$(($EXIT_CODE+$?))
         check_shaded_artifacts_connector_elasticsearch 2
         EXIT_CODE=$(($EXIT_CODE+$?))
         check_shaded_artifacts_connector_elasticsearch 5
         EXIT_CODE=$(($EXIT_CODE+$?))
+        check_shaded_artifacts_connector_elasticsearch 6
+        EXIT_CODE=$(($EXIT_CODE+$?))
     else
         echo "=============================================================================="
         echo "Previous build failure detected, skipping shaded dependency check."
+        echo "=============================================================================="
+    fi
+
+    if [ $EXIT_CODE == 0 ]; then
+        if [[ $PROFILE == *"scala-2.11"* ]]; then
+          ./tools/releasing/collect_license_files.sh ./build-target
+          diff "NOTICE-binary" "licenses-output/NOTICE-binary"
+          EXIT_CODE=$(($EXIT_CODE+$?))
+          diff -r "licenses-binary" "licenses-output/licenses-binary"
+          EXIT_CODE=$(($EXIT_CODE+$?))
+
+          if [ $EXIT_CODE != 0 ]; then
+            echo "=============================================================================="
+            echo "ERROR: binary licensing is out-of-date."
+            echo "Please update NOTICE-binary and licenses-binary:"
+            echo "Step 1: Rebuild flink"
+            echo "Step 2: Run 'tools/releasing/collect_license_files.sh build-target'"
+            echo "  This extracts all the licensing files from the distribution, and puts them in 'licenses-output'."
+            echo "  If the build-target symlink does not exist after building flink, point the tool to 'flink-dist/target/flink-<version>-bin/flink-<version>' instead."
+            echo "Step 3: Replace existing licensing"
+            echo "  Delete NOTICE-binary and the entire licenses-binary directory."
+            echo "  Copy the contents in 'licenses-output' into the root directory of the Flink project."
+            echo "Step 4: Remember to commit the changes!"
+            echo "=============================================================================="
+          fi
+        else
+          echo "=============================================================================="
+          echo "Ignoring the license file check because built uses different Scala version than 2.11. See FLINK-14008."
+          echo "=============================================================================="
+        fi
+    else
+        echo "=============================================================================="
+        echo "Previous build failure detected, skipping licensing check."
         echo "=============================================================================="
     fi
 
@@ -142,9 +175,12 @@ if [ $STAGE == "$STAGE_COMPILE" ]; then
             ! -path "$CACHE_FLINK_DIR/flink-formats/flink-csv/target/flink-csv*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-formats/flink-json/target/flink-json*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-formats/flink-avro/target/flink-avro*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-runtime/target/flink-runtime*tests.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-streaming-java/target/flink-streaming-java*tests.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-dist*.jar" \
-            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/opt/flink-table*.jar" \
-            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/opt/flink-python*java-binding.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-table_*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/lib/flink-table-blink*.jar" \
+            ! -path "$CACHE_FLINK_DIR/flink-dist/target/flink-*-bin/flink-*/opt/flink-python*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-connectors/flink-connector-elasticsearch-base/target/flink-*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-connectors/flink-connector-kafka-base/target/flink-*.jar" \
             ! -path "$CACHE_FLINK_DIR/flink-table/flink-table-planner/target/flink-table-planner*tests.jar" | xargs rm -rf

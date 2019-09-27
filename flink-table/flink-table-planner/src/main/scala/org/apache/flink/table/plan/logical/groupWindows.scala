@@ -18,20 +18,7 @@
 
 package org.apache.flink.table.plan.logical
 
-import java.util.{Optional, List => JList}
-
-import org.apache.flink.table.expressions.{Expression, PlannerExpression}
-
-// ------------------------------------------------------------------------------------------------
-// Over windows
-// ------------------------------------------------------------------------------------------------
-
-case class LogicalOverWindow(
-    alias: Expression,
-    partitionBy: JList[Expression],
-    orderBy: Expression,
-    preceding: Expression,
-    following: Optional[Expression])
+import org.apache.flink.table.expressions.PlannerExpression
 
 // ------------------------------------------------------------------------------------------------
 // Group windows

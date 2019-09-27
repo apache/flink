@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.util.serialization;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
 
 import java.io.Serializable;
 
@@ -27,7 +28,10 @@ import java.io.Serializable;
  * to them in a specific format (for example as byte strings).
  *
  * @param <T> The type to be serialized.
+ *
+ * @deprecated Use {@link KafkaSerializationSchema}.
  */
+@Deprecated
 @PublicEvolving
 public interface KeyedSerializationSchema<T> extends Serializable {
 

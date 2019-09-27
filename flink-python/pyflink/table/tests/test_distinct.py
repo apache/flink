@@ -16,30 +16,17 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.table.types import DataTypes
-from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase
 
 
 class StreamTableDistinctTests(PyFlinkStreamTableTestCase):
 
     def test_distinct(self):
-        t_env = self.t_env
-        t = t_env.from_elements([(1, "Hi", "Hello"), (2, "Hello", "Hello"), (2, "Hello", "Hello")],
-                                ['a', 'b', 'c'])
-        field_names = ["a", "b"]
-        field_types = [DataTypes.BIGINT(), DataTypes.STRING()]
-        t_env.register_table_sink(
-            "Results",
-            field_names, field_types, source_sink_utils.TestRetractSink())
+        t = self.t_env.from_elements([(1, "Hi", "Hello")], ['a', 'b', 'c'])
+        result = t.distinct()
 
-        result = t.distinct().select("a, c as b")
-        result.insert_into("Results")
-        t_env.execute()
-        actual = source_sink_utils.results()
-
-        expected = ['1,Hello', '2,Hello']
-        self.assert_equals(actual, expected)
+        query_operation = result._j_table.getQueryOperation()
+        self.assertEqual('DistinctQueryOperation', query_operation.getClass().getSimpleName())
 
 
 if __name__ == '__main__':

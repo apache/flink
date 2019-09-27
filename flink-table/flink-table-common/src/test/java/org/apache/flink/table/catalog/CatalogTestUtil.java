@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.table.catalog.config.CatalogConfig;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatistics;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBase;
 import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataBinary;
@@ -32,22 +33,78 @@ import org.apache.flink.table.plan.stats.TableStats;
 
 import java.util.Map;
 
+import static org.apache.flink.table.catalog.config.CatalogConfig.FLINK_PROPERTY_PREFIX;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 /**
  * Utility class for catalog testing.
- * TODO: Move util methods to CatalogTestBase and remove this class
+ * TODO: Move util methods to CatalogTest and remove this class
  */
 public class CatalogTestUtil {
+	public static void checkEquals(CatalogTable t1, CatalogTable t2) {
+		assertEquals(t1.getClass(), t2.getClass());
+		assertEquals(t1.getSchema(), t2.getSchema());
+		assertEquals(t1.getComment(), t2.getComment());
+		assertEquals(t1.getPartitionKeys(), t2.getPartitionKeys());
+		assertEquals(t1.isPartitioned(), t2.isPartitioned());
+
+		assertEquals(
+			t1.getProperties().get(CatalogConfig.IS_GENERIC),
+			t2.getProperties().get(CatalogConfig.IS_GENERIC));
+
+		// Hive tables may have properties created by itself
+		// thus properties of Hive table is a super set of those in its corresponding Flink table
+		if (Boolean.valueOf(t1.getProperties().get(CatalogConfig.IS_GENERIC))) {
+			assertEquals(t1.getProperties(), t2.getProperties());
+		} else {
+			assertTrue(t2.getProperties().keySet().stream().noneMatch(k -> k.startsWith(FLINK_PROPERTY_PREFIX)));
+			assertTrue(t2.getProperties().entrySet().containsAll(t1.getProperties().entrySet()));
+		}
+	}
+
+	public static void checkEquals(CatalogView v1, CatalogView v2) {
+		assertEquals(v1.getClass(), v2.getClass());
+		assertEquals(v1.getSchema(), v1.getSchema());
+		assertEquals(v1.getComment(), v2.getComment());
+		assertEquals(v1.getOriginalQuery(), v2.getOriginalQuery());
+		assertEquals(v1.getExpandedQuery(), v2.getExpandedQuery());
+
+		// Hive tables may have properties created by itself
+		// thus properties of Hive table is a super set of those in its corresponding Flink table
+		if (Boolean.valueOf(v1.getProperties().get(CatalogConfig.IS_GENERIC))) {
+			assertEquals(v1.getProperties(), v2.getProperties());
+		} else {
+			assertTrue(v2.getProperties().keySet().stream().noneMatch(k -> k.startsWith(FLINK_PROPERTY_PREFIX)));
+			assertTrue(v2.getProperties().entrySet().containsAll(v1.getProperties().entrySet()));
+		}
+	}
+
+	public static void checkEquals(CatalogPartition p1, CatalogPartition p2) {
+		assertEquals(p1.getClass(), p2.getClass());
+		assertEquals(p1.getComment(), p2.getComment());
+
+		// Hive tables may have properties created by itself
+		// thus properties of Hive table is a super set of those in its corresponding Flink table
+		if (Boolean.valueOf(p1.getProperties().get(CatalogConfig.IS_GENERIC))) {
+			assertEquals(p1.getProperties(), p2.getProperties());
+		} else {
+			assertTrue(p2.getProperties().entrySet().containsAll(p1.getProperties().entrySet()));
+		}
+	}
+
 	public static void checkEquals(TableStats ts1, TableStats ts2) {
 		assertEquals(ts1.getRowCount(), ts2.getRowCount());
 		assertEquals(ts1.getColumnStats().size(), ts2.getColumnStats().size());
 	}
 
 	public static void checkEquals(CatalogDatabase d1, CatalogDatabase d2) {
+		assertEquals(d1.getClass(), d2.getClass());
 		assertEquals(d1.getComment(), d2.getComment());
-		assertEquals(d1.getProperties(), d2.getProperties());
+
+		// d2 should contain all properties of d1's, and may or may not contain extra properties
+		assertTrue(d2.getProperties().entrySet().containsAll(
+			d1.getProperties().entrySet()));
 	}
 
 	static void checkEquals(CatalogTableStatistics ts1, CatalogTableStatistics ts2) {

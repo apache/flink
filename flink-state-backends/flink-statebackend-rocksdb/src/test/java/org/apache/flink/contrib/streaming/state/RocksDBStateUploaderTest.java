@@ -93,8 +93,10 @@ public class RocksDBStateUploaderTest extends TestLogger {
 
 		FileSystem fileSystem = checkpointPrivateDirectory.getFileSystem();
 		int fileStateSizeThreshold = 1024;
+		int writeBufferSize = 4096;
 		FsCheckpointStreamFactory checkpointStreamFactory =
-			new FsCheckpointStreamFactory(fileSystem, checkpointPrivateDirectory, checkpointSharedDirectory, fileStateSizeThreshold);
+			new FsCheckpointStreamFactory(
+				fileSystem, checkpointPrivateDirectory, checkpointSharedDirectory, fileStateSizeThreshold, writeBufferSize);
 
 		String localFolder = "local";
 		temporaryFolder.newFolder(localFolder);

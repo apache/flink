@@ -169,7 +169,6 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 						ExecutionEnvironment env = ExecutionEnvironment.createRemoteEnvironment("localhost", 1337, config);
 						env.setParallelism(2);
 						env.setRestartStrategy(RestartStrategies.noRestart());
-						env.getConfig().disableSysoutLogging();
 
 						env.generateSequence(0, Long.MAX_VALUE)
 
@@ -243,7 +242,7 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 				taskManagerProcess.destroy();
 			}
 			if (clusterClient != null) {
-				clusterClient.shutdown();
+				clusterClient.close();
 			}
 			if (dispatcherResourceManagerComponent != null) {
 				dispatcherResourceManagerComponent.deregisterApplicationAndClose(ApplicationStatus.SUCCEEDED, null);
@@ -266,7 +265,9 @@ public class ProcessFailureCancelingITCase extends TestLogger {
 	 * @throws Exception if something goes wrong
 	 */
 	static DispatcherGateway retrieveDispatcherGateway(RpcService rpcService, HighAvailabilityServices haServices) throws Exception {
-		final LeaderConnectionInfo leaderConnectionInfo = LeaderRetrievalUtils.retrieveLeaderConnectionInfo(haServices.getDispatcherLeaderRetriever(), Time.seconds(10L));
+		final LeaderConnectionInfo leaderConnectionInfo = LeaderRetrievalUtils.retrieveLeaderConnectionInfo(
+			haServices.getDispatcherLeaderRetriever(),
+			Duration.ofSeconds(10L));
 
 		return rpcService.connect(
 			leaderConnectionInfo.getAddress(),

@@ -75,9 +75,11 @@ abstract class PlannerExpression extends TreeNode[PlannerExpression] with Expres
     }
   }
 
-  override def accept[R](visitor: ExpressionVisitor[R]): R = visitor.visit(this)
+  override def asSummaryString(): String = toString
 
   override def getChildren: util.List[Expression] = children
+
+  override def accept[R](visitor: ExpressionVisitor[R]): R = visitor.visit(this)
 }
 
 abstract class BinaryExpression extends PlannerExpression {

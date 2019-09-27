@@ -23,25 +23,32 @@ import org.apache.flink.sql.parser.SqlProperty;
 import org.apache.flink.sql.parser.error.SqlParseException;
 
 import org.apache.calcite.sql.SqlInsert;
+import org.apache.calcite.sql.SqlInsertKeyword;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.util.NlsString;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 
 /** A {@link SqlInsert} that have some extension functions like partition, overwrite. **/
 public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
 	private final SqlNodeList staticPartitions;
 
+	private final SqlNodeList extendedKeywords;
+
 	public RichSqlInsert(SqlParserPos pos,
 			SqlNodeList keywords,
+			SqlNodeList extendedKeywords,
 			SqlNode targetTable,
 			SqlNode source,
 			SqlNodeList columnList,
 			SqlNodeList staticPartitions) {
 		super(pos, keywords, targetTable, source, columnList);
+		this.extendedKeywords = extendedKeywords;
 		this.staticPartitions = staticPartitions;
 	}
 
@@ -55,7 +62,8 @@ public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
 
 	/** Get static partition key value pair as strings.
 	 *
-	 * <p>Caution that we use {@link SqlLiteral#toString()} to get
+	 * <p>For character literals we return the unquoted and unescaped values.
+	 * For other types we use {@link SqlLiteral#toString()} to get
 	 * the string format of the value literal. If the string format is not
 	 * what you need, use {@link #getStaticPartitions()}.
 	 *
@@ -69,7 +77,8 @@ public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
 		}
 		for (SqlNode node : this.staticPartitions.getList()) {
 			SqlProperty sqlProperty = (SqlProperty) node;
-			String value = SqlLiteral.value(sqlProperty.getValue()).toString();
+			Comparable comparable = SqlLiteral.value(sqlProperty.getValue());
+			String value = comparable instanceof NlsString ? ((NlsString) comparable).getValue() : comparable.toString();
 			ret.put(sqlProperty.getKey().getSimple(), value);
 		}
 		return ret;
@@ -77,7 +86,13 @@ public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
 
 	@Override public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		writer.startList(SqlWriter.FrameTypeEnum.SELECT);
-		writer.sep(isUpsert() ? "UPSERT INTO" : "INSERT INTO");
+		String insertKeyword = "INSERT INTO";
+		if (isUpsert()) {
+			insertKeyword = "UPSERT INTO";
+		} else if (isOverwrite()) {
+			insertKeyword = "INSERT OVERWRITE";
+		}
+		writer.sep(insertKeyword);
 		final int opLeft = getOperator().getLeftPrec();
 		final int opRight = getOperator().getRightPrec();
 		getTargetTable().unparse(writer, opLeft, opRight);
@@ -91,6 +106,39 @@ public class RichSqlInsert extends SqlInsert implements ExtendedSqlNode {
 			writer.newlineAndIndent();
 		}
 		getSource().unparse(writer, 0, 0);
+	}
+
+	//~ Tools ------------------------------------------------------------------
+
+	public static boolean isUpsert(List<SqlLiteral> keywords) {
+		for (SqlNode keyword : keywords) {
+			SqlInsertKeyword keyword2 =
+				((SqlLiteral) keyword).symbolValue(SqlInsertKeyword.class);
+			if (keyword2 == SqlInsertKeyword.UPSERT) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Returns whether the insert mode is overwrite (for whole table or for specific partitions).
+	 *
+	 * @return true if this is overwrite mode
+	 */
+	public boolean isOverwrite() {
+		return getModifierNode(RichSqlInsertKeyword.OVERWRITE) != null;
+	}
+
+	private SqlNode getModifierNode(RichSqlInsertKeyword modifier) {
+		for (SqlNode keyword : extendedKeywords) {
+			RichSqlInsertKeyword keyword2 =
+				((SqlLiteral) keyword).symbolValue(RichSqlInsertKeyword.class);
+			if (keyword2 == modifier) {
+				return keyword;
+			}
+		}
+		return null;
 	}
 
 	@Override

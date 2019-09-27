@@ -39,7 +39,9 @@ public class PluginLoaderTest extends PluginTestBase {
 		final URL classpathA = createPluginJarURLFromString(PLUGIN_A);
 
 		PluginDescriptor pluginDescriptorA = new PluginDescriptor("A", new URL[]{classpathA}, new String[0]);
-		final PluginLoader pluginLoaderA = new PluginLoader(pluginDescriptorA, PARENT_CLASS_LOADER, new String[0]);
+		ClassLoader pluginClassLoaderA = PluginLoader.createPluginClassLoader(pluginDescriptorA, PARENT_CLASS_LOADER, new String[0]);
+		Assert.assertNotEquals(PARENT_CLASS_LOADER, pluginClassLoaderA);
+		final PluginLoader pluginLoaderA = new PluginLoader(pluginClassLoaderA);
 
 		Iterator<TestSpi> testSpiIteratorA = pluginLoaderA.load(TestSpi.class);
 
@@ -52,14 +54,16 @@ public class PluginLoaderTest extends PluginTestBase {
 		Assert.assertNotNull(testSpiA.testMethod());
 
 		Assert.assertEquals(TestServiceA.class.getCanonicalName(), testSpiA.getClass().getCanonicalName());
-		Assert.assertNotEquals(PARENT_CLASS_LOADER, testSpiA.getClass().getClassLoader());
+		// The plugin must return the same class loader as the one used to load it.
+		Assert.assertEquals(pluginClassLoaderA, testSpiA.getClassLoader());
+		Assert.assertEquals(pluginClassLoaderA, testSpiA.getClass().getClassLoader());
 
 		// Looks strange, but we want to ensure that those classes are not instance of each other because they were
 		// loaded by different classloader instances because the plugin loader uses child-before-parent order.
 		Assert.assertFalse(testSpiA instanceof TestServiceA);
 
 		// In the following we check for isolation of classes between different plugin loaders.
-		final PluginLoader secondPluginLoaderA = new PluginLoader(pluginDescriptorA, PARENT_CLASS_LOADER, new String[0]);
+		final PluginLoader secondPluginLoaderA = PluginLoader.create(pluginDescriptorA, PARENT_CLASS_LOADER, new String[0]);
 
 		TestSpi secondTestSpiA = secondPluginLoaderA.load(TestSpi.class).next();
 		Assert.assertNotNull(secondTestSpiA.testMethod());

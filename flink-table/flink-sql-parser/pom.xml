@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<artifactId>flink-table</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.9-SNAPSHOT</version>
+		<version>1.10-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-sql-parser</artifactId>
@@ -35,15 +35,10 @@ under the License.
 	<properties>
 		<!-- override parent pom -->
 		<test.excludedGroups/>
-		<calcite.version>1.18.0</calcite.version>
+		<calcite.version>1.20.0</calcite.version>
 	</properties>
 
 	<dependencies>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-guava</artifactId>
-		</dependency>
-
 		<dependency>
 			<groupId>org.apache.calcite</groupId>
 			<artifactId>calcite-core</artifactId>
@@ -51,15 +46,13 @@ under the License.
 			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
+				"mvn dependency:tree" as of Calcite 1.20:
 
-				Dependencies that are not needed for how we use Calcite right now.
-
-				"mvn dependency:tree" as of Calcite 1.18.0:
-
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.18.0:compile
-				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.13.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.20.0:compile
+				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.15.0:compile
 				[INFO] |  \- com.google.guava:guava:jar:19.0:compile
 
+				Dependencies that are not needed for how we use Calcite right now.
 				-->
 				<exclusion>
 					<groupId>org.apache.calcite.avatica</groupId>
@@ -136,6 +129,10 @@ under the License.
 				<exclusion>
 					<groupId>org.apache.commons</groupId>
 					<artifactId>commons-lang3</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>commons-codec</groupId>
+					<artifactId>commons-codec</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -258,7 +255,7 @@ under the License.
 								<include>**/Parser.jj</include>
 							</includes>
 							<!-- This must be kept synced with Apache Calcite. -->
-							<lookAhead>2</lookAhead>
+							<lookAhead>1</lookAhead>
 							<isStatic>false</isStatic>
 							<outputDirectory>${project.build.directory}/generated-sources/</outputDirectory>
 						</configuration>

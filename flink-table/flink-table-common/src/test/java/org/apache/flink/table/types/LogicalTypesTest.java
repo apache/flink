@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
@@ -54,6 +55,7 @@ import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
@@ -61,7 +63,6 @@ import org.apache.flink.table.types.logical.ZonedTimestampType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.math.BigDecimal;
@@ -557,21 +558,23 @@ public class LogicalTypesTest {
 
 		testEquality(anyType, new TypeInformationAnyType<>(Types.TUPLE(Types.STRING, Types.LONG)));
 
-		testStringSummary(anyType, "ANY(org.apache.flink.api.java.tuple.Tuple2, ?)");
+		testStringSummary(anyType, "ANY('org.apache.flink.api.java.tuple.Tuple2', ?)");
 
 		testNullability(anyType);
 
 		testJavaSerializability(anyType);
 
 		testConversions(anyType, new Class[]{Tuple2.class}, new Class[]{Tuple.class});
+
+		testInvalidStringSerializability(anyType);
 	}
 
 	@Test
 	public void testAnyType() {
 		testAll(
 			new AnyType<>(Human.class, new KryoSerializer<>(Human.class, new ExecutionConfig())),
-				"ANY(org.apache.flink.table.types.LogicalTypesTest$Human, " +
-					"AEdvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uS3J5b1Nlcml" +
+				"ANY('org.apache.flink.table.types.LogicalTypesTest$Human', " +
+					"'AEdvcmcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uS3J5b1Nlcml" +
 					"hbGl6ZXJTbmFwc2hvdAAAAAIAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuTG9naWNhbFR5cG" +
 					"VzVGVzdCRIdW1hbgAABPLGmj1wAAAAAgAzb3JnLmFwYWNoZS5mbGluay50YWJsZS50eXBlcy5Mb2dpY" +
 					"2FsVHlwZXNUZXN0JEh1bWFuAQAAADUAM29yZy5hcGFjaGUuZmxpbmsudGFibGUudHlwZXMuTG9naWNh" +
@@ -581,8 +584,8 @@ public class LogicalTypesTest {
 					"mcuYXBhY2hlLmZsaW5rLmFwaS5qYXZhLnR5cGV1dGlscy5ydW50aW1lLmtyeW8uU2VyaWFsaXplcnMk" +
 					"RHVtbXlBdnJvUmVnaXN0ZXJlZENsYXNzAAAAAQBZb3JnLmFwYWNoZS5mbGluay5hcGkuamF2YS50eXB" +
 					"ldXRpbHMucnVudGltZS5rcnlvLlNlcmlhbGl6ZXJzJER1bW15QXZyb0tyeW9TZXJpYWxpemVyQ2xhc3" +
-					"MAAATyxpo9cAAAAAAAAATyxpo9cAAAAAA=)",
-			"ANY(org.apache.flink.table.types.LogicalTypesTest$Human, ...)",
+					"MAAATyxpo9cAAAAAAAAATyxpo9cAAAAAA=')",
+			"ANY('org.apache.flink.table.types.LogicalTypesTest$Human', '...')",
 			new Class[]{Human.class, User.class}, // every User is Human
 			new Class[]{Human.class},
 			new LogicalType[]{},
@@ -596,13 +599,49 @@ public class LogicalTypesTest {
 
 		testEquality(symbolType, new SymbolType<>(TimePointUnit.class));
 
-		testStringSummary(symbolType, "SYMBOL(" + TimeIntervalUnit.class.getName() + ")");
+		testStringSummary(symbolType, "SYMBOL('" + TimeIntervalUnit.class.getName() + "')");
 
 		testNullability(symbolType);
 
 		testJavaSerializability(symbolType);
 
 		testConversions(symbolType, new Class[]{TimeIntervalUnit.class}, new Class[]{TimeIntervalUnit.class});
+
+		testInvalidStringSerializability(symbolType);
+	}
+
+	@Test
+	public void testUnresolvedUserDefinedType() {
+		final UnresolvedUserDefinedType unresolvedType =
+			new UnresolvedUserDefinedType("catalog", "database", "Type");
+
+		testEquality(unresolvedType, new UnresolvedUserDefinedType("different", "database", "Type"));
+
+		testStringSummary(unresolvedType, "`catalog`.`database`.`Type`");
+	}
+
+	@Test
+	public void testEmptyStringLiterals() {
+		final CharType charType = CharType.ofEmptyLiteral();
+		final VarCharType varcharType = VarCharType.ofEmptyLiteral();
+		final BinaryType binaryType = BinaryType.ofEmptyLiteral();
+		final VarBinaryType varBinaryType = VarBinaryType.ofEmptyLiteral();
+
+		// make the types nullable for testing
+		testEquality(charType.copy(true), new CharType(1));
+		testEquality(varcharType.copy(true), new VarCharType(1));
+		testEquality(binaryType.copy(true), new BinaryType(1));
+		testEquality(varBinaryType.copy(true), new VarBinaryType(1));
+
+		testStringSummary(charType, "CHAR(0) NOT NULL");
+		testStringSummary(varcharType, "VARCHAR(0) NOT NULL");
+		testStringSummary(binaryType, "BINARY(0) NOT NULL");
+		testStringSummary(varBinaryType, "VARBINARY(0) NOT NULL");
+
+		testInvalidStringSerializability(charType);
+		testInvalidStringSerializability(varcharType);
+		testInvalidStringSerializability(binaryType);
+		testInvalidStringSerializability(varBinaryType);
 	}
 
 	// --------------------------------------------------------------------------------------------
@@ -664,11 +703,20 @@ public class LogicalTypesTest {
 	}
 
 	private static void testStringSerializability(LogicalType serializableType, String serializableString) {
-		Assert.assertEquals(serializableString, serializableType.asSerializableString());
+		assertEquals(serializableString, serializableType.asSerializableString());
+	}
+
+	private static void testInvalidStringSerializability(LogicalType nonSerializableType) {
+		try {
+			final String serializedString = nonSerializableType.asSerializableString();
+			fail("No serializablility expected: " + serializedString);
+		} catch (TableException e) {
+			// ok
+		}
 	}
 
 	private static void testStringSummary(LogicalType type, String summaryString) {
-		Assert.assertEquals(summaryString, type.asSummaryString());
+		assertEquals(summaryString, type.asSummaryString());
 	}
 
 	private static void testConversions(LogicalType type, Class[] inputs, Class[] outputs) {

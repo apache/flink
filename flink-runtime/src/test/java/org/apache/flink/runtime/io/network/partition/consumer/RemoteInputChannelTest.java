@@ -19,11 +19,16 @@
 package org.apache.flink.runtime.io.network.partition.consumer;
 
 import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.execution.CancelTaskException;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
+import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
 import org.apache.flink.runtime.io.network.TestingConnectionManager;
+import org.apache.flink.runtime.io.network.TestingPartitionRequestClient;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferListener.NotificationResult;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
@@ -33,10 +38,14 @@ import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ProducerFailedException;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
+import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
+import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.runtime.taskmanager.TestTaskBuilder;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -46,9 +55,13 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -1079,6 +1092,79 @@ public class RemoteInputChannelTest {
 			.setMaxBackoff(maxBackoff)
 			.setMemorySegmentProvider(memorySegmentProvider)
 			.buildRemoteAndSetToGate(inputGate);
+	}
+
+	/**
+	 * Test to guard against FLINK-13249.
+	 */
+	@Test
+	public void testOnFailedPartitionRequestDoesNotBlockNetworkThreads() throws Exception {
+
+		final long testBlockedWaitTimeoutMillis = 30_000L;
+
+		final PartitionProducerStateChecker partitionProducerStateChecker =
+			(jobId, intermediateDataSetId, resultPartitionId) -> CompletableFuture.completedFuture(ExecutionState.RUNNING);
+		final NettyShuffleEnvironment shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
+		final Task task = new TestTaskBuilder(shuffleEnvironment)
+			.setPartitionProducerStateChecker(partitionProducerStateChecker)
+			.build();
+		final SingleInputGate inputGate = new SingleInputGateBuilder()
+			.setPartitionProducerStateProvider(task)
+			.build();
+
+		TestTaskBuilder.setTaskState(task, ExecutionState.RUNNING);
+
+		final OneShotLatch ready = new OneShotLatch();
+		final OneShotLatch blocker = new OneShotLatch();
+		final AtomicBoolean timedOutOrInterrupted = new AtomicBoolean(false);
+
+		final ConnectionManager blockingConnectionManager = new TestingConnectionManager() {
+
+			@Override
+			public PartitionRequestClient createPartitionRequestClient(
+				ConnectionID connectionId) {
+				ready.trigger();
+				try {
+					// We block here, in a section that holds the SingleInputGate#requestLock
+					blocker.await(testBlockedWaitTimeoutMillis, TimeUnit.MILLISECONDS);
+				} catch (InterruptedException | TimeoutException e) {
+					timedOutOrInterrupted.set(true);
+				}
+
+				return new TestingPartitionRequestClient();
+			}
+		};
+
+		final RemoteInputChannel remoteInputChannel =
+			InputChannelBuilder.newBuilder()
+				.setConnectionManager(blockingConnectionManager)
+				.buildRemoteAndSetToGate(inputGate);
+
+		final Thread simulatedNetworkThread = new Thread(
+			() -> {
+				try {
+					ready.await();
+					// We want to make sure that our simulated network thread does not block on
+					// SingleInputGate#requestLock as well through this call.
+					remoteInputChannel.onFailedPartitionRequest();
+
+					// Will only give free the blocker if we did not block ourselves.
+					blocker.trigger();
+				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+				}
+			});
+
+		simulatedNetworkThread.start();
+
+		// The entry point to that will lead us into blockingConnectionManager#createPartitionRequestClient(...).
+		inputGate.requestPartitions();
+
+		simulatedNetworkThread.join();
+
+		Assert.assertFalse(
+			"Test ended by timeout or interruption - this indicates that the network thread was blocked.",
+			timedOutOrInterrupted.get());
 	}
 
 	/**

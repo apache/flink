@@ -18,12 +18,15 @@
 
 package org.apache.flink.runtime.io.network.buffer;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MathUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -73,16 +77,32 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 
 	private final int numberOfSegmentsToRequest;
 
+	private final Duration requestSegmentsTimeout;
+
+	@VisibleForTesting
+	public NetworkBufferPool(int numberOfSegmentsToAllocate, int segmentSize, int numberOfSegmentsToRequest) {
+		this(numberOfSegmentsToAllocate, segmentSize, numberOfSegmentsToRequest, Duration.ofMillis(Integer.MAX_VALUE));
+	}
+
 	/**
 	 * Allocates all {@link MemorySegment} instances managed by this pool.
 	 */
-	public NetworkBufferPool(int numberOfSegmentsToAllocate, int segmentSize, int numberOfSegmentsToRequest) {
+	public NetworkBufferPool(
+		int numberOfSegmentsToAllocate,
+		int segmentSize,
+		int numberOfSegmentsToRequest,
+		Duration requestSegmentsTimeout) {
 
 		this.totalNumberOfMemorySegments = numberOfSegmentsToAllocate;
 		this.memorySegmentSize = segmentSize;
 
 		checkArgument(numberOfSegmentsToRequest > 0, "The number of required buffers should be larger than 0.");
 		this.numberOfSegmentsToRequest = numberOfSegmentsToRequest;
+
+		Preconditions.checkNotNull(requestSegmentsTimeout);
+		checkArgument(requestSegmentsTimeout.toMillis() > 0,
+				"The timeout for requesting exclusive buffers should be positive.");
+		this.requestSegmentsTimeout = requestSegmentsTimeout;
 
 		final long sizeInLong = (long) segmentSize;
 
@@ -140,39 +160,13 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 				throw new IllegalStateException("Network buffer pool has already been destroyed.");
 			}
 
-			if (numTotalRequiredBuffers + numberOfSegmentsToRequest > totalNumberOfMemorySegments) {
-				throw new IOException(String.format("Insufficient number of network buffers: " +
-								"required %d, but only %d available. The total number of network " +
-								"buffers is currently set to %d of %d bytes each. You can increase this " +
-								"number by setting the configuration keys '%s', '%s', and '%s'.",
-					numberOfSegmentsToRequest,
-						totalNumberOfMemorySegments - numTotalRequiredBuffers,
-						totalNumberOfMemorySegments,
-						memorySegmentSize,
-						NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key(),
-						NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN.key(),
-						NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key()));
-			}
-
-			this.numTotalRequiredBuffers += numberOfSegmentsToRequest;
-
-			try {
-				redistributeBuffers();
-			} catch (Throwable t) {
-				this.numTotalRequiredBuffers -= numberOfSegmentsToRequest;
-
-				try {
-					redistributeBuffers();
-				} catch (IOException inner) {
-					t.addSuppressed(inner);
-				}
-				ExceptionUtils.rethrowIOException(t);
-			}
+			tryRedistributeBuffers();
 		}
 
 		final List<MemorySegment> segments = new ArrayList<>(numberOfSegmentsToRequest);
 		try {
-			while (segments.size() < numberOfSegmentsToRequest) {
+			final Deadline deadline = Deadline.fromNow(requestSegmentsTimeout);
+			while (true) {
 				if (isDestroyed) {
 					throw new IllegalStateException("Buffer pool is destroyed.");
 				}
@@ -180,6 +174,18 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 				final MemorySegment segment = availableMemorySegments.poll(2, TimeUnit.SECONDS);
 				if (segment != null) {
 					segments.add(segment);
+				}
+
+				if (segments.size() >= numberOfSegmentsToRequest) {
+					break;
+				}
+
+				if (!deadline.hasTimeLeft()) {
+					throw new IOException(String.format("Timeout triggered when requesting exclusive buffers: %s, " +
+									" or you may increase the timeout which is %dms by setting the key '%s'.",
+							getConfigDescription(),
+							requestSegmentsTimeout.toMillis(),
+							NettyShuffleEnvironmentOptions.NETWORK_EXCLUSIVE_BUFFERS_REQUEST_TIMEOUT_MILLISECONDS.key()));
 				}
 			}
 		} catch (Throwable e) {
@@ -223,10 +229,6 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 
 	public boolean isDestroyed() {
 		return isDestroyed;
-	}
-
-	public int getMemorySegmentSize() {
-		return memorySegmentSize;
 	}
 
 	public int getTotalNumberOfMemorySegments() {
@@ -277,16 +279,10 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 			// With dynamic memory management this should become obsolete.
 			if (numTotalRequiredBuffers + numRequiredBuffers > totalNumberOfMemorySegments) {
 				throw new IOException(String.format("Insufficient number of network buffers: " +
-								"required %d, but only %d available. The total number of network " +
-								"buffers is currently set to %d of %d bytes each. You can increase this " +
-								"number by setting the configuration keys '%s', '%s', and '%s'.",
+								"required %d, but only %d available. %s.",
 						numRequiredBuffers,
 						totalNumberOfMemorySegments - numTotalRequiredBuffers,
-						totalNumberOfMemorySegments,
-						memorySegmentSize,
-						NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key(),
-						NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN.key(),
-						NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key()));
+						getConfigDescription()));
 			}
 
 			this.numTotalRequiredBuffers += numRequiredBuffers;
@@ -345,6 +341,34 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 			if (allBufferPools.size() > 0 || numTotalRequiredBuffers > 0) {
 				throw new IllegalStateException("NetworkBufferPool is not empty after destroying all LocalBufferPools");
 			}
+		}
+	}
+
+	// Must be called from synchronized block
+	private void tryRedistributeBuffers() throws IOException {
+		assert Thread.holdsLock(factoryLock);
+
+		if (numTotalRequiredBuffers + numberOfSegmentsToRequest > totalNumberOfMemorySegments) {
+			throw new IOException(String.format("Insufficient number of network buffers: " +
+							"required %d, but only %d available. %s.",
+					numberOfSegmentsToRequest,
+					totalNumberOfMemorySegments - numTotalRequiredBuffers,
+					getConfigDescription()));
+		}
+
+		this.numTotalRequiredBuffers += numberOfSegmentsToRequest;
+
+		try {
+			redistributeBuffers();
+		} catch (Throwable t) {
+			this.numTotalRequiredBuffers -= numberOfSegmentsToRequest;
+
+			try {
+				redistributeBuffers();
+			} catch (IOException inner) {
+				t.addSuppressed(inner);
+			}
+			ExceptionUtils.rethrowIOException(t);
 		}
 	}
 
@@ -415,5 +439,15 @@ public class NetworkBufferPool implements BufferPoolFactory, MemorySegmentProvid
 
 		assert (totalPartsUsed == totalCapacity);
 		assert (numDistributedMemorySegment == memorySegmentsToDistribute);
+	}
+
+	private String getConfigDescription() {
+		return String.format("The total number of network buffers is currently set to %d of %d bytes each. " +
+						"You can increase this number by setting the configuration keys '%s', '%s', and '%s'",
+				totalNumberOfMemorySegments,
+				memorySegmentSize,
+				NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_FRACTION.key(),
+				NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MIN.key(),
+				NettyShuffleEnvironmentOptions.NETWORK_BUFFERS_MEMORY_MAX.key());
 	}
 }

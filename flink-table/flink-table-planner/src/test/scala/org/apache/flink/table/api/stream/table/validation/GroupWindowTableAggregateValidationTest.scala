@@ -254,4 +254,19 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
       .flatAggregate(top3('int))
       .select('string, 'f0.count)
   }
+
+  @Test
+  def testInvalidStarInSelection(): Unit = {
+    expectedException.expect(classOf[ValidationException])
+    expectedException.expectMessage("Can not use * for window aggregate!")
+
+    val util = streamTestUtil()
+    val table = util.addTable[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)
+
+    table
+      .window(Tumble over 2.rows on 'proctime as 'w)
+      .groupBy('string, 'w)
+      .flatAggregate(top3('int))
+      .select('*)
+  }
 }

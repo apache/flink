@@ -20,6 +20,8 @@ package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.core.memory.MemorySegmentProvider;
+import org.apache.flink.runtime.io.disk.FileChannelManager;
+import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -28,8 +30,11 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -53,6 +58,10 @@ import static org.powermock.api.mockito.PowerMockito.spy;
 @RunWith(Parameterized.class)
 public class NettyShuffleEnvironmentTest extends TestLogger {
 
+	private static final String tempDir = EnvironmentInformation.getTemporaryFileDirectory();
+
+	private static FileChannelManager fileChannelManager;
+
 	@Parameterized.Parameter
 	public boolean enableCreditBasedFlowControl;
 
@@ -64,68 +73,14 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 	@Rule
 	public ExpectedException expectedException = ExpectedException.none();
 
-	/**
-	 * Verifies that {@link Task#setupPartitionsAndGates(ResultPartitionWriter[], InputGate[])}} sets up (un)bounded buffer pool
-	 * instances for various types of input and output channels.
-	 */
-	@Test
-	public void testRegisterTaskUsesBoundedBuffers() throws Exception {
-		final NettyShuffleEnvironment network = new NettyShuffleEnvironmentBuilder()
-			.setIsCreditBased(enableCreditBasedFlowControl)
-			.build();
+	@BeforeClass
+	public static void setUp() {
+		fileChannelManager = new FileChannelManagerImpl(new String[] {tempDir}, "testing");
+	}
 
-		// result partitions
-		ResultPartition rp1 = createPartition(network, ResultPartitionType.PIPELINED, 2);
-		ResultPartition rp2 = createPartition(network, ResultPartitionType.BLOCKING, 2);
-		ResultPartition rp3 = createPartition(network, ResultPartitionType.PIPELINED_BOUNDED, 2);
-		ResultPartition rp4 = createPartition(network, ResultPartitionType.PIPELINED_BOUNDED, 8);
-		final ResultPartition[] resultPartitions = new ResultPartition[] {rp1, rp2, rp3, rp4};
-
-		// input gates
-		SingleInputGate ig1 = createSingleInputGate(network, ResultPartitionType.PIPELINED, 2);
-		SingleInputGate ig2 = createSingleInputGate(network, ResultPartitionType.BLOCKING, 2);
-		SingleInputGate ig3 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, 2);
-		SingleInputGate ig4 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, 8);
-		final SingleInputGate[] inputGates = new SingleInputGate[] {ig1, ig2, ig3, ig4};
-
-		Task.setupPartitionsAndGates(resultPartitions, inputGates);
-
-		// verify buffer pools for the result partitions
-		assertEquals(rp1.getNumberOfSubpartitions(), rp1.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(rp2.getNumberOfSubpartitions(), rp2.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(rp3.getNumberOfSubpartitions(), rp3.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(rp4.getNumberOfSubpartitions(), rp4.getBufferPool().getNumberOfRequiredMemorySegments());
-
-		assertEquals(Integer.MAX_VALUE, rp1.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(Integer.MAX_VALUE, rp2.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(2 * 2 + 8, rp3.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(8 * 2 + 8, rp4.getBufferPool().getMaxNumberOfMemorySegments());
-
-		// verify buffer pools for the input gates (NOTE: credit-based uses minimum required buffers
-		// for exclusive buffers not managed by the buffer pool)
-		assertEquals(enableCreditBasedFlowControl ? 0 : 2, ig1.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 0 : 2, ig2.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 0 : 2, ig3.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 0 : 8, ig4.getBufferPool().getNumberOfRequiredMemorySegments());
-
-		assertEquals(Integer.MAX_VALUE, ig1.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(Integer.MAX_VALUE, ig2.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 8 : 2 * 2 + 8, ig3.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 8 : 8 * 2 + 8, ig4.getBufferPool().getMaxNumberOfMemorySegments());
-
-		int invokations = enableCreditBasedFlowControl ? 1 : 0;
-		verify(ig1, times(invokations)).assignExclusiveSegments();
-		verify(ig2, times(invokations)).assignExclusiveSegments();
-		verify(ig3, times(invokations)).assignExclusiveSegments();
-		verify(ig4, times(invokations)).assignExclusiveSegments();
-
-		for (ResultPartition rp : resultPartitions) {
-			rp.release();
-		}
-		for (SingleInputGate ig : inputGates) {
-			ig.close();
-		}
-		network.close();
+	@AfterClass
+	public static void shutdown() throws Exception {
+		fileChannelManager.close();
 	}
 
 	/**
@@ -177,45 +132,50 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 
 		final ConnectionManager connManager = createDummyConnectionManager();
 
+		int channels = 2;
+		int rp4Channels = 4;
+		int floatingBuffers = network.getConfiguration().floatingNetworkBuffersPerGate();
+		int exclusiveBuffers = network.getConfiguration().networkBuffersPerChannel();
+
+		int expectedBuffers = channels * exclusiveBuffers + floatingBuffers;
+		int expectedRp4Buffers = rp4Channels * exclusiveBuffers + floatingBuffers;
+
 		// result partitions
-		ResultPartition rp1 = createPartition(network, ResultPartitionType.PIPELINED, 2);
-		ResultPartition rp2 = createPartition(network, ResultPartitionType.BLOCKING, 2);
-		ResultPartition rp3 = createPartition(network, ResultPartitionType.PIPELINED_BOUNDED, 2);
-		ResultPartition rp4 = createPartition(network, ResultPartitionType.PIPELINED_BOUNDED, 4);
+		ResultPartition rp1 = createPartition(network, ResultPartitionType.PIPELINED, channels);
+		ResultPartition rp2 = createPartition(network, fileChannelManager, ResultPartitionType.BLOCKING, channels);
+		ResultPartition rp3 = createPartition(network, ResultPartitionType.PIPELINED_BOUNDED, channels);
+		ResultPartition rp4 = createPartition(network, ResultPartitionType.PIPELINED_BOUNDED, rp4Channels);
+
 		final ResultPartition[] resultPartitions = new ResultPartition[] {rp1, rp2, rp3, rp4};
 
 		// input gates
-		SingleInputGate ig1 = createSingleInputGate(network, ResultPartitionType.PIPELINED, 2);
-		SingleInputGate ig2 = createSingleInputGate(network, ResultPartitionType.BLOCKING, 2);
-		SingleInputGate ig3 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, 2);
-		SingleInputGate ig4 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, 4);
+		SingleInputGate ig1 = createSingleInputGate(network, ResultPartitionType.PIPELINED, channels);
+		SingleInputGate ig2 = createSingleInputGate(network, ResultPartitionType.BLOCKING, channels);
+		SingleInputGate ig3 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, channels);
+		SingleInputGate ig4 = createSingleInputGate(network, ResultPartitionType.PIPELINED_BOUNDED, rp4Channels);
 		final SingleInputGate[] inputGates = new SingleInputGate[] {ig1, ig2, ig3, ig4};
 
-		// set up remote input channels for the exclusive buffers of the credit-based flow control
-		// (note that this does not obey the partition types which is ok for the scope of the test)
-		if (enableCreditBasedFlowControl) {
-			createRemoteInputChannel(ig4, 0, rp1, connManager, network.getNetworkBufferPool());
-			createRemoteInputChannel(ig4, 0, rp2, connManager, network.getNetworkBufferPool());
-			createRemoteInputChannel(ig4, 0, rp3, connManager, network.getNetworkBufferPool());
-			createRemoteInputChannel(ig4, 0, rp4, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig4, 0, rp1, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig4, 0, rp2, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig4, 0, rp3, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig4, 0, rp4, connManager, network.getNetworkBufferPool());
 
-			createRemoteInputChannel(ig1, 1, rp1, connManager, network.getNetworkBufferPool());
-			createRemoteInputChannel(ig1, 1, rp4, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig1, 1, rp1, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig1, 1, rp4, connManager, network.getNetworkBufferPool());
 
-			createRemoteInputChannel(ig2, 1, rp2, connManager, network.getNetworkBufferPool());
-			createRemoteInputChannel(ig2, 2, rp4, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig2, 1, rp2, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig2, 2, rp4, connManager, network.getNetworkBufferPool());
 
-			createRemoteInputChannel(ig3, 1, rp3, connManager, network.getNetworkBufferPool());
-			createRemoteInputChannel(ig3, 3, rp4, connManager, network.getNetworkBufferPool());
-		}
+		createRemoteInputChannel(ig3, 1, rp3, connManager, network.getNetworkBufferPool());
+		createRemoteInputChannel(ig3, 3, rp4, connManager, network.getNetworkBufferPool());
 
 		Task.setupPartitionsAndGates(resultPartitions, inputGates);
 
 		// verify buffer pools for the result partitions
 		assertEquals(Integer.MAX_VALUE, rp1.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(Integer.MAX_VALUE, rp2.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(2 * 2 + 8, rp3.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(4 * 2 + 8, rp4.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(expectedBuffers, rp3.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(expectedRp4Buffers, rp4.getBufferPool().getMaxNumberOfMemorySegments());
 
 		for (ResultPartition rp : resultPartitions) {
 			assertEquals(rp.getNumberOfSubpartitions(), rp.getBufferPool().getNumberOfRequiredMemorySegments());
@@ -224,15 +184,15 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
 
 		// verify buffer pools for the input gates (NOTE: credit-based uses minimum required buffers
 		// for exclusive buffers not managed by the buffer pool)
-		assertEquals(enableCreditBasedFlowControl ? 0 : 2, ig1.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 0 : 2, ig2.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 0 : 2, ig3.getBufferPool().getNumberOfRequiredMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 0 : 4, ig4.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(enableCreditBasedFlowControl ? 0 : channels, ig1.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(enableCreditBasedFlowControl ? 0 : channels, ig2.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(enableCreditBasedFlowControl ? 0 : channels, ig3.getBufferPool().getNumberOfRequiredMemorySegments());
+		assertEquals(enableCreditBasedFlowControl ? 0 : rp4Channels, ig4.getBufferPool().getNumberOfRequiredMemorySegments());
 
 		assertEquals(Integer.MAX_VALUE, ig1.getBufferPool().getMaxNumberOfMemorySegments());
 		assertEquals(Integer.MAX_VALUE, ig2.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 8 : 2 * 2 + 8, ig3.getBufferPool().getMaxNumberOfMemorySegments());
-		assertEquals(enableCreditBasedFlowControl ? 8 : 4 * 2 + 8, ig4.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(enableCreditBasedFlowControl ? floatingBuffers : expectedBuffers, ig3.getBufferPool().getMaxNumberOfMemorySegments());
+		assertEquals(enableCreditBasedFlowControl ? floatingBuffers : expectedRp4Buffers, ig4.getBufferPool().getMaxNumberOfMemorySegments());
 
 		int invokations = enableCreditBasedFlowControl ? 1 : 0;
 		verify(ig1, times(invokations)).assignExclusiveSegments();

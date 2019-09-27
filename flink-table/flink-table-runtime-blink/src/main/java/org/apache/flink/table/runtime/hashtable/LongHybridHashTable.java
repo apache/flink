@@ -28,8 +28,8 @@ import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.runtime.compression.BlockCompressionFactory;
 import org.apache.flink.table.runtime.io.ChannelWithMeta;
+import org.apache.flink.table.runtime.typeutils.BinaryRowSerializer;
 import org.apache.flink.table.runtime.util.FileChannelUtil;
-import org.apache.flink.table.typeutils.BinaryRowSerializer;
 import org.apache.flink.util.MathUtils;
 
 import java.io.EOFException;
@@ -206,7 +206,11 @@ public abstract class LongHybridHashTable extends BaseHybridHashTable {
 		}
 
 		long range = maxKey - minKey + 1;
-		if (range <= recordCount * 4 || range <= segmentSize / 8) {
+
+		// 1.range is negative mean: range is to big to overflow
+		// 2.range is zero, maybe the max is Long.Max, and the min is Long.Min,
+		// so we should not use dense mode too.
+		if (range > 0 && (range <= recordCount * 4 || range <= segmentSize / 8)) {
 
 			// try to request memory.
 			int buffers = (int) Math.ceil(((double) (range * 8)) / segmentSize);

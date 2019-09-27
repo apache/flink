@@ -32,8 +32,8 @@ Apache Flink 是一个分布式流批一体化的开源平台。Flink 的核心�
 
 - **概念**: 从 Flink 的 [数据流编程模型](concepts/programming-model.html) 和 [分布式执行环境](concepts/runtime.html) 开始了解最基本的概念。这能帮助你理解本文档的其他部分，包括如何搭建环境，进行程序编写等。建议你首先阅读此部分。
 - **教程**:
-  * [实现并运行一个 DataStream 作业](./tutorials/datastream_api.html)
-  * [搭建一个本地 Flink 集群](./tutorials/local_setup.html)
+  * [实现并运行一个 DataStream 作业](./getting-started/tutorials/datastream_api.html)
+  * [搭建一个本地 Flink 集群](./getting-started/tutorials/local_setup.html)
 
 - **编程指南**: 你可以从 [基本 API 概念](dev/api_concepts.html), [DataStream API](dev/datastream_api.html) 以及 [DataSet API](dev/batch/index.html) 着手学习如何编写你的第一个 Flink 作业。
 
@@ -44,6 +44,7 @@ Apache Flink 是一个分布式流批一体化的开源平台。Flink 的核心�
 
 发布日志包含了 Flink 版本之间的重大更新。请在你升级 Flink 之前仔细阅读相应的发布日志。
 
+* [Flink 1.9 的发布日志](release-notes/flink-1.9.html)。
 * [Flink 1.8 的发布日志](release-notes/flink-1.8.html)。
 * [Flink 1.7 的发布日志](release-notes/flink-1.7.html)。
 * [Flink 1.6 的发布日志](release-notes/flink-1.6.html)。

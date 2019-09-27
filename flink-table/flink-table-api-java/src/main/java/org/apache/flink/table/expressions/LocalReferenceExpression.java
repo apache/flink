@@ -33,7 +33,7 @@ import java.util.Objects;
  * window in window aggregation.
  */
 @Internal
-public class LocalReferenceExpression implements Expression {
+public class LocalReferenceExpression implements ResolvedExpression {
 
 	private final String name;
 
@@ -48,8 +48,19 @@ public class LocalReferenceExpression implements Expression {
 		return name;
 	}
 
+	@Override
 	public DataType getOutputDataType() {
 		return dataType;
+	}
+
+	@Override
+	public List<ResolvedExpression> getResolvedChildren() {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public String asSummaryString() {
+		return name;
 	}
 
 	@Override
@@ -82,6 +93,6 @@ public class LocalReferenceExpression implements Expression {
 
 	@Override
 	public String toString() {
-		return name;
+		return asSummaryString();
 	}
 }

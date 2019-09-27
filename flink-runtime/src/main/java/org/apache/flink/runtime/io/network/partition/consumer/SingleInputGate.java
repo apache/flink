@@ -202,7 +202,7 @@ public class SingleInputGate extends InputGate {
 	}
 
 	@Override
-	public void setup() throws IOException {
+	public void setup() throws IOException, InterruptedException {
 		checkState(this.bufferPool == null, "Bug in input gate setup logic: Already registered buffer pool.");
 		if (isCreditBased) {
 			// assign exclusive buffers to input channels directly and use the rest for floating buffers
@@ -211,6 +211,35 @@ public class SingleInputGate extends InputGate {
 
 		BufferPool bufferPool = bufferPoolFactory.get();
 		setBufferPool(bufferPool);
+
+		requestPartitions();
+	}
+
+	@VisibleForTesting
+	void requestPartitions() throws IOException, InterruptedException {
+		synchronized (requestLock) {
+			if (!requestedPartitionsFlag) {
+				if (closeFuture.isDone()) {
+					throw new IllegalStateException("Already released.");
+				}
+
+				// Sanity checks
+				if (numberOfInputChannels != inputChannels.size()) {
+					throw new IllegalStateException(String.format(
+						"Bug in input gate setup logic: mismatch between " +
+						"number of total input channels [%s] and the currently set number of input " +
+						"channels [%s].",
+						inputChannels.size(),
+						numberOfInputChannels));
+				}
+
+				for (InputChannel inputChannel : inputChannels.values()) {
+					inputChannel.requestSubpartition(consumedSubpartitionIndex);
+				}
+			}
+
+			requestedPartitionsFlag = true;
+		}
 	}
 
 	// ------------------------------------------------------------------------
@@ -243,16 +272,6 @@ public class SingleInputGate extends InputGate {
 		return bufferPool;
 	}
 
-	@Override
-	public int getPageSize() {
-		if (bufferPool != null) {
-			return bufferPool.getMemorySegmentSize();
-		}
-		else {
-			throw new IllegalStateException("Input gate has not been initialized with buffers.");
-		}
-	}
-
 	public int getNumberOfQueuedBuffers() {
 		// re-try 3 times, if fails, return 0 for "unknown"
 		for (int retry = 0; retry < 3; retry++) {
@@ -260,9 +279,7 @@ public class SingleInputGate extends InputGate {
 				int totalBuffers = 0;
 
 				for (InputChannel channel : inputChannels.values()) {
-					if (channel instanceof RemoteInputChannel) {
-						totalBuffers += ((RemoteInputChannel) channel).getNumberOfQueuedBuffers();
-					}
+					totalBuffers += channel.unsynchronizedGetNumberOfQueuedBuffers();
 				}
 
 				return  totalBuffers;
@@ -444,30 +461,6 @@ public class SingleInputGate extends InputGate {
 		return hasReceivedAllEndOfPartitionEvents;
 	}
 
-	@Override
-	public void requestPartitions() throws IOException, InterruptedException {
-		synchronized (requestLock) {
-			if (!requestedPartitionsFlag) {
-				if (closeFuture.isDone()) {
-					throw new IllegalStateException("Already released.");
-				}
-
-				// Sanity checks
-				if (numberOfInputChannels != inputChannels.size()) {
-					throw new IllegalStateException("Bug in input gate setup logic: mismatch between " +
-							"number of total input channels and the currently set number of input " +
-							"channels.");
-				}
-
-				for (InputChannel inputChannel : inputChannels.values()) {
-					inputChannel.requestSubpartition(consumedSubpartitionIndex);
-				}
-			}
-
-			requestedPartitionsFlag = true;
-		}
-	}
-
 	// ------------------------------------------------------------------------
 	// Consume
 	// ------------------------------------------------------------------------
@@ -491,7 +484,6 @@ public class SingleInputGate extends InputGate {
 			throw new IllegalStateException("Released");
 		}
 
-		requestPartitions();
 		Optional<InputWithData<InputChannel, BufferAndAvailability>> next = waitAndGetNextData(blocking);
 		if (!next.isPresent()) {
 			return Optional.empty();
@@ -567,7 +559,6 @@ public class SingleInputGate extends InputGate {
 					markAvailable();
 				}
 
-				currentChannel.notifySubpartitionConsumed();
 				currentChannel.releaseAllResources();
 			}
 
@@ -608,8 +599,8 @@ public class SingleInputGate extends InputGate {
 	void triggerPartitionStateCheck(ResultPartitionID partitionId) {
 		partitionProducerStateProvider.requestPartitionProducerState(
 			consumedResultId,
-			partitionId)
-			.thenAccept(responseHandle -> {
+			partitionId,
+			((PartitionProducerStateProvider.ResponseHandle responseHandle) -> {
 				boolean isProducingState = new RemoteChannelStateChecker(partitionId, owningTaskName)
 					.isProducerReadyOrAbortConsumption(responseHandle);
 				if (isProducingState) {
@@ -619,7 +610,7 @@ public class SingleInputGate extends InputGate {
 						responseHandle.failConsumption(t);
 					}
 				}
-			});
+			}));
 	}
 
 	private void queueChannel(InputChannel channel) {

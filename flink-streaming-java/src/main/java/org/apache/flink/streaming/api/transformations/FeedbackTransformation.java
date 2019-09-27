@@ -19,7 +19,7 @@
 package org.apache.flink.streaming.api.transformations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.operators.ChainingStrategy;
+import org.apache.flink.api.dag.Transformation;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Lists;
 
@@ -30,37 +30,37 @@ import java.util.List;
  * This represents a feedback point in a topology.
  *
  * <p>This is different from how iterations work in batch processing. Once a feedback point is
- * defined you can connect one or several {@code StreamTransformations} as a feedback edges.
+ * defined you can connect one or several {@code Transformations} as a feedback edges.
  * Operations downstream from the feedback point will receive elements from the input of this
  * feedback point and from the feedback edges.
  *
  * <p>Both the partitioning of the input and the feedback edges is preserved. They can also have
  * differing partitioning strategies. This requires, however, that the parallelism of the feedback
- * {@code StreamTransformations} must match the parallelism of the input
- * {@code StreamTransformation}.
+ * {@code Transformations} must match the parallelism of the input
+ * {@code Transformation}.
  *
- * <p>The type of the input {@code StreamTransformation} and the feedback
- * {@code StreamTransformation} must match.
+ * <p>The type of the input {@code Transformation} and the feedback
+ * {@code Transformation} must match.
  *
  * @param <T> The type of the input elements and the feedback elements.
  */
 @Internal
-public class FeedbackTransformation<T> extends StreamTransformation<T> {
+public class FeedbackTransformation<T> extends Transformation<T> {
 
-	private final StreamTransformation<T> input;
+	private final Transformation<T> input;
 
-	private final List<StreamTransformation<T>> feedbackEdges;
+	private final List<Transformation<T>> feedbackEdges;
 
 	private final Long waitTime;
 
 	/**
 	 * Creates a new {@code FeedbackTransformation} from the given input.
 	 *
-	 * @param input The input {@code StreamTransformation}
+	 * @param input The input {@code Transformation}
 	 * @param waitTime The wait time of the feedback operator. After the time expires
 	 *                          the operation will close and not receive any more feedback elements.
 	 */
-	public FeedbackTransformation(StreamTransformation<T> input, Long waitTime) {
+	public FeedbackTransformation(Transformation<T> input, Long waitTime) {
 		super("Feedback", input.getOutputType(), input.getParallelism());
 		this.input = input;
 		this.waitTime = waitTime;
@@ -68,20 +68,20 @@ public class FeedbackTransformation<T> extends StreamTransformation<T> {
 	}
 
 	/**
-	 * Returns the input {@code StreamTransformation} of this {@code FeedbackTransformation}.
+	 * Returns the input {@code Transformation} of this {@code FeedbackTransformation}.
 	 */
-	public StreamTransformation<T> getInput() {
+	public Transformation<T> getInput() {
 		return input;
 	}
 
 	/**
-	 * Adds a feedback edge. The parallelism of the {@code StreamTransformation} must match
-	 * the parallelism of the input {@code StreamTransformation} of this
+	 * Adds a feedback edge. The parallelism of the {@code Transformation} must match
+	 * the parallelism of the input {@code Transformation} of this
 	 * {@code FeedbackTransformation}
 	 *
-	 * @param transform The new feedback {@code StreamTransformation}.
+	 * @param transform The new feedback {@code Transformation}.
 	 */
-	public void addFeedbackEdge(StreamTransformation<T> transform) {
+	public void addFeedbackEdge(Transformation<T> transform) {
 
 		if (transform.getParallelism() != this.getParallelism()) {
 			throw new UnsupportedOperationException(
@@ -95,9 +95,9 @@ public class FeedbackTransformation<T> extends StreamTransformation<T> {
 	}
 
 	/**
-	 * Returns the list of feedback {@code StreamTransformations}.
+	 * Returns the list of feedback {@code Transformations}.
 	 */
-	public List<StreamTransformation<T>> getFeedbackEdges() {
+	public List<Transformation<T>> getFeedbackEdges() {
 		return feedbackEdges;
 	}
 
@@ -111,13 +111,8 @@ public class FeedbackTransformation<T> extends StreamTransformation<T> {
 	}
 
 	@Override
-	public final void setChainingStrategy(ChainingStrategy strategy) {
-		throw new UnsupportedOperationException("Cannot set chaining strategy on Split Transformation.");
-	}
-
-	@Override
-	public Collection<StreamTransformation<?>> getTransitivePredecessors() {
-		List<StreamTransformation<?>> result = Lists.newArrayList();
+	public Collection<Transformation<?>> getTransitivePredecessors() {
+		List<Transformation<?>> result = Lists.newArrayList();
 		result.add(this);
 		result.addAll(input.getTransitivePredecessors());
 		return result;

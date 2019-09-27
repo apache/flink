@@ -37,7 +37,8 @@ case $INPUT_TYPE in
         INPUT_LOCATION=${INPUT_PATH}/words
     ;;
     (dummy-fs)
-        cp "${END_TO_END_DIR}/flink-plugins-test/target/flink-dummy-fs.jar" "${FLINK_DIR}/lib/"
+        source "$(dirname "$0")"/common_dummy_fs.sh
+        dummy_fs_setup
         INPUT_LOCATION="dummy://localhost/words"
     ;;
     (*)
@@ -49,7 +50,7 @@ esac
 export FLINK_JOB_ARGUMENTS="--input ${INPUT_LOCATION} --output ${OUTPUT_PATH}/docker_wc_out"
 
 build_image() {
-    ./build.sh --from-local-dist --job-jar ${FLINK_DIR}/examples/batch/WordCount.jar --image-name ${FLINK_DOCKER_IMAGE_NAME}
+    ./build.sh --from-local-dist --job-artifacts ${FLINK_DIR}/examples/batch/WordCount.jar --image-name ${FLINK_DOCKER_IMAGE_NAME}
 }
 
 # user inside the container must be able to create files, this is a workaround in-container permissions

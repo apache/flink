@@ -17,25 +17,22 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.NeverCompleteFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
-
 import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.Delayed;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -44,6 +41,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A {@link ProcessingTimeService} which assigns as current processing time the result of calling
  * {@link System#currentTimeMillis()} and registers timers using a {@link ScheduledThreadPoolExecutor}.
  */
+@Internal
 public class SystemProcessingTimeService extends ProcessingTimeService {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SystemProcessingTimeService.class);
@@ -54,29 +52,20 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 
 	// ------------------------------------------------------------------------
 
-	/** The containing task that owns this time service provider. */
-	private final AsyncExceptionHandler task;
-
-	/** The lock that timers acquire upon triggering. */
-	private final Object checkpointLock;
-
 	/** The executor service that schedules and calls the triggers of this task. */
 	private final ScheduledThreadPoolExecutor timerService;
 
+	private final ScheduledCallbackExecutionContext callbackExecutionContext;
 	private final AtomicInteger status;
 
-	public SystemProcessingTimeService(AsyncExceptionHandler failureHandler, Object checkpointLock) {
-		this(failureHandler, checkpointLock, null);
+	@VisibleForTesting
+	SystemProcessingTimeService(ScheduledCallbackExecutionContext callbackExecutionContext) {
+		this(callbackExecutionContext, null);
 	}
 
-	public SystemProcessingTimeService(
-			AsyncExceptionHandler task,
-			Object checkpointLock,
-			ThreadFactory threadFactory) {
+	SystemProcessingTimeService(ScheduledCallbackExecutionContext callbackExecutionContext, ThreadFactory threadFactory) {
 
-		this.task = checkNotNull(task);
-		this.checkpointLock = checkNotNull(checkpointLock);
-
+		this.callbackExecutionContext = checkNotNull(callbackExecutionContext);
 		this.status = new AtomicInteger(STATUS_ALIVE);
 
 		if (threadFactory == null) {
@@ -103,12 +92,12 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 	 * guarantees of order.
 	 *
 	 * @param timestamp Time when the task is to be enabled (in processing time)
-	 * @param target    The task to be executed
+	 * @param callback    The task to be executed
 	 * @return The future that represents the scheduled task. This always returns some future,
 	 *         even if the timer was shut down
 	 */
 	@Override
-	public ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target) {
+	public ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback callback) {
 
 		// delay the firing of the timer by 1 ms to align the semantics with watermark. A watermark
 		// T says we won't see elements in the future with a timestamp smaller or equal to T.
@@ -118,8 +107,7 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		// we directly try to register the timer and only react to the status on exception
 		// that way we save unnecessary volatile accesses for each timer
 		try {
-			return timerService.schedule(
-					new TriggerTask(status, task, checkpointLock, target, timestamp), delay, TimeUnit.MILLISECONDS);
+			return timerService.schedule(wrapOnTimerCallback(callback, timestamp), delay, TimeUnit.MILLISECONDS);
 		}
 		catch (RejectedExecutionException e) {
 			final int status = this.status.get();
@@ -144,7 +132,7 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 		// that way we save unnecessary volatile accesses for each timer
 		try {
 			return timerService.scheduleAtFixedRate(
-				new RepeatedTriggerTask(status, task, checkpointLock, callback, nextTimestamp, period),
+				wrapOnTimerCallback(callback, nextTimestamp, period),
 				initialDelay,
 				period,
 				TimeUnit.MILLISECONDS);
@@ -253,159 +241,49 @@ public class SystemProcessingTimeService extends ProcessingTimeService {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Internal task that is invoked by the timer service and triggers the target.
+	 * A context to which {@link ProcessingTimeCallback} would be passed to be invoked when a timer is up.
 	 */
-	private static final class TriggerTask implements Runnable {
+	interface ScheduledCallbackExecutionContext {
 
-		private final AtomicInteger serviceStatus;
-		private final Object lock;
-		private final ProcessingTimeCallback target;
-		private final long timestamp;
-		private final AsyncExceptionHandler exceptionHandler;
-
-		private TriggerTask(
-				final AtomicInteger serviceStatus,
-				final AsyncExceptionHandler exceptionHandler,
-				final Object lock,
-				final ProcessingTimeCallback target,
-				final long timestamp) {
-
-			this.serviceStatus = Preconditions.checkNotNull(serviceStatus);
-			this.exceptionHandler = Preconditions.checkNotNull(exceptionHandler);
-			this.lock = Preconditions.checkNotNull(lock);
-			this.target = Preconditions.checkNotNull(target);
-			this.timestamp = timestamp;
-		}
-
-		@Override
-		public void run() {
-			synchronized (lock) {
-				try {
-					if (serviceStatus.get() == STATUS_ALIVE) {
-						target.onProcessingTime(timestamp);
-					}
-				} catch (Throwable t) {
-					TimerException asyncException = new TimerException(t);
-					exceptionHandler.handleAsyncException("Caught exception while processing timer.", asyncException);
-				}
-			}
-		}
+		void invoke(ProcessingTimeCallback callback, long timestamp);
 	}
 
-	/**
-	 * Internal task which is repeatedly called by the processing time service.
-	 */
-	private static final class RepeatedTriggerTask implements Runnable {
+	private Runnable wrapOnTimerCallback(ProcessingTimeCallback callback, long timestamp) {
+		return new ScheduledTask(status, callbackExecutionContext, callback, timestamp, 0);
+	}
 
+	private Runnable wrapOnTimerCallback(ProcessingTimeCallback callback, long nextTimestamp, long period) {
+		return new ScheduledTask(status, callbackExecutionContext, callback, nextTimestamp, period);
+	}
+
+	private static final class ScheduledTask implements Runnable {
 		private final AtomicInteger serviceStatus;
-		private final Object lock;
-		private final ProcessingTimeCallback target;
-		private final long period;
-		private final AsyncExceptionHandler exceptionHandler;
+		private final ScheduledCallbackExecutionContext callbackExecutionContext;
+		private final ProcessingTimeCallback callback;
 
 		private long nextTimestamp;
+		private final long period;
 
-		private RepeatedTriggerTask(
-				final AtomicInteger serviceStatus,
-				final AsyncExceptionHandler exceptionHandler,
-				final Object lock,
-				final ProcessingTimeCallback target,
-				final long nextTimestamp,
-				final long period) {
-
-			this.serviceStatus = Preconditions.checkNotNull(serviceStatus);
-			this.lock = Preconditions.checkNotNull(lock);
-			this.target = Preconditions.checkNotNull(target);
+		ScheduledTask(
+				AtomicInteger serviceStatus,
+				ScheduledCallbackExecutionContext callbackExecutionContext,
+				ProcessingTimeCallback callback,
+				long timestamp,
+				long period) {
+			this.serviceStatus = serviceStatus;
+			this.callbackExecutionContext = callbackExecutionContext;
+			this.callback = callback;
+			this.nextTimestamp = timestamp;
 			this.period = period;
-			this.exceptionHandler = Preconditions.checkNotNull(exceptionHandler);
-
-			this.nextTimestamp = nextTimestamp;
 		}
 
 		@Override
 		public void run() {
-			synchronized (lock) {
-				try {
-					if (serviceStatus.get() == STATUS_ALIVE) {
-						target.onProcessingTime(nextTimestamp);
-					}
-
-					nextTimestamp += period;
-				} catch (Throwable t) {
-					TimerException asyncException = new TimerException(t);
-					exceptionHandler.handleAsyncException("Caught exception while processing repeated timer task.", asyncException);
-				}
+			if (serviceStatus.get() != STATUS_ALIVE) {
+				return;
 			}
-		}
-	}
-
-	// ------------------------------------------------------------------------
-
-	private static final class NeverCompleteFuture implements ScheduledFuture<Object> {
-
-		private final Object lock = new Object();
-
-		private final long delayMillis;
-
-		private volatile boolean canceled;
-
-		private NeverCompleteFuture(long delayMillis) {
-			this.delayMillis = delayMillis;
-		}
-
-		@Override
-		public long getDelay(@Nonnull TimeUnit unit) {
-			return unit.convert(delayMillis, TimeUnit.MILLISECONDS);
-		}
-
-		@Override
-		public int compareTo(@Nonnull Delayed o) {
-			long otherMillis = o.getDelay(TimeUnit.MILLISECONDS);
-			return Long.compare(this.delayMillis, otherMillis);
-		}
-
-		@Override
-		public boolean cancel(boolean mayInterruptIfRunning) {
-			synchronized (lock) {
-				canceled = true;
-				lock.notifyAll();
-			}
-			return true;
-		}
-
-		@Override
-		public boolean isCancelled() {
-			return canceled;
-		}
-
-		@Override
-		public boolean isDone() {
-			return false;
-		}
-
-		@Override
-		public Object get() throws InterruptedException {
-			synchronized (lock) {
-				while (!canceled) {
-					lock.wait();
-				}
-			}
-			throw new CancellationException();
-		}
-
-		@Override
-		public Object get(long timeout, @Nonnull TimeUnit unit) throws InterruptedException, TimeoutException {
-			synchronized (lock) {
-				while (!canceled) {
-					unit.timedWait(lock, timeout);
-				}
-
-				if (canceled) {
-					throw new CancellationException();
-				} else {
-					throw new TimeoutException();
-				}
-			}
+			callbackExecutionContext.invoke(callback, nextTimestamp);
+			nextTimestamp += period;
 		}
 	}
 }

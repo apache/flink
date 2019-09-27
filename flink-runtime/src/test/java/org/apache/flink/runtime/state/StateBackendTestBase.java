@@ -69,6 +69,7 @@ import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.KvStateRegistryListener;
 import org.apache.flink.runtime.state.heap.AbstractHeapState;
 import org.apache.flink.runtime.state.heap.NestedMapsStateTable;
+import org.apache.flink.runtime.state.heap.NestedStateMap;
 import org.apache.flink.runtime.state.heap.StateTable;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -3428,8 +3429,9 @@ public abstract class StateBackendTestBase<B extends AbstractStateBackend> exten
 		if (stateTable instanceof NestedMapsStateTable) {
 			int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(1, numberOfKeyGroups);
 			NestedMapsStateTable<?, ?, ?> nestedMapsStateTable = (NestedMapsStateTable<?, ?, ?>) stateTable;
-			assertTrue(nestedMapsStateTable.getState()[keyGroupIndex] instanceof ConcurrentHashMap);
-			assertTrue(nestedMapsStateTable.getState()[keyGroupIndex].get(VoidNamespace.INSTANCE) instanceof ConcurrentHashMap);
+			NestedStateMap<?, ?, ?>[] nestedStateMaps = (NestedStateMap<?, ?, ?>[]) nestedMapsStateTable.getState();
+			assertTrue(nestedStateMaps[keyGroupIndex].getNamespaceMap() instanceof ConcurrentHashMap);
+			assertTrue(nestedStateMaps[keyGroupIndex].getNamespaceMap().get(VoidNamespace.INSTANCE) instanceof ConcurrentHashMap);
 		}
 	}
 

@@ -115,7 +115,15 @@ functions:
       - type: LONG
         value: 5
 
+catalogs:
+  - name: catalog1
+    type: DependencyTest
+  - name: simple-catalog
+    type: simple-catalog
+    test-table: test-table
+
 execution:
+  planner: "$VAR_PLANNER"
   type: "$VAR_EXECUTION_TYPE"
   time-characteristic: event-time
   periodic-watermarks-interval: 99
@@ -131,9 +139,8 @@ execution:
     failure-rate-interval: 99000
     delay: 1000
 
+configuration:
+  table.optimizer.join-reorder-enabled: false
+
 deployment:
   response-timeout: 5000
-
-catalogs:
-  - name: catalog1
-    type: DependencyTest

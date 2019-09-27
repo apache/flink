@@ -775,7 +775,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
 			0);
 	}
 
-	private static TaskDeploymentDescriptor createTaskDeploymentDescriptor(
+	static TaskDeploymentDescriptor createTaskDeploymentDescriptor(
 			JobID jobId,
 			String jobName,
 			ExecutionAttemptID executionAttemptId,

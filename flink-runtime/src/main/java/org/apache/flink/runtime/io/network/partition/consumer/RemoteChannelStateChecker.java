@@ -46,7 +46,8 @@ public class RemoteChannelStateChecker {
 
 	public boolean isProducerReadyOrAbortConsumption(ResponseHandle responseHandle) {
 		Either<ExecutionState, Throwable> result = responseHandle.getProducerExecutionState();
-		if (responseHandle.getConsumerExecutionState() != ExecutionState.RUNNING) {
+		ExecutionState consumerExecutionState = responseHandle.getConsumerExecutionState();
+		if (!isConsumerStateValidForConsumption(consumerExecutionState)) {
 			LOG.debug(
 				"Ignore a partition producer state notification for task {}, because it's not running.",
 				taskNameWithSubtask);
@@ -62,6 +63,12 @@ public class RemoteChannelStateChecker {
 			handleFailedCheckResult(responseHandle);
 		}
 		return false;
+	}
+
+	private static boolean isConsumerStateValidForConsumption(
+			ExecutionState consumerExecutionState) {
+		return consumerExecutionState == ExecutionState.RUNNING ||
+			consumerExecutionState == ExecutionState.DEPLOYING;
 	}
 
 	private boolean isProducerConsumerReady(ResponseHandle responseHandle) {

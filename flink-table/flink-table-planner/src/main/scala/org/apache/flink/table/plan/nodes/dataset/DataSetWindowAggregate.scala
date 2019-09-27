@@ -27,7 +27,8 @@ import org.apache.flink.api.common.operators.Order
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.typeutils.{ResultTypeQueryable, RowTypeInfo}
-import org.apache.flink.table.api.{BatchQueryConfig, BatchTableEnvImpl, TableConfig}
+import org.apache.flink.table.api.internal.BatchTableEnvImpl
+import org.apache.flink.table.api.{BatchQueryConfig, TableConfig}
 import org.apache.flink.table.calcite.FlinkRelBuilder.NamedWindowProperty
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.expressions.PlannerExpressionUtils._

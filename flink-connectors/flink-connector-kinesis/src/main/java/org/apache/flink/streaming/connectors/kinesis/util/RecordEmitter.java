@@ -79,8 +79,6 @@ public abstract class RecordEmitter<T extends TimestampedValue> implements Runna
 	public interface RecordQueue<T> {
 		void put(T record) throws InterruptedException;
 
-		int getQueueId();
-
 		int getSize();
 
 		T peek();
@@ -98,6 +96,7 @@ public abstract class RecordEmitter<T extends TimestampedValue> implements Runna
 			this.headTimestamp = Long.MAX_VALUE;
 		}
 
+		@Override
 		public void put(T record) throws InterruptedException {
 			queue.put(record);
 			synchronized (condition) {
@@ -105,14 +104,12 @@ public abstract class RecordEmitter<T extends TimestampedValue> implements Runna
 			}
 		}
 
-		public int getQueueId() {
-			return queueId;
-		}
-
+		@Override
 		public int getSize() {
 			return queue.size();
 		}
 
+		@Override
 		public T peek() {
 			return queue.peek();
 		}
@@ -239,6 +236,11 @@ public abstract class RecordEmitter<T extends TimestampedValue> implements Runna
 			}
 			if (record == null) {
 				this.emptyQueues.put(min, true);
+			} else if (nextQueue != null && nextQueue.headTimestamp > min.headTimestamp) {
+				// if we stopped emitting due to reaching max timestamp,
+				// the next queue may not be the new min
+				heads.offer(nextQueue);
+				nextQueue = min;
 			} else {
 				heads.offer(min);
 			}

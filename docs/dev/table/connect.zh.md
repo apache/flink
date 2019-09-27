@@ -1,5 +1,5 @@
 ---
-title: "连接外部系统"
+title: "Connect to External Systems"
 nav-parent_id: tableapi
 nav-pos: 19
 ---
@@ -101,6 +101,17 @@ tableEnvironment
 {% endhighlight %}
 </div>
 
+<div data-lang="python" markdown="1">
+{% highlight python %}
+table_environment \
+    .connect(...) \
+    .with_format(...) \
+    .with_schema(...) \
+    .in_append_mode() \
+    .register_table_source("MyTable")
+{% endhighlight %}
+</div>
+
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 name: MyTable
@@ -109,6 +120,12 @@ update-mode: append
 connector: ...
 format: ...
 schema: ...
+{% endhighlight %}
+</div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+tableEnvironment.sqlUpdate("CREATE TABLE MyTable (...) WITH (...)")
 {% endhighlight %}
 </div>
 </div>
@@ -170,6 +187,50 @@ tableEnvironment
 {% endhighlight %}
 </div>
 
+<div data-lang="python" markdown="1">
+{% highlight python %}
+table_environment \
+    .connect(  # declare the external system to connect to
+        Kafka()
+        .version("0.10")
+        .topic("test-input")
+        .start_from_earliest()
+        .property("zookeeper.connect", "localhost:2181")
+        .property("bootstrap.servers", "localhost:9092")
+    ) \
+    .with_format(  # declare a format for this system
+        Avro()
+        .avro_schema(
+            "{"
+            "  \"namespace\": \"org.myorganization\","
+            "  \"type\": \"record\","
+            "  \"name\": \"UserMessage\","
+            "    \"fields\": ["
+            "      {\"name\": \"timestamp\", \"type\": \"string\"},"
+            "      {\"name\": \"user\", \"type\": \"long\"},"
+            "      {\"name\": \"message\", \"type\": [\"string\", \"null\"]}"
+            "    ]"
+            "}"
+        )
+    ) \
+    .with_schema(  # declare the schema of the table
+        Schema()
+        .field("rowtime", DataTypes.TIMESTAMP())
+        .rowtime(
+            Rowtime()
+            .timestamps_from_field("timestamp")
+            .watermarks_periodic_bounded(60000)
+        )
+        .field("user", DataTypes.BIGINT())
+        .field("message", DataTypes.STRING())
+    ) \
+    .in_append_mode() \
+    .register_table_source("MyUserTable")  
+    # specify the update-mode for streaming tables and
+    # register as source, sink, or both and under a name
+{% endhighlight %}
+</div>
+
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 tables:
@@ -221,6 +282,39 @@ tables:
         type: VARCHAR
 {% endhighlight %}
 </div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  `user` BIGINT,
+  message VARCHAR,
+  ts VARCHAR
+) WITH (
+  -- declare the external system to connect to
+  'connector.type' = 'kafka',
+  'connector.version' = '0.10',
+  'connector.topic' = 'topic_name',
+  'connector.startup-mode' = 'earliest-offset',
+  'connector.properties.0.key' = 'zookeeper.connect',
+  'connector.properties.0.value' = 'localhost:2181',
+  'connector.properties.1.key' = 'bootstrap.servers',
+  'connector.properties.1.value' = 'localhost:9092',
+  'update-mode' = 'append',
+  -- declare a format for this system
+  'format.type' = 'avro',
+  'format.avro-schema' = '{
+                            "namespace": "org.myorganization",
+                            "type": "record",
+                            "name": "UserMessage",
+                            "fields": [
+                                {"name": "ts", "type": "string"},
+                                {"name": "user", "type": "long"},
+                                {"name": "message", "type": ["string", "null"]}
+                            ]
+                         }'
+)
+{% endhighlight %}
+</div>
 </div>
 
 In both ways the desired connection properties are converted into normalized, string-based key-value pairs. So-called [table factories](sourceSinks.html#define-a-tablefactory) create configured table sources, table sinks, and corresponding formats from the key-value pairs. All table factories that can be found via Java's [Service Provider Interfaces (SPI)](https://docs.oracle.com/javase/tutorial/sound/SPI-intro.html) are taken into account when searching for exactly-one matching table factory.
@@ -244,6 +338,17 @@ The following example shows a simple schema without time attributes and one-to-o
     .field("MyField1", Types.INT)     // required: specify the fields of the table (in this order)
     .field("MyField2", Types.STRING)
     .field("MyField3", Types.BOOLEAN)
+)
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+.with_schema(
+    Schema()
+    .field("MyField1", DataTypes.INT())  # required: specify the fields of the table (in this order)
+    .field("MyField2", DataTypes.STRING())
+    .field("MyField3", DataTypes.BOOLEAN())
 )
 {% endhighlight %}
 </div>
@@ -274,6 +379,20 @@ For *each field*, the following properties can be declared in addition to the co
       .rowtime(...)    // optional: declares this field as a event-time attribute
     .field("MyField3", Types.BOOLEAN)
       .from("mf3")     // optional: original field in the input that is referenced/aliased by this field
+)
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+.with_schema(
+    Schema()
+    .field("MyField1", DataTypes.TIMESTAMP())
+    .proctime()  # optional: declares this field as a processing-time attribute
+    .field("MyField2", DataTypes.TIMESTAMP())
+    .rowtime(...)  # optional: declares this field as a event-time attribute
+    .field("MyField3", DataTypes.BOOLEAN())
+    .from_origin_field("mf3")  # optional: original field in the input that is referenced/aliased by this field
 )
 {% endhighlight %}
 </div>
@@ -330,6 +449,32 @@ The following timestamp extractors are supported:
 {% endhighlight %}
 </div>
 
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# Converts an existing BIGINT or TIMESTAMP field in the input into the rowtime attribute.
+.rowtime(
+    Rowtime()
+    .timestamps_from_field("ts_field")  # required: original field name in the input
+)
+
+# Converts the assigned timestamps into the rowtime attribute
+# and thus preserves the assigned timestamps from the source.
+# This requires a source that assigns timestamps (e.g., Kafka 0.10+).
+.rowtime(
+    Rowtime()
+    .timestamps_from_source()
+)
+
+# Sets a custom timestamp extractor to be used for the rowtime attribute.
+# The extractor must extend `org.apache.flink.table.sources.tsextractors.TimestampExtractor`.
+# Due to python can not accept java object, so it requires a full-qualified class name of the extractor.
+.rowtime(
+    Rowtime()
+    .timestamps_from_extractor(...)
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 # Converts an existing BIGINT or TIMESTAMP field in the input into the rowtime attribute.
@@ -372,6 +517,32 @@ The following watermark strategies are supported:
 .rowtime(
   new Rowtime()
     .watermarksFromSource()
+)
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+# Sets a watermark strategy for ascending rowtime attributes. Emits a watermark of the maximum
+# observed timestamp so far minus 1. Rows that have a timestamp equal to the max timestamp
+# are not late.
+.rowtime(
+    Rowtime()
+    .watermarks_periodic_ascending()
+)
+
+# Sets a built-in watermark strategy for rowtime attributes which are out-of-order by a bounded time interval.
+# Emits watermarks which are the maximum observed timestamp minus the specified delay.
+.rowtime(
+    Rowtime()
+    .watermarks_periodic_bounded(2000)  # delay in milliseconds
+)
+
+# Sets a built-in watermark strategy which indicates the watermarks should be preserved from the
+# underlying DataStream API and thus preserves the assigned watermarks from the source.
+.rowtime(
+    Rowtime()
+    .watermarks_from_source()
 )
 {% endhighlight %}
 </div>
@@ -457,11 +628,28 @@ For streaming queries, it is required to declare how to perform the [conversion 
 {% endhighlight %}
 </div>
 
+<div data-lang="python" markdown="1">
+{% highlight python %}
+.connect(...) \
+    .in_append_mode()  # otherwise: in_upsert_mode() or in_retract_mode()
+{% endhighlight %}
+</div>
+
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 tables:
   - name: ...
     update-mode: append    # otherwise: "retract" or "upsert"
+{% endhighlight %}
+</div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyTable (
+ ...
+) WITH (
+ 'update-mode' = 'append'  -- otherwise: 'retract' or 'upsert'
+)
 {% endhighlight %}
 </div>
 </div>
@@ -497,6 +685,15 @@ The file system connector allows for reading and writing from a local or distrib
 {% endhighlight %}
 </div>
 
+<div data-lang="python" markdown="1">
+{% highlight python %}
+.connect(
+    FileSystem()
+    .path("file:///path/to/whatever")  # required: path to a file or directory
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 connector:
@@ -504,11 +701,22 @@ connector:
   path: "file:///path/to/whatever"    # required: path to a file or directory
 {% endhighlight %}
 </div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'connector.type' = 'filesystem',               -- required: specify to connector type
+  'connector.path' = 'file:///path/to/whatever'  -- required: path to a file or directory
+)
+{% endhighlight %}
+</div>
 </div>
 
 The file system connector itself is included in Flink and does not require an additional dependency. A corresponding format needs to be specified for reading and writing rows from and to a file system.
 
-<span class="label label-danger">Attention</span> Make sure to include [Flink File System specific dependencies]({{ site.baseurl }}/ops/filesystems.html).
+<span class="label label-danger">Attention</span> Make sure to include [Flink File System specific dependencies]({{ site.baseurl }}/internals/filesystems.html).
 
 <span class="label label-danger">Attention</span> File system sources and sinks for streaming are only experimental. In the future, we will support actual streaming use cases, i.e., directory monitoring and bucket output.
 
@@ -548,6 +756,32 @@ The Kafka connector allows for reading and writing from and to an Apache Kafka t
 {% endhighlight %}
 </div>
 
+<div data-lang="python" markdown="1">
+{% highlight python %}
+.connect(
+    Kafka()
+    .version("0.11")  # required: valid connector versions are
+                      # "0.8", "0.9", "0.10", "0.11", and "universal"
+    .topic("...")     # required: topic name from which the table is read
+
+    # optional: connector specific properties
+    .property("zookeeper.connect", "localhost:2181")
+    .property("bootstrap.servers", "localhost:9092")
+    .property("group.id", "testGroup")
+
+    # optional: select a startup mode for Kafka offsets
+    .start_from_earliest()
+    .start_from_latest()
+    .start_from_specific_offsets(...)
+
+    # optional: output partitioning from Flink's partitions into Kafka's partitions
+    .sink_partitioner_fixed()        # each Flink partition ends up in at-most one Kafka partition (default)
+    .sink_partitioner_round_robin()  # a Flink partition is distributed to Kafka partitions round-robin
+    .sink_partitioner_custom("full.qualified.custom.class.name")  # use a custom FlinkKafkaPartitioner subclass
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 connector:
@@ -577,6 +811,49 @@ connector:
                            # "round-robin" (a Flink partition is distributed to Kafka partitions round-robin)
                            # "custom" (use a custom FlinkKafkaPartitioner subclass)
   sink-partitioner-class: org.mycompany.MyPartitioner  # optional: used in case of sink partitioner custom
+{% endhighlight %}
+</div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'connector.type' = 'kafka',
+
+  'connector.version' = '0.11',     -- required: valid connector versions are
+                                    -- "0.8", "0.9", "0.10", "0.11", and "universal"
+
+  'connector.topic' = 'topic_name', -- required: topic name from which the table is read
+
+  'update-mode' = 'append',         -- required: update mode when used as table sink,
+                                    -- only support append mode now.
+
+  'connector.properties.0.key' = 'zookeeper.connect', -- optional: connector specific properties
+  'connector.properties.0.value' = 'localhost:2181',
+  'connector.properties.1.key' = 'bootstrap.servers',
+  'connector.properties.1.value' = 'localhost:9092',
+  'connector.properties.2.key' = 'group.id',
+  'connector.properties.2.value' = 'testGroup',
+  'connector.startup-mode' = 'earliest-offset',    -- optional: valid modes are "earliest-offset",
+                                                   -- "latest-offset", "group-offsets",
+                                                   -- or "specific-offsets"
+
+  -- optional: used in case of startup mode with specific offsets
+  'connector.specific-offsets.0.partition' = '0',
+  'connector.specific-offsets.0.offset' = '42',
+  'connector.specific-offsets.1.partition' = '1',
+  'connector.specific-offsets.1.offset' = '300',
+
+  'connector.sink-partitioner' = '...',  -- optional: output partitioning from Flink's partitions
+                                         -- into Kafka's partitions valid are "fixed"
+                                         -- (each Flink partition ends up in at most one Kafka partition),
+                                         -- "round-robin" (a Flink partition is distributed to
+                                         -- Kafka partitions round-robin)
+                                         -- "custom" (use a custom FlinkKafkaPartitioner subclass)
+  -- optional: used in case of sink partitioner custom
+  'connector.sink-partitioner-class' = 'org.mycompany.MyPartitioner'
+)
 {% endhighlight %}
 </div>
 </div>
@@ -648,6 +925,44 @@ The connector can be defined as follows:
 {% endhighlight %}
 </div>
 
+<div data-lang="python" markdown="1">
+{% highlight python %}
+.connect(
+    Elasticsearch()
+    .version("6")                      # required: valid connector versions are "6"
+    .host("localhost", 9200, "http")   # required: one or more Elasticsearch hosts to connect to
+    .index("MyUsers")                  # required: Elasticsearch index
+    .document_type("user")             # required: Elasticsearch document type
+
+    .key_delimiter("$")       # optional: delimiter for composite keys ("_" by default)
+                              #   e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
+    .key_null_literal("n/a")  # optional: representation for null fields in keys ("null" by default)
+
+    # optional: failure handling strategy in case a request to Elasticsearch fails (fail by default)
+    .failure_handler_fail()             # optional: throws an exception if a request fails and causes a job failure
+    .failure_handler_ignore()           #   or ignores failures and drops the request
+    .failure_handler_retry_rejected()   #   or re-adds requests that have failed due to queue capacity saturation
+    .failure_handler_custom(...)        #   or custom failure handling with a ActionRequestFailureHandler subclass
+
+    # optional: configure how to buffer elements before sending them in bulk to the cluster for efficiency
+    .disable_flush_on_checkpoint()      # optional: disables flushing on checkpoint (see notes below!)
+    .bulk_flush_max_actions(42)         # optional: maximum number of actions to buffer for each bulk request
+    .bulk_flush_max_size("42 mb")       # optional: maximum size of buffered actions in bytes per bulk request
+                                        #   (only MB granularity is supported)
+    .bulk_flush_interval(60000)         # optional: bulk flush interval (in milliseconds)
+
+    .bulk_flush_backoff_constant()      # optional: use a constant backoff type
+    .bulk_flush_backoff_exponential()   #   or use an exponential backoff type
+    .bulk_flush_backoff_max_retries(3)  # optional: maximum number of retries
+    .bulk_flush_backoff_delay(30000)    # optional: delay between each backoff attempt (in milliseconds)
+
+    # optional: connection properties to be used during REST communication to Elasticsearch
+    .connection_max_retry_timeout(3)    # optional: maximum timeout (in milliseconds) between retries
+    .connection_path_prefix("/v1")      # optional: prefix string to be added to every REST communication
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 connector:
@@ -686,6 +1001,66 @@ connector:
     # optional: connection properties to be used during REST communication to Elasticsearch
     connection-max-retry-timeout: 3   # optional: maximum timeout (in milliseconds) between retries
     connection-path-prefix: "/v1"     # optional: prefix string to be added to every REST communication
+{% endhighlight %}
+</div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'connector.type' = 'elasticsearch', -- required: specify this table type is elasticsearch
+
+  'connector.version' = '6',          -- required: valid connector versions are "6"
+
+  'connector.hosts.0.hostname' = 'host_name',  -- required: one or more Elasticsearch hosts to connect to
+  'connector.hosts.0.port' = '9092',
+  'connector.hosts.0.protocol' = 'http',
+
+  'connector.index' = 'MyUsers',       -- required: Elasticsearch index
+
+  'connector.document-type' = 'user',  -- required: Elasticsearch document type
+
+  'update-mode' = 'append',            -- optional: update mode when used as table sink.
+
+  'connector.key-delimiter' = '$',     -- optional: delimiter for composite keys ("_" by default)
+                                       -- e.g., "$" would result in IDs "KEY1$KEY2$KEY3"
+
+  'connector.key-null-literal' = 'n/a',  -- optional: representation for null fields in keys ("null" by default)
+
+  'connector.failure-handler' = '...',   -- optional: failure handling strategy in case a request to
+                                         -- Elasticsearch fails ("fail" by default).
+                                         -- valid strategies are
+                                         -- "fail" (throws an exception if a request fails and
+                                         -- thus causes a job failure),
+                                         -- "ignore" (ignores failures and drops the request),
+                                         -- "retry-rejected" (re-adds requests that have failed due
+                                         -- to queue capacity saturation),
+                                         -- or "custom" for failure handling with a
+                                         -- ActionRequestFailureHandler subclass
+
+  -- optional: configure how to buffer elements before sending them in bulk to the cluster for efficiency
+  'connector.flush-on-checkpoint' = 'true',   -- optional: disables flushing on checkpoint (see notes below!)
+                                              -- ("true" by default)
+  'connector.bulk-flush.max-actions' = '42',  -- optional: maximum number of actions to buffer
+                                              -- for each bulk request
+  'connector.bulk-flush.max-size' = '42 mb',  -- optional: maximum size of buffered actions in bytes
+                                              -- per bulk request
+                                              -- (only MB granularity is supported)
+  'connector.bulk-flush.interval' = '60000',  -- optional: bulk flush interval (in milliseconds)
+  'connector.bulk-flush.back-off.type' = '...',       -- optional: backoff strategy ("disabled" by default)
+                                                      -- valid strategies are "disabled", "constant",
+                                                      -- or "exponential"
+  'connector.bulk-flush.back-off.max-retries' = '3',  -- optional: maximum number of retries
+  'connector.bulk-flush.back-off.delay' = '30000',    -- optional: delay between each backoff attempt
+                                                      -- (in milliseconds)
+
+  -- optional: connection properties to be used during REST communication to Elasticsearch
+  'connector.connection-max-retry-timeout' = '3',     -- optional: maximum timeout (in milliseconds)
+                                                      -- between retries
+  'connector.connection-path-prefix' = '/v1'          -- optional: prefix string to be added to every
+                                                      -- REST communication
+)
 {% endhighlight %}
 </div>
 </div>
@@ -754,6 +1129,34 @@ The CSV format can be used as follows:
 {% endhighlight %}
 </div>
 
+<div data-lang="python" markdown="1">
+{% highlight python %}
+.with_format(
+    Csv()
+
+    # required: define the schema either by using type information
+    .schema(DataTypes.ROW(...))
+
+    # or use the table's schema
+    .derive_schema()
+
+    .field_delimiter(';')          # optional: field delimiter character (',' by default)
+    .line_delimiter("\r\n")        # optional: line delimiter ("\n" by default;
+                                   #   otherwise "\r" or "\r\n" are allowed)
+    .quote_character('\'')         # optional: quote character for enclosing field values ('"' by default)
+    .allow_comments()              # optional: ignores comment lines that start with '#' (disabled by default);
+                                   #   if enabled, make sure to also ignore parse errors to allow empty rows
+    .ignore_parse_errors()         # optional: skip fields and rows with parse errors instead of failing;
+                                   #   fields are set to null in case of errors
+    .array_element_delimiter("|")  # optional: the array element delimiter string for separating
+                                   #   array and row element values (";" by default)
+    .escape_character('\\')        # optional: escape character for escaping values (disabled by default)
+    .null_literal("n/a")           # optional: null literal string that is interpreted as a
+                                   #   null value (disabled by default)
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 format:
@@ -777,6 +1180,38 @@ format:
   escape-character: "\\"       # optional: escape character for escaping values (disabled by default)
   null-literal: "n/a"          # optional: null literal string that is interpreted as a
                                #   null value (disabled by default)
+{% endhighlight %}
+</div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'format.type' = 'csv',                  -- required: specify the schema type
+
+  'format.fields.0.name' = 'lon',         -- required: define the schema either by using type information
+  'format.fields.0.type' = 'FLOAT',
+  'format.fields.1.name' = 'rideTime',
+  'format.fields.1.type' = 'TIMESTAMP',
+
+  'format.derive-schema' = 'true',        -- or use the table's schema
+
+  'format.field-delimiter' = ';',         -- optional: field delimiter character (',' by default)
+  'format.line-delimiter' = '\r\n',       -- optional: line delimiter ("\n" by default; otherwise
+                                          -- "\r" or "\r\n" are allowed)
+  'format.quote-character' = '''',        -- optional: quote character for enclosing field values ('"' by default)
+  'format.allow-comments' = true,         -- optional: ignores comment lines that start with "#"
+                                          -- (disabled by default);
+                                          -- if enabled, make sure to also ignore parse errors to allow empty rows
+  'format.ignore-parse-errors' = 'true',  -- optional: skip fields and rows with parse errors instead of failing;
+                                          -- fields are set to null in case of errors
+  'format.array-element-delimiter' = '|', -- optional: the array element delimiter string for separating
+                                          -- array and row element values (";" by default)
+  'format.escape-character' = '\\',       -- optional: escape character for escaping values (disabled by default)
+  'format.null-literal' = 'n/a'           -- optional: null literal string that is interpreted as a
+                                          -- null value (disabled by default)
+)
 {% endhighlight %}
 </div>
 </div>
@@ -872,6 +1307,37 @@ The JSON format can be used as follows:
 {% endhighlight %}
 </div>
 
+<div data-lang="python" markdown="1">
+{% highlight python %}
+.with_format(
+    Json()
+    .fail_on_missing_field(True)   # optional: flag whether to fail if a field is missing or not, False by default
+
+    # required: define the schema either by using type information which parses numbers to corresponding types
+    .schema(DataTypes.ROW(...))
+
+    # or by using a JSON schema which parses to DECIMAL and TIMESTAMP
+    .json_schema(
+        "{"
+        "  type: 'object',"
+        "  properties: {"
+        "    lon: {"
+        "      type: 'number'"
+        "    },"
+        "    rideTime: {"
+        "      type: 'string',"
+        "      format: 'date-time'"
+        "    }"
+        "  }"
+        "}"
+    )
+
+    # or use the table's schema
+    .derive_schema()
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 format:
@@ -898,6 +1364,38 @@ format:
 
   # or use the table's schema
   derive-schema: true
+{% endhighlight %}
+</div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'format.type' = 'json',                   -- required: specify the format type
+  'format.fail-on-missing-field' = 'true'   -- optional: flag whether to fail if a field is missing or not, false by default
+
+  'format.fields.0.name' = 'lon',           -- required: define the schema either by using a type string which parses numbers to corresponding types
+  'format.fields.0.type' = 'FLOAT',
+  'format.fields.1.name' = 'rideTime',
+  'format.fields.1.type' = 'TIMESTAMP',
+
+  'format.json-schema' =                    -- or by using a JSON schema which parses to DECIMAL and TIMESTAMP
+    '{
+      "type": "object",
+      "properties": {
+        "lon": {
+          "type": "number"
+        },
+        "rideTime": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }',
+
+  'format.derive-schema' = 'true'          -- or use the table's schema
+)
 {% endhighlight %}
 </div>
 </div>
@@ -1004,6 +1502,29 @@ The Avro format can be used as follows:
 {% endhighlight %}
 </div>
 
+<div data-lang="python" markdown="1">
+{% highlight python %}
+.with_format(
+    Avro()
+
+    # required: define the schema either by using an Avro specific record class
+    .record_class("full.qualified.user.class.name")
+
+    # or by using an Avro schema
+    .avro_schema(
+        "{"
+        "  \"type\": \"record\","
+        "  \"name\": \"test\","
+        "  \"fields\" : ["
+        "    {\"name\": \"a\", \"type\": \"long\"},"
+        "    {\"name\": \"b\", \"type\": \"string\"}"
+        "  ]"
+        "}"
+    )
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 format:
@@ -1022,6 +1543,27 @@ format:
         {"name": "b", "type": "string"}
       ]
     }
+{% endhighlight %}
+</div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'format.type' = 'avro',                                 -- required: specify the schema type
+  'format.record-class' = 'org.organization.types.User',  -- required: define the schema either by using an Avro specific record class
+
+  'format.avro-schema' =                                  -- or by using an Avro schema
+    '{
+      "type": "record",
+      "name": "test",
+      "fields" : [
+        {"name": "a", "type": "long"},
+        {"name": "b", "type": "string"}
+      ]
+    }'
+)
 {% endhighlight %}
 </div>
 </div>
@@ -1083,6 +1625,22 @@ Use the old one for stream/batch filesystem operations for now.
 {% endhighlight %}
 </div>
 
+<div data-lang="python" markdown="1">
+{% highlight python %}
+.with_format(
+    OldCsv()
+    .field("field1", DataTypes.STRING())    # required: ordered format fields
+    .field("field2", DataTypes.TIMESTAMP())
+    .field_delimiter(",")                   # optional: string delimiter "," by default
+    .line_delimiter("\n")                   # optional: string delimiter "\n" by default
+    .quote_character('"')                   # optional: single character for string values, empty by default
+    .comment_prefix('#')                    # optional: string to indicate comments, empty by default
+    .ignore_first_line()                    # optional: ignore the first line, by default it is not skipped
+    .ignore_parse_errors()                  # optional: skip records with parse error instead of failing by default
+)
+{% endhighlight %}
+</div>
+
 <div data-lang="YAML" markdown="1">
 {% highlight yaml %}
 format:
@@ -1098,6 +1656,28 @@ format:
   comment-prefix: '#'        # optional: string to indicate comments, empty by default
   ignore-first-line: false   # optional: boolean flag to ignore the first line, by default it is not skipped
   ignore-parse-errors: true  # optional: skip records with parse error instead of failing by default
+{% endhighlight %}
+</div>
+
+<div data-lang="DDL" markdown="1">
+{% highlight sql %}
+CREATE TABLE MyUserTable (
+  ...
+) WITH (
+  'format.type' = 'csv',                  -- required: specify the schema type
+
+  'format.fields.0.name' = 'lon',         -- required: define the schema either by using type information
+  'format.fields.0.type' = 'FLOAT',
+  'format.fields.1.name' = 'rideTime',
+  'format.fields.1.type' = 'TIMESTAMP',
+
+  'format.field-delimiter' = ',',         -- optional: string delimiter "," by default
+  'format.line-delimiter' = '\n',         -- optional: string delimiter "\n" by default
+  'format.quote-character' = '"',         -- optional: single character for string values, empty by default
+  'format.comment-prefix' = '#',          -- optional: string to indicate comments, empty by default
+  'format.ignore-first-line' = 'false',   -- optional: boolean flag to ignore the first line, by default it is not skipped
+  'format.ignore-parse-errors' = 'true'   -- optional: skip records with parse error instead of failing by default
+)
 {% endhighlight %}
 </div>
 </div>
@@ -1219,6 +1799,31 @@ tableEnv.registerTableSink(
 
 val table: Table = ???
 table.insertInto("csvOutputTable")
+{% endhighlight %}
+</div>
+
+<div data-lang="python" markdown="1">
+{% highlight python %}
+
+field_names = ["f0", "f1"]
+field_types = [DataTypes.STRING(), DataTypes.INT()]
+
+sink = CsvTableSink(
+    field_names,
+    field_types,
+    path,                 # output path
+    "|",                  # optional: delimit files by '|'
+    1,                    # optional: write to a single file
+    WriteMode.OVERWRITE  # optional: override existing files
+)
+
+table_env.register_table_sink(
+    "csvOutputTable",
+    sink
+)
+
+table = ...
+table.insert_into("csvOutputTable")
 {% endhighlight %}
 </div>
 </div>

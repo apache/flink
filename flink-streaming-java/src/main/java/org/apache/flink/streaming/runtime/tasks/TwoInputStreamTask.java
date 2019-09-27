@@ -21,19 +21,25 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
+import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+import org.apache.flink.streaming.runtime.io.CheckpointedInputGate;
+import org.apache.flink.streaming.runtime.io.InputGateUtil;
+import org.apache.flink.streaming.runtime.io.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.io.StreamTwoInputProcessor;
+import org.apache.flink.streaming.runtime.io.TwoInputSelectionHandler;
 
+import java.io.IOException;
 import java.util.Collection;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
- * A {@link StreamTask} that executes a {@link TwoInputStreamOperator} but does not support
+ * A {@link StreamTask} for executing a {@link TwoInputStreamOperator} and supporting
  * the {@link TwoInputStreamOperator} to select input for reading.
  */
 @Internal
 public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTask<IN1, IN2, OUT> {
-
-	private StreamTwoInputProcessor<IN1, IN2> inputProcessor;
 
 	public TwoInputStreamTask(Environment env) {
 		super(env);
@@ -44,40 +50,37 @@ public class TwoInputStreamTask<IN1, IN2, OUT> extends AbstractTwoInputStreamTas
 		Collection<InputGate> inputGates1,
 		Collection<InputGate> inputGates2,
 		TypeSerializer<IN1> inputDeserializer1,
-		TypeSerializer<IN2> inputDeserializer2) throws Exception {
+		TypeSerializer<IN2> inputDeserializer2) throws IOException {
 
-		this.inputProcessor = new StreamTwoInputProcessor<>(
-			inputGates1, inputGates2,
-			inputDeserializer1, inputDeserializer2,
+		TwoInputSelectionHandler twoInputSelectionHandler = new TwoInputSelectionHandler(
+			headOperator instanceof InputSelectable ? (InputSelectable) headOperator : null);
+
+		InputGate unionedInputGate1 = InputGateUtil.createInputGate(inputGates1.toArray(new InputGate[0]));
+		InputGate unionedInputGate2 = InputGateUtil.createInputGate(inputGates2.toArray(new InputGate[0]));
+
+		// create a Input instance for each input
+		CheckpointedInputGate[] checkpointedInputGates = InputProcessorUtil.createCheckpointedInputGatePair(
 			this,
 			getConfiguration().getCheckpointMode(),
+			getEnvironment().getIOManager(),
+			unionedInputGate1,
+			unionedInputGate2,
+			getEnvironment().getTaskManagerInfo().getConfiguration(),
+			getTaskNameWithSubtaskAndId());
+		checkState(checkpointedInputGates.length == 2);
+
+		inputProcessor = new StreamTwoInputProcessor<>(
+			checkpointedInputGates,
+			inputDeserializer1,
+			inputDeserializer2,
 			getCheckpointLock(),
 			getEnvironment().getIOManager(),
-			getEnvironment().getTaskManagerInfo().getConfiguration(),
 			getStreamStatusMaintainer(),
-			this.headOperator,
-			getEnvironment().getMetricGroup().getIOMetricGroup(),
+			headOperator,
+			twoInputSelectionHandler,
 			input1WatermarkGauge,
 			input2WatermarkGauge,
-			getTaskNameWithSubtaskAndId());
-	}
-
-	@Override
-	protected void performDefaultAction(ActionContext context) throws Exception {
-		if (!inputProcessor.processInput()) {
-			context.allActionsCompleted();
-		}
-	}
-
-	@Override
-	protected void cleanup() throws Exception {
-		if (inputProcessor != null) {
-			inputProcessor.cleanup();
-		}
-	}
-
-	@Override
-	protected void cancelTask() {
-
+			operatorChain,
+			setupNumRecordsInCounter(headOperator));
 	}
 }

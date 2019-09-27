@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.io.network.buffer.Buffer;
-import org.apache.flink.runtime.io.network.partition.MemoryMappedBuffers.BufferSlicer;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartition.BufferAndBacklog;
+import org.apache.flink.util.IOUtils;
 
 import javax.annotation.Nullable;
 
@@ -37,6 +37,9 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	/** The result subpartition that we read. */
 	private final BoundedBlockingSubpartition parent;
 
+	/** The listener that is notified when there are available buffers for this subpartition view. */
+	private final BufferAvailabilityListener availabilityListener;
+
 	/** The next buffer (look ahead). Null once the data is depleted or reader is disposed. */
 	@Nullable
 	private Buffer nextBuffer;
@@ -44,7 +47,7 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	/** The reader/decoder to the memory mapped region with the data we currently read from.
 	 * Null once the reader empty or disposed.*/
 	@Nullable
-	private BufferSlicer memory;
+	private BoundedData.Reader dataReader;
 
 	/** The remaining number of data buffers (not events) in the result. */
 	private int dataBufferBacklog;
@@ -57,16 +60,20 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	 */
 	BoundedBlockingSubpartitionReader(
 			BoundedBlockingSubpartition parent,
-			BufferSlicer memory,
-			int numDataBuffers) {
-
-		checkArgument(numDataBuffers >= 0);
+			BoundedData data,
+			int numDataBuffers,
+			BufferAvailabilityListener availabilityListener) throws IOException {
 
 		this.parent = checkNotNull(parent);
-		this.memory = checkNotNull(memory);
+
+		checkNotNull(data);
+		this.dataReader = data.createReader(this);
+		this.nextBuffer = dataReader.nextBuffer();
+
+		checkArgument(numDataBuffers >= 0);
 		this.dataBufferBacklog = numDataBuffers;
 
-		this.nextBuffer = memory.sliceNextBuffer();
+		this.availabilityListener = checkNotNull(availabilityListener);
 	}
 
 	@Nullable
@@ -83,20 +90,37 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 			dataBufferBacklog--;
 		}
 
-		assert memory != null;
-		nextBuffer = memory.sliceNextBuffer();
+		assert dataReader != null;
+		nextBuffer = dataReader.nextBuffer();
 
 		return BufferAndBacklog.fromBufferAndLookahead(current, nextBuffer, dataBufferBacklog);
 	}
 
+	/**
+	 * This method is actually only meaningful for the {@link BoundedBlockingSubpartitionType#FILE}.
+	 *
+	 * <p>For the other types the {@link #nextBuffer} can not be ever set to null, so it is no need
+	 * to notify available via this method. But the implementation is also compatible with other
+	 * types even though called by mistake.
+	 */
 	@Override
 	public void notifyDataAvailable() {
-		throw new IllegalStateException("No data should become available on a blocking partition during consumption.");
-	}
+		if (nextBuffer == null) {
+			assert dataReader != null;
 
-	@Override
-	public void notifySubpartitionConsumed() throws IOException {
-		parent.onConsumedSubpartition();
+			try {
+				nextBuffer = dataReader.nextBuffer();
+			} catch (IOException ex) {
+				// this exception wrapper is only for avoiding throwing IOException explicitly
+				// in relevant interface methods
+				throw new IllegalStateException("No data available while reading", ex);
+			}
+
+			// next buffer is null indicates the end of partition
+			if (nextBuffer != null) {
+				availabilityListener.notifyDataAvailable();
+			}
+		}
 	}
 
 	@Override
@@ -104,9 +128,11 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 		// it is not a problem if this method executes multiple times
 		isReleased = true;
 
-		// nulling these fields means thet read method and will fail fast
+		IOUtils.closeQuietly(dataReader);
+
+		// nulling these fields means the read method and will fail fast
 		nextBuffer = null;
-		memory = null;
+		dataReader = null;
 
 		// Notify the parent that this one is released. This allows the parent to
 		// eventually release all resources (when all readers are done and the
@@ -133,6 +159,11 @@ final class BoundedBlockingSubpartitionReader implements ResultSubpartitionView 
 	public Throwable getFailureCause() {
 		// we can never throw an error after this was created
 		return null;
+	}
+
+	@Override
+	public int unsynchronizedGetNumberOfQueuedBuffers() {
+		return parent.unsynchronizedGetNumberOfQueuedBuffers();
 	}
 
 	@Override

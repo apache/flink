@@ -33,7 +33,6 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.connectors.fs.Clock;
-import org.apache.flink.streaming.connectors.fs.RollingSink;
 import org.apache.flink.streaming.connectors.fs.SequenceFileWriter;
 import org.apache.flink.streaming.connectors.fs.StringWriter;
 import org.apache.flink.streaming.connectors.fs.Writer;
@@ -160,7 +159,13 @@ import java.util.UUID;
  * @see SequenceFileWriter
  *
  * @param <T> Type of the elements emitted by this sink
+ *
+ * @deprecated Please use the
+ * {@link org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink StreamingFileSink}
+ * instead.
+ *
  */
+@Deprecated
 public class BucketingSink<T>
 		extends RichSinkFunction<T>
 		implements InputTypeConfigurable, CheckpointedFunction, CheckpointListener, ProcessingTimeCallback {
@@ -778,20 +783,6 @@ public class BucketingSink<T>
 
 			bucketState.pendingFilesPerCheckpoint.clear();
 		}
-	}
-
-	private void handleRestoredRollingSinkState(RollingSink.BucketState restoredState) {
-		restoredState.pendingFiles.clear();
-
-		handlePendingInProgressFile(restoredState.currentFile, restoredState.currentFileValidLength);
-
-		// Now that we've restored the bucket to a valid state, reset the current file info
-		restoredState.currentFile = null;
-		restoredState.currentFileValidLength = -1;
-
-		handlePendingFilesForPreviousCheckpoints(restoredState.pendingFilesPerCheckpoint);
-
-		restoredState.pendingFilesPerCheckpoint.clear();
 	}
 
 	private void handlePendingInProgressFile(String file, long validLength) {

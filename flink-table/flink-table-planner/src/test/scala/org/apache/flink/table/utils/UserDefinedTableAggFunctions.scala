@@ -246,6 +246,9 @@ class Top3WithMapView extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Wi
   }
 }
 
+/**
+  * Test function for plan test.
+  */
 class EmptyTableAggFuncWithoutEmit extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Accum] {
 
   override def createAccumulator(): Top3Accum = new Top3Accum
@@ -257,10 +260,16 @@ class EmptyTableAggFuncWithoutEmit extends TableAggregateFunction[JTuple2[JInt, 
   def accumulate(acc: Top3Accum, value: Int): Unit = {}
 }
 
-/**
-  * Test function for plan test.
-  */
 class EmptyTableAggFunc extends EmptyTableAggFuncWithoutEmit {
 
   def emitValue(acc: Top3Accum, out: Collector[JTuple2[JInt, JInt]]): Unit = {}
+}
+
+class EmptyTableAggFuncWithIntResultType extends TableAggregateFunction[JInt, Top3Accum] {
+
+  override def createAccumulator(): Top3Accum = new Top3Accum
+
+  def accumulate(acc: Top3Accum, value: Int): Unit = {}
+
+  def emitValue(acc: Top3Accum, out: Collector[JInt]): Unit = {}
 }

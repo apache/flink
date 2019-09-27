@@ -135,6 +135,6 @@ wget -O - http://snap.stanford.edu/data/bigdata/communities/com-lj.ungraph.txt.g
 
 Please submit feature requests and report issues on the user [mailing list](https://flink.apache.org/community.html#mailing-lists)
 or [Flink Jira](https://issues.apache.org/jira/browse/FLINK). We welcome suggestions for new algorithms and features as
-well as [code contributions](https://flink.apache.org/contribute-code.html).
+well as [code contributions](https://flink.apache.org/contributing/contribute-code.html).
 
 {% top %}

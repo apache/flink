@@ -18,8 +18,8 @@
 package org.apache.flink.table.dataformat;
 
 import org.apache.flink.core.memory.MemorySegmentFactory;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
 import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.util.SegmentsUtil;
 
 /**
  * Writer for binary array. See {@link BinaryArray}.
@@ -126,6 +126,7 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 				break;
 			case BIGINT:
 			case TIMESTAMP_WITHOUT_TIME_ZONE:
+			case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
 			case INTERVAL_DAY_TIME:
 				setNullLong(pos);
 				break;
@@ -207,5 +208,9 @@ public final class BinaryArrayWriter extends AbstractBinaryWriter {
 	@Override
 	public void complete() {
 		array.pointTo(segment, 0, cursor);
+	}
+
+	public int getNumElements() {
+		return numElements;
 	}
 }

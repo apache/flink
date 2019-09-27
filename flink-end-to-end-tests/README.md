@@ -37,7 +37,7 @@ $ FLINK_DIR=<flink dir> flink-end-to-end-tests/run-single-test.sh your_test.sh a
 
 Before running this nightly test case (test_streaming_bucketing.sh), please make sure to run `mvn -DskipTests install` in the `flink-end-to-end-tests` directory, so jar files necessary for the test like `BucketingSinkTestProgram.jar` could be generated.
 
-What's more, starting from 1.8.0 release it's required to make sure that `HADOOP_CLASSPATH` is [correctly set](https://ci.apache.org/projects/flink/flink-docs-stable/ops/deployment/hadoop.html) or the pre-bundled hadoop jar has been put into the `lib` folder of the `FLINK_DIR` (You can find the binaries from the [Downloads page](http://flink.apache.org/downloads.html) on the Flink project site).
+What's more, starting from 1.8.0 release it's required to make sure that `HADOOP_CLASSPATH` is [correctly set](https://ci.apache.org/projects/flink/flink-docs-stable/ops/deployment/hadoop.html) or the pre-bundled hadoop jar has been put into the `lib` folder of the `FLINK_DIR` (You can find the binaries from the [Downloads page](https://flink.apache.org/downloads.html) on the Flink project site).
 
 ### Kubernetes test
 

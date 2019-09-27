@@ -15,8 +15,13 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+import sys
+from datetime import timedelta
 
 from pyflink.java_gateway import get_gateway
+
+if sys.version >= '3':
+    unicode = str
 
 
 def to_jarray(j_type, arr):
@@ -31,3 +36,27 @@ def to_jarray(j_type, arr):
     for i in range(0, len(arr)):
         j_arr[i] = arr[i]
     return j_arr
+
+
+def to_j_flink_time(time_delta):
+    gateway = get_gateway()
+    TimeUnit = gateway.jvm.java.util.concurrent.TimeUnit
+    Time = gateway.jvm.org.apache.flink.api.common.time.Time
+    if isinstance(time_delta, timedelta):
+        total_microseconds = round(time_delta.total_seconds() * 1000 * 1000)
+        return Time.of(total_microseconds, TimeUnit.MICROSECONDS)
+    else:
+        # time delta in milliseconds
+        total_milliseconds = time_delta
+        return Time.milliseconds(total_milliseconds)
+
+
+def from_j_flink_time(j_flink_time):
+    total_milliseconds = j_flink_time.toMilliseconds()
+    return timedelta(milliseconds=total_milliseconds)
+
+
+def load_java_class(class_name):
+    gateway = get_gateway()
+    context_classloader = gateway.jvm.Thread.currentThread().getContextClassLoader()
+    return context_classloader.loadClass(class_name)

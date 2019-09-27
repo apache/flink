@@ -236,7 +236,7 @@ class TableSourceTest extends TableTestBase {
         Array("price", "id", "amount"),
         "'amount > 2"),
       term("select", "price", "id", "amount"),
-      term("where", "AND(<(id, 1.2E0), OR(<(amount, 32), >(CAST(amount), 10)))")
+      term("where", "AND(<(id, 1.2E0:DOUBLE), OR(<(amount, 32), >(CAST(amount), 10)))")
     )
     util.verifyTable(result, expected)
   }

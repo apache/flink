@@ -79,18 +79,18 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 		}
 	}
 
-	SchedulingExecutionVerticesBuilder addExecutionVertices() {
+	public SchedulingExecutionVerticesBuilder addExecutionVertices() {
 		return new SchedulingExecutionVerticesBuilder();
 	}
 
-	ProducerConsumerConnectionBuilder connectPointwise(
+	public ProducerConsumerConnectionBuilder connectPointwise(
 		final List<TestingSchedulingExecutionVertex> producers,
 		final List<TestingSchedulingExecutionVertex> consumers) {
 
 		return new ProducerConsumerPointwiseConnectionBuilder(producers, consumers);
 	}
 
-	ProducerConsumerConnectionBuilder connectAllToAll(
+	public ProducerConsumerConnectionBuilder connectAllToAll(
 		final List<TestingSchedulingExecutionVertex> producers,
 		final List<TestingSchedulingExecutionVertex> consumers) {
 
@@ -117,12 +117,12 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 			this.consumers = consumers;
 		}
 
-		ProducerConsumerConnectionBuilder withResultPartitionType(final ResultPartitionType resultPartitionType) {
+		public ProducerConsumerConnectionBuilder withResultPartitionType(final ResultPartitionType resultPartitionType) {
 			this.resultPartitionType = resultPartitionType;
 			return this;
 		}
 
-		ProducerConsumerConnectionBuilder withResultPartitionState(final SchedulingResultPartition.ResultPartitionState state) {
+		public ProducerConsumerConnectionBuilder withResultPartitionState(final SchedulingResultPartition.ResultPartitionState state) {
 			this.resultPartitionState = state;
 			return this;
 		}
@@ -229,12 +229,12 @@ public class TestingSchedulingTopology implements SchedulingTopology {
 
 		private InputDependencyConstraint inputDependencyConstraint = InputDependencyConstraint.ANY;
 
-		SchedulingExecutionVerticesBuilder withParallelism(final int parallelism) {
+		public SchedulingExecutionVerticesBuilder withParallelism(final int parallelism) {
 			this.parallelism = parallelism;
 			return this;
 		}
 
-		SchedulingExecutionVerticesBuilder withInputDependencyConstraint(final InputDependencyConstraint inputDependencyConstraint) {
+		public SchedulingExecutionVerticesBuilder withInputDependencyConstraint(final InputDependencyConstraint inputDependencyConstraint) {
 			this.inputDependencyConstraint = inputDependencyConstraint;
 			return this;
 		}

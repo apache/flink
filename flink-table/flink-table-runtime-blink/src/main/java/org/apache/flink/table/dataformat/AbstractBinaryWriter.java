@@ -20,12 +20,14 @@ package org.apache.flink.table.dataformat;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.typeutils.BaseRowSerializer;
-import org.apache.flink.table.util.SegmentsUtil;
+import org.apache.flink.table.runtime.typeutils.BaseArraySerializer;
+import org.apache.flink.table.runtime.typeutils.BaseMapSerializer;
+import org.apache.flink.table.runtime.typeutils.BaseRowSerializer;
+import org.apache.flink.table.runtime.util.SegmentsUtil;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import static org.apache.flink.table.dataformat.BinaryFormat.MAX_FIX_PART_DATA_SIZE;
@@ -74,7 +76,7 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 	public void writeString(int pos, BinaryString input) {
 		if (input.getSegments() == null) {
 			String javaObject = input.getJavaObject();
-			writeBytes(pos, javaObject.getBytes());
+			writeBytes(pos, javaObject.getBytes(StandardCharsets.UTF_8));
 		} else {
 			int len = input.getSizeInBytes();
 			if (len <= 7) {
@@ -97,13 +99,15 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 	}
 
 	@Override
-	public void writeArray(int pos, BinaryArray input) {
-		writeSegmentsToVarLenPart(pos, input.getSegments(), input.getOffset(), input.getSizeInBytes());
+	public void writeArray(int pos, BaseArray input, BaseArraySerializer serializer) {
+		BinaryArray binary = serializer.toBinaryArray(input);
+		writeSegmentsToVarLenPart(pos, binary.getSegments(), binary.getOffset(), binary.getSizeInBytes());
 	}
 
 	@Override
-	public void writeMap(int pos, BinaryMap input) {
-		writeSegmentsToVarLenPart(pos, input.getSegments(), input.getOffset(), input.getSizeInBytes());
+	public void writeMap(int pos, BaseMap input, BaseMapSerializer serializer) {
+		BinaryMap binary = serializer.toBinaryMap(input);
+		writeSegmentsToVarLenPart(pos, binary.getSegments(), binary.getOffset(), binary.getSizeInBytes());
 	}
 
 	private DataOutputViewStreamWrapper getOutputView() {
@@ -135,12 +139,12 @@ public abstract class AbstractBinaryWriter implements BinaryWriter {
 	}
 
 	@Override
-	public void writeRow(int pos, BaseRow input, RowType type) {
+	public void writeRow(int pos, BaseRow input, BaseRowSerializer serializer) {
 		if (input instanceof BinaryFormat) {
 			BinaryFormat row = (BinaryFormat) input;
 			writeSegmentsToVarLenPart(pos, row.getSegments(), row.getOffset(), row.getSizeInBytes());
 		} else {
-			BinaryRow row = BaseRowSerializer.baseRowToBinary(input, type);
+			BinaryRow row = serializer.toBinaryRow(input);
 			writeSegmentsToVarLenPart(pos, row.getSegments(), row.getOffset(), row.getSizeInBytes());
 		}
 	}

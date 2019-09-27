@@ -54,6 +54,7 @@ class Tumble(object):
 
     Example:
     ::
+
         >>> Tumble.over("10.minutes").on("rowtime").alias("w")
     """
 
@@ -131,6 +132,7 @@ class Session(object):
 
     Example:
     ::
+
         >>> Session.with_gap("10.minutes").on("rowtime").alias("w")
 
     """
@@ -214,6 +216,7 @@ class Slide(object):
 
     Example:
     ::
+
         >>> Slide.over("10.minutes").every("5.minutes").on("rowtime").alias("w")
     """
 
@@ -321,6 +324,7 @@ class Over(object):
 
     Example:
     ::
+
         >>> Over.partition_by("a").order_by("rowtime").preceding("unbounded_range").alias("w")
     """
 

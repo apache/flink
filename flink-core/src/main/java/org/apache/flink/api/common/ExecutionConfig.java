@@ -122,9 +122,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	private CodeAnalysisMode codeAnalysisMode = CodeAnalysisMode.DISABLE;
 
-	/** If set to true, progress updates are printed to System.out during execution */
-	private boolean printProgressDuringExecution = true;
-
 	private long autoWatermarkInterval = 0;
 
 	/**
@@ -154,7 +151,10 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	/** This flag defines if we use compression for the state snapshot data or not. Default: false */
 	private boolean useSnapshotCompression = false;
 
-	/** Determines if a task fails or not if there is an error in writing its checkpoint data. Default: true */
+	/**
+	 * @deprecated Should no longer be used because we would not support to let task directly fail on checkpoint error.
+	 */
+	@Deprecated
 	private boolean failTaskOnCheckpointError = true;
 
 	/** The default input dependency constraint to schedule tasks. */
@@ -162,7 +162,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 
 	// ------------------------------- User code values --------------------------------------------
 
-	private GlobalJobParameters globalJobParameters;
+	private GlobalJobParameters globalJobParameters = new GlobalJobParameters();
 
 	// Serializers and types registered with Kryo and the PojoSerializer
 	// we store them in linked maps/sets to ensure they are registered in order in all kryo instances.
@@ -546,7 +546,13 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 */
 	@PublicEvolving
 	public void setDefaultInputDependencyConstraint(InputDependencyConstraint inputDependencyConstraint) {
-		this.defaultInputDependencyConstraint = inputDependencyConstraint;
+		if (inputDependencyConstraint != null) {
+			this.defaultInputDependencyConstraint = inputDependencyConstraint;
+		} else {
+			// defaultInputDependencyConstraint is not allowed to be null
+			// setting it to ANY to not break existing jobs
+			this.defaultInputDependencyConstraint = InputDependencyConstraint.ANY;
+		}
 	}
 
 	/**
@@ -729,32 +735,27 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
-	 * Enables the printing of progress update messages to {@code System.out}
-	 * 
-	 * @return The ExecutionConfig object, to allow for function chaining.
+	 * @deprecated Ineffective. Will be removed at 2.0.
 	 */
+	@Deprecated
 	public ExecutionConfig enableSysoutLogging() {
-		this.printProgressDuringExecution = true;
 		return this;
 	}
 
 	/**
-	 * Disables the printing of progress update messages to {@code System.out}
-	 *
-	 * @return The ExecutionConfig object, to allow for function chaining.
+	 * @deprecated Ineffective. Will be removed at 2.0.
 	 */
+	@Deprecated
 	public ExecutionConfig disableSysoutLogging() {
-		this.printProgressDuringExecution = false;
 		return this;
 	}
 
 	/**
-	 * Gets whether progress update messages should be printed to {@code System.out}
-	 * 
-	 * @return True, if progress update messages should be printed, false otherwise.
+	 * @deprecated Ineffective. Will be removed at 2.0.
 	 */
+	@Deprecated
 	public boolean isSysoutLoggingEnabled() {
-		return this.printProgressDuringExecution;
+		return false;
 	}
 
 	public GlobalJobParameters getGlobalJobParameters() {
@@ -766,6 +767,7 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	 * @param globalJobParameters Custom user configuration object
 	 */
 	public void setGlobalJobParameters(GlobalJobParameters globalJobParameters) {
+		Preconditions.checkNotNull(globalJobParameters, "globalJobParameters shouldn't be null");
 		this.globalJobParameters = globalJobParameters;
 	}
 
@@ -948,20 +950,22 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 	}
 
 	/**
-	 * This method is visible because of the way the configuration is currently forwarded from the checkpoint config to
-	 * the task. This should not be called by the user, please use CheckpointConfig.isFailTaskOnCheckpointError()
-	 * instead.
+	 * @deprecated This method takes no effect since we would not forward the configuration from the checkpoint config
+	 * to the task, and we have not supported task to fail on checkpoint error.
+	 * Please use CheckpointConfig.getTolerableCheckpointFailureNumber() to know the behavior on checkpoint errors.
 	 */
+	@Deprecated
 	@Internal
 	public boolean isFailTaskOnCheckpointError() {
 		return failTaskOnCheckpointError;
 	}
 
 	/**
-	 * This method is visible because of the way the configuration is currently forwarded from the checkpoint config to
-	 * the task. This should not be called by the user, please use CheckpointConfig.setFailOnCheckpointingErrors(...)
-	 * instead.
+	 * @deprecated This method takes no effect since we would not forward the configuration from the checkpoint config
+	 * to the task, and we have not supported task to fail on checkpoint error.
+	 * Please use CheckpointConfig.setTolerableCheckpointFailureNumber(int) to determine the behavior on checkpoint errors.
 	 */
+	@Deprecated
 	@Internal
 	public void setFailTaskOnCheckpointError(boolean failTaskOnCheckpointError) {
 		this.failTaskOnCheckpointError = failTaskOnCheckpointError;
@@ -984,7 +988,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 				autoTypeRegistrationEnabled == other.autoTypeRegistrationEnabled &&
 				forceAvro == other.forceAvro &&
 				Objects.equals(codeAnalysisMode, other.codeAnalysisMode) &&
-				printProgressDuringExecution == other.printProgressDuringExecution &&
 				Objects.equals(globalJobParameters, other.globalJobParameters) &&
 				autoWatermarkInterval == other.autoWatermarkInterval &&
 				registeredTypesWithKryoSerializerClasses.equals(other.registeredTypesWithKryoSerializerClasses) &&
@@ -1013,7 +1016,6 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 			autoTypeRegistrationEnabled,
 			forceAvro,
 			codeAnalysisMode,
-			printProgressDuringExecution,
 			globalJobParameters,
 			autoWatermarkInterval,
 			registeredTypesWithKryoSerializerClasses,
@@ -1069,6 +1071,20 @@ public class ExecutionConfig implements Serializable, Archiveable<ArchivedExecut
 		 */
 		public Map<String, String> toMap() {
 			return Collections.emptyMap();
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == null || this.getClass() != obj.getClass()) {
+				return false;
+			}
+
+			return true;
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash();
 		}
 	}
 

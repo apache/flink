@@ -16,7 +16,7 @@
  */
 package org.apache.calcite.sql2rel;
 
-import org.apache.flink.table.plan.rules.logical.FlinkFilterJoinRule;
+import org.apache.flink.table.planner.plan.rules.logical.FlinkFilterJoinRule;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -63,7 +63,6 @@ import org.apache.calcite.rel.logical.LogicalSort;
 import org.apache.calcite.rel.metadata.RelMdUtil;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.rules.FilterCorrelateRule;
-import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rel.rules.FilterProjectTransposeRule;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -79,7 +78,6 @@ import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
-import org.apache.calcite.sql.SemiJoinType;
 import org.apache.calcite.sql.SqlExplainFormat;
 import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.calcite.sql.SqlFunction;
@@ -118,8 +116,13 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 /**
- *  This class is copied from Apache Calcite except that it supports SEMI/ANTI join.
- *  NOTES: This file should be deleted when upgrading to a new calcite version which contains CALCITE-2969.
+ * This class is copied from Apache Calcite except that it supports SEMI/ANTI join.
+ * NOTES: This file should be deleted when CALCITE-3169 and CALCITE-3170 are fixed,
+ * and please make sure to synchronize with RelDecorrelator in flink planner when changing this class.
+ * Modification:
+ * 1. lines changed (249-251)
+ * 2. lines changed (271-278)
+ * 3. lines changed (1214-1215)
  */
 
 /**
@@ -242,8 +245,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
         .addRuleInstance(new AdjustProjectForCountAggregateRule(false, f))
         .addRuleInstance(new AdjustProjectForCountAggregateRule(true, f))
         .addRuleInstance(
-            new FilterJoinRule.FilterIntoJoinRule(true, f,
-                FilterJoinRule.TRUE_PREDICATE))
+            // use FilterJoinRule instead of FlinkFilterJoinRule while CALCITE-3170 is fixed
+            new FlinkFilterJoinRule.FlinkFilterIntoJoinRule(true, f,
+                FlinkFilterJoinRule.TRUE_PREDICATE))
         .addRuleInstance(
             new FilterProjectTransposeRule(Filter.class, Project.class, true,
                 true, f))
@@ -263,6 +267,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
       // has been rewritten; apply rules post-decorrelation
       final HepProgram program2 = HepProgram.builder()
           .addRuleInstance(
+              // use FilterJoinRule instead of FlinkFilterJoinRule while CALCITE-3170 is fixed
               new FlinkFilterJoinRule.FlinkFilterIntoJoinRule(
                   true, f,
                   FlinkFilterJoinRule.TRUE_PREDICATE))
@@ -474,8 +479,11 @@ public class RelDecorrelator implements ReflectiveVisitor {
     }
     final RelNode newInput = frame.r;
 
+    // aggregate outputs mapping: group keys and aggregates
+    final Map<Integer, Integer> outputMap = new HashMap<>();
+
     // map from newInput
-    Map<Integer, Integer> mapNewInputToProjOutputs = new HashMap<>();
+    final Map<Integer, Integer> mapNewInputToProjOutputs = new HashMap<>();
     final int oldGroupKeyCount = rel.getGroupSet().cardinality();
 
     // Project projects the original expressions,
@@ -497,6 +505,9 @@ public class RelDecorrelator implements ReflectiveVisitor {
         omittedConstants.put(i, constant);
         continue;
       }
+
+      // add mapping of group keys.
+      outputMap.put(i, newPos);
       int newInputPos = frame.oldToNewOutputs.get(i);
       projects.add(RexInputRef.of2(newInputPos, newInputOutput));
       mapNewInputToProjOutputs.put(newInputPos, newPos);
@@ -600,7 +611,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
       // The old to new output position mapping will be the same as that
       // of newProject, plus any aggregates that the oldAgg produces.
-      combinedMap.put(
+      outputMap.put(
           oldInputOutputFieldCount + i,
           newInputOutputFieldCount + i);
     }
@@ -612,15 +623,37 @@ public class RelDecorrelator implements ReflectiveVisitor {
       final List<RexNode> postProjects = new ArrayList<>(relBuilder.fields());
       for (Map.Entry<Integer, RexLiteral> entry
           : omittedConstants.descendingMap().entrySet()) {
-        postProjects.add(entry.getKey() + frame.corDefOutputs.size(),
-            entry.getValue());
+        int index = entry.getKey() + frame.corDefOutputs.size();
+        postProjects.add(index, entry.getValue());
+        // Shift the outputs whose index equals with or bigger than the added index
+        // with 1 offset.
+        shiftMapping(outputMap, index, 1);
+        // Then add the constant key mapping.
+        outputMap.put(entry.getKey(), index);
       }
       relBuilder.project(postProjects);
     }
 
     // Aggregate does not change input ordering so corVars will be
     // located at the same position as the input newProject.
-    return register(rel, relBuilder.build(), combinedMap, corDefOutputs);
+    return register(rel, relBuilder.build(), outputMap, corDefOutputs);
+  }
+
+  /**
+   * Shift the mapping to fixed offset from the {@code startIndex}.
+   * @param mapping    the original mapping
+   * @param startIndex any output whose index equals with or bigger than the starting index
+   *                   would be shift
+   * @param offset     shift offset
+   */
+  private static void shiftMapping(Map<Integer, Integer> mapping, int startIndex, int offset) {
+    for (Map.Entry<Integer, Integer> entry : mapping.entrySet()) {
+      if (entry.getValue() >= startIndex) {
+        mapping.put(entry.getKey(), entry.getValue() + offset);
+      } else {
+        mapping.put(entry.getKey(), entry.getValue());
+      }
+    }
   }
 
   public Frame getInvoke(RelNode r, RelNode parent) {
@@ -1162,7 +1195,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
         RexUtil.composeConjunction(relBuilder.getRexBuilder(), conditions);
     RelNode newJoin =
         LogicalJoin.create(leftFrame.r, rightFrame.r, condition,
-            ImmutableSet.of(), toJoinRelType(rel.getJoinType()));
+            ImmutableSet.of(), rel.getJoinType());
 
     return register(rel, newJoin, mapOldToNewOutputs, corDefOutputs);
   }
@@ -1173,16 +1206,20 @@ public class RelDecorrelator implements ReflectiveVisitor {
    * @param rel Join
    */
   public Frame decorrelateRel(LogicalJoin rel) {
+    // For SEMI/ANTI join decorrelate it's input directly,
+    // because the correlate variables can only be propagated from
+    // the left side, which is not supported yet.
+    if (!rel.getJoinType().projectsRight()) {
+      // fix CALCITE-3169
+      return decorrelateRel((RelNode) rel);
+    }
+
     //
     // Rewrite logic:
     //
     // 1. rewrite join condition.
     // 2. map output positions and produce corVars if any.
     //
-
-    if (!rel.getJoinType().projectsRight()) {
-      return decorrelateRel((RelNode) rel);
-    }
 
     final RelNode oldLeft = rel.getInput(0);
     final RelNode oldRight = rel.getInput(1);
@@ -1335,21 +1372,6 @@ public class RelDecorrelator implements ReflectiveVisitor {
         .build();
   }
 
-  private JoinRelType toJoinRelType(SemiJoinType semiJoinType) {
-    switch (semiJoinType) {
-      case INNER:
-        return JoinRelType.INNER;
-      case LEFT:
-        return JoinRelType.LEFT;
-      case SEMI:
-        return JoinRelType.SEMI;
-      case ANTI:
-        return JoinRelType.ANTI;
-      default:
-        throw new IllegalArgumentException("Unsupported type: " + semiJoinType);
-    }
-  }
-
   /**
    * Pulls a {@link Project} above a {@link Correlate} from its RHS input.
    * Enforces nullability for join output.
@@ -1365,7 +1387,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
       LogicalProject project,
       Set<Integer> isCount) {
     final RelNode left = correlate.getLeft();
-    final JoinRelType joinType = toJoinRelType(correlate.getJoinType());
+    final JoinRelType joinType = correlate.getJoinType();
 
     // now create the new project
     final List<Pair<RexNode, String>> newProjects = new ArrayList<>();
@@ -1867,7 +1889,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
       //   Aggregate (groupby (0) single_value())
       //     Project-A (may reference corVar)
       //       rightInput
-      final JoinRelType joinType = toJoinRelType(correlate.getJoinType());
+      final JoinRelType joinType = correlate.getJoinType();
 
       // corRel.getCondition was here, however Correlate was updated so it
       // never includes a join condition. The code was not modified for brevity.
@@ -2077,7 +2099,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
         return;
       }
 
-      final JoinRelType joinType = toJoinRelType(correlate.getJoinType());
+      final JoinRelType joinType = correlate.getJoinType();
       // corRel.getCondition was here, however Correlate was updated so it
       // never includes a join condition. The code was not modified for brevity.
       RexNode joinCond = rexBuilder.makeLiteral(true);
@@ -2482,7 +2504,7 @@ public class RelDecorrelator implements ReflectiveVisitor {
         return;
       }
 
-      JoinRelType joinType = toJoinRelType(correlate.getJoinType());
+      JoinRelType joinType = correlate.getJoinType();
       // corRel.getCondition was here, however Correlate was updated so it
       // never includes a join condition. The code was not modified for brevity.
       RexNode joinCond = relBuilder.literal(true);

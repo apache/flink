@@ -21,7 +21,7 @@ package org.apache.flink.table.operations;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.TableFunction;
 
 import java.util.Collections;
@@ -36,13 +36,13 @@ import java.util.Map;
 public class CalculatedQueryOperation<T> implements QueryOperation {
 
 	private final TableFunction<T> tableFunction;
-	private final List<Expression> parameters;
+	private final List<ResolvedExpression> parameters;
 	private final TypeInformation<T> resultType;
 	private final TableSchema tableSchema;
 
 	public CalculatedQueryOperation(
 			TableFunction<T> tableFunction,
-			List<Expression> parameters,
+			List<ResolvedExpression> parameters,
 			TypeInformation<T> resultType,
 			TableSchema tableSchema) {
 		this.tableFunction = tableFunction;
@@ -55,7 +55,7 @@ public class CalculatedQueryOperation<T> implements QueryOperation {
 		return tableFunction;
 	}
 
-	public List<Expression> getParameters() {
+	public List<ResolvedExpression> getParameters() {
 		return parameters;
 	}
 

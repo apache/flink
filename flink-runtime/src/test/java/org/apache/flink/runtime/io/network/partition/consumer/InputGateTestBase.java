@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition.consumer;
 
-import org.apache.flink.runtime.io.AsyncDataInput;
+import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 
@@ -69,7 +69,7 @@ public abstract class InputGateTestBase {
 
 		assertTrue(isAvailable.isDone());
 		assertTrue(inputGateToTest.isAvailable().isDone());
-		assertEquals(AsyncDataInput.AVAILABLE, inputGateToTest.isAvailable());
+		assertEquals(PullingAsyncDataInput.AVAILABLE, inputGateToTest.isAvailable());
 	}
 
 	protected void testIsAvailableAfterFinished(
@@ -86,7 +86,7 @@ public abstract class InputGateTestBase {
 
 		assertTrue(available.isDone());
 		assertTrue(inputGateToTest.isAvailable().isDone());
-		assertEquals(AsyncDataInput.AVAILABLE, inputGateToTest.isAvailable());
+		assertEquals(PullingAsyncDataInput.AVAILABLE, inputGateToTest.isAvailable());
 	}
 
 	protected SingleInputGate createInputGate() {

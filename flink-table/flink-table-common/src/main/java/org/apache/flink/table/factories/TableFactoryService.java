@@ -40,11 +40,9 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.ExternalCatalogDescriptorValidator.CATALOG_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.MetadataValidator.METADATA_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.StatisticsValidator.STATISTICS_PROPERTY_VERSION;
 
 /**
  * Unified class to search for a {@link TableFactory} of provided type and properties.
@@ -62,9 +60,9 @@ public class TableFactoryService {
 	 * @param <T> factory class type
 	 * @return the matching factory
 	 */
-	public static <T> T find(Class<T> factoryClass, Descriptor descriptor) {
+	public static <T extends TableFactory> T find(Class<T> factoryClass, Descriptor descriptor) {
 		Preconditions.checkNotNull(descriptor);
-		return findInternal(factoryClass, descriptor.toProperties(), Optional.empty());
+		return findSingleInternal(factoryClass, descriptor.toProperties(), Optional.empty());
 	}
 
 	/**
@@ -76,10 +74,13 @@ public class TableFactoryService {
 	 * @param <T> factory class type
 	 * @return the matching factory
 	 */
-	public static <T> T find(Class<T> factoryClass, Descriptor descriptor, ClassLoader classLoader) {
+	public static <T extends TableFactory> T find(
+			Class<T> factoryClass,
+			Descriptor descriptor,
+			ClassLoader classLoader) {
 		Preconditions.checkNotNull(descriptor);
 		Preconditions.checkNotNull(classLoader);
-		return findInternal(factoryClass, descriptor.toProperties(), Optional.of(classLoader));
+		return findSingleInternal(factoryClass, descriptor.toProperties(), Optional.of(classLoader));
 	}
 
 	/**
@@ -90,8 +91,8 @@ public class TableFactoryService {
 	 * @param <T> factory class type
 	 * @return the matching factory
 	 */
-	public static <T> T find(Class<T> factoryClass, Map<String, String> propertyMap) {
-		return findInternal(factoryClass, propertyMap, Optional.empty());
+	public static <T extends TableFactory> T find(Class<T> factoryClass, Map<String, String> propertyMap) {
+		return findSingleInternal(factoryClass, propertyMap, Optional.empty());
 	}
 
 	/**
@@ -103,9 +104,24 @@ public class TableFactoryService {
 	 * @param <T> factory class type
 	 * @return the matching factory
 	 */
-	public static <T> T find(Class<T> factoryClass, Map<String, String> propertyMap, ClassLoader classLoader) {
+	public static <T extends TableFactory> T find(
+			Class<T> factoryClass,
+			Map<String, String> propertyMap,
+			ClassLoader classLoader) {
 		Preconditions.checkNotNull(classLoader);
-		return findInternal(factoryClass, propertyMap, Optional.of(classLoader));
+		return findSingleInternal(factoryClass, propertyMap, Optional.of(classLoader));
+	}
+
+	/**
+	 * Finds all table factories of the given class and property map.
+	 *
+	 * @param factoryClass desired factory class
+	 * @param propertyMap properties that describe the factory configuration
+	 * @param <T> factory class type
+	 * @return all the matching factories
+	 */
+	public static <T extends TableFactory> List<T> findAll(Class<T> factoryClass, Map<String, String> propertyMap) {
+		return findAllInternal(factoryClass, propertyMap, Optional.empty());
 	}
 
 	/**
@@ -117,19 +133,60 @@ public class TableFactoryService {
 	 * @param <T> factory class type
 	 * @return the matching factory
 	 */
-	public static <T> T findInternal(Class<T> factoryClass, Map<String, String> properties, Optional<ClassLoader> classLoader) {
+	private static <T extends TableFactory> T findSingleInternal(
+			Class<T> factoryClass,
+			Map<String, String> properties,
+			Optional<ClassLoader> classLoader) {
+
+		List<TableFactory> tableFactories = discoverFactories(classLoader);
+		List<T> filtered = filter(tableFactories, factoryClass, properties);
+
+		if (filtered.size() > 1) {
+			throw new AmbiguousTableFactoryException(
+				filtered,
+				factoryClass,
+				tableFactories,
+				properties);
+		} else {
+			return filtered.get(0);
+		}
+	}
+
+	/**
+	 * Finds a table factory of the given class, property map, and classloader.
+	 *
+	 * @param factoryClass desired factory class
+	 * @param properties properties that describe the factory configuration
+	 * @param classLoader classloader for service loading
+	 * @param <T> factory class type
+	 * @return the matching factory
+	 */
+	private static <T extends TableFactory> List<T> findAllInternal(
+			Class<T> factoryClass,
+			Map<String, String> properties,
+			Optional<ClassLoader> classLoader) {
+
+		List<TableFactory> tableFactories = discoverFactories(classLoader);
+		return filter(tableFactories, factoryClass, properties);
+	}
+
+	/**
+	 * Filters found factories by factory class and with matching context.
+	 */
+	private static <T extends TableFactory> List<T> filter(
+			List<TableFactory> foundFactories,
+			Class<T> factoryClass,
+			Map<String, String> properties) {
 
 		Preconditions.checkNotNull(factoryClass);
 		Preconditions.checkNotNull(properties);
 
-		List<TableFactory> foundFactories = discoverFactories(classLoader);
-
-		List<TableFactory> classFactories = filterByFactoryClass(
+		List<T> classFactories = filterByFactoryClass(
 			factoryClass,
 			properties,
 			foundFactories);
 
-		List<TableFactory> contextFactories = filterByContext(
+		List<T> contextFactories = filterByContext(
 			factoryClass,
 			properties,
 			foundFactories,
@@ -169,10 +226,11 @@ public class TableFactoryService {
 	/**
 	 * Filters factories with matching context by factory class.
 	 */
-	private static <T> List<TableFactory> filterByFactoryClass(
-		Class<T> factoryClass,
-		Map<String, String> properties,
-		List<TableFactory> foundFactories) {
+	@SuppressWarnings("unchecked")
+	private static <T> List<T> filterByFactoryClass(
+			Class<T> factoryClass,
+			Map<String, String> properties,
+			List<TableFactory> foundFactories) {
 
 		List<TableFactory> classFactories = foundFactories.stream()
 			.filter(p -> factoryClass.isAssignableFrom(p.getClass()))
@@ -186,7 +244,7 @@ public class TableFactoryService {
 				properties);
 		}
 
-		return classFactories;
+		return (List<T>) classFactories;
 	}
 
 	/**
@@ -194,13 +252,13 @@ public class TableFactoryService {
 	 *
 	 * @return all matching factories
 	 */
-	private static <T> List<TableFactory> filterByContext(
-		Class<T> factoryClass,
-		Map<String, String> properties,
-		List<TableFactory> foundFactories,
-		List<TableFactory> classFactories) {
+	private static <T extends TableFactory> List<T> filterByContext(
+			Class<T> factoryClass,
+			Map<String, String> properties,
+			List<TableFactory> foundFactories,
+			List<T> classFactories) {
 
-		List<TableFactory> matchingFactories = classFactories.stream().filter(factory -> {
+		List<T> matchingFactories = classFactories.stream().filter(factory -> {
 			Map<String, String> requestedContext = normalizeContext(factory);
 
 			Map<String, String> plainContext = new HashMap<>(requestedContext);
@@ -208,13 +266,12 @@ public class TableFactoryService {
 			// with the version we can provide mappings in case the format changes
 			plainContext.remove(CONNECTOR_PROPERTY_VERSION);
 			plainContext.remove(FORMAT_PROPERTY_VERSION);
-			plainContext.remove(METADATA_PROPERTY_VERSION);
-			plainContext.remove(STATISTICS_PROPERTY_VERSION);
 			plainContext.remove(CATALOG_PROPERTY_VERSION);
-			plainContext.remove(org.apache.flink.table.descriptors.CatalogDescriptorValidator.CATALOG_PROPERTY_VERSION);
 
 			// check if required context is met
-			return plainContext.keySet().stream().allMatch(e -> properties.containsKey(e) && properties.get(e).equals(plainContext.get(e)));
+			return plainContext.keySet()
+				.stream()
+				.allMatch(e -> properties.containsKey(e) && properties.get(e).equals(plainContext.get(e)));
 		}).collect(Collectors.toList());
 
 		if (matchingFactories.isEmpty()) {
@@ -238,17 +295,17 @@ public class TableFactoryService {
 				String.format("Required context of factory '%s' must not be null.", factory.getClass().getName()));
 		}
 		return requiredContext.keySet().stream()
-			.collect(Collectors.toMap(key -> key.toLowerCase(), key -> requiredContext.get(key)));
+			.collect(Collectors.toMap(String::toLowerCase, requiredContext::get));
 	}
 
 	/**
 	 * Filters the matching class factories by supported properties.
 	 */
-	private static <T> T filterBySupportedProperties(
-		Class<T> factoryClass,
-		Map<String, String> properties,
-		List<TableFactory> foundFactories,
-		List<TableFactory> classFactories) {
+	private static <T extends TableFactory> List<T> filterBySupportedProperties(
+			Class<T> factoryClass,
+			Map<String, String> properties,
+			List<TableFactory> foundFactories,
+			List<T> classFactories) {
 
 		final List<String> plainGivenKeys = new LinkedList<>();
 		properties.keySet().forEach(k -> {
@@ -261,8 +318,8 @@ public class TableFactoryService {
 		});
 
 		Optional<String> lastKey = Optional.empty();
-		List<TableFactory> supportedFactories = new LinkedList<>();
-		for (TableFactory factory: classFactories) {
+		List<T> supportedFactories = new LinkedList<>();
+		for (T factory: classFactories) {
 			Set<String> requiredContextKeys = normalizeContext(factory).keySet();
 			Tuple2<List<String>, List<String>> tuple2 = normalizeSupportedProperties(factory);
 			// ignore context keys
@@ -273,10 +330,10 @@ public class TableFactoryService {
 				factory,
 				givenContextFreeKeys);
 
-			Boolean allTrue = true;
+			boolean allTrue = true;
 			for (String k: givenFilteredKeys) {
 				lastKey = Optional.of(k);
-				if (!(tuple2.f0.contains(k) || tuple2.f1.stream().anyMatch(p -> k.startsWith(p)))) {
+				if (!(tuple2.f0.contains(k) || tuple2.f1.stream().anyMatch(k::startsWith))) {
 					allTrue = false;
 					break;
 				}
@@ -310,15 +367,9 @@ public class TableFactoryService {
 				factoryClass,
 				foundFactories,
 				properties);
-		} else if (supportedFactories.size() > 1) {
-			throw new AmbiguousTableFactoryException(
-				supportedFactories,
-				factoryClass,
-				foundFactories,
-				properties);
 		}
 
-		return (T) supportedFactories.get(0);
+		return supportedFactories;
 	}
 
 	/**
@@ -332,7 +383,7 @@ public class TableFactoryService {
 					factory.getClass().getName()));
 		}
 		List<String> supportedKeys = supportedProperties.stream()
-			.map(p -> p.toLowerCase())
+			.map(String::toLowerCase)
 			.collect(Collectors.toList());
 
 		// extract wildcard prefixes
@@ -353,9 +404,7 @@ public class TableFactoryService {
 	/**
 	 * Performs filtering for special cases (i.e. table format factories with schema derivation).
 	 */
-	private static List<String> filterSupportedPropertiesFactorySpecific(
-		TableFactory factory,
-		List<String> keys) {
+	private static List<String> filterSupportedPropertiesFactorySpecific(TableFactory factory, List<String> keys) {
 
 		if (factory instanceof TableFormatFactory) {
 			boolean includeSchema = ((TableFormatFactory) factory).supportsSchemaDerivation();

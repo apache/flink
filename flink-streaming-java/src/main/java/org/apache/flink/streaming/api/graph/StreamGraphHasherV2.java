@@ -18,11 +18,11 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
-import org.apache.flink.streaming.api.transformations.StreamTransformation;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 
 import org.apache.flink.shaded.guava18.com.google.common.hash.HashFunction;
@@ -63,7 +63,7 @@ public class StreamGraphHasherV2 implements StreamGraphHasher {
 	 *
 	 * <p>The complete {@link StreamGraph} is traversed. The hash is either
 	 * computed from the transformation's user-specified id (see
-	 * {@link StreamTransformation#getUid()}) or generated in a deterministic way.
+	 * {@link Transformation#getUid()}) or generated in a deterministic way.
 	 *
 	 * <p>The generated hash is deterministic with respect to:
 	 * <ul>

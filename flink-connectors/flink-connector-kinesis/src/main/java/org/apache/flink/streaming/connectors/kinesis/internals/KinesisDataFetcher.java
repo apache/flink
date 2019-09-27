@@ -270,8 +270,6 @@ public class KinesisDataFetcher<T> {
 		@Override
 		public void emit(RecordWrapper<T> record, RecordQueue<RecordWrapper<T>> queue) {
 			emitRecordAndUpdateState(record);
-			ShardWatermarkState<T> sws = shardWatermarks.get(queue.getQueueId());
-			sws.lastEmittedRecordWatermark = record.watermark;
 		}
 	}
 
@@ -287,11 +285,6 @@ public class KinesisDataFetcher<T> {
 					@Override
 					public void put(RecordWrapper<T> record) {
 						emit(record, this);
-					}
-
-					@Override
-					public int getQueueId() {
-						return producerIndex;
 					}
 
 					@Override
@@ -722,7 +715,7 @@ public class KinesisDataFetcher<T> {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Atomic operation to collect a record and update state to the sequence number of the record.
+	 * Prepare a record and hand it over to the {@link RecordEmitter}, which may collect it asynchronously.
 	 * This method is called by {@link ShardConsumer}s.
 	 *
 	 * @param record the record to collect
@@ -759,7 +752,8 @@ public class KinesisDataFetcher<T> {
 	}
 
 	/**
-	 * Actual record emission called from the record emitter.
+	 * Atomic operation to collect a record and update state to the sequence number of the record.
+	 * This method is called from the record emitter.
 	 *
 	 * <p>Responsible for tracking per shard watermarks and emit timestamps extracted from
 	 * the record, when a watermark assigner was configured.
@@ -770,6 +764,8 @@ public class KinesisDataFetcher<T> {
 		synchronized (checkpointLock) {
 			if (rw.getValue() != null) {
 				sourceContext.collectWithTimestamp(rw.getValue(), rw.timestamp);
+				ShardWatermarkState<T> sws = shardWatermarks.get(rw.shardStateIndex);
+				sws.lastEmittedRecordWatermark = rw.watermark;
 			} else {
 				LOG.warn("Skipping non-deserializable record at sequence number {} of shard {}.",
 					rw.lastSequenceNumber,

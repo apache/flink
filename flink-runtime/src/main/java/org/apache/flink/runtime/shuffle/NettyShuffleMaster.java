@@ -21,6 +21,7 @@ package org.apache.flink.runtime.shuffle;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.LocalExecutionPartitionConnectionInfo;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.NetworkPartitionConnectionInfo;
+import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor.PartitionConnectionInfo;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -47,7 +48,11 @@ public enum NettyShuffleMaster implements ShuffleMaster<NettyShuffleDescriptor> 
 		return CompletableFuture.completedFuture(shuffleDeploymentDescriptor);
 	}
 
-	private static NettyShuffleDescriptor.PartitionConnectionInfo createConnectionInfo(
+	@Override
+	public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {
+	}
+
+	private static PartitionConnectionInfo createConnectionInfo(
 			ProducerDescriptor producerDescriptor,
 			int connectionIndex) {
 		return producerDescriptor.getDataPort() >= 0 ?

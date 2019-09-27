@@ -24,8 +24,11 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
+import org.apache.flink.runtime.io.network.buffer.NoOpBufferPool;
+import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.UnpooledMemorySegmentProvider;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
+import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
@@ -47,7 +50,6 @@ import java.util.Optional;
 import static org.apache.flink.runtime.io.network.buffer.BufferBuilderTestUtils.createFilledBufferConsumer;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultPartitionManager;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -92,6 +94,8 @@ public class InputGateFairnessTest {
 		for (int i = 0; i < numberOfChannels; i++) {
 			createLocalInputChannel(gate, i, resultPartitionManager);
 		}
+
+		gate.setup();
 
 		// read all the buffers and the EOF event
 		for (int i = numberOfChannels * (buffersPerChannel + 1); i > 0; --i) {
@@ -140,6 +144,8 @@ public class InputGateFairnessTest {
 
 			// seed one initial buffer
 			sources[12].add(bufferConsumer.copy());
+
+			gate.setup();
 
 			// read all the buffers and the EOF event
 			for (int i = 0; i < numberOfChannels * buffersPerChannel; i++) {
@@ -190,6 +196,8 @@ public class InputGateFairnessTest {
 			channel.onBuffer(EventSerializer.toBuffer(EndOfPartitionEvent.INSTANCE), buffersPerChannel, -1);
 		}
 
+		gate.setup();
+
 		// read all the buffers and the EOF event
 		for (int i = numberOfChannels * (buffersPerChannel + 1); i > 0; --i) {
 			assertNotNull(gate.getNext());
@@ -232,6 +240,8 @@ public class InputGateFairnessTest {
 
 		channels[11].onBuffer(mockBuffer, 0, -1);
 		channelSequenceNums[11]++;
+
+		gate.setup();
 
 		// read all the buffers and the EOF event
 		for (int i = 0; i < numberOfChannels * buffersPerChannel; i++) {
@@ -308,9 +318,8 @@ public class InputGateFairnessTest {
 	// ------------------------------------------------------------------------
 
 	private static class FairnessVerifyingInputGate extends SingleInputGate {
-		private static final SupplierWithException<BufferPool, IOException> STUB_BUFFER_POOL_FACTORY = () -> {
-			throw new UnsupportedOperationException();
-		};
+		private static final SupplierWithException<BufferPool, IOException> STUB_BUFFER_POOL_FACTORY =
+			NoOpBufferPool::new;
 
 		private final ArrayDeque<InputChannel> channelsWithData;
 
@@ -367,5 +376,17 @@ public class InputGateFairnessTest {
 			assertTrue("found duplicate input channels", uniquenessChecker.size() == channels.size());
 			uniquenessChecker.clear();
 		}
+	}
+
+	public static RemoteInputChannel createRemoteInputChannel(
+		SingleInputGate inputGate,
+		int channelIndex,
+		ConnectionManager connectionManager) {
+
+		return InputChannelBuilder.newBuilder()
+			.setChannelIndex(channelIndex)
+			.setConnectionManager(connectionManager)
+			.setMemorySegmentProvider(new UnpooledMemorySegmentProvider(32 * 1024))
+			.buildRemoteAndSetToGate(inputGate);
 	}
 }

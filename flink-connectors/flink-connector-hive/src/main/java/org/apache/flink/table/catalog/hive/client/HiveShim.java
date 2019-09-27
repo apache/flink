@@ -19,17 +19,25 @@
 package org.apache.flink.table.catalog.hive.client;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Function;
+import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
+import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.hadoop.hive.metastore.api.Partition;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
+import org.apache.hadoop.hive.ql.udf.generic.SimpleGenericUDAFParameterInfo;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.thrift.TException;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A shim layer to support different versions of Hive.
@@ -83,4 +91,72 @@ public interface HiveShim {
 	 * @throws IOException if the file/directory cannot be properly moved or deleted
 	 */
 	boolean moveToTrash(FileSystem fs, Path path, Configuration conf, boolean purge) throws IOException;
+
+	/**
+	 * Alters a Hive table.
+	 *
+	 * @param client       the Hive metastore client
+	 * @param databaseName the name of the database to which the table belongs
+	 * @param tableName    the name of the table to be altered
+	 * @param table        the new Hive table
+	 */
+	void alterTable(IMetaStoreClient client, String databaseName, String tableName, Table table)
+			throws InvalidOperationException, MetaException, TException;
+
+	void alterPartition(IMetaStoreClient client, String databaseName, String tableName, Partition partition)
+			throws InvalidOperationException, MetaException, TException;
+
+	/**
+	 * Creates SimpleGenericUDAFParameterInfo.
+	 */
+	SimpleGenericUDAFParameterInfo createUDAFParameterInfo(ObjectInspector[] params, boolean isWindowing,
+			boolean distinct, boolean allColumns);
+
+	/**
+	 * Get the class of Hive's MetaStoreUtils because its package name was changed in Hive 3.1.0.
+	 *
+	 * @return MetaStoreUtils class
+	 */
+	Class<?> getMetaStoreUtilsClass();
+
+	/**
+	 * Get the class of Hive's HiveMetaStoreUtils as it was split from MetaStoreUtils class in Hive 3.1.0.
+	 *
+	 * @return HiveMetaStoreUtils class
+	 */
+	Class<?> getHiveMetaStoreUtilsClass();
+
+	/**
+	 * Hive Date data type class was changed in Hive 3.1.0.
+	 *
+	 * @return Hive's Date class
+	 */
+	Class<?> getDateDataTypeClass();
+
+	/**
+	 * Hive Timestamp data type class was changed in Hive 3.1.0.
+	 *
+	 * @return Hive's Timestamp class
+	 */
+	Class<?> getTimestampDataTypeClass();
+
+	/**
+	 * The return type of HiveStatsUtils.getFileStatusRecurse was changed from array to List in Hive 3.1.0.
+	 *
+	 * @param path the path of the directory
+	 * @param level the level of recursion
+	 * @param fs the file system of the directory
+	 * @return an array of the entries
+	 * @throws IOException in case of any io error
+	 */
+	FileStatus[] getFileStatusRecurse(Path path, int level, FileSystem fs) throws IOException;
+
+	/**
+	 * The signature of HiveStatsUtils.makeSpecFromName() was changed in Hive 3.1.0.
+	 *
+	 * @param partSpec partition specs
+	 * @param currPath the current path
+	 */
+	void makeSpecFromName(Map<String, String> partSpec, Path currPath);
+
 }

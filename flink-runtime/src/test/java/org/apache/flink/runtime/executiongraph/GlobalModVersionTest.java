@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy;
 import org.apache.flink.runtime.executiongraph.failover.FailoverStrategy.Factory;
@@ -171,7 +172,7 @@ public class GlobalModVersionTest extends TestLogger {
 			new CustomStrategy(failoverStrategy),
 			slotProvider);
 
-		graph.start(TestingComponentMainThreadExecutorServiceAdapter.forMainThread());
+		graph.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
 		JobVertex jv = new JobVertex("test vertex");
 		jv.setInvokableClass(NoOpInvokable.class);

@@ -120,7 +120,7 @@ class TemporalTableJoinTest extends TableTestBase {
             "DataStreamCalc",
             streamTableNode(ratesHistory),
             term("select", "rowtime, currency, rate, secondary_key"),
-            term("where", ">(rate, 110)")
+            term("where", ">(rate, 110:BIGINT)")
           ),
           term(
             "where",

@@ -20,12 +20,7 @@ package org.apache.flink.streaming.api.environment;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.ContextEnvironment;
-import org.apache.flink.client.program.DetachedEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
-import org.apache.flink.util.Preconditions;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Special {@link StreamExecutionEnvironment} that will be used in cases where the CLI client or
@@ -34,8 +29,6 @@ import org.slf4j.LoggerFactory;
  */
 @PublicEvolving
 public class StreamContextEnvironment extends StreamExecutionEnvironment {
-
-	private static final Logger LOG = LoggerFactory.getLogger(StreamContextEnvironment.class);
 
 	private final ContextEnvironment ctx;
 
@@ -47,24 +40,12 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 	}
 
 	@Override
-	public JobExecutionResult execute(String jobName) throws Exception {
-		Preconditions.checkNotNull(jobName, "Streaming Job name should not be null.");
-
-		StreamGraph streamGraph = this.getStreamGraph();
-		streamGraph.setJobName(jobName);
-
+	public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
 		transformations.clear();
 
 		// execute the programs
-		if (ctx instanceof DetachedEnvironment) {
-			LOG.warn("Job was executed in detached mode, the results will be available on completion.");
-			((DetachedEnvironment) ctx).setDetachedPlan(streamGraph);
-			return DetachedEnvironment.DetachedJobExecutionResult.INSTANCE;
-		} else {
-			return ctx
-				.getClient()
+		return ctx.getClient()
 				.run(streamGraph, ctx.getJars(), ctx.getClasspaths(), ctx.getUserCodeClassLoader(), ctx.getSavepointRestoreSettings())
 				.getJobExecutionResult();
-		}
 	}
 }

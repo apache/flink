@@ -30,7 +30,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.CoLocationGroup;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.jobmaster.TestingLogicalSlot;
+import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotProvider;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -303,7 +303,7 @@ public class DefaultExecutionSlotAllocatorTest extends TestLogger {
 			if (slotAllocationDisabled) {
 				return new CompletableFuture<>();
 			} else {
-				return CompletableFuture.completedFuture(new TestingLogicalSlot());
+				return CompletableFuture.completedFuture(new TestingLogicalSlotBuilder().createTestingLogicalSlot());
 			}
 		}
 

@@ -229,11 +229,6 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		return isReleased.get();
 	}
 
-	@Override
-	void notifySubpartitionConsumed() {
-		// Nothing to do
-	}
-
 	/**
 	 * Releases all exclusive and floating buffers, closes the partition request client.
 	 */
@@ -430,8 +425,17 @@ public class RemoteInputChannel extends InputChannel implements BufferRecycler, 
 		}
 	}
 
+	@Override
 	public int unsynchronizedGetNumberOfQueuedBuffers() {
 		return Math.max(0, receivedBuffers.size());
+	}
+
+	public int unsynchronizedGetExclusiveBuffersUsed() {
+		return Math.max(0, initialCredit - bufferQueue.exclusiveBuffers.size());
+	}
+
+	public int unsynchronizedGetFloatingBuffersAvailable() {
+		return Math.max(0, bufferQueue.floatingBuffers.size());
 	}
 
 	public InputChannelID getInputChannelId() {

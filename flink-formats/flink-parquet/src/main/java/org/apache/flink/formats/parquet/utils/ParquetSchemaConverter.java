@@ -43,7 +43,7 @@ import java.util.List;
  * Schema converter converts Parquet schema to and from Flink internal types.
  */
 public class ParquetSchemaConverter {
-	private static final Logger LOGGER = LoggerFactory.getLogger(RowConverter.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(ParquetSchemaConverter.class);
 	public static final String MAP_VALUE = "value";
 	public static final String LIST_ARRAY_TYPE = "array";
 	public static final String LIST_ELEMENT = "element";

@@ -42,6 +42,10 @@ public final class BaseRowUtil {
 		return baseRow.getHeader() == ACCUMULATE_MSG;
 	}
 
+	public static boolean isRetractMsg(BaseRow baseRow) {
+		return baseRow.getHeader() == RETRACT_MSG;
+	}
+
 	public static BaseRow setAccumulate(BaseRow baseRow) {
 		baseRow.setHeader(ACCUMULATE_MSG);
 		return baseRow;

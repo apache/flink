@@ -112,4 +112,8 @@ public class BufferBuilderTestUtils {
 		final MemorySegment seg = MemorySegmentFactory.allocateUnpooledSegment(size);
 		return new NetworkBuffer(seg, MemorySegment::free, true, size);
 	}
+
+	public static BufferBuilder createEmptyBufferBuilder(int bufferSize) {
+		return new BufferBuilder(MemorySegmentFactory.allocateUnpooledSegment(bufferSize), FreeingBufferRecycler.INSTANCE);
+	}
 }

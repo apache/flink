@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.minicluster;
 
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -60,6 +62,8 @@ public enum StandaloneResourceManagerWithUUIDFactory implements ResourceManagerF
 			highAvailabilityServices,
 			rpcService.getScheduledExecutor());
 
+		final Time standaloneClusterStartupPeriodTime = ConfigurationUtils.getStandaloneClusterStartupPeriodTime(configuration);
+
 		return new StandaloneResourceManager(
 			rpcService,
 			generateEndpointIdWithUUID(),
@@ -71,6 +75,7 @@ public enum StandaloneResourceManagerWithUUIDFactory implements ResourceManagerF
 			resourceManagerRuntimeServices.getJobLeaderIdService(),
 			clusterInformation,
 			fatalErrorHandler,
-			jobManagerMetricGroup);
+			jobManagerMetricGroup,
+			standaloneClusterStartupPeriodTime);
 	}
 }

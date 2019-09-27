@@ -20,8 +20,8 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.util.StringUtils;
 
@@ -46,17 +46,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class WindowAggregateQueryOperation implements QueryOperation {
 
-	private final List<Expression> groupingExpressions;
-	private final List<Expression> aggregateExpressions;
-	private final List<Expression> windowPropertiesExpressions;
+	private final List<ResolvedExpression> groupingExpressions;
+	private final List<ResolvedExpression> aggregateExpressions;
+	private final List<ResolvedExpression> windowPropertiesExpressions;
 	private final ResolvedGroupWindow groupWindow;
 	private final QueryOperation child;
 	private final TableSchema tableSchema;
 
 	public WindowAggregateQueryOperation(
-			List<Expression> groupingExpressions,
-			List<Expression> aggregateExpressions,
-			List<Expression> windowPropertiesExpressions,
+			List<ResolvedExpression> groupingExpressions,
+			List<ResolvedExpression> aggregateExpressions,
+			List<ResolvedExpression> windowPropertiesExpressions,
 			ResolvedGroupWindow groupWindow,
 			QueryOperation child,
 			TableSchema tableSchema) {
@@ -84,15 +84,15 @@ public class WindowAggregateQueryOperation implements QueryOperation {
 		return OperationUtils.formatWithChildren("WindowAggregate", args, getChildren(), Operation::asSummaryString);
 	}
 
-	public List<Expression> getGroupingExpressions() {
+	public List<ResolvedExpression> getGroupingExpressions() {
 		return groupingExpressions;
 	}
 
-	public List<Expression> getAggregateExpressions() {
+	public List<ResolvedExpression> getAggregateExpressions() {
 		return aggregateExpressions;
 	}
 
-	public List<Expression> getWindowPropertiesExpressions() {
+	public List<ResolvedExpression> getWindowPropertiesExpressions() {
 		return windowPropertiesExpressions;
 	}
 

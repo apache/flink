@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -35,9 +36,9 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobStatus;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraph;
-import org.apache.flink.runtime.jobmanager.SubmittedJobGraphStore;
+import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
@@ -95,13 +96,13 @@ import java.util.stream.Collectors;
  * about the state of the Flink session cluster.
  */
 public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> implements
-	DispatcherGateway, LeaderContender, SubmittedJobGraphStore.SubmittedJobGraphListener {
+	DispatcherGateway, LeaderContender, JobGraphStore.JobGraphListener {
 
 	public static final String DISPATCHER_NAME = "dispatcher";
 
 	private final Configuration configuration;
 
-	private final SubmittedJobGraphStore submittedJobGraphStore;
+	private final JobGraphStore jobGraphStore;
 	private final RunningJobsRegistry runningJobsRegistry;
 
 	private final HighAvailabilityServices highAvailabilityServices;
@@ -136,7 +137,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			String endpointId,
 			Configuration configuration,
 			HighAvailabilityServices highAvailabilityServices,
-			SubmittedJobGraphStore submittedJobGraphStore,
+			JobGraphStore jobGraphStore,
 			GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
 			BlobServer blobServer,
 			HeartbeatServices heartbeatServices,
@@ -154,7 +155,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		this.heartbeatServices = Preconditions.checkNotNull(heartbeatServices);
 		this.blobServer = Preconditions.checkNotNull(blobServer);
 		this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler);
-		this.submittedJobGraphStore = Preconditions.checkNotNull(submittedJobGraphStore);
+		this.jobGraphStore = Preconditions.checkNotNull(jobGraphStore);
 		this.jobManagerMetricGroup = Preconditions.checkNotNull(jobManagerMetricGroup);
 		this.metricServiceQueryAddress = metricServiceQueryAddress;
 
@@ -194,7 +195,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 
 	private void startDispatcherServices() throws Exception {
 		try {
-			submittedJobGraphStore.start(this);
+			jobGraphStore.start(this);
 			leaderElectionService.start(this);
 
 			registerDispatcherMetrics(jobManagerMetricGroup);
@@ -237,7 +238,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		}
 
 		try {
-			submittedJobGraphStore.stop();
+			jobGraphStore.stop();
 		} catch (Exception e) {
 			exception = ExceptionUtils.firstOrSuppressed(e, exception);
 		}
@@ -265,6 +266,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			if (isDuplicateJob(jobGraph.getJobID())) {
 				return FutureUtils.completedExceptionally(
 					new JobSubmissionException(jobGraph.getJobID(), "Job has already been submitted."));
+			} else if (isPartialResourceConfigured(jobGraph)) {
+				return FutureUtils.completedExceptionally(
+					new JobSubmissionException(jobGraph.getJobID(), "Currently jobs is not supported if parts of the vertices have " +
+							"resources configured. The limitation will be removed in future versions."));
 			} else {
 				return internalSubmitJob(jobGraph);
 			}
@@ -292,6 +297,25 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		return jobSchedulingStatus == RunningJobsRegistry.JobSchedulingStatus.DONE || jobManagerRunnerFutures.containsKey(jobId);
 	}
 
+	private boolean isPartialResourceConfigured(JobGraph jobGraph) {
+		boolean hasVerticesWithUnknownResource = false;
+		boolean hasVerticesWithConfiguredResource = false;
+
+		for (JobVertex jobVertex : jobGraph.getVertices()) {
+			if (jobVertex.getMinResources() == ResourceSpec.UNKNOWN) {
+				hasVerticesWithUnknownResource = true;
+			} else {
+				hasVerticesWithConfiguredResource = true;
+			}
+
+			if (hasVerticesWithUnknownResource && hasVerticesWithConfiguredResource) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	private CompletableFuture<Acknowledge> internalSubmitJob(JobGraph jobGraph) {
 		log.info("Submitting job {} ({}).", jobGraph.getJobID(), jobGraph.getName());
 
@@ -313,13 +337,13 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	private CompletableFuture<Void> persistAndRunJob(JobGraph jobGraph) throws Exception {
-		submittedJobGraphStore.putJobGraph(new SubmittedJobGraph(jobGraph));
+		jobGraphStore.putJobGraph(jobGraph);
 
 		final CompletableFuture<Void> runJobFuture = runJob(jobGraph);
 
 		return runJobFuture.whenComplete(BiConsumerWithException.unchecked((Object ignored, Throwable throwable) -> {
 			if (throwable != null) {
-				submittedJobGraphStore.removeJobGraph(jobGraph.getJobID());
+				jobGraphStore.removeJobGraph(jobGraph.getJobID());
 			}
 		}));
 	}
@@ -641,7 +665,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 		boolean cleanupHABlobs = false;
 		if (cleanupHA) {
 			try {
-				submittedJobGraphStore.removeJobGraph(jobId);
+				jobGraphStore.removeJobGraph(jobId);
 
 				// only clean up the HA blobs if we could remove the job from HA storage
 				cleanupHABlobs = true;
@@ -656,7 +680,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			}
 		} else {
 			try {
-				submittedJobGraphStore.releaseJobGraph(jobId);
+				jobGraphStore.releaseJobGraph(jobId);
 			} catch (Exception e) {
 				log.warn("Could not properly release job {} from submitted job graph store.", jobId, e);
 			}
@@ -690,7 +714,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	@VisibleForTesting
 	Collection<JobGraph> recoverJobs() throws Exception {
 		log.info("Recovering all persisted jobs.");
-		final Collection<JobID> jobIds = submittedJobGraphStore.getJobIds();
+		final Collection<JobID> jobIds = jobGraphStore.getJobIds();
 
 		try {
 			return recoverJobGraphs(jobIds);
@@ -698,7 +722,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			// release all recovered job graphs
 			for (JobID jobId : jobIds) {
 				try {
-					submittedJobGraphStore.releaseJobGraph(jobId);
+					jobGraphStore.releaseJobGraph(jobId);
 				} catch (Exception ie) {
 					e.addSuppressed(ie);
 				}
@@ -727,13 +751,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	@Nullable
 	private JobGraph recoverJob(JobID jobId) throws Exception {
 		log.debug("Recover job {}.", jobId);
-		final SubmittedJobGraph submittedJobGraph = submittedJobGraphStore.recoverJobGraph(jobId);
-
-		if (submittedJobGraph != null) {
-			return submittedJobGraph.getJobGraph();
-		} else {
-			return null;
-		}
+		return jobGraphStore.recoverJobGraph(jobId);
 	}
 
 	protected void onFatalError(Throwable throwable) {
@@ -874,7 +892,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 							leaderElectionService.confirmLeaderSessionID(newLeaderSessionID);
 						} else {
 							for (JobGraph recoveredJob : recoveredJobs) {
-								submittedJobGraphStore.releaseJobGraph(recoveredJob.getJobID());
+								jobGraphStore.releaseJobGraph(recoveredJob.getJobID());
 							}
 						}
 						return null;
@@ -987,7 +1005,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 	}
 
 	//------------------------------------------------------
-	// SubmittedJobGraphListener
+	// JobGraphListener
 	//------------------------------------------------------
 
 	@Override
@@ -996,8 +1014,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 			() -> {
 				if (!jobManagerRunnerFutures.containsKey(jobId)) {
 					// IMPORTANT: onAddedJobGraph can generate false positives and, thus, we must expect that
-					// the specified job is already removed from the SubmittedJobGraphStore. In this case,
-					// SubmittedJobGraphStore.recoverJob returns null.
+					// the specified job is already removed from the JobGraphStore. In this case,
+					// JobGraphStore.recoverJob returns null.
 					final CompletableFuture<Optional<JobGraph>> recoveredJob = recoveryOperation.thenApplyAsync(
 						FunctionUtils.uncheckedFunction(ignored -> Optional.ofNullable(recoverJob(jobId))),
 						getRpcService().getExecutor());
@@ -1008,7 +1026,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId> impleme
 							FunctionUtils.uncheckedFunction(jobGraph -> tryRunRecoveredJobGraph(jobGraph, dispatcherId).thenAcceptAsync(
 								FunctionUtils.uncheckedConsumer((Boolean isRecoveredJobRunning) -> {
 										if (!isRecoveredJobRunning) {
-											submittedJobGraphStore.releaseJobGraph(jobId);
+											jobGraphStore.releaseJobGraph(jobId);
 										}
 									}),
 									getRpcService().getExecutor())))

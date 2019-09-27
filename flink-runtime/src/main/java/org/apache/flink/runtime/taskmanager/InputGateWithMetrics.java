@@ -61,13 +61,8 @@ public class InputGateWithMetrics extends InputGate {
 	}
 
 	@Override
-	public void setup() throws IOException {
+	public void setup() throws IOException, InterruptedException {
 		inputGate.setup();
-	}
-
-	@Override
-	public void requestPartitions() throws IOException, InterruptedException {
-		inputGate.requestPartitions();
 	}
 
 	@Override
@@ -83,11 +78,6 @@ public class InputGateWithMetrics extends InputGate {
 	@Override
 	public void sendTaskEvent(TaskEvent event) throws IOException {
 		inputGate.sendTaskEvent(event);
-	}
-
-	@Override
-	public int getPageSize() {
-		return inputGate.getPageSize();
 	}
 
 	@Override

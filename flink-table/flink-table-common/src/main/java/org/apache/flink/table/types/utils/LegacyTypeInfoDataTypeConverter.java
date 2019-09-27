@@ -36,16 +36,22 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.FieldsDataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.logical.LegacyTypeInformationType;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TypeInformationAnyType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo;
 import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
@@ -96,6 +102,10 @@ public final class LegacyTypeInfoDataTypeConverter {
 		addMapping(Types.FLOAT, DataTypes.FLOAT().bridgedTo(Float.class));
 		addMapping(Types.DOUBLE, DataTypes.DOUBLE().bridgedTo(Double.class));
 		addMapping(Types.BIG_DEC, createLegacyType(LogicalTypeRoot.DECIMAL, Types.BIG_DEC));
+		addMapping(Types.LOCAL_DATE, DataTypes.DATE().bridgedTo(LocalDate.class));
+		addMapping(Types.LOCAL_TIME, DataTypes.TIME(0).bridgedTo(LocalTime.class));
+		addMapping(Types.LOCAL_DATE_TIME, DataTypes.TIMESTAMP(3).bridgedTo(LocalDateTime.class));
+		addMapping(Types.INSTANT, DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).bridgedTo(Instant.class));
 		addMapping(Types.SQL_DATE, DataTypes.DATE().bridgedTo(java.sql.Date.class));
 		addMapping(Types.SQL_TIME, DataTypes.TIME(0).bridgedTo(java.sql.Time.class));
 		addMapping(Types.SQL_TIMESTAMP, DataTypes.TIMESTAMP(3).bridgedTo(java.sql.Timestamp.class));
@@ -187,7 +197,26 @@ public final class LegacyTypeInfoDataTypeConverter {
 			return foundTypeInfo;
 		}
 
-		if (canConvertToLegacyTypeInfo(dataType)) {
+		// we are relaxing the constraint for DECIMAL, CHAR, VARCHAR, TIMESTAMP_WITHOUT_TIME_ZONE to
+		// support value literals in legacy planner
+		LogicalType logicalType = dataType.getLogicalType();
+		if (hasRoot(logicalType, LogicalTypeRoot.DECIMAL)) {
+			return Types.BIG_DEC;
+		}
+
+		else if (hasRoot(logicalType, LogicalTypeRoot.CHAR)) {
+			return Types.STRING;
+		}
+
+		else if (hasRoot(logicalType, LogicalTypeRoot.VARCHAR)) {
+			return Types.STRING;
+		}
+
+		else if (canConvertToTimestampTypeInfoLenient(dataType)) {
+			return Types.SQL_TIMESTAMP;
+		}
+
+		else if (canConvertToLegacyTypeInfo(dataType)) {
 			return convertToLegacyTypeInfo(dataType);
 		}
 
@@ -219,6 +248,13 @@ public final class LegacyTypeInfoDataTypeConverter {
 					"that originated from type information fully support a reverse conversion.",
 				dataType,
 				dataType.getConversionClass().getName()));
+	}
+
+	private static boolean canConvertToTimestampTypeInfoLenient(DataType dataType) {
+		LogicalType logicalType = dataType.getLogicalType();
+		return hasRoot(logicalType, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) &&
+			dataType.getConversionClass() != LocalDateTime.class &&
+			LogicalTypeChecks.getPrecision(logicalType) <= 3;
 	}
 
 	private static DataType createLegacyType(LogicalTypeRoot typeRoot, TypeInformation<?> typeInfo) {

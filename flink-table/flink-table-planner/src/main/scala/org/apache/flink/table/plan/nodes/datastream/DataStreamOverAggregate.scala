@@ -31,11 +31,12 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.NullByteKeySelector
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction
-import org.apache.flink.table.api.{StreamQueryConfig, StreamTableEnvImpl, TableConfig, TableException}
+import org.apache.flink.table.api.{StreamQueryConfig, TableConfig, TableException}
 import org.apache.flink.table.calcite.FlinkTypeFactory
 import org.apache.flink.table.plan.nodes.OverAggregate
 import org.apache.flink.table.plan.rules.datastream.DataStreamRetractionRules
 import org.apache.flink.table.plan.schema.RowSchema
+import org.apache.flink.table.planner.StreamPlanner
 import org.apache.flink.table.runtime.CRowKeySelector
 import org.apache.flink.table.runtime.aggregate.AggregateUtil.CalcitePair
 import org.apache.flink.table.runtime.aggregate._
@@ -100,7 +101,7 @@ class DataStreamOverAggregate(
   }
 
   override def translateToPlan(
-      tableEnv: StreamTableEnvImpl,
+      planner: StreamPlanner,
       queryConfig: StreamQueryConfig): DataStream[CRow] = {
 
     if (logicWindow.groups.size > 1) {
@@ -123,7 +124,7 @@ class DataStreamOverAggregate(
         "Unsupported use of OVER windows. The window can only be ordered in ASCENDING mode.")
     }
 
-    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(tableEnv, queryConfig)
+    val inputDS = input.asInstanceOf[DataStreamRel].translateToPlan(planner, queryConfig)
 
     val inputIsAccRetract = DataStreamRetractionRules.isAccRetract(input)
 
@@ -169,7 +170,7 @@ class DataStreamOverAggregate(
       // unbounded OVER window
       createUnboundedAndCurrentRowOverWindow(
         queryConfig,
-        tableEnv.getConfig,
+        planner.getConfig,
         false,
         inputSchema.typeInfo,
         Some(constants),
@@ -184,7 +185,7 @@ class DataStreamOverAggregate(
       // bounded OVER window
       createBoundedAndCurrentRowOverWindow(
         queryConfig,
-        tableEnv.getConfig,
+        planner.getConfig,
         false,
         inputSchema.typeInfo,
         Some(constants),
@@ -192,7 +193,7 @@ class DataStreamOverAggregate(
         rowTimeIdx,
         aggregateInputType,
         isRowsClause = overWindow.isRows,
-        tableEnv.getConfig)
+        planner.getConfig)
     } else {
       throw new TableException("OVER RANGE FOLLOWING windows are not supported yet.")
     }
@@ -293,7 +294,6 @@ class DataStreamOverAggregate(
         inputSchema.fieldTypeInfos,
         precedingOffset,
         queryConfig,
-        tableConfig,
         isRowsClause,
         rowTimeIdx
       )

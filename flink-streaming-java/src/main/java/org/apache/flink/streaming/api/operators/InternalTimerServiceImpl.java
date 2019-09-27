@@ -29,6 +29,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.function.BiConsumerWithException;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -223,6 +224,26 @@ public class InternalTimerServiceImpl<K, N> implements InternalTimerService<N>, 
 	@Override
 	public void deleteEventTimeTimer(N namespace, long time) {
 		eventTimeTimersQueue.remove(new TimerHeapInternalTimer<>(time, (K) keyContext.getCurrentKey(), namespace));
+	}
+
+	@Override
+	public void forEachEventTimeTimer(BiConsumerWithException<N, Long, Exception> consumer) throws Exception {
+		foreachTimer(consumer, eventTimeTimersQueue);
+	}
+
+	@Override
+	public void forEachProcessingTimeTimer(BiConsumerWithException<N, Long, Exception> consumer) throws Exception {
+		foreachTimer(consumer, processingTimeTimersQueue);
+	}
+
+	private void foreachTimer(BiConsumerWithException<N, Long, Exception> consumer, KeyGroupedInternalPriorityQueue<TimerHeapInternalTimer<K, N>> queue) throws Exception {
+		try (final CloseableIterator<TimerHeapInternalTimer<K, N>> iterator = queue.iterator()) {
+			while (iterator.hasNext()) {
+				final TimerHeapInternalTimer<K, N> timer = iterator.next();
+				keyContext.setCurrentKey(timer.getKey());
+				consumer.accept(timer.getNamespace(), timer.getTimestamp());
+			}
+		}
 	}
 
 	@Override

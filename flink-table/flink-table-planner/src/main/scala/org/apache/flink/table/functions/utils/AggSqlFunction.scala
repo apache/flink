@@ -30,13 +30,13 @@ import org.apache.calcite.util.Optionality
 import org.apache.flink.api.common.typeinfo._
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.calcite.FlinkTypeFactory
-import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, UserDefinedAggregateFunction}
+import org.apache.flink.table.functions.{AggregateFunction, FunctionRequirement, TableAggregateFunction, UserDefinedAggregateFunction}
 import org.apache.flink.table.functions.utils.AggSqlFunction.{createOperandTypeChecker, createOperandTypeInference, createReturnTypeInference}
 import org.apache.flink.table.functions.utils.UserDefinedFunctionUtils._
 
 /**
-  * Calcite wrapper for user-defined aggregate functions. Current, the aggregate function can be an
-  * [[AggregateFunction]] or a [[TableAggregateFunction]]
+  * Calcite wrapper for user-defined aggregate functions. Currently, the aggregate function can be
+  * an [[AggregateFunction]] or a [[TableAggregateFunction]]
   *
   * @param name function name (used by SQL parser)
   * @param displayName name to be displayed in operator name
@@ -87,7 +87,8 @@ object AggSqlFunction {
       typeFactory: FlinkTypeFactory): AggSqlFunction = {
 
     val requiresOver = aggregateFunction match {
-      case a: AggregateFunction[_, _] => a.requiresOver()
+      case a: AggregateFunction[_, _] =>
+        a.getRequirements.contains(FunctionRequirement.OVER_WINDOW_ONLY)
       case _ => false
     }
 

@@ -44,7 +44,8 @@ class UnionTest extends TableTestBase {
       unaryNode(
         "DataStreamCalc",
         streamTableNode(table),
-        term("select", "CASE(>(c, 0), b, null) AS EXPR$0")
+        term("select", "CASE(>(c, 0), b, null:RecordType:peek_no_expand(INTEGER _1, " +
+          "VARCHAR(65536) _2)) AS EXPR$0")
       ),
       term("all", "true"),
       term("union all", "a")

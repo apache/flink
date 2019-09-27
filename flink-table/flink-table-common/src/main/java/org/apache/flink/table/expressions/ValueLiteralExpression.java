@@ -52,7 +52,7 @@ import java.util.stream.Stream;
  * <p>Symbols (enums extending from {@link TableSymbol}) are considered as literal values.
  */
 @PublicEvolving
-public final class ValueLiteralExpression implements Expression {
+public final class ValueLiteralExpression implements ResolvedExpression {
 
 	private final @Nullable Object value;
 
@@ -66,42 +66,6 @@ public final class ValueLiteralExpression implements Expression {
 		validateValueDataType(value, Preconditions.checkNotNull(dataType, "Data type must not be null."));
 		this.value = value; // can be null
 		this.dataType = dataType;
-	}
-
-	public DataType getOutputDataType() {
-		return dataType;
-	}
-
-	@Override
-	public List<Expression> getChildren() {
-		return Collections.emptyList();
-	}
-
-	@Override
-	public <R> R accept(ExpressionVisitor<R> visitor) {
-		return visitor.visitValueLiteral(this);
-	}
-
-	@Override
-	public boolean equals(Object o) {
-		if (this == o) {
-			return true;
-		}
-		if (o == null || getClass() != o.getClass()) {
-			return false;
-		}
-		ValueLiteralExpression that = (ValueLiteralExpression) o;
-		return Objects.equals(value, that.value) && dataType.equals(that.dataType);
-	}
-
-	@Override
-	public int hashCode() {
-		return Objects.hash(value, dataType);
-	}
-
-	@Override
-	public String toString() {
-		return stringifyValue(value);
 	}
 
 	public boolean isNull() {
@@ -187,6 +151,53 @@ public final class ValueLiteralExpression implements Expression {
 		// we can offer more conversions in the future, these conversions must not necessarily
 		// comply with the logical type conversions
 		return Optional.ofNullable((T) convertedValue);
+	}
+
+	@Override
+	public DataType getOutputDataType() {
+		return dataType;
+	}
+
+	@Override
+	public List<ResolvedExpression> getResolvedChildren() {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public String asSummaryString() {
+		return stringifyValue(value);
+	}
+
+	@Override
+	public List<Expression> getChildren() {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public <R> R accept(ExpressionVisitor<R> visitor) {
+		return visitor.visit(this);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		if (o == null || getClass() != o.getClass()) {
+			return false;
+		}
+		ValueLiteralExpression that = (ValueLiteralExpression) o;
+		return Objects.equals(value, that.value) && dataType.equals(that.dataType);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(value, dataType);
+	}
+
+	@Override
+	public String toString() {
+		return asSummaryString();
 	}
 
 	// --------------------------------------------------------------------------------------------

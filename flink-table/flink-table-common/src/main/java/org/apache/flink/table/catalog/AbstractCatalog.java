@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.StringUtils;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -26,7 +25,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * Abstract class for catalogs.
  */
-@PublicEvolving
 public abstract class AbstractCatalog implements Catalog {
 	private final String catalogName;
 	private final String defaultDatabase;

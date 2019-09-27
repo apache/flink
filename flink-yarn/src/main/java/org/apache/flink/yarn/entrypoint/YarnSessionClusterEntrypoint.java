@@ -61,7 +61,7 @@ public class YarnSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
 	@Override
 	protected DispatcherResourceManagerComponentFactory<?> createDispatcherResourceManagerComponentFactory(Configuration configuration) {
-		return new SessionDispatcherResourceManagerComponentFactory(YarnResourceManagerFactory.INSTANCE);
+		return new SessionDispatcherResourceManagerComponentFactory(YarnResourceManagerFactory.getInstance());
 	}
 
 	public static void main(String[] args) {

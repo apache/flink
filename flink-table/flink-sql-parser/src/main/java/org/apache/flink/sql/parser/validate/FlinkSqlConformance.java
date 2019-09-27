@@ -156,4 +156,15 @@ public enum FlinkSqlConformance implements SqlConformance {
 		}
 		return false;
 	}
+
+	/**
+	 * Whether to allow "insert overwrite tbl1 partition(col1=val1)" grammar.
+	 */
+	public boolean allowInsertOverwrite() {
+		switch (this) {
+			case HIVE:
+				return true;
+		}
+		return false;
+	}
 }

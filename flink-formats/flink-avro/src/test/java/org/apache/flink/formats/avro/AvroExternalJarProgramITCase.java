@@ -18,7 +18,7 @@
 
 package org.apache.flink.formats.avro;
 
-import org.apache.flink.client.program.JobWithJars;
+import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.testjar.AvroExternalJarProgram;
@@ -68,7 +68,7 @@ public class AvroExternalJarProgramITCase extends TestLogger {
 
 		String jarFile = JAR_FILE;
 		try {
-			JobWithJars.checkJarFile(new File(jarFile).getAbsoluteFile().toURI().toURL());
+			ClientUtils.checkJarFile(new File(jarFile).getAbsoluteFile().toURI().toURL());
 		} catch (IOException e) {
 			jarFile = "target/".concat(jarFile);
 		}

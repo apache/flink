@@ -18,19 +18,13 @@
 
 package org.apache.flink.streaming.runtime.tasks.mailbox;
 
-import javax.annotation.Nonnull;
-
 /**
- * A mailbox is basically a blocking queue for inter-thread message exchange in form of {@link Runnable} objects between
- * multiple producer threads and a single consumer.
+ * A mailbox is basically a queue for inter-thread message exchange in form of {@link Runnable} objects between multiple
+ * producer threads and a single consumer.
+ *
+ * <p>This interface combines the {@link MailboxReceiver} and {@link MailboxSender} side without life-cycle methods.
+ *
+ * @see TaskMailbox
  */
 public interface Mailbox extends MailboxReceiver, MailboxSender {
-
-	/**
-	 * The effect of this is that all pending letters are dropped and the given priorityAction
-	 * is enqueued to the head of the mailbox.
-	 *
-	 * @param priorityAction action to enqueue atomically after the mailbox was cleared.
-	 */
-	void clearAndPut(@Nonnull Runnable priorityAction);
 }

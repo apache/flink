@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
+import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
@@ -45,8 +46,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
+import org.apache.flink.streaming.runtime.tasks.mailbox.execution.MailboxExecutor;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.concurrent.ExecutorService;
@@ -76,7 +80,7 @@ import java.util.concurrent.TimeUnit;
 @Internal
 public class AsyncWaitOperator<IN, OUT>
 		extends AbstractUdfStreamOperator<OUT, AsyncFunction<IN, OUT>>
-		implements OneInputStreamOperator<IN, OUT>, OperatorActions {
+		implements OneInputStreamOperator<IN, OUT>, OperatorActions, BoundedOneInput {
 	private static final long serialVersionUID = 1L;
 
 	private static final String STATE_NAME = "_async_wait_operator_state_";
@@ -112,13 +116,20 @@ public class AsyncWaitOperator<IN, OUT>
 	/** Thread running the emitter. */
 	private transient Thread emitterThread;
 
+	/** Mailbox executor used to yield while waiting for buffers to empty. */
+	private final transient MailboxExecutor mailboxExecutor;
+
 	public AsyncWaitOperator(
-			AsyncFunction<IN, OUT> asyncFunction,
+			@Nonnull AsyncFunction<IN, OUT> asyncFunction,
 			long timeout,
 			int capacity,
-			AsyncDataStream.OutputMode outputMode) {
+			@Nonnull AsyncDataStream.OutputMode outputMode,
+			@Nonnull MailboxExecutor mailboxExecutor) {
 		super(asyncFunction);
-		chainingStrategy = ChainingStrategy.ALWAYS;
+
+		// TODO this is a temporary fix for the problems described under FLINK-13063 at the cost of breaking chains for
+		//  AsyncOperators.
+		setChainingStrategy(ChainingStrategy.HEAD);
 
 		Preconditions.checkArgument(capacity > 0, "The number of concurrent async operation should be greater than 0.");
 		this.capacity = capacity;
@@ -126,6 +137,8 @@ public class AsyncWaitOperator<IN, OUT>
 		this.outputMode = Preconditions.checkNotNull(outputMode, "outputMode");
 
 		this.timeout = timeout;
+
+		this.mailboxExecutor = mailboxExecutor;
 	}
 
 	@Override
@@ -163,7 +176,7 @@ public class AsyncWaitOperator<IN, OUT>
 		super.open();
 
 		// create the emitter
-		this.emitter = new Emitter<>(checkpointingLock, output, queue, this);
+		this.emitter = new Emitter<>(checkpointingLock, mailboxExecutor, output, queue, this);
 
 		// start the emitter thread
 		this.emitterThread = new Thread(emitter, "AsyncIO-Emitter-Thread (" + getOperatorName() + ')');
@@ -270,15 +283,14 @@ public class AsyncWaitOperator<IN, OUT>
 	}
 
 	@Override
+	public void endInput() throws Exception {
+		waitInFlightInputsFinished();
+	}
+
+	@Override
 	public void close() throws Exception {
 		try {
-			assert(Thread.holdsLock(checkpointingLock));
-
-			while (!queue.isEmpty()) {
-				// wait for the emitter thread to output the remaining elements
-				// for that he needs the checkpointing lock and thus we have to free it
-				checkpointingLock.wait();
-			}
+			waitInFlightInputsFinished();
 		}
 		finally {
 			Exception exception = null;
@@ -399,11 +411,18 @@ public class AsyncWaitOperator<IN, OUT>
 		pendingStreamElementQueueEntry = streamElementQueueEntry;
 
 		while (!queue.tryPut(streamElementQueueEntry)) {
-			// we wait for the emitter to notify us if the queue has space left again
-			checkpointingLock.wait();
+			mailboxExecutor.yield();
 		}
 
 		pendingStreamElementQueueEntry = null;
+	}
+
+	private void waitInFlightInputsFinished() throws InterruptedException {
+		assert(Thread.holdsLock(checkpointingLock));
+
+		while (!queue.isEmpty()) {
+			mailboxExecutor.yield();
+		}
 	}
 
 	@Override

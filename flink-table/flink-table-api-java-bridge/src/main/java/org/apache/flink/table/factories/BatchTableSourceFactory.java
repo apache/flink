@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.sources.BatchTableSource;
 import org.apache.flink.table.sources.TableSource;
 
@@ -29,6 +30,7 @@ import java.util.Map;
  *
  * @param <T> type of records that the factory produces
  */
+@PublicEvolving
 public interface BatchTableSourceFactory<T> extends TableSourceFactory<T> {
 
 	/**

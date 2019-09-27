@@ -71,7 +71,11 @@ import java.util.stream.Stream;
 
 /**
  * A {@link DataType} can be used to declare input and/or output types of operations. This class
- * enumerates all supported data types of the Table & SQL API.
+ * enumerates all pre-defined data types of the Table & SQL API.
+ *
+ * <p>NOTE: Planners might not support every data type with the desired precision or parameter. Please
+ * see the planner compatibility and limitations section in the website documentation before using a
+ * data type.
  */
 @PublicEvolving
 public final class DataTypes {
@@ -436,7 +440,7 @@ public final class DataTypes {
 	 * hours to minutes, interval of hours to seconds, interval of minutes, interval of minutes to seconds,
 	 * or interval of seconds. The value representation is the same for all types of resolutions. For
 	 * example, an interval of seconds of 70 is always represented in an interval-of-days-to-seconds
-	 * format (with default precisions): {@code +00 00:01:10.000000}).
+	 * format (with default precisions): {@code +00 00:01:10.000000}.
 	 *
 	 * <p>An interval of year-month consists of {@code +years-months} with values ranging from {@code -9999-11}
 	 * to {@code +9999-11}. The type must be parameterized to one of the following resolutions: interval

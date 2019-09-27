@@ -22,7 +22,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.types.Either;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 /**
  * Request execution state of partition producer, the response accepts state check callbacks.
@@ -34,11 +34,12 @@ public interface PartitionProducerStateProvider {
 	 * @param intermediateDataSetId ID of the parent intermediate data set.
 	 * @param resultPartitionId ID of the result partition to check. This
 	 * identifies the producing execution and partition.
-	 * @return a future with response handle.
+	 * @param responseConsumer consumer for the response handle.
 	 */
-	CompletableFuture<? extends ResponseHandle> requestPartitionProducerState(
+	void requestPartitionProducerState(
 		IntermediateDataSetID intermediateDataSetId,
-		ResultPartitionID resultPartitionId);
+		ResultPartitionID resultPartitionId,
+		Consumer<? super ResponseHandle> responseConsumer);
 
 	/**
 	 * Result of state query, accepts state check callbacks.

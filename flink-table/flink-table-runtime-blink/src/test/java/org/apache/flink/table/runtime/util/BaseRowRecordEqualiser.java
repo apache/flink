@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.util;
 import org.apache.flink.table.dataformat.BaseRow;
 import org.apache.flink.table.dataformat.BinaryRow;
 import org.apache.flink.table.dataformat.GenericRow;
-import org.apache.flink.table.generated.RecordEqualiser;
+import org.apache.flink.table.runtime.generated.RecordEqualiser;
 
 /**
  * A utility class to check whether two BaseRow are equal.
