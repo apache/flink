@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,23 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser.type;
-
-import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlWriter;
-import org.apache.calcite.sql.parser.SqlParserPos;
-
 /**
- * Parse type "STRING" which is a synonym of VARCHAR(INT_MAX).
+ * This package is needed because the constructor of SqlTypeNameSpec is package scope,
+ * we should merge this package into org.apache.flink.sql.parser.type when CALCITE-3360
+ * is resolved.
  */
-public class SqlStringType extends SqlIdentifier implements ExtendedSqlType {
+@PackageMarker
+package org.apache.calcite.sql;
 
-	public SqlStringType(SqlParserPos pos) {
-		super("STRING", pos);
-	}
-
-	@Override
-	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("STRING");
-	}
-}
+import org.apache.calcite.avatica.util.PackageMarker;

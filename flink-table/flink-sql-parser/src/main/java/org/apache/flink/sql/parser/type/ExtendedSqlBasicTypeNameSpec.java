@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,32 +18,40 @@
 
 package org.apache.flink.sql.parser.type;
 
-import org.apache.calcite.sql.SqlDataTypeSpec;
-import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlBasicTypeNameSpec;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Parse column of ArrayType.
+ * A sql type name specification of extended basic data type, it has a counterpart basic
+ * sql type name but always represents as a special alias in Flink.
+ *
+ * <p>For example, STRING is synonym of VARCHAR(INT_MAX)
+ * and BYTES is synonym of VARBINARY(INT_MAX).
  */
-public class SqlArrayType extends SqlIdentifier implements ExtendedSqlType {
+public class ExtendedSqlBasicTypeNameSpec extends SqlBasicTypeNameSpec {
+	// Type alias used for unparsing.
+	private final String typeAlias;
 
-	private final SqlDataTypeSpec elementType;
-
-	public SqlArrayType(SqlParserPos pos, SqlDataTypeSpec elementType) {
-		super(SqlTypeName.ARRAY.getName(), pos);
-		this.elementType = elementType;
-	}
-
-	public SqlDataTypeSpec getElementType() {
-		return elementType;
+	/**
+	 * Creates a {@code ExtendedSqlBuiltinTypeNameSpec} instance.
+	 *
+	 * @param typeName  type name
+	 * @param precision type precision
+	 * @param pos       parser position
+	 */
+	public ExtendedSqlBasicTypeNameSpec(
+			String typeAlias,
+			SqlTypeName typeName,
+			int precision,
+			SqlParserPos pos) {
+		super(typeName, precision, pos);
+		this.typeAlias = typeAlias;
 	}
 
 	@Override
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-		writer.keyword("ARRAY<");
-		ExtendedSqlType.unparseType(this.elementType, writer, leftPrec, rightPrec);
-		writer.keyword(">");
+		writer.keyword(typeAlias);
 	}
 }
