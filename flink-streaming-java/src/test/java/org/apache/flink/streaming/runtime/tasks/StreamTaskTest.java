@@ -348,7 +348,7 @@ public class StreamTaskTest extends TestLogger {
 
 	@Test
 	public void testDecliningCheckpointStreamOperator() throws Exception {
-		CheckpointExceptionHandlerTest.DeclineDummyEnvironment declineDummyEnvironment = new CheckpointExceptionHandlerTest.DeclineDummyEnvironment();
+		DeclineDummyEnvironment declineDummyEnvironment = new DeclineDummyEnvironment();
 
 		// mock the returned snapshots
 		OperatorSnapshotFutures operatorSnapshotResult1 = mock(OperatorSnapshotFutures.class);
@@ -1667,6 +1667,32 @@ public class StreamTaskTest extends TestLogger {
 		@Override
 		public void failExternally(Throwable cause) {
 			throw failingCause;
+		}
+	}
+
+	static final class DeclineDummyEnvironment extends DummyEnvironment {
+
+		private long lastDeclinedCheckpointId;
+		private Throwable lastDeclinedCheckpointCause;
+
+		DeclineDummyEnvironment() {
+			super("test", 1, 0);
+			this.lastDeclinedCheckpointId = Long.MIN_VALUE;
+			this.lastDeclinedCheckpointCause = null;
+		}
+
+		@Override
+		public void declineCheckpoint(long checkpointId, Throwable cause) {
+			this.lastDeclinedCheckpointId = checkpointId;
+			this.lastDeclinedCheckpointCause = cause;
+		}
+
+		long getLastDeclinedCheckpointId() {
+			return lastDeclinedCheckpointId;
+		}
+
+		Throwable getLastDeclinedCheckpointCause() {
+			return lastDeclinedCheckpointCause;
 		}
 	}
 }
