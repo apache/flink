@@ -50,11 +50,11 @@ class FlinkRelBuilder(
 
   private val toRelNodeConverter = new QueryOperationConverter(this, expressionBridge)
 
-  def getRelOptSchema: RelOptSchema = relOptSchema
+  override def getRelOptSchema: RelOptSchema = relOptSchema
 
   def getPlanner: RelOptPlanner = cluster.getPlanner
 
-  def getCluster: RelOptCluster = relOptCluster
+  override def getCluster: RelOptCluster = relOptCluster
 
   override def shouldMergeProject(): Boolean = false
 

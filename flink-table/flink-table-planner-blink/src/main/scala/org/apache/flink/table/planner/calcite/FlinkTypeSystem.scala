@@ -19,10 +19,10 @@
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
-import org.apache.flink.table.types.logical.{DecimalType, DoubleType, LogicalType}
+import org.apache.flink.table.types.logical.{DecimalType, LogicalType}
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory, RelDataTypeSystemImpl}
-import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
 
 /**
   * Custom type system for Flink.
@@ -76,6 +76,29 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
     val sumType = FlinkTypeSystem.deriveSumType(argTypeInfo)
     typeFactory.asInstanceOf[FlinkTypeFactory].createFieldTypeFromLogicalType(
       sumType.copy(argType.isNullable))
+  }
+
+  /**
+    * Calcite's default impl for division is apparently borrowed from T-SQL,
+    * but the details are a little different, e.g. when Decimal(34,0)/Decimal(10,0)
+    * To avoid confusion, follow the exact T-SQL behavior.
+    * Note that for (+-*), Calcite is also different from T-SQL;
+    * however, Calcite conforms to SQL2003 while T-SQL does not.
+    * therefore we keep Calcite's behavior on (+-*).
+    */
+  override def deriveDecimalDivideType(
+      typeFactory: RelDataTypeFactory,
+      type1: RelDataType,
+      type2: RelDataType): RelDataType = {
+    if (SqlTypeUtil.isExactNumeric(type1) && SqlTypeUtil.isExactNumeric(type2) &&
+      (SqlTypeUtil.isDecimal(type1) || SqlTypeUtil.isDecimal(type2))) {
+      val result = FlinkTypeSystem.inferDivisionType(
+        type1.getPrecision, type1.getScale,
+        type2.getPrecision, type2.getScale)
+      typeFactory.createSqlType(SqlTypeName.DECIMAL, result.getPrecision, result.getScale)
+    } else {
+      null
+    }
   }
 }
 
