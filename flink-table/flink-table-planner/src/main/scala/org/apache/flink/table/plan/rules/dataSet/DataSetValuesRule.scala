@@ -42,7 +42,7 @@ class DataSetValuesRule
       traitSet,
       rel.getRowType,
       values.getTuples,
-      description)
+      "DataSetValuesRule")
   }
 }
 
