@@ -24,6 +24,7 @@ import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Mocking {@link Planner} for tests.
@@ -31,7 +32,7 @@ import java.util.List;
 public class PlannerMock implements Planner {
 
 	@Override
-	public List<Operation> parse(String statement) {
+	public List<Operation> parse(String statement, Consumer<Operation> operationPreConsumer) {
 		return null;
 	}
 

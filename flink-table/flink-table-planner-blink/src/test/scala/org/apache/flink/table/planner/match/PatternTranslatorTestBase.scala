@@ -86,7 +86,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
          |FROM $tableName
          |$matchRecognize
          |""".stripMargin)
-    val validated = calcitePlanner.validate(parsed)
+    val validated = calcitePlanner.validate(parsed.get(0))
     val converted = calcitePlanner.rel(validated).rel
 
     val plannerBase = context._2

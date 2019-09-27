@@ -25,6 +25,7 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * This interface serves two purposes:
@@ -43,7 +44,7 @@ import java.util.List;
  * of {@link Planner#translate(List)} will strip any execution configuration from
  * the DataStream information.
  *
- * <p>All Tables referenced in either {@link Planner#parse(String)} or
+ * <p>All Tables referenced in either {@link Planner#parse(String, Consumer)} or
  * {@link Planner#translate(List)} should be previously registered in a
  * {@link org.apache.flink.table.catalog.CatalogManager}, which will be provided during
  * instantiation of the {@link Planner}.
@@ -61,9 +62,10 @@ public interface Planner {
 	 * <p>The produced Operation trees should already be validated.
 	 *
 	 * @param statement the sql statement to evaluate
+	 * @param operationPreConsumer pre consumer for specific operations
 	 * @return parsed queries as trees of relational {@link Operation}s
 	 */
-	List<Operation> parse(String statement);
+	List<Operation> parse(String statement, Consumer<Operation> operationPreConsumer);
 
 	/**
 	 * Converts a relational tree of {@link ModifyOperation}s into a set of runnable

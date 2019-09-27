@@ -124,7 +124,7 @@ public class SqlToOperationConverterTest {
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-		SqlNode node = planner.parse(sql);
+		SqlNode node = planner.parse(sql).get(0);
 		assert node instanceof SqlCreateTable;
 		Operation operation = SqlToOperationConverter.convert(planner, node);
 		assert operation instanceof CreateTableOperation;
@@ -153,7 +153,7 @@ public class SqlToOperationConverterTest {
 			"  'a.b-c-d.e-f1231.g' = 'ada',\n" +
 			"  'a.b-c-d.*' = 'adad')\n";
 		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-		SqlNode node = planner.parse(sql);
+		SqlNode node = planner.parse(sql).get(0);
 		assert node instanceof SqlCreateTable;
 		Operation operation = SqlToOperationConverter.convert(planner, node);
 		assert operation instanceof CreateTableOperation;
@@ -187,7 +187,7 @@ public class SqlToOperationConverterTest {
 			"    'kafka.topic' = 'log.test'\n" +
 			")\n";
 		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-		SqlNode node = planner.parse(sql);
+		SqlNode node = planner.parse(sql).get(0);
 		assert node instanceof SqlCreateTable;
 		SqlToOperationConverter.convert(planner, node);
 	}
@@ -196,7 +196,7 @@ public class SqlToOperationConverterTest {
 	public void testSqlInsertWithStaticPartition() {
 		final String sql = "insert into t1 partition(a=1) select b, c, d from t2";
 		FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.HIVE);
-		SqlNode node = planner.parse(sql);
+		SqlNode node = planner.parse(sql).get(0);
 		assert node instanceof RichSqlInsert;
 		Operation operation = SqlToOperationConverter.convert(planner, node);
 		assert operation instanceof CatalogSinkModifyOperation;
@@ -367,7 +367,7 @@ public class SqlToOperationConverterTest {
 		}
 		final String sql = buffer.toString();
 		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
-		SqlNode node = planner.parse(sql);
+		SqlNode node = planner.parse(sql).get(0);
 		assert node instanceof SqlCreateTable;
 		Operation operation = SqlToOperationConverter.convert(planner, node);
 		TableSchema schema = ((CreateTableOperation) operation).getCatalogTable().getSchema();
@@ -395,7 +395,7 @@ public class SqlToOperationConverterTest {
 		final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
 		for (TestItem item : testItems) {
 			String sql = String.format(sqlTemplate, item.testExpr);
-			SqlNode node = planner.parse(sql);
+			SqlNode node = planner.parse(sql).get(0);
 			assert node instanceof SqlCreateTable;
 			expectedEx.expect(TableException.class);
 			expectedEx.expectMessage(item.expectedError);

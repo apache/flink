@@ -39,7 +39,7 @@ import org.apache.flink.table.delegation.{Executor, ExecutorFactory, PlannerFact
 import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.factories.ComponentFactoryService
 import org.apache.flink.table.functions.{AggregateFunction, ScalarFunction, TableAggregateFunction, TableFunction, UserDefinedAggregateFunction, UserFunctionsTypeHelper}
-import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, QueryOperation}
+import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
 import org.apache.flink.table.planner.calcite.CalciteConfig
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.operations.{DataStreamQueryOperation, PlannerQueryOperation, RichTableSourceQueryOperation}
@@ -66,6 +66,7 @@ import org.junit.Rule
 import org.junit.rules.{ExpectedException, TestName}
 
 import _root_.java.util
+import _root_.java.util.function.Consumer
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.io.Source
@@ -964,7 +965,9 @@ class TestingTableEnvironment private(
   }
 
   override def sqlUpdate(stmt: String): Unit = {
-    val operations = planner.parse(stmt)
+    val operations = planner.parse(stmt, new Consumer[Operation] {
+      override def accept(t: Operation): Unit = {}
+    })
     if (operations.size != 1) {
       throw new TableException(
         "Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type INSERT.")

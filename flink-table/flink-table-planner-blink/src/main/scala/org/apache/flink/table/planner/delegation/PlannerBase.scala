@@ -48,12 +48,14 @@ import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.sql.{SqlKind, SqlNode}
 import org.apache.calcite.tools.FrameworkConfig
 
 import java.util
+import java.util.function.Consumer
 
 import _root_.scala.collection.JavaConversions._
+import _root_.scala.collection.mutable.ArrayBuffer
 
 /**
   * Implementation of [[Planner]] for legacy Flink planner. It supports only streaming use cases.
@@ -120,20 +122,34 @@ abstract class PlannerBase(
     executor.asInstanceOf[ExecutorBase].getExecutionEnvironment
   }
 
-  override def parse(stmt: String): util.List[Operation] = {
+  override def parse(
+      stmt: String,
+      operationPreConsumer: Consumer[Operation]): util.List[Operation] = {
+
     val planner = createFlinkPlanner
     // parse the sql query
-    val parsed = planner.parse(stmt)
-    parsed match {
+    val parsedList = planner.parse(stmt)
+
+    val operations = ArrayBuffer[Operation]()
+
+    val parseHelper = (sqlNode: SqlNode) => {
+      val operation = SqlToOperationConverter.convert(planner, sqlNode)
+      operations += operation
+      operationPreConsumer.accept(operation)
+    }
+
+    parsedList.foreach {
       case insert: RichSqlInsert =>
-        List(SqlToOperationConverter.convert(planner, insert))
+        parseHelper(insert)
       case query if query.getKind.belongsTo(SqlKind.QUERY) =>
-        List(SqlToOperationConverter.convert(planner, query))
+        parseHelper(query)
       case ddl if ddl.getKind.belongsTo(SqlKind.DDL) =>
-        List(SqlToOperationConverter.convert(planner, ddl))
+        parseHelper(ddl)
       case _ =>
         throw new TableException(s"Unsupported query: $stmt")
     }
+
+    operations.toList
   }
 
   override def translate(

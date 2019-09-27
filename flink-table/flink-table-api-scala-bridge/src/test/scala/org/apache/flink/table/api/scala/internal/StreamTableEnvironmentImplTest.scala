@@ -32,6 +32,7 @@ import org.junit.Assert.assertThat
 import org.junit.Test
 
 import java.util.{Collections, List => JList}
+import java.util.function.Consumer
 
 /**
  * Tests for [[StreamTableEnvironmentImpl]].
@@ -94,7 +95,8 @@ class StreamTableEnvironmentImplTest {
   }
 
   private class TestPlanner(transformation: Transformation[_]) extends Planner {
-    override def parse(statement: String) = throw new AssertionError("Should not be called")
+    def parse(statement: String, operationPreConsumer: Consumer[Operation]) =
+      throw new AssertionError("Should not be called")
 
     override def translate(modifyOperations: JList[ModifyOperation])
       : JList[Transformation[_]] = {

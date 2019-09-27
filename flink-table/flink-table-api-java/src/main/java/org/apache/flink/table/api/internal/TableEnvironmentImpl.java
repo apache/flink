@@ -67,6 +67,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -286,7 +287,7 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public Table sqlQuery(String query) {
-		List<Operation> operations = planner.parse(query);
+		List<Operation> operations = planner.parse(query, (op) -> {});
 
 		if (operations.size() != 1) {
 			throw new ValidationException(
@@ -323,38 +324,38 @@ public class TableEnvironmentImpl implements TableEnvironment {
 
 	@Override
 	public void sqlUpdate(String stmt) {
-		List<Operation> operations = planner.parse(stmt);
-
-		if (operations.size() != 1) {
-			throw new TableException(
-				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statement of type " +
-					"INSERT, CREATE TABLE, DROP TABLE");
-		}
-
-		Operation operation = operations.get(0);
-
-		if (operation instanceof ModifyOperation) {
-			List<ModifyOperation> modifyOperations = Collections.singletonList((ModifyOperation) operation);
-			if (isEagerOperationTranslation()) {
-				translate(modifyOperations);
-			} else {
-				buffer(modifyOperations);
+		Consumer<Operation> operationPreConsumer = operation -> {
+			if (operation instanceof CreateTableOperation) {
+				CreateTableOperation createTableOperation = (CreateTableOperation) operation;
+				ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(createTableOperation.getTablePath());
+				catalogManager.createTable(
+					createTableOperation.getCatalogTable(),
+					objectIdentifier,
+					createTableOperation.isIgnoreIfExists());
+			} else if (operation instanceof DropTableOperation) {
+				DropTableOperation dropTableOperation = (DropTableOperation) operation;
+				ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(dropTableOperation.getTableName());
+				catalogManager.dropTable(objectIdentifier, dropTableOperation.isIfExists());
 			}
-		} else if (operation instanceof CreateTableOperation) {
-			CreateTableOperation createTableOperation = (CreateTableOperation) operation;
-			ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(createTableOperation.getTablePath());
-			catalogManager.createTable(
-				createTableOperation.getCatalogTable(),
-				objectIdentifier,
-				createTableOperation.isIgnoreIfExists());
-		} else if (operation instanceof DropTableOperation) {
-			DropTableOperation dropTableOperation = (DropTableOperation) operation;
-			ObjectIdentifier objectIdentifier = catalogManager.qualifyIdentifier(dropTableOperation.getTableName());
-			catalogManager.dropTable(objectIdentifier, dropTableOperation.isIfExists());
-		} else {
-			throw new TableException(
-				"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
-					"type INSERT, CREATE TABLE, DROP TABLE");
+		};
+
+		List<Operation> operations = planner.parse(stmt, operationPreConsumer);
+
+		for (Operation operation: operations) {
+			if (operation instanceof ModifyOperation) {
+				List<ModifyOperation> modifyOperations = Collections.singletonList((ModifyOperation) operation);
+				if (isEagerOperationTranslation()) {
+					translate(modifyOperations);
+				} else {
+					buffer(modifyOperations);
+				}
+			} else if (operation instanceof CreateTableOperation || operation instanceof DropTableOperation) {
+				// CreateTableOperation and DropTableOperation has been handled by operationPreConsumer, so just skip
+			} else {
+				throw new TableException(
+					"Unsupported SQL query! sqlUpdate() only accepts a single SQL statements of " +
+						"type INSERT, CREATE TABLE, DROP TABLE");
+			}
 		}
 	}
 

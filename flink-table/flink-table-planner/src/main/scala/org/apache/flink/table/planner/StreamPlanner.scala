@@ -47,14 +47,16 @@ import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.sql.{SqlKind, SqlNode}
 
 import _root_.java.lang.{Boolean => JBool}
 import _root_.java.util
+import _root_.java.util.function.Consumer
 import _root_.java.util.{Objects, List => JList}
 
 import _root_.scala.collection.JavaConversions._
 import _root_.scala.collection.JavaConverters._
+import _root_.scala.collection.mutable.ArrayBuffer
 
 /**
   * Implementation of [[Planner]] for legacy Flink planner. It supports only streaming use cases.
@@ -99,20 +101,26 @@ class StreamPlanner(
       .orElse(CalciteConfig.DEFAULT),
     planningConfigurationBuilder)
 
-  override def parse(stmt: String): JList[Operation] = {
+  override def parse(stmt: String, operationPreConsumer: Consumer[Operation]): JList[Operation] = {
     val planner = getFlinkPlanner
     // parse the sql query
-    val parsed = planner.parse(stmt)
+    val parsedList = planner.parse(stmt)
 
-    parsed match {
+    val operations = new ArrayBuffer[Operation]()
+
+    val parseHelper = (sqlNode: SqlNode) => {
+      val operation = SqlToOperationConverter.convert(planner, sqlNode)
+      operations += operation
+      operationPreConsumer.accept(operation)
+    }
+
+    parsedList.foreach {
       case insert: RichSqlInsert =>
-        val targetColumnList = insert.getTargetColumnList
-        if (targetColumnList != null && insert.getTargetColumnList.size() != 0) {
-          throw new ValidationException("Partial inserts are not supported")
-        }
-        List(SqlToOperationConverter.convert(planner, insert))
-      case node if node.getKind.belongsTo(SqlKind.QUERY) || node.getKind.belongsTo(SqlKind.DDL) =>
-        List(SqlToOperationConverter.convert(planner, parsed)).asJava
+        parseHelper(insert)
+      case query if query.getKind.belongsTo(SqlKind.QUERY) =>
+        parseHelper(query)
+      case ddl if ddl.getKind.belongsTo(SqlKind.DDL) =>
+        parseHelper(ddl)
       case _ =>
         throw new TableException(
           "Unsupported SQL query! parse() only accepts SQL queries of type " +
@@ -120,6 +128,8 @@ class StreamPlanner(
             "and SQL DDLs of type " +
             "CREATE TABLE")
     }
+
+    operations.toList
   }
 
   override def translate(tableOperations: util.List[ModifyOperation])

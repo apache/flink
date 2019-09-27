@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.catalog
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, TableException, ValidationException}
+import org.apache.flink.table.api.{EnvironmentSettings, TableEnvironment, ValidationException}
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.types.Row
 
@@ -49,12 +49,6 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
     toRow(1, "a"),
     toRow(2, "b"),
     toRow(3, "c")
-  )
-
-  private val DIM_DATA = List(
-    toRow(1, "aDim"),
-    toRow(2, "bDim"),
-    toRow(3, "cDim")
   )
 
   implicit def rowOrdering: Ordering[Row] = Ordering.by((r : Row) => {
@@ -94,7 +88,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
       toRow(2, "3000", 3)
     )
     TestCollectionTableFactory.initData(sourceData)
-    val sourceDDL =
+    val sql =
       """
         |create table t1(
         |  a int,
@@ -102,26 +96,18 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  c int
         |) with (
         |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val sinkDDL =
-      """
+        |);
         |create table t2(
         |  a int,
         |  b varchar,
         |  c int
         |) with (
         |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val query =
-      """
+        |);
         |insert into t2
         |select t1.a, t1.b, (t1.a + 1) as c from t1
       """.stripMargin
-    tableEnv.sqlUpdate(sourceDDL)
-    tableEnv.sqlUpdate(sinkDDL)
-    tableEnv.sqlUpdate(query)
+    tableEnv.sqlUpdate(sql)
     execJob("testJob")
     assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
@@ -179,7 +165,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
       toRow(2, 3000, 1, 2)
     )
     TestCollectionTableFactory.initData(sourceData)
-    val sourceDDL =
+    val sql =
       """
         |create table t1(
         |  a int,
@@ -187,10 +173,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  c int
         |) with (
         |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val sinkDDL =
-      """
+        |);
+        |
         |create table t2(
         |  a int,
         |  b int,
@@ -198,19 +182,14 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  d int
         |) with (
         |  'connector' = 'COLLECTION'
-        |)
-      """.stripMargin
-    val query =
-      """
+        |);
         |insert into t2
         |select a.a, a.b, b.a, b.b
         |  from t1 a
         |  join t1 b
-        |  on a.a = b.b
+        |  on a.a = b.b;
       """.stripMargin
-    tableEnv.sqlUpdate(sourceDDL)
-    tableEnv.sqlUpdate(sinkDDL)
-    tableEnv.sqlUpdate(query)
+    tableEnv.sqlUpdate(sql)
     execJob("testJob")
     assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
   }
@@ -468,7 +447,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) {
         |  c varchar
         |) with (
         | 'connector' = 'COLLECTION'
-        |)
+        |);
       """.stripMargin
     val ddl2 =
       """
