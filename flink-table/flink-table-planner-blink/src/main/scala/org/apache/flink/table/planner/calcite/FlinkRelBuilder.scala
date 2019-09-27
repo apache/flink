@@ -77,9 +77,9 @@ class FlinkRelBuilder(
     Util.first(context.unwrap(classOf[SinkFactory]), FlinkRelFactories.DEFAULT_SINK_FACTORY)
   }
 
-  def getRelOptSchema: RelOptSchema = relOptSchema
+  override def getRelOptSchema: RelOptSchema = relOptSchema
 
-  def getCluster: RelOptCluster = relOptCluster
+  override def getCluster: RelOptCluster = relOptCluster
 
   override def getTypeFactory: FlinkTypeFactory =
     super.getTypeFactory.asInstanceOf[FlinkTypeFactory]
