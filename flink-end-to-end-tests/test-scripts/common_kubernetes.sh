@@ -31,17 +31,22 @@ NON_LINUX_ENV_NOTE="****** Please start/stop minikube manually in non-linux envi
 
 # If running tests on non-linux os, the kubectl and minikube should be installed manually
 function setup_kubernetes_for_linux {
+    if [[ `uname -i` == 'aarch64' ]]; then
+        local arch='arm64'
+    else
+        local arch='amd64'
+    fi
     # Download kubectl, which is a requirement for using minikube.
     if ! [ -x "$(command -v kubectl)" ]; then
         echo "Installing kubectl ..."
         local version=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
-        curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$version/bin/linux/amd64/kubectl && \
+        curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/$version/bin/linux/$arch/kubectl && \
             chmod +x kubectl && sudo mv kubectl /usr/local/bin/
     fi
     # Download minikube.
     if ! [ -x "$(command -v minikube)" ]; then
         echo "Installing minikube ..."
-        curl -Lo minikube https://storage.googleapis.com/minikube/releases/v1.8.2/minikube-linux-amd64 && \
+        curl -Lo minikube https://storage.googleapis.com/minikube/releases/v1.8.2/minikube-linux-$arch && \
             chmod +x minikube && sudo mv minikube /usr/local/bin/
     fi
 }
