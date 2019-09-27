@@ -165,8 +165,8 @@ public class BootstrapToolsTest extends TestLogger {
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + // jvmOpts
-				" " + // logging
+				"" + // jvmOpts
+				"" + // logging
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
@@ -175,8 +175,8 @@ public class BootstrapToolsTest extends TestLogger {
 		final String krb5 = "-Djava.security.krb5.conf=krb5.conf";
 		assertEquals(
 			java + " " + jvmmem +
-				" " + " " + krb5 + // jvmOpts
-				" " + // logging
+				" " + krb5 + // jvmOpts
+				"" + // logging
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
 				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
@@ -185,7 +185,7 @@ public class BootstrapToolsTest extends TestLogger {
 		// logback only, with/out krb5
 		assertEquals(
 			java + " " + jvmmem +
-				" " + // jvmOpts
+				"" + // jvmOpts
 				" " + logfile + " " + logback +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
@@ -194,7 +194,7 @@ public class BootstrapToolsTest extends TestLogger {
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + " " + krb5 + // jvmOpts
+				" " + krb5 + // jvmOpts
 				" " + logfile + " " + logback +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
@@ -204,7 +204,7 @@ public class BootstrapToolsTest extends TestLogger {
 		// log4j, with/out krb5
 		assertEquals(
 			java + " " + jvmmem +
-				" " + // jvmOpts
+				"" + // jvmOpts
 				" " + logfile + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
@@ -213,7 +213,7 @@ public class BootstrapToolsTest extends TestLogger {
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + " " + krb5 + // jvmOpts
+				" " + krb5 + // jvmOpts
 				" " + logfile + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
@@ -223,7 +223,7 @@ public class BootstrapToolsTest extends TestLogger {
 		// logback + log4j, with/out krb5
 		assertEquals(
 			java + " " + jvmmem +
-				" " + // jvmOpts
+				"" + // jvmOpts
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
@@ -232,7 +232,7 @@ public class BootstrapToolsTest extends TestLogger {
 
 		assertEquals(
 			java + " " + jvmmem +
-				" " + " " + krb5 + // jvmOpts
+				" " + krb5 + // jvmOpts
 				" " + logfile + " " + logback + " " + log4j +
 				" " + mainClass + " " + args + " " + redirects,
 			BootstrapTools
