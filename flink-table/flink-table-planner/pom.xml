@@ -148,15 +148,15 @@ under the License.
 			<groupId>org.apache.calcite</groupId>
 			<artifactId>calcite-core</artifactId>
 			<!-- When updating the Calcite version, make sure to update the dependency exclusions -->
-			<version>1.20.0</version>
+			<version>${calcite.version}</version>
 			<exclusions>
 				<!--
-				"mvn dependency:tree" as of Calcite 1.20:
+				"mvn dependency:tree" as of Calcite 1.21:
 
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.20.0:compile
+				[INFO] +- org.apache.calcite:calcite-core:jar:1.21.0:compile
 				[INFO] |  +- commons-codec:commons-codec:jar:1.10:compile
 				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.15.0:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.20.0:compile
+				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.21.0:compile
 				[INFO] |  +- org.apache.commons:commons-lang3:jar:3.3.2:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.9.6:compile
 				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.9.6:compile
