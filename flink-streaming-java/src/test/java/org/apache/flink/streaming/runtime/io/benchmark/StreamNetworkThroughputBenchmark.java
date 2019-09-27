@@ -116,15 +116,19 @@ public class StreamNetworkThroughputBenchmark {
 		for (int writer = 0; writer < recordWriters; writer++) {
 			ResultPartitionWriter resultPartitionWriter = environment.createResultPartitionWriter(writer);
 			RecordWriterBuilder recordWriterBuilder = new RecordWriterBuilder().setTimeout(flushTimeout);
-			if (broadcastMode) {
-				recordWriterBuilder.setChannelSelector(new BroadcastPartitioner());
-			}
+			setChannelSelector(recordWriterBuilder, broadcastMode);
 			writerThreads[writer] = new LongRecordWriterThread(
 				recordWriterBuilder.build(resultPartitionWriter),
 				broadcastMode);
 			writerThreads[writer].start();
 		}
 		receiver = environment.createReceiver();
+	}
+
+	protected void setChannelSelector(RecordWriterBuilder recordWriterBuilder, boolean broadcastMode) {
+		if (broadcastMode) {
+			recordWriterBuilder.setChannelSelector(new BroadcastPartitioner());
+		}
 	}
 
 	/**
