@@ -62,7 +62,7 @@ public interface Planner {
 	 * <p>The produced Operation trees should already be validated.
 	 *
 	 * @param statement the sql statement to evaluate
-	 * @param operationPreConsumer pre consumer for specific operations 
+	 * @param operationPreConsumer pre consumer for specific operations
 	 * @return parsed queries as trees of relational {@link Operation}s
 	 */
 	List<Operation> parse(String statement, Consumer<Operation> operationPreConsumer);
