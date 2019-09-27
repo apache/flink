@@ -15,20 +15,6 @@
 // limitations under the License.
 -->
 
-/**
-* Parse a nullable option, default to be nullable.
-*/
-boolean NullableOpt() :
-{
-}
-{
-    <NULL> { return true; }
-|
-    <NOT> <NULL> { return false; }
-|
-    { return true; }
-}
-
 void TableColumn(TableCreationContext context) :
 {
 }
@@ -69,8 +55,7 @@ void TableColumn2(List<SqlNode> list) :
 }
 {
     name = SimpleIdentifier()
-    <#-- #FlinkDataType already takes care of the nullable attribute. -->
-    type = FlinkDataType()
+    type = ExtendedDataType()
     [ <COMMENT> <QUOTED_STRING> {
         String p = SqlParserUtil.parseString(token.image);
         comment = SqlLiteral.createCharString(p, getPos());
@@ -78,6 +63,35 @@ void TableColumn2(List<SqlNode> list) :
     {
         SqlTableColumn tableColumn = new SqlTableColumn(name, type, comment, getPos());
         list.add(tableColumn);
+    }
+}
+
+/**
+* Different with {@link #DataType()}, we support a [ NULL | NOT NULL ] suffix syntax for both the
+* collection element data type and the data type itself.
+*
+* <p>See {@link #SqlDataTypeSpec} for the syntax details of {@link #DataType()}.
+*/
+SqlDataTypeSpec ExtendedDataType() :
+{
+    SqlTypeNameSpec typeName;
+    final Span s;
+    boolean elementNullable = true;
+    boolean nullable = true;
+}
+{
+    <#-- #DataType does not take care of the nullable attribute. -->
+    typeName = TypeName() {
+        s = span();
+    }
+    (
+        LOOKAHEAD(3)
+        elementNullable = NullableOptDefaultTrue()
+        typeName = ExtendedCollectionsTypeName(typeName, elementNullable)
+    )*
+    nullable = NullableOptDefaultTrue()
+    {
+        return new SqlDataTypeSpec(typeName, s.end(this)).withNullable(nullable);
     }
 }
 
@@ -375,210 +389,100 @@ SqlDrop SqlDropView(Span s, boolean replace) :
     }
 }
 
-SqlIdentifier FlinkCollectionsTypeName() :
+/**
+* A sql type name extended basic data type, it has a counterpart basic
+* sql type name but always represents as a special alias compared with the standard name.
+*
+* <p>For example, STRING is synonym of VARCHAR(INT_MAX)
+* and BYTES is synonym of VARBINARY(INT_MAX).
+*/
+SqlTypeNameSpec ExtendedSqlBasicTypeName() :
 {
-}
-{
-    LOOKAHEAD(2)
-    <MULTISET> {
-        return new SqlIdentifier(SqlTypeName.MULTISET.name(), getPos());
-    }
-|
-    <ARRAY> {
-        return new SqlIdentifier(SqlTypeName.ARRAY.name(), getPos());
-    }
-}
-
-SqlIdentifier FlinkTypeName() :
-{
-    final SqlTypeName sqlTypeName;
-    final SqlIdentifier typeName;
-    final Span s = Span.of();
+    final SqlTypeName typeName;
+    final String typeAlias;
+    int precision = -1;
 }
 {
     (
-<#-- additional types are included here -->
-<#-- make custom data types in front of Calcite core data types -->
-<#list parser.flinkDataTypeParserMethods as method>
-    <#if (method?index > 0)>
-    |
-    </#if>
-        LOOKAHEAD(2)
-        typeName = ${method}
-</#list>
-    |
-        LOOKAHEAD(2)
-        sqlTypeName = SqlTypeName(s) {
-            typeName = new SqlIdentifier(sqlTypeName.name(), s.end(this));
+        <STRING> {
+            typeName = SqlTypeName.VARCHAR;
+            typeAlias = token.image;
+            precision = Integer.MAX_VALUE;
         }
     |
-        LOOKAHEAD(2)
-        typeName = FlinkCollectionsTypeName()
-    |
-        typeName = CompoundIdentifier() {
-            throw new ParseException("UDT in DDL is not supported yet.");
+        <BYTES> {
+            typeName = SqlTypeName.VARBINARY;
+            typeAlias = token.image;
+            precision = Integer.MAX_VALUE;
         }
     )
     {
-        return typeName;
+        return new ExtendedSqlBasicTypeNameSpec(typeAlias, typeName, precision, getPos());
+    }
+}
+
+/*
+* Parses collection type name that does not belong to standard SQL, i.e. ARRAY&lt;INT NOT NULL&gt;.
+*/
+SqlTypeNameSpec CustomizedCollectionsTypeName() :
+{
+    final SqlTypeName collectionTypeName;
+    final SqlTypeNameSpec elementTypeName;
+    boolean elementNullable = true;
+}
+{
+    (
+        <ARRAY> {
+            collectionTypeName = SqlTypeName.ARRAY;
+        }
+    |
+        <MULTISET> {
+            collectionTypeName = SqlTypeName.MULTISET;
+        }
+    )
+    <LT>
+    elementTypeName = TypeName()
+    elementNullable = NullableOptDefaultTrue()
+    <GT>
+    {
+        return new ExtendedSqlCollectionTypeNameSpec(
+            elementTypeName,
+            elementNullable,
+            collectionTypeName,
+            false,
+            getPos());
     }
 }
 
 /**
-* Parse a Flink data type with nullable options, NULL -> nullable, NOT NULL -> not nullable.
-* Default to be nullable.
+* Parse a collection type name, the input element type name may
+* also be a collection type. Different with #CollectionsTypeName,
+* the element type can have a [ NULL | NOT NULL ] suffix, default is NULL(nullable).
 */
-SqlDataTypeSpec FlinkDataType() :
+SqlTypeNameSpec ExtendedCollectionsTypeName(
+        SqlTypeNameSpec elementTypeName,
+        boolean elementNullable) :
 {
-    final SqlIdentifier typeName;
-    SqlIdentifier collectionTypeName = null;
-    int scale = -1;
-    int precision = -1;
-    String charSetName = null;
-    final Span s;
-    boolean nullable = true;
-    boolean elementNullable = true;
+    final SqlTypeName collectionTypeName;
 }
 {
-    typeName = FlinkTypeName() {
-        s = span();
-    }
-    [
-        <LPAREN>
-        precision = UnsignedIntLiteral()
-        [
-            <COMMA>
-            scale = UnsignedIntLiteral()
-        ]
-        <RPAREN>
-    ]
-    elementNullable = NullableOpt()
-    [
-        collectionTypeName = FlinkCollectionsTypeName()
-        nullable = NullableOpt()
-    ]
-    {
-        if (null != collectionTypeName) {
-            return new FlinkSqlDataTypeSpec(
-                    collectionTypeName,
-                    typeName,
-                    precision,
-                    scale,
-                    charSetName,
-                    nullable,
-                    elementNullable,
-                    s.end(collectionTypeName));
-        }
-        nullable = elementNullable;
-        return new FlinkSqlDataTypeSpec(typeName,
-                precision,
-                scale,
-                charSetName,
-                null,
-                nullable,
-                elementNullable,
-                s.end(this));
-    }
-}
-
-SqlIdentifier SqlStringType() :
-{
-}
-{
-    <STRING> { return new SqlStringType(getPos()); }
-}
-
-SqlIdentifier SqlBytesType() :
-{
-}
-{
-    <BYTES> { return new SqlBytesType(getPos()); }
-}
-
-boolean WithLocalTimeZone() :
-{
-}
-{
-    <WITHOUT> <TIME> <ZONE> { return false; }
-|
-    <WITH>
     (
-         <LOCAL> <TIME> <ZONE> { return true; }
+        <MULTISET> { collectionTypeName = SqlTypeName.MULTISET; }
     |
-        <TIME> <ZONE> {
-            throw new ParseException("'WITH TIME ZONE' is not supported yet, options: " +
-                "'WITHOUT TIME ZONE', 'WITH LOCAL TIME ZONE'.");
-        }
+         <ARRAY> { collectionTypeName = SqlTypeName.ARRAY; }
     )
-|
-    { return false; }
-}
-
-SqlIdentifier SqlTimeType() :
-{
-    int precision = -1;
-    boolean withLocalTimeZone = false;
-}
-{
-    <TIME>
-    (
-        <LPAREN> precision = UnsignedIntLiteral() <RPAREN>
-    |
-        { precision = -1; }
-    )
-    withLocalTimeZone = WithLocalTimeZone()
-    { return new SqlTimeType(getPos(), precision, withLocalTimeZone); }
-}
-
-SqlIdentifier SqlTimestampType() :
-{
-    int precision = -1;
-    boolean withLocalTimeZone = false;
-}
-{
-    <TIMESTAMP>
-    (
-        <LPAREN> precision = UnsignedIntLiteral() <RPAREN>
-    |
-        { precision = -1; }
-    )
-    withLocalTimeZone = WithLocalTimeZone()
-    { return new SqlTimestampType(getPos(), precision, withLocalTimeZone); }
-}
-
-SqlIdentifier SqlArrayType() :
-{
-    SqlParserPos pos;
-    SqlDataTypeSpec elementType;
-    boolean nullable = true;
-}
-{
-    <ARRAY> { pos = getPos(); }
-    <LT>
-    elementType = FlinkDataType()
-    <GT>
     {
-        return new SqlArrayType(pos, elementType);
+        return new ExtendedSqlCollectionTypeNameSpec(
+             elementTypeName,
+             elementNullable,
+             collectionTypeName,
+             true,
+             getPos());
     }
 }
 
-SqlIdentifier SqlMultisetType() :
-{
-    SqlParserPos pos;
-    SqlDataTypeSpec elementType;
-    boolean nullable = true;
-}
-{
-    <MULTISET> { pos = getPos(); }
-    <LT>
-    elementType = FlinkDataType()
-    <GT>
-    {
-        return new SqlMultisetType(pos, elementType);
-    }
-}
-
-SqlIdentifier SqlMapType() :
+/** Parses a SQL map type, e.g. MAP&lt;INT NOT NULL, VARCHAR NULL&gt;. */
+SqlTypeNameSpec SqlMapTypeName() :
 {
     SqlDataTypeSpec keyType;
     SqlDataTypeSpec valType;
@@ -587,30 +491,33 @@ SqlIdentifier SqlMapType() :
 {
     <MAP>
     <LT>
-    keyType = FlinkDataType()
+    keyType = ExtendedDataType()
     <COMMA>
-    valType = FlinkDataType()
+    valType = ExtendedDataType()
     <GT>
     {
-        return new SqlMapType(getPos(), keyType, valType);
+        return new SqlMapTypeNameSpec(keyType, valType, getPos());
     }
 }
 
 /**
-* Parse a "name1 type1 ['i'm a comment'], name2 type2 ..." list.
+* Parse a "name1 type1 [ NULL | NOT NULL] [ comment ]
+* [, name2 type2 [ NULL | NOT NULL] [ comment ] ]* ..." list.
+* The comment and NULL syntax doest not belong to standard SQL.
 */
-void FieldNameTypeCommaList(
+void ExtendedFieldNameTypeCommaList(
         List<SqlIdentifier> fieldNames,
         List<SqlDataTypeSpec> fieldTypes,
         List<SqlCharStringLiteral> comments) :
 {
     SqlIdentifier fName;
     SqlDataTypeSpec fType;
+    boolean nullable;
 }
 {
     [
         fName = SimpleIdentifier()
-        fType = FlinkDataType()
+        fType = ExtendedDataType()
         {
             fieldNames.add(fName);
             fieldTypes.add(fType);
@@ -627,7 +534,7 @@ void FieldNameTypeCommaList(
     (
         <COMMA>
         fName = SimpleIdentifier()
-        fType = FlinkDataType()
+        fType = ExtendedDataType()
         {
             fieldNames.add(fName);
             fieldTypes.add(fType);
@@ -644,26 +551,42 @@ void FieldNameTypeCommaList(
 }
 
 /**
-* Parse Row type, we support both Row(name1 type1, name2 type2) and Row<name1 type1, name2 type2>.
-* Every item type can have suffix of `NULL` or `NOT NULL` to indicate if this type is nullable.
-* i.e. Row(f0 int not null, f1 varchar null).
+* Parse Row type, we support both Row(name1 type1, name2 type2)
+* and Row&lt;name1 type1, name2 type2&gt;.
+* Every item type can have a suffix of `NULL` or `NOT NULL` to indicate if this type is nullable.
+* i.e. Row(f0 int not null, f1 varchar null). Default is nullable.
+*
+* <p>The difference with {@link #SqlRowTypeName()}:
+* <ul>
+*   <li>Support comment syntax for every field</li>
+*   <li>Field data type default is nullable</li>
+*   <li>Support ROW type with empty fields, e.g. ROW()</li>
+* </ul>
 */
-SqlIdentifier SqlRowType() :
+SqlTypeNameSpec ExtendedSqlRowTypeName() :
 {
     List<SqlIdentifier> fieldNames = new ArrayList<SqlIdentifier>();
     List<SqlDataTypeSpec> fieldTypes = new ArrayList<SqlDataTypeSpec>();
     List<SqlCharStringLiteral> comments = new ArrayList<SqlCharStringLiteral>();
+    final boolean unparseAsStandard;
 }
 {
     <ROW>
     (
-        <NE>
+        <NE> { unparseAsStandard = false; }
     |
-        <LT> FieldNameTypeCommaList(fieldNames, fieldTypes, comments) <GT>
+        <LT> ExtendedFieldNameTypeCommaList(fieldNames, fieldTypes, comments) <GT>
+        { unparseAsStandard = false; }
     |
-        <LPAREN> FieldNameTypeCommaList(fieldNames, fieldTypes, comments) <RPAREN>
+        <LPAREN> ExtendedFieldNameTypeCommaList(fieldNames, fieldTypes, comments) <RPAREN>
+        { unparseAsStandard = true; }
     )
     {
-        return new SqlRowType(getPos(), fieldNames, fieldTypes, comments);
+        return new ExtendedSqlRowTypeNameSpec(
+            getPos(),
+            fieldNames,
+            fieldTypes,
+            comments,
+            unparseAsStandard);
     }
 }

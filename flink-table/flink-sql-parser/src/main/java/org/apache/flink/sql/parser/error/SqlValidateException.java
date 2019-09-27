@@ -21,22 +21,21 @@ package org.apache.flink.sql.parser.error;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
- * SQL parse Exception. This is a simpler version
- * of Calcite {@link org.apache.calcite.sql.parser.SqlParseException}
- * which is used for SqlNode validation.
+ * SQL parse Exception. This exception mainly throws during
+ * {@link org.apache.flink.sql.parser.ExtendedSqlNode} validation.
  */
-public class SqlParseException extends Exception {
+public class SqlValidateException extends Exception {
 
 	private SqlParserPos errorPosition;
 
 	private String message;
 
-	public SqlParseException(SqlParserPos errorPosition, String message) {
+	public SqlValidateException(SqlParserPos errorPosition, String message) {
 		this.errorPosition = errorPosition;
 		this.message = message;
 	}
 
-	public SqlParseException(SqlParserPos errorPosition, String message, Exception e) {
+	public SqlValidateException(SqlParserPos errorPosition, String message, Exception e) {
 		super(e);
 		this.errorPosition = errorPosition;
 		this.message = message;

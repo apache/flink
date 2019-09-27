@@ -21,10 +21,11 @@ package org.apache.flink.sql.parser;
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
-import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 
 import org.apache.calcite.avatica.util.Casing;
 import org.apache.calcite.avatica.util.Quoting;
+import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
+import org.apache.calcite.rel.type.DelegatingTypeSystem;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
@@ -32,16 +33,27 @@ import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
+import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.parser.SqlParserTest;
 import org.apache.calcite.sql.parser.SqlParserUtil;
 import org.apache.calcite.sql.pretty.SqlPrettyWriter;
-import org.apache.calcite.sql.type.SqlTypeFactoryImpl;
+import org.apache.calcite.sql.test.SqlTestFactory;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.validate.SqlConformance;
+import org.apache.calcite.sql.validate.SqlConformanceEnum;
+import org.apache.calcite.sql.validate.SqlValidator;
+import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
+import org.apache.calcite.sql.validate.SqlValidatorUtil;
+import org.apache.calcite.test.MockSqlOperatorTable;
 import org.apache.calcite.test.SqlValidatorTestCase;
+import org.apache.calcite.test.catalog.MockCatalogReaderSimple;
+import org.apache.calcite.util.SourceStringReader;
 import org.apache.calcite.util.Util;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -51,19 +63,19 @@ import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 
 /**
- * Tests for all the sup[ported flink DDL data types.
+ * Tests for all the supported Flink DDL data types.
  */
 @RunWith(Parameterized.class)
 public class FlinkDDLDataTypeTest {
-	private FlinkSqlConformance conformance = FlinkSqlConformance.DEFAULT;
-	private static final RelDataTypeFactory TYPE_FACTORY =
-		new SqlTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
-	private static final Fixture FIXTURE = new Fixture(TYPE_FACTORY);
+	private static final Fixture FIXTURE =
+		new Fixture(TestFactory.INSTANCE.getTypeFactory());
 	private static final String DDL_FORMAT = "create table t1 (\n" +
 		"  f0 %s\n" +
 		") with (\n" +
@@ -171,7 +183,7 @@ public class FlinkDDLDataTypeTest {
 				nullable(FIXTURE.createStructType(
 					Arrays.asList(FIXTURE.intType, nullable(FIXTURE.booleanType)),
 					Arrays.asList("f0", "f1"))),
-				"ROW< `f0` INTEGER NOT NULL, `f1` BOOLEAN >"),
+				"ROW(`f0` INTEGER NOT NULL, `f1` BOOLEAN)"),
 			createTestItem("ROW<`f0` INT>",
 				nullable(FIXTURE.createStructType(
 					Collections.singletonList(nullable(FIXTURE.intType)),
@@ -181,7 +193,7 @@ public class FlinkDDLDataTypeTest {
 				nullable(FIXTURE.createStructType(
 					Collections.singletonList(nullable(FIXTURE.intType)),
 					Collections.singletonList("f0"))),
-				"ROW< `f0` INTEGER >"),
+				"ROW(`f0` INTEGER)"),
 			createTestItem("ROW<>",
 				nullable(FIXTURE.createStructType(
 					Collections.emptyList(),
@@ -191,7 +203,7 @@ public class FlinkDDLDataTypeTest {
 				nullable(FIXTURE.createStructType(
 					Collections.emptyList(),
 					Collections.emptyList())),
-				"ROW<>"),
+				"ROW()"),
 			createTestItem("ROW<f0 INT NOT NULL 'This is a comment.', "
 					+ "f1 BOOLEAN 'This as well.'>",
 				nullable(FIXTURE.createStructType(
@@ -200,25 +212,19 @@ public class FlinkDDLDataTypeTest {
 				"ROW< `f0` INTEGER NOT NULL 'This is a comment.', "
 					+ "`f1` BOOLEAN 'This as well.' >"),
 
-			// test parse throws error.
-			createTestItem("TIMESTAMP WITH TIME ZONE",
-				"'WITH TIME ZONE' is not supported yet, options: "
-					+ "'WITHOUT TIME ZONE', 'WITH LOCAL TIME ZONE'."),
-			createTestItem("TIMESTAMP(3) WITH TIME ZONE",
-				"'WITH TIME ZONE' is not supported yet, options: "
-					+ "'WITHOUT TIME ZONE', 'WITH LOCAL TIME ZONE'."),
+			// Test parse throws error.
+			createTestItem("TIMESTAMP WITH ^TIME^ ZONE",
+				"(?s).*Encountered \"TIME\" at .*"),
+			createTestItem("TIMESTAMP(3) WITH ^TIME^ ZONE",
+				"(?s).*Encountered \"TIME\" at .*"),
 			createTestItem("^NULL^",
 				"(?s).*Encountered \"NULL\" at line 2, column 6..*"),
-			createTestItem("cat.db.MyType",
-				"(?s).*UDT in DDL is not supported yet..*"),
-			createTestItem("`db`.`MyType`",
-				"(?s).*UDT in DDL is not supported yet..*"),
-			createTestItem("MyType",
-				"(?s).*UDT in DDL is not supported yet..*"),
-			createTestItem("ARRAY<MyType>",
-				"(?s).*UDT in DDL is not supported yet..*"),
-			createTestItem("ROW<f0 MyType, f1 `c`.`d`.`t`>",
-				"(?s).*UDT in DDL is not supported yet..*"),
+			createTestItem("cat.db.MyType", null, "`cat`.`db`.`MyType`"),
+			createTestItem("`db`.`MyType`", null, "`db`.`MyType`"),
+			createTestItem("MyType", null, "`MyType`"),
+			createTestItem("ARRAY<MyType>", null, "ARRAY< `MyType` >"),
+			createTestItem("ROW<f0 MyType, f1 `c`.`d`.`t`>", null,
+				"ROW< `f0` `MyType`, `f1` `c`.`d`.`t` >"),
 			createTestItem("^INTERVAL^ YEAR",
 				"(?s).*Encountered \"INTERVAL\" at line 2, column 6..*"),
 			createTestItem("ANY(^'unknown.class'^, '')",
@@ -284,7 +290,7 @@ public class FlinkDDLDataTypeTest {
 	}
 
 	private Tester getTester() {
-		return new TesterImpl();
+		return new TesterImpl(TestFactory.INSTANCE);
 	}
 
 	private Sql sql(String sql) {
@@ -369,23 +375,10 @@ public class FlinkDDLDataTypeTest {
 	 * Default implementation of {@link SqlParserTest.Tester}.
 	 */
 	protected class TesterImpl implements Tester {
-		private SqlParser getSqlParser(String sql) {
-			return SqlParser.create(sql,
-				SqlParser.configBuilder()
-					.setParserFactory(FlinkSqlParserImpl.FACTORY)
-					.setQuoting(Quoting.BACK_TICK)
-					.setUnquotedCasing(Casing.UNCHANGED)
-					.setQuotedCasing(Casing.UNCHANGED)
-					.setConformance(conformance)
-					.build());
-		}
+		private TestFactory factory;
 
-		private SqlDialect getSqlDialect() {
-			return new CalciteSqlDialect(SqlDialect.EMPTY_CONTEXT
-				.withQuotedCasing(Casing.UNCHANGED)
-				.withConformance(conformance)
-				.withUnquotedCasing(Casing.UNCHANGED)
-				.withIdentifierQuoteString("`"));
+		TesterImpl(TestFactory factory) {
+			this.factory = factory;
 		}
 
 		public void checkType(String sql, RelDataType type) {
@@ -395,14 +388,14 @@ public class FlinkDDLDataTypeTest {
 			SqlNodeList columns = sqlCreateTable.getColumnList();
 			assert columns.size() == 1;
 			RelDataType columnType = ((SqlTableColumn) columns.get(0)).getType()
-				.deriveType(TYPE_FACTORY);
+				.deriveType(factory.getValidator());
 			assertEquals(type, columnType);
 		}
 
 		private SqlNode parseStmtAndHandleEx(String sql) {
 			final SqlNode sqlNode;
 			try {
-				sqlNode = getSqlParser(sql).parseStmt();
+				sqlNode = factory.createParser(sql).parseStmt();
 			} catch (SqlParseException e) {
 				throw new RuntimeException("Error while parsing SQL: " + sql, e);
 			}
@@ -416,7 +409,7 @@ public class FlinkDDLDataTypeTest {
 			Throwable thrown = null;
 			try {
 				final SqlNode sqlNode;
-				sqlNode = getSqlParser(sap.sql).parseStmt();
+				sqlNode = factory.createParser(sap.sql).parseStmt();
 				Util.discard(sqlNode);
 			} catch (Throwable ex) {
 				thrown = ex;
@@ -432,8 +425,14 @@ public class FlinkDDLDataTypeTest {
 			SqlNodeList columns = sqlCreateTable.getColumnList();
 			assert columns.size() == 1;
 			SqlDataTypeSpec dataTypeSpec = ((SqlTableColumn) columns.get(0)).getType();
-			SqlWriter sqlWriter = new SqlPrettyWriter(getSqlDialect(), false);
+			SqlWriter sqlWriter = new SqlPrettyWriter(factory.createSqlDialect(), false);
 			dataTypeSpec.unparse(sqlWriter, 0, 0);
+			// SqlDataTypeSpec does not take care of the nullable attribute unparse,
+			// So we unparse nullable attribute specifically, this unparsing logic should
+			// keep sync with SqlTableColumn.
+			if (!dataTypeSpec.getNullable()) {
+				sqlWriter.keyword("NOT NULL");
+			}
 			assertEquals(expectedUnparsed, sqlWriter.toSqlString().getSql());
 		}
 
@@ -441,6 +440,117 @@ public class FlinkDDLDataTypeTest {
 				SqlParserUtil.StringAndPos sap,
 				Throwable thrown) {
 			SqlValidatorTestCase.checkEx(thrown, expectedMsgPattern, sap);
+		}
+	}
+
+	/**
+	 * Factory to supply test components.
+	 */
+	private static class TestFactory {
+		static final Map<String, Object> DEFAULT_OPTIONS = buildDefaultOptions();
+
+		public static final TestFactory INSTANCE = new TestFactory();
+
+		private final Map<String, Object> options;
+		private final SqlTestFactory.ValidatorFactory validatorFactory;
+
+		private final RelDataTypeFactory typeFactory;
+		private final SqlOperatorTable operatorTable;
+		private final SqlValidatorCatalogReader catalogReader;
+		private final SqlParser.Config parserConfig;
+
+		TestFactory() {
+			this(DEFAULT_OPTIONS, MockCatalogReaderSimple::new, SqlValidatorUtil::newValidator);
+		}
+
+		TestFactory(
+				Map<String, Object> options,
+				SqlTestFactory.MockCatalogReaderFactory catalogReaderFactory,
+				SqlTestFactory.ValidatorFactory validatorFactory) {
+			this.options = options;
+			this.validatorFactory = validatorFactory;
+			this.operatorTable =
+				createOperatorTable((SqlOperatorTable) options.get("operatorTable"));
+			this.typeFactory = createTypeFactory((SqlConformance) options.get("conformance"));
+			Boolean caseSensitive = (Boolean) options.get("caseSensitive");
+			this.catalogReader = catalogReaderFactory.create(typeFactory, caseSensitive).init();
+			this.parserConfig = createParserConfig(options);
+		}
+
+		public SqlParser createParser(String sql) {
+			return SqlParser.create(new SourceStringReader(sql), parserConfig);
+		}
+
+		public SqlDialect createSqlDialect() {
+			return new CalciteSqlDialect(SqlDialect.EMPTY_CONTEXT
+				.withQuotedCasing(parserConfig.unquotedCasing())
+				.withConformance(parserConfig.conformance())
+				.withUnquotedCasing(parserConfig.unquotedCasing())
+				.withIdentifierQuoteString(parserConfig.quoting().string));
+		}
+
+		public RelDataTypeFactory getTypeFactory() {
+			return this.typeFactory;
+		}
+
+		public SqlValidator getValidator() {
+			final SqlConformance conformance =
+				(SqlConformance) options.get("conformance");
+			final boolean enableTypeCoercion = (boolean) options.get("enableTypeCoercion");
+			return validatorFactory.create(operatorTable,
+				catalogReader,
+				typeFactory,
+				conformance)
+				.setEnableTypeCoercion(enableTypeCoercion);
+		}
+
+		private static SqlOperatorTable createOperatorTable(SqlOperatorTable opTab0) {
+			MockSqlOperatorTable opTab = new MockSqlOperatorTable(opTab0);
+			MockSqlOperatorTable.addRamp(opTab);
+			return opTab;
+		}
+
+		private static SqlParser.Config createParserConfig(Map<String, Object> options) {
+			return SqlParser.configBuilder()
+				.setQuoting((Quoting) options.get("quoting"))
+				.setUnquotedCasing((Casing) options.get("unquotedCasing"))
+				.setQuotedCasing((Casing) options.get("quotedCasing"))
+				.setConformance((SqlConformance) options.get("conformance"))
+				.setCaseSensitive((boolean) options.get("caseSensitive"))
+				.setParserFactory((SqlParserImplFactory) options.get("parserFactory"))
+				.build();
+		}
+
+		private static RelDataTypeFactory createTypeFactory(SqlConformance conformance) {
+			RelDataTypeSystem typeSystem = RelDataTypeSystem.DEFAULT;
+			if (conformance.shouldConvertRaggedUnionTypesToVarying()) {
+				typeSystem = new DelegatingTypeSystem(typeSystem) {
+					public boolean shouldConvertRaggedUnionTypesToVarying() {
+						return true;
+					}
+				};
+			}
+			if (conformance.allowExtendedTrim()) {
+				typeSystem = new DelegatingTypeSystem(typeSystem) {
+					public boolean allowExtendedTrim() {
+						return true;
+					}
+				};
+			}
+			return new JavaTypeFactoryImpl(typeSystem);
+		}
+
+		private static Map<String, Object> buildDefaultOptions() {
+			final Map<String, Object> m = new HashMap<>();
+			m.put("quoting", Quoting.BACK_TICK);
+			m.put("quotedCasing", Casing.UNCHANGED);
+			m.put("unquotedCasing", Casing.UNCHANGED);
+			m.put("caseSensitive", true);
+			m.put("enableTypeCoercion", false);
+			m.put("conformance", SqlConformanceEnum.DEFAULT);
+			m.put("operatorTable", SqlStdOperatorTable.instance());
+			m.put("parserFactory", FlinkSqlParserImpl.FACTORY);
+			return Collections.unmodifiableMap(m);
 		}
 	}
 }

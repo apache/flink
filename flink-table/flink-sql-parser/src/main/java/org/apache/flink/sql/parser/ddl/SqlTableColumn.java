@@ -18,8 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.type.ExtendedSqlType;
-
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlDataTypeSpec;
@@ -71,7 +69,11 @@ public class SqlTableColumn extends SqlCall {
 	public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
 		this.name.unparse(writer, leftPrec, rightPrec);
 		writer.print(" ");
-		ExtendedSqlType.unparseType(type, writer, leftPrec, rightPrec);
+		this.type.unparse(writer, leftPrec, rightPrec);
+		if (!this.type.getNullable()) {
+			// Default is nullable.
+			writer.keyword("NOT NULL");
+		}
 		if (this.comment != null) {
 			writer.print(" COMMENT ");
 			this.comment.unparse(writer, leftPrec, rightPrec);
