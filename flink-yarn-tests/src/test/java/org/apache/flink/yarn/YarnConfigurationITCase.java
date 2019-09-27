@@ -177,6 +177,7 @@ public class YarnConfigurationITCase extends YarnTestBase {
 
 					final ContaineredTaskManagerParameters containeredTaskManagerParameters = ContaineredTaskManagerParameters.create(
 						configuration,
+						null,
 						taskManagerMemory,
 						slotsPerTaskManager);
 

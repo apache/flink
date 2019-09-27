@@ -45,7 +45,7 @@ public class ContaineredTaskManagerParametersTest extends TestLogger {
 		Configuration conf = new Configuration();
 
 		ContaineredTaskManagerParameters params =
-			ContaineredTaskManagerParameters.create(conf, CONTAINER_MEMORY, 1);
+			ContaineredTaskManagerParameters.create(conf, null, CONTAINER_MEMORY, 1);
 
 		final float memoryCutoffRatio = conf.getFloat(
 			ConfigConstants.CONTAINERIZED_HEAP_CUTOFF_RATIO,
@@ -80,7 +80,7 @@ public class ContaineredTaskManagerParametersTest extends TestLogger {
 		conf.setBoolean(MEMORY_OFF_HEAP, false);
 
 		ContaineredTaskManagerParameters params =
-			ContaineredTaskManagerParameters.create(conf, CONTAINER_MEMORY, 1);
+			ContaineredTaskManagerParameters.create(conf, null, CONTAINER_MEMORY, 1);
 
 		assertTrue(params.taskManagerDirectMemoryLimitMB() > 0L);
 
@@ -98,7 +98,7 @@ public class ContaineredTaskManagerParametersTest extends TestLogger {
 		conf.setBoolean(MEMORY_OFF_HEAP, true);
 
 		ContaineredTaskManagerParameters params =
-			ContaineredTaskManagerParameters.create(conf, CONTAINER_MEMORY, 1);
+			ContaineredTaskManagerParameters.create(conf, null, CONTAINER_MEMORY, 1);
 
 		assertTrue(params.taskManagerDirectMemoryLimitMB() > 0L);
 

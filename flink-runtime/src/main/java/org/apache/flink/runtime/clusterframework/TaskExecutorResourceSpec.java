@@ -74,7 +74,7 @@ import org.apache.flink.configuration.MemorySize;
  *               └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
  * </pre>
  */
-public class TaskExecutorResourceSpec {
+public class TaskExecutorResourceSpec implements java.io.Serializable {
 
 	private final MemorySize frameworkHeapSize;
 
@@ -154,5 +154,19 @@ public class TaskExecutorResourceSpec {
 
 	public MemorySize getTotalProcessMemorySize() {
 		return getTotalFlinkMemorySize().add(jvmMetaspaceSize).add(jvmOverheadSize);
+	}
+
+	@Override
+	public String toString() {
+		return "TaskExecutorResourceSpec {"
+			+ "frameworkHeapSize=" + frameworkHeapSize.toString()
+			+ ", taskHeapSize=" + taskHeapSize.toString()
+			+ ", taskOffHeapSize=" + taskOffHeapSize.toString()
+			+ ", shuffleMemSize=" + shuffleMemSize.toString()
+			+ ", onHeapManagedMemorySize=" + onHeapManagedMemorySize.toString()
+			+ ", offHeapManagedMemorySize=" + offHeapManagedMemorySize.toString()
+			+ ", jvmMetaspaceSize=" + jvmMetaspaceSize.toString()
+			+ ", jvmOverheadSize=" + jvmOverheadSize.toString()
+			+ "}";
 	}
 }

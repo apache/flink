@@ -21,6 +21,7 @@ package org.apache.flink.runtime.clusterframework;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.util.ExceptionUtils;
@@ -143,8 +144,40 @@ public class BootstrapToolsTest extends TestLogger {
 	@Test
 	public void testGetTaskManagerShellCommand() {
 		final Configuration cfg = new Configuration();
+		final TaskExecutorResourceSpec taskExecutorResourceSpec = new TaskExecutorResourceSpec(
+			new MemorySize(0), // frameworkHeapSize
+			new MemorySize(111), // taskHeapSize
+			new MemorySize(0), // taskOffHeapSize
+			new MemorySize(222), // shuffleMemSize
+			new MemorySize(0), // onHeapManagedMemorySize
+			new MemorySize(0), // offHeapManagedMemorySize
+			new MemorySize(333), // jvmMetaspaceSize
+			new MemorySize(0)); // jvmOverheadSize
+		final ContaineredTaskManagerParameters containeredParams = new ContaineredTaskManagerParameters(
+			taskExecutorResourceSpec, 1024, 768, 256, 4, new HashMap<String, String>());
+
+		// no logging, with/out krb5
+		final String java = "$JAVA_HOME/bin/java";
+		final String jvmmem = "-Xmx111 -Xms111 -XX:MaxDirectMemorySize=222 -XX:MaxMetaspaceSize=333";
+		final String mainClass =
+			"org.apache.flink.runtime.clusterframework.BootstrapToolsTest";
+		final String dynamicConfigs = TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec).trim();
+		final String args = dynamicConfigs + " --configDir ./conf";
+		final String redirects =
+			"1> ./logs/taskmanager.out 2> ./logs/taskmanager.err";
+
+		assertEquals(
+			java + " " + jvmmem + " " + mainClass + " " + args + " " + redirects,
+			BootstrapTools
+				.getTaskManagerShellCommand(cfg, containeredParams, "./conf", "./logs",
+					false, false, false, this.getClass()));
+	}
+
+	@Test
+	public void testGetTaskManagerShellCommandLegacy() {
+		final Configuration cfg = new Configuration();
 		final ContaineredTaskManagerParameters containeredParams =
-			new ContaineredTaskManagerParameters(1024, 768, 256, 4,
+			new ContaineredTaskManagerParameters(null, 1024, 768, 256, 4,
 				new HashMap<String, String>());
 
 		// no logging, with/out krb5

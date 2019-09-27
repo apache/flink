@@ -187,7 +187,7 @@ public class UtilsTest extends TestLogger {
 			hdfsDelegationTokenKind, service));
 		amCredentials.writeTokenStorageFile(new org.apache.hadoop.fs.Path(credentialFile.getAbsolutePath()), yarnConf);
 
-		ContaineredTaskManagerParameters tmParams = new ContaineredTaskManagerParameters(64,
+		ContaineredTaskManagerParameters tmParams = new ContaineredTaskManagerParameters(null, 64,
 			64, 16, 1, new HashMap<>(1));
 		Configuration taskManagerConf = new Configuration();
 

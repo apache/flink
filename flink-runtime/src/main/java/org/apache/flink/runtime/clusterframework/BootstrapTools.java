@@ -395,7 +395,12 @@ public class BootstrapTools {
 				tmParams.taskManagerDirectMemoryLimitMB()));
 		}
 
-		startCommandValues.put("jvmmem", StringUtils.join(params, ' '));
+		final TaskExecutorResourceSpec taskExecutorResourceSpec = tmParams.getTaskExecutorResourceSpec();
+		if (taskExecutorResourceSpec == null) { // FLIP-49 disabled
+			startCommandValues.put("jvmmem", StringUtils.join(params, ' '));
+		} else { // FLIP-49 enabled
+			startCommandValues.put("jvmmem", TaskExecutorResourceUtils.generateJvmParametersStr(taskExecutorResourceSpec));
+		}
 
 		String javaOpts = flinkConfig.getString(CoreOptions.FLINK_JVM_OPTIONS);
 		if (flinkConfig.getString(CoreOptions.FLINK_TM_JVM_OPTIONS).length() > 0) {
@@ -427,7 +432,10 @@ public class BootstrapTools {
 		startCommandValues.put("redirects",
 			"1> " + logDirectory + "/taskmanager.out " +
 			"2> " + logDirectory + "/taskmanager.err");
-		startCommandValues.put("args", "--configDir " + configDirectory);
+
+		String argsStr = taskExecutorResourceSpec == null ? "" :
+			TaskExecutorResourceUtils.generateDynamicConfigsStr(taskExecutorResourceSpec) + " ";
+		startCommandValues.put("args", argsStr + "--configDir " + configDirectory);
 
 		final String commandTemplate = flinkConfig
 			.getString(ConfigConstants.YARN_CONTAINER_START_COMMAND_TEMPLATE,

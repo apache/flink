@@ -28,6 +28,7 @@ import org.apache.flink.mesos.util.MesosConfiguration;
 import org.apache.flink.mesos.util.MesosResourceAllocation;
 import org.apache.flink.runtime.clusterframework.ContainerSpecification;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.clusterframework.TaskExecutorResourceUtils;
 import org.apache.flink.util.Preconditions;
 
 import com.netflix.fenzo.ConstraintEvaluator;
@@ -135,7 +136,11 @@ public class LaunchableMesosWorker implements LaunchableTask {
 
 		@Override
 		public double getMemory() {
-			return params.containeredParameters().taskManagerTotalMemoryMB();
+			if (params.containeredParameters().getTaskExecutorResourceSpec() == null) { // flip49 disabled
+				return params.containeredParameters().taskManagerTotalMemoryMB();
+			} else {
+				return params.containeredParameters().getTaskExecutorResourceSpec().getTotalProcessMemorySize().getMebiBytes();
+			}
 		}
 
 		@Override
@@ -275,10 +280,15 @@ public class LaunchableMesosWorker implements LaunchableTask {
 		env.addVariables(variable(MesosConfigKeys.ENV_FLINK_CONTAINER_ID, taskInfo.getTaskId().getValue()));
 
 		// finalize the memory parameters
-		jvmArgs.append(" -Xms").append(tmParams.taskManagerHeapSizeMB()).append("m");
-		jvmArgs.append(" -Xmx").append(tmParams.taskManagerHeapSizeMB()).append("m");
-		if (tmParams.taskManagerDirectMemoryLimitMB() >= 0) {
-			jvmArgs.append(" -XX:MaxDirectMemorySize=").append(tmParams.taskManagerDirectMemoryLimitMB()).append("m");
+		if (tmParams.getTaskExecutorResourceSpec() == null) { // flip49 disabled
+			jvmArgs.append(" -Xms").append(tmParams.taskManagerHeapSizeMB()).append("m");
+			jvmArgs.append(" -Xmx").append(tmParams.taskManagerHeapSizeMB()).append("m");
+			if (tmParams.taskManagerDirectMemoryLimitMB() >= 0) {
+				jvmArgs.append(" -XX:MaxDirectMemorySize=").append(tmParams.taskManagerDirectMemoryLimitMB()).append(
+					"m");
+			}
+		} else { // flip49 enabled
+			jvmArgs.append(" ").append(TaskExecutorResourceUtils.generateJvmParametersStr(tmParams.getTaskExecutorResourceSpec()));
 		}
 
 		// pass dynamic system properties
@@ -301,6 +311,9 @@ public class LaunchableMesosWorker implements LaunchableTask {
 			.append(params.command())
 			.append(" ")
 			.append(ContainerSpecification.formatSystemProperties(dynamicProperties));
+		if (tmParams.getTaskExecutorResourceSpec() != null) { // flip49 enabled
+			launchCommand.append(" ").append(TaskExecutorResourceUtils.generateDynamicConfigsStr(tmParams.getTaskExecutorResourceSpec()));
+		}
 		cmd.setValue(launchCommand.toString());
 
 		// build the container info
