@@ -37,11 +37,13 @@ import org.apache.flink.runtime.state.heap.space.Allocator;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.function.TriFunction;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -55,12 +57,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 
 import static org.apache.flink.runtime.state.heap.CopyOnWriteSkipListStateMap.DEFAULT_LOGICAL_REMOVED_KEYS_RATIO;
 import static org.apache.flink.runtime.state.heap.CopyOnWriteSkipListStateMap.DEFAULT_MAX_KEYS_TO_DELETE_ONE_TIME;
 import static org.apache.flink.runtime.state.heap.SkipListUtils.NIL_NODE;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -76,6 +81,8 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	private final TypeSerializer<Integer> keySerializer = IntSerializer.INSTANCE;
 	private final TypeSerializer<Long> namespaceSerializer = LongSerializer.INSTANCE;
 	private final TypeSerializer<String> stateSerializer = StringSerializer.INSTANCE;
+	private final ThreadLocalRandom random = ThreadLocalRandom.current();
+	private final int initNamespaceNumber = 10;
 
 	@Before
 	public void setUp() {
@@ -123,219 +130,342 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 	}
 
 	/**
-	 * Test basic operations.
+	 * Test state put operation.
 	 */
 	@Test
-	public void testBasicOperations() throws Exception {
-		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
+	public void testPutState() {
+		testWithFunction((totalSize, stateMap, referenceStates) -> totalSize);
+	}
 
-		ThreadLocalRandom random = ThreadLocalRandom.current();
-		// map to store expected states, namespace -> key -> state
-		Map<Long, Map<Integer, String>> referenceStates = new HashMap<>();
-		int totalSize = 0;
+	/**
+	 * Test remove existing state.
+	 */
+	@Test
+	public void testRemoveExistingState() {
+		testRemoveState(false, false);
+	}
 
-		// put some states
-		for (long namespace = 0; namespace < 10; namespace++) {
-			for (int key = 0; key < 100; key++) {
-				totalSize++;
-				String state = String.valueOf(key * namespace);
-				if (random.nextBoolean()) {
-					stateMap.put(key, namespace, state);
-				} else {
-					assertNull(stateMap.putAndGetOld(key, namespace, state));
+	/**
+	 * Test remove and get existing state.
+	 */
+	@Test
+	public void testRemoveAndGetExistingState() {
+		testRemoveState(false, true);
+	}
+
+	/**
+	 * Test remove absent state.
+	 */
+	@Test
+	public void testRemoveAbsentState() {
+		testRemoveState(true, true);
+	}
+
+	/**
+	 * Test remove previously removed state.
+	 */
+	@Test
+	public void testPutPreviouslyRemovedState() {
+		testWithFunction(
+			(totalSize, stateMap, referenceStates) -> applyFunctionAfterRemove(stateMap, referenceStates,
+				(removedCnt, removedStates) -> {
+					int size = totalSize - removedCnt;
+					for (Map.Entry<Long, Set<Integer>> entry : removedStates.entrySet()) {
+						long namespace = entry.getKey();
+						for (int key : entry.getValue()) {
+							size++;
+							String state = String.valueOf(key * namespace);
+							assertNull(stateMap.putAndGetOld(key, namespace, state));
+							referenceStates.computeIfAbsent(namespace, (none) -> new HashMap<>()).put(key, String.valueOf(state));
+						}
+					}
+					return size;
 				}
-				referenceStates.computeIfAbsent(namespace, (none) -> new HashMap<>()).put(key, state);
-				assertEquals(totalSize, stateMap.size());
-				assertEquals(totalSize, stateMap.totalSize());
-			}
-		}
+			)
+		);
+	}
 
-		// validates space allocation. Each pair need 2 spaces
-		assertEquals(totalSize * 2, spaceAllocator.getTotalSpaceNumber());
-		verifyState(referenceStates, stateMap);
+	private void testRemoveState(boolean removeAbsent, boolean getOld) {
+		testWithFunction(
+			(totalSize, stateMap, referenceStates) -> {
+				if (removeAbsent) {
+					totalSize -= removeAbsentState(stateMap, referenceStates);
+				} else {
+					totalSize -= removeExistingState(stateMap, referenceStates, getOld);
+				}
+				return totalSize;
+			});
+	}
 
-		// remove some states
-		Map<Long, Set<Integer>> removedStates = new HashMap<>();
+	private int removeExistingState(
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap,
+		@Nonnull Map<Long, Map<Integer, String>> referenceStates,
+		boolean getOld) {
+		int removedCnt = 0;
 		for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
 			long namespace = namespaceEntry.getKey();
-			for (Map.Entry<Integer, String> keyEntry : namespaceEntry.getValue().entrySet()) {
+			Map<Integer, String> kvMap = namespaceEntry.getValue();
+			Iterator<Map.Entry<Integer, String>> kvIterator = kvMap.entrySet().iterator();
+			while (kvIterator.hasNext()) {
+				Map.Entry<Integer, String> keyEntry = kvIterator.next();
 				if (random.nextBoolean()) {
 					int key = keyEntry.getKey();
 					String state = keyEntry.getValue();
-					removedStates.computeIfAbsent(namespace, (none) -> new HashSet<>()).add(key);
-					totalSize--;
-					if (random.nextBoolean()) {
-						stateMap.remove(key, namespace);
-					} else {
+					removedCnt++;
+					// remove from state map
+					if (getOld) {
 						assertEquals(state, stateMap.removeAndGetOld(key, namespace));
-					}
-					assertEquals(totalSize, stateMap.size());
-					assertEquals(totalSize, stateMap.totalSize());
-				}
-			}
-		}
-
-		for (Map.Entry<Long, Set<Integer>> entry : removedStates.entrySet()) {
-			long namespace = entry.getKey();
-			Map<Integer, String> keyMap = referenceStates.get(namespace);
-			if (keyMap != null) {
-				entry.getValue().forEach(keyMap::remove);
-				if (keyMap.isEmpty()) {
-					referenceStates.remove(namespace);
-				}
-			}
-			for (int key : entry.getValue()) {
-				assertNull(stateMap.get(key, namespace));
-				assertFalse(stateMap.containsKey(key, namespace));
-			}
-		}
-
-		assertEquals(totalSize * 2, spaceAllocator.getTotalSpaceNumber());
-		verifyState(referenceStates, stateMap);
-
-		// update some states
-		for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
-			long namespace = namespaceEntry.getKey();
-			for (Map.Entry<Integer, String> keyEntry : namespaceEntry.getValue().entrySet()) {
-				if (random.nextBoolean()) {
-					int key = keyEntry.getKey();
-					String state = keyEntry.getValue();
-					String newState = state + "-update";
-					keyEntry.setValue(newState);
-					if (random.nextBoolean()) {
-						stateMap.put(key, namespace, newState);
 					} else {
-						assertEquals(state, stateMap.putAndGetOld(key, namespace, newState));
-					}
-					assertEquals(totalSize, stateMap.size());
-					assertEquals(totalSize, stateMap.totalSize());
-				}
-			}
-		}
-
-		// put some new states
-		for (long namespace = 10; namespace < 15; namespace++) {
-			for (int key = 0; key < 100; key++) {
-				totalSize++;
-				String state = String.valueOf(key * namespace);
-				if (random.nextBoolean()) {
-					stateMap.put(key, namespace, state);
-				} else {
-					assertNull(stateMap.putAndGetOld(key, namespace, state));
-				}
-				referenceStates.computeIfAbsent(namespace, (none) -> new HashMap<>()).put(key, state);
-				assertEquals(totalSize, stateMap.size());
-				assertEquals(totalSize, stateMap.totalSize());
-			}
-		}
-
-		// remove some absent states
-		for (Map.Entry<Long, Set<Integer>> entry : removedStates.entrySet()) {
-			long namespace = entry.getKey();
-			for (int key : entry.getValue()) {
-				if (random.nextBoolean()) {
-					stateMap.remove(key, namespace);
-				} else {
-					assertNull(stateMap.removeAndGetOld(key, namespace));
-				}
-				assertEquals(totalSize, stateMap.size());
-				assertEquals(totalSize, stateMap.totalSize());
-			}
-		}
-
-		assertEquals(totalSize * 2, spaceAllocator.getTotalSpaceNumber());
-		verifyState(referenceStates, stateMap);
-
-		StateTransformationFunction<String, Integer> function =
-			(String prevState, Integer value) -> prevState == null ? String.valueOf(value) : prevState + value;
-
-		// transform some old states
-		for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
-			long namespace = namespaceEntry.getKey();
-			for (Map.Entry<Integer, String> keyEntry : namespaceEntry.getValue().entrySet()) {
-				if (random.nextBoolean()) {
-					int key = keyEntry.getKey();
-					String state = keyEntry.getValue();
-					int delta = random.nextInt();
-					String newState = function.apply(state, delta);
-					keyEntry.setValue(newState);
-					stateMap.transform(key, namespace, delta, function);
-					assertEquals(totalSize, stateMap.size());
-					assertEquals(totalSize, stateMap.totalSize());
-				}
-			}
-		}
-
-		// transform some new states
-		for (long namespace = 15; namespace < 20; namespace++) {
-			for (int key = 0; key < 100; key++) {
-				totalSize++;
-				int value = (int) (key * namespace);
-				stateMap.transform(key, namespace, value, function);
-				referenceStates.computeIfAbsent(namespace, (none) -> new HashMap<>()).put(key, String.valueOf(value));
-				assertEquals(totalSize, stateMap.size());
-				assertEquals(totalSize, stateMap.totalSize());
-			}
-		}
-
-		assertEquals(totalSize * 2, spaceAllocator.getTotalSpaceNumber());
-		verifyState(referenceStates, stateMap);
-
-		// put some previously removed states
-		for (Map.Entry<Long, Set<Integer>> entry : removedStates.entrySet()) {
-			long namespace = entry.getKey();
-			for (int key : entry.getValue()) {
-				totalSize++;
-				String state = String.valueOf(key * namespace);
-				if (random.nextBoolean()) {
-					stateMap.put(key, namespace, state);
-				} else {
-					assertNull(stateMap.putAndGetOld(key, namespace, state));
-				}
-				referenceStates.computeIfAbsent(namespace, (none) -> new HashMap<>()).put(key, String.valueOf(state));
-				assertEquals(totalSize, stateMap.size());
-				assertEquals(totalSize, stateMap.totalSize());
-			}
-		}
-
-		assertEquals(totalSize * 2, spaceAllocator.getTotalSpaceNumber());
-		verifyState(referenceStates, stateMap);
-
-		// remove some namespaces
-		Set<Long> removedNamespaces = new HashSet<>();
-		for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
-			if (random.nextBoolean()) {
-				long namespace = namespaceEntry.getKey();
-				removedNamespaces.add(namespace);
-				for (Map.Entry<Integer, String> keyEntry : namespaceEntry.getValue().entrySet()) {
-					int key = keyEntry.getKey();
-					if (random.nextBoolean()) {
 						stateMap.remove(key, namespace);
-					} else {
-						assertEquals(keyEntry.getValue(), stateMap.removeAndGetOld(key, namespace));
 					}
-					totalSize--;
-					assertEquals(totalSize, stateMap.size());
-					assertEquals(totalSize, stateMap.totalSize());
+					// remove from reference to keep in accordance
+					kvIterator.remove();
 				}
 			}
 		}
+		return removedCnt;
+	}
 
-		for (long namespace : removedNamespaces) {
-			referenceStates.remove(namespace);
-			assertEquals(0, stateMap.sizeOfNamespace(namespace));
-			assertFalse(stateMap.getKeys(namespace).iterator().hasNext());
+	private int removeAbsentState(
+			CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap,
+			Map<Long, Map<Integer, String>> referenceStates) {
+		return applyFunctionAfterRemove(
+			stateMap,
+			referenceStates,
+			(removedCnt, removedStates) -> {
+				// remove the same keys again, which would be absent already
+				for (Map.Entry<Long, Set<Integer>> entry : removedStates.entrySet()) {
+					long namespace = entry.getKey();
+					for (int key : entry.getValue()) {
+						assertNull(stateMap.removeAndGetOld(key, namespace));
+					}
+				}
+				return removedCnt;
+			}
+		);
+	}
+
+	/**
+	 * Apply the given function after removing some states.
+	 *
+	 * @param stateMap the state map to test against.
+	 * @param referenceStates the reference of states for correctness verfication.
+	 * @param function a {@link BiFunction} which takes [removedCnt, removedStates] as input parameters.
+	 * @param <R> The type of the result returned by the function.
+	 * @return The result of applying the given function.
+	 */
+	private <R> R applyFunctionAfterRemove(
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap,
+		@Nonnull Map<Long, Map<Integer, String>> referenceStates,
+		BiFunction<Integer, Map<Long, Set<Integer>>, R> function) {
+		int removedCnt = 0;
+		Map<Long, Set<Integer>> removedStates = new HashMap<>();
+		// remove some state
+		for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
+			long namespace = namespaceEntry.getKey();
+			Map<Integer, String> kvMap = namespaceEntry.getValue();
+			Iterator<Map.Entry<Integer, String>> kvIterator = kvMap.entrySet().iterator();
+			while (kvIterator.hasNext()) {
+				Map.Entry<Integer, String> keyEntry = kvIterator.next();
+				if (random.nextBoolean()) {
+					int key = keyEntry.getKey();
+					removedCnt++;
+					removedStates.computeIfAbsent(namespace, (none) -> new HashSet<>()).add(key);
+					// remove from state map
+					stateMap.remove(key, namespace);
+					// remove from reference to keep in accordance
+					kvIterator.remove();
+				}
+			}
 		}
+		return function.apply(removedCnt, removedStates);
+	}
 
-		assertEquals(totalSize * 2, spaceAllocator.getTotalSpaceNumber());
-		verifyState(referenceStates, stateMap);
+	/**
+	 * Test state update operation.
+	 */
+	@Test
+	public void testUpdateState() {
+		testWithFunction(
+			(totalSize, stateMap, referenceStates) -> {
+				// update some states
+				for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
+					long namespace = namespaceEntry.getKey();
+					for (Map.Entry<Integer, String> keyEntry : namespaceEntry.getValue().entrySet()) {
+						if (random.nextBoolean()) {
+							int key = keyEntry.getKey();
+							String state = keyEntry.getValue();
+							String newState = state + "-update";
+							keyEntry.setValue(newState);
+							if (random.nextBoolean()) {
+								stateMap.put(key, namespace, newState);
+							} else {
+								assertEquals(state, stateMap.putAndGetOld(key, namespace, newState));
+							}
+						}
+					}
+				}
+				return totalSize;
+			});
+	}
 
+	/**
+	 * Test transform existing state.
+	 */
+	@Test
+	public void testTransformExistingState() throws Exception {
+		final AtomicReference<Exception> exceptionRef = new AtomicReference<>(null);
+		testWithFunction(
+			(totalSize, stateMap, referenceStates) -> {
+				StateTransformationFunction<String, Integer> function =
+					(String prevState, Integer value) -> prevState == null ? String.valueOf(value) : prevState + value;
+				// transform existing states
+				for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
+					long namespace = namespaceEntry.getKey();
+					try {
+						for (Map.Entry<Integer, String> keyEntry : namespaceEntry.getValue().entrySet()) {
+							if (random.nextBoolean()) {
+								int key = keyEntry.getKey();
+								String state = keyEntry.getValue();
+								int delta = random.nextInt();
+								String newState = function.apply(state, delta);
+								keyEntry.setValue(newState);
+								stateMap.transform(key, namespace, delta, function);
+							}
+						}
+					} catch (Exception e) {
+						exceptionRef.set(e);
+					}
+				}
+				return totalSize;
+			});
+		Exception e = exceptionRef.get();
+		if (e != null) {
+			throw e;
+		}
+	}
+
+	/**
+	 * Test transform with previous absent state.
+	 */
+	@Test
+	public void testTransformNewState() throws Exception {
+		final AtomicReference<Exception> exceptionRef = new AtomicReference<>(null);
+		testWithFunction(
+			(totalSize, stateMap, referenceStates) -> {
+				StateTransformationFunction<String, Integer> function =
+					(String prevState, Integer value) -> prevState == null ? String.valueOf(value) : prevState + value;
+				// transform some new states
+				for (long namespace = initNamespaceNumber; namespace < initNamespaceNumber + 5; namespace++) {
+					for (int key = 0; key < 100; key++) {
+						totalSize++;
+						int value = (int) (key * namespace);
+						try {
+							stateMap.transform(key, namespace, value, function);
+							String state = function.apply(null, value);
+							referenceStates.computeIfAbsent(namespace, (none) -> new HashMap<>()).put(key, state);
+						} catch (Exception e) {
+							exceptionRef.set(e);
+						}
+					}
+				}
+				return totalSize;
+			});
+		Exception e = exceptionRef.get();
+		if (e != null) {
+			throw e;
+		}
+	}
+
+	/**
+	 * Test remove namespace.
+	 */
+	@Test
+	public void testPurgeNamespace() {
+		testWithFunction(
+			(totalSize, stateMap, referenceStates) -> {
+				// empty some namespaces
+				Set<Long> removedNamespaces = new HashSet<>();
+				for (Map.Entry<Long, Map<Integer, String>> namespaceEntry : referenceStates.entrySet()) {
+					if (random.nextBoolean()) {
+						long namespace = namespaceEntry.getKey();
+						removedNamespaces.add(namespace);
+						for (Map.Entry<Integer, String> keyEntry : namespaceEntry.getValue().entrySet()) {
+							int key = keyEntry.getKey();
+							if (random.nextBoolean()) {
+								stateMap.remove(key, namespace);
+							} else {
+								assertEquals(keyEntry.getValue(), stateMap.removeAndGetOld(key, namespace));
+							}
+							totalSize--;
+						}
+					}
+				}
+
+				for (long namespace : removedNamespaces) {
+					referenceStates.remove(namespace);
+					// verify namespace related stuff.
+					assertEquals(0, stateMap.sizeOfNamespace(namespace));
+					assertFalse(stateMap.getKeys(namespace).iterator().hasNext());
+				}
+				return totalSize;
+			}
+		);
+	}
+
+	/**
+	 * Test close operation.
+	 */
+	@Test
+	public void testClose() {
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
+		putStates(stateMap, null);
 		stateMap.close();
+		assertTrue(stateMap.isClosed());
 		assertEquals(0, stateMap.size());
 		assertEquals(0, stateMap.totalSize());
-		// all spaces should be free
 		assertEquals(0, spaceAllocator.getTotalSpaceNumber());
-		assertTrue(stateMap.isClosed());
+	}
+
+	/**
+	 * Test with the given function.
+	 *
+	 * @param function a {@link TriFunction} with [totalSizeBeforeFunction, stateMap, referenceStates] as input
+	 *                 parameters and returns the totalSize after applying the function.
+	 */
+	private void testWithFunction(TriFunction<Integer, CopyOnWriteSkipListStateMap<Integer, Long, String>, Map<Long, Map<Integer, String>>, Integer> function) {
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap = createStateMapForTesting();
+		// map to store expected states, namespace -> key -> state
+		Map<Long, Map<Integer, String>> referenceStates = new HashMap<>();
+		int totalSize = putStates(stateMap, referenceStates);
+		totalSize = function.apply(totalSize, stateMap, referenceStates);
+		assertEquals(totalSize, stateMap.size());
+		assertEquals(totalSize, stateMap.totalSize());
+		assertEquals(totalSize * 2, spaceAllocator.getTotalSpaceNumber());
+		verifyState(referenceStates, stateMap);
+	}
+
+	private int putStates(
+		CopyOnWriteSkipListStateMap<Integer, Long, String> stateMap,
+		Map<Long, Map<Integer, String>> referenceStates) {
+		int totalSize = 0;
+		for (long namespace = 0; namespace < initNamespaceNumber; namespace++) {
+			for (int key = 0; key < 100; key++) {
+				totalSize++;
+				String state = String.valueOf(key * namespace);
+				if (random.nextBoolean()) {
+					stateMap.put(key, namespace, state);
+				} else {
+					assertNull(stateMap.putAndGetOld(key, namespace, state));
+				}
+				if (referenceStates != null) {
+					referenceStates.computeIfAbsent(namespace, (none) -> new HashMap<>()).put(key, state);
+				}
+			}
+		}
+		assertEquals(totalSize, stateMap.size());
+		assertEquals(totalSize, stateMap.totalSize());
+		return totalSize;
 	}
 
 	/**
@@ -1276,7 +1406,14 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 				.put(entry.getKey(), entry.getState());
 			assertNull(oldState);
 		}
-		assertEquals(referenceStates, actualStates);
+		referenceStates.forEach(
+			(ns, kvMap) -> {
+				if (kvMap.isEmpty()) {
+					assertThat(actualStates.get(ns), nullValue());
+				} else {
+					assertEquals(kvMap, actualStates.get(ns));
+				}
+			});
 
 		// validates getStateIncrementalVisitor()
 		InternalKvState.StateIncrementalVisitor<K, N, S> visitor =
@@ -1290,7 +1427,14 @@ public class CopyOnWriteSkipListStateMapTest extends TestLogger {
 				assertNull(oldState);
 			}
 		}
-		assertEquals(referenceStates, actualStates);
+		referenceStates.forEach(
+			(ns, kvMap) -> {
+				if (kvMap.isEmpty()) {
+					assertThat(actualStates.get(ns), nullValue());
+				} else {
+					assertEquals(kvMap, actualStates.get(ns));
+				}
+			});
 	}
 
 	private <K, N, S> Map<N, Map<K, S>> snapshotReferenceStates(Map<N, Map<K, S>> referenceStates) {
