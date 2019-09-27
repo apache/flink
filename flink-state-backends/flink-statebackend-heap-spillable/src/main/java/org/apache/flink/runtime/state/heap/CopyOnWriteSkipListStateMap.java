@@ -32,10 +32,12 @@ import org.apache.flink.runtime.state.heap.space.SpaceUtils;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.ResourceGuard;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -902,11 +904,11 @@ public final class CopyOnWriteSkipListStateMap<K, N, S> extends StateMap<K, N, S
 			long snapshotValuePointer = NIL_VALUE_POINTER;
 			long valuePointer;
 			ValueVersionIterator versionIterator = new ValueVersionIterator(node);
-			while (versionIterator.hasNext()){
+			while (versionIterator.hasNext()) {
 				valuePointer = versionIterator.getValuePointer();
 				int version = versionIterator.next();
 				// find the first value whose version is less than snapshotVersion
-				if ( snapshotValuePointer == NIL_VALUE_POINTER && version < snapshotVersion) {
+				if (snapshotValuePointer == NIL_VALUE_POINTER && version < snapshotVersion) {
 					snapshotValuePointer = valuePointer;
 					if (!isPruning) {
 						break;
