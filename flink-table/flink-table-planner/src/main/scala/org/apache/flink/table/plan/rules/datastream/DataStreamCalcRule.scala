@@ -55,7 +55,7 @@ class DataStreamCalcRule
       new RowSchema(convInput.getRowType),
       new RowSchema(rel.getRowType),
       calc.getProgram,
-      description)
+      "DataStreamCalcRule")
   }
 }
 

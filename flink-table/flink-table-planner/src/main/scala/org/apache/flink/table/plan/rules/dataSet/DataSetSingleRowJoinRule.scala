@@ -81,7 +81,7 @@ class DataSetSingleRowJoinRule
       join.getCondition,
       join.getRowType,
       join.getJoinType,
-      description)
+      "DataSetSingleRowJoinRule")
   }
 }
 

@@ -52,7 +52,7 @@ class DataSetDistinctRule
         traitSet,
         convInput,
         agg.getRowType,
-        description)
+        "DataSetDistinctRule")
     }
   }
 
