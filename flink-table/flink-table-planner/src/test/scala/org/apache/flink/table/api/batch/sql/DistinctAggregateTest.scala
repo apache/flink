@@ -57,7 +57,13 @@ class DistinctAggregateTest extends TableTestBase {
 
     val sqlQuery = "SELECT COUNT(DISTINCT a), SUM(DISTINCT a), MAX(DISTINCT a) FROM MyTable"
 
-    val expected = unaryNode(
+    val left = unaryNode("DataSetAggregate",
+      unaryNode("DataSetCalc",
+        batchTableNode(table),
+        term("select", "a")),
+      term("select", "MAX(a) AS EXPR$2"))
+
+    val right = unaryNode(
       "DataSetAggregate",
       unaryNode(
         "DataSetDistinct",
@@ -68,8 +74,17 @@ class DistinctAggregateTest extends TableTestBase {
         ),
         term("distinct", "a")
       ),
-      term("select", "COUNT(a) AS EXPR$0", "SUM(a) AS EXPR$1", "MAX(a) AS EXPR$2")
+      term("select", "COUNT(a) AS EXPR$0", "SUM(a) AS EXPR$1")
     )
+
+    val expected = unaryNode("DataSetCalc",
+      binaryNode("DataSetSingleRowJoin",
+        left,
+        right,
+        term("where", "true"),
+        term("join", "EXPR$2", "EXPR$0", "EXPR$1"),
+        term("joinType", "NestedLoopInnerJoin")),
+      term("select", "EXPR$0", "EXPR$1", "EXPR$2"))
 
     util.verifySql(sqlQuery, expected)
   }

@@ -283,7 +283,7 @@ class AggregateTest extends TableTestBase {
       ),
       term("window", "SlidingGroupWindow('w, 'rowtime, 3600000.millis, 900000.millis)"),
       term("select", "COUNT(DISTINCT a) AS EXPR$0", "SUM(DISTINCT a) AS EXPR$1",
-           "MAX(DISTINCT a) AS EXPR$2")
+           "MAX(a) AS EXPR$2")
     )
 
     util.verifyTable(result, expected)
