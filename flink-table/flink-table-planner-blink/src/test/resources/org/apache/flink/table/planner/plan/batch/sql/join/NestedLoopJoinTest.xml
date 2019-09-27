@@ -87,19 +87,18 @@ NestedLoopJoin(joinType=[FullOuterJoin], where=[true], select=[d, e, f, g, h, a,
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$8], g=[$3])
-+- LogicalJoin(condition=[AND(=($6, $0), $5)], joinType=[full])
-   :- LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], $f5=[<($0, 2)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
+LogicalProject(c=[$7], g=[$3])
++- LogicalJoin(condition=[AND(=($5, $0), <($0, 2))], joinType=[full])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[FullOuterJoin], where=[AND(=(a, d), $f5)], select=[d, g, $f5, a, c], build=[right])
++- NestedLoopJoin(joinType=[FullOuterJoin], where=[AND(=(a, d), <(d, 2))], select=[d, g, a, c], build=[left])
    :- Exchange(distribution=[single])
-   :  +- Calc(select=[d, g, <(d, 2) AS $f5])
+   :  +- Calc(select=[d, g])
    :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c])
@@ -113,22 +112,19 @@ Calc(select=[c, g])
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$6], b=[$7], c=[$8])
-+- LogicalJoin(condition=[AND(=($6, $0), $5, <($7, $4))], joinType=[full])
-   :- LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], $f5=[<($0, 2)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
+LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
++- LogicalJoin(condition=[AND(=($5, $0), <($0, 2), <($6, $4))], joinType=[full])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[d, e, f, g, h, a, b, c])
-+- NestedLoopJoin(joinType=[FullOuterJoin], where=[AND(=(a, d), $f5, <(b, h))], select=[d, e, f, g, h, $f5, a, b, c], build=[right])
-   :- Calc(select=[d, e, f, g, h, <(d, 2) AS $f5])
-   :  +- Exchange(distribution=[single])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
-   +- Exchange(distribution=[single])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+NestedLoopJoin(joinType=[FullOuterJoin], where=[AND(=(a, d), <(d, 2), <(b, h))], select=[d, e, f, g, h, a, b, c], build=[right])
+:- Exchange(distribution=[single])
+:  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
++- Exchange(distribution=[single])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -212,10 +208,9 @@ Calc(select=[CASE(IS NOT NULL(a), a, a0) AS $f0, b, c, b0, c0])
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$8], g=[$3])
-+- LogicalJoin(condition=[AND(=($6, $0), $5)], joinType=[inner])
-   :- LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], $f5=[<($0, 2)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
+LogicalProject(c=[$7], g=[$3])
++- LogicalJoin(condition=[AND(=($5, $0), <($0, 2))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
@@ -237,21 +232,18 @@ Calc(select=[c, g])
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$6], b=[$7], c=[$8])
-+- LogicalJoin(condition=[AND(=($6, $0), $5, <($7, $4))], joinType=[left])
-   :- LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], $f5=[<($0, 2)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
+LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
++- LogicalJoin(condition=[AND(=($5, $0), <($0, 2), <($6, $4))], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-Calc(select=[d, e, f, g, h, a, b, c])
-+- NestedLoopJoin(joinType=[LeftOuterJoin], where=[AND(=(a, d), $f5, <(b, h))], select=[d, e, f, g, h, $f5, a, b, c], build=[right])
-   :- Calc(select=[d, e, f, g, h, <(d, 2) AS $f5])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
-   +- Exchange(distribution=[broadcast])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+NestedLoopJoin(joinType=[LeftOuterJoin], where=[AND(=(a, d), <(d, 2), <(b, h))], select=[d, e, f, g, h, a, b, c], build=[right])
+:- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
++- Exchange(distribution=[broadcast])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -261,10 +253,9 @@ Calc(select=[d, e, f, g, h, a, b, c])
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$6], b=[$7], c=[$8])
-+- LogicalJoin(condition=[AND(=($6, $0), $5, <($7, $4))], joinType=[inner])
-   :- LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], $f5=[<($0, 2)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
+LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
++- LogicalJoin(condition=[AND(=($5, $0), <($0, 2), <($6, $4))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
@@ -467,18 +458,17 @@ NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[d, e, f, g, h, a,
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$8], g=[$3])
-+- LogicalJoin(condition=[AND(=($6, $0), $5)], joinType=[left])
-   :- LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], $f5=[<($0, 2)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
+LogicalProject(c=[$7], g=[$3])
++- LogicalJoin(condition=[AND(=($5, $0), <($0, 2))], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
 Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[LeftOuterJoin], where=[AND(=(a, d), $f5)], select=[d, g, $f5, a, c], build=[right])
-   :- Calc(select=[d, g, <(d, 2) AS $f5])
++- NestedLoopJoin(joinType=[LeftOuterJoin], where=[AND(=(a, d), <(d, 2))], select=[d, g, a, c], build=[right])
+   :- Calc(select=[d, g])
    :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]], fields=[d, e, f, g, h])
    +- Exchange(distribution=[broadcast])
       +- Calc(select=[a, c])
@@ -607,10 +597,9 @@ NestedLoopJoin(joinType=[RightOuterJoin], where=[true], select=[d, e, f, g, h, a
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(c=[$8], g=[$3])
-+- LogicalJoin(condition=[AND(=($6, $0), $5)], joinType=[right])
-   :- LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], $f5=[<($0, 2)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
+LogicalProject(c=[$7], g=[$3])
++- LogicalJoin(condition=[AND(=($5, $0), <($0, 2))], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
@@ -653,10 +642,9 @@ NestedLoopJoin(joinType=[RightOuterJoin], where=[<>(a, d)], select=[d, e, f, g, 
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$6], b=[$7], c=[$8])
-+- LogicalJoin(condition=[AND(=($6, $0), $5, <($7, $4))], joinType=[right])
-   :- LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], $f5=[<($0, 2)])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
+LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
++- LogicalJoin(condition=[AND(=($5, $0), <($0, 2), <($6, $4))], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(d, e, f, g, h)]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
@@ -682,11 +670,11 @@ ON (src1.k = src2.k AND src2.k > 10)
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(k=[$0], v=[$1], k0=[$2], v0=[$3])
-+- LogicalJoin(condition=[AND(=($0, $2), $4)], joinType=[left])
++- LogicalJoin(condition=[AND(=($0, $2), >($2, 10))], joinType=[left])
    :- LogicalProject(k=[$0], v=[$1])
    :  +- LogicalFilter(condition=[=($0, 0)])
    :     +- LogicalTableScan(table=[[default_catalog, default_database, src, source: [TestTableSource(k, v)]]])
-   +- LogicalProject(k=[$0], v=[$1], $f2=[>($0, 10)])
+   +- LogicalProject(k=[$0], v=[$1])
       +- LogicalFilter(condition=[=($0, 0)])
          +- LogicalTableScan(table=[[default_catalog, default_database, src, source: [TestTableSource(k, v)]]])
 ]]>
