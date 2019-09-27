@@ -26,6 +26,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -34,8 +35,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -136,40 +136,28 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 		}
 	}
 
-	@Test
+	@Test(timeout = 10000)
 	public void testImmediateShutdown() throws Exception {
+		final CompletableFuture<Throwable> errorFuture = new CompletableFuture<>();
 
-		final Object lock = new Object();
-		final AtomicReference<Throwable> errorRef = new AtomicReference<>();
-
-		final SystemProcessingTimeService timer = createSystemProcessingTimeService(errorRef);
+		final SystemProcessingTimeService timer = createSystemProcessingTimeService(errorFuture);
 
 		try {
 			assertFalse(timer.isTerminated());
 
 			final OneShotLatch latch = new OneShotLatch();
 
-			// the task should trigger immediately and should block until terminated with interruption
+			// the task should trigger immediately and sleep until terminated with interruption
 			timer.registerTimer(System.currentTimeMillis(), timestamp -> {
-				synchronized (lock) {
-					try {
-						latch.trigger();
-						Thread.sleep(100000000);
-						fail("should be interrupted");
-					} catch (InterruptedException ignored) {
-					}
-				}
+				latch.trigger();
+				Thread.sleep(100000000);
 			});
 
 			latch.await();
 			timer.shutdownService();
 
-			// can only enter this scope after the task is interrupted
-			synchronized (lock) {
-				assertTrue(timer.isTerminated());
-				assertThat(errorRef.get(), is(nullValue()));
-				assertEquals(0, timer.getNumTasksScheduled());
-			}
+			assertTrue(timer.isTerminated());
+			assertEquals(0, timer.getNumTasksScheduled());
 
 			try {
 				timer.registerTimer(System.currentTimeMillis() + 1000, timestamp -> fail("should not be called"));
@@ -179,7 +167,6 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 			catch (IllegalStateException e) {
 				// expected
 			}
-			assertThat(errorRef.get(), is(nullValue()));
 
 			try {
 				timer.scheduleAtFixedRate(timestamp -> fail("should not be called"), 0L, 100L);
@@ -189,7 +176,9 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 			catch (IllegalStateException e) {
 				// expected
 			}
-			assertThat(errorRef.get(), is(nullValue()));
+
+			// check that the task eventually responded to interruption
+			assertThat(errorFuture.get(), instanceOf(InterruptedException.class));
 		}
 		finally {
 			timer.shutdownService();
@@ -371,6 +360,12 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 		Assert.assertTrue(timerFinished.get());
 	}
 
+	private static SystemProcessingTimeService createSystemProcessingTimeService(CompletableFuture<Throwable> errorFuture) {
+		Preconditions.checkArgument(!errorFuture.isDone());
+
+		return new SystemProcessingTimeService(new TestOnTimerCompletablyCallbackContext(errorFuture));
+	}
+
 	private static SystemProcessingTimeService createSystemProcessingTimeService(AtomicReference<Throwable> errorRef) {
 
 		Preconditions.checkArgument(errorRef.get() == null);
@@ -432,6 +427,23 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 				callback.onProcessingTime(timestamp);
 			} catch (Throwable t) {
 				exceptionHandler.accept(t);
+			}
+		}
+	}
+
+	private static class TestOnTimerCompletablyCallbackContext implements SystemProcessingTimeService.ScheduledCallbackExecutionContext {
+		private final CompletableFuture<Throwable> completableExceptionHandler;
+
+		TestOnTimerCompletablyCallbackContext(CompletableFuture<Throwable> completableExceptionHandler) {
+			this.completableExceptionHandler = completableExceptionHandler;
+		}
+
+		@Override
+		public void invoke(ProcessingTimeCallback callback, long timestamp) {
+			try {
+				callback.onProcessingTime(timestamp);
+			} catch (Throwable t) {
+				completableExceptionHandler.complete(t);
 			}
 		}
 	}
