@@ -186,7 +186,7 @@ FlinkLogicalCalc(select=[a, EXPR$1, EXPR$2])
     </Resource>
     <Resource name="planBefore">
       <![CDATA[
-LogicalAggregate(group=[{0}], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[MAX(DISTINCT $1)], EXPR$3=[MIN(DISTINCT $2)])
+LogicalAggregate(group=[{0}], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[MAX($1)], EXPR$3=[MIN($2)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>

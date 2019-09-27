@@ -247,13 +247,13 @@ Calc(select=[EXPR$0, EXPR$1])
     <Resource name="planBefore">
       <![CDATA[
 LogicalProject(EXPR$0=[$0], EXPR$1=[$1], EXPR$2=[$2])
-+- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $0)], EXPR$2=[MAX(DISTINCT $0)], window=[SlidingGroupWindow('w, rowtime, 3600000, 900000)], properties=[])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)], EXPR$1=[SUM(DISTINCT $0)], EXPR$2=[MAX($0)], window=[SlidingGroupWindow('w, rowtime, 3600000, 900000)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="planAfter">
       <![CDATA[
-GroupWindowAggregate(window=[SlidingGroupWindow('w, rowtime, 3600000, 900000)], select=[COUNT(DISTINCT a) AS EXPR$0, SUM(DISTINCT a) AS EXPR$1, MAX(DISTINCT a) AS EXPR$2])
+GroupWindowAggregate(window=[SlidingGroupWindow('w, rowtime, 3600000, 900000)], select=[COUNT(DISTINCT a) AS EXPR$0, SUM(DISTINCT a) AS EXPR$1, MAX(a) AS EXPR$2])
 +- Exchange(distribution=[single])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
 ]]>
