@@ -558,6 +558,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         val right = operands(1)
         generateEquals(ctx, left, right)
 
+      case IS_NOT_DISTINCT_FROM =>
+        val left = operands.head
+        val right = operands(1)
+        generateIsNotDistinctFrom(ctx, left, right)
+
       case NOT_EQUALS =>
         val left = operands.head
         val right = operands(1)
