@@ -20,7 +20,6 @@ package org.apache.flink.table.plan.nodes.datastream
 
 import java.lang.{Boolean => JBoolean, Long => JLong}
 import java.util
-
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelFieldCollation.Direction
 import org.apache.calcite.rel._
@@ -59,6 +58,8 @@ import org.apache.flink.table.runtime.types.{CRow, CRowTypeInfo}
 import org.apache.flink.table.runtime.{RowKeySelector, RowtimeProcessFunction}
 import org.apache.flink.types.Row
 import org.apache.flink.util.MathUtils
+
+import org.apache.calcite.util.ImmutableBitSet
 
 /**
   * Flink RelNode which matches along with LogicalMatch.
@@ -236,12 +237,10 @@ class DataStreamMatch(
     }
   }
 
-  private def applyPartitioning(partitionKeys: util.List[RexNode], inputDs: DataStream[Row])
+  private def applyPartitioning(partitionKeys: ImmutableBitSet, inputDs: DataStream[Row])
     : DataStream[Row] = {
     if (partitionKeys.size() > 0) {
-      val keys = partitionKeys.asScala.map {
-        case ref: RexInputRef => ref.getIndex
-      }.toArray
+      val keys = partitionKeys.toArray
       val keySelector = new RowKeySelector(keys, inputSchema.projectedTypeInfo(keys))
       inputDs.keyBy(keySelector)
     } else {

@@ -390,6 +390,16 @@ object ScalarOperatorGens {
     }
   }
 
+  def generateIsNotDistinctFrom(
+      ctx: CodeGeneratorContext,
+      left: GeneratedExpression,
+      right: GeneratedExpression)
+    : GeneratedExpression = {
+    generateOr(ctx,
+      generateAnd(ctx, generateIsNull(ctx, left), generateIsNull(ctx, right)),
+      generateEquals(ctx, left, right))
+  }
+
   def generateNotEquals(
       ctx: CodeGeneratorContext,
       left: GeneratedExpression,
