@@ -41,6 +41,8 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
 	private InputDependencyConstraint inputDependencyConstraint;
 
+	private ExecutionState state = ExecutionState.CREATED;
+
 	public TestingSchedulingExecutionVertex(JobVertexID jobVertexId, int subtaskIndex) {
 		this(jobVertexId, subtaskIndex, InputDependencyConstraint.ANY);
 	}
@@ -70,7 +72,7 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
 	@Override
 	public ExecutionState getState() {
-		return ExecutionState.CREATED;
+		return state;
 	}
 
 	@Override
@@ -94,5 +96,10 @@ public class TestingSchedulingExecutionVertex implements SchedulingExecutionVert
 
 	void addProducedPartition(SchedulingResultPartition partition) {
 		producedPartitions.add(partition);
+	}
+
+	public TestingSchedulingExecutionVertex transitionState(ExecutionState state) {
+		this.state = state;
+		return this;
 	}
 }
