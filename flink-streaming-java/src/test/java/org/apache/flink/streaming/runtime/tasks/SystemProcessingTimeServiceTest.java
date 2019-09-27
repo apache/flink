@@ -136,7 +136,7 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 		}
 	}
 
-	@Test(timeout = 10000)
+	@Test
 	public void testImmediateShutdown() throws Exception {
 		final CompletableFuture<Throwable> errorFuture = new CompletableFuture<>();
 
@@ -178,7 +178,7 @@ public class SystemProcessingTimeServiceTest extends TestLogger {
 			}
 
 			// check that the task eventually responded to interruption
-			assertThat(errorFuture.get(), instanceOf(InterruptedException.class));
+			assertThat(errorFuture.get(5, TimeUnit.SECONDS), instanceOf(InterruptedException.class));
 		}
 		finally {
 			timer.shutdownService();
