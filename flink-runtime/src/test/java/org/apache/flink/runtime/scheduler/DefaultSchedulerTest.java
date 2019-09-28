@@ -41,6 +41,7 @@ import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.ScheduleMode;
+import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmanager.scheduler.ScheduledUnit;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -69,10 +70,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.util.ExceptionUtils.findThrowable;
+import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link DefaultScheduler}.
@@ -238,6 +242,16 @@ public class DefaultSchedulerTest extends TestLogger {
 		waitForTermination(scheduler);
 		final JobStatus jobStatus = scheduler.requestJobStatus();
 		assertThat(jobStatus, is(Matchers.equalTo(JobStatus.FAILED)));
+
+		Throwable failureCause = scheduler.requestJob()
+			.getFailureInfo()
+			.getException()
+			.deserializeError(DefaultSchedulerTest.class.getClassLoader());
+		assertTrue(findThrowable(failureCause, NoResourceAvailableException.class).isPresent());
+		assertTrue(
+			findThrowableWithMessage(
+				failureCause,
+				"Could not allocate the required slot within slot request timeout.").isPresent());
 	}
 
 	private void drainAllAvailableSlots() {
