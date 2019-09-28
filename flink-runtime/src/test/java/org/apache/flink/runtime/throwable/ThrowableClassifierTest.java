@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.throwable;
 
 import org.apache.flink.runtime.execution.SuppressRestartsException;
-import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -37,9 +36,6 @@ public class ThrowableClassifierTest extends TestLogger {
 	public void testThrowableType_NonRecoverable() {
 		assertEquals(ThrowableType.NonRecoverableError,
 			ThrowableClassifier.getThrowableType(new SuppressRestartsException(new Exception(""))));
-
-		assertEquals(ThrowableType.NonRecoverableError,
-			ThrowableClassifier.getThrowableType(new NoResourceAvailableException()));
 	}
 
 	@Test
