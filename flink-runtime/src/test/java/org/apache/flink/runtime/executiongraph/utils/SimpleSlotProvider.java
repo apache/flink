@@ -46,6 +46,7 @@ import java.net.InetAddress;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -113,7 +114,11 @@ public class SimpleSlotProvider implements SlotProvider, SlotOwner {
 				return CompletableFuture.completedFuture(result);
 			}
 			else {
-				return FutureUtils.completedExceptionally(new NoResourceAvailableException());
+				if (allowQueued) {
+					return FutureUtils.completedExceptionally(new TimeoutException());
+				} else {
+					return FutureUtils.completedExceptionally(new NoResourceAvailableException());
+				}
 			}
 		}
 	}
