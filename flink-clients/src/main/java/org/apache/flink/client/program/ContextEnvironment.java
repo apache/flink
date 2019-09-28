@@ -21,9 +21,13 @@ package org.apache.flink.client.program;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.optimizer.DataStatistics;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.costs.DefaultCostEstimator;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import java.net.URL;
@@ -48,8 +52,12 @@ public class ContextEnvironment extends ExecutionEnvironment {
 
 	private boolean alreadyCalled;
 
-	public ContextEnvironment(ClusterClient<?> remoteConnection, List<URL> jarFiles, List<URL> classpaths,
-				ClassLoader userCodeClassLoader, SavepointRestoreSettings savepointSettings, boolean detached) {
+	public ContextEnvironment(
+		ClusterClient<?> remoteConnection,
+		List<URL> jarFiles,
+		List<URL> classpaths,
+		ClassLoader userCodeClassLoader,
+		SavepointRestoreSettings savepointSettings, boolean detached) {
 		this.client = remoteConnection;
 		this.jarFilesToAttach = jarFiles;
 		this.classpathsToAttach = classpaths;
@@ -65,15 +73,19 @@ public class ContextEnvironment extends ExecutionEnvironment {
 		verifyExecuteIsCalledOnceWhenInDetachedMode();
 
 		final Plan plan = createProgramPlan(jobName);
-		final JobSubmissionResult jobSubmissionResult = client.run(
-			plan,
+		final Optimizer optimizer = new Optimizer(
+			new DataStatistics(),
+			new DefaultCostEstimator(),
+			client.getFlinkConfiguration());
+		final OptimizedPlan optimizedPlan = ClientUtils.getOptimizedPlan(optimizer, plan, getParallelism());
+		final JobGraph jobGraph = ClientUtils.getJobGraph(
+			client.getFlinkConfiguration(),
+			optimizedPlan,
 			jarFilesToAttach,
 			classpathsToAttach,
-			userCodeClassLoader,
-			getParallelism(),
 			savepointSettings);
 
-		lastJobExecutionResult = jobSubmissionResult.getJobExecutionResult();
+		lastJobExecutionResult = client.submitJob(jobGraph, userCodeClassLoader).getJobExecutionResult();
 		return lastJobExecutionResult;
 	}
 

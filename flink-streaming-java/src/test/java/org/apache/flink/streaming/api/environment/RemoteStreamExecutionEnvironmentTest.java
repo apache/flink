@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.TestLogger;
 
@@ -29,11 +30,14 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 /**
  * Tests for the {@link RemoteStreamEnvironment}.
@@ -53,10 +57,8 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 		JobExecutionResult expectedResult = new JobExecutionResult(null, 0, null);
 
 		RestClusterClient mockedClient = Mockito.mock(RestClusterClient.class);
-		when(mockedClient.run(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
-			.thenReturn(expectedResult);
-
-		PowerMockito.whenNew(RestClusterClient.class).withAnyArguments().thenAnswer((invocation) -> {
+		when(mockedClient.submitJob(any(JobGraph.class), any(ClassLoader.class))).thenReturn(expectedResult);
+		whenNew(RestClusterClient.class).withAnyArguments().thenAnswer((invocation) -> {
 				Object[] args = invocation.getArguments();
 				Configuration config = (Configuration) args[0];
 
@@ -67,8 +69,7 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 		);
 
 		final Configuration clientConfiguration = new Configuration();
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(
-			host, port, clientConfiguration);
+		final StreamExecutionEnvironment env = StreamExecutionEnvironment.createRemoteEnvironment(host, port, clientConfiguration);
 		env.fromElements(1).map(x -> x * 2);
 		JobExecutionResult actualResult = env.execute("fakeJobName");
 		Assert.assertEquals(expectedResult, actualResult);
@@ -77,16 +78,24 @@ public class RemoteStreamExecutionEnvironmentTest extends TestLogger {
 	@Test
 	public void testRemoteExecutionWithSavepoint() throws Exception {
 		SavepointRestoreSettings restoreSettings = SavepointRestoreSettings.forPath("fakePath");
-		RemoteStreamEnvironment env = new RemoteStreamEnvironment("fakeHost", 1,
-			null, new String[]{}, null, restoreSettings);
+		RemoteStreamEnvironment env = new RemoteStreamEnvironment(
+			"fakeHost",
+			1,
+			null,
+			new String[]{},
+			null,
+			restoreSettings);
 		env.fromElements(1).map(x -> x * 2);
 
 		RestClusterClient mockedClient = Mockito.mock(RestClusterClient.class);
 		JobExecutionResult expectedResult = new JobExecutionResult(null, 0, null);
+		when(mockedClient.submitJob(any(JobGraph.class), any(ClassLoader.class))).thenAnswer(invocation -> {
+			JobGraph jobGraph = invocation.getArgument(0);
+			assertThat(jobGraph.getSavepointRestoreSettings(), is(restoreSettings));
+			return expectedResult;
+		});
 
-		PowerMockito.whenNew(RestClusterClient.class).withAnyArguments().thenReturn(mockedClient);
-		when(mockedClient.run(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.eq(restoreSettings)))
-			.thenReturn(expectedResult);
+		whenNew(RestClusterClient.class).withAnyArguments().thenReturn(mockedClient);
 
 		JobExecutionResult actualResult = env.execute("fakeJobName");
 		Assert.assertEquals(expectedResult, actualResult);

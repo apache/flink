@@ -21,11 +21,17 @@ package org.apache.flink.client;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.Plan;
 import org.apache.flink.api.common.PlanExecutor;
+import org.apache.flink.client.program.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.optimizer.DataStatistics;
+import org.apache.flink.optimizer.Optimizer;
+import org.apache.flink.optimizer.costs.DefaultCostEstimator;
+import org.apache.flink.optimizer.plan.OptimizedPlan;
+import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import java.net.InetSocketAddress;
@@ -118,15 +124,23 @@ public class RemoteExecutor extends PlanExecutor {
 		checkNotNull(plan);
 
 		try (ClusterClient<?> client = new RestClusterClient<>(clientConfiguration, "RemoteExecutor")) {
-			ClassLoader classLoader = ClientUtils.buildUserCodeClassLoader(jarFiles, globalClasspaths, getClass().getClassLoader());
-
-			return client.run(
-				plan,
+			ClassLoader classLoader = ClientUtils.buildUserCodeClassLoader(
 				jarFiles,
 				globalClasspaths,
-				classLoader,
-				defaultParallelism,
-				SavepointRestoreSettings.none()).getJobExecutionResult();
+				getClass().getClassLoader());
+			Optimizer optimizer = new Optimizer(
+				new DataStatistics(),
+				new DefaultCostEstimator(),
+				clientConfiguration);
+			OptimizedPlan optimizedPlan = ClientUtils.getOptimizedPlan(optimizer, plan, defaultParallelism);
+			JobGraph jobGraph = ClientUtils.getJobGraph(
+				clientConfiguration,
+				optimizedPlan,
+				jarFiles,
+				globalClasspaths,
+				SavepointRestoreSettings.none());
+
+			return client.submitJob(jobGraph, classLoader).getJobExecutionResult();
 		}
 	}
 }

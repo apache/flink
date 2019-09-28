@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.client;
+package org.apache.flink.client.program;
 
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.Plan;
-import org.apache.flink.client.program.OptimizerPlanEnvironment;
-import org.apache.flink.client.program.PackagedProgram;
-import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.optimizer.CompilerException;
@@ -36,6 +35,8 @@ import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
 
 import java.io.File;
 import java.io.IOException;
@@ -142,5 +143,51 @@ public enum ClientUtils {
 		job.setClasspaths(classpaths);
 
 		return job;
+	}
+
+	/**
+	 * General purpose method to run a user jar from the CliFrontend in either blocking or detached mode, depending
+	 * on whether {@code setDetached(true)} or {@code setDetached(false)}.
+	 * @param program the packaged program
+	 * @param parallelism the parallelism to execute the contained Flink job
+	 * @return The result of the execution
+	 */
+	@Nonnull
+	public static JobSubmissionResult executeProgram(
+		ClusterClient<?> client,
+		PackagedProgram program,
+		int parallelism) throws ProgramInvocationException, ProgramMissingJobException {
+		final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+		try {
+			Thread.currentThread().setContextClassLoader(program.getUserCodeClassLoader());
+
+			LOG.info("Starting program (detached: {})", client.isDetached());
+
+			final List<URL> libraries = program.getAllLibraries();
+
+			ContextEnvironmentFactory factory = new ContextEnvironmentFactory(
+				client,
+				libraries,
+				program.getClasspaths(),
+				program.getUserCodeClassLoader(),
+				parallelism,
+				client.isDetached(),
+				program.getSavepointSettings());
+			ContextEnvironment.setAsContext(factory);
+
+			try {
+				// invoke main method
+				program.invokeInteractiveModeForExecution();
+				JobExecutionResult result = client.getLastJobExecutionResult();
+				if (result == null) {
+					throw new ProgramMissingJobException("The program didn't contain a Flink job.");
+				}
+				return result;
+			} finally {
+				ContextEnvironment.unsetContext();
+			}
+		} finally {
+			Thread.currentThread().setContextClassLoader(contextClassLoader);
+		}
 	}
 }

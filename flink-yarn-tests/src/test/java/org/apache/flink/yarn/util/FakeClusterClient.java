@@ -18,6 +18,7 @@
 
 package org.apache.flink.yarn.util;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.client.program.ClusterClient;
@@ -110,6 +111,11 @@ public class FakeClusterClient extends ClusterClient<ApplicationId> {
 
 	@Override
 	public CompletableFuture<JobResult> requestJobResult(@Nonnull JobID jobId) {
+		throw new UnsupportedOperationException("Not needed in test.");
+	}
+
+	@Override
+	public JobExecutionResult getLastJobExecutionResult() {
 		throw new UnsupportedOperationException("Not needed in test.");
 	}
 }

@@ -18,7 +18,7 @@
 
 package org.apache.flink.formats.avro;
 
-import org.apache.flink.client.ClientUtils;
+import org.apache.flink.client.program.ClientUtils;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.formats.avro.testjar.AvroExternalJarProgram;

@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.program;
 
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.configuration.Configuration;
@@ -49,10 +50,16 @@ import java.util.concurrent.ExecutionException;
 public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClusterId> {
 
 	private final MiniCluster miniCluster;
+	private JobExecutionResult lastJobExecutionResult;
 
 	public MiniClusterClient(@Nonnull Configuration configuration, @Nonnull MiniCluster miniCluster) {
 		super(configuration);
 		this.miniCluster = miniCluster;
+	}
+
+	@Override
+	public JobExecutionResult getLastJobExecutionResult() {
+		return lastJobExecutionResult;
 	}
 
 	@Override
@@ -63,7 +70,7 @@ public class MiniClusterClient extends ClusterClient<MiniClusterClient.MiniClust
 			try {
 				final JobSubmissionResult jobSubmissionResult = jobSubmissionResultFuture.get();
 
-				lastJobExecutionResult = new DetachedJobExecutionResult(jobSubmissionResult.getJobID());
+				this.lastJobExecutionResult = new DetachedJobExecutionResult(jobSubmissionResult.getJobID());
 				return lastJobExecutionResult;
 			} catch (InterruptedException | ExecutionException e) {
 				ExceptionUtils.checkInterrupted(e);

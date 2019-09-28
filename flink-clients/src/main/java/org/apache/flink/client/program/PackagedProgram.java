@@ -19,7 +19,6 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.api.common.ProgramDescription;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.util.InstantiationUtil;
