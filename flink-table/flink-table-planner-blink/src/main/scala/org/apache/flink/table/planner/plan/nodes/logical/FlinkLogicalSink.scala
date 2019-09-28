@@ -41,13 +41,14 @@ class FlinkLogicalSink(
     input: RelNode,
     sink: TableSink[_],
     sinkName: String,
-    val catalogTable: CatalogTable)
+    val catalogTable: CatalogTable,
+    val staticPartitions: Map[String, String])
   extends Sink(cluster, traitSet, input, sink, sinkName)
   with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
     new FlinkLogicalSink(
-      cluster, traitSet, inputs.head, sink, sinkName, catalogTable)
+      cluster, traitSet, inputs.head, sink, sinkName, catalogTable, staticPartitions)
   }
 
 }
@@ -66,7 +67,8 @@ private class FlinkLogicalSinkConverter
       newInput,
       sink.sink,
       sink.sinkName,
-      sink.catalogTable)
+      sink.catalogTable,
+      sink.staticPartitions)
   }
 }
 
@@ -77,10 +79,11 @@ object FlinkLogicalSink {
       input: RelNode,
       sink: TableSink[_],
       sinkName: String,
-      catalogTable: CatalogTable = null): FlinkLogicalSink = {
+      catalogTable: CatalogTable = null,
+      staticPartitions: Map[String, String] = Map()): FlinkLogicalSink = {
     val cluster = input.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
     new FlinkLogicalSink(
-      cluster, traitSet, input, sink, sinkName, catalogTable)
+      cluster, traitSet, input, sink, sinkName, catalogTable, staticPartitions)
   }
 }

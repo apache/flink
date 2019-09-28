@@ -45,18 +45,23 @@ class BatchExecSinkRule extends ConverterRule(
     if (sinkNode.catalogTable != null && sinkNode.catalogTable.isPartitioned) {
       sinkNode.sink match {
         case partitionSink: PartitionableTableSink =>
-          val partKeys = sinkNode.catalogTable.getPartitionKeys
-          val partitionIndices =
-            partKeys.map(partitionSink.getTableSchema.getFieldNames.indexOf(_))
+          partitionSink.setStaticPartition(sinkNode.staticPartitions)
+          val dynamicPartFields = sinkNode.catalogTable.getPartitionKeys
+              .filter(!sinkNode.staticPartitions.contains(_))
 
-          requiredTraitSet = requiredTraitSet.plus(
-            FlinkRelDistribution.hash(partitionIndices
-                .map(Integer.valueOf), requireStrict = false))
+          if (dynamicPartFields.nonEmpty) {
+            val dynamicPartIndices =
+              dynamicPartFields.map(partitionSink.getTableSchema.getFieldNames.indexOf(_))
 
-          if (partitionSink.configurePartitionGrouping(true)) {
-            // default to asc.
-            val fieldCollations = partitionIndices.map(FlinkRelOptUtil.ofRelFieldCollation)
-            requiredTraitSet = requiredTraitSet.plus(RelCollations.of(fieldCollations: _*))
+            requiredTraitSet = requiredTraitSet.plus(
+              FlinkRelDistribution.hash(dynamicPartIndices
+                  .map(Integer.valueOf), requireStrict = false))
+
+            if (partitionSink.configurePartitionGrouping(true)) {
+              // default to asc.
+              val fieldCollations = dynamicPartIndices.map(FlinkRelOptUtil.ofRelFieldCollation)
+              requiredTraitSet = requiredTraitSet.plus(RelCollations.of(fieldCollations: _*))
+            }
           }
         case _ => throw new TableException("We need PartitionableTableSink to write data to" +
             s" partitioned table: ${sinkNode.sinkName}")

@@ -40,7 +40,7 @@ import org.apache.flink.table.planner.plan.reuse.SubplanReuser
 import org.apache.flink.table.planner.plan.utils.SameRelObjectShuttle
 import org.apache.flink.table.planner.sinks.{DataStreamTableSink, TableSinkUtils}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
-import org.apache.flink.table.sinks.{OverwritableTableSink, PartitionableTableSink, TableSink}
+import org.apache.flink.table.sinks.{OverwritableTableSink, TableSink}
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
@@ -176,11 +176,6 @@ abstract class PlannerBase(
         getTableSink(identifier).map { case (table, sink) =>
           TableSinkUtils.validateSink(catalogSink, identifier, sink, table.getPartitionKeys)
           sink match {
-            case partitionableSink: PartitionableTableSink =>
-              partitionableSink.setStaticPartition(catalogSink.getStaticPartitions)
-            case _ =>
-          }
-          sink match {
             case overwritableTableSink: OverwritableTableSink =>
               overwritableTableSink.setOverwrite(catalogSink.isOverwrite)
             case _ =>
@@ -188,7 +183,12 @@ abstract class PlannerBase(
                 s"${classOf[OverwritableTableSink].getSimpleName} but actually got " +
                 sink.getClass.getName)
           }
-          LogicalSink.create(input, sink, identifier.toString, table)
+          LogicalSink.create(
+            input,
+            sink,
+            identifier.toString,
+            table,
+            catalogSink.getStaticPartitions.toMap)
         } match {
           case Some(sinkRel) => sinkRel
           case None =>

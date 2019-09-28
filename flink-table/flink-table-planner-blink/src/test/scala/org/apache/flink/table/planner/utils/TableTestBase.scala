@@ -87,13 +87,15 @@ abstract class TableTestBase {
   @Rule
   def name: TestName = testName
 
-  def streamTestUtil(): StreamTableTestUtil = StreamTableTestUtil(this)
+  def streamTestUtil(conf: TableConfig = new TableConfig): StreamTableTestUtil =
+    StreamTableTestUtil(this, conf = conf)
 
   def scalaStreamTestUtil(): ScalaStreamTableTestUtil = ScalaStreamTableTestUtil(this)
 
   def javaStreamTestUtil(): JavaStreamTableTestUtil = JavaStreamTableTestUtil(this)
 
-  def batchTestUtil(): BatchTableTestUtil = BatchTableTestUtil(this)
+  def batchTestUtil(conf: TableConfig = new TableConfig): BatchTableTestUtil =
+    BatchTableTestUtil(this, conf = conf)
 
   def scalaBatchTestUtil(): ScalaBatchTableTestUtil = ScalaBatchTableTestUtil(this)
 
@@ -478,9 +480,9 @@ abstract class TableTestUtil(
     test: TableTestBase,
     // determines if the table environment should work in a batch or streaming mode
     isStreamingMode: Boolean,
-    catalogManager: Option[CatalogManager] = None)
+    catalogManager: Option[CatalogManager] = None,
+    val tableConfig: TableConfig)
   extends TableTestUtilBase(test, isStreamingMode) {
-  protected val tableConfig: TableConfig = new TableConfig
   protected val testingTableEnv: TestingTableEnvironment =
     TestingTableEnvironment.create(setting, catalogManager, tableConfig)
   val tableEnv: TableEnvironment = testingTableEnv
@@ -558,12 +560,32 @@ abstract class TableTestUtil(
     testingTableEnv.registerFunction(name, function)
   }
 
+  def verifySqlUpdate(sql: String): Unit = {
+    doVerifySqlUpdate(
+      sql,
+      SqlExplainLevel.DIGEST_ATTRIBUTES,
+      withRowType = false,
+      withRetractTraits = false,
+      printPlanBefore = true)
+  }
+
   def verifyPlan(): Unit = {
     doVerifyPlan(
       SqlExplainLevel.DIGEST_ATTRIBUTES,
       withRowType = false,
       withRetractTraits = false,
       printPlanBefore = true)
+  }
+
+  def doVerifySqlUpdate(
+      sql: String,
+      explainLevel: SqlExplainLevel,
+      withRowType: Boolean,
+      withRetractTraits: Boolean,
+      printPlanBefore: Boolean): Unit = {
+    tableEnv.sqlUpdate(sql)
+    assertEqualsOrExpand("sql", sql)
+    doVerifyPlan(explainLevel, withRowType, withRetractTraits, printPlanBefore)
   }
 
   def doVerifyPlan(
@@ -675,8 +697,9 @@ abstract class JavaTableTestUtil(
   */
 case class StreamTableTestUtil(
     test: TableTestBase,
-    catalogManager: Option[CatalogManager] = None)
-  extends TableTestUtil(test, isStreamingMode = true, catalogManager) {
+    catalogManager: Option[CatalogManager] = None,
+    conf: TableConfig = new TableConfig)
+  extends TableTestUtil(test, isStreamingMode = true, catalogManager, conf) {
 
   /**
     * Register a table with specific row time field and offset.
@@ -814,8 +837,9 @@ case class JavaStreamTableTestUtil(test: TableTestBase) extends JavaTableTestUti
   */
 case class BatchTableTestUtil(
     test: TableTestBase,
-    catalogManager: Option[CatalogManager] = None)
-  extends TableTestUtil(test, isStreamingMode = false, catalogManager) {
+    catalogManager: Option[CatalogManager] = None,
+    conf: TableConfig = new TableConfig)
+  extends TableTestUtil(test, isStreamingMode = false, catalogManager, conf) {
 
   def buildBatchProgram(firstProgramNameToRemove: String): Unit = {
     val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig.getConfiguration)
